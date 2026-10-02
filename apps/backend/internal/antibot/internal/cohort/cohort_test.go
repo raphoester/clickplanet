@@ -14,7 +14,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 )
 
-// The bounds cmd/api/example.yaml ships.
 func newWatchdog() *cohort.Watchdog {
 	return cohort.New(cohort.Config{
 		StartWindow:    5 * time.Second,
@@ -40,14 +39,11 @@ func at(clock string) time.Time {
 	return time.Date(2026, 9, 14, t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
 }
 
-// identity is one scope of a pool: when it started, how long it stayed, and the
-// pace it clicked at.
 type identity struct {
-	scope string
-	first time.Time
-	stays time.Duration
-	gap   time.Duration
-	// jitter is the most a gap strays from gap, either way.
+	scope  string
+	first  time.Time
+	stays  time.Duration
+	gap    time.Duration
 	jitter time.Duration
 	flag   string
 }
@@ -58,10 +54,8 @@ type click struct {
 	at    time.Time
 }
 
-// replay merges every identity's clicks into the one stream the server sees.
 func replay(seed uint64, identities ...identity) []click {
-	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
-	// stream replays exactly. Not security-relevant.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(seed, seed+1))
 
 	var clicks []click
@@ -78,13 +72,11 @@ func replay(seed uint64, identities ...identity) []click {
 }
 
 type reading struct {
-	verdict detect.Verdict
-	// firstCertain is when the scope first read Certain, zero if it never did.
+	verdict      detect.Verdict
 	firstCertain time.Time
 	evidence     detect.Evidence
 }
 
-// run feeds the stream the way the jury does and keeps each scope's strongest reading.
 func run(w *cohort.Watchdog, clicks []click) map[string]reading {
 	out := map[string]reading{}
 
@@ -106,13 +98,8 @@ func run(w *cohort.Watchdog, clicks []click) map[string]reading {
 	return out
 }
 
-// The pool of 2026-09-14, through Firefox's built-in VPN. Pairs of /64s started
-// in the same second, painted bg at ~30 tiles a minute for ~476s, and were
-// followed at once by the next pair. No identity lived long enough for any
-// watchdog judging one scope to read anything, and none did all day.
 func firefoxPool(bot func(scope, first string) identity) []identity {
 	return []identity{
-		// Three more started 19:43:18-19:43:22.
 		bot("2a00:8c40:f0c2:11a0::/64", "19:43:18.204"),
 		bot("2a00:8c40:f0c8:5e31::/64", "19:43:20.117"),
 		bot("2a00:8c40:f0cd:0b7c::/64", "19:43:22.031"),
@@ -142,8 +129,6 @@ func poolBot(scope, first string) identity {
 func TestTheFirefoxVPNPoolIsCaught(t *testing.T) {
 	readings := run(newWatchdog(), replay(1, firefoxPool(poolBot)...))
 
-	// The first two groups are all there is to go on when they arrive: in step,
-	// and nothing more, which is exactly what two friends joining a war are.
 	for _, scope := range []string{
 		"2a00:8c40:f0c2:11a0::/64", "2a00:8c40:f0c8:5e31::/64", "2a00:8c40:f0cd:0b7c::/64",
 		"2a00:8c40:f0c7:a1a5::/64", "2a00:8c40:f0ce:fda7::/64",
@@ -151,7 +136,6 @@ func TestTheFirefoxVPNPoolIsCaught(t *testing.T) {
 		assert.Equal(t, detect.Suspect, readings[scope].verdict, scope)
 	}
 
-	// The third is the third link of a chain, and every one after it is too.
 	for _, id := range []identity{
 		poolBot("2a00:8c40:f0c5:6713::/64", "19:54:32.516"),
 		poolBot("2a00:8c40:f0c1:9190::/64", "19:54:32.521"),
@@ -162,12 +146,10 @@ func TestTheFirefoxVPNPoolIsCaught(t *testing.T) {
 		require.Equal(t, detect.Certain, r.verdict, id.scope)
 		assert.Equal(t, "chain", r.evidence.Rule)
 
-		// Minutes into an eight-minute identity is most of it given back.
 		assert.Less(t, r.firstCertain.Sub(id.first), time.Minute, "certain as soon as it has clicked enough to compare")
 	}
 }
 
-// The cheap counter-move: stagger the start of each identity past the window.
 func TestAPoolThatStaggersItsStartsIsNotACohort(t *testing.T) {
 	readings := run(newWatchdog(), replay(2,
 		poolBot("2a00:8c40:f0c7:a1a5::/64", "19:46:30.000"),
@@ -179,9 +161,6 @@ func TestAPoolThatStaggersItsStartsIsNotACohort(t *testing.T) {
 	}
 }
 
-// Two players join the same flag war in the same second, from the same ISP, and
-// happen to click at the same pace for half an hour. That is the worst case this
-// watchdog has to survive, and it is only a suspicion.
 func TestTwoPlayersJoiningAFlagWarTogetherAreOnlySuspect(t *testing.T) {
 	player := func(scope string, gap time.Duration) identity {
 		return identity{
@@ -204,7 +183,6 @@ func TestTwoPlayersJoiningAFlagWarTogetherAreOnlySuspect(t *testing.T) {
 	}
 }
 
-// The same two players, except that one has had enough after three minutes.
 func TestAPartnerWhoLeavesClearsTheOneWhoStays(t *testing.T) {
 	w := newWatchdog()
 
@@ -247,12 +225,8 @@ func TestPlayersOnDifferentFlagsOrPacesAreClear(t *testing.T) {
 	}
 }
 
-// A raid: a link is posted, and every few minutes a fresh wave of people starts
-// painting the same flag at the throttle's pace, all within seconds of each
-// other. Wave after wave looks like a chain — except that it comes from all over.
 func TestARaidFromAllOverIsNeverCertain(t *testing.T) {
-	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
-	// stream replays exactly. Not security-relevant.
+	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(6, 7))
 
 	identities := make([]identity, 0, 6*12)
@@ -280,11 +254,9 @@ func TestARaidFromAllOverIsNeverCertain(t *testing.T) {
 		}
 	}
 
-	// What holds is the missing range, not a wave too loose to be in step at all.
 	assert.Positive(t, suspects)
 }
 
-// Lockstep across many scopes of one range reads Certain without waiting for a chain.
 func TestManyScopesInStepFromOneRangeAreCertain(t *testing.T) {
 	identities := make([]identity, 0, 6)
 	for i := range 6 {
@@ -299,7 +271,6 @@ func TestManyScopesInStepFromOneRangeAreCertain(t *testing.T) {
 	}
 }
 
-// A scope that is not an address has no range, so it can be in step but never in a chain.
 func TestScopesThatAreNotAddressesAreNeverCertain(t *testing.T) {
 	identities := make([]identity, 0, 8)
 	for i := range 8 {

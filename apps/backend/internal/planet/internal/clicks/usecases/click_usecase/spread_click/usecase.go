@@ -1,12 +1,3 @@
-// Package spread_click is the spread bonus: while the player has it switched on,
-// each click spends one from the pool and also takes every tile touching it.
-//
-// The server picks those tiles off its own map. A client that named them would
-// be a client that could name any tiles it liked, which is the whole of the cheat.
-//
-// Each tile touched follows the home-soil rule, exactly as a click on it would:
-// a neighbour on another country's own ground that wears its flag is cleared, not
-// taken. A bonus is never a way around the rule.
 package spread_click
 
 import (
@@ -18,12 +9,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 )
 
-// Spreads spends one click of a caller's spread charge, and says whether there was one.
 type Spreads interface {
 	SpendSpreadClick(holder bonuses.Holder) bool
 }
 
-// Neighbours is the part of clicks.Geography this reads.
 type Neighbours interface {
 	Neighbours(id uint32) []uint32
 }
@@ -33,12 +22,10 @@ type TileStorage interface {
 	Set(ctx context.Context, tile uint32, value string) error
 }
 
-// Rule is the home-soil rule: what a click for flag does to a tile owner holds.
 type Rule interface {
 	Outcome(tile uint32, owner, flag string) clicks.Outcome
 }
 
-// Publisher tells the planet a click spread, so every client can show it.
 type Publisher interface {
 	PublishSpread(spread bonuses.Spread)
 }
@@ -70,13 +57,6 @@ type UseCase struct {
 	publisher      Publisher
 }
 
-// Execute spreads only a click the rule accepted and the player asked to spread, so a refused
-// country or tile, or a click with spread switched off, spreads nothing and costs no spread click. The neighbours need no check of their own: the map only
-// holds real tiles, and the country is the one the rule just accepted.
-//
-// A tile with no neighbours — one of the lone islands — takes itself and
-// nothing else. That is what the map says, and the bonus does not pretend
-// otherwise.
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
 	out, err := u.implementation.Execute(ctx, in)
 	if err != nil || !in.Spread || !u.spreads.SpendSpreadClick(bonuses.HolderOf(clicks.PayerOf(ctx))) {
@@ -93,8 +73,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		}
 	}
 
-	// After the tiles, so no client shows a spread the map has not taken. The
-	// slice is the map's own table, so it is copied before it leaves.
+	// The neighbours are copied: Neighbours hands back the map's own table.
 	u.publisher.PublishSpread(bonuses.Spread{
 		CountryID:  in.CountryID,
 		Tile:       in.TileID,

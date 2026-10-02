@@ -10,7 +10,6 @@ export type DeleteAccountModalProps = {
     onClose: () => void
 }
 
-/** Says exactly what goes, because nothing brings it back. */
 export default function DeleteAccountModal(props: DeleteAccountModalProps) {
     return <Modal title="Delete your account?"
                   stayOnBackdropClick={props.busy}

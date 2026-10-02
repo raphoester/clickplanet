@@ -1,5 +1,3 @@
-// Package prune_usecase deletes what the chat keeps past its retention: messages, their reactions, and the
-// announcements between them.
 package prune_usecase
 
 import (
@@ -10,13 +8,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// Pruner is one table of the chat. A reaction is never older than its message, so what outlives a pruned
-// message goes on a later prune.
 type Pruner interface {
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
 }
 
-// Executor is the prune, as the runner calls it and a decorator wraps it.
 type Executor interface {
 	Execute(ctx context.Context) (int64, error)
 }
@@ -35,7 +30,6 @@ type UseCase struct {
 
 var _ Executor = (*UseCase)(nil)
 
-// Execute deletes from each table in turn and says how many rows went. It stops at the first failure.
 func (u *UseCase) Execute(ctx context.Context) (int64, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

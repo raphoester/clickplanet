@@ -162,7 +162,6 @@ func disabled(module cpbootstrap.Module) cpbootstrap.Module {
 	return module
 }
 
-// run boots on an ephemeral port and shuts down as soon as it is serving.
 func run(t *testing.T, modules []cpbootstrap.Module) error {
 	t.Helper()
 
@@ -180,8 +179,6 @@ func run(t *testing.T, modules []cpbootstrap.Module) error {
 	})
 }
 
-// mountOn stands in for a generated New<Service>Handler: the options carry the
-// interceptors cpbootstrap insists on, which a real service would pass along.
 func mountOn(path string) cpbootstrap.ServiceBuilder {
 	return func(...connect.HandlerOption) (string, http.Handler) {
 		return path, http.NotFoundHandler()

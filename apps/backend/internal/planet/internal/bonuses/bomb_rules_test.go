@@ -50,9 +50,6 @@ func TestABombInTheSeaClearsNothing(t *testing.T) {
 		"drawn where it was aimed, on the unit sphere")
 }
 
-// The design rule: a bomb never clears more than one player can take back with one bank of 60
-// clicks. Measured on the shipped map, on tiles with land all around, because the lattice
-// stretches near the icosahedron corners and one tile tells nothing.
 func TestTheDefaultBombClearsAboutOneBankInland(t *testing.T) {
 	geography, err := embedded_geodesic_map.New(262119, nil).LoadGeography()
 	require.NoError(t, err)

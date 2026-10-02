@@ -97,8 +97,6 @@ describe("useLeaderboardFeed", () => {
         tick()
         expect(nets()).toEqual({fr: 1})
 
-        // The badge was stamped one tick before it was published, so it has
-        // DELTA_HOLD_MS less that tick left to run.
         tick(DELTA_HOLD_MS / SAMPLE_MS - 2)
         expect(nets()).toEqual({fr: 1})
 

@@ -25,7 +25,6 @@ func TestTheShippedBordersPutEveryTileInItsCountry(t *testing.T) {
 		counts[borders.CountryOf(tile)]++
 	}
 
-	// Both blobs come from one query now, so a tile exists exactly where a country does. Was 2,191.
 	assert.NotContains(t, counts, "", "every tile is in a country")
 	assert.Len(t, counts, 205, "countries with at least one tile")
 	assert.Equal(t, 1248, counts["fr"])

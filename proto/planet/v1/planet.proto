@@ -5,9 +5,7 @@ package planet.v1;
 service ClickService {
   rpc Click(ClickRequest) returns (ClickResponse);
 
-  // Reads the caller's allowance without spending it, for a client that has
-  // just loaded and has no click to learn it from. Deliberately not marked
-  // NO_SIDE_EFFECTS: the answer is about this instant, and a cached one lies.
+  // Not NO_SIDE_EFFECTS: the answer is about this instant, and a cached one lies.
   rpc GetBudget(GetBudgetRequest) returns (GetBudgetResponse);
 
   rpc MapDensity(MapDensityRequest) returns (MapDensityResponse) {
@@ -22,101 +20,40 @@ service ClickService {
 
   rpc ClaimBonus(ClaimBonusRequest) returns (ClaimBonusResponse);
 
-  // Drops the bomb a caught box granted. Answers NotFound when the caller holds
-  // none — never won, or already dropped — and says no more.
   rpc DropBomb(DropBombRequest) returns (DropBombResponse);
 
-  // Spends the refill a caught box granted: the caller's click bank is filled
-  // to its capacity. Answers NotFound when the caller holds none, and
-  // FailedPrecondition when the bank is already full, which spends nothing.
   rpc UseRefill(UseRefillRequest) returns (UseRefillResponse);
 
-  // What the caller holds: read once when the page loads, and again when the
-  // caller's account changes. Everything after is the client's own arithmetic
-  // on its own calls. Not NO_SIDE_EFFECTS, like GetBudget: the answer is about
-  // one caller at one instant, and a cached one lies.
+  // Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
   rpc GetCharges(GetChargesRequest) returns (GetChargesResponse);
 
-  // The sizes of the charges, the same for every caller. Read once when the
-  // page loads; a client that loaded before they changed shows the old ones
-  // until it reloads.
   rpc GetBonusRules(GetBonusRulesRequest) returns (GetBonusRulesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // Reads the question a QuizOffered named, and starts its clock.
-  //
-  // Deliberately two calls rather than one: the deadline is stamped here, not
-  // when the banner was offered, so the seconds a player gets are their own and
-  // a banner can sit unopened without burning them. Opening twice answers the
-  // same question and the same deadline — a reload is not a second chance, and
-  // is not a way to see a second question either.
-  //
-  // It never says which choice is right. The bank is the server's alone, and
-  // the answer is compared in AnswerQuiz.
   rpc OpenQuiz(OpenQuizRequest) returns (OpenQuizResponse);
 
-  // Answers it. A right answer inside the deadline grants a charge the server
-  // draws, exactly as a caught box does. A wrong or late one grants nothing and
-  // costs nothing: the token is spent either way, and the answer comes back so
-  // the player learns it.
-  //
-  // Answers NotFound when the caller holds no such quiz — never offered,
-  // already answered, or somebody else's — which is the same answer ClaimBonus
-  // gives, and for the same reason.
   rpc AnswerQuiz(AnswerQuizRequest) returns (AnswerQuizResponse);
 }
 
-// What the rate limiter has left for the caller, and the policy it refills
-// under. The policy travels with the reading because a client that displays
-// the allowance replays the refill itself between two answers — that is what
-// keeps the number honest without polling.
-//
-// It rides on every click answer, accepted or refused, so the client is never
-// more than one click away from the truth.
-//
-// Every click costs one token, so the first three are counted in clicks. The
-// bank's size is the same whatever the country and whether the caller signed
-// in: a big country and signing in only move how fast it refills.
 message ClickBudget {
-  // Clicks left, fractional: 6.4 means six clicks now, and the seventh in
-  // 600ms at a refill of one per second.
   double tokens = 1;
 
-  // The most a caller can bank: the burst, in clicks.
   uint32 capacity = 2;
 
-  // Clicks granted back per second, at the pace set by the caller's last click:
-  // its main flag's slowdown, signing in, and a running bonus all move it.
   double refill_per_second = 3;
 
-  // Were whole-token costs. A cost can now be a fraction of a token, and a
-  // double on the old numbers would not decode on a client built against them.
   reserved 4, 7;
 
-  // How many times slower the caller gets its clicks back, from the share of
-  // the map its main flag holds: 1.5 is half as slow again. It applies from the
-  // next click for the country asked about on. Zero from a server too old to
-  // know, which means one.
   double slowdown = 8;
 
-  // The fraction of the whole map the priced country holds, 0 to 1.
   double share = 5;
 
-  // The share at which the refill slows to next_slowdown. Zero at the top step.
   double next_share = 6;
   double next_slowdown = 9;
 
-  // How many times a guest's refill an account that signed in with a provider
-  // gets: 2 is twice as fast, into a bank of the same size. It is the same for
-  // every caller, so a guest can be told what signing in is worth. Zero from a
-  // server too old to grant one, which means signing in changes nothing.
   double linked_multiplier = 10;
 
-  // Who else spends from the bucket this reading is of. A click spends from
-  // several buckets and the reading is the tightest, so this is how a caller
-  // learns why it holds fewer clicks than it spent: somebody else behind its
-  // address spent them.
   SharedWith shared_with = 11;
 
   // The country the slowdown, the share and the next step are for: the caller's
@@ -127,20 +64,13 @@ message ClickBudget {
   string country = 12;
 }
 
-// Who else spends from a click bucket.
 enum SharedWith {
-  // A server too old to say. Read it as NOBODY.
   SHARED_WITH_UNSPECIFIED = 0;
 
-  // The caller's own bucket.
   SHARED_WITH_NOBODY = 1;
 
-  // Every guest behind the caller's address: guests on one network share one
-  // bank, so ten tabs are not ten banks. A guest that signs in gets its own.
   SHARED_WITH_GUESTS = 2;
 
-  // Every player behind the caller's address, signed in or not: a campus, a
-  // school or a carrier sharing one address.
   SHARED_WITH_NETWORK = 3;
 }
 
@@ -148,29 +78,16 @@ message ClickRequest {
   uint32 tile_id = 1;
   string country_id = 2;
 
-  // The player switched spread on: this click spends one spread click, when
-  // the pool has one, and also takes the tiles touching it. Off, a pool is
-  // never touched: a charge is used only when the player chooses.
   bool spread = 3;
 
-  // The player switched enclose on: if this click closes a shape, it takes the
-  // tiles inside and spends one enclosure. Off, closing a shape takes nothing
-  // and spends nothing.
-  //
-  // One bonus per click: spread and enclose both set is refused with
-  // INVALID_ARGUMENT, and nothing is written or spent.
   bool enclose = 4;
 }
 
 message ClickResponse {
-  // Absent from a server that does not rate limit clicks.
   ClickBudget budget = 1;
 }
 
 message GetBudgetRequest {
-  // The country a click would be for, which prices the answer as that click
-  // would be. The bucket itself refills at the pace of the caller's last click
-  // until the next one.
   string country_id = 1;
 }
 
@@ -199,63 +116,32 @@ message GetMapResponse {
 
 message ListenForEventsRequest {}
 
-// The one live stream this API has. Everything it pushes travels in this
-// envelope, so a new kind of event is a new case below rather than a second
-// stream: one connection per client, one route, and a client that does not
-// know a case skips it instead of breaking.
-//
-// Heartbeat is what keeps a quiet stream alive — Cloudflare cuts a silent
-// response at ~125s with a 524.
 message PlanetEvent {
   oneof event {
     TileUpdate tile_update = 1;
     Heartbeat heartbeat = 2;
 
-    // Addressed to one client: it is sent down the stream of the caller the
-    // server drew, and nobody else's.
     BonusOffered bonus_offered = 3;
 
-    // Broadcast to everyone, so catching a box is something the whole planet
-    // sees rather than a private event.
     BonusTaken bonus_taken = 4;
 
-    // Broadcast to everyone. It travels in order with the tile updates, so a
-    // tile retaken just after the blast is never blanked by it.
     BombDropped bomb_dropped = 5;
 
-    // Broadcast to everyone: a player closed a shape and took what was inside.
-    // The tiles themselves still arrive as tile updates; this is what lets every
-    // client show why they changed.
     TilesEnclosed tiles_enclosed = 6;
 
-    // Broadcast to everyone, like tiles_enclosed: the tiles arrive as tile
-    // updates, and this says a spread bonus is why, so every client can show it.
     TilesSpread tiles_spread = 7;
 
-    // Addressed to one client, like bonus_offered: a question that client alone
-    // may answer, for a charge.
     QuizOffered quiz_offered = 8;
   }
 }
 
-// The bonuses a player holds, by the account the token names: a refill and a
-// bomb at most, a stack of enclosures and a pool of spread clicks, each up to
-// its size in GetBonusRules. While one is held, or a stack or a pool is full,
-// no box of that kind is offered. Nothing lapses: each is kept until the player
-// uses it.
 message ChargesHeld {
-  // A refill, to fill the click bank with UseRefill.
   bool refill = 4;
 
-  // A bomb, to be dropped anywhere with DropBomb.
   bool bomb = 1;
 
-  // The enclose charges stacked. With enclose switched on, a click that closes
-  // a shape of the player's own tiles takes the tiles inside it and spends one.
   uint32 enclosures = 2;
 
-  // The spread clicks in the pool, up to GetBonusRules.spread_clicks. Zero is
-  // none.
   uint32 spread_clicks_left = 3;
 }
 
@@ -267,125 +153,67 @@ message GetChargesResponse {
 
 message GetBonusRulesRequest {}
 
-// How big each charge is, and what a click does on a country's own ground. Game
-// configuration, not state: it only changes with a deploy.
 message GetBonusRulesResponse {
-  // How wide a bomb's blast is, in radians of arc, so the client draws the
-  // aiming ring at the size of what it will clear.
   double blast_radius = 1;
 
-  // The most tiles an enclosed shape may hold.
   uint32 enclosure_max_tiles = 2;
 
-  // The most spread clicks the pool holds. A box adds a few, up to this.
   uint32 spread_clicks = 3;
 
-  // The most enclose charges a player stacks. A box adds a few, up to this.
   uint32 enclosures = 4;
 
-  // Native land takes two clicks. On a country's own ground, a tile wearing
-  // that country's flag is cleared to nobody by a click for any other flag,
-  // not taken; the next click on the empty tile takes it. Each click still
-  // costs one. The client paints its own click from this, with the borders
-  // blob, so it does not paint a flag the server did not write. Spread and
-  // enclose follow the same rule on every tile they touch.
   bool home_soil = 5;
 }
 
-// What a bonus is worth. The client never decides this, and an unknown kind is
-// one a client skips rather than guesses at.
 enum BonusKind {
   BONUS_KIND_UNSPECIFIED = 0;
 
-  // A charge: fills the player's click bank to full, when the player chooses.
   BONUS_KIND_REFILL = 5;
 
-  // A charge: adds a few clicks to the spread pool. While the player has spread
-  // switched on, each click spends one and also takes the tiles touching it. The server picks those tiles from its own map, so a client never names
-  // what it gets.
   BONUS_KIND_SPREAD_CLICKS = 2;
 
-  // A charge: one bomb, dropped with DropBomb anywhere on the planet, kept until
-  // it is. It clears every tile within a few rings of where it lands, whoever
-  // holds them. The server picks the tiles.
   BONUS_KIND_BOMB = 3;
 
-  // A charge: adds a few enclosures to the stack. While the player has enclose
-  // switched on, a click that closes a shape of the player's own tiles also
-  // takes the tiles inside it, and spends one.
-  // The server finds the shape, so a client never names what it gets.
   BONUS_KIND_ENCLOSE_CLICKS = 4;
 }
 
-// A box put in front of one player, and the token that claims it.
 message BonusOffered {
-  // Unguessable, single use, and only good for the caller it was sent to.
   string token = 1;
 
-  // Names the flight path. Every client draws the same orbit from it, so the
-  // server sends one number instead of a trajectory.
   uint32 seed = 2;
 
   BonusKind kind = 3;
 
-  // After this the token is refused, whatever the client is still drawing.
   int64 expires_at_unix_ms = 5;
 }
 
-// Somebody caught one. Carries no token and names no address — it exists so the
-// rest of the planet sees it happen.
 message BonusTaken {
   string country_id = 1;
 
   BonusKind kind = 2;
 
-  // Set when the charge was won by answering a quiz rather than by catching a
-  // box: the country the question was about. Empty for a box, and empty for a
-  // quiz about nowhere in particular. A client too old to know it reads the
-  // whole thing as an ordinary catch, which it is.
   string quiz_subject_country_id = 3;
 }
 
 message ClaimBonusRequest {
   string token = 1;
 
-  // What to say the catcher was playing for, in the broadcast that follows.
   string country_id = 2;
 }
 
 message ClaimBonusResponse {
   BonusKind kind = 2;
 
-  // How much the box gave, drawn by the server: enclosures or spread clicks.
-  // One for a refill or a bomb. What is held may be less than this added, when
-  // a stack or a pool was near its size.
   uint32 amount = 8;
 
-  // What the caller holds once this box is granted.
   ChargesHeld charges = 7;
 }
 
-// A question put in front of one player, and the token that opens it.
-//
-// **It says nothing about the question.** No text, no choices, and no subject:
-// a banner is only an invitation, and anything on it is something a client can
-// read at leisure before the clock starts. The seconds begin at OpenQuiz.
-//
-// The subject was on here once, to fly a flag. It gave the answer away for 417
-// of the bank's 1014 questions — every "Tallinn is the capital of which
-// country?" and every "which of these has the most people?" is answered by the
-// flag beside it. A teaser that has to be checked against every question in the
-// bank is a teaser that will leak again the first time a template is added, so
-// there is none.
 message QuizOffered {
-  // Unguessable, single use, and only good for the caller it was sent to.
   string token = 1;
 
-  // After this the banner is gone, whatever the client is still drawing. This
-  // is the invitation lapsing, not the answer clock: opening it starts that.
   int64 expires_at_unix_ms = 2;
 
-  // Was the subject country, which answered the question it was teasing.
   reserved 3;
 }
 
@@ -396,66 +224,43 @@ message OpenQuizRequest {
 message OpenQuizResponse {
   string question = 1;
 
-  // Exactly three, already shuffled by the server, and which one is right is
-  // not said. The same question opened twice gives the same three in the same
-  // order; a different question of the same bank entry gives different ones.
   repeated string choices = 2;
 
-  // When an answer stops being accepted. Rides beside `answer_seconds` for the
-  // same reason ClickBudget carries its policy: a client rebuilds the clock
-  // from how long is *left*, since the two machines' wall clocks are unrelated.
   int64 deadline_unix_ms = 3;
 
-  // How long the player was given, whole. What the countdown is drawn against,
-  // so a slow round trip shortens the bar rather than stretching the answer.
   double answer_seconds = 4;
 }
 
 message AnswerQuizRequest {
   string token = 1;
 
-  // Which of the three choices, as OpenQuiz ordered them.
   uint32 choice = 2;
 
-  // What to say the answerer was playing for, in the broadcast that follows a
-  // right answer.
   string country_id = 3;
 }
 
 message AnswerQuizResponse {
   bool correct = 1;
 
-  // Which one it was, whatever the player pressed: a quiz that will not say is
-  // a quiz nobody learns anything from, and the bank is not a secret worth
-  // keeping past the answer — only the mapping from *this* question to it is,
-  // and that is spent now.
   uint32 correct_choice = 2;
 
-  // What the right answer was worth. Unspecified when the answer was wrong or
-  // late, and then `amount` is zero and `charges` is what was already held.
   BonusKind kind = 3;
 
-  // How much it gave: enclosures or spread clicks, one for a refill or a bomb.
-  // What is held may be less than this, when a stack or a pool was near its size.
   uint32 amount = 4;
 
   ChargesHeld charges = 5;
 }
 
 message UseRefillRequest {
-  // The country the allowance that comes back is priced for.
   string country_id = 1;
 }
 
 message UseRefillResponse {
-  // The allowance once the bank is full.
   ClickBudget budget = 1;
 
-  // What the caller holds once the refill is spent.
   ChargesHeld charges = 2;
 }
 
-// A point on the globe, as a direction from its centre. Need not be unit length.
 message GlobePoint {
   double x = 1;
   double y = 2;
@@ -463,64 +268,42 @@ message GlobePoint {
 }
 
 message DropBombRequest {
-  // Where the player aimed, not a tile: the sea has no tiles, and whether the
-  // aim is on land or in the water is the server's call.
   GlobePoint target = 1;
 
-  // What to say the bomber was playing for, in the broadcast that follows.
   string country_id = 2;
 }
 
 message DropBombResponse {}
 
-// A bomb landed. Everything a client needs to draw it and to clear the map.
 message BombDropped {
-  // The tile it hit. Zero when it fell in the sea: the bomb is spent, nothing
-  // is cleared, and the client draws a splash.
   uint32 tile_id = 1;
 
   string country_id = 2;
 
-  // Radians of arc, so the drawing matches what was cleared.
   double radius = 3;
 
-  // The tiles that were held and now are not. Carried here rather than as one
-  // TileUpdate each, so the client can hold them back until the blast hits.
   repeated uint32 cleared_tile_ids = 4;
 
-  // Where to draw it, on the unit sphere: the tile's centre, or the aimed spot
-  // in the sea.
   GlobePoint point = 5;
 }
 
-// A shape closed by an enclose bonus, and what it took.
 message TilesEnclosed {
   string country_id = 1;
 
-  // The click that closed the shape. It is one of the wall tiles.
   uint32 closing_tile_id = 2;
 
-  // The player's tiles that touch the inside: the shape's outline.
   repeated uint32 wall_tile_ids = 3;
 
-  // The tiles taken, nearest the closing tile first. With home_soil, a tile
-  // on another country's own ground that wore its flag is cleared instead.
   repeated uint32 filled_tile_ids = 4;
 
-  // Set only on the stream of the caller who closed it.
   bool yours = 5;
 }
 
-// A click made under a spread bonus, and the tiles it spread onto.
 message TilesSpread {
   string country_id = 1;
 
-  // The tile the player clicked.
   uint32 tile_id = 2;
 
-  // The tiles touching it, which the click also took. Empty for a lone island.
-  // With home_soil, a tile on another country's own ground that wore its flag
-  // is cleared instead.
   repeated uint32 spread_tile_ids = 3;
 }
 

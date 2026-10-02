@@ -64,49 +64,18 @@ const (
 // ClickServiceClient is a client for the planet.v1.ClickService service.
 type ClickServiceClient interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
-	// Reads the caller's allowance without spending it, for a client that has
-	// just loaded and has no click to learn it from. Deliberately not marked
-	// NO_SIDE_EFFECTS: the answer is about this instant, and a cached one lies.
+	// Not NO_SIDE_EFFECTS: the answer is about this instant, and a cached one lies.
 	GetBudget(context.Context, *connect.Request[v1.GetBudgetRequest]) (*connect.Response[v1.GetBudgetResponse], error)
 	MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error)
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlanetEvent], error)
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
-	// Drops the bomb a caught box granted. Answers NotFound when the caller holds
-	// none — never won, or already dropped — and says no more.
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
-	// Spends the refill a caught box granted: the caller's click bank is filled
-	// to its capacity. Answers NotFound when the caller holds none, and
-	// FailedPrecondition when the bank is already full, which spends nothing.
 	UseRefill(context.Context, *connect.Request[v1.UseRefillRequest]) (*connect.Response[v1.UseRefillResponse], error)
-	// What the caller holds: read once when the page loads, and again when the
-	// caller's account changes. Everything after is the client's own arithmetic
-	// on its own calls. Not NO_SIDE_EFFECTS, like GetBudget: the answer is about
-	// one caller at one instant, and a cached one lies.
+	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
 	GetCharges(context.Context, *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error)
-	// The sizes of the charges, the same for every caller. Read once when the
-	// page loads; a client that loaded before they changed shows the old ones
-	// until it reloads.
 	GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error)
-	// Reads the question a QuizOffered named, and starts its clock.
-	//
-	// Deliberately two calls rather than one: the deadline is stamped here, not
-	// when the banner was offered, so the seconds a player gets are their own and
-	// a banner can sit unopened without burning them. Opening twice answers the
-	// same question and the same deadline — a reload is not a second chance, and
-	// is not a way to see a second question either.
-	//
-	// It never says which choice is right. The bank is the server's alone, and
-	// the answer is compared in AnswerQuiz.
 	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
-	// Answers it. A right answer inside the deadline grants a charge the server
-	// draws, exactly as a caught box does. A wrong or late one grants nothing and
-	// costs nothing: the token is spent either way, and the answer comes back so
-	// the player learns it.
-	//
-	// Answers NotFound when the caller holds no such quiz — never offered,
-	// already answered, or somebody else's — which is the same answer ClaimBonus
-	// gives, and for the same reason.
 	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
 }
 
@@ -278,49 +247,18 @@ func (c *clickServiceClient) AnswerQuiz(ctx context.Context, req *connect.Reques
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
-	// Reads the caller's allowance without spending it, for a client that has
-	// just loaded and has no click to learn it from. Deliberately not marked
-	// NO_SIDE_EFFECTS: the answer is about this instant, and a cached one lies.
+	// Not NO_SIDE_EFFECTS: the answer is about this instant, and a cached one lies.
 	GetBudget(context.Context, *connect.Request[v1.GetBudgetRequest]) (*connect.Response[v1.GetBudgetResponse], error)
 	MapDensity(context.Context, *connect.Request[v1.MapDensityRequest]) (*connect.Response[v1.MapDensityResponse], error)
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlanetEvent]) error
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
-	// Drops the bomb a caught box granted. Answers NotFound when the caller holds
-	// none — never won, or already dropped — and says no more.
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
-	// Spends the refill a caught box granted: the caller's click bank is filled
-	// to its capacity. Answers NotFound when the caller holds none, and
-	// FailedPrecondition when the bank is already full, which spends nothing.
 	UseRefill(context.Context, *connect.Request[v1.UseRefillRequest]) (*connect.Response[v1.UseRefillResponse], error)
-	// What the caller holds: read once when the page loads, and again when the
-	// caller's account changes. Everything after is the client's own arithmetic
-	// on its own calls. Not NO_SIDE_EFFECTS, like GetBudget: the answer is about
-	// one caller at one instant, and a cached one lies.
+	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
 	GetCharges(context.Context, *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error)
-	// The sizes of the charges, the same for every caller. Read once when the
-	// page loads; a client that loaded before they changed shows the old ones
-	// until it reloads.
 	GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error)
-	// Reads the question a QuizOffered named, and starts its clock.
-	//
-	// Deliberately two calls rather than one: the deadline is stamped here, not
-	// when the banner was offered, so the seconds a player gets are their own and
-	// a banner can sit unopened without burning them. Opening twice answers the
-	// same question and the same deadline — a reload is not a second chance, and
-	// is not a way to see a second question either.
-	//
-	// It never says which choice is right. The bank is the server's alone, and
-	// the answer is compared in AnswerQuiz.
 	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
-	// Answers it. A right answer inside the deadline grants a charge the server
-	// draws, exactly as a caught box does. A wrong or late one grants nothing and
-	// costs nothing: the token is spent either way, and the answer comes back so
-	// the player learns it.
-	//
-	// Answers NotFound when the caller holds no such quiz — never offered,
-	// already answered, or somebody else's — which is the same answer ClaimBonus
-	// gives, and for the same reason.
 	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
 }
 

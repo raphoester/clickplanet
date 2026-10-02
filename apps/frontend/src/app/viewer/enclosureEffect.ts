@@ -7,77 +7,41 @@ import markFragment from "./shaders/enclosureMark/fragment.glsl"
 import waveVertex from "./shaders/enclosureWave/vertex.glsl"
 import waveFragment from "./shaders/enclosureWave/fragment.glsl"
 
-/**
- * What a closed shape looks like, on every screen on the planet.
- *
- * Tiles flipping in a patch all at once says nothing about why, so a shape tells
- * its story in three beats:
- *
- * 1. **The outline lights up**, running round both sides from the far end and
- *    meeting at the tile that closed it, which flashes. That is the shape
- *    snapping shut.
- * 2. **The inside pours in** from the closing tile, one tile after another.
- * 3. **A ring runs out over the ground** from the middle, so a shape closed far
- *    off, or seen from orbit where it is a few pixels across, is still noticed.
- *
- * Everything that moves is computed here, on the CPU, from plain functions of
- * time: a shape is a few dozen points, and keeping the curves in TypeScript is
- * what lets them be tested rather than tuned by eye in GLSL.
- */
-
-/** The outline takes this long to run round and meet at the closing tile. */
 export const OUTLINE_SECONDS = 0.5
 
-/** The inside starts pouring in as the outline closes, and takes this long. */
 export const FILL_FROM = 0.5
 export const FILL_SECONDS = 0.45
 
-/** Two rings, one after the other, each this long. */
 export const WAVES_AT = [0.55, 0.8]
 export const WAVE_SECONDS = 1.1
 
-/** Everything holds a glow, then fades out over the tail of the effect. */
 export const FADE_FROM = 1.9
 export const LIFETIME_SECONDS = 2.6
 
-/** Above the tiles, which sit on the unit sphere, so the marks are never inside them. */
 const LIFT = 1.003
 
-/** A mark is never drawn smaller than this, however far out the camera is. */
 const MIN_MARK_PX = 5
 
-/** Nor is a ring, which is what finds the shape for a player zoomed right out. */
 const MIN_WAVE_PX = 42
 
-/** How far the ring runs, in multiples of the shape's own radius. */
 const WAVE_REACH = 3.5
 
-/** More than this at once and the oldest ends early: a burst is still a burst. */
 const MAX_PLAYING = 12
 
-/** The bonus box's own gold, so a shape reads as something a box did. */
 const GOLD = new THREE.Color(1.0, 0.68, 0.16)
 
 export type Mark = {
     tile: number
-    /** Seconds after the effect starts that this tile lights up. */
     start: number
     role: "wall" | "closing" | "filled"
 }
 
 export type Choreography = {
     marks: Mark[]
-    /** The middle of the shape, on the unit sphere. */
     centre: THREE.Vector3
-    /** How far the furthest tile of the shape is from its middle, in world units. */
     radius: number
 }
 
-/**
- * When each tile of a shape lights up, and where the shape is.
- *
- * `positions` is the coordinates blob: three floats per tile, tile id - 1.
- */
 export function choreograph(enclosure: Enclosure, positions: ArrayLike<number>): Choreography {
     const at = (tile: number) => new THREE.Vector3(
         positions[(tile - 1) * 3], positions[(tile - 1) * 3 + 1], positions[(tile - 1) * 3 + 2])
@@ -91,8 +55,6 @@ export function choreograph(enclosure: Enclosure, positions: ArrayLike<number>):
     let radius = 0
     for (const tile of tiles) radius = Math.max(radius, at(tile).distanceTo(centre))
 
-    // A frame on the ground at the middle of the shape, to measure the angle of
-    // each outline tile around it.
     const east = new THREE.Vector3(0, 1, 0).cross(centre)
     if (east.lengthSq() < 1e-12) east.set(1, 0, 0)
     east.normalize()
@@ -112,9 +74,6 @@ export function choreograph(enclosure: Enclosure, positions: ArrayLike<number>):
             continue
         }
 
-        // How far round the outline from the closing tile, as a share of the
-        // way to the far side: 0 beside it, 1 opposite. The far side lights
-        // first, and the light runs both ways towards the closing tile.
         const turn = Math.abs(normaliseAngle(angleOf(tile) - closingAngle)) / Math.PI
         marks.push({tile, start: OUTLINE_SECONDS * (1 - turn), role: "wall"})
     }
@@ -132,22 +91,13 @@ function normaliseAngle(angle: number): number {
 }
 
 export type MarkLook = {
-    /** 0 is not drawn at all. */
     glow: number
-    /** Of the mark's resting size. */
     scale: number
-    /** How far the gold is washed to white: the flash. */
     white: number
 }
 
 const HIDDEN: MarkLook = {glow: 0, scale: 0, white: 0}
 
-/**
- * How one mark looks `age` seconds into the effect.
- *
- * `calm` is for a player who asked for less motion: the shape still lights up
- * and fades, so what happened is still said, but nothing flashes or swells.
- */
 export function markLook(mark: Mark, age: number, calm = false): MarkLook {
     const since = age - mark.start
     if (since < 0 || age >= LIFETIME_SECONDS) return HIDDEN
@@ -161,8 +111,6 @@ export function markLook(mark: Mark, age: number, calm = false): MarkLook {
         case "closing":
             return {glow: fade, scale: 1.2 + 2.4 * flash, white: flash}
         case "filled": {
-            // Arrives big and white, and settles paler than the outline, so the
-            // inside and the wall still read as two things.
             const pop = calm ? 0 : Math.exp(-since * 7)
             return {glow: 0.8 * fade, scale: 1.05 + 1.6 * pop, white: 0.4 + 0.6 * flash}
         }
@@ -170,12 +118,10 @@ export function markLook(mark: Mark, age: number, calm = false): MarkLook {
 }
 
 export type WaveLook = {
-    /** Of the ring's full reach. */
     radius: number
     opacity: number
 }
 
-/** How a ring looks `age` seconds into the effect, or undefined while it is not running. */
 export function waveLook(startsAt: number, age: number): WaveLook | undefined {
     const progress = (age - startsAt) / WAVE_SECONDS
     if (progress < 0 || progress >= 1) return undefined
@@ -191,16 +137,13 @@ function smoothstep(from: number, to: number, x: number): number {
 
 export type EnclosureEffects = {
     readonly object: THREE.Object3D
-    /** Starts a shape's effect on the next frame. */
     play(enclosure: Enclosure): void
-    /** Whether this frame changed anything: the frame an effect ends on counts. */
-    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number): boolean
+    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number): boolean
     dispose(): void
 }
 
 type Playing = {
     choreography: Choreography
-    /** Stamped on the first frame after it was played: see play. */
     startedAt: number | undefined
     points: THREE.Points
     marks: THREE.ShaderMaterial
@@ -214,7 +157,6 @@ const waveGeometry = () => new THREE.CircleGeometry(1, 64)
 
 export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureEffects {
     const group = new THREE.Group()
-    // After the tiles, which are transparent too: the marks sit over them.
     group.renderOrder = 1
 
     const plane = waveGeometry()
@@ -232,8 +174,6 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
     }
 
     const play = (enclosure: Enclosure) => {
-        // A hidden tab draws no frames, so everything it was sent would start at
-        // once on its return. What happened while nobody watched is on the map.
         if (typeof document !== "undefined" && document.visibilityState === "hidden") return
 
         const choreography = choreograph(enclosure, positions)
@@ -266,8 +206,6 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
         })
 
         const points = new THREE.Points(geometry, material)
-        // Its bounds would be computed from the positions once and never again;
-        // a shape is small and on screen or not as a whole, so skip the check.
         points.frustumCulled = false
         points.renderOrder = 1
         group.add(points)
@@ -288,7 +226,6 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
             })
 
             const mesh = new THREE.Mesh(plane, waveMaterial)
-            // Laid flat on the ground: a tangent plane never cuts into the sphere.
             mesh.position.copy(choreography.centre).multiplyScalar(LIFT)
             mesh.lookAt(choreography.centre.clone().multiplyScalar(2))
             mesh.visible = false
@@ -306,12 +243,11 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
         }
     }
 
-    const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number) => {
+    const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number) => {
         if (playing.length === 0) return false
 
         const tileSize = tilePointSize(camera.zoom, viewportHeight)
-        // The camera's frustum is two units tall at zoom 1, so this is how many
-        // pixels one world unit spans on screen right now.
+        const minMark = MIN_MARK_PX * pixelRatio
         const pixelsPerUnit = (viewportHeight / 2) * camera.zoom
 
         playing = playing.filter((effect) => {
@@ -324,6 +260,7 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
             }
 
             effect.marks.uniforms.tileSize.value = tileSize
+            effect.marks.uniforms.minSize.value = minMark
             effect.choreography.marks.forEach((mark, i) => {
                 const look = markLook(mark, age, calm)
                 effect.glow.setX(i, look.glow)
@@ -334,7 +271,7 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
             effect.scale.needsUpdate = true
             effect.white.needsUpdate = true
 
-            const reach = Math.max(effect.choreography.radius * WAVE_REACH, MIN_WAVE_PX / pixelsPerUnit)
+            const reach = Math.max(effect.choreography.radius * WAVE_REACH, MIN_WAVE_PX * pixelRatio / pixelsPerUnit)
             for (const wave of effect.waves) {
                 const look = waveLook(wave.startsAt, age)
                 wave.mesh.visible = look !== undefined
@@ -348,9 +285,6 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
             return true
         })
 
-        // Something was on screen when this frame started, so it has to be
-        // drawn — including the frame the last effect was stopped on, which is
-        // the one that takes it off.
         return true
     }
 

@@ -11,10 +11,6 @@ import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
  */
 export class CreateSessionRequest extends Message<CreateSessionRequest> {
   /**
-   * The Turnstile widget's cf-turnstile-response. Verified server side against
-   * Cloudflare's siteverify. Ignored when the server runs with attestation
-   * disabled, which is how a local backend works without a widget.
-   *
    * @generated from field: string attestation_token = 1;
    */
   attestationToken = "";
@@ -52,16 +48,11 @@ export class CreateSessionRequest extends Message<CreateSessionRequest> {
  */
 export class CreateSessionResponse extends Message<CreateSessionResponse> {
   /**
-   * Opaque. Sent back on every Click in the X-Session-Token header.
-   *
    * @generated from field: string token = 1;
    */
   token = "";
 
   /**
-   * When the token stops being accepted. The client mints a new one before
-   * this, rather than waiting for the first refusal.
-   *
    * @generated from field: int64 expires_at_unix_ms = 2;
    */
   expiresAtUnixMs = protoInt64.zero;

@@ -22,16 +22,12 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// TileTaken is one tile an account took: by a click, a spread or an enclose,
-// one event per tile. A take with no account publishes nothing.
 type TileTaken struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The account the click token named, as a UUID.
-	AccountId string `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	TileId    uint32 `protobuf:"varint,2,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
-	// The country the tile now wears.
-	Country string                 `protobuf:"bytes,3,opt,name=country,proto3" json:"country,omitempty"`
-	TakenAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=taken_at,json=takenAt,proto3" json:"taken_at,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	TileId    uint32                 `protobuf:"varint,2,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	Country   string                 `protobuf:"bytes,3,opt,name=country,proto3" json:"country,omitempty"`
+	TakenAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=taken_at,json=takenAt,proto3" json:"taken_at,omitempty"`
 	// Where the take came from: the address, or its /64 over IPv6. The planet
 	// reads it for the flag each address plays for; nothing keeps it.
 	Scope         string `protobuf:"bytes,5,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -104,18 +100,11 @@ func (x *TileTaken) GetScope() string {
 	return ""
 }
 
-// BombLanded is a bomb that went off, on land or in the sea. A dud, the shadow
-// ban's bomb, publishes nothing: it went off for nobody.
 type BombLanded struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The country the bomber played for.
-	Country string `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
-	// The tile it hit. Zero when it fell in the sea.
-	TileId uint32 `protobuf:"varint,2,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
-	// The country whose ground the tile sits on. Empty in the sea, and on ground
-	// that is no country's.
-	Ground string `protobuf:"bytes,3,opt,name=ground,proto3" json:"ground,omitempty"`
-	// How many held tiles it cleared.
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Country       string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
+	TileId        uint32                 `protobuf:"varint,2,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	Ground        string                 `protobuf:"bytes,3,opt,name=ground,proto3" json:"ground,omitempty"`
 	Cleared       uint32                 `protobuf:"varint,4,opt,name=cleared,proto3" json:"cleared,omitempty"`
 	LandedAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=landed_at,json=landedAt,proto3" json:"landed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields

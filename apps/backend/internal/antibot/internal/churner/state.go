@@ -10,7 +10,6 @@ import (
 
 var _ evidence.Section = (*Watchdog)(nil)
 
-// The cached relay reading is not saved: a loaded account is judged again on its next click.
 type savedAccount struct {
 	ID        string
 	Scope     string

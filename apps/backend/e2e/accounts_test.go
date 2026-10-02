@@ -1,4 +1,3 @@
-// Package e2e_test boots modules the way cmd/api does, on a test postgres, and checks a path over the wire.
 package e2e_test
 
 import (
@@ -47,7 +46,6 @@ func startAuth(t *testing.T) authStack {
 	return startAuthModule(t, auth.NewModule)
 }
 
-// startAuthModule boots the module newModule builds from a config for the test postgres.
 func startAuthModule(t *testing.T, newModule func(auth.Config) cpbootstrap.Module) authStack {
 	t.Helper()
 

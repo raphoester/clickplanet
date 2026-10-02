@@ -19,17 +19,12 @@ const QUESTION: QuizQuestion = {
     window: ANSWER_MS,
 }
 
-/**
- * A backend whose whole job is to let a test push a banner in and see what comes back out. The
- * real one is PlanetBackend; the contract between them is the QuizMaster interface.
- */
 class FakeMaster implements QuizMaster {
     private listeners: ((offer: QuizOffer) => void)[] = []
 
     public opened: string[] = []
     public answered: {token: string, choice: number, countryId: string}[] = []
 
-    // What the next call does. Set by the test before it presses anything.
     public open: (token: string) => Promise<QuizQuestion> = () =>
         Promise.resolve({...QUESTION, deadline: performance.now() + ANSWER_MS})
 
@@ -52,7 +47,6 @@ class FakeMaster implements QuizMaster {
         return Promise.resolve(this.outcome)
     }
 
-    /** A banner from the server. */
     offer(token = "t1") {
         const offer: QuizOffer = {token, expiresAt: performance.now() + BANNER_MS}
         this.listeners.forEach((listener) => listener(offer))
@@ -63,7 +57,6 @@ class FakeMaster implements QuizMaster {
     }
 }
 
-// The two pieces as they are actually put together in Viewer: the hook drives, the component draws.
 function Harness({master, country = "bg", playSound}: {
     master: QuizMaster,
     country?: string,
@@ -73,7 +66,6 @@ function Harness({master, country = "bg", playSound}: {
     return <Quiz state={quiz.state} onOpen={quiz.open} onAnswer={quiz.answer}/>
 }
 
-// A promise the fakes resolve settles on the microtask queue, which fake timers do not turn.
 async function settle() {
     await act(async () => {
         await Promise.resolve()
@@ -101,12 +93,6 @@ describe("Quiz", () => {
     })
 
     it("gives nothing away about the question it is offering", () => {
-        // Not the text, not the choices, and not what it is about. The banner named the subject
-        // country and flew its flag once, and that flag was the answer to 417 of the bank's 1014
-        // questions — "Estonia" answers "Tallinn is the capital of which country?" on its own, and
-        // the flag beside "which of these has the most people?" is the whole question. Picking
-        // safer templates is not the fix: a teaser checked against the bank leaks again the first
-        // time a template is added.
         render(<Harness master={master}/>)
         act(() => master.offer())
 
@@ -206,8 +192,6 @@ describe("Quiz", () => {
         })
         await settle()
 
-        // A choice past the end of the three: the server reads it as wrong, which it is, and says
-        // which one was right. There is no other way to learn it — the bank never leaves the server.
         expect(master.answered).toEqual([{token: "t1", choice: 3, countryId: "bg"}])
         expect(screen.getByText("Out of time")).toBeTruthy()
         expect(screen.getByText("Tallinn")).toBeTruthy()
@@ -267,8 +251,6 @@ describe("Quiz", () => {
     })
 
     it("does not replace a question already running with a new banner", async () => {
-        // The server will not offer a second, but a stale one arriving would take the clock away
-        // from under somebody mid-answer.
         render(<Harness master={master}/>)
         act(() => master.offer("t1"))
         fireEvent.click(screen.getByRole("button"))
@@ -290,8 +272,6 @@ describe("Quiz", () => {
     })
 
     it("makes room at the top by saying it is there", async () => {
-        // BombNews reads this: both want the band at the top, and the bomb line is the one that
-        // gives it up. The assertion is really about the phase a caller can see.
         render(<Harness master={master}/>)
         expect(screen.queryByRole("dialog")).toBeNull()
 
@@ -305,8 +285,6 @@ describe("Quiz", () => {
     })
 
     it("is heard when the banner arrives, and again when the answer lands", async () => {
-        // The banner is at the top of the screen and the player is looking at the globe, which is
-        // the same reason a bonus box gets a sound when it spawns.
         const played = vi.fn()
         render(<Harness master={master} playSound={played}/>)
 

@@ -22,11 +22,8 @@ const (
 )
 
 type CreateSessionRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The Turnstile widget's cf-turnstile-response. Verified server side against
-	// Cloudflare's siteverify. Ignored when the server runs with attestation
-	// disabled, which is how a local backend works without a widget.
-	AttestationToken string `protobuf:"bytes,1,opt,name=attestation_token,json=attestationToken,proto3" json:"attestation_token,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	AttestationToken string                 `protobuf:"bytes,1,opt,name=attestation_token,json=attestationToken,proto3" json:"attestation_token,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -69,12 +66,9 @@ func (x *CreateSessionRequest) GetAttestationToken() string {
 }
 
 type CreateSessionResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Opaque. Sent back on every Click in the X-Session-Token header.
-	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	// When the token stops being accepted. The client mints a new one before
-	// this, rather than waiting for the first refusal.
-	ExpiresAtUnixMs int64 `protobuf:"varint,2,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Token           string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	ExpiresAtUnixMs int64                  `protobuf:"varint,2,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }

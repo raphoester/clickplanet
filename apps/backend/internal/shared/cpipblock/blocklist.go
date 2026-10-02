@@ -35,7 +35,6 @@ type namedSet struct {
 	set  *Set
 }
 
-// New returns nil when the config is off: a nil Blocklist loads nothing and blocks nothing.
 func New(config Config) *Blocklist {
 	if !config.Enabled {
 		return nil
@@ -44,7 +43,6 @@ func New(config Config) *Blocklist {
 	return &Blocklist{config: config}
 }
 
-// Load parses the allowlist and the vendored lists the config asks for.
 func (b *Blocklist) Load() error {
 	if b == nil {
 		return nil

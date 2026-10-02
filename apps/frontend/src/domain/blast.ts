@@ -1,34 +1,10 @@
-/**
- * A bomb dropped on the planet, as far as anything without a GPU cares.
- *
- * The server decides which tiles a bomb clears and says so; the client only
- * draws it. What lives here is the timing every screen has to agree on — when
- * the tiles go, and when the drawing is over — and `tilesWithin`, which the
- * fake backend uses to stand in for the server's own pick.
- */
-
-/** How many blasts can be on screen at once. Matches `MAX_BLASTS` in the shader. */
+// MAX_BLASTS and BLAST_TIMELINE are mirrored in shaders/display/vertex.glsl.
 export const MAX_BLASTS = 4
 
-/**
- * The phases of one blast, in seconds. Mirrored as constants in the display
- * vertex shader: change one, change both.
- *
- * - `fall`: a ring closes in on the target while the bomb comes down. The
- *   tiles are still there — this is the warning.
- * - `shock`: the flash and the shock wave. The tiles are cleared at its start.
- * - `scorch`: the burnt ground cools back to the Earth underneath.
- */
 export const BLAST_TIMELINE = {fall: 0.8, shock: 1.2, scorch: 5} as const
 
-/** Seconds from the drop to the moment the tiles are cleared. */
 export const IMPACT_DELAY = BLAST_TIMELINE.fall
 
-/**
- * What the news line says a bomb did, after the name of whoever dropped it.
- * `land` is the name of the country whose ground it hit, when there is one:
- * that is the line people laugh at, so it wins over the tile count.
- */
 export function describeBlast(drop: {tile?: number, cleared: number}, land?: string): string {
     if (drop.tile === undefined) return "bombed the ocean"
     if (land) return `bombed ${land}`
@@ -36,17 +12,10 @@ export function describeBlast(drop: {tile?: number, cleared: number}, land?: str
     return `bombed ${drop.cleared} ${drop.cleared === 1 ? "tile" : "tiles"}`
 }
 
-/** Whether a blast started `elapsed` seconds ago has nothing left to draw. */
 export function blastOver(elapsed: number): boolean {
     return elapsed >= BLAST_TIMELINE.fall + BLAST_TIMELINE.scorch
 }
 
-/**
- * Every tile whose centre is at most `radius` radians of arc from `center`,
- * `center` included. Tile ids are 1-based, positions are xyz triples.
- *
- * A straight scan: ~250k tiles in a millisecond or two, once per bomb.
- */
 export function tilesWithin(positions: Float32Array, center: number, radius: number): number[] {
     const size = positions.length / 3
     if (!Number.isInteger(center) || center < 1 || center > size) return []
@@ -65,10 +34,6 @@ export function tilesWithin(positions: Float32Array, center: number, radius: num
     return tiles
 }
 
-/**
- * The tile nearest to `target`, the arc to it in radians, and `target` put on
- * the unit sphere. `tile` is undefined for a target with no direction.
- */
 export function nearestTile(
     positions: Float32Array,
     target: {x: number, y: number, z: number},

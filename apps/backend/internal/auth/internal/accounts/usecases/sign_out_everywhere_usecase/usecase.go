@@ -1,4 +1,3 @@
-// Package sign_out_everywhere_usecase ends every session of the caller's account.
 package sign_out_everywhere_usecase
 
 import (
@@ -17,7 +16,6 @@ type Store interface {
 	DeleteSessions(ctx context.Context, account accounts.AccountID) error
 }
 
-// Publisher is the event bus.
 type Publisher interface {
 	Publish(event proto.Message)
 }
@@ -32,7 +30,6 @@ func New(store Store, events Publisher, clock cptime.Clock) *UseCase {
 	return &UseCase{store: store, events: events, clock: clock}
 }
 
-// Execute answers the Set-Cookie that clears this browser's session, or accounts.ErrNoAccount.
 func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (string, error) {
 	session, err := accounts.Caller(ctx, u.store, cookieHeader, u.clock.Now())
 	if err != nil {

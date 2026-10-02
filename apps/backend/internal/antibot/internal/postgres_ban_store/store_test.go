@@ -45,7 +45,6 @@ func (s *testSuite) loadFrom(store *postgres_ban_store.Store) map[string]shadowb
 	return loaded
 }
 
-// until is whole microseconds, the precision postgres keeps.
 var until = time.Date(2026, 9, 16, 12, 30, 0, 123456000, time.UTC)
 
 func (s *testSuite) TestAnEmptyTableLoadsNothing() {

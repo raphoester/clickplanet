@@ -9,7 +9,6 @@
     max-width: 100%;
 }
 
-/* The author colour, as on .players-entry-name. */
 .player-card-who {
     display: flex;
     align-items: baseline;
@@ -70,9 +69,7 @@
     color: white;
 }
 
-/* A name that opens the card: it keeps the look of the text it replaces. Under
-   :where(), so .chat-message-author and .players-entry-name win whatever order
-   the stylesheets load in. */
+/* :where() keeps specificity at zero, so the name styles win whatever the stylesheet order. */
 :where(.player-name-button) {
     padding: 0;
     border: none;

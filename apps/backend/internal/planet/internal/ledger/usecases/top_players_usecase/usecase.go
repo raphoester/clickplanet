@@ -1,4 +1,3 @@
-// Package top_players_usecase answers "who paints the most of the map": the callers with the most takes, every flag.
 package top_players_usecase
 
 import (
@@ -16,7 +15,6 @@ type Owners interface {
 	Owner(tile uint32) (string, bool)
 }
 
-// Bans is nil when the antibot is off.
 type Bans interface {
 	Sentence(scope, account string) (antibot.Sentence, bool)
 }
@@ -27,8 +25,7 @@ type In struct {
 
 type Out struct {
 	Players []ledger.Player
-	// Total is how many players took a tile, before the limit.
-	Total int
+	Total   int
 }
 
 func New(ledger Ledger, owners Owners, bans Bans) *UseCase {

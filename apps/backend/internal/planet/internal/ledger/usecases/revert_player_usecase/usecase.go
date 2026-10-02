@@ -1,4 +1,3 @@
-// Package revert_player_usecase gives back every tile one caller still holds, to what it held before the caller's run on it.
 package revert_player_usecase
 
 import (
@@ -21,16 +20,14 @@ type Map interface {
 }
 
 type In struct {
-	// Scope is any address, read as its scope, or Account an account id: one of the two.
 	Scope   string
 	Account string
 	DryRun  bool
 }
 
 type Out struct {
-	Scope   string
-	Account string
-	// Touched is every tile this caller took inside the retention; Held is those it still holds.
+	Scope    string
+	Account  string
 	Touched  int
 	Held     int
 	Restored int
@@ -82,7 +79,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		}
 	}
 
-	// Every take up to the replay, covered ones included: none of them is this caller's to undo any more.
 	u.ledger.Forget(caller, end)
 
 	return out, nil

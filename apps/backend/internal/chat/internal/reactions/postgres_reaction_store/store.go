@@ -1,5 +1,3 @@
-// Package postgres_reaction_store keeps every chat reaction in chat.reactions: one row per message, reaction and
-// reactor. It is the chat's only copy: every read and write goes to postgres.
 package postgres_reaction_store
 
 import (
@@ -25,14 +23,12 @@ type Store struct {
 
 var _ reactions.Storage = (*Store)(nil)
 
-// bumpVersion follows a statement that answers the message_id of each row it changed, as "changed": no row, no bump.
 const bumpVersion = `
 	INSERT INTO reaction_versions (message_id, version, changed_at)
 	SELECT message_id, 1, $4 FROM changed
 	ON CONFLICT (message_id) DO UPDATE SET version = reaction_versions.version + 1, changed_at = EXCLUDED.changed_at
 `
 
-// Save writes the reaction and bumps the version in one statement, so no reader sees one without the other.
 func (s *Store) Save(ctx context.Context, change reactions.Change) error {
 	write := `
 		WITH changed AS (
@@ -56,8 +52,6 @@ func (s *Store) Save(ctx context.Context, change reactions.Change) error {
 	return nil
 }
 
-// Reactions is one statement, so the reactions and their version are one snapshot. The rows are replayed oldest
-// first, so each reaction keeps the place it first appeared in.
 func (s *Store) Reactions(
 	ctx context.Context,
 	ids []messages.MessageID,
@@ -106,7 +100,6 @@ func (s *Store) Reactions(
 }
 
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	// A version outlives its message's reactions only while one of them does: it changed when the last one did.
 	result, err := s.db.ExecContext(ctx, `
 		WITH versions AS (DELETE FROM reaction_versions WHERE changed_at < $1)
 		DELETE FROM reactions WHERE reacted_at < $1

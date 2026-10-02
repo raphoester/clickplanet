@@ -111,8 +111,6 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 	})
 
 	t.Run("refuses every procedure that grants or spends a charge", func(t *testing.T) {
-		// A charge is only ever spent as clicks, and clicks need a session, so nothing that hands
-		// one out may be the way to widen an allowance without proving anything.
 		for _, procedure := range []string{
 			planetv1connect.ClickServiceClaimBonusProcedure,
 			planetv1connect.ClickServiceDropBombProcedure,
@@ -144,8 +142,6 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 	})
 }
 
-// The mode this ships in: it decides nothing, so a client that predates
-// sessions keeps working, and the counter says what turning it on would cost.
 func TestSessionInterceptorWhenObserving(t *testing.T) {
 	const enforce = false
 
@@ -175,13 +171,6 @@ func TestSessionInterceptorWhenObserving(t *testing.T) {
 	})
 }
 
-// Same reason the blocklist sits outside the throttle: a click refused for its
-// session must not also spend a token, or the retry that follows the mint would
-// come back 429 and the player would be shown the throttle dialog instead.
-//
-// The throttle is a decorator over the use case now, so every interceptor is
-// outside it by construction. This pins that the chain really is assembled that
-// way — that the refusal happens before anything reaches the click chain at all.
 func TestSessionCheckRunsBeforeTheThrottle(t *testing.T) {
 	interceptor := NewSessionInterceptor(validVerifier(), nil, true, prometheus.NewRegistry())
 
@@ -244,7 +233,6 @@ func sessionChecks(t *testing.T, gatherer prometheus.Gatherer, verdict string) f
 	return testutil.ToFloat64(found)
 }
 
-// accountRecorder is a live feed that ends at once, after writing down the account its context names.
 type accountRecorder struct {
 	accounts chan string
 }
@@ -254,8 +242,6 @@ func (r accountRecorder) Execute(ctx context.Context, _ listen_for_events_usecas
 	return nil
 }
 
-// A stream skips a unary interceptor, so this pins that the reader is a full one: the account the token names
-// reaches the live feed, from the headers that open it.
 func TestAStreamOpenedWithATokenKnowsItsAccount(t *testing.T) {
 	recorder := accountRecorder{accounts: make(chan string, 1)}
 

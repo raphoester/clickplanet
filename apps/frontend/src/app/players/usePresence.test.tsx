@@ -32,7 +32,6 @@ afterEach(() => {
     vi.useRealTimers()
 })
 
-// The rules are PresenceSchedule's and tested there; this is the wiring.
 describe("usePresence", () => {
     it("announces once a click has minted a token, and not before", async () => {
         const session = {current: undefined as string | undefined}

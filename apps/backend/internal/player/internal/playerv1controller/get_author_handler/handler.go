@@ -1,4 +1,3 @@
-// Package get_author_handler serves player.v1.InternalService/GetAuthor, for the other modules.
 package get_author_handler
 
 import (
@@ -22,7 +21,6 @@ type GetAuthorHandler struct {
 	useCase UseCase
 }
 
-// GetAuthor refuses an id that is not an account: only an account has a name.
 func (h GetAuthorHandler) GetAuthor(
 	ctx context.Context,
 	req *connect.Request[playerv1.GetAuthorRequest],

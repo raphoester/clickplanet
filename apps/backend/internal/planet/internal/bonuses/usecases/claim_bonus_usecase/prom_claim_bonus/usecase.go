@@ -1,6 +1,3 @@
-// Package prom_claim_bonus counts what the boxes are doing, for a box with no
-// dashboard: offered against caught is the only way to see whether the pacing
-// and the flight time are set anywhere near right.
 package prom_claim_bonus
 
 import (
@@ -17,20 +14,13 @@ type UseCase interface {
 	Execute(ctx context.Context, in claim_bonus_usecase.In) (claim_bonus_usecase.Out, error)
 }
 
-// Counters are handed to the registry as well, which is what counts an offer
-// and a box nobody took. The address is never a label: unbounded cardinality,
-// and personal data in every scrape.
 type Counters struct {
 	// Offered counts by kind and by the share the kind's band starts at.
 	Offered func(kind bonuses.Kind, band float64)
 	Lapsed  prometheus.Counter
 
-	// Caught is how long after the offer each box was claimed. The raw bucket
-	// counts are what show a band of callers claiming before a person could
-	// have found the box.
 	Caught prometheus.Histogram
 
-	// Foreign counts refused claims of a box offered to another caller or to nobody.
 	Foreign prometheus.Counter
 }
 

@@ -1,4 +1,3 @@
-// Package prune_guests_usecase deletes the guests nobody has used for a long time: one-time visitors and bots.
 package prune_guests_usecase
 
 import (
@@ -17,21 +16,17 @@ type Pruner interface {
 	PruneGuests(ctx context.Context, idleSince time.Time, limit int) ([]accounts.AccountID, error)
 }
 
-// Publisher is the event bus: a pruned guest is a deleted account.
 type Publisher interface {
 	Publish(event proto.Message)
 }
 
-// Executor is the prune, as the runner calls it and a decorator wraps it.
 type Executor interface {
 	Execute(ctx context.Context) (int, error)
 }
 
 type Config struct {
-	// A guest unused this long is deleted (default 90 days). Never below auth.sessions.guestTTL, or a live cookie loses its account.
 	IdleFor time.Duration
 
-	// How often the prune runs (default 1h).
 	Interval time.Duration
 }
 
@@ -39,8 +34,7 @@ const (
 	defaultIdleFor  = 90 * 24 * time.Hour
 	defaultInterval = time.Hour
 	batch           = 1000
-	// Each batch is one statement; a slow database must not hold the loop.
-	batchTimeout = 30 * time.Second
+	batchTimeout    = 30 * time.Second
 )
 
 func (c Config) WithDefaults() Config {
@@ -66,7 +60,6 @@ func New(config Config, guests Pruner, events Publisher, clock cptime.Clock) *Us
 	return &UseCase{config: config.WithDefaults(), guests: guests, events: events, clock: clock}
 }
 
-// Execute deletes every guest idle past IdleFor, a batch at a time, publishes auth.v1.AccountDeleted for each, and says how many.
 func (u *UseCase) Execute(ctx context.Context) (int, error) {
 	idleSince := u.clock.Now().Add(-u.config.IdleFor)
 

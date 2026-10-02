@@ -1,7 +1,3 @@
-// Package google_identity_provider signs a player in with Google, over OpenID Connect.
-//
-// The ID token is read without checking its signature: it comes straight from Google's token endpoint over TLS,
-// which OpenID Connect Core 3.1.3.7 accepts in place of the signature. Its issuer, audience, expiry and nonce are checked.
 package google_identity_provider
 
 import (
@@ -57,8 +53,7 @@ func (p *Provider) AuthorizationURL(flow *signin.Flow) string {
 		"nonce":                 {flow.Nonce},
 		"code_challenge":        {flow.Challenge()},
 		"code_challenge_method": {"S256"},
-		// A shared computer is how one player signs in as another by accident.
-		"prompt": {"select_account"},
+		"prompt":                {"select_account"},
 	}
 	return p.endpoints.Authorize + "?" + query.Encode()
 }
@@ -73,7 +68,6 @@ type idToken struct {
 	EmailVerified bool     `json:"email_verified"`
 }
 
-// audience is a string or a list of them.
 type audience []string
 
 func (a *audience) UnmarshalJSON(raw []byte) error {
@@ -109,6 +103,7 @@ func (p *Provider) Exchange(ctx context.Context, code string, flow *signin.Flow)
 	return &accounts.Claim{Subject: claims.Subject, Email: claims.Email, EmailVerified: claims.EmailVerified}, nil
 }
 
+// Signature unchecked: safe only for a token fetched from Google's token endpoint over TLS.
 func (p *Provider) claimsOf(raw string, flow *signin.Flow) (*idToken, error) {
 	parts := strings.Split(raw, ".")
 	if len(parts) != 3 {

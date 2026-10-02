@@ -84,7 +84,6 @@ describe("isValidUsername", () => {
         expect(isValidUsername("guеst_ana")).toBe(false)
     })
 
-    // The chat puts that prefix before every guest's name.
     it("refuses a name that starts like a guest's, in any case or width", () => {
         expect(isValidUsername("guest_ana")).toBe(false)
         expect(isValidUsername("GUEST_ana")).toBe(false)
@@ -118,7 +117,6 @@ describe("ConnectPlayerBackend", () => {
         expect(headersOf(setName).headers.get(SESSION_HEADER)).toBe("token-1")
     })
 
-    // The token may name the account the browser was on before a sign-in.
     it("sends a refused call once more with a fresh session", async () => {
         const session = sessionOf("stale", "fresh")
         const setName = vi.fn()
@@ -193,7 +191,6 @@ describe("ConnectPlayerBackend", () => {
 })
 
 describe("ConnectPlayerBackend presence", () => {
-    /** A session holding `held`, whose `token` would mint: a test fails if it is called. */
     function holding(held: string | undefined) {
         let current = held
         return {
@@ -219,7 +216,6 @@ describe("ConnectPlayerBackend presence", () => {
         expect(session.token).not.toHaveBeenCalled()
     })
 
-    // A mint is a Turnstile check: a visitor who never clicked is not listed.
     it("sends nothing, and mints nothing, while no token is held", async () => {
         const session = holding(undefined)
         const announce = vi.fn(async () => ({}))
@@ -269,7 +265,6 @@ describe("ConnectPlayerBackend presence", () => {
     })
 })
 
-/** A stream that fails before its first event. */
 const failingWith = (error: ConnectError) => (): AsyncIterable<PlayerEventPb> => ({
     [Symbol.asyncIterator]: () => ({
         next: async () => {
@@ -310,7 +305,6 @@ describe("ConnectPlayerBackend live roster", () => {
         expect(options.timeoutMs).toBe(0)
     })
 
-    // Connect reads a 404 as unimplemented: a server from before the live roster.
     it("reports a server without the stream once, and does not reconnect to it", async () => {
         vi.useFakeTimers()
         for (const code of [Code.Unimplemented, Code.NotFound]) {

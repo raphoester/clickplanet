@@ -12,7 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 )
 
-// homeSoil is the switch as the file sets it.
 type homeSoil bool
 
 func (h homeSoil) Enabled() bool { return bool(h) }

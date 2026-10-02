@@ -6,6 +6,7 @@ import {messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
 import {factor} from "../../domain/clickPrice.ts"
 import {UserIcon} from "../components/icons.tsx"
 import ProviderButton from "./ProviderButton.tsx"
+import EmailSignIn from "./EmailSignIn.tsx"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -16,7 +17,6 @@ export type AccountButtonProps = {
     buttonRef?: React.Ref<HTMLButtonElement>
 }
 
-/** One icon in the menu's actions. Login is optional, so it asks for nothing more than this. */
 export function AccountButton({state, onOpen, buttonRef}: AccountButtonProps) {
     const label = state.me.linked.length > 0 ? "Account" : "Sign in"
     return <button ref={buttonRef}
@@ -33,7 +33,6 @@ export type AccountPanelProps = {
     state: Ready
     store: AccountStore
     onDelete: () => void
-    /** What signing in multiplies the click allowance by, as the server said. */
     linkedMultiplier?: number
 }
 
@@ -41,6 +40,7 @@ export default function AccountPanel({state, store, onDelete, linkedMultiplier}:
     const busy = state.busy !== undefined
     const linked = state.me.linked
     const toLink = state.offered.filter((p) => !linked.includes(p))
+    const buttons = toLink.filter((p) => p !== "email")
 
     return <div className="account-panel" aria-busy={busy}>
         {linked.length === 0
@@ -51,14 +51,15 @@ export default function AccountPanel({state, store, onDelete, linkedMultiplier}:
             </p>
             : <p className="account-text">Signed in with {providerList(linked)}.</p>}
 
-        {/* Keyed on the name, so a read or a save that lands resets what is typed. */}
         {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
 
-        {toLink.map((provider) => <ProviderButton key={provider}
-                                                  provider={provider}
-                                                  label={`${linked.length === 0 ? "Sign in with" : "Link"} ${PROVIDER_NAMES[provider]}`}
-                                                  disabled={busy}
-                                                  onClick={() => void (linked.length === 0 ? store.signIn(provider) : store.link(provider))}/>)}
+        {buttons.map((provider) => <ProviderButton key={provider}
+                                                   provider={provider}
+                                                   label={`${linked.length === 0 ? "Sign in with" : "Link"} ${PROVIDER_NAMES[provider]}`}
+                                                   disabled={busy}
+                                                   onClick={() => void (linked.length === 0 ? store.signIn(provider) : store.link(provider))}/>)}
+
+        {toLink.includes("email") && <EmailSignIn state={state} store={store} intent={linked.length === 0 ? "signIn" : "link"}/>}
 
         {linked.length > 0 && <>
             <button type="button"
@@ -89,10 +90,9 @@ export default function AccountPanel({state, store, onDelete, linkedMultiplier}:
     </div>
 }
 
-/** The input counts UTF-16 units, the rule code points: room for letters past the BMP and spaces at the ends. */
+// maxLength counts UTF-16 units; the username rule counts code points.
 const MAX_INPUT_LENGTH = MAX_USERNAME_LENGTH * 2
 
-/** The username the chat shows. Only a linked account has one. */
 function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
     const current = state.username ?? ""
     const [draft, setDraft] = useState(current)

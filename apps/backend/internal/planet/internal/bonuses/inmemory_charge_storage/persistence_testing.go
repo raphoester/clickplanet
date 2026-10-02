@@ -10,7 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 )
 
-// MemoryPersistence is a Persistence held in a map, for tests that need charges but not postgres.
 type MemoryPersistence struct {
 	mu      sync.Mutex
 	hands   map[bonuses.Holder]bonuses.Held
@@ -54,7 +53,6 @@ func (m *MemoryPersistence) Save(_ context.Context, hands map[bonuses.Holder]bon
 	return nil
 }
 
-// Stored is every hand held.
 func (m *MemoryPersistence) Stored() map[bonuses.Holder]bonuses.Held {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -69,7 +67,6 @@ func (m *MemoryPersistence) Saves() int {
 	return m.saves
 }
 
-// FailWith makes every Load and Save return err until Heal.
 func (m *MemoryPersistence) FailWith(err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

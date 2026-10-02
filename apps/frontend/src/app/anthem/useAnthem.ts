@@ -5,24 +5,15 @@ import {isAnthemAudible, SoundSettings} from "../../domain/soundSettings.ts";
 import {ANTHEMS} from "./anthemsAsset.ts";
 import {AnthemPlayer, createAnthemPlayer} from "./anthemPlayer.ts";
 
-/** How often a waiting leader is checked, so its hold ends on time on a still board. */
 const HOLD_CHECK_MS = 1000
 
 export type Anthem = {
-    /** The country whose anthem it is; undefined before the board has a leader. */
     code: string | undefined
-    /** What the anthem is called; undefined when there is no recording of it. */
     title: string | undefined
-    /** False until the first click or key press: until then the browser keeps it silent. */
     unlocked: boolean
     player: AnthemPlayer
 }
 
-/**
- * The leader's anthem, following the board. The player is built once and told
- * what changed, so a leaderboard tick or a settings toggle never restarts the
- * music.
- */
 export function useAnthem(leaderboard: readonly LeaderboardEntry[], settings: SoundSettings): Anthem {
     const playerRef = useRef<AnthemPlayer | null>(null)
     if (!playerRef.current) playerRef.current = createAnthemPlayer()
@@ -40,8 +31,6 @@ export function useAnthem(leaderboard: readonly LeaderboardEntry[], settings: So
         setPick((standing) => followLeader(standing, leader, Date.now()))
     }, [leader])
 
-    // Only while someone is waiting out a hold: a still board would otherwise
-    // never publish the tick that ends it.
     const waiting = pick.challenger !== undefined
     useEffect(() => {
         if (!waiting) return
@@ -65,7 +54,6 @@ export function useAnthem(leaderboard: readonly LeaderboardEntry[], settings: So
         return () => document.removeEventListener("visibilitychange", onVisibility)
     }, [])
 
-    // Capture, so a listener that stops propagation cannot keep it locked.
     useEffect(() => {
         const unlock = () => {
             player.unlock()

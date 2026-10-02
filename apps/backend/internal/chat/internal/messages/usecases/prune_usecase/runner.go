@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// Runner prunes once at start, then every interval. What a prune did is its decorators' to report.
 type Runner struct {
 	interval time.Duration
 	executor Executor

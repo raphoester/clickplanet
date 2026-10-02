@@ -20,8 +20,6 @@ const japan = Countries.get("jp")!
 const entry = (code: string, tiles: number): LeaderboardEntry => ({country: Countries.get(code)!, tiles})
 
 describe("the share link", () => {
-    // A sibling Worker serves the per-country link preview off this exact
-    // parameter, so the name and the code spelling are a contract, not a detail.
     it("points at the country the player is holding, by the code the atlas uses", () => {
         expect(shareUrl("fr")).toBe("https://clickplanet.lol/?c=fr")
     })
@@ -76,8 +74,6 @@ describe("reading the player's standing off the board", () => {
 describe("the shape the card comes out in", () => {
     const ratio = ({width, height}: {width: number, height: number}) => width / height
 
-    // A phone's canvas is a 1:2.2 column. Posted, a timeline either shows it as
-    // a sliver or crops it itself, which is the thing worth not leaving to it.
     it("takes the middle out of a phone's column rather than posting the column", () => {
         const crop = cropToAspect(390, 844)
 
@@ -86,8 +82,6 @@ describe("the shape the card comes out in", () => {
         expect(crop.height).toBeLessThan(844)
     })
 
-    // The globe is centred in the canvas — the camera looks at the origin — so
-    // an off-centre crop would take the planet's head off.
     it("crops evenly, so the globe stays in the middle", () => {
         const crop = cropToAspect(390, 844)
 
@@ -122,8 +116,6 @@ describe("the shape the card comes out in", () => {
 })
 
 describe("the size the card comes out at", () => {
-    // The canvas is sized in CSS pixels, so a desktop already captures something
-    // worth posting and reprocessing it would only soften it.
     it("leaves a desktop capture at the size it was drawn", () => {
         expect(cardSize(1920, 1080)).toEqual({width: 1920, height: 1080})
     })
@@ -152,8 +144,6 @@ describe("the size the card comes out at", () => {
 })
 
 describe("fitting a flag in its box", () => {
-    // The flags are every aspect ratio there is, and a stretched one is the
-    // wrong flag — same rule the leaderboard's sprites follow.
     it("fits a wide flag on its width", () => {
         expect(fitInBox({width: 100, height: 50}, {width: 90, height: 60}))
             .toEqual({width: 90, height: 45})

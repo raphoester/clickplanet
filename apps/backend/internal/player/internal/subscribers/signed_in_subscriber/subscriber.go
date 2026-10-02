@@ -1,4 +1,3 @@
-// Package signed_in_subscriber hears auth.v1.SignedIn and moves the browser's visit to the account it is on now.
 package signed_in_subscriber
 
 import (
@@ -24,7 +23,6 @@ type Subscriber struct {
 
 var _ cpbootstrap.Handler[*authv1.SignedIn] = Subscriber{}
 
-// Handle skips a browser that had no account before: it never announced, so there is no visit to move.
 func (s Subscriber) Handle(ctx context.Context, event *authv1.SignedIn) error {
 	if event.GetPreviousAccountId() == "" {
 		return nil

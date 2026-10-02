@@ -21,20 +21,13 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Who else spends from a click bucket.
 type SharedWith int32
 
 const (
-	// A server too old to say. Read it as NOBODY.
 	SharedWith_SHARED_WITH_UNSPECIFIED SharedWith = 0
-	// The caller's own bucket.
-	SharedWith_SHARED_WITH_NOBODY SharedWith = 1
-	// Every guest behind the caller's address: guests on one network share one
-	// bank, so ten tabs are not ten banks. A guest that signs in gets its own.
-	SharedWith_SHARED_WITH_GUESTS SharedWith = 2
-	// Every player behind the caller's address, signed in or not: a campus, a
-	// school or a carrier sharing one address.
-	SharedWith_SHARED_WITH_NETWORK SharedWith = 3
+	SharedWith_SHARED_WITH_NOBODY      SharedWith = 1
+	SharedWith_SHARED_WITH_GUESTS      SharedWith = 2
+	SharedWith_SHARED_WITH_NETWORK     SharedWith = 3
 )
 
 // Enum value maps for SharedWith.
@@ -80,26 +73,13 @@ func (SharedWith) EnumDescriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{0}
 }
 
-// What a bonus is worth. The client never decides this, and an unknown kind is
-// one a client skips rather than guesses at.
 type BonusKind int32
 
 const (
-	BonusKind_BONUS_KIND_UNSPECIFIED BonusKind = 0
-	// A charge: fills the player's click bank to full, when the player chooses.
-	BonusKind_BONUS_KIND_REFILL BonusKind = 5
-	// A charge: adds a few clicks to the spread pool. While the player has spread
-	// switched on, each click spends one and also takes the tiles touching it. The server picks those tiles from its own map, so a client never names
-	// what it gets.
-	BonusKind_BONUS_KIND_SPREAD_CLICKS BonusKind = 2
-	// A charge: one bomb, dropped with DropBomb anywhere on the planet, kept until
-	// it is. It clears every tile within a few rings of where it lands, whoever
-	// holds them. The server picks the tiles.
-	BonusKind_BONUS_KIND_BOMB BonusKind = 3
-	// A charge: adds a few enclosures to the stack. While the player has enclose
-	// switched on, a click that closes a shape of the player's own tiles also
-	// takes the tiles inside it, and spends one.
-	// The server finds the shape, so a client never names what it gets.
+	BonusKind_BONUS_KIND_UNSPECIFIED    BonusKind = 0
+	BonusKind_BONUS_KIND_REFILL         BonusKind = 5
+	BonusKind_BONUS_KIND_SPREAD_CLICKS  BonusKind = 2
+	BonusKind_BONUS_KIND_BOMB           BonusKind = 3
 	BonusKind_BONUS_KIND_ENCLOSE_CLICKS BonusKind = 4
 )
 
@@ -148,47 +128,17 @@ func (BonusKind) EnumDescriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{1}
 }
 
-// What the rate limiter has left for the caller, and the policy it refills
-// under. The policy travels with the reading because a client that displays
-// the allowance replays the refill itself between two answers — that is what
-// keeps the number honest without polling.
-//
-// It rides on every click answer, accepted or refused, so the client is never
-// more than one click away from the truth.
-//
-// Every click costs one token, so the first three are counted in clicks. The
-// bank's size is the same whatever the country and whether the caller signed
-// in: a big country and signing in only move how fast it refills.
 type ClickBudget struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Clicks left, fractional: 6.4 means six clicks now, and the seventh in
-	// 600ms at a refill of one per second.
-	Tokens float64 `protobuf:"fixed64,1,opt,name=tokens,proto3" json:"tokens,omitempty"`
-	// The most a caller can bank: the burst, in clicks.
-	Capacity uint32 `protobuf:"varint,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
-	// Clicks granted back per second, at the pace set by the caller's last click:
-	// its main flag's slowdown, signing in, and a running bonus all move it.
-	RefillPerSecond float64 `protobuf:"fixed64,3,opt,name=refill_per_second,json=refillPerSecond,proto3" json:"refill_per_second,omitempty"`
-	// How many times slower the caller gets its clicks back, from the share of
-	// the map its main flag holds: 1.5 is half as slow again. It applies from the
-	// next click for the country asked about on. Zero from a server too old to
-	// know, which means one.
-	Slowdown float64 `protobuf:"fixed64,8,opt,name=slowdown,proto3" json:"slowdown,omitempty"`
-	// The fraction of the whole map the priced country holds, 0 to 1.
-	Share float64 `protobuf:"fixed64,5,opt,name=share,proto3" json:"share,omitempty"`
-	// The share at which the refill slows to next_slowdown. Zero at the top step.
-	NextShare    float64 `protobuf:"fixed64,6,opt,name=next_share,json=nextShare,proto3" json:"next_share,omitempty"`
-	NextSlowdown float64 `protobuf:"fixed64,9,opt,name=next_slowdown,json=nextSlowdown,proto3" json:"next_slowdown,omitempty"`
-	// How many times a guest's refill an account that signed in with a provider
-	// gets: 2 is twice as fast, into a bank of the same size. It is the same for
-	// every caller, so a guest can be told what signing in is worth. Zero from a
-	// server too old to grant one, which means signing in changes nothing.
-	LinkedMultiplier float64 `protobuf:"fixed64,10,opt,name=linked_multiplier,json=linkedMultiplier,proto3" json:"linked_multiplier,omitempty"`
-	// Who else spends from the bucket this reading is of. A click spends from
-	// several buckets and the reading is the tightest, so this is how a caller
-	// learns why it holds fewer clicks than it spent: somebody else behind its
-	// address spent them.
-	SharedWith SharedWith `protobuf:"varint,11,opt,name=shared_with,json=sharedWith,proto3,enum=planet.v1.SharedWith" json:"shared_with,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Tokens           float64                `protobuf:"fixed64,1,opt,name=tokens,proto3" json:"tokens,omitempty"`
+	Capacity         uint32                 `protobuf:"varint,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	RefillPerSecond  float64                `protobuf:"fixed64,3,opt,name=refill_per_second,json=refillPerSecond,proto3" json:"refill_per_second,omitempty"`
+	Slowdown         float64                `protobuf:"fixed64,8,opt,name=slowdown,proto3" json:"slowdown,omitempty"`
+	Share            float64                `protobuf:"fixed64,5,opt,name=share,proto3" json:"share,omitempty"`
+	NextShare        float64                `protobuf:"fixed64,6,opt,name=next_share,json=nextShare,proto3" json:"next_share,omitempty"`
+	NextSlowdown     float64                `protobuf:"fixed64,9,opt,name=next_slowdown,json=nextSlowdown,proto3" json:"next_slowdown,omitempty"`
+	LinkedMultiplier float64                `protobuf:"fixed64,10,opt,name=linked_multiplier,json=linkedMultiplier,proto3" json:"linked_multiplier,omitempty"`
+	SharedWith       SharedWith             `protobuf:"varint,11,opt,name=shared_with,json=sharedWith,proto3,enum=planet.v1.SharedWith" json:"shared_with,omitempty"`
 	// The country the slowdown, the share and the next step are for: the caller's
 	// main flag, the one it clicks for most, once a click for the country asked
 	// about counts. So a player who painted France all day and picks Spain is
@@ -300,20 +250,11 @@ func (x *ClickBudget) GetCountry() string {
 }
 
 type ClickRequest struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	TileId    uint32                 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
-	CountryId string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	// The player switched spread on: this click spends one spread click, when
-	// the pool has one, and also takes the tiles touching it. Off, a pool is
-	// never touched: a charge is used only when the player chooses.
-	Spread bool `protobuf:"varint,3,opt,name=spread,proto3" json:"spread,omitempty"`
-	// The player switched enclose on: if this click closes a shape, it takes the
-	// tiles inside and spends one enclosure. Off, closing a shape takes nothing
-	// and spends nothing.
-	//
-	// One bonus per click: spread and enclose both set is refused with
-	// INVALID_ARGUMENT, and nothing is written or spent.
-	Enclose       bool `protobuf:"varint,4,opt,name=enclose,proto3" json:"enclose,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TileId        uint32                 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	CountryId     string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Spread        bool                   `protobuf:"varint,3,opt,name=spread,proto3" json:"spread,omitempty"`
+	Enclose       bool                   `protobuf:"varint,4,opt,name=enclose,proto3" json:"enclose,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -377,9 +318,8 @@ func (x *ClickRequest) GetEnclose() bool {
 }
 
 type ClickResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Absent from a server that does not rate limit clicks.
-	Budget        *ClickBudget `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Budget        *ClickBudget           `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -422,11 +362,8 @@ func (x *ClickResponse) GetBudget() *ClickBudget {
 }
 
 type GetBudgetRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The country a click would be for, which prices the answer as that click
-	// would be. The bucket itself refills at the pace of the caller's last click
-	// until the next one.
-	CountryId     string `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -740,13 +677,6 @@ func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{9}
 }
 
-// The one live stream this API has. Everything it pushes travels in this
-// envelope, so a new kind of event is a new case below rather than a second
-// stream: one connection per client, one route, and a client that does not
-// know a case skips it instead of breaking.
-//
-// Heartbeat is what keeps a quiet stream alive — Cloudflare cuts a silent
-// response at ~125s with a 524.
 type PlanetEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Event:
@@ -886,39 +816,26 @@ type PlanetEvent_Heartbeat struct {
 }
 
 type PlanetEvent_BonusOffered struct {
-	// Addressed to one client: it is sent down the stream of the caller the
-	// server drew, and nobody else's.
 	BonusOffered *BonusOffered `protobuf:"bytes,3,opt,name=bonus_offered,json=bonusOffered,proto3,oneof"`
 }
 
 type PlanetEvent_BonusTaken struct {
-	// Broadcast to everyone, so catching a box is something the whole planet
-	// sees rather than a private event.
 	BonusTaken *BonusTaken `protobuf:"bytes,4,opt,name=bonus_taken,json=bonusTaken,proto3,oneof"`
 }
 
 type PlanetEvent_BombDropped struct {
-	// Broadcast to everyone. It travels in order with the tile updates, so a
-	// tile retaken just after the blast is never blanked by it.
 	BombDropped *BombDropped `protobuf:"bytes,5,opt,name=bomb_dropped,json=bombDropped,proto3,oneof"`
 }
 
 type PlanetEvent_TilesEnclosed struct {
-	// Broadcast to everyone: a player closed a shape and took what was inside.
-	// The tiles themselves still arrive as tile updates; this is what lets every
-	// client show why they changed.
 	TilesEnclosed *TilesEnclosed `protobuf:"bytes,6,opt,name=tiles_enclosed,json=tilesEnclosed,proto3,oneof"`
 }
 
 type PlanetEvent_TilesSpread struct {
-	// Broadcast to everyone, like tiles_enclosed: the tiles arrive as tile
-	// updates, and this says a spread bonus is why, so every client can show it.
 	TilesSpread *TilesSpread `protobuf:"bytes,7,opt,name=tiles_spread,json=tilesSpread,proto3,oneof"`
 }
 
 type PlanetEvent_QuizOffered struct {
-	// Addressed to one client, like bonus_offered: a question that client alone
-	// may answer, for a charge.
 	QuizOffered *QuizOffered `protobuf:"bytes,8,opt,name=quiz_offered,json=quizOffered,proto3,oneof"`
 }
 
@@ -938,23 +855,12 @@ func (*PlanetEvent_TilesSpread) isPlanetEvent_Event() {}
 
 func (*PlanetEvent_QuizOffered) isPlanetEvent_Event() {}
 
-// The bonuses a player holds, by the account the token names: a refill and a
-// bomb at most, a stack of enclosures and a pool of spread clicks, each up to
-// its size in GetBonusRules. While one is held, or a stack or a pool is full,
-// no box of that kind is offered. Nothing lapses: each is kept until the player
-// uses it.
 type ChargesHeld struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// A refill, to fill the click bank with UseRefill.
-	Refill bool `protobuf:"varint,4,opt,name=refill,proto3" json:"refill,omitempty"`
-	// A bomb, to be dropped anywhere with DropBomb.
-	Bomb bool `protobuf:"varint,1,opt,name=bomb,proto3" json:"bomb,omitempty"`
-	// The enclose charges stacked. With enclose switched on, a click that closes
-	// a shape of the player's own tiles takes the tiles inside it and spends one.
-	Enclosures uint32 `protobuf:"varint,2,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
-	// The spread clicks in the pool, up to GetBonusRules.spread_clicks. Zero is
-	// none.
-	SpreadClicksLeft uint32 `protobuf:"varint,3,opt,name=spread_clicks_left,json=spreadClicksLeft,proto3" json:"spread_clicks_left,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Refill           bool                   `protobuf:"varint,4,opt,name=refill,proto3" json:"refill,omitempty"`
+	Bomb             bool                   `protobuf:"varint,1,opt,name=bomb,proto3" json:"bomb,omitempty"`
+	Enclosures       uint32                 `protobuf:"varint,2,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
+	SpreadClicksLeft uint32                 `protobuf:"varint,3,opt,name=spread_clicks_left,json=spreadClicksLeft,proto3" json:"spread_clicks_left,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1133,28 +1039,15 @@ func (*GetBonusRulesRequest) Descriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{14}
 }
 
-// How big each charge is, and what a click does on a country's own ground. Game
-// configuration, not state: it only changes with a deploy.
 type GetBonusRulesResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// How wide a bomb's blast is, in radians of arc, so the client draws the
-	// aiming ring at the size of what it will clear.
-	BlastRadius float64 `protobuf:"fixed64,1,opt,name=blast_radius,json=blastRadius,proto3" json:"blast_radius,omitempty"`
-	// The most tiles an enclosed shape may hold.
-	EnclosureMaxTiles uint32 `protobuf:"varint,2,opt,name=enclosure_max_tiles,json=enclosureMaxTiles,proto3" json:"enclosure_max_tiles,omitempty"`
-	// The most spread clicks the pool holds. A box adds a few, up to this.
-	SpreadClicks uint32 `protobuf:"varint,3,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
-	// The most enclose charges a player stacks. A box adds a few, up to this.
-	Enclosures uint32 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
-	// Native land takes two clicks. On a country's own ground, a tile wearing
-	// that country's flag is cleared to nobody by a click for any other flag,
-	// not taken; the next click on the empty tile takes it. Each click still
-	// costs one. The client paints its own click from this, with the borders
-	// blob, so it does not paint a flag the server did not write. Spread and
-	// enclose follow the same rule on every tile they touch.
-	HomeSoil      bool `protobuf:"varint,5,opt,name=home_soil,json=homeSoil,proto3" json:"home_soil,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	BlastRadius       float64                `protobuf:"fixed64,1,opt,name=blast_radius,json=blastRadius,proto3" json:"blast_radius,omitempty"`
+	EnclosureMaxTiles uint32                 `protobuf:"varint,2,opt,name=enclosure_max_tiles,json=enclosureMaxTiles,proto3" json:"enclosure_max_tiles,omitempty"`
+	SpreadClicks      uint32                 `protobuf:"varint,3,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
+	Enclosures        uint32                 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
+	HomeSoil          bool                   `protobuf:"varint,5,opt,name=home_soil,json=homeSoil,proto3" json:"home_soil,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetBonusRulesResponse) Reset() {
@@ -1222,17 +1115,12 @@ func (x *GetBonusRulesResponse) GetHomeSoil() bool {
 	return false
 }
 
-// A box put in front of one player, and the token that claims it.
 type BonusOffered struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unguessable, single use, and only good for the caller it was sent to.
-	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	// Names the flight path. Every client draws the same orbit from it, so the
-	// server sends one number instead of a trajectory.
-	Seed uint32    `protobuf:"varint,2,opt,name=seed,proto3" json:"seed,omitempty"`
-	Kind BonusKind `protobuf:"varint,3,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
-	// After this the token is refused, whatever the client is still drawing.
-	ExpiresAtUnixMs int64 `protobuf:"varint,5,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Token           string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	Seed            uint32                 `protobuf:"varint,2,opt,name=seed,proto3" json:"seed,omitempty"`
+	Kind            BonusKind              `protobuf:"varint,3,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	ExpiresAtUnixMs int64                  `protobuf:"varint,5,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1295,17 +1183,11 @@ func (x *BonusOffered) GetExpiresAtUnixMs() int64 {
 	return 0
 }
 
-// Somebody caught one. Carries no token and names no address — it exists so the
-// rest of the planet sees it happen.
 type BonusTaken struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	CountryId string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Kind      BonusKind              `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
-	// Set when the charge was won by answering a quiz rather than by catching a
-	// box: the country the question was about. Empty for a box, and empty for a
-	// quiz about nowhere in particular. A client too old to know it reads the
-	// whole thing as an ordinary catch, which it is.
-	QuizSubjectCountryId string `protobuf:"bytes,3,opt,name=quiz_subject_country_id,json=quizSubjectCountryId,proto3" json:"quiz_subject_country_id,omitempty"`
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	CountryId            string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Kind                 BonusKind              `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	QuizSubjectCountryId string                 `protobuf:"bytes,3,opt,name=quiz_subject_country_id,json=quizSubjectCountryId,proto3" json:"quiz_subject_country_id,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -1362,10 +1244,9 @@ func (x *BonusTaken) GetQuizSubjectCountryId() string {
 }
 
 type ClaimBonusRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Token string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	// What to say the catcher was playing for, in the broadcast that follows.
-	CountryId     string `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	CountryId     string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1415,14 +1296,10 @@ func (x *ClaimBonusRequest) GetCountryId() string {
 }
 
 type ClaimBonusResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Kind  BonusKind              `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
-	// How much the box gave, drawn by the server: enclosures or spread clicks.
-	// One for a refill or a bomb. What is held may be less than this added, when
-	// a stack or a pool was near its size.
-	Amount uint32 `protobuf:"varint,8,opt,name=amount,proto3" json:"amount,omitempty"`
-	// What the caller holds once this box is granted.
-	Charges       *ChargesHeld `protobuf:"bytes,7,opt,name=charges,proto3" json:"charges,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          BonusKind              `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	Amount        uint32                 `protobuf:"varint,8,opt,name=amount,proto3" json:"amount,omitempty"`
+	Charges       *ChargesHeld           `protobuf:"bytes,7,opt,name=charges,proto3" json:"charges,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1478,25 +1355,10 @@ func (x *ClaimBonusResponse) GetCharges() *ChargesHeld {
 	return nil
 }
 
-// A question put in front of one player, and the token that opens it.
-//
-// **It says nothing about the question.** No text, no choices, and no subject:
-// a banner is only an invitation, and anything on it is something a client can
-// read at leisure before the clock starts. The seconds begin at OpenQuiz.
-//
-// The subject was on here once, to fly a flag. It gave the answer away for 417
-// of the bank's 1014 questions — every "Tallinn is the capital of which
-// country?" and every "which of these has the most people?" is answered by the
-// flag beside it. A teaser that has to be checked against every question in the
-// bank is a teaser that will leak again the first time a template is added, so
-// there is none.
 type QuizOffered struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unguessable, single use, and only good for the caller it was sent to.
-	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	// After this the banner is gone, whatever the client is still drawing. This
-	// is the invitation lapsing, not the answer clock: opening it starts that.
-	ExpiresAtUnixMs int64 `protobuf:"varint,2,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Token           string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	ExpiresAtUnixMs int64                  `protobuf:"varint,2,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1590,21 +1452,13 @@ func (x *OpenQuizRequest) GetToken() string {
 }
 
 type OpenQuizResponse struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Question string                 `protobuf:"bytes,1,opt,name=question,proto3" json:"question,omitempty"`
-	// Exactly three, already shuffled by the server, and which one is right is
-	// not said. The same question opened twice gives the same three in the same
-	// order; a different question of the same bank entry gives different ones.
-	Choices []string `protobuf:"bytes,2,rep,name=choices,proto3" json:"choices,omitempty"`
-	// When an answer stops being accepted. Rides beside `answer_seconds` for the
-	// same reason ClickBudget carries its policy: a client rebuilds the clock
-	// from how long is *left*, since the two machines' wall clocks are unrelated.
-	DeadlineUnixMs int64 `protobuf:"varint,3,opt,name=deadline_unix_ms,json=deadlineUnixMs,proto3" json:"deadline_unix_ms,omitempty"`
-	// How long the player was given, whole. What the countdown is drawn against,
-	// so a slow round trip shortens the bar rather than stretching the answer.
-	AnswerSeconds float64 `protobuf:"fixed64,4,opt,name=answer_seconds,json=answerSeconds,proto3" json:"answer_seconds,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Question       string                 `protobuf:"bytes,1,opt,name=question,proto3" json:"question,omitempty"`
+	Choices        []string               `protobuf:"bytes,2,rep,name=choices,proto3" json:"choices,omitempty"`
+	DeadlineUnixMs int64                  `protobuf:"varint,3,opt,name=deadline_unix_ms,json=deadlineUnixMs,proto3" json:"deadline_unix_ms,omitempty"`
+	AnswerSeconds  float64                `protobuf:"fixed64,4,opt,name=answer_seconds,json=answerSeconds,proto3" json:"answer_seconds,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *OpenQuizResponse) Reset() {
@@ -1666,13 +1520,10 @@ func (x *OpenQuizResponse) GetAnswerSeconds() float64 {
 }
 
 type AnswerQuizRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Token string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	// Which of the three choices, as OpenQuiz ordered them.
-	Choice uint32 `protobuf:"varint,2,opt,name=choice,proto3" json:"choice,omitempty"`
-	// What to say the answerer was playing for, in the broadcast that follows a
-	// right answer.
-	CountryId     string `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	Choice        uint32                 `protobuf:"varint,2,opt,name=choice,proto3" json:"choice,omitempty"`
+	CountryId     string                 `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1729,20 +1580,12 @@ func (x *AnswerQuizRequest) GetCountryId() string {
 }
 
 type AnswerQuizResponse struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	Correct bool                   `protobuf:"varint,1,opt,name=correct,proto3" json:"correct,omitempty"`
-	// Which one it was, whatever the player pressed: a quiz that will not say is
-	// a quiz nobody learns anything from, and the bank is not a secret worth
-	// keeping past the answer — only the mapping from *this* question to it is,
-	// and that is spent now.
-	CorrectChoice uint32 `protobuf:"varint,2,opt,name=correct_choice,json=correctChoice,proto3" json:"correct_choice,omitempty"`
-	// What the right answer was worth. Unspecified when the answer was wrong or
-	// late, and then `amount` is zero and `charges` is what was already held.
-	Kind BonusKind `protobuf:"varint,3,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
-	// How much it gave: enclosures or spread clicks, one for a refill or a bomb.
-	// What is held may be less than this, when a stack or a pool was near its size.
-	Amount        uint32       `protobuf:"varint,4,opt,name=amount,proto3" json:"amount,omitempty"`
-	Charges       *ChargesHeld `protobuf:"bytes,5,opt,name=charges,proto3" json:"charges,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Correct       bool                   `protobuf:"varint,1,opt,name=correct,proto3" json:"correct,omitempty"`
+	CorrectChoice uint32                 `protobuf:"varint,2,opt,name=correct_choice,json=correctChoice,proto3" json:"correct_choice,omitempty"`
+	Kind          BonusKind              `protobuf:"varint,3,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	Amount        uint32                 `protobuf:"varint,4,opt,name=amount,proto3" json:"amount,omitempty"`
+	Charges       *ChargesHeld           `protobuf:"bytes,5,opt,name=charges,proto3" json:"charges,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1813,9 +1656,8 @@ func (x *AnswerQuizResponse) GetCharges() *ChargesHeld {
 }
 
 type UseRefillRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The country the allowance that comes back is priced for.
-	CountryId     string `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1858,11 +1700,9 @@ func (x *UseRefillRequest) GetCountryId() string {
 }
 
 type UseRefillResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The allowance once the bank is full.
-	Budget *ClickBudget `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
-	// What the caller holds once the refill is spent.
-	Charges       *ChargesHeld `protobuf:"bytes,2,opt,name=charges,proto3" json:"charges,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Budget        *ClickBudget           `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
+	Charges       *ChargesHeld           `protobuf:"bytes,2,opt,name=charges,proto3" json:"charges,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1911,7 +1751,6 @@ func (x *UseRefillResponse) GetCharges() *ChargesHeld {
 	return nil
 }
 
-// A point on the globe, as a direction from its centre. Need not be unit length.
 type GlobePoint struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	X             float64                `protobuf:"fixed64,1,opt,name=x,proto3" json:"x,omitempty"`
@@ -1973,12 +1812,9 @@ func (x *GlobePoint) GetZ() float64 {
 }
 
 type DropBombRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Where the player aimed, not a tile: the sea has no tiles, and whether the
-	// aim is on land or in the water is the server's call.
-	Target *GlobePoint `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
-	// What to say the bomber was playing for, in the broadcast that follows.
-	CountryId     string `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Target        *GlobePoint            `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	CountryId     string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2063,23 +1899,15 @@ func (*DropBombResponse) Descriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{29}
 }
 
-// A bomb landed. Everything a client needs to draw it and to clear the map.
 type BombDropped struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The tile it hit. Zero when it fell in the sea: the bomb is spent, nothing
-	// is cleared, and the client draws a splash.
-	TileId    uint32 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
-	CountryId string `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	// Radians of arc, so the drawing matches what was cleared.
-	Radius float64 `protobuf:"fixed64,3,opt,name=radius,proto3" json:"radius,omitempty"`
-	// The tiles that were held and now are not. Carried here rather than as one
-	// TileUpdate each, so the client can hold them back until the blast hits.
-	ClearedTileIds []uint32 `protobuf:"varint,4,rep,packed,name=cleared_tile_ids,json=clearedTileIds,proto3" json:"cleared_tile_ids,omitempty"`
-	// Where to draw it, on the unit sphere: the tile's centre, or the aimed spot
-	// in the sea.
-	Point         *GlobePoint `protobuf:"bytes,5,opt,name=point,proto3" json:"point,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TileId         uint32                 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	CountryId      string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Radius         float64                `protobuf:"fixed64,3,opt,name=radius,proto3" json:"radius,omitempty"`
+	ClearedTileIds []uint32               `protobuf:"varint,4,rep,packed,name=cleared_tile_ids,json=clearedTileIds,proto3" json:"cleared_tile_ids,omitempty"`
+	Point          *GlobePoint            `protobuf:"bytes,5,opt,name=point,proto3" json:"point,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *BombDropped) Reset() {
@@ -2147,19 +1975,13 @@ func (x *BombDropped) GetPoint() *GlobePoint {
 	return nil
 }
 
-// A shape closed by an enclose bonus, and what it took.
 type TilesEnclosed struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	CountryId string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	// The click that closed the shape. It is one of the wall tiles.
-	ClosingTileId uint32 `protobuf:"varint,2,opt,name=closing_tile_id,json=closingTileId,proto3" json:"closing_tile_id,omitempty"`
-	// The player's tiles that touch the inside: the shape's outline.
-	WallTileIds []uint32 `protobuf:"varint,3,rep,packed,name=wall_tile_ids,json=wallTileIds,proto3" json:"wall_tile_ids,omitempty"`
-	// The tiles taken, nearest the closing tile first. With home_soil, a tile
-	// on another country's own ground that wore its flag is cleared instead.
-	FilledTileIds []uint32 `protobuf:"varint,4,rep,packed,name=filled_tile_ids,json=filledTileIds,proto3" json:"filled_tile_ids,omitempty"`
-	// Set only on the stream of the caller who closed it.
-	Yours         bool `protobuf:"varint,5,opt,name=yours,proto3" json:"yours,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	ClosingTileId uint32                 `protobuf:"varint,2,opt,name=closing_tile_id,json=closingTileId,proto3" json:"closing_tile_id,omitempty"`
+	WallTileIds   []uint32               `protobuf:"varint,3,rep,packed,name=wall_tile_ids,json=wallTileIds,proto3" json:"wall_tile_ids,omitempty"`
+	FilledTileIds []uint32               `protobuf:"varint,4,rep,packed,name=filled_tile_ids,json=filledTileIds,proto3" json:"filled_tile_ids,omitempty"`
+	Yours         bool                   `protobuf:"varint,5,opt,name=yours,proto3" json:"yours,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2229,16 +2051,11 @@ func (x *TilesEnclosed) GetYours() bool {
 	return false
 }
 
-// A click made under a spread bonus, and the tiles it spread onto.
 type TilesSpread struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	CountryId string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	// The tile the player clicked.
-	TileId uint32 `protobuf:"varint,2,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
-	// The tiles touching it, which the click also took. Empty for a lone island.
-	// With home_soil, a tile on another country's own ground that wore its flag
-	// is cleared instead.
-	SpreadTileIds []uint32 `protobuf:"varint,3,rep,packed,name=spread_tile_ids,json=spreadTileIds,proto3" json:"spread_tile_ids,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	TileId        uint32                 `protobuf:"varint,2,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	SpreadTileIds []uint32               `protobuf:"varint,3,rep,packed,name=spread_tile_ids,json=spreadTileIds,proto3" json:"spread_tile_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

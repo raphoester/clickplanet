@@ -236,7 +236,7 @@ var countries = cpcolls.NewSet(
 	"vu",
 	"wf",
 	"ws",
-	"xb", // custom: brittany (bretagne)
+	"xb", // not ISO 3166: Brittany
 	"xk",
 	"ye",
 	"za",

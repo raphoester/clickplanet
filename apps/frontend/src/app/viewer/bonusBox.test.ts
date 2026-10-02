@@ -41,8 +41,6 @@ describe("orbitFromSeed", () => {
     })
 
     it("tilts the orbits across the whole sphere rather than favouring one plane", () => {
-        // The plane's own axis is u × v. Over many seeds its height should cover
-        // the range, not cluster: a drawn latitude would pack them near one band.
         const heights = Array.from({length: 400}, (_, seed) => {
             const {u, v} = orbitFromSeed(seed)
             return new THREE.Vector3().crossVectors(u, v).y
@@ -92,7 +90,6 @@ describe("orbitPosition", () => {
 })
 
 describe("isBehindGlobe", () => {
-    // The camera looks down -Z, so it is this way from the scene.
     const toCamera = new THREE.Vector3(0, 0, 1)
 
     it("sees a box on the near side", () => {
@@ -104,8 +101,6 @@ describe("isBehindGlobe", () => {
     })
 
     it("sees one past the limb even though it is further away than the centre", () => {
-        // Beyond the globe's radius from the view axis, so nothing is in front of
-        // it: this is the case a plain depth comparison would get wrong.
         expect(isBehindGlobe(new THREE.Vector3(1.1, 0, -0.3), toCamera)).toBe(false)
     })
 
@@ -122,9 +117,6 @@ describe("isBehindGlobe", () => {
     })
 
     it("leaves an edge-on orbit on view for the two thirds of it that geometry allows", () => {
-        // Worst case: the plane holds the view axis, so the box goes right behind
-        // the centre. Hidden only while it is both past the centre and inside the
-        // limb, which is an arc of 2 * acos(1 / 1.15) short of the full half.
         const hidden = (Math.PI - 2 * Math.acos(1 / ORBIT_RADIUS)) / (2 * Math.PI)
 
         const edgeOn = {u: new THREE.Vector3(1, 0, 0), v: new THREE.Vector3(0, 0, 1), phase: 0}
@@ -177,16 +169,11 @@ describe("FACE_TONES", () => {
 
 describe("boxScale", () => {
     it("keeps a constant world size at the zooms the box is actually flown at", () => {
-        // The complaint this answers: dividing the zoom out held the box at a
-        // fixed pixel size while the ground under it grew, which reads as the
-        // box being stuck to the screen rather than flying over the planet.
         expect(boxScale(1)).toBe(boxScale(5))
         expect(boxScale(1)).toBe(boxScale(9))
     })
 
     it("caps it before it could take over the screen", () => {
-        // The visible world is 2/zoom tall, so an uncapped box would be most of
-        // the frame here — a zoom the orbit is barely ever in view at anyway.
         expect(boxScale(50)).toBeLessThan(boxScale(1))
         expect(boxScale(50) * 50).toBeLessThanOrEqual(1)
     })
@@ -259,7 +246,6 @@ describe("burstAt", () => {
 })
 
 describe("the box's colours", () => {
-    // BoxGeometry's material order pairs the faces: +X/-X, +Y/-Y, +Z/-Z.
     const OPPOSITE = [1, 0, 3, 2, 5, 4]
 
     it("colours all six faces, and wears every colour in the palette", () => {
@@ -268,8 +254,6 @@ describe("the box's colours", () => {
     })
 
     it("never shows one colour on two faces at once", () => {
-        // A cube shows at most one face of each opposite pair, so two faces that
-        // are not opposite can be on screen together.
         for (let face = 0; face < 6; face++) {
             for (let other = 0; other < 6; other++) {
                 if (other === face || other === OPPOSITE[face]) continue

@@ -1,4 +1,3 @@
-// Package sign_out_usecase ends the session a browser's cookie holds, and nothing else.
 package sign_out_usecase
 
 import (
@@ -17,7 +16,6 @@ type Sessions interface {
 	DeleteSession(ctx context.Context, tokenHash accounts.TokenHash) error
 }
 
-// Publisher is the event bus.
 type Publisher interface {
 	Publish(event proto.Message)
 }
@@ -31,7 +29,6 @@ func New(sessions Sessions, events Publisher) *UseCase {
 	return &UseCase{sessions: sessions, events: events}
 }
 
-// Execute answers the Set-Cookie that clears the session. A browser with no session is signed out already.
 func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (string, error) {
 	token, err := accounts.TokenFromCookies(cookieHeader)
 	if errors.Is(err, accounts.ErrNoSessionCookie) {
@@ -41,7 +38,6 @@ func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (string, err
 		return "", fmt.Errorf("failed to read the cookie: %w", err)
 	}
 
-	// Read first, expired or not, to name the account the event is about. A session already gone has none.
 	session, err := u.sessions.Session(ctx, token.Hash)
 	if errors.Is(err, accounts.ErrSessionNotFound) {
 		return accounts.ExpiredSessionCookie(), nil

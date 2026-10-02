@@ -1,4 +1,3 @@
-// Package answer_quiz_usecase settles a quiz: whether the answer was right, and what it was worth.
 package answer_quiz_usecase
 
 import (
@@ -9,11 +8,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// ErrNoSuchQuiz is every way an answer can fail to land, told as one: unknown, already answered,
-// never opened, and somebody else's.
-//
-// A **wrong** answer is not one of them. It succeeds, grants nothing, and says what the right one
-// was — see the package's own note in the proto.
 var ErrNoSuchQuiz = errors.New("no quiz to answer")
 
 type Registry interface {
@@ -21,7 +15,6 @@ type Registry interface {
 	Publish(taken bonuses.Taken)
 }
 
-// Charger hands over the charge a right answer was worth, exactly as a caught box is handed over.
 type Charger interface {
 	Grant(holder bonuses.Holder, kind bonuses.Kind, amount int)
 	Held(holder bonuses.Holder) bonuses.Held
@@ -36,18 +29,12 @@ type In struct {
 type Out struct {
 	Correct bool
 
-	// Which option was right, whatever was pressed.
 	CorrectChoice int
 
-	// Empty unless Correct.
 	Kind bonuses.Kind
 
-	// What the charge added, which is less than the draw when a stack or a pool was near its size.
-	// Zero unless Correct.
 	Amount int
 
-	// What the caller holds now, right or wrong: a wrong answer changes nothing, and saying so is
-	// what lets the client settle on one reading of the inventory either way.
 	Held bonuses.Held
 }
 
@@ -81,8 +68,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	out.Kind = answered.Reward.Kind
 	out.Amount = out.Held.Count(answered.Reward.Kind) - before.Count(answered.Reward.Kind)
 
-	// Only once the charge is held, for the reason a catch is announced only then: a win announced
-	// to the planet that then failed to apply is the one lie this could tell.
 	u.registry.Publish(bonuses.Taken{
 		CountryID:   in.CountryID,
 		Kind:        answered.Reward.Kind,

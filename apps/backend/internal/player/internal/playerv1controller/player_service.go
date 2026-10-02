@@ -1,5 +1,3 @@
-// Package playerv1controller is the player module's edge: player.v1.PlayerService for players, and
-// player.v1.InternalService for the other modules.
 package playerv1controller
 
 import (
@@ -16,7 +14,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
 )
 
-// PlayerService is the eight handlers in a bag, for the generated handler.
 type PlayerService struct {
 	get_profile_handler.GetProfileHandler
 	set_name_handler.SetNameHandler
@@ -30,7 +27,6 @@ type PlayerService struct {
 
 var _ playerv1connect.PlayerServiceHandler = PlayerService{}
 
-// InternalService is what the other modules ask, served on the internal listener alone.
 type InternalService struct {
 	get_author_handler.GetAuthorHandler
 	get_authors_handler.GetAuthorsHandler

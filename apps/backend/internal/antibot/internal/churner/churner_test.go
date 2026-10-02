@@ -13,7 +13,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// The bounds cmd/api/example.yaml ships.
 func config() churner.Config {
 	return churner.Config{
 		Window: time.Hour,
@@ -56,7 +55,6 @@ type reading struct {
 	evidence detect.Evidence
 }
 
-// spend is one guest account clicking clicks times, gap apart, and its strongest reading.
 func (h *harness) spend(scope, account, flag string, clicks int, gap time.Duration) reading {
 	var strongest reading
 	for range clicks {

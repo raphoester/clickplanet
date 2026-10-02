@@ -1,4 +1,3 @@
-// Package create_session_handler serves auth.v1.AuthService/CreateSession.
 package create_session_handler
 
 import (
@@ -15,7 +14,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-// ErrRefused is the whole of what a refused caller is told; the reason is logged.
 var ErrRefused = errors.New("could not start a session")
 
 type UseCase interface {
@@ -31,7 +29,6 @@ type CreateSessionHandler struct {
 	logger  *slog.Logger
 }
 
-// CreateSession answers no-store: a token and its cookie belong to one caller at one address.
 func (h CreateSessionHandler) CreateSession(
 	ctx context.Context,
 	req *connect.Request[authv1.CreateSessionRequest],
@@ -42,7 +39,6 @@ func (h CreateSessionHandler) CreateSession(
 		CookieHeader:     req.Header().Get("Cookie"),
 	})
 	if errors.Is(err, attestation.ErrAttestationFailed) {
-		// Info, not the error net's Error: a refusal is the check doing its job.
 		h.logger.Info("refused a session", slog.String("procedure", req.Spec().Procedure), slog.Any("error", err))
 		return nil, connect.NewError(connect.CodePermissionDenied, ErrRefused)
 	}

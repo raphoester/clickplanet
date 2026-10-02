@@ -1,4 +1,3 @@
-// Package ban_player_usecase is the operator's shadow ban: the same sentence the antibot passes, on a scope or an account a person picked.
 package ban_player_usecase
 
 import (
@@ -23,11 +22,8 @@ type Banner interface {
 }
 
 type In struct {
-	// Scope is a scope as FindPlayers lists it, or any address, which is banned as its scope.
-	Scope string
-	// Account is an account id, banned alone. Name a scope or an account, not both.
-	Account string
-	// Zero takes the ladder's step for the offence.
+	Scope    string
+	Account  string
 	Duration time.Duration
 }
 

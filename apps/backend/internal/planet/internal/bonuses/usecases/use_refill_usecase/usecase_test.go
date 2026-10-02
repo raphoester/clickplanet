@@ -18,7 +18,6 @@ import (
 
 var epoch = time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC)
 
-// stubRefills holds one refill per holder named, and nothing else.
 type stubRefills struct {
 	held  map[bonuses.Holder]bool
 	spent []bonuses.Holder
@@ -67,7 +66,6 @@ func played(t *testing.T) context.Context {
 	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 }
 
-// spend clicks n times as account the way the throttle does, from every bucket.
 func (f fixture) spend(t *testing.T, account string, n int) {
 	t.Helper()
 

@@ -71,8 +71,6 @@ func TestTheSecretAndTheTokenAreSentAsAForm(t *testing.T) {
 	var parseErr error
 
 	client := newClient(t, func(w http.ResponseWriter, r *http.Request) {
-		// Captured, not asserted: require here runs on the server's goroutine,
-		// where FailNow cannot fail the test.
 		parseErr = r.ParseForm()
 		got = r.PostForm
 		w.Header().Set("Content-Type", "application/json")
@@ -93,8 +91,6 @@ func TestARefusedTokenIsRefused(t *testing.T) {
 	assert.ErrorIs(t, client.Verify(t.Context(), "a-token", ""), ErrRefused)
 }
 
-// The sitekey is public, so a token can be minted from anywhere the widget is
-// embedded. The action and the hostname are what tie it back to this surface.
 func TestATokenForAnotherActionOrHostnameIsRefused(t *testing.T) {
 	otherAction := newClient(t, answering(`{"success":true,"action":"signup","hostname":"clickplanet.lol"}`))
 	assert.ErrorIs(t, otherAction.Verify(t.Context(), "a-token", ""), ErrRefused)
@@ -116,8 +112,6 @@ func TestAnEmptyOrOversizedTokenIsRefusedWithoutCallingSiteverify(t *testing.T) 
 	assert.False(t, called)
 }
 
-// Failing open would make the check decorative: an attacker who can reach the
-// backend can also make siteverify unreachable from it.
 func TestEveryUpstreamFailureIsARefusal(t *testing.T) {
 	t.Run("non-2xx", func(t *testing.T) {
 		client := newClient(t, func(w http.ResponseWriter, _ *http.Request) {
@@ -149,7 +143,6 @@ func TestEveryUpstreamFailureIsARefusal(t *testing.T) {
 	})
 }
 
-// The secret must never reach a log or an error a caller can read.
 func TestTheSecretIsNotInTheRefusal(t *testing.T) {
 	client := newClient(t, answering(`{"success":false,"error-codes":["invalid-input-secret"]}`))
 

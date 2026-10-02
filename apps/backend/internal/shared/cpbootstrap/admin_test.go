@@ -130,8 +130,6 @@ func TestOnlyALoopbackAdminAddressIsAccepted(t *testing.T) {
 	}
 }
 
-// A browser refuses a credentialed answer that allows "*", and matches the
-// origin byte for byte, so a trailing slash is as wrong as a missing value.
 func TestOnlyAnExactOriginIsAccepted(t *testing.T) {
 	for origin, ok := range map[string]bool{
 		"https://clickplanet.lol":      true,

@@ -1,4 +1,3 @@
-// Package complete_sign_in_handler serves auth.v1.AuthService/CompleteSignIn.
 package complete_sign_in_handler
 
 import (
@@ -16,10 +15,8 @@ import (
 )
 
 var (
-	// ErrStartAgain is the whole of what a browser whose sign-in does not match is told.
 	ErrStartAgain = errors.New("this sign-in cannot be completed: start again")
-	// ErrRefused is the whole of what a browser the provider refused is told; the reason is logged.
-	ErrRefused = errors.New("the provider did not sign you in")
+	ErrRefused    = errors.New("the provider did not sign you in")
 )
 
 var outcomes = map[accounts.Outcome]authv1.SignInOutcome{
@@ -41,7 +38,6 @@ type CompleteSignInHandler struct {
 	logger  *slog.Logger
 }
 
-// CompleteSignIn clears the flow cookie on every answer it maps: a code is good once, so a flow is too.
 func (h CompleteSignInHandler) CompleteSignIn(
 	ctx context.Context,
 	req *connect.Request[authv1.CompleteSignInRequest],
@@ -77,12 +73,10 @@ func (h CompleteSignInHandler) CompleteSignIn(
 	return res, nil
 }
 
-// logRefusal is Info, not the error net's Error: a stale tab or a cancelled consent is the common case.
 func (h CompleteSignInHandler) logRefusal(req *connect.Request[authv1.CompleteSignInRequest], err error) {
 	h.logger.Info("refused a sign-in", slog.String("procedure", req.Spec().Procedure), slog.Any("error", err))
 }
 
-// linkRefusal says why a link was not made in a detail the client matches, not in the message. The browser keeps its session.
 func linkRefusal(sentinel error, reason authv1.LinkRefusalReason) *connect.Error {
 	refused := refusal(connect.CodeAlreadyExists, sentinel)
 	if detail, err := connect.NewErrorDetail(&authv1.LinkRefusal{Reason: reason}); err == nil {
@@ -91,7 +85,6 @@ func linkRefusal(sentinel error, reason authv1.LinkRefusalReason) *connect.Error
 	return refused
 }
 
-// refusal is the error answered to a sign-in that cannot complete, with the Set-Cookie that ends its flow.
 func refusal(code connect.Code, reason error) *connect.Error {
 	refused := connect.NewError(code, reason)
 	refused.Meta().Add("Set-Cookie", signin.ExpiredFlowCookie())

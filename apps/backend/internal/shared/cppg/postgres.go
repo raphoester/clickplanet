@@ -1,6 +1,3 @@
-// Package cppg is the Postgres client, ported from on-core-platform's onpg and
-// cut down to what this process uses: no gorm, no tunnel, no tracing, no lazy
-// config. Queries are plain database/sql over lib/pq.
 package cppg
 
 import (
@@ -17,7 +14,7 @@ import (
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres" // registers the postgres driver for migrate
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/lib/pq"
 
@@ -34,7 +31,6 @@ type Beginner interface {
 	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 }
 
-// QuerierBeginner is what a store that also needs a transaction depends on — narrower than *Postgres.
 type QuerierBeginner interface {
 	Querier
 	Beginner
@@ -42,7 +38,6 @@ type QuerierBeginner interface {
 
 var _ QuerierBeginner = (*Postgres)(nil)
 
-// PoolConfig leaves nil at the database/sql default rather than setting it to zero.
 type PoolConfig struct {
 	MaxOpenConns    *int
 	MaxIdleConns    *int
@@ -50,7 +45,6 @@ type PoolConfig struct {
 	ConnMaxIdleTime *time.Duration
 }
 
-// Config is one module's database block: its own connection, and the schema its tables live in.
 type Config struct {
 	Host     string
 	Port     string
@@ -62,7 +56,7 @@ type Config struct {
 	Pool     PoolConfig
 }
 
-// String keeps the password out of the boot's config log line.
+// String leaves out the password: the config is logged at boot.
 func (c Config) String() string {
 	return fmt.Sprintf("{Host:%s Port:%s User:%s DBName:%s SSLMode:%s Schema:%s}",
 		c.Host, c.Port, c.User, c.DBName, c.SSLMode, c.Schema)
@@ -177,7 +171,6 @@ func applyPoolConfig(db *sql.DB, cfg PoolConfig) {
 
 var schemaName = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
 
-// ConnectCtx pings before returning: sql.Open is lazy, and a database that is not there should refuse the boot rather than the first query.
 func (p *Postgres) ConnectCtx(ctx context.Context) error {
 	if err := p.config.Validate(); err != nil {
 		return err
@@ -208,8 +201,6 @@ func (p *Postgres) Close() error {
 	return p.sqlClient.Close()
 }
 
-// Migrate creates the schema, then applies every migration in migrations not applied yet. Its history
-// is the schema's own schema_migrations table, so each module migrates independently. Needs ConnectCtx first.
 func (p *Postgres) Migrate(ctx context.Context, migrations fs.FS) error {
 	if _, err := p.ExecContext(ctx, "CREATE SCHEMA IF NOT EXISTS "+pq.QuoteIdentifier(p.config.Schema)); err != nil {
 		return fmt.Errorf("failed to create schema %s: %w", p.config.Schema, err)
@@ -234,7 +225,6 @@ func (p *Postgres) Migrate(ctx context.Context, migrations fs.FS) error {
 	return nil
 }
 
-// CloseAfter runs the runners, then closes the pool: a runner's last write happens when it stops, after the closers have run.
 func CloseAfter(db *Postgres, logger *slog.Logger, runners ...cpbootstrap.Runner) cpbootstrap.Runner {
 	return closeAfter{runners: runners, db: db, logger: logger}
 }

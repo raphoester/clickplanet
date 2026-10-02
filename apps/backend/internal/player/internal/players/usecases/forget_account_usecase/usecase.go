@@ -1,4 +1,3 @@
-// Package forget_account_usecase deletes what this module keeps for an account that is gone.
 package forget_account_usecase
 
 import (

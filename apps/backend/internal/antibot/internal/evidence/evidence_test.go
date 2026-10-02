@@ -76,7 +76,6 @@ func (h *harness) storeWith(config Config, sections ...Section) *Store {
 	}, sections...)
 }
 
-// shutdown runs the store the way the guard does and stops it, which flushes.
 func (h *harness) shutdown(store *Store) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -164,7 +163,6 @@ func TestEvidenceOlderThanTheRetentionIsDroppedOnLoad(t *testing.T) {
 	recent := h.clock.Now()
 	h.shutdown(h.store(&fake{name: "jury", events: []time.Time{old, recent}}))
 
-	// Down for two hours: the first event is now past three days.
 	h.clock.Advance(2 * time.Hour)
 
 	section := &fake{name: "jury"}

@@ -21,9 +21,7 @@ import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
 import SignInGate from "./app/account/SignInGate.tsx"
 import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
 
-// The provider's code and state leave the address bar before anything else
-// runs: nothing may bookmark, log, share or send them on as a referrer. The
-// page they came in on already set `no-referrer` (see play.html).
+// Strip the OAuth code and state from the URL before anything else can read or leak them.
 const callback = callbackOf(new URL(window.location.href))
 if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 
@@ -32,18 +30,13 @@ const config = {
     timeoutMs: 2000,
 }
 
-// Without a sitekey the client sends no session, which is what a local backend
-// with sessions off expects. A server that enforces them refuses every click
-// from such a build, deliberately: the two are configured together.
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY
 const authClient = newAuthServiceClient(config)
+const attest = sitekey ? turnstileAttester(sitekey, "session") : async () => ""
 const session: SessionProvider = sitekey
-    ? new SessionClient(authClient, turnstileAttester(sitekey, "session"), {store: localTokenStore()})
+    ? new SessionClient(authClient, attest, {store: localTokenStore()})
     : new NoSession()
 
-// `VITE_FAKE_BACKEND=1 npm run dev` plays against the in-browser fakes, bombs
-// included. Dev only: `DEV` is folded to false in a build, which is what drops
-// both fakes from the bundle — an unset `VITE_*` variable is not folded.
 const root = createRoot(document.getElementById('root')!)
 
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
@@ -51,13 +44,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         tilePositions: () => loadPointGeometryData().then((data) => data.positions),
         grounds: () => loadBorders(BORDERS_URL).then((data) => (tile: number) => countryOfTile(data, tile)),
     })
-    // Console commands:
-    // - `giveBomb()`: as if you had just caught a box and it held a bomb.
-    // - `giveBonus("refill")`: the same for any other bonus.
-    // - `giveQuiz()`: a quiz banner now, instead of waiting for the next one.
-    // - `fakeBackend.botBomb(tile, "fr")`: someone else's bomb lands on `tile`.
-    // - `fakeBackend.botSpread(tile, "fr")`: someone else's spread click on `tile`.
-    // - `fakeBackend.shareClicks("guests")`: the bucket reads as shared; `shareClicks()` makes it yours again.
     Object.assign(window, {
         fakeBackend: fake,
         giveBomb: () => {
@@ -80,7 +66,6 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 
     const fakePresence = new FakePresenceBackend()
 
-    // The server's chat hears every bomb from the planet; the fakes are told here.
     const fakeChat = new FakeChatBackend()
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
 
@@ -107,7 +92,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session)
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
-    const account = new AccountStore(new ConnectAccountBackend(authClient), player, session, {
+    const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
     })

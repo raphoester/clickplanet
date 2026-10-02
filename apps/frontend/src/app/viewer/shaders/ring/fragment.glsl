@@ -1,13 +1,6 @@
-// A target ring laid flat on the globe. Drawn per pixel rather than out of the
-// tile discs, so it stays whole over the sea and between tiles, and its edge is
-// smooth wherever it moves.
-
 uniform vec3 colour;
 uniform float opacity;
-// How much of the quad's half-width the ring's edge sits at.
 uniform float edgeAt;
-// A held press on its way to dropping the bomb: the edge fills in clockwise and
-// the inside brightens, so letting go early reads as backing out of something.
 uniform float progress;
 
 varying vec2 vUv;

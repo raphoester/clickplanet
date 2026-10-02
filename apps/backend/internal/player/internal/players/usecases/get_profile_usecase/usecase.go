@@ -1,4 +1,3 @@
-// Package get_profile_usecase reads the caller's profile.
 package get_profile_usecase
 
 import (
@@ -21,7 +20,6 @@ func New(profiles Profiles) *UseCase {
 	return &UseCase{profiles: profiles}
 }
 
-// Execute answers a profile with no name for an account that never chose one.
 func (u *UseCase) Execute(ctx context.Context, account players.AccountID) (players.Profile, error) {
 	profile, err := u.profiles.Profile(ctx, account)
 	if errors.Is(err, players.ErrNoProfile) {

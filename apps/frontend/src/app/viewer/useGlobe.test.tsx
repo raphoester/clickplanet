@@ -220,9 +220,6 @@ describe("useGlobe", () => {
         await expect(latest.capture()).resolves.toBe(frame)
     })
 
-    // The share button is only mounted once the globe is ready, so this is the
-    // fallback rather than the usual case — and a promise that never settles
-    // would leave the button saying it was working for the rest of the session.
     it("refuses a capture before there is a globe, rather than waiting forever", async () => {
         createGlobe.mockReturnValue(new Promise(() => {}))
 

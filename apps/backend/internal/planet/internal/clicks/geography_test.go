@@ -9,7 +9,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// The refusal tests call clicks.NewGeography themselves, because the error is what they assert on.
 func threeTiles(t *testing.T, edges ...clicks.Edge) *clicks.Geography {
 	t.Helper()
 
@@ -28,8 +27,6 @@ func bothWays(a, b uint32) []clicks.Edge {
 }
 
 func TestNeighboursComeBackAscendingAndDeduplicated(t *testing.T) {
-	// The walk finds a tile on a seam from both faces that share it, so repeats are expected
-	// input, not a fault. Ascending order is a contract: the symmetry check binary-searches it.
 	edges := append(bothWays(1, 3), bothWays(1, 2)...)
 	edges = append(edges, bothWays(1, 3)...)
 
@@ -40,7 +37,6 @@ func TestNeighboursComeBackAscendingAndDeduplicated(t *testing.T) {
 }
 
 func TestAnEdgeOnlyOneEndAgreesWithIsRefused(t *testing.T) {
-	// A one-way street on the map: tile 1 would spread onto 2, and 2 would not spread back.
 	_, err := clicks.NewGeography(threeTilePositions(), []clicks.Edge{{From: 1, To: 2}})
 
 	require.Error(t, err)
@@ -65,7 +61,6 @@ func TestATileTouchingItselfIsRefused(t *testing.T) {
 }
 
 func TestMoreNeighboursThanATileCanHaveIsRefused(t *testing.T) {
-	// Seven is the signature of a radius search, which is not how adjacency is found here.
 	positions := make([]float32, 8*3)
 
 	var edges []clicks.Edge
@@ -102,7 +97,6 @@ func TestAMapWithNoTilesIsRefused(t *testing.T) {
 }
 
 func TestATileIsAllowedToTouchNothing(t *testing.T) {
-	// 186 tiles on the real map are single-tile islands, so this is the normal case, not an edge.
 	geography := threeTiles(t)
 
 	assert.Empty(t, geography.Neighbours(1))

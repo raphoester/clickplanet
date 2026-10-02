@@ -3,14 +3,11 @@ import {PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.t
 
 export type PlayerInfoState =
     | {kind: "loading"}
-    /** A guest has no username, so there is nothing to ask for. */
     | {kind: "guest"}
-    /** No player holds the name any more: renamed, or the account is gone. */
     | {kind: "missing"}
     | {kind: "failed"}
     | {kind: "ready", info: PlayerInfo}
 
-/** What the server knows about `player`, read once when it is opened. A guest asks nothing. */
 export function usePlayerInfo(backend: PlayerInfoBackend, player: PlayerLine): PlayerInfoState {
     const [state, setState] = useState<PlayerInfoState>(() => player.guest ? {kind: "guest"} : {kind: "loading"})
 

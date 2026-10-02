@@ -24,7 +24,6 @@ const outgoing = {authorId: "author-1", countryCode: "fr", text: "hello"}
 
 const session = (): SessionProvider => ({token: vi.fn(async () => "token-1"), held: vi.fn(() => "token-1"), invalidate: vi.fn()})
 
-/** Nothing held, as before a first click: `token` mints. */
 const unheld = (): SessionProvider => ({token: vi.fn(async () => "minted"), held: vi.fn(() => undefined), invalidate: vi.fn()})
 
 const noMint = (): SessionProvider => ({
@@ -120,7 +119,6 @@ describe("ChatServiceBackend.react", () => {
         expect(headersOf(react).get(SESSION_HEADER)).toBe("token-1")
     })
 
-    // Every caller reacts as its account, guests included.
     it("mints a token when none is held", async () => {
         const react = vi.fn().mockResolvedValue(answer)
         const guest = unheld()
@@ -160,7 +158,6 @@ describe("messageOf", () => {
     })
 
     it("drops an event case this build does not know", () => {
-        // What a client sees when the backend adds a case: an unset oneof, not a crash.
         expect(messageOf(new ChatEvent())).toBeUndefined()
     })
 })
@@ -234,7 +231,6 @@ describe("ChatServiceBackend.sendMessage", () => {
         expect(headersOf(sendMessage).get(SESSION_HEADER)).toBe("token-1")
     })
 
-    // The server names the sender by its account, a guest's included.
     it("mints a token when none is held, as a click does", async () => {
         const sendMessage = vi.fn().mockResolvedValue({message: proto()})
         const guest = unheld()

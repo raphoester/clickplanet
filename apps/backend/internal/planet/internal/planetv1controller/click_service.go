@@ -16,19 +16,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 )
 
-// ClickService exists because the generated handler wants one value carrying
-// every procedure. That is the whole of its job, and it has no constructor
-// because there is nothing to construct: it is the handlers in a bag, and the
-// DI sequence that already builds them writes the literal.
-//
-// Each procedure is a package of its own, holding the one use case it calls and
-// declaring the one port it needs. What GetMap reads the map with is therefore
-// not merely unused by Click, it is unreachable from it — which is what stops
-// this drifting back into one struct that grows a field per feature.
-//
-// They are embedded, so every method is promoted rather than written: there
-// is no delegation to keep in step with the generated interface, and no test to
-// write here either — an aggregation's only claim is the assertion below.
 type ClickService struct {
 	click_handler.ClickHandler
 	get_budget_handler.GetBudgetHandler

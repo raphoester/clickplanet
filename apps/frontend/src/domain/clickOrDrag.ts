@@ -1,21 +1,8 @@
-/**
- * Whether a press on the globe was a click or a drag of it.
- *
- * The browser sends `click` for every press let go where it began, however far
- * it went in between: turning the globe and letting go over the planet claimed
- * the tile under the cursor. So a press that wanders past its tolerance is a
- * drag, and so is one a second finger joins, which is a pinch. Mouse and touch
- * go through the same rule; a fingertip only gets more room, since it rolls as
- * it lifts.
- */
 export type DragRules = {
-    /** How far, in CSS pixels, a mouse or a pen may wander and still click. */
     mousePx: number
-    /** The same for a finger. */
     touchPx: number
 }
 
-/** The parts of a `PointerEvent` the rule reads. */
 export type Pointer = {
     pointerId: number
     clientX: number
@@ -32,7 +19,6 @@ export class ClickOrDrag {
 
     constructor(private readonly rules: DragRules) {}
 
-    /** Whether the last press turned the globe rather than clicked on it. */
     get dragged(): boolean {
         return this.travelled
     }

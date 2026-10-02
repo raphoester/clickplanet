@@ -1,6 +1,3 @@
--- A charge is kept until it is used: nothing lapses, so a refill and a bomb are a flag rather than a time,
--- and enclosures a count, as spread clicks already were. A charge still in time when this runs is kept; a
--- row left holding nothing goes.
 ALTER TABLE charges
     ADD COLUMN refill  boolean NOT NULL DEFAULT false,
     ADD COLUMN bomb    boolean NOT NULL DEFAULT false,

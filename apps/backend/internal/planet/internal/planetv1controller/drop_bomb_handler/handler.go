@@ -22,7 +22,6 @@ type DropBombHandler struct {
 	useCase UseCase
 }
 
-// DropBomb answers nothing on success: the blast reaches the dropper over the stream, like everyone else.
 func (h DropBombHandler) DropBomb(
 	ctx context.Context,
 	req *connect.Request[planetv1.DropBombRequest],

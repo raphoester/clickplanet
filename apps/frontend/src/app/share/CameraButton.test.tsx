@@ -6,8 +6,6 @@ import CameraButton from "./CameraButton.tsx"
 
 afterEach(cleanup)
 
-// The label is gone under 768px, so the accessible name is the `aria-label`
-// rather than the words — which is also what makes this query work either way.
 const button = () => screen.getByRole("button", {name: "Take a picture of your planet"})
 
 describe("CameraButton", () => {
@@ -25,8 +23,6 @@ describe("CameraButton", () => {
         expect(onClick).toHaveBeenCalledTimes(1)
     })
 
-    // One globe, one frame it is captured from: a second press while the first
-    // is drawing would capture another and leak the first one's object URL.
     it("refuses a second press while a picture is being drawn", () => {
         render(<CameraButton busy onClick={vi.fn()}/>)
 
@@ -34,8 +30,6 @@ describe("CameraButton", () => {
         expect(button().getAttribute("aria-busy")).toBe("true")
     })
 
-    // A pill anchored to a corner that rewrites its own label resizes under the
-    // cursor, and the preview opening is what answers the press anyway.
     it("keeps its label while it works, rather than resizing under the cursor", () => {
         const {rerender} = render(<CameraButton onClick={vi.fn()}/>)
         const resting = button().textContent

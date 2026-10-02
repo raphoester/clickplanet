@@ -56,29 +56,12 @@ const (
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
 type AdminServiceClient interface {
-	// Gives every tile one country holds to another, while the game runs. Each
-	// tile goes out on the stream as an ordinary TileUpdate. dry_run counts and
-	// moves nothing.
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
-	// Who took tiles for the flag on the area's ground, held or painted over
-	// since, latest take first. Read from the ledger (ledger.retention).
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
-	// Who took the most tiles, over every flag and the whole map: most takes
-	// first, then most tiles held. Read from the same ledger as FindPlayers.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
-	// The antibot's shadow ban, on a scope or an account a person picked. It counts as an offence.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
-	// Gives back every tile the scope or the account still holds to what it held
-	// before its current run on it. dry_run counts and restores nothing.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
-	// Paints count random tiles with a flag, starting on one country's ground,
-	// or anywhere on the map when no country is given. proximity favours tiles
-	// that touch the ones already picked, and a patch may grow past the
-	// country's border. dry_run picks and paints nothing.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
-	// What the antibot holds on a scope: every watchdog's reading, what the jury
-	// would decide now, and any running ban. An account is read on the scope of
-	// its latest take, with the bans on both. Reads only.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 }
 
@@ -186,29 +169,12 @@ func (c *adminServiceClient) InspectPlayer(ctx context.Context, req *connect.Req
 
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
-	// Gives every tile one country holds to another, while the game runs. Each
-	// tile goes out on the stream as an ordinary TileUpdate. dry_run counts and
-	// moves nothing.
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
-	// Who took tiles for the flag on the area's ground, held or painted over
-	// since, latest take first. Read from the ledger (ledger.retention).
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
-	// Who took the most tiles, over every flag and the whole map: most takes
-	// first, then most tiles held. Read from the same ledger as FindPlayers.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
-	// The antibot's shadow ban, on a scope or an account a person picked. It counts as an offence.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
-	// Gives back every tile the scope or the account still holds to what it held
-	// before its current run on it. dry_run counts and restores nothing.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
-	// Paints count random tiles with a flag, starting on one country's ground,
-	// or anywhere on the map when no country is given. proximity favours tiles
-	// that touch the ones already picked, and a patch may grow past the
-	// country's border. dry_run picks and paints nothing.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
-	// What the antibot holds on a scope: every watchdog's reading, what the jury
-	// would decide now, and any running ban. An account is read on the scope of
-	// its latest take, with the bans on both. Reads only.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 }
 

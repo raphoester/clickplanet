@@ -9,17 +9,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// Caller is who a ban falls on: a scope, the account its token names, or both.
 type Caller struct {
 	Scope   string
 	Account string
 
-	// SignedIn is an account a provider vouches for. A guest can shed its account with a new cookie, so a
-	// ban on a guest falls on its scope too.
 	SignedIn bool
 }
 
-// NewBans keeps scopes and accounts apart, each with its own ladder and its own table.
 func NewBans(config Config, clock cptime.Clock, scopes, accounts Persistence, onStateError func(error)) *Bans {
 	return &Bans{
 		scopes:   New(config, clock, scopes, onStateError),
@@ -32,7 +28,6 @@ type Bans struct {
 	accounts *Banner
 }
 
-// Flag passes the ban on the account, and on the scope when there is no account or it is a guest's.
 func (b *Bans) Flag(caller Caller) (Sentence, bool) {
 	var (
 		sentence Sentence
@@ -48,7 +43,6 @@ func (b *Bans) Flag(caller Caller) (Sentence, bool) {
 	return sentence, accepted
 }
 
-// Ban is an operator's ban, passed on the same targets as a flag.
 func (b *Bans) Ban(caller Caller, duration time.Duration) Sentence {
 	var sentence Sentence
 	for _, target := range b.targets(caller) {
@@ -58,12 +52,10 @@ func (b *Bans) Ban(caller Caller, duration time.Duration) Sentence {
 	return sentence
 }
 
-// Banned is true when the scope or the account is banned, and enforce is on.
 func (b *Bans) Banned(caller Caller) bool {
 	return b.scopes.Banned(caller.Scope) || b.accounts.Banned(caller.Account)
 }
 
-// Sentence is the running ban on the scope or the account that ends last.
 func (b *Bans) Sentence(caller Caller) (Sentence, bool) {
 	scope, onScope := b.scopes.Sentence(caller.Scope)
 	account, onAccount := b.accounts.Sentence(caller.Account)
@@ -71,7 +63,6 @@ func (b *Bans) Sentence(caller Caller) (Sentence, bool) {
 	return latest(scope, account), onScope || onAccount
 }
 
-// Flagged counts running bans on scopes and on accounts, so a guest banned on both counts twice.
 func (b *Bans) Flagged() int {
 	return b.scopes.Flagged() + b.accounts.Flagged()
 }
@@ -104,6 +95,7 @@ func (b *Bans) targets(caller Caller) []target {
 	if caller.Account != "" {
 		targets = append(targets, target{banner: b.accounts, key: caller.Account})
 	}
+	// A guest sheds its account with a new cookie, so its ban falls on the scope too.
 	if caller.Account == "" || !caller.SignedIn {
 		targets = append(targets, target{banner: b.scopes, key: caller.Scope})
 	}

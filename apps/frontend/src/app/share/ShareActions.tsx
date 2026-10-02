@@ -5,7 +5,6 @@ import "./ShareActions.css"
 
 export type ShareActionsProps = {
     file: File
-    /** What rides along where the delivery takes text — the share sheet only. */
     text: string
 }
 
@@ -15,21 +14,9 @@ type ShareState =
     | {kind: "done", delivery: ShareDelivery, outcome: ShareOutcome}
     | {kind: "failed", delivery: ShareDelivery}
 
-/** How long an outcome stands before the button offers itself again. */
 const SETTLE_MS = 2_500
 
-/**
- * The ways this browser has of letting go of a picture that has already been
- * taken. A phone gets one button and its share sheet; a desktop gets the two
- * that cannot lie about what they did. See `deliveriesOffered`.
- *
- * Each button says its own outcome in its own label rather than in a line of
- * chrome beside them, which would sit there empty the rest of the time. Only
- * the button that was pressed says anything — which is also what tells the
- * player which of the two they actually got.
- */
 export default function ShareActions({file, text}: ShareActionsProps) {
-    // Nothing about what this browser can do changes while the page is open.
     const [deliveries] = useState(deliveriesOffered)
     const [state, setState] = useState<ShareState>({kind: "idle"})
     const settling = useRef<number | undefined>(undefined)
@@ -42,8 +29,6 @@ export default function ShareActions({file, text}: ShareActionsProps) {
 
         const next = await attempt(delivery)
         setState(next)
-        // A share sheet the player closed has nothing to report, and an idle
-        // button is already the whole of what it would have said.
         if (next.kind === "idle") return
 
         settling.current = window.setTimeout(() => setState({kind: "idle"}), SETTLE_MS)

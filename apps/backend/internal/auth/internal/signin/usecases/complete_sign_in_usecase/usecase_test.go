@@ -47,8 +47,12 @@ func setUp(t *testing.T) *fixture {
 	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), store: inmemory_account_store.New(), clock: cptime.NewFixedClock(start), events: cpbootstrap.NewRecordedEvents()}
 	providers := signin.Providers{signin.Google: f.google}
 	f.start = start_sign_in_usecase.New(providers, f.store, &signin.SequentialSecrets{}, sealer, f.clock)
-	f.completion = complete_sign_in_usecase.New(providers, sealer, f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.events, f.clock)
+	f.completion = complete_sign_in_usecase.New(providers, sealer, f.admitter(), f.clock)
 	return f
+}
+
+func (f *fixture) admitter() *signin.Admitter {
+	return signin.NewAdmitter(f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.events)
 }
 
 func (f *fixture) guest(t *testing.T, account byte, token string) {
@@ -57,7 +61,6 @@ func (f *fixture) guest(t *testing.T, account byte, token string) {
 	require.NoError(t, f.store.CreateGuest(t.Context(), accounts.GuestSession(accounts.AccountID{15: account}, accounts.TokenOf(token), lifetime, start)))
 }
 
-// began starts a sign-in and answers the flow cookie and the state the provider would send back.
 func (f *fixture) began(t *testing.T, intent accounts.Intent, sessionCookie string) (string, string) {
 	t.Helper()
 
@@ -94,7 +97,6 @@ func (f *fixture) finish(t *testing.T, intent accounts.Intent, sessionCookie str
 	return f.completion.Execute(t.Context(), complete_sign_in_usecase.In{Code: "the-code", State: state, CookieHeader: cookies})
 }
 
-// linkedAccount makes an account linked to one provider's user, with a session under token.
 func (f *fixture) linkedAccount(t *testing.T, account byte, provider string, subject string, token string) {
 	t.Helper()
 
@@ -159,7 +161,8 @@ func TestAKnownIdentitySignsInToItsAccountAndLeavesTheGuestAsItWas(t *testing.T)
 	guest, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.False(t, guest.Linked(), "nothing is merged, and the guest gains no identity")
-	f.assertPublished(t,
+	f.assertPublished(
+		t,
 		&authv1.SignedIn{AccountId: accounts.AccountID{15: 1}.String()},
 		&authv1.SignedIn{PreviousAccountId: accounts.AccountID{15: 7}.String(), AccountId: accounts.AccountID{15: 1}.String()},
 	)
@@ -226,7 +229,6 @@ func TestLinkingAnIdentityTheAccountAlreadyHasKeepsTheBrowserThere(t *testing.T)
 	assert.Equal(t, accounts.SignedIn, out.Outcome)
 }
 
-// The production bug: the browser moved to the identity's account, which lacked the provider it came from.
 func TestLinkingAnIdentityAnotherAccountUsesIsRefusedAndWritesNothing(t *testing.T) {
 	f := setUp(t)
 	f.linkedAccount(t, 1, signin.Google, claim.Subject, "other-browser")
@@ -332,7 +334,7 @@ func TestAStoreFailureFailsTheSignIn(t *testing.T) {
 
 func TestSignInOffCompletesNothing(t *testing.T) {
 	f := setUp(t)
-	useCase := complete_sign_in_usecase.New(signin.Providers{}, f.sealer, f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.events, f.clock)
+	useCase := complete_sign_in_usecase.New(signin.Providers{}, f.sealer, f.admitter(), f.clock)
 
 	_, err := useCase.Execute(t.Context(), complete_sign_in_usecase.In{Code: "the-code", State: "state"})
 

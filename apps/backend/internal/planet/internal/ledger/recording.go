@@ -21,21 +21,16 @@ func NewRecording(tiles Tiles, takings Storage, clock cptime.Clock) Recording {
 	return Recording{tiles: tiles, takings: takings, clock: clock}
 }
 
-// Recording is the tile writer the click chain is handed, so a click, a spread and an enclose all
-// land in the ledger under the caller who made them.
 type Recording struct {
 	tiles   Tiles
 	takings Storage
 	clock   cptime.Clock
 }
 
-// Owner reads the map the writer writes, so the click chain asks the rule and writes through one object.
 func (r Recording) Owner(tile uint32) (string, bool) {
 	return r.tiles.Owner(tile)
 }
 
-// The owner is read apart from the write, so a click racing this one can leave a stale Previous. A stale
-// one breaks the caller's run on the tile, so the worst a revert does is give back less far.
 func (r Recording) Set(ctx context.Context, tile uint32, value string) error {
 	previous, _ := r.tiles.Owner(tile)
 

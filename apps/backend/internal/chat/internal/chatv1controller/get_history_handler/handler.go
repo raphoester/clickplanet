@@ -1,4 +1,3 @@
-// Package get_history_handler serves chat.v1.ChatService/GetHistory.
 package get_history_handler
 
 import (
@@ -25,7 +24,6 @@ type GetHistoryHandler struct {
 	useCase UseCase
 }
 
-// GetHistory answers no-store: a cached answer would show a joiner a chat missing its last minutes.
 func (h GetHistoryHandler) GetHistory(
 	ctx context.Context,
 	_ *connect.Request[chatv1.GetHistoryRequest],

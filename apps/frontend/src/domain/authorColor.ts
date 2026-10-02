@@ -1,16 +1,3 @@
-/**
- * A stable colour per chat author, so a run of messages can be told apart at a
- * glance without reading the small print of the name.
- *
- * The identity being coloured is the name the log displays, which the server
- * gives one account only: a username, or `guest_` and the guest's code.
- * Someone renaming themselves gets a new colour — which is what the reader
- * sees happen too.
- *
- * Only the hue is derived. Saturation and lightness are fixed in the CSS, so
- * every author lands at the same legibility against the dark panel and no hash
- * can produce an unreadable one.
- */
 export function authorHue(authorName: string): number {
     return hash(authorName) % 360
 }

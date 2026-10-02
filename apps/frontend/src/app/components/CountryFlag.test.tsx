@@ -6,9 +6,6 @@ import {regions} from "../viewer/atlas.ts"
 import {ATLAS_SIZE, ATLAS_URL} from "../viewer/atlasAsset.ts"
 import {Countries} from "../../domain/countries.ts"
 
-// The box the component draws in: one em wide, and as tall as the capitals it
-// stands next to. Everything below is in em for the same reason the component
-// is — a flag sized in px drifts as the text around it grows.
 const BOX = {width: 1, height: 0.716}
 
 afterEach(cleanup)
@@ -65,9 +62,6 @@ describe("CountryFlag", () => {
     })
 
     it("centres a short flag with a margin, not with the box", () => {
-        // The box has to keep its own bottom edge as its baseline: a box that
-        // centres its content takes the content's baseline instead, and a column
-        // of flags of different heights ends up jittering against the names.
         const {container} = render(<CountryFlag code="ne"/>)
 
         const drawn = sprite(container)!.style

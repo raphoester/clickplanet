@@ -1,6 +1,5 @@
 package messages
 
-// Record is a message plus what the log keeps about its sender and no reader sees.
 type Record struct {
 	Message   Message
 	AuthorID  string

@@ -12,12 +12,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// ErrNoSession is the answer to a call with no valid click token: the client mints one and retries.
 var ErrNoSession = errors.New("the player service requires a session; call auth.v1.AuthService/CreateSession first")
 
-// NewSessionInterceptor refuses every PlayerService call but GetRoster, GetPlayer and ListenForEvents without a
-// valid click token. It always enforces: a profile is an account's, and there is no caller to answer for without
-// one. Those three answer the same to anybody.
 func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Clock, registerer prometheus.Registerer) connect.Interceptor {
 	checks := promauto.With(registerer).NewCounterVec(prometheus.CounterOpts{
 		Name: "player_session_checks",

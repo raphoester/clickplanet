@@ -1,4 +1,3 @@
-// Package get_map_handler serves planet.v1.ClickService/GetMap.
 package get_map_handler
 
 import (
@@ -22,8 +21,6 @@ type GetMapHandler struct {
 	useCase UseCase
 }
 
-// The batch is copied out field by field rather than converted: the proto
-// message and the domain struct have different reasons to change.
 func (h GetMapHandler) GetMap(
 	ctx context.Context,
 	req *connect.Request[planetv1.GetMapRequest],

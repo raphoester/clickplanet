@@ -1,4 +1,3 @@
-// Package get_budget_handler serves planet.v1.ClickService/GetBudget.
 package get_budget_handler
 
 import (
@@ -22,8 +21,6 @@ type GetBudgetHandler struct {
 	useCase UseCase
 }
 
-// GetBudget is how a client that has just loaded learns its allowance. Every
-// click answers with a fresh one afterwards, so this is asked once per page load.
 func (h GetBudgetHandler) GetBudget(
 	ctx context.Context,
 	req *connect.Request[planetv1.GetBudgetRequest],

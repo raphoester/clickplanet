@@ -6,26 +6,19 @@ import {AddReactionIcon} from "../components/icons.tsx";
 import {truncate} from "../truncate.ts";
 import {REACTION_IMAGES} from "./reactionsAsset.ts";
 
-// What belongs to one message's reactions, so a click on it does not count as a click outside.
 const OWNER = "data-reactions-for"
 
 export type ReactionBarProps = {
     messageId: string
     reactions: ReactionCount[]
-    /** Absent, the counts are shown and nothing can be clicked. */
     onReact?: (reaction: Reaction, on: boolean) => void
     picking: boolean
     setPicking: (picking: boolean) => void
 }
 
-/**
- * A message's reactions, and the picker when it is open. Each is drawn from our
- * own images: the system's emoji font looks different, or broken, everywhere.
- */
 export default function ReactionBar({messageId, reactions, onReact, picking, setPicking}: ReactionBarProps) {
     const shell = useRef<HTMLDivElement>(null)
 
-    // A click anywhere else closes the picker, and so does Escape.
     useEffect(() => {
         if (!picking) return
         const clicked = (event: PointerEvent) => {
@@ -46,7 +39,6 @@ export default function ReactionBar({messageId, reactions, onReact, picking, set
     const counted = reactions.filter(count => REACTION_IMAGES.has(count.reaction))
     const open = picking && onReact !== undefined
 
-    // Opened on the last message, the picker would sit under the fold of the log.
     useEffect(() => {
         if (open) shell.current?.scrollIntoView?.({block: "nearest"})
     }, [open])
@@ -82,15 +74,12 @@ export default function ReactionBar({messageId, reactions, onReact, picking, set
     </div>
 }
 
-/** How much of a name the popup shows before it cuts it. */
 const WHO_MAX_LENGTH = 18
 
-/** The popup's widest, and how it is kept clear of the chip and of the edges of the screen. */
 const WHO_MAX_WIDTH_PX = 220
 const WHO_GAP_PX = 8
 const WHO_EDGE_PX = 8
 
-/** Under this much room over the chip the popup goes under it instead. */
 const WHO_ROOM_PX = 140
 
 type Anchor = {
@@ -101,14 +90,9 @@ type Anchor = {
 
 type ReactionChipProps = {
     count: ReactionCount
-    /** Absent, the chip is shown and cannot be clicked. */
     onReact?: (on: boolean) => void
 }
 
-/**
- * One reaction under a message: how many gave it, and who, while the pointer
- * rests on it or it holds the focus.
- */
 function ReactionChip({count, onReact}: ReactionChipProps) {
     const chip = useRef<HTMLButtonElement>(null)
     const [at, setAt] = useState<Anchor | undefined>(undefined)
@@ -120,8 +104,6 @@ function ReactionChip({count, onReact}: ReactionChipProps) {
     useEffect(() => {
         if (!at) return
 
-        // Anything that moves the chip takes the popup with it, rather than
-        // having it follow: the log scrolls under a resting pointer.
         const hide = () => setAt(undefined)
         window.addEventListener("scroll", hide, true)
         window.addEventListener("resize", hide)
@@ -151,11 +133,6 @@ function ReactionChip({count, onReact}: ReactionChipProps) {
     </>
 }
 
-/**
- * Where the popup goes: over the middle of the chip, or under it with no room
- * over. The middle is held far enough from either edge of the screen that a
- * popup of the widest still fits, since it is drawn from its own middle.
- */
 function anchorOf(chip: HTMLElement | null): Anchor | undefined {
     const box = chip?.getBoundingClientRect()
     if (!box) return undefined
@@ -178,14 +155,10 @@ type ReactionWhoProps = {
     label: string
 }
 
-/**
- * Who gave one reaction. It is drawn on the body rather than beside the chip:
- * the log both scrolls and clips, and the panel's backdrop-filter would hold a
- * fixed child to the panel instead of the screen.
- */
 function ReactionWho({id, at, count, label}: ReactionWhoProps) {
     const {names, more} = whoReacted(count)
 
+    // On the body: the panel's backdrop-filter would make position: fixed relative to it.
     return createPortal(
         <div id={id}
              role="tooltip"
@@ -200,7 +173,6 @@ function ReactionWho({id, at, count, label}: ReactionWhoProps) {
         document.body)
 }
 
-/** What the popup says about the ones it cannot name: the rest of a long list, or the whole of it. */
 function restOf(named: number, more: number): string {
     if (named > 0) return `and ${more} more`
     return more === 1 ? "1 player" : `${more} players`
@@ -212,7 +184,6 @@ export type AddReactionButtonProps = {
     setPicking: (picking: boolean) => void
 }
 
-/** Beside the balloon, so a message nobody reacted to takes no more room than before. */
 export function AddReactionButton({messageId, picking, setPicking}: AddReactionButtonProps) {
     return <button type="button"
                    className={picking ? "chat-reaction-add chat-reaction-add-open" : "chat-reaction-add"}

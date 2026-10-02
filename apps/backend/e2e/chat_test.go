@@ -14,10 +14,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 )
 
-// guestName is what the game calls an account with no username: the prefix and its 6 hex character code.
 var guestName = regexp.MustCompile(`^guest_[0-9a-f]{6}$`)
 
-// post sends a message, with the gamer's click token when it has one.
 func (p *gamer) post() (*chatv1.ChatMessage, error) {
 	p.t.Helper()
 
@@ -68,7 +66,6 @@ func TestASenderWithNoTokenIsUnauthenticated(t *testing.T) {
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }
 
-// react puts a reaction on a message, or takes it off, with the gamer's click token when it has one.
 func (p *gamer) react(messageID string, reaction chatv1.Reaction, on bool) ([]*chatv1.ReactionCount, error) {
 	p.t.Helper()
 

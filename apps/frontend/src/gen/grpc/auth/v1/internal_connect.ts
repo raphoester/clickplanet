@@ -22,9 +22,6 @@ export const InternalService = {
       kind: MethodKind.Unary,
     },
     /**
-     * What another module may know about one account. An account that does not
-     * exist, or an id that is not one, answers linked false.
-     *
      * @generated from rpc auth.v1.InternalService.GetAccount
      */
     getAccount: {

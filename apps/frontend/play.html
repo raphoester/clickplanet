@@ -2,14 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
-    <!--
-      The game. The home page is index.html; this page is served at /play and at
-      /auth/callback (see vite.config.ts).
-
-      The sign-in callback carries a one-time code in its address until main.tsx
-      removes it. First in <head>, so no request this page makes sends it on as a
-      referrer. public/_headers says the same for the document itself.
-    -->
+    <!-- First in <head>: no request may send the callback's one-time code as a referrer. -->
     <script>
         if (location.pathname.replace(/\/+$/, "") === "/auth/callback") {
             var referrer = document.createElement("meta")
@@ -31,11 +24,6 @@
     <meta property="og:site_name" content="ClickPlanet"/>
     <meta property="og:locale" content="en_US"/>
 
-    <!--
-      Scrapers lay the card out before the image finishes downloading, and some
-      of them fall back to a small text-only card without the dimensions. The
-      size here must match what `npm run og-image` produces.
-    -->
     <meta property="og:image" content="https://clickplanet.lol/static/og-image-e8ac259e.jpg"/>
     <meta property="og:image:secure_url" content="https://clickplanet.lol/static/og-image-e8ac259e.jpg"/>
     <meta property="og:image:type" content="image/jpeg"/>

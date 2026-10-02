@@ -1,37 +1,17 @@
 httpServer:
   bindAddress: 0.0.0.0:8080
-  # How often a live stream with nothing to say sends a heartbeat, so a proxy
-  # does not mistake a quiet stream for a dead one. Cloudflare cuts a silent
-  # response at ~125s with a 524, so this must stay well under that. Empty or
-  # zero means 30s.
+  # Must stay well under Cloudflare's ~125s idle cut, which answers 524.
   streamHeartbeat: 30s
-  # A second listener for operator services (planet.v1.AdminService). They have
-  # no authentication, so anything but a loopback address refuses the boot.
-  # Empty serves no admin listener at all.
   adminBindAddress: 127.0.0.1:8081
-  # A third listener, for what one module asks another (auth.v1.InternalService).
-  # Its callers are trusted, so anything but a loopback address refuses the boot.
-  # Empty serves none, and a module that calls another then refuses the boot.
   internalBindAddress: 127.0.0.1:8082
-  # The frontend's origin, exactly: scheme, host and port, no trailing slash.
-  # The API allows browser calls from it alone, with credentials, which is how
-  # the auth module's account cookie reaches the frontend. Never "*": a browser
-  # refuses a credentialed answer that allows every origin. Empty refuses the boot.
   allowedOrigin: http://localhost:5173
 gameMap:
   maxIndex: 262119
 
-# The planet module's database: its own connection, and the schema its tables
-# live in. It creates and migrates the schema while it builds. Another module
-# that stores something gets a block of its own. There is no fallback: without
-# a database the process refuses to start.
-#
-#   docker run -d --name cp-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16-alpine
 database:
   host: localhost
   port: "5432"
   user: postgres
-  # Belongs in the environment in production (database.password), not in a file in git.
   password: postgres
   dbName: postgres
   sslMode: disable
@@ -39,147 +19,50 @@ database:
   pool:
     maxOpenConns: 4
 
-# The whole tile map lives in this process. Postgres is where it is kept between
-# boots: it is loaded once at boot, and only the tiles that changed are written
-# back, on a timer. A click never waits on the database.
 tilesStorage:
-  # The most a hard kill can lose. A clean stop loses nothing: the last flush
-  # runs on SIGTERM.
   flushInterval: 1s
-  # Per-stream subscriber channel capacity. Updates for a subscriber that
-  # cannot keep up are dropped rather than blocking clicks.
   subscriberBuffer: 1024
 
-# Every take of every tile, for the operator tools (FindPlayers, TopPlayers, RevertPlayer).
 ledger:
-  # How long a take can still be traced or reverted.
   retention: 72h
   sweepInterval: 5m
 
 chargeStorage:
-  # How often the charges that changed (a bomb, an enclose, a spread's clicks)
-  # are written to postgres. Also flushed on shutdown, so a deploy keeps them.
   flushInterval: 1s
 
 ledgerStorage:
-  # How often the new takes are written to postgres. Also flushed on shutdown.
   flushInterval: 1s
-  # The most takes kept, 20 bytes each plus strings (~100 MiB). Past it the oldest go before
-  # the retention, and the log says so once.
   maxTakes: 4000000
 
-# Throttle on the Click RPC. Reads and the streams are untouched.
-# The defaults below are also what applies when this block is absent.
-# A click spends from two buckets at once: its account's, at the policy below,
-# and its scope's — one address over IPv4, one /64 over IPv6 — at
-# scopeMultiplier times it. A guest's also spends from a third, which every
-# guest behind its scope shares, at guestScopeMultiplier times it. A token with
-# no account spends one scope bucket at the policy below, as before accounts.
 rateLimiter:
-  # Sustained clicks per second allowed from one account. A float: 0.2 is one
-  # click every 5s. Unset is 1.
   perSecond: 0.2
-  # Clicks an account may bank while away and spend at once: 60 at 0.2/s is a
-  # bank that fills in five minutes. Unset is 10.
   burst: 60
-  # The scope's burst and rate over one account's: players behind one address,
-  # such as a campus, share it. 1 or more.
   scopeMultiplier: 10
-  # The bucket every guest behind one scope shares, over one account's: at 1,
-  # ten private tabs are one bank, not ten. A guest that signs in gets its own.
-  # 1 or more.
   guestScopeMultiplier: 1
-  # The refill rate of an account signed in with Google or Discord over a
-  # guest's, to make signing in worth it; the bank is the same size. It is still
-  # bounded by the scope's bucket. The client reads it off every budget and
-  # advertises it to guests. 1 or more; 1 turns the reward off.
   linkedMultiplier: 2
-  # How often the buckets that have refilled completely are forgotten. Only
-  # affects memory, never what a caller is allowed.
+  newAccountClicks: 10
   sweepInterval: 1m
 
-# Every click costs one token. The more of the map a country holds, the slower
-# its players get their clicks back: from each share below (a fraction of every
-# tile on the map), the refill after a click for that country is that many times
-# slower. The bank's size never moves. No steps refills every country at the
-# plain rate.
 toll:
   steps:
     - {share: 0.10, slowdown: 1.5}
     - {share: 0.20, slowdown: 2.5}
     - {share: 0.30, slowdown: 4}
 
-# Native land takes two clicks. On a country's own ground (the borders blob), a
-# tile wearing that country's flag is cleared to nobody by a click for any other
-# flag, not taken; the next click on the empty tile takes it, for any flag. Its
-# natives take it back in one. Every click still costs one token: this changes
-# what a click does, never what it costs. Spread and enclose follow the rule on
-# every tile they touch. The bomb and the operator tools do not. The client is
-# told through GetBonusRules, so off needs no frontend release. Off by default.
 homeSoil:
   enabled: false
 
-# Refuses the Click RPC from known VPN and proxy egress ranges, so a player has
-# to come from an address the throttle above can actually hold onto: a bucket
-# keyed on something you can change at will is a bucket that does not hold.
-# Reads and the websocket are untouched — a VPN user still loads and watches the
-# planet, they just cannot paint.
-#
-# The ranges are vendored from github.com/X4BNet/lists_vpn and embedded in the
-# binary. Refresh them with `make vpn-lists`.
 vpnBlocklist:
-  # Off parses nothing and allocates nothing.
   enabled: true
-  # Also refuse datacenter and hosting ranges, which catches a self-hosted
-  # WireGuard on a VPS. It also refuses Apple iCloud Private Relay and
-  # Cloudflare WARP, which egress from those same ranges and are on by default
-  # for a lot of ordinary mobile traffic. Watch blocked_clicks{list="vpn"}
-  # against clicks for a sense of the scale before turning this on.
   includeDatacenters: false
-  # Never refused, whatever the lists say. Prefixes, so /32 for a single
-  # address. Put your own address here.
   allow: []
 
-# Bonus boxes: a question-mark box flies past the planet, and whoever catches it
-# clicks at a multiple of their allowance for a minute.
-#
-# The server picks who is offered one and sends it down that one stream. It is
-# deliberately not a race: broadcast to everyone, a box is always caught by
-# whichever client reacts fastest, and that is a script every time.
-#
-# Each caller is on a schedule of their own. A single server-wide ticker made
-# the rate each player saw 1/(interval x players), so the feature got rarer the
-# busier the game was.
 bonus:
-  # A caller's next box is due this long after the last one, drawn uniformly.
-  # The spread is for feel: a script does not predict the schedule, it watches
-  # the stream, so nothing here is hidden from one. 4m to 8m is about ten boxes
-  # an hour: the next is due a window after the last was offered, or claimed.
   minInterval: 4m
   maxInterval: 8m
 
-  # How soon to try again after a box was not caught. It applies to one miss;
-  # a second in a row waits the ordinary window, so a player who is not
-  # catching them does not collect a box every 2m all session. Half the
-  # shortest window.
   missRetry: 2m
 
-  # What a box can be worth, as a weight per kind. A kind's chance is its weight
-  # over the sum of the weights: 3 and 1 make one box in four a spread. A kind
-  # left out, or at 0, is never offered. Empty takes the weights below, which are
-  # the defaults: about one bomb an hour of active play.
-  #   refill        - fills your click bank to full, when you choose: up to one
-  #                   bank, 60 clicks
-  #   spread_clicks - a few spread clicks: with spread switched on, a click also
-  #                   takes the tiles touching the one clicked
-  #   bomb          - one bomb, dropped anywhere to clear a circle of tiles
-  #   enclose_clicks - a few enclosures: with enclose switched on, a click that
-  #                   closes a shape of your tiles takes the inside
-  # Every kind is a charge the player uses when they choose, and nothing lapses.
-  # A player holds one refill and one bomb at most, and enclosures and spread
-  # clicks up to their size; no box of a kind held (or full) is offered, so
-  # nobody can stockpile bombs and drop them all at once. Only an account holds
-  # a charge, and they are kept in postgres (see chargeStorage).
   kinds:
     refill: 5
     spread_clicks: 3
@@ -198,132 +81,50 @@ bonus:
     - {share: 0.10, kinds: {refill: 5, spread_clicks: 3, enclose_clicks: 2}}
     - {share: 0.20, kinds: {refill: 1}}
 
-  # How long the token stays good. It has to outlast the flight the client
-  # draws, or a box caught on its last frame is refused.
+  # Must outlast the box's flight on the client, or a late catch is refused.
   offerTTL: 15s
 
-  # spread_clicks: a pool of up to `clicks` spread clicks, spent one a click
-  # while the player has spread switched on. A box adds 1 to `maxPerBox`, drawn
-  # when it is claimed. Each takes up to seven tiles, so a full pool of 8 is about
-  # 56 tiles, a bomb's worth. A count and not a time: a 10s spread let a player
-  # with a full bank dump it all inside the window.
   spread:
     clicks: 8
     maxPerBox: 4
 
   bomb:
-    # The radius of the circle a bomb clears, whoever holds the tiles, in tile
-    # spacings: 4 is ~57 tiles inland (the median; 70 near the icosahedron
-    # corners, where the lattice stretches), about one bank of 60. A bomb never
-    # clears more than one player can take back with one bank. The area grows
-    # with the square of this: 10.4 was ~390. The radius in radians is this times
-    # the map's own tile spacing, so the client's ring and the clear always agree.
     rings: 4
 
-  # enclose_clicks: one shape, and the most tiles it may hold. A click that takes
-  # the last tile of a wall around a pocket of other tiles takes the pocket too,
-  # and spends the charge. Clicking a tile you already hold closes nothing, so a
-  # shape finished before the charge does not count. A pocket bigger than
-  # maxTiles, or open to the coast, takes nothing and keeps the charge - so a
-  # triangle of three tiles, which has no inside, is free. The wall around a
-  # 25-tile pocket costs about 20 clicks, so the reward matches the planning. A
-  # player stacks up to `held` enclosures, spent one a shape while enclose is
-  # switched on; a box adds 1 to `maxPerBox`, drawn when it is claimed.
   enclose:
     maxTiles: 25
     held: 3
     maxPerBox: 3
 
-  # How recently a caller must have clicked to be offered a box. A tab left open
-  # overnight is not playing, and a box sent to it is one nobody catches.
   activeWithin: 2m
 
-  # How long a caller's schedule outlives its last stream. Without it, closing
-  # the tab and reopening it draws a fresh wait, so a player could reload until
-  # they got a short one.
   forgetAfter: 5m
 
-  # The most charges one caller may be granted per hour. Nothing here is a race
-  # any more, but a script still catches every box it is offered where a person
-  # catches some - this bounds what that is worth. It only stops the next offer.
-  # 12 is above the ten boxes an hour a person catching every one would get.
   maxChargesPerHour: 12
 
-  # One sweep for everybody, rather than a timer per caller. The quizzes below
-  # ride the same sweep.
   sweepInterval: 1s
 
-  # A quiz: three choices, a short clock, and a charge for the right answer.
-  #
-  # A second way to earn one of the charges above, not a box of another shape.
-  # Its own clock and its own hourly budget, so switching it on adds offers
-  # rather than replacing them - a caller can hold an unopened quiz and a flying
-  # box at the same time. What it does share with a box is the reward: a quiz's
-  # kind is drawn from the same weights, and from only the kinds a box could be
-  # offered, so nobody is asked a question for a bomb they already hold.
-  #
-  # The questions are generated - see /quiz/README.md. They are embedded in this
-  # binary and deliberately never served to the browser, because the answers are
-  # in them.
   quiz:
-    # Off boots a process with no bank loaded and never asks anything.
     enabled: true
 
-    # A caller's next quiz is due this long after the last one could have been
-    # answered, drawn uniformly. A little rarer than the boxes, so the two
-    # together are about one offer every two minutes of active play rather than
-    # a thing that never stops interrupting.
     minInterval: 6m
     maxInterval: 11m
 
-    # How long the banner sits there unopened. Generous, because it is only an
-    # invitation: the clock that matters starts when the question is read, so a
-    # player can finish the click they were making and look up.
     offerTTL: 25s
 
-    # How long the player has once the question and its three choices are on
-    # screen. Long enough to read them, and short enough that looking the answer
-    # up is not worth it - that second half is the guideline, not the number, so
-    # retune this freely within it.
-    #
-    # It is the server's own stamp, taken when the question is read and checked
-    # when the answer lands, so a client that holds its own countdown open
-    # cannot spend longer than it was given.
     answerWindow: 8s
 
-    # How much harder the draw leans on the countries that are winning, read off
-    # the same shares the toll prices a click from. A country's weight is
-    # 1 + leaderBias x (its share / an even share): at 1, a country holding an
-    # even slice of the map is asked about about twice as often as one holding
-    # nothing, and one holding ten times its slice ten times more.
-    #
-    # It is a lean, not a rule - the floor of 1 keeps every country in the draw,
-    # because a quiz that only ever asked about the top three would be four
-    # questions deep by the end of the week, and the lean is capped so that even
-    # a planet one country has nearly swept still asks about somewhere else.
-    #
-    # 0 is a flat draw, and 0 is what leaving this out means.
     leaderBias: 1
 
-    # The most charges one caller may win from quizzes per hour, on top of what
-    # the boxes give. A player who answers everything gets this many and no more.
     maxChargesPerHour: 6
 
-# Accepts a bot's clicks and drops them, rather than refusing them and naming the
-# check it tripped. Four watchdogs read four different behaviours, the jury
-# crosses what they say, and the shadow ban is the one sentence they all pass.
 antiBot:
-  # Off registers nothing and measures nothing.
   enabled: true
 
-  # Where the bans and the evidence are kept between boots: the same postgres
-  # as the planet, in a schema of its own. The guard migrates it at boot, and a
-  # failed connection or load refuses the boot.
   database:
     host: localhost
     port: "5432"
     user: postgres
-    # Belongs in the environment in production (antiBot.database.password), not in a file in git.
     password: postgres
     dbName: postgres
     sslMode: disable
@@ -331,312 +132,137 @@ antiBot:
     pool:
       maxOpenConns: 2
 
-  # The sentence, and nothing else: it takes a scope and a clock and runs the
-  # ban. It knows nothing about bots, tiles or what earned it.
   shadowBan:
-    # Off judges, logs and counts without dropping anything. Ship in this mode:
-    # read the "antibot ban" lines, check none of them is naming you, set the
-    # bounds below from the numbers those lines carry, then turn this on.
     enforce: false
-    # The Nth offence bans for the Nth step; past the end the last one repeats.
-    # A flag on a running ban only extends it: an offence is a ban that starts
-    # while none is running. Offences are never forgotten.
     banDurations: [24h, 168h, 26280h]
-    # How soon a caller already serving a ban can be judged again. At or above a
-    # watchdog's trackWindow each flag rests on evidence the previous one never
-    # saw, so flags=6 on a line is six separate judgements agreeing rather than
-    # one verdict repeated. Without this a caller goes quiet behind its first
-    # ban and you cannot tell whether it stopped or kept going.
     reflagInterval: 5m
-    # How often the bans changed since the last write are written to postgres,
-    # and once more on shutdown.
     saveInterval: 1m
 
-  # How the watchdogs are crossed.
   jury:
-    # A watchdog that says "certain" bans on its own. This is how many must say
-    # "suspect" instead — the level each of them uses for a reading that would
-    # ban real players if it were trusted alone.
-    #
-    # Crossing only buys confidence when the watchdogs measure different things,
-    # and these only half do: a machine sweep is sequential AND regular AND
-    # never rests, so two suspicions can be one behaviour counted twice. So can
-    # the most obsessed player. Two is the loosest this should be.
     minSuspects: 2
-    # How long a suspicion stands while another watchdog catches up. A caller's
-    # rules do not all trip on the same click — the sequencer needs a run of
-    # steps, the metronome needs a quarter of an hour — but two readings an hour
-    # apart are not a caller doing two things at once.
     suspicionWindow: 10m
-    # How long a silent caller is remembered. A ban outlives this: it lives in
-    # shadowBan above, on its own clock.
     trackWindow: 15m
     sweepInterval: 1m
 
-  # What every watchdog and the jury are tracking, saved so a restart does not
-  # reset their windows: a process restarted every 10 minutes never fills a
-  # window of 15 or 30. Bans are saved on their own, in shadowBan above.
   evidence:
-    # How often it is written to postgres, and it is written once more on
-    # shutdown. A hard kill loses at most this much.
     saveInterval: 1m
-    # The oldest evidence kept, on load and by a sweep before each save,
-    # whatever a trackWindow says. A run still going is kept whole.
     retention: 72h
 
-  # Takes a tile back moments after losing it, over and over. Speed is not the
-  # signal — the player clicking back at a bot is the fastest caller on the map.
-  # Regularity is.
   retaker:
     enabled: true
     detector:
-      # How soon after losing a tile a re-take counts as a reaction at all.
-      # Anything slower is somebody who happened to click the same tile later.
-      # Keep this well above the delays you expect to measure: a reaction past
-      # the edge is not missed, it is censored, and the median of what is left
-      # reads faster than the caller really is.
       reactionWindow: 5s
-      # Reactions needed inside trackWindow before anything is said. The bound
-      # that stops one unlucky exchange from being evidence.
       minReactions: 12
-      # The p90-p10 of those reactions. On its own this is "suspect": a caller
-      # answering at a steady 1s holds a band no hand holds, and a steady hand
-      # at a slow tempo is not impossible. This is the bound that does the work
-      # — the bot actually seen in production sat at 138ms across twenty
-      # reactions while picking a human-looking delay on purpose.
       maxSpread: 120ms
-      # A band this tight that is also faster than a person decides is
-      # "certain", and bans on its own. Either bound alone bans real players.
       maxMedian: 250ms
-      # Reactions on this many different tiles, with a median at or under
-      # roamMedian, read "suspect" whatever the spread; certainTiles reads
-      # "certain". A player at war is fast on the tile it watches, and a bot
-      # reading the stream is fast everywhere — including when its retakes
-      # queue behind the throttle and the band above goes wide. 0 is off.
       minTiles: 15
       roamMedian: 600ms
       certainTiles: 30
       trackWindow: 5m
       sweepInterval: 1m
 
-  # Walks the tile ids rather than the map: 1, 2, 3, 4, and on until a continent
-  # is painted. Tile ids come from the icosahedron's vertex order and not from a
-  # grid of latitudes, so filling in a shape by hand does not hold a constant
-  # step from one click to the next. A loop over an integer does nothing else.
   sequencer:
     enabled: true
     detector:
-      # Steps in hand before anything is said, and how many of them must sit at
-      # the same step to read as "suspect". The size of the step says nothing;
-      # holding one says everything.
       minSteps: 40
       minShare: 0.75
-      # The same reading held long enough that nothing else explains it. Two
-      # hundred clicks at a constant step is not a player being tidy.
       certainSteps: 200
       certainShare: 0.95
       trackWindow: 15m
       sweepInterval: 1m
 
-  # Never varies and never stops. A script tuned to sit just under the throttle
-  # spends hours at one tempo with no pauses in it.
   metronome:
     enabled: true
     detector:
-      # The longest pause a run survives. Anything longer ends the run and the
-      # evidence starts again from nothing, which is the point: a person stops
-      # to look at the map, and a loop does not.
       maxGap: 3s
-      # The p90-p10 of the gaps inside a run, and the bound that does all the
-      # work here. The median is deliberately not bounded at all: the claim is
-      # not that the caller is fast, it is that the caller is a clock. Gaps are
-      # timed between clicks tried, 429s included, so the throttle cannot hide one.
       maxSpread: 120ms
-      # How long an unbroken run must be to read as "suspect", and what turns it
-      # into "certain". Half an hour without once pausing longer than maxGap is
-      # not somebody who is very keen.
       minClicks: 120
       certainFor: 30m
       certainClicks: 900
-      # The second rule: a random sleep is a clock too. It reads the skew
-      # (p90 + p10 - 2*p50) / (p90 - p10) of the last `clicks` gaps, over a
-      # window a pause does not end: a gap past maxGap is skipped. A hand leans
-      # long and reads towards 1; a sleep drawn evenly from a range reads near 0.
       shape:
         maxGap: 10s
         clicks: 500
         certainClicks: 1000
-        # Unset, a level never reads and click_gap_skew only measures. 0 is a
-        # skew, so leaving a bound out is the only way to turn it off.
-        # maxSkew: 0.25
-        # certainSkew: 0.15
-      # The third rule: hours spent at pace, however the caller paused. A slice
-      # is busy when one payer (its account, or its scope with none) got
-      # `clicks` past the throttle in it; the rule reads the busy time inside
-      # `window`. Unset, a level never reads and click_busy_hours only measures.
       stamina:
         slice: 10m
         clicks: 40
         window: 6h
-        # minBusy: 4h
         certainBusy: 5h30m
       trackWindow: 15m
       sweepInterval: 1m
 
-  # The caller whose takes are nearly all retakes: a tile its country lost a
-  # moment ago, taken back. It is not timed, so a bot draining a queue behind
-  # the throttle cannot hide in slowness.
   defender:
     enabled: true
     detector:
-      # How long after a country loses a tile a take for it counts as a retake.
       retakeWindow: 2m
-      # No share set means no verdict: the watchdog only feeds the
-      # click_retake_share histogram. Two players fighting over one tile retake
-      # every click, so set these from what that histogram shows, never before.
       minClicks: 60
-      # minShare: 0.9
       certainClicks: 200
-      # certainShare: 0.98
       trackWindow: 5m
       sweepInterval: 1m
 
-  # Catches every bonus box, at once. A box flies a slow orbit that is rarely in
-  # view: a person zooms out to orbit height, often drags the globe round, and
-  # lets some go by. A script reads the offer off the stream and claims it
-  # before the box has left its spawn. Only callers who catch every one of
-  # their last minCatches boxes are judged at all: one miss clears them.
   catcher:
     enabled: true
     detector:
-      # Boxes in a row, all caught, before anything is said.
       minCatches: 5
-      # The median delay from offer to claim over those boxes. It includes the
-      # round trip, which only makes a person look slower.
       maxMedian: 3s
-      # The same median at a speed no hand holds box after box, which bans
-      # on its own.
       certainMedian: 1500ms
-      # Must hold minCatches boxes at bonus.maxInterval, plus the longest bonus
-      # (triple.duration) and bonus.offerTTL, or the rule can never fire:
-      # 5 x (8m + 2m + 15s) is ~51m.
       trackWindow: 1h
       sweepInterval: 1m
 
-  # Scopes that act together. Every other watchdog judges one scope, so a pool
-  # that rotates its address every few minutes starts each identity clean: on
-  # 2026-09-14 pairs of /64s out of Firefox's built-in VPN painted bg for eight
-  # minutes each, started in the same millisecond, and no watchdog said a word
-  # all day. What the pool cannot hide is that its identities come in groups,
-  # and that the groups follow one another.
-  #
-  # The flag is an input here, unlike topCountry in the ban line: a pool that
-  # paints another flag to dodge this has stopped painting the one it came for.
   cohort:
     enabled: true
     detector:
-      # How close two scopes' first clicks must be to have started together.
-      # The pool's pairs were milliseconds apart; a group of three took four seconds.
       startWindow: 5s
-      # Clicks a scope needs before it is compared, and how much of them must
-      # be for one flag.
       minClicks: 20
       minFlagShare: 0.9
-      # How far apart two scopes' paces may be (faster over slower), and how
-      # long they stayed (longer over shorter). The length is only compared once
-      # the shorter one has been quiet for quietAfter: a pool's identities stop
-      # together, and people who started together do not.
       rateRatio: 1.5
       lengthRatio: 1.2
       quietAfter: 1m
-      # Scopes in step that read "suspect". Two friends joining a flag war in
-      # the same second are exactly this, which is why it never bans alone.
       minMembers: 2
-      # The wider prefix "certain" needs every scope to share: a crowd answering
-      # one link starts together from all over, a pool from one range. The
-      # Firefox VPN pairs all sat in 2a00:8c40:f0c0::/44.
       v4Bits: 24
       v6Bits: 44
-      # "certain": this many separate groups inside chainWindow, on the same
-      # flag and prefix — a person keeps their address when they come back, a
-      # pool does not — or this many scopes in step in one group.
       certainCohorts: 3
       certainMembers: 6
       chainWindow: 30m
-      # Never shorter than chainWindow, or a chain's first links are forgotten.
       trackWindow: 30m
       sweepInterval: 1m
 
-  # Reads the whole map again and again. The web app reads it once per page
-  # load and opens one stream with it, so a map read beyond one per stream is
-  # a client that is not the web app. A caller that asked for tiles outside the
-  # map gets no credit for its streams at all: tile ids start at 1 and the web
-  # app clamps its last batch, so neither bound can land outside it, whatever
-  # batch size a future client picks. That is what the bot of 2026-09-16 could
-  # not hide once it started opening a stream before every read.
   scraper:
     enabled: true
     detector:
-      # Maps read beyond one per stream opened, inside trackWindow: "suspect",
-      # then "certain". The bot of 2026-09-15 read 23 to 31 in 15 minutes; the
-      # one of 2026-09-16, paying for its reads with streams, read 7.
       minMaps: 5
       certainMaps: 15
-      # Reads off the map, inside trackWindow, that are "certain" however little
-      # was read. A walk overruns the end on every pass, so a caller reaching for
-      # the whole map trips this on its first one; one stray read is forgiven.
-      # The bot of 2026-09-16 cached the map and stopped reading, which put it
-      # under minMaps for the rest of its run.
       certainOffMap: 2
       trackWindow: 15m
       sweepInterval: 1m
 
-  # A caller that sheds its guest account for a fresh 60-click bank. Only guest
-  # accounts count: a signed-in one costs a provider identity to replace.
   churner:
     enabled: true
     detector:
-      # How far back both rules count.
       window: 1h
-      # "churn": guest accounts first seen on one scope inside window. A person
-      # keeps their account across /64s, so only an account born there counts.
       v6:
         minAccounts: 4
         certainAccounts: 6
-      # One IPv4 address is often a carrier's NAT and many players, so higher.
-      # Anything that is not an IPv6 scope is held to these.
       v4:
         minAccounts: 10
         certainAccounts: 20
-      # "relay": a fresh account that starts within handoff of another one
-      # stopping, in the same wider prefix and on the same flag, when the one that
-      # stopped lived at most maxLife. Read on the takeovers inside window.
       relay:
         handoff: 90s
         maxLife: 5m
-        # Clicks an account needs before it has a flag, and how much of them.
         minClicks: 20
         minFlagShare: 0.9
-        # A mobile carrier hands out /64s from all over its /32.
         v4Bits: 24
         v6Bits: 32
         minLinks: 3
         certainLinks: 6
-      # Never shorter than window plus handoff.
       trackWindow: 1h2m
       sweepInterval: 1m
 
-# Live chat. Its own bounded context and its own Connect service, sharing this
-# process and the transport with the tile game and nothing else. Always on.
 chat:
-  # The chat module's own database block: every message, sender IP included, in
-  # the chat schema. Same shape as the planet's database above, and it may point
-  # at the same postgres. A message that cannot be written is not broadcast.
   database:
     host: localhost
     port: "5432"
     user: postgres
-    # Belongs in the environment in production (chat.database.password).
     password: postgres
     dbName: postgres
     sslMode: disable
@@ -644,77 +270,39 @@ chat:
     pool:
       maxOpenConns: 2
   storage:
-    # How many recent messages a joining client is served by GetHistory.
     historySize: 200
-    # Messages older than this are deleted on the next prune. This is personal
-    # data (IP + text), so the window is a retention policy, not a cache size.
-    retention: 720h # 30 days
+    retention: 720h
     pruneInterval: 1h
-    # Per-websocket-subscriber channel capacity. Messages for a subscriber that
-    # cannot keep up are dropped rather than blocking senders.
     subscriberBuffer: 256
   service:
     maxTextLength: 280
-  # Per-IP throttle on SendMessage. Separate from the click limiter above: a
-  # message fans out to every client and lands in a log, so it costs far more
-  # than a click. One message every three seconds, five in hand.
   rateLimiter:
     perSecond: 0.33
     burst: 5
     sweepInterval: 1m
-  # Per-IP throttle on React, a bucket of its own. A reaction is one short row
-  # and one small frame, so it is cheaper than a message. One a second, ten in hand.
   reactionLimiter:
     perSecond: 1
     burst: 10
-  # Refused every chat RPC outright. The way to cut off an abusive sender
-  # without a rebuild. Same prefix set as vpnBlocklist above, so these are
-  # CIDRs — a single address needs /32, and a whole range is one line. A
-  # malformed entry fails the start rather than silently refusing nobody.
   blockedIPs: []
 
-# Who a caller is and what it has to prove before it may click. Off by default:
-# with it disabled auth.v1 and session.v1 404, and clicks are judged on address
-# alone, exactly as they were before this existed.
 auth:
   enabled: false
-  # Off counts what enforcing would refuse without refusing it — the mode to
-  # deploy in, so a client that predates sessions keeps working while
-  # click_session_checks shows what turning it on would cost.
   enforce: false
-  # The Ed25519 seed the click tokens are signed with: 32 bytes as 64 hex
-  # characters, from `openssl rand -hex 32`. Required when enabled, and it
-  # belongs in the environment in production rather than in a file that is in git.
-  #
-  # It is the only key here. Only the auth module is handed it; the planet
-  # module verifies clicks with the public half, which cmd/api derives from this
-  # at boot and hands to that block. So planet holds a Verifier, which has no
-  # Mint on it, and there is no second value to keep in step with this one.
   secret: ""
   ttl: 1h
-  # Per-IP throttle on minting, for both CreateSession paths together: a mint
-  # costs a siteverify round trip and may create a guest account.
   rateLimiter:
     perSecond: 0.033
     burst: 10
     sweepInterval: 1m
   turnstile:
-    # Off mints a session for anyone who asks, which is how a local backend
-    # works without a widget and a secret. Never the production choice.
     enabled: false
     secret: ""
-    # The frontend origins siteverify must report. Empty refuses every token
-    # rather than accepting any, so this cannot be left unset by accident.
     hostnames: []
-    # Must match the widget's data-action.
     action: session
-  # Accounts and their sessions, in the auth schema. Required when enabled; a
-  # mint whose database fails is refused.
   database:
     host: localhost
     port: "5432"
     user: postgres
-    # Belongs in the environment in production (auth.database.password).
     password: postgres
     dbName: postgres
     sslMode: disable
@@ -722,53 +310,42 @@ auth:
     pool:
       maxOpenConns: 2
   sessions:
-    # A guest idle this long loses its cookie; its next mint starts a new guest.
-    guestTTL: 2160h # 90 days
-    # A signed-in account idle this long loses its cookie.
-    linkedTTL: 720h # 30 days
-    # A session is extended at most this often, so a player is not a write per mint.
+    guestTTL: 2160h
+    linkedTTL: 720h
     extendEvery: 24h
-  # Sign-in with Google or Discord. Off, StartSignIn and CompleteSignIn answer
-  # Unimplemented (HTTP 404) and the web client hides the button.
   signIn:
     enabled: false
-    # The frontend page each provider sends the browser back to. It must match
-    # the redirect URI registered with every provider exactly.
     redirectUrl: http://localhost:5173/auth/callback
-  # A provider is offered while signIn is on and its clientId is set. The
-  # secrets belong in the environment (auth.google.clientSecret,
-  # auth.discord.clientSecret).
   google:
     clientId: ""
     clientSecret: ""
   discord:
     clientId: ""
     clientSecret: ""
-  # Deletes the accounts with no provider that nobody has used for idleFor.
+  email:
+    enabled: false
+    delivery: log
+    from: noreply@example.com
+    fromName: ClickPlanet
+    cloudflare:
+      accountId: ""
+      apiToken: ""
+    sendLimiter:
+      perSecond: 0.00083
+      burst: 3
   prune:
-    # Never below sessions.guestTTL, or a live cookie loses its account.
-    idleFor: 2160h # 90 days
+    idleFor: 2160h
     interval: 1h
 
-# A player's name, tag and stats: tiles taken and the daily streak. Always on:
-# the chat asks it who posts. It answers for the account in the click token, so
-# player.v1.PlayerService needs auth on, and it asks auth for the verifying key
-# over httpServer.internalBindAddress.
 player:
-  # The player module's own database block, schema player. Same shape as the
-  # planet's database above, and it may point at the same postgres.
   database:
     host: localhost
     port: "5432"
     user: postgres
-    # Belongs in the environment in production (player.database.password).
     password: postgres
     dbName: postgres
     sslMode: disable
     schema: player
     pool:
       maxOpenConns: 2
-  # Salts the hash of an address the roster caps its visits with. It never
-  # leaves the server and lives in memory only, so a random one generated at
-  # boot when this is empty costs nothing. Guests are shown by their guest code.
   tagSalt: ""

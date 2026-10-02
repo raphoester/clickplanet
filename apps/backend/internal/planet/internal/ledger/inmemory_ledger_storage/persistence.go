@@ -13,31 +13,24 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// Persistence is where the ledger is kept between boots. It is never read after Load.
 type Persistence interface {
-	// Load visits every stored take in position order, and returns the marks.
 	Load(ctx context.Context, visit func(Stored)) (Marks, error)
-	// Save writes the changes in one transaction.
 	Save(ctx context.Context, changes Changes) error
 }
 
-// Stored is a take with its place in the ledger.
 type Stored struct {
 	Position ledger.Position
 	Taking   ledger.Taking
 }
 
-// Marks bound a replay: every take before Head is gone, and a caller's takes before its mark are forgotten.
 type Marks struct {
 	Head      ledger.Position
 	Forgotten map[ledger.Caller]ledger.Position
 }
 
-// Changes is one flush. Takes start at From or later, and a stored take at or past From is written again.
 type Changes struct {
 	From  ledger.Position
 	Takes iter.Seq[Stored]
-	// Marks holds the current head, and only the forgotten marks set since the last flush.
 	Marks Marks
 }
 
@@ -45,7 +38,7 @@ const flushTimeout = 10 * time.Second
 
 var errCorruptState = errors.New("corrupt stored ledger")
 
-// Load refuses rather than start empty: an empty ledger that then flushes would lose every take on record.
+// Never start empty on a failed load: the next flush would delete every stored take.
 func (s *Storage) Load(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -73,7 +66,6 @@ func (s *Storage) Load(ctx context.Context) error {
 	return nil
 }
 
-// restoreLocked appends a take at its stored position. A gap is takes dropped before they were stored.
 func (s *Storage) restoreLocked(position ledger.Position, taking ledger.Taking) error {
 	if position < s.next {
 		return fmt.Errorf("%w: take at %d overlaps takes up to %d", errCorruptState, position, s.next)
@@ -129,7 +121,6 @@ func (s *Storage) flushOrLog(ctx context.Context) {
 	}
 }
 
-// Flush writes the takes appended since the last flush and the marks that moved. A failed write keeps them for the next one.
 func (s *Storage) Flush(ctx context.Context) error {
 	s.flushMu.Lock()
 	defer s.flushMu.Unlock()

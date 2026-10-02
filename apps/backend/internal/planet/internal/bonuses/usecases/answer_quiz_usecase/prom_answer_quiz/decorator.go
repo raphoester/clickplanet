@@ -1,11 +1,3 @@
-// Package prom_answer_quiz counts what the quizzes are doing.
-//
-// Three numbers are worth watching here and none of them is "how many were asked". **How many were
-// opened against how many were offered** says whether the banner is noticed at all. **How many were
-// answered right** is the bank's difficulty, and a rate near 1/3 means the questions are being
-// guessed rather than known. **How long after the banner an answer landed** is the one that would
-// show a script: a band of answers at the same fraction of a second, all correct, is not a person
-// reading three choices.
 package prom_answer_quiz
 
 import (
@@ -22,15 +14,11 @@ type UseCase interface {
 	Execute(ctx context.Context, in answer_quiz_usecase.In) (answer_quiz_usecase.Out, error)
 }
 
-// Counters are handed to the registry, which is what counts an offer, a banner nobody opened, and
-// how long an answer took. The address is never a label, for the reason the boxes' are not:
-// unbounded cardinality, and personal data in every scrape.
 type Counters struct {
 	// Offered counts by kind and by the share the kind's band starts at.
 	Offered func(kind bonuses.Kind, band float64)
 	Lapsed  prometheus.Counter
 
-	// Answered is how long after the banner an answer landed, by whether it was right.
 	Answered *prometheus.HistogramVec
 }
 
@@ -52,8 +40,6 @@ func New(implementation UseCase, registerer prometheus.Registerer) (*Decorator, 
 		Help: "Quizzes that were offered and never answered",
 	})
 
-	// The banner can sit for its whole offerTTL before it is opened, so the buckets run well past
-	// the answer window: what is interesting is the shape near the bottom.
 	answered := factory.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "quiz_answer_seconds",
 		Help:    "How long after a quiz was offered it was answered",
@@ -77,8 +63,6 @@ func (d *Decorator) Execute(
 ) (answer_quiz_usecase.Out, error) {
 	out, err := d.implementation.Execute(ctx, in)
 
-	// "refused" is a quiz that was not this caller's to answer. Wrong is not refused: it landed,
-	// and it is the number the bank is judged on.
 	outcome := "wrong"
 	switch {
 	case err != nil:

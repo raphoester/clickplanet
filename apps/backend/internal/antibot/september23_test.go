@@ -17,7 +17,6 @@ import (
 
 func bound(v float64) *float64 { return &v }
 
-// withTheWeekOfSeptember23 is production's metronome, catcher and defender of 2026-09-23, and the two rules proposed beside them.
 func withTheWeekOfSeptember23(config *antibot.Config) {
 	config.Metronome.Detector.MaxGap = 7 * time.Second
 	config.Metronome.Detector.MaxSpread = 400 * time.Millisecond
@@ -43,17 +42,15 @@ func withTheWeekOfSeptember23(config *antibot.Config) {
 	config.Defender.Detector.TrackWindow = 10 * time.Minute
 }
 
-// event is one thing a caller does at one instant: a click, or a claim of somebody else's box.
 type event struct {
 	at      time.Time
 	foreign bool
 }
 
-// replay plays events in time order on a random walk over the tiles, and returns when the scope was first dropped.
 func (s *stack) replay(scope string, seed uint64, events []event) (time.Time, bool) {
 	slices.SortFunc(events, func(a, b event) int { return a.at.Compare(b.at) })
 
-	//nolint:gosec // G404: deterministic PRNG, seeded so the walk replays exactly.
+	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(seed, seed+1))
 	tile := uint32(120000)
 
@@ -73,8 +70,6 @@ func (s *stack) replay(scope string, seed uint64, events []event) (time.Time, bo
 	return time.Time{}, false
 }
 
-// hiddenTabClicks is the pl painter from 08:37 on 2026-09-23: bursts on whole seconds, a tick skipped
-// now and then, a second click 50-90ms after one in five, and five to seven minutes of refill between.
 func hiddenTabClicks(r *rand.Rand, from time.Time, bursts int) []event {
 	var events []event
 
@@ -97,7 +92,6 @@ func hiddenTabClicks(r *rand.Rand, from time.Time, bursts int) []event {
 	return events
 }
 
-// poolClaims is the pool's box relay: a claim of another member's box every 20s to 4 minutes, 30 to 80 an hour.
 func poolClaims(r *rand.Rand, from time.Time, until time.Time) []event {
 	var events []event
 	for at := from.Add(time.Duration(r.IntN(60)) * time.Second); at.Before(until); at = at.Add(time.Duration(20+r.IntN(220)) * time.Second) {
@@ -108,7 +102,7 @@ func poolClaims(r *rand.Rand, from time.Time, until time.Time) []event {
 
 func TestTheHiddenTabOfSeptember23IsCaughtByItsBeat(t *testing.T) {
 	s := newStack(withTheWeekOfSeptember23)
-	//nolint:gosec // G404: deterministic PRNG, seeded so the clicks replay exactly.
+	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(23, 9))
 
 	start := s.clock.Now()
@@ -127,7 +121,7 @@ func TestTheHiddenTabOfSeptember23IsCaughtByItsBeat(t *testing.T) {
 
 func TestTheHiddenTabOfSeptember23IsCaughtSoonerWithTheBoxesItPasses(t *testing.T) {
 	s := newStack(withTheWeekOfSeptember23)
-	//nolint:gosec // G404: deterministic PRNG, seeded so the clicks replay exactly.
+	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(23, 9))
 
 	start := s.clock.Now()
@@ -143,7 +137,6 @@ func TestTheHiddenTabOfSeptember23IsCaughtSoonerWithTheBoxesItPasses(t *testing.
 	assert.NotEqual(t, detect.Clear, verdicts["catcher"])
 }
 
-// jitteredPainter is the dz clients: a random 0.6-2.1s between clicks and a pause of up to a minute every so often.
 func jitteredPainter(r *rand.Rand, from time.Time, until time.Time) []event {
 	var events []event
 	for at, click := from, 0; at.Before(until); click++ {
@@ -158,7 +151,7 @@ func jitteredPainter(r *rand.Rand, from time.Time, until time.Time) []event {
 
 func TestTheBoxPoolOfSeptember22IsCaughtOnTheBoxesAlone(t *testing.T) {
 	s := newStack(withTheWeekOfSeptember23)
-	//nolint:gosec // G404: deterministic PRNG, seeded so the clicks replay exactly.
+	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(22, 9))
 
 	start := s.clock.Now()
@@ -174,7 +167,6 @@ func TestTheBoxPoolOfSeptember22IsCaughtOnTheBoxesAlone(t *testing.T) {
 	assert.Equal(t, detect.Clear, verdicts["metronome"], "it jitters, and keeps no beat")
 }
 
-// heavyHand draws a gap from the quantiles one browser of the heaviest player was measured at on 2026-09-23.
 func heavyHand(r *rand.Rand, quantiles [5]time.Duration) time.Duration {
 	points := []struct {
 		p   float64
@@ -199,7 +191,6 @@ func heavyHand(r *rand.Rand, quantiles [5]time.Duration) time.Duration {
 	return points[len(points)-1].gap
 }
 
-// browser is one of the two on that /64: bursts of the measured gaps, and pauses from seconds up to its longest, 13 minutes.
 func browser(r *rand.Rand, from time.Time, until time.Time, quantiles [5]time.Duration) []event {
 	var events []event
 	for at := from; at.Before(until); {
@@ -218,7 +209,7 @@ func browser(r *rand.Rand, from time.Time, until time.Time, quantiles [5]time.Du
 
 func TestTheHeavyPlayersOfSeptember23AreNotBanned(t *testing.T) {
 	s := newStack(withTheWeekOfSeptember23)
-	//nolint:gosec // G404: deterministic PRNG, seeded so the clicks replay exactly.
+	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(7, 70))
 
 	start := s.clock.Now()
@@ -244,6 +235,5 @@ func TestTheHeavyPlayersOfSeptember23AreNotBanned(t *testing.T) {
 	}
 
 	assert.Empty(t, s.reports)
-	// Two hands merged on one scope already read cadence in production: 2617 of the real clicks did.
 	assert.Equal(t, cpcolls.NewSet("metronome cadence"), rules, "no beat, and no box but its own")
 }

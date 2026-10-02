@@ -9,7 +9,7 @@ func NewBoard(maxIndex uint32) Board {
 }
 
 func (b Board) CheckTile(tile uint32) bool {
-	return tile > 0 && tile <= b.maxIndex // map is 1-indexed on the frontend
+	return tile > 0 && tile <= b.maxIndex
 }
 
 func (b Board) MaxIndex() uint32 {

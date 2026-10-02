@@ -1,21 +1,8 @@
-// The question templates, and the rule each one is true by.
-//
-// A template is a fact the generator can *check*, not a fact it was told. Every question below is
-// derived from the same Natural Earth snapshot the map is cut from, or from the tile borders
-// themselves, so the bank is regenerated rather than corrected: no answer here can rot on its own
-// while the data it came from stays pinned.
-//
-// Each question carries more wrong answers than a round shows. The server picks two of them when
-// the player opens the quiz, so the same question is not the same three choices twice, and a crib
-// sheet of "press the second one for Estonia" is worth nothing.
 import {first, pick, shuffled} from "./random.mjs"
 
-/** How many wrong answers a question carries. The round shows two of them. */
 export const DISTRACTORS = 5
 
 /**
- * Every question the facts support, in a fixed order.
- *
  * @param {Map<string, import("./facts.mjs").Facts>} facts
  * @returns {{id: string, subject: string, ask: string, text: string, answer: string, wrong: string[]}[]}
  */
@@ -31,10 +18,6 @@ export function questionsFrom(facts) {
     ]
 }
 
-// --- the templates.
-
-// "What is the capital of Estonia?" — wrong answers from as close as possible, because Riga and
-// Vilnius are a question and Canberra and Lima are a giveaway.
 function capital(country, all) {
     if (!country.capital) return []
 
@@ -51,7 +34,6 @@ function capital(country, all) {
     }]
 }
 
-// The same fact asked the other way round, which is a different question to answer in five seconds.
 function capitalOf(country, all) {
     if (!country.capital) return []
 
@@ -68,8 +50,6 @@ function capitalOf(country, all) {
     }]
 }
 
-// "Which of these shares a border with Nepal?" — the border is the one on the map being played,
-// and so are the wrong answers: a country on the same continent that no tile of this one touches.
 function borders(country, facts, all) {
     if (country.neighbours.length === 0) return []
 
@@ -113,12 +93,6 @@ function continent(country, all) {
     }]
 }
 
-// "Which of these has the most people?", asked about the country that has them.
-//
-// A population is the one fact here that moves under a pinned snapshot, so the question is only
-// built where the answer wins by MARGIN times over — an ordering that survives a decade of either
-// country growing. It is why the wrong answers are drawn from the *smaller* half and not from the
-// continent at large.
 const MARGIN = 2
 
 function mostPeople(country, all) {
@@ -143,8 +117,6 @@ function mostPeople(country, all) {
     }]
 }
 
-// Countries whose capitals make a hard question of this one's: its own subregion first, then its
-// continent, then the world. Sorted before the draw, so the bank is the same bytes every run.
 function near(country, all) {
     const others = all.filter((other) => other.code !== country.code)
     const rank = (other) => {

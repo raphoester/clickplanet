@@ -7,7 +7,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/listen_for_events_usecase"
 )
 
-// EventStream is the one method of connect's server stream a sink uses.
 type EventStream interface {
 	Send(event *playerv1.PlayerEvent) error
 }
@@ -16,7 +15,6 @@ func NewSink(stream EventStream) Sink {
 	return Sink{stream: stream}
 }
 
-// Sink writes the use case's frames as the proto envelope.
 type Sink struct {
 	stream EventStream
 }

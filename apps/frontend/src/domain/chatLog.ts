@@ -2,11 +2,6 @@ import type {ChatAnnouncement, ChatMessage} from "../backends/chat.ts";
 
 export const CHAT_LOG_LIMIT = 200
 
-/**
- * Keeps each announcement once, oldest first, and the newest `limit` of them.
- * Announcements are held apart from the messages, so a burst of bombs never
- * pushes a message out of the log, and nothing counts one as unread.
- */
 export function addAnnouncements(
     log: readonly ChatAnnouncement[],
     incoming: readonly ChatAnnouncement[],
@@ -25,12 +20,10 @@ export function addAnnouncements(
     return merged.length > limit ? merged.slice(merged.length - limit) : merged
 }
 
-/** One row of the log: a message, or an announcement between messages. */
 export type ChatLogEntry =
     | {kind: "message", message: ChatMessage}
     | {kind: "announcement", announcement: ChatAnnouncement}
 
-/** Messages and announcements in one list by time. A message goes first when both happened at once. */
 export function interleave(
     messages: readonly ChatMessage[],
     announcements: readonly ChatAnnouncement[],
@@ -74,19 +67,11 @@ export function unreadSince(log: readonly ChatMessage[], lastSeenId: string | un
     return index === -1 ? log.length : log.length - 1 - index
 }
 
-/**
- * The ids `unreadSince` counted, for highlighting them once they are on screen.
- */
 export function idsSince(log: readonly ChatMessage[], lastSeenId: string | undefined): string[] {
     const count = unreadSince(log, lastSeenId)
     return count === 0 ? [] : log.slice(log.length - count).map(message => message.id)
 }
 
-/**
- * The name the server gave the latest message this client sent, of those still
- * in the log: a guest's name is the server's pick, and this is how the client
- * learns it.
- */
 export function nameSentUnder(log: readonly ChatMessage[], sent: ReadonlySet<string>): string | undefined {
     for (let i = log.length - 1; i >= 0; i--) {
         if (sent.has(log[i].id)) return log[i].authorName
@@ -94,17 +79,8 @@ export function nameSentUnder(log: readonly ChatMessage[], sent: ReadonlySet<str
     return undefined
 }
 
-/**
- * How long a quiet gap has to be before the same author's next message starts a
- * new group rather than joining the run above it.
- */
 export const GROUP_WINDOW_MS = 4 * 60_000
 
-/**
- * Whether a message opens a group — the one message in a run that says who is
- * talking and when. A run is one author speaking without a long pause; the rest
- * of it is bubbles alone, which is what a chat looks like.
- */
 export function startsGroup(
     previous: ChatMessage | undefined,
     message: ChatMessage,

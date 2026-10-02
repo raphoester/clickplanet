@@ -1,4 +1,3 @@
-// Package postgres_account_store keeps accounts, their identities and their sessions in the auth schema.
 package postgres_account_store
 
 import (
@@ -44,7 +43,6 @@ func (s *Store) Session(ctx context.Context, tokenHash accounts.TokenHash) (*acc
 	return &session, nil
 }
 
-// CreateGuest writes the account and its first session in one transaction.
 func (s *Store) CreateGuest(ctx context.Context, session *accounts.Session) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		if err := insertAccount(ctx, tx, session.Account, session.ExtendedAt); err != nil {
@@ -54,7 +52,6 @@ func (s *Store) CreateGuest(ctx context.Context, session *accounts.Session) erro
 	})
 }
 
-// SaveSession writes the session's expiry and marks its account seen at its last extension, in one transaction.
 func (s *Store) SaveSession(ctx context.Context, session *accounts.Session) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		result, err := tx.ExecContext(ctx, `
@@ -133,7 +130,6 @@ func (s *Store) Identity(ctx context.Context, provider string, subject string) (
 	return identity, err
 }
 
-// SaveSignIn writes the account, the identity and the session, and deletes the replaced session, in one transaction.
 func (s *Store) SaveSignIn(ctx context.Context, signIn accounts.SignIn) error {
 	session := signIn.Session
 	return s.inTx(ctx, func(tx *sql.Tx) error {
@@ -159,7 +155,6 @@ func (s *Store) SaveSignIn(ctx context.Context, signIn accounts.SignIn) error {
 	})
 }
 
-// DeleteAccount deletes the account row; its identities and sessions go with it by cascade.
 func (s *Store) DeleteAccount(ctx context.Context, account accounts.AccountID) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM accounts WHERE id = $1`, uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to delete the account: %w", err)
@@ -214,7 +209,6 @@ func insertSession(ctx context.Context, tx *sql.Tx, session *accounts.Session) e
 	return nil
 }
 
-// insertIdentity answers accounts.ErrIdentityTaken when the provider's user is already linked, and the caller's transaction rolls back.
 func insertIdentity(ctx context.Context, tx *sql.Tx, identity *accounts.Identity) error {
 	var email sql.NullString
 	if identity.Email != "" {

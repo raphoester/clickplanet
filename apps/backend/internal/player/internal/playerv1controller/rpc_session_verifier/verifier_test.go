@@ -24,7 +24,6 @@ const ip = "203.0.113.7"
 
 var now = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
 
-// stubAuth answers what the auth module answers, and counts how often it is asked.
 type stubAuth struct {
 	authv1connect.UnimplementedInternalServiceHandler
 

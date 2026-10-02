@@ -17,9 +17,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-// honeycomb is a patch of the map: a size×size parallelogram of hexagons in
-// axial coordinates. A tile inside it has six neighbours; a tile on its rim has
-// fewer, which is what the edge of the land looks like to the real map.
 type honeycomb struct{ size int }
 
 func (h honeycomb) id(q, r int) uint32 { return uint32(r*h.size + q + 1) }
@@ -38,7 +35,6 @@ func (h honeycomb) Neighbours(id uint32) []uint32 {
 	return around
 }
 
-// ring is the six tiles around (q, r), in order around it.
 func (h honeycomb) ring(q, r int) []uint32 {
 	return []uint32{
 		h.id(q+1, r), h.id(q+1, r-1), h.id(q, r-1),
@@ -55,12 +51,10 @@ func (t tiles) Set(_ context.Context, tile uint32, value string) error {
 	return nil
 }
 
-// ground is whose soil each tile is on; a tile left out is in no country.
 type ground map[uint32]string
 
 func (g ground) CountryOf(tile uint32) string { return g[tile] }
 
-// rule stands in for the click rule, and writes the clicked tile the way it does.
 type rule struct {
 	tiles    tiles
 	homeSoil clicks.HomeSoil
@@ -84,10 +78,8 @@ func (r *recorder) PublishEnclosed(_ string, enclosed bonuses.Enclosed) {
 	r.published = append(r.published, enclosed)
 }
 
-// caller is the account every click here is made by: only an account holds a charge.
 const caller bonuses.Holder = "a-player"
 
-// played is the test's context, with the click token's account on it.
 func played(t *testing.T) context.Context {
 	t.Helper()
 
@@ -158,7 +150,6 @@ func TestClosingARingTakesTheTileInsideIt(t *testing.T) {
 
 func TestAShapeTakesUnownedTilesAndEveryoneElsesAlike(t *testing.T) {
 	f := setup(true, nil)
-	// Two tiles inside a ring of ten: one unowned, one somebody else's.
 	inner := []uint32{f.grid.id(5, 5), f.grid.id(6, 5)}
 	f.own("de", inner[1])
 	closing := f.grid.id(4, 5)
@@ -179,7 +170,6 @@ func TestAShapeTakesUnownedTilesAndEveryoneElsesAlike(t *testing.T) {
 
 func TestANativeTileInsideAShapeIsClearedNotTaken(t *testing.T) {
 	f := setup(true, nil)
-	// Two tiles inside a ring of ten: one on Germany's own ground wearing its flag, one Germany holds abroad.
 	inner := []uint32{f.grid.id(5, 5), f.grid.id(6, 5)}
 	f.own("de", inner...)
 	f.ground[inner[0]] = "de"
@@ -203,7 +193,6 @@ func TestAClickThatOnlyClearsANativeTileClosesNothing(t *testing.T) {
 	f := setup(true, nil)
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("fr", ring[1:]...)
-	// The last tile of the wall is Germany's own, so the click clears it and the ring stays open.
 	f.own("de", ring[0])
 	f.ground[ring[0]] = "de"
 
@@ -217,7 +206,6 @@ func TestAClickThatOnlyClearsANativeTileClosesNothing(t *testing.T) {
 
 func TestATriangleHasNoInsideAndCostsNothing(t *testing.T) {
 	f := setup(true, nil)
-	// Three tiles that all touch each other.
 	a, b, c := f.grid.id(5, 5), f.grid.id(6, 5), f.grid.id(5, 6)
 	f.own("fr", a, b)
 
@@ -227,8 +215,6 @@ func TestATriangleHasNoInsideAndCostsNothing(t *testing.T) {
 	assert.Equal(t, 1, f.charges.Held(caller).Enclosures, "a click that closes nothing keeps the charge")
 }
 
-// carve owns the whole patch for "fr" except the hole and the tile that will
-// close it, which is the simplest way to wall in a shape of any size.
 func (f fixture) carve(closing uint32, hole []uint32) {
 	for id := uint32(1); id <= uint32(f.grid.size*f.grid.size); id++ {
 		f.tiles[id] = "fr"
@@ -238,7 +224,6 @@ func (f fixture) carve(closing uint32, hole []uint32) {
 	}
 }
 
-// row is n tiles in a line from (q, r), eastwards.
 func (f fixture) row(q, r, n int) []uint32 {
 	ids := make([]uint32, 0, n)
 	for i := range n {
@@ -261,7 +246,6 @@ func TestAShapeHoldingExactlyTheLimitIsTaken(t *testing.T) {
 
 func TestAShapeBiggerThanTheLimitTakesNothingAndCostsNothing(t *testing.T) {
 	f := setup(true, nil)
-	// Eleven tiles, none of them on the rim.
 	f.carve(f.grid.id(1, 4), append(f.row(1, 5, 10), f.grid.id(1, 6)))
 
 	f.click(t, f.grid.id(1, 4))
@@ -273,7 +257,6 @@ func TestAShapeBiggerThanTheLimitTakesNothingAndCostsNothing(t *testing.T) {
 
 func TestAShapeOpenToTheEdgeOfTheLandIsNotClosed(t *testing.T) {
 	f := setup(true, nil)
-	// The tip of a peninsula: the tile on the rim has the sea on one side.
 	hole := f.row(0, 5, 2)
 	f.carve(f.grid.id(1, 4), hole)
 
@@ -298,7 +281,6 @@ func TestClickingTheOutlineOfAShapeAlreadyClosedTakesNothing(t *testing.T) {
 
 func TestOneClickClosingTwoShapesTakesTheFirstForItsOneCharge(t *testing.T) {
 	f := setup(true, nil)
-	// Two holes of one tile each, both touching the tile clicked.
 	top, bottom := f.grid.id(5, 4), f.grid.id(4, 6)
 	f.carve(f.grid.id(5, 5), []uint32{top, bottom})
 

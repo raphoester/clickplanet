@@ -1,4 +1,3 @@
-// Package open_quiz_handler serves planet.v1.ClickService/OpenQuiz.
 package open_quiz_handler
 
 import (

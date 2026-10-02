@@ -3,6 +3,7 @@ package clicks_test
 import (
 	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -73,6 +74,31 @@ func TestTheGuestScopeMultiplierDefaultsToOneAndRefusesLessThanOneAccount(t *tes
 	require.NoError(t, clicks.ThrottleConfig{GuestScopeMultiplier: 1}.Validate())
 	for _, bad := range []float64{0.5, -1, math.NaN()} {
 		assert.ErrorContains(t, clicks.ThrottleConfig{GuestScopeMultiplier: bad}.Validate(), "rateLimiter.guestScopeMultiplier")
+	}
+}
+
+func TestANewAccountsOwnBucketEarnsItsBankFromWhenItWasMade(t *testing.T) {
+	made := time.Date(2026, 10, 1, 13, 37, 0, 0, time.UTC)
+	start := 10.0
+	buckets := clicks.ThrottleConfig{NewAccountClicks: &start}.Buckets()
+
+	guest := buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest", Created: made}, clicks.Price{})
+	assert.Equal(t, cpratelimit.Key{Name: "account:a-guest", Scale: 1, Pace: 1, Since: made, Start: 10}, guest[0])
+	assert.Zero(t, guest[1].Since, "the network's guests share a bucket nobody started")
+	assert.Zero(t, guest[2].Since)
+
+	linked := buckets.Bank(clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true, Created: made})
+	assert.Equal(t, made, linked[0].Since, "a refill fills the same bucket")
+
+	assert.Zero(t, buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, clicks.Price{})[0].Since,
+		"an account that does not say when it was made starts full")
+	assert.Zero(t, clicks.ThrottleConfig{}.Buckets().Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest", Created: made}, clicks.Price{})[0].Since,
+		"unset, every account starts full")
+
+	zero := 0.0
+	require.NoError(t, clicks.ThrottleConfig{NewAccountClicks: &zero}.Validate())
+	for _, bad := range []float64{-1, math.NaN()} {
+		assert.ErrorContains(t, clicks.ThrottleConfig{NewAccountClicks: &bad}.Validate(), "rateLimiter.newAccountClicks")
 	}
 }
 

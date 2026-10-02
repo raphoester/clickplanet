@@ -80,7 +80,6 @@ describe("updateOf", () => {
     })
 
     it("drops an event case this build does not know", () => {
-        // What a client sees when the backend adds a case: an unset oneof, not a crash.
         expect(updateOf(new PlanetEvent())).toBeUndefined()
     })
 })
@@ -121,20 +120,14 @@ describe("bindingsOf", () => {
     })
 })
 
-/** A server that throttles nothing, which is what most of these tests are. */
 function noBudget() {
     return vi.fn().mockResolvedValue({})
 }
 
-/**
- * A live stream that ends at once. The constructor opens one, so a client stub
- * without it makes openStream report a failure these tests are not about.
- */
 function noEvents() {
     return vi.fn(async function* () {})
 }
 
-/** Resolves once the backend has read the rules, which a claim sizes its reward by. */
 async function ruled(backend: PlanetBackend): Promise<void> {
     await new Promise<void>((resolve) => {
         const stop = backend.listenForBonuses({
@@ -147,7 +140,6 @@ async function ruled(backend: PlanetBackend): Promise<void> {
     })
 }
 
-/** The two bonus reads the constructor makes: default rules, and nothing held. */
 function bonusReads() {
     return {
         getBonusRules: vi.fn().mockResolvedValue({blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3}),
@@ -260,8 +252,6 @@ describe("PlanetBackend.clickTile", () => {
         backend.close()
     })
 
-    // A token that lapsed mid-session, or one bound to an address that changed
-    // when a phone moved onto cellular, is not worth a dialog: mint and retry.
     it("mints a new session and retries once when the server refuses the token", async () => {
         const click = vi.fn()
             .mockRejectedValueOnce(new ConnectError("no session", Code.Unauthenticated))
@@ -376,7 +366,6 @@ describe("PlanetBackend click budget", () => {
 
         await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(1))
 
-        // Subscribing after the read still gets it: a React tree mounts later.
         expect(watch(backend)).toEqual([7])
         backend.close()
     })
@@ -450,7 +439,6 @@ describe("PlanetBackend click budget", () => {
         const inFlight = backend.clickTile(1, "fr")
         expect(seen.at(-1)).toBe(3)
 
-        // The click only leaves once the session has answered, a microtask later.
         await vi.waitFor(() => expect(click).toHaveBeenCalledTimes(1))
         land({budget: budget(3)})
         await inFlight
@@ -699,8 +687,6 @@ describe("offerOf", () => {
     })
 
     it("builds the deadline from how long is left, not from the server's clock", () => {
-        // The two wall clocks are unrelated. Taking the timestamp at face value
-        // would make every box look already lapsed on a client running fast.
         const offer = offerOf(offered({expiresAtUnixMs: 1_015_000n}), 5_000, 1_000_000)
 
         expect(offer?.expiresAt).toBe(5_000 + 15_000)
@@ -711,8 +697,6 @@ describe("offerOf", () => {
         const honest = offerOf(offered({expiresAtUnixMs: 1_015_000n}), 5_000, 1_000_000)
 
         expect(honest!.expiresAt - 5_000).toBe(15_000)
-        // The skew is carried, but the box is still given its full window
-        // relative to the reading rather than being born expired.
         expect(skewed!.expiresAt).toBeLessThan(honest!.expiresAt)
     })
 
@@ -754,10 +738,6 @@ describe("quizOf", () => {
     })
 
     it("is a token and a deadline, and nothing about the question at all", () => {
-        // Not the text, not the choices, and not the subject either: anything on the banner is
-        // something a client can read while the clock is not running, and the subject is not the
-        // harmless teaser it looks like — "Estonia" answers "Tallinn is the capital of which
-        // country?" on its own.
         expect(Object.keys(quizOf(asked())!)).toEqual(["token", "expiresAt"])
     })
 
@@ -935,7 +915,6 @@ describe("PlanetBackend bombs", () => {
 })
 
 describe("PlanetBackend event stream session", () => {
-    /** A stream that stays open until the client lets go of it. */
     const openForever = () => vi.fn<(req: object, options: {signal: AbortSignal, headers: Headers}) => AsyncIterable<PlanetEvent>>(
         () => (async function* () {
             await new Promise(() => {})
@@ -1178,7 +1157,6 @@ describe("the charges held", () => {
 
     it("reads them again when a click goes out under a new token: they are the account's", async () => {
         const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld()})
-        // A page that has not minted yet holds no token, and reads for its address.
         let held: string | undefined
         const session: SessionProvider = {
             token: async () => held = "session-1",

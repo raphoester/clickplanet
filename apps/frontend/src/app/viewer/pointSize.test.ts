@@ -9,7 +9,6 @@ import {
 } from "./pointSize.ts"
 import {MAX_ZOOM, MIN_ZOOM} from "./zoom.ts"
 
-// Every zoom OrbitControls allows, on viewports a browser really reports.
 const VIEWPORTS = [640, 900, 1243, 2160, 3400]
 const STEP = 0.25
 const ZOOMS = Array.from(
@@ -85,11 +84,6 @@ describe("coarseHandover", () => {
 })
 
 describe("the handover from the painted flag to the tiles", () => {
-    // The widening exists to give the painted flag a surface to land on. If it
-    // outlasts the flag, tiles you are about to aim at are fattened for nothing;
-    // if it ends first, the flag is painted through a lattice full of holes and
-    // loses ink to them. Neither is visible in a screenshot of one zoom, which
-    // is why it is pinned here.
     it("undoes the widening exactly when the flag stops being painted", () => {
         everyView((zoom, height) => {
             const widened = displayPointSize(zoom, height) > tilePointSize(zoom, height) + 1e-9
@@ -98,8 +92,6 @@ describe("the handover from the painted flag to the tiles", () => {
     })
 
     it("covers the ground whenever the flag alone is on screen", () => {
-        // Circles on this hex lattice cover it fully at 1.155x the spacing, and
-        // the tiles sit ~1.98px apart at zoom 1 on a 1000px globe.
         everyView((zoom, height) => {
             if (flagPaint(zoom, height) < 1) return
             const spacing = 1.98 * zoom * (height / 1000)
@@ -116,9 +108,6 @@ describe("the handover from the painted flag to the tiles", () => {
     })
 
     it("hands over while a tile is still too small to read a flag in", () => {
-        // Below ~8px a 100px sprite in a disc is noise either way, mip-blurred
-        // to grey or aliased into sparkle. The flag has to be gone by then, and
-        // must still be there while the tiles are smaller than that.
         everyView((zoom, height) => {
             const tile = tilePointSize(zoom, height)
             if (tile < 5) expect(flagPaint(zoom, height), `zoom ${zoom}`).toBe(1)

@@ -1,5 +1,3 @@
-// Package listen_for_events_usecase runs one client's live feed of the map: every tile
-// update it is sent, and the heartbeat that keeps a silent feed from being cut.
 package listen_for_events_usecase
 
 import (
@@ -12,24 +10,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-// DefaultHeartbeat is well under Cloudflare's ~125s idle cut, and cheap: a
-// heartbeat is two bytes.
+// Must stay well under Cloudflare's ~125s idle cut, which kills a silent stream.
 const DefaultHeartbeat = 30 * time.Second
 
 type UpdatesSubscriber interface {
 	Subscribe(ctx context.Context) (<-chan clicks.Change, error)
 }
 
-// Event is one frame of the feed. Exactly one of the two cases is set, which is
-// the same shape the wire has — a new kind of frame is a new case here, never a
-// second feed.
 type Event struct {
 	Update    clicks.TileUpdate
 	Blast     *clicks.Blast
 	Heartbeat bool
 
-	// A box and a quiz put in front of this caller alone; a catch, a closed
-	// shape and a spread click, anyone's.
 	Offer    *bonuses.Offer
 	Quiz     *bonuses.QuizOffer
 	Taken    *bonuses.Taken
@@ -37,13 +29,10 @@ type Event struct {
 	Spread   *bonuses.Spread
 }
 
-// BonusFeed is this caller's boxes and quizzes.
 type BonusFeed interface {
 	Attend(scope string) (<-chan bonuses.Event, func())
 }
 
-// Sink is whatever carries a frame to the caller. The use case decides what to
-// send and when; how a frame is written down is the edge's business.
 type Sink interface {
 	Send(event Event) error
 }
@@ -66,17 +55,12 @@ type UseCase struct {
 	bonuses    BonusFeed
 }
 
-// Execute returns when the feed ends, and the context is what ends it: it is
-// cancelled however the caller goes away, and cancelling it is what unsubscribes.
 func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	updates, err := u.subscriber.Subscribe(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
 	}
 
-	// A second subscription on the same connection, not a second feed: the
-	// envelope is what lets one stream carry a frame that did not exist when
-	// the client was written.
 	boxes, leave := u.bonuses.Attend(cpctx.RateLimitKey(ctx))
 	defer leave()
 

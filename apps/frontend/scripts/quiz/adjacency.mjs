@@ -1,14 +1,3 @@
-// Which countries share a land border, read off the map the game is played on.
-//
-// Not off Natural Earth's polygons. The quiz asks "which of these borders Estonia?" and the player
-// answers by looking at the globe in front of them, so the only border that can be right is the one
-// they can see: two countries neighbour each other when two tiles of theirs touch on the lattice.
-// That is the same edge relation `landmasses.mjs` builds its pieces from and the same one the
-// backend rebuilds at boot, so a border in the quiz is a border on the map by construction rather
-// than by two datasets agreeing.
-//
-// It follows from that — and it is the point — that a border across which no tile ever touches is
-// not a border here. The Vatican has no neighbour on a 257,948-tile lattice.
 import {keyOf, lattice, neighbours} from "../map/lattice.mjs"
 import {readBorders, readCoordinates} from "../map/blob.mjs"
 
@@ -57,9 +46,6 @@ export function adjacency(directory) {
     return touching
 }
 
-// A tile's position is a lattice vertex's position, rounded the one way the whole pipeline rounds
-// it, so this is a lookup rather than a search. A tile that is not on the lattice is a blob cut
-// from another detail, which is a broken map rather than a missing border.
 function matchTilesToLattice({count, positions, name}) {
     const {count: vertices, positions: latticePositions} = lattice()
 

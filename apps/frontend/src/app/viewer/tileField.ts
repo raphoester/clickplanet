@@ -15,8 +15,6 @@ const REGION_STRIDE = 4
 
 const MAX_INDIVIDUAL_RANGES = 64
 
-// A zero-sized region is what the fragment shader draws as an unclaimed tile,
-// so this is how a rolled-back click leaves one.
 const UNOWNED = {x: 0, y: 0, width: 0, height: 0}
 
 export class TileField {
@@ -33,6 +31,7 @@ export class TileField {
         uniforms: {[uniform: string]: THREE.IUniform},
         pickingUniforms: {[uniform: string]: THREE.IUniform},
         data: PointGeometryData,
+        lit: boolean,
     ) {
         const {positions, size} = data
         this.size = size
@@ -55,6 +54,7 @@ export class TileField {
 
         this.displayPoints = new THREE.Points(displayGeometry, new THREE.ShaderMaterial({
             transparent: true,
+            defines: {LIT: lit},
             uniforms,
             vertexShader: displayVertex,
             fragmentShader: displayFragment,
@@ -102,16 +102,12 @@ export class TileField {
         this.regionVector.needsUpdate = true
     }
 
-    // Which piece of land each tile sits on. Static — neither tiles nor borders
-    // move — so the painted-flag lookup costs one upload at load and nothing
-    // afterwards.
     setLandmasses(assignment: Uint16Array) {
         const values = this.landmass.array as Float32Array
         for (let i = 0; i < values.length; i++) values[i] = assignment[i]
         this.landmass.needsUpdate = true
     }
 
-    /** Answers whether the hover moved, which is the only time it repaints. */
     setHover(tile: number | undefined): boolean {
         if (tile === this.hovered) return false
 

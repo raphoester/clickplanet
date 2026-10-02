@@ -1,4 +1,3 @@
-// Package shadowban is the consequence, and nothing else: scopes, a clock and how long to ban for.
 package shadowban
 
 import (
@@ -12,7 +11,6 @@ import (
 type Config struct {
 	Enforce bool
 
-	// The Nth offence bans for the Nth entry; past the end the last one repeats.
 	BanDurations []time.Duration
 
 	ReflagInterval time.Duration
@@ -100,7 +98,6 @@ func (b *Banner) Flag(scope string) (Sentence, bool) {
 		return record.sentence(), false
 	}
 
-	// A flag on a running ban extends it; only a ban starting fresh is a new offence.
 	if !record.running(now) {
 		record.offences++
 	}
@@ -116,7 +113,6 @@ func (b *Banner) Flag(scope string) (Sentence, bool) {
 	return record.sentence(), true
 }
 
-// Ban is a ban an operator decided on. It counts as an offence like a flag does; a zero duration takes the ladder's.
 func (b *Banner) Ban(scope string, duration time.Duration) Sentence {
 	if scope == "" {
 		return Sentence{}
@@ -148,7 +144,6 @@ func (b *Banner) Ban(scope string, duration time.Duration) Sentence {
 	return record.sentence()
 }
 
-// Sentence is the scope's ban, if one is running.
 func (b *Banner) Sentence(scope string) (Sentence, bool) {
 	now := b.clock.Now()
 

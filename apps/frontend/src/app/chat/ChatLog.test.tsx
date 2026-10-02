@@ -11,7 +11,6 @@ const message = (id: string, authorName: string, countryCode: string): ChatMessa
     ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorName, authorAdmin: false, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
 
 describe("ChatLog", () => {
-    // jsdom lays nothing out, so the log's scroll position is never read.
     it("opens the author of a message from its name, and tells a guest by its prefix", async () => {
         const onOpenPlayer = vi.fn()
         render(<ChatLog loading={false}

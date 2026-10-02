@@ -1,4 +1,3 @@
-// Package get_me_usecase reads the account a browser's cookie belongs to. It creates, extends and saves nothing.
 package get_me_usecase
 
 import (
@@ -24,7 +23,6 @@ func New(store Store, clock cptime.Clock) *UseCase {
 	return &UseCase{store: store, clock: clock}
 }
 
-// Execute answers accounts.ErrNoAccount when the cookie holds no live session.
 func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (*accounts.Account, error) {
 	session, err := accounts.Caller(ctx, u.store, cookieHeader, u.clock.Now())
 	if err != nil {

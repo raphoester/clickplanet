@@ -1,4 +1,3 @@
-// Package publishing_drop_bomb tells the other modules of every bomb that went off: planet.v1.BombLanded.
 package publishing_drop_bomb
 
 import (
@@ -17,12 +16,10 @@ type UseCase interface {
 	Execute(ctx context.Context, in drop_bomb_usecase.In) (clicks.Blast, error)
 }
 
-// Publisher is the event bus. Publish never blocks, so a drop never waits on a listener.
 type Publisher interface {
 	Publish(event proto.Message)
 }
 
-// Borders says whose ground a tile sits on.
 type Borders interface {
 	CountryOf(tile uint32) string
 }
@@ -38,7 +35,6 @@ type Decorator struct {
 	clock          cptime.Clock
 }
 
-// Execute publishes a bomb once it went off. A refused drop and a dud publish nothing.
 func (d *Decorator) Execute(ctx context.Context, in drop_bomb_usecase.In) (clicks.Blast, error) {
 	blast, err := d.implementation.Execute(ctx, in)
 	if err != nil || in.Dud {

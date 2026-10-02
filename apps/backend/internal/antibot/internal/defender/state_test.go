@@ -27,7 +27,6 @@ func TestTakesAndLossesSurviveASaveAndLoad(t *testing.T) {
 		w.Committed(bot)
 	}
 
-	// A loss taken just before the restart, retaken just after.
 	attacker := detect.Click{Scope: "attacker", Tile: 500, Country: "FR", At: clock.Now(), Held: "BG"}
 	w.Watch(attacker)
 	w.Committed(attacker)

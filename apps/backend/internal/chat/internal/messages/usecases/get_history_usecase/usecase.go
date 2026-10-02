@@ -1,5 +1,3 @@
-// Package get_history_usecase reads the recent messages a joining client is shown, each with its reactions, and
-// the announcements between them.
 package get_history_usecase
 
 import (
@@ -26,21 +24,16 @@ type ReactionReader interface {
 	Reactions(ctx context.Context, ids []messages.MessageID) (map[messages.MessageID]reactions.Reactions, error)
 }
 
-// Authors is the player module, asked who the accounts of the whole window are. One call names the page: the
-// chat keeps no copy of a name, so this is where a message gets one.
 type Authors interface {
 	Authors(ctx context.Context, accounts []messages.AccountID) (map[messages.AccountID]messages.Author, error)
 }
 
-// Entry is one message of the history, with its reactions as the caller sees them, and their version.
 type Entry struct {
 	Message          messages.Message
 	Reactions        []reactions.Count
 	ReactionsVersion uint64
 }
 
-// History is what a joining client is shown: the messages and the announcements, each oldest first. The window
-// bounds each on its own, so a burst of bombs never pushes the messages out.
 type History struct {
 	Messages      []Entry
 	Announcements []announcements.Announcement
@@ -73,7 +66,6 @@ type UseCase struct {
 	window        messages.Window
 }
 
-// Execute marks the caller's own reactions: those of its account. A caller with none has none.
 func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) (History, error) {
 	since := u.window.Since(u.clock.Now())
 
@@ -103,8 +95,6 @@ func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) (Hist
 		tallies[message.ID] = given[message.ID].Tally(viewer)
 	}
 
-	// Who everyone in the window is, in one ask: the senders and the people under their reactions together. A
-	// distinct account is asked about once however much it said and however often it reacted.
 	named, err := u.authors.Authors(ctx, everyone(recent, tallies))
 	if err != nil {
 		return History{}, fmt.Errorf("failed to read who the chat history is from: %w", err)
@@ -121,7 +111,6 @@ func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) (Hist
 	return History{Messages: history, Announcements: announced}, nil
 }
 
-// everyone is every account the window shows, each once: who sent a message, and who reacted to one.
 func everyone(recent []messages.Message, tallies map[messages.MessageID][]reactions.Count) []messages.AccountID {
 	accounts := messages.AccountsOf(recent)
 	seen := cpcolls.NewSet(accounts...)

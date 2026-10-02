@@ -1,8 +1,5 @@
 //go:build testing
 
-// Disc has no production caller since the bomb clears a circle instead of rings; it sits behind the
-// testing tag so `make deadcode` stays a wall. Deleting the tag line is the whole of wiring it back up.
-
 package clicks
 
 import (
@@ -10,9 +7,6 @@ import (
 	"sync"
 )
 
-// Disc returns id and every tile within radius steps of it, ascending — 1+3r(r+1) inland, less
-// wherever the land runs out. Computed rather than stored: a radius-3 table would be ~38 MB to
-// save ~50 microseconds, behind a 1 click/sec/IP throttle.
 func (g *Geography) Disc(id uint32, radius int) []uint32 {
 	if id == 0 || id > g.stats.Tiles {
 		return nil
@@ -29,7 +23,6 @@ func (g *Geography) Disc(id uint32, radius int) []uint32 {
 
 	for range radius {
 		frontier = g.nextRing(frontier, w)
-		// Everything in reach is already found: an island, or a landmass smaller than the radius.
 		if len(frontier) == 0 {
 			break
 		}
@@ -41,8 +34,6 @@ func (g *Geography) Disc(id uint32, radius int) []uint32 {
 	return found
 }
 
-// nextRing returns the tiles one step out from frontier that this search has not reached yet, and
-// marks them reached so a later ring does not claim them again.
 func (g *Geography) nextRing(frontier []uint32, w *walker) []uint32 {
 	var ring []uint32
 
@@ -57,14 +48,11 @@ func (g *Geography) nextRing(frontier []uint32, w *walker) []uint32 {
 	return ring
 }
 
-// walker is the search scratch: clearing 257,948 entries per call would cost more than the
-// search, so each pass stamps its own generation instead.
 type walker struct {
 	seen       []uint32
 	generation uint32
 }
 
-// One per concurrent caller: the map is shared and immutable, this is not.
 var walkers sync.Pool
 
 func takeWalker(tiles uint32) *walker {
@@ -80,7 +68,6 @@ func takeWalker(tiles uint32) *walker {
 }
 
 func (w *walker) begin() {
-	// Generation 0 means "never seen", so wrapping is the one time the array has to be cleared.
 	if w.generation == ^uint32(0) {
 		clear(w.seen)
 		w.generation = 0
@@ -88,7 +75,6 @@ func (w *walker) begin() {
 	w.generation++
 }
 
-// visit reports whether the tile had not already been reached by this search.
 func (w *walker) visit(id uint32) bool {
 	if w.seen[id] == w.generation {
 		return false

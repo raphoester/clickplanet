@@ -1,4 +1,3 @@
--- The deleted profiles do not come back.
 DROP INDEX profiles_name_key;
 
 ALTER TABLE profiles DROP CONSTRAINT profiles_name_check;

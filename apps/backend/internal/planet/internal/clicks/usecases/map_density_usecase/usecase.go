@@ -1,5 +1,3 @@
-// Package map_density_usecase answers how many tiles the map has, which is what a client
-// needs before it can draw one.
 package map_density_usecase
 
 import "context"
