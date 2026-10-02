@@ -75,7 +75,7 @@ func TestAnAdminIsSaidToBeOne(t *testing.T) {
 
 func TestTheHeldTitlesAreReadInTheLaddersOrder(t *testing.T) {
 	f := setUp(t)
-	require.NoError(t, f.titles.Grant(t.Context(), titles.Grants{ada: {"loyal", "governor", "settler"}}, monday))
+	require.NoError(t, f.titles.Grant(t.Context(), titles.Holdings{ada: {"loyal", "governor", "settler"}}, monday))
 
 	player, err := f.useCase.Execute(t.Context(), "Ada_L")
 

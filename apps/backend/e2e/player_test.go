@@ -328,25 +328,30 @@ func TestADeletedAccountLosesItsStatsAndItsName(t *testing.T) {
 	assert.Zero(t, ada.stats().GetTilesTaken())
 }
 
-func TestAnOperatorBackfillsTheTitlesOnTheAdminListenerOnly(t *testing.T) {
+func TestAnOperatorReconcilesTheTitlesOnTheAdminListenerOnly(t *testing.T) {
 	game := startGame(t)
 	ada := game.newPlayer(t)
 	ada.link("google-ada")
 	_, err := ada.setName("Ada")
 	require.NoError(t, err)
 	ada.click(1, "fr")
-	require.Eventually(t, func() bool { return ada.stats().GetTilesTaken() == 1 }, 5*time.Second, 20*time.Millisecond)
+	guest := game.newPlayer(t)
+	guest.click(2, "fr")
+	require.Eventually(t, func() bool {
+		return ada.stats().GetTilesTaken() == 1 && guest.stats().GetTilesTaken() == 1
+	}, 5*time.Second, 20*time.Millisecond)
 
-	request := connect.NewRequest(&playerv1.BackfillTitlesRequest{})
-	_, err = playerv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).BackfillTitles(t.Context(), request)
+	request := connect.NewRequest(&playerv1.ReconcileTitlesRequest{})
+	_, err = playerv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).ReconcileTitles(t.Context(), request)
 	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "the public router does not serve it")
 
-	res, err := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).BackfillTitles(t.Context(), request)
+	admin := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL)
+	first, err := admin.ReconcileTitles(t.Context(), request)
 	require.NoError(t, err)
+	assert.Zero(t, first.Msg.GetRevoked(), "the worker granted the guest nothing, and the player only what it earns")
 
-	player, err := playerv1connect.NewPlayerServiceClient(http.DefaultClient, game.baseURL).
-		GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "Ada"}))
+	second, err := admin.ReconcileTitles(t.Context(), request)
 	require.NoError(t, err)
-	assert.Equal(t, len(player.Msg.GetPlayer().GetTitles()) > 0, res.Msg.GetAccounts() == 1,
-		"the answer counts the one account if it earns a title, and then it holds one")
+	assert.Zero(t, second.Msg.GetGranted())
+	assert.Zero(t, second.Msg.GetRevoked())
 }

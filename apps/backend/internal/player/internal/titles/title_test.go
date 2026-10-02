@@ -21,17 +21,35 @@ func TestTheCatalogNamesTheTitlesStatsEarnInItsOrder(t *testing.T) {
 	assert.Equal(t, titles.IDs{"third", "first"}, titles.Catalog{third, first}.EarnedBy(tiles(3)))
 }
 
-func TestGrantsLeaveOutTheAccountsThatEarnNothing(t *testing.T) {
-	grants := catalog.GrantsFor([]titles.Career{
-		{Stats: players.Stats{Account: players.AccountID{15: 1}, TilesTaken: 0}},
-		{Stats: players.Stats{Account: players.AccountID{15: 2}, TilesTaken: 1}},
-		{Stats: players.Stats{Account: players.AccountID{15: 3}, TilesTaken: 5}},
+func TestAGuestEarnsNothing(t *testing.T) {
+	guest := titles.Career{Stats: players.Stats{TilesTaken: 1_000_000, StreakBest: 1_000}}
+
+	assert.Empty(t, catalog.EarnedBy(guest))
+	assert.Empty(t, titles.NewCatalog().EarnedBy(guest))
+}
+
+func TestTheReconciliationGrantsWhatIsEarnedAndRevokesWhatIsNot(t *testing.T) {
+	career := func(account byte, taken uint64, linked bool) titles.Career {
+		return titles.Career{
+			Stats:   players.Stats{Account: players.AccountID{15: account}, TilesTaken: taken},
+			Account: players.Account{Linked: linked},
+		}
+	}
+
+	reconciliation := catalog.ReconciliationOf([]titles.Career{
+		career(1, 5, true),
+		career(2, 1, true),
+		career(3, 5, false),
+		career(4, 0, true),
+	}, titles.Holdings{
+		{15: 1}: {"first"},
+		{15: 2}: {"first", "third", "retired"},
+		{15: 3}: {"first"},
 	})
 
-	assert.Equal(t, titles.Grants{
-		{15: 2}: {"first"},
-		{15: 3}: {"first", "third"},
-	}, grants)
+	assert.Equal(t, titles.Holdings{{15: 1}: {"third"}}, reconciliation.Grants)
+	assert.Equal(t, titles.Holdings{{15: 2}: {"third", "retired"}, {15: 3}: {"first"}}, reconciliation.Revocations)
+	assert.Equal(t, 3, reconciliation.Revocations.Len())
 }
 
 func TestTheHeldTitlesAreTheCatalogsInItsOrderAndAnUnknownOneIsDropped(t *testing.T) {

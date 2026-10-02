@@ -16,7 +16,7 @@ type Stats interface {
 }
 
 type Accounts interface {
-	CreatedAt(ctx context.Context, account players.AccountID) (time.Time, error)
+	Account(ctx context.Context, account players.AccountID) (players.Account, error)
 }
 
 type Titles interface {
@@ -43,12 +43,12 @@ func (u *UseCase) Execute(ctx context.Context, account players.AccountID) error 
 		return fmt.Errorf("failed to read the stats: %w", err)
 	}
 
-	createdAt, err := u.accounts.CreatedAt(ctx, account)
+	known, err := u.accounts.Account(ctx, account)
 	if err != nil {
-		return fmt.Errorf("failed to ask when the account was made: %w", err)
+		return fmt.Errorf("failed to ask auth about the account: %w", err)
 	}
 
-	career := titles.Career{Stats: stats, CreatedAt: createdAt}
+	career := titles.Career{Stats: stats, Account: known}
 	if err := u.titles.Award(ctx, account, career, u.clock.Now()); err != nil {
 		return fmt.Errorf("failed to award the titles: %w", err)
 	}

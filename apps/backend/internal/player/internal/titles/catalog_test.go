@@ -12,10 +12,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-func tiles(n uint64) titles.Career { return titles.Career{Stats: players.Stats{TilesTaken: n}} }
+var member = players.Account{Linked: true}
+
+func tiles(n uint64) titles.Career {
+	return titles.Career{Stats: players.Stats{TilesTaken: n}, Account: member}
+}
 
 func streak(days uint32) titles.Career {
-	return titles.Career{Stats: players.Stats{StreakBest: days}}
+	return titles.Career{Stats: players.Stats{StreakBest: days}, Account: member}
 }
 
 func TestEachTitleIsEarnedAtItsThresholdAndNotBefore(t *testing.T) {
@@ -24,9 +28,9 @@ func TestEachTitleIsEarnedAtItsThresholdAndNotBefore(t *testing.T) {
 		before, after titles.Career
 	}{
 		{titles.Settler{}, tiles(99), tiles(100)},
-		{titles.Governor{}, tiles(999), tiles(1_000)},
-		{titles.Conqueror{}, tiles(9_999), tiles(10_000)},
-		{titles.Emperor{}, tiles(99_999), tiles(100_000)},
+		{titles.Governor{}, tiles(9_999), tiles(10_000)},
+		{titles.Conqueror{}, tiles(99_999), tiles(100_000)},
+		{titles.Emperor{}, tiles(999_999), tiles(1_000_000)},
 		{titles.Loyal{}, streak(6), streak(7)},
 		{titles.Devoted{}, streak(29), streak(30)},
 		{titles.Unbroken{}, streak(99), streak(100)},
@@ -44,8 +48,8 @@ func TestAStreakTitleCountsTheBestStreakNotTheCurrentOne(t *testing.T) {
 func TestAnAccountMadeBeforeNovemberIsOG(t *testing.T) {
 	november := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 
-	assert.True(t, titles.OG{}.EarnedBy(titles.Career{CreatedAt: november.Add(-time.Millisecond)}))
-	assert.False(t, titles.OG{}.EarnedBy(titles.Career{CreatedAt: november}))
+	assert.True(t, titles.OG{}.EarnedBy(titles.Career{Account: players.Account{Linked: true, CreatedAt: november.Add(-time.Millisecond)}}))
+	assert.False(t, titles.OG{}.EarnedBy(titles.Career{Account: players.Account{Linked: true, CreatedAt: november}}))
 	assert.False(t, titles.OG{}.EarnedBy(titles.Career{}), "an account auth does not know has no date")
 }
 

@@ -24,8 +24,8 @@ type FakeTitle = PlayerTitle & {
 const TITLES: FakeTitle[] = [
     {id: "og", name: "OG", earnedBy: (_, __, createdAt) => createdAt < Date.UTC(2026, 10, 1)},
     {id: "settler", name: "Settler", earnedBy: (tiles) => tiles >= 100},
-    {id: "governor", name: "Governor", earnedBy: (tiles) => tiles >= 1_000},
-    {id: "conqueror", name: "Conqueror", earnedBy: (tiles) => tiles >= 10_000},
+    {id: "governor", name: "Governor", earnedBy: (tiles) => tiles >= 10_000},
+    {id: "conqueror", name: "Conqueror", earnedBy: (tiles) => tiles >= 100_000},
     {id: "loyal", name: "Loyal", earnedBy: (_, streak) => streak >= 7},
     {id: "devoted", name: "Devoted", earnedBy: (_, streak) => streak >= 30},
 ]

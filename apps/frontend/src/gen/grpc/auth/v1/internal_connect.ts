@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAccountRequest, GetAccountResponse, GetCreationDatesRequest, GetCreationDatesResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
+import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -31,12 +31,12 @@ export const InternalService = {
       kind: MethodKind.Unary,
     },
     /**
-     * @generated from rpc auth.v1.InternalService.GetCreationDates
+     * @generated from rpc auth.v1.InternalService.GetAccounts
      */
-    getCreationDates: {
-      name: "GetCreationDates",
-      I: GetCreationDatesRequest,
-      O: GetCreationDatesResponse,
+    getAccounts: {
+      name: "GetAccounts",
+      I: GetAccountsRequest,
+      O: GetAccountsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

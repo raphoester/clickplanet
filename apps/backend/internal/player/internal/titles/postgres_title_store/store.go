@@ -28,14 +28,43 @@ func (s *Store) Held(ctx context.Context, account players.AccountID) (titles.IDs
 	return idsOf(s.db.QueryContext(ctx, `SELECT title FROM titles WHERE account_id = $1 ORDER BY earned_at, title`, uuid.UUID(account)))
 }
 
-func (s *Store) Grant(ctx context.Context, grants titles.Grants, at time.Time) error {
-	var accounts, granted []string
-	for account, ids := range grants {
-		for _, id := range ids {
-			accounts = append(accounts, account.String())
-			granted = append(granted, string(id))
-		}
+func (s *Store) Holdings(ctx context.Context, accounts []players.AccountID) (titles.Holdings, error) {
+	holdings := titles.Holdings{}
+	if len(accounts) == 0 {
+		return holdings, nil
 	}
+
+	ids := make([]string, len(accounts))
+	for i, account := range accounts {
+		ids[i] = account.String()
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT account_id, title FROM titles WHERE account_id = ANY($1::uuid[]) ORDER BY account_id, earned_at, title
+	`, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the titles of a page: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			account uuid.UUID
+			id      string
+		)
+		if err := rows.Scan(&account, &id); err != nil {
+			return nil, fmt.Errorf("failed to read a title: %w", err)
+		}
+		holdings[players.AccountID(account)] = append(holdings[players.AccountID(account)], titles.ID(id))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the titles of a page: %w", err)
+	}
+	return holdings, nil
+}
+
+func (s *Store) Grant(ctx context.Context, grants titles.Holdings, at time.Time) error {
+	accounts, granted := pairsOf(grants)
 	if len(granted) == 0 {
 		return nil
 	}
@@ -51,11 +80,36 @@ func (s *Store) Grant(ctx context.Context, grants titles.Grants, at time.Time) e
 	return nil
 }
 
+func (s *Store) Revoke(ctx context.Context, revocations titles.Holdings) error {
+	accounts, revoked := pairsOf(revocations)
+	if len(revoked) == 0 {
+		return nil
+	}
+
+	if _, err := s.db.ExecContext(ctx, `
+		DELETE FROM titles USING unnest($1::uuid[], $2::text[]) AS revoked (account_id, title)
+		WHERE titles.account_id = revoked.account_id AND titles.title = revoked.title
+	`, pq.Array(accounts), pq.Array(revoked)); err != nil {
+		return fmt.Errorf("failed to revoke the titles: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM titles WHERE account_id = $1`, uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to delete the account's titles: %w", err)
 	}
 	return nil
+}
+
+func pairsOf(holdings titles.Holdings) (accounts, ids []string) {
+	for account, held := range holdings {
+		for _, id := range held {
+			accounts = append(accounts, account.String())
+			ids = append(ids, string(id))
+		}
+	}
+	return accounts, ids
 }
 
 func idsOf(rows *sql.Rows, err error) (titles.IDs, error) {

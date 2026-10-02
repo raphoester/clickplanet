@@ -6,7 +6,7 @@ service InternalService {
   rpc GetVerifyingKey(GetVerifyingKeyRequest) returns (GetVerifyingKeyResponse);
   rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
 
-  rpc GetCreationDates(GetCreationDatesRequest) returns (GetCreationDatesResponse) {
+  rpc GetAccounts(GetAccountsRequest) returns (GetAccountsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
@@ -26,15 +26,16 @@ message GetAccountResponse {
   int64 created_at_unix_ms = 2;
 }
 
-message GetCreationDatesRequest {
+message GetAccountsRequest {
   repeated string account_ids = 1;
 }
 
-message GetCreationDatesResponse {
-  repeated CreationDate dates = 1;
+message GetAccountsResponse {
+  repeated Account accounts = 1;
 }
 
-message CreationDate {
+message Account {
   string account_id = 1;
-  int64 created_at_unix_ms = 2;
+  bool linked = 2;
+  int64 created_at_unix_ms = 3;
 }

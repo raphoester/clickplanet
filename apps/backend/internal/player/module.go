@@ -28,7 +28,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/backfill_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
@@ -37,6 +36,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/reconcile_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
@@ -55,9 +55,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/postgres_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/award_titles_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/backfill_titles_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/backfill_titles_usecase/audit_backfill_titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/forget_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/reconcile_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/reconcile_titles_usecase/audit_reconcile_titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -120,7 +120,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	takes, err := cpbootstrap.Subscribe(props.Events, "player-stats", tileTakenBuffer,
 		log_subscriber.New(tile_taken_subscriber.New(
-			publishing_record_take.New(record_take_usecase.New(store), props.Events)), props.Logger))
+			publishing_record_take.New(record_take_usecase.New(store), props.Events),
+		), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
@@ -173,15 +174,18 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(get_profile_usecase.New(store)),
 		SetNameHandler: set_name_handler.New(
-			renaming_set_name.New(set_name_usecase.New(store, accounts, clock), visits)),
+			renaming_set_name.New(set_name_usecase.New(store, accounts, clock), visits),
+		),
 		SetColorHandler: set_color_handler.New(set_color_usecase.New(store)),
 		GetStatsHandler: get_stats_handler.New(get_stats_usecase.New(store, clock)),
 		AnnounceHandler: announce_handler.New(
-			announce_usecase.New(authors, visits, cpcountries.New(), clock, tagSalt)),
+			announce_usecase.New(authors, visits, cpcountries.New(), clock, tagSalt),
+		),
 		LeaveHandler:     leave_handler.New(forgetVisit),
 		GetRosterHandler: get_roster_handler.New(get_roster_usecase.New(visits, clock)),
 		ListenForEventsHandler: listen_for_events_handler.New(
-			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat)),
+			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat),
+		),
 		GetPlayerHandler: get_player_handler.New(get_player_usecase.New(store, store, titleBook, accounts, clock)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -201,8 +205,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	adminService := playerv1controller.AdminService{
-		BackfillTitlesHandler: backfill_titles_handler.New(audit_backfill_titles.New(
-			backfill_titles_usecase.New(store, accounts, titleStore, catalog, clock), props.Logger)),
+		ReconcileTitlesHandler: reconcile_titles_handler.New(audit_reconcile_titles.New(
+			reconcile_titles_usecase.New(store, accounts, titleStore, catalog, clock), props.Logger,
+		)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewAdminServiceHandler(adminService, options...)
