@@ -5,6 +5,7 @@ import {rosterGroups} from "../../domain/roster.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
+import StreakFlame from "../components/StreakFlame.tsx"
 import {UsersIcon} from "../components/icons.tsx"
 import {truncate} from "../truncate.ts"
 import "./Players.css"
@@ -64,7 +65,7 @@ function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
         <ul className="players-list">
             {entries.map((entry) => <li key={entry.key}
                                                className="players-entry"
-                                               style={authorStyle(entry.name)}>
+                                               style={authorStyle(entry)}>
                 <span className="players-entry-country"
                       role="img"
                       aria-label={countryName(entry.countryCode)}
@@ -82,6 +83,7 @@ function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
                         {truncate(entry.name, NAME_MAX_LENGTH)}
                     </span>}
                 {entry.admin && <AdminCrown/>}
+                <StreakFlame days={entry.streak}/>
             </li>)}
         </ul>
     </section>

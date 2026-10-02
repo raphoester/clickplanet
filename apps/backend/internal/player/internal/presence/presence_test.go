@@ -93,3 +93,11 @@ func names(roster []presence.Entry) []string {
 	}
 	return names
 }
+
+func TestALineCarriesTheColorAndTheStreakItWasAnnouncedWith(t *testing.T) {
+	ada := players.Author{Name: "Ada_L", Color: 3, Streak: players.Streak{Days: 12, LastDay: players.DayOf(now)}}
+
+	entry := presence.EntryOf(presence.Visit{Key: "1", Author: ada, Country: "fr", At: now})
+
+	assert.Equal(t, presence.Entry{Key: "1", Name: "Ada_L", Country: "fr", Color: 3, Streak: 12}, entry)
+}

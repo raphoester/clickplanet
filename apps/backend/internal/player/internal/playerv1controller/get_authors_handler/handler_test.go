@@ -13,7 +13,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_authors_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
+
+var today = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 
 const (
 	adaID     = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
@@ -33,8 +36,13 @@ func getAuthors(t *testing.T, ids ...string) (*connect.Response[playerv1.GetAuth
 	guest, err := players.AccountIDOf(guestID)
 	require.NoError(t, err)
 	require.NoError(t, store.SaveGuestCode(t.Context(), guest, "91aa3d"))
+	require.NoError(t, store.SaveColor(t.Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_PINK)))
+	require.NoError(t, store.RecordTake(t.Context(), ada, today.AddDate(0, 0, -1)))
+	require.NoError(t, store.RecordTake(t.Context(), ada, today))
+	require.NoError(t, store.RecordTake(t.Context(), guest, today.AddDate(0, 0, -1)))
+	require.NoError(t, store.RecordTake(t.Context(), guest, today))
 
-	return get_authors_handler.New(get_authors_usecase.New(store)).GetAuthors(t.Context(), //nolint:wrapcheck // the test reads the handler's own error.
+	return get_authors_handler.New(get_authors_usecase.New(store, cptime.NewFixedClock(today))).GetAuthors(t.Context(), //nolint:wrapcheck // the test reads the handler's own error.
 		connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: ids}))
 }
 
@@ -87,4 +95,19 @@ func TestTheAnswerIsNeverStored(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"), "who a player is changes when it renames")
+}
+
+func TestEachAuthorCarriesItsColorAndItsStreakAsOfToday(t *testing.T) {
+	res, err := getAuthors(t, adaID, guestID)
+	require.NoError(t, err)
+
+	by := make(map[string]*playerv1.Author, len(res.Msg.GetAuthors()))
+	for _, author := range res.Msg.GetAuthors() {
+		by[author.GetAccountId()] = author
+	}
+
+	assert.Equal(t, playerv1.NameColor_NAME_COLOR_PINK, by[adaID].GetColor())
+	assert.Equal(t, uint32(2), by[adaID].GetStreak())
+	assert.Equal(t, playerv1.NameColor_NAME_COLOR_UNSPECIFIED, by[guestID].GetColor())
+	assert.Equal(t, uint32(0), by[guestID].GetStreak(), "a guest shows no streak, however long it runs")
 }

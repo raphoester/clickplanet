@@ -22,6 +22,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_profile_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_take_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_color_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
@@ -35,6 +36,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_session_verifier"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/announce_usecase"
@@ -96,8 +98,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	store := postgres_player_store.New(db)
 
-	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}))
-	manyAuthors := get_authors_usecase.New(store)
+	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}), clock)
+	manyAuthors := get_authors_usecase.New(store, clock)
 
 	visits := inmemory_visit_storage.New(clock)
 	props.Runners.Add(visits)
@@ -146,6 +148,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetProfileHandler: get_profile_handler.New(get_profile_usecase.New(store)),
 		SetNameHandler: set_name_handler.New(
 			renaming_set_name.New(set_name_usecase.New(store, accounts, clock), visits)),
+		SetColorHandler: set_color_handler.New(set_color_usecase.New(store)),
 		GetStatsHandler: get_stats_handler.New(get_stats_usecase.New(store, clock)),
 		AnnounceHandler: announce_handler.New(
 			announce_usecase.New(authors, visits, cpcountries.New(), clock, tagSalt)),

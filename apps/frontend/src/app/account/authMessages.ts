@@ -47,6 +47,23 @@ export function usernameMessageOf(failure: PlayerFailure): string {
             return "We could not check who you are. Try again."
         case "guest":
             return "Sign in to choose a username."
+        case "unnamed":
+        case "failed":
+            return "Something went wrong. Try again."
+    }
+}
+
+export function colorMessageOf(failure: PlayerFailure): string {
+    switch (failure) {
+        case "invalid":
+            return "This color is not offered."
+        case "unnamed":
+            return "Pick a username first."
+        case "notSignedIn":
+            return "We could not check who you are. Try again."
+        case "guest":
+            return "Sign in to choose a color."
+        case "taken":
         case "failed":
             return "Something went wrong. Try again."
     }

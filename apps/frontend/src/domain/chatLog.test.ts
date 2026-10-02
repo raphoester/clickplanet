@@ -12,12 +12,15 @@ import {
     unreadSince,
 } from "./chatLog.ts"
 import type {ChatAnnouncement, ChatMessage} from "../backends/chat.ts"
+import {NameColor} from "../backends/player.ts"
 
 const message = (id: string, sentAt: number): ChatMessage => ({
     id,
     sentAt,
     authorName: "Ana",
     authorAdmin: false,
+    authorColor: NameColor.UNSPECIFIED,
+    authorStreak: 0,
     countryCode: "fr",
     text: `message ${id}`,
     reactions: [],

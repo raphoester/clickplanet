@@ -23,8 +23,10 @@ func AccountIDOf(value string) AccountID {
 var ErrNoAccount = errors.New("only an account may post or react")
 
 type Author struct {
-	Name  string
-	Admin bool
+	Name   string
+	Admin  bool
+	Color  int32
+	Streak uint32
 }
 
 var ErrAuthorUnavailable = errors.New("the sender could not be identified")

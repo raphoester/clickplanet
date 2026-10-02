@@ -11,12 +11,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
 )
 
 type PlayerService struct {
 	get_profile_handler.GetProfileHandler
 	set_name_handler.SetNameHandler
+	set_color_handler.SetColorHandler
 	get_stats_handler.GetStatsHandler
 	announce_handler.AnnounceHandler
 	leave_handler.LeaveHandler

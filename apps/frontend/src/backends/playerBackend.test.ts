@@ -9,7 +9,7 @@ import {
     RosterEntry as RosterEntryPb,
     Stats as StatsPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
-import {isValidUsername, PlayerError, RosterEvent, usernameOf} from "./player.ts"
+import {isValidUsername, NameColor, PlayerError, RosterEvent, usernameOf} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
 
@@ -274,8 +274,10 @@ const failingWith = (error: ConnectError) => (): AsyncIterable<PlayerEventPb> =>
 })
 
 describe("ConnectPlayerBackend live roster", () => {
-    const entryPb = new RosterEntryPb({key: "k1", name: "ana", countryId: "fr", guest: false, admin: true})
-    const ana = {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: true}
+    const entryPb = new RosterEntryPb({
+        key: "k1", name: "ana", countryId: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12,
+    })
+    const ana = {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12}
 
     afterEach(() => vi.useRealTimers())
 
@@ -343,11 +345,13 @@ describe("ConnectPlayerBackend player info", () => {
                 stats: new StatsPb({tilesTaken: 1234n, streakCurrent: 3, streakBest: 7, streakLastDay: "2026-09-17"}),
                 createdAtUnixMs: 1_788_000_000_000n,
                 admin: true,
+                color: NameColor.VIOLET,
             }),
         }))
 
         expect(await backendWith({getPlayer}, session).playerInfo("ana")).toEqual({
             name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
+            color: NameColor.VIOLET,
         })
         expect(getPlayer).toHaveBeenCalledWith({name: "ana"})
         expect(session.token).not.toHaveBeenCalled()

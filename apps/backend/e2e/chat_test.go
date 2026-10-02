@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"regexp"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -12,6 +13,7 @@ import (
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 )
 
 var guestName = regexp.MustCompile(`^guest_[0-9a-f]{6}$`)
@@ -39,6 +41,31 @@ func TestAPlayerWithAUsernamePostsUnderIt(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "Ada_L", message.GetAuthorName())
+}
+
+func TestAPlayerPostsInTheColorItChoseAndWithItsStreak(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+	_, err := ada.setName("Ada_L")
+	require.NoError(t, err)
+	require.NoError(t, ada.setColor(playerv1.NameColor_NAME_COLOR_TEAL))
+	ada.click(1, "fr")
+	require.Eventually(t, func() bool { return ada.stats().GetStreakCurrent() == 1 }, 5*time.Second, 20*time.Millisecond)
+
+	message, err := ada.post()
+
+	require.NoError(t, err)
+	assert.Equal(t, playerv1.NameColor_NAME_COLOR_TEAL, message.GetAuthorColor())
+	assert.Equal(t, uint32(1), message.GetAuthorStreak())
+}
+
+func TestAGuestMayNotChooseAColor(t *testing.T) {
+	game := startGame(t)
+
+	err := game.newPlayer(t).setColor(playerv1.NameColor_NAME_COLOR_TEAL)
+
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 }
 
 func TestAPlayerWithNoUsernamePostsUnderItsGuestCodeEveryTime(t *testing.T) {

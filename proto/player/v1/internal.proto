@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package player.v1;
 
+import "player/v1/color.proto";
+
 service InternalService {
   rpc GetAuthor(GetAuthorRequest) returns (GetAuthorResponse);
 
@@ -21,6 +23,8 @@ message GetAuthorResponse {
   reserved 2;
   reserved "tag";
   bool admin = 3;
+  NameColor color = 4;
+  uint32 streak = 5;
 }
 
 message GetAuthorsRequest {
@@ -35,4 +39,6 @@ message Author {
   string account_id = 1;
   string name = 2;
   bool admin = 3;
+  NameColor color = 4;
+  uint32 streak = 5;
 }

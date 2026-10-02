@@ -7,4 +7,5 @@ type Player struct {
 	Stats     Stats
 	CreatedAt time.Time
 	Admin     bool
+	Color     Color
 }

@@ -125,4 +125,5 @@ type Profile struct {
 	Name      Name
 	UpdatedAt time.Time
 	Admin     bool
+	Color     Color
 }

@@ -117,7 +117,7 @@
     font-size: 11px;
     letter-spacing: 0.6px;
     text-transform: uppercase;
-    color: hsl(var(--author-hue, 0), 70%, 74%);
+    color: hsl(var(--author-hue, 0), calc(70% * var(--author-chroma, 1)), 74%);
 }
 
 .chat-peek-text {
@@ -196,12 +196,12 @@
 }
 
 .chat-message {
-    --author: hsl(var(--author-hue, 0), 80%, 78%);
-    --balloon: hsl(var(--author-hue, 0), 78%, 87%);
-    --balloon-edge: hsl(var(--author-hue, 0), 48%, 30%);
-    --balloon-ink: hsl(var(--author-hue, 0), 50%, 15%);
-    --balloon-drop: hsla(var(--author-hue, 0), 55%, 8%, 0.6);
-    --author-glow: hsla(var(--author-hue, 0), 90%, 72%, 0.75);
+    --author: hsl(var(--author-hue, 0), calc(80% * var(--author-chroma, 1)), 78%);
+    --balloon: hsl(var(--author-hue, 0), calc(78% * var(--author-chroma, 1)), 87%);
+    --balloon-edge: hsl(var(--author-hue, 0), calc(48% * var(--author-chroma, 1)), 30%);
+    --balloon-ink: hsl(var(--author-hue, 0), calc(50% * var(--author-chroma, 1)), 15%);
+    --balloon-drop: hsla(var(--author-hue, 0), calc(55% * var(--author-chroma, 1)), 8%, 0.6);
+    --author-glow: hsla(var(--author-hue, 0), calc(90% * var(--author-chroma, 1)), 72%, 0.75);
     display: flex;
     flex-direction: column;
     align-items: flex-start;

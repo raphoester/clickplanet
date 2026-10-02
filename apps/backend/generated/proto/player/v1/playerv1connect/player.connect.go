@@ -38,6 +38,8 @@ const (
 	PlayerServiceGetProfileProcedure = "/player.v1.PlayerService/GetProfile"
 	// PlayerServiceSetNameProcedure is the fully-qualified name of the PlayerService's SetName RPC.
 	PlayerServiceSetNameProcedure = "/player.v1.PlayerService/SetName"
+	// PlayerServiceSetColorProcedure is the fully-qualified name of the PlayerService's SetColor RPC.
+	PlayerServiceSetColorProcedure = "/player.v1.PlayerService/SetColor"
 	// PlayerServiceGetStatsProcedure is the fully-qualified name of the PlayerService's GetStats RPC.
 	PlayerServiceGetStatsProcedure = "/player.v1.PlayerService/GetStats"
 	// PlayerServiceAnnounceProcedure is the fully-qualified name of the PlayerService's Announce RPC.
@@ -57,6 +59,7 @@ const (
 type PlayerServiceClient interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
+	SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error)
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
@@ -86,6 +89,12 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+PlayerServiceSetNameProcedure,
 			connect.WithSchema(playerServiceMethods.ByName("SetName")),
+			connect.WithClientOptions(opts...),
+		),
+		setColor: connect.NewClient[v1.SetColorRequest, v1.SetColorResponse](
+			httpClient,
+			baseURL+PlayerServiceSetColorProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("SetColor")),
 			connect.WithClientOptions(opts...),
 		),
 		getStats: connect.NewClient[v1.GetStatsRequest, v1.GetStatsResponse](
@@ -133,6 +142,7 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 type playerServiceClient struct {
 	getProfile      *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
 	setName         *connect.Client[v1.SetNameRequest, v1.SetNameResponse]
+	setColor        *connect.Client[v1.SetColorRequest, v1.SetColorResponse]
 	getStats        *connect.Client[v1.GetStatsRequest, v1.GetStatsResponse]
 	announce        *connect.Client[v1.AnnounceRequest, v1.AnnounceResponse]
 	leave           *connect.Client[v1.LeaveRequest, v1.LeaveResponse]
@@ -149,6 +159,11 @@ func (c *playerServiceClient) GetProfile(ctx context.Context, req *connect.Reque
 // SetName calls player.v1.PlayerService.SetName.
 func (c *playerServiceClient) SetName(ctx context.Context, req *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error) {
 	return c.setName.CallUnary(ctx, req)
+}
+
+// SetColor calls player.v1.PlayerService.SetColor.
+func (c *playerServiceClient) SetColor(ctx context.Context, req *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error) {
+	return c.setColor.CallUnary(ctx, req)
 }
 
 // GetStats calls player.v1.PlayerService.GetStats.
@@ -185,6 +200,7 @@ func (c *playerServiceClient) GetPlayer(ctx context.Context, req *connect.Reques
 type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
+	SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error)
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
@@ -210,6 +226,12 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		PlayerServiceSetNameProcedure,
 		svc.SetName,
 		connect.WithSchema(playerServiceMethods.ByName("SetName")),
+		connect.WithHandlerOptions(opts...),
+	)
+	playerServiceSetColorHandler := connect.NewUnaryHandler(
+		PlayerServiceSetColorProcedure,
+		svc.SetColor,
+		connect.WithSchema(playerServiceMethods.ByName("SetColor")),
 		connect.WithHandlerOptions(opts...),
 	)
 	playerServiceGetStatsHandler := connect.NewUnaryHandler(
@@ -256,6 +278,8 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceGetProfileHandler.ServeHTTP(w, r)
 		case PlayerServiceSetNameProcedure:
 			playerServiceSetNameHandler.ServeHTTP(w, r)
+		case PlayerServiceSetColorProcedure:
+			playerServiceSetColorHandler.ServeHTTP(w, r)
 		case PlayerServiceGetStatsProcedure:
 			playerServiceGetStatsHandler.ServeHTTP(w, r)
 		case PlayerServiceAnnounceProcedure:
@@ -283,6 +307,10 @@ func (UnimplementedPlayerServiceHandler) GetProfile(context.Context, *connect.Re
 
 func (UnimplementedPlayerServiceHandler) SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.SetName is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.SetColor is not implemented"))
 }
 
 func (UnimplementedPlayerServiceHandler) GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error) {

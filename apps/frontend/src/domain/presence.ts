@@ -1,4 +1,4 @@
-import type {Presence} from "../backends/player.ts"
+import type {NameColor, Presence} from "../backends/player.ts"
 
 export const ANNOUNCE_EVERY_MS = 30_000
 
@@ -6,6 +6,7 @@ export const SETTLE_MS = 1_000
 
 export type Announcing = Presence & {
     username?: string
+    color?: NameColor
 }
 
 export class PresenceSchedule {
@@ -46,5 +47,5 @@ export class PresenceSchedule {
 }
 
 function keyOf(announcing: Announcing): string {
-    return JSON.stringify([announcing.countryCode, announcing.username ?? null])
+    return JSON.stringify([announcing.countryCode, announcing.username ?? null, announcing.color ?? null])
 }
