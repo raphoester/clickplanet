@@ -88,6 +88,15 @@ export interface PresenceBackend {
     listenForRoster(onEvent: (event: RosterEvent) => void, onUnavailable: () => void): () => void
 }
 
+export type PlayerTitle =
+    | "settler"
+    | "governor"
+    | "conqueror"
+    | "emperor"
+    | "loyal"
+    | "devoted"
+    | "unbroken"
+
 export type PlayerInfo = {
     name: string
     tilesTaken: number
@@ -95,6 +104,7 @@ export type PlayerInfo = {
     streakBest: number
     createdAt?: number
     admin: boolean
+    titles: PlayerTitle[]
 }
 
 export interface PlayerInfoBackend {

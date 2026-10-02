@@ -36,7 +36,7 @@ func setUp(t *testing.T) fixture {
 	accounts.Create(ada, createdAt)
 	clock := cptime.NewFixedClock(monday)
 
-	return fixture{store: store, accounts: accounts, clock: clock, useCase: get_player_usecase.New(store, store, accounts, clock)}
+	return fixture{store: store, accounts: accounts, clock: clock, useCase: get_player_usecase.New(store, store, store, accounts, clock)}
 }
 
 func TestAPlayerIsFoundByItsNameInAnyCase(t *testing.T) {
@@ -64,6 +64,16 @@ func TestAnAdminIsSaidToBeOne(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.True(t, player.Admin)
+}
+
+func TestTheHeldTitlesAreReadInTheLaddersOrder(t *testing.T) {
+	f := setUp(t)
+	require.NoError(t, f.store.GrantTitles(t.Context(), ada, players.Titles{players.Loyal, players.Governor, players.Settler}, monday))
+
+	player, err := f.useCase.Execute(t.Context(), "Ada_L")
+
+	require.NoError(t, err)
+	assert.Equal(t, players.Titles{players.Settler, players.Governor, players.Loyal}, player.Titles)
 }
 
 func TestAPlayerThatNeverTookATileHasEmptyStats(t *testing.T) {

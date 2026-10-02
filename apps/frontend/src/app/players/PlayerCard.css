@@ -39,6 +39,28 @@
     margin: 4px 0 20px;
 }
 
+.player-card-titles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 14px;
+    padding: 0;
+    list-style: none;
+}
+
+.player-card-titles li {
+    padding: 4px 10px;
+    border: 1px solid #FFFFFF1A;
+    border-radius: 999px;
+    background-color: #FFFFFF0D;
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: white;
+}
+
 .player-card-stats {
     display: grid;
     grid-template-columns: 1fr 1fr;

@@ -62,7 +62,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Three do: `planet`, `player` and `chat` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, and `chat` asks `player` who posts: the username, or the guest code. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken` and `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`; `player` hears all four.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Three do: `planet`, `player` and `chat` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, and `chat` asks `player` who posts: the username, or the guest code. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, and `player` publishes `StatsChanged`; `player` hears all five.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -243,6 +243,7 @@ The events today:
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats and the visit |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account |
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
+| `player.v1.StatsChanged{account_id}` | `player`, `record_take_usecase/publishing_record_take` | after each take is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
@@ -916,15 +917,16 @@ internal/auth/internal/
 ```
 internal/player/internal/
   players/                          AccountID, Name (NameOf), GuestCode (GuestCodes, DisplayNameOf), Author (AuthorOf), Tag (TagOf), Profile,
-                                    Stats, Day; the Store port and its contract suite
-    postgres_player_store/          the Store over player.profiles, player.guest_codes and player.stats
+                                    Stats, Day, Title and Titles (TitlesOf, the ladder); the Store port and its contract suite
+    postgres_player_store/          the Store over player.profiles, player.guest_codes, player.stats and player.titles
     random_code_generator/          draws guest codes from crypto/rand
     inmemory_player_store/          the same port in maps, behind the testing tag
     rpc_account_reader/             whether an account is linked, from auth.v1.InternalService/GetAccount
     usecases/get_profile_usecase/  set_name_usecase/  get_stats_usecase/  get_author_usecase/  get_player_usecase/
     usecases/get_authors_usecase/  — who many accounts are, and a pure read: it draws no guest code
       set_name_usecase/renaming_set_name/   shows a kept name on the roster at once
-    usecases/record_take_usecase/  forget_account_usecase/
+    usecases/record_take_usecase/  forget_account_usecase/  award_titles_usecase/
+      record_take_usecase/publishing_record_take/   publishes player.v1.StatsChanged once a take is counted
   presence/                         Visit, Entry, RosterOf, TTL: who is playing
     inmemory_visit_storage/         the last visit of each account, capped, keyed, pruned every 5s (a Runner), and each change to its subscribers
     usecases/announce_usecase/  get_roster_usecase/  listen_for_events_usecase/  move_visit_usecase/  forget_visit_usecase/
@@ -936,7 +938,8 @@ internal/player/internal/
     playermessage/                  Profile, Stats and Player as player.v1 messages
     rpc_session_verifier/           the key from auth.v1.InternalService, asked once (planet's, copied)
   subscribers/                      the edge for events, as the controller is for the wire
-    tile_taken_subscriber/  account_deleted_subscriber/  signed_in_subscriber/  signed_out_subscriber/  log_subscriber/
+    tile_taken_subscriber/  account_deleted_subscriber/  signed_in_subscriber/  signed_out_subscriber/  stats_changed_subscriber/
+    log_subscriber/
   migrations/
 ```
 
@@ -979,6 +982,12 @@ internal/player/internal/
 
   An account with no username has no profile row, so it cannot be one: pick the name first.
 - **`GetPlayer(name)` is what anybody may know about a player with a username**: the name as typed, the stats as of today, and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **It never answers the account id.** The name is found ignoring case (`Store.ProfileNamed`, on the unique index on `name_folded`). A name no account holds is `NotFound` (`ErrNoProfile`), and so is one no account may hold, a guest's included, which reads nothing. A guest has no username, so it has no answer here: the client shows its name and flag only. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which now also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
+- **Titles are earned from the stats and then kept.** `players.TitlesOf` is the ladder: Settler, Governor, Conqueror and Emperor at 100, 1,000, 10,000 and 100,000 tiles; Loyal, Devoted and Unbroken at a best streak of 7, 30 and 100 days. The best streak, not the current one, so a broken streak keeps its title. They live in `player.titles` (`account_id`, `title`, `earned_at`), one row per title held.
+  - **A listener grants them, not the take's write.** `publishing_record_take` wraps `record_take_usecase` and publishes `player.v1.StatsChanged` once the take is counted. The `player-titles` subscriber (`award_titles_usecase`) reads the stats and the titles held, and grants only what `TitlesOf` earns that is not held yet, at the clock's time. Nothing earned and not held is no write. `GrantTitles` keeps the first `earned_at` of a title granted twice. An account with no stats (deleted since) earns nothing.
+  - **It reads the stats again rather than trusting the event**, so a `StatsChanged` dropped by a full buffer or lost in a crash only delays a title to the account's next take. A player who never takes another tile keeps that gap.
+  - **Migration `20261002120000_titles` backfilled the players of the day** from `player.stats`, in SQL with the same thresholds, `earned_at` the time it ran. It is a snapshot, not a second copy of the rule: **a new title needs a backfill migration of its own**, or a player who already qualifies gets it only at the next take. `migrations_test.go` pins the backfill.
+  - **`GetPlayer` answers the titles held**, in the ladder's order (`Titles.Sorted`, which drops a title the ladder no longer has), as the `player.v1.Title` enum. `playermessage.Titles` maps them; a test checks every title of the ladder has a wire value.
+  - **`auth.v1.AccountDeleted` deletes the titles too.** A grant that lands after the delete, from a take before it, leaves rows for an account that is gone, as a late take does for the stats.
 - **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
 - **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
 - **No memory copy: every call reads or writes postgres.** This is not the tile map's pattern on purpose. The map is in memory so a click never waits on the database; a take reaches this module over the event bus, so a click already never waits on it, and the calls are few (production is ~15 takes a second at peak). A memory copy would load every account that ever took a tile at boot, and cost a dirty set, a flush loop and a window a hard kill loses.

@@ -116,4 +116,16 @@ message Player {
   Stats stats = 2;
   int64 created_at_unix_ms = 3;
   bool admin = 4;
+  repeated Title titles = 5;
+}
+
+enum Title {
+  TITLE_UNSPECIFIED = 0;
+  TITLE_SETTLER = 1;
+  TITLE_GOVERNOR = 2;
+  TITLE_CONQUEROR = 3;
+  TITLE_EMPEROR = 4;
+  TITLE_LOYAL = 5;
+  TITLE_DEVOTED = 6;
+  TITLE_UNBROKEN = 7;
 }

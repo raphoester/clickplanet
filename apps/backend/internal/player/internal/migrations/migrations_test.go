@@ -68,3 +68,42 @@ func TestUnicodeUsernamesCutTheLongNamesAndDeleteTheOnesACutWouldTake(t *testing
 	require.NoError(t, rows.Err())
 	assert.Equal(t, []string{"Ada", "Ada_Lovelace_18", "Bob_the_builder", "Carol_Carolyn_C"}, kept)
 }
+
+func TestTitlesAreBackfilledFromTheStats(t *testing.T) {
+	server := cppg.StartTestServer(t)
+	db := server.OpenSchema(t, "player", before(t, "20261002120000"))
+	for _, row := range []struct {
+		account       string
+		tiles, streak int
+	}{
+		{"00000000-0000-0000-0000-000000000001", 99, 6},
+		{"00000000-0000-0000-0000-000000000002", 100, 7},
+		{"00000000-0000-0000-0000-000000000003", 10_000, 30},
+		{"00000000-0000-0000-0000-000000000004", 100_000, 100},
+	} {
+		_, err := db.ExecContext(t.Context(), `
+			INSERT INTO stats (account_id, tiles_taken, streak_current, streak_best, streak_last_day)
+			VALUES ($1, $2, 0, $3, '2026-10-01')
+		`, row.account, row.tiles, row.streak)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	rows, err := db.QueryContext(t.Context(), `SELECT account_id::text, title FROM titles`)
+	require.NoError(t, err)
+	defer func() { _ = rows.Close() }()
+	held := map[string][]string{}
+	for rows.Next() {
+		var account, title string
+		require.NoError(t, rows.Scan(&account, &title))
+		held[account] = append(held[account], title)
+	}
+	require.NoError(t, rows.Err())
+	assert.Empty(t, held["00000000-0000-0000-0000-000000000001"])
+	assert.ElementsMatch(t, []string{"settler", "loyal"}, held["00000000-0000-0000-0000-000000000002"])
+	assert.ElementsMatch(t, []string{"settler", "governor", "conqueror", "loyal", "devoted"},
+		held["00000000-0000-0000-0000-000000000003"])
+	assert.ElementsMatch(t, []string{"settler", "governor", "conqueror", "emperor", "loyal", "devoted", "unbroken"},
+		held["00000000-0000-0000-0000-000000000004"])
+}

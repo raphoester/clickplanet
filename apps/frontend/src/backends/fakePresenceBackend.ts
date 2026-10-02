@@ -1,12 +1,30 @@
 import {OWN_GUEST_NAME} from "./fakeChatBackend.ts"
 import {compareRosterEntries} from "../domain/roster.ts"
-import {PlayerInfo, PlayerInfoBackend, Presence, PresenceBackend, RosterEntry, RosterEvent} from "./player.ts"
+import {
+    PlayerInfo,
+    PlayerInfoBackend,
+    PlayerTitle,
+    Presence,
+    PresenceBackend,
+    RosterEntry,
+    RosterEvent,
+} from "./player.ts"
 
 const SHIFT_MS = 25_000
 
 const TICK_MS = 1_000
 
 const OWN_KEY = "0"
+
+const LADDER: {title: PlayerTitle, tiles: number, streak: number}[] = [
+    {title: "settler", tiles: 100, streak: 0},
+    {title: "governor", tiles: 1_000, streak: 0},
+    {title: "conqueror", tiles: 10_000, streak: 0},
+    {title: "emperor", tiles: 100_000, streak: 0},
+    {title: "loyal", tiles: 0, streak: 7},
+    {title: "devoted", tiles: 0, streak: 30},
+    {title: "unbroken", tiles: 0, streak: 100},
+]
 
 const PLAYERS: RosterEntry[] = [
     {key: "1", name: "Ana", countryCode: "fr", guest: false, admin: true},
@@ -74,13 +92,15 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
 
         const seed = [...player.name].reduce((sum, c) => sum * 31 + c.charCodeAt(0), 7) >>> 0
         const streakBest = 1 + seed % 40
+        const tilesTaken = seed % 25_000
         return {
             name: player.name,
-            tilesTaken: seed % 25_000,
+            tilesTaken,
             streakCurrent: seed % 3 === 0 ? 0 : 1 + seed % streakBest,
             streakBest,
             createdAt: this.now() - (1 + seed % 200) * 86_400_000,
             admin: player.admin,
+            titles: LADDER.filter((rung) => tilesTaken >= rung.tiles && streakBest >= rung.streak).map((rung) => rung.title),
         }
     }
 }

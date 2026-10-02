@@ -18,6 +18,10 @@ type Stats interface {
 	Stats(ctx context.Context, account players.AccountID) (players.Stats, error)
 }
 
+type Titles interface {
+	Titles(ctx context.Context, account players.AccountID) (players.Titles, error)
+}
+
 type Accounts interface {
 	CreatedAt(ctx context.Context, account players.AccountID) (time.Time, error)
 }
@@ -25,12 +29,13 @@ type Accounts interface {
 type UseCase struct {
 	profiles Profiles
 	stats    Stats
+	titles   Titles
 	accounts Accounts
 	clock    cptime.Clock
 }
 
-func New(profiles Profiles, stats Stats, accounts Accounts, clock cptime.Clock) *UseCase {
-	return &UseCase{profiles: profiles, stats: stats, accounts: accounts, clock: clock}
+func New(profiles Profiles, stats Stats, titles Titles, accounts Accounts, clock cptime.Clock) *UseCase {
+	return &UseCase{profiles: profiles, stats: stats, titles: titles, accounts: accounts, clock: clock}
 }
 
 func (u *UseCase) Execute(ctx context.Context, value string) (players.Player, error) {
@@ -55,6 +60,11 @@ func (u *UseCase) Execute(ctx context.Context, value string) (players.Player, er
 		return players.Player{}, fmt.Errorf("failed to read the stats: %w", err)
 	}
 
+	titles, err := u.titles.Titles(ctx, profile.Account)
+	if err != nil {
+		return players.Player{}, fmt.Errorf("failed to read the titles: %w", err)
+	}
+
 	createdAt, err := u.accounts.CreatedAt(ctx, profile.Account)
 	if err != nil {
 		return players.Player{}, fmt.Errorf("failed to ask when the account was made: %w", err)
@@ -65,5 +75,6 @@ func (u *UseCase) Execute(ctx context.Context, value string) (players.Player, er
 		Stats:     stats.AsOf(players.DayOf(u.clock.Now())),
 		CreatedAt: createdAt,
 		Admin:     profile.Admin,
+		Titles:    titles.Sorted(),
 	}, nil
 }

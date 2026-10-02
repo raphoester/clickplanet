@@ -20,6 +20,8 @@ type Store interface {
 	SaveProfile(ctx context.Context, profile Profile) error
 	Stats(ctx context.Context, account AccountID) (Stats, error)
 	RecordTake(ctx context.Context, account AccountID, at time.Time) error
+	Titles(ctx context.Context, account AccountID) (Titles, error)
+	GrantTitles(ctx context.Context, account AccountID, titles Titles, at time.Time) error
 	DeleteAccount(ctx context.Context, account AccountID) error
 	Names(ctx context.Context, accounts []AccountID) (map[AccountID]Name, error)
 	Authors(ctx context.Context, accounts []AccountID) (map[AccountID]Author, error)

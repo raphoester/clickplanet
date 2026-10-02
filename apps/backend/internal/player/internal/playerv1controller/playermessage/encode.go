@@ -19,8 +19,30 @@ func Stats(stats players.Stats) *playerv1.Stats {
 	}
 }
 
+var titles = map[players.Title]playerv1.Title{
+	players.Settler:   playerv1.Title_TITLE_SETTLER,
+	players.Governor:  playerv1.Title_TITLE_GOVERNOR,
+	players.Conqueror: playerv1.Title_TITLE_CONQUEROR,
+	players.Emperor:   playerv1.Title_TITLE_EMPEROR,
+	players.Loyal:     playerv1.Title_TITLE_LOYAL,
+	players.Devoted:   playerv1.Title_TITLE_DEVOTED,
+	players.Unbroken:  playerv1.Title_TITLE_UNBROKEN,
+}
+
+func Titles(held players.Titles) []playerv1.Title {
+	encoded := make([]playerv1.Title, 0, len(held))
+	for _, title := range held {
+		if wire, ok := titles[title]; ok {
+			encoded = append(encoded, wire)
+		}
+	}
+	return encoded
+}
+
 func Player(player players.Player) *playerv1.Player {
-	message := &playerv1.Player{Name: string(player.Name), Stats: Stats(player.Stats), Admin: player.Admin}
+	message := &playerv1.Player{
+		Name: string(player.Name), Stats: Stats(player.Stats), Admin: player.Admin, Titles: Titles(player.Titles),
+	}
 	if !player.CreatedAt.IsZero() {
 		message.CreatedAtUnixMs = player.CreatedAt.UnixMilli()
 	}

@@ -21,6 +21,7 @@ describe("PlayerCard", () => {
     it("shows who was clicked, and the player's stats once read", async () => {
         const backend = backendAnswering(async () => ({
             name: "Ana", tilesTaken: 1234, streakCurrent: 1, streakBest: 7, createdAt: Date.UTC(2026, 8, 1, 12), admin: false,
+            titles: [],
         }))
         render(<PlayerCard player={ana} backend={backend} onClose={() => {}}/>)
 
@@ -39,11 +40,33 @@ describe("PlayerCard", () => {
 
     it("leaves out a creation date the server does not know", async () => {
         render(<PlayerCard player={ana}
-                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false}))}
+                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, titles: []}))}
                            onClose={() => {}}/>)
 
         await screen.findByText("Tiles taken")
         expect(screen.queryByText("Playing since")).toBeNull()
+    })
+
+    it("lists every title the player holds, in the order read", async () => {
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({
+                               name: "Ana", tilesTaken: 12_000, streakCurrent: 0, streakBest: 30, admin: false,
+                               titles: ["settler", "governor", "conqueror", "loyal", "devoted"],
+                           }))}
+                           onClose={() => {}}/>)
+
+        const titles = await screen.findByRole("list", {name: "Titles"})
+        expect(within(titles).getAllByRole("listitem").map((item) => item.textContent))
+            .toEqual(["Settler", "Governor", "Conqueror", "Loyal", "Devoted"])
+    })
+
+    it("shows no list for a player with no title", async () => {
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 3, streakCurrent: 1, streakBest: 1, admin: false, titles: []}))}
+                           onClose={() => {}}/>)
+
+        await screen.findByText("Tiles taken")
+        expect(screen.queryByRole("list", {name: "Titles"})).toBeNull()
     })
 
     it("asks nothing for a guest, and says it has no stats", () => {
@@ -77,7 +100,7 @@ describe("PlayerCard", () => {
         cleanup()
 
         render(<PlayerCard player={ana}
-                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: true}))}
+                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: true, titles: []}))}
                            onClose={() => {}}/>)
         expect(screen.queryByRole("img", {name: "Admin"})).toBeNull()
         expect(await screen.findByRole("img", {name: "Admin"})).toBeDefined()

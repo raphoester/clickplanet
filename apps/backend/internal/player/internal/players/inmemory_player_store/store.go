@@ -4,6 +4,7 @@ package inmemory_player_store
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ type Store struct {
 	profiles map[players.AccountID]players.Profile
 	codes    map[players.AccountID]players.GuestCode
 	stats    map[players.AccountID]players.Stats
+	titles   map[players.AccountID]players.Titles
 	failWith error
 }
 
@@ -25,6 +27,7 @@ func New() *Store {
 		profiles: map[players.AccountID]players.Profile{},
 		codes:    map[players.AccountID]players.GuestCode{},
 		stats:    map[players.AccountID]players.Stats{},
+		titles:   map[players.AccountID]players.Titles{},
 	}
 }
 
@@ -152,6 +155,31 @@ func (s *Store) RecordTake(_ context.Context, account players.AccountID, at time
 	return nil
 }
 
+func (s *Store) Titles(_ context.Context, account players.AccountID) (players.Titles, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+	return slices.Clone(s.titles[account]), nil
+}
+
+func (s *Store) GrantTitles(_ context.Context, account players.AccountID, titles players.Titles, _ time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return s.failWith
+	}
+	for _, title := range titles {
+		if !slices.Contains(s.titles[account], title) {
+			s.titles[account] = append(s.titles[account], title)
+		}
+	}
+	return nil
+}
+
 func (s *Store) DeleteAccount(_ context.Context, account players.AccountID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -162,6 +190,7 @@ func (s *Store) DeleteAccount(_ context.Context, account players.AccountID) erro
 	delete(s.profiles, account)
 	delete(s.codes, account)
 	delete(s.stats, account)
+	delete(s.titles, account)
 	return nil
 }
 

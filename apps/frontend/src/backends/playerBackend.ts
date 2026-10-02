@@ -6,6 +6,7 @@ import {
     PlayerEvent as PlayerEventPb,
     Profile as ProfilePb,
     RosterEntry as RosterEntryPb,
+    Title as TitlePb,
 } from "../gen/grpc/player/v1/player_pb.ts"
 import {
     PlayerBackend,
@@ -13,6 +14,7 @@ import {
     PlayerFailure,
     PlayerInfo,
     PlayerInfoBackend,
+    PlayerTitle,
     Presence,
     PresenceBackend,
     Profile,
@@ -175,6 +177,17 @@ function rosterEventOf(event: PlayerEventPb): RosterEvent | undefined {
     }
 }
 
+const TITLES: Record<TitlePb, PlayerTitle | undefined> = {
+    [TitlePb.UNSPECIFIED]: undefined,
+    [TitlePb.SETTLER]: "settler",
+    [TitlePb.GOVERNOR]: "governor",
+    [TitlePb.CONQUEROR]: "conqueror",
+    [TitlePb.EMPEROR]: "emperor",
+    [TitlePb.LOYAL]: "loyal",
+    [TitlePb.DEVOTED]: "devoted",
+    [TitlePb.UNBROKEN]: "unbroken",
+}
+
 function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
     const createdAt = Number(player?.createdAtUnixMs ?? 0)
     return {
@@ -184,5 +197,6 @@ function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
         streakBest: player?.stats?.streakBest ?? 0,
         createdAt: createdAt > 0 ? createdAt : undefined,
         admin: player?.admin ?? false,
+        titles: (player?.titles ?? []).flatMap((title) => TITLES[title] ?? []),
     }
 }

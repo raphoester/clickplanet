@@ -192,6 +192,54 @@ func (s *StoreContractSuite) TestARenameFreesTheOldName() {
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "ada")))
 }
 
+func (s *StoreContractSuite) titles(account byte) Titles {
+	titles, err := s.store.Titles(s.T().Context(), AccountID{15: account})
+	s.Require().NoError(err)
+	return titles
+}
+
+func (s *StoreContractSuite) grantTitles(account byte, titles ...Title) {
+	s.Require().NoError(s.store.GrantTitles(s.T().Context(), AccountID{15: account}, titles, contractAt))
+}
+
+func (s *StoreContractSuite) TestAnAccountNeverGrantedATitleHoldsNone() {
+	s.recordTake(1, contractAt)
+
+	s.Empty(s.titles(1))
+}
+
+func (s *StoreContractSuite) TestGrantedTitlesReadBack() {
+	s.grantTitles(1, Settler, Loyal)
+
+	s.ElementsMatch(Titles{Settler, Loyal}, s.titles(1))
+}
+
+func (s *StoreContractSuite) TestATitleGrantedAgainIsHeldOnce() {
+	s.grantTitles(1, Settler)
+
+	s.grantTitles(1, Settler, Governor)
+
+	s.ElementsMatch(Titles{Settler, Governor}, s.titles(1))
+}
+
+func (s *StoreContractSuite) TestTitlesOfOneAccountAreNotAnothers() {
+	s.grantTitles(1, Settler)
+	s.grantTitles(2, Loyal)
+
+	s.Equal(Titles{Settler}, s.titles(1))
+	s.Equal(Titles{Loyal}, s.titles(2))
+}
+
+func (s *StoreContractSuite) TestADeletedAccountLosesItsTitles() {
+	s.grantTitles(1, Settler)
+	s.grantTitles(2, Settler)
+
+	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}))
+
+	s.Empty(s.titles(1))
+	s.Equal(Titles{Settler}, s.titles(2))
+}
+
 func (s *StoreContractSuite) TestAnAccountNeverGivenACodeHasNone() {
 	_, err := s.store.GuestCode(s.T().Context(), AccountID{15: 1})
 

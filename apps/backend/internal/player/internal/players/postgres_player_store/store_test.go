@@ -74,6 +74,17 @@ func (s *testSuite) TestTheStreakDayIsStoredAsADate() {
 	s.Equal("2026-09-17", day)
 }
 
+func (s *testSuite) TestATitleKeepsTheTimeItWasFirstEarned() {
+	account := players.AccountID{15: 1}
+	s.Require().NoError(s.store.GrantTitles(s.T().Context(), account, players.Titles{players.Settler}, at))
+
+	s.Require().NoError(s.store.GrantTitles(s.T().Context(), account, players.Titles{players.Settler}, at.Add(time.Hour)))
+
+	var earnedAt time.Time
+	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT earned_at FROM titles`).Scan(&earnedAt))
+	s.Equal(at, earnedAt.UTC())
+}
+
 func (s *testSuite) TestConcurrentFirstTakesAreAllCounted() {
 	start := make(chan struct{})
 	var wg sync.WaitGroup

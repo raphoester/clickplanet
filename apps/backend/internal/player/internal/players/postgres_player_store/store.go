@@ -165,6 +165,43 @@ func (s *Store) RecordTake(ctx context.Context, account players.AccountID, at ti
 	return nil
 }
 
+func (s *Store) Titles(ctx context.Context, account players.AccountID) (players.Titles, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT title FROM titles WHERE account_id = $1 ORDER BY earned_at, title`, uuid.UUID(account))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the titles: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var titles players.Titles
+	for rows.Next() {
+		var title string
+		if err := rows.Scan(&title); err != nil {
+			return nil, fmt.Errorf("failed to read a title: %w", err)
+		}
+		titles = append(titles, players.Title(title))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the titles: %w", err)
+	}
+	return titles, nil
+}
+
+func (s *Store) GrantTitles(ctx context.Context, account players.AccountID, titles players.Titles, at time.Time) error {
+	keys := make([]string, len(titles))
+	for i, title := range titles {
+		keys[i] = string(title)
+	}
+
+	if _, err := s.db.ExecContext(ctx, `
+		INSERT INTO titles (account_id, title, earned_at)
+		SELECT $1, unnest($2::text[]), $3
+		ON CONFLICT (account_id, title) DO NOTHING
+	`, uuid.UUID(account), pq.Array(keys), at.UTC()); err != nil {
+		return fmt.Errorf("failed to grant the titles: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (err error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -180,6 +217,7 @@ func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (e
 		`DELETE FROM profiles WHERE account_id = $1`,
 		`DELETE FROM guest_codes WHERE account_id = $1`,
 		`DELETE FROM stats WHERE account_id = $1`,
+		`DELETE FROM titles WHERE account_id = $1`,
 	} {
 		if _, err := tx.ExecContext(ctx, statement, uuid.UUID(account)); err != nil {
 			return fmt.Errorf("failed to delete the account's rows: %w", err)
