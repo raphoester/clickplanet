@@ -274,7 +274,7 @@ auth:
     clientId: "1549822806420885616"
     clientSecret: env://DISCORD_CLIENT_SECRET
   email:
-    enabled: false
+    enabled: true
     delivery: cloudflare
     from: noreply@clickplanet.lol
     fromName: ClickPlanet
