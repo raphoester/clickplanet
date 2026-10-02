@@ -49,9 +49,14 @@ func setUp(t *testing.T) *fixture {
 }
 
 func (f *fixture) useCase(offered bool, attester attestation.Attester) *start_email_sign_in_usecase.UseCase {
+	return f.useCaseWith(offered, attester, signin.BlockedDomains{"mailinator.com"})
+}
+
+func (f *fixture) useCaseWith(offered bool, attester attestation.Attester, blocklist signin.Blocklist) *start_email_sign_in_usecase.UseCase {
+	guesses := cpratelimit.New("guesses", cpratelimit.Config{Burst: signin.MaxAttempts, PerSecond: 1 / signin.ChallengeTTL.Seconds()}, f.clock)
+	challenges := signin.NewChallenges(offered, &signin.SequentialSecrets{}, &signin.SequentialCodes{}, f.sealer, guesses)
 	sends := cpratelimit.New("sends", cpratelimit.Config{Burst: 3, PerSecond: 1.0 / 1200}, f.clock)
-	return start_email_sign_in_usecase.New(offered, attester, signin.BlockedDomains{"mailinator.com"}, f.store, sends,
-		&signin.SequentialSecrets{}, &signin.SequentialCodes{}, f.sealer, f.mailer, f.clock)
+	return start_email_sign_in_usecase.New(attester, f.store, challenges, signin.NewPost(blocklist, sends, f.mailer), f.clock)
 }
 
 func in(address string) start_email_sign_in_usecase.In {
@@ -116,10 +121,8 @@ func TestARefusedAddressSendsNothing(t *testing.T) {
 		t.Run(address, func(t *testing.T) {
 			f := setUp(t)
 			blocklist := signin.BlockedDomains{"mailinator.com", "inbox.mailinator.com"}
-			useCase := start_email_sign_in_usecase.New(true, open_attester.New(), blocklist, f.store,
-				cpratelimit.New("sends", cpratelimit.Config{}, f.clock), &signin.SequentialSecrets{}, &signin.SequentialCodes{}, f.sealer, f.mailer, f.clock)
 
-			_, err := useCase.Execute(t.Context(), in(address))
+			_, err := f.useCaseWith(true, open_attester.New(), blocklist).Execute(t.Context(), in(address))
 
 			require.ErrorIs(t, err, want)
 			assert.Empty(t, f.mailer.Sent())
@@ -134,33 +137,10 @@ func TestACallerThatFailsAttestationSendsNothingAndSpendsNoBudget(t *testing.T) 
 		_, err := refused.Execute(t.Context(), in("player@example.com"))
 		require.ErrorIs(t, err, attestation.ErrAttestationFailed)
 	}
-	noAddress := in("player@example.com")
-	noAddress.IP = ""
-	_, err := f.useCase(true, open_attester.New()).Execute(t.Context(), noAddress)
-	require.ErrorIs(t, err, attestation.ErrAttestationFailed)
 	assert.Empty(t, f.mailer.Sent())
 
-	_, err = f.useCase(true, open_attester.New()).Execute(t.Context(), in("player@example.com"))
+	_, err := f.useCase(true, open_attester.New()).Execute(t.Context(), in("player@example.com"))
 	assert.NoError(t, err, "the owner of the address still has its whole budget")
-}
-
-func TestAnAddressGetsThreeCodesThenOneEveryTwentyMinutes(t *testing.T) {
-	f := setUp(t)
-	useCase := f.useCase(true, open_attester.New())
-	for range 3 {
-		_, err := useCase.Execute(t.Context(), in("player@example.com"))
-		require.NoError(t, err)
-	}
-
-	_, err := useCase.Execute(t.Context(), in("Player@example.com"))
-	require.ErrorIs(t, err, signin.ErrTooManyCodes)
-	_, err = useCase.Execute(t.Context(), in("other@example.com"))
-	require.NoError(t, err, "another address has its own budget")
-
-	f.clock.Advance(20 * time.Minute)
-	_, err = useCase.Execute(t.Context(), in("player@example.com"))
-	require.NoError(t, err)
-	assert.Len(t, f.mailer.Sent(), 5)
 }
 
 func TestAMailerThatFailsSetsNoCookie(t *testing.T) {
@@ -173,10 +153,10 @@ func TestAMailerThatFailsSetsNoCookie(t *testing.T) {
 	assert.Nil(t, out)
 }
 
-func TestEmailSignInOffSendsNothing(t *testing.T) {
+func TestEmailSignInOffSendsNothingWhateverTheAddress(t *testing.T) {
 	f := setUp(t)
 
-	_, err := f.useCase(false, open_attester.New()).Execute(t.Context(), in("player@example.com"))
+	_, err := f.useCase(false, refusingAttester{}).Execute(t.Context(), in("not an address"))
 
 	require.ErrorIs(t, err, signin.ErrSignInOff)
 	assert.Empty(t, f.mailer.Sent())

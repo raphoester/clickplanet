@@ -11,10 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Store = signin.IdentityStore
-
-type Publisher = signin.Publisher
-
 type In struct {
 	Code         string
 	State        string
@@ -30,22 +26,8 @@ type UseCase struct {
 	clock     cptime.Clock
 }
 
-func New(
-	providers signin.Providers,
-	sealer signin.Sealer,
-	store Store,
-	ids accounts.IDProvider,
-	tokens accounts.TokenGenerator,
-	lifetime accounts.Lifetime,
-	events Publisher,
-	clock cptime.Clock,
-) *UseCase {
-	return &UseCase{
-		providers: providers,
-		sealer:    sealer,
-		admitter:  signin.NewAdmitter(store, ids, tokens, lifetime, events),
-		clock:     clock,
-	}
+func New(providers signin.Providers, sealer signin.Sealer, admitter *signin.Admitter, clock cptime.Clock) *UseCase {
+	return &UseCase{providers: providers, sealer: sealer, admitter: admitter, clock: clock}
 }
 
 // Execute answers signin.ErrSignInOff, signin.ErrFlowInvalid or signin.ErrProviderRefused for a sign-in it cannot finish,

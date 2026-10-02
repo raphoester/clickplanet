@@ -189,6 +189,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 	attemptLimiter := cpratelimit.New("email-attempt-limiter",
 		cpratelimit.Config{Burst: signin.MaxAttempts, PerSecond: 1 / signin.ChallengeTTL.Seconds()}, clock)
 	props.Runners.Add(attemptLimiter)
+	// One for both sign-ins, so a provider and an email code sign in exactly alike.
+	admitter := signin.NewAdmitter(store, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions, props.Events)
+	challenges := signin.NewChallenges(config.Email.Enabled, random_secret_generator.Generator{}, mail.codes, sealer, attemptLimiter)
+	post := signin.NewPost(blocklist, sendLimiter, mail.mailer)
 
 	authService := authv1controller.AuthService{
 		CreateSessionHandler: create_session_handler.New(
@@ -202,18 +206,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 			start_sign_in_usecase.New(providers, store, random_secret_generator.Generator{}, sealer, clock),
 		),
 		CompleteSignInHandler: complete_sign_in_handler.New(
-			complete_sign_in_usecase.New(providers, sealer, store, uuid_id_provider.Provider{}, random_token_generator.Generator{},
-				config.Sessions, props.Events, clock),
+			complete_sign_in_usecase.New(providers, sealer, admitter, clock),
 			props.Logger,
 		),
 		StartEmailSignInHandler: start_email_sign_in_handler.New(
-			start_email_sign_in_usecase.New(config.Email.Enabled, attester, blocklist, store, sendLimiter,
-				random_secret_generator.Generator{}, mail.codes, sealer, mail.mailer, clock),
+			start_email_sign_in_usecase.New(attester, store, challenges, post, clock),
 			props.Logger,
 		),
 		CompleteEmailSignInHandler: complete_email_sign_in_handler.New(
-			complete_email_sign_in_usecase.New(config.Email.Enabled, sealer, attemptLimiter, store, uuid_id_provider.Provider{},
-				random_token_generator.Generator{}, config.Sessions, props.Events, clock),
+			complete_email_sign_in_usecase.New(challenges, admitter, clock),
 			props.Logger,
 		),
 		SignOutHandler: sign_out_handler.New(sign_out_usecase.New(store, props.Events)),

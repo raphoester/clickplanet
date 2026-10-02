@@ -65,6 +65,10 @@ func (c *Challenge) AccountError(current *accounts.Account) error {
 	return accountError(c.Intent, c.Account, current)
 }
 
+func (c *Challenge) Letter() Letter {
+	return CodeLetter(c.Code)
+}
+
 // Claim is the address, verified: the player typed the code that was sent to it.
 func (c *Challenge) Claim() accounts.Claim {
 	return accounts.Claim{Subject: string(c.Address), Email: string(c.Address), EmailVerified: true}

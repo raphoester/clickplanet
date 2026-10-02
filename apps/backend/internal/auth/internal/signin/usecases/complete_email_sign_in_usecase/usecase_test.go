@@ -45,17 +45,20 @@ func setUp(t *testing.T) *fixture {
 	sealer, err := aes_flow_sealer.New(bytes.Repeat([]byte{1}, 32))
 	require.NoError(t, err)
 	f := &fixture{sealer: sealer, store: inmemory_account_store.New(), clock: cptime.NewFixedClock(start), events: cpbootstrap.NewRecordedEvents()}
-	f.start = start_email_sign_in_usecase.New(true, open_attester.New(), signin.BlockedDomains{}, f.store,
-		cpratelimit.New("sends", cpratelimit.Config{Burst: 100, PerSecond: 1}, f.clock),
-		&signin.SequentialSecrets{}, &signin.SequentialCodes{}, sealer, &signin.FakeMailer{}, f.clock)
+	post := signin.NewPost(signin.BlockedDomains{}, cpratelimit.New("sends", cpratelimit.Config{Burst: 100, PerSecond: 1}, f.clock), &signin.FakeMailer{})
+	f.start = start_email_sign_in_usecase.New(open_attester.New(), f.store, f.challenges(true), post, f.clock)
 	f.completion = f.useCase(true)
 	return f
 }
 
+func (f *fixture) challenges(offered bool) *signin.Challenges {
+	guesses := cpratelimit.New("guesses", cpratelimit.Config{Burst: signin.MaxAttempts, PerSecond: 1 / signin.ChallengeTTL.Seconds()}, f.clock)
+	return signin.NewChallenges(offered, &signin.SequentialSecrets{}, &signin.SequentialCodes{}, f.sealer, guesses)
+}
+
 func (f *fixture) useCase(offered bool) *complete_email_sign_in_usecase.UseCase {
-	attempts := cpratelimit.New("attempts", cpratelimit.Config{Burst: signin.MaxAttempts, PerSecond: 1 / signin.ChallengeTTL.Seconds()}, f.clock)
-	return complete_email_sign_in_usecase.New(offered, f.sealer, attempts, f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{},
-		lifetime, f.events, f.clock)
+	admitter := signin.NewAdmitter(f.store, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime, f.events)
+	return complete_email_sign_in_usecase.New(f.challenges(offered), admitter, f.clock)
 }
 
 func (f *fixture) guest(t *testing.T, account byte, token string) {
