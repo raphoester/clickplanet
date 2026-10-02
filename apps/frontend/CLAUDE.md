@@ -953,7 +953,10 @@ mint a guest and insert a row into `auth.identities` for its account.
   `enclosureEffect.test.ts` pin the timing. Marks and the ring have a minimum
   size in pixels, so a shape closed while zoomed out is still seen. A shape that
   arrives while the tab is hidden is not played — it would all start at once on
-  return.
+  return. **A mark is pulled toward the camera by its own size**
+  (`unitsPerPixel`): a sprite has one depth, so off the middle of the globe the
+  curve of the ground hid half of it. The camera is orthographic, so the pull
+  moves only the depth, never the place on screen.
 - `clickEffects.ts` — the same, for every click made with spread on
   (`tilesSpread`: a green burst, a spark popping onto each tile around it in
   turn, two rings). It reuses the enclosure's shaders, with normal rather than
@@ -962,20 +965,20 @@ mint a guest and insert a row into `auth.identities` for its account.
   player's click cleared rather than took (`playClear`): a small burst, six motes
   drifting off it, one ring, 0.8s.
 
-  **Every other click rings its tile** (`playClick`): this player's at once, and
-  anyone else's when its `TileUpdate` says `clicked` — the server sets it only on
-  the tile a click named, never on a spread's neighbours, an enclosure's inside or
-  a moderator's write. Own clicks echoed back are skipped through `OwnClicks`.
-  **It is deliberately plainer than any bonus**, since it is by far the most
-  frequent: one sky-blue ring, 0.7s, no spark (`clickEffects.test.ts` pins
-  that). **Plain is not faint**: the first one (half strength, 20px, 0.5s) could
-  barely be seen, so it runs at full strength, at least 44px, with a dark edge
-  (`rim`, 0 on every other ring) that makes it read on a white flag as well as on
-  the sea. Sky blue rather than white, which vanished on the white of a flag. **A
-  click out of view is not played** (`inView`): on the far side or off the screen
-  it would cost frames and show nothing. Plain clicks run in a second instance,
-  so a busy planet's clicks never push a spread off the screen. With less motion
-  there is no ring, so nothing is played at all.
+  **Every other click puffs on its tile** (`playClick`): this player's at once,
+  and anyone else's when its `TileUpdate` says `clicked` — the server sets it only
+  on the tile a click named, never on a spread's neighbours, an enclosure's
+  inside or a moderator's write. Own clicks echoed back are skipped through
+  `OwnClicks`. **It is the clear's puff in sky blue** (`choreographClick`, pinned
+  by `clickEffects.test.ts`), the level the product wants for the most frequent
+  thing on the map: it lights the tile and sends one small ring, seen from space
+  but no bigger than a clear. Two tries missed it on either side: a lone faint
+  ring at 20px could not be seen, and a full-strength ring of at least 44px with
+  a dark edge looked like a bonus. Sky blue rather than white, which vanished on
+  the white of a flag. **A click out of view is not played** (`inView`): on the
+  far side or off the screen it would cost frames and show nothing. Plain clicks
+  run in a second instance, so a busy planet's clicks never push a spread off the
+  screen. With less motion it is a still puff that fades, like a clear.
 - `earth.ts` — the opaque sphere under the tiles, in the globe's light with
   `?gfx=earth`. See [The light](#the-light).
 - `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe the URL
