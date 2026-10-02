@@ -121,3 +121,20 @@ func TestEmailSignInIsAbsentWhileItIsOff(t *testing.T) {
 
 	assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
 }
+
+func TestAnEmailCodeForAGoogleAddressSignsInToTheGoogleAccount(t *testing.T) {
+	stack, fakes := startSignIn(t)
+	google := stack.browser(t).signIn(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1",
+		auth.Claim{Subject: "google-1", Email: "player@example.com", EmailVerified: true})
+
+	player := stack.browser(t)
+	player.mint()
+	signedIn, err := player.typeCode(player.askCode(fakes.Mailer, "Player@Example.com", authv1.SignInIntent_SIGN_IN_INTENT_SIGN_IN))
+	require.NoError(t, err)
+
+	assert.Equal(t, authv1.SignInOutcome_SIGN_IN_OUTCOME_SIGNED_IN, signedIn.GetOutcome())
+	assert.Equal(t, google.GetAccountId(), signedIn.GetAccountId())
+	me, err := player.me()
+	require.NoError(t, err)
+	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_GOOGLE, authv1.Provider_PROVIDER_EMAIL}, me.GetProviders())
+}

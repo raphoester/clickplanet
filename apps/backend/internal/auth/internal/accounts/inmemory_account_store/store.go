@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -146,6 +147,29 @@ func (s *Store) Identity(_ context.Context, provider string, subject string) (*a
 		return nil, accounts.ErrIdentityNotFound
 	}
 	return &identity, nil
+}
+
+func (s *Store) AccountOfEmail(_ context.Context, address string) (*accounts.Account, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+
+	holders := []accounts.Identity{}
+	for _, identity := range s.identities {
+		if identity.EmailVerified && strings.EqualFold(identity.Email, address) {
+			holders = append(holders, identity)
+		}
+	}
+	if len(holders) == 0 {
+		return nil, accounts.ErrAccountNotFound
+	}
+	oldest := slices.MinFunc(holders, func(a, b accounts.Identity) int {
+		return cmp.Or(a.LinkedAt.Compare(b.LinkedAt), cmp.Compare(a.Provider, b.Provider))
+	})
+	return &accounts.Account{ID: oldest.Account, CreatedAt: s.created[oldest.Account], Identities: s.identitiesOf(oldest.Account)}, nil
 }
 
 func (s *Store) SaveSignIn(_ context.Context, signIn accounts.SignIn) error {
