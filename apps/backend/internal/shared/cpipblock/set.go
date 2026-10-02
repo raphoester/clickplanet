@@ -10,8 +10,7 @@ import (
 	"strings"
 )
 
-// v4 and v6 cannot share one slice: the v4-mapped block ::ffff:0:0/96 sits
-// inside short v6 prefixes, so ::/16 would swallow every IPv4 address.
+// v4 and v6 apart: ::/16 contains ::ffff:0:0/96, so it would match every IPv4 address.
 type Set struct {
 	v4, v6 []addrRange
 }

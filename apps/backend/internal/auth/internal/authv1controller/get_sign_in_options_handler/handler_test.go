@@ -31,6 +31,15 @@ func TestEveryOfferedProviderIsAnswered(t *testing.T) {
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
 }
 
+func TestEmailIsAnsweredAfterTheProviders(t *testing.T) {
+	offer := signin.Offer{Providers: signin.Providers{signin.Google: signin.NewFakeProvider(signin.Google)}, Email: true}
+
+	res, err := get_sign_in_options_handler.New(offer).GetSignInOptions(t.Context(), connect.NewRequest(&authv1.GetSignInOptionsRequest{}))
+	require.NoError(t, err)
+
+	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_GOOGLE, authv1.Provider_PROVIDER_EMAIL}, res.Msg.GetProviders())
+}
+
 func TestSignInOffIsAnEmptyListAndNotAnError(t *testing.T) {
 	res, err := get_sign_in_options_handler.New(signin.Providers{}).GetSignInOptions(t.Context(), connect.NewRequest(&authv1.GetSignInOptionsRequest{}))
 	require.NoError(t, err)
@@ -38,7 +47,6 @@ func TestSignInOffIsAnEmptyListAndNotAnError(t *testing.T) {
 	assert.Empty(t, res.Msg.GetProviders())
 }
 
-// onlyGetSignInOptions serves GetSignInOptions, and Unimplemented for every other procedure.
 type onlyGetSignInOptions struct {
 	unimplemented
 	get_sign_in_options_handler.GetSignInOptionsHandler
@@ -52,7 +60,6 @@ type refuseAll struct{}
 
 func (refuseAll) Take(string) (bool, cpratelimit.State) { return false, cpratelimit.State{} }
 
-// A client asks on every page load, so the question must not spend the mint budget the sign-in itself needs.
 func TestAskingIsNotThrottled(t *testing.T) {
 	service := onlyGetSignInOptions{GetSignInOptionsHandler: get_sign_in_options_handler.New(signin.Providers{})}
 	mux := http.NewServeMux()

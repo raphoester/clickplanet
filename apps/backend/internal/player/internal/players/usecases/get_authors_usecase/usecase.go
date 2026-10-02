@@ -1,8 +1,3 @@
-// Package get_authors_usecase says who each of many accounts is, for another module showing them all at once.
-//
-// It is the read beside get_author_usecase's write: that one gives a guest its code the first time anybody asks
-// about it, which is right when somebody is about to post, and wrong on a path that only reads. An account this
-// one cannot name is left out, and the caller decides what to show in its place.
 package get_authors_usecase
 
 import (

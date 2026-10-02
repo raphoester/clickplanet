@@ -1,9 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {Countries} from "./countries.ts"
 
-// The flag used to be an emoji in front of every name, and every place that drew
-// a name had to take it back off. The flags come from the atlas now, so the
-// names are just names — and this is what keeps them that way.
 const EMOJI = /\p{RI}|\p{Extended_Pictographic}/u
 
 describe("Countries", () => {

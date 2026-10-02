@@ -8,14 +8,8 @@ import (
 	"connectrpc.com/connect"
 )
 
-// Mapper turns a bare handler error into the Connect error to answer with, or
-// returns nil to let NewErrorInterceptor log it and answer "internal error".
 type Mapper func(error) *connect.Error
 
-// NewErrorInterceptor keeps the cause of an unexpected error off the wire, so
-// handlers may return theirs bare. It covers streaming handlers as well as
-// unary ones: without that, a stream is the one procedure whose raw error the
-// caller would see.
 func NewErrorInterceptor(logger *slog.Logger, mapper Mapper) connect.Interceptor {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)

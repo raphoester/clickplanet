@@ -1,4 +1,3 @@
-// Package set_name_usecase checks the username the caller chose, and keeps it.
 package set_name_usecase
 
 import (
@@ -14,7 +13,6 @@ type Profiles interface {
 	SaveProfile(ctx context.Context, profile players.Profile) error
 }
 
-// Accounts is the auth module, asked whether an account signed in with a provider.
 type Accounts interface {
 	Linked(ctx context.Context, account players.AccountID) (bool, error)
 }
@@ -34,9 +32,6 @@ type In struct {
 	Name    string
 }
 
-// Execute answers players.ErrInvalidName for a name that breaks a rule, players.ErrNotLinked for a guest,
-// and players.ErrNameTaken for a name another account holds. The name is checked first, so a name no
-// account may hold costs no call to auth.
 func (u *UseCase) Execute(ctx context.Context, in In) (players.Profile, error) {
 	name, err := players.NameOf(in.Name)
 	if err != nil {

@@ -21,12 +21,9 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// AccountDeleted is an account that is gone: deleted by its owner, or a guest
-// the prune removed. A subscriber forgets what it keeps for it.
 type AccountDeleted struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// As a UUID.
-	AccountId     string `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -68,19 +65,12 @@ func (x *AccountDeleted) GetAccountId() string {
 	return ""
 }
 
-// SignedIn is a browser that finished a sign-in. It is on account_id now, and it
-// was on previous_account_id before: the same account when a guest linked its
-// first identity, another one when the identity was already known or a new
-// account was made. previous_account_id is empty when the browser had no live
-// session. A subscriber moves what it keeps for the browser's old account.
 type SignedIn struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// As a UUID, or empty.
-	PreviousAccountId string `protobuf:"bytes,1,opt,name=previous_account_id,json=previousAccountId,proto3" json:"previous_account_id,omitempty"`
-	// As a UUID.
-	AccountId     string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	PreviousAccountId string                 `protobuf:"bytes,1,opt,name=previous_account_id,json=previousAccountId,proto3" json:"previous_account_id,omitempty"`
+	AccountId         string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SignedIn) Reset() {
@@ -127,13 +117,9 @@ func (x *SignedIn) GetAccountId() string {
 	return ""
 }
 
-// SignedOut is an account that ended a session: one browser's, or every one of
-// them. The account still exists. A subscriber forgets what it shows about the
-// account as playing now.
 type SignedOut struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// As a UUID.
-	AccountId     string `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

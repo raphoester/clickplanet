@@ -19,9 +19,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpprom"
 )
 
-// mountMetrics puts the scrape endpoint on the same router as the RPC routes.
-// It carries the logging middleware alone: the CORS and IP headers are for
-// callers of the API, and nothing browses this.
 func mountMetrics(router *http.ServeMux, metrics *prometheus.Registry, logger *slog.Logger) {
 	metricsRouter := http.NewServeMux()
 	metricsRouter.HandleFunc("GET /", cpprom.HandlerForRegistry(metrics).ServeHTTP)
@@ -37,7 +34,6 @@ type loopbackServer struct {
 	listener net.Listener
 }
 
-// listenLoopback binds before anything is served, so a taken address refuses the boot. Empty serves nothing.
 func listenLoopback(options Options, name, key, address string, routes *rpcRoutes) (*loopbackServer, error) {
 	if address == "" {
 		if len(routes.paths) > 0 {
@@ -74,8 +70,6 @@ func serve(
 	runners *runnerRegistry,
 	closers *closerRegistry,
 ) error {
-	// The generated handlers speak gRPC and gRPC-Web as well as Connect, and
-	// those need HTTP/2; browsers reach the same routes over HTTP/1.1.
 	protocols := new(http.Protocols)
 	protocols.SetHTTP1(true)
 	protocols.SetUnencryptedHTTP2(true)
@@ -85,10 +79,7 @@ func serve(
 		Handler:   router,
 		Protocols: protocols,
 
-		// A connection that opens and then dribbles its headers holds a goroutine
-		// open for as long as it likes; enough of them is the whole attack. Only
-		// the header read is bounded — the body and the response are not, because
-		// the live streams are responses that stay open for hours by design.
+		// Only the header read is bounded: live streams are responses that stay open for hours.
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
@@ -142,15 +133,12 @@ func serve(
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), options.ShutdownTimeout)
 	defer cancel()
 
-	// Before Shutdown, which waits for every connection to go idle and would
-	// otherwise wait out its deadline on the first stream still open. Unary
-	// calls in flight are left to finish: only the streams read this.
+	// Before Shutdown, which would otherwise wait out its deadline on every open stream.
 	drain()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		options.Logger.Error("failed to shut down the http server", slog.Any("error", err))
 	}
-	// After the public server: a public call still in flight may be waiting on an internal one.
 	for _, loopback := range loopbacks {
 		if err := loopback.server.Shutdown(shutdownCtx); err != nil {
 			options.Logger.Error("failed to shut down the "+loopback.name+" server", slog.Any("error", err))
@@ -180,9 +168,6 @@ func startRunners(ctx context.Context, runners *runnerRegistry, logger *slog.Log
 	return started
 }
 
-// stop runs the cleanups before cancelling the runners, because a cleanup is
-// how a runner with no context of its own is asked to return: cancelling first
-// would leave nothing to ask.
 func stop(options Options, closers *closerRegistry, stopRunning context.CancelFunc, started *sync.WaitGroup) {
 	for _, closer := range closers.all() {
 		if err := closer.close(); err != nil {

@@ -1,66 +1,18 @@
-// Draws the countries' outlines onto the tile lattice, and writes the blob the
-// globe renders them from.
-//
-//   npm run borderLines
-//
-// The line is not Natural Earth's polygon. It is the boundary of each country's
-// *tiles*: every tile is the centre of a hexagonal cell (the tiles are the
-// vertices of a geodesic sphere, so the cells are its dual, a Goldberg solid),
-// and the outline runs along the cell edges between two tiles that belong to
-// different countries. So the administrative border is moved, by up to half a
-// tile — about 12 km — onto the lattice.
-//
-// That is the whole point of doing it this way. A line drawn on the real border
-// crosses tiles, and a crossed tile belongs to one side while reading as split
-// between both. A line on the cell edges passes *between* the discs at every
-// zoom — the tile field is 76% covered once zoomed in, and the gap it leaves is
-// exactly where this runs — so a tile is never cut and which side it is on is
-// never in doubt.
-//
-// Both inputs are static and neither moves: the coordinates blob fixes where
-// the tiles are, the borders blob fixes which country each sits in. So this is
-// run by hand when one of them changes, not on every build, and it writes
-// static/borderLines-<hash>.bin and the module naming it — the same
-// content-addressed pair as the coordinates blob, the borders blob and the
-// atlas, because `public/_headers` caches /static/* for a week and a
-// regenerated file under a stable name would be served stale.
-//
-// It stays out of /map, unlike the two blobs it is built from: the backend has
-// no use for it. Where a tile is and who owns the ground under it are the game's
-// rules and are shared; how thick a line is drawn between them is this app's.
 import fs from "node:fs"
 import {createHash} from "node:crypto"
 import * as THREE from "three"
 
-// The detail the coordinates blob was generated at. Not recorded in it — see
-// map/README.md, which recovers it and explains how it was checked. The
-// reconstruction below asserts it: every tile has to land on a lattice vertex.
 const DETAIL = 300
 
-// A country-less vertex takes its neighbours' country when at least this many
-// of the six agree and none of them disagrees. It closes the pinholes the land
-// mask left — a one-tile lake, a strait one tile wide, the thin row the
-// antimeridian drops — which would otherwise each get an outline of their own
-// and fray every coast. Below 4 it starts eating into real bays.
 const HEAL_NEIGHBOURS = 4
 
-// Twice, so a two-vertex pinhole closes as well. A third pass starts rounding
-// off real inlets.
 const HEAL_PASSES = 2
 
 const say = (...args) => console.error(...args)
 
-// --- the lattice the tiles were cut from.
-//
-// The coordinates blob holds only the land vertices, so the sea around a
-// coast — and the country a tile borders — is not in it. Rebuilding the whole
-// icosahedron is what gives every tile its six neighbours *and* the cell
-// corners the outline is drawn through, exactly rather than by searching.
 say(`rebuilding the icosahedron at detail ${DETAIL}...`)
 const raw = new THREE.IcosahedronGeometry(1, DETAIL).attributes.position.array
 
-// The same key computeCoordinates.ts deduplicated with, so a tile's position
-// finds the vertex it was taken from.
 const vertexAt = new Map()
 const px = [], py = [], pz = []
 const corners = new Int32Array(raw.length / 3)
@@ -78,7 +30,6 @@ const vertices = px.length
 const faces = corners.length / 3
 say(`lattice: ${vertices} vertices, ${faces} triangles`)
 
-// --- the tiles, and which lattice vertex each one is.
 const coordinatesName = only("static", /^coordinates-[0-9a-f]{8}\.bin$/)
 const coordinates = fs.readFileSync(`static/${coordinatesName}`)
 const tiles = new DataView(coordinates.buffer, coordinates.byteOffset, coordinates.byteLength).getUint32(8, true)
@@ -93,9 +44,6 @@ for (let t = 0; t < tiles; t++) {
 }
 say(`${coordinatesName}: ${tiles} tiles, all on the lattice`)
 
-// --- which country each tile sits in. The borders blob names a landmass per
-// tile; two landmasses of the same country are by construction never
-// neighbours, so the outline is drawn on the country, not on the piece.
 const bordersName = only("static", /^borders-[0-9a-f]{8}\.bin$/)
 const borders = fs.readFileSync(`static/${bordersName}`)
 const headerBytes = new DataView(borders.buffer, borders.byteOffset, borders.byteLength).getUint32(0, true)
@@ -113,12 +61,9 @@ for (let piece = 1; piece < header.codes.length; piece++) {
 }
 say(`${bordersName}: ${countryCount.size - 1} countries across ${header.codes.length - 1} landmasses`)
 
-// 0 is "no country": the sea, and the tiles that fall outside every polygon.
 const country = new Uint16Array(vertices)
 for (let t = 0; t < tiles; t++) country[vertexOfTile[t]] = countryOfLandmass[assignment[t]]
 
-// --- who neighbours whom. Every interior vertex has exactly six neighbours and
-// the twelve icosahedron corners have five, so the lists are a fixed stride.
 const degree = new Uint8Array(vertices)
 const neighbours = new Int32Array(vertices * 6)
 const link = (a, b) => {
@@ -130,7 +75,6 @@ for (let f = 0; f < corners.length; f += 3) {
     link(a, b); link(b, a); link(b, c); link(c, b); link(c, a); link(a, c)
 }
 
-// --- close the pinholes, so a coast is a line and not a dotted one.
 for (let pass = 0; pass < HEAL_PASSES; pass++) {
     const next = Uint16Array.from(country)
     let filled = 0
@@ -150,13 +94,6 @@ for (let pass = 0; pass < HEAL_PASSES; pass++) {
     say(`heal pass ${pass + 1}: ${filled} vertices took a neighbouring country`)
 }
 
-// --- the outline itself.
-//
-// A cell edge is the dual of a lattice edge: it runs between the circumcentres
-// of the two triangles that share it. The circumcentre of a spherical triangle
-// is the normal of the plane through its three vertices, which is what makes
-// the cells a true Voronoi diagram of the tiles and the corners meet exactly —
-// no seams to cover up at the joins.
 const centres = new Float64Array(faces * 3)
 const haveCentre = new Uint8Array(faces)
 function centreOf(face) {
@@ -175,9 +112,6 @@ function centreOf(face) {
     return face
 }
 
-// An edge is drawn when its two ends are in different countries and at least
-// one of them is in a country at all — a stretch of sea, or the tiles that fall
-// outside every polygon, is nobody's ground and gets no outline.
 const pending = new Map()
 const segments = []
 let land = 0
@@ -197,15 +131,6 @@ for (let f = 0; f < faces; f++) {
 if (pending.size) throw new Error(`${pending.size} cell edges have only one triangle`)
 say(`outline: ${segments.length} cell edges (${land} between two countries, ${segments.length - land} coast)`)
 
-// --- chain the edges into runs, so a corner is written once instead of twice.
-// Each run is a polyline; the renderer draws a quad per edge either way, this
-// is only what the file costs.
-//
-// A run **ends at every junction** — a corner with three edges on it, which is
-// where three countries meet, or where a land border reaches the sea. That is
-// not for the walk's sake but for the renderer's: it rounds each run off, and a
-// run walked straight through a junction would round the one corner that has to
-// stay a corner, leaving the third branch hanging a fraction of a tile away.
 const onCorner = new Map()
 for (let s = 0; s < segments.length; s++) {
     for (const corner of segments[s]) {
@@ -231,9 +156,6 @@ const walk = (from) => {
     }
 }
 const take = (run) => {
-    // A loop hanging off a junction comes back to where it started and would
-    // read as closed, so the renderer would smooth straight through the corner
-    // the junction is. Cut it in two, and both halves are clamped there.
     if (run.length > 2 && run[0] === run[run.length - 1] && junction(run[0])) {
         const half = run.length >> 1
         runs.push(run.slice(0, half + 1), run.slice(half))
@@ -248,10 +170,6 @@ const written = runs.reduce((n, run) => n + run.length, 0)
 say(`chained into ${runs.length} runs (${closed} closed) past ${[...onCorner.keys()].filter(junction).length} junctions,`
     + ` ${written} corners written for ${segments.length} edges`)
 
-// --- write it. The corners are on the unit sphere and the renderer normalizes
-// what it reads, so a signed 16-bit share of the radius is plenty: the worst
-// error is 3e-5 of the radius, which is a two-hundredth of the gap between two
-// tiles.
 const points = new Int16Array(written * 3)
 let at = 0
 for (const run of runs) {
@@ -264,9 +182,7 @@ for (const run of runs) {
 const lengths = new Uint32Array(runs.length)
 for (let r = 0; r < runs.length; r++) lengths[r] = runs[r].length
 
-// "CPBL" | uint32 version | uint32 run count | uint32 corner count | run lengths | corners.
-// The 16-byte head keeps the lengths 4-byte aligned and the corners 2-byte
-// aligned, so the browser takes zero-copy views of both.
+// A 16-byte head keeps lengths 4-byte and corners 2-byte aligned, for zero-copy views.
 const head = Buffer.alloc(16)
 head.write("CPBL", 0, "ascii")
 head.writeUInt32LE(1, 4)
@@ -281,10 +197,7 @@ for (const entry of fs.readdirSync("static")) {
 }
 fs.writeFileSync(`static/${fileName}`, bytes)
 fs.writeFileSync("src/app/viewer/borderLinesAsset.ts",
-    `// Generated by scripts/generateBorderLines.mjs — do not edit by hand.
-// Regenerate with \`npm run borderLines\`.
-
-export const BORDER_LINES_URL = "/static/${fileName}"
+    `export const BORDER_LINES_URL = "/static/${fileName}"
 `)
 say(`wrote static/${fileName}: ${bytes.byteLength} bytes`)
 

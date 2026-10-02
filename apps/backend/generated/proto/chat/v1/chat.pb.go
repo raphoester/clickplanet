@@ -21,12 +21,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// The reactions a message can carry. A fixed set, drawn by the client from its
-// own images and never from the system's emoji font: the enum is the whole
-// contract, so both apps agree on it without a list kept in each.
-//
-// A number is what is stored, so a value is never renumbered or reused. A new
-// one goes at the end.
 type Reaction int32
 
 const (
@@ -118,18 +112,12 @@ func (Reaction) EnumDescriptor() ([]byte, []int) {
 	return file_chat_v1_chat_proto_rawDescGZIP(), []int{0}
 }
 
-// How many put one reaction on one message.
 type ReactionCount struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Reaction Reaction               `protobuf:"varint,1,opt,name=reaction,proto3,enum=chat.v1.Reaction" json:"reaction,omitempty"`
-	Count    uint32                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
-	// The caller is one of them. Only a call knows who is asking: it is false on
-	// everything the stream sends, and the client keeps its own between calls.
-	Mine bool `protobuf:"varint,3,opt,name=mine,proto3" json:"mine,omitempty"`
-	// Who gave it, oldest first, each named as it read when they reacted — a
-	// message's author_name is frozen the same way. Cut at a cap, so there may
-	// be fewer names than count; count is always how many gave it.
-	Reactors      []string `protobuf:"bytes,4,rep,name=reactors,proto3" json:"reactors,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reaction      Reaction               `protobuf:"varint,1,opt,name=reaction,proto3,enum=chat.v1.Reaction" json:"reaction,omitempty"`
+	Count         uint32                 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	Mine          bool                   `protobuf:"varint,3,opt,name=mine,proto3" json:"mine,omitempty"`
+	Reactors      []string               `protobuf:"bytes,4,rep,name=reactors,proto3" json:"reactors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -193,22 +181,15 @@ func (x *ReactionCount) GetReactors() []string {
 }
 
 type ChatMessage struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	Id           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	SentAtUnixMs int64                  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
-	// A username, or "guest_" and the account's guest code: 6 hex characters,
-	// drawn once per account and kept. No username starts with the prefix, so a
-	// guest cannot pass for a player.
-	AuthorName string `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	CountryId  string `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Text       string `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
-	// Posted under the username of an admin of the game, as it was when the
-	// message was sent. Never a guest.
-	AuthorAdmin bool `protobuf:"varint,7,opt,name=author_admin,json=authorAdmin,proto3" json:"author_admin,omitempty"`
-	// In the order each reaction first appeared. Empty on a message just sent.
-	Reactions []*ReactionCount `protobuf:"bytes,8,rep,name=reactions,proto3" json:"reactions,omitempty"`
-	// Which state of the reactions this is. See ReactionsChanged.version.
-	ReactionsVersion uint64 `protobuf:"varint,9,opt,name=reactions_version,json=reactionsVersion,proto3" json:"reactions_version,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	SentAtUnixMs     int64                  `protobuf:"varint,2,opt,name=sent_at_unix_ms,json=sentAtUnixMs,proto3" json:"sent_at_unix_ms,omitempty"`
+	AuthorName       string                 `protobuf:"bytes,3,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
+	CountryId        string                 `protobuf:"bytes,5,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Text             string                 `protobuf:"bytes,6,opt,name=text,proto3" json:"text,omitempty"`
+	AuthorAdmin      bool                   `protobuf:"varint,7,opt,name=author_admin,json=authorAdmin,proto3" json:"author_admin,omitempty"`
+	Reactions        []*ReactionCount       `protobuf:"bytes,8,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	ReactionsVersion uint64                 `protobuf:"varint,9,opt,name=reactions_version,json=reactionsVersion,proto3" json:"reactions_version,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -299,10 +280,6 @@ func (x *ChatMessage) GetReactionsVersion() uint64 {
 	return 0
 }
 
-// The X-Session-Token header is required, and must name an account: without
-// one the call is Unauthenticated. The message is sent under the account's
-// username, or as "guest_" and its guest code when it has none. Nobody chooses
-// a guest's name.
 type SendMessageRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AuthorId      string                 `protobuf:"bytes,2,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
@@ -407,8 +384,6 @@ func (x *SendMessageResponse) GetMessage() *ChatMessage {
 	return nil
 }
 
-// The X-Session-Token header is optional here: it is what says which
-// reactions are the caller's own.
 type GetHistoryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -445,24 +420,14 @@ func (*GetHistoryRequest) Descriptor() ([]byte, []int) {
 	return file_chat_v1_chat_proto_rawDescGZIP(), []int{4}
 }
 
-// Something the chat says on its own, with no sender: a line between the
-// messages, not a bubble.
 type Announcement struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	AnnouncedAtUnixMs int64                  `protobuf:"varint,2,opt,name=announced_at_unix_ms,json=announcedAtUnixMs,proto3" json:"announced_at_unix_ms,omitempty"`
-	// What happened, and so how to read payload. A client shows nothing for a
-	// kind it does not know.
-	//
-	//   - "bomb": a bomb landed. payload is {"country", "ground", "tile",
-	//     "cleared"}: the bomber's country code; the code of the country whose
-	//     ground it hit, absent in the sea and on no country's ground; the tile it
-	//     hit, absent in the sea; and how many held tiles it cleared.
-	Kind string `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
-	// The values the kind's line is written from, as a JSON object.
-	Payload       string `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Kind              string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Payload           string                 `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Announcement) Reset() {
@@ -524,10 +489,9 @@ func (x *Announcement) GetPayload() string {
 }
 
 type GetHistoryResponse struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Messages []*ChatMessage         `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
-	// Oldest first, like messages. A client puts the two in one list by time.
-	Announcements []*Announcement `protobuf:"bytes,2,rep,name=announcements,proto3" json:"announcements,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Messages      []*ChatMessage         `protobuf:"bytes,1,rep,name=messages,proto3" json:"messages,omitempty"`
+	Announcements []*Announcement        `protobuf:"bytes,2,rep,name=announcements,proto3" json:"announcements,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -576,14 +540,11 @@ func (x *GetHistoryResponse) GetAnnouncements() []*Announcement {
 	return nil
 }
 
-// The X-Session-Token header is required, and must name an account: without
-// one the call is Unauthenticated. Every caller reacts as its account.
 type ReactRequest struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	Reaction  Reaction               `protobuf:"varint,2,opt,name=reaction,proto3,enum=chat.v1.Reaction" json:"reaction,omitempty"`
-	// True puts the reaction on, false takes it off.
-	On            bool `protobuf:"varint,3,opt,name=on,proto3" json:"on,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MessageId     string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Reaction      Reaction               `protobuf:"varint,2,opt,name=reaction,proto3,enum=chat.v1.Reaction" json:"reaction,omitempty"`
+	On            bool                   `protobuf:"varint,3,opt,name=on,proto3" json:"on,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -640,11 +601,9 @@ func (x *ReactRequest) GetOn() bool {
 }
 
 type ReactResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The message's reactions once this one landed, mine included.
-	Reactions []*ReactionCount `protobuf:"bytes,1,rep,name=reactions,proto3" json:"reactions,omitempty"`
-	// See ReactionsChanged.version.
-	Version       uint64 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reactions     []*ReactionCount       `protobuf:"bytes,1,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	Version       uint64                 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -729,11 +688,6 @@ func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
 	return file_chat_v1_chat_proto_rawDescGZIP(), []int{9}
 }
 
-// The one live stream this API has — see the note on planet.v1.PlanetEvent. A
-// new kind of event is a new case below, not a second stream.
-//
-// Heartbeat is what keeps a quiet stream alive, and a quiet chat is the normal
-// case: Cloudflare cuts a silent response at ~125s with a 524.
 type ChatEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Event:
@@ -848,16 +802,11 @@ func (*ChatEvent_Reactions) isChatEvent_Event() {}
 
 func (*ChatEvent_Announcement) isChatEvent_Event() {}
 
-// A message's reactions changed. They are all of them, not the difference, so a
-// client that missed a frame is right again on the next one.
 type ReactionsChanged struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	MessageId string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	Reactions []*ReactionCount       `protobuf:"bytes,2,rep,name=reactions,proto3" json:"reactions,omitempty"`
-	// Goes up by one with each change to the message's reactions. Frames can
-	// arrive out of order, so a client keeps the reactions of the highest
-	// version it has seen, and drops a lower one.
-	Version       uint64 `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MessageId     string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	Reactions     []*ReactionCount       `protobuf:"bytes,2,rep,name=reactions,proto3" json:"reactions,omitempty"`
+	Version       uint64                 `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

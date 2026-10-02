@@ -56,38 +56,12 @@ const (
 // PlayerServiceClient is a client for the player.v1.PlayerService service.
 type PlayerServiceClient interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
-	// Chooses the caller's username. The server puts the name in NFC and cuts the
-	// spaces at its ends, then it must be 3 to 15 characters (code points): letters
-	// of any script, combining marks after a letter, decimal digits, underscores
-	// and spaces, never two spaces in a row. Its letters are of one script, or
-	// Latin with Han and kana, Han and Bopomofo, or Han and Hangul. It does not
-	// start with "guest_" once case folded — the chat puts that before every
-	// guest's name. Emojis, punctuation, symbols, controls and invisible
-	// characters are refused. A name that breaks a rule is InvalidArgument.
-	// Usernames are unique ignoring case (Unicode case folding and NFKC, so
-	// "Straße" is "STRASSE"): one another account holds is AlreadyExists. The
-	// answer holds the name as it was kept. Only an account signed in with a provider may
-	// choose one; a guest is PermissionDenied.
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
-	// Says the caller is playing, under which flag. A client sends it when it
-	// gets a click token, when its flag or name changes, and every 30s after. A
-	// player that stops sending leaves the roster 90s after its last call. A
-	// country that is not one is InvalidArgument.
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
-	// Says the caller stopped playing: its page closed. It leaves the roster at
-	// once rather than 90s after its last announce. A client sends it with
-	// keepalive, and nothing waits on the answer.
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
-	// Everyone playing. It needs no token, and a proxy may serve it for 5s.
-	// ListenForEvents says the same and keeps it up to date; this stays for
-	// clients from before it.
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
-	// Who is playing, live. Needs no token. The first event is the whole roster;
-	// each one after says one player joined, changed or left.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlayerEvent], error)
-	// What anybody may know about a player with a username. Needs no token.
-	// A name no account holds is not_found, and so is a guest: it has no name.
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
 }
 
@@ -210,38 +184,12 @@ func (c *playerServiceClient) GetPlayer(ctx context.Context, req *connect.Reques
 // PlayerServiceHandler is an implementation of the player.v1.PlayerService service.
 type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
-	// Chooses the caller's username. The server puts the name in NFC and cuts the
-	// spaces at its ends, then it must be 3 to 15 characters (code points): letters
-	// of any script, combining marks after a letter, decimal digits, underscores
-	// and spaces, never two spaces in a row. Its letters are of one script, or
-	// Latin with Han and kana, Han and Bopomofo, or Han and Hangul. It does not
-	// start with "guest_" once case folded — the chat puts that before every
-	// guest's name. Emojis, punctuation, symbols, controls and invisible
-	// characters are refused. A name that breaks a rule is InvalidArgument.
-	// Usernames are unique ignoring case (Unicode case folding and NFKC, so
-	// "Straße" is "STRASSE"): one another account holds is AlreadyExists. The
-	// answer holds the name as it was kept. Only an account signed in with a provider may
-	// choose one; a guest is PermissionDenied.
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
-	// Says the caller is playing, under which flag. A client sends it when it
-	// gets a click token, when its flag or name changes, and every 30s after. A
-	// player that stops sending leaves the roster 90s after its last call. A
-	// country that is not one is InvalidArgument.
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
-	// Says the caller stopped playing: its page closed. It leaves the roster at
-	// once rather than 90s after its last announce. A client sends it with
-	// keepalive, and nothing waits on the answer.
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
-	// Everyone playing. It needs no token, and a proxy may serve it for 5s.
-	// ListenForEvents says the same and keeps it up to date; this stays for
-	// clients from before it.
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
-	// Who is playing, live. Needs no token. The first event is the whole roster;
-	// each one after says one player joined, changed or left.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlayerEvent]) error
-	// What anybody may know about a player with a username. Needs no token.
-	// A name no account holds is not_found, and so is a guest: it has no name.
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
 }
 

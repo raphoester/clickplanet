@@ -1,4 +1,3 @@
-// Package set_name_handler serves player.v1.PlayerService/SetName.
 package set_name_handler
 
 import (

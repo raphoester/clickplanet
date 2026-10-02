@@ -22,12 +22,9 @@ const (
 	streamProcedure = "/test.v1.LiveService/Listen"
 	unaryProcedure  = "/test.v1.LiveService/Do"
 
-	// Far above what a drained shutdown takes, so a test that waits it out fails.
 	shutdownTimeout = 5 * time.Second
 )
 
-// On 2026-09-14 every restart waited out this deadline on the open streams, then
-// cut them: "failed to shut down the http server" and a 502 at the proxy.
 func TestAnOpenStreamEndsCleanlyAndDoesNotHoldTheShutdown(t *testing.T) {
 	var streamReturned, closedAfterStream atomic.Bool
 
@@ -108,7 +105,6 @@ func TestAUnaryCallInFlightFinishesDuringTheShutdown(t *testing.T) {
 		stopped <- err
 	}()
 
-	// Long enough for the shutdown to have started draining.
 	time.Sleep(100 * time.Millisecond)
 	close(release)
 
@@ -156,7 +152,6 @@ func startServer(t *testing.T, module cpbootstrap.Module) runningServer {
 	return runningServer{address: address, cancel: cancel, done: done, recorded: recorded}
 }
 
-// shutdown stands in for SIGTERM, and says how long Run took to return.
 func (s runningServer) shutdown() (time.Duration, error) {
 	start := time.Now()
 	s.cancel()
@@ -168,7 +163,6 @@ func (s runningServer) errors() []string {
 	return s.recorded.messages()
 }
 
-// errorRecorder keeps the message of every record logged at Error.
 type errorRecorder struct {
 	mu     sync.Mutex
 	logged []string

@@ -5,11 +5,7 @@ export type Config = {
     timeoutMs?: number
 }
 
-/**
- * Passed as a call's `timeoutMs` to opt out of the transport's `defaultTimeoutMs`,
- * which connect-web otherwise applies to a stream exactly as to a unary call —
- * ending a healthy live feed after five seconds. Anything <= 0 means no timeout.
- */
+// connect-web applies defaultTimeoutMs to streams too; <= 0 turns it off for a call.
 export const NO_TIMEOUT = 0
 
 const ATTEMPTS = 5
@@ -45,18 +41,6 @@ function unreachable(e: unknown): boolean {
 const INITIAL_RECONNECT_DELAY_MS = 500
 const MAX_RECONNECT_DELAY_MS = 30_000
 
-/**
- * Follows a server-streaming RPC for as long as the caller wants it, reopening
- * it with a capped exponential backoff.
- *
- * A stream is a one-shot async iterable: it ends on a dropped connection, a
- * restarted server or a proxy timeout, and nothing reopens it. That reconnect
- * loop is the whole reason this exists — Connect does not carry one, and every
- * caller would otherwise write it.
- *
- * The delay resets on a received message rather than on connect, because a
- * connection is only known to work once something has come down it.
- */
 export function openStream<T>(
     open: (signal: AbortSignal) => AsyncIterable<T>,
     onMessage: (message: T) => void,

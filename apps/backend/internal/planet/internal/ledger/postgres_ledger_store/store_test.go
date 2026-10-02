@@ -144,7 +144,6 @@ func (s *testSuite) TestAFailedSaveWritesNothing() {
 	ctx := context.Background()
 	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{}, stored(0, 1, "a", "fr", "", start))))
 
-	// The second tile overflows its integer column; the first take and the marks must not land either.
 	err := s.store.Save(ctx, changes(1, 1, map[ledger.Caller]ledger.Position{{Scope: "bot"}: 2},
 		stored(1, 2, "a", "fr", "", start),
 		stored(2, 1<<31, "a", "fr", "", start),

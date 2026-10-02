@@ -1,10 +1,3 @@
-# Local full stack: frontend, backend and postgres. The backend keeps the tile
-# map in process and writes what changed to postgres.
-#
-#   cd apps/frontend && npm run dBuild
-#   cd apps/backend  && make dBuild
-#   cd deploy        && docker compose up
-
 services:
   frontend:
     container_name: cp-frontend

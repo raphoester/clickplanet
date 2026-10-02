@@ -1,12 +1,7 @@
-// Package cpcolls holds the collections the standard library does not.
 package cpcolls
 
 import "maps"
 
-// Set is an unordered set of distinct values. Build one with NewSet or
-// NewSetWithCapacity: a Set is shared by pointer, like the map it wraps. A nil
-// *Set reads as empty, as a nil map does, so a lookup in a map of sets needs no
-// ok check.
 type Set[T comparable] struct {
 	items map[T]struct{}
 }
@@ -27,7 +22,6 @@ func (s *Set[T]) Add(items ...T) {
 	}
 }
 
-// AddSet adds every item of other.
 func (s *Set[T]) AddSet(other *Set[T]) {
 	maps.Copy(s.items, other.items)
 }
@@ -57,12 +51,11 @@ func (s *Set[T]) Empty() bool {
 	return s.Len() == 0
 }
 
-// Clear deletes every item and keeps the memory for the next ones.
 func (s *Set[T]) Clear() {
 	clear(s.items)
 }
 
-// ForEach calls do with every item, in no order. do must not add to or delete from the set.
+// ForEach visits in no order, and do must not add to or delete from the set.
 func (s *Set[T]) ForEach(do func(item T)) {
 	if s == nil {
 		return

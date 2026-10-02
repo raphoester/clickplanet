@@ -8,7 +8,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-// Config is the `activity:` block.
 type Config struct {
 	Enabled  bool
 	Database cppg.Config
@@ -50,7 +49,6 @@ func (c Config) WithDefaults() Config {
 	return c
 }
 
-// Validate refuses a negative bound, which WithDefaults would otherwise turn into a default in silence.
 func (c Config) Validate() error {
 	if !c.Enabled {
 		return nil

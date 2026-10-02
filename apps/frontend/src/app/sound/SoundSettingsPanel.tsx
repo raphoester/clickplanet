@@ -9,14 +9,12 @@ const LABELS: Record<SwitchName, string> = {
     bonusCaught: "Bonus box caught",
     bomb: "Bomb explosion",
     chat: "Chat message",
-    // One switch for the banner, the right answer and the wrong one: see switchOf.
     quiz: "Quiz",
 }
 
 export type SoundSettingsPanelProps = {
     settings: SoundSettings
     onChange: (settings: SoundSettings) => void
-    /** Plays a sound regardless of the settings, so a switch turned on is heard. */
     preview: (name: SwitchName) => void
 }
 

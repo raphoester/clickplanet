@@ -16,9 +16,6 @@ export class PaintRandomTilesRequest extends Message<PaintRandomTilesRequest> {
   flagCountryId = "";
 
   /**
-   * The country a fresh draw lands in; empty is the whole map. A patch grows
-   * from there into any tile not wearing the flag, across the border too.
-   *
    * @generated from field: string area_country_id = 2;
    */
   areaCountryId = "";
@@ -29,8 +26,6 @@ export class PaintRandomTilesRequest extends Message<PaintRandomTilesRequest> {
   count = 0;
 
   /**
-   * From 0 to 1. 0 picks anywhere in the area; 1 grows one patch while it can.
-   *
    * @generated from field: double proximity = 4;
    */
   proximity = 0;
@@ -77,29 +72,21 @@ export class PaintRandomTilesRequest extends Message<PaintRandomTilesRequest> {
  */
 export class PaintRandomTilesResponse extends Message<PaintRandomTilesResponse> {
   /**
-   * Tiles of the area, or of the map, that do not wear the flag yet.
-   *
    * @generated from field: uint32 eligible = 1;
    */
   eligible = 0;
 
   /**
-   * Below count only when nothing is left to pick.
-   *
    * @generated from field: uint32 picked = 2;
    */
   picked = 0;
 
   /**
-   * Picked tiles that nobody took between the pick and the paint.
-   *
    * @generated from field: uint32 painted = 3;
    */
   painted = 0;
 
   /**
-   * Picked tiles past the area's border. Always 0 with no area.
-   *
    * @generated from field: uint32 outside_area = 4;
    */
   outsideArea = 0;
@@ -140,15 +127,11 @@ export class PaintRandomTilesResponse extends Message<PaintRandomTilesResponse> 
  */
 export class InspectPlayerRequest extends Message<InspectPlayerRequest> {
   /**
-   * A scope, or any address, which is read as its scope.
-   *
    * @generated from field: string scope = 1;
    */
   scope = "";
 
   /**
-   * Or an account id, instead of a scope.
-   *
    * @generated from field: string account_id = 2;
    */
   accountId = "";
@@ -187,8 +170,6 @@ export class InspectPlayerRequest extends Message<InspectPlayerRequest> {
  */
 export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
   /**
-   * Empty for an account with no take inside ledger.retention.
-   *
    * @generated from field: string scope = 1;
    */
   scope = "";
@@ -199,16 +180,11 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
   accountId = "";
 
   /**
-   * False when the jury has not seen the scope inside antiBot.jury.trackWindow:
-   * the readings are then all clear and the click summary is empty.
-   *
    * @generated from field: optional bool tracked = 2;
    */
   tracked?: boolean;
 
   /**
-   * Running whether or not antiBot.shadowBan.enforce is on.
-   *
    * @generated from field: optional bool banned = 3;
    */
   banned?: boolean;
@@ -229,15 +205,11 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
   flags = 0;
 
   /**
-   * One per watchdog turned on, in the order the jury asks them.
-   *
    * @generated from field: repeated planet.v1.WatchdogReading readings = 7;
    */
   readings: WatchdogReading[] = [];
 
   /**
-   * Watchdogs at suspect or certain, inside antiBot.jury.suspicionWindow.
-   *
    * @generated from field: uint32 suspects = 8;
    */
   suspects = 0;
@@ -248,9 +220,6 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
   minSuspects = 0;
 
   /**
-   * What the jury would decide if the scope clicked now: one certain, or
-   * min_suspects suspects. A ban still waits for antiBot.shadowBan.reflagInterval.
-   *
    * @generated from field: optional bool guilty = 10;
    */
   guilty?: boolean;
@@ -261,8 +230,6 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
   clicks = 0;
 
   /**
-   * Last click minus first click the jury remembers.
-   *
    * @generated from field: google.protobuf.Duration active_for = 12;
    */
   activeFor?: Duration;
@@ -278,8 +245,6 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
   lastClickAt?: Timestamp;
 
   /**
-   * Declared by the client: context, never evidence.
-   *
    * @generated from field: string top_country = 15;
    */
   topCountry = "";
@@ -343,23 +308,16 @@ export class WatchdogReading extends Message<WatchdogReading> {
   watchdog = "";
 
   /**
-   * clear, suspect or certain. A verdict older than the suspicion window reads clear.
-   *
    * @generated from field: string level = 2;
    */
   level = "";
 
   /**
-   * The rule and its numbers, as the "antibot ban" log line words them after the level. Empty
-   * when the watchdog had nothing to say.
-   *
    * @generated from field: string evidence = 3;
    */
   evidence = "";
 
   /**
-   * The click the reading was taken on.
-   *
    * @generated from field: google.protobuf.Timestamp at = 4;
    */
   at?: Timestamp;
@@ -405,15 +363,11 @@ export class FindPlayersRequest extends Message<FindPlayersRequest> {
   flagCountryId = "";
 
   /**
-   * The country whose ground the tiles sit on. Empty is the whole map.
-   *
    * @generated from field: string area_country_id = 2;
    */
   areaCountryId = "";
 
   /**
-   * 20 when unset.
-   *
    * @generated from field: uint32 limit = 3;
    */
   limit = 0;
@@ -458,8 +412,6 @@ export class FindPlayersResponse extends Message<FindPlayersResponse> {
   players: Player[] = [];
 
   /**
-   * How many players matched, before the limit.
-   *
    * @generated from field: uint32 total = 2;
    */
   total = 0;
@@ -498,8 +450,6 @@ export class FindPlayersResponse extends Message<FindPlayersResponse> {
  */
 export class TopPlayersRequest extends Message<TopPlayersRequest> {
   /**
-   * 20 when unset.
-   *
    * @generated from field: uint32 limit = 1;
    */
   limit = 0;
@@ -542,8 +492,6 @@ export class TopPlayersResponse extends Message<TopPlayersResponse> {
   players: Player[] = [];
 
   /**
-   * How many players took any tile, before the limit.
-   *
    * @generated from field: uint32 total = 2;
    */
   total = 0;
@@ -582,23 +530,16 @@ export class TopPlayersResponse extends Message<TopPlayersResponse> {
  */
 export class Player extends Message<Player> {
   /**
-   * The address for IPv4, the /64 for IPv6: what the throttle and the ban key on.
-   *
    * @generated from field: string scope = 1;
    */
   scope = "";
 
   /**
-   * The account the click token named. Each account on a scope is a player of
-   * its own; empty is the takes made with no account.
-   *
    * @generated from field: string account_id = 12;
    */
   accountId = "";
 
   /**
-   * Tiles it still holds: its take is the tile's latest and the paint is still there.
-   *
    * @generated from field: uint32 tiles = 2;
    */
   tiles = 0;
@@ -614,8 +555,6 @@ export class Player extends Message<Player> {
   lastAt?: Timestamp;
 
   /**
-   * Optional so JSON always carries it: a plain bool is dropped when false.
-   *
    * @generated from field: optional bool banned = 5;
    */
   banned?: boolean;
@@ -631,29 +570,21 @@ export class Player extends Message<Player> {
   offence = 0;
 
   /**
-   * last_at minus first_at.
-   *
    * @generated from field: google.protobuf.Duration active_for = 8;
    */
   activeFor?: Duration;
 
   /**
-   * tiles over active_for. 0 when active_for is 0.
-   *
    * @generated from field: double tiles_per_minute = 9;
    */
   tilesPerMinute = 0;
 
   /**
-   * Every take it made, held or painted over since; a tile taken twice counts twice.
-   *
    * @generated from field: uint32 takes = 10;
    */
   takes = 0;
 
   /**
-   * takes over active_for. 0 when active_for is 0.
-   *
    * @generated from field: double takes_per_minute = 11;
    */
   takesPerMinute = 0;
@@ -702,22 +633,16 @@ export class Player extends Message<Player> {
  */
 export class BanPlayerRequest extends Message<BanPlayerRequest> {
   /**
-   * A scope, or any address, which is banned as its scope.
-   *
    * @generated from field: string scope = 1;
    */
   scope = "";
 
   /**
-   * Or an account id, instead of a scope. The account alone is banned.
-   *
    * @generated from field: string account_id = 3;
    */
   accountId = "";
 
   /**
-   * Unset takes the ladder's step for the offence (antiBot.shadowBan.banDurations).
-   *
    * @generated from field: google.protobuf.Duration duration = 2;
    */
   duration?: Duration;
@@ -777,8 +702,6 @@ export class BanPlayerResponse extends Message<BanPlayerResponse> {
   bannedUntil?: Timestamp;
 
   /**
-   * False when antiBot.shadowBan.enforce is off: the ban is kept but drops nothing.
-   *
    * @generated from field: bool enforced = 4;
    */
   enforced = false;
@@ -825,8 +748,6 @@ export class RevertPlayerRequest extends Message<RevertPlayerRequest> {
   scope = "";
 
   /**
-   * Or an account id, instead of a scope: its takes from every scope.
-   *
    * @generated from field: string account_id = 3;
    */
   accountId = "";
@@ -881,8 +802,6 @@ export class RevertPlayerResponse extends Message<RevertPlayerResponse> {
   accountId = "";
 
   /**
-   * Tiles it took, and those it still holds.
-   *
    * @generated from field: uint32 touched = 2;
    */
   touched = 0;
@@ -998,8 +917,6 @@ export class ReassignCountryResponse extends Message<ReassignCountryResponse> {
   moved = 0;
 
   /**
-   * Read again at the end: a caller still clicking can retake tiles behind the scan.
-   *
    * @generated from field: uint32 from_after = 4;
    */
   fromAfter = 0;

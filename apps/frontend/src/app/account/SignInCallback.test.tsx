@@ -14,7 +14,6 @@ const refusing = (failure: AuthFailure) => async (): Promise<void> => {
 }
 
 describe("SignInCallback", () => {
-    // StrictMode runs effects twice, and a second trade of the same code fails.
     it("trades the code once, then goes back to the game", async () => {
         const complete = vi.fn(async () => undefined)
         const onDone = vi.fn()
@@ -58,7 +57,6 @@ describe("SignInCallback", () => {
         expect(screen.getByRole("button", {name: "Back to the game"})).toBeDefined()
     })
 
-    // Nothing changed on the server: the player goes back on the account they were on.
     it("explains a refused link and goes back to the game", async () => {
         const onDone = vi.fn()
         render(<SignInCallback callback={code} provider="google" complete={refusing("linkedElsewhere")}

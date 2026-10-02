@@ -1,7 +1,5 @@
 //go:build testing
 
-// Package inmemory_reaction_storage keeps reactions in a slice, for tests that need a reactions.Storage but not
-// postgres.
 package inmemory_reaction_storage
 
 import (
@@ -19,7 +17,6 @@ func New() *Storage {
 	return &Storage{versions: make(map[messages.MessageID]version)}
 }
 
-// Storage holds each reaction put on, oldest first, and each message's version, as postgres holds its rows.
 type Storage struct {
 	mu       sync.Mutex
 	given    []reactions.Change

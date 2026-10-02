@@ -8,8 +8,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// The same cases as the frontend's domain/homeSoil.test.ts: the client paints its own click from its copy of
-// the rule, so the two must answer alike.
 var homeSoilCases = []struct {
 	name                string
 	owner, ground, flag string

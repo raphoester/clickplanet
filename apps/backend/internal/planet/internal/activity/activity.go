@@ -1,4 +1,3 @@
-// Package activity keeps every raw event of every caller, and reads nothing of the antibot's.
 package activity
 
 import (
@@ -26,7 +25,6 @@ const (
 	KindBoxForeign Kind = "box_foreign"
 )
 
-// Outcome is what the caller was answered, stored as is.
 type Outcome string
 
 const (
@@ -46,7 +44,6 @@ type Caller struct {
 	SignedIn bool
 }
 
-// CallerOf reads the payer the throttle charges, so the two cannot disagree on who clicked.
 func CallerOf(payer clicks.Payer) Caller {
 	account := cpsession.NoAccount
 	if id, err := uuid.Parse(payer.Account); err == nil {
@@ -56,25 +53,20 @@ func CallerOf(payer clicks.Payer) Caller {
 	return Caller{Scope: payer.Scope, Account: account, SignedIn: payer.Linked}
 }
 
-// CallerOfScope is a box's caller: the registry reports scopes, not accounts.
 func CallerOfScope(scope string) Caller {
 	return Caller{Scope: scope, Account: cpsession.NoAccount}
 }
 
-// Event is one row. A field its kind does not have stays at its zero value and is stored as NULL.
 type Event struct {
 	At     time.Time
 	Kind   Kind
 	Caller Caller
 
-	// KindClick and KindTake.
 	Tile    uint32
 	Country string
 
-	// KindClick and KindMap.
 	Outcome Outcome
 
-	// KindTake: who held the tile before, empty for nobody, and whether the click emptied it on home soil.
 	Held    string
 	Cleared bool
 
@@ -83,7 +75,6 @@ type Event struct {
 	End    uint32
 	OffMap bool
 
-	// KindBoxCaught.
 	Delay time.Duration
 }
 
@@ -116,7 +107,6 @@ type Recorder interface {
 	Record(event Event)
 }
 
-// Discard is the recorder while activity.enabled is false.
 type Discard struct{}
 
 func (Discard) Record(Event) {}

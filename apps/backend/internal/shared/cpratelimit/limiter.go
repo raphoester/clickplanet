@@ -36,7 +36,6 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// New takes a name because one process runs several limiters.
 func New(name string, config Config, clock cptime.Clock) *Limiter {
 	if clock == nil {
 		clock = cptime.SystemClock{}
@@ -63,50 +62,31 @@ type bucket struct {
 	tokens float64
 	last   time.Time
 
-	// Scale multiplies the burst and the rate for good, set when the bucket is made.
 	scale float64
 
-	// Pace multiplies the rate, from the last take that set it on. One is the plain rate.
 	pace float64
 
 	since time.Time
 	start float64
 }
 
-// State is what a bucket holds, together with the policy it refills under. The
-// policy travels with the reading because a caller that shows the allowance to
-// a human replays the refill itself between two readings, instead of asking
-// again every frame.
 type State struct {
-	// Tokens left, fractional, so a caller can show the next one arriving.
 	Tokens float64
 
-	// The most a bucket can bank: the burst.
 	Capacity int
 
-	// Tokens granted back per second.
 	PerSecond float64
 }
 
-// Take spends a token when there is one, and reports what the bucket holds
-// afterwards. The state comes back either way: a refused caller is the one
-// most interested in how long the wait is.
 func (l *Limiter) Take(key string) (bool, State) {
 	return l.TakeN(key, 1)
 }
 
-// TakeN spends n tokens at once, or none.
 func (l *Limiter) TakeN(key string, n float64) (bool, State) {
 	allowed, states := l.TakeAll(n, Key{Name: key})
 	return allowed, states[0]
 }
 
-// Key names a bucket, and the scale its burst and rate are multiplied by. A scale under one is one.
-//
-// Pace, when set, multiplies the bucket's rate from this take on, and leaves its burst alone: a take
-// does not reprice the time already past, which was refilled at the rate in force over it. Peek
-// ignores it. Zero leaves the bucket's pace as it is. Since, when set, makes a new bucket hold Start plus what its
-// plain rate earned since then, not a full burst.
 type Key struct {
 	Name  string
 	Scale float64
@@ -115,11 +95,6 @@ type Key struct {
 	Start float64
 }
 
-// TakeAll spends n tokens from every bucket, or from none: one bucket refusing
-// spends nothing from the others. The states come back in the order of the keys.
-//
-// A key's pace is set whether or not the take is allowed: it says what the caller is doing now,
-// and a refused caller waits at that rate too.
 func (l *Limiter) TakeAll(n float64, keys ...Key) (bool, []State) {
 	now := l.clock.Now()
 
@@ -156,9 +131,6 @@ func (l *Limiter) TakeAll(n float64, keys ...Key) (bool, []State) {
 	return allowed, states
 }
 
-// Peek reports the state without spending anything. An unknown key is a new
-// bucket and stays unknown: reading an allowance must not be a way to make the
-// limiter remember an address that never clicked.
 func (l *Limiter) Peek(key Key) State {
 	now := l.clock.Now()
 
@@ -167,6 +139,7 @@ func (l *Limiter) Peek(key Key) State {
 
 	b, ok := l.buckets[key.Name]
 	if !ok {
+		// Not stored: reading an allowance must not make the limiter remember a caller.
 		return l.state(l.newBucket(key, now))
 	}
 
@@ -175,10 +148,6 @@ func (l *Limiter) Peek(key Key) State {
 	return l.state(b)
 }
 
-// Fill tops a key's bucket up to its capacity, and reports whether there was room: a full bucket is
-// left alone and answers false, so a caller does not spend something on nothing. An unknown key is a new
-// bucket, remembered only when it is not full. It is additive to the package: nothing that never calls it
-// can tell it exists, which matters because the same limiter type throttles chat and session mints.
 func (l *Limiter) Fill(key Key) (bool, State) {
 	now := l.clock.Now()
 
@@ -212,7 +181,6 @@ func (l *Limiter) newBucket(key Key, now time.Time) *bucket {
 	return b
 }
 
-// earned is what a bucket made now would hold: a full burst, or for a key with Since, what it earned since then.
 func (l *Limiter) earned(b *bucket, now time.Time) float64 {
 	if b.since.IsZero() {
 		return l.capacity(b)
@@ -221,8 +189,6 @@ func (l *Limiter) earned(b *bucket, now time.Time) float64 {
 	return math.Min(max(b.start, 0)+max(now.Sub(b.since).Seconds(), 0)*l.config.PerSecond*b.scale, l.capacity(b))
 }
 
-// state reports the reading together with the policy it refills under. A client replays that arithmetic
-// to draw the allowance.
 func (l *Limiter) state(b *bucket) State {
 	return State{
 		Tokens:    b.tokens,
@@ -231,7 +197,6 @@ func (l *Limiter) state(b *bucket) State {
 	}
 }
 
-// capacity is the burst, which nothing but the scale moves.
 func (l *Limiter) capacity(b *bucket) float64 {
 	return float64(l.config.Burst) * b.scale
 }
@@ -265,14 +230,13 @@ func (l *Limiter) sweep() {
 	for key, b := range l.buckets {
 		l.refill(b, now)
 
-		// A bucket a refill topped up early would come back short, so it waits until it has earned its burst.
+		// Keep it until a new bucket would hold as much, or recreating it would lose tokens.
 		if b.tokens >= l.capacity(b) && l.earned(b, now) >= l.capacity(b) {
 			delete(l.buckets, key)
 		}
 	}
 }
 
-// refill grants back what the elapsed time is worth, at the rate in force over it.
 func (l *Limiter) refill(b *bucket, now time.Time) {
 	if !now.After(b.last) {
 		return

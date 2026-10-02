@@ -712,10 +712,11 @@ curl -s "https://clickplanet.lol$B" | grep -c 'challenges.cloudflare.com/turnsti
 ### Sign-in
 
 Optional from end to end: a player who never signs in plays exactly as before,
-on the guest account the mint gives every browser. Signing in with Google or
-Discord keeps that account on every device.
+on the guest account the mint gives every browser. Signing in with Google,
+Discord or a code sent to an email address keeps that account on every device.
 
-- `backends/account.ts` — the contract: `AccountBackend`, `Provider`, and
+- `backends/account.ts` — the contract: `AccountBackend`, `Provider` (and
+  `OAuthProvider`, the ones the page leaves for: every one but `email`), and
   `AuthError`, whose `failure` says why the server said no. **One class and not
   one per reason**, unlike a refused click: every one is shown the same way, as
   one line beside the button that was pressed.
@@ -812,6 +813,30 @@ has none and should not mint to learn that — and a failed read leaves the name
 unknown with the form still there. A save and the other actions never run at
 once. A sign-in reads it again; a sign-out or a delete forgets it, and a read or
 a save that lands after the account changed is dropped.
+
+**Signing in by email stays on the page.** The server offers `email` beside the
+providers when `auth.email.enabled` is on, and `EmailSignIn` draws it under the
+provider buttons, in `AccountPanel` and in `SignInPitchModal`: an address, then
+a six-digit code. There is no callback page and nothing is remembered across a
+trip, so the steps are store state: `AccountStore.sendCode` asks for a code and
+keeps `code: {address, intent}` in the ready state, `checkCode` sends what was
+typed (digits only), and `cancelCode` goes back to the address.
+
+- **Each `StartEmailSignIn` needs a fresh Turnstile token**, since each sends an
+  email: `ConnectAccountBackend` takes the same attester as `SessionClient`,
+  and calls it once per code. Without a sitekey it sends an empty token, which
+  a local backend with Turnstile off accepts.
+- **A wrong code keeps the code step** (`wrongCode`), and so does a spent mint
+  budget or a failure on the way. A lapsed code, or five wrong ones, is
+  `newCode`: the step closes and the player asks again. Refused addresses come
+  back with their reason in an `EmailRefusal` detail: `invalidEmail` or
+  `disposableEmail`. `tooManyCodes` is the address's budget or the network's.
+- **On success the account is read again** and the click token invalidated,
+  exactly as after `CompleteSignIn`. An email account is linked: it clicks
+  faster and may pick a username.
+- To try it locally, run the backend with `auth.email.enabled` and
+  `auth.email.delivery: log` (no Cloudflare account needed): the code is in the
+  server log.
 
 **Every way out of an account invalidates the click token too**: sign out, sign
 out everywhere, and delete. The player plays on, and the next click mints a new

@@ -1,4 +1,3 @@
-// Package antibot_get_map tells the guard how much of the map each caller reads.
 package antibot_get_map
 
 import (
@@ -38,7 +37,6 @@ func (d *Decorator) Execute(ctx context.Context, in get_map_usecase.In) (clicks.
 		return clicks.DenseBatch{}, fmt.Errorf("failed to read the map: %w", err)
 	}
 
-	// Two bytes per tile: what was read, whatever the request asked for.
 	maxIndex := d.board.MaxIndex()
 	d.guard.Fetched(cpctx.RateLimitKey(ctx), float64(len(batch.Tiles)/2)/float64(maxIndex), in.OffMap(maxIndex))
 

@@ -1,4 +1,3 @@
-// Package log_prune logs what each chat prune deleted, and why one failed.
 package log_prune
 
 import (
@@ -19,7 +18,6 @@ type Logged struct {
 
 var _ prune_usecase.Executor = (*Logged)(nil)
 
-// Execute logs a failure at Error, unless the process is stopping, and a prune that deleted something at Info.
 func (l *Logged) Execute(ctx context.Context) (int64, error) {
 	deleted, err := l.inner.Execute(ctx)
 

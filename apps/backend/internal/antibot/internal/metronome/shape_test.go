@@ -27,7 +27,6 @@ func shapeConfig() metronome.Config {
 	return c
 }
 
-// randomSleep is the bot of 2026-09-16: a random sleep between 0.6s and 2.1s, and a pause every so often.
 func randomSleep(r *rand.Rand, click int) time.Duration {
 	if click%40 == 39 {
 		return time.Duration(5+r.IntN(35)) * time.Second
@@ -35,7 +34,6 @@ func randomSleep(r *rand.Rand, click int) time.Duration {
 	return 600*time.Millisecond + time.Duration(r.Int64N(int64(1500*time.Millisecond)))
 }
 
-// hand leans long: mostly quick clicks, now and then a slow one, as players measured the same day did.
 func hand(r *rand.Rand, click int) time.Duration {
 	if click%25 == 24 {
 		return time.Duration(12+r.IntN(40)) * time.Second
@@ -115,7 +113,6 @@ func TestAPauseDoesNotEndTheShape(t *testing.T) {
 func TestTheStrongerRuleIsTheOneReported(t *testing.T) {
 	h := newHarness(shapeConfig())
 
-	// A one second loop with a little wobble: cadence reaches Certain and the shape reads only Suspect.
 	gaps := []time.Duration{980, 1000, 1020, 990, 1010}
 	var (
 		verdict  detect.Verdict

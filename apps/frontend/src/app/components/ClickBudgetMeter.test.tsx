@@ -34,8 +34,6 @@ describe("ClickBudgetMeter", () => {
         expect(meter().getAttribute("aria-valuemax")).toBe("5")
     })
 
-    // The pip count is the burst, so a backend that changes it changes this
-    // with no frontend release — which is the point of sending the policy.
     it("follows the server's burst rather than a number of its own", () => {
         render(<ClickBudgetMeter budget={reading({capacity: 7})}/>)
         expect(pips()).toHaveLength(7)
@@ -211,8 +209,6 @@ describe("ClickBudgetMeter's dock", () => {
         expect(document.querySelector(".click-budget-dock")?.textContent).toContain("held")
     })
 
-    // One panel, and the smaller part is the lower one: the inventory used to
-    // sit on top of the wider meter, which read as a mistake.
     it("puts it after the reading, in the one panel", () => {
         render(<ClickBudgetMeter budget={reading()}><p>held</p></ClickBudgetMeter>)
 

@@ -15,9 +15,6 @@ import (
 
 const failingProcedure = "/test.v1.TestService/Do"
 
-// The module below asks for no interceptors at all. That is the point: the net
-// is the server's, so a module cannot leave it out by forgetting it, and a
-// module added later gets it without knowing it exists.
 func TestEveryMountedServiceGetsTheErrorNet(t *testing.T) {
 	var handler http.Handler
 

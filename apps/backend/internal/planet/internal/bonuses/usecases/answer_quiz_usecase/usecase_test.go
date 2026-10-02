@@ -12,22 +12,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-// asPlayer is the context the edge leaves behind: an address and the account its token names. The
-// use case derives the scope and the holder from it exactly as the click and the claim do, which is
-// what ties a quiz's reward to the account that answered it by construction rather than by
-// agreement.
 func asPlayer(t *testing.T) context.Context {
 	t.Helper()
 
 	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 }
 
-// fakeRegistry answers one quiz, however it was set up.
 type fakeRegistry struct {
 	answered bonuses.Answered
 	known    bool
 
-	// What the caller asked, and what was announced to the planet.
 	choice    int
 	forScope  string
 	published []bonuses.Taken
@@ -43,7 +37,6 @@ func (f *fakeRegistry) Publish(taken bonuses.Taken) {
 	f.published = append(f.published, taken)
 }
 
-// fakeCharger is the charges as the storage keeps them.
 type fakeCharger struct{ held bonuses.Held }
 
 func (f *fakeCharger) Held(bonuses.Holder) bonuses.Held { return f.held }
@@ -107,8 +100,6 @@ func TestAQuizThatIsNotThisCallersIsNotFound(t *testing.T) {
 	assert.Empty(t, registry.published)
 }
 
-// What is *held* can be less than what the question drew, when a pool was already near its size,
-// and the player is told what was kept rather than what was rolled.
 func TestTheAmountIsWhatWasKeptNotWhatWasDrawn(t *testing.T) {
 	useCase, _, charger := newUseCase(bonuses.Answered{
 		Correct: true,

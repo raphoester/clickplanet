@@ -3,9 +3,7 @@ import {countRunes, MAX_TEXT_LENGTH} from "../../backends/chat.ts";
 import {ChatSendFailure} from "./useChat.ts";
 
 export type ChatComposerProps = {
-    /** A signed-in player's username, which the server posts under. */
     username?: string
-    /** The name the server gave a guest's messages, once this tab has posted one. */
     guestName?: string
     failure?: ChatSendFailure
     onSend: (text: string) => Promise<boolean>

@@ -10,7 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/activity"
 )
 
-// MemoryPersistence keeps what it is handed, and fails every save while it is told to.
 type MemoryPersistence struct {
 	mu     sync.Mutex
 	saved  []activity.Event

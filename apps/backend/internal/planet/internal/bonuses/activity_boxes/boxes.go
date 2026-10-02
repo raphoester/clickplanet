@@ -1,4 +1,3 @@
-// Package activity_boxes records what happened to each bonus box, from the registry's report.
 package activity_boxes
 
 import (

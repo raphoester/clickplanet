@@ -43,7 +43,6 @@ import SignInPitchModal from "../account/SignInPitchModal.tsx";
 import {LeaderboardEntry} from "../../domain/leaderboard.ts";
 import "./Viewer.css"
 
-/** A stable empty board, so the anthem sees no leader while the map loads. */
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 
 export type ViewerProps = {
@@ -52,16 +51,12 @@ export type ViewerProps = {
     updatesListener: UpdatesListener
     clickBudgetSource?: ClickBudgetSource
     bonusListener?: BonusListener
-    /** Absent for a backend that asks no questions, which shows no banner at all. */
     quizMaster?: QuizMaster
     bomber?: Bomber
-    /** Absent for a backend with no refills: the refill is then only said. */
     refiller?: Refiller
     chatBackend?: ChatBackend
     account?: AccountStore
-    /** Absent — the fake backend without one — the menu lists no players. */
     presence?: PresenceBackend
-    /** Absent, a name in the roster or the chat opens nothing. */
     playerInfo?: PlayerInfoBackend
 }
 
@@ -70,21 +65,16 @@ export default function Viewer(props: ViewerProps) {
     const {countryState, handleSetCountry} = useCountryStorage()
     const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
     const sound = useSound()
-    // The chat posts under the username, so it follows the account the menu shows.
     const account = useAccount(props.account)
     const username = account.kind === 'ready' ? account.username : undefined
 
     usePresence(props.presence, {countryCode: countryState.code, username})
 
-    // The quiz is React's own: a banner at the top of the screen, never an object in the scene.
-    // It follows the flag the player is on now, so a win counts for what they are playing.
     const quiz = useQuiz(props.quizMaster, countryState.code, sound.play)
     const roster = useRoster(props.presence)
     const [pitchOpen, setPitchOpen] = useState(false)
-    // One card at a time, over the roster or the chat, whichever the name was clicked in.
     const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
     const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
-    // A guest the server offers sign-in to. With sign-in off there is nothing to point at, so nothing is offered.
     const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
 
     const {
@@ -121,10 +111,6 @@ export default function Viewer(props: ViewerProps) {
         country: countryState,
     })
 
-    // The budget and the charges follow the answer, through the backend. A
-    // refill on a full bank would be wasted, so the press says so and sends
-    // nothing; the server refuses it too. A refill already gone changes
-    // nothing worth saying.
     const refiller = props.refiller
     const spendRefill = refiller && (() => {
         if (clickBudget && tokensAt(clickBudget, budgetNow()) >= clickBudget.capacity) return false
@@ -135,11 +121,6 @@ export default function Viewer(props: ViewerProps) {
         return true
     })
 
-    // The camera lives out here rather than in the menu: the globe is what it
-    // photographs, and the card over it is not in the picture.
-    // Not before the map is in: the board is sampled while the batches load,
-    // and the first leader plays at once, so a half-loaded map would pick the
-    // anthem and the real leader would then have to wait out a whole hold.
     const anthem = useAnthem(status.state === 'ready' ? leaderboard : NO_LEADERBOARD, sound.settings)
 
     const {shot, taking, take, discard} = useSharePicture(

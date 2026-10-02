@@ -1,4 +1,3 @@
-// Package get_profile_handler serves player.v1.PlayerService/GetProfile.
 package get_profile_handler
 
 import (

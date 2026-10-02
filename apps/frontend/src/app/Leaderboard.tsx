@@ -65,8 +65,6 @@ export default function Leaderboard(props: LeaderboardProps) {
     </section>
 }
 
-/* A country holding a couple of hundred tiles out of a quarter of a million
-   rounds to "0.00", which reads as none at all. Say "small" instead of "none". */
 function share(tiles: number, tilesCount: number): string {
     const percent = tiles / tilesCount * 100
     const rounded = percent.toFixed(2)

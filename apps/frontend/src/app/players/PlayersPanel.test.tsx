@@ -64,7 +64,6 @@ describe("PlayersPanel", () => {
         expect(name.getAttribute("title")).toBe(long)
     })
 
-    // One player is one colour, here and in the chat.
     it("colours a name with the hue the chat gives it", () => {
         render(<PlayersPanel entries={[entry("ana", false, "fr")]}/>)
 

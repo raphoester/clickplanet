@@ -21,7 +21,6 @@ const (
 	unknownID = "9f8e7d6c-5b4a-4938-8271-6a5b4c3d2e10"
 )
 
-// ada has a username, the guest only a code, and nobody has ever heard of unknownID.
 func getAuthors(t *testing.T, ids ...string) (*connect.Response[playerv1.GetAuthorsResponse], error) {
 	t.Helper()
 

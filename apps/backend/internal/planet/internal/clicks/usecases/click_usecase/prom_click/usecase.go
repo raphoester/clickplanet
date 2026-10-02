@@ -1,6 +1,3 @@
-// Package prom_click counts what the click use case decided. It is a decorator
-// and not a line inside the use case, so the measuring can be left out of a
-// process that does not want it without the rule changing.
 package prom_click
 
 import (
@@ -27,8 +24,6 @@ func New(
 		"status",
 	})
 
-	// Apart from clicks_total, so its series and every panel reading status="ok" stay as they were: a clear is
-	// an accepted click, and counted there too.
 	cleared := factory.NewCounterVec(prometheus.CounterOpts{
 		Name: "clicks_cleared_total",
 		Help: "Clicks that cleared a tile on its own country's ground rather than taking it, by the flag clicked",

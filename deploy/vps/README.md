@@ -405,6 +405,33 @@ frontend has the button and the privacy policy page is live: we store email.
 4. Set `auth.signIn.enabled: true` and deploy. A client id with no secret
    refuses the boot.
 
+### Sign-in by email
+
+Off in `backend.yaml` (`auth.email.enabled: false`). The server sends a
+six-digit code through Cloudflare Email Sending, so there is no SMTP server to
+run. It needs the Workers Paid plan: 3,000 emails a month are included.
+
+1. Onboard the domain, which adds its SPF, DKIM and DMARC records:
+
+   ```bash
+   npx wrangler email sending enable clickplanet.lol
+   ```
+
+2. Create an API token with **Email Sending: Edit** and nothing else. Not the
+   Caddy token: that one edits DNS.
+3. Put the token and the account id in the Actions secrets. `backend.yaml`
+   already names both (`env://CLOUDFLARE_EMAIL_TOKEN`,
+   `env://CLOUDFLARE_ACCOUNT_ID`), so the next deploy writes them to
+   `.env.backend` with no other edit:
+
+   ```bash
+   read -rsp 'Cloudflare account id: ' s && echo && printf '%s' "$s" | gh secret set CLOUDFLARE_ACCOUNT_ID --repo raphoester/clickplanet && unset s
+   read -rsp 'Email Sending token: ' s && echo && printf '%s' "$s" | gh secret set CLOUDFLARE_EMAIL_TOKEN --repo raphoester/clickplanet && unset s
+   ```
+
+4. Set `auth.email.enabled: true` and deploy. An empty token or account id
+   refuses the boot.
+
 ## 6. Watching for bots
 
 Sessions raise the floor to "drive a real browser". What gets through that is a

@@ -1,4 +1,3 @@
-// Package log_prune logs what each prune of the activity deleted, and why one failed.
 package log_prune
 
 import (
@@ -19,7 +18,6 @@ type Logged struct {
 
 var _ prune_usecase.Executor = (*Logged)(nil)
 
-// Execute warns on rows past the cap: they went before the retention promised.
 func (l *Logged) Execute(ctx context.Context) (prune_usecase.Pruned, error) {
 	pruned, err := l.inner.Execute(ctx)
 

@@ -90,7 +90,6 @@ func (w *Watchdog) Load(data []byte) error {
 	}
 
 	spenders := make(map[string]*spender, len(s.Spenders))
-	// Slices counted in another length cannot be read in this one.
 	if s.Slice == int64(w.config.Stamina.Slice) {
 		for _, sp := range s.Spenders {
 			slices := make([]slice, 0, len(sp.Slices))
@@ -109,7 +108,6 @@ func (w *Watchdog) Load(data []byte) error {
 	return nil
 }
 
-// Forget drops a caller silent since before; a run still going is kept whole, however long ago it started.
 func nanos(gaps []time.Duration) []int64 {
 	saved := make([]int64, 0, len(gaps))
 	for _, gap := range gaps {
@@ -118,7 +116,6 @@ func nanos(gaps []time.Duration) []int64 {
 	return saved
 }
 
-// durations keeps the newest capacity gaps: a section saved under a larger window loads into this one.
 func durations(saved []int64, capacity int) []time.Duration {
 	if len(saved) > capacity {
 		saved = saved[len(saved)-capacity:]
@@ -138,7 +135,6 @@ func times(tries []time.Time) []int64 {
 	return saved
 }
 
-// instants keeps the newest capacity tries, as durations does.
 func instants(saved []int64, capacity int) []time.Time {
 	if len(saved) > capacity {
 		saved = saved[len(saved)-capacity:]

@@ -30,7 +30,6 @@ func (a answering) Execute(context.Context, click_usecase.In) (click_usecase.Out
 	return click_usecase.Out{Limited: true}, a.err
 }
 
-// owners is the map before the click: tile to country, and every tile up to 100 exists.
 type owners map[uint32]string
 
 func (o owners) Owner(tile uint32) (string, bool) {

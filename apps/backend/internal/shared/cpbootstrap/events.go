@@ -12,28 +12,17 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// EventBus is how a module tells the others what happened, in process: the emitter never learns who listens.
-//
-// Delivery is at most once and not durable. Each subscriber reads its own buffered channel in its own
-// goroutine, so no subscriber code runs in the publisher's stack trace, and a full buffer drops the event
-// and counts it in events_dropped_total. A flow that cannot lose an event needs a durable path of its own.
 type EventBus interface {
-	// Publish never blocks. The emitter builds a fresh message per event and never touches it again.
+	// Publish hands event itself to a subscriber, so the caller must not reuse it.
 	Publish(event proto.Message)
 
 	register(event protoreflect.FullName, subscriber string, buffer int) (<-chan proto.Message, prometheus.Counter, error)
 }
 
-// Handler reads one kind of event, in its subscriber's goroutine. An error is counted in events_failed_total;
-// a subscriber that wants it logged wraps its handler in a decorator.
 type Handler[T proto.Message] interface {
 	Handle(ctx context.Context, event T) error
 }
 
-// Subscribe registers a subscriber to events of type T, and answers the runner that delivers them.
-//
-// Call it while the module is built and add the runner: registering after the runners start is refused, so
-// no event is published to nobody at boot. Events published before the runner starts wait in the buffer.
 func Subscribe[T proto.Message](bus EventBus, subscriber string, buffer int, handler Handler[T]) (Runner, error) {
 	var zero T
 	event := zero.ProtoReflect().Descriptor().FullName()
@@ -54,8 +43,6 @@ type subscription[T proto.Message] struct {
 
 func (s *subscription[T]) Name() string { return "events:" + s.name }
 
-// Run delivers until ctx is done, then delivers what is already buffered, so a subscriber stopped in a
-// pipeline sees every event published before the server stopped.
 func (s *subscription[T]) Run(ctx context.Context) {
 	for {
 		select {
@@ -87,7 +74,6 @@ func (s *subscription[T]) deliver(ctx context.Context, event proto.Message) {
 	_ = s.handler.Handle(ctx, typed)
 }
 
-// failures wraps a handler so the bus counts what it refused.
 type failures[T proto.Message] struct {
 	inner  Handler[T]
 	failed prometheus.Counter
@@ -132,7 +118,6 @@ func newEventBus(metrics prometheus.Registerer) *eventBus {
 	}
 }
 
-// Publish hands every subscriber its own copy: the first gets the message, the others a clone.
 func (b *eventBus) Publish(event proto.Message) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
@@ -181,7 +166,6 @@ func (b *eventBus) register(
 	return events, b.failed.WithLabelValues(string(event), name), nil
 }
 
-// seal refuses every later subscriber. It runs once every module is built, before the runners start.
 func (b *eventBus) seal() {
 	b.mu.Lock()
 	defer b.mu.Unlock()

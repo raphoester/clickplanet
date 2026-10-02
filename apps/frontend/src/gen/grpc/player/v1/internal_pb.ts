@@ -11,8 +11,6 @@ import { Message, proto3 } from "@bufbuild/protobuf";
  */
 export class GetAuthorRequest extends Message<GetAuthorRequest> {
   /**
-   * Required: an empty id, or one that is not an account, is InvalidArgument.
-   *
    * @generated from field: string account_id = 1;
    */
   accountId = "";
@@ -50,17 +48,11 @@ export class GetAuthorRequest extends Message<GetAuthorRequest> {
  */
 export class GetAuthorResponse extends Message<GetAuthorResponse> {
   /**
-   * The account's username, or "guest_" and its guest code when it chose none:
-   * 6 hex characters, drawn the first time the account is asked about and kept
-   * until it is deleted. Never empty.
-   *
    * @generated from field: string name = 1;
    */
   name = "";
 
   /**
-   * The account is an admin of the game. False with no username.
-   *
    * @generated from field: bool admin = 3;
    */
   admin = false;
@@ -99,9 +91,6 @@ export class GetAuthorResponse extends Message<GetAuthorResponse> {
  */
 export class GetAuthorsRequest extends Message<GetAuthorsRequest> {
   /**
-   * Ids the caller already holds. One that is not an account is
-   * InvalidArgument; a repeat is answered once, and none is an empty answer.
-   *
    * @generated from field: repeated string account_ids = 1;
    */
   accountIds: string[] = [];
@@ -139,10 +128,6 @@ export class GetAuthorsRequest extends Message<GetAuthorsRequest> {
  */
 export class GetAuthorsResponse extends Message<GetAuthorsResponse> {
   /**
-   * One per account that could be named, in no particular order. An account
-   * the module knows nothing about is absent, and the caller decides what to
-   * show in its place.
-   *
    * @generated from field: repeated player.v1.Author authors = 1;
    */
   authors: Author[] = [];
@@ -185,15 +170,11 @@ export class Author extends Message<Author> {
   accountId = "";
 
   /**
-   * The username, or "guest_" and the guest code, as on a chat message.
-   *
    * @generated from field: string name = 2;
    */
   name = "";
 
   /**
-   * An admin of the game. False with no username.
-   *
    * @generated from field: bool admin = 3;
    */
   admin = false;

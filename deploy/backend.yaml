@@ -1,11 +1,9 @@
 httpServer:
   bindAddress: 0.0.0.0:8080
-  # The frontend service, served on port 80.
   allowedOrigin: http://localhost
 gameMap:
   maxIndex: 1004892
 
-# The postgres service in docker-compose.yaml: the tile map and the ledger.
 database:
   host: postgres
   port: "5432"
@@ -15,8 +13,6 @@ database:
   sslMode: disable
   schema: planet
 
-# Off here, as it is by default. Turned on, it keeps its bans and evidence in
-# the same postgres, in its own schema.
 antiBot:
   enabled: false
   database:
@@ -28,16 +24,10 @@ antiBot:
     sslMode: disable
     schema: antibot
 
-# Off in the local stack: docker-compose has no Caddy in front to set X-Real-IP,
-# so every click would key on the compose network's gateway address.
 vpnBlocklist:
   enabled: false
 
-# Live chat. This file is the one you run against when developing the chat UI;
-# deploy/vps has the production settings, including the retention window and a
-# real tag salt.
 chat:
-  # The same postgres service as the planet, in a schema of its own.
   database:
     host: postgres
     port: "5432"
@@ -50,9 +40,7 @@ chat:
     perSecond: 0.33
     burst: 5
 
-# A player's name, tag and stats. Always on: the chat asks it who posts.
 player:
-  # The same postgres service as the planet, in a schema of its own.
   database:
     host: postgres
     port: "5432"

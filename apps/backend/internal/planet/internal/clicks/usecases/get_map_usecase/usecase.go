@@ -1,4 +1,3 @@
-// Package get_map_usecase answers a range of the tile map as one dense batch.
 package get_map_usecase
 
 import (
@@ -8,9 +7,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// MaxIndexReader is only consulted for the open-ended request: an unset end
-// means "to the end of the map", and the map is the only thing that knows where
-// that is.
 type MaxIndexReader interface {
 	MaxIndex() uint32
 }
@@ -46,8 +42,6 @@ type UseCase struct {
 	mapReader    DenseMapReader
 }
 
-// An inverted or out-of-range span is the caller's mistake, so the reader's
-// complaint is carried out under the sentinel that says which mistake it was.
 func (u *UseCase) Execute(_ context.Context, in In) (clicks.DenseBatch, error) {
 	end := in.End
 	if end == 0 {

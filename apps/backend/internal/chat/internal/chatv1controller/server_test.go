@@ -28,8 +28,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// These tests are about the interceptor chain; each procedure's mapping is tested in its handler package.
-
 type stubSender struct {
 	sent     int
 	accounts []messages.AccountID

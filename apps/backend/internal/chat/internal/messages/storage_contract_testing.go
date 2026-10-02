@@ -10,11 +10,9 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// StorageContractSuite is the behaviour every Storage shares. Embed it and set NewStorage.
 type StorageContractSuite struct {
 	suite.Suite
 
-	// NewStorage builds an empty storage.
 	NewStorage func() Storage
 
 	storage Storage
@@ -26,7 +24,6 @@ func (s *StorageContractSuite) SetupTest() {
 	s.storage = s.NewStorage()
 }
 
-// contractAccount is who every message of the suite is from, but the one that is from nobody.
 var contractAccount = AccountID{15: 1}
 
 func contractRecord(text string, at time.Time) Record {

@@ -1,4 +1,3 @@
-// Package inmemory_visit_storage keeps the last visit of every player in memory, and publishes each change.
 package inmemory_visit_storage
 
 import (
@@ -14,12 +13,8 @@ import (
 )
 
 const (
-	// MaxVisitsPerTag bounds the accounts one address holds on the roster: a campus fits, and a script minting
-	// accounts on one address pushes out only its own.
-	MaxVisitsPerTag = 10
-	// MaxVisits bounds the whole roster. A new account past it is not recorded; one already on it still is.
-	MaxVisits = 10_000
-	// SubscriberBuffer: a subscriber further behind is closed, not skipped, so it reconnects to a whole roster.
+	MaxVisitsPerTag  = 10
+	MaxVisits        = 10_000
 	SubscriberBuffer = 256
 
 	pruneInterval = 5 * time.Second
@@ -42,8 +37,6 @@ func New(clock cptime.Clock) *Storage {
 	}
 }
 
-// Record keeps the visit over the account's last one, and its key. A new account gets a new key, and pushes
-// out the oldest visit of its tag once the tag holds MaxVisitsPerTag.
 func (s *Storage) Record(visit presence.Visit) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -62,13 +55,11 @@ func (s *Storage) Record(visit presence.Visit) {
 
 	s.visits[visit.Account] = visit
 
-	// A stale visit was on no roster a subscriber read.
 	if !known || !held.Fresh(s.clock.Now()) || presence.EntryOf(held) != presence.EntryOf(visit) {
 		s.publish(presence.Change{Entry: presence.EntryOf(visit)})
 	}
 }
 
-// Move carries a signed-in browser's visit, and its key, to its account's name, over any visit the account held.
 func (s *Storage) Move(from, to players.AccountID, author players.Author) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -91,7 +82,6 @@ func (s *Storage) Move(from, to players.AccountID, author players.Author) {
 	}
 }
 
-// Rename shows the account under its new username. An admin stays one.
 func (s *Storage) Rename(account players.AccountID, username players.Name) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -109,7 +99,6 @@ func (s *Storage) Rename(account players.AccountID, username players.Name) {
 	}
 }
 
-// Forget takes the account off the roster at once, rather than when its last visit goes stale.
 func (s *Storage) Forget(account players.AccountID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -147,7 +136,6 @@ func (s *Storage) drop(account players.AccountID) {
 	s.publish(presence.Change{Entry: presence.EntryOf(visit), Left: true})
 }
 
-// Visits is every visit held, stale ones included until the next prune.
 func (s *Storage) Visits() []presence.Visit {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -163,7 +151,6 @@ func (s *Storage) held() []presence.Visit {
 	return visits
 }
 
-// Subscribe answers the roster and every change after it. The channel closes with ctx, or when it falls behind.
 func (s *Storage) Subscribe(ctx context.Context) ([]presence.Entry, <-chan presence.Change) {
 	changes := make(chan presence.Change, SubscriberBuffer)
 
@@ -184,7 +171,7 @@ func (s *Storage) Subscribe(ctx context.Context) ([]presence.Entry, <-chan prese
 	return roster, changes
 }
 
-// publish runs under the lock, so each subscriber reads changes in order.
+// publish must run under s.mu, so each subscriber reads changes in order.
 func (s *Storage) publish(change presence.Change) {
 	var behind []chan presence.Change
 	s.subscribers.ForEach(func(changes chan presence.Change) {
@@ -208,7 +195,6 @@ func (s *Storage) unsubscribe(changes chan presence.Change) {
 	close(changes)
 }
 
-// Prune forgets every visit that is no longer fresh.
 func (s *Storage) Prune() {
 	now := s.clock.Now()
 

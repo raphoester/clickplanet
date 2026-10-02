@@ -6,20 +6,14 @@ import (
 	"math"
 )
 
-// The blob format, mirroring apps/frontend/src/app/viewer/coordinatesBinary.ts. Little-endian:
-// "CPCO" | uint32 version | uint32 tile count N | N*3 f32 positions | N*2 f32 uvs. This is the
-// second implementation of one format, so it is a transcription rather than an improvement.
 const (
 	coordinatesMagic   = "CPCO"
 	coordinatesVersion = 1
 	coordinatesHeader  = 12
 
-	// 3 position floats and 2 uv floats; nothing here wants the uvs, but the size check needs them.
 	floatsPerTile = 5
 )
 
-// decodeCoordinates returns the tile positions in the blob's own order; the caller turns that
-// order into tile ids.
 func decodeCoordinates(blob []byte) ([]float32, error) {
 	if len(blob) < coordinatesHeader {
 		return nil, fmt.Errorf("coordinates blob is truncated: %d bytes", len(blob))

@@ -12,7 +12,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 )
 
-// stopAndFlush runs the banner and stops it, which flushes.
 func stopAndFlush(banner *shadowban.Banner) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

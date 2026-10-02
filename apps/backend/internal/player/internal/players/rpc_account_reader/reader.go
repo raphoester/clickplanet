@@ -1,4 +1,3 @@
-// Package rpc_account_reader asks the auth module about an account, over the internal listener.
 package rpc_account_reader
 
 import (
@@ -13,12 +12,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
-// Dialer is cpbootstrap's internal listener: the only way one module reaches another.
 type Dialer interface {
 	Dial() (connect.HTTPClient, string, error)
 }
 
-// askTimeout bounds one call. It is loopback, so this is a stuck socket rather than a slow network.
 const askTimeout = 2 * time.Second
 
 type Reader struct {
@@ -29,7 +26,6 @@ func New(dial Dialer) *Reader {
 	return &Reader{dial: dial}
 }
 
-// Linked asks auth on every call: a player chooses a name rarely, and an account links at any time.
 func (r *Reader) Linked(ctx context.Context, account players.AccountID) (bool, error) {
 	res, err := r.account(ctx, account)
 	if err != nil {
@@ -38,7 +34,6 @@ func (r *Reader) Linked(ctx context.Context, account players.AccountID) (bool, e
 	return res.GetLinked(), nil
 }
 
-// CreatedAt is when auth made the account, and zero for an account it does not know.
 func (r *Reader) CreatedAt(ctx context.Context, account players.AccountID) (time.Time, error) {
 	res, err := r.account(ctx, account)
 	if err != nil {

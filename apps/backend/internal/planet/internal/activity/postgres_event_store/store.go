@@ -1,4 +1,3 @@
-// Package postgres_event_store keeps the activity in activity.events, one row per event.
 package postgres_event_store
 
 import (
@@ -34,7 +33,6 @@ var _ inmemory_event_buffer.Persistence = (*Store)(nil)
 
 var columns = []string{"at", "kind", "scope", "account", "signed_in", "data"}
 
-// Save is one COPY, however long postgres was away.
 func (s *Store) Save(ctx context.Context, events []activity.Event) error {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
@@ -79,7 +77,6 @@ func account(id cpsession.AccountID) any {
 	return uuid.UUID(id).String()
 }
 
-// The data column of each kind. A kind with none stores NULL.
 type (
 	clickData struct {
 		Tile    uint32 `json:"tile"`
@@ -87,7 +84,6 @@ type (
 		Outcome string `json:"outcome"`
 	}
 
-	// takeData leaves held out for a tile nobody held.
 	takeData struct {
 		Tile    uint32 `json:"tile"`
 		Country string `json:"country"`

@@ -8,7 +8,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 )
 
-// ChatService is the four handlers in a bag, for the generated handler.
 type ChatService struct {
 	send_message_handler.SendMessageHandler
 	get_history_handler.GetHistoryHandler

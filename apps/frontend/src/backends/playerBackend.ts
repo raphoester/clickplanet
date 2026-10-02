@@ -22,11 +22,6 @@ import {
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
 
-/**
- * No cookie: the account is named by the click token in a header, not by
- * `cp_sid`. `useHttpGet` sends `GetRoster` and `GetPlayer`, the calls marked
- * side-effect free, as GETs a proxy can cache; every other call stays a POST.
- */
 export function newPlayerServiceClient(config: Config): PromiseClient<typeof PlayerService> {
     return createPromiseClient(PlayerService, createConnectTransport({
         baseUrl: config.baseUrl,
@@ -36,11 +31,6 @@ export function newPlayerServiceClient(config: Config): PromiseClient<typeof Pla
     }))
 }
 
-/**
- * For `Leave` alone: every request it sends is `keepalive`, so it is still sent
- * after the page is gone. Kept apart because a keepalive request cannot carry a
- * stream, and the browser bounds how much of them may be in flight.
- */
 export function newKeepalivePlayerServiceClient(config: Config): PromiseClient<typeof PlayerService> {
     return createPromiseClient(PlayerService, createConnectTransport({
         baseUrl: config.baseUrl,
@@ -56,14 +46,6 @@ const FAILURES: Partial<Record<Code, PlayerFailure>> = {
     [Code.Unauthenticated]: "notSignedIn",
 }
 
-/**
- * `player.v1.PlayerService` behind `PlayerBackend`.
- *
- * **A call refused for its session is sent once more with a fresh one**, as
- * `PlanetBackend` does for a click: the token may name the account the browser
- * was on before a sign-in. Only the read is retried while the server cannot be
- * reached — `SetName` is a write, like every other one here.
- */
 export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerInfoBackend {
     constructor(
         private readonly client: PromiseClient<typeof PlayerService>,
@@ -87,14 +69,6 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
         return this.session.held()
     }
 
-    /**
-     * With the token already held, never a fresh one: a mint is a Turnstile
-     * check, and presence is not worth one. So a refusal for the session is not
-     * retried the way `authenticated` retries — the token is dropped, since the
-     * server said it is no good, and the next click mints the one the next
-     * announce goes out with. Not retried while the server cannot be reached
-     * either: the schedule sends another in 30s.
-     */
     public async announce(presence: Presence): Promise<boolean> {
         const token = this.session.held()
         if (!token) return false
@@ -110,7 +84,6 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
         }
     }
 
-    /** With the token already held, like `announce`, and never a fresh one. */
     public leave(): void {
         const token = this.session.held()
         if (!token) return
@@ -119,11 +92,6 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
             .catch((e) => console.error("Leave failed", e))
     }
 
-    /**
-     * No token and no header: anybody may follow the roster. A 404 is a server
-     * without the stream — connect-web reads it as `unimplemented` — and it
-     * ends the stream for good rather than reconnecting to it forever.
-     */
     public listenForRoster(onEvent: (event: RosterEvent) => void, onUnavailable: () => void): () => void {
         const client = this.client
         let unavailable = false
@@ -151,10 +119,6 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
         return () => stop()
     }
 
-    /**
-     * No token, like the roster: anybody may read a player, and a proxy may
-     * serve one answer to everyone who opens it.
-     */
     public async playerInfo(name: string): Promise<PlayerInfo | undefined> {
         try {
             const res = await retrying(() => this.client.getPlayer({name}), "GetPlayer")
@@ -198,7 +162,6 @@ function rosterEntryOf(entry: RosterEntryPb): RosterEntry {
     return {key: entry.key, name: entry.name, countryCode: entry.countryId, guest: entry.guest, admin: entry.admin}
 }
 
-/** Undefined for a heartbeat, and for any case this build does not know. */
 function rosterEventOf(event: PlayerEventPb): RosterEvent | undefined {
     switch (event.event.case) {
         case "roster":

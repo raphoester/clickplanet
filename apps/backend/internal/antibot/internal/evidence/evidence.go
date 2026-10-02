@@ -1,4 +1,3 @@
-// Package evidence saves what the watchdogs and the jury are tracking, so a restart does not reset every window.
 package evidence
 
 import (
@@ -16,7 +15,6 @@ import (
 type Config struct {
 	SaveInterval time.Duration
 
-	// Retention is the oldest evidence kept, on load and in memory, whatever a watchdog's own window says.
 	Retention time.Duration
 }
 
@@ -35,7 +33,6 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// Section is one watchdog's share of the evidence, or the jury's. Each encodes its own.
 type Section interface {
 	Name() string
 	Save() ([]byte, error)
@@ -44,22 +41,17 @@ type Section interface {
 	Forget(before time.Time)
 }
 
-// Resumer is a section that reads gaps, and needs to know the outage to not read one there.
 type Resumer interface {
 	Resume(outage detect.Outage)
 }
 
-// Snapshot is every section's evidence as one flush wrote it.
 type Snapshot struct {
 	SavedAt  time.Time
 	Sections map[string][]byte
 }
 
-// Persistence is where the evidence is kept between boots. It is never read after Load.
 type Persistence interface {
-	// Load answers an empty snapshot when nothing is stored.
 	Load(ctx context.Context) (Snapshot, error)
-	// Save replaces every stored section with the snapshot's.
 	Save(ctx context.Context, snapshot Snapshot) error
 }
 
@@ -83,10 +75,9 @@ type Store struct {
 	sections     []Section
 
 	mu      sync.Mutex
-	savedAt time.Time // of the snapshot loaded; zero when none was
+	savedAt time.Time
 }
 
-// Load refuses the boot when postgres cannot be read. A section that does not decode is reported and starts empty alone.
 func (s *Store) Load(ctx context.Context) error {
 	snapshot, err := s.persistence.Load(ctx)
 	if err != nil {
@@ -114,7 +105,6 @@ func (s *Store) Load(ctx context.Context) error {
 	return nil
 }
 
-// Resume tells the sections the process is now watching: the outage ends here, not at load, since the boot is not over then.
 func (s *Store) Resume() {
 	s.mu.Lock()
 	savedAt := s.savedAt
@@ -164,7 +154,6 @@ func (s *Store) flushOrReport(ctx context.Context) {
 	}
 }
 
-// Flush writes every section as it is now, in one transaction. A section that fails to encode is reported and left out.
 func (s *Store) Flush(ctx context.Context) error {
 	snapshot := Snapshot{
 		SavedAt:  s.clock.Now(),
@@ -187,7 +176,6 @@ func (s *Store) Flush(ctx context.Context) error {
 	return nil
 }
 
-// Encode and Decode are the gob every section writes its own share with.
 func Encode(value any) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(value); err != nil {
@@ -203,7 +191,6 @@ func Decode(data []byte, value any) error {
 	return nil
 }
 
-// Nanos and Time are how every section writes a timestamp: eight bytes, no zone.
 func Nanos(t time.Time) int64 {
 	if t.IsZero() {
 		return 0

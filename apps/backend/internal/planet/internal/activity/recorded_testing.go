@@ -7,7 +7,6 @@ import (
 	"sync"
 )
 
-// Recorded is a Recorder that keeps what it is handed, for a test that only records.
 type Recorded struct {
 	mu     sync.Mutex
 	events []Event

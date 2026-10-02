@@ -1,4 +1,3 @@
-// Package prune_usecase deletes the activity past its retention, then past its cap.
 package prune_usecase
 
 import (
@@ -14,13 +13,11 @@ type Pruner interface {
 	DeleteOldestBeyond(ctx context.Context, kept int) (int64, error)
 }
 
-// Pruned is what one prune deleted: past the retention, and past the cap.
 type Pruned struct {
 	Expired int64
 	Excess  int64
 }
 
-// Executor is the prune, as the runner calls it and a decorator wraps it.
 type Executor interface {
 	Execute(ctx context.Context) (Pruned, error)
 }

@@ -95,9 +95,6 @@ func TestIPReaderMiddleware(t *testing.T) {
 	})
 }
 
-// A custom header makes a cross-origin POST preflighted, and a preflight that
-// does not list it fails the request before the handler ever sees it — so
-// omitting this would refuse every click from the deployed frontend.
 func TestCorsMiddlewareAllowsTheSessionHeader(t *testing.T) {
 	handler := cphttpserver.NewCorsMiddleware("https://clickplanet.lol")(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 
@@ -110,9 +107,6 @@ func TestCorsMiddlewareAllowsTheSessionHeader(t *testing.T) {
 	require.Contains(t, allowed, "Connect-Protocol-Version")
 }
 
-// The frontend mints with credentials so the account cookie travels, and a
-// browser drops a credentialed answer that allows "*" or omits the credentials
-// header. Both the preflight and the call itself must carry them.
 func TestCorsMiddlewareAllowsCredentialsFromTheConfiguredOrigin(t *testing.T) {
 	handler := cphttpserver.NewCorsMiddleware("https://clickplanet.lol")(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 

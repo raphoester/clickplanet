@@ -31,7 +31,6 @@ func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 }
 
-// savedAt is whole microseconds, the precision postgres keeps.
 var savedAt = time.Date(2026, 9, 15, 12, 0, 0, 654321000, time.UTC)
 
 func (s *testSuite) TestAnEmptyTableLoadsAnEmptySnapshot() {

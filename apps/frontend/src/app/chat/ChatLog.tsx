@@ -13,13 +13,10 @@ import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
 
 export type ChatLogProps = {
     messages: ChatMessage[]
-    /** Lines nobody sent, shown between the messages by time. */
     announcements?: ChatAnnouncement[]
     loading: boolean
     flashing?: ReadonlySet<string>
-    /** Absent, an author's name is plain text. */
     onOpenPlayer?: (player: PlayerLine) => void
-    /** Absent, reactions are shown and none can be given. */
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
 }
 
@@ -46,9 +43,6 @@ export default function ChatLog(props: ChatLogProps) {
         lastId.current = last
         if (!element) return
 
-        // Reading a message further up is not interrupted by a new one landing:
-        // the pill says it is there instead of yanking the log down. A reaction
-        // is not a new message, and says nothing.
         if (!pinned.current) {
             if (arrived) setBehind(true)
             return
@@ -95,7 +89,6 @@ export default function ChatLog(props: ChatLogProps) {
                         return <AnnouncementLine key={entry.announcement.id} announcement={entry.announcement}/>
                     }
 
-                    // A line between two messages ends the run above it: the next one says who is talking again.
                     const message = entry.message
                     const previous = entries[index - 1]
                     const opens = startsGroup(previous?.kind === "message" ? previous.message : undefined, message)
@@ -151,10 +144,6 @@ export default function ChatLog(props: ChatLogProps) {
     </div>
 }
 
-/**
- * A line the chat says on its own: no bubble, no author, no reactions. It reads
- * like the news line at the top of the screen, and stays.
- */
 function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
     const bomber = countryName(announcement.country)
     const ground = announcement.ground === undefined ? undefined : Countries.get(announcement.ground)?.name
@@ -173,7 +162,6 @@ function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
     </li>
 }
 
-// No username starts with the prefix, so the name alone says who is a guest.
 function authorOf(message: ChatMessage): PlayerLine {
     return {
         name: message.authorName,
@@ -195,8 +183,6 @@ function messageClass(
     ].filter(Boolean).join(" ")
 }
 
-// The badge is a flag and nothing else, so the name it stands for is what the
-// tooltip and the accessibility tree carry.
 function countryName(code: string): string {
     return Countries.get(code)?.name ?? code
 }

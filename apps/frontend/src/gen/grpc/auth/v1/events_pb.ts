@@ -7,15 +7,10 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
- * AccountDeleted is an account that is gone: deleted by its owner, or a guest
- * the prune removed. A subscriber forgets what it keeps for it.
- *
  * @generated from message auth.v1.AccountDeleted
  */
 export class AccountDeleted extends Message<AccountDeleted> {
   /**
-   * As a UUID.
-   *
    * @generated from field: string account_id = 1;
    */
   accountId = "";
@@ -49,25 +44,15 @@ export class AccountDeleted extends Message<AccountDeleted> {
 }
 
 /**
- * SignedIn is a browser that finished a sign-in. It is on account_id now, and it
- * was on previous_account_id before: the same account when a guest linked its
- * first identity, another one when the identity was already known or a new
- * account was made. previous_account_id is empty when the browser had no live
- * session. A subscriber moves what it keeps for the browser's old account.
- *
  * @generated from message auth.v1.SignedIn
  */
 export class SignedIn extends Message<SignedIn> {
   /**
-   * As a UUID, or empty.
-   *
    * @generated from field: string previous_account_id = 1;
    */
   previousAccountId = "";
 
   /**
-   * As a UUID.
-   *
    * @generated from field: string account_id = 2;
    */
   accountId = "";
@@ -102,16 +87,10 @@ export class SignedIn extends Message<SignedIn> {
 }
 
 /**
- * SignedOut is an account that ended a session: one browser's, or every one of
- * them. The account still exists. A subscriber forgets what it shows about the
- * account as playing now.
- *
  * @generated from message auth.v1.SignedOut
  */
 export class SignedOut extends Message<SignedOut> {
   /**
-   * As a UUID.
-   *
    * @generated from field: string account_id = 1;
    */
   accountId = "";

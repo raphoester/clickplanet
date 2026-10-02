@@ -285,7 +285,6 @@ describe("Menu", () => {
             user: userEvent.setup(),
         })
 
-        // No roster wired, or a server without one.
         it("offers no list without a roster", () => {
             setup()
             expect(screen.queryByRole("button", {name: /online/})).toBeNull()
@@ -334,6 +333,8 @@ describe("Menu", () => {
                 me: vi.fn(async () => me),
                 startSignIn: vi.fn(async () => "https://google.example/authorize"),
                 completeSignIn: vi.fn(async () => undefined),
+                startEmailSignIn: vi.fn(async () => undefined),
+                completeEmailSignIn: vi.fn(async () => undefined),
                 signOut: vi.fn(async () => undefined),
                 signOutEverywhere: vi.fn(async () => undefined),
                 deleteAccount: vi.fn(async () => undefined),
@@ -362,7 +363,6 @@ describe("Menu", () => {
             expect(screen.queryByRole("button", {name: "Sign in"})).toBeNull()
         })
 
-        // Production runs with sign-in off: the menu must look as it did.
         it("offers no sign-in while no provider is offered", async () => {
             const {backend} = withAccount([], {linked: []})
 
@@ -408,7 +408,6 @@ describe("Menu", () => {
             expect(navigate).toHaveBeenCalledWith("https://google.example/authorize")
         })
 
-        // The production bug: a link sent as a sign-in moved the player to the other account.
         it("sends a link, not a sign-in, from a linked account", async () => {
             const {user, backend} = withAccount(["google", "discord"], {linked: ["discord"]})
 

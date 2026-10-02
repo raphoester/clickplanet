@@ -1,4 +1,3 @@
-// Package log_flush logs a flush of the activity that failed, and the events a full buffer dropped.
 package log_flush
 
 import (
@@ -19,7 +18,6 @@ type Logged struct {
 
 var _ inmemory_event_buffer.Flusher = (*Logged)(nil)
 
-// Flush logs nothing when all went well: at a flush a second, that would be most of the log.
 func (l *Logged) Flush(ctx context.Context) (inmemory_event_buffer.Flushed, error) {
 	flushed, err := l.inner.Flush(ctx)
 

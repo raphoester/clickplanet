@@ -17,7 +17,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// board is the map before the click: every tile up to 100 exists.
 type board map[uint32]string
 
 func (b board) Owner(tile uint32) (string, bool) {

@@ -12,7 +12,6 @@ describe("timeLeft", () => {
     })
 
     it("is empty rather than negative once the deadline has passed", () => {
-        // The bar is drawn from this, and a negative scale is a bar drawn backwards.
         expect(timeLeft(question(5000), 9000)).toBe(0)
     })
 
@@ -21,7 +20,6 @@ describe("timeLeft", () => {
     })
 
     it("is empty for a window of nothing, rather than dividing by zero", () => {
-        // A server too old to say how long it gave answers zero seconds.
         expect(timeLeft(question(5000, 0), 0)).toBe(0)
     })
 })

@@ -1,4 +1,3 @@
-// Package playermessage writes the domain's values as player.v1 messages, for the handlers that answer them.
 package playermessage
 
 import (
@@ -20,7 +19,6 @@ func Stats(stats players.Stats) *playerv1.Stats {
 	}
 }
 
-// Player leaves out the account id: anybody may read it.
 func Player(player players.Player) *playerv1.Player {
 	message := &playerv1.Player{Name: string(player.Name), Stats: Stats(player.Stats), Admin: player.Admin}
 	if !player.CreatedAt.IsZero() {

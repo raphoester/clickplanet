@@ -1,5 +1,3 @@
-// Package postgres_message_store keeps every chat message in chat.messages, sender included. It is the chat's only
-// copy: every read and write goes to postgres.
 package postgres_message_store
 
 import (
@@ -34,7 +32,6 @@ func (s *Store) Append(ctx context.Context, record messages.Record) error {
 	return nil
 }
 
-// Recent is the newest limit messages sent at or after since, oldest first.
 func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]messages.Message, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, sent_at, account_id, name, author_admin, country, text
@@ -76,7 +73,6 @@ func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]messa
 	return recent, nil
 }
 
-// Shown asks the same question as Recent about one message. The newest limit rows are a walk down the primary key.
 func (s *Store) Shown(ctx context.Context, id messages.MessageID, since time.Time, limit int) (bool, error) {
 	var shown bool
 	if err := s.db.QueryRowContext(ctx, `
@@ -92,7 +88,6 @@ func (s *Store) Shown(ctx context.Context, id messages.MessageID, since time.Tim
 	return shown, nil
 }
 
-// DeleteBefore removes every message sent before cutoff and says how many it removed.
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
 	result, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE sent_at < $1`, cutoff)
 	if err != nil {
@@ -105,11 +100,6 @@ func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, erro
 	return deleted, nil
 }
 
-// row is what Append writes: whatever the message carries. send_message_usecase leaves the name and the admin
-// mark empty and fills account_id instead, so every row written from now on is named by reading its account.
-//
-// TODO: once chat.storage.retention has passed since this shipped, every remaining row has an account_id and an
-// empty name. Drop the name and author_admin columns, and messages.Named's fallback with them.
 func row(record messages.Record) []any {
 	return []any{
 		string(record.Message.ID),
@@ -125,7 +115,6 @@ func row(record messages.Record) []any {
 	}
 }
 
-// account is the sender, or NULL for nobody: the column is how a row from before this is told apart.
 func account(id messages.AccountID) uuid.NullUUID {
 	if id == messages.NoAccount {
 		return uuid.NullUUID{}

@@ -1,4 +1,3 @@
-// Package activity_attempt_click records every click tried, outside the throttle, with what it was answered.
 package activity_attempt_click
 
 import (

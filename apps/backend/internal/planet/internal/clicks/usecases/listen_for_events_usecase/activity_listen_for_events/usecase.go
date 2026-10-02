@@ -1,4 +1,3 @@
-// Package activity_listen_for_events records each live stream a caller opens.
 package activity_listen_for_events
 
 import (

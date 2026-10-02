@@ -18,7 +18,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
 )
 
-// stubAuth answers what the auth module answers for the accounts it was told are linked.
 type stubAuth struct {
 	authv1connect.UnimplementedInternalServiceHandler
 

@@ -1,29 +1,7 @@
 #!/usr/bin/env bash
-#
-# One-shot bootstrap for the production droplet.
-#
-# From your laptop, against a freshly created droplet:
-#
-#   ./bootstrap.sh --host 203.0.113.10 \
-#     --api-domain api.clickplanet.lol \
-#     --frontend-origin https://clickplanet.lol
-#
-# With --host the script copies itself to the box over SSH and re-runs itself
-# there as root; everything below the "remote driver" section runs on the
-# droplet. Without --host it assumes it is already on the box and provisions
-# in place. The CI keypair is generated for you if it does not exist.
-#
-# Run it after the droplet exists and its A record is in place (see the DNS
-# gate below for why that order matters).
-#
-# Idempotent: re-running upgrades the checkout and rolls the containers rather
-# than duplicating anything. Safe to re-run after a partial failure.
 
 set -euo pipefail
 
-# ssh forwards the client's LC_* by default, and macOS sends LC_CTYPE="UTF-8",
-# which is not a locale Linux has. Left alone, every apt and perl call on the
-# box emits a dozen lines of locale warnings that bury the real output.
 export LC_ALL=C.UTF-8
 export LANG=C.UTF-8
 
@@ -47,31 +25,25 @@ SSH_USER="root"
 CI_KEY_PATH="${HOME}/.ssh/clickplanet_ci"
 REMOTE_TMP="/tmp/clickplanet-bootstrap.sh"
 
-# Arguments to hand to the copy of this script running on the droplet. --host,
-# --ssh-user and the key flags are consumed here and re-derived there.
 FORWARD=()
 
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m warn\033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[1;31m fail\033[0m %s\n' "$*" >&2; exit 1; }
 
-# 16 bytes of hex for the tag salt (player.tagSalt). openssl is on the Ubuntu image, but the
-# fallback keeps this from being the one thing that fails a bootstrap.
 random_salt() {
 	openssl rand -hex 16 2>/dev/null \
 		|| od -An -tx1 -N16 /dev/urandom | tr -d ' \n'
 }
 
-# Signs the session tokens gating the Click RPC. Longer than the chat salt
-# because it is an HMAC key rather than a hash salt.
 random_secret() {
 	openssl rand -hex 32 2>/dev/null \
 		|| od -An -tx1 -N32 /dev/urandom | tr -d ' \n'
 }
 
 usage() {
-	sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//'
 	cat <<'USAGE'
+Usage: bootstrap.sh [--host ADDR] --api-domain DOMAIN --frontend-origin ORIGIN [options]
 
 Options:
   --host ADDR                Provision this box over SSH from here. Omit when
@@ -122,16 +94,9 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-# ------------------------------------------------------------ remote driver
-#
-# With --host, everything this script does happens on the droplet: it copies
-# itself over and re-execs there. Nothing below this block runs on the laptop.
-
 if [[ -n "$SSH_HOST" ]]; then
 	[[ -n "$API_DOMAIN" ]] || die "--api-domain is required"
 	[[ -n "$FRONTEND_ORIGIN" ]] || die "--frontend-origin is required"
-	# Checked here as well as in the on-box preflight, so a typo fails before
-	# the SSH round trip rather than after it.
 	[[ "$FRONTEND_ORIGIN" =~ ^https?://[^/]+$ ]] \
 		|| die "--frontend-origin must be scheme://host with no path or trailing slash, got: ${FRONTEND_ORIGIN}"
 	if [[ -z "$CF_TOKEN" && -n "${CLOUDFLARE_API_TOKEN:-}" ]]; then
@@ -149,9 +114,6 @@ if [[ -n "$SSH_HOST" ]]; then
 
 	target="${SSH_USER}@${SSH_HOST}"
 
-	# Resolve the key CI will deploy with. Generating it here rather than
-	# asking for one is the difference between a one-liner and a checklist:
-	# the private half never leaves the laptop, only the public half is sent.
 	if [[ "$CI_KEY" == "none" ]]; then
 		FORWARD+=(--no-ci-key)
 	elif [[ -n "$CI_KEY" ]]; then
@@ -167,16 +129,10 @@ if [[ -n "$SSH_HOST" ]]; then
 		FORWARD+=(--ci-key "$(cat "${CI_KEY_PATH}.pub")")
 	fi
 
-	# accept-new records the host key on first contact, the way answering "yes"
-	# would, but still refuses a *changed* key on a host we already know. Plain
-	# StrictHostKeyChecking=no would accept both and give up MITM protection
-	# for every later connection, including the ones CI makes.
+	# accept-new, never no: a changed host key must still be refused.
 	SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
 
 	log "checking SSH to ${target}"
-	# BatchMode first so an unreachable box fails fast instead of hanging on a
-	# prompt; if that fails, try again interactively so a passphrase-protected
-	# key or a password-auth box can still get through.
 	if ! ssh "${SSH_OPTS[@]}" -o BatchMode=yes "$target" true 2>/dev/null; then
 		ssh "${SSH_OPTS[@]}" "$target" true \
 			|| die "$(printf 'cannot SSH to %s.\n       The droplet must be up and your own key attached to it (DigitalOcean\n       does that at creation time if you selected a key).' "$target")"
@@ -185,8 +141,6 @@ if [[ -n "$SSH_HOST" ]]; then
 	log "copying bootstrap to ${SSH_HOST}"
 	ssh "${SSH_OPTS[@]}" "$target" "cat > ${REMOTE_TMP} && chmod +x ${REMOTE_TMP}" < "$0"
 
-	# printf %q so the public key, which contains spaces, survives the remote
-	# shell intact.
 	remote_args="$(printf '%q ' "${FORWARD[@]}")"
 
 	log "running bootstrap on ${SSH_HOST}"
@@ -208,10 +162,6 @@ $(log "set the repository secrets so CI can deploy")
 SECRETS
 	fi
 
-	# The box holds the only copy of what was just generated, and the first
-	# deploy replaces its env files from the Actions secrets — so an unpushed
-	# salt is lost at that point, and with it every name's tag. This reads them
-	# back over ssh and sets them without printing a value.
 	cat <<PUSH
 $(log "push the box's secrets up, BEFORE the first deploy")
 
@@ -226,65 +176,41 @@ PUSH
 	exit 0
 fi
 
-# ---------------------------------------------------------------- preflight
-
 [[ $EUID -eq 0 ]] || die "run as root, or use --host to drive this from your laptop"
 [[ -n "$API_DOMAIN" ]] || die "--api-domain is required"
 [[ -n "$FRONTEND_ORIGIN" ]] || die "--frontend-origin is required"
 [[ -n "$CI_KEY" ]] || die "--ci-key is required on the box (or pass --no-ci-key)"
 [[ -n "$CF_TOKEN" ]] || die "--cf-token is required on the box"
 
-# FRONTEND_ORIGIN is compared byte-for-byte against the browser's Origin header,
-# so a trailing slash or a missing scheme silently breaks CORS in the browser
-# while curl without an Origin header keeps working.
 [[ "$FRONTEND_ORIGIN" =~ ^https?://[^/]+$ ]] \
 	|| die "--frontend-origin must be scheme://host with no path or trailing slash, got: ${FRONTEND_ORIGIN}"
 
-# apps/backend/Dockerfile pins GOARCH=amd64 and CI publishes only that arch, so
-# the image cannot run here at all on an ARM droplet. Fail now rather than at
-# the first docker pull.
 arch="$(uname -m)"
 [[ "$arch" == "x86_64" ]] \
 	|| die "this box is ${arch}; the backend image is amd64-only, rebuild the droplet as Intel/AMD"
 
 log "preflight ok (${arch}, $(. /etc/os-release && echo "$PRETTY_NAME"))"
 
-# Everything below may drop to the deploy user via runuser, which inherits the
-# current directory. Started over SSH that is /root, mode 700, which deploy
-# cannot stat — and tools that stat "." (docker compose, git) then fail with
-# errors that point nowhere near the real cause. Sit somewhere world-readable.
+# runuser keeps the cwd, and deploy cannot stat /root (mode 700).
 cd /
-
-# ------------------------------------------------------------------ packages
 
 export DEBIAN_FRONTEND=noninteractive
 
 tmp_err="$(mktemp)"
 trap 'rm -f "$tmp_err"' EXIT
 
-# ------------------------------------------------------------------- swap
-
-# A $6 droplet ships with 1 GB of RAM and no swap at all, so a transient spike
-# is an OOM kill rather than a slow moment. Nothing in this stack needs much
-# memory at rest — the tile map is a few MB — but apt upgrades and docker
-# unpacking layers both spike, and the OOM killer picks the biggest process,
-# which is the API holding the game state.
 if [[ "$SWAP_SIZE" == "none" ]]; then
 	log "skipping swap (--swap none)"
 elif [[ -n "$(swapon --show --noheadings 2>/dev/null)" ]]; then
 	log "swap already active ($(free -h | awk '/Swap:/{print $2}'))"
 else
 	log "creating ${SWAP_SIZE} swap file"
-	# fallocate is instant on ext4; dd is the portable fallback for filesystems
-	# where a fallocated file cannot be used as swap.
 	fallocate -l "$SWAP_SIZE" /swapfile 2>/dev/null \
 		|| dd if=/dev/zero of=/swapfile bs=1M count="$(numfmt --from=iec "$SWAP_SIZE" | awk '{print int($1/1048576)}')" status=none
 	chmod 600 /swapfile
 	mkswap /swapfile >/dev/null
 	swapon /swapfile
 	grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
-	# Swap here is an emergency buffer, not a place to page the working set to:
-	# keep the kernel preferring RAM until it genuinely runs short.
 	echo 'vm.swappiness=10' > /etc/sysctl.d/99-clickplanet-swap.conf
 	sysctl -q -w vm.swappiness=10
 fi
@@ -296,23 +222,9 @@ else
 	log "docker already present ($(docker --version))"
 fi
 
-# No userland proxy. With it on, docker-proxy listens on 80/443 from the moment
-# a container starts, a beat before the NAT rule that forwards straight to the
-# container exists. A connection that lands in that gap is carried by
-# docker-proxy for its whole life, and docker-proxy is the peer Caddy sees: the
-# source becomes the bridge gateway (172.18.0.1), which is not a Cloudflare
-# range, so Caddy ignores Cf-Connecting-Ip and every request on it reaches the
-# API as one caller. Cloudflare keeps an origin connection open for hours and
-# multiplexes many visitors over it — on 2026-09-14 one such connection, opened
-# 1.8s after a Caddy restart, carried 78% of all clicks. That hides a bot inside
-# a crowd and exposes the crowd to a single ban. Every deploy restarts Caddy, so
-# this was not a one-off. With the proxy off, a connection in the gap is refused
-# and Cloudflare retries onto the NAT rule, which keeps the real peer address.
+# docker-proxy hides the Cloudflare peer from Caddy, so Cf-Connecting-Ip would be ignored.
 daemon_json=/etc/docker/daemon.json
 if [[ ! -s "$daemon_json" ]]; then
-	# Restarting the daemon stops every container (SIGTERM, so the API writes its
-	# final snapshot) and restart: unless-stopped brings them back: a few seconds
-	# of downtime, once, on a box that already runs the stack.
 	log "disabling docker's userland proxy (restarts docker)"
 	mkdir -p /etc/docker
 	echo '{ "userland-proxy": false }' > "$daemon_json"
@@ -320,8 +232,6 @@ if [[ ! -s "$daemon_json" ]]; then
 elif grep -Eq '"userland-proxy"[[:space:]]*:[[:space:]]*false' "$daemon_json"; then
 	log "docker userland proxy already disabled"
 else
-	# Not rewritten by hand: that file may hold settings this script knows
-	# nothing about, and a bad edit stops docker from starting at all.
 	die "${daemon_json} exists without \"userland-proxy\": false. Add it, then run: systemctl restart docker"
 fi
 
@@ -330,13 +240,10 @@ if ! command -v git >/dev/null 2>&1; then
 	apt-get update -qq && apt-get install -y -qq git
 fi
 
-# Reads Caddy's JSON access log; see "Reading the access log" in README.md.
 if ! command -v jq >/dev/null 2>&1; then
 	log "installing jq"
 	apt-get update -qq && apt-get install -y -qq jq
 fi
-
-# --------------------------------------------------------------- deploy user
 
 if ! id -u "$DEPLOY_USER" >/dev/null 2>&1; then
 	log "creating ${DEPLOY_USER} user"
@@ -346,8 +253,6 @@ else
 fi
 usermod -aG docker "$DEPLOY_USER"
 
-# The account is --disabled-password, so this key is the only way in. Without
-# it GitHub Actions cannot connect and the deploy job fails on auth.
 if [[ "$CI_KEY" != "none" ]]; then
 	ssh_dir="/home/${DEPLOY_USER}/.ssh"
 	auth="${ssh_dir}/authorized_keys"
@@ -365,9 +270,6 @@ else
 	warn "no CI key installed — GitHub Actions deploys will fail until you add one"
 fi
 
-# ---------------------------------------------------------------- firewall
-
-# OpenSSH is allowed before enable, or this locks us out of our own box.
 log "configuring firewall"
 ufw allow OpenSSH >/dev/null
 
@@ -376,15 +278,11 @@ if [[ $OPEN_ORIGIN -eq 1 ]]; then
 	ufw allow 80/tcp >/dev/null
 	ufw allow 443/tcp >/dev/null
 else
-	# Only Cloudflare may reach the origin. Without this, hiding the IP behind
-	# the proxy is decorative: anyone who learns the address (Censys and Shodan
-	# index every cert served on :443) could still connect straight to the box.
 	log "restricting 80/443 to Cloudflare's ranges"
 	cf_ranges="$( { curl -fsS --max-time 15 https://www.cloudflare.com/ips-v4; echo;
 	                curl -fsS --max-time 15 https://www.cloudflare.com/ips-v6; } 2>/dev/null | grep -E '[0-9a-fA-F:.]+/[0-9]+' || true)"
 	[[ -n "$cf_ranges" ]] || die "could not fetch Cloudflare's IP ranges; re-run, or use --open-origin"
 
-	# Drop any world-open rules a previous run left behind.
 	ufw delete allow 80/tcp >/dev/null 2>&1 || true
 	ufw delete allow 443/tcp >/dev/null 2>&1 || true
 
@@ -398,15 +296,8 @@ fi
 
 ufw --force enable >/dev/null
 
-# ---------------------------------------------------------------- checkout
-
 if [[ -d "${CHECKOUT}/.git" ]]; then
 	log "updating existing checkout"
-	# Pull as deploy, not root. The checkout is owned by deploy, and git's
-	# safe.directory guard refuses to operate on a repository owned by another
-	# user ("detected dubious ownership"). Pulling as root would also drop
-	# root-owned objects into .git for the next run to trip over. This is the
-	# same user CI pulls as, so both stay consistent.
 	chown -R "$DEPLOY_USER:$DEPLOY_USER" "$CHECKOUT"
 	runuser -u "$DEPLOY_USER" -- git -C "$CHECKOUT" pull --ff-only
 else
@@ -418,29 +309,9 @@ chown -R "$DEPLOY_USER:$DEPLOY_USER" "$CHECKOUT"
 [[ -f "${STACK_DIR}/docker-compose.yaml" ]] \
 	|| die "${STACK_DIR}/docker-compose.yaml missing — wrong branch or bad clone?"
 
-# ------------------------------------------------------------- the env files
-#
-# The stack reads three env files, and render-env.sh is what knows which secret
-# belongs in which: it reads each service's own config to find out. So this does
-# not write them. It decides what each secret IS — generating the ones that can
-# be generated, keeping the ones already on the box — and hands the set to that
-# script, which splits it the same way a deploy does.
-#
-# Everything here lasts only until the first deploy, which renders the same
-# three files from the repository's Actions secrets. On a fresh box that costs
-# nothing. On a box that has been running, push the values below to the Actions
-# secrets BEFORE deploying, or the deploy hands the box a different salt and
-# every name's tag changes at once.
-#
-# API_DOMAIN and FRONTEND_ORIGIN are NOT here: they are not secret and live in
-# env.public, in git, which render-env.sh copies into the files it writes.
-
 env_public="${STACK_DIR}/env.public"
 [[ -f "$env_public" ]] || die "${env_public} missing — wrong branch or bad clone?"
 
-# The flags stay required because the DNS and reachability checks below use
-# them, but env.public is what reaches the stack. Two values that disagree would
-# mean certificates for one host and CORS for another, so refuse instead.
 public_value() { sed -n "s/^${1}=//p" "$env_public" | head -1; }
 for pair in "API_DOMAIN:${API_DOMAIN}" "FRONTEND_ORIGIN:${FRONTEND_ORIGIN}"; do
 	name="${pair%%:*}"; passed="${pair#*:}"; in_file="$(public_value "$name")"
@@ -450,8 +321,6 @@ for pair in "API_DOMAIN:${API_DOMAIN}" "FRONTEND_ORIGIN:${FRONTEND_ORIGIN}"; do
   git, and the deploy reads it) or pass the value it already holds."
 done
 
-# A value already on the box, from whichever file holds it. .env alone is the
-# shape a box provisioned before the files were split still has.
 existing_secret() {
 	local name="$1" f
 	for f in "${STACK_DIR}/.env.backend" "${STACK_DIR}/.env.caddy" "${STACK_DIR}/.env"; do
@@ -462,12 +331,6 @@ existing_secret() {
 	done
 }
 
-# Kept unless --force-env, each for its own reason: a new salt renames every
-# tag at once, a new session secret costs every player one extra round trip,
-# and a new postgres password locks the API out of the volume postgres keeps
-# the first one in. The three the provider issues cannot be generated at all.
-# Writes the value to stdout, where the caller captures it, so every word for a
-# person goes to stderr.
 secret_value() {
 	local name="$1" generator="${2:-}" current=""
 	if [[ $FORCE_ENV -eq 0 ]]; then
@@ -484,10 +347,6 @@ secret_value() {
 }
 
 log "rendering .env, .env.caddy and .env.backend"
-# The token passed on the command line is authoritative. Keeping a stale one is
-# the worst case available: the check below passes (it uses the new token) while
-# Caddy keeps the old one and fails at renewal, months later, with nobody
-# watching.
 SECRETS_JSON="$(jq -n \
 	--arg CLOUDFLARE_API_TOKEN "$CF_TOKEN" \
 	--arg CHAT_TAG_SALT "$(secret_value CHAT_TAG_SALT random_salt)" \
@@ -496,12 +355,11 @@ SECRETS_JSON="$(jq -n \
 	--arg TURNSTILE_SECRET "$(secret_value TURNSTILE_SECRET)" \
 	--arg GOOGLE_CLIENT_SECRET "$(secret_value GOOGLE_CLIENT_SECRET)" \
 	--arg DISCORD_CLIENT_SECRET "$(secret_value DISCORD_CLIENT_SECRET)" \
+	--arg CLOUDFLARE_ACCOUNT_ID "$(secret_value CLOUDFLARE_ACCOUNT_ID)" \
+	--arg CLOUDFLARE_EMAIL_TOKEN "$(secret_value CLOUDFLARE_EMAIL_TOKEN)" \
 	'$ARGS.named')" \
 	"${STACK_DIR}/render-env.sh" "$STACK_DIR"
 
-# A tag the operator asked for, which is a compose setting rather than a secret,
-# so render-env.sh does not know about it. The deploy's own render drops it
-# again, by which point CI publishes the tag the box should run.
 if [[ -n "$BACKEND_IMAGE" ]]; then
 	log "pinning BACKEND_IMAGE to ${BACKEND_IMAGE} until the first deploy"
 	printf 'BACKEND_IMAGE=%s\n' "$BACKEND_IMAGE" >> "${STACK_DIR}/.env"
@@ -517,13 +375,6 @@ if [[ $SKIP_START -eq 1 ]]; then
 	exit 0
 fi
 
-# --------------------------------------------------------------- DNS gate
-
-# With DNS-01 the certificate no longer depends on an inbound connection, so
-# this is not about ACME any more — it is about reachability. ufw admits only
-# Cloudflare, so the record MUST be proxied (orange cloud) or nothing reaches
-# the origin at all. A record pointing straight at this box would also put the
-# IP into public DNS, which is what this setup exists to avoid.
 if [[ $SKIP_DNS_CHECK -eq 0 ]]; then
 	log "checking how ${API_DOMAIN} resolves"
 	public_ip="$(curl -fsS --max-time 5 http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address 2>/dev/null \
@@ -553,13 +404,6 @@ if [[ $SKIP_DNS_CHECK -eq 0 ]]; then
 	fi
 fi
 
-# --------------------------------------------------- cloudflare token check
-
-# Caddy only touches ACME when it has no usable certificate, so a broken token
-# is invisible until the unattended renewal ~60 days out — the exact silent
-# failure DNS-01 was chosen to avoid. Prove the token can do both halves of the
-# challenge now: find the zone (Zone:Zone:Read) and write a record in it
-# (Zone:DNS:Edit).
 log "verifying the Cloudflare token can solve DNS-01"
 command -v python3 >/dev/null || die "python3 is missing on this box; it is needed to read the Cloudflare API response"
 
@@ -567,9 +411,6 @@ cf_api() { curl -sS -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: app
 
 zones_json="$(cf_api "https://api.cloudflare.com/client/v4/zones?per_page=50" 2>&1 || true)"
 
-# Report what Cloudflare actually said. Collapsing "bad token", "wrong
-# permission", "no such zone" and "curl failed" into one message sends you
-# looking in the wrong place.
 zone_id="$(printf '%s' "$zones_json" | python3 -c '
 import json, sys
 raw = sys.stdin.read()
@@ -633,9 +474,6 @@ cf_api -X DELETE "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_reco
 
 log "Cloudflare token ok (zone found, TXT write succeeded)"
 
-# ------------------------------------------------------------------- image
-
-# Both images are built in CI; nothing is compiled on this box.
 for image in "${BACKEND_IMAGE:-ghcr.io/raphoester/clickplanet-backend:latest}" \
              "${CADDY_IMAGE:-ghcr.io/raphoester/clickplanet-caddy:latest}"; do
 	log "checking ${image} is pullable"
@@ -646,26 +484,11 @@ for image in "${BACKEND_IMAGE:-ghcr.io/raphoester/clickplanet-backend:latest}" \
 	fi
 done
 
-# -------------------------------------------------------------------- start
-
-# runuser resolves the group list at exec time, so this picks up the docker
-# group added above without the re-login an interactive shell would need.
-#
-# cd first: this script runs as root from root's home over SSH, and runuser
-# keeps the current directory. Compose stats "." while validating the file, so
-# leaving the cwd at /root (mode 700) makes it fail as the deploy user with
-# `error in parsing "compose-spec.json": stat .: permission denied` — which
-# says nothing about permissions on the directory it is actually reading.
-# Being in STACK_DIR also matches what CI does, so both derive the same
-# project name ("vps") and therefore the same volume names.
 cd "$STACK_DIR"
 
 log "starting the stack"
 runuser -u "$DEPLOY_USER" -- docker compose up -d
 
-# On a re-run the pull above may have changed the Caddyfile, and `up -d` does not
-# recreate Caddy for that. Load it in place, as the deploy workflow does. The
-# retry covers a Caddy that has just started and is not listening yet.
 log "reloading the Caddyfile"
 for i in $(seq 1 15); do
 	runuser -u "$DEPLOY_USER" -- docker compose exec -T caddy \
@@ -673,8 +496,6 @@ for i in $(seq 1 15); do
 	[[ $i -eq 15 ]] && die "caddy reload failed — check: docker compose exec caddy caddy validate --config /etc/caddy/Caddyfile"
 	sleep 2
 done
-
-# ------------------------------------------------------------------- verify
 
 log "waiting for the certificate (up to 3 min; DNS-01 waits on TXT propagation)"
 for i in $(seq 1 60); do
@@ -686,11 +507,6 @@ for i in $(seq 1 60); do
 	sleep 3
 done
 
-# The header this checks is the one failure that only ever shows up in a
-# browser: curl without an Origin header passes happily either way.
-#
-# A GET, not a HEAD: connect-go answers HEAD with 405, which -f turns into a
-# silent empty result rather than the check this is meant to be.
 cors="$(curl -fsS -o /dev/null -D- --max-time 5 -H "Origin: ${FRONTEND_ORIGIN}" \
 	"https://${API_DOMAIN}/planet.v1.ClickService/MapDensity?connect=v1&encoding=json&message=%7B%7D" 2>/dev/null \
 	| tr -d '\r' | awk -F': ' 'tolower($1)=="access-control-allow-origin"{print $2}')"

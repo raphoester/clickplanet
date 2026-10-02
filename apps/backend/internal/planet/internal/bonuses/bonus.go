@@ -1,10 +1,3 @@
-// Package bonuses hands out what a player can earn beside their clicks: the question-mark boxes
-// that fly past the planet, and the quizzes that appear over it. Both are addressed to one caller,
-// each on a schedule of that caller's own, and both pay out in the same charges.
-//
-// One package because a caller is one thing — the streams it has open, when it last clicked, which
-// accounts play behind it — and that bookkeeping should not exist twice. The boxes are in this
-// file; everything that is the quiz's own is in quiz.go.
 package bonuses
 
 import (
@@ -23,28 +16,20 @@ import (
 
 type Kind string
 
-// Every kind is a charge: held until it is spent (see Hand), one of each at most.
 const (
-	// KindRefill fills the caller's click bank, when the caller chooses.
 	KindRefill Kind = "refill"
 
-	// KindSpreadClicks makes every click take the tiles touching it as well.
 	KindSpreadClicks Kind = "spread_clicks"
 
-	// KindBomb grants one bomb, kept until it is dropped.
-	KindBomb Kind = "bomb"
-	// KindEncloseClicks makes a click that closes a shape of the caller's own
-	// tiles take the tiles inside it as well, once.
+	KindBomb          Kind = "bomb"
 	KindEncloseClicks Kind = "enclose_clicks"
 )
 
-// Kinds is every kind this server knows how to grant.
 var Kinds = []Kind{KindRefill, KindSpreadClicks, KindBomb, KindEncloseClicks}
 
 type Offer struct {
 	Token string
 
-	// Names the flight path; every client draws the same orbit from it.
 	Seed uint32
 
 	Kind      Kind
@@ -55,38 +40,28 @@ type Taken struct {
 	CountryID string
 	Kind      Kind
 
-	// The country the question was about, when the charge was won by answering one. Empty for a
-	// box, so the same announcement carries both without a second event for the second way to win.
 	QuizSubject string
 }
 
-// Enclosed is a shape an enclose bonus closed, and the tiles it took.
 type Enclosed struct {
 	CountryID string
 
-	// The click that closed it, which is also one of the wall tiles.
 	ClosingTile uint32
 
-	// The caller's tiles that touch the inside.
 	Wall []uint32
 
-	// The tiles taken, nearest the closing tile first.
 	Filled []uint32
 
-	// Set only on the copy sent to the caller who closed it.
 	Yours bool
 }
 
-// Spread is a click a spread bonus carried onto the tiles touching it.
 type Spread struct {
 	CountryID string
 	Tile      uint32
 
-	// The neighbours the click also took. Empty for a lone island.
 	Neighbours []uint32
 }
 
-// Event carries exactly one: an Offer and a Quiz reach their caller, the rest everyone.
 type Event struct {
 	Offer    *Offer
 	Quiz     *QuizOffer
@@ -98,11 +73,9 @@ type Event struct {
 type Reward struct {
 	Kind Kind
 
-	// How much the box gives: enclosures or spread clicks, drawn at the claim. One for a refill or a bomb.
 	Amount int
 }
 
-// caller is one scope: its open streams, and the schedule that outlives them.
 type caller struct {
 	streams map[uint64]chan Event
 
@@ -110,17 +83,13 @@ type caller struct {
 	lastSeen    time.Time
 	lastClickAt time.Time
 
-	// Which accounts clicked from this scope, and when last: whose charges keep a kind from being offered.
 	players map[Holder]time.Time
 
 	outstanding string
 	misses      int
 
-	// When each charge was granted, for MaxChargesPerHour.
 	grants []time.Time
 
-	// The quiz's own half of the same three things. Separate clock, separate slot and separate
-	// budget: a quiz is a second way to earn a charge, not a box of another shape.
 	nextQuizAt      time.Time
 	outstandingQuiz string
 	quizGrants      []time.Time
@@ -130,7 +99,6 @@ func (c *caller) watching() bool {
 	return len(c.streams) > 0
 }
 
-// send drops rather than blocks, as the tile fanout does for a slow subscriber.
 func (c *caller) send(event Event) {
 	for _, events := range c.streams {
 		select {
@@ -140,30 +108,20 @@ func (c *caller) send(event Event) {
 	}
 }
 
-// Report is told what happened to each box, so the counters and the antibot
-// live at the edge and this package keeps knowing nothing about either. Every
-// hook is optional, and each is called with the registry locked, so none may
-// call back into it.
+// Every hook runs with the registry locked, so none may call back into it.
 type Report struct {
 	Offered func(scope string)
 
-	// Lapsed is a box its caller never claimed.
 	Lapsed func(scope string)
 
-	// Caught is a box claimed, and how long after it was offered.
 	Caught func(scope string, after time.Duration)
 
-	// Foreign is a refused claim of a box that was never offered to scope: offered to another
-	// caller, or to nobody the registry remembers. The web app only claims the box on its own
-	// screen, so it never makes one; clients that pass each other their boxes do.
 	Foreign func(scope string)
 
 	QuizOffered func()
 
-	// QuizLapsed is a banner nobody opened, or a question opened and left.
 	QuizLapsed func(scope string)
 
-	// QuizAnswered is an answer that landed, right or wrong, and how long after the banner went out.
 	QuizAnswered func(scope string, correct bool, after time.Duration)
 }
 
@@ -172,11 +130,8 @@ type Registry struct {
 	clock    cptime.Clock
 	report   Report
 	holdings Holdings
-	// What a spread pool holds when full, so a full pool is not offered another box.
-	charges ChargesConfig
+	charges  ChargesConfig
 
-	// The bank, and the quiz's own numbers. Both zero until Quizzing is called, which is what a
-	// process with the quizzes switched off looks like: no bank, no offer, and the boxes as before.
 	quizConfig quizzes.Config
 	bank       Questions
 
@@ -184,12 +139,8 @@ type Registry struct {
 	callers map[string]*caller
 	offers  map[string]*pending
 
-	// spent is who each token was offered to, kept past its claim or its lapse for rememberSpent, so
-	// a claim that comes too late is told apart from a claim of somebody else's box.
 	spent map[string]spentOffer
 
-	// Named for the field and not for the package it borrows its types from, which is imported
-	// here too.
 	quizOffers map[string]*pendingQuiz
 
 	nextID uint64
@@ -207,15 +158,10 @@ type spentOffer struct {
 	until time.Time
 }
 
-// rememberSpent is how long a claimed or lapsed token is still known. Clients that share a token
-// claim it within seconds of each other, so this only has to outlast a slow round trip.
 const rememberSpent = 10 * time.Minute
 
-// A stream gets an event per spread click anyone makes, a few a second each, so
-// this is sized for a burst of those rather than for the rare offer.
 const eventBuffer = 32
 
-// Holdings is what a holder has in hand, which the schedule reads so nobody is offered a second of a kind.
 type Holdings interface {
 	Held(holder Holder) Held
 }
@@ -239,8 +185,6 @@ func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
 	}
 }
 
-// Observe attaches the counters. Optional, so a test builds a registry without
-// touching a metrics registry.
 func (r *Registry) Observe(report Report) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -254,7 +198,6 @@ func (r *Registry) counted(hook func()) {
 	}
 }
 
-// Attend adds a stream to the feed; the returned func must be called when it ends.
 func (r *Registry) Attend(scope string) (<-chan Event, func()) {
 	now := r.clock.Now()
 
@@ -273,7 +216,6 @@ func (r *Registry) Attend(scope string) (<-chan Event, func()) {
 	return events, func() { r.leave(scope, id) }
 }
 
-// caller keeps a schedule across a disconnect, so reloading cannot reroll it.
 func (r *Registry) caller(scope string, now time.Time) *caller {
 	entry, ok := r.callers[scope]
 	if ok {
@@ -305,8 +247,6 @@ func (r *Registry) leave(scope string, id uint64) {
 	entry.lastSeen = r.clock.Now()
 }
 
-// Clicked marks a caller as playing, and holder as one of the players behind it. Boxes only go to callers
-// who are, and not in a kind any of its players holds.
 func (r *Registry) Clicked(scope string, holder Holder) {
 	now := r.clock.Now()
 
@@ -320,7 +260,6 @@ func (r *Registry) Clicked(scope string, holder Holder) {
 	}
 }
 
-// Claim fails for a token unknown, spent, lapsed, or offered to somebody else.
 func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 	now := r.clock.Now()
 
@@ -345,16 +284,12 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 		entry.misses = 0
 		entry.grants = append(entry.grants, now)
 
-		// A charge has no end, so the next is due a window after the claim: a held bomb does not hold
-		// back every other box.
 		entry.nextOfferAt = now.Add(r.window())
 	}
 
 	return Reward{Kind: offer.kind, Amount: r.amountOf(offer.kind)}, true
 }
 
-// refuse reports a refused claim that was not the caller's own box, claimed late or twice. The
-// registry is locked.
 func (r *Registry) refuse(token string, scope string) {
 	owner := ""
 	if offer, ok := r.offers[token]; ok {
@@ -372,8 +307,6 @@ func (r *Registry) Publish(taken Taken) {
 	r.broadcast(Event{Taken: &taken})
 }
 
-// PublishEnclosed sends a closed shape to everyone. The caller who closed it gets
-// a copy of their own, which says so.
 func (r *Registry) PublishEnclosed(scope string, enclosed Enclosed) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -394,7 +327,6 @@ func (r *Registry) PublishEnclosed(scope string, enclosed Enclosed) {
 	}
 }
 
-// PublishSpread sends a spread click to everyone, so every client can show it.
 func (r *Registry) PublishSpread(spread Spread) {
 	r.broadcast(Event{Spread: &spread})
 }
@@ -442,7 +374,6 @@ func (r *Registry) sweep() {
 
 		kinds := r.offerable(entry, now)
 		if kinds.Empty() {
-			// Nothing it may be given: the slot is lost, as it is for a caller who was away.
 			entry.nextOfferAt = now.Add(r.window())
 			continue
 		}
@@ -451,7 +382,6 @@ func (r *Registry) sweep() {
 	}
 }
 
-// due loses the slot for a caller who was away, rather than banking it.
 func (r *Registry) due(entry *caller, now time.Time) bool {
 	if !entry.watching() || entry.outstanding != "" || now.Before(entry.nextOfferAt) {
 		return false
@@ -465,11 +395,6 @@ func (r *Registry) due(entry *caller, now time.Time) bool {
 	return true
 }
 
-// offerable is every kind with a weight that the caller may be given now. A kind any player who clicked
-// from this scope within ActiveWithin holds is left out, so nobody holds two of one kind, and so is spread
-// when a player's pool is already full. Past
-// MaxChargesPerHour charges in the hour nothing is, and a scope where no account is playing is offered
-// nothing: only an account can hold a charge. It forgets the players who stopped clicking on the way.
 func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
 	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
 
@@ -495,8 +420,6 @@ func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
 	return kinds
 }
 
-// grantedWithinTheHour is how many charges were granted in the last hour. It forgets the older grants on
-// the way.
 func (r *Registry) grantedWithinTheHour(entry *caller, now time.Time) int {
 	since := now.Add(-time.Hour)
 
@@ -541,7 +464,6 @@ func (r *Registry) offer(scope string, entry *caller, now time.Time, kinds *cpco
 	}
 }
 
-// collectMisses retires unspent tokens, bringing the next box forward once.
 func (r *Registry) collectMisses(now time.Time) {
 	for token, offer := range r.offers {
 		if now.Before(offer.expiresAt) {
@@ -581,9 +503,6 @@ func (r *Registry) forgetStale(now time.Time) {
 			continue
 		}
 
-		// The quiz goes with the caller that was asked it. Left behind it would be a question
-		// answerable by whoever next got this scope, which is the one way a token could outlive
-		// the player it was addressed to.
 		if entry.outstandingQuiz != "" {
 			delete(r.quizOffers, entry.outstandingQuiz)
 		}
@@ -596,8 +515,6 @@ func (r *Registry) window() time.Duration {
 	return drawWindow(r.config.MinInterval, r.config.MaxInterval)
 }
 
-// drawWindow is a wait drawn uniformly between the two, which is what stops every caller who loaded at
-// the same time being offered something at the same time for ever after.
 func drawWindow(shortest, longest time.Duration) time.Duration {
 	spread := longest - shortest
 	if spread <= 0 {
@@ -612,9 +529,6 @@ func drawWindow(shortest, longest time.Duration) time.Duration {
 	return shortest + time.Duration(n.Int64())
 }
 
-// drawKind picks one of kinds with a chance of its weight over the sum of their weights.
-// It walks Kinds rather than the map, so the same draw always lands on the same
-// kind. kinds is never empty, and holds only kinds with a weight.
 func (r *Registry) drawKind(kinds *cpcolls.Set[Kind]) Kind {
 	total := 0.0
 	var last Kind
@@ -643,11 +557,9 @@ func (r *Registry) drawKind(kinds *cpcolls.Set[Kind]) Kind {
 		left -= weight
 	}
 
-	// Only float rounding reaches here; it belongs to the last kind with a weight.
 	return last
 }
 
-// amountOf draws how much a box of kind gives: 1 to MaxPerBox enclosures or spread clicks, uniformly.
 func (r *Registry) amountOf(kind Kind) int {
 	most := 1
 	switch kind {

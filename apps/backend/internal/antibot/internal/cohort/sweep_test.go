@@ -32,7 +32,6 @@ func TestSweepForgetsSilentScopesAndTheirIndexes(t *testing.T) {
 func TestSweepKeepsAScopeForTheWholeChain(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	// A track window shorter than the chain would forget its first links.
 	w := New(Config{ChainWindow: 30 * time.Minute, TrackWindow: time.Minute}, clock, nil)
 
 	w.Watch(detect.Click{Scope: "198.51.100.7", Tile: 1, Country: "bg", At: clock.Now()})

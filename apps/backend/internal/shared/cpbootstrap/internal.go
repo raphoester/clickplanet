@@ -7,7 +7,6 @@ import (
 	"connectrpc.com/connect"
 )
 
-// internalDialer is the one place that knows the internal transport is loopback HTTP.
 type internalDialer struct {
 	address string
 }

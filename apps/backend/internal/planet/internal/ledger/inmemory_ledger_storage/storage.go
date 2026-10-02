@@ -12,17 +12,14 @@ import (
 )
 
 type Config struct {
-	// How often the takes appended since the last flush are written to postgres.
 	FlushInterval time.Duration
-	// The most takes kept, oldest dropped first even inside the retention. 20 bytes each.
-	MaxTakes int
+	MaxTakes      int
 }
 
 const (
 	defaultFlushInterval = time.Second
 	defaultMaxTakes      = 4_000_000
 
-	// A chunk is 1.25 MiB of records. Takes are dropped from the front, so a whole chunk goes at once.
 	chunkSize = 1 << 16
 )
 
@@ -50,23 +47,19 @@ func New(config Config, persistence Persistence, logger *slog.Logger) *Storage {
 	}
 }
 
-// Storage is an append-only log of takes in chunks. A record is never changed once written, so a
-// replay copies the chunk headers under the lock and reads the records without it.
+// A record is never changed or reused once written: Replay reads them outside the lock.
 type Storage struct {
 	config      Config
 	persistence Persistence
 	logger      *slog.Logger
 
-	mu     sync.Mutex
-	chunks []*chunk
-	// head is how many records of chunks[0] are dropped.
+	mu        sync.Mutex
+	chunks    []*chunk
 	head      int
 	next      ledger.Position
 	forgotten map[ledger.Caller]ledger.Position
-	// full is set while the cap drops takes, so it is reported once rather than per take.
-	full bool
+	full      bool
 
-	// Postgres holds every take before saved, the head savedHead, and every forgotten mark not in dirtyMarks.
 	flushMu    sync.Mutex
 	saved      ledger.Position
 	savedHead  ledger.Position
@@ -75,7 +68,6 @@ type Storage struct {
 
 var _ ledger.Storage = (*Storage)(nil)
 
-// record is 20 bytes. Strings are interned per chunk, so a dropped chunk takes its strings with it.
 type record struct {
 	at       uint32
 	tile     uint32
@@ -86,13 +78,11 @@ type record struct {
 }
 
 type chunk struct {
-	first   ledger.Position
-	records []record
-	// Scopes and accounts share one table.
+	first     ledger.Position
+	records   []record
 	callers   []string
 	countries []string
 
-	// Only the open chunk interns; a sealed one drops its maps.
 	callerIDs  map[string]uint32
 	countryIDs map[string]uint16
 }
@@ -202,7 +192,6 @@ func (s *Storage) headPositionLocked() ledger.Position {
 	return s.chunks[0].first + ledger.Position(s.head) //nolint:gosec // head < chunkSize.
 }
 
-// dropLocked drops the n oldest takes. A chunk emptied is let go, never reused, since a replay may still read it.
 func (s *Storage) dropLocked(n int) {
 	for n > 0 && len(s.chunks) > 0 {
 		first := s.chunks[0]
@@ -266,7 +255,6 @@ func (s *Storage) Forget(caller ledger.Caller, before ledger.Position) {
 	}
 }
 
-// view is a chunk as a replay reads it: its headers, copied under the lock.
 type view struct {
 	first     ledger.Position
 	records   []record
@@ -319,7 +307,6 @@ func (s *Storage) Replay(see func(ledger.Taking)) ledger.Position {
 	return end
 }
 
-// forgottenAt says whether a mark on the take's scope or on its account covers the position.
 func forgottenAt(forgotten map[ledger.Caller]ledger.Position, taking ledger.Taking, position ledger.Position) bool {
 	if before, ok := forgotten[ledger.Caller{Scope: taking.Scope}]; ok && position < before {
 		return true
@@ -343,7 +330,6 @@ func (v view) taking(r record) ledger.Taking {
 	}
 }
 
-// seconds is a time as the record keeps it: to the second, until 2106.
 func seconds(at time.Time) uint32 {
 	return uint32(min(max(at.Unix(), 0), math.MaxUint32)) //nolint:gosec // clamped.
 }

@@ -5,36 +5,21 @@ import CountryFlag from './CountryFlag.tsx'
 import {describeBlast} from '../../domain/blast.ts'
 import './BombNews.css'
 
-/** How long the line stays up. Matched to the `bomb-news` keyframes. */
 export const BOMB_NEWS_MS = 4000
 
 export type BombNewsProps = {
     drop: BombDrop
-    /** The code of the country whose ground the bomb hit, if it hit one. */
     land?: string
 
-    /**
-     * Something else is in the band at the top of the screen — a quiz. Both want the same place,
-     * and this is the one that gives it up: a bomb line is four seconds of news nobody presses,
-     * and a quiz is a clock somebody is answering against. Moving the quiz instead would move it
-     * mid-question, under the cursor already going to a choice.
-     */
     lowered?: boolean
 
     onDone: () => void
 }
 
-/**
- * One line at the top of the screen when a bomb lands anywhere on the planet.
- * Most blasts happen where the player is not looking, so this is how they hear
- * about them at all. Nothing here is clickable.
- */
 export default function BombNews({drop, land, lowered, onDone}: BombNewsProps) {
     const name = Countries.get(drop.countryId)?.name ?? drop.countryId
-    // A code with no name on the list falls back to the tile count.
     const landName = land === undefined ? undefined : Countries.get(land)?.name
 
-    // Held in a ref so only a new drop restarts the countdown; see BonusAward.
     const done = useRef(onDone)
     useEffect(() => {
         done.current = onDone

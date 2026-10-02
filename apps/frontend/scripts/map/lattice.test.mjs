@@ -1,9 +1,3 @@
-// The dedup rule, at a detail small enough to run in the suite. What it has to keep is the rule
-// itself — 6-decimal key, first uv wins, generation order — because that is what makes a position
-// in an existing blob still match a lattice vertex, and so what keeps tile ids where they are.
-//
-// The whole lattice at DETAIL is 906,012 vertices and needs a raised heap; `npm run map:audit`
-// checks it against the shipped blob, and the generator refuses to write a blob that does not.
 import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 
@@ -49,9 +43,6 @@ describe("lattice", () => {
         expect(actual).toEqual(expected)
     })
 
-    // The uvs are what the land mask, the borders and the globe's texture are all sampled with, so
-    // a uv that has drifted from its own position moves a tile into the wrong country. three lays
-    // them out equirectangularly; this says so in a way that fails if that ever changes.
     it("carries uvs that are the equirectangular projection of their own positions", () => {
         const {count, positions, uvs} = lattice(10)
         let worst = 0
@@ -64,7 +55,6 @@ describe("lattice", () => {
             ]
             let dLon = Math.abs(lon - fromPosition[0])
             if (dLon > 180) dLon = 360 - dLon
-            // A pole's longitude is undefined, and the seam's two uvs both name the same meridian.
             if (Math.abs(fromPosition[1]) > 89.9) dLon = 0
             if (Math.abs(dLon - 360) < 1e-3 || Math.abs(dLon) > 179.9) dLon = 0
             worst = Math.max(worst, dLon * Math.cos(fromPosition[1] * Math.PI / 180), Math.abs(lat - fromPosition[1]))

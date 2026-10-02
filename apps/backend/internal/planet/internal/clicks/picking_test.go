@@ -10,7 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// row is tiles in a line, each touching the one before and after.
 func row(tile uint32) []uint32 { return []uint32{tile - 1, tile + 1} }
 
 func span(from, to uint32) []uint32 {

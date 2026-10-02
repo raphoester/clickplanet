@@ -53,7 +53,6 @@ func TestSinkFramesAHeartbeat(t *testing.T) {
 	assert.Nil(t, stream.sent[0].GetTileUpdate())
 }
 
-// A stream that has gone away has to end the feed, not be retried silently.
 func TestSinkReportsAFailedSend(t *testing.T) {
 	stream := &recorder{err: assert.AnError}
 

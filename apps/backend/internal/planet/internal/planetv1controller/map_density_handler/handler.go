@@ -1,4 +1,3 @@
-// Package map_density_handler serves planet.v1.ClickService/MapDensity.
 package map_density_handler
 
 import (

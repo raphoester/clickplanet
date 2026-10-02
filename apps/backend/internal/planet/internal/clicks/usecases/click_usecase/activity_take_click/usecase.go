@@ -1,4 +1,3 @@
-// Package activity_take_click records each click that changed its tile, and who held it before.
 package activity_take_click
 
 import (

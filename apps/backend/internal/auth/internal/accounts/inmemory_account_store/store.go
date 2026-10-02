@@ -1,6 +1,5 @@
 //go:build testing
 
-// Package inmemory_account_store is accounts.Store in maps, for tests. It runs the same contract as postgres.
 package inmemory_account_store
 
 import (
@@ -41,7 +40,6 @@ func New() *Store {
 	}
 }
 
-// FailWith makes every call answer err, as a store that lost its database would.
 func (s *Store) FailWith(err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

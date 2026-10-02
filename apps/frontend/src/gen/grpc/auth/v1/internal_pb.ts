@@ -116,16 +116,11 @@ export class GetAccountRequest extends Message<GetAccountRequest> {
  */
 export class GetAccountResponse extends Message<GetAccountResponse> {
   /**
-   * Signed in with at least one provider. False for a guest.
-   *
    * @generated from field: bool linked = 1;
    */
   linked = false;
 
   /**
-   * When the account was made, as a guest or by a first sign-in. Zero for an
-   * account that does not exist.
-   *
    * @generated from field: int64 created_at_unix_ms = 2;
    */
   createdAtUnixMs = protoInt64.zero;

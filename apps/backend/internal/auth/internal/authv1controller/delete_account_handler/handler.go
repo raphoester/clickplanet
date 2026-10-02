@@ -1,4 +1,3 @@
-// Package delete_account_handler serves auth.v1.AuthService/DeleteAccount.
 package delete_account_handler
 
 import (

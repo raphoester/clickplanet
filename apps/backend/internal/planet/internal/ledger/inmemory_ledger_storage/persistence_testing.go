@@ -11,7 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 )
 
-// MemoryPersistence is a Persistence held in maps, for tests that need a ledger but not postgres.
 type MemoryPersistence struct {
 	mu        sync.Mutex
 	takes     map[ledger.Position]ledger.Taking
@@ -63,7 +62,6 @@ func (m *MemoryPersistence) Save(_ context.Context, changes Changes) error {
 	return nil
 }
 
-// Stored is every take held, in position order.
 func (m *MemoryPersistence) Stored() []Stored {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -89,7 +87,6 @@ func (m *MemoryPersistence) Saves() int {
 	return m.saves
 }
 
-// FailWith makes every Load and Save return err until Heal.
 func (m *MemoryPersistence) FailWith(err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

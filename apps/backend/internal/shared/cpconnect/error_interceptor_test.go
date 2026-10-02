@@ -42,8 +42,6 @@ func TestErrorInterceptor(t *testing.T) {
 		require.Contains(t, err.Error(), "no such tile")
 	})
 
-	// Handlers map the sentinels they recognise themselves; anything reaching
-	// here is by definition unexpected, and its cause is the server's business.
 	t.Run("an unrecognised error is internal and does not leak the cause", func(t *testing.T) {
 		err := intercept(nil, errors.New("disk on fire"))
 
@@ -74,9 +72,6 @@ func (fakeStreamConn) Spec() connect.Spec {
 	return connect.Spec{Procedure: procedure}
 }
 
-// This is why NewErrorInterceptor is a full connect.Interceptor and not a
-// UnaryInterceptorFunc: without WrapStreamingHandler, a live feed would be the
-// one procedure whose raw error reached the caller.
 func TestErrorInterceptorCoversStreams(t *testing.T) {
 	next := connect.StreamingHandlerFunc(func(context.Context, connect.StreamingHandlerConn) error {
 		return errors.New("disk on fire")

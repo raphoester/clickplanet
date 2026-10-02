@@ -7,15 +7,10 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
- * TileTaken is one tile an account took: by a click, a spread or an enclose,
- * one event per tile. A take with no account publishes nothing.
- *
  * @generated from message planet.v1.TileTaken
  */
 export class TileTaken extends Message<TileTaken> {
   /**
-   * The account the click token named, as a UUID.
-   *
    * @generated from field: string account_id = 1;
    */
   accountId = "";
@@ -26,8 +21,6 @@ export class TileTaken extends Message<TileTaken> {
   tileId = 0;
 
   /**
-   * The country the tile now wears.
-   *
    * @generated from field: string country = 3;
    */
   country = "";
@@ -69,37 +62,25 @@ export class TileTaken extends Message<TileTaken> {
 }
 
 /**
- * BombLanded is a bomb that went off, on land or in the sea. A dud, the shadow
- * ban's bomb, publishes nothing: it went off for nobody.
- *
  * @generated from message planet.v1.BombLanded
  */
 export class BombLanded extends Message<BombLanded> {
   /**
-   * The country the bomber played for.
-   *
    * @generated from field: string country = 1;
    */
   country = "";
 
   /**
-   * The tile it hit. Zero when it fell in the sea.
-   *
    * @generated from field: uint32 tile_id = 2;
    */
   tileId = 0;
 
   /**
-   * The country whose ground the tile sits on. Empty in the sea, and on ground
-   * that is no country's.
-   *
    * @generated from field: string ground = 3;
    */
   ground = "";
 
   /**
-   * How many held tiles it cleared.
-   *
    * @generated from field: uint32 cleared = 4;
    */
   cleared = 0;

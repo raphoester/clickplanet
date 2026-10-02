@@ -1,31 +1,18 @@
-// Fetches the geometry every map blob is built from, and caches it outside the repo.
-//
-// Natural Earth 1:50m — public domain, ISO codes in the properties. OpenStreetMap has the same
-// borders as admin_level=2 relations, but you would have to run an Overpass query and stitch ways
-// into rings yourself, and it is ODbL, so share-alike and attribution come with it.
-//
-// **The tag is pinned.** These files decide where every tile is and who owns the ground under it,
-// so two runs a year apart have to produce the same map; `master` does not promise that. Moving the
-// pin is a deliberate act that regenerates the blobs and renumbers tiles — see map/README.md.
 import fs from "node:fs"
 import path from "node:path"
 import {fileURLToPath} from "node:url"
 
+// Pinned: moving it regenerates the map blobs and renumbers every tile.
 export const NATURAL_EARTH_TAG = "v5.1.2"
 
 const base = `https://raw.githubusercontent.com/nvkelso/natural-earth-vector/${NATURAL_EARTH_TAG}/geojson`
 
-// Cached under node_modules/.cache rather than in the repo: it is 3 MB of someone else's data that
-// the pin already makes reproducible, and vendoring it would put a second copy of the borders in
-// git beside the blob they produce.
 const cacheDir = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     "..", "..", "node_modules", ".cache", "natural-earth", NATURAL_EARTH_TAG,
 )
 
 /**
- * Reads one Natural Earth geojson by name, downloading it on the first call.
- *
  * @param {string} name for example `ne_50m_admin_0_countries`
  * @returns {Promise<{features: object[]}>}
  */

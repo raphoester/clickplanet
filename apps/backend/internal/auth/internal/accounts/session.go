@@ -1,4 +1,3 @@
-// Package accounts is who a browser is: an account, and the session its cookie holds.
 package accounts
 
 import (
@@ -6,22 +5,18 @@ import (
 	"time"
 )
 
-// Session is one browser's hold on an account, found by the hash of its cookie's token.
 type Session struct {
-	TokenHash TokenHash
-	Account   AccountID
-	// Linked is whether the account has a provider, which sets how long the session lasts. The store reads it, never writes it.
+	TokenHash  TokenHash
+	Account    AccountID
 	Linked     bool
 	ExtendedAt time.Time
 	ExpiresAt  time.Time
 }
 
-// GuestSession opens a new account's first session.
 func GuestSession(account AccountID, token *Token, lifetime Lifetime, now time.Time) *Session {
 	return newSession(account, token, false, lifetime, now)
 }
 
-// LinkedSession opens a session on an account that has a provider, as a sign-in does.
 func LinkedSession(account AccountID, token *Token, lifetime Lifetime, now time.Time) *Session {
 	return newSession(account, token, true, lifetime, now)
 }
@@ -39,12 +34,10 @@ func (s *Session) ExpiryError(now time.Time) error {
 	return nil
 }
 
-// Extendable is whether the last extension is old enough to extend again, so a busy player is not a write per visit.
 func (s *Session) Extendable(now time.Time, lifetime Lifetime) bool {
 	return now.Sub(s.ExtendedAt) >= lifetime.ExtendEvery
 }
 
-// Extended is a copy of the session extended at now, by the lifetime of its kind. The session itself does not change.
 func (s *Session) Extended(now time.Time, lifetime Lifetime) *Session {
 	extended := *s
 	extended.ExtendedAt = now
@@ -59,20 +52,15 @@ func (s *Session) ttl(lifetime Lifetime) time.Duration {
 	return lifetime.GuestTTL
 }
 
-// Cookie keeps token in the browser for as long as the session lives.
 func (s *Session) Cookie(token *Token, now time.Time) string {
 	return Cookie(CookieName, token.Value, s.ExpiresAt, now)
 }
 
-// Lifetime is how long a session lasts, and how often using it pushes that out.
 type Lifetime struct {
-	// A guest idle this long loses its cookie (default 90 days, the guest prune window).
 	GuestTTL time.Duration
 
-	// A signed-in account idle this long loses its cookie (default 30 days).
 	LinkedTTL time.Duration
 
-	// A session is extended at most this often (default 24h).
 	ExtendEvery time.Duration
 }
 

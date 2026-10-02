@@ -1,7 +1,6 @@
 import {AuthFailure, Provider, PROVIDER_NAMES} from "../../backends/account.ts"
 import {PlayerFailure} from "../../backends/player.ts"
 
-/** One short line per failure. Plain words: the player did nothing wrong in most of these. */
 export function messageOf(failure: AuthFailure, provider?: Provider): string {
     switch (failure) {
         case "off":
@@ -23,12 +22,21 @@ export function messageOf(failure: AuthFailure, provider?: Provider): string {
         }
         case "alreadyLinked":
             return `Your account already has a ${provider ? PROVIDER_NAMES[provider] : "different"} account. You can link only one of each.`
+        case "invalidEmail":
+            return "This is not an email address."
+        case "disposableEmail":
+            return "Use an address you keep. Throwaway addresses are not accepted."
+        case "tooManyCodes":
+            return "Too many codes asked for. Wait a few minutes, then try again."
+        case "wrongCode":
+            return "This code is not correct. Look at the email again, then type it."
+        case "newCode":
+            return "This code does not work any more: it is too old, or too many codes were wrong. Ask for a new code."
         case "failed":
             return "Something went wrong. Try again."
     }
 }
 
-/** One short line per refused username, shown under the name form. */
 export function usernameMessageOf(failure: PlayerFailure): string {
     switch (failure) {
         case "invalid":
@@ -44,15 +52,6 @@ export function usernameMessageOf(failure: PlayerFailure): string {
     }
 }
 
-/**
- * What "Try again" does on the callback page.
- *
- * - `complete`: send the same code again. Only when the server did not use it:
- *   a spent budget is refused before the code is read, and a request that
- *   failed on the way may not have arrived.
- * - `start`: the code is spent or the flow is gone, so go back to the provider.
- * - `none`: nothing the player can do from here.
- */
 export type Retry = "complete" | "start" | "none"
 
 export function retryOf(failure: AuthFailure): Retry {
@@ -68,11 +67,15 @@ export function retryOf(failure: AuthFailure): Retry {
         case "notSignedIn":
         case "linkedElsewhere":
         case "alreadyLinked":
+        case "invalidEmail":
+        case "disposableEmail":
+        case "tooManyCodes":
+        case "wrongCode":
+        case "newCode":
             return "none"
     }
 }
 
-/** "Google", "Google and Discord". */
 export function providerList(providers: Provider[]): string {
     return providers.map((p) => PROVIDER_NAMES[p]).join(" and ")
 }

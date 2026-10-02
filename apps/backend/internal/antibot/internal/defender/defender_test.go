@@ -16,9 +16,8 @@ type harness struct {
 	watchdog *defender.Watchdog
 	clock    *cptime.FixedClock
 	owner    map[uint32]string
-	// ground is whose own soil a tile is on, for the home-soil rule; a tile left out is in no country.
-	ground map[uint32]string
-	next   uint32
+	ground   map[uint32]string
+	next     uint32
 }
 
 func newHarness(config defender.Config) *harness {
@@ -32,8 +31,6 @@ func newHarness(config defender.Config) *harness {
 	return h
 }
 
-// deliver reads the tile the way antibot_click does, the home-soil rule included: a native tile clicked for
-// another flag is cleared, and nobody holds it after.
 func (h *harness) deliver(scope string, tile uint32, country string, accepted bool) detect.Verdict {
 	held := h.owner[tile]
 	cleared := held != country && h.ground[tile] != "" && held == h.ground[tile]
@@ -78,7 +75,6 @@ func config() defender.Config {
 	}
 }
 
-// queue has an attacker take n tiles from BG at once, and the suspect take them back one refill at a time.
 func (h *harness) queue(suspect string, n int, refill time.Duration) detect.Verdict {
 	tiles := make([]uint32, 0, n)
 	for range n {
@@ -100,7 +96,6 @@ func (h *harness) queue(suspect string, n int, refill time.Duration) detect.Verd
 func TestAQueueOfRetakesIsCaughtHoweverSlowItDrains(t *testing.T) {
 	h := newHarness(config())
 
-	// Retaken 1.3s to 39s after the loss: the retaker's reflex window sees almost none of it.
 	var verdict detect.Verdict
 	for range 3 {
 		verdict = h.queue("bot", 30, 1300*time.Millisecond)
@@ -138,7 +133,6 @@ func TestAMostlyRetakingCallerIsOnlySuspectUntilItHasEnoughClicks(t *testing.T) 
 	assert.Equal(t, detect.Suspect, verdict, "30 takes, 25 of them retakes")
 }
 
-// Pinned so nobody sets a share without measuring first: two people fighting over one tile retake every click.
 func TestTwoPlayersFightingOverOneTileReadAsRetakes(t *testing.T) {
 	h := newHarness(config())
 
@@ -218,7 +212,6 @@ func TestARefusedClickTakesNothingFromAnyone(t *testing.T) {
 	assert.Equal(t, detect.Clear, verdict, "the tile never left BG")
 }
 
-// home is a fresh tile on BG's own ground, wearing BG's flag.
 func (h *harness) home() uint32 {
 	tile := h.fresh()
 	h.ground[tile] = "BG"
@@ -226,7 +219,6 @@ func (h *harness) home() uint32 {
 	return tile
 }
 
-// A clear is a loss: a loop taking BG's cleared ground back, one refill at a time, is the one a clear invites.
 func TestAQueueRetakingClearedHomeGroundIsStillCaught(t *testing.T) {
 	h := newHarness(config())
 
@@ -248,7 +240,6 @@ func TestAQueueRetakingClearedHomeGroundIsStillCaught(t *testing.T) {
 	assert.Equal(t, detect.Certain, verdict)
 }
 
-// The same border held by hand, the rule on: three retakes of cleared ground in ten clicks is a person.
 func TestAHomeDefenderWhoAlsoPaintsIsClear(t *testing.T) {
 	h := newHarness(config())
 
@@ -272,8 +263,6 @@ func TestAHomeDefenderWhoAlsoPaintsIsClear(t *testing.T) {
 	assert.Equal(t, detect.Clear, verdict)
 }
 
-// The rule gives a defender no more to retake than before. Off, each foreign click takes a tile: one loss each.
-// On, each clears one: one loss each, and the attacker's second click, on the empty tile, loses nobody anything.
 func TestAClearedTileTakenByTheAttackerIsOneLossNotTwo(t *testing.T) {
 	h := newHarness(config())
 
@@ -297,9 +286,6 @@ func TestAClearedTileTakenByTheAttackerIsOneLossNotTwo(t *testing.T) {
 	assert.Equal(t, detect.Certain, verdict, "BG lost each tile once, at the clear, and winning it back is a retake")
 }
 
-// A clear wins nothing back for anyone, so a player fighting back on BG's ground with two clicks a tile — the
-// clear, then the take — is taking, not retaking, however recently its country lost the tile. Read as a retake,
-// the clear would be half of its clicks.
 func TestAClearIsNeverARetake(t *testing.T) {
 	loose := config()
 	loose.MinShare = 0.4
@@ -310,7 +296,6 @@ func TestAClearIsNeverARetake(t *testing.T) {
 		tile := h.fresh()
 		h.ground[tile] = "BG"
 		h.owner[tile] = "FR"
-		// BG's natives win it back from FR in one click: FR lost it.
 		h.click("bulgarian", tile, "BG")
 
 		h.clock.Advance(time.Second)

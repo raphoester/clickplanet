@@ -1,4 +1,3 @@
-// Package activity_get_map records each map batch a caller asks the origin for, answered or refused.
 package activity_get_map
 
 import (

@@ -1,8 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {Outcome, outcomeOf, ownerAfter} from "./homeSoil.ts"
 
-// The same cases as the server's clicks/home_soil_test.go: this client paints
-// its own click from its copy of the rule, so the two must answer alike.
 const cases: {name: string, owner?: string, ground?: string, flag: string, outcome: Outcome, after?: string}[] = [
     {name: "a native tile clicked for another flag is cleared", owner: "pl", ground: "pl", flag: "de", outcome: "cleared", after: undefined},
     {name: "a native tile clicked by its natives is unchanged", owner: "pl", ground: "pl", flag: "pl", outcome: "unchanged", after: "pl"},

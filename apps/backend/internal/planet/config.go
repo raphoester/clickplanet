@@ -17,30 +17,23 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-// Config is squashed into the process config, so these keys sit at the top
-// level of the file where they have always been.
 type Config struct {
 	GameMap      GameMapConfig
 	TilesStorage inmemory_tile_storage.Config
 	RateLimiter  clicks.ThrottleConfig
 	Toll         clicks.TollConfig
-	// Native land takes two clicks: on a country's own ground, another flag clears its tile before it can take it.
 	HomeSoil     clicks.HomeSoilConfig
 	VPNBlocklist cpipblock.Config
 	AntiBot      antibot.Config
 	Bonus        bonuses.Config
 
-	// The charges each account holds, kept in postgres between boots.
 	ChargeStorage inmemory_charge_storage.Config
 
-	// Who last took each tile, for the operator tools.
 	Ledger        ledger.Config
 	LedgerStorage inmemory_ledger_storage.Config
 
-	// Every raw event of every caller, for a bot detector that learns from behaviour.
 	Activity activity.Config
 
-	// The verifying half of the `auth:` block: a public key, never the seed.
 	Auth cpsession.VerifierConfig
 
 	Database cppg.Config
@@ -50,8 +43,6 @@ type GameMapConfig struct {
 	MaxIndex uint32
 }
 
-// Validate refuses a map of no tiles, which would refuse every click. The
-// `auth:` block it reads is the auth context's to check.
 func (c Config) Validate() error {
 	if c.GameMap.MaxIndex == 0 {
 		return errors.New("gameMap.maxIndex is zero: the map has no tiles")

@@ -28,7 +28,6 @@ func newHarness() *harness {
 	return h
 }
 
-// catches waits the ordinary pace between boxes, then catches one after each delay.
 func (h *harness) catches(delays ...time.Duration) {
 	for _, after := range delays {
 		h.clock.Advance(2 * time.Minute)

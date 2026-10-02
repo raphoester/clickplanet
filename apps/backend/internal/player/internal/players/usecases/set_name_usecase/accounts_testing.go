@@ -10,7 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// FakeAccounts plays the auth module: every account is a guest until it is Linked, and it can fail on demand.
 type FakeAccounts struct {
 	mu       sync.Mutex
 	linked   *cpcolls.Set[players.AccountID]
@@ -24,7 +23,6 @@ func NewFakeAccounts() *FakeAccounts {
 	return &FakeAccounts{linked: cpcolls.NewSet[players.AccountID]()}
 }
 
-// Link makes the account one signed in with a provider.
 func (f *FakeAccounts) Link(account players.AccountID) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -32,7 +30,6 @@ func (f *FakeAccounts) Link(account players.AccountID) {
 	f.linked.Add(account)
 }
 
-// FailWith makes every later call answer err.
 func (f *FakeAccounts) FailWith(err error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -51,7 +48,6 @@ func (f *FakeAccounts) Linked(_ context.Context, account players.AccountID) (boo
 	return f.linked.Contains(account), nil
 }
 
-// Asked is how many times the fake was called.
 func (f *FakeAccounts) Asked() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()

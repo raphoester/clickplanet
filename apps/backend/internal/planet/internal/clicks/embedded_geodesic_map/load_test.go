@@ -13,8 +13,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 )
 
-// gameMap.maxIndex in cmd/api/example.yaml. Written out, not read from the map, so that a blob
-// swapped underneath this suite fails it.
 const tiles = 262119
 
 var geography = mustLoad()
@@ -40,13 +38,13 @@ func TestTheShippedBlobIsADetail300Honeycomb(t *testing.T) {
 
 func TestEveryTileHasAPlausibleNumberOfNeighbours(t *testing.T) {
 	assert.Equal(t, [clicks.MaxDegree + 1]uint32{
-		0: 225,    // single-tile islands, with nobody to spread to
-		1: 516,    //
-		2: 1111,   //
-		3: 3796,   // coastlines
-		4: 5664,   //
-		5: 5048,   // includes whichever of the 12 icosahedron corners are land
-		6: 245759, // inland
+		0: 225,
+		1: 516,
+		2: 1111,
+		3: 3796,
+		4: 5664,
+		5: 5048,
+		6: 245759,
 	}, geography.Stats().Degrees)
 }
 
@@ -62,8 +60,6 @@ func TestTheEdgeCountAndAverageDegree(t *testing.T) {
 }
 
 func TestTileIDsAreOneBasedOverTheBlob(t *testing.T) {
-	// Shift this by one and every neighbourhood is one tile off, symmetrically, with a degree
-	// histogram that still looks right.
 	_, ok := geography.Position(0)
 	assert.False(t, ok, "there is no tile 0")
 
@@ -73,7 +69,6 @@ func TestTileIDsAreOneBasedOverTheBlob(t *testing.T) {
 	_, ok = geography.Position(tiles + 1)
 	assert.False(t, ok, "one past the end is not a tile")
 
-	// Tile 1 is the blob's first entry: the first three floats of coordinates-9998a414.bin.
 	first, ok := geography.Position(1)
 	require.True(t, ok)
 	assert.InDelta(t, -0.5943395495414734, first.X, 1e-9)
@@ -92,9 +87,6 @@ func TestEveryPositionIsOnTheUnitSphere(t *testing.T) {
 }
 
 func TestADiscInlandIsTheHoneycombSeries(t *testing.T) {
-	// deepInlandTile is far enough from any coast that its radius-5 disc is all land. Written
-	// down rather than searched for, so a map that lost its inland runs fails here instead of
-	// picking another tile and passing.
 	const deepInlandTile = 14
 
 	for radius, expected := range map[int]int{1: 7, 2: 19, 3: 37, 4: 61, 5: 91} {
@@ -112,7 +104,6 @@ func TestNoDiscIsBiggerThanTheHoneycombSeries(t *testing.T) {
 }
 
 func TestAdjacencyAloneFindsTheContinents(t *testing.T) {
-	// 20 faces left unstitched would show up here as far more pieces than there is land.
 	sizes := landmassSizes(geography)
 
 	assert.Len(t, sizes, 477, "connected landmasses")

@@ -146,12 +146,9 @@ func (x *GetAccountRequest) GetAccountId() string {
 }
 
 type GetAccountResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Signed in with at least one provider. False for a guest.
-	Linked bool `protobuf:"varint,1,opt,name=linked,proto3" json:"linked,omitempty"`
-	// When the account was made, as a guest or by a first sign-in. Zero for an
-	// account that does not exist.
-	CreatedAtUnixMs int64 `protobuf:"varint,2,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Linked          bool                   `protobuf:"varint,1,opt,name=linked,proto3" json:"linked,omitempty"`
+	CreatedAtUnixMs int64                  `protobuf:"varint,2,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }

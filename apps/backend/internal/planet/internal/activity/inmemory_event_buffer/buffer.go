@@ -1,4 +1,3 @@
-// Package inmemory_event_buffer holds the events since the last flush, so a click never waits on postgres.
 package inmemory_event_buffer
 
 import (
@@ -32,7 +31,6 @@ type Buffer struct {
 
 var _ activity.Recorder = (*Buffer)(nil)
 
-// Record drops the event past maxPending, so a postgres that stays away costs bounded memory.
 func (b *Buffer) Record(event activity.Event) {
 	event = event.Trimmed()
 
@@ -47,7 +45,6 @@ func (b *Buffer) Record(event activity.Event) {
 	b.pending = append(b.pending, event)
 }
 
-// Flushed is what one flush wrote, and what a full buffer dropped since the last one.
 type Flushed struct {
 	Written int
 	Dropped int
@@ -78,7 +75,6 @@ func (b *Buffer) Flush(ctx context.Context) (Flushed, error) {
 	return flushed, nil
 }
 
-// keep puts a failed batch back ahead of what came meanwhile; past maxPending the newest go, as in Record.
 func (b *Buffer) keep(batch []activity.Event) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -92,7 +88,6 @@ func (b *Buffer) keep(batch []activity.Event) {
 	b.pending = batch
 }
 
-// Flusher is the flush, as the runner calls it and a decorator wraps it.
 type Flusher interface {
 	Flush(ctx context.Context) (Flushed, error)
 }
@@ -103,7 +98,6 @@ func NewRunner(interval time.Duration, flusher Flusher) *Runner {
 	return &Runner{interval: interval, flusher: flusher}
 }
 
-// Runner flushes every interval, and once more when the process stops.
 type Runner struct {
 	interval time.Duration
 	flusher  Flusher

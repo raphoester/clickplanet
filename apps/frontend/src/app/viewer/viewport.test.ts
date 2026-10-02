@@ -10,9 +10,6 @@ function rootReports(width: number, height: number) {
 afterEach(() => rootReports(0, 0))
 
 describe("layoutViewport", () => {
-    // `window.innerWidth` follows the pinch on iOS Safari, so believing it
-    // sizes the canvas to the zoomed portion and leaves black beside the globe
-    // once the zoom is released.
     it("reads the root's client box, not the zoom-following window", () => {
         rootReports(390, 844)
         window.innerWidth = 341

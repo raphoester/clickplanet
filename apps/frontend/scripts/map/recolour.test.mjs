@@ -5,8 +5,6 @@ import {recolour} from "./recolour.mjs"
 const LAND = [60, 120, 50]
 const SEA = [20, 40, 130]
 
-// A photo wide enough to hold more than one of the blur's 64-pixel blocks, painted land on the left
-// half and water on the right, with `cover` saying the same unless a test moves it.
 function world({width = 256, height = 128, paint = (x) => x < width / 2} = {}) {
     const photo = new Uint8Array(width * height * 3)
     const cover = new Float32Array(width * height)
@@ -36,8 +34,6 @@ describe("recolour", () => {
         expect(pixelAt(pixels, size, 200, 64)).toEqual(SEA)
     })
 
-    // The island the photo is too coarse to draw: there are tiles here, so a player can click it,
-    // and it has to stop looking like open water.
     it("turns water the tile field covers into land", () => {
         const {photo, cover, size} = world()
         for (let y = 60; y < 68; y++) for (let x = 200; x < 208; x++) cover[y * size.width + x] = 1
@@ -48,7 +44,6 @@ describe("recolour", () => {
         expect(pixelAt(pixels, size, 220, 64)).toEqual(SEA)
     })
 
-    // The other way round, which is what a player reads as ground they cannot take.
     it("turns land the tile field does not cover into water", () => {
         const {photo, cover, size} = world()
         for (let y = 60; y < 68; y++) for (let x = 40; x < 48; x++) cover[y * size.width + x] = 0
@@ -69,8 +64,6 @@ describe("recolour", () => {
         expect(moved).toBeLessThan(size.width * size.height / 4)
     })
 
-    // Under thick cloud, and over an ice shelf, land and water are the same white. There is no
-    // direction to move a pixel along, and inventing one would paint a colour the photo never had.
     it("changes nothing where land and water look the same", () => {
         const {photo, cover, size} = world({paint: () => true})
         for (let y = 0; y < size.height; y++) for (let x = 128; x < 256; x++) cover[y * size.width + x] = 0

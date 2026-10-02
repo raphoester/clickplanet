@@ -1,4 +1,3 @@
-// Package get_player_usecase reads what anybody may know about a player, by its username.
 package get_player_usecase
 
 import (
@@ -19,7 +18,6 @@ type Stats interface {
 	Stats(ctx context.Context, account players.AccountID) (players.Stats, error)
 }
 
-// Accounts is the auth module, asked when an account was made.
 type Accounts interface {
 	CreatedAt(ctx context.Context, account players.AccountID) (time.Time, error)
 }
@@ -35,8 +33,6 @@ func New(profiles Profiles, stats Stats, accounts Accounts, clock cptime.Clock) 
 	return &UseCase{profiles: profiles, stats: stats, accounts: accounts, clock: clock}
 }
 
-// Execute answers players.ErrNoProfile for a name no account holds. A name no account may hold, a guest's
-// included, is not looked up.
 func (u *UseCase) Execute(ctx context.Context, value string) (players.Player, error) {
 	name, err := players.NameOf(value)
 	if err != nil {

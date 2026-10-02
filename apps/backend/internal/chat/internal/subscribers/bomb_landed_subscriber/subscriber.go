@@ -1,4 +1,3 @@
-// Package bomb_landed_subscriber hears planet.v1.BombLanded and announces the bomb in the chat.
 package bomb_landed_subscriber
 
 import (
@@ -29,7 +28,6 @@ var _ cpbootstrap.Handler[*planetv1.BombLanded] = Subscriber{}
 
 var errNoTime = errors.New("the bomb has no time")
 
-// Handle refuses an event with no time: it is planet's bug, and placing it in the chat would be a guess.
 func (s Subscriber) Handle(ctx context.Context, event *planetv1.BombLanded) error {
 	if err := event.GetLandedAt().CheckValid(); err != nil {
 		return fmt.Errorf("%w: %w", errNoTime, err)

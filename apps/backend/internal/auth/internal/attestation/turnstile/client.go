@@ -1,10 +1,3 @@
-// Package turnstile verifies a Cloudflare Turnstile token against siteverify.
-//
-// Every failure mode is a refusal: a network error, a non-2xx, a body that is
-// not JSON, a token for another action or another site all answer the same way
-// a forged token does. Failing open here would make the whole check decorative,
-// since an attacker who can reach the backend can also make siteverify
-// unreachable from it.
 package turnstile
 
 import (
@@ -21,14 +14,10 @@ import (
 )
 
 const (
-	// SiteverifyURL is Cloudflare's endpoint. Never called from the browser:
-	// the secret lives here.
 	SiteverifyURL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
 
 	defaultTimeout = 10 * time.Second
 
-	// Cloudflare documents tokens as up to 2048 characters. Anything longer is
-	// refused before it costs a round trip.
 	maxTokenLength = 2048
 
 	maxBodyBytes = 1 << 16
@@ -41,12 +30,8 @@ type Config struct {
 
 	Secret string
 
-	// The frontend origins siteverify must report. A production value must not
-	// contain localhost: one deployment's allowlist is not another's.
 	Hostnames []string
 
-	// Must match the data-action the widget was rendered with, so a token
-	// minted for some other surface on the same sitekey is not accepted here.
 	Action string
 
 	Timeout time.Duration
@@ -94,9 +79,6 @@ type siteverifyResponse struct {
 	ErrorCodes []string `json:"error-codes"`
 }
 
-// Verify answers nil only for a token siteverify accepted, for this action, from
-// one of the configured hostnames. Every other outcome wraps ErrRefused, and the
-// reason is on the error for the log rather than for the caller.
 func (c *Client) Verify(ctx context.Context, token string, remoteIP string) error {
 	if token == "" {
 		return fmt.Errorf("%w: no token supplied", ErrRefused)

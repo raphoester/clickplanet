@@ -1,4 +1,3 @@
-// Package announce_usecase keeps an announcement, then tells every open stream.
 package announce_usecase
 
 import (
@@ -17,7 +16,6 @@ type Appender interface {
 	Append(ctx context.Context, announcement announcements.Announcement) error
 }
 
-// Publisher is the live feed: an announcement goes out once it is kept.
 type Publisher interface {
 	Publish(update feed.Update)
 }
@@ -37,7 +35,6 @@ type UseCase struct {
 	publisher Publisher
 }
 
-// Execute sends nothing it could not keep, so a client that joins later reads the same chat.
 func (u *UseCase) Execute(ctx context.Context, in In) error {
 	announcement := announcements.Announcement{
 		ID:      announcements.AnnouncementID(uuid.New()),

@@ -22,9 +22,8 @@ const (
 )
 
 type GetAuthorRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required: an empty id, or one that is not an account, is InvalidArgument.
-	AccountId     string `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -67,13 +66,9 @@ func (x *GetAuthorRequest) GetAccountId() string {
 }
 
 type GetAuthorResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The account's username, or "guest_" and its guest code when it chose none:
-	// 6 hex characters, drawn the first time the account is asked about and kept
-	// until it is deleted. Never empty.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// The account is an admin of the game. False with no username.
-	Admin         bool `protobuf:"varint,3,opt,name=admin,proto3" json:"admin,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Admin         bool                   `protobuf:"varint,3,opt,name=admin,proto3" json:"admin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -123,10 +118,8 @@ func (x *GetAuthorResponse) GetAdmin() bool {
 }
 
 type GetAuthorsRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Ids the caller already holds. One that is not an account is
-	// InvalidArgument; a repeat is answered once, and none is an empty answer.
-	AccountIds    []string `protobuf:"bytes,1,rep,name=account_ids,json=accountIds,proto3" json:"account_ids,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountIds    []string               `protobuf:"bytes,1,rep,name=account_ids,json=accountIds,proto3" json:"account_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -169,11 +162,8 @@ func (x *GetAuthorsRequest) GetAccountIds() []string {
 }
 
 type GetAuthorsResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// One per account that could be named, in no particular order. An account
-	// the module knows nothing about is absent, and the caller decides what to
-	// show in its place.
-	Authors       []*Author `protobuf:"bytes,1,rep,name=authors,proto3" json:"authors,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Authors       []*Author              `protobuf:"bytes,1,rep,name=authors,proto3" json:"authors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -216,12 +206,10 @@ func (x *GetAuthorsResponse) GetAuthors() []*Author {
 }
 
 type Author struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	// The username, or "guest_" and the guest code, as on a chat message.
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// An admin of the game. False with no username.
-	Admin         bool `protobuf:"varint,3,opt,name=admin,proto3" json:"admin,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Admin         bool                   `protobuf:"varint,3,opt,name=admin,proto3" json:"admin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

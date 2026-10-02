@@ -18,7 +18,6 @@ describe("callbackOf", () => {
         expect(at("/auth/callback/?code=abc&state=xyz")?.kind).toBe("code")
     })
 
-    // OAuth sends error=access_denied when the player cancels on the provider's page.
     it("reads a refusal as declined, even with a code beside it", () => {
         expect(at("/auth/callback?error=access_denied&state=xyz")).toEqual({kind: "declined"})
         expect(at("/auth/callback?error=access_denied&code=abc&state=xyz")).toEqual({kind: "declined"})

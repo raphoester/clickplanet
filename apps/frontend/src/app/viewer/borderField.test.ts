@@ -4,7 +4,6 @@ import {regions} from "./atlas.ts"
 
 const TEXELS = 4
 
-// A world of `total` tiles, all in one landmass, plus `spare` tiles in none.
 function world(total: number, spare = 0): BorderData {
     const codes = ["", "xx"]
     const assignment = new Uint16Array(total + spare)
@@ -13,8 +12,8 @@ function world(total: number, spare = 0): BorderData {
     const frames = new Float32Array(codes.length * 5)
     frames[5] = 0
     frames[6] = 0
-    frames[7] = 1      // centre, somewhere on the sphere
-    frames[8] = 0.1    // how far its tiles reach, east and north
+    frames[7] = 1
+    frames[8] = 0.1
     frames[9] = 0.1
 
     const totals = new Uint32Array(codes.length)
@@ -55,7 +54,6 @@ describe("who a landmass flies", () => {
         field.apply(claims("fr", 1, 5))
         expect(field.holderOf(1)).toBe("fr")
 
-        // Three of France's five go over, so Germany leads 6-2.
         field.apply(claims("de", 1, 3))
         field.apply(claims("de", 6, 8))
 
@@ -91,7 +89,6 @@ describe("what a landmass has to earn before it paints", () => {
         field.apply(claims("fr", 1, 3))
 
         expect(field.holderOf(1)).toBeUndefined()
-        // A zero-width region is what the shader reads as "nobody holds this".
         expect(regionOf(field)).toEqual([0, 0, 0, 0])
     })
 
@@ -123,11 +120,6 @@ describe("opacity", () => {
         }
     })
 
-    // The regression that made a country brighter the further in you zoomed.
-    // Zoomed in, a holder's share is already on screen as the fraction of discs
-    // wearing their flag, so the tiles show `share * 0.7` of ink. The painted
-    // flag shows `opacity * 0.94`. Whenever the flag is the fainter of the two,
-    // the crossfade between them ramps up instead of down.
     it("is never fainter than the tiles the flag hands over to", () => {
         for (const held of [8, 20, 37, 50, 75, 90, 100]) {
             const field = new BorderField(world(100), 100)
@@ -149,8 +141,6 @@ describe("the landmass table", () => {
         expect(reach()).toBeCloseTo(0.1)
     })
 
-    // `needsUpdate` is write-only on a texture; the upload it schedules shows up
-    // as a bumped version.
     it("is not re-uploaded when nothing about a landmass changed", () => {
         const field = new BorderField(world(8), 8)
         field.apply(claims("fr", 1, 5))
