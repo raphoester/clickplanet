@@ -1,3 +1,9 @@
+/* The chat's size, read by the anthem bar too so it moves aside as the chat grows. */
+:root {
+    --chat-width: max(360px, min(var(--chat-wanted-width, 360px), calc(100vw - 540px)));
+    --chat-height: min(calc(100vh - 32px), max(280px, var(--chat-wanted-height, 460px)));
+}
+
 html,
 body {
     height: 100%;
