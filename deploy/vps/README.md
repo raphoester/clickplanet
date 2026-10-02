@@ -919,8 +919,8 @@ The tile map, the ledger and the chat are kept in the `postgres` service, on the
 `pg_data` volume, and so are the antibot's bans and evidence. The API loads them
 at boot, writes what changed every second (bans and evidence every minute), and
 once more on a clean shutdown; each chat message is written before it is
-broadcast. It is not published on any port: only the backend
-reaches it. Each backend module keeps its tables in a schema of its own (`planet`
+broadcast. It is published on `127.0.0.1:5432` only: the backend and the box
+itself reach it, the internet does not. Each backend module keeps its tables in a schema of its own (`planet`
 for the tile map and the ledger, `antibot` for bans and evidence, `chat` for the
 messages) and migrates it at boot. The API refuses to start without postgres.
 
@@ -938,6 +938,15 @@ docker compose exec postgres psql -U clickplanet -c "select count(*) from planet
 ```
 
 A psql shell: `docker compose exec postgres psql -U clickplanet`.
+
+From the box itself, any client reaches it at `127.0.0.1:5432` with the
+`POSTGRES_PASSWORD` from `.env`. Write `127.0.0.1`, not `localhost`: only IPv4
+is published, and `localhost` can resolve to `::1` first. From your laptop,
+through an SSH tunnel:
+
+```bash
+ssh -N -L 5432:127.0.0.1:5432 deploy@YOUR_IP
+```
 
 ### Backups
 
