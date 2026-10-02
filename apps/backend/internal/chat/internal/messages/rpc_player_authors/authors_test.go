@@ -22,6 +22,8 @@ type stubPlayer struct {
 
 	names  map[string]string
 	admins map[string]bool
+	colors map[string]playerv1.NameColor
+	streak map[string]uint32
 	err    error
 	asked  *string
 }
@@ -35,8 +37,10 @@ func (s stubPlayer) GetAuthor(
 		return nil, s.err
 	}
 	return connect.NewResponse(&playerv1.GetAuthorResponse{
-		Name:  s.names[req.Msg.GetAccountId()],
-		Admin: s.admins[req.Msg.GetAccountId()],
+		Name:   s.names[req.Msg.GetAccountId()],
+		Admin:  s.admins[req.Msg.GetAccountId()],
+		Color:  s.colors[req.Msg.GetAccountId()],
+		Streak: s.streak[req.Msg.GetAccountId()],
 	}), nil
 }
 
@@ -72,6 +76,20 @@ func TestItAnswersTheName(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, messages.Author{Name: "Ada_L", Admin: true}, author)
 	assert.Equal(t, ada.String(), *asked)
+}
+
+func TestItAnswersTheColorAndTheStreak(t *testing.T) {
+	player := stubPlayer{
+		names:  map[string]string{ada.String(): "Ada_L"},
+		colors: map[string]playerv1.NameColor{ada.String(): playerv1.NameColor_NAME_COLOR_TEAL},
+		streak: map[string]uint32{ada.String(): 12},
+		asked:  new(string),
+	}
+
+	author, err := authors(t, player).Author(t.Context(), ada)
+
+	require.NoError(t, err)
+	assert.Equal(t, messages.Author{Name: "Ada_L", Color: int32(playerv1.NameColor_NAME_COLOR_TEAL), Streak: 12}, author)
 }
 
 func TestAPlayerModuleThatFailsIsAnError(t *testing.T) {

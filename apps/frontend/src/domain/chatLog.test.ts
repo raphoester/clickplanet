@@ -12,12 +12,15 @@ import {
     unreadSince,
 } from "./chatLog.ts"
 import type {ChatAnnouncement, ChatMessage} from "../backends/chat.ts"
+import {NameColor} from "../backends/player.ts"
 
 const message = (id: string, sentAt: number): ChatMessage => ({
     id,
     sentAt,
     authorName: "Ana",
     authorAdmin: false,
+    authorColor: NameColor.UNSPECIFIED,
+    authorStreak: 0,
     countryCode: "fr",
     text: `message ${id}`,
     reactions: [],
@@ -196,5 +199,21 @@ describe("interleave", () => {
 
     it("shows announcements alone when nobody said anything", () => {
         expect(entryIds(interleave([], [bomb("b", 1)]))).toEqual(["b"])
+    })
+
+    it("leaves out announcements older than a full log's oldest message", () => {
+        expect(entryIds(interleave(
+            [message("m1", 10), message("m2", 30)],
+            [bomb("b0", 5), bomb("b1", 20)],
+            2,
+        ))).toEqual(["m1", "b1", "m2"])
+    })
+
+    it("keeps older announcements while the log has room", () => {
+        expect(entryIds(interleave(
+            [message("m1", 10), message("m2", 30)],
+            [bomb("b0", 5)],
+            3,
+        ))).toEqual(["b0", "m1", "m2"])
     })
 })

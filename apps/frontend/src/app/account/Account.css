@@ -9,9 +9,26 @@
     margin: 0 0 4px 0;
 }
 
+.account-panel .stat-tiles {
+    margin-bottom: 8px;
+}
+
 .sign-in-pitch {
     padding-bottom: 0;
     text-align: left;
+}
+
+.sign-in-pitch-perks {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 0 12px 0;
+    padding: 0 0 0 18px;
+    line-height: 1.35;
+}
+
+.sign-in-pitch-perks strong {
+    color: white;
 }
 
 .sign-in-pitch-small {
@@ -117,6 +134,60 @@
     font-family: Oswald, sans-serif;
     font-size: 12px;
     color: #FFFFFF80;
+}
+
+.account-color {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.account-color-preview {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-transform: none;
+    color: hsl(var(--author-hue, 0), calc(80% * var(--author-chroma, 1)), 78%);
+}
+
+.account-color-swatches {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+    justify-items: center;
+}
+
+.account-color-swatch {
+    width: 100%;
+    max-width: 32px;
+    aspect-ratio: 1;
+    padding: 0;
+    border: 2px solid #00000080;
+    border-radius: 50%;
+    background: hsl(var(--author-hue, 0), 80%, 78%);
+    cursor: pointer;
+}
+
+.account-color-swatch-auto {
+    border-style: dashed;
+    border-color: #FFFFFFAA;
+}
+
+.account-color-swatch[aria-pressed="true"] {
+    border: 2px solid white;
+    box-shadow: inset 0 0 0 2px #000000;
+}
+
+.account-color-swatch:focus-visible {
+    outline: 2px solid white;
+    outline-offset: 2px;
+}
+
+.account-color-swatch:disabled {
+    cursor: default;
+    opacity: 0.6;
 }
 
 .account-legal {

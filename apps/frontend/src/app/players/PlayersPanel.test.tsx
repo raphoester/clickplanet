@@ -2,14 +2,14 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {RosterEntry} from "../../backends/player.ts"
+import {NameColor, RosterEntry} from "../../backends/player.ts"
 import {authorHue} from "../../domain/authorColor.ts"
 import PlayersPanel from "./PlayersPanel.tsx"
 
 afterEach(cleanup)
 
-const entry = (name: string, guest: boolean, countryCode = "fr", admin = false): RosterEntry =>
-    ({key: name, name, countryCode, guest, admin})
+const entry = (name: string, guest: boolean, countryCode = "fr", admin = false, color = NameColor.UNSPECIFIED, streak = 0): RosterEntry =>
+    ({key: name, name, countryCode, guest, admin, color, streak})
 
 const group = (name: string) => screen.queryByRole("region", {name: new RegExp(`^${name}`)})
 const names = (region: HTMLElement) =>

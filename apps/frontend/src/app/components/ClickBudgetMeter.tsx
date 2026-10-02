@@ -1,6 +1,7 @@
-import {ReactNode, useEffect, useRef} from 'react'
+import {ReactNode, useEffect, useRef, useState} from 'react'
 import {ClickBudget, nextClickProgress, now, secondsToOneMore, SharedBy, tokensAt} from "../../backends/clickBudget.ts"
 import {describePrice, factor} from "../../domain/clickPrice.ts"
+import {useDockBottom} from "./useDockBottom.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
@@ -29,6 +30,8 @@ export default function ClickBudgetMeter({
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const wait = useRef<HTMLSpanElement>(null)
+    const [dock, setDock] = useState<HTMLDivElement | null>(null)
+    useDockBottom(dock)
 
     useEffect(() => {
         const box = root.current
@@ -98,7 +101,7 @@ export default function ClickBudgetMeter({
         return () => cancelAnimationFrame(frame)
     }, [budget])
 
-    if (!budget) return children ? <div className="click-budget-dock">{children}</div> : null
+    if (!budget) return children ? <div ref={setDock} className="click-budget-dock">{children}</div> : null
 
     const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
 
@@ -108,7 +111,7 @@ export default function ClickBudgetMeter({
 
     const speedUp = onSignIn && budget.linkedMultiplier
 
-    return <div className="click-budget-dock">
+    return <div ref={setDock} className="click-budget-dock">
         <div
             ref={root}
             className="click-budget"

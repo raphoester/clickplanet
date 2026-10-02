@@ -45,6 +45,41 @@ func (r *Reader) CreatedAt(ctx context.Context, account players.AccountID) (time
 	return time.UnixMilli(res.GetCreatedAtUnixMs()).UTC(), nil
 }
 
+func (r *Reader) CreationDates(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]time.Time, error) {
+	dates := make(map[players.AccountID]time.Time, len(accounts))
+	if len(accounts) == 0 {
+		return dates, nil
+	}
+
+	client, baseURL, err := r.dial.Dial()
+	if err != nil {
+		return nil, fmt.Errorf("failed to reach the auth module: %w", err)
+	}
+
+	ids := make([]string, len(accounts))
+	for i, account := range accounts {
+		ids[i] = account.String()
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, askTimeout)
+	defer cancel()
+
+	res, err := authv1connect.NewInternalServiceClient(client, baseURL).
+		GetCreationDates(ctx, connect.NewRequest(&authv1.GetCreationDatesRequest{AccountIds: ids}))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call auth.v1.InternalService/GetCreationDates: %w", err)
+	}
+
+	for _, date := range res.Msg.GetDates() {
+		account, err := players.AccountIDOf(date.GetAccountId())
+		if err != nil {
+			return nil, fmt.Errorf("auth answered a creation date for %w", err)
+		}
+		dates[account] = time.UnixMilli(date.GetCreatedAtUnixMs()).UTC()
+	}
+	return dates, nil
+}
+
 func (r *Reader) account(ctx context.Context, account players.AccountID) (*authv1.GetAccountResponse, error) {
 	client, baseURL, err := r.dial.Dial()
 	if err != nil {

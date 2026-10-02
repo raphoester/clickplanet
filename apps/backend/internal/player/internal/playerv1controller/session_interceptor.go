@@ -28,6 +28,7 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
 		playerv1connect.PlayerServiceGetProfileProcedure,
 		playerv1connect.PlayerServiceSetNameProcedure,
+		playerv1connect.PlayerServiceSetColorProcedure,
 		playerv1connect.PlayerServiceGetStatsProcedure,
 		playerv1connect.PlayerServiceAnnounceProcedure,
 		playerv1connect.PlayerServiceLeaveProcedure,

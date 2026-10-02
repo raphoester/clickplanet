@@ -7,11 +7,13 @@ import {ChevronIcon} from "../components/icons.tsx";
 import {opensFolded} from "../compact.ts";
 import {truncate} from "../truncate.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
-import {authorStyle} from "./authorStyle.ts";
+import {authorOf, authorStyle} from "./authorStyle.ts";
+import {RESIZE_EDGES} from "./chatSize.ts";
 import ChatComposer from "./ChatComposer.tsx";
 import ChatLog from "./ChatLog.tsx";
 import {useChat} from "./useChat.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
+import {useChatSize} from "./useChatSize.ts";
 import "./ChatPanel.css"
 
 export type ChatPanelProps = {
@@ -35,6 +37,8 @@ export default function ChatPanel(props: ChatPanelProps) {
     const [unread, setUnread] = useState(0)
     const [flashing, setFlashing] = useState<ReadonlySet<string>>(NOTHING)
     const bodyId = useId()
+    const panel = useRef<HTMLElement>(null)
+    const {startResize, resetSize} = useChatSize(panel)
 
     const {username} = props
     const {messages, announcements, mine, displayName, status, failure, send, react} =
@@ -113,7 +117,15 @@ export default function ChatPanel(props: ChatPanelProps) {
     const latest = messages[messages.length - 1]
     const waiting = !isOpen && unread > 0
 
-    return <section className={panelClass(isOpen, waiting)} aria-label="Live chat">
+    return <section ref={panel} className={panelClass(isOpen, waiting)} aria-label="Live chat">
+        {isOpen && RESIZE_EDGES.map(edge =>
+            <div key={edge}
+                 className={`chat-resize chat-resize-${edge}`}
+                 aria-hidden="true"
+                 title="Drag to resize, double-click to reset"
+                 onPointerDown={event => startResize(edge, event)}
+                 onDoubleClick={resetSize}/>)}
+
         <button type="button"
                 className="chat-header"
                 aria-expanded={isOpen}
@@ -136,7 +148,7 @@ export default function ChatPanel(props: ChatPanelProps) {
                 <span className="chat-peek"
                       key={latest.id}
                       aria-hidden="true"
-                      style={authorStyle(latest.authorName)}>
+                      style={authorStyle(authorOf(latest))}>
                     <span className="chat-peek-author">
                         {truncate(latest.authorName, PEEK_AUTHOR_MAX_LENGTH)}
                     </span>

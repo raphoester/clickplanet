@@ -989,7 +989,7 @@ rm -f ~/backups/tiles-*.tar.gz
 ## 10. Operator tools
 
 `httpServer.adminBindAddress` serves the backend's operator services
-(`planet.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
+(`planet.v1.AdminService`, `player.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
 not behind Caddy and have **no authentication**: loopback is their whole
 protection, so a non-loopback address refuses the boot. Reach them from the box
 with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
@@ -1026,6 +1026,24 @@ docker compose exec postgres psql -U clickplanet -c "create table planet.tiles_b
 To go back: stop the backend (its last flush runs on the way down), then
 `truncate planet.tiles; insert into planet.tiles select * from planet.tiles_before_reassign;` in psql,
 then start it.
+
+### Backfill the players' titles
+
+Run it **once after the deploy that brings titles**. It gives every player
+that took a tile the titles its stats earn, and OG to an account made before
+2026-11-01. After that, titles are granted as players take tiles. Run it again
+only after adding a title or changing a rule:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/player.v1.AdminService/BackfillTitles
+```
+
+- The answer is `{"accounts":N}`: how many players earn at least one title.
+  `{}` means none.
+- **Running it twice is harmless**: a title already held is not granted again,
+  and keeps the date it was first earned. A failed run is simply run again.
+- It reads 500 players at a time and asks auth when each page's accounts were made.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin title backfill"`.
 
 ### Paint random tiles of a country with a flag
 

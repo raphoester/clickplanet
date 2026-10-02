@@ -2,9 +2,12 @@ syntax = "proto3";
 
 package player.v1;
 
+import "player/v1/color.proto";
+
 service PlayerService {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
   rpc SetName(SetNameRequest) returns (SetNameResponse);
+  rpc SetColor(SetColorRequest) returns (SetColorResponse);
   rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
 
   rpc Announce(AnnounceRequest) returns (AnnounceResponse);
@@ -31,6 +34,7 @@ message GetProfileRequest {}
 
 message GetProfileResponse {
   Profile profile = 1;
+  NameColor color = 2;
 }
 
 message SetNameRequest {
@@ -39,6 +43,14 @@ message SetNameRequest {
 
 message SetNameResponse {
   Profile profile = 1;
+}
+
+message SetColorRequest {
+  NameColor color = 1;
+}
+
+message SetColorResponse {
+  NameColor color = 1;
 }
 
 message Stats {
@@ -80,6 +92,8 @@ message RosterEntry {
   bool guest = 4;
   bool admin = 5;
   string key = 6;
+  NameColor color = 7;
+  uint32 streak = 8;
 }
 
 message ListenForEventsRequest {}
@@ -116,4 +130,11 @@ message Player {
   Stats stats = 2;
   int64 created_at_unix_ms = 3;
   bool admin = 4;
+  NameColor color = 5;
+  repeated Title titles = 6;
+}
+
+message Title {
+  string id = 1;
+  string name = 2;
 }

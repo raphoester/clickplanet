@@ -8,8 +8,9 @@ import {
     Roster as RosterPb,
     RosterEntry as RosterEntryPb,
     Stats as StatsPb,
+    Title as TitlePb,
 } from "../gen/grpc/player/v1/player_pb.ts"
-import {isValidUsername, PlayerError, RosterEvent, usernameOf} from "./player.ts"
+import {isValidUsername, NameColor, PlayerError, RosterEvent, usernameOf} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
 
@@ -106,6 +107,20 @@ describe("ConnectPlayerBackend", () => {
         const backend = backendWith({getProfile: vi.fn(async () => ({}))})
 
         expect(await backend.profile()).toEqual({accountId: "", name: ""})
+    })
+
+    it("reads the streak with the click token", async () => {
+        const getStats = vi.fn(async () => ({stats: new StatsPb({tilesTaken: 12n, streakCurrent: 4, streakBest: 9, streakLastDay: "2026-10-01"})}))
+        const backend = backendWith({getStats})
+
+        expect(await backend.streak()).toEqual({current: 4, best: 9})
+        expect(headersOf(getStats).headers.get(SESSION_HEADER)).toBe("token-1")
+    })
+
+    it("reads no stats as no streak", async () => {
+        const backend = backendWith({getStats: vi.fn(async () => ({}))})
+
+        expect(await backend.streak()).toEqual({current: 0, best: 0})
     })
 
     it("sends the name with the click token, and answers what the server stored", async () => {
@@ -274,8 +289,10 @@ const failingWith = (error: ConnectError) => (): AsyncIterable<PlayerEventPb> =>
 })
 
 describe("ConnectPlayerBackend live roster", () => {
-    const entryPb = new RosterEntryPb({key: "k1", name: "ana", countryId: "fr", guest: false, admin: true})
-    const ana = {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: true}
+    const entryPb = new RosterEntryPb({
+        key: "k1", name: "ana", countryId: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12,
+    })
+    const ana = {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12}
 
     afterEach(() => vi.useRealTimers())
 
@@ -343,11 +360,15 @@ describe("ConnectPlayerBackend player info", () => {
                 stats: new StatsPb({tilesTaken: 1234n, streakCurrent: 3, streakBest: 7, streakLastDay: "2026-09-17"}),
                 createdAtUnixMs: 1_788_000_000_000n,
                 admin: true,
+                color: NameColor.VIOLET,
+                titles: [new TitlePb({id: "settler", name: "Settler"}), new TitlePb({id: "loyal", name: "Loyal"})],
             }),
         }))
 
         expect(await backendWith({getPlayer}, session).playerInfo("ana")).toEqual({
             name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
+            color: NameColor.VIOLET,
+            titles: [{id: "settler", name: "Settler"}, {id: "loyal", name: "Loyal"}],
         })
         expect(getPlayer).toHaveBeenCalledWith({name: "ana"})
         expect(session.token).not.toHaveBeenCalled()

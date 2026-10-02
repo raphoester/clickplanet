@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 )
@@ -14,6 +15,8 @@ func Encode(message messages.Message, counts []reactions.Count, version uint64) 
 		SentAtUnixMs:     message.SentAt.UnixMilli(),
 		AuthorName:       message.AuthorName,
 		AuthorAdmin:      message.AuthorAdmin,
+		AuthorColor:      playerv1.NameColor(message.AuthorColor),
+		AuthorStreak:     message.AuthorStreak,
 		CountryId:        message.CountryID,
 		Text:             message.Text,
 		Reactions:        EncodeCounts(counts),

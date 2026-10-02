@@ -34,6 +34,7 @@ const mapTiles = 262119
 
 type gameStack struct {
 	baseURL  string
+	adminURL string
 	fakes    auth.FakeProviders
 	activity cppg.Config
 }
@@ -43,7 +44,9 @@ func startGame(t *testing.T) gameStack {
 
 	postgres := cppg.StartTestServer(t)
 	secret, _ := cpsession.TestKeyPair()
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t), InternalBindAddress: freeAddress(t)}
+	server := cpbootstrap.ServerConfig{
+		BindAddress: freeAddress(t), InternalBindAddress: freeAddress(t), AdminBindAddress: freeAddress(t),
+	}
 
 	authConfig := auth.Config{
 		SignerConfig: cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: time.Hour},
@@ -96,7 +99,10 @@ func startGame(t *testing.T) gameStack {
 		return true
 	}, time.Minute, 50*time.Millisecond, "the server never came up")
 
-	return gameStack{baseURL: "http://" + server.BindAddress, fakes: fakes, activity: planetConfig.Activity.Database}
+	return gameStack{
+		baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes,
+		activity: planetConfig.Activity.Database,
+	}
 }
 
 type gamer struct {
@@ -180,6 +186,17 @@ func (p *gamer) setName(name string) (*playerv1.Profile, error) {
 		return nil, fmt.Errorf("SetName failed: %w", err)
 	}
 	return res.Msg.GetProfile(), nil
+}
+
+func (p *gamer) setColor(color playerv1.NameColor) error {
+	p.t.Helper()
+
+	req := connect.NewRequest(&playerv1.SetColorRequest{Color: color})
+	p.send(req.Header())
+	if _, err := p.players().SetColor(p.t.Context(), req); err != nil {
+		return fmt.Errorf("SetColor failed: %w", err)
+	}
+	return nil
 }
 
 func (p *gamer) click(tile uint32, country string) {
@@ -316,4 +333,27 @@ func TestADeletedAccountLosesItsStatsAndItsName(t *testing.T) {
 		return err == nil && res.Msg.GetProfile().GetName() == ""
 	}, 5*time.Second, 20*time.Millisecond)
 	assert.Zero(t, ada.stats().GetTilesTaken())
+}
+
+func TestAnOperatorBackfillsTheTitlesOnTheAdminListenerOnly(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+	_, err := ada.setName("Ada")
+	require.NoError(t, err)
+	ada.click(1, "fr")
+	require.Eventually(t, func() bool { return ada.stats().GetTilesTaken() == 1 }, 5*time.Second, 20*time.Millisecond)
+
+	request := connect.NewRequest(&playerv1.BackfillTitlesRequest{})
+	_, err = playerv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).BackfillTitles(t.Context(), request)
+	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "the public router does not serve it")
+
+	res, err := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).BackfillTitles(t.Context(), request)
+	require.NoError(t, err)
+
+	player, err := playerv1connect.NewPlayerServiceClient(http.DefaultClient, game.baseURL).
+		GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "Ada"}))
+	require.NoError(t, err)
+	assert.Equal(t, len(player.Msg.GetPlayer().GetTitles()) > 0, res.Msg.GetAccounts() == 1,
+		"the answer counts the one account if it earns a title, and then it holds one")
 }

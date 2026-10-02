@@ -39,12 +39,16 @@ const (
 	// InternalServiceGetAccountProcedure is the fully-qualified name of the InternalService's
 	// GetAccount RPC.
 	InternalServiceGetAccountProcedure = "/auth.v1.InternalService/GetAccount"
+	// InternalServiceGetCreationDatesProcedure is the fully-qualified name of the InternalService's
+	// GetCreationDates RPC.
+	InternalServiceGetCreationDatesProcedure = "/auth.v1.InternalService/GetCreationDates"
 )
 
 // InternalServiceClient is a client for the auth.v1.InternalService service.
 type InternalServiceClient interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
 	GetAccount(context.Context, *connect.Request[v1.GetAccountRequest]) (*connect.Response[v1.GetAccountResponse], error)
+	GetCreationDates(context.Context, *connect.Request[v1.GetCreationDatesRequest]) (*connect.Response[v1.GetCreationDatesResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the auth.v1.InternalService service. By default,
@@ -70,13 +74,21 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(internalServiceMethods.ByName("GetAccount")),
 			connect.WithClientOptions(opts...),
 		),
+		getCreationDates: connect.NewClient[v1.GetCreationDatesRequest, v1.GetCreationDatesResponse](
+			httpClient,
+			baseURL+InternalServiceGetCreationDatesProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetCreationDates")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getVerifyingKey *connect.Client[v1.GetVerifyingKeyRequest, v1.GetVerifyingKeyResponse]
-	getAccount      *connect.Client[v1.GetAccountRequest, v1.GetAccountResponse]
+	getVerifyingKey  *connect.Client[v1.GetVerifyingKeyRequest, v1.GetVerifyingKeyResponse]
+	getAccount       *connect.Client[v1.GetAccountRequest, v1.GetAccountResponse]
+	getCreationDates *connect.Client[v1.GetCreationDatesRequest, v1.GetCreationDatesResponse]
 }
 
 // GetVerifyingKey calls auth.v1.InternalService.GetVerifyingKey.
@@ -89,10 +101,16 @@ func (c *internalServiceClient) GetAccount(ctx context.Context, req *connect.Req
 	return c.getAccount.CallUnary(ctx, req)
 }
 
+// GetCreationDates calls auth.v1.InternalService.GetCreationDates.
+func (c *internalServiceClient) GetCreationDates(ctx context.Context, req *connect.Request[v1.GetCreationDatesRequest]) (*connect.Response[v1.GetCreationDatesResponse], error) {
+	return c.getCreationDates.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the auth.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
 	GetAccount(context.Context, *connect.Request[v1.GetAccountRequest]) (*connect.Response[v1.GetAccountResponse], error)
+	GetCreationDates(context.Context, *connect.Request[v1.GetCreationDatesRequest]) (*connect.Response[v1.GetCreationDatesResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -114,12 +132,21 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithSchema(internalServiceMethods.ByName("GetAccount")),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetCreationDatesHandler := connect.NewUnaryHandler(
+		InternalServiceGetCreationDatesProcedure,
+		svc.GetCreationDates,
+		connect.WithSchema(internalServiceMethods.ByName("GetCreationDates")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetVerifyingKeyProcedure:
 			internalServiceGetVerifyingKeyHandler.ServeHTTP(w, r)
 		case InternalServiceGetAccountProcedure:
 			internalServiceGetAccountHandler.ServeHTTP(w, r)
+		case InternalServiceGetCreationDatesProcedure:
+			internalServiceGetCreationDatesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -135,4 +162,8 @@ func (UnimplementedInternalServiceHandler) GetVerifyingKey(context.Context, *con
 
 func (UnimplementedInternalServiceHandler) GetAccount(context.Context, *connect.Request[v1.GetAccountRequest]) (*connect.Response[v1.GetAccountResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetAccount is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetCreationDates(context.Context, *connect.Request[v1.GetCreationDatesRequest]) (*connect.Response[v1.GetCreationDatesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetCreationDates is not implemented"))
 }

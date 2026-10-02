@@ -31,7 +31,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: hsl(var(--author-hue, 0), 80%, 78%);
+    color: hsl(var(--author-hue, 0), calc(80% * var(--author-chroma, 1)), 78%);
     text-shadow: -1px 1px 0 #000000;
 }
 
@@ -39,34 +39,30 @@
     margin: 4px 0 20px;
 }
 
-.player-card-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin: 0 0 20px;
+.player-card-titles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 14px;
+    padding: 0;
+    list-style: none;
 }
 
-.player-card-stat {
-    padding: 10px 12px;
+.player-card-titles li {
+    padding: 4px 10px;
     border: 1px solid #FFFFFF1A;
-    border-radius: 14px;
+    border-radius: 999px;
     background-color: #FFFFFF0D;
-}
-
-.player-card-stat dt {
     font-family: Oswald, sans-serif;
     font-weight: 500;
     font-size: 12px;
     letter-spacing: 0.8px;
     text-transform: uppercase;
-    color: #FFFFFF80;
+    color: white;
 }
 
-.player-card-stat dd {
-    margin: 4px 0 0;
-    font-size: 20px;
-    font-variant-numeric: tabular-nums;
-    color: white;
+.player-card .stat-tiles {
+    margin-bottom: 20px;
 }
 
 /* :where() keeps specificity at zero, so the name styles win whatever the stylesheet order. */

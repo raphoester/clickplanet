@@ -31,6 +31,8 @@ const CLEAR_DRIFT_REACH = 0.9
 
 const DUST = new THREE.Color(0.93, 0.8, 0.58)
 
+const SKY = new THREE.Color(0.35, 0.75, 1.0)
+
 export type Spark = {
     from: THREE.Vector3
     to: THREE.Vector3
@@ -42,6 +44,7 @@ export type Spark = {
 export type Wave = {
     startsAt: number
     seconds: number
+    peak: number
 }
 
 export type Choreography = {
@@ -90,7 +93,7 @@ export function choreographSpread(spread: SpreadClick, positions: ArrayLike<numb
 
     return {
         sparks,
-        waves: [{startsAt: 0.12, seconds: 0.8}, {startsAt: 0.3, seconds: 0.8}],
+        waves: [{startsAt: 0.12, seconds: 0.8, peak: 0.85}, {startsAt: 0.3, seconds: 0.8, peak: 0.85}],
         centre,
         reach: radius * 5,
         minReachPx: 60,
@@ -115,13 +118,24 @@ export function choreographClear(tile: number, positions: ArrayLike<number>): Ch
 
     return {
         sparks,
-        waves: [{startsAt: 0.04, seconds: 0.55}],
+        waves: [{startsAt: 0.04, seconds: 0.55, peak: 0.85}],
         centre,
         reach: TILE_SPACING * 3,
         minReachPx: 36,
         lifetime: CLEAR_LIFETIME_SECONDS,
         colour: DUST,
     }
+}
+
+export function choreographClick(tile: number, positions: ArrayLike<number>): Choreography {
+    return {...choreographClear(tile, positions), colour: SKY}
+}
+
+export function inView(point: THREE.Vector3, camera: THREE.Camera): boolean {
+    if (point.dot(camera.getWorldDirection(new THREE.Vector3())) >= 0) return false
+
+    const {x, y} = point.clone().project(camera)
+    return Math.abs(x) <= 1 && Math.abs(y) <= 1
 }
 
 export type SparkLook = {
@@ -171,7 +185,7 @@ export function waveLook(wave: Wave, age: number): WaveLook | undefined {
     if (progress < 0 || progress >= 1) return undefined
 
     const eased = 1 - Math.pow(1 - progress, 3)
-    return {radius: 0.1 + 0.9 * eased, opacity: Math.pow(1 - progress, 2) * 0.85}
+    return {radius: 0.1 + 0.9 * eased, opacity: Math.pow(1 - progress, 2) * wave.peak}
 }
 
 function smoothstep(from: number, to: number, x: number): number {
@@ -179,10 +193,11 @@ function smoothstep(from: number, to: number, x: number): number {
     return t * t * (3 - 2 * t)
 }
 
-export type BonusClickEffects = {
+export type ClickEffects = {
     readonly object: THREE.Object3D
     playSpread(spread: SpreadClick): void
     playClear(tile: number): void
+    playClick(tile: number, camera: THREE.Camera): void
     update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number): boolean
     dispose(): void
 }
@@ -199,7 +214,7 @@ type Playing = {
     waves: {mesh: THREE.Mesh, material: THREE.ShaderMaterial, wave: Wave}[]
 }
 
-export function createBonusClickEffects(positions: ArrayLike<number>): BonusClickEffects {
+export function createClickEffects(positions: ArrayLike<number>): ClickEffects {
     const group = new THREE.Group()
     group.renderOrder = 1
 
@@ -221,6 +236,9 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
     const play = (choreography: Choreography) => {
         if (typeof document !== "undefined" && document.visibilityState === "hidden") return
 
+        const rings = calm ? [] : choreography.waves
+        if (choreography.sparks.length === 0 && rings.length === 0) return
+
         const count = choreography.sparks.length
         const geometry = new THREE.BufferGeometry()
         const position = new THREE.BufferAttribute(new Float32Array(count * 3), 3)
@@ -236,6 +254,7 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
             uniforms: {
                 tileSize: {value: 1},
                 minSize: {value: MIN_MARK_PX},
+                unitsPerPixel: {value: 0},
                 colour: {value: choreography.colour},
             },
             vertexShader: markVertex,
@@ -249,7 +268,7 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
         points.renderOrder = 1
         group.add(points)
 
-        const waves = calm ? [] : choreography.waves.map((wave) => {
+        const waves = rings.map((wave) => {
             const material = new THREE.ShaderMaterial({
                 uniforms: {
                     colour: {value: choreography.colour},
@@ -301,6 +320,7 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
 
             effect.marks.uniforms.tileSize.value = tileSize
             effect.marks.uniforms.minSize.value = minMark
+            effect.marks.uniforms.unitsPerPixel.value = 1 / pixelsPerUnit
             choreography.sparks.forEach((spark, i) => {
                 const look = sparkLook(spark, age, choreography.lifetime, calm)
                 between.lerpVectors(spark.from, spark.to, look.progress).normalize().multiplyScalar(LIFT)
@@ -335,6 +355,10 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
         object: group,
         playSpread: (spread) => play(choreographSpread(spread, positions)),
         playClear: (tile) => play(choreographClear(tile, positions)),
+        playClick: (tile, camera) => {
+            const choreography = choreographClick(tile, positions)
+            if (inView(choreography.centre, camera)) play(choreography)
+        },
         update,
         dispose: () => {
             for (const effect of playing) stop(effect)

@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { NameColor } from "./color_pb.js";
 
 /**
  * @generated from message player.v1.Profile
@@ -89,6 +90,11 @@ export class GetProfileResponse extends Message<GetProfileResponse> {
    */
   profile?: Profile;
 
+  /**
+   * @generated from field: player.v1.NameColor color = 2;
+   */
+  color = NameColor.UNSPECIFIED;
+
   constructor(data?: PartialMessage<GetProfileResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -98,6 +104,7 @@ export class GetProfileResponse extends Message<GetProfileResponse> {
   static readonly typeName = "player.v1.GetProfileResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "profile", kind: "message", T: Profile },
+    { no: 2, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetProfileResponse {
@@ -188,6 +195,80 @@ export class SetNameResponse extends Message<SetNameResponse> {
 
   static equals(a: SetNameResponse | PlainMessage<SetNameResponse> | undefined, b: SetNameResponse | PlainMessage<SetNameResponse> | undefined): boolean {
     return proto3.util.equals(SetNameResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.SetColorRequest
+ */
+export class SetColorRequest extends Message<SetColorRequest> {
+  /**
+   * @generated from field: player.v1.NameColor color = 1;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<SetColorRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.SetColorRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetColorRequest {
+    return new SetColorRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetColorRequest {
+    return new SetColorRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetColorRequest {
+    return new SetColorRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetColorRequest | PlainMessage<SetColorRequest> | undefined, b: SetColorRequest | PlainMessage<SetColorRequest> | undefined): boolean {
+    return proto3.util.equals(SetColorRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.SetColorResponse
+ */
+export class SetColorResponse extends Message<SetColorResponse> {
+  /**
+   * @generated from field: player.v1.NameColor color = 1;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<SetColorResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.SetColorResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetColorResponse {
+    return new SetColorResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetColorResponse {
+    return new SetColorResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetColorResponse {
+    return new SetColorResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetColorResponse | PlainMessage<SetColorResponse> | undefined, b: SetColorResponse | PlainMessage<SetColorResponse> | undefined): boolean {
+    return proto3.util.equals(SetColorResponse, a, b);
   }
 }
 
@@ -541,6 +622,16 @@ export class RosterEntry extends Message<RosterEntry> {
    */
   key = "";
 
+  /**
+   * @generated from field: player.v1.NameColor color = 7;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 streak = 8;
+   */
+  streak = 0;
+
   constructor(data?: PartialMessage<RosterEntry>) {
     super();
     proto3.util.initPartial(data, this);
@@ -554,6 +645,8 @@ export class RosterEntry extends Message<RosterEntry> {
     { no: 4, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+    { no: 8, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RosterEntry {
@@ -871,6 +964,16 @@ export class Player extends Message<Player> {
    */
   admin = false;
 
+  /**
+   * @generated from field: player.v1.NameColor color = 5;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  /**
+   * @generated from field: repeated player.v1.Title titles = 6;
+   */
+  titles: Title[] = [];
+
   constructor(data?: PartialMessage<Player>) {
     super();
     proto3.util.initPartial(data, this);
@@ -883,6 +986,8 @@ export class Player extends Message<Player> {
     { no: 2, name: "stats", kind: "message", T: Stats },
     { no: 3, name: "created_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 4, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+    { no: 6, name: "titles", kind: "message", T: Title, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Player {
@@ -899,6 +1004,49 @@ export class Player extends Message<Player> {
 
   static equals(a: Player | PlainMessage<Player> | undefined, b: Player | PlainMessage<Player> | undefined): boolean {
     return proto3.util.equals(Player, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.Title
+ */
+export class Title extends Message<Title> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  constructor(data?: PartialMessage<Title>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.Title";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Title {
+    return new Title().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Title {
+    return new Title().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Title {
+    return new Title().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Title | PlainMessage<Title> | undefined, b: Title | PlainMessage<Title> | undefined): boolean {
+    return proto3.util.equals(Title, a, b);
   }
 }
 

@@ -22,10 +22,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_profile_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_take_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_take_usecase/publishing_record_take"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_color_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/backfill_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
@@ -35,6 +38,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_session_verifier"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/announce_usecase"
@@ -46,7 +50,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/stats_changed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/tile_taken_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/postgres_title_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/award_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/backfill_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/backfill_titles_usecase/audit_backfill_titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/forget_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -96,23 +107,41 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	store := postgres_player_store.New(db)
 
-	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}))
-	manyAuthors := get_authors_usecase.New(store)
+	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}), clock)
+	manyAuthors := get_authors_usecase.New(store, clock)
+
+	accounts := rpc_account_reader.New(props.Internal)
+	titleStore := postgres_title_store.New(db)
+	catalog := titles.NewCatalog()
+	titleBook := titles.NewBook(titleStore, catalog)
 
 	visits := inmemory_visit_storage.New(clock)
 	props.Runners.Add(visits)
 
 	takes, err := cpbootstrap.Subscribe(props.Events, "player-stats", tileTakenBuffer,
-		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(store)), props.Logger))
+		log_subscriber.New(tile_taken_subscriber.New(
+			publishing_record_take.New(record_take_usecase.New(store), props.Events)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
+	}
+	awards, err := cpbootstrap.Subscribe(props.Events, "player-titles", tileTakenBuffer,
+		log_subscriber.New(stats_changed_subscriber.New(award_titles_usecase.New(store, accounts, titleBook, clock)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to player.v1.StatsChanged: %w", err)
 	}
 	deletions, err := cpbootstrap.Subscribe(props.Events, "player-accounts", accountDeletedBuffer,
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(store)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+	}
+	forgottenTitles, err := cpbootstrap.Subscribe(props.Events, "player-titles-accounts", accountDeletedBuffer,
+		log_subscriber.New(account_deleted_subscriber.New(forget_titles_usecase.New(titleStore)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the titles to auth.v1.AccountDeleted: %w", err)
 	}
 
 	forgetVisit := forget_visit_usecase.New(visits)
@@ -137,15 +166,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(signOuts)
 	props.Runners.Add(gone)
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, signIns))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, awards, deletions, forgottenTitles, signIns))
 
 	verifier := rpc_session_verifier.New(props.Internal, props.Logger)
-	accounts := rpc_account_reader.New(props.Internal)
 
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(get_profile_usecase.New(store)),
 		SetNameHandler: set_name_handler.New(
 			renaming_set_name.New(set_name_usecase.New(store, accounts, clock), visits)),
+		SetColorHandler: set_color_handler.New(set_color_usecase.New(store)),
 		GetStatsHandler: get_stats_handler.New(get_stats_usecase.New(store, clock)),
 		AnnounceHandler: announce_handler.New(
 			announce_usecase.New(authors, visits, cpcountries.New(), clock, tagSalt)),
@@ -153,7 +182,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetRosterHandler: get_roster_handler.New(get_roster_usecase.New(visits, clock)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat)),
-		GetPlayerHandler: get_player_handler.New(get_player_usecase.New(store, store, accounts, clock)),
+		GetPlayerHandler: get_player_handler.New(get_player_usecase.New(store, store, titleBook, accounts, clock)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)
@@ -169,6 +198,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return playerv1connect.NewInternalServiceHandler(internalService, options...)
 	}); err != nil {
 		return fmt.Errorf("failed to mount player.v1.InternalService: %w", err)
+	}
+
+	adminService := playerv1controller.AdminService{
+		BackfillTitlesHandler: backfill_titles_handler.New(audit_backfill_titles.New(
+			backfill_titles_usecase.New(store, accounts, titleStore, catalog, clock), props.Logger)),
+	}
+	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return playerv1connect.NewAdminServiceHandler(adminService, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount player.v1.AdminService: %w", err)
 	}
 
 	props.Logger.Info("player built", slog.String("schema", config.Database.Schema))

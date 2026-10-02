@@ -158,11 +158,16 @@ app/       components
   messages, for highlighting them once they are on screen. `nameSentUnder` is
   the name the server gave the latest message this client sent — the only way
   it learns a guest's name.
-- `authorColor.ts` — `authorHue`, a stable hue per chat author. It hashes the
-  name the log displays, which the server gives one account only (a username,
-  or `guest_` and the guest's code). **Only the hue is derived**: the
-  saturation and the lightness are fixed in `ChatPanel.css`, so no hash can
-  produce a colour that is unreadable against the dark panel.
+- `authorColor.ts` — `authorHue`, the hue of a name, and `NAME_COLORS`, the 12
+  a player with a username may pick from (`player.v1.NameColor`, one hue each).
+  A picked color is its hue; no pick, or a color this build does not know,
+  hashes the name the log displays. **Only the hue is chosen**: the saturation
+  and the lightness are fixed in the CSS, so no pick and no hash can produce a
+  colour that is unreadable against the dark panel. `app/chat/authorStyle.ts`
+  turns a line into the style: a guest gets `--author-chroma: 0`, which every
+  rule multiplies its saturation by, so **guests are grey** whatever they hold.
+- `streak.ts` — `streakShown`: a flame is drawn from a streak of 3 days. Every
+  player of today has 1, so a short run would mean nothing.
 - `shareCard.ts` — everything about a shared image that is decided before a
   pixel is drawn: the `?c=<code>` link, the text that rides with it, the line
   under the flag, and the size the card comes out at. See [Sharing the
@@ -346,6 +351,19 @@ The client for the backend's second bounded context: `chat.ts` declares
 `fakeChatBackend.ts` is the dev stand-in. `ChatPanel` docks
 bottom-right, opposite the menu, and starts folded under 768px.
 
+**The open panel is resized from its top edge, its left edge or its top-left
+corner**, and a double-click on one puts the default back (`useChatSize`). Not
+under 768px, where it is a full-width sheet. What the player dragged to is kept
+in `clickplanet-chat-size` and written on `:root` as `--chat-wanted-width` and
+`--chat-wanted-height`; `index.css` clamps them into `--chat-width` and
+`--chat-height`. **The clamp keeps the chat 16px clear of the anthem bar and of
+the click budget dock**: the anthem bar never moves, so the width stops where it
+ends (`50vw - 162px`, and that number changes with the anthem bar's box), and
+`ClickBudgetMeter` writes the dock's bottom edge on `:root` as
+`--click-budget-dock-bottom` (`useDockBottom`), so the chat gets shorter when
+the inventory opens. The log stays pinned
+to its newest line while the panel changes size (a `ResizeObserver` in `ChatLog`).
+
 **`MAX_TEXT_LENGTH` in `chat.ts` mirrors `chat.service.maxTextLength` on the
 backend**, counted in code points as the server counts runes. It is the
 composer's bound, not a defence — the server sanitizes and rejects on its own.
@@ -474,6 +492,10 @@ is `bomb`, every bomb that went off.
   `addAnnouncements`) and put in one list only to draw (`interleave`, by time).
   So a burst of bombs never pushes a message out of the log, and the unread
   count, the sound and the "New messages" pill count messages alone.
+  **Once the message log is full, `interleave` leaves out every announcement
+  older than its oldest message**: the two logs are capped apart, so in a long
+  session the older bombs piled up on top of the chat. The server does the same
+  for the history.
 - **Not a balloon**: `ChatLog` draws a centred line (`.chat-announcement`) with
   the bomber's flag and the time. It ends the run above it, so the next message
   says again who is talking.
@@ -529,6 +551,16 @@ code. No address, and no hash of one, is on it.
 - `app/players/` — `usePresence`, `useRoster` and `usePlayerInfo`, thin hooks
   over the above, `PlayersPanel` and `PlayerCard`.
 
+**A name wears its color and its streak** everywhere it is drawn: the chat log,
+the folded quote, the roster and the card. Both come from the server with the
+name (`ChatMessage.authorColor` and `authorStreak`, `RosterEntry.color` and
+`streak`, `PlayerInfo.color`), read from the account when shown, so a new pick
+shows on everything its player ever said once the chat is read again. The
+flame (`StreakFlame`) is the Noto fire of the reactions, `role="img"` named
+"12-day streak", and is left out under 3 days (`streakShown`). **A guest has
+neither**: the server sends it no color and a streak of 0, so a signed-in player
+shows a flame only once it has a username.
+
 **An admin of the game wears a crown** (`AdminCrown`, gold, `role="img"` named
 "Admin") beside its name in the chat log, the roster and the card's title.
 The server says so: `ChatMessage.authorAdmin`, `RosterEntry.admin` and
@@ -540,9 +572,13 @@ once it lands. In fake mode, Ana is the admin.
 hands `onOpenPlayer` to `Menu` → `PlayersPanel` and to `ChatPanel` → `ChatLog`;
 without a `PlayerInfoBackend` wired the names are plain text. The card shows the
 flag and the country, then, for a player with a username, what
-`player.v1.PlayerService/GetPlayer` answers: tiles taken, the current and best
+`player.v1.PlayerService/GetPlayer` answers: the titles it holds, as chips in the
+server's order (none, no list), then tiles taken, the current and best
 streak, and "Playing since", the day the account was made (left out when the
-server does not know it). **A guest's card asks nothing**: a guest has no
+server does not know it). A title arrives as `{id, name}` and the card shows
+the name: the server owns the list, so a new title needs no change here. The
+fake gives its players a few titles of its own over their fake stats and
+creation date. **A guest's card asks nothing**: a guest has no
 username, so there is nothing to look up, and the card says so. The chat tells
 a guest by `GUEST_PREFIX`, which no username starts with. `GetPlayer` needs no
 token and goes out as a GET, like `GetRoster`; `NotFound` (renamed, or the
@@ -814,6 +850,21 @@ unknown with the form still there. A save and the other actions never run at
 once. A sign-in reads it again; a sign-out or a delete forgets it, and a read or
 a save that lands after the account changed is dropped.
 
+**A player with a username picks its name color** in `AccountPanel`, under the
+username: 13 buttons in a `role="group"` named "Name color", "From your name"
+(the hashed hue, `NameColor.UNSPECIFIED`) and the 12 of `NAME_COLORS`, each
+`aria-pressed`. `AccountStore.setColor` sends `SetColor` and keeps the color the
+server answers; `GetProfile` answers it with the name, and `readProfile` reads
+both. A color is refused without a username (`FailedPrecondition` → `unnamed`),
+which is why the picker only shows with one. `usePresence` announces again once
+the color held still for a second (`SETTLE_MS`), so the roster line follows.
+
+**A signed-in player sees its own streak** at the top of `AccountPanel`: the
+current and the best, in the same `StatTiles` as the player card. `useStreak`
+reads it each time the panel opens and each time the account is read again,
+with `GetStats` and the click token, so it is as of today and needs no
+username. A guest is shown none and reads none; a failed read shows nothing.
+
 **Signing in by email stays on the page.** The server offers `email` beside the
 providers when `auth.email.enabled` is on, and `EmailSignIn` draws it under the
 provider buttons, in `AccountPanel` and in `SignInPitchModal`: an address, then
@@ -919,14 +970,32 @@ mint a guest and insert a row into `auth.identities` for its account.
   `enclosureEffect.test.ts` pin the timing. Marks and the ring have a minimum
   size in pixels, so a shape closed while zoomed out is still seen. A shape that
   arrives while the tab is hidden is not played — it would all start at once on
-  return.
-- `bonusClickEffects.ts` — the same, for every click made with spread on
+  return. **A mark is pulled toward the camera by its own size**
+  (`unitsPerPixel`): a sprite has one depth, so off the middle of the globe the
+  curve of the ground hid half of it. The camera is orthographic, so the pull
+  moves only the depth, never the place on screen.
+- `clickEffects.ts` — the same, for every click made with spread on
   (`tilesSpread`: a green burst, a spark popping onto each tile around it in
   turn, two rings). It reuses the enclosure's shaders, with normal rather than
   additive rings, which vanished on the white of a flag. A busy planet spreads a
   lot, so at most `MAX_PLAYING` run at once. It also puffs dust on a tile this
   player's click cleared rather than took (`playClear`): a small burst, six motes
   drifting off it, one ring, 0.8s.
+
+  **Every other click puffs on its tile** (`playClick`): this player's at once,
+  and anyone else's when its `TileUpdate` says `clicked` — the server sets it only
+  on the tile a click named, never on a spread's neighbours, an enclosure's
+  inside or a moderator's write. Own clicks echoed back are skipped through
+  `OwnClicks`. **It is the clear's puff in sky blue** (`choreographClick`, pinned
+  by `clickEffects.test.ts`), the level the product wants for the most frequent
+  thing on the map: it lights the tile and sends one small ring, seen from space
+  but no bigger than a clear. Two tries missed it on either side: a lone faint
+  ring at 20px could not be seen, and a full-strength ring of at least 44px with
+  a dark edge looked like a bonus. Sky blue rather than white, which vanished on
+  the white of a flag. **A click out of view is not played** (`inView`): on the
+  far side or off the screen it would cost frames and show nothing. Plain clicks
+  run in a second instance, so a busy planet's clicks never push a spread off the
+  screen. With less motion it is a still puff that fades, like a clear.
 - `earth.ts` — the opaque sphere under the tiles, in the globe's light with
   `?gfx=earth`. See [The light](#the-light).
 - `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe the URL
@@ -959,7 +1028,7 @@ under test. Three things can ask for a frame:
   the frame that draws it rather than the tick that reads it, so the cap below
   can hold a frame back without losing the move that asked for it.
 - **Something the loop drives is still moving** — every `update` that animates
-  answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, `bonusClickEffects`
+  answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, both `clickEffects`
   and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the
   one that takes the flash, the box or the highlight off the screen, so each one
   answers `true` on the tick it stops as well as while it runs.
@@ -1406,7 +1475,11 @@ and are shared; how thick a line is drawn between them is this app's.
    "Sign in: clicks 2× faster" under the pips — a button beside the meter, not in
    it, since the meter is a reading. It glows when the bucket is empty or a click
    is refused, the moment a guest meets the wall. It opens `SignInPitchModal`,
-   which has the account panel's sign-in buttons. The account panel's guest text
+   which has the account panel's sign-in buttons. **The pitch sells more than
+   speed**: a list of what a guest does not have — the clicks, a name, a color
+   (guests are grey), a place on the board (players with a name are listed above
+   the guests) and a streak flame (guests have none). Keep each line true: it names what
+   the game does today, not what is planned. The account panel's guest text
    says the same. **Nothing is offered without the server's number**, nor with
    sign-in off.
 
@@ -1598,7 +1671,7 @@ says whether the rule is on in `BonusRules.homeSoil`.
   `home_soil_test.go`. Before the rules are read, or with no bonus feed, a click
   is painted as a take and the server's echo corrects it.
 - **A clear says so twice.** A tile going blank under a newcomer's click reads as
-  a click that went wrong, so it puffs dust on the tile (`bonusClickEffects.ts`,
+  a click that went wrong, so it puffs dust on the tile (`clickEffects.ts`,
   every time), and `NativeLandNote` says "Poland's native land takes two clicks.
   One more to take it." under the bomb line — only the first three times in a
   browser (`domain/clearNotes.ts`, in `clickplanet-home-soil-notes`, counted in
