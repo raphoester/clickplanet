@@ -8,7 +8,7 @@ import type {LeaderboardEntry} from "../domain/leaderboard.ts"
 import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
-import {RosterEntry} from "../backends/player.ts"
+import {NameColor, RosterEntry} from "../backends/player.ts"
 import {PlayerBackend, PlayerError} from "../backends/player.ts"
 
 const france = Countries.get("fr")!
@@ -276,8 +276,8 @@ describe("Menu", () => {
 
     describe("the players", () => {
         const players = [
-            {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false},
-            {key: "k2", name: "guest_Bo", countryCode: "de", guest: true, admin: false},
+            {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+            {key: "k2", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
         ]
         const withPlayers = (entries = players) => ({
             ...render(<Menu country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
@@ -341,8 +341,10 @@ describe("Menu", () => {
             } satisfies AccountBackend
             const navigate = vi.fn()
             const player = {
-                profile: vi.fn(async () => ({accountId: "account-1", name: username})),
+                profile: vi.fn(async () => ({accountId: "account-1", name: username, color: NameColor.UNSPECIFIED})),
                 setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
+                setColor: vi.fn(async (color: NameColor) => color),
+                streak: vi.fn(async () => ({current: 0, best: 0})),
             } satisfies PlayerBackend
             const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
@@ -352,7 +354,7 @@ describe("Menu", () => {
 
         it("keeps the account button beside the players button", async () => {
             withAccount(["google"], {linked: ["google"]}, "ana", undefined,
-                [{key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false}])
+                [{key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}])
 
             expect(await screen.findByRole("button", {name: "Account"})).toBeDefined()
             expect(screen.getByRole("button", {name: "1 player online"})).toBeDefined()
@@ -429,6 +431,30 @@ describe("Menu", () => {
             expect(button("Sign out everywhere")).toBeDefined()
         })
 
+        it("shows a signed-in player its streak, read again each time the account opens", async () => {
+            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
+            player.streak.mockResolvedValue({current: 1, best: 9})
+
+            await user.click(await screen.findByRole("button", {name: "Account"}))
+            expect(await screen.findByText("1 day")).toBeDefined()
+            expect(screen.getByText("Best streak").nextElementSibling?.textContent).toBe("9 days")
+
+            player.streak.mockResolvedValue({current: 2, best: 9})
+            await user.click(button("Back"))
+            await user.click(await screen.findByRole("button", {name: "Account"}))
+            expect(await screen.findByText("2 days")).toBeDefined()
+            expect(player.streak).toHaveBeenCalledTimes(2)
+        })
+
+        it("shows a guest no streak, and reads none", async () => {
+            const {user, player} = withAccount(["google"], {linked: []})
+
+            await user.click(await screen.findByRole("button", {name: "Sign in"}))
+
+            expect(screen.queryByText("Best streak")).toBeNull()
+            expect(player.streak).not.toHaveBeenCalled()
+        })
+
         it("shows the username, and saves a new one", async () => {
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
 
@@ -444,7 +470,30 @@ describe("Menu", () => {
             await user.click(button("Save"))
 
             expect(player.setName).toHaveBeenCalledWith("bob")
-            expect(await screen.findByText("bob")).toBeDefined()
+            expect(await screen.findAllByText("bob")).toHaveLength(2)
+        })
+
+        it("offers a color to a player with a username, and saves the one pressed", async () => {
+            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
+            await user.click(await screen.findByRole("button", {name: "Account"}))
+
+            const colors = await screen.findByRole("group", {name: "Name color"})
+            expect(within(colors).getAllByRole("button")).toHaveLength(13)
+            expect(within(colors).getByRole("button", {name: "From your name"}).getAttribute("aria-pressed")).toBe("true")
+
+            await user.click(within(colors).getByRole("button", {name: "Teal"}))
+
+            expect(player.setColor).toHaveBeenCalledWith(NameColor.TEAL)
+            await vi.waitFor(() =>
+                expect(within(colors).getByRole("button", {name: "Teal"}).getAttribute("aria-pressed")).toBe("true"))
+        })
+
+        it("offers no color before a username is chosen", async () => {
+            const {user} = withAccount(["google"], {linked: ["google"]})
+            await user.click(await screen.findByRole("button", {name: "Account"}))
+            await screen.findByLabelText("Username")
+
+            expect(screen.queryByRole("group", {name: "Name color"})).toBeNull()
         })
 
         it("says why a username was refused", async () => {

@@ -1,14 +1,15 @@
 import {useEffect, useRef, useState} from "react";
-import {ChatAnnouncement, ChatMessage, GUEST_PREFIX, Reaction} from "../../backends/chat.ts";
+import {ChatAnnouncement, ChatMessage, Reaction} from "../../backends/chat.ts";
 import {PlayerLine} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
+import StreakFlame from "../components/StreakFlame.tsx";
 import {ChevronIcon} from "../components/icons.tsx";
 import {interleave, startsGroup} from "../../domain/chatLog.ts";
 import {describeBlast} from "../../domain/blast.ts";
 import {truncate} from "../truncate.ts";
-import {authorStyle} from "./authorStyle.ts";
+import {authorOf, authorStyle} from "./authorStyle.ts";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
 
 export type ChatLogProps = {
@@ -51,6 +52,18 @@ export default function ChatLog(props: ChatLogProps) {
         element.scrollTop = element.scrollHeight
     }, [props.messages, announcements])
 
+    const listed = !props.loading && (props.messages.length > 0 || announcements.length > 0)
+    useEffect(() => {
+        const element = scroll.current
+        if (!element || typeof ResizeObserver === "undefined") return
+
+        const observer = new ResizeObserver(() => {
+            if (pinned.current) element.scrollTop = element.scrollHeight
+        })
+        observer.observe(element)
+        return () => observer.disconnect()
+    }, [listed])
+
     const onScroll = () => {
         const element = scroll.current
         if (!element) return
@@ -90,12 +103,13 @@ export default function ChatLog(props: ChatLogProps) {
                     }
 
                     const message = entry.message
+                    const author = authorOf(message)
                     const previous = entries[index - 1]
                     const opens = startsGroup(previous?.kind === "message" ? previous.message : undefined, message)
 
                     return <li key={message.id}
                                className={messageClass(props.flashing, message.id, opens)}
-                               style={authorStyle(message.authorName)}>
+                               style={authorStyle(author)}>
                         {opens && <div className="chat-message-head">
                             <span className="chat-message-country"
                                   role="img"
@@ -107,13 +121,14 @@ export default function ChatLog(props: ChatLogProps) {
                                 ? <button type="button"
                                           className="chat-message-author player-name-button"
                                           title={message.authorName}
-                                          onClick={() => props.onOpenPlayer?.(authorOf(message))}>
+                                          onClick={() => props.onOpenPlayer?.(author)}>
                                     {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
                                 </button>
                                 : <span className="chat-message-author">
                                     {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
                                 </span>}
                             {message.authorAdmin && <AdminCrown size={13}/>}
+                            <StreakFlame days={message.authorStreak}/>
                             <time className="chat-message-time"
                                   dateTime={new Date(message.sentAt).toISOString()}>
                                 {clock.format(message.sentAt)}
@@ -160,15 +175,6 @@ function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
             {clock.format(announcement.announcedAt)}
         </time>
     </li>
-}
-
-function authorOf(message: ChatMessage): PlayerLine {
-    return {
-        name: message.authorName,
-        countryCode: message.countryCode,
-        guest: message.authorName.startsWith(GUEST_PREFIX),
-        admin: message.authorAdmin,
-    }
 }
 
 function messageClass(

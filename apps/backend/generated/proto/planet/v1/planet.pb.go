@@ -2152,8 +2152,10 @@ type TileUpdate struct {
 	TileId            uint32                 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
 	CountryId         string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	PreviousCountryId string                 `protobuf:"bytes,3,opt,name=previous_country_id,json=previousCountryId,proto3" json:"previous_country_id,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Only the tile a click named: never a spread's neighbour, an enclosure's inside or a moderator's write.
+	Clicked       bool `protobuf:"varint,4,opt,name=clicked,proto3" json:"clicked,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TileUpdate) Reset() {
@@ -2205,6 +2207,13 @@ func (x *TileUpdate) GetPreviousCountryId() string {
 		return x.PreviousCountryId
 	}
 	return ""
+}
+
+func (x *TileUpdate) GetClicked() bool {
+	if x != nil {
+		return x.Clicked
+	}
+	return false
 }
 
 var File_planet_v1_planet_proto protoreflect.FileDescriptor
@@ -2356,13 +2365,14 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x17\n" +
 	"\atile_id\x18\x02 \x01(\rR\x06tileId\x12&\n" +
 	"\x0fspread_tile_ids\x18\x03 \x03(\rR\rspreadTileIds\"\v\n" +
-	"\tHeartbeat\"t\n" +
+	"\tHeartbeat\"\x8e\x01\n" +
 	"\n" +
 	"TileUpdate\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12.\n" +
-	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId*r\n" +
+	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId\x12\x18\n" +
+	"\aclicked\x18\x04 \x01(\bR\aclicked*r\n" +
 	"\n" +
 	"SharedWith\x12\x1b\n" +
 	"\x17SHARED_WITH_UNSPECIFIED\x10\x00\x12\x16\n" +

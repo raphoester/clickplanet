@@ -3,6 +3,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest'
 import {cleanup, fireEvent, render, screen} from '@testing-library/react'
 import ClickBudgetMeter from './ClickBudgetMeter.tsx'
 import {ClickBudget} from "../../backends/clickBudget.ts"
+import {DOCK_BOTTOM} from "./useDockBottom.ts"
 
 afterEach(cleanup)
 
@@ -230,5 +231,17 @@ describe("ClickBudgetMeter's dock", () => {
 
         expect(screen.getByText("held")).toBeTruthy()
         expect(screen.queryByRole("meter")).toBeNull()
+    })
+
+    it("tells the chat where it ends, so the chat never grows over it", () => {
+        vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 16, 288, 164.2))
+        const dockBottom = () => document.documentElement.style.getPropertyValue(DOCK_BOTTOM)
+
+        const {unmount} = render(<ClickBudgetMeter budget={reading()}/>)
+        expect(dockBottom()).toBe("181px")
+
+        unmount()
+        expect(dockBottom()).toBe("")
+        vi.restoreAllMocks()
     })
 })

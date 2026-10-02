@@ -27,10 +27,14 @@ export type ChatLogEntry =
 export function interleave(
     messages: readonly ChatMessage[],
     announcements: readonly ChatAnnouncement[],
+    limit: number = CHAT_LOG_LIMIT,
 ): ChatLogEntry[] {
     const entries: ChatLogEntry[] = []
 
     let a = 0
+    if (messages.length > 0 && messages.length >= limit) {
+        while (a < announcements.length && announcements[a].announcedAt < messages[0].sentAt) a++
+    }
     for (const message of messages) {
         while (a < announcements.length && announcements[a].announcedAt < message.sentAt) {
             entries.push({kind: "announcement", announcement: announcements[a++]})

@@ -8,6 +8,8 @@ import {
     RosterEntry as RosterEntryPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
 import {
+    ColoredProfile,
+    NameColor,
     PlayerBackend,
     PlayerError,
     PlayerFailure,
@@ -18,6 +20,7 @@ import {
     Profile,
     RosterEntry,
     RosterEvent,
+    Streak,
 } from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
@@ -44,6 +47,7 @@ const FAILURES: Partial<Record<Code, PlayerFailure>> = {
     [Code.AlreadyExists]: "taken",
     [Code.PermissionDenied]: "guest",
     [Code.Unauthenticated]: "notSignedIn",
+    [Code.FailedPrecondition]: "unnamed",
 }
 
 export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, PlayerInfoBackend {
@@ -54,15 +58,26 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
     ) {
     }
 
-    public async profile(): Promise<Profile> {
+    public async profile(): Promise<ColoredProfile> {
         const res = await this.authenticated((headers) =>
             retrying(() => this.client.getProfile({}, {headers}), "GetProfile"))
-        return profileOf(res.profile)
+        return {...profileOf(res.profile), color: res.color}
     }
 
     public async setName(name: string): Promise<Profile> {
         const res = await this.authenticated((headers) => this.client.setName({name}, {headers}))
         return profileOf(res.profile)
+    }
+
+    public async setColor(color: NameColor): Promise<NameColor> {
+        const res = await this.authenticated((headers) => this.client.setColor({color}, {headers}))
+        return res.color
+    }
+
+    public async streak(): Promise<Streak> {
+        const res = await this.authenticated((headers) =>
+            retrying(() => this.client.getStats({}, {headers}), "GetStats"))
+        return {current: res.stats?.streakCurrent ?? 0, best: res.stats?.streakBest ?? 0}
     }
 
     public heldSession(): string | undefined {
@@ -159,7 +174,15 @@ function profileOf(profile: ProfilePb | undefined): Profile {
 }
 
 function rosterEntryOf(entry: RosterEntryPb): RosterEntry {
-    return {key: entry.key, name: entry.name, countryCode: entry.countryId, guest: entry.guest, admin: entry.admin}
+    return {
+        key: entry.key,
+        name: entry.name,
+        countryCode: entry.countryId,
+        guest: entry.guest,
+        admin: entry.admin,
+        color: entry.color,
+        streak: entry.streak,
+    }
 }
 
 function rosterEventOf(event: PlayerEventPb): RosterEvent | undefined {
@@ -184,5 +207,6 @@ function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
         streakBest: player?.stats?.streakBest ?? 0,
         createdAt: createdAt > 0 ? createdAt : undefined,
         admin: player?.admin ?? false,
+        color: player?.color ?? NameColor.UNSPECIFIED,
     }
 }

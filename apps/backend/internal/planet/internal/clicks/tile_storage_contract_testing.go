@@ -67,6 +67,34 @@ func (s *TileStorageContractSuite) TestSetPublishesTheUpdate() {
 	s.Equal(&TileUpdate{Tile: 10, Value: "fr"}, s.next(ctx, listener).Update)
 }
 
+func (s *TileStorageContractSuite) TestClickPublishesTheUpdateAsAClick() {
+	s.Require().NoError(s.storage.Set(context.Background(), 10, "us"))
+	listener, ctx := s.subscribe(2 * time.Second)
+
+	s.Require().NoError(s.storage.Click(ctx, 10, "fr"))
+
+	s.Equal(&TileUpdate{Tile: 10, Value: "fr", Previous: "us", Clicked: true}, s.next(ctx, listener).Update)
+}
+
+func (s *TileStorageContractSuite) TestClickOnATileAlreadyHeldPublishesNothing() {
+	s.Require().NoError(s.storage.Set(context.Background(), 10, "fr"))
+	listener, ctx := s.subscribe(200 * time.Millisecond)
+
+	s.Require().NoError(s.storage.Click(context.Background(), 10, "fr"))
+
+	select {
+	case <-ctx.Done():
+	case change, open := <-listener:
+		if open {
+			s.T().Errorf("unexpected change %v", change)
+		}
+	}
+}
+
+func (s *TileStorageContractSuite) TestClickRefusesATileOutOfRange() {
+	s.Error(s.storage.Click(context.Background(), contractMaxIndex+1, "fr"))
+}
+
 func (s *TileStorageContractSuite) TestSetOverATileCarriesThePreviousOwner() {
 	s.Require().NoError(s.storage.Set(context.Background(), 10, "us"))
 	listener, ctx := s.subscribe(2 * time.Second)

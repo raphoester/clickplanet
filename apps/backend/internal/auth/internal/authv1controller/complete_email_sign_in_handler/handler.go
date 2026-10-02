@@ -20,6 +20,7 @@ var outcomes = map[accounts.Outcome]authv1.SignInOutcome{
 	accounts.SignedIn: authv1.SignInOutcome_SIGN_IN_OUTCOME_SIGNED_IN,
 	accounts.Linked:   authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED,
 	accounts.Created:  authv1.SignInOutcome_SIGN_IN_OUTCOME_CREATED,
+	accounts.Joined:   authv1.SignInOutcome_SIGN_IN_OUTCOME_SIGNED_IN,
 }
 
 type UseCase interface {

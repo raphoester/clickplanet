@@ -708,5 +708,6 @@ export function updateOf(event: PlanetEvent): Update | undefined {
         tile: update.tileId,
         previousCountry: update.previousCountryId === "" ? undefined : update.previousCountryId,
         newCountry: update.countryId === "" ? undefined : update.countryId,
+        clicked: update.clicked,
     }
 }

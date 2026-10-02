@@ -21,7 +21,8 @@ export interface OwnershipsGetter {
 export type Update = {
     tile: number,
     previousCountry: string | undefined,
-    newCountry: string | undefined
+    newCountry: string | undefined,
+    clicked: boolean
 }
 
 export interface UpdatesListener {

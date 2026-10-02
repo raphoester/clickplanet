@@ -1,0 +1,29 @@
+.stat-tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 0;
+}
+
+.stat-tile {
+    padding: 10px 12px;
+    border: 1px solid #FFFFFF1A;
+    border-radius: 14px;
+    background-color: #FFFFFF0D;
+}
+
+.stat-tile dt {
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #FFFFFF80;
+}
+
+.stat-tile dd {
+    margin: 4px 0 0;
+    font-size: 20px;
+    font-variant-numeric: tabular-nums;
+    color: white;
+}

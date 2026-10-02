@@ -39,7 +39,7 @@ import {MAX_ZOOM, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
 import {createBonusBox} from "./bonusBox.ts";
 import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
-import {createBonusClickEffects} from "./bonusClickEffects.ts";
+import {createClickEffects} from "./clickEffects.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
 import {now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
@@ -222,8 +222,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const enclosures = createEnclosureEffects(geometryData.positions)
     scene.add(enclosures.object)
 
-    const bonusClicks = createBonusClickEffects(geometryData.positions)
+    const bonusClicks = createClickEffects(geometryData.positions)
     scene.add(bonusClicks.object)
+
+    // Apart from the bonus ones, so a busy planet's clicks never push a spread off the screen.
+    const plainClicks = createClickEffects(geometryData.positions)
+    scene.add(plainClicks.object)
 
     const outline = createBorderLines(borderLines)
     scene.add(outline.object)
@@ -240,9 +244,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const driveBonusBox = (seconds: number) => {
         const enclosing = enclosures.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
         const spreading = bonusClicks.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
+        const clicking = plainClicks.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
         const boxed = bonusBox.update(seconds, camera)
         bonusPointer.update(bonusBox.flying ? bonusBox.object.position : undefined, camera)
-        return enclosing || spreading || boxed
+        return enclosing || spreading || clicking || boxed
     }
 
     const applyChanges = (changes: OwnerChange[], live = true) => {
@@ -534,6 +539,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (outcome === "cleared" && ground !== undefined) {
             bonusClicks.playClear(tile)
             onNativeCleared(ground)
+        } else {
+            plainClicks.playClick(tile, camera)
         }
 
         tileClicker.clickTile(tile, country.code, switches).catch((e) => {
@@ -561,6 +568,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             for (const update of updates) clear.tiles.delete(update.tile)
         }
         applyChanges(ownership.applyUpdates(updates))
+
+        const seconds = performance.now() / 1000
+        for (const {tile, clicked} of updates) {
+            if (clicked && !ownClicks.has(tile, country.code, seconds)) plainClicks.playClick(tile, camera)
+        }
     })
 
     addDisplayObjects(scene, field.displayPoints, graphics)
@@ -641,6 +653,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             bonusBox.dispose()
             enclosures.dispose()
             bonusClicks.dispose()
+            plainClicks.dispose()
 
             cleanup()
         }

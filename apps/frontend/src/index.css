@@ -1,3 +1,9 @@
+/* The chat stops 16px short of the anthem bar (440px, centred on 50vw - 90px) and of the click budget dock. */
+:root {
+    --chat-width: max(360px, min(var(--chat-wanted-width, 360px), calc(50vw - 162px)));
+    --chat-height: min(calc(100vh - 32px - var(--click-budget-dock-bottom, 0px)), max(280px, var(--chat-wanted-height, 460px)));
+}
+
 html,
 body {
     height: 100%;
