@@ -3,7 +3,7 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {AccountBackend, Provider} from "../../backends/account.ts"
-import {PlayerBackend} from "../../backends/player.ts"
+import {NameColor, PlayerBackend} from "../../backends/player.ts"
 import {AccountStore} from "./accountStore.ts"
 import SignInPitchModal from "./SignInPitchModal.tsx"
 
@@ -22,8 +22,9 @@ async function guest() {
         deleteAccount: vi.fn(async () => undefined),
     } satisfies AccountBackend
     const player = {
-        profile: vi.fn(async () => ({accountId: "account-1", name: ""})),
+        profile: vi.fn(async () => ({accountId: "account-1", name: "", color: NameColor.UNSPECIFIED})),
         setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
+        setColor: vi.fn(async (color: NameColor) => color),
     } satisfies PlayerBackend
     const navigate = vi.fn()
     const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
@@ -40,9 +41,23 @@ describe("SignInPitchModal", () => {
         const {store, state} = await guest()
         render(<SignInPitchModal state={state} store={store} multiplier={2} onClose={vi.fn()}/>)
 
-        expect(screen.getByRole("dialog", {name: "Click 2× faster"})).toBeDefined()
-        expect(screen.getByText(/your clicks refill 2× as fast/)).toBeDefined()
-        expect(screen.getByText("You do not need an account to play.")).toBeDefined()
+        expect(screen.getByRole("dialog", {name: "Sign in and stand out"})).toBeDefined()
+        expect(screen.getByText(/refill 2× as fast/)).toBeDefined()
+        expect(screen.getByText("It is free. You do not need an account to play.")).toBeDefined()
+    })
+
+    it("sells more than speed: a name, a color, a place on the board and a streak flame", async () => {
+        const {store, state} = await guest()
+        render(<SignInPitchModal state={state} store={store} multiplier={2} onClose={vi.fn()}/>)
+
+        const perks = screen.getAllByRole("listitem").map((item) => item.querySelector("strong")?.textContent)
+        expect(perks).toEqual([
+            "Click 2× faster.",
+            "Your name.",
+            "Your color.",
+            "Your place on the board.",
+            "Your streak flame.",
+        ])
     })
 
     it("signs in with the provider pressed", async () => {

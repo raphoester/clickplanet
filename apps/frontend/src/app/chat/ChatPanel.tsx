@@ -7,7 +7,7 @@ import {ChevronIcon} from "../components/icons.tsx";
 import {opensFolded} from "../compact.ts";
 import {truncate} from "../truncate.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
-import {authorStyle} from "./authorStyle.ts";
+import {authorOf, authorStyle} from "./authorStyle.ts";
 import ChatComposer from "./ChatComposer.tsx";
 import ChatLog from "./ChatLog.tsx";
 import {useChat} from "./useChat.ts";
@@ -136,7 +136,7 @@ export default function ChatPanel(props: ChatPanelProps) {
                 <span className="chat-peek"
                       key={latest.id}
                       aria-hidden="true"
-                      style={authorStyle(latest.authorName)}>
+                      style={authorStyle(authorOf(latest))}>
                     <span className="chat-peek-author">
                         {truncate(latest.authorName, PEEK_AUTHOR_MAX_LENGTH)}
                     </span>

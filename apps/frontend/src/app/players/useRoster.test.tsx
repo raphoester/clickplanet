@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
-import {PresenceBackend, RosterEntry, RosterEvent} from "../../backends/player.ts"
+import {NameColor, PresenceBackend, RosterEntry, RosterEvent} from "../../backends/player.ts"
 import {RosterState, useRoster} from "./useRoster.ts"
 
-const ana: RosterEntry = {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false}
-const bo: RosterEntry = {key: "k2", name: "guest_Bo", countryCode: "de", guest: true, admin: false}
+const ana: RosterEntry = {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
+const bo: RosterEntry = {key: "k2", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
 
 let latest: RosterState
 

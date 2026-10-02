@@ -16,6 +16,7 @@ import {
     ReactionsChange,
 } from "../../backends/chat.ts"
 import {Countries} from "../../domain/countries.ts"
+import {NameColor} from "../../backends/player.ts"
 
 const france = Countries.get("fr")!
 
@@ -26,6 +27,8 @@ const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMess
     sentAt,
     authorName: "Ana",
     authorAdmin: false,
+    authorColor: NameColor.UNSPECIFIED,
+    authorStreak: 0,
     countryCode: "fr",
     text,
     reactions: [],

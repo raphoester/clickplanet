@@ -205,6 +205,16 @@ func TestARenameShowsOnEverythingItsPlayerEverSaid(t *testing.T) {
 	}
 }
 
+func TestANewColorAndTheStreakTodayShowOnEverythingItsPlayerEverSaid(t *testing.T) {
+	f := newFixture(t, "one", "two")
+	f.authors.named[ada] = messages.Author{Name: "Ada", Color: 7, Streak: 12}
+
+	for _, entry := range f.history(t, ada) {
+		assert.Equal(t, int32(7), entry.Message.AuthorColor, entry.Message.Text)
+		assert.Equal(t, uint32(12), entry.Message.AuthorStreak, entry.Message.Text)
+	}
+}
+
 func TestOneAccountIsAskedAboutOnceHoweverMuchItSaid(t *testing.T) {
 	f := newFixture(t, "one", "two")
 

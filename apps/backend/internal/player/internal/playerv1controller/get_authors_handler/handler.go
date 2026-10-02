@@ -7,6 +7,7 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
 )
 
 type UseCase interface {
@@ -45,6 +46,8 @@ func (h GetAuthorsHandler) GetAuthors(
 			AccountId: account.String(),
 			Name:      author.Name,
 			Admin:     author.Admin,
+			Color:     playermessage.Color(author.Color),
+			Streak:    author.Streak.Days,
 		})
 	}
 

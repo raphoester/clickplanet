@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func getAuthor(t *testing.T, accountID string) (*connect.Response[playerv1.GetAuthorResponse], error) {
@@ -22,8 +23,10 @@ func getAuthor(t *testing.T, accountID string) (*connect.Response[playerv1.GetAu
 	ada, err := players.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
 	require.NoError(t, err)
 	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: time.Now()}))
+	require.NoError(t, store.SaveColor(t.Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_TEAL)))
+	require.NoError(t, store.RecordTake(t.Context(), ada, time.Now()))
 
-	useCase := get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}))
+	useCase := get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}), cptime.NewFixedClock(time.Now()))
 	return get_author_handler.New(useCase).GetAuthor(t.Context(), //nolint:wrapcheck // the test reads the handler's own error.
 		connect.NewRequest(&playerv1.GetAuthorRequest{AccountId: accountID}))
 }
@@ -34,6 +37,8 @@ func TestTheUsernameIsAnswered(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Ada_L", res.Msg.GetName())
 	assert.False(t, res.Msg.GetAdmin())
+	assert.Equal(t, playerv1.NameColor_NAME_COLOR_TEAL, res.Msg.GetColor())
+	assert.Equal(t, uint32(1), res.Msg.GetStreak())
 }
 
 func TestAGuestIsAnsweredWithItsCode(t *testing.T) {

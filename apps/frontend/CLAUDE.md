@@ -158,11 +158,16 @@ app/       components
   messages, for highlighting them once they are on screen. `nameSentUnder` is
   the name the server gave the latest message this client sent — the only way
   it learns a guest's name.
-- `authorColor.ts` — `authorHue`, a stable hue per chat author. It hashes the
-  name the log displays, which the server gives one account only (a username,
-  or `guest_` and the guest's code). **Only the hue is derived**: the
-  saturation and the lightness are fixed in `ChatPanel.css`, so no hash can
-  produce a colour that is unreadable against the dark panel.
+- `authorColor.ts` — `authorHue`, the hue of a name, and `NAME_COLORS`, the 12
+  a player with a username may pick from (`player.v1.NameColor`, one hue each).
+  A picked color is its hue; no pick, or a color this build does not know,
+  hashes the name the log displays. **Only the hue is chosen**: the saturation
+  and the lightness are fixed in the CSS, so no pick and no hash can produce a
+  colour that is unreadable against the dark panel. `app/chat/authorStyle.ts`
+  turns a line into the style: a guest gets `--author-chroma: 0`, which every
+  rule multiplies its saturation by, so **guests are grey** whatever they hold.
+- `streak.ts` — `streakShown`: a flame is drawn from a streak of 3 days. Every
+  player of today has 1, so a short run would mean nothing.
 - `shareCard.ts` — everything about a shared image that is decided before a
   pixel is drawn: the `?c=<code>` link, the text that rides with it, the line
   under the flag, and the size the card comes out at. See [Sharing the
@@ -529,6 +534,16 @@ code. No address, and no hash of one, is on it.
 - `app/players/` — `usePresence`, `useRoster` and `usePlayerInfo`, thin hooks
   over the above, `PlayersPanel` and `PlayerCard`.
 
+**A name wears its color and its streak** everywhere it is drawn: the chat log,
+the folded quote, the roster and the card. Both come from the server with the
+name (`ChatMessage.authorColor` and `authorStreak`, `RosterEntry.color` and
+`streak`, `PlayerInfo.color`), read from the account when shown, so a new pick
+shows on everything its player ever said once the chat is read again. The
+flame (`StreakFlame`) is the Noto fire of the reactions, `role="img"` named
+"12-day streak", and is left out under 3 days (`streakShown`). **A guest has
+neither**: the server sends it no color and a streak of 0, so a signed-in player
+shows a flame only once it has a username.
+
 **An admin of the game wears a crown** (`AdminCrown`, gold, `role="img"` named
 "Admin") beside its name in the chat log, the roster and the card's title.
 The server says so: `ChatMessage.authorAdmin`, `RosterEntry.admin` and
@@ -813,6 +828,15 @@ has none and should not mint to learn that — and a failed read leaves the name
 unknown with the form still there. A save and the other actions never run at
 once. A sign-in reads it again; a sign-out or a delete forgets it, and a read or
 a save that lands after the account changed is dropped.
+
+**A player with a username picks its name color** in `AccountPanel`, under the
+username: 13 buttons in a `role="group"` named "Name color", "From your name"
+(the hashed hue, `NameColor.UNSPECIFIED`) and the 12 of `NAME_COLORS`, each
+`aria-pressed`. `AccountStore.setColor` sends `SetColor` and keeps the color the
+server answers; `GetProfile` answers it with the name, and `readProfile` reads
+both. A color is refused without a username (`FailedPrecondition` → `unnamed`),
+which is why the picker only shows with one. `usePresence` announces again once
+the color held still for a second (`SETTLE_MS`), so the roster line follows.
 
 **Signing in by email stays on the page.** The server offers `email` beside the
 providers when `auth.email.enabled` is on, and `EmailSignIn` draws it under the
@@ -1418,7 +1442,11 @@ and are shared; how thick a line is drawn between them is this app's.
    "Sign in: clicks 2× faster" under the pips — a button beside the meter, not in
    it, since the meter is a reading. It glows when the bucket is empty or a click
    is refused, the moment a guest meets the wall. It opens `SignInPitchModal`,
-   which has the account panel's sign-in buttons. The account panel's guest text
+   which has the account panel's sign-in buttons. **The pitch sells more than
+   speed**: a list of what a guest does not have — the clicks, a name, a color
+   (guests are grey), a place on the board (players with a name are listed above
+   the guests) and a streak flame (guests have none). Keep each line true: it names what
+   the game does today, not what is planned. The account panel's guest text
    says the same. **Nothing is offered without the server's number**, nor with
    sign-in off.
 

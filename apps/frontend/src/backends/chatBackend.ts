@@ -174,6 +174,8 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         sentAt: Number(message.sentAtUnixMs),
         authorName: message.authorName,
         authorAdmin: message.authorAdmin,
+        authorColor: message.authorColor,
+        authorStreak: message.authorStreak,
         countryCode: message.countryId,
         text: message.text,
         reactions: message.reactions.map(decodedCount),

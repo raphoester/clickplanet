@@ -42,6 +42,8 @@ type Entry struct {
 	Country string
 	Guest   bool
 	Admin   bool
+	Color   players.Color
+	Streak  uint32
 }
 
 func EntryOf(visit Visit) Entry {
@@ -51,6 +53,8 @@ func EntryOf(visit Visit) Entry {
 		Country: visit.Country,
 		Guest:   visit.Author.Guest,
 		Admin:   visit.Author.Admin && !visit.Author.Guest,
+		Color:   visit.Author.Color,
+		Streak:  visit.Author.Streak.Days,
 	}
 }
 

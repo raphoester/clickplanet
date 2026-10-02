@@ -67,8 +67,9 @@ export default function Viewer(props: ViewerProps) {
     const sound = useSound()
     const account = useAccount(props.account)
     const username = account.kind === 'ready' ? account.username : undefined
+    const color = account.kind === 'ready' ? account.color : undefined
 
-    usePresence(props.presence, {countryCode: countryState.code, username})
+    usePresence(props.presence, {countryCode: countryState.code, username, color})
 
     const quiz = useQuiz(props.quizMaster, countryState.code, sound.play)
     const roster = useRoster(props.presence)

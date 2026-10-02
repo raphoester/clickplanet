@@ -7,6 +7,7 @@
 package chatv1
 
 import (
+	v1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -190,6 +191,8 @@ type ChatMessage struct {
 	AuthorAdmin      bool                   `protobuf:"varint,7,opt,name=author_admin,json=authorAdmin,proto3" json:"author_admin,omitempty"`
 	Reactions        []*ReactionCount       `protobuf:"bytes,8,rep,name=reactions,proto3" json:"reactions,omitempty"`
 	ReactionsVersion uint64                 `protobuf:"varint,9,opt,name=reactions_version,json=reactionsVersion,proto3" json:"reactions_version,omitempty"`
+	AuthorColor      v1.NameColor           `protobuf:"varint,10,opt,name=author_color,json=authorColor,proto3,enum=player.v1.NameColor" json:"author_color,omitempty"`
+	AuthorStreak     uint32                 `protobuf:"varint,11,opt,name=author_streak,json=authorStreak,proto3" json:"author_streak,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -276,6 +279,20 @@ func (x *ChatMessage) GetReactions() []*ReactionCount {
 func (x *ChatMessage) GetReactionsVersion() uint64 {
 	if x != nil {
 		return x.ReactionsVersion
+	}
+	return 0
+}
+
+func (x *ChatMessage) GetAuthorColor() v1.NameColor {
+	if x != nil {
+		return x.AuthorColor
+	}
+	return v1.NameColor(0)
+}
+
+func (x *ChatMessage) GetAuthorStreak() uint32 {
+	if x != nil {
+		return x.AuthorStreak
 	}
 	return 0
 }
@@ -902,12 +919,12 @@ var File_chat_v1_chat_proto protoreflect.FileDescriptor
 
 const file_chat_v1_chat_proto_rawDesc = "" +
 	"\n" +
-	"\x12chat/v1/chat.proto\x12\achat.v1\"\x84\x01\n" +
+	"\x12chat/v1/chat.proto\x12\achat.v1\x1a\x15player/v1/color.proto\"\x84\x01\n" +
 	"\rReactionCount\x12-\n" +
 	"\breaction\x18\x01 \x01(\x0e2\x11.chat.v1.ReactionR\breaction\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\rR\x05count\x12\x12\n" +
 	"\x04mine\x18\x03 \x01(\bR\x04mine\x12\x1a\n" +
-	"\breactors\x18\x04 \x03(\tR\breactors\"\xb0\x02\n" +
+	"\breactors\x18\x04 \x03(\tR\breactors\"\x8e\x03\n" +
 	"\vChatMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1f\n" +
@@ -918,7 +935,10 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\x04text\x18\x06 \x01(\tR\x04text\x12!\n" +
 	"\fauthor_admin\x18\a \x01(\bR\vauthorAdmin\x124\n" +
 	"\treactions\x18\b \x03(\v2\x16.chat.v1.ReactionCountR\treactions\x12+\n" +
-	"\x11reactions_version\x18\t \x01(\x04R\x10reactionsVersionJ\x04\b\x04\x10\x05R\n" +
+	"\x11reactions_version\x18\t \x01(\x04R\x10reactionsVersion\x127\n" +
+	"\fauthor_color\x18\n" +
+	" \x01(\x0e2\x14.player.v1.NameColorR\vauthorColor\x12#\n" +
+	"\rauthor_streak\x18\v \x01(\rR\fauthorStreakJ\x04\b\x04\x10\x05R\n" +
 	"author_tag\"w\n" +
 	"\x12SendMessageRequest\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\tR\bauthorId\x12\x1d\n" +
@@ -1013,33 +1033,35 @@ var file_chat_v1_chat_proto_goTypes = []any{
 	(*ChatEvent)(nil),              // 11: chat.v1.ChatEvent
 	(*ReactionsChanged)(nil),       // 12: chat.v1.ReactionsChanged
 	(*Heartbeat)(nil),              // 13: chat.v1.Heartbeat
+	(v1.NameColor)(0),              // 14: player.v1.NameColor
 }
 var file_chat_v1_chat_proto_depIdxs = []int32{
 	0,  // 0: chat.v1.ReactionCount.reaction:type_name -> chat.v1.Reaction
 	1,  // 1: chat.v1.ChatMessage.reactions:type_name -> chat.v1.ReactionCount
-	2,  // 2: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
-	2,  // 3: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
-	6,  // 4: chat.v1.GetHistoryResponse.announcements:type_name -> chat.v1.Announcement
-	0,  // 5: chat.v1.ReactRequest.reaction:type_name -> chat.v1.Reaction
-	1,  // 6: chat.v1.ReactResponse.reactions:type_name -> chat.v1.ReactionCount
-	2,  // 7: chat.v1.ChatEvent.message:type_name -> chat.v1.ChatMessage
-	13, // 8: chat.v1.ChatEvent.heartbeat:type_name -> chat.v1.Heartbeat
-	12, // 9: chat.v1.ChatEvent.reactions:type_name -> chat.v1.ReactionsChanged
-	6,  // 10: chat.v1.ChatEvent.announcement:type_name -> chat.v1.Announcement
-	1,  // 11: chat.v1.ReactionsChanged.reactions:type_name -> chat.v1.ReactionCount
-	3,  // 12: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
-	5,  // 13: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
-	10, // 14: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
-	8,  // 15: chat.v1.ChatService.React:input_type -> chat.v1.ReactRequest
-	4,  // 16: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
-	7,  // 17: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
-	11, // 18: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
-	9,  // 19: chat.v1.ChatService.React:output_type -> chat.v1.ReactResponse
-	16, // [16:20] is the sub-list for method output_type
-	12, // [12:16] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	14, // 2: chat.v1.ChatMessage.author_color:type_name -> player.v1.NameColor
+	2,  // 3: chat.v1.SendMessageResponse.message:type_name -> chat.v1.ChatMessage
+	2,  // 4: chat.v1.GetHistoryResponse.messages:type_name -> chat.v1.ChatMessage
+	6,  // 5: chat.v1.GetHistoryResponse.announcements:type_name -> chat.v1.Announcement
+	0,  // 6: chat.v1.ReactRequest.reaction:type_name -> chat.v1.Reaction
+	1,  // 7: chat.v1.ReactResponse.reactions:type_name -> chat.v1.ReactionCount
+	2,  // 8: chat.v1.ChatEvent.message:type_name -> chat.v1.ChatMessage
+	13, // 9: chat.v1.ChatEvent.heartbeat:type_name -> chat.v1.Heartbeat
+	12, // 10: chat.v1.ChatEvent.reactions:type_name -> chat.v1.ReactionsChanged
+	6,  // 11: chat.v1.ChatEvent.announcement:type_name -> chat.v1.Announcement
+	1,  // 12: chat.v1.ReactionsChanged.reactions:type_name -> chat.v1.ReactionCount
+	3,  // 13: chat.v1.ChatService.SendMessage:input_type -> chat.v1.SendMessageRequest
+	5,  // 14: chat.v1.ChatService.GetHistory:input_type -> chat.v1.GetHistoryRequest
+	10, // 15: chat.v1.ChatService.ListenForEvents:input_type -> chat.v1.ListenForEventsRequest
+	8,  // 16: chat.v1.ChatService.React:input_type -> chat.v1.ReactRequest
+	4,  // 17: chat.v1.ChatService.SendMessage:output_type -> chat.v1.SendMessageResponse
+	7,  // 18: chat.v1.ChatService.GetHistory:output_type -> chat.v1.GetHistoryResponse
+	11, // 19: chat.v1.ChatService.ListenForEvents:output_type -> chat.v1.ChatEvent
+	9,  // 20: chat.v1.ChatService.React:output_type -> chat.v1.ReactResponse
+	17, // [17:21] is the sub-list for method output_type
+	13, // [13:17] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_chat_proto_init() }

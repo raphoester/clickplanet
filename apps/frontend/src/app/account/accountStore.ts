@@ -1,5 +1,5 @@
 import {AccountBackend, AuthFailure, failureOf, Intent, Me, OAuthProvider, Provider, PROVIDERS} from "../../backends/account.ts"
-import {PlayerBackend, PlayerFailure, playerFailureOf} from "../../backends/player.ts"
+import {NameColor, PlayerBackend, PlayerFailure, playerFailureOf} from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
 
 export type AccountAction = "signIn" | "link" | "sendCode" | "checkCode" | "signOut" | "signOutEverywhere" | "deleteAccount"
@@ -19,6 +19,9 @@ export type AccountState =
         username?: string
         naming?: true
         nameFailure?: PlayerFailure
+        color?: NameColor
+        coloring?: true
+        colorFailure?: PlayerFailure
     }
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -59,7 +62,7 @@ export class AccountStore {
         ]).then(([offered, me]) => {
             this.generation++
             this.settle(offered, me)
-            if (me.linked.length > 0) void this.readUsername(this.generation)
+            if (me.linked.length > 0) void this.readProfile(this.generation)
         }).finally(() => {
                 this.loading = undefined
             })
@@ -95,7 +98,7 @@ export class AccountStore {
             this.refused(ready, "email", failureOf(e))
             return
         }
-        this.settle(ready.offered, ready.me, {username: ready.username, code: {address, intent}})
+        this.settle(ready.offered, ready.me, {username: ready.username, color: ready.color, code: {address, intent}})
     }
 
     public async checkCode(code: string): Promise<void> {
@@ -118,7 +121,7 @@ export class AccountStore {
     public cancelCode(): void {
         const ready = this.current
         if (ready.kind !== "ready" || ready.busy || !ready.code) return
-        this.settle(ready.offered, ready.me, {username: ready.username})
+        this.settle(ready.offered, ready.me, {username: ready.username, color: ready.color})
     }
 
     private refused(ready: Ready, provider: Provider, failure: AuthFailure, code?: PendingCode) {
@@ -130,7 +133,7 @@ export class AccountStore {
             this.settle(offered, {linked: []}, {failure})
             return
         }
-        this.settle(offered, ready.me, {failure, username: ready.username, code})
+        this.settle(offered, ready.me, {failure, username: ready.username, color: ready.color, code})
     }
 
     public async leaveFor(provider: OAuthProvider, intent: Intent): Promise<void> {
@@ -166,7 +169,7 @@ export class AccountStore {
         } catch (e) {
             const failure = failureOf(e)
             if (failure !== "notSignedIn") {
-                this.settle(ready.offered, ready.me, {failure, username: ready.username})
+                this.settle(ready.offered, ready.me, {failure, username: ready.username, color: ready.color})
                 return
             }
         }
@@ -178,59 +181,84 @@ export class AccountStore {
 
     public async setUsername(name: string): Promise<void> {
         const ready = this.current
-        if (ready.kind !== "ready" || ready.busy || ready.naming || ready.me.linked.length === 0) return
+        if (ready.kind !== "ready" || ready.busy || ready.naming || ready.coloring || ready.me.linked.length === 0) return
 
-        this.set({kind: "ready", offered: ready.offered, me: ready.me, username: ready.username, code: ready.code, naming: true})
+        this.set({...kept(ready), naming: true})
         const generation = this.generation
 
         try {
             const profile = await this.player.setName(name)
             if (generation !== this.generation) return
-            this.set({kind: "ready", offered: ready.offered, me: ready.me, username: profile.name || undefined, code: ready.code})
+            this.set({...kept(ready), username: profile.name || undefined})
         } catch (e) {
             if (generation !== this.generation) return
-            this.set({
-                kind: "ready", offered: ready.offered, me: ready.me, username: ready.username, code: ready.code,
-                nameFailure: playerFailureOf(e),
-            })
+            this.set({...kept(ready), nameFailure: playerFailureOf(e)})
         }
     }
 
-    private async readUsername(generation: number): Promise<void> {
-        let name: string
+    public async setColor(color: NameColor): Promise<void> {
+        const ready = this.current
+        if (ready.kind !== "ready" || ready.busy || ready.naming || ready.coloring || ready.username === undefined) return
+
+        this.set({...kept(ready), coloring: true})
+        const generation = this.generation
+
         try {
-            name = (await this.player.profile()).name
+            const saved = await this.player.setColor(color)
+            if (generation !== this.generation) return
+            this.set({...kept(ready), color: saved})
+        } catch (e) {
+            if (generation !== this.generation) return
+            this.set({...kept(ready), colorFailure: playerFailureOf(e)})
+        }
+    }
+
+    private async readProfile(generation: number): Promise<void> {
+        let name: string
+        let color: NameColor
+        try {
+            ({name, color} = await this.player.profile())
         } catch {
             return
         }
 
         const ready = this.current
         if (generation !== this.generation || ready.kind !== "ready" || !name) return
-        if (ready.naming || ready.username !== undefined) return
-        this.set({...ready, username: name})
+        if (ready.naming || ready.coloring || ready.username !== undefined) return
+        this.set({...ready, username: name, color})
     }
 
     private begin(action: AccountAction) {
-        if (this.current.kind !== "ready" || this.current.busy || this.current.naming) return undefined
+        if (this.current.kind !== "ready" || this.current.busy || this.current.naming || this.current.coloring) return undefined
 
         const ready = this.current
-        this.set({kind: "ready", offered: ready.offered, me: ready.me, username: ready.username, code: ready.code, busy: action})
+        this.set({...kept(ready), busy: action})
         return ready
     }
 
-    private settle(offered: Provider[], me: Me, extra: {failure?: AuthFailure, username?: string, code?: PendingCode} = {}) {
+    private settle(
+        offered: Provider[],
+        me: Me,
+        extra: {failure?: AuthFailure, username?: string, color?: NameColor, code?: PendingCode} = {},
+    ) {
         const ordered = PROVIDERS.filter((p) => offered.includes(p))
         if (ordered.length === 0 && me.linked.length === 0) {
             this.set({kind: "hidden"})
             return
         }
-        const username = me.linked.length > 0 ? extra.username : undefined
+        const linked = me.linked.length > 0
+        const username = linked ? extra.username : undefined
+        const color = linked && username !== undefined ? extra.color : undefined
         const code = ordered.includes("email") ? extra.code : undefined
-        this.set({kind: "ready", offered: ordered, me, failure: extra.failure, username, code})
+        this.set({kind: "ready", offered: ordered, me, failure: extra.failure, username, color, code})
     }
 
     private set(state: AccountState) {
         this.current = state
         this.listeners.forEach((listener) => listener())
     }
+}
+
+function kept(ready: Ready): Ready {
+    return {kind: "ready", offered: ready.offered, me: ready.me, username: ready.username, color: ready.color, code: ready.code}
 }
