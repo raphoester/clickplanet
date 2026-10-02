@@ -31,6 +31,9 @@ services:
       POSTGRES_DB: clickplanet
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
     command: [ "postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=20" ]
+    ports:
+      # Loopback only: a published port skips ufw, so "5432:5432" would put postgres on the internet.
+      - "127.0.0.1:5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
