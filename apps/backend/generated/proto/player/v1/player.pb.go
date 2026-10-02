@@ -1178,6 +1178,7 @@ type Player struct {
 	CreatedAtUnixMs int64                  `protobuf:"varint,3,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
 	Admin           bool                   `protobuf:"varint,4,opt,name=admin,proto3" json:"admin,omitempty"`
 	Color           NameColor              `protobuf:"varint,5,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
+	Titles          []*Title               `protobuf:"bytes,6,rep,name=titles,proto3" json:"titles,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1247,6 +1248,65 @@ func (x *Player) GetColor() NameColor {
 	return NameColor_NAME_COLOR_UNSPECIFIED
 }
 
+func (x *Player) GetTitles() []*Title {
+	if x != nil {
+		return x.Titles
+	}
+	return nil
+}
+
+type Title struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Title) Reset() {
+	*x = Title{}
+	mi := &file_player_v1_player_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Title) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Title) ProtoMessage() {}
+
+func (x *Title) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_player_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Title.ProtoReflect.Descriptor instead.
+func (*Title) Descriptor() ([]byte, []int) {
+	return file_player_v1_player_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *Title) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Title) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
 var File_player_v1_player_proto protoreflect.FileDescriptor
 
 const file_player_v1_player_proto_rawDesc = "" +
@@ -1313,13 +1373,17 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x10GetPlayerRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\">\n" +
 	"\x11GetPlayerResponse\x12)\n" +
-	"\x06player\x18\x01 \x01(\v2\x11.player.v1.PlayerR\x06player\"\xb3\x01\n" +
+	"\x06player\x18\x01 \x01(\v2\x11.player.v1.PlayerR\x06player\"\xdd\x01\n" +
 	"\x06Player\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12&\n" +
 	"\x05stats\x18\x02 \x01(\v2\x10.player.v1.StatsR\x05stats\x12+\n" +
 	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs\x12\x14\n" +
 	"\x05admin\x18\x04 \x01(\bR\x05admin\x12*\n" +
-	"\x05color\x18\x05 \x01(\x0e2\x14.player.v1.NameColorR\x05color2\x91\x05\n" +
+	"\x05color\x18\x05 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12(\n" +
+	"\x06titles\x18\x06 \x03(\v2\x10.player.v1.TitleR\x06titles\"+\n" +
+	"\x05Title\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name2\x91\x05\n" +
 	"\rPlayerService\x12I\n" +
 	"\n" +
 	"GetProfile\x12\x1c.player.v1.GetProfileRequest\x1a\x1d.player.v1.GetProfileResponse\x12@\n" +
@@ -1346,7 +1410,7 @@ func file_player_v1_player_proto_rawDescGZIP() []byte {
 	return file_player_v1_player_proto_rawDescData
 }
 
-var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_player_v1_player_proto_goTypes = []any{
 	(*Profile)(nil),                // 0: player.v1.Profile
 	(*GetProfileRequest)(nil),      // 1: player.v1.GetProfileRequest
@@ -1373,17 +1437,18 @@ var file_player_v1_player_proto_goTypes = []any{
 	(*GetPlayerRequest)(nil),       // 22: player.v1.GetPlayerRequest
 	(*GetPlayerResponse)(nil),      // 23: player.v1.GetPlayerResponse
 	(*Player)(nil),                 // 24: player.v1.Player
-	(NameColor)(0),                 // 25: player.v1.NameColor
+	(*Title)(nil),                  // 25: player.v1.Title
+	(NameColor)(0),                 // 26: player.v1.NameColor
 }
 var file_player_v1_player_proto_depIdxs = []int32{
 	0,  // 0: player.v1.GetProfileResponse.profile:type_name -> player.v1.Profile
-	25, // 1: player.v1.GetProfileResponse.color:type_name -> player.v1.NameColor
+	26, // 1: player.v1.GetProfileResponse.color:type_name -> player.v1.NameColor
 	0,  // 2: player.v1.SetNameResponse.profile:type_name -> player.v1.Profile
-	25, // 3: player.v1.SetColorRequest.color:type_name -> player.v1.NameColor
-	25, // 4: player.v1.SetColorResponse.color:type_name -> player.v1.NameColor
+	26, // 3: player.v1.SetColorRequest.color:type_name -> player.v1.NameColor
+	26, // 4: player.v1.SetColorResponse.color:type_name -> player.v1.NameColor
 	7,  // 5: player.v1.GetStatsResponse.stats:type_name -> player.v1.Stats
 	16, // 6: player.v1.GetRosterResponse.entries:type_name -> player.v1.RosterEntry
-	25, // 7: player.v1.RosterEntry.color:type_name -> player.v1.NameColor
+	26, // 7: player.v1.RosterEntry.color:type_name -> player.v1.NameColor
 	19, // 8: player.v1.PlayerEvent.roster:type_name -> player.v1.Roster
 	16, // 9: player.v1.PlayerEvent.entry:type_name -> player.v1.RosterEntry
 	20, // 10: player.v1.PlayerEvent.left:type_name -> player.v1.PlayerLeft
@@ -1391,30 +1456,31 @@ var file_player_v1_player_proto_depIdxs = []int32{
 	16, // 12: player.v1.Roster.entries:type_name -> player.v1.RosterEntry
 	24, // 13: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
 	7,  // 14: player.v1.Player.stats:type_name -> player.v1.Stats
-	25, // 15: player.v1.Player.color:type_name -> player.v1.NameColor
-	1,  // 16: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
-	3,  // 17: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
-	5,  // 18: player.v1.PlayerService.SetColor:input_type -> player.v1.SetColorRequest
-	8,  // 19: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
-	10, // 20: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
-	12, // 21: player.v1.PlayerService.Leave:input_type -> player.v1.LeaveRequest
-	14, // 22: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
-	17, // 23: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
-	22, // 24: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
-	2,  // 25: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
-	4,  // 26: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
-	6,  // 27: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
-	9,  // 28: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
-	11, // 29: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
-	13, // 30: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
-	15, // 31: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
-	18, // 32: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
-	23, // 33: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
-	25, // [25:34] is the sub-list for method output_type
-	16, // [16:25] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	26, // 15: player.v1.Player.color:type_name -> player.v1.NameColor
+	25, // 16: player.v1.Player.titles:type_name -> player.v1.Title
+	1,  // 17: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
+	3,  // 18: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
+	5,  // 19: player.v1.PlayerService.SetColor:input_type -> player.v1.SetColorRequest
+	8,  // 20: player.v1.PlayerService.GetStats:input_type -> player.v1.GetStatsRequest
+	10, // 21: player.v1.PlayerService.Announce:input_type -> player.v1.AnnounceRequest
+	12, // 22: player.v1.PlayerService.Leave:input_type -> player.v1.LeaveRequest
+	14, // 23: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
+	17, // 24: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
+	22, // 25: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
+	2,  // 26: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
+	4,  // 27: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
+	6,  // 28: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
+	9,  // 29: player.v1.PlayerService.GetStats:output_type -> player.v1.GetStatsResponse
+	11, // 30: player.v1.PlayerService.Announce:output_type -> player.v1.AnnounceResponse
+	13, // 31: player.v1.PlayerService.Leave:output_type -> player.v1.LeaveResponse
+	15, // 32: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
+	18, // 33: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
+	23, // 34: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
+	26, // [26:35] is the sub-list for method output_type
+	17, // [17:26] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_player_v1_player_proto_init() }
@@ -1435,7 +1501,7 @@ func file_player_v1_player_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_player_proto_rawDesc), len(file_player_v1_player_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   25,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

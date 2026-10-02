@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package player.v1;
+
+message StatsChanged {
+  string account_id = 1;
+}

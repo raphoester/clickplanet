@@ -3,6 +3,7 @@ package playerv1controller
 import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/backfill_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
@@ -35,3 +36,9 @@ type InternalService struct {
 }
 
 var _ playerv1connect.InternalServiceHandler = InternalService{}
+
+type AdminService struct {
+	backfill_titles_handler.BackfillTitlesHandler
+}
+
+var _ playerv1connect.AdminServiceHandler = AdminService{}

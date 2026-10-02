@@ -107,6 +107,11 @@ export interface PresenceBackend {
     listenForRoster(onEvent: (event: RosterEvent) => void, onUnavailable: () => void): () => void
 }
 
+export type PlayerTitle = {
+    id: string
+    name: string
+}
+
 export type PlayerInfo = {
     name: string
     tilesTaken: number
@@ -115,6 +120,7 @@ export type PlayerInfo = {
     createdAt?: number
     admin: boolean
     color: NameColor
+    titles: PlayerTitle[]
 }
 
 export interface PlayerInfoBackend {

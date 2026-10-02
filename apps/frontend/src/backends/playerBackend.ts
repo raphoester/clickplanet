@@ -208,5 +208,6 @@ function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
         createdAt: createdAt > 0 ? createdAt : undefined,
         admin: player?.admin ?? false,
         color: player?.color ?? NameColor.UNSPECIFIED,
+        titles: (player?.titles ?? []).map((title) => ({id: title.id, name: title.name})),
     }
 }

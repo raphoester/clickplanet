@@ -192,6 +192,28 @@ func (s *StoreContractSuite) TestARenameFreesTheOldName() {
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "ada")))
 }
 
+func (s *StoreContractSuite) TestStatsArePagedInAccountOrderAfterTheCursor() {
+	for _, account := range []byte{3, 1, 4, 2} {
+		s.recordTake(account, contractAt)
+	}
+
+	first, err := s.store.StatsAfter(s.T().Context(), AccountID{}, 3)
+	s.Require().NoError(err)
+	rest, err := s.store.StatsAfter(s.T().Context(), first[len(first)-1].Account, 3)
+	s.Require().NoError(err)
+
+	accountsOf := func(page []Stats) []AccountID {
+		accounts := make([]AccountID, 0, len(page))
+		for _, stats := range page {
+			accounts = append(accounts, stats.Account)
+		}
+		return accounts
+	}
+	s.Equal([]AccountID{{15: 1}, {15: 2}, {15: 3}}, accountsOf(first))
+	s.Equal([]AccountID{{15: 4}}, accountsOf(rest))
+	s.Equal(s.stats(4), rest[0])
+}
+
 func (s *StoreContractSuite) TestAnAccountNeverGivenACodeHasNone() {
 	_, err := s.store.GuestCode(s.T().Context(), AccountID{15: 1})
 
