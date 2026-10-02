@@ -12,6 +12,10 @@ import (
 // no conversion.
 type AccountID = cpsession.AccountID
 
+// NoAccount is nobody: a caller whose token names no account, and the account of a message written before the
+// chat kept one.
+var NoAccount = cpsession.NoAccount
+
 // AccountIDOf reads the account the session interceptor put on the context. Anything that is not an account,
 // the empty string of a caller with no token included, is cpsession.NoAccount.
 func AccountIDOf(value string) AccountID {

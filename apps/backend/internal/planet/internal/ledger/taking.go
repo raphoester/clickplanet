@@ -10,6 +10,12 @@
 //	A il→ps, B ps→de, A de→ps  back to de: B broke the run
 //	A il→ps, B ps→de           A holds nothing
 //	A il→ps, bomb, A ""→ps     back to nobody: a change the ledger never saw breaks the run
+//	A pl→"", A ""→de           back to pl: native land takes two clicks, and the clear is recorded
+//	A pl→""                    back to pl, while the tile is still empty
+//
+// A clear is a take with no country: a click that emptied a tile on its own country's ground rather than taking
+// it. It is recorded, so a revert follows it and gives the natives their ground back. It is never told to the
+// other modules — nothing was taken — and in a tally it counts among the caller's takes but holds no tile.
 //
 // A run reaches no further back than the retention, and a forgotten take is as if it never happened.
 package ledger
@@ -69,6 +75,11 @@ func ParseCaller(scope, account string) (Caller, error) {
 	}
 
 	return Caller{Scope: parsed}, nil
+}
+
+// Cleared says the take emptied the tile rather than taking it.
+func (t Taking) Cleared() bool {
+	return t.Country == ""
 }
 
 // Made says whether the take is the caller's.

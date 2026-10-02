@@ -240,16 +240,57 @@ func TestManyAccountsOnOneScopeShareTheScopesBucket(t *testing.T) {
 
 	for i := range 3 {
 		for click := range 10 {
+			_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+accountNumber(i).String())
+			require.NoErrorf(t, err, "account %d click %d", i, click)
+		}
+	}
+
+	_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+accountNumber(3).String())
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a fresh account behind a spent scope is refused")
+	require.InDelta(t, 0.0, budgetDetail(t, err).GetTokens(), 1e-9, "and is told the scope's reading, not its own full bucket")
+	require.Equal(t, uint32(30), budgetDetail(t, err).GetCapacity())
+	require.Equal(t, planetv1.SharedWith_SHARED_WITH_NETWORK, budgetDetail(t, err).GetSharedWith(), "and that it is shared")
+
+	_, err = clickWithToken(t, server, "5.6.7.8", linkedPrefix+accountNumber(3).String())
+	require.NoError(t, err, "the same account elsewhere may click")
+}
+
+func TestGuestsOnOneScopeShareOneBank(t *testing.T) {
+	server, _, _ := accountServer(t, clicks.ThrottleConfig{Config: cpratelimit.Config{PerSecond: 1, Burst: 10}})
+
+	for click := range 10 {
+		res, err := clickWithToken(t, server, "1.2.3.4", accountNumber(0).String())
+		require.NoErrorf(t, err, "click %d", click)
+		require.Equal(t, planetv1.SharedWith_SHARED_WITH_NOBODY, res.Msg.GetBudget().GetSharedWith(),
+			"a guest alone on its network reads its own bucket")
+	}
+
+	err := clickAsAccount(t, server, "1.2.3.4", accountNumber(1))
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a second tab is not a second bank")
+	require.InDelta(t, 0.0, budgetDetail(t, err).GetTokens(), 1e-9)
+	require.Equal(t, uint32(10), budgetDetail(t, err).GetCapacity())
+	require.Equal(t, planetv1.SharedWith_SHARED_WITH_GUESTS, budgetDetail(t, err).GetSharedWith())
+
+	_, err = clickWithToken(t, server, "1.2.3.4", linkedPrefix+accountNumber(1).String())
+	require.NoError(t, err, "signing in is a bank of its own")
+
+	require.NoError(t, clickAsAccount(t, server, "5.6.7.8", accountNumber(2)), "a guest on another network has its own")
+}
+
+func TestTheScopesGuestsMayBeGivenMoreThanOneBank(t *testing.T) {
+	server, _, _ := accountServer(t, clicks.ThrottleConfig{
+		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, GuestScopeMultiplier: 2,
+	})
+
+	for i := range 2 {
+		for click := range 10 {
 			require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", accountNumber(i)), "account %d click %d", i, click)
 		}
 	}
 
-	err := clickAsAccount(t, server, "1.2.3.4", accountNumber(3))
-	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a fresh account behind a spent scope is refused")
-	require.InDelta(t, 0.0, budgetDetail(t, err).GetTokens(), 1e-9, "and is told the scope's reading, not its own full bucket")
-	require.Equal(t, uint32(30), budgetDetail(t, err).GetCapacity())
-
-	require.NoError(t, clickAsAccount(t, server, "5.6.7.8", accountNumber(3)), "the same account elsewhere may click")
+	err := clickAsAccount(t, server, "1.2.3.4", accountNumber(2))
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
+	require.Equal(t, uint32(20), budgetDetail(t, err).GetCapacity())
 }
 
 func TestOneAccountOnManyScopesSpendsOneAllowance(t *testing.T) {
@@ -263,25 +304,23 @@ func TestOneAccountOnManyScopesSpendsOneAllowance(t *testing.T) {
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "a new address is not a new allowance")
 }
 
-func TestABoostDoesNotSpeedUpTheScopesBucket(t *testing.T) {
-	server, limiter, clock := accountServer(t, clicks.ThrottleConfig{
+func TestARefillDoesNotFillTheScopesBucket(t *testing.T) {
+	server, limiter, _ := accountServer(t, clicks.ThrottleConfig{
 		Config: cpratelimit.Config{PerSecond: 1, Burst: 10}, ScopeMultiplier: 1,
 	})
 
-	boosted := accountNumber(0)
-	limiter.Boost("account:"+boosted.String(), 3, clock.Now().Add(time.Minute))
+	refilled := accountNumber(0)
 	for click := range 10 {
-		require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", boosted), "click %d", click)
-	}
-	clock.Advance(2 * time.Second)
-
-	for click := range 2 {
-		require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", boosted), "click %d", click)
+		_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+refilled.String())
+		require.NoErrorf(t, err, "click %d", click)
 	}
 
-	err := clickAsAccount(t, server, "1.2.3.4", boosted)
+	filled, _ := limiter.Fill(cpratelimit.Key{Name: "account:" + refilled.String(), Scale: 1})
+	require.True(t, filled)
+
+	_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+refilled.String())
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err),
-		"six back in the boosted account's hand, but its scope got two")
+		"the account's bucket is full again, but the scope's it shares is still empty")
 }
 
 func TestTheBudgetIsTheTighterBucket(t *testing.T) {
@@ -290,7 +329,8 @@ func TestTheBudgetIsTheTighterBucket(t *testing.T) {
 	})
 
 	for click := range 15 {
-		require.NoErrorf(t, clickAsAccount(t, server, "1.2.3.4", accountNumber(click%2)), "click %d", click)
+		_, err := clickWithToken(t, server, "1.2.3.4", linkedPrefix+accountNumber(click%2).String())
+		require.NoErrorf(t, err, "click %d", click)
 	}
 
 	read := func(token string) *planetv1.ClickBudget {
@@ -312,6 +352,7 @@ func TestTheBudgetIsTheTighterBucket(t *testing.T) {
 	require.InDelta(t, 5.0, budget.GetTokens(), 1e-9, "a fresh account holds ten, its scope five")
 	require.Equal(t, uint32(20), budget.GetCapacity())
 	require.InDelta(t, 2.0, budget.GetRefillPerSecond(), 1e-9)
+	require.Equal(t, planetv1.SharedWith_SHARED_WITH_NETWORK, budget.GetSharedWith())
 
 	require.InDelta(t, 10.0, read("").GetTokens(), 1e-9, "no token reads the scope's bucket from before accounts")
 	require.InDelta(t, 10.0, read("forged").GetTokens(), 1e-9, "a bad token is not refused on a read")
@@ -346,6 +387,36 @@ func TestALinkedAccountClicksTwiceAsFastAsAGuest(t *testing.T) {
 	require.NoError(t, err)
 	_, err = clickWithToken(t, server, "5.6.7.8", linked)
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
+}
+
+func TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank(t *testing.T) {
+	start := 2.0
+	server, _, clock := accountServer(t, clicks.ThrottleConfig{
+		Config: cpratelimit.Config{PerSecond: 0.2, Burst: 60}, NewAccountClicks: &start,
+	})
+
+	for minute := range 5 {
+		account := cpsession.AccountCreatedAt(clock.Now())
+		ip := fmt.Sprintf("10.0.0.%d", minute)
+
+		res, err := clickWithToken(t, server, ip, account.String())
+		require.NoErrorf(t, err, "minute %d", minute)
+		require.InDelta(t, 1.0, res.Msg.GetBudget().GetTokens(), 1e-9, "two to start, one spent")
+		require.Equal(t, uint32(60), res.Msg.GetBudget().GetCapacity(), "the meter shows the bank it is earning")
+
+		_, err = clickWithToken(t, server, ip, account.String())
+		require.NoError(t, err)
+		_, err = clickWithToken(t, server, ip, account.String())
+		require.Equalf(t, connect.CodeResourceExhausted, connect.CodeOf(err), "minute %d: not sixty", minute)
+
+		clock.Advance(time.Minute)
+	}
+
+	old := cpsession.AccountCreatedAt(clock.Now().Add(-5 * time.Minute))
+	for click := range 60 {
+		_, err := clickWithToken(t, server, "10.0.1.1", old.String())
+		require.NoErrorf(t, err, "an account five minutes old has earned its sixty: click %d", click)
+	}
 }
 
 func TestSigningInKeepsTheBankAndSpeedsUpItsRefill(t *testing.T) {

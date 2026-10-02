@@ -54,7 +54,7 @@ func TestABombInTheSeaClearsNothing(t *testing.T) {
 // clicks. Measured on the shipped map, on tiles with land all around, because the lattice
 // stretches near the icosahedron corners and one tile tells nothing.
 func TestTheDefaultBombClearsAboutOneBankInland(t *testing.T) {
-	geography, err := embedded_geodesic_map.New(257948, nil).LoadGeography()
+	geography, err := embedded_geodesic_map.New(262119, nil).LoadGeography()
 	require.NoError(t, err)
 
 	rules := bonuses.NewBombRules(bonuses.BombConfig{}, geography.Spacing())

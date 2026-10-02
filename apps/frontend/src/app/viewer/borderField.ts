@@ -49,7 +49,10 @@ export async function loadBorders(url: string, signal?: AbortSignal): Promise<Bo
     let at = 4 + headerBytes
 
     const assignment = new Uint16Array(buffer, at, header.tiles)
-    at += header.tiles * 2
+    // Rounded up because an odd tile count leaves the landmass table on a 2-byte boundary, and a
+    // Float32Array view has to start on 4. The encoder pads to match; for an even count it is a
+    // no-op, which is why every map before 262,119 tiles loaded without it.
+    at = Math.ceil((at + header.tiles * 2) / 4) * 4
     const frames = new Float32Array(buffer, at, header.codes.length * 5)
     at += header.codes.length * 5 * 4
     const totals = new Uint32Array(buffer, at, header.codes.length)

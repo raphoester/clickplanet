@@ -8,14 +8,16 @@ import waveVertex from "./shaders/enclosureWave/vertex.glsl"
 import waveFragment from "./shaders/enclosureWave/fragment.glsl"
 
 /**
- * What a click made under a bonus looks like, on every screen on the planet.
+ * What a click made under a bonus looks like, on every screen on the planet —
+ * and a click that only cleared native ground, on the clicker's own.
  *
- * - **A spread click** bursts green at the tile clicked and throws a spark onto
- *   each tile around it, one after the other round the circle, which pops as it
- *   lands. A ring runs out under them.
- * - **A boosted click** (triple clicks) is fast and electric: a cyan flash, three
- *   streaks shooting out, and three rings snapping out one after another — one
- *   per click the bonus is worth.
+ * A spread click bursts green at the tile clicked and throws a spark onto each
+ * tile around it, one after the other round the circle, which pops as it lands.
+ * A ring runs out under them.
+ *
+ * A clear puffs dust: native land takes two clicks, so the first foreign click
+ * empties the tile instead of flipping it, and without a sign that reads as a
+ * click that went wrong. A small burst, six motes drifting off it, one ring.
  *
  * It borrows the enclosure's shaders and its approach: the curves are plain
  * TypeScript written into attributes per frame, so the timing is tested rather
@@ -30,25 +32,28 @@ export const SPREAD_THROW_STAGGER = 0.035
 export const SPREAD_TRAVEL_SECONDS = 0.2
 export const SPREAD_LIFETIME_SECONDS = 1.2
 
-export const BOOST_WAVES_AT = [0, 0.09, 0.18]
-export const BOOST_STREAKS = 3
-export const BOOST_TRAVEL_SECONDS = 0.3
-export const BOOST_LIFETIME_SECONDS = 0.7
-
 /** Everything fades over the last part of its life. */
 const FADE_SHARE = 0.4
 
 /** Above the tiles, which sit on the unit sphere, so the marks are never inside them. */
 const LIFT = 1.003
 
-/** A mark is never drawn smaller than this, however far out the camera is. */
+/** A mark is never drawn smaller than this, in CSS pixels, however far out the camera is. */
 const MIN_MARK_PX = 8
 
-/** More than this at once and the oldest ends early: boosted players click fast. */
+/** More than this at once and the oldest ends early: a busy planet spreads a lot. */
 const MAX_PLAYING = 32
 
 const GREEN = new THREE.Color(0.3, 1.0, 0.45)
-const CYAN = new THREE.Color(0.35, 0.85, 1.0)
+
+export const CLEAR_DRIFT_SECONDS = 0.45
+export const CLEAR_LIFETIME_SECONDS = 0.8
+
+/** How far a mote drifts from the tile cleared, in tile spacings: short of the next tile. */
+const CLEAR_DRIFT_REACH = 0.9
+
+/** Dry earth: the ground showing through, and nobody's colour. */
+const DUST = new THREE.Color(0.93, 0.8, 0.58)
 
 export type Spark = {
     /** Where it starts and where it ends, on the unit sphere. The same point for a spark that does not fly. */
@@ -61,9 +66,9 @@ export type Spark = {
     /**
      * - `burst`: flashes in place, at the tile clicked.
      * - `landing`: flies onto a tile and pops there.
-     * - `streak`: shoots out and is gone before it stops.
+     * - `mote`: drifts a little way off and fades as it goes, like dust.
      */
-    role: "burst" | "landing" | "streak"
+    role: "burst" | "landing" | "mote"
 }
 
 export type Wave = {
@@ -78,7 +83,7 @@ export type Choreography = {
     centre: THREE.Vector3
     /** How far the rings run, in world units. */
     reach: number
-    /** The rings are never smaller than this on screen. */
+    /** The rings are never smaller than this on screen, in CSS pixels. */
     minReachPx: number
     lifetime: number
     colour: THREE.Color
@@ -139,34 +144,31 @@ export function choreographSpread(spread: SpreadClick, positions: ArrayLike<numb
 }
 
 /**
- * A boosted click: a flash, three streaks out, three rings. The streaks are
- * turned by the tile id, so a run of clicks does not repeat the same star, and
- * the same click looks the same on every screen.
+ * A click that cleared a native tile rather than taking it: a burst of dust on
+ * the tile, and six motes drifting off it round the circle.
  */
-export function choreographBoost(tile: number, positions: ArrayLike<number>): Choreography {
+export function choreographClear(tile: number, positions: ArrayLike<number>): Choreography {
     const centre = at(positions, tile)
     const {east, north} = groundFrame(centre)
 
-    const turn = (tile * 2.399963) % (Math.PI * 2)
     const sparks: Spark[] = [{from: centre, to: centre, start: 0, travel: 0, role: "burst"}]
-
-    for (let i = 0; i < BOOST_STREAKS; i++) {
-        const angle = turn + (i * Math.PI * 2) / BOOST_STREAKS
+    for (let i = 0; i < 6; i++) {
+        const angle = (i + 0.5) * Math.PI / 3
         const to = centre.clone()
-            .addScaledVector(east, Math.cos(angle) * TILE_SPACING * 7)
-            .addScaledVector(north, Math.sin(angle) * TILE_SPACING * 7)
+            .addScaledVector(east, Math.cos(angle) * TILE_SPACING * CLEAR_DRIFT_REACH)
+            .addScaledVector(north, Math.sin(angle) * TILE_SPACING * CLEAR_DRIFT_REACH)
             .normalize()
-        sparks.push({from: centre, to, start: 0, travel: BOOST_TRAVEL_SECONDS, role: "streak"})
+        sparks.push({from: centre, to, start: 0.02, travel: CLEAR_DRIFT_SECONDS, role: "mote"})
     }
 
     return {
         sparks,
-        waves: BOOST_WAVES_AT.map((startsAt) => ({startsAt, seconds: 0.45})),
+        waves: [{startsAt: 0.04, seconds: 0.55}],
         centre,
-        reach: TILE_SPACING * 8,
-        minReachPx: 48,
-        lifetime: BOOST_LIFETIME_SECONDS,
-        colour: CYAN,
+        reach: TILE_SPACING * 3,
+        minReachPx: 36,
+        lifetime: CLEAR_LIFETIME_SECONDS,
+        colour: DUST,
     }
 }
 
@@ -187,7 +189,7 @@ const HIDDEN: SparkLook = {progress: 0, glow: 0, scale: 0, white: 0}
  * How one spark looks `age` seconds into an effect that lasts `lifetime`.
  *
  * `calm` is for a player who asked for less motion: a landing spark is simply
- * there on its tile, streaks are not drawn, and nothing flashes.
+ * there on its tile, and nothing flashes.
  */
 export function sparkLook(spark: Spark, age: number, lifetime: number, calm = false): SparkLook {
     const since = age - spark.start
@@ -209,9 +211,10 @@ export function sparkLook(spark: Spark, age: number, lifetime: number, calm = fa
             const pop = Math.exp(-(since - spark.travel) * 8)
             return {progress: 1, glow: 0.9 * fade, scale: 1.3 + 2 * pop, white: 0.4 * pop}
         }
-        case "streak": {
-            if (calm || flight >= 1) return HIDDEN
-            return {progress: eased, glow: fade * (1 - smoothstep(0.6, 1, flight)), scale: 1.5 - 0.6 * flight, white: 0.7}
+        case "mote": {
+            if (calm) return {progress: 0.5, glow: 0.6 * fade, scale: 1, white: 0}
+            const drift = 1 - Math.pow(1 - flight, 2)
+            return {progress: drift, glow: fade * (1 - 0.7 * flight), scale: 1.2 - 0.6 * flight, white: 0.2 * (1 - flight)}
         }
     }
 }
@@ -240,9 +243,12 @@ export type BonusClickEffects = {
     readonly object: THREE.Object3D
     /** Starts a spread click's effect on the next frame. */
     playSpread(spread: SpreadClick): void
-    /** Starts the effect of a boosted click on `tile` on the next frame. */
-    playBoost(tile: number): void
-    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number): void
+    /** Starts the dust of a click that cleared native ground, on the next frame. */
+    playClear(tile: number): void
+    /** Whether this frame changed anything: the frame an effect ends on counts.
+     *  `viewportHeight` is the drawing buffer's, and `pixelRatio` how many of its
+     *  pixels make a CSS one. */
+    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number): boolean
     dispose(): void
 }
 
@@ -348,10 +354,11 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
         }
     }
 
-    const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number) => {
-        if (playing.length === 0) return
+    const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number) => {
+        if (playing.length === 0) return false
 
         const tileSize = tilePointSize(camera.zoom, viewportHeight)
+        const minMark = MIN_MARK_PX * pixelRatio
         // The camera's frustum is two units tall at zoom 1, so this is how many
         // pixels one world unit spans on screen right now.
         const pixelsPerUnit = (viewportHeight / 2) * camera.zoom
@@ -367,6 +374,7 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
             }
 
             effect.marks.uniforms.tileSize.value = tileSize
+            effect.marks.uniforms.minSize.value = minMark
             choreography.sparks.forEach((spark, i) => {
                 const look = sparkLook(spark, age, choreography.lifetime, calm)
                 // Along the chord and back out to the ground, so a spark never
@@ -382,7 +390,7 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
             effect.scale.needsUpdate = true
             effect.white.needsUpdate = true
 
-            const reach = Math.max(choreography.reach, choreography.minReachPx / pixelsPerUnit)
+            const reach = Math.max(choreography.reach, choreography.minReachPx * pixelRatio / pixelsPerUnit)
             for (const {mesh, material, wave} of effect.waves) {
                 const look = waveLook(wave, age)
                 mesh.visible = look !== undefined
@@ -395,12 +403,17 @@ export function createBonusClickEffects(positions: ArrayLike<number>): BonusClic
 
             return true
         })
+
+        // Something was on screen when this frame started, so it has to be
+        // drawn — including the frame the last effect was stopped on, which is
+        // the one that takes it off.
+        return true
     }
 
     return {
         object: group,
         playSpread: (spread) => play(choreographSpread(spread, positions)),
-        playBoost: (tile) => play(choreographBoost(tile, positions)),
+        playClear: (tile) => play(choreographClear(tile, positions)),
         update,
         dispose: () => {
             for (const effect of playing) stop(effect)

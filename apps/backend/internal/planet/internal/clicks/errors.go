@@ -23,6 +23,10 @@ var (
 	// ErrTileOutOfRange is a tile id outside the map's 1..maxIndex.
 	ErrTileOutOfRange = errors.New("tile id out of range")
 
+	// ErrBonusesTogether is a click with spread and enclose both switched on. A click is one or the
+	// other: a spread's tiles and an enclose's pocket would each take what the other decides.
+	ErrBonusesTogether = errors.New("spread and enclose switched on together")
+
 	// ErrInvalidTileRange is a map read whose span the map cannot answer.
 	ErrInvalidTileRange = errors.New("invalid tile range")
 

@@ -1,6 +1,6 @@
 import {FormEvent, useId, useState} from "react"
 import {PROVIDER_NAMES} from "../../backends/account.ts"
-import {isValidUsername, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH} from "../../backends/player.ts"
+import {isValidUsername, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH, usernameOf} from "../../backends/player.ts"
 import {AccountState, AccountStore} from "./accountStore.ts"
 import {messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
 import {factor} from "../../domain/clickPrice.ts"
@@ -89,6 +89,9 @@ export default function AccountPanel({state, store, onDelete, linkedMultiplier}:
     </div>
 }
 
+/** The input counts UTF-16 units, the rule code points: room for letters past the BMP and spaces at the ends. */
+const MAX_INPUT_LENGTH = MAX_USERNAME_LENGTH * 2
+
 /** The username the chat shows. Only a linked account has one. */
 function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
     const current = state.username ?? ""
@@ -96,7 +99,7 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
     const inputId = useId()
     const hintId = useId()
 
-    const name = draft.trim()
+    const name = usernameOf(draft)
     const blocked = state.busy !== undefined || state.naming === true
     const canSave = !blocked && name !== current && isValidUsername(name)
 
@@ -117,7 +120,7 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
                    autoComplete="off"
                    autoCapitalize="off"
                    spellCheck={false}
-                   maxLength={MAX_USERNAME_LENGTH}
+                   maxLength={MAX_INPUT_LENGTH}
                    placeholder="Pick a username"
                    aria-describedby={hintId}
                    onChange={(e) => setDraft(e.target.value)}/>
@@ -128,7 +131,7 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
             </button>
         </div>
         <p className="account-name-hint" id={hintId}>
-            {MIN_USERNAME_LENGTH}–{MAX_USERNAME_LENGTH} letters, digits or _. Shown in the chat.
+            {MIN_USERNAME_LENGTH}–{MAX_USERNAME_LENGTH} letters, digits, spaces or _. Shown in the chat.
         </p>
         {state.nameFailure && <p className="account-failure" role="alert">{usernameMessageOf(state.nameFailure)}</p>}
     </form>

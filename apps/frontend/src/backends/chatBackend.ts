@@ -243,5 +243,5 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
 }
 
 function decodedCount(count: ReactionCountPb): ReactionCount {
-    return {reaction: count.reaction, count: count.count, mine: count.mine}
+    return {reaction: count.reaction, count: count.count, mine: count.mine, reactors: count.reactors}
 }

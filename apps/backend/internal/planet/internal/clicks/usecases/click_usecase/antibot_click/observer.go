@@ -40,8 +40,20 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Buckets: []float64{-0.5, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0},
 	})
 
+	busyHours := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "click_busy_hours",
+		Help:    "Hours of the metronome's stamina window a payer spent clicking at pace, per payer that clicked since the last sweep",
+		Buckets: []float64{0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 7, 8},
+	})
+
 	// Set once a sweep. A pool that rotates addresses shows here as a floor that
 	// never drops to zero, long before its cohorts chain into a ban.
+	clockCoherences := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "click_clock_coherence",
+		Help:    "How closely a caller's clicks tried keep one beat of the metronome's clock period, 0 to 1, per caller per sweep",
+		Buckets: []float64{0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0},
+	})
+
 	cohortScopes := factory.NewGauge(prometheus.GaugeOpts{
 		Name: "click_cohort_scopes",
 		Help: "Callers clicking in step with another caller: same flag, same start, same pace",
@@ -51,6 +63,18 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Name:    "click_map_reads",
 		Help:    "Whole maps a clicking caller read beyond one per stream it opened, over the scraper's trackWindow, per caller per sweep",
 		Buckets: []float64{0, 0.5, 1, 2, 3, 5, 8, 12, 15, 20, 30, 50},
+	})
+
+	scopeAccounts := factory.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "click_scope_accounts",
+		Help:    "Guest accounts first seen on one scope inside the churner's window, per scope clicked on since the last sweep",
+		Buckets: []float64{1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30, 50},
+	}, []string{"family"})
+
+	relayLinks := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "click_relay_links",
+		Help:    "Fresh guest accounts that took over from a short-lived one on the same flag and prefix inside the churner's window, per relay per sweep",
+		Buckets: []float64{0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30},
 	})
 
 	// Counts flags, not callers, and once per watchdog that argued for each one:
@@ -83,9 +107,19 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 
 		OnGapSkew: gapSkews.Observe,
 
+		OnClockCoherence: clockCoherences.Observe,
+
+		OnBusyTime: func(busy time.Duration) { busyHours.Observe(busy.Hours()) },
+
 		OnCohortScopes: func(scopes int) { cohortScopes.Set(float64(scopes)) },
 
 		OnMapReads: mapReads.Observe,
+
+		OnScopeAccounts: func(accounts int, family string) {
+			scopeAccounts.WithLabelValues(family).Observe(float64(accounts))
+		},
+
+		OnRelayLinks: func(links int) { relayLinks.Observe(float64(links)) },
 
 		// The address goes in the log and never on a label: per-IP labels are
 		// unbounded cardinality, and they would put personal data in every scrape.

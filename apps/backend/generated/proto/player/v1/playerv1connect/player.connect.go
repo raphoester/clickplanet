@@ -56,11 +56,17 @@ const (
 // PlayerServiceClient is a client for the player.v1.PlayerService service.
 type PlayerServiceClient interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
-	// Chooses the caller's username: 3 to 20 characters, each an ASCII letter, a
-	// digit or an underscore, and not starting with "guest_" in any case — the
-	// chat puts that before every guest's name. A name that breaks a rule is
-	// InvalidArgument. Usernames are unique ignoring case: one another account
-	// holds is AlreadyExists. Only an account signed in with a provider may
+	// Chooses the caller's username. The server puts the name in NFC and cuts the
+	// spaces at its ends, then it must be 3 to 15 characters (code points): letters
+	// of any script, combining marks after a letter, decimal digits, underscores
+	// and spaces, never two spaces in a row. Its letters are of one script, or
+	// Latin with Han and kana, Han and Bopomofo, or Han and Hangul. It does not
+	// start with "guest_" once case folded — the chat puts that before every
+	// guest's name. Emojis, punctuation, symbols, controls and invisible
+	// characters are refused. A name that breaks a rule is InvalidArgument.
+	// Usernames are unique ignoring case (Unicode case folding and NFKC, so
+	// "Straße" is "STRASSE"): one another account holds is AlreadyExists. The
+	// answer holds the name as it was kept. Only an account signed in with a provider may
 	// choose one; a guest is PermissionDenied.
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
@@ -204,11 +210,17 @@ func (c *playerServiceClient) GetPlayer(ctx context.Context, req *connect.Reques
 // PlayerServiceHandler is an implementation of the player.v1.PlayerService service.
 type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
-	// Chooses the caller's username: 3 to 20 characters, each an ASCII letter, a
-	// digit or an underscore, and not starting with "guest_" in any case — the
-	// chat puts that before every guest's name. A name that breaks a rule is
-	// InvalidArgument. Usernames are unique ignoring case: one another account
-	// holds is AlreadyExists. Only an account signed in with a provider may
+	// Chooses the caller's username. The server puts the name in NFC and cuts the
+	// spaces at its ends, then it must be 3 to 15 characters (code points): letters
+	// of any script, combining marks after a letter, decimal digits, underscores
+	// and spaces, never two spaces in a row. Its letters are of one script, or
+	// Latin with Han and kana, Han and Bopomofo, or Han and Hangul. It does not
+	// start with "guest_" once case folded — the chat puts that before every
+	// guest's name. Emojis, punctuation, symbols, controls and invisible
+	// characters are refused. A name that breaks a rule is InvalidArgument.
+	// Usernames are unique ignoring case (Unicode case folding and NFKC, so
+	// "Straße" is "STRASSE"): one another account holds is AlreadyExists. The
+	// answer holds the name as it was kept. Only an account signed in with a provider may
 	// choose one; a guest is PermissionDenied.
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)

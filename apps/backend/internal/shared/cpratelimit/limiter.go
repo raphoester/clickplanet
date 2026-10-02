@@ -69,12 +69,8 @@ type bucket struct {
 	// Pace multiplies the rate, from the last take that set it on. One is the plain rate.
 	pace float64
 
-	// A boost multiplies the refill rate, until it lapses. The ceiling stays where it is.
-	// One means no boost, which is what every bucket that nothing ever boosted
-	// holds — so a limiter nobody calls Boost on behaves exactly as it did
-	// before boosting existed.
-	multiplier float64
-	boostUntil time.Time
+	since time.Time
+	start float64
 }
 
 // State is what a bucket holds, together with the policy it refills under. The
@@ -90,9 +86,6 @@ type State struct {
 
 	// Tokens granted back per second.
 	PerSecond float64
-
-	// A boost is running.
-	Boosted bool
 }
 
 // Take spends a token when there is one, and reports what the bucket holds
@@ -112,11 +105,14 @@ func (l *Limiter) TakeN(key string, n float64) (bool, State) {
 //
 // Pace, when set, multiplies the bucket's rate from this take on, and leaves its burst alone: a take
 // does not reprice the time already past, which was refilled at the rate in force over it. Peek
-// ignores it. Zero leaves the bucket's pace as it is.
+// ignores it. Zero leaves the bucket's pace as it is. Since, when set, makes a new bucket hold Start plus what its
+// plain rate earned since then, not a full burst.
 type Key struct {
 	Name  string
 	Scale float64
 	Pace  float64
+	Since time.Time
+	Start float64
 }
 
 // TakeAll spends n tokens from every bucket, or from none: one bucket refusing
@@ -136,7 +132,7 @@ func (l *Limiter) TakeAll(n float64, keys ...Key) (bool, []State) {
 	for i, key := range keys {
 		b, ok := l.buckets[key.Name]
 		if !ok {
-			b = l.newBucket(key.Scale, now)
+			b = l.newBucket(key, now)
 			l.buckets[key.Name] = b
 		}
 
@@ -160,7 +156,7 @@ func (l *Limiter) TakeAll(n float64, keys ...Key) (bool, []State) {
 	return allowed, states
 }
 
-// Peek reports the state without spending anything. An unknown key is a full
+// Peek reports the state without spending anything. An unknown key is a new
 // bucket and stays unknown: reading an allowance must not be a way to make the
 // limiter remember an address that never clicked.
 func (l *Limiter) Peek(key Key) State {
@@ -171,7 +167,7 @@ func (l *Limiter) Peek(key Key) State {
 
 	b, ok := l.buckets[key.Name]
 	if !ok {
-		return l.state(l.newBucket(key.Scale, now))
+		return l.state(l.newBucket(key, now))
 	}
 
 	l.refill(b, now)
@@ -179,50 +175,59 @@ func (l *Limiter) Peek(key Key) State {
 	return l.state(b)
 }
 
-// Boost multiplies how fast a key gets its tokens back, until `until`.
-//
-// The tokens already in the bucket are left where they are, and so is the
-// ceiling: a boost refills faster, it does not widen the bank or hand out a full one. It is additive to the
-// package in the strictest sense — nothing that never calls this can tell it
-// exists — which matters because the same limiter type throttles chat and
-// session mints, and neither has any business being boosted.
-func (l *Limiter) Boost(key string, multiplier float64, until time.Time) State {
+// Fill tops a key's bucket up to its capacity, and reports whether there was room: a full bucket is
+// left alone and answers false, so a caller does not spend something on nothing. An unknown key is a new
+// bucket, remembered only when it is not full. It is additive to the package: nothing that never calls it
+// can tell it exists, which matters because the same limiter type throttles chat and session mints.
+func (l *Limiter) Fill(key Key) (bool, State) {
 	now := l.clock.Now()
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	b, ok := l.buckets[key]
+	b, ok := l.buckets[key.Name]
 	if !ok {
-		b = l.newBucket(1, now)
-		l.buckets[key] = b
+		b = l.newBucket(key, now)
+		if b.tokens >= l.capacity(b) {
+			return false, l.state(b)
+		}
+		l.buckets[key.Name] = b
 	}
 
 	l.refill(b, now)
-
-	if multiplier > 1 && until.After(now) {
-		b.multiplier = multiplier
-		b.boostUntil = until
+	if b.tokens >= l.capacity(b) {
+		return false, l.state(b)
 	}
 
-	return l.state(b)
+	b.tokens = l.capacity(b)
+
+	return true, l.state(b)
 }
 
-func (l *Limiter) newBucket(scale float64, now time.Time) *bucket {
-	scale = max(scale, 1)
-	return &bucket{tokens: float64(l.config.Burst) * scale, last: now, scale: scale, pace: 1, multiplier: 1}
+func (l *Limiter) newBucket(key Key, now time.Time) *bucket {
+	scale := max(key.Scale, 1)
+	b := &bucket{last: now, scale: scale, pace: 1, since: key.Since, start: key.Start}
+	b.tokens = l.earned(b, now)
+
+	return b
 }
 
-// state reports the reading together with the policy it refills under — which,
-// while a boost runs, is the boosted one. A client replays that arithmetic to
-// draw the allowance, so a boosted bucket fills the meter faster on screen with
-// nothing on the client to change.
+// earned is what a bucket made now would hold: a full burst, or for a key with Since, what it earned since then.
+func (l *Limiter) earned(b *bucket, now time.Time) float64 {
+	if b.since.IsZero() {
+		return l.capacity(b)
+	}
+
+	return math.Min(max(b.start, 0)+max(now.Sub(b.since).Seconds(), 0)*l.config.PerSecond*b.scale, l.capacity(b))
+}
+
+// state reports the reading together with the policy it refills under. A client replays that arithmetic
+// to draw the allowance.
 func (l *Limiter) state(b *bucket) State {
 	return State{
 		Tokens:    b.tokens,
 		Capacity:  int(l.capacity(b)),
 		PerSecond: l.rate(b),
-		Boosted:   b.multiplier > 1,
 	}
 }
 
@@ -232,7 +237,7 @@ func (l *Limiter) capacity(b *bucket) float64 {
 }
 
 func (l *Limiter) rate(b *bucket) float64 {
-	return l.config.PerSecond * b.scale * b.multiplier * b.pace
+	return l.config.PerSecond * b.scale * b.pace
 }
 
 func (l *Limiter) Name() string { return l.name }
@@ -260,46 +265,15 @@ func (l *Limiter) sweep() {
 	for key, b := range l.buckets {
 		l.refill(b, now)
 
-		// A boosted bucket is not the same as a fresh one, so forgetting it
-		// would quietly end the boost early. refill has already dropped the
-		// multiplier of any boost that has lapsed, so this only holds the ones
-		// still running.
-		if b.multiplier > 1 {
-			continue
-		}
-
-		if b.tokens >= l.capacity(b) {
+		// A bucket a refill topped up early would come back short, so it waits until it has earned its burst.
+		if b.tokens >= l.capacity(b) && l.earned(b, now) >= l.capacity(b) {
 			delete(l.buckets, key)
 		}
 	}
 }
 
-// refill grants back what the elapsed time is worth, at the rate in force over
-// it.
-//
-// The interval is **split at the moment a boost lapses**: an interval that
-// straddles the end would otherwise be paid entirely at one rate or the other,
-// over-granting a caller that went quiet across it.
+// refill grants back what the elapsed time is worth, at the rate in force over it.
 func (l *Limiter) refill(b *bucket, now time.Time) {
-	if !now.After(b.last) {
-		return
-	}
-
-	if b.multiplier > 1 && b.boostUntil.After(b.last) {
-		until := b.boostUntil
-		if until.After(now) {
-			until = now
-		}
-
-		b.tokens = math.Min(b.tokens+until.Sub(b.last).Seconds()*l.rate(b), l.capacity(b))
-		b.last = until
-	}
-
-	if b.multiplier > 1 && !b.boostUntil.After(b.last) {
-		b.multiplier = 1
-		b.boostUntil = time.Time{}
-	}
-
 	if !now.After(b.last) {
 		return
 	}

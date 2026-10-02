@@ -46,15 +46,24 @@ func NewSessionInterceptor(
 		planetv1connect.ClickServiceClaimBonusProcedure,
 		// A bomb writes the map, so it asks for what a click does.
 		planetv1connect.ClickServiceDropBombProcedure,
+		// A refill fills the allowance clicks spend, so it asks for what a click does.
+		planetv1connect.ClickServiceUseRefillProcedure,
+		// A right answer grants the same charge a caught box does, so the question asks for the
+		// same thing the box does. Opening is gated too, and not only for symmetry: opening is what
+		// starts the clock, and the caller it starts it for has to be the one that answers.
+		planetv1connect.ClickServiceOpenQuizProcedure,
+		planetv1connect.ClickServiceAnswerQuizProcedure,
 	)
 }
 
 // NewSessionReaderInterceptor reads a token when the client sends one, and refuses nothing. On GetBudget the
-// budget is then the account's; on ListenForEvents the stream knows whose account it serves. Without a token, or
+// budget is then the account's, and on GetCharges the charges; on ListenForEvents the stream knows whose
+// account it serves. Without a token, or
 // with a bad one, a client that has not minted yet reads its scope's allowance and follows the planet as before.
 func NewSessionReaderInterceptor(verifier ClickSessionVerifier, clock cptime.Clock) connect.Interceptor {
 	return cpconnect.NewSessionReaderInterceptor(verifier, clock,
 		planetv1connect.ClickServiceGetBudgetProcedure,
+		planetv1connect.ClickServiceGetChargesProcedure,
 		planetv1connect.ClickServiceListenForEventsProcedure,
 	)
 }

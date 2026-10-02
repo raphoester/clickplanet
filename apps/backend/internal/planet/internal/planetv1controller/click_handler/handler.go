@@ -39,6 +39,8 @@ func (h ClickHandler) Click(
 	out, err := h.useCase.Execute(ctx, click_usecase.In{
 		TileID:    req.Msg.GetTileId(),
 		CountryID: req.Msg.GetCountryId(),
+		Spread:    req.Msg.GetSpread(),
+		Enclose:   req.Msg.GetEnclose(),
 	})
 	if err != nil {
 		return nil, toConnect(err, out)

@@ -9,7 +9,7 @@ import {
     RosterEntry as RosterEntryPb,
     Stats as StatsPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
-import {isValidUsername, PlayerError, RosterEvent} from "./player.ts"
+import {isValidUsername, PlayerError, RosterEvent, usernameOf} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
 
@@ -39,29 +39,58 @@ const headersOf = (call: ReturnType<typeof vi.fn>, n = 0) =>
 
 afterEach(() => vi.restoreAllMocks())
 
+describe("usernameOf", () => {
+    it("puts the name in NFC and cuts the spaces at its ends", () => {
+        expect(usernameOf("  E\u0301mile Zola ")).toBe("\u00c9mile Zola")
+    })
+})
+
 describe("isValidUsername", () => {
-    it("takes 3 to 20 letters, digits and underscores", () => {
-        expect(isValidUsername("ana")).toBe(true)
-        expect(isValidUsername("Ana_2024")).toBe(true)
-        expect(isValidUsername("x".repeat(20))).toBe(true)
+    it("takes 3 to 15 letters of any script, digits, underscores and spaces", () => {
+        for (const name of ["ana", "Ana_2024", "x".repeat(15), "é".repeat(15), "Ana Bo", "Émile Zola", "Жанна", "東京タワー", "محمد", "नमस्ते", "Ken太郎"]) {
+            expect(isValidUsername(name), name).toBe(true)
+        }
+    })
+
+    it("counts code points, not UTF-16 units", () => {
+        expect(isValidUsername("𠀋𠀋𠀋")).toBe(true)
+        expect(isValidUsername("𠀋".repeat(16))).toBe(false)
     })
 
     it("refuses a name too short or too long", () => {
         expect(isValidUsername("ab")).toBe(false)
-        expect(isValidUsername("x".repeat(21))).toBe(false)
+        expect(isValidUsername("x".repeat(16))).toBe(false)
     })
 
-    it("refuses anything but ASCII letters, digits and underscores", () => {
-        expect(isValidUsername("ana bo")).toBe(false)
-        expect(isValidUsername("anaïs")).toBe(false)
-        expect(isValidUsername("ana-bo")).toBe(false)
+    it("refuses emojis, punctuation, symbols, controls and invisible characters", () => {
+        for (const name of ["🌍🌍🌍", "ana🌍", "ana-bo", "ana.bo", "ana!", "ana™", "ana\n", "ana\u200bbo", "\u202eana", "ana\u3164", "ana\ufe0f", "ana\u00a0bo"]) {
+            expect(isValidUsername(name), JSON.stringify(name)).toBe(false)
+        }
+    })
+
+    it("refuses two spaces in a row and a space at either end", () => {
+        expect(isValidUsername("ana  bo")).toBe(false)
+        expect(isValidUsername(" ana")).toBe(false)
+        expect(isValidUsername("ana ")).toBe(false)
+    })
+
+    it("refuses a mark with no letter before it, or four in a row", () => {
+        expect(isValidUsername("\u0301ana")).toBe(false)
+        expect(isValidUsername("anx" + "\u0301".repeat(4))).toBe(false)
+    })
+
+    it("refuses Latin, Greek and Cyrillic letters mixed", () => {
+        expect(isValidUsername("Adа")).toBe(false)
+        expect(isValidUsername("guеst_ana")).toBe(false)
     })
 
     // The chat puts that prefix before every guest's name.
-    it("refuses a name that starts like a guest's, in any case", () => {
+    it("refuses a name that starts like a guest's, in any case or width", () => {
         expect(isValidUsername("guest_ana")).toBe(false)
         expect(isValidUsername("GUEST_ana")).toBe(false)
+        expect(isValidUsername("ＧＵＥＳＴ_ana")).toBe(false)
         expect(isValidUsername("guestana")).toBe(true)
+        expect(isValidUsername("guest ana")).toBe(true)
     })
 })
 

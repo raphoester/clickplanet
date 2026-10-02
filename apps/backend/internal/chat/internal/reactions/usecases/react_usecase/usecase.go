@@ -28,6 +28,12 @@ type Publisher interface {
 	Publish(update feed.Update)
 }
 
+// Authors is the player module, asked who the people under a message's reactions are. The chat keeps accounts,
+// never names, so this is where a reaction gets one — on the way out, for the answer and the broadcast alike.
+type Authors interface {
+	Authors(ctx context.Context, accounts []messages.AccountID) (map[messages.AccountID]messages.Author, error)
+}
+
 type In struct {
 	Account   messages.AccountID
 	MessageID messages.MessageID
@@ -41,16 +47,18 @@ func New(
 	shown Messages,
 	board Board,
 	publisher Publisher,
+	authors Authors,
 	clock cptime.Clock,
 	window messages.Window,
 ) *UseCase {
-	return &UseCase{shown: shown, board: board, publisher: publisher, clock: clock, window: window}
+	return &UseCase{shown: shown, board: board, publisher: publisher, authors: authors, clock: clock, window: window}
 }
 
 type UseCase struct {
 	shown     Messages
 	board     Board
 	publisher Publisher
+	authors   Authors
 	clock     cptime.Clock
 	window    messages.Window
 }
@@ -85,7 +93,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, err
 	}
 	if current.Given(in.Reaction, reactor) == in.On {
-		return outOf(current, reactor), nil
+		return u.answer(ctx, current, reactor)
 	}
 
 	change := reactions.Change{MessageID: in.MessageID, Reaction: in.Reaction, Reactor: reactor, On: in.On, At: u.clock.Now()}
@@ -97,14 +105,33 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	if err != nil {
 		return Out{}, err
 	}
+	// One ask names everybody under the message, for the answer and for the frame that goes to every other
+	// client: neither is worth a second one, and a reader of the stream has no way to ask for itself.
 	tally := next.TallyOf(in.MessageID)
+	named, err := u.authors.Authors(ctx, reactions.AccountsOf(tally.Counts))
+	if err != nil {
+		return Out{}, fmt.Errorf("failed to read who reacted: %w", err)
+	}
+	tally.Counts = reactions.Named(tally.Counts, named)
 	u.publisher.Publish(feed.Update{Reactions: &tally})
 
-	return outOf(next, reactor), nil
+	return Out{Counts: reactions.Named(next.Tally(reactor), named), Version: next.Version()}, nil
 }
 
-func outOf(given reactions.Reactions, reactor reactions.Reactor) Out {
-	return Out{Counts: given.Tally(reactor), Version: given.Version()}
+// answer is what a change that changed nothing says: what is already there, named. It costs the same one ask,
+// since the caller is shown the same list either way.
+func (u *UseCase) answer(
+	ctx context.Context,
+	given reactions.Reactions,
+	reactor reactions.Reactor,
+) (Out, error) {
+	counts := given.Tally(reactor)
+
+	named, err := u.authors.Authors(ctx, reactions.AccountsOf(counts))
+	if err != nil {
+		return Out{}, fmt.Errorf("failed to read who reacted: %w", err)
+	}
+	return Out{Counts: reactions.Named(counts, named), Version: given.Version()}, nil
 }
 
 func (u *UseCase) of(ctx context.Context, id messages.MessageID) (reactions.Reactions, error) {

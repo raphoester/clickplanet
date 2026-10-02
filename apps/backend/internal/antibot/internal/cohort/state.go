@@ -3,6 +3,7 @@ package cohort
 import (
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
@@ -54,7 +55,7 @@ func (w *Watchdog) Load(data []byte) error {
 	for _, s := range saved {
 		m := &member{
 			scope:     s.Scope,
-			prefix:    widen(s.Scope, w.config.V4Bits, w.config.V6Bits),
+			prefix:    detect.WiderPrefix(s.Scope, w.config.V4Bits, w.config.V6Bits),
 			first:     evidence.Time(s.First),
 			last:      evidence.Time(s.Last),
 			clicks:    s.Clicks,

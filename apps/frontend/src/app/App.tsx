@@ -13,7 +13,9 @@ export default function App(props: AppProps) {
             updatesListener={props.updatesListener}
             clickBudgetSource={props.clickBudgetSource}
             bonusListener={props.bonusListener}
+            quizMaster={props.quizMaster}
             bomber={props.bomber}
+            refiller={props.refiller}
             chatBackend={props.chatBackend}
             account={props.account}
             presence={props.presence}

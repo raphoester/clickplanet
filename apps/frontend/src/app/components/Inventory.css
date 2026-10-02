@@ -1,0 +1,219 @@
+/*
+ * The bonuses held, the lower half of the click meter's panel. It has no border
+ * or background of its own: ClickBudgetMeter.css draws the one panel around
+ * both, and the hairline dividing them. The colours of each slot are its box's,
+ * set in BonusAward.css beside the announcement's, so a kind looks the same
+ * when it is caught and when it is held.
+ */
+.inventory {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    pointer-events: auto;
+}
+
+/*
+ * Clear of the header: a switched-on slot's "On" badge hangs 7px over its own
+ * top, and at a smaller margin it would sit on the name.
+ */
+.inventory-slots {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+/*
+ * The header the section folds from: the name, the count while folded, and a
+ * chevron at the right end. Same shape, same icon and same turn as the menu's
+ * collapse and the chat's header — there is one way to fold something here.
+ */
+.inventory-fold {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font-family: Oswald, sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    text-shadow: inherit;
+    opacity: 0.75;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.inventory-fold:hover,
+.inventory-fold:focus-visible {
+    opacity: 1;
+}
+
+/* Something is switched on or aimed: the panel glows, and says so folded too. */
+.inventory--active .inventory-fold {
+    opacity: 1;
+}
+
+.inventory-chevron {
+    display: flex;
+    flex-shrink: 0;
+    margin-left: auto;
+    color: #FFFFFFB3;
+    transition: transform 0.18s ease;
+}
+
+/* Open, it points back up at the header that closes it again. */
+.inventory-fold[aria-expanded="true"] .inventory-chevron {
+    transform: rotate(180deg);
+}
+
+.inventory-held {
+    min-width: 17px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #FFC061;
+    color: #2A1A04;
+    font-size: 11px;
+    line-height: 17px;
+    text-align: center;
+    text-shadow: none;
+}
+
+.inventory-slot {
+    position: relative;
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    padding: 6px 0 4px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: #FFFFFF0D;
+    color: inherit;
+    font-family: Oswald, sans-serif;
+    text-shadow: inherit;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.inventory-slot:not(:disabled):hover,
+.inventory-slot:focus-visible {
+    border-color: color-mix(in srgb, var(--bonus-accent) 60%, transparent);
+    background: #FFFFFF1A;
+}
+
+/* Nothing held: what a box can bring, dimmed. */
+.inventory-slot:disabled {
+    cursor: default;
+}
+
+.inventory-slot--empty {
+    opacity: 0.35;
+    filter: grayscale(0.8);
+}
+
+.inventory-slot--on {
+    border-color: var(--bonus-accent);
+    background: color-mix(in srgb, var(--bonus-box) 30%, transparent);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--bonus-box) 60%, transparent);
+}
+
+.inventory-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 2px solid var(--bonus-box-edge);
+    border-radius: 8px;
+    background: var(--bonus-box);
+}
+
+.inventory-box .bonus-icon {
+    width: 26px;
+    height: 26px;
+}
+
+.inventory-slot--on .inventory-box {
+    animation: inventory-on 1.6s ease-in-out infinite;
+}
+
+.inventory-state {
+    position: absolute;
+    top: -7px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--bonus-accent);
+    color: #111111;
+    font-size: 10px;
+    line-height: 15px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    text-shadow: none;
+    white-space: nowrap;
+}
+
+.inventory-count {
+    position: absolute;
+    top: 24px;
+    right: 6px;
+    padding: 0 4px;
+    border-radius: 6px;
+    background: #000000CC;
+    font-size: 11px;
+    line-height: 15px;
+}
+
+.inventory-name {
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+
+@keyframes inventory-on {
+    50% {
+        box-shadow: 0 0 10px var(--bonus-accent);
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .inventory-slots {
+        gap: 4px;
+    }
+
+    .inventory-box {
+        width: 28px;
+        height: 28px;
+    }
+
+    .inventory-box .bonus-icon {
+        width: 21px;
+        height: 21px;
+    }
+
+    .inventory-count {
+        top: 20px;
+        right: 3px;
+    }
+
+    .inventory-name {
+        font-size: 10px;
+    }
+
+    .inventory-fold {
+        font-size: 11px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .inventory-slot--on .inventory-box {
+        animation: none;
+    }
+}

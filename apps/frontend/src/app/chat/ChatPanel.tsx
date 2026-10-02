@@ -2,7 +2,7 @@ import {useCallback, useEffect, useId, useRef, useState} from "react";
 import {ChatBackend, OutgoingMessage} from "../../backends/chat.ts";
 import {PlayerLine} from "../../backends/player.ts";
 import {Country} from "../../domain/countries.ts";
-import {idsSince, nameSentUnder, unreadSince} from "../../domain/chatLog.ts";
+import {idsSince, unreadSince} from "../../domain/chatLog.ts";
 import {ChevronIcon} from "../components/icons.tsx";
 import {opensFolded} from "../compact.ts";
 import {truncate} from "../truncate.ts";
@@ -43,12 +43,10 @@ export default function ChatPanel(props: ChatPanelProps) {
     const [flashing, setFlashing] = useState<ReadonlySet<string>>(NOTHING)
     const bodyId = useId()
 
-    const {messages, announcements, mine, status, failure, send, react} = useChat({backend: props.backend})
-    const identity = useChatIdentity()
     const {username} = props
-    // What everyone else sees on this player's messages. A guest's is the
-    // server's pick, so it is known only once this tab has posted.
-    const displayName = username ?? nameSentUnder(messages, mine)
+    const {messages, announcements, mine, displayName, status, failure, send, react} =
+        useChat({backend: props.backend, username})
+    const identity = useChatIdentity()
 
     const lastSeen = useRef<string | undefined>(undefined)
     const seenAnything = useRef(false)

@@ -13,13 +13,12 @@ func (p Pocket) Inside() []uint32 {
 }
 
 // Announcement is the shape as the planet is told of it, closed by a click for country on closingTile.
-func (p Pocket) Announcement(country string, closingTile uint32, left int) Enclosed {
+func (p Pocket) Announcement(country string, closingTile uint32) Enclosed {
 	return Enclosed{
 		CountryID:   country,
 		ClosingTile: closingTile,
 		Wall:        p.wall,
 		Filled:      p.inside,
-		Left:        left,
 	}
 }
 

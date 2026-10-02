@@ -15,6 +15,7 @@ import (
 var callerErrors = []error{
 	clicks.ErrUnknownCountry,
 	clicks.ErrTileOutOfRange,
+	clicks.ErrBonusesTogether,
 }
 
 // toConnect leaves anything it does not recognise alone, for NewErrorInterceptor

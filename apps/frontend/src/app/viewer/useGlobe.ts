@@ -4,10 +4,10 @@ import {CapturedFrame} from './capture.ts';
 import {Country} from '../../domain/countries.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
-import {ActiveBonus, afterShapeClosed, BonusReward} from '../../domain/bonus.ts';
+import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from '../../domain/bonus.ts';
 import {BombDrop, Bomber, BonusCatch, BonusListener} from '../../backends/backend.ts';
-import {now} from '../../backends/clickBudget.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
+import {ClearNotes} from '../../domain/clearNotes.ts';
 
 export type GlobeStatus =
     /** `territories` is the share of the owners fetched, once the map itself is in. */
@@ -45,10 +45,13 @@ export function useGlobe(options: UseGlobeOptions) {
     const [sessionUnavailable, setSessionUnavailable] = useState(false)
 
     // Two pieces of state, because they have two lifetimes. `award` is the
-    // two-second announcement; `bonus` is the reward itself, which outlives it
-    // by a minute and is what the meter reads.
+    // two-second announcement; `charges` is what the player holds, which lasts
+    // until it is spent, and is what the meter reads.
     const [award, setAward] = useState<BonusReward | undefined>()
-    const [bonus, setBonus] = useState<ActiveBonus | undefined>()
+    const [charges, setCharges] = useState<Charges>(NO_CHARGES)
+    const [rules, setRules] = useState<BonusRules | undefined>()
+    const [bombArmed, setBombArmed] = useState(false)
+    const [switches, setSwitches] = useState<Switches>(ALL_OFF)
 
     // Somebody caught one, anywhere on the planet. Held as the latest catch so
     // the board can say so; it is never what starts this client's own bonus,
@@ -64,35 +67,18 @@ export function useGlobe(options: UseGlobeOptions) {
         setLastBomb((previous) => ({drop, land, id: (previous?.id ?? 0) + 1}))
     }, [])
 
-    // A held bomb is shown on the meter like any bonus, and leaves it the
-    // moment it is dropped rather than when its time would have run out.
-    const spendBomb = useCallback(() => {
-        setBonus((running) => running?.reward.kind === "bomb" ? undefined : running)
-    }, [])
+    // The charge itself arrives with the charges: this is only the announcement.
+    const takeBonus = useCallback((reward: BonusReward) => setAward(reward), [])
 
-    const takeBonus = useCallback((reward: BonusReward) => {
-        setAward(reward)
-        // Stamped on the same monotonic clock as a budget reading, so the
-        // countdown measures how long this machine has watched rather than
-        // trusting a server timestamp from an unrelated clock.
-        setBonus({reward, endsAt: now() + reward.seconds * 1000})
-    }, [])
-
-    // The server says how many shapes are left each time one closes, and an
-    // enclose bonus with none left is over before its clock is.
-    const closeShape = useCallback((shapesLeft: number) => {
-        setBonus((running) => running && afterShapeClosed(running, shapesLeft))
-    }, [])
-
-    // The bonus takes itself off, so nothing has to remember to. A second box
-    // caught mid-bonus replaces the whole thing, and this effect re-runs with
-    // the new deadline rather than leaving the old timer to cut it short.
-    useEffect(() => {
-        if (!bonus) return
-
-        const timer = setTimeout(() => setBonus(undefined), Math.max(0, bonus.endsAt - now()))
-        return () => clearTimeout(timer)
-    }, [bonus])
+    // A click that cleared native ground rather than taking it, said the first
+    // few times only. Numbered like the bomb, so a second clear restarts the line.
+    const [clearNotes] = useState(() => new ClearNotes(localStore()))
+    const [lastClear, setLastClear] = useState<{ground: string, id: number} | undefined>()
+    const recordClear = useCallback((ground: string) => {
+        if (!clearNotes.due) return
+        clearNotes.record()
+        setLastClear((previous) => ({ground, id: (previous?.id ?? 0) + 1}))
+    }, [clearNotes])
 
     const globeRef = useRef<Globe | null>(null)
 
@@ -122,11 +108,14 @@ export function useGlobe(options: UseGlobeOptions) {
             onSessionUnavailable: () => setSessionUnavailable(true),
             onBonusWon: takeBonus,
             onBonusTaken: recordCatch,
-            onShapeClosed: closeShape,
+            onCharges: setCharges,
+            onRules: setRules,
+            onSwitchesChange: setSwitches,
             bonusListener,
             bomber,
             onBombDropped: recordBomb,
-            onBombSpent: spendBomb,
+            onArmedChange: setBombArmed,
+            onNativeCleared: recordClear,
             playSound,
             signal: abortController.signal,
         }).then((globe) => {
@@ -154,7 +143,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, spendBomb, closeShape])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordClear])
 
     useEffect(() => {
         initialCountry.current = country
@@ -168,7 +157,11 @@ export function useGlobe(options: UseGlobeOptions) {
     }, [])
 
     const dismissAward = useCallback(() => setAward(undefined), [])
+    // The meter's bomb button: aims the bomb held, or puts it away.
+    const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
+    const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !switches[name]), [switches])
     const dismissBomb = useCallback(() => setLastBomb(undefined), [])
+    const dismissClear = useCallback(() => setLastClear(undefined), [])
 
     return {
         status,
@@ -183,10 +176,26 @@ export function useGlobe(options: UseGlobeOptions) {
         dismissSessionUnavailable: () => setSessionUnavailable(false),
         award,
         dismissAward,
-        bonus,
+        charges,
+        rules,
+        bombArmed,
+        toggleBomb,
+        switches,
+        toggleSwitch,
         lastCatch,
         lastBomb,
         dismissBomb,
+        lastClear,
+        dismissClear,
+    }
+}
+
+/** Local storage, or none where reading it throws: a private window can. */
+function localStore(): Storage | undefined {
+    try {
+        return window.localStorage
+    } catch {
+        return undefined
     }
 }
 

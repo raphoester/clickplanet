@@ -1,18 +1,32 @@
 import {useRef, useState} from 'react';
-import {Bomber, BonusListener, OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts";
+import {
+    BankFullError,
+    Bomber,
+    BonusListener,
+    BonusLostError,
+    OwnershipsGetter,
+    QuizMaster,
+    Refiller,
+    TileClicker,
+    UpdatesListener,
+} from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
+import NativeLandNote from "../components/NativeLandNote.tsx";
+import Quiz from "../quiz/Quiz.tsx";
+import {useQuiz} from "../quiz/useQuiz.ts";
 import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu from "../Menu.tsx";
 import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
+import Inventory from "../components/Inventory.tsx";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import CameraButton from "../share/CameraButton.tsx";
 import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
 import {shareStats} from "../../domain/shareCard.ts";
-import {ClickBudgetSource} from "../../backends/clickBudget.ts";
+import {ClickBudgetSource, now as budgetNow, tokensAt} from "../../backends/clickBudget.ts";
 import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
@@ -26,7 +40,11 @@ import PlayerCard from "../players/PlayerCard.tsx";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
+import {LeaderboardEntry} from "../../domain/leaderboard.ts";
 import "./Viewer.css"
+
+/** A stable empty board, so the anthem sees no leader while the map loads. */
+const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 
 export type ViewerProps = {
     tileClicker: TileClicker
@@ -34,7 +52,11 @@ export type ViewerProps = {
     updatesListener: UpdatesListener
     clickBudgetSource?: ClickBudgetSource
     bonusListener?: BonusListener
+    /** Absent for a backend that asks no questions, which shows no banner at all. */
+    quizMaster?: QuizMaster
     bomber?: Bomber
+    /** Absent for a backend with no refills: the refill is then only said. */
+    refiller?: Refiller
     chatBackend?: ChatBackend
     account?: AccountStore
     /** Absent — the fake backend without one — the menu lists no players. */
@@ -53,6 +75,10 @@ export default function Viewer(props: ViewerProps) {
     const username = account.kind === 'ready' ? account.username : undefined
 
     usePresence(props.presence, {countryCode: countryState.code, username})
+
+    // The quiz is React's own: a banner at the top of the screen, never an object in the scene.
+    // It follows the flag the player is on now, so a win counts for what they are playing.
+    const quiz = useQuiz(props.quizMaster, countryState.code, sound.play)
     const roster = useRoster(props.presence)
     const [pitchOpen, setPitchOpen] = useState(false)
     // One card at a time, over the roster or the chat, whichever the name was clicked in.
@@ -74,9 +100,16 @@ export default function Viewer(props: ViewerProps) {
         dismissSessionUnavailable,
         award,
         dismissAward,
-        bonus,
+        charges,
+        rules,
+        bombArmed,
+        toggleBomb,
+        switches,
+        toggleSwitch,
         lastBomb,
         dismissBomb,
+        lastClear,
+        dismissClear,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
@@ -88,9 +121,26 @@ export default function Viewer(props: ViewerProps) {
         country: countryState,
     })
 
+    // The budget and the charges follow the answer, through the backend. A
+    // refill on a full bank would be wasted, so the press says so and sends
+    // nothing; the server refuses it too. A refill already gone changes
+    // nothing worth saying.
+    const refiller = props.refiller
+    const spendRefill = refiller && (() => {
+        if (clickBudget && tokensAt(clickBudget, budgetNow()) >= clickBudget.capacity) return false
+        refiller.useRefill(countryState.code).catch((e) => {
+            if (e instanceof BankFullError || e instanceof BonusLostError) return
+            console.error("could not use the refill", e)
+        })
+        return true
+    })
+
     // The camera lives out here rather than in the menu: the globe is what it
     // photographs, and the card over it is not in the picture.
-    const anthem = useAnthem(leaderboard, sound.settings)
+    // Not before the map is in: the board is sampled while the batches load,
+    // and the first leader plays at once, so a half-loaded map would pick the
+    // anthem and the real leader would then have to wait out a whole hold.
+    const anthem = useAnthem(status.state === 'ready' ? leaderboard : NO_LEADERBOARD, sound.settings)
 
     const {shot, taking, take, discard} = useSharePicture(
         capture, shareStats(leaderboard, countryState))
@@ -124,10 +174,17 @@ export default function Viewer(props: ViewerProps) {
                                onClose={discard}/>}
 
         {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget}
-                                                       bonus={bonus}
                                                        countryName={countryState.name}
                                                        refusals={refusals}
-                                                       onSignIn={guest ? () => setPitchOpen(true) : undefined}/>}
+                                                       onSignIn={guest ? () => setPitchOpen(true) : undefined}>
+            {props.bonusListener && <Inventory charges={charges}
+                                               rules={rules}
+                                               switches={switches}
+                                               onToggle={toggleSwitch}
+                                               bombArmed={bombArmed}
+                                               onToggleBomb={props.bomber ? toggleBomb : undefined}
+                                               onUseRefill={spendRefill}/>}
+        </ClickBudgetMeter>}
 
         {pitchOpen && guest && props.account && clickBudget?.linkedMultiplier && <SignInPitchModal
             state={account}
@@ -150,7 +207,22 @@ export default function Viewer(props: ViewerProps) {
 
         {award && <BonusAward reward={award} onDone={dismissAward}/>}
 
-        {lastBomb && <BombNews key={lastBomb.id} drop={lastBomb.drop} land={lastBomb.land} onDone={dismissBomb}/>}
+        {lastBomb && <BombNews
+            key={lastBomb.id}
+            drop={lastBomb.drop}
+            land={lastBomb.land}
+            lowered={quiz.state.phase !== 'idle'}
+            onDone={dismissBomb}
+        />}
+
+        {lastClear && <NativeLandNote
+            key={lastClear.id}
+            ground={lastClear.ground}
+            lowered={quiz.state.phase !== 'idle'}
+            onDone={dismissClear}
+        />}
+
+        <Quiz state={quiz.state} onOpen={quiz.open} onAnswer={quiz.answer}/>
 
         {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
 

@@ -80,8 +80,9 @@ func TestClickMapsTheBudget(t *testing.T) {
 
 func TestClickMapsTheErrors(t *testing.T) {
 	for name, sentinel := range map[string]error{
-		"an unknown country":  clicks.ErrUnknownCountry,
-		"a tile out of range": clicks.ErrTileOutOfRange,
+		"an unknown country":          clicks.ErrUnknownCountry,
+		"a tile out of range":         clicks.ErrTileOutOfRange,
+		"spread and enclose together": clicks.ErrBonusesTogether,
 	} {
 		t.Run(name+" is the caller's fault", func(t *testing.T) {
 			_, err := clickOn(t, &stubUseCase{err: sentinel}, &planetv1.ClickRequest{})

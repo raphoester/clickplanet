@@ -18,17 +18,19 @@ func TestTheShippedBordersPutEveryTileInItsCountry(t *testing.T) {
 	_, asset, err := mapdata.Borders()
 	require.NoError(t, err)
 
-	assert.Equal(t, "borders-e9353d0c.bin", asset)
+	assert.Equal(t, "borders-67e352b1.bin", asset)
 
 	counts := map[string]int{}
 	for tile := uint32(1); tile <= tiles; tile++ {
 		counts[borders.CountryOf(tile)]++
 	}
 
-	assert.Len(t, counts, 190, "189 countries and no country")
-	assert.Equal(t, 2191, counts[""])
-	assert.Equal(t, 1239, counts["fr"])
-	assert.Equal(t, "fr", borders.CountryOf(99290))
+	// Both blobs come from one query now, so a tile exists exactly where a country does. Was 2,191.
+	assert.NotContains(t, counts, "", "every tile is in a country")
+	assert.Len(t, counts, 205, "countries with at least one tile")
+	assert.Equal(t, 1248, counts["fr"])
+	assert.Equal(t, "fr", borders.CountryOf(100336))
+	assert.Equal(t, 22885, counts["aq"], "includes the ice shelves, which are in no country polygon")
 	assert.Empty(t, borders.CountryOf(0), "tile ids start at 1")
 	assert.Empty(t, borders.CountryOf(tiles+1))
 }

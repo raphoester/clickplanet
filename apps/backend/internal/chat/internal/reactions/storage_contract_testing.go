@@ -53,8 +53,8 @@ func (s *StorageContractSuite) TestReactionsReadBackInTheOrderEachFirstAppeared(
 	s.save("hello", contractClown, contractBo, true, contractStart.Add(2*time.Second))
 
 	s.Equal([]Count{
-		{Reaction: contractClown, Count: 2, Mine: true},
-		{Reaction: contractLaugh, Count: 1},
+		{Reaction: contractClown, Count: 2, Mine: true, Reactors: []Reactor{contractAda, contractBo}},
+		{Reaction: contractLaugh, Count: 1, Reactors: []Reactor{contractBo}},
 	}, s.reactions("hello")["hello"].Tally(contractAda))
 }
 
@@ -73,7 +73,9 @@ func (s *StorageContractSuite) TestAReactionSavedTwiceIsOne() {
 	s.save("hello", contractClown, contractAda, true, contractStart)
 	s.save("hello", contractClown, contractAda, true, contractStart.Add(time.Hour))
 
-	s.Equal([]Count{{Reaction: contractClown, Count: 1}}, s.reactions("hello")["hello"].Tally(NoReactor))
+	s.Equal([]Count{
+		{Reaction: contractClown, Count: 1, Reactors: []Reactor{contractAda}},
+	}, s.reactions("hello")["hello"].Tally(NoReactor))
 }
 
 func (s *StorageContractSuite) TestTakingOffRemovesOnlyThatOne() {
@@ -96,7 +98,9 @@ func (s *StorageContractSuite) TestDeleteBeforeRemovesOnlyOlderReactions() {
 	s.Require().NoError(err)
 
 	s.Equal(int64(1), deleted)
-	s.Equal([]Count{{Reaction: contractLaugh, Count: 1}}, s.reactions("hello")["hello"].Tally(NoReactor))
+	s.Equal([]Count{
+		{Reaction: contractLaugh, Count: 1, Reactors: []Reactor{contractAda}},
+	}, s.reactions("hello")["hello"].Tally(NoReactor))
 	s.Equal(uint64(2), s.reactions("hello")["hello"].Version(), "a prune is not a change")
 }
 
@@ -133,4 +137,14 @@ func (s *StorageContractSuite) TestEachMessageHasItsOwnVersion() {
 
 	s.Equal(uint64(2), given["hello"].Version())
 	s.Equal(uint64(1), given["planet"].Version())
+}
+
+func (s *StorageContractSuite) TestATallySaysWhoGaveEachReactionOldestFirst() {
+	s.save("hello", contractClown, contractBo, true, contractStart)
+	s.save("hello", contractClown, contractAda, true, contractStart.Add(time.Second))
+
+	counts := s.reactions("hello")["hello"].Tally(NoReactor)
+
+	s.Equal([]Reactor{contractBo, contractAda}, counts[0].Reactors,
+		"accounts, not names: the chat keeps no copy of one")
 }

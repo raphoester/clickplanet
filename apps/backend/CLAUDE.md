@@ -33,6 +33,9 @@ go run ./cmd/api -config cmd/api/example.yaml
 # Generate protobuf code (requires buf CLI)
 make proto
 
+# Refresh the embedded quiz bank from the shared /quiz, then commit it
+make quiz
+
 # Refresh the embedded tile coordinates blob from the shared /map, then commit it
 make map
 
@@ -194,6 +197,7 @@ return []bootstrap.Module{
 | `planet`, `player`, `chat` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | each its own `rpc_session_verifier` |
 | `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
+| `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory` | `messages/rpc_player_authors` |
 
 A module cannot import another's interior, so `player`'s and `chat`'s `rpc_session_verifier` are copies of `planet`'s.
 
@@ -231,7 +235,7 @@ The events today:
 
 | event | published by | when | heard by |
 |---|---|---|---|
-| `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats |
+| `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile. A clear of native land is recorded and never published | `player`, for the stats |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats and the visit |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `complete_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account |
@@ -262,14 +266,17 @@ internal/planet/internal/
     postgres_ledger_store/
     usecases/
   bonuses/                        the boxes, and what each one grants
+    inmemory_charge_storage/
+    postgres_charge_store/
     usecases/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
 ```
 
 - **`clicks/`** — what a click is worth, what the map looks like, and what
   changes when somebody takes a tile. Its root holds the rules that need no
-  port: `Board` (which tile ids exist), `Toll` (what a click costs), `Pacing`
-  (how an operator's bulk change is spread out), `Geography` and `Borders`.
+  port: `Board` (which tile ids exist), `Toll` (what a click costs), `HomeSoil`
+  (what a click does on a country's own ground), `Pacing` (how an operator's bulk
+  change is spread out), `Geography` and `Borders`.
 - **`ledger/`** — every take of every tile, oldest first. Its root holds `Taking`, `Player`, `Tally`, `Runs`,
   the `Storage` port, `Recording` (the tile writer that records) and `Retention`. `FindPlayers`, `TopPlayers`, `BanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
@@ -304,7 +311,7 @@ because it serves every concept over one Connect service. It only maps.
 
 | package | what it does | what it needs |
 |---|---|---|
-| `clicks/usecases/click_usecase` | validates the country and the tile, then writes | `TilesChecker`, `TileStorage`, `CountryChecker` |
+| `clicks/usecases/click_usecase` | validates the country and the tile, then writes what the home-soil rule says the click leaves | `TilesChecker`, `TileStorage`, `CountryChecker`, `Rule` |
 | `clicks/usecases/get_map_usecase` | a range of the map as one dense batch | `MaxIndexReader`, `DenseMapReader` |
 | `clicks/usecases/map_density_usecase` | how many tiles there are | `MaxIndexReader` |
 | `clicks/usecases/get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader` |
@@ -316,8 +323,10 @@ because it serves every concept over one Connect service. It only maps.
 | `ledger/usecases/ban_player_usecase` | the operator's shadow ban | `Banner` |
 | `ledger/usecases/inspect_player_usecase` | what the antibot holds on one caller | `Examiner` |
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
-| `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Booster`, `Spreader`, `Bomber`, `Encloser` |
+| `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Charger` |
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
+| `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
+| `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port
@@ -347,21 +356,23 @@ three. `subscribers/` is its edge for events, as `chatv1controller/` is its edge
 ```
 internal/chat/internal/
   messages/                             Message, MessageID, Record, Limits, AccountID, Author, ErrNoAccount, Window,
-                                        the Storage port and its StorageContractSuite
+                                        Named and AccountsOf, the Storage port and its StorageContractSuite
     postgres_message_store/             Storage, over chat.messages
     inmemory_message_storage/           Storage in a slice — behind the testing tag, tests only
-    rpc_player_authors/                 the name a sender is shown under, from player.v1.InternalService/GetAuthor
+    rpc_player_authors/                 who an account is, from player.v1.InternalService/GetAuthor(s): one on
+                                        each post, the whole window on each history
+    log_authors/                        logs a caller, or a page of them, it could not name
     usecases/send_message_usecase/      names, cleans, appends, publishes — Appender, Publisher, CountryChecker, Authors
-      log_authors/                      logs a caller it could not name
-    usecases/get_history_usecase/       the window, each message with its reactions, the caller's marked
+    usecases/get_history_usecase/       the window, each message named and with its reactions, the caller's marked
                                         and the announcements in the same window
-                                                  — MessageReader, ReactionReader, AnnouncementReader
+                                                  — MessageReader, ReactionReader, AnnouncementReader, Authors
     usecases/prune_usecase/             deletes past retention, from each table; Runner — Pruner
       log_prune/                        logs what a prune deleted
-  reactions/                            Reaction, Reactor, Reactions, Count, Tally, Change, the Storage port and its suite
+  reactions/                            Reaction, Reactor, AccountOf, Reactions, Count, Tally, Change, Named,
+                                        AccountsOf, the Storage port and its suite
     postgres_reaction_store/            Storage, over chat.reactions
     inmemory_reaction_storage/          Storage in a slice — behind the testing tag, tests only
-    usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher
+    usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher, Authors
   announcements/                        Announcement, AnnouncementID, Kind, Bomb (a payload), the Storage port and its suite
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
@@ -426,13 +437,13 @@ A stream blocked inside a `Send` to a client that reads nothing is not woken by 
 
 **The streaming RPCs are wrapped by error mapping, the drain and the session reader, and nothing else**, because every other interceptor is a `connect.UnaryInterceptorFunc` and streams skip those by construction. Reads and the live feeds are therefore untouched by the throttle, the VPN blocklist and the session check, exactly as they were when they were websockets. A policy that ever has to reach a stream must be written as a full `connect.Interceptor`, as `cpconnect.NewSessionReaderInterceptor` is.
 
-**The planet stream reads a token when the client sends one.** `planetv1controller.NewSessionReaderInterceptor` covers `ListenForEvents`: the token is verified once, from the headers that open the stream, and the account stays on the context for as long as the stream is open. It refuses nothing, so a stream with no token or a bad one opens as before. The web client sends the token it holds and never mints for it, and reopens the stream when a click goes out under a new token (see the frontend's CLAUDE.md). Nothing on the stream reads the account yet: bonuses and the `yours` flag are still keyed by scope. `TestAStreamOpenedWithATokenKnowsItsAccount` pins it over HTTP.
+**The planet stream reads a token when the client sends one.** `planetv1controller.NewSessionReaderInterceptor` covers `ListenForEvents`: the token is verified once, from the headers that open the stream, and the account stays on the context for as long as the stream is open. It refuses nothing, so a stream with no token or a bad one opens as before. The web client sends the token it holds and never mints for it, and reopens the stream when a click goes out under a new token (see the frontend's CLAUDE.md). Nothing on the stream reads the account yet: offers and the `yours` flag are keyed by scope. `TestAStreamOpenedWithATokenKnowsItsAccount` pins it over HTTP.
 
 ### The map load
 
 `GetMap` is an ordinary RPC, but marked `idempotency_level = NO_SIDE_EFFECTS` in the proto, so Connect sends it as an **HTTP GET** and the handler sets `Cache-Control: public, max-age=5` on the response. A burst of visitors can therefore share one origin response; `ListenForEvents` carries everything that happens after a chunk was built, so a client starting from a slightly old map converges anyway. `MapDensity` is marked the same way.
 
-The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, the interned `codes` table, and `tiles` — a `bytes` field holding two bytes per tile, little endian, indexing into `codes`. Tile ids are implicit in the position, which is what makes it far smaller than the deprecated `map<uint32, string>`: **516 KB against 3.6 MB** for a full 257,948-tile map.
+The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, the interned `codes` table, and `tiles` — a `bytes` field holding two bytes per tile, little endian, indexing into `codes`. Tile ids are implicit in the position, which is what makes it far smaller than the deprecated `map<uint32, string>`: **524 KB against 3.6 MB** for a full 262,119-tile map.
 
 `inmemory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
@@ -441,6 +452,8 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 - `clicks/postgres_tile_store/` — that port, over the `planet.tiles` table. See [Durability](#durability).
 - `ledger/inmemory_ledger_storage/` — the ledger, in memory, flushed through its own `Persistence` port.
 - `ledger/postgres_ledger_store/` — that port, over `planet.ledger_takes`, `ledger_head` and `ledger_forgotten`.
+- `bonuses/inmemory_charge_storage/` — the charges each account holds, in memory, flushed through its own `Persistence` port.
+- `bonuses/postgres_charge_store/` — that port, over `planet.charges`.
 - `clicks.Board` (not an adapter) — validates tile IDs
 - country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](#the-composite-layer)
 
@@ -477,8 +490,8 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
   → antibot_click   (judges; a flagged caller is answered OK and dropped)
   → prom_click      (counts)
-  → clicks/usecases/click_usecase (validates tile ID + country)
-  → MemoryTileStorage.Set() [writes the tile, fans the update out in process]
+  → clicks/usecases/click_usecase (validates tile ID + country, asks clicks.HomeSoil: take, clear or nothing)
+  → ledger.Recording.Set() → MemoryTileStorage.Set() [writes the flag, or "" for a clear; fans the update out in process]
   → every subscriber: one per open ListenForEvents stream
 ```
 
@@ -492,7 +505,7 @@ POST /chat.v1.ChatService/SendMessage   [X-Session-Token: required, naming an ac
   → messages/usecases/send_message_usecase: no account is ErrNoAccount (Unauthenticated), then
       who posts (log_authors → rpc_player_authors → player.v1.InternalService/GetAuthor): the account's
       username, or "guest_" and its guest code; stamps id/time
-  → postgres_message_store.Append() [inserts into chat.messages]
+  → postgres_message_store.Append() [inserts into chat.messages: the account, never a copy of its name]
   → inprocess_feed.Publish() → every subscriber: one per open ListenForEvents stream
 ```
 
@@ -506,8 +519,58 @@ POST /chat.v1.ChatService/React   [X-Session-Token: required, naming an account]
       is the message shown (postgres_message_store.Shown), what it carries (postgres_reaction_store.Reactions)
   → postgres_reaction_store.Save() [inserts or deletes in chat.reactions and bumps chat.reaction_versions, one statement]
       then reads the tally and its version back, one statement
-  → inprocess_feed.Publish() the whole tally, versioned
+  → who everyone under the message is, one ask (rpc_player_authors.Authors), for the answer and the frame alike
+  → inprocess_feed.Publish() the whole tally, versioned and named
 ```
+
+### Native land takes two clicks (`clicks.HomeSoil`)
+
+**On a country's own ground, a tile wearing that country's flag needs two clicks
+from any other flag.** The first clears it to nobody; the next click on the empty
+tile takes it, for any flag. Its natives take back an empty or foreign-held tile
+on their ground in one click, as before. It exists because one country took 40% of
+the map in under three days, and players tire of seeing their work erased within
+the hour: home ground now costs an attacker twice what it costs its defenders.
+
+**One click is one token, always.** "A click at home costs half a charge" was
+refused for breaking that; this changes what a click does, never what it costs.
+A clear is an accepted click: it spends from both buckets, sets the pace, counts
+in `clicks_total{status="ok"}` and is reported to the jury.
+
+- **The rule is `clicks.OutcomeOf(owner, ground, flag)`**, pure and tested in the
+  `clicks` root: `Unchanged` when the tile already wears the flag, `Cleared` when
+  it wears its own ground's flag and another is clicked, `Taken` for anything else
+  — foreign ground, an empty tile, a native tile held by another flag. A tile in no
+  country is never native. `Outcome.OwnerAfter` is what the tile holds after.
+  `clicks.HomeSoil` is the rule over `clicks.Borders`, the ground of each tile; off,
+  every ground reads as nobody's and every click takes, as before.
+- **Only the player's click path reads it**: `click_usecase` (the tile clicked),
+  `spread_click` (each neighbour), the enclose annexer (each tile inside) and
+  `antibot_click` (the jury's view before the write). `inmemory_tile_storage` knows
+  nothing of it, so the bomb, `ReassignCountry`, `RevertPlayer` and
+  `PaintRandomTiles` write the map as they always did.
+- **A clear is an ordinary `Set(tile, "")`**, so it reaches every client as a
+  `TileUpdate` with an empty country and `Previous` set, like a revert to nobody —
+  never a `Blast`. The owner is read apart from the write, as the ledger's
+  `Previous` is: three clicks racing on one tile can leave it cleared where it
+  would now be taken, which is one click's worth and the next click settles.
+- **`click_usecase.Out.Outcome`** says what the rule did, for the decorators inside
+  the shadow ban: `enclose_click` closes a shape only with `Taken`, and
+  `prom_click` counts `clicks_cleared_total{country_id}` by the flag clicked.
+  **It never reaches the wire**: a dropped click answers the zero `Out`, which
+  reads `Unchanged`, so an outcome on the answer would tell a banned caller its
+  clicks are dropped. The client predicts it instead.
+- **The client is told** in `GetBonusRulesResponse.home_soil`, read once per page
+  load, and paints its own click from its copy of the rule and the borders blob it
+  already loads — a clear as an empty tile, not the flag. `home_soil_test.go` and
+  the frontend's `domain/homeSoil.test.ts` hold the same cases.
+- **`homeSoil.enabled`** is the switch, off by default and on in production; off
+  needs no frontend release, since the client reads it. See [Configuration](#configuration).
+
+What the bonuses, the ledger and the antibot do with a clear is in their own
+sections: [spread](#what-a-spread-does-to-a-click), [enclose](#what-an-enclose-does-to-a-click),
+[ledger](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer),
+[antibot](#the-parts-that-are-easy-to-get-wrong).
 
 ### Chat (`internal/chat/`)
 
@@ -517,6 +580,13 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 **Identity: a username, or a guest code, and always an account.** `SendMessage` reads the click token (`chatv1controller.NewSessionInterceptor`, over `cpconnect.NewSessionReaderInterceptor`, on the key `auth` hands over the internal listener). **A sender with no token, a bad one or a token with no account is refused** with `Unauthenticated` (`messages.ErrNoAccount`) before anything is asked. Every browser that passed Turnstile has an account, a guest one until it signs in, so the web client mints for a post as it does for a click. **The name is the player module's**, asked of `player.v1.InternalService/GetAuthor` on every post: the account's username, or `guest_` and the account's guest code (see [Player](#player-internalplayer)). Nobody types a guest's name, so no guest can pass for a player or for another guest. **A post the player module could not answer for is refused** with `Unavailable` (`messages.ErrAuthorUnavailable`): no answer within a second, or an error. `log_authors`, a decorator around the adapter, logs it at Error. Messages sent before usernames existed got the prefix from migration `20260917200000_guest_prefix_backfill`, and messages sent before guest codes keep the name a guest typed then, until the retention drops them.
 
+**A message is kept as an account, not as a copy of a name.** `chat.messages.account_id` is who sent it; the name and the crown are read from the player module when the message is *shown*, never stored beside it. That is what makes a rename show on everything its player ever said, and a deleted account stop being named at all — a frozen copy could do neither, and the copy outliving the account it named was a small privacy hole of its own.
+
+- **The history names a whole window in one ask.** `get_history_usecase` collects the distinct accounts (`messages.AccountsOf`) and asks `player.v1.InternalService/GetAuthors` once, however many messages each of them sent; `messages.Named` stitches the answer back on. An account that says fifty things costs one lookup, not fifty. **A history nobody could be named in is refused** rather than shown anonymous.
+- **`SendMessage` still asks `GetAuthor` for one**, because what it publishes has to go out named: everyone already watching is shown who is talking without a second read. That call is also the one that gives a guest its code, which is why the read path uses `GetAuthors` instead — it draws no code, so showing the chat never writes.
+- **An account that can no longer be named was deleted**, and reads as `messages.DeletedName` (`[deleted]`). No username can look like it: `SetName` refuses punctuation. What the account said stays, so a thread keeps its shape.
+- **A message with no `account_id` is from before this**, and keeps the `name` and `author_admin` its row carries. Those two columns exist for that alone. **TODO** (see `postgres_message_store.row`): once `chat.storage.retention` has passed since this shipped, every remaining row has an account, and the columns and `messages.Named`'s fallback can go.
+
 The client also sends a UUID it persists locally, kept in the log and **trusted for nothing**. **The sender's address is never public.** It is kept in `chat.messages.ip` for moderation. The salted hash of it that used to go beside every name (`author_tag`) is gone from the wire and the table (migration `20260918210000_drop_tag`): it changed whenever a player changed network, and it told anybody which names shared one.
 
 **Abuse controls live at the edge**, in two interceptors — ahead of decoding the message and well ahead of validating it, so a flood of malformed messages costs a sender exactly what a flood of well-formed ones does. `chat.blockedIPs` cuts an address off from every chat RPC; `chat.rateLimiter` throttles `SendMessage` alone (`GetHistory` is one read on join, and limiting it would punish a page load). **Both are `shared/cpconnect`'s**, the same ones the click chain uses — see [Shared interceptors](#shared-interceptors). The domain then bounds the message in **runes** (280) and the name (24), validates UTF-8, and **strips control characters** — a newline once let a sender forge a line in the old log file, and a NUL is not valid in a postgres `text`.
@@ -525,7 +595,7 @@ Refusal reasons are logged, never returned: a sender learns *that* they were ref
 
 The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Click` alone. Chat's blocklist is the same `*cpipblock.Blocklist` type, built by `cpipblock.NewDenyList` from config prefixes instead of vendored data — so entries are CIDRs and a `/24` is one line rather than 256. Extending the vendored lists to chat is therefore a wiring change (build the list in `describeModules` and hand it to both modules, the way `shared/cpcountries` already is), not a second list to write.
 
-**Every message is a row in `chat.messages`**, inserted before it is broadcast: `seq` (the order it was accepted in), `id`, `sent_at`, `name`, `author_admin`, `author_id`, `country`, `ip`, `user_agent`, `text`. **Postgres is the chat's only copy.** There is no cache in front of it, nothing loaded at boot and nothing flushed: chat is low volume (one message per 3s per address), so every write is one statement and every read one query. `send_message_usecase` inserts (5s timeout) and only then publishes to `inprocess_feed`; `GetHistory` reads the newest `chat.storage.historySize` rows within `retention` (`messages.Window`), straight from the table. A stream can therefore see two messages sent at the same instant in the other order than `seq`; the client sorts by time.
+**Every message is a row in `chat.messages`**, inserted before it is broadcast: `seq` (the order it was accepted in), `id`, `sent_at`, `account_id` (who sent it), `country`, `ip`, `user_agent`, `text` — plus `name`, `author_admin` and `author_id`, of which the first two are only ever read, for rows written before `account_id` existed, and the third is a UUID the client made up and nothing trusts. **Postgres is the chat's only copy.** There is no cache in front of it, nothing loaded at boot and nothing flushed: chat is low volume (one message per 3s per address), so every write is one statement and every read one query. `send_message_usecase` inserts (5s timeout) and only then publishes to `inprocess_feed`; `GetHistory` reads the newest `chat.storage.historySize` rows within `retention` (`messages.Window`), straight from the table. A stream can therefore see two messages sent at the same instant in the other order than `seq`; the client sorts by time.
 
 **The fanout is not storage.** `feed/inprocess_feed` keeps nothing: it hands each update to every open stream, drops for one too slow to keep up (`chat.storage.subscriberBuffer`, a key kept from before), and a client that was not listening reads the history instead.
 
@@ -566,13 +636,19 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 
 **A message carries reactions from a fixed set**, `chat.v1.Reaction`. The proto enum is the whole list: the frontend draws each one from its own images (see its CLAUDE.md), and `chatmessage.Reaction` refuses a number the proto does not name with `InvalidArgument`. **The number is what is stored**, so a value is never renumbered or reused.
 
-- **Who reacts** (`reactions.ReactorOf`): the account, `account:<uuid>`, whether it chose a username or not. No account is refused with `Unauthenticated` (`messages.ErrNoAccount`), and nothing is asked of the player module. So two accounts behind one address are two reactors. A reactor gives each reaction at most once per message. Rows from before, `guest:<tag>`, match no caller and age out with the retention.
-- **`React` is on or off, not a toggle.** Asking for what is already there changes nothing, is not written and is not published, so a retry cannot flip it twice. It answers the message's counts with `mine` set for the caller. It asks the player module nothing.
+- **Who reacts** (`reactions.ReactorOf`): the account, `account:<uuid>`, whether it chose a username or not. No account is refused with `Unauthenticated` (`messages.ErrNoAccount`). So two accounts behind one address are two reactors. A reactor gives each reaction at most once per message. Rows from before, `guest:<tag>`, match no caller and age out with the retention.
+- **`React` is on or off, not a toggle.** Asking for what is already there changes nothing, is not written and is not published, so a retry cannot flip it twice. It answers the message's counts with `mine` set for the caller.
 - **Only a message in the window can be reacted to** (`ErrUnknownMessage` → `NotFound`): nobody is shown any other. `postgres_message_store.Shown` asks the same question as the history, for one id.
 - **Saved, then read back, then published, with no lock.** Two reactions at once can publish their tallies in either order, so **each tally carries a version**: `chat.reaction_versions` holds one counter per message, bumped in the same statement as the change (a data-modifying CTE: no row changed, no bump), and read in the same statement as the reactions, so a tally and its version are one snapshot. The client keeps the highest version it has seen per message and drops a lower one. This holds across processes, which an in-memory lock would not. `reactions.Reactions` is a value: `With`/`Without` answer a copy.
 - **The stream sends all of a message's counts, not the difference** (`ReactionsChanged`), with their version, so a client that missed a frame is right on the next, and one that gets two out of order keeps the newer. It cannot know who reads it, so `mine` is always false there; the client keeps its own between calls.
-- **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it): the account's reactions are marked, and a caller with no token has none. It asks the player module nothing.
-- **Stored in `chat.reactions`**, their own table and their own store, one row per `(message_id, reaction, reactor)`, with `reacted_at`. A read replays the rows oldest first, so each reaction keeps the place it first appeared in. The prune deletes rows older than `chat.storage.retention`, like messages: the reactor is an account, so it is personal data. It deletes a version whose last change is that old too, which is only ever one whose message's reactions are all gone.
+- **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it): the account's reactions are marked, and a caller with no token has none.
+- **A count says who gave it, not only how many** — as accounts, named when it is shown. `Count` carries the same two halves a `messages.Message` does: `Reactors` is what the store holds, and `Names` is who those accounts are to a reader, filled by `reactions.Named` on the way out. So a rename shows under every reaction its player ever gave, for the same reason it shows on every message.
+  - **`reactions.AccountOf`** is `ReactorOf` backwards: `account:<uuid>` to an account, and `false` for a `guest:<tag>` row from before guests had accounts, which is nobody and can be named nothing.
+  - **The history names everyone in one ask.** `get_history_usecase` gathers the senders *and* the people under their reactions (`messages.AccountsOf` plus `reactions.AccountsOf`) and calls `GetAuthors` once for the lot.
+  - **`React` asks once too**, after the write, and uses that one answer for both the caller's response and the `ReactionsChanged` frame — a reader of the stream has no way to ask for itself. A change that changes nothing pays the same ask, since it answers the same list.
+  - **Somebody nobody can name is counted without being named**: a deleted account, or one of those guest tags. `Count` still says how many gave it, and a list of reactions is not the place to announce that somebody is gone — which is why this does not use `messages.DeletedName`.
+  - The edge sends the first `chatmessage.NamedReactors` (20) names per count and lets `count` say the rest, so a message everybody piles onto does not carry a name per reader per message.
+- **Stored in `chat.reactions`**, their own table and their own store, one row per `(message_id, reaction, reactor)`, with `reacted_at`. **The reactor is already an account**, so there was never anything to migrate here: the table has held the right thing all along. A read replays the rows oldest first, so each reaction keeps the place it first appeared in, and so do the people under it. The prune deletes rows older than `chat.storage.retention`, like messages: the reactor is an account, so it is personal data. It deletes a version whose last change is that old too, which is only ever one whose message's reactions are all gone.
 - **Its own rate bucket**, `chat.reactionLimiter` (defaults: 1 a second, 10 in hand), and the blocklist covers `React` too.
 
 **Chat has its own stream**, `ChatService.ListenForEvents` — see [The live streams](#the-live-streams). It replaced a `/ws/chat` websocket that had to be kept apart from the tile one because frames carried a bare protobuf message with no type tag: a second payload on either socket would have been indistinguishable from the first. The `oneof` envelope is exactly what removes that constraint.
@@ -589,11 +665,17 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 
 **A click spends from two buckets at once: its account's and its scope's.** The account is the one the click token names; the scope is the address, or its /64 over IPv6 (`cpipscope`). The account's bucket is `rateLimiter.*`: production runs one click every 5s (`perSecond: 0.2`) with a bank of 60, which fills in five minutes; unset, it is 1/s with a burst of 10. The scope's is `rateLimiter.scopeMultiplier` (10) times that, because many players can share one address — a campus, a school, a carrier NAT.
 
+- **A guest spends from a third: the one every guest behind its scope shares** (`guests:<scope>`), at `rateLimiter.guestScopeMultiplier` (1) times one account's. A guest account is one per browser, and a private tab or a second browser is a new one, so without it ten tabs were ten banks, up to the scope's ten. Now the guests on one network are one bank. **Nobody is refused for being second** — there is no slot to win and none to free — and two people behind one address share until one signs in, which is a reason to. It takes a guest's pace, so ten tabs on a big country refill no faster than one. A linked account never spends from it. `TestGuestsOnOneScopeShareOneBank` pins it.
+
 - **A linked account refills faster, into the same bank.** An account that signed in with Google or Discord refills `rateLimiter.linkedMultiplier` (2) times as fast, to make signing in worth it; its bank is the same size. It is the same `account:<id>` bucket either way — the rate is its pace, set by each click (see below) — so signing in neither tops the bank up nor empties it. The scope's bucket still bounds it. **Planet learns it from the token**, which carries a linked byte (see [Sessions](#sessions-internalauth)), so a click costs no call to `auth`. A player who links mid-session refills at 1× until the client mints again. `TestALinkedAccountClicksTwiceAsFastAsAGuest` and `TestSigningInKeepsTheBankAndSpeedsUpItsRefill` pin it.
+- **A new account earns its bank; it is not handed one.** Its own bucket starts with `rateLimiter.newAccountClicks` (production 10) and earns the rest at the plain rate from the moment the account was made, so at 0.2/s it is full in under four minutes. From 2026-09-28 to 10-01 one phone took a new mobile /64 and a new guest account about once a minute and spent each fresh 60, about 4.5 times a guest's rate; now each new account is worth 10. Unset, every account starts full.
+  - **Planet reads the age off the id.** Auth makes every account id a UUIDv7, whose first 48 bits are when it was made, so `cpsession.AccountID.CreatedAt` needs no call and no change to the token. The session interceptor puts it on the context beside the account, and `clicks.PayerOf` reads it into `Payer.Created`. An id of another version says nothing and starts full. `uuid_id_provider`'s test pins that the ids it makes say when.
+  - **The limiter computes it when it makes the bucket** (`cpratelimit.Key.Since` and `Start`): `Start` plus what the plain rate earned since `Since`, never past the burst. So a restart, a sweep or a `Peek` cannot hand the bank over early, and nothing is stored per account. The sweep keeps a bucket a refill topped up early until it has earned its burst, or it would come back short.
+  - Only the account's own bucket: the guests' and the scope's have no age. A fresh account is still bounded by them. `TestAFreshGuestOnAFreshAddressEveryMinuteIsNoFreshBank` replays the phone over HTTP.
 - **A click is refused when either bucket is empty, and a refusal spends from neither.** `Limiter.TakeAll` checks every bucket and spends from all or none under one lock, so a player refused for a busy scope keeps its own tokens.
 - **A token with no account spends one bucket, the scope's at 1×** — exactly the throttle from before accounts. The deprecated `session.v1` mint, an invalid token while `auth.enforce` is off, and `auth.enabled` false all land here. It is a separate bucket from the scope's shared one, because a key never changes its scale.
 - **One limiter holds both.** A bucket's `Scale` is set when it is made and multiplies its burst and rate for good; `clicks.Buckets` names the keys (`account:<id>` at 1, `scope:<scope>` at the scope multiplier, or the bare scope at 1 with no account). **A key's `Pace` multiplies the payer's own bucket's rate from that take on, and leaves its burst alone**: the linked multiplier for a signed-in account, divided by the country's slowdown (see [A big country refills slower](#a-big-country-refills-slower-clickstoll)). The scope's bucket takes no pace. `clicks.PayerOf(ctx)` reads the scope and the account off the context, so the throttle, `GetBudget` and a bonus claim cannot disagree on who pays.
-- **What this buys.** Before accounts, one address was one allowance, so a campus played as one player and a bot farm with many cookies on one address was no worse off than one tab. Now each player behind an address has its own allowance, bounded together by the scope's, and a bot moving across addresses keeps spending one account's.
+- **What this buys.** Before accounts, one address was one allowance, so a campus played as one player and a bot farm with many cookies on one address was no worse off than one tab. Now each signed-in player behind an address has its own allowance, bounded together by the scope's, the guests behind it share one, and a bot moving across addresses keeps spending one account's.
 - `TestManyAccountsOnOneScopeShareTheScopesBucket` and `TestOneAccountOnManyScopesSpendsOneAllowance` pin both halves over HTTP.
 
 **It is a decorator over the click use case, not an interceptor over the procedure.** Two things fall out of that. The allowance comes back as a return value (`click_usecase.Out`) instead of being left on the context for a handler to find, which is what `cpctx.AddRateBudgetToContext` existed for and why it is gone. And "a click refused for its address or its session must not also spend a token" stops being a rule about the order of a list and becomes a property of the shape: every interceptor is outside the whole click chain by construction. `MapDensity` and `GetMap` are untouched for free, being other procedures entirely — under an interceptor that took a procedure list.
@@ -613,7 +695,9 @@ Either way the decorator decides the policy and the handler decides how to say i
 
 **Every reading also carries `linked_multiplier`**, what signing in multiplies the refill by (`Buckets.BudgetOf`). It is the same for every caller, so the client can tell a guest what signing in is worth with no number of its own.
 
-**The reading is the tighter bucket** (`clicks.Tightest`): the one with fewer tokens, and on a tie the smaller one. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is still one bucket's `Capacity`, `PerSecond` and `Tokens`, so the client arithmetic does not change. `Boosted` is always the account's bucket's, the one a bonus speeds up. `TestTheBudgetIsTheTighterBucket` pins it.
+**The reading is the tighter bucket** (`Buckets.BudgetOf`): the one with fewer tokens, on a tie the smaller one, and on a full tie the payer's own. A player behind a busy campus sees the scope's limit rather than a full meter that refuses. The reading is still one bucket's `Capacity`, `PerSecond` and `Tokens`, so the client arithmetic does not change. `TestTheBudgetIsTheTighterBucket` pins it.
+
+**It says who else spends from that bucket** (`ClickBudget.shared_with`: nobody, the guests behind the address, or every player behind it). Without it a guest whose other tab, or a stranger on the same carrier address, spent the bank sees its count drop by clicks it never made. A guest alone on its network holds as much in its own bucket as in its guests', and the full tie goes to its own, so it is never told it shares.
 
 `ClickService.GetBudget` covers the cold start — a client that has just loaded and has no click to learn from. It reads through `Limiter.Peek`, which spends nothing and, for an address that never clicked, **creates no bucket**: reading an allowance must not be a way to make the limiter remember a caller. `NewSessionReaderInterceptor` reads a token on it when the client sends one, so the reading is the account's, and **refuses nothing**: with no token or a bad one it reads the scope's bucket from before accounts. The web client sends the token it already holds, never a fresh one; before its first click it holds none, and neither bucket has been spent from. Without the token the meter showed that other bucket, always full, until a click contradicted it. It is deliberately not `NO_SIDE_EFFECTS`, so it is a POST no cache will serve a stale answer to; every click re-anchors the client afterwards, so it is asked once per page load.
 
@@ -626,7 +710,7 @@ The scope is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if pr
 **Every click costs one token.** What the map share changes is how fast the
 tokens come back. `toll.steps` is a table of `{share, slowdown}`: from `share` of
 **every tile on the map**, a player of that country refills `slowdown` times
-slower (production runs 1.5× from 25%, 2× from 50%, 3× from 70%). No steps
+slower (production runs 1.5× from 10%, 2.5× from 20%, 4× from 30%). No steps
 refills every country at the plain rate. `ClickBudget.slowdown` took the field
 number of the old `cost`, whose meaning it replaces.
 
@@ -645,8 +729,8 @@ number of the old `cost`, whose meaning it replaces.
   players of every flag, so it refills at its plain rate.
 - **The budget goes out as the bucket holds it**, in clicks, with the slowdown,
   the share and the next step of the country asked about so the client can say why.
-- **Bonuses compose with it.** A triple multiplies the pace by three and the bank
-  keeps its size. A spread is one click. A bomb is not throttled, and lowers the
+- **Bonuses compose with it.** A refill fills the bank to its size and leaves the
+  pace alone. A spread is one click. A bomb is not throttled, and lowers the
   share of whoever it hits.
 
 `GetBudget` takes the country, for the slowdown it answers. Known risk, not
@@ -804,6 +888,7 @@ internal/player/internal/
     inmemory_player_store/          the same port in maps, behind the testing tag
     rpc_account_reader/             whether an account is linked, from auth.v1.InternalService/GetAccount
     usecases/get_profile_usecase/  set_name_usecase/  get_stats_usecase/  get_author_usecase/  get_player_usecase/
+    usecases/get_authors_usecase/  — who many accounts are, and a pure read: it draws no guest code
       set_name_usecase/renaming_set_name/   shows a kept name on the roster at once
     usecases/record_take_usecase/  forget_account_usecase/
   presence/                         Visit, Entry, RosterOf, TTL: who is playing
@@ -811,6 +896,7 @@ internal/player/internal/
     usecases/announce_usecase/  get_roster_usecase/  listen_for_events_usecase/  move_visit_usecase/  forget_visit_usecase/
   playerv1controller/               PlayerService and InternalService (bags), the session interceptor
     get_profile_handler/  set_name_handler/  get_stats_handler/  get_author_handler/  get_player_handler/
+    get_authors_handler/
     announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
     caller/                         the account on the context, or Unauthenticated
     playermessage/                  Profile, Stats and Player as player.v1 messages
@@ -822,12 +908,22 @@ internal/player/internal/
 
 - **The caller is the account in the click token.** Every call but `GetRoster`, `GetPlayer` and `ListenForEvents` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, on the key `auth` hands over the internal listener, as `planet` does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
 - **`GetProfile`** answers the account id and its name, empty when none was chosen. **`GetStats`** answers `tiles_taken`, `streak_current`, `streak_best` and `streak_last_day` (YYYY-MM-DD).
-- **`SetName` chooses a username.** `players.NameOf` is the rule: 3 to 20 characters, each an ASCII letter, a digit or an underscore, and not starting with `guest_` in any case, which the chat puts before every guest's name. Nothing is cleaned or trimmed: a name that breaks a rule is `InvalidArgument` (`ErrInvalidName`). The name keeps the case it was typed in.
-- **Usernames are unique ignoring case** (`Name.Folded`). A name another account holds is `AlreadyExists` (`ErrNameTaken`); an account setting its own name again, in any case, is not refused, and a rename or a deleted account frees the old one. Postgres holds the rule, not a read before the write: a unique index on `lower(name)`, whose violation (`23505` on `profiles_name_key`) `postgres_player_store.SaveProfile` answers as `ErrNameTaken`, so two players asking for one name at once cannot both get it. The in-memory store checks the same under its lock, and `StoreContractSuite` pins both.
+- **`SetName` chooses a username.** `players.NameOf` is the rule. It puts the name in **NFC** and cuts the spaces (U+0020) at its ends — the same text, as it shows — and changes nothing else. Then:
+  - **3 to 15 characters, counted in code points after NFC**, as postgres' `char_length` counts, so both agree. A letter with a combining mark NFC cannot compose counts two.
+  - **Each is a letter of any script (`\p{L}`), a combining mark (`Mn`, `Mc`) right after a letter or a mark, at most 3 in a row, a decimal digit (`Nd`), `_` or a space.** Never two spaces in a row. So emojis, punctuation, symbols, controls, enclosing marks, and every other space (NBSP, ideographic) are refused. **Invisible characters are refused by name**, since some are letters or marks: Hangul fillers (U+3164, U+115F…, `Other_Default_Ignorable_Code_Point`) and variation selectors; zero-width, bidi and soft hyphen are format characters, refused as not letters.
+  - **One script** (`oneScript`): the letters' scripts, Common and Inherited left out, are one, or a mix UTS #39 calls *highly restrictive* — Latin with Han, Hiragana and Katakana; with Han and Bopomofo; or with Han and Hangul. So `Adа` (Cyrillic `а`) and `guеst_x` are refused.
+  - **Not starting with `guest_` once folded** (`Name.Folded`), which the chat puts before every guest's name. Folded, so `ＧＵＥＳＴ_x` and `gueſt_x` are refused too.
+
+  A name that breaks a rule is `InvalidArgument` (`ErrInvalidName`). The name keeps the case it was typed in. `GetPlayer` runs the same rule on the name it is asked for, so `" Ada "` finds `Ada`.
+- **Known risk: whole-script confusables.** The one-script rule stops a name that swaps one letter for a lookalike of another script, not a name written wholly in a script that looks like another: `Аԁа`, all Cyrillic, is not `Ada`, and both can be held. Closing it needs the UTS #39 skeletons (`confusables.txt`, vendored by a make target) folded into the unique key. Nothing on screen tells two such names apart today: the chat shows no tag beside a name any more.
+- **Usernames are unique ignoring case** (`Name.Folded`): **NFKC_Casefold**, the NFKC of the Unicode full case fold of the NFKD, so `Straße` is `STRASSE`, `Émile` is `éMILE`, and a full-width `Ａｄａ` is `ada`. A name another account holds is `AlreadyExists` (`ErrNameTaken`); an account setting its own name again, in any case, is not refused, and a rename or a deleted account frees the old one. **The game computes the fold and the store keeps it** in `profiles.name_folded`: postgres' `lower()` depends on the database's locale (a C locale folds ASCII only) and folds neither `ß` nor full-width letters, so an index on it would disagree with Go on non-ASCII names. Postgres holds uniqueness, not a read before the write: a unique index on `name_folded`, whose violation (`23505` on `profiles_name_key`) `postgres_player_store.SaveProfile` answers as `ErrNameTaken`, so two players asking for one name at once cannot both get it. `ProfileNamed` reads through it. The in-memory store compares `Folded` under its lock, and `StoreContractSuite` pins both.
+- **The table's `CHECK` holds what it can say without the locale**: 3 to 15 `char_length`, `IS NFC NORMALIZED` (a UTF8 database), no space at either end or two in a row, no ASCII but letters, digits, `_` and space, no C0 or C1 control, and none of the zero-width, bidi and other invisible format characters (a range list in the migration); and `name_folded` not empty and not starting with `guest_`. Letter categories and scripts are Go's alone: postgres' regex classes depend on the locale too.
 - **Only a linked account may hold one.** `set_name_usecase` checks the name first, so a name no account may hold costs no call, then asks its `Accounts` port whether the caller signed in with a provider: `rpc_account_reader` calls `auth.v1.InternalService/GetAccount` over the internal listener on every `SetName` (2s timeout), since an account links at any time and a name is chosen rarely. A guest is `PermissionDenied` (`ErrNotLinked`). Auth answers `linked` false for an unknown account or an id that is not one; **a failure to ask is a real error**, the error net's `internal`, never a guest. With `auth` off that call 404s, so no name can be set.
+- **Migration `20260918190000_unicode_usernames`** moves to this rule. Every name kept before is ASCII of 3 to 20, so only length breaks the new rule: **a name over 15 is cut to its first 15 characters**, the player keeping most of it. A cut name that another would then hold, ignoring case — a name of 15 or fewer, or an older cut name (`updated_at`, then `account_id`) — is **deleted** instead, and its player chooses again; an untouched name is never the one to go. Then it fills `name_folded` with an ASCII-only `translate()` (exact for these names, in any locale), replaces the `CHECK`, and moves `profiles_name_key` to `name_folded`. The down migration deletes the names the old rule refuses, drops the column and puts the old `CHECK` and the `lower(name)` index back; cut names stay cut. `migrations_test.go` migrates to the version before, writes names, and migrates the rest.
 - **Migration `20260917180000_usernames`** deletes the profiles whose name breaks the new rule, then, of names that differ only in case, every one but the oldest (`updated_at`, then `account_id`), replaces the name `CHECK` with the new pattern and adds the unique index. No client called `SetName` before usernames existed, so nothing a player chose is lost. The down migration drops the index and puts the old `CHECK` back; the deleted rows stay deleted.
 - **A guest code names an account that chose no username**: 6 lowercase hex characters (`players.GuestCode`), shown as `guest_` and the code (`players.DisplayNameOf`). It is drawn by `random_code_generator` the first time the account is shown (`players.GuestCodes.Assign`), kept in `player.guest_codes`, and deleted with the account, which frees it. **It is unique**: the table's `guest_codes_code_key` refuses a code another account holds, the store answers `ErrGuestCodeTaken`, and `Assign` draws again, up to 10 times (`ErrNoFreeGuestCode`). An account keeps its first code: a second save for it changes nothing, so two first announces at once leave one code. **It does not change with the network**, unlike the address, and says nothing about the account or the address. A linked account with no username keeps the code it had as a guest until it picks a name.
 - **`InternalService/GetAuthor(account_id)`** is for the chat: the name the game shows for the account (`players.AuthorOf`: the username, or `guest_` and the code) and `admin`. **`get_author_usecase` gives a guest its code the first time it is asked** (`Assign`, then read again), and the roster's announce and move use the same use case, so the chat and the roster always show one name for one account. An empty id, or one that is not an account, is `InvalidArgument`: the chat refuses a sender with no account before asking.
+- **`InternalService/GetAuthors(account_ids)`** is the same question about a page of accounts, for a caller showing many people at once — the chat naming a whole history. **It is a pure read**: unlike `GetAuthor` it draws nobody a guest code, so a read path never writes. That is the whole reason the two exist side by side; `GetAuthor` belongs where somebody is about to be *made* visible, `GetAuthors` where somebody is merely being shown. One query (`Store.Authors`, an `unnest` of the ids left-joined onto `profiles` and `guest_codes`) answers the page, a repeated id is answered once, and **an account it cannot name — never shown, or deleted — is left out** rather than failing the call, so the caller decides what stands in its place. An id that is not an account is still `InvalidArgument`: a caller holding one has a bug.
 - **The tag is private.** `players.TagOf` (SHA-256 of `player.tagSalt`, a NUL and the address, cut to 6 hex characters) is kept on a roster visit so the storage can cap the visits of one address, and never leaves the server.
 - **Who is playing is `presence`, in memory only.** A client calls **`Announce(country_id)`** with its click token when it gets one, when its flag or name changes, and every 30s. A visit counts for `presence.TTL` (90s), so a hidden tab whose timers fire once a minute stays on; the prune runs every 5s. A restart empties it, and clients fill it again within one interval. **`Leave`** takes the caller off at once: a client sends it with `keepalive` when its page closes. **`GetRoster`** needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=5`; it stays for clients from before the stream.
   - **`ListenForEvents` is the roster, live.** It needs no token. The first event is the whole roster (`roster`, in `GetRoster`'s order); each one after is a line that joined or changed (`entry`), or the key of one that left (`left`); `heartbeat` every `httpServer.streamHeartbeat`. **A line's `key` is the storage's**: a counter handed to an account's first visit, kept by every later announce, `Move` and `Rename`, so a sign-in renames one line rather than adding one. It says nothing about the account. `Storage.Subscribe` answers the roster and registers the subscriber under one lock, so nothing is lost between the two, and every change is published under that lock, in order. An announce that changes nothing on the line (name, flag, guest, admin) publishes nothing, unless the visit had gone stale. **A subscriber `SubscriberBuffer` (256) changes behind is closed, not skipped**: a skipped change would leave its roster wrong for good, and the stream ends, reconnects and starts from a whole roster.
@@ -837,8 +933,8 @@ internal/player/internal/
   - **Caps, against a script minting accounts** (`inmemory_visit_storage`): at most 10 accounts per tag, where a new account pushes out the tag's oldest visit, and 10,000 in all, where a new account is not recorded. The mint throttle already bounds how fast one address makes accounts.
   - An unknown country is `InvalidArgument`; a failed profile read is the error net's `internal`, and nothing is recorded.
   - **A sign-in, a new name, a sign-out and a deletion change the roster at once, with no announce.** The client drops its click token on each of these, and a new one waits for a click, so waiting for its next announce left a guest line on the roster, or two lines, for up to 90s. So: `auth.v1.SignedIn` moves the browser's visit to the account it is on now, under that account's name (its username, or its own guest code), over any visit the account held (`move_visit_usecase`, `Storage.Move`; one account before and after changes nothing, and reads nothing). `SetName` renames the caller's visit once the name is kept (`renaming_set_name`, `Storage.Rename`). `auth.v1.SignedOut` and `auth.v1.AccountDeleted` take the account off (`forget_visit_usecase`, `Storage.Forget`); another device still signed in announces again within 30s. An account with no visit is left off by all of them: its browser never announced.
-- **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today (`Stats.AsOf`): a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. `stats_test.go` pins the rules across UTC midnight.
-- **An admin of the game is `player.profiles.admin`**, false by default. **The game never sets it**: an operator flips it in the database (below), and `SaveProfile` never writes it, so a rename keeps it. It only means something beside a username: `GetAuthor` answers `admin` for the chat, which stamps `author_admin` on a message sent under the username (never a guest's post) and stores it in `chat.messages`, so the history keeps the crown the message was sent with; `presence.RosterOf` sets `Admin` on a roster entry only when it is not a guest; `GetPlayer` answers it too. The frontend draws a crown on all three. An announce reads the profile, so a new admin shows on the roster within 30s, and in the chat from the next message.
+- **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. A clear of native land is not a take and is never published, so it counts nothing. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today (`Stats.AsOf`): a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. `stats_test.go` pins the rules across UTC midnight.
+- **An admin of the game is `player.profiles.admin`**, false by default. **The game never sets it**: an operator flips it in the database (below), and `SaveProfile` never writes it, so a rename keeps it. It only means something beside a username: `GetAuthor` and `GetAuthors` answer `admin` for the chat, which shows the crown on a message whose account is an admin **now** — it is read when the message is shown, not stamped on it, so a player that stops being an admin stops looking like one on what it already said; `presence.RosterOf` sets `Admin` on a roster entry only when it is not a guest; `GetPlayer` answers it too. The frontend draws a crown on all three. An announce reads the profile, so a new admin shows on the roster within 30s, and in the chat the moment anybody reloads it.
 
   ```bash
   ssh deploy@YOUR_IP
@@ -848,7 +944,7 @@ internal/player/internal/
   ```
 
   An account with no username has no profile row, so it cannot be one: pick the name first.
-- **`GetPlayer(name)` is what anybody may know about a player with a username**: the name as typed, the stats as of today, and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **It never answers the account id.** The name is found ignoring case (`Store.ProfileNamed`, on the unique index on `lower(name)`). A name no account holds is `NotFound` (`ErrNoProfile`), and so is one no account may hold, a guest's included, which reads nothing. A guest has no username, so it has no answer here: the client shows its name and flag only. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which now also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
+- **`GetPlayer(name)` is what anybody may know about a player with a username**: the name as typed, the stats as of today, and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **It never answers the account id.** The name is found ignoring case (`Store.ProfileNamed`, on the unique index on `name_folded`). A name no account holds is `NotFound` (`ErrNoProfile`), and so is one no account may hold, a guest's included, which reads nothing. A guest has no username, so it has no answer here: the client shows its name and flag only. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which now also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
 - **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
 - **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
 - **No memory copy: every call reads or writes postgres.** This is not the tile map's pattern on purpose. The map is in memory so a click never waits on the database; a take reaches this module over the event bus, so a click already never waits on it, and the calls are few (production is ~15 takes a second at peak). A memory copy would load every account that ever took a tile at boot, and cost a dirty set, a flush loop and a window a hard kill loses.
@@ -866,17 +962,26 @@ gets one of four bonuses. Each box draws its kind from `bonus.kinds`, a weight
 per kind — a kind's chance is its weight over the sum of the weights, so the
 strong ones can be made rare (production runs 5 : 2 : 1 : 2):
 
-- **`triple_clicks`** — the refill rate is multiplied by `bonus.triple.multiplier` for
-  `bonus.triple.duration`. See [What a bonus does to the bucket](#what-a-bonus-does-to-the-bucket).
-- **`spread_clicks`** — every click also takes the tiles touching the one
-  clicked, for `bonus.spread.duration` instead (10s by default — it is strong). See [What a spread does to a click](#what-a-spread-does-to-a-click).
-- **`bomb`** — one bomb, to be dropped within `bonus.bomb.duration` (30s). It
+- **`refill`** — a charge: fills the caller's click bank to full, when the
+  caller chooses. Up to one bank, 60 clicks. See [What a refill does to the bucket](#what-a-refill-does-to-the-bucket).
+- **`spread_clicks`** — 1 to `bonus.spread.maxPerBox` (4) clicks added to a pool
+  of at most `bonus.spread.clicks` (8). While the player switches spread on, each
+  click spends one and also takes the tiles touching the one clicked. See [What a spread does to a click](#what-a-spread-does-to-a-click).
+- **`bomb`** — a charge: one bomb, kept until it is dropped. It
   clears a circle of `bonus.bomb.rings` tile spacings around where it lands,
   whoever holds the tiles. See [What a bomb does](#what-a-bomb-does).
-- **`enclose_clicks`** — a click that closes a shape of the caller's own tiles
-  also takes the tiles inside it: `bonus.enclose.shapes` shapes (3), each of at
-  most `bonus.enclose.maxTiles` tiles (15), within `bonus.enclose.duration` (30s).
+- **`enclose_clicks`** — 1 to `bonus.enclose.maxPerBox` (3) enclosures added to a
+  stack of at most `bonus.enclose.held` (3). While the player switches enclose on,
+  a click that closes a shape of the caller's own tiles also takes the tiles
+  inside it, at most `bonus.enclose.maxTiles` (25), and spends one.
   See [What an enclose does to a click](#what-an-enclose-does-to-a-click).
+
+Every kind is a **charge**, worth about one bank, rather than a timer — see
+[Charges](#charges-refill-bomb-enclose-spread). There used to be a `triple_clicks`
+that multiplied the refill for two minutes. With a bank of 60 it was worth "some
+clicks, maybe": nothing on a full bank, and a different amount for every
+country's pace. The refill is the same good, clicks, with the moment chosen by
+the player.
 
 Boxes are always on: there is no switch.
 
@@ -911,9 +1016,9 @@ watches the stream, so there is nothing here to hide from one.
   client saying anything — the next one comes at `missRetry`. That applies to
   **one** miss; a second in a row waits the ordinary window, or a tab that never
   catches anything would collect a box every `missRetry` forever.
-- **Caught** — the next is due a window after the **bonus ends**, not after the
-  catch. Timed from the catch, a second box lands on a running bonus and either
-  stacks or is wasted.
+- **Caught** — a charge has no end, so the next is due a window after the
+  **claim**, not after it is spent: a bomb held for an hour does not hold back
+  every other box for an hour.
 
 **Only callers who have clicked inside `activeWithin` are offered anything.** A
 tab left open overnight is not playing, and it is also what keeps the miss rule
@@ -925,16 +1030,19 @@ the instant they come back.
 tab and opening it again draws a fresh wait, and a player could reload until
 they got a short one.
 
-**`maxBoostPerHour` bounds what a caller can be granted.** Nothing here is a race
-any more, but catch rate is where an advantage is left: a script catches every
-box it is offered where a person catches some. This makes the worst case a
-number you choose rather than a function of reflexes.
+**`maxChargesPerHour` bounds what a caller can be granted.** Nothing here is a
+race any more, but catch rate is where an advantage is left: a script catches
+every box it is offered where a person catches some. This makes the worst case
+a number you choose rather than a function of reflexes. Past 12 charges in the
+last hour the slot is lost, like a caller's who was away; 12 is above the ten
+boxes an hour a person catching every one would get. A kind another box would
+add nothing to (a refill or a bomb held, a full stack or pool) is not offered.
 
 **A caller is a scope, not a connection.** `Attend` is keyed on `cpipscope.Of`,
 the same unit the session token binds to, and holds every stream
 sharing it — so twenty tabs are one entrant on one schedule, and all of them are
-sent the box. The streams carry no token, so offers stay on the scope; the boost a
-triple grants lands on the claiming account's bucket. The handler's `defer` is what removes it; there is no
+sent the box. Offers stay on the scope; the charge a box grants lands on the
+claiming account. The handler's `defer` is what removes it; there is no
 context goroutine per connected client, because the fanout deliberately does not
 pay that cost.
 
@@ -962,8 +1070,174 @@ with a public outcome is what keeps the spectacle without the scramble. A client
 too old to know either case reads an unset `oneof` and skips it, which is the
 whole reason the envelope exists.
 
-The catch is published **after** the boost lands, so a catch announced to the
+The catch is published **after** the charge is held, so a catch announced to the
 planet that then failed to apply is the one lie this cannot tell.
+
+#### Quizzes (`internal/planet/internal/quizzes/`, scheduled in `bonuses/quiz.go`)
+
+A banner appears over the planet: press it and you get a question with three
+choices and **a short clock** to answer. A right answer is worth the same charge a
+caught box is. A wrong one, and running out of time, cost nothing.
+
+**It is a second way to earn a charge, not a box of another shape.** Its own
+clock (`bonus.quiz.minInterval` / `maxInterval`), its own banner lifetime, and
+its own `bonus.quiz.maxChargesPerHour` on top of the boxes'. A caller can be
+holding an unopened banner and a flying box at the same time. What it *does*
+share with a box is the reward: the kind is drawn at offer time from
+`bonus.kinds`, filtered by `offerable` exactly as a box's is, so nobody is ever
+asked a question for a bomb they already hold, and a caller with nothing to gain
+is asked nothing.
+
+**The schedule lives in `bonuses`, the content in `quizzes`.** A caller is one
+thing — the streams it has open, when it last clicked, which accounts play
+behind it — and that bookkeeping should not exist twice, so `bonuses/quiz.go`
+hangs a second clock off the same `caller` and rides the same sweep. What is
+genuinely separate is the bank, which is big, embedded, and knows nothing about
+schedules or charges.
+
+**A short window is the feature; the exact number is not.** The whole point is
+to be answered from what somebody knows rather than from what they can look up,
+so `bonus.quiz.answerWindow` is free to be retuned — the guideline is only that
+it stay short enough that looking the answer up is not worth it. It is 8s today.
+Everything below exists to make whatever it is set to real:
+
+- **Two calls, not one.** `OpenQuiz` reads the question and is what **stamps the
+  deadline**; `AnswerQuiz` compares against it. A banner can therefore sit
+  unopened for its whole `offerTTL` without burning a second, and the seconds a
+  player gets are their own.
+- **The deadline is the server's stamp**, checked when the answer lands. A
+  client that holds its own countdown open cannot spend longer than it was given.
+- **Opening twice is the same question and the same deadline.** A reload is not a
+  second window, and it is not a way to see a second question either.
+- **The right answer never leaves the server until it is spent.** The registry
+  holds the whole `quizzes.Round` and compares an index; `OpenQuiz` sends the
+  text and the choices and nothing else. The bank itself is embedded in this
+  binary and **deliberately never served to the browser** — see
+  [`/quiz/README.md`](../../quiz/README.md).
+- **The banner says nothing about the question.** Not the text, not the choices,
+  and not the subject either. It carried the subject country once, so the client
+  could fly a flag on it — and that flag was the answer to **417 of the bank's
+  1014 questions**: every `capitalOf` ("Tallinn is the capital of which
+  country?", 191/191) and every `mostPeople` ("which of these has the most
+  people?", 205/205). The fix is not safer templates. A teaser that has to be
+  checked against every question in the bank leaks again the first time a
+  template is added, so the banner carries a token and a deadline and nothing
+  else. `QuizOffered` field 3 is `reserved` for it.
+- **An answer cannot be sent without the question having been read.** A token
+  answered before it was opened fails: that is a client guessing at three choices
+  it was never sent.
+- **Each bank entry carries five wrong answers and a round shows two**, drawn at
+  the open. The same question is not the same three choices twice, so "press the
+  second one for Estonia" is worth nothing.
+
+**A wrong answer is not a failed call.** It resolves, grants nothing, and says
+**which choice was right** — that is the only thing the feature gives back when
+it gives nothing else, and the bank is generated public data, so there is nothing
+worth keeping past the answer. Running out of time is sent by the client as a
+choice past the end of the three: the server reads it as wrong, which it is, and
+answers with the right one.
+
+**The draw leans on the leaderboard.** The subject is the bank's, never the
+client's — it steers the draw here and rides the broadcast after a win, and it is
+on nothing a player sees before answering. A question's subject country is picked
+with weight `1 + bonus.quiz.leaderBias × (its share ÷ an even share)`, read off
+the *same* `Share` the toll prices a click from — so there is no second
+leaderboard to keep in step, and the board it reads is the live one rather than a
+snapshot taken at boot. The floor of 1 keeps every country in the draw and the
+lean is capped, because a quiz that only ever asked about the top three would be
+four questions deep by the end of the week. **`leaderBias` 0 is a flat draw, and
+0 is what leaving the key out means.**
+
+**`quiz_offered` is one more case on `PlanetEvent`**, addressed to one caller like
+`bonus_offered`, and carrying only the token and the expiry. A win is announced
+with the existing `bonus_taken`, which grew a `quiz_subject_country_id` rather
+than getting an event of its own: it is the same news — somebody won a charge —
+reached a second way. **The subject is on the broadcast and not on the offer**,
+which is the whole distinction: after a win there is nothing left to give away.
+
+**Both quiz procedures are session-gated**, beside `ClaimBonus` on
+`NewSessionInterceptor`'s list. `AnswerQuiz` because it grants the same charge a
+box does, and `OpenQuiz` not only for symmetry: opening is what starts the five
+seconds, and the caller they are started for has to be the caller that answers.
+
+**Off unless switched on.** With `bonus.quiz.enabled` false no bank is loaded,
+`Quizzing` is never called, and the boxes fly exactly as they did. **Production
+runs it on**, at 6m-11m with `maxChargesPerHour: 6` on top of the boxes' 12 —
+`deploy/vps/backend.yaml` says why each number is what it is.
+
+#### Charges (refill, bomb, enclose, spread)
+
+A timer rewarded speed rather than planning: with a bank of clicks, a 10s spread
+let a player dump the whole bank at seven tiles a click, more than a bomb, and a
+bomb held 30s was dropped on the first target in sight. So every kind is a
+**charge**, kept until the player uses it: nothing lapses and nothing is used on
+its own.
+
+- **Only an account holds a charge.** `bonuses.Holder` is the account the click
+  token names, and `HolderOf(clicks.PayerOf(ctx))` derives it, so the claim, the
+  click chain and the drop agree on whose charge it is. A charge is the account's
+  so it survives closing the tab, a new address and another device. A caller with
+  no account is `NoHolder`: it holds nothing, and a scope where no account plays
+  is offered nothing. Every client mints a guest account, so this leaves
+  out only a caller with no token at all.
+- **The rules are a value, `bonuses.Held`**: a refill and a bomb (held or not), a
+  stack of enclosures and a pool of spread clicks. `Granted`, `AfterRefill`,
+  `AfterBomb`, `AfterEnclose` and `AfterSpreadClick` build a new `Held` and change
+  nothing; the storage swaps it in. `Count(kind)` is how many of a kind are held,
+  and `Full(config)` the kinds another box would add nothing to.
+- **How much fits.** A refill and a bomb are one: a second replaces the first,
+  which is what stops a stockpile of bombs being dropped all at once. Enclosures
+  stack to `bonus.enclose.held` (3) and spread clicks pool to `bonus.spread.clicks`
+  (8). A box draws its amount evenly from 1 to `maxPerBox` (`Registry.amountOf`,
+  `crypto/rand`) and the grant caps it at the size. The claim answers
+  `ClaimBonusResponse.amount` as **what was kept**, `Count` after less `Count`
+  before, so a player is never told of clicks that did not fit.
+- **The schedule offers no kind that is full** for any account that clicked from
+  the scope within `activeWithin` (`Registry.offerable`). The schedule is by scope
+  and a charge is by account, so `bonus_click` tells the registry both on every
+  accepted click: `Clicked(scope, holder)`. The registry reads the charges through
+  its `Holdings` port, which the storage satisfies.
+- **Off by default, one at a time.** `ClickRequest.spread` and `enclose` say what
+  the player switched on for this click, and `click_usecase.In` carries them.
+  `spread_click` spends a spread click only with `Spread`, `enclose_click` an
+  enclosure only with `Enclose`. **Both at once is refused** by the rule itself
+  (`clicks.ErrBonusesTogether`, answered `InvalidArgument`) before anything is
+  written or spent: a spread's tiles and an enclose's pocket would each take what
+  the other decides. The client keeps one on at a time too, and aiming the bomb
+  switches both off.
+- **Nothing lapses.** Migration `20260919120000_charges_never_lapse` replaced the
+  `*_until` columns with `refill` and `bomb` booleans and an `enclosures` count,
+  keeping what was still in time. `bonus.chargeTTL` is gone.
+- **A restart keeps them.** `bonuses/inmemory_charge_storage` holds every account's
+  `Held` in memory, so a click reads and spends under one lock with no round trip,
+  and writes the ones that changed through its `Persistence` every
+  `chargeStorage.flushInterval` (1s): `bonuses/postgres_charge_store`, one row per
+  account in `planet.charges` (`refill`, `bomb`, `enclosures`, `spread_clicks`). An
+  empty hand is a deleted row. Like the tile map: boot loads it and a failed load
+  refuses the boot, shutdown flushes once more, and a hard kill loses at most the
+  last second. A deleted account's row stays until something removes it. The rest
+  of the bonus state (schedules, offers, the hourly caps) is still memory only, so
+  a restart gives everyone a fresh schedule.
+- **Each spend is atomic**: the storage's `SpendRefill`, `SpendBomb`,
+  `SpendEnclose` and `SpendSpreadClick` check and take under one lock, so two tabs
+  racing for the last one get one.
+- **Nothing pushes them.** They are not live news: `GetCharges` answers what the
+  caller holds, read by the client at load and when its account changes, and
+  `ClaimBonusResponse.charges` answers the claim. After that the client follows
+  its own calls: a drop spends the bomb, an accepted click sent with spread on a
+  spread click, its own `tiles_enclosed` an enclosure. A charge spent in another
+  tab shows until the next read. **`Click` answers nothing about them on purpose**:
+  a shadow-banned click never reaches the spread, so a count on the answer would
+  tell a banned caller its clicks are dropped. `planetv1controller/chargesheld`
+  encodes the message both procedures answer.
+- **How big a charge is, is a rule, not state.** `GetBonusRules` answers the
+  blast radius, the enclose's `maxTiles`, the spread pool's size and the
+  enclosure stack's size (`bonuses.Rules`, built in `module.go`), and whether
+  native land takes two clicks (`home_soil`, from `clicks.HomeSoil`: see
+  [Native land takes two clicks](#native-land-takes-two-clicks-clickshomesoil)). It is
+  `NO_SIDE_EFFECTS`, a GET the cache interceptor marks for 5 minutes, and the
+  client reads it once per page load. A page open across a deploy that changes
+  them shows the old sizes until it reloads.
 
 #### What a spread does to a click
 
@@ -972,9 +1246,11 @@ a click spreads to could name any tiles it liked — that is why the spread wait
 for [Map geography](#map-geography). The client paints the tile it clicked, as it
 always has, and the neighbours reach it over the stream like anyone else's.
 
-`claim_bonus_usecase` starts it with `bonuses.Spreads.Grant(scope, until)` instead of a
-boost, and answers the allowance unchanged. `bonuses.Spreads` is a map of scope to
-end time; each grant forgets the spreads that ran out, so it needs no sweep.
+`claim_bonus_usecase` adds the box's clicks to the pool with
+`Charges.Grant(holder, KindSpreadClicks, amount)`. Each accepted click sent with
+spread on then spends one with `Charges.SpendSpreadClick`, after the rule accepted
+it: a refused click spreads nothing and costs nothing, and a click with spread off
+never touches the pool.
 
 `click/spread_click` is the decorator that reads it, and **it sits right against
 the rule**, inside the count, the shadow ban and the throttle:
@@ -990,6 +1266,14 @@ tile already held is a no-op. One click is at most 7 updates. **A lone island
 takes itself and nothing else**: `Neighbours` is empty there, and the bonus does
 not pretend otherwise.
 
+**Each neighbour follows the home-soil rule, exactly as a click on it would**: a
+neighbour on another country's own ground that wears its flag is cleared, not
+taken, and the natives' own spread takes their ground back. A bonus is never a
+way around the rule, so a spread deep in native land is worth half: one spread
+click clears the patch, the next takes it. The spread click is spent either way,
+since the click was accepted. `tiles_spread` still lists every neighbour touched;
+the tile updates say which were cleared.
+
 **Then it tells the planet, with `tiles_spread`**, as an enclose does with
 `tiles_enclosed`: the tile clicked and the neighbours it took, after they are set,
 so every client can animate why seven tiles flipped. `Registry.PublishSpread`
@@ -998,21 +1282,11 @@ sends it to every caller.
 A spread is one event per click, which is why a caller's bonus feed buffers 32
 events rather than a handful.
 
-**A triple clicks bonus is not an event of its own: it is `TileUpdate.boosted`.**
-The limiter's `State` says whether a boost runs, `throttle_click` copies that
-onto `click_usecase.In.Boosted`, and the rule writes with `SetBoosted` instead of `Set`,
-so the update it publishes carries the flag. The flag rides with the change it
-describes — same message, same order, no second frame per click — and a click on
-a tile already held publishes nothing, so it shows nothing either. A spread
-could not be done this way: its animation needs the clicked tile and its
-neighbours together, which one flag per tile cannot say.
-
 #### What a bomb does
 
-`claim_bonus_usecase` hands the bomb over with `bonuses.Bombs.Grant(scope, until)` — the
-spread's counterpart, a map of scope to deadline — and answers the blast radius
-on `ClaimBonusResponse.blast_radius`, so the client draws its aiming ring at the
-width of what it will clear. `DropBomb` spends it through `drop_bomb_usecase`.
+`claim_bonus_usecase` hands the bomb over with `Charges.Grant(holder, KindBomb)` and
+the client draws its aiming ring at `GetBonusRules.blast_radius`, the width of
+what it will clear. `DropBomb` spends it through `drop_bomb_usecase` with `Charges.SpendBomb`.
 
 **The client names a point, never a tile.** The sea has no tiles, and whether an
 aim is on land is the server's call: `Geography.Nearest` finds the closest tile,
@@ -1024,7 +1298,7 @@ On land the tiles are `Geography.Within(centre, radius)`: every tile within
 `radius` of arc of the tile hit — a true circle, ~230 tiles inland, found by a
 straight scan (~0.5ms, once per bomb). The radius is `bomb.rings × Geography.Spacing()` (`bonuses.NewBombRules`, and `BombRules.Blast` decides land or sea),
 the mean arc between touching tiles measured at boot (0.0040 rad on the
-257,948-tile map, so 0.032), rather than a number in the config that could drift
+262,119-tile map, so 0.032), rather than a number in the config that could drift
 from the map; the same radius goes to clients, so the ring they draw is the clear.
 
 **It is not `Disc`, deliberately.** Rings of neighbours on a honeycomb make a
@@ -1033,9 +1307,8 @@ and a walk over neighbours stops at water, so an island just offshore survived a
 bomb that visibly covered it. A circle has neither problem.
 
 `drop_bomb_usecase` checks the country and the target **before** taking the bomb, so a
-malformed request does not cost one. `Registry.Dropped` then brings the next box
-to a window from the drop, not from when the bomb would have lapsed. Held time
-still counts in full towards `maxBoostPerHour`, like any bonus.
+malformed request does not cost one. The drop does not move the schedule: the next
+box was already due a window after the claim.
 
 **The blast is one event, and it rides the tile feed.** `inmemory_tile_storage.Clear`
 empties the tiles under one lock and publishes a single `clicks.Change{Blast}`
@@ -1082,18 +1355,27 @@ tells closed from open — there is no second rule.
   so the flood finds open ground and no shape is spent.
 - **Only a click that takes a tile closes a shape.** A click on a tile the caller
   already held changes nothing, so it closes nothing: a shape finished before the
-  bonus stays as it is. The owner is read before the rule writes, since afterwards
-  the map no longer says whether the click took the tile.
-- **Each pocket costs one shape**, spent through `bonuses.Enclosure.Spend`, which
-  settles two clicks racing for the last one. A click that closes two shapes with
-  one left takes the first. A bonus with no shape left is over before its time.
+  bonus stays as it is. A click that only cleared a native tile is no wall either,
+  since the tile is nobody's. The rule answers `Out.Outcome`, so this is read after
+  the write, not guessed before it.
+- **Each tile inside follows the home-soil rule**: a tile on another country's own
+  ground that wears its flag is cleared, not taken. A bonus is never a way around
+  the rule. `tiles_enclosed` still lists it among the filled tiles; its tile update
+  says it was cleared.
+- **An enclosure is one shape**, spent through `Charges.SpendEnclose` only by a
+  click sent with enclose on that closed a pocket, so a click that closes nothing
+  (too big, open to the coast, no inside) keeps it. With enclose off, closing a
+  shape takes nothing. The spend settles two clicks racing for the last one. A
+  click that closes two shapes takes the first.
+- **Why 25 tiles**: the wall around a 25-tile pocket costs about 20 clicks, so the
+  reward matches the planning it took.
 
 **The use case only wires three objects together.** `bonuses.Terrain` is the map as
 the search sees it — who holds a tile, what touches it — and finds the pockets a
-click closed. `bonuses.Enclosure` is one caller's running bonus: its size limit and
-its shapes left. `Annexer` spends a shape per pocket, takes the tiles and
-announces them. `Execute` asks for the running bonus, lets the rule write, and
-hands the pockets to the annexer.
+click closed. `bonuses.Charges` says whether the caller holds the charge and how
+big a shape may be. `Annexer` spends the charge on the first pocket, takes its
+tiles and announces them. `Execute` asks whether the charge is held, lets the
+rule write, and hands the pockets to the annexer.
 
 It sits beside `spread_click`, against the rule and inside everything else, so
 it is one click to the throttle and to `prom_click`, a shadow-banned click never
@@ -1107,40 +1389,34 @@ tile updates, but a patch flipping at once says nothing about why, so every
 client is sent the shape — closing tile, wall, and filled tiles nearest the
 closing tile first — to animate. `Registry.PublishEnclosed` sends it after the
 tiles are set, to every caller. The caller who closed it gets a copy of their own
-with `yours` and `enclosures_left`, which is how the meter counts down; nobody
-else learns how many shapes somebody has left.
+with `yours`: an enclosure is one shape, so a shape of your own is one spent.
 
 `prom_enclose` wraps that publisher, so it counts exactly the shapes that were
 closed: `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.
 
-#### What a bonus does to the bucket
+#### What a refill does to the bucket
 
-`cpratelimit.Limiter.Boost(key, multiplier, until)` multiplies the refill rate
-until it lapses, and **leaves the ceiling where it is**: the bank never changes
-size, so a bonus fills it faster and never widens it. **It boosts the account's bucket, never the scope's**
-(`Buckets.Boosted`): the scope's is shared with every other player behind the
-address, so a bonus that sped it up would be a bonus for all of them. With no
-account it boosts the scope's own 1× bucket, as before accounts. A boosted player
-still spends from the scope's bucket, so it is bounded by it —
-`TestABoostDoesNotSpeedUpTheScopesBucket`. It is **opt-in and additive**: a bucket nobody
-boosts holds `multiplier: 1` and behaves exactly as it did before boosting
-existed, which matters because the same limiter type throttles chat and session
-mints and neither has any business being boosted.
+`UseRefill` spends it, through `use_refill_usecase`, and `cpratelimit.Limiter.Fill(key)`
+tops the bucket up to its capacity. **It fills the account's bucket and, for a
+guest, its scope's guests' — never the scope's** (`Buckets.Bank`): the scope's
+is shared with every other player behind the address, so a refill that filled it
+would be a refill for all of them. The guests' is filled because the guests on
+one network are one bank: a refill that left it empty would be a refill of
+nothing. Boxes are already offered per scope, so this is no new allowance. A
+refilled player still spends from the scope's bucket, so it is bounded by it —
+`TestARefillDoesNotFillTheScopesBucket`. The bank never grows past its size, and
+the pace is left as it was. `Fill` is **additive**: nothing that never calls it
+can tell it exists, which matters because the same limiter type throttles chat
+and session mints.
 
-Two things in there are easy to get wrong, and each has a test:
-
-- **The refill interval is split at the moment the boost lapses.** An interval
-  that straddles the end would otherwise be paid entirely at one rate or the
-  other, over-granting a caller that went quiet across it.
-- **The sweep skips a bucket still boosted.** It forgets buckets that have
-  refilled to capacity, on the grounds that such a bucket holds what a fresh one
-  would — which stops being true under a boost, and forgetting it would end the
-  boost early.
-
-The reward needs **no frontend release to be visible**: `State` already carries
-the policy as well as the reading, so a boosted bucket reports a rate of 3/s,
-and the meter fills faster off the server's own numbers. See
-[Saying what is left](#saying-what-is-left).
+- **A full bank is refused before the charge is touched**: `ErrBankFull`,
+  answered `FailedPrecondition`, spends nothing. The client checks first and says
+  "Bank already full" without asking; the server check is what holds.
+- **No refill, or no account**: `ErrNoRefill`, answered `NotFound`.
+- **The answer carries the budget**, full, and the charges, so the meter jumps at
+  once rather than on the next click.
+- `UseRefill` is session-gated like `Click` and `DropBomb`, and not throttled:
+  holding the refill the server granted is the gate.
 
 ### Anti-bot (`internal/antibot/`)
 
@@ -1193,17 +1469,18 @@ afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
 
-#### Seven watchdogs, one jury
+#### Eight watchdogs, one jury
 
 A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
 - **`retaker`** — takes a tile back moments after losing it, over and over.
 - **`sequencer`** — walks the tile ids rather than the map: 1, 2, 3, 4, on and on.
-- **`metronome`** — never varies and never stops (`cadence`), or sleeps a random time between clicks (`shape`).
+- **`metronome`** — never varies and never stops (`cadence`), sleeps a random time between clicks (`shape`), or keeps a timer's beat through its pauses (`clock`).
 - **`defender`** — nearly every take is a retake, however slowly it comes.
-- **`catcher`** — catches every bonus box, at once.
+- **`catcher`** — catches every bonus box, at once (`catch`), or claims boxes sent to somebody else (`foreign`).
 - **`cohort`** — starts, paces and stops in step with other scopes, group after group.
 - **`scraper`** — reads the whole map again and again, which the web app never does.
+- **`churner`** — sheds its guest account for a fresh bank: many new accounts on one scope (`churn`), or one fresh account after another across a carrier's /64s (`relay`).
 
 **Every watchdog has two levels, and that is the design.** `Certain` is a reading
 no hand produces and bans on its own. `Suspect` is a reading that would ban real
@@ -1400,6 +1677,62 @@ hand's gaps are mostly short with a long tail. The rule is the quantile skew
   It buys time, like every rule here.
 - A gap that never varies (p90 = p10) has no skew and is `cadence`'s.
 
+**A timer keeps its beat through a pause, and `clock` reads that.** The bot of
+2026-09-23 ran in a hidden browser tab, which fires its timers on whole seconds.
+It spent the bucket in a burst, waited five to seven minutes for the refill and
+came back: no run reached `minClicks`, and a second click 50-90ms after one in
+five put its spread near a second. Every watchdog read `clear` for 5h27m. What
+it did not change is *where in the second* each click landed: x.13s, for hours,
+through every rest. The rule puts each try on a circle `clock.period` (1s) long
+and reads the length of the mean vector — 1 when every try lands at the same
+point of the beat, about 1/√n for a hand.
+
+- **It reads absolute times, not gaps**, so a pause ends nothing: the last
+  `clock.certainClicks` try times are kept through breaks, and in the evidence.
+  A hand's error adds up from one click to the next, so it loses the beat within
+  a few clicks however regular its gaps are.
+- **Measured before it was written**, over the access log of 2026-09-15 to 23:
+  the bot read 0.96 over 600 tries and 0.99 over 120; no other scope passed 0.22
+  over 600 or 0.50 over 120, and the heaviest players (two browsers on one /64,
+  74k tries in the week) stayed under 0.10 and 0.26.
+- `certainFor` (30m) is for the one human left: somebody tapping along to a
+  steady beat keeps it for a song, not for half an hour.
+- **It ships measuring**, like `shape`: `minCoherence` and `certainCoherence` are
+  pointers, unset in production, and the sweep reports each caller with a full
+  window through `Observer.OnClockCoherence`, into `click_clock_coherence`.
+- It is beatable in one line — add a random delay — and then the gaps are a
+  random sleep, which is `shape`'s.
+
+**A pause of five minutes was cheap to fake too, and `stamina` counts hours.** The
+bot of 2026-09-28 clicked at a guest's refill rate for eight hours a night, on one
+fresh account and one fresh Free Mobile /64 per night, and stopped for five minutes
+every half hour. Each pause ended the `cadence` run, it jittered, it shuffled its
+tiles, and every watchdog read `clear`.
+
+- **The rule is the busy time inside `stamina.window` (6h)**: a slice of
+  `stamina.slice` (10m) is busy when the payer got `stamina.clicks` (40) past the
+  throttle in it. A pause shorter than about half a slice ends nothing, and no pause
+  resets anything: to stay under `certainBusy` a loop has to stop for a share of every
+  window, not once.
+- **It counts the payer, not the scope**: the account the click token names, or the
+  scope when it names none, as the throttle keys its buckets. What it measures is
+  tokens spent, and tokens are the account's; seven accounts taking turns behind one
+  address are seven players here. The reading still lands on the scope's jury record,
+  like every watchdog's.
+- **It counts in `Watch`, not `Attempted`**: a try the throttle refused spent nothing,
+  and a click a ban is dropping still passed the throttle, so a running ban keeps
+  reading `certain`.
+- **Measured before it was set**, over three days of ledger per account: the bot's two
+  accounts read 6h of 6h, the heaviest player 4h50m, and 5 of 555 accounts 3h or more.
+  Production sets `certainBusy` 5h30m, which stops such a run about five and a half
+  hours in. `minBusy` is unset: `click_busy_hours` is each payer's busy time, once a
+  sweep, for the payers that clicked since the last one.
+- **It is its own evidence in the metronome's section**, saved with the indexes'
+  slice length; a section saved under another length drops its payers on load. A
+  restart costs only the clicks it missed, since slices are wall clock.
+- It is a rule of `metronome` and not a watchdog for the reason `shape` is: a loop at
+  pace also reads on `cadence`, and two timing watchdogs could ban on one behaviour.
+
 **`defender`: what is clicked, not when.** The bots of 2026-09-14 retook from a
 queue behind the throttle: tiles came back 0.4s, 1.5s, 2.5s … 40s after they were
 lost, one refill at a time, so the retaker's reaction window saw almost none of
@@ -1420,6 +1753,20 @@ Production reads `Suspect` since 2026-09-14 (`minShare` 0.6, `minClicks` 40 over
 10m): the histogram held 26 callers under 0.1 and the recapture bot at 0.7-0.8.
 `certainShare` stays unset for the tile war. A bot that only answers attacks
 clicks a few times a minute, so the old 60 takes in 5m never judged it at all.
+
+**A clear of native land is a loss, and winning it back is a retake.** That was a
+choice. Not counting it would blind the watchdog on exactly the ground a clear
+invites a defence loop to — the recapture bot of 2026-09-14 defended its own
+country. It costs an honest home defender nothing it did not already pay: one
+foreign click is at most one loss whether it takes or clears, and the attacker's
+second click, on the empty tile, is a loss for nobody. A Pole doing nothing but
+answering clears for forty minutes reads `Suspect` here, as a Pole answering takes
+always did, and a suspicion never bans alone (`minSuspects` 2).
+`TestAHomeDefenderAnsweringClearsIsNotBanned` pins that at production's bounds;
+`TestARecaptureLoopOnItsOwnGroundIsCaught` pins the loop. **A clear is never a
+retake** (`TestAClearIsNeverARetake`): it wins nothing back. Known gap: a loop
+holding a foreign flag on somebody's native ground needs two clicks a tile and
+neither reads as a retake — the rule itself makes that loop cost twice the clicks.
 
 **`catcher`: every box, and fast.** A box is addressed to one caller and flies
 a slow orbit that is rarely in view, so a person has to zoom out to orbit height
@@ -1442,6 +1789,29 @@ click. The delay includes the round trip, which only makes a person look slower.
 The counter-move is cheap — wait a random few seconds, or let one box in five go
 — and that is fine: a bot that does either has stopped taking every box the
 moment it is offered.
+
+**`foreign`: a box that was never yours.** From 2026-09-15 to 23 a pool of
+clients painting two flags from three ISPs passed each other every box they were
+offered, and each member claimed it within the same second. Only the owner can
+win, so the rest were refused — 13 to 81 refused claims in their worst hour,
+against at most 5 for every other scope, own boxes claimed late or twice
+included. The web app only claims the box on its own screen, and a box is only
+sent to its own scope.
+
+- **The registry tells a box that was never yours from one that was.** A
+  claimed or lapsed token is kept `rememberSpent` (10m) with the scope it was
+  offered to. A refused claim reaches `bonuses.Report.Foreign` only when the
+  token was offered to another scope or to nobody it remembers: a second tab
+  clicking the same box, or a claim that lands late, is the caller's own box and
+  says nothing. `bonus_claims_foreign_total` counts them.
+- `foreign.minClaims` inside `foreign.window` reads `Suspect`, `certainClaims`
+  reads `Certain`. **It ships measuring**: zero never reads a level.
+- What a person can still produce is one per change of address between the
+  offer and the claim, and one per client per restart (the offers are in memory).
+- It is a rule of `catcher`, not a watchdog, because both read what a caller
+  does with boxes. The stronger rule is reported, `catch` on a tie.
+- The counter-move is to stop sharing tokens, and then each member's own catches
+  are what `catch` reads.
 
 **`cohort`: between scopes, not within one.** Every other watchdog judges one
 scope, and a scope is only as long-lived as the caller wants it to be. On
@@ -1553,6 +1923,45 @@ read `clear`, and the catcher's lone `suspect` banned nothing.
   `click_map_reads` is each clicking caller's count once a sweep, through
   `Observer.OnMapReads`.
 
+**`churner`: accounts, not scopes.** On 2026-09-30 two callers used a fresh guest
+account every minute or two, each spending its 60-click bank in 10-30s and never
+clicking again: one from a Free home /64 (265 accounts in 72h, `pl`), one from
+Free Mobile, at times on one /64 and at times on a new /64 for each account, all
+inside one of its /32s (`dz`, 95% of the day's clears of `fr`). Every
+watchdog read `clear`: none lived long enough, and `stamina` counts per account.
+
+- **`churn` counts guest accounts born on a scope** inside `window`: first seen
+  there. A person takes their account from one /64 to the next, so a phone that
+  changes /64s is one account born once. **Measured before it was set**, over the
+  ledger of 2026-09-28 to 10-01: 259 of 284 /64s held one account; no /64 a person
+  used started more than 3 in an hour, the bots 6 to 55. `v6` reads `suspect` at 4
+  and `certain` at 6. **IPv4 has its own `v4` bounds, higher** (10 and 20, not
+  measured: the game sees few IPv4 scopes), because one address is often a
+  carrier's NAT. Anything that is not an IPv6 scope is held to them.
+- **`relay` counts takeovers**: a fresh guest account that starts within `handoff`
+  (90s) of another one stopping, in the same wider prefix (`v6Bits` 32: a mobile
+  carrier hands out /64s from all over its /32) and on the same flag, when the one
+  that stopped lived at most `maxLife` (5m). An account is only judged once it has
+  `minClicks` (20), so each fresh identity keeps a third of its bank. It reads on
+  the takeovers inside `window`: `minLinks` 3, `certainLinks` 6.
+- **Replayed over the same 72h** through the watchdog: every `certain` fell on
+  one of the bots' lines or relays, and the bans would have dropped 28% of the
+  takes and half of the clears of `fr`. `certainLinks` 4 would have banned a 3h
+  `dz` account and a Free Mobile NAT address, so 6 is two steps from that.
+- **A signed-in account reads `clear`**: it costs a provider identity to replace,
+  and its ban would fall on it alone. A guest's ban falls on its scope too, so the
+  next fresh cookie on a churning /64 is dropped from its first click.
+- **One watchdog, two rules**, for the reason `shape` is a rule of `metronome`:
+  both read accounts turning over, and two watchdogs could reach `suspect` together
+  on one behaviour. The stronger level is reported, `churn` on a tie. It is not a
+  rule of `cohort`, which keys on scopes starting together; a relay is accounts
+  following one another.
+- `click_scope_accounts{family}` is each scope's count once a sweep, for the
+  scopes clicked on since the last; `click_relay_links` each relay's takeovers.
+  Zero bounds never read, like the defender's shares.
+- The counter-moves left cost the bank: keep an account past `maxLife`, wait past
+  `handoff` between accounts, or draw /64s from unrelated carriers.
+
 #### The parts that are easy to get wrong
 
 **Three things are deliberately not reactions**, and each is a way to get an
@@ -1566,7 +1975,17 @@ honest player flagged:
 
 The interceptor reads the tile's owner **before** the handler runs and puts it on
 `antibot.Click` as `Held`/`NoOp`, because afterwards the map no longer remembers
-it. `Committed` is then called only for a click the handler accepted. Without
+it. `Committed` is then called only for a click the handler accepted.
+
+**A clear of native land is `Cleared`, and neither a no-op nor a retake.**
+`antibot_click` asks `clicks.HomeSoil` with the owner it just read, so `NoOp` and
+`Cleared` come from the same outcome the rule will write. `Held` still loses the
+tile, so for every watchdog a clear is a change: the `retaker` times the next
+caller's click on it as a reaction, and a clear is a reaction itself; the
+`defender` records the loss for `Held`. Only the defender reads `Cleared`: a
+clear wins nothing back for anyone, so it counts among the clicker's takes and is
+never a retake. The attacker's second click, on the empty tile, loses nobody
+anything (`Held` is empty), so one foreign click is still at most one loss. Without
 that split, a griefer spams a tile with deliberately invalid clicks and the next
 honest player to click it looks like it is reacting to something.
 
@@ -1658,7 +2077,7 @@ accounts, so a guest banned on both counts twice.
 A scope ban only bites a bot with a stable address — against a residential proxy
 pool it evaporates for exactly the reason the scope's bucket does; the account ban
 is what follows a guest across addresses until it drops its cookie. `cohort` is the
-one watchdog that reads across scopes, and it is the answer to a pool that rotates
+watchdog that reads across scopes, beside `churner`'s relay, and it is the answer to a pool that rotates
 inside one range.
 
 `inmemory_tile_storage.Owner` exists for this: one indexed read under the existing
@@ -1733,7 +2152,9 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **Four tables.** `ledger_takes` is one row per take, keyed by its position, with the take's `account` (NULL for none, and for every take made before accounts). `ledger_head` is one row: the oldest position kept, so positions carry on past a ledger the retention emptied. `ledger_forgotten` is a reverted scope's mark, and `ledger_forgotten_accounts` a reverted account's.
 - **Boot loads it**, takes in position order, then the marks. **A failed load refuses the boot.** Measured at 1M takes on a laptop: 95 MiB of table, 0.8s to load, 1.3s to copy in — so ~380 MiB, ~3s and ~5s at the 4M cap.
 - **A flush appends, it never rewrites.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, deletes the takes before the head (what the retention or the cap dropped), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
-- **One pool for both runners.** `cppg.CloseAfter(db, logger, tilesStorage, takings)` runs them together and closes the pool after both last flushes.
+- **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges)` runs them together and closes the pool after the last flushes.
+
+**The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread).
 
 The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer).
 
@@ -1766,6 +2187,7 @@ Measured on a copy of production's map, before postgres: 22,040 tiles in 4.4s, a
 For the patterns no watchdog catches but a person sees on the map. A player is an **account on a scope** (`cpipscope`: the address over IPv4, the /64 over IPv6), or a scope alone for takes made with no account. `BanPlayer`, `RevertPlayer` and `InspectPlayer` take a `scope` (any address) **or** an `account_id`, never both (`ledger.ParseCaller`; both, neither or a malformed id is `InvalidArgument`).
 
 - **`ledger` remembers every take**: tile, scope, account, country, previous owner and time, oldest first. `ledger.Recording` wraps the storage the click chain writes through — the rule, `spread_click` and the enclose annexer — so every tile a click takes is recorded, a no-op is not, and a click the shadow ban drops never reaches it. Recording appends through `publishing_ledger_storage`, which publishes `planet.v1.TileTaken` for each take with an account, after it is recorded. A take by somebody else is one more take, not a replacement: a bot painted over as fast as it paints is still in the ledger. Bombs and reassigns write nothing; they show as a change the ledger never saw.
+- **A clear of native land is recorded, as a take with no country** (`Taking.Cleared`). So a revert follows it: A pl→"", A ""→de goes back to `pl`, and a tile A only cleared goes back to `pl` while it is still empty — reverting a clearing bot gives the natives their ground. It is **never published**: it took no tile, so it is no `TileTaken` and no tile in anybody's stats. In `FindPlayers` it matches no flag; in `TopPlayers` it counts among the caller's `takes`, since it is what the caller did to the map, and holds no tile.
 - **The rules are in the `ledger` root, and its package doc states them**. A caller (`ledger.Caller`, a scope or an account) **holds** a tile when the tile's latest take is its own and the tile still wears that paint. A revert gives a held tile back to what it held before the caller's **current run** on it: its own latest takes, walking back while each took the tile from the paint of the one before. An account's run follows it across scopes. Another scope's take breaks the run (A il→ps, B ps→de, A de→ps goes back to `de`), and so does a change the ledger never saw (A il→ps, bomb, A ""→ps goes back to nobody). `Tally` gathers players for `FindPlayers` and `TopPlayers`, `Runs` computes the revert, `ByTakes` and `Top` rank and cut. The use cases only replay the ledger into these, filter through their ports, and call them. The tests for each interleaving are in `ledger_test.go`.
 - **Kept in memory and flushed to postgres** (`inmemory_ledger_storage`, behind `ledger.Storage`; see [Durability](#durability)). In memory it is an append-only log of 20-byte records in 1.25 MiB chunks, scopes and accounts interned in one table per chunk and countries in another, so an old chunk takes its strings when it goes. A record is never changed once written, so `Replay` copies the chunk headers under the lock and reads without it: a `TopPlayers` over 4M takes takes ~1s and never blocks a click. `Forget(caller, position)` hides a reverted scope's or account's takes up to the replay it was computed from, so a take made mid-revert still counts.
 - **Bounded twice.** `ledger.retention` (72h) drops takes by age, each `ledger.sweepInterval`; `ledgerStorage.maxTakes` (4M) drops the oldest first when a busy stretch fills it, and logs "the ledger is full" once. Production is thousands of clicks per 5 minutes (`clicks_total`), and a spread click takes up to 7 tiles: 15 takes a second fill 4M in three days. Measured at 4M before the account: ~85 MiB heap. The account adds 4 bytes a take, about 15 MiB more at the cap (not measured).
@@ -1899,14 +2321,14 @@ In practice the failure is unreachable in production — the blob is embedded, s
 It costs ~0.3s of boot and about 12 MB resident. The boot log carries the whole result in one line:
 
 ```
-map geography loaded asset=coordinates-26a9aeab.bin tiles=257948 edges=752820
-  degrees="[186 530 1440 4087 6216 7829 237660]" took=263ms
+map geography loaded asset=coordinates-9998a414.bin tiles=262119 edges=768288
+  degrees="[225 516 1111 3796 5664 5048 245759]" took=263ms
 ```
 
-Those numbers are pinned by the tests. 752,820 undirected edges, average degree 5.837, and the
-degree histogram reads: 186 tiles with no neighbours, then 530, 1440, 4087, 6216, 7829, and 237,660
-inland tiles with the full 6. Walking adjacency alone finds **443 landmasses**, the largest four
-being 142,827 (Afro-Eurasia), 67,957 (the Americas), 20,037 (Antarctica) and 12,335 (Australia).
+Those numbers are pinned by the tests. 768,288 undirected edges, average degree 5.862, and the
+degree histogram reads: 225 tiles with no neighbours, then 516, 1111, 3796, 5664, 5048, and 245,759
+inland tiles with the full 6. Walking adjacency alone finds **477 landmasses**, the largest four
+being 143,574 (Afro-Eurasia), 68,214 (the Americas), 22,871 (Antarctica) and 12,405 (Australia).
 
 #### The API, and what is not in it yet
 
@@ -1924,20 +2346,23 @@ from a pool, one per concurrent caller, so nothing is cleared per call and two c
 the same array.
 
 `clicks.Borders` is the other half of the geography: which country's ground a tile sits on, from
-`generated/map/borders-<hash>.bin`, the table the frontend's `npm run borders` writes to `/map`.
-Only the operator tools read it — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
+`generated/map/borders-<hash>.bin`, the table the frontend's `npm run map:generate` writes to `/map`.
+The operator tools read it — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer) —
+and so does the home-soil rule, on every click — see [Native land takes two clicks](#native-land-takes-two-clicks-clickshomesoil).
 
 `Neighbours` is what the spread bonus reads — see [What a spread does to a click](#what-a-spread-does-to-a-click).
 `Within`, `Position`, `Nearest` and `Spacing` are what the bomb reads — see [What a bomb does](#what-a-bomb-does).
-`Within`, `Nearest` and `Spacing` are straight scans (a few ms over 257,948 tiles): `Spacing` runs once at
+`Within`, `Nearest` and `Spacing` are straight scans (a few ms over 262,119 tiles): `Spacing` runs once at
 boot, `Within` and `Nearest` once per bomb. `Disc` is back behind the `testing` tag — see [Testing](#testing).
 
-#### Known faults, inherited and documented
+#### What the blob no longer gets wrong
 
-From the blob, not from this package: the antimeridian row carries ~¼ the tiles it should, so
-neighbourhoods near the dateline are lopsided, and 2,523 tiles fall outside every country. Both
-leave tiles with fewer than 6 neighbours, which is also what a coastline does — there is no way to
-tell them apart from the geometry, and fixing them means regenerating and renumbering.
+Both blobs come from one Natural Earth query now, so **every tile is in a country** and the
+antimeridian row carries what it should. It used to be 2,191 tiles in no country and a 36-tile
+deficit at the dateline, and both left tiles with fewer than 6 neighbours — which is also what a
+coastline does, so there was no telling them apart from the geometry. The 225 tiles with no
+neighbours at all are genuine single-tile islands; anything reading adjacency still has to have an
+answer for an empty neighbour set. See [`/map/README.md`](../../map/README.md).
 
 ### Configuration
 
@@ -1998,12 +2423,17 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — one account's click allowance, and a token with no account's scope bucket (defaults 1/s, burst 10, swept every minute; `perSecond` is a float, so 0.2 is one click every 5s)
 - `rateLimiter.scopeMultiplier` — the scope's bucket over one account's, shared by every account behind the address (default 10). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)
+- `rateLimiter.guestScopeMultiplier` — the bucket every guest behind one address shares, over one account's (default 1: the guests on one network are one bank). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)
+- `rateLimiter.newAccountClicks` — the bank of an account just made, which earns the rest at the plain rate (unset: full). Negative refuses the boot. See [Two buckets per click](#two-buckets-per-click)
+- `homeSoil.enabled` — native land takes two clicks: on a country's own ground, another flag's first click clears its tile and the next takes it. Off by default; the client reads it from `GetBonusRules`, so turning it off needs no release. See [Native land takes two clicks](#native-land-takes-two-clicks-clickshomesoil)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
-- `bonus.kinds` — a weight per kind (`triple_clicks`, `spread_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
-- `bonus.spread.duration` — how long a caught `spread_clicks` runs (default 10s). It is much shorter than `bonus.triple.duration` because a click that takes seven tiles is worth far more than three clicks; `maxBoostPerHour` counts the time each bonus really ran
-- `bonus.triple.duration`, `bonus.triple.multiplier` — how long a caught `triple_clicks` runs and what it multiplies the allowance by; the client reads both off the answer, so changing them changes the meter with no frontend release
+- `bonus.kinds` — a weight per kind (`refill`, `spread_clicks`, `bomb`, `enclose_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
+- `bonus.spread.clicks`, `bonus.spread.maxPerBox` — the most spread clicks held (8, about 56 tiles, a bomb's worth), and the most one box adds (4; it draws 1 to that). A count, not a time: a timed spread let a full bank of clicks be dumped inside it
+- `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
+- `chargeStorage.flushInterval` — how often the charges that changed are written to postgres (default 1s); also flushed on shutdown
+- `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
 - `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**
@@ -2015,7 +2445,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. See [What survives a restart](#what-survives-a-restart)
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
 - `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
-- `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold; `detector.shape.maxGap`, `clicks`, `maxSkew`, `certainClicks`, `certainSkew` — the longest gap sampled, and the skew of the last gaps that reads each level (unset, it only measures)
+- `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold; `detector.shape.maxGap`, `clicks`, `maxSkew`, `certainClicks`, `certainSkew` — the longest gap sampled, and the skew of the last gaps that reads each level (unset, it only measures); `detector.stamina.slice`, `clicks`, `window`, `minBusy`, `certainBusy` — what makes a slice busy, and the busy time inside the window that reads each level (unset, it only measures)
 - `antiBot.defender.enabled`, `detector.retakeWindow`, `minClicks`, `minShare`, `certainClicks`, `certainShare` — what counts as a retake, and the share of takes that reads `suspect` then `certain`; a zero share never reads
 - `antiBot.cohort.enabled`, `detector.startWindow`, `minClicks`, `minFlagShare`, `rateRatio`, `lengthRatio`, `quietAfter`, `minMembers` — what makes two scopes in step, and how many of them read `suspect`
 - `antiBot.cohort.detector.v4Bits`, `v6Bits`, `certainCohorts`, `certainMembers`, `chainWindow` — the prefix a chain must share, and how many groups, or scopes in one group, read `certain`. Its `trackWindow` is raised to `chainWindow` if shorter; bad bounds refuse the boot

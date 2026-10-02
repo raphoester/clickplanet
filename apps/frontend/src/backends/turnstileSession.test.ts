@@ -1,6 +1,12 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
-import {newAuthServiceClient, SessionClient} from "./turnstileSession.ts"
+import {
+    HeldSession,
+    localTokenStore,
+    newAuthServiceClient,
+    SESSION_STORAGE_KEY,
+    SessionClient,
+} from "./turnstileSession.ts"
 import {newClickServiceClient} from "./planetBackend.ts"
 import {SessionUnavailableError} from "./session.ts"
 
@@ -20,6 +26,21 @@ function fakeClient(createSession: CreateSession) {
 
 function minting(token: string, ttlMs = HOUR_MS) {
     return async () => ({token, expiresAtUnixMs: BigInt(now + ttlMs)})
+}
+
+/** A store in a variable: what the page keeps, without a browser to keep it in. */
+function fakeStore(kept?: HeldSession) {
+    let held = kept
+
+    return {
+        read: vi.fn(() => held),
+        write: vi.fn((session: HeldSession) => {
+            held = session
+        }),
+        clear: vi.fn(() => {
+            held = undefined
+        }),
+    }
 }
 
 beforeEach(() => {
@@ -212,6 +233,136 @@ describe("SessionClient", () => {
 
             expect(client.held()).toBeUndefined()
         })
+    })
+
+    // Nothing mints at load, so without a kept token a reload reads as a caller
+    // with no account until its first click: the charges come back empty, the
+    // meter shows the scope's bucket, and the stream follows the address.
+    describe("a token kept from the last page load", () => {
+        it("holds it at once, with no mint and no attestation", () => {
+            const createSession = vi.fn(minting("session-2"))
+            const attest = vi.fn(async () => "widget-token")
+            const store = fakeStore({value: "session-1", expiresAt: now + HOUR_MS})
+
+            const client = new SessionClient(fakeClient(createSession), attest, {now: clock, store})
+
+            expect(client.held()).toBe("session-1")
+            expect(createSession).not.toHaveBeenCalled()
+            expect(attest).not.toHaveBeenCalled()
+        })
+
+        it("leaves one inside the refresh margin, by the rule held applies", async () => {
+            const store = fakeStore({value: "session-1", expiresAt: now + 59_000})
+
+            const client = new SessionClient(fakeClient(minting("session-2")), async () => "widget-token", {
+                now: clock,
+                refreshMarginMs: 60_000,
+                store,
+            })
+
+            expect(client.held()).toBeUndefined()
+            expect(await client.token()).toBe("session-2")
+        })
+
+        it("keeps what it mints, for the next page load", async () => {
+            const store = fakeStore()
+
+            const client = new SessionClient(fakeClient(minting("session-1")), async () => "widget-token", {
+                now: clock,
+                store,
+            })
+            await client.token()
+
+            expect(store.write).toHaveBeenCalledWith({value: "session-1", expiresAt: now + HOUR_MS})
+        })
+
+        // A sign-in or a sign-out changes the account the cookie names, so a
+        // reload must not bring the token that names the old one back.
+        it("drops it on an invalidation", async () => {
+            const store = fakeStore()
+            const client = new SessionClient(fakeClient(minting("session-1")), async () => "widget-token", {
+                now: clock,
+                store,
+            })
+            await client.token()
+
+            client.invalidate()
+
+            expect(store.read()).toBeUndefined()
+        })
+
+        it("drops it when a mint fails, so nothing is kept that is not held", async () => {
+            const store = fakeStore({value: "session-1", expiresAt: now - 1})
+            const createSession = vi.fn(async () => {
+                throw new ConnectError("no", Code.PermissionDenied)
+            })
+
+            const client = new SessionClient(fakeClient(createSession), async () => "widget-token", {now: clock, store})
+
+            await expect(client.token()).rejects.toBeInstanceOf(SessionUnavailableError)
+            expect(store.read()).toBeUndefined()
+        })
+    })
+})
+
+/** Local storage in a variable, since the suite runs on node and not in a browser. */
+function stubStorage(kept: Record<string, string> = {}) {
+    vi.stubGlobal("window", {
+        localStorage: {
+            getItem: (key: string) => kept[key] ?? null,
+            setItem: (key: string, value: string) => {
+                kept[key] = value
+            },
+            removeItem: (key: string) => {
+                delete kept[key]
+            },
+        },
+    })
+
+    return kept
+}
+
+describe("localTokenStore", () => {
+    afterEach(() => {
+        vi.unstubAllGlobals()
+    })
+
+    it("reads back what it wrote, and lets go of it", () => {
+        stubStorage()
+        const store = localTokenStore()
+
+        store.write({value: "session-1", expiresAt: 42})
+        expect(store.read()).toEqual({value: "session-1", expiresAt: 42})
+
+        store.clear()
+        expect(store.read()).toBeUndefined()
+    })
+
+    it("reads nothing when nothing was kept", () => {
+        stubStorage()
+
+        expect(localTokenStore().read()).toBeUndefined()
+    })
+
+    it("reads nothing from something that is not a kept token", () => {
+        stubStorage({[SESSION_STORAGE_KEY]: '{"value": 5}'})
+
+        expect(localTokenStore().read()).toBeUndefined()
+    })
+
+    // A private window throws rather than answering, and a page that cannot
+    // keep a token still has to play.
+    it("reads nothing, and neither writing nor clearing throws, when storage refuses", () => {
+        const refuse = () => {
+            throw new Error("the storage is not available")
+        }
+        vi.stubGlobal("window", {localStorage: {getItem: refuse, setItem: refuse, removeItem: refuse}})
+
+        const store = localTokenStore()
+
+        expect(store.read()).toBeUndefined()
+        expect(() => store.write({value: "session-1", expiresAt: 42})).not.toThrow()
+        expect(() => store.clear()).not.toThrow()
     })
 })
 

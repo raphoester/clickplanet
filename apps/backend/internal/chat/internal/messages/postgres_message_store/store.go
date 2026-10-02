@@ -8,6 +8,8 @@ import (
 	"slices"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
@@ -24,8 +26,8 @@ var _ messages.Storage = (*Store)(nil)
 
 func (s *Store) Append(ctx context.Context, record messages.Record) error {
 	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO messages (id, sent_at, name, author_admin, author_id, country, ip, user_agent, text)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO messages (id, sent_at, account_id, name, author_admin, author_id, country, ip, user_agent, text)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`, row(record)...); err != nil {
 		return fmt.Errorf("failed to insert a message: %w", err)
 	}
@@ -35,7 +37,7 @@ func (s *Store) Append(ctx context.Context, record messages.Record) error {
 // Recent is the newest limit messages sent at or after since, oldest first.
 func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]messages.Message, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, sent_at, name, author_admin, country, text
+		SELECT id, sent_at, account_id, name, author_admin, country, text
 		FROM messages
 		WHERE sent_at >= $1
 		ORDER BY seq DESC
@@ -51,14 +53,18 @@ func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]messa
 		var (
 			message messages.Message
 			id      string
+			account uuid.NullUUID
 		)
 		if err := rows.Scan(
-			&id, &message.SentAt, &message.AuthorName, &message.AuthorAdmin,
+			&id, &message.SentAt, &account, &message.AuthorName, &message.AuthorAdmin,
 			&message.CountryID, &message.Text,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan a message: %w", err)
 		}
 		message.ID = messages.MessageID(id)
+		if account.Valid {
+			message.Account = messages.AccountID(account.UUID)
+		}
 		message.SentAt = message.SentAt.UTC()
 		recent = append(recent, message)
 	}
@@ -99,10 +105,16 @@ func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, erro
 	return deleted, nil
 }
 
+// row is what Append writes: whatever the message carries. send_message_usecase leaves the name and the admin
+// mark empty and fills account_id instead, so every row written from now on is named by reading its account.
+//
+// TODO: once chat.storage.retention has passed since this shipped, every remaining row has an account_id and an
+// empty name. Drop the name and author_admin columns, and messages.Named's fallback with them.
 func row(record messages.Record) []any {
 	return []any{
 		string(record.Message.ID),
 		record.Message.SentAt.UTC(),
+		account(record.Message.Account),
 		record.Message.AuthorName,
 		record.Message.AuthorAdmin,
 		record.AuthorID,
@@ -111,4 +123,12 @@ func row(record messages.Record) []any {
 		record.UserAgent,
 		record.Message.Text,
 	}
+}
+
+// account is the sender, or NULL for nobody: the column is how a row from before this is told apart.
+func account(id messages.AccountID) uuid.NullUUID {
+	if id == messages.NoAccount {
+		return uuid.NullUUID{}
+	}
+	return uuid.NullUUID{UUID: uuid.UUID(id), Valid: true}
 }

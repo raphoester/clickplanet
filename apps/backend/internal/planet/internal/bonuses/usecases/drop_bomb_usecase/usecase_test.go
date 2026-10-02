@@ -15,19 +15,15 @@ import (
 
 type stubBombs struct {
 	held  bool
-	taken string
+	spent []bonuses.Holder
 }
 
-func (s *stubBombs) Take(scope string) bool {
-	s.taken = scope
+func (s *stubBombs) SpendBomb(holder bonuses.Holder) bool {
+	s.spent = append(s.spent, holder)
 	held := s.held
 	s.held = false
 	return held
 }
-
-type stubSchedule struct{ dropped []string }
-
-func (s *stubSchedule) Dropped(scope string) { s.dropped = append(s.dropped, scope) }
 
 type stubMap struct {
 	nearest uint32
@@ -59,21 +55,19 @@ func (countries) CheckCountry(country string) bool { return country == "fr" }
 var rules = bonuses.BombRules{Radius: 0.03, Reach: 0.005}
 
 type parts struct {
-	bombs    *stubBombs
-	schedule *stubSchedule
-	geo      *stubMap
-	clearer  *stubClearer
+	bombs   *stubBombs
+	geo     *stubMap
+	clearer *stubClearer
 }
 
 func setup(held bool, arc float64) (*drop_bomb_usecase.UseCase, parts) {
 	p := parts{
-		bombs:    &stubBombs{held: held},
-		schedule: &stubSchedule{},
-		geo:      &stubMap{nearest: 10, arc: arc},
-		clearer:  &stubClearer{},
+		bombs:   &stubBombs{held: held},
+		geo:     &stubMap{nearest: 10, arc: arc},
+		clearer: &stubClearer{},
 	}
 
-	return drop_bomb_usecase.New(p.bombs, p.schedule, p.geo, p.clearer, countries{}, rules), p
+	return drop_bomb_usecase.New(p.bombs, p.geo, p.clearer, countries{}, rules), p
 }
 
 func TestABombOnLandClearsACircleAroundTheTileHit(t *testing.T) {
@@ -88,7 +82,17 @@ func TestABombOnLandClearsACircleAroundTheTileHit(t *testing.T) {
 	assert.InDelta(t, 0.03, p.geo.radius, 1e-9)
 	assert.InDelta(t, 0.03, blast.Radius, 1e-9)
 	assert.Equal(t, clicks.Vec3{Y: 1}, blast.Point, "drawn at the tile's centre")
-	assert.Equal(t, []string{cpctx.RateLimitKey(t.Context())}, p.schedule.dropped)
+	assert.Equal(t, []bonuses.Holder{bonuses.NoHolder}, p.bombs.spent)
+}
+
+func TestTheBombSpentIsTheAccounts(t *testing.T) {
+	useCase, p := setup(true, 0.001)
+	ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
+
+	_, err := useCase.Execute(ctx, drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "fr"})
+	require.NoError(t, err)
+
+	assert.Equal(t, []bonuses.Holder{"a-guest"}, p.bombs.spent)
 }
 
 func TestABombInTheSeaIsSpentAndClearsNothing(t *testing.T) {
@@ -111,7 +115,6 @@ func TestNoBombNoBlast(t *testing.T) {
 
 	require.ErrorIs(t, err, drop_bomb_usecase.ErrNoBomb)
 	assert.Empty(t, p.clearer.cleared)
-	assert.Empty(t, p.schedule.dropped)
 }
 
 func TestAMalformedDropDoesNotCostTheBomb(t *testing.T) {
@@ -125,6 +128,7 @@ func TestAMalformedDropDoesNotCostTheBomb(t *testing.T) {
 	require.ErrorIs(t, err, clicks.ErrTileOutOfRange)
 
 	assert.True(t, p.bombs.held)
+	assert.Empty(t, p.bombs.spent, "a malformed drop is refused before the bomb is touched")
 }
 
 func TestADudIsSpentAndClearsAndAnnouncesNothing(t *testing.T) {
@@ -136,5 +140,4 @@ func TestADudIsSpentAndClearsAndAnnouncesNothing(t *testing.T) {
 	assert.Empty(t, blast.Cleared)
 	assert.Empty(t, p.clearer.cleared, "nobody sees a banned caller's bomb")
 	assert.False(t, p.bombs.held, "the bomb is gone, as it would be for anyone")
-	assert.Len(t, p.schedule.dropped, 1, "the next box comes on the usual schedule")
 }

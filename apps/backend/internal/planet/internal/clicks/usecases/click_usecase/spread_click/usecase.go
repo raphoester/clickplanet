@@ -1,8 +1,12 @@
-// Package spread_click is the spread bonus: while it runs, a click also takes
-// every tile touching the one clicked.
+// Package spread_click is the spread bonus: while the player has it switched on,
+// each click spends one from the pool and also takes every tile touching it.
 //
 // The server picks those tiles off its own map. A client that named them would
 // be a client that could name any tiles it liked, which is the whole of the cheat.
+//
+// Each tile touched follows the home-soil rule, exactly as a click on it would:
+// a neighbour on another country's own ground that wears its flag is cleared, not
+// taken. A bonus is never a way around the rule.
 package spread_click
 
 import (
@@ -10,13 +14,13 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-// Spreads says whether a caller holds a running spread bonus.
+// Spreads spends one click of a caller's spread charge, and says whether there was one.
 type Spreads interface {
-	Spreading(scope string) bool
+	SpendSpreadClick(holder bonuses.Holder) bool
 }
 
 // Neighbours is the part of clicks.Geography this reads.
@@ -25,7 +29,13 @@ type Neighbours interface {
 }
 
 type TileStorage interface {
+	Owner(tile uint32) (string, bool)
 	Set(ctx context.Context, tile uint32, value string) error
+}
+
+// Rule is the home-soil rule: what a click for flag does to a tile owner holds.
+type Rule interface {
+	Outcome(tile uint32, owner, flag string) clicks.Outcome
 }
 
 // Publisher tells the planet a click spread, so every client can show it.
@@ -33,12 +43,20 @@ type Publisher interface {
 	PublishSpread(spread bonuses.Spread)
 }
 
-func New(implementation click_usecase.IUseCase, spreads Spreads, neighbours Neighbours, storage TileStorage, publisher Publisher) *UseCase {
+func New(
+	implementation click_usecase.IUseCase,
+	spreads Spreads,
+	neighbours Neighbours,
+	storage TileStorage,
+	rule Rule,
+	publisher Publisher,
+) *UseCase {
 	return &UseCase{
 		implementation: implementation,
 		spreads:        spreads,
 		neighbours:     neighbours,
 		storage:        storage,
+		rule:           rule,
 		publisher:      publisher,
 	}
 }
@@ -48,11 +66,12 @@ type UseCase struct {
 	spreads        Spreads
 	neighbours     Neighbours
 	storage        TileStorage
+	rule           Rule
 	publisher      Publisher
 }
 
-// Execute spreads only a click the rule accepted, so a refused country or tile
-// spreads nothing. The neighbours need no check of their own: the map only
+// Execute spreads only a click the rule accepted and the player asked to spread, so a refused
+// country or tile, or a click with spread switched off, spreads nothing and costs no spread click. The neighbours need no check of their own: the map only
 // holds real tiles, and the country is the one the rule just accepted.
 //
 // A tile with no neighbours — one of the lone islands — takes itself and
@@ -60,13 +79,16 @@ type UseCase struct {
 // otherwise.
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
 	out, err := u.implementation.Execute(ctx, in)
-	if err != nil || !u.spreads.Spreading(cpctx.RateLimitKey(ctx)) {
+	if err != nil || !in.Spread || !u.spreads.SpendSpreadClick(bonuses.HolderOf(clicks.PayerOf(ctx))) {
 		return out, err
 	}
 
 	neighbours := u.neighbours.Neighbours(in.TileID)
 	for _, neighbour := range neighbours {
-		if err := u.storage.Set(ctx, neighbour, in.CountryID); err != nil {
+		owner, _ := u.storage.Owner(neighbour)
+		after := u.rule.Outcome(neighbour, owner, in.CountryID).OwnerAfter(owner, in.CountryID)
+
+		if err := u.storage.Set(ctx, neighbour, after); err != nil {
 			return out, fmt.Errorf("failed to spread onto tile %d: %w", neighbour, err)
 		}
 	}

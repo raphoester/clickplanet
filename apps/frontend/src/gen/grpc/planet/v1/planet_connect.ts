@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetBudgetRequest, GetBudgetResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlanetEvent } from "./planet_pb.js";
+import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlanetEvent, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -74,7 +74,7 @@ export const ClickService = {
     },
     /**
      * Drops the bomb a caught box granted. Answers NotFound when the caller holds
-     * none — never won, already dropped, or held past its time — and says no more.
+     * none — never won, or already dropped — and says no more.
      *
      * @generated from rpc planet.v1.ClickService.DropBomb
      */
@@ -82,6 +82,85 @@ export const ClickService = {
       name: "DropBomb",
       I: DropBombRequest,
       O: DropBombResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Spends the refill a caught box granted: the caller's click bank is filled
+     * to its capacity. Answers NotFound when the caller holds none, and
+     * FailedPrecondition when the bank is already full, which spends nothing.
+     *
+     * @generated from rpc planet.v1.ClickService.UseRefill
+     */
+    useRefill: {
+      name: "UseRefill",
+      I: UseRefillRequest,
+      O: UseRefillResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * What the caller holds: read once when the page loads, and again when the
+     * caller's account changes. Everything after is the client's own arithmetic
+     * on its own calls. Not NO_SIDE_EFFECTS, like GetBudget: the answer is about
+     * one caller at one instant, and a cached one lies.
+     *
+     * @generated from rpc planet.v1.ClickService.GetCharges
+     */
+    getCharges: {
+      name: "GetCharges",
+      I: GetChargesRequest,
+      O: GetChargesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The sizes of the charges, the same for every caller. Read once when the
+     * page loads; a client that loaded before they changed shows the old ones
+     * until it reloads.
+     *
+     * @generated from rpc planet.v1.ClickService.GetBonusRules
+     */
+    getBonusRules: {
+      name: "GetBonusRules",
+      I: GetBonusRulesRequest,
+      O: GetBonusRulesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Reads the question a QuizOffered named, and starts its clock.
+     *
+     * Deliberately two calls rather than one: the deadline is stamped here, not
+     * when the banner was offered, so the seconds a player gets are their own and
+     * a banner can sit unopened without burning them. Opening twice answers the
+     * same question and the same deadline — a reload is not a second chance, and
+     * is not a way to see a second question either.
+     *
+     * It never says which choice is right. The bank is the server's alone, and
+     * the answer is compared in AnswerQuiz.
+     *
+     * @generated from rpc planet.v1.ClickService.OpenQuiz
+     */
+    openQuiz: {
+      name: "OpenQuiz",
+      I: OpenQuizRequest,
+      O: OpenQuizResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Answers it. A right answer inside the deadline grants a charge the server
+     * draws, exactly as a caught box does. A wrong or late one grants nothing and
+     * costs nothing: the token is spent either way, and the answer comes back so
+     * the player learns it.
+     *
+     * Answers NotFound when the caller holds no such quiz — never offered,
+     * already answered, or somebody else's — which is the same answer ClaimBonus
+     * gives, and for the same reason.
+     *
+     * @generated from rpc planet.v1.ClickService.AnswerQuiz
+     */
+    answerQuiz: {
+      name: "AnswerQuiz",
+      I: AnswerQuizRequest,
+      O: AnswerQuizResponse,
       kind: MethodKind.Unary,
     },
   }

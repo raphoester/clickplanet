@@ -1,0 +1,281 @@
+/*
+ * The quiz sits at the top of the screen, where BombNews does: it is news about this player rather
+ * than about the planet, but it wants the same place — over the globe, out of the way of the
+ * meter, the menu and the chat, and the first thing an eye goes to.
+ *
+ * Unlike BombNews it catches presses, because pressing it is the whole feature. Nothing else does:
+ * the wrapper is `pointer-events: none` and only the controls inside take them back, so a player
+ * mid-click keeps the planet under the cursor everywhere the card is not.
+ */
+.quiz {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    z-index: 160;
+    transform: translateX(-50%);
+    display: flex;
+    justify-content: center;
+    width: min(440px, calc(100vw - 32px));
+    pointer-events: none;
+}
+
+.quiz button {
+    pointer-events: auto;
+}
+
+/* --- the banner. */
+
+.quiz-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px 10px 12px;
+    border: 1px solid #FFC06166;
+    border-radius: 999px;
+    background: #0A0A0Ad9;
+    backdrop-filter: blur(10px);
+    color: #FFFFFF;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 0 18px #F2A91C44;
+    animation: quiz-arrive 260ms ease-out both, quiz-pulse 2.2s ease-in-out 260ms infinite;
+}
+
+.quiz-banner:hover:not(:disabled),
+.quiz-banner:focus-visible {
+    border-color: #FFC061;
+    background: #141414ee;
+}
+
+/* Working. It keeps its size so nothing moves under the cursor that is still on it. */
+.quiz-banner:disabled {
+    cursor: default;
+    opacity: 0.6;
+    animation: quiz-arrive 260ms ease-out both;
+}
+
+/*
+ * A drawn mark, not a character: the question mark the flying box carries is drawn for the same
+ * reason (`questionMark.ts`) — a glyph is a different picture on every platform.
+ */
+.quiz-banner-mark {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: #F2A91C;
+    color: #4A2C02;
+    font-family: "Luckiest Guy", system-ui, sans-serif;
+    font-size: 19px;
+    line-height: 1;
+    /* Luckiest Guy carries more ascent than its capitals use; see titleFont.ts. */
+    padding-top: 3px;
+    box-sizing: border-box;
+}
+
+.quiz-banner-words {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.quiz-banner-title {
+    font-family: "Luckiest Guy", system-ui, sans-serif;
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    color: #FFC061;
+}
+
+.quiz-banner-detail {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    font-size: 12px;
+    color: #FFFFFFb3;
+    white-space: nowrap;
+}
+
+/* --- the question, and the result. Both are the same card. */
+
+.quiz-card {
+    pointer-events: auto;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 16px 16px;
+    border: 1px solid #FFC06144;
+    border-radius: 18px;
+    background: #0A0A0Aee;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px #00000066;
+    animation: quiz-arrive 200ms ease-out both;
+}
+
+/*
+ * The clock. It is a transform rather than a width so it runs on the compositor: this is five
+ * seconds of continuous animation over a WebGL globe that is drawing at the same time, and a
+ * width transition would relayout the bar on every frame of it.
+ *
+ * The starting scale and the duration are set in Quiz.tsx, from what is actually left.
+ */
+.quiz-clock {
+    height: 4px;
+    margin-bottom: 12px;
+    border-radius: 999px;
+    background: #FFFFFF1a;
+    overflow: hidden;
+}
+
+.quiz-clock-bar {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #F2A91C, #FFC061);
+    transform-origin: left center;
+    will-change: transform;
+}
+
+.quiz-question {
+    margin: 0 0 12px;
+    font-size: 16px;
+    line-height: 1.3;
+    color: #FFFFFF;
+}
+
+.quiz-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.quiz-choice {
+    padding: 10px 14px;
+    border: 1px solid #FFFFFF26;
+    border-radius: 12px;
+    background: #FFFFFF0d;
+    color: #FFFFFF;
+    font: inherit;
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+}
+
+.quiz-choice:hover,
+.quiz-choice:focus-visible {
+    border-color: #FFC06199;
+    background: #FFC0611f;
+}
+
+/* --- the result. */
+
+.quiz-verdict {
+    margin: 0;
+    font-family: "Luckiest Guy", system-ui, sans-serif;
+    font-size: 20px;
+    letter-spacing: 0.02em;
+}
+
+.quiz--right .quiz-card {
+    border-color: #6FE3A877;
+    box-shadow: 0 8px 32px #25B87244;
+}
+
+.quiz--right .quiz-verdict {
+    color: #6FE3A8;
+}
+
+.quiz--wrong .quiz-verdict {
+    color: #FFFFFFcc;
+}
+
+.quiz-answer {
+    margin: 8px 0 0;
+    font-size: 14px;
+    color: #FFFFFFb3;
+}
+
+.quiz-answer strong {
+    color: #FFFFFF;
+}
+
+.quiz-reward {
+    display: grid;
+    grid-template-columns: 26px 1fr;
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 2px;
+    margin: 10px 0 0;
+    font-size: 14px;
+    color: #FFFFFF;
+}
+
+.quiz-reward-icon {
+    display: grid;
+    place-items: center;
+}
+
+/*
+ * `.bonus-icon` is 50px and `overflow: visible` by default (BonusAward.css, where the drawings are
+ * inked): every place that shows one in a smaller slot sizes it, as the inventory does.
+ */
+.quiz-reward-icon .bonus-icon {
+    width: 26px;
+    height: 26px;
+}
+
+/* Under the name, not under the icon. */
+.quiz-reward-detail {
+    grid-column: 2;
+    font-size: 12px;
+    line-height: 1.35;
+    color: #FFFFFF99;
+}
+
+/* The same colours every other mention of a kind uses; see BonusAward.css. */
+.quiz-reward--refill { --bonus-accent: #7CC4FF; --bonus-box: #2F8CFF; --bonus-box-edge: #0A2A55; }
+.quiz-reward--spreadClicks { --bonus-accent: #6FE3A8; --bonus-box: #25B872; --bonus-box-edge: #0B3D25; }
+.quiz-reward--bomb { --bonus-accent: #FF7A6B; --bonus-box: #E0412F; --bonus-box-edge: #4A0E07; }
+.quiz-reward--encloseClicks { --bonus-accent: #FFC061; --bonus-box: #F2A91C; --bonus-box-edge: #4A2C02; }
+
+@keyframes quiz-arrive {
+    from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes quiz-pulse {
+    0%, 100% { box-shadow: 0 0 18px #F2A91C44; }
+    50% { box-shadow: 0 0 26px #F2A91C88; }
+}
+
+/*
+ * Reduced motion keeps the countdown — it is information, not decoration, and a player who cannot
+ * see how long is left has lost the game rather than an effect — and drops everything that is only
+ * movement.
+ */
+@media (prefers-reduced-motion: reduce) {
+    .quiz-banner,
+    .quiz-card {
+        animation: none;
+    }
+}
+
+/* On a phone the card clears the notch and takes the width it can. */
+@media (max-width: 600px) {
+    .quiz {
+        top: max(12px, env(safe-area-inset-top));
+        width: calc(100vw - 24px);
+    }
+
+    .quiz-question {
+        font-size: 15px;
+    }
+}

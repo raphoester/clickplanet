@@ -32,7 +32,9 @@ type stack struct {
 	// forgetEvidence starts every boot with nothing stored, as a process without persistence would.
 	forgetEvidence bool
 
-	owner   map[uint32]string
+	owner map[uint32]string
+	// ground is whose own soil a tile is on, for the home-soil rule; a tile left out is in no country.
+	ground  map[uint32]string
 	reports []antibot.Report
 	rises   []string
 	errors  []error
@@ -42,6 +44,7 @@ func newStack(options ...func(*antibot.Config)) *stack {
 	s := &stack{
 		clock:       cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
 		owner:       map[uint32]string{},
+		ground:      map[uint32]string{},
 		bans:        shadowban.NewMemoryPersistence(),
 		accountBans: shadowban.NewMemoryPersistence(),
 		evidence:    evidence.NewMemoryPersistence(),
@@ -78,6 +81,7 @@ func newStack(options ...func(*antibot.Config)) *stack {
 	config.Metronome.Detector.CertainFor = 30 * time.Minute
 	config.Metronome.Detector.CertainClicks = 900
 	config.Metronome.Detector.TrackWindow = 15 * time.Minute
+	config.Metronome.Detector.Stamina.CertainBusy = 5*time.Hour + 30*time.Minute
 
 	config.Catcher.Enabled = true
 	config.Catcher.Detector.MinCatches = 5
@@ -103,6 +107,21 @@ func newStack(options ...func(*antibot.Config)) *stack {
 	config.Scraper.Detector.MinMaps = 5
 	config.Scraper.Detector.CertainMaps = 15
 	config.Scraper.Detector.TrackWindow = 15 * time.Minute
+
+	config.Churner.Enabled = true
+	config.Churner.Detector.Window = time.Hour
+	config.Churner.Detector.V6.MinAccounts = 4
+	config.Churner.Detector.V6.CertainAccounts = 6
+	config.Churner.Detector.V4.MinAccounts = 10
+	config.Churner.Detector.V4.CertainAccounts = 20
+	config.Churner.Detector.Relay.Handoff = 90 * time.Second
+	config.Churner.Detector.Relay.MaxLife = 5 * time.Minute
+	config.Churner.Detector.Relay.MinClicks = 20
+	config.Churner.Detector.Relay.MinFlagShare = 0.9
+	config.Churner.Detector.Relay.V4Bits = 24
+	config.Churner.Detector.Relay.V6Bits = 32
+	config.Churner.Detector.Relay.MinLinks = 3
+	config.Churner.Detector.Relay.CertainLinks = 6
 
 	for _, option := range options {
 		option(&config)
@@ -158,16 +177,25 @@ func (s *stack) restart(outage time.Duration) {
 	s.boot()
 }
 
+// click reads the tile the way antibot_click does, the home-soil rule included: a native tile clicked for
+// another flag is cleared, and nobody holds it after.
 func (s *stack) click(scope string, tile uint32, country string) bool {
+	return s.clickAs(scope, "", tile, country)
+}
+
+// clickAs is a click whose token names a guest account.
+func (s *stack) clickAs(scope, account string, tile uint32, country string) bool {
 	held := s.owner[tile]
 
 	click := antibot.Click{
 		Scope:   scope,
+		Account: account,
 		Tile:    tile,
 		Country: country,
 		At:      s.clock.Now(),
 		Held:    held,
 		NoOp:    held == country,
+		Cleared: held != country && s.ground[tile] != "" && held == s.ground[tile],
 	}
 
 	s.guard.Attempted(click)
@@ -175,7 +203,10 @@ func (s *stack) click(scope string, tile uint32, country string) bool {
 	drop := s.guard.Inspect(click)
 	if !drop {
 		s.guard.Committed(click)
-		if !click.NoOp {
+		switch {
+		case click.Cleared:
+			s.owner[tile] = ""
+		case !click.NoOp:
 			s.owner[tile] = country
 		}
 	}
@@ -288,6 +319,40 @@ func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 	assert.Greater(t, clicks, 1700, "a lone watchdog has to be sure, and sure takes certainFor")
 }
 
+func TestTheNightBotIsCaughtOnStaminaAlone(t *testing.T) {
+	s := newStack()
+
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click stream replays exactly.
+	random := rand.New(rand.NewPCG(28, 9))
+
+	const scope = "2001:db8:1:2::/64"
+	start := s.clock.Now()
+
+	var caughtAfter time.Duration
+	for caughtAfter == 0 && s.clock.Now().Sub(start) < 8*time.Hour {
+		for range 300 {
+			s.clock.Advance(4500*time.Millisecond + time.Duration(random.Int64N(int64(time.Second))))
+
+			click := antibot.Click{Scope: scope, Account: "night", Tile: 180000 + uint32(random.IntN(60000)), Country: "DZ", At: s.clock.Now()}
+			s.guard.Attempted(click)
+			if s.guard.Inspect(click) {
+				caughtAfter = s.clock.Now().Sub(start)
+				break
+			}
+			s.guard.Committed(click)
+		}
+		s.clock.Advance(5 * time.Minute)
+	}
+
+	require.NotZero(t, caughtAfter)
+	assert.Greater(t, caughtAfter, 5*time.Hour)
+	assert.Less(t, caughtAfter, 6*time.Hour)
+
+	verdicts := s.verdicts(scope)
+	assert.Equal(t, detect.Certain, verdicts["metronome"])
+	assert.Equal(t, detect.Clear, verdicts["sequencer"])
+}
+
 func TestALoopFiringIntoTheThrottleIsCaught(t *testing.T) {
 	s := newStack()
 
@@ -365,6 +430,81 @@ func TestATileWarBansNeither(t *testing.T) {
 	}
 
 	assert.Empty(t, s.reports)
+}
+
+// As production reads retakes: the defender at suspect only, and the retaker's roam.
+func productionRetakes(config *antibot.Config) {
+	config.Defender.Enabled = true
+	config.Defender.Detector.RetakeWindow = 2 * time.Minute
+	config.Defender.Detector.MinClicks = 40
+	config.Defender.Detector.MinShare = 0.6
+	config.Defender.Detector.CertainClicks = 200
+	config.Defender.Detector.TrackWindow = 10 * time.Minute
+
+	config.Retaker.Detector.MinTiles = 15
+	config.Retaker.Detector.RoamMedian = 600 * time.Millisecond
+	config.Retaker.Detector.CertainTiles = 30
+	config.Retaker.Detector.TrackWindow = 15 * time.Minute
+}
+
+// homeTile is a tile on PL's own ground wearing PL's flag, somewhere in its east.
+func (s *stack) homeTile(random *rand.Rand) uint32 {
+	tile := uint32(120000 + random.IntN(20000))
+	s.ground[tile], s.owner[tile] = "PL", "PL"
+	return tile
+}
+
+// Native land takes two clicks, so a raid on PL's ground is a trail of empty tiles, and a Pole answering each
+// one does nothing but retake for forty minutes. The defender reads that as suspect, and must: it is also what a
+// recapture loop does. A suspicion never bans alone.
+func TestAHomeDefenderAnsweringClearsIsNotBanned(t *testing.T) {
+	s := newStack(productionRetakes)
+
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
+	random := rand.New(rand.NewPCG(11, 12))
+
+	for range 300 {
+		tile := s.homeTile(random)
+
+		s.clock.Advance(time.Duration(2000+random.IntN(6000)) * time.Millisecond)
+		s.click("raider", tile, "DE")
+		require.Empty(t, s.owner[tile], "the raid clears, it does not take")
+
+		// Seen, aimed at and clicked: a person's reaction, never the same twice.
+		s.clock.Advance(time.Duration(1500+random.IntN(4500)) * time.Millisecond)
+		require.False(t, s.click("pole", tile, "PL"), "a home defender must never be dropped")
+	}
+
+	assert.Contains(t, s.rises, "defender suspect", "the defender still sees retakes of cleared ground")
+	assert.Empty(t, s.verdicts("pole"), "nothing else about it reads as a machine")
+}
+
+// The same raid answered off the update stream, on tile after tile: a clear is a change to react to, so the
+// retaker's roam reads it exactly as it read the Bulgaria recapture bot.
+func TestARecaptureLoopOnItsOwnGroundIsCaught(t *testing.T) {
+	s := newStack(productionRetakes)
+
+	//nolint:gosec // G404: deterministic PRNG, seeded per test so the click
+	// stream replays exactly. Not security-relevant.
+	random := rand.New(rand.NewPCG(13, 14))
+
+	var dropped bool
+	for range 120 {
+		tile := s.homeTile(random)
+
+		s.clock.Advance(time.Duration(2000+random.IntN(6000)) * time.Millisecond)
+		s.click("raider", tile, "DE")
+
+		s.clock.Advance(time.Duration(250+random.IntN(200)) * time.Millisecond)
+		if s.click("loop", tile, "PL") {
+			dropped = true
+			break
+		}
+	}
+
+	require.True(t, dropped)
+	assert.Equal(t, detect.Certain, s.verdicts("loop")["retaker"])
 }
 
 // The reflex bot the first version of this was written for, to prove the move
@@ -576,7 +716,7 @@ func TestTheMapScraperIsCaught(t *testing.T) {
 	for !dropped && s.clock.Now().Sub(start) < 30*time.Minute {
 		s.clock.Advance(time.Duration(600+random.IntN(1300)) * time.Millisecond)
 		dropped = s.click("2001:db8:e487::/64", 100000+uint32(random.IntN(60000)), "dz")
-		s.guard.Fetched("2001:db8:e487::/64", 10000.0/257948, false)
+		s.guard.Fetched("2001:db8:e487::/64", 10000.0/262119, false)
 	}
 
 	require.True(t, dropped)
@@ -668,7 +808,7 @@ func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
 	for _, reading := range examination.Readings {
 		watchdogs = append(watchdogs, reading.Watchdog)
 	}
-	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper"}, watchdogs)
+	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper", "churner"}, watchdogs)
 	assert.False(t, examination.Guilty)
 }
 

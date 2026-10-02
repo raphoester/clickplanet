@@ -4,7 +4,7 @@
  * The press that dismisses it is heard on the window, in BonusAward.tsx.
  *
  * Each kind of bonus has its own colour, set here once and read by the card,
- * the box and the title.
+ * the box and the title, and by the kind's slot in the inventory.
  */
 .bonus-award {
     --bonus-accent: #FFC061;
@@ -27,26 +27,30 @@
  * The timings here are shares of AWARD_MS in BonusAward.tsx. Change one and
  * change the other.
  */
-.bonus-award--tripleClicks {
+.bonus-award--refill,
+.inventory-slot--refill {
     --bonus-accent: #7CC4FF;
     --bonus-box: #2F8CFF;
     --bonus-box-edge: #0A2A55;
 }
 
-.bonus-award--spreadClicks {
+.bonus-award--spreadClicks,
+.inventory-slot--spreadClicks {
     --bonus-accent: #6FE3A8;
     --bonus-box: #25B872;
     --bonus-box-edge: #0B3D25;
 }
 
-.bonus-award--bomb {
+.bonus-award--bomb,
+.inventory-slot--bomb {
     --bonus-accent: #FF7A6B;
     --bonus-box: #E0412F;
     --bonus-box-edge: #4A0E07;
 }
 
 /* The gold the enclosure effect draws on the globe (GOLD in enclosureEffect.ts). */
-.bonus-award--encloseClicks {
+.bonus-award--encloseClicks,
+.inventory-slot--encloseClicks {
     --bonus-accent: #FFC061;
     --bonus-box: #F2A91C;
     --bonus-box-edge: #4A2C02;

@@ -34,9 +34,36 @@ export type Attester = () => Promise<string>
 /** Minted a minute before the server would stop accepting the current token. */
 const REFRESH_MARGIN_MS = 60_000
 
+/** A token in hand, and when the server stops accepting it. */
+export type HeldSession = {
+    value: string
+    expiresAt: number
+}
+
+/**
+ * Where a held token is kept between page loads. Injected rather than read
+ * here, so the minting below stays testable without a browser — the same split
+ * as the attester.
+ */
+export type TokenStore = {
+    read(): HeldSession | undefined
+    write(session: HeldSession): void
+    clear(): void
+}
+
+/** For a client that keeps nothing: what it minted lasts as long as the page. */
+const NO_STORE: TokenStore = {
+    read: () => undefined,
+    write: () => {
+    },
+    clear: () => {
+    },
+}
+
 export type SessionClientOptions = {
     refreshMarginMs?: number
     now?: () => number
+    store?: TokenStore
 }
 
 /**
@@ -45,6 +72,13 @@ export type SessionClientOptions = {
  * Concurrent clicks share a single mint: without that, the first flurry after a
  * page load would fire one Turnstile round trip per click and spend the
  * server's mint budget immediately.
+ *
+ * **A token outlives the page it was minted on**, through the `store`. Nothing
+ * mints at load — a mint is a Turnstile check, and only a click is worth one —
+ * so without this a reload held nothing until its first click, and everything
+ * that reads the token without minting read as a caller with no account: the
+ * charges came back empty, the meter showed the scope's bucket rather than the
+ * player's, the stream followed the address, and presence listed nobody.
  */
 export class SessionClient implements SessionProvider {
     private current?: {value: string, expiresAt: number}
@@ -54,6 +88,7 @@ export class SessionClient implements SessionProvider {
 
     private readonly refreshMarginMs: number
     private readonly now: () => number
+    private readonly store: TokenStore
 
     constructor(
         private readonly client: PromiseClient<typeof AuthService>,
@@ -62,6 +97,12 @@ export class SessionClient implements SessionProvider {
     ) {
         this.refreshMarginMs = options.refreshMarginMs ?? REFRESH_MARGIN_MS
         this.now = options.now ?? (() => Date.now())
+        this.store = options.store ?? NO_STORE
+
+        // A token kept from the last page load, taken only while it is live by
+        // the same rule `held` applies to one minted here.
+        const kept = this.store.read()
+        if (kept && this.now() < kept.expiresAt - this.refreshMarginMs) this.current = kept
     }
 
     public async token(): Promise<string> {
@@ -91,6 +132,7 @@ export class SessionClient implements SessionProvider {
         this.current = undefined
         this.pending = undefined
         this.generation++
+        this.store.clear()
     }
 
     private mint(): Promise<string> {
@@ -120,13 +162,72 @@ export class SessionClient implements SessionProvider {
                     value: res.token,
                     expiresAt: Number(res.expiresAtUnixMs),
                 }
+                this.store.write(this.current)
             }
 
             return res.token
         } catch (e) {
-            if (generation === this.generation) this.current = undefined
+            // Nothing is held now, so nothing kept may be restored: a mint is
+            // only attempted once `held` answered none.
+            if (generation === this.generation) {
+                this.current = undefined
+                this.store.clear()
+            }
             throw new SessionUnavailableError({cause: e})
         }
+    }
+}
+
+export const SESSION_STORAGE_KEY = "clickplanet-session"
+
+/**
+ * The held token in local storage, so a reload plays on as the account it
+ * already had.
+ *
+ * It keeps the click token and never the account: the account is the `cp_sid`
+ * cookie, which is HttpOnly and stays out of reach of this page. A token lapses
+ * within the hour and is bound to the address that minted it, and a page that
+ * could read this could mint one of its own off that cookie — so keeping it
+ * here costs nothing that was not already reachable.
+ *
+ * A token restored on another network is refused by the server, which is the
+ * case a click already retries against a fresh mint. A read that carries it
+ * (the charges, the budget) answers for nobody, exactly as it did with no token
+ * at all.
+ *
+ * Every access is wrapped: a private window throws rather than answering.
+ */
+export function localTokenStore(): TokenStore {
+    return {
+        read(): HeldSession | undefined {
+            try {
+                const kept = window.localStorage.getItem(SESSION_STORAGE_KEY)
+                if (!kept) return undefined
+
+                // Whatever is in there was written by some build of this page,
+                // so it is read as a claim rather than trusted as the shape.
+                const held = JSON.parse(kept) as Partial<HeldSession>
+                if (typeof held.value !== "string" || typeof held.expiresAt !== "number") return undefined
+
+                return {value: held.value, expiresAt: held.expiresAt}
+            } catch {
+                return undefined
+            }
+        },
+        write(session: HeldSession): void {
+            try {
+                window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
+            } catch {
+                // The page plays on; the next load mints one of its own.
+            }
+        },
+        clear(): void {
+            try {
+                window.localStorage.removeItem(SESSION_STORAGE_KEY)
+            } catch {
+                // Nothing could be kept, so there is nothing to let go of.
+            }
+        },
     }
 }
 

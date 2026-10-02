@@ -30,6 +30,10 @@ export default function SignInPitchModal({state, store, multiplier, onClose}: Si
                 Sign in and your clicks refill {times} as fast. It is free, and your
                 stats and username follow you on every device.
             </p>
+            <p className="account-text">
+                Guests on one network share one bank of clicks. Signed-in players
+                each get their own.
+            </p>
             <p className="account-text sign-in-pitch-small">You do not need an account to play.</p>
 
             {state.offered.map((provider) => <ProviderButton key={provider}

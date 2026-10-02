@@ -1,6 +1,8 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {
+    DEFAULT_SOUND_SETTINGS,
     isAudible,
+    MUTED_SOUND_SETTINGS,
     parseSoundSettings,
     SOUND_SETTINGS_STORAGE_KEY,
     SoundName,
@@ -8,9 +10,17 @@ import {
 } from "../../domain/soundSettings.ts";
 import {createSoundPlayer, PlaySound, SoundPlayer} from "./soundPlayer.ts";
 
+/**
+ * The dev server starts silent — the anthem alone is loud enough to make a
+ * reload unwelcome — and keeps its own key, so muting while working neither
+ * reads nor overwrites what the deployed game saved in the same browser.
+ */
+const STORAGE_KEY = import.meta.env.DEV ? `${SOUND_SETTINGS_STORAGE_KEY}-dev` : SOUND_SETTINGS_STORAGE_KEY
+const WHEN_UNSET = import.meta.env.DEV ? MUTED_SOUND_SETTINGS : DEFAULT_SOUND_SETTINGS
+
 function readStoredSettings(): string | null {
     try {
-        return window.localStorage.getItem(SOUND_SETTINGS_STORAGE_KEY)
+        return window.localStorage.getItem(STORAGE_KEY)
     } catch {
         return null
     }
@@ -22,7 +32,7 @@ function readStoredSettings(): string | null {
  * and a toggle must not rebuild the globe.
  */
 export function useSound() {
-    const [settings, setSettings] = useState<SoundSettings>(() => parseSoundSettings(readStoredSettings()))
+    const [settings, setSettings] = useState<SoundSettings>(() => parseSoundSettings(readStoredSettings(), WHEN_UNSET))
 
     const settingsRef = useRef(settings)
     settingsRef.current = settings
@@ -34,7 +44,7 @@ export function useSound() {
 
     useEffect(() => {
         try {
-            window.localStorage.setItem(SOUND_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
         } catch (e) {
             console.error("Could not persist the sound settings", e)
         }

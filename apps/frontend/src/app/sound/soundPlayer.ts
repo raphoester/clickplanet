@@ -14,10 +14,14 @@ export const MIN_GAP_MS: Record<SoundName, number> = {
     bonusSpawn: 0,
     bonusCaught: 0,
     spread: 60,
-    boost: 35,
     enclose: 200,
     bomb: 150,
     chat: 1500,
+    // There is one quiz at a time and each of these happens once in it, so none of them can repeat
+    // fast enough to need a floor.
+    quiz: 0,
+    quizRight: 0,
+    quizWrong: 0,
 }
 
 /**

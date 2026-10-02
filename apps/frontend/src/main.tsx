@@ -4,12 +4,14 @@ import './index.css'
 
 import {newClickServiceClient, PlanetBackend} from "./backends/planetBackend.ts"
 import {NoSession, SessionProvider} from "./backends/session.ts"
-import {newAuthServiceClient, SessionClient, turnstileAttester} from "./backends/turnstileSession.ts"
+import {localTokenStore, newAuthServiceClient, SessionClient, turnstileAttester} from "./backends/turnstileSession.ts"
 import {ChatServiceBackend, newChatServiceClient} from "./backends/chatBackend.ts"
 import {FakeBackend} from "./backends/fakeBackend.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
+import {countryOfTile, loadBorders} from "./app/viewer/borderField.ts"
+import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
 import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
@@ -36,7 +38,7 @@ const config = {
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY
 const authClient = newAuthServiceClient(config)
 const session: SessionProvider = sitekey
-    ? new SessionClient(authClient, turnstileAttester(sitekey, "session"))
+    ? new SessionClient(authClient, turnstileAttester(sitekey, "session"), {store: localTokenStore()})
     : new NoSession()
 
 // `VITE_FAKE_BACKEND=1 npm run dev` plays against the in-browser fakes, bombs
@@ -47,26 +49,32 @@ const root = createRoot(document.getElementById('root')!)
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fake = new FakeBackend(100, {
         tilePositions: () => loadPointGeometryData().then((data) => data.positions),
+        grounds: () => loadBorders(BORDERS_URL).then((data) => (tile: number) => countryOfTile(data, tile)),
     })
     // Console commands:
     // - `giveBomb()`: as if you had just caught a box and it held a bomb.
-    // - `giveBonus("tripleClicks")`: the same for any other bonus.
+    // - `giveBonus("refill")`: the same for any other bonus.
+    // - `giveQuiz()`: a quiz banner now, instead of waiting for the next one.
     // - `fakeBackend.botBomb(tile, "fr")`: someone else's bomb lands on `tile`.
-    // - `fakeBackend.botSpread(tile, "fr")`, `fakeBackend.botBoost(tile, "fr")`:
-    //   someone else's spread or boosted click on `tile`.
+    // - `fakeBackend.botSpread(tile, "fr")`: someone else's spread click on `tile`.
+    // - `fakeBackend.shareClicks("guests")`: the bucket reads as shared; `shareClicks()` makes it yours again.
     Object.assign(window, {
         fakeBackend: fake,
         giveBomb: () => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"
             globe.takeReward(fake.grantBomb())
-            return "💣 armed — press and hold on the planet"
+            return "💣 in your inventory — aim it from there"
+        },
+        giveQuiz: () => {
+            fake.offerQuiz()
+            return "a quiz is up — press it, then you have 8 seconds"
         },
         giveBonus: (kind: Parameters<typeof fake.grantBonus>[0]) => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"
             globe.takeReward(fake.grantBonus(kind))
-            return `${kind} running — click the planet`
+            return `${kind} in your inventory — switch it on from there`
         },
     })
 
@@ -84,7 +92,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     tileClicker={fake}
                     updatesListener={fake}
                     bonusListener={fake}
+                    quizMaster={fake}
                     bomber={fake}
+                    refiller={fake}
                     clickBudgetSource={fake}
                     chatBackend={fakeChat}
                     presence={fakePresence}
@@ -110,7 +120,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     tileClicker={backend}
                     updatesListener={backend}
                     bonusListener={backend}
+                    quizMaster={backend}
                     bomber={backend}
+                    refiller={backend}
                     clickBudgetSource={backend}
                     chatBackend={chatBackend}
                     account={account}

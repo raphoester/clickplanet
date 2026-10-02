@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -14,9 +13,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
 type stubUseCase struct {
@@ -43,42 +40,17 @@ func claim(t *testing.T, useCase claim_bonus_handler.UseCase) (*planetv1.ClaimBo
 	return res.Msg, nil
 }
 
-func TestAClaimAnswersTheWidenedAllowance(t *testing.T) {
+func TestAClaimSaysTheKindAndWhatIsHeld(t *testing.T) {
 	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
-		Budget:   clicks.Budget{State: cpratelimit.State{Tokens: 7, Capacity: 30, PerSecond: 3}},
-		Kind:     bonuses.KindTripleClicks,
-		Duration: time.Minute,
-	}})
-	require.NoError(t, err)
-
-	assert.Equal(t, uint32(30), msg.GetBudget().GetCapacity())
-	assert.InDelta(t, 3.0, msg.GetBudget().GetRefillPerSecond(), 1e-9)
-	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_TRIPLE_CLICKS, msg.GetKind())
-	assert.Equal(t, uint32(60), msg.GetDurationSeconds())
-}
-
-func TestABombClaimSaysHowWideTheBlastIs(t *testing.T) {
-	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
-		Kind: bonuses.KindBomb, Duration: 30 * time.Second, BlastRadius: 0.03,
-	}})
-	require.NoError(t, err)
-
-	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_BOMB, msg.GetKind())
-	assert.InDelta(t, 0.03, msg.GetBlastRadius(), 1e-9)
-}
-
-func TestAnEncloseClaimSaysHowManyShapesAndHowBig(t *testing.T) {
-	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
-		Kind:              bonuses.KindEncloseClicks,
-		Duration:          30 * time.Second,
-		Enclosures:        3,
-		EnclosureMaxTiles: 10,
+		Kind: bonuses.KindEncloseClicks, Amount: 2, Held: bonuses.Held{Bomb: true, Enclosures: 2, SpreadClicks: 4},
 	}})
 	require.NoError(t, err)
 
 	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, msg.GetKind())
-	assert.Equal(t, uint32(3), msg.GetEnclosures())
-	assert.Equal(t, uint32(10), msg.GetEnclosureMaxTiles())
+	assert.True(t, msg.GetCharges().GetBomb())
+	assert.Equal(t, uint32(2), msg.GetAmount())
+	assert.Equal(t, uint32(2), msg.GetCharges().GetEnclosures())
+	assert.Equal(t, uint32(4), msg.GetCharges().GetSpreadClicksLeft(), "the answer says everything held")
 }
 
 func TestTheTokenAndCountryReachTheUseCase(t *testing.T) {

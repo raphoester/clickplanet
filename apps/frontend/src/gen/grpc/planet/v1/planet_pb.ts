@@ -7,6 +7,50 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
+ * Who else spends from a click bucket.
+ *
+ * @generated from enum planet.v1.SharedWith
+ */
+export enum SharedWith {
+  /**
+   * A server too old to say. Read it as NOBODY.
+   *
+   * @generated from enum value: SHARED_WITH_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The caller's own bucket.
+   *
+   * @generated from enum value: SHARED_WITH_NOBODY = 1;
+   */
+  NOBODY = 1,
+
+  /**
+   * Every guest behind the caller's address: guests on one network share one
+   * bank, so ten tabs are not ten banks. A guest that signs in gets its own.
+   *
+   * @generated from enum value: SHARED_WITH_GUESTS = 2;
+   */
+  GUESTS = 2,
+
+  /**
+   * Every player behind the caller's address, signed in or not: a campus, a
+   * school or a carrier sharing one address.
+   *
+   * @generated from enum value: SHARED_WITH_NETWORK = 3;
+   */
+  NETWORK = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(SharedWith)
+proto3.util.setEnumType(SharedWith, "planet.v1.SharedWith", [
+  { no: 0, name: "SHARED_WITH_UNSPECIFIED" },
+  { no: 1, name: "SHARED_WITH_NOBODY" },
+  { no: 2, name: "SHARED_WITH_GUESTS" },
+  { no: 3, name: "SHARED_WITH_NETWORK" },
+]);
+
+/**
  * What a bonus is worth. The client never decides this, and an unknown kind is
  * one a client skips rather than guesses at.
  *
@@ -19,31 +63,35 @@ export enum BonusKind {
   UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: BONUS_KIND_TRIPLE_CLICKS = 1;
+   * A charge: fills the player's click bank to full, when the player chooses.
+   *
+   * @generated from enum value: BONUS_KIND_REFILL = 5;
    */
-  TRIPLE_CLICKS = 1,
+  REFILL = 5,
 
   /**
-   * Every click also takes the tiles touching the one clicked. The server picks
-   * those tiles from its own map, so a client never names what it gets.
+   * A charge: adds a few clicks to the spread pool. While the player has spread
+   * switched on, each click spends one and also takes the tiles touching it. The server picks those tiles from its own map, so a client never names
+   * what it gets.
    *
    * @generated from enum value: BONUS_KIND_SPREAD_CLICKS = 2;
    */
   SPREAD_CLICKS = 2,
 
   /**
-   * One bomb, dropped with DropBomb anywhere on the planet within the duration.
-   * It clears every tile within a few rings of where it lands, whoever holds
-   * them. The server picks the tiles.
+   * A charge: one bomb, dropped with DropBomb anywhere on the planet, kept until
+   * it is. It clears every tile within a few rings of where it lands, whoever
+   * holds them. The server picks the tiles.
    *
    * @generated from enum value: BONUS_KIND_BOMB = 3;
    */
   BOMB = 3,
 
   /**
-   * A click that closes a shape of the player's own tiles also takes the tiles
-   * inside it, a few shapes at most. The server finds the shape, so a client
-   * never names what it gets.
+   * A charge: adds a few enclosures to the stack. While the player has enclose
+   * switched on, a click that closes a shape of the player's own tiles also
+   * takes the tiles inside it, and spends one.
+   * The server finds the shape, so a client never names what it gets.
    *
    * @generated from enum value: BONUS_KIND_ENCLOSE_CLICKS = 4;
    */
@@ -52,7 +100,7 @@ export enum BonusKind {
 // Retrieve enum metadata with: proto3.getEnumType(BonusKind)
 proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
   { no: 0, name: "BONUS_KIND_UNSPECIFIED" },
-  { no: 1, name: "BONUS_KIND_TRIPLE_CLICKS" },
+  { no: 5, name: "BONUS_KIND_REFILL" },
   { no: 2, name: "BONUS_KIND_SPREAD_CLICKS" },
   { no: 3, name: "BONUS_KIND_BOMB" },
   { no: 4, name: "BONUS_KIND_ENCLOSE_CLICKS" },
@@ -136,6 +184,16 @@ export class ClickBudget extends Message<ClickBudget> {
    */
   linkedMultiplier = 0;
 
+  /**
+   * Who else spends from the bucket this reading is of. A click spends from
+   * several buckets and the reading is the tightest, so this is how a caller
+   * learns why it holds fewer clicks than it spent: somebody else behind its
+   * address spent them.
+   *
+   * @generated from field: planet.v1.SharedWith shared_with = 11;
+   */
+  sharedWith = SharedWith.UNSPECIFIED;
+
   constructor(data?: PartialMessage<ClickBudget>) {
     super();
     proto3.util.initPartial(data, this);
@@ -152,6 +210,7 @@ export class ClickBudget extends Message<ClickBudget> {
     { no: 6, name: "next_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 9, name: "next_slowdown", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 10, name: "linked_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 11, name: "shared_with", kind: "enum", T: proto3.getEnumType(SharedWith) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBudget {
@@ -185,6 +244,27 @@ export class ClickRequest extends Message<ClickRequest> {
    */
   countryId = "";
 
+  /**
+   * The player switched spread on: this click spends one spread click, when
+   * the pool has one, and also takes the tiles touching it. Off, a pool is
+   * never touched: a charge is used only when the player chooses.
+   *
+   * @generated from field: bool spread = 3;
+   */
+  spread = false;
+
+  /**
+   * The player switched enclose on: if this click closes a shape, it takes the
+   * tiles inside and spends one enclosure. Off, closing a shape takes nothing
+   * and spends nothing.
+   *
+   * One bonus per click: spread and enclose both set is refused with
+   * INVALID_ARGUMENT, and nothing is written or spent.
+   *
+   * @generated from field: bool enclose = 4;
+   */
+  enclose = false;
+
   constructor(data?: PartialMessage<ClickRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -195,6 +275,8 @@ export class ClickRequest extends Message<ClickRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "spread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "enclose", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickRequest {
@@ -594,6 +676,15 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: TilesSpread;
     case: "tilesSpread";
+  } | {
+    /**
+     * Addressed to one client, like bonus_offered: a question that client alone
+     * may answer, for a charge.
+     *
+     * @generated from field: planet.v1.QuizOffered quiz_offered = 8;
+     */
+    value: QuizOffered;
+    case: "quizOffered";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -611,6 +702,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 5, name: "bomb_dropped", kind: "message", T: BombDropped, oneof: "event" },
     { no: 6, name: "tiles_enclosed", kind: "message", T: TilesEnclosed, oneof: "event" },
     { no: 7, name: "tiles_spread", kind: "message", T: TilesSpread, oneof: "event" },
+    { no: 8, name: "quiz_offered", kind: "message", T: QuizOffered, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -627,6 +719,256 @@ export class PlanetEvent extends Message<PlanetEvent> {
 
   static equals(a: PlanetEvent | PlainMessage<PlanetEvent> | undefined, b: PlanetEvent | PlainMessage<PlanetEvent> | undefined): boolean {
     return proto3.util.equals(PlanetEvent, a, b);
+  }
+}
+
+/**
+ * The bonuses a player holds, by the account the token names: a refill and a
+ * bomb at most, a stack of enclosures and a pool of spread clicks, each up to
+ * its size in GetBonusRules. While one is held, or a stack or a pool is full,
+ * no box of that kind is offered. Nothing lapses: each is kept until the player
+ * uses it.
+ *
+ * @generated from message planet.v1.ChargesHeld
+ */
+export class ChargesHeld extends Message<ChargesHeld> {
+  /**
+   * A refill, to fill the click bank with UseRefill.
+   *
+   * @generated from field: bool refill = 4;
+   */
+  refill = false;
+
+  /**
+   * A bomb, to be dropped anywhere with DropBomb.
+   *
+   * @generated from field: bool bomb = 1;
+   */
+  bomb = false;
+
+  /**
+   * The enclose charges stacked. With enclose switched on, a click that closes
+   * a shape of the player's own tiles takes the tiles inside it and spends one.
+   *
+   * @generated from field: uint32 enclosures = 2;
+   */
+  enclosures = 0;
+
+  /**
+   * The spread clicks in the pool, up to GetBonusRules.spread_clicks. Zero is
+   * none.
+   *
+   * @generated from field: uint32 spread_clicks_left = 3;
+   */
+  spreadClicksLeft = 0;
+
+  constructor(data?: PartialMessage<ChargesHeld>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ChargesHeld";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 4, name: "refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 1, name: "bomb", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "spread_clicks_left", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargesHeld {
+    return new ChargesHeld().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChargesHeld {
+    return new ChargesHeld().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChargesHeld {
+    return new ChargesHeld().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ChargesHeld | PlainMessage<ChargesHeld> | undefined, b: ChargesHeld | PlainMessage<ChargesHeld> | undefined): boolean {
+    return proto3.util.equals(ChargesHeld, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetChargesRequest
+ */
+export class GetChargesRequest extends Message<GetChargesRequest> {
+  constructor(data?: PartialMessage<GetChargesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetChargesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargesRequest {
+    return new GetChargesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetChargesRequest {
+    return new GetChargesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetChargesRequest {
+    return new GetChargesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetChargesRequest | PlainMessage<GetChargesRequest> | undefined, b: GetChargesRequest | PlainMessage<GetChargesRequest> | undefined): boolean {
+    return proto3.util.equals(GetChargesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetChargesResponse
+ */
+export class GetChargesResponse extends Message<GetChargesResponse> {
+  /**
+   * @generated from field: planet.v1.ChargesHeld charges = 1;
+   */
+  charges?: ChargesHeld;
+
+  constructor(data?: PartialMessage<GetChargesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetChargesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "charges", kind: "message", T: ChargesHeld },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargesResponse {
+    return new GetChargesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetChargesResponse {
+    return new GetChargesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetChargesResponse {
+    return new GetChargesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetChargesResponse | PlainMessage<GetChargesResponse> | undefined, b: GetChargesResponse | PlainMessage<GetChargesResponse> | undefined): boolean {
+    return proto3.util.equals(GetChargesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetBonusRulesRequest
+ */
+export class GetBonusRulesRequest extends Message<GetBonusRulesRequest> {
+  constructor(data?: PartialMessage<GetBonusRulesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetBonusRulesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBonusRulesRequest {
+    return new GetBonusRulesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBonusRulesRequest {
+    return new GetBonusRulesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBonusRulesRequest {
+    return new GetBonusRulesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBonusRulesRequest | PlainMessage<GetBonusRulesRequest> | undefined, b: GetBonusRulesRequest | PlainMessage<GetBonusRulesRequest> | undefined): boolean {
+    return proto3.util.equals(GetBonusRulesRequest, a, b);
+  }
+}
+
+/**
+ * How big each charge is, and what a click does on a country's own ground. Game
+ * configuration, not state: it only changes with a deploy.
+ *
+ * @generated from message planet.v1.GetBonusRulesResponse
+ */
+export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
+  /**
+   * How wide a bomb's blast is, in radians of arc, so the client draws the
+   * aiming ring at the size of what it will clear.
+   *
+   * @generated from field: double blast_radius = 1;
+   */
+  blastRadius = 0;
+
+  /**
+   * The most tiles an enclosed shape may hold.
+   *
+   * @generated from field: uint32 enclosure_max_tiles = 2;
+   */
+  enclosureMaxTiles = 0;
+
+  /**
+   * The most spread clicks the pool holds. A box adds a few, up to this.
+   *
+   * @generated from field: uint32 spread_clicks = 3;
+   */
+  spreadClicks = 0;
+
+  /**
+   * The most enclose charges a player stacks. A box adds a few, up to this.
+   *
+   * @generated from field: uint32 enclosures = 4;
+   */
+  enclosures = 0;
+
+  /**
+   * Native land takes two clicks. On a country's own ground, a tile wearing
+   * that country's flag is cleared to nobody by a click for any other flag,
+   * not taken; the next click on the empty tile takes it. Each click still
+   * costs one. The client paints its own click from this, with the borders
+   * blob, so it does not paint a flag the server did not write. Spread and
+   * enclose follow the same rule on every tile they touch.
+   *
+   * @generated from field: bool home_soil = 5;
+   */
+  homeSoil = false;
+
+  constructor(data?: PartialMessage<GetBonusRulesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetBonusRulesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "blast_radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 2, name: "enclosure_max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "spread_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "home_soil", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBonusRulesResponse {
+    return new GetBonusRulesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBonusRulesResponse {
+    return new GetBonusRulesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBonusRulesResponse {
+    return new GetBonusRulesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBonusRulesResponse | PlainMessage<GetBonusRulesResponse> | undefined, b: GetBonusRulesResponse | PlainMessage<GetBonusRulesResponse> | undefined): boolean {
+    return proto3.util.equals(GetBonusRulesResponse, a, b);
   }
 }
 
@@ -657,11 +999,6 @@ export class BonusOffered extends Message<BonusOffered> {
   kind = BonusKind.UNSPECIFIED;
 
   /**
-   * @generated from field: uint32 duration_seconds = 4;
-   */
-  durationSeconds = 0;
-
-  /**
    * After this the token is refused, whatever the client is still drawing.
    *
    * @generated from field: int64 expires_at_unix_ms = 5;
@@ -679,7 +1016,6 @@ export class BonusOffered extends Message<BonusOffered> {
     { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "seed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
-    { no: 4, name: "duration_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "expires_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
@@ -717,6 +1053,16 @@ export class BonusTaken extends Message<BonusTaken> {
    */
   kind = BonusKind.UNSPECIFIED;
 
+  /**
+   * Set when the charge was won by answering a quiz rather than by catching a
+   * box: the country the question was about. Empty for a box, and empty for a
+   * quiz about nowhere in particular. A client too old to know it reads the
+   * whole thing as an ordinary catch, which it is.
+   *
+   * @generated from field: string quiz_subject_country_id = 3;
+   */
+  quizSubjectCountryId = "";
+
   constructor(data?: PartialMessage<BonusTaken>) {
     super();
     proto3.util.initPartial(data, this);
@@ -727,6 +1073,7 @@ export class BonusTaken extends Message<BonusTaken> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
+    { no: 3, name: "quiz_subject_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BonusTaken {
@@ -796,44 +1143,25 @@ export class ClaimBonusRequest extends Message<ClaimBonusRequest> {
  */
 export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
   /**
-   * The allowance as it stands with the bonus applied, so the client does not
-   * have to wait for its next click to see the faster refill. A kind that does
-   * not speed it up answers the allowance unchanged.
-   *
-   * @generated from field: planet.v1.ClickBudget budget = 1;
-   */
-  budget?: ClickBudget;
-
-  /**
    * @generated from field: planet.v1.BonusKind kind = 2;
    */
   kind = BonusKind.UNSPECIFIED;
 
   /**
-   * @generated from field: uint32 duration_seconds = 3;
-   */
-  durationSeconds = 0;
-
-  /**
-   * For a bomb: how wide its blast is, in radians of arc, so the client can
-   * draw the aiming ring at the size of what it will clear. Zero otherwise.
+   * How much the box gave, drawn by the server: enclosures or spread clicks.
+   * One for a refill or a bomb. What is held may be less than this added, when
+   * a stack or a pool was near its size.
    *
-   * @generated from field: double blast_radius = 4;
+   * @generated from field: uint32 amount = 8;
    */
-  blastRadius = 0;
+  amount = 0;
 
   /**
-   * For an enclose bonus only: how many shapes it may close, and the most tiles
-   * one shape may hold. Zero for every other kind.
+   * What the caller holds once this box is granted.
    *
-   * @generated from field: uint32 enclosures = 5;
+   * @generated from field: planet.v1.ChargesHeld charges = 7;
    */
-  enclosures = 0;
-
-  /**
-   * @generated from field: uint32 enclosure_max_tiles = 6;
-   */
-  enclosureMaxTiles = 0;
+  charges?: ChargesHeld;
 
   constructor(data?: PartialMessage<ClaimBonusResponse>) {
     super();
@@ -843,12 +1171,9 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.ClaimBonusResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "budget", kind: "message", T: ClickBudget },
     { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
-    { no: 3, name: "duration_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 4, name: "blast_radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-    { no: 5, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "enclosure_max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 8, name: "amount", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "charges", kind: "message", T: ChargesHeld },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClaimBonusResponse {
@@ -865,6 +1190,382 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
 
   static equals(a: ClaimBonusResponse | PlainMessage<ClaimBonusResponse> | undefined, b: ClaimBonusResponse | PlainMessage<ClaimBonusResponse> | undefined): boolean {
     return proto3.util.equals(ClaimBonusResponse, a, b);
+  }
+}
+
+/**
+ * A question put in front of one player, and the token that opens it.
+ *
+ * **It says nothing about the question.** No text, no choices, and no subject:
+ * a banner is only an invitation, and anything on it is something a client can
+ * read at leisure before the clock starts. The seconds begin at OpenQuiz.
+ *
+ * The subject was on here once, to fly a flag. It gave the answer away for 417
+ * of the bank's 1014 questions — every "Tallinn is the capital of which
+ * country?" and every "which of these has the most people?" is answered by the
+ * flag beside it. A teaser that has to be checked against every question in the
+ * bank is a teaser that will leak again the first time a template is added, so
+ * there is none.
+ *
+ * @generated from message planet.v1.QuizOffered
+ */
+export class QuizOffered extends Message<QuizOffered> {
+  /**
+   * Unguessable, single use, and only good for the caller it was sent to.
+   *
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  /**
+   * After this the banner is gone, whatever the client is still drawing. This
+   * is the invitation lapsing, not the answer clock: opening it starts that.
+   *
+   * @generated from field: int64 expires_at_unix_ms = 2;
+   */
+  expiresAtUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<QuizOffered>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.QuizOffered";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "expires_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): QuizOffered {
+    return new QuizOffered().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): QuizOffered {
+    return new QuizOffered().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): QuizOffered {
+    return new QuizOffered().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: QuizOffered | PlainMessage<QuizOffered> | undefined, b: QuizOffered | PlainMessage<QuizOffered> | undefined): boolean {
+    return proto3.util.equals(QuizOffered, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.OpenQuizRequest
+ */
+export class OpenQuizRequest extends Message<OpenQuizRequest> {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  constructor(data?: PartialMessage<OpenQuizRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.OpenQuizRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenQuizRequest {
+    return new OpenQuizRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenQuizRequest {
+    return new OpenQuizRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenQuizRequest {
+    return new OpenQuizRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenQuizRequest | PlainMessage<OpenQuizRequest> | undefined, b: OpenQuizRequest | PlainMessage<OpenQuizRequest> | undefined): boolean {
+    return proto3.util.equals(OpenQuizRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.OpenQuizResponse
+ */
+export class OpenQuizResponse extends Message<OpenQuizResponse> {
+  /**
+   * @generated from field: string question = 1;
+   */
+  question = "";
+
+  /**
+   * Exactly three, already shuffled by the server, and which one is right is
+   * not said. The same question opened twice gives the same three in the same
+   * order; a different question of the same bank entry gives different ones.
+   *
+   * @generated from field: repeated string choices = 2;
+   */
+  choices: string[] = [];
+
+  /**
+   * When an answer stops being accepted. Rides beside `answer_seconds` for the
+   * same reason ClickBudget carries its policy: a client rebuilds the clock
+   * from how long is *left*, since the two machines' wall clocks are unrelated.
+   *
+   * @generated from field: int64 deadline_unix_ms = 3;
+   */
+  deadlineUnixMs = protoInt64.zero;
+
+  /**
+   * How long the player was given, whole. What the countdown is drawn against,
+   * so a slow round trip shortens the bar rather than stretching the answer.
+   *
+   * @generated from field: double answer_seconds = 4;
+   */
+  answerSeconds = 0;
+
+  constructor(data?: PartialMessage<OpenQuizResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.OpenQuizResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "question", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "choices", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "deadline_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 4, name: "answer_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenQuizResponse {
+    return new OpenQuizResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenQuizResponse {
+    return new OpenQuizResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenQuizResponse {
+    return new OpenQuizResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenQuizResponse | PlainMessage<OpenQuizResponse> | undefined, b: OpenQuizResponse | PlainMessage<OpenQuizResponse> | undefined): boolean {
+    return proto3.util.equals(OpenQuizResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.AnswerQuizRequest
+ */
+export class AnswerQuizRequest extends Message<AnswerQuizRequest> {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  /**
+   * Which of the three choices, as OpenQuiz ordered them.
+   *
+   * @generated from field: uint32 choice = 2;
+   */
+  choice = 0;
+
+  /**
+   * What to say the answerer was playing for, in the broadcast that follows a
+   * right answer.
+   *
+   * @generated from field: string country_id = 3;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<AnswerQuizRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.AnswerQuizRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "choice", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AnswerQuizRequest {
+    return new AnswerQuizRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AnswerQuizRequest {
+    return new AnswerQuizRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AnswerQuizRequest {
+    return new AnswerQuizRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AnswerQuizRequest | PlainMessage<AnswerQuizRequest> | undefined, b: AnswerQuizRequest | PlainMessage<AnswerQuizRequest> | undefined): boolean {
+    return proto3.util.equals(AnswerQuizRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.AnswerQuizResponse
+ */
+export class AnswerQuizResponse extends Message<AnswerQuizResponse> {
+  /**
+   * @generated from field: bool correct = 1;
+   */
+  correct = false;
+
+  /**
+   * Which one it was, whatever the player pressed: a quiz that will not say is
+   * a quiz nobody learns anything from, and the bank is not a secret worth
+   * keeping past the answer — only the mapping from *this* question to it is,
+   * and that is spent now.
+   *
+   * @generated from field: uint32 correct_choice = 2;
+   */
+  correctChoice = 0;
+
+  /**
+   * What the right answer was worth. Unspecified when the answer was wrong or
+   * late, and then `amount` is zero and `charges` is what was already held.
+   *
+   * @generated from field: planet.v1.BonusKind kind = 3;
+   */
+  kind = BonusKind.UNSPECIFIED;
+
+  /**
+   * How much it gave: enclosures or spread clicks, one for a refill or a bomb.
+   * What is held may be less than this, when a stack or a pool was near its size.
+   *
+   * @generated from field: uint32 amount = 4;
+   */
+  amount = 0;
+
+  /**
+   * @generated from field: planet.v1.ChargesHeld charges = 5;
+   */
+  charges?: ChargesHeld;
+
+  constructor(data?: PartialMessage<AnswerQuizResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.AnswerQuizResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "correct", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "correct_choice", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
+    { no: 4, name: "amount", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "charges", kind: "message", T: ChargesHeld },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AnswerQuizResponse {
+    return new AnswerQuizResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AnswerQuizResponse {
+    return new AnswerQuizResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AnswerQuizResponse {
+    return new AnswerQuizResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AnswerQuizResponse | PlainMessage<AnswerQuizResponse> | undefined, b: AnswerQuizResponse | PlainMessage<AnswerQuizResponse> | undefined): boolean {
+    return proto3.util.equals(AnswerQuizResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.UseRefillRequest
+ */
+export class UseRefillRequest extends Message<UseRefillRequest> {
+  /**
+   * The country the allowance that comes back is priced for.
+   *
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<UseRefillRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.UseRefillRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UseRefillRequest {
+    return new UseRefillRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UseRefillRequest {
+    return new UseRefillRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UseRefillRequest {
+    return new UseRefillRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UseRefillRequest | PlainMessage<UseRefillRequest> | undefined, b: UseRefillRequest | PlainMessage<UseRefillRequest> | undefined): boolean {
+    return proto3.util.equals(UseRefillRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.UseRefillResponse
+ */
+export class UseRefillResponse extends Message<UseRefillResponse> {
+  /**
+   * The allowance once the bank is full.
+   *
+   * @generated from field: planet.v1.ClickBudget budget = 1;
+   */
+  budget?: ClickBudget;
+
+  /**
+   * What the caller holds once the refill is spent.
+   *
+   * @generated from field: planet.v1.ChargesHeld charges = 2;
+   */
+  charges?: ChargesHeld;
+
+  constructor(data?: PartialMessage<UseRefillResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.UseRefillResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "budget", kind: "message", T: ClickBudget },
+    { no: 2, name: "charges", kind: "message", T: ChargesHeld },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UseRefillResponse {
+    return new UseRefillResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UseRefillResponse {
+    return new UseRefillResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UseRefillResponse {
+    return new UseRefillResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UseRefillResponse | PlainMessage<UseRefillResponse> | undefined, b: UseRefillResponse | PlainMessage<UseRefillResponse> | undefined): boolean {
+    return proto3.util.equals(UseRefillResponse, a, b);
   }
 }
 
@@ -1098,24 +1799,19 @@ export class TilesEnclosed extends Message<TilesEnclosed> {
   wallTileIds: number[] = [];
 
   /**
-   * The tiles taken, nearest the closing tile first.
+   * The tiles taken, nearest the closing tile first. With home_soil, a tile
+   * on another country's own ground that wore its flag is cleared instead.
    *
    * @generated from field: repeated uint32 filled_tile_ids = 4;
    */
   filledTileIds: number[] = [];
 
   /**
-   * Set only on the stream of the caller who closed it, with how many shapes
-   * their bonus may still close.
+   * Set only on the stream of the caller who closed it.
    *
    * @generated from field: bool yours = 5;
    */
   yours = false;
-
-  /**
-   * @generated from field: uint32 enclosures_left = 6;
-   */
-  enclosuresLeft = 0;
 
   constructor(data?: PartialMessage<TilesEnclosed>) {
     super();
@@ -1130,7 +1826,6 @@ export class TilesEnclosed extends Message<TilesEnclosed> {
     { no: 3, name: "wall_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
     { no: 4, name: "filled_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
     { no: 5, name: "yours", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 6, name: "enclosures_left", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TilesEnclosed {
@@ -1170,6 +1865,8 @@ export class TilesSpread extends Message<TilesSpread> {
 
   /**
    * The tiles touching it, which the click also took. Empty for a lone island.
+   * With home_soil, a tile on another country's own ground that wore its flag
+   * is cleared instead.
    *
    * @generated from field: repeated uint32 spread_tile_ids = 3;
    */
@@ -1255,13 +1952,6 @@ export class TileUpdate extends Message<TileUpdate> {
    */
   previousCountryId = "";
 
-  /**
-   * The click that made this change was made under a triple clicks bonus.
-   *
-   * @generated from field: bool boosted = 4;
-   */
-  boosted = false;
-
   constructor(data?: PartialMessage<TileUpdate>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1273,7 +1963,6 @@ export class TileUpdate extends Message<TileUpdate> {
     { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "previous_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "boosted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileUpdate {

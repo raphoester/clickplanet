@@ -33,6 +33,8 @@ export class TileField {
         uniforms: {[uniform: string]: THREE.IUniform},
         pickingUniforms: {[uniform: string]: THREE.IUniform},
         data: PointGeometryData,
+        /** The tiles in the globe's light (see graphics.ts). */
+        lit: boolean,
     ) {
         const {positions, size} = data
         this.size = size
@@ -55,6 +57,7 @@ export class TileField {
 
         this.displayPoints = new THREE.Points(displayGeometry, new THREE.ShaderMaterial({
             transparent: true,
+            defines: {LIT: lit},
             uniforms,
             vertexShader: displayVertex,
             fragmentShader: displayFragment,
@@ -111,8 +114,9 @@ export class TileField {
         this.landmass.needsUpdate = true
     }
 
-    setHover(tile: number | undefined) {
-        if (tile === this.hovered) return
+    /** Answers whether the hover moved, which is the only time it repaints. */
+    setHover(tile: number | undefined): boolean {
+        if (tile === this.hovered) return false
 
         const values = this.hover.array as Float32Array
         for (const index of [this.hovered, tile]) {
@@ -123,6 +127,7 @@ export class TileField {
 
         this.hover.needsUpdate = true
         this.hovered = tile
+        return true
     }
 
     dispose() {

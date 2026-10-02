@@ -7,6 +7,11 @@
     pointer-events: none;
 }
 
+/* Clear of the quiz card at its tallest — see `lowered` in BombNews.tsx. */
+.bomb-news--lowered {
+    top: 220px;
+}
+
 .bomb-news-line {
     display: flex;
     align-items: center;
@@ -50,13 +55,23 @@
         bottom: 96px;
     }
 
-    .bomb-news-line {
+    /* Clear of the quiz card at its tallest — see `lowered` in BombNews.tsx. */
+.bomb-news--lowered {
+    top: 220px;
+}
+
+.bomb-news-line {
         font-size: 13px;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .bomb-news-line {
+    /* Clear of the quiz card at its tallest — see `lowered` in BombNews.tsx. */
+.bomb-news--lowered {
+    top: 220px;
+}
+
+.bomb-news-line {
         animation: none;
     }
 }

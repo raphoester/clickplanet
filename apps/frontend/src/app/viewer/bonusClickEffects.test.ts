@@ -1,11 +1,9 @@
 import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 import {
-    BOOST_LIFETIME_SECONDS,
-    BOOST_STREAKS,
-    BOOST_TRAVEL_SECONDS,
-    BOOST_WAVES_AT,
-    choreographBoost,
+    CLEAR_DRIFT_SECONDS,
+    CLEAR_LIFETIME_SECONDS,
+    choreographClear,
     choreographSpread,
     createBonusClickEffects,
     type Spark,
@@ -31,7 +29,6 @@ const tileAt = (tile: number) => new THREE.Vector3(
 
 // Out of order, the way the server's map hands them over.
 const spread: SpreadClick = {countryId: "br", tile: 1, spread: [5, 2, 7, 3, 6, 4]}
-const boosted = 1
 
 describe("choreographSpread", () => {
     it("bursts at the tile clicked and throws one spark onto each tile around it", () => {
@@ -69,32 +66,24 @@ describe("choreographSpread", () => {
     })
 })
 
-describe("choreographBoost", () => {
-    it("flashes, shoots its streaks evenly apart, and runs three rings one after another", () => {
-        const {sparks, waves, centre} = choreographBoost(boosted, positions)
-        const streaks = sparks.filter(spark => spark.role === "streak")
+describe("choreographClear", () => {
+    it("puffs on the tile cleared and drifts six motes off it, short of the next tile", () => {
+        const {sparks, centre} = choreographClear(1, positions)
 
-        expect(sparks.filter(spark => spark.role === "burst")).toHaveLength(1)
-        expect(streaks).toHaveLength(BOOST_STREAKS)
-        expect(waves.map(wave => wave.startsAt)).toEqual(BOOST_WAVES_AT)
+        expect(centre.distanceTo(tileAt(1))).toBeLessThan(1e-6)
+        expect(sparks.map(spark => spark.role)).toEqual(["burst", "mote", "mote", "mote", "mote", "mote", "mote"])
 
-        const directions = streaks.map(streak => streak.to.clone().sub(centre).normalize())
-        expect(directions[0].angleTo(directions[1])).toBeCloseTo((2 * Math.PI) / 3, 2)
-        expect(directions[1].angleTo(directions[2])).toBeCloseTo((2 * Math.PI) / 3, 2)
+        for (const mote of sparks.slice(1)) {
+            expect(mote.from.distanceTo(tileAt(1))).toBeLessThan(1e-6)
+            expect(mote.to.distanceTo(tileAt(1))).toBeGreaterThan(0)
+            expect(mote.to.distanceTo(tileAt(1))).toBeLessThan(STEP)
+        }
     })
 
-    it("turns the star by tile, the same way on every screen", () => {
-        const one = choreographBoost(boosted, positions).sparks[1].to
-        const again = choreographBoost(boosted, positions).sparks[1].to
-        const other = choreographBoost(2, positions).sparks[1].to.clone()
-            .sub(tileAt(2)).normalize()
-
-        expect(one.distanceTo(again)).toBe(0)
-        expect(one.clone().sub(tileAt(1)).normalize().angleTo(other)).toBeGreaterThan(0.1)
-    })
-
-    it("is over quicker than a spread: a boosted player clicks fast", () => {
-        expect(BOOST_LIFETIME_SECONDS).toBeLessThan(SPREAD_LIFETIME_SECONDS)
+    it("settles before the effect is over, and is over well inside a second", () => {
+        const last = choreographClear(1, positions).sparks.at(-1)!
+        expect(last.start + last.travel).toBeLessThan(CLEAR_LIFETIME_SECONDS)
+        expect(CLEAR_LIFETIME_SECONDS).toBeLessThan(1)
     })
 })
 
@@ -102,7 +91,6 @@ describe("sparkLook", () => {
     const origin = new THREE.Vector3(0, 0, 1)
     const burst: Spark = {from: origin, to: origin, start: 0, travel: 0, role: "burst"}
     const landing: Spark = {from: origin, to: origin, start: 0.1, travel: SPREAD_TRAVEL_SECONDS, role: "landing"}
-    const streak: Spark = {from: origin, to: origin, start: 0, travel: BOOST_TRAVEL_SECONDS, role: "streak"}
 
     it("draws nothing before a spark's turn or after the effect", () => {
         expect(sparkLook(landing, 0.05, 1).glow).toBe(0)
@@ -130,19 +118,25 @@ describe("sparkLook", () => {
         expect(later.glow).toBeGreaterThan(0)
     })
 
-    it("is gone once a streak has run its course", () => {
-        expect(sparkLook(streak, BOOST_TRAVEL_SECONDS * 0.2, 1).glow).toBeGreaterThan(0)
-        expect(sparkLook(streak, BOOST_TRAVEL_SECONDS, 1).glow).toBe(0)
-    })
-
     it("fades everything to nothing by the end", () => {
         expect(sparkLook(landing, 0.99, 1).glow).toBeLessThan(0.01)
     })
 
-    it("keeps still for less motion: no flight, no streak, no flash", () => {
+    it("drifts a mote out and fades it as it goes", () => {
+        const mote: Spark = {from: origin, to: origin, start: 0, travel: CLEAR_DRIFT_SECONDS, role: "mote"}
+        const early = sparkLook(mote, 0.05, CLEAR_LIFETIME_SECONDS)
+        const late = sparkLook(mote, CLEAR_DRIFT_SECONDS, CLEAR_LIFETIME_SECONDS)
+
+        expect(late.progress).toBeGreaterThan(early.progress)
+        expect(late.glow).toBeLessThan(early.glow)
+        expect(late.scale).toBeLessThan(early.scale)
+        expect(sparkLook(mote, 0.1, CLEAR_LIFETIME_SECONDS, true).progress)
+            .toBe(sparkLook(mote, 0.4, CLEAR_LIFETIME_SECONDS, true).progress)
+    })
+
+    it("keeps still for less motion: no flight, no flash", () => {
         expect(sparkLook(landing, 0.1, 1, true).progress).toBe(1)
         expect(sparkLook(landing, 0.1, 1, true).scale).toBe(sparkLook(landing, 0.6, 1, true).scale)
-        expect(sparkLook(streak, 0.05, 1, true).glow).toBe(0)
         expect(sparkLook(burst, 0, 1, true).white).toBe(0)
     })
 })
@@ -168,15 +162,30 @@ describe("createBonusClickEffects", () => {
         const effects = createBonusClickEffects(positions)
 
         effects.playSpread(spread)
-        effects.playBoost(boosted)
         expect(effects.object.children.length).toBeGreaterThan(0)
 
-        effects.update(1000, camera, 800)
-        effects.update(1000 + BOOST_LIFETIME_SECONDS, camera, 800)
-        const spreadOnly = effects.object.children.length
-        expect(spreadOnly).toBeGreaterThan(0)
+        effects.update(1000, camera, 800, 1)
+        effects.update(1000 + SPREAD_LIFETIME_SECONDS / 2, camera, 800, 1)
+        expect(effects.object.children.length).toBeGreaterThan(0)
 
-        effects.update(1000 + SPREAD_LIFETIME_SECONDS, camera, 800)
+        effects.update(1000 + SPREAD_LIFETIME_SECONDS, camera, 800, 1)
+        expect(effects.object.children).toHaveLength(0)
+
+        effects.dispose()
+    })
+
+    it("plays a clear's dust and takes it off once it is over", () => {
+        const effects = createBonusClickEffects(positions)
+
+        effects.playClear(1)
+        expect(effects.object.children.length).toBeGreaterThan(0)
+
+        effects.update(1000, camera, 800, 1)
+        effects.update(1000 + CLEAR_LIFETIME_SECONDS / 2, camera, 800, 1)
+        expect(effects.object.children.length).toBeGreaterThan(0)
+
+        // Past the end by a hair: 1000.8 - 1000 is a little under 0.8 in floating point.
+        effects.update(1000 + CLEAR_LIFETIME_SECONDS + 0.01, camera, 800, 1)
         expect(effects.object.children).toHaveLength(0)
 
         effects.dispose()
@@ -185,9 +194,9 @@ describe("createBonusClickEffects", () => {
     it("keeps a fast run of clicks to a bounded number on screen", () => {
         const effects = createBonusClickEffects(positions)
 
-        effects.playBoost(boosted)
+        effects.playSpread(spread)
         const perClick = effects.object.children.length
-        for (let i = 0; i < 100; i++) effects.playBoost(boosted)
+        for (let i = 0; i < 100; i++) effects.playSpread(spread)
 
         expect(effects.object.children.length).toBeLessThan(perClick * 100)
         effects.dispose()

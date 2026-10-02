@@ -1,18 +1,12 @@
-import {useEffect, useRef} from 'react'
-import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
-import {ActiveBonus, describeReward, secondsLeft} from "../../domain/bonus.ts"
+import {ReactNode, useEffect, useRef} from 'react'
+import {ClickBudget, nextClickProgress, now, secondsToOneMore, SharedBy, tokensAt} from "../../backends/clickBudget.ts"
 import {describePrice, factor} from "../../domain/clickPrice.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
     budget?: ClickBudget
-    /**
-     * The bonus currently running, if any. The meter is the one place that says
-     * a bonus is live, because it is where the allowance is read — and once the
-     * backend grants the boost, the fill rate speeds up on its own off the
-     * server's policy, with nothing here to change.
-     */
-    bonus?: ActiveBonus
+    /** Docked under the meter, inside the same panel: the inventory. Shown without a budget too. */
+    children?: ReactNode
     /** The country selected, to say why its clicks refill slower. */
     countryName?: string
     /**
@@ -57,10 +51,15 @@ const STEP_MS = 250
  * pips *is* the burst, and the fill rate *is* the refill rate, so changing
  * either in the backend's config changes this with no frontend release.
  */
-export default function ClickBudgetMeter({budget, bonus, countryName = "", refusals = 0, onSignIn}: ClickBudgetMeterProps) {
+export default function ClickBudgetMeter({
+    budget,
+    children,
+    countryName = "",
+    refusals = 0,
+    onSignIn,
+}: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
-    const countdown = useRef<HTMLSpanElement>(null)
     const wait = useRef<HTMLSpanElement>(null)
 
     useEffect(() => {
@@ -86,7 +85,6 @@ export default function ClickBudgetMeter({budget, bonus, countryName = "", refus
         if (!box || !label) return
 
         let shown = -1
-        let shownSecond = -1
         let shownWait = ""
 
         const bar = budget.capacity > MAX_PIPS
@@ -95,16 +93,6 @@ export default function ClickBudgetMeter({budget, bonus, countryName = "", refus
             const at = now()
             const tokens = tokensAt(budget, at)
             const whole = Math.floor(tokens)
-
-            // Written the same way the count is — only when the displayed value
-            // changes, so a 60 second bonus costs 60 writes and not 3,600.
-            if (bonus && countdown.current) {
-                const left = secondsLeft(bonus, at)
-                if (left !== shownSecond) {
-                    shownSecond = left
-                    countdown.current.textContent = `${left}s`
-                }
-            }
 
             // One write, and every pip works out its own share of it.
             box.style.setProperty("--click-budget-tokens", tokens.toFixed(3))
@@ -146,10 +134,10 @@ export default function ClickBudgetMeter({budget, bonus, countryName = "", refus
         })
 
         return () => cancelAnimationFrame(frame)
-    }, [budget, bonus])
+    }, [budget])
 
     // A backend that reports no allowance is one that enforces none here.
-    if (!budget) return null
+    if (!budget) return children ? <div className="click-budget-dock">{children}</div> : null
 
     const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
 
@@ -158,56 +146,62 @@ export default function ClickBudgetMeter({budget, bonus, countryName = "", refus
     const whole = Math.floor(tokensAt(budget, now()))
 
     const price = describePrice(budget.price, countryName)
-    const className = ["click-budget", bonus && "click-budget-boosted", price && "click-budget-priced"]
-        .filter(Boolean).join(" ")
 
     // Said only when the server says what it is worth: a number made up here could promise what it does not grant.
     const speedUp = onSignIn && budget.linkedMultiplier
 
-    return <div className="click-budget-dock"><div
-        ref={root}
-        className={className}
-        role="meter"
-        aria-valuemin={0}
-        aria-valuenow={whole}
-        aria-valuemax={budget.capacity}
-        aria-label="Clicks left before the server slows you down"
-        style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
+    return <div className="click-budget-dock">
+        <div
+            ref={root}
+            className="click-budget"
+            role="meter"
+            aria-valuemin={0}
+            aria-valuenow={whole}
+            aria-valuemax={budget.capacity}
+            aria-label="Clicks left before the server slows you down"
+            style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
 
-        {bonus && <span className="click-budget-bonus">
-            <span className="click-budget-bonus-badge">{describeReward(bonus.reward).badge}</span>
-            <span ref={countdown} className="click-budget-bonus-left">{secondsLeft(bonus, now())}s</span>
-        </span>}
+            <div className="click-budget-reading">
+                <div className="click-budget-count">
+                    <span ref={count} className="click-budget-number">{whole}</span>
+                    <span className="click-budget-unit">left</span>
+                </div>
 
-        <div className="click-budget-count">
-            <span ref={count} className="click-budget-number">{whole}</span>
-            <span className="click-budget-unit">left</span>
-        </div>
+                {pips > 0
+                    ? <div className="click-budget-pips">
+                        {Array.from({length: pips}, (_, index) =>
+                            <span
+                                key={index}
+                                className="click-budget-pip"
+                                style={{"--click-budget-index": index} as React.CSSProperties}/>,
+                        )}
+                    </div>
+                    : <div className="click-budget-bar"/>}
 
-        {pips > 0
-            ? <div className="click-budget-pips">
-                {Array.from({length: pips}, (_, index) =>
-                    <span
-                        key={index}
-                        className="click-budget-pip"
-                        style={{"--click-budget-index": index} as React.CSSProperties}/>,
-                )}
+                {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
             </div>
-            : <div className="click-budget-bar"/>}
 
-        {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
+            {price && <div className="click-budget-toll">
+                <span className="click-budget-toll-headline">{price.headline}</span>
+                <span className="click-budget-toll-detail">{price.detail}</span>
+            </div>}
 
-        {price && <div className="click-budget-toll">
-            <span className="click-budget-toll-headline">{price.headline}</span>
-            <span className="click-budget-toll-detail">{price.detail}</span>
-        </div>}
-    </div>
+            {budget.sharedWith && <p className="click-budget-shared">{SHARED_WITH[budget.sharedWith]}</p>}
+        </div>
 
         {speedUp && <button type="button" className="click-budget-sign-in" onClick={onSignIn}>
             <BoltIcon/>
-            <span>Sign in: clicks {factor(speedUp)}× faster</span>
+            <span>{budget.sharedWith === "guests" ? "Sign in: your own clicks" : `Sign in: clicks ${factor(speedUp)}× faster`}</span>
         </button>}
+
+        {children}
     </div>
+}
+
+/** Why the count can drop by clicks this player never made. */
+const SHARED_WITH: Record<SharedBy, string> = {
+    guests: "Shared with the guests on your network",
+    network: "Shared with everyone on your network",
 }
 
 function slow(budget: ClickBudget): boolean {

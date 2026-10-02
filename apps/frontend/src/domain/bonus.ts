@@ -1,5 +1,5 @@
 /**
- * What catching a bonus box is worth, and how long it lasts.
+ * What catching a bonus box is worth: a charge, kept until it is spent.
  *
  * This is data, not drawing, so it sits in the domain rather than beside the
  * WebGL that spawns the box or the React that announces it — both read it, and
@@ -9,68 +9,112 @@
 export type BonusReward =
     | {
     /**
-     * - `tripleClicks`: the clicks refill faster.
-     * - `spreadClicks`: every click also takes the tiles touching the one
-     *   clicked. The server picks those tiles and sends them down the stream,
-     *   so nothing here knows which they are.
+     * A charge: fills the click bank to full, when the player chooses. The
+     * bank's size and the fill are the server's.
      */
-    kind: "tripleClicks" | "spreadClicks"
-    seconds: number
+    kind: "refill"
 } | {
     /**
-     * One bomb, to be dropped anywhere on the planet within `seconds`. It clears
-     * every tile within `radius` radians of arc of where it lands. `radius` is
-     * only what the aiming ring is drawn at: the server picks the tiles.
+     * Spread clicks added to the pool: while spread is switched on, each click
+     * also takes the tiles touching the one clicked. The server picks those
+     * tiles and sends them down the stream, so nothing here knows which they are.
+     */
+    kind: "spreadClicks"
+    clicks: number
+} | {
+    /**
+     * A charge: one bomb, kept until it is dropped. It clears every tile within
+     * `radius` radians of arc of where it lands. `radius` is only what the
+     * aiming ring is drawn at: the server picks the tiles.
      */
     kind: "bomb"
-    seconds: number
     radius: number
 }
     | {
     /**
-     * A click that closes a shape of the player's own tiles also takes the
-     * tiles inside it. The server finds the shape; this only says how many
-     * shapes the bonus may close and how big each may be.
+     * Enclosures added to the stack: while enclose is switched on, a click that
+     * closes a shape of the player's own tiles also takes the tiles inside it,
+     * and spends one. The server finds the shape; this only says how big it may be.
      */
     kind: "encloseClicks"
-    seconds: number
-    /** How many shapes are left to close. Counts down as the player closes them. */
     shapes: number
     /** The most tiles one shape may hold. */
     maxTiles: number
 }
 
 /**
- * A reward that is currently running, with the moment it lapses.
- *
- * `endsAt` is on the same monotonic clock as a `ClickBudget` reading
- * (`performance.now()`), and for the same reason: this counts down against how
- * long *this machine* has watched, not against a server timestamp from an
- * unrelated clock.
+ * The bonuses the player holds, none of them on a clock. The server says them
+ * once, at load and when the account changes; after that the client follows
+ * its own calls (see PlanetBackend), so a charge spent in another tab shows
+ * here until the next read.
  */
-export type ActiveBonus = {
-    reward: BonusReward
-    endsAt: number
+export type Charges = {
+    refill: boolean
+    bomb: boolean
+    /** Shapes that can still be closed, up to `BonusRules.enclosures`. */
+    enclosures: number
+    /** The spread pool, up to `BonusRules.spreadClicks`. */
+    spreadClicksLeft: number
 }
 
-/** By how much a reward multiplies how fast clicks refill. */
-export function multiplierOf(reward: BonusReward): number {
-    switch (reward.kind) {
-        case "tripleClicks":
-            return 3
-        case "spreadClicks":
-        case "bomb":
-        case "encloseClicks":
-            return 1
-    }
+export const NO_CHARGES: Charges = {refill: false, bomb: false, enclosures: 0, spreadClicksLeft: 0}
+
+/** The kinds a charge can be. */
+export type ChargeKind = BonusReward["kind"]
+
+/**
+ * The bonuses the player has switched on. Off by default: a charge is spent
+ * only when the player asks. A click carries them, and the server spends one
+ * only when its switch is on. One at most: the server refuses a click with both.
+ */
+export type Switches = {
+    spread: boolean
+    enclose: boolean
+}
+
+export const ALL_OFF: Switches = {spread: false, enclose: false}
+
+/**
+ * The switches with `name` turned on or off. One bonus at a time: turning one
+ * on turns the other off, since a click spreads or encloses, never both.
+ */
+export function switched(switches: Switches, name: keyof Switches, on: boolean): Switches {
+    return on ? {...ALL_OFF, [name]: true} : {...switches, [name]: false}
 }
 
 /**
- * The words for a reward, in the three lengths the screen needs them: shouted
- * in the middle of the screen, explained under it, and squeezed onto the meter.
- *
- * The explanation says what the bonus does and nothing about how long: the
- * meter counts that down, and it is read in the second the announcement is up.
+ * The switches, with any whose pool is empty turned off: a switch on over
+ * nothing would say the next click does something it will not. Hands back the
+ * same object when nothing changes.
+ */
+export function switchesHeld(switches: Switches, charges: Charges): Switches {
+    const spread = switches.spread && charges.spreadClicksLeft > 0
+    const enclose = switches.enclose && charges.enclosures > 0
+    if (spread === switches.spread && enclose === switches.enclose) return switches
+    return {spread, enclose}
+}
+
+/**
+ * How big each charge is and how many can be held, and what a click does on a
+ * country's own ground: the same for every player, read once at load. Game
+ * configuration rather than state, so it is not asked again; a page open across
+ * a change of rules shows the old sizes until it is reloaded.
+ */
+export type BonusRules = {
+    /** Radians of arc: the aiming ring is drawn at the size of what it will clear. */
+    blastRadius: number
+    enclosureMaxTiles: number
+    /** The most spread clicks held. */
+    spreadClicks: number
+    /** The most enclosures held. */
+    enclosures: number
+    /** Native land takes two clicks — see domain/homeSoil.ts. Off, every click takes. */
+    homeSoil: boolean
+}
+
+/**
+ * The words for a reward, in the two lengths the screen needs them: shouted in
+ * the middle of the screen, and explained under it.
  *
  * Kept in one place so a second kind of reward is one case here rather than an
  * edit in every component that mentions it.
@@ -78,60 +122,27 @@ export function multiplierOf(reward: BonusReward): number {
 export function describeReward(reward: BonusReward): {
     title: string
     detail: string
-    badge: string
 } {
     switch (reward.kind) {
-        case "tripleClicks":
+        case "refill":
             return {
-                title: "Triple clicks",
-                detail: `Clicks refill ${multiplierOf(reward)}× faster`,
-                badge: `${multiplierOf(reward)}×`,
+                title: "Refill",
+                detail: "Fills your clicks to full, when you choose",
             }
         case "spreadClicks":
             return {
-                title: "Spread clicks",
-                detail: "Each click also takes the tiles around it",
-                badge: "+6",
+                title: reward.clicks === 1 ? "+1 spread click" : `+${reward.clicks} spread clicks`,
+                detail: "Switch spread on: each click also takes the tiles around it",
             }
         case "bomb":
             return {
                 title: "Bomb",
-                detail: "Resets the tiles in an area",
-                badge: "💣",
+                detail: "Resets the tiles in an area. Aim it from your inventory",
             }
         case "encloseClicks":
             return {
-                title: "Enclose",
-                detail: `Close a shape to take the tiles inside. ${shapesWord(reward.shapes)}, ${reward.maxTiles} tiles max`,
-                badge: `⬡${reward.shapes}`,
+                title: reward.shapes === 1 ? "+1 enclosure" : `+${reward.shapes} enclosures`,
+                detail: `Switch enclose on, then close a shape of up to ${reward.maxTiles} tiles to take the tiles inside`,
             }
     }
-}
-
-function shapesWord(shapes: number): string {
-    return shapes === 1 ? "1 shape" : `${shapes} shapes`
-}
-
-/**
- * The bonus once the player has closed a shape with it: the server said how many
- * are left, and a bonus with none left is over whatever its clock says.
- */
-export function afterShapeClosed(bonus: ActiveBonus, shapesLeft: number): ActiveBonus | undefined {
-    if (bonus.reward.kind !== "encloseClicks") return bonus
-    if (shapesLeft <= 0) return undefined
-
-    return {...bonus, reward: {...bonus.reward, shapes: shapesLeft}}
-}
-
-/**
- * Whole seconds left on a bonus, rounded up so it reads "1s" through the last
- * second rather than sitting on "0s" while it is still running.
- */
-export function secondsLeft(bonus: ActiveBonus, at: number): number {
-    return Math.max(0, Math.ceil((bonus.endsAt - at) / 1000))
-}
-
-/** Whether a bonus has run out at `at`. */
-export function hasLapsed(bonus: ActiveBonus, at: number): boolean {
-    return at >= bonus.endsAt
 }

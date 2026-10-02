@@ -74,23 +74,6 @@ func TestThrottleClick(t *testing.T) {
 		assert.Equal(t, state, out.Budget.State)
 	})
 
-	t.Run("marks a click boosted while the bucket says a boost runs", func(t *testing.T) {
-		plain, boosted := &fakeClick{}, &fakeClick{}
-
-		_, err := throttle_click.New(plain, &fakeLimiter{allow: true, state: state}, onePrice(), buckets).
-			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "fr"})
-		require.NoError(t, err)
-
-		boostedState := state
-		boostedState.Boosted = true
-		_, err = throttle_click.New(boosted, &fakeLimiter{allow: true, state: boostedState}, onePrice(), buckets).
-			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "fr"})
-		require.NoError(t, err)
-
-		assert.False(t, plain.in.Boosted)
-		assert.True(t, boosted.in.Boosted)
-	})
-
 	t.Run("refuses a click over the limit without touching the map", func(t *testing.T) {
 		inner := &fakeClick{}
 
@@ -114,7 +97,7 @@ func TestThrottleClick(t *testing.T) {
 			"a token with no account spends the scope's bucket alone, as before accounts")
 	})
 
-	t.Run("charges the account and its scope at ten times the account's allowance", func(t *testing.T) {
+	t.Run("charges a guest, its scope's guests, and its scope at ten times the account's allowance", func(t *testing.T) {
 		limiter := &fakeLimiter{allow: true}
 		ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 
@@ -123,6 +106,7 @@ func TestThrottleClick(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, [][]cpratelimit.Key{{
 			{Name: "account:a-guest", Scale: 1, Pace: 1},
+			{Name: "guests:1.2.3.4", Scale: 1, Pace: 1},
 			{Name: "scope:1.2.3.4", Scale: 10},
 		}}, limiter.keys)
 	})

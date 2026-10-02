@@ -36,12 +36,20 @@ const (
 	// InternalServiceGetAuthorProcedure is the fully-qualified name of the InternalService's GetAuthor
 	// RPC.
 	InternalServiceGetAuthorProcedure = "/player.v1.InternalService/GetAuthor"
+	// InternalServiceGetAuthorsProcedure is the fully-qualified name of the InternalService's
+	// GetAuthors RPC.
+	InternalServiceGetAuthorsProcedure = "/player.v1.InternalService/GetAuthors"
 )
 
 // InternalServiceClient is a client for the player.v1.InternalService service.
 type InternalServiceClient interface {
 	// Who an account is to the others: the name the game shows for it.
 	GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error)
+	// Who each of these accounts is, for a module showing many people at once.
+	// Unlike GetAuthor it is a pure read: it gives no guest its code, so a read
+	// path never writes. An account it cannot name — one never shown before, or
+	// a deleted one — is left out of the answer rather than failing the call.
+	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the player.v1.InternalService service. By
@@ -61,12 +69,20 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(internalServiceMethods.ByName("GetAuthor")),
 			connect.WithClientOptions(opts...),
 		),
+		getAuthors: connect.NewClient[v1.GetAuthorsRequest, v1.GetAuthorsResponse](
+			httpClient,
+			baseURL+InternalServiceGetAuthorsProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetAuthors")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getAuthor *connect.Client[v1.GetAuthorRequest, v1.GetAuthorResponse]
+	getAuthor  *connect.Client[v1.GetAuthorRequest, v1.GetAuthorResponse]
+	getAuthors *connect.Client[v1.GetAuthorsRequest, v1.GetAuthorsResponse]
 }
 
 // GetAuthor calls player.v1.InternalService.GetAuthor.
@@ -74,10 +90,20 @@ func (c *internalServiceClient) GetAuthor(ctx context.Context, req *connect.Requ
 	return c.getAuthor.CallUnary(ctx, req)
 }
 
+// GetAuthors calls player.v1.InternalService.GetAuthors.
+func (c *internalServiceClient) GetAuthors(ctx context.Context, req *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error) {
+	return c.getAuthors.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the player.v1.InternalService service.
 type InternalServiceHandler interface {
 	// Who an account is to the others: the name the game shows for it.
 	GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error)
+	// Who each of these accounts is, for a module showing many people at once.
+	// Unlike GetAuthor it is a pure read: it gives no guest its code, so a read
+	// path never writes. An account it cannot name — one never shown before, or
+	// a deleted one — is left out of the answer rather than failing the call.
+	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -93,10 +119,19 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithSchema(internalServiceMethods.ByName("GetAuthor")),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetAuthorsHandler := connect.NewUnaryHandler(
+		InternalServiceGetAuthorsProcedure,
+		svc.GetAuthors,
+		connect.WithSchema(internalServiceMethods.ByName("GetAuthors")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetAuthorProcedure:
 			internalServiceGetAuthorHandler.ServeHTTP(w, r)
+		case InternalServiceGetAuthorsProcedure:
+			internalServiceGetAuthorsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -108,4 +143,8 @@ type UnimplementedInternalServiceHandler struct{}
 
 func (UnimplementedInternalServiceHandler) GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.InternalService.GetAuthor is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.InternalService.GetAuthors is not implemented"))
 }

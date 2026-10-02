@@ -110,6 +110,23 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "invalid"), 1e-9)
 	})
 
+	t.Run("refuses every procedure that grants or spends a charge", func(t *testing.T) {
+		// A charge is only ever spent as clicks, and clicks need a session, so nothing that hands
+		// one out may be the way to widen an allowance without proving anything.
+		for _, procedure := range []string{
+			planetv1connect.ClickServiceClaimBonusProcedure,
+			planetv1connect.ClickServiceDropBombProcedure,
+			planetv1connect.ClickServiceUseRefillProcedure,
+			planetv1connect.ClickServiceOpenQuizProcedure,
+			planetv1connect.ClickServiceAnswerQuizProcedure,
+		} {
+			result := checkSession(t, validVerifier(), enforce, procedure, "")
+
+			require.ErrorIs(t, result.err, ErrNoSession, procedure)
+			require.False(t, result.ran, procedure)
+		}
+	})
+
 	t.Run("leaves the read procedures alone", func(t *testing.T) {
 		verifier := validVerifier()
 

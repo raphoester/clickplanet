@@ -19,7 +19,7 @@ httpServer:
   # refuses a credentialed answer that allows every origin. Empty refuses the boot.
   allowedOrigin: http://localhost:5173
 gameMap:
-  maxIndex: 257948
+  maxIndex: 262119
 
 # The planet module's database: its own connection, and the schema its tables
 # live in. It creates and migrates the schema while it builds. Another module
@@ -56,6 +56,11 @@ ledger:
   retention: 72h
   sweepInterval: 5m
 
+chargeStorage:
+  # How often the charges that changed (a bomb, an enclose, a spread's clicks)
+  # are written to postgres. Also flushed on shutdown, so a deploy keeps them.
+  flushInterval: 1s
+
 ledgerStorage:
   # How often the new takes are written to postgres. Also flushed on shutdown.
   flushInterval: 1s
@@ -67,8 +72,9 @@ ledgerStorage:
 # The defaults below are also what applies when this block is absent.
 # A click spends from two buckets at once: its account's, at the policy below,
 # and its scope's — one address over IPv4, one /64 over IPv6 — at
-# scopeMultiplier times it. A token with no account spends one scope bucket at
-# the policy below, as before accounts.
+# scopeMultiplier times it. A guest's also spends from a third, which every
+# guest behind its scope shares, at guestScopeMultiplier times it. A token with
+# no account spends one scope bucket at the policy below, as before accounts.
 rateLimiter:
   # Sustained clicks per second allowed from one account. A float: 0.2 is one
   # click every 5s. Unset is 1.
@@ -79,11 +85,19 @@ rateLimiter:
   # The scope's burst and rate over one account's: players behind one address,
   # such as a campus, share it. 1 or more.
   scopeMultiplier: 10
+  # The bucket every guest behind one scope shares, over one account's: at 1,
+  # ten private tabs are one bank, not ten. A guest that signs in gets its own.
+  # 1 or more.
+  guestScopeMultiplier: 1
   # The refill rate of an account signed in with Google or Discord over a
   # guest's, to make signing in worth it; the bank is the same size. It is still
   # bounded by the scope's bucket. The client reads it off every budget and
   # advertises it to guests. 1 or more; 1 turns the reward off.
   linkedMultiplier: 2
+  # The bank of an account just made. It earns the rest at perSecond, as if it
+  # had been clicking since, so a fresh guest account (a new private tab, or a
+  # new address and cookie) is not a fresh bank. 0 or more; unset starts full.
+  newAccountClicks: 10
   # How often the buckets that have refilled completely are forgotten. Only
   # affects memory, never what a caller is allowed.
   sweepInterval: 1m
@@ -95,9 +109,19 @@ rateLimiter:
 # plain rate.
 toll:
   steps:
-    - {share: 0.25, slowdown: 1.5}
-    - {share: 0.50, slowdown: 2}
-    - {share: 0.70, slowdown: 3}
+    - {share: 0.10, slowdown: 1.5}
+    - {share: 0.20, slowdown: 2.5}
+    - {share: 0.30, slowdown: 4}
+
+# Native land takes two clicks. On a country's own ground (the borders blob), a
+# tile wearing that country's flag is cleared to nobody by a click for any other
+# flag, not taken; the next click on the empty tile takes it, for any flag. Its
+# natives take it back in one. Every click still costs one token: this changes
+# what a click does, never what it costs. Spread and enclose follow the rule on
+# every tile they touch. The bomb and the operator tools do not. The client is
+# told through GetBonusRules, so off needs no frontend release. Off by default.
+homeSoil:
+  enabled: false
 
 # Refuses the Click RPC from known VPN and proxy egress ranges, so a player has
 # to come from an address the throttle above can actually hold onto: a bucket
@@ -134,8 +158,7 @@ bonus:
   # A caller's next box is due this long after the last one, drawn uniformly.
   # The spread is for feel: a script does not predict the schedule, it watches
   # the stream, so nothing here is hidden from one. 4m to 8m is about ten boxes
-  # an hour, fewer for a player who catches them: the next is due a window after
-  # the bonus ends.
+  # an hour: the next is due a window after the last was offered, or claimed.
   minInterval: 4m
   maxInterval: 8m
 
@@ -149,12 +172,20 @@ bonus:
   # over the sum of the weights: 3 and 1 make one box in four a spread. A kind
   # left out, or at 0, is never offered. Empty takes the weights below, which are
   # the defaults: about one bomb an hour of active play.
-  #   triple_clicks - the refill is multiplied by `triple.multiplier`
-  #   spread_clicks - every click also takes the tiles touching the one clicked
+  #   refill        - fills your click bank to full, when you choose: up to one
+  #                   bank, 60 clicks
+  #   spread_clicks - a few spread clicks: with spread switched on, a click also
+  #                   takes the tiles touching the one clicked
   #   bomb          - one bomb, dropped anywhere to clear a circle of tiles
-  #   enclose_clicks - a click that closes a shape of your tiles takes the inside
+  #   enclose_clicks - a few enclosures: with enclose switched on, a click that
+  #                   closes a shape of your tiles takes the inside
+  # Every kind is a charge the player uses when they choose, and nothing lapses.
+  # A player holds one refill and one bomb at most, and enclosures and spread
+  # clicks up to their size; no box of a kind held (or full) is offered, so
+  # nobody can stockpile bombs and drop them all at once. Only an account holds
+  # a charge, and they are kept in postgres (see chargeStorage).
   kinds:
-    triple_clicks: 5
+    refill: 5
     spread_clicks: 3
     enclose_clicks: 2
     bomb: 1
@@ -163,31 +194,16 @@ bonus:
   # draws, or a box caught on its last frame is refused.
   offerTTL: 15s
 
-  # triple_clicks: how long a caught one runs, and what it multiplies the refill
-  # rate by. The bank keeps its size, and the client reads the rate off the
-  # answer - so changing these changes the meter with no frontend release,
-  # exactly as rateLimiter does. The next box is due a window after the bonus
-  # ends, so two can never overlap.
-  #
-  # A boost grants no tokens at once. So a triple is worth
-  # (multiplier - 1) x rate x duration more clicks, for a player who spends them
-  # as they come: at one click every 5s, x3 for 2m is 48 clicks more. A
-  # signed-in player refills twice as fast, so it is worth 96 to them.
-  triple:
-    duration: 2m
-    multiplier: 3
-
-  # spread_clicks: how long a caught one runs. Far shorter than triple's: a
-  # click that takes seven tiles is worth much more than three clicks.
+  # spread_clicks: a pool of up to `clicks` spread clicks, spent one a click
+  # while the player has spread switched on. A box adds 1 to `maxPerBox`, drawn
+  # when it is claimed. Each takes up to seven tiles, so a full pool of 8 is about
+  # 56 tiles, a bomb's worth. A count and not a time: a 10s spread let a player
+  # with a full bank dump it all inside the window.
   spread:
-    duration: 10s
+    clicks: 8
+    maxPerBox: 4
 
   bomb:
-    # How long a caught bomb may be held before it is lost. It counts towards
-    # maxBoostPerHour like any bonus, and the next box is due a window after it
-    # is dropped.
-    duration: 30s
-
     # The radius of the circle a bomb clears, whoever holds the tiles, in tile
     # spacings: 4 is ~57 tiles inland (the median; 70 near the icosahedron
     # corners, where the lattice stretches), about one bank of 60. A bomb never
@@ -196,16 +212,19 @@ bonus:
     # the map's own tile spacing, so the client's ring and the clear always agree.
     rings: 4
 
-  # enclose_clicks: how long it runs, how many shapes it may close in that time,
-  # and the most tiles one shape may hold. A click that takes the last tile of a
-  # wall around a pocket of other tiles takes the pocket too. Clicking a tile you
-  # already hold closes nothing, so a shape finished before the bonus does not
-  # count. A pocket bigger than maxTiles, or open to the coast, takes nothing and
-  # costs no shape - so a triangle of three tiles, which has no inside, is free.
+  # enclose_clicks: one shape, and the most tiles it may hold. A click that takes
+  # the last tile of a wall around a pocket of other tiles takes the pocket too,
+  # and spends the charge. Clicking a tile you already hold closes nothing, so a
+  # shape finished before the charge does not count. A pocket bigger than
+  # maxTiles, or open to the coast, takes nothing and keeps the charge - so a
+  # triangle of three tiles, which has no inside, is free. The wall around a
+  # 25-tile pocket costs about 20 clicks, so the reward matches the planning. A
+  # player stacks up to `held` enclosures, spent one a shape while enclose is
+  # switched on; a box adds 1 to `maxPerBox`, drawn when it is claimed.
   enclose:
-    duration: 30s
-    shapes: 3
-    maxTiles: 15
+    maxTiles: 25
+    held: 3
+    maxPerBox: 3
 
   # How recently a caller must have clicked to be offered a box. A tab left open
   # overnight is not playing, and a box sent to it is one nobody catches.
@@ -216,15 +235,71 @@ bonus:
   # they got a short one.
   forgetAfter: 5m
 
-  # The most bonus time one caller may be granted per hour. Nothing here is a
-  # race any more, but a script still catches every box it is offered where a
-  # person catches some - this bounds what that is worth. It only stops the next
-  # offer, and never cuts a bonus that runs. 15m is seven 2m triples: at ten
-  # boxes an hour, half of them triples, a person does not reach it.
-  maxBoostPerHour: 15m
+  # The most charges one caller may be granted per hour. Nothing here is a race
+  # any more, but a script still catches every box it is offered where a person
+  # catches some - this bounds what that is worth. It only stops the next offer.
+  # 12 is above the ten boxes an hour a person catching every one would get.
+  maxChargesPerHour: 12
 
-  # One sweep for everybody, rather than a timer per caller.
+  # One sweep for everybody, rather than a timer per caller. The quizzes below
+  # ride the same sweep.
   sweepInterval: 1s
+
+  # A quiz: three choices, a short clock, and a charge for the right answer.
+  #
+  # A second way to earn one of the charges above, not a box of another shape.
+  # Its own clock and its own hourly budget, so switching it on adds offers
+  # rather than replacing them - a caller can hold an unopened quiz and a flying
+  # box at the same time. What it does share with a box is the reward: a quiz's
+  # kind is drawn from the same weights, and from only the kinds a box could be
+  # offered, so nobody is asked a question for a bomb they already hold.
+  #
+  # The questions are generated - see /quiz/README.md. They are embedded in this
+  # binary and deliberately never served to the browser, because the answers are
+  # in them.
+  quiz:
+    # Off boots a process with no bank loaded and never asks anything.
+    enabled: true
+
+    # A caller's next quiz is due this long after the last one could have been
+    # answered, drawn uniformly. A little rarer than the boxes, so the two
+    # together are about one offer every two minutes of active play rather than
+    # a thing that never stops interrupting.
+    minInterval: 6m
+    maxInterval: 11m
+
+    # How long the banner sits there unopened. Generous, because it is only an
+    # invitation: the clock that matters starts when the question is read, so a
+    # player can finish the click they were making and look up.
+    offerTTL: 25s
+
+    # How long the player has once the question and its three choices are on
+    # screen. Long enough to read them, and short enough that looking the answer
+    # up is not worth it - that second half is the guideline, not the number, so
+    # retune this freely within it.
+    #
+    # It is the server's own stamp, taken when the question is read and checked
+    # when the answer lands, so a client that holds its own countdown open
+    # cannot spend longer than it was given.
+    answerWindow: 8s
+
+    # How much harder the draw leans on the countries that are winning, read off
+    # the same shares the toll prices a click from. A country's weight is
+    # 1 + leaderBias x (its share / an even share): at 1, a country holding an
+    # even slice of the map is asked about about twice as often as one holding
+    # nothing, and one holding ten times its slice ten times more.
+    #
+    # It is a lean, not a rule - the floor of 1 keeps every country in the draw,
+    # because a quiz that only ever asked about the top three would be four
+    # questions deep by the end of the week, and the lean is capped so that even
+    # a planet one country has nearly swept still asks about somewhere else.
+    #
+    # 0 is a flat draw, and 0 is what leaving this out means.
+    leaderBias: 1
+
+    # The most charges one caller may win from quizzes per hour, on top of what
+    # the boxes give. A player who answers everything gets this many and no more.
+    maxChargesPerHour: 6
 
 # Accepts a bot's clicks and drops them, rather than refusing them and naming the
 # check it tripped. Four watchdogs read four different behaviours, the jury
@@ -387,6 +462,16 @@ antiBot:
         # skew, so leaving a bound out is the only way to turn it off.
         # maxSkew: 0.25
         # certainSkew: 0.15
+      # The third rule: hours spent at pace, however the caller paused. A slice
+      # is busy when one payer (its account, or its scope with none) got
+      # `clicks` past the throttle in it; the rule reads the busy time inside
+      # `window`. Unset, a level never reads and click_busy_hours only measures.
+      stamina:
+        slice: 10m
+        clicks: 40
+        window: 6h
+        # minBusy: 4h
+        certainBusy: 5h30m
       trackWindow: 15m
       sweepInterval: 1m
 
@@ -496,6 +581,41 @@ antiBot:
       # under minMaps for the rest of its run.
       certainOffMap: 2
       trackWindow: 15m
+      sweepInterval: 1m
+
+  # A caller that sheds its guest account for a fresh 60-click bank. Only guest
+  # accounts count: a signed-in one costs a provider identity to replace.
+  churner:
+    enabled: true
+    detector:
+      # How far back both rules count.
+      window: 1h
+      # "churn": guest accounts first seen on one scope inside window. A person
+      # keeps their account across /64s, so only an account born there counts.
+      v6:
+        minAccounts: 4
+        certainAccounts: 6
+      # One IPv4 address is often a carrier's NAT and many players, so higher.
+      # Anything that is not an IPv6 scope is held to these.
+      v4:
+        minAccounts: 10
+        certainAccounts: 20
+      # "relay": a fresh account that starts within handoff of another one
+      # stopping, in the same wider prefix and on the same flag, when the one that
+      # stopped lived at most maxLife. Read on the takeovers inside window.
+      relay:
+        handoff: 90s
+        maxLife: 5m
+        # Clicks an account needs before it has a flag, and how much of them.
+        minClicks: 20
+        minFlagShare: 0.9
+        # A mobile carrier hands out /64s from all over its /32.
+        v4Bits: 24
+        v6Bits: 32
+        minLinks: 3
+        certainLinks: 6
+      # Never shorter than window plus handoff.
+      trackWindow: 1h2m
       sweepInterval: 1m
 
 # Live chat. Its own bounded context and its own Connect service, sharing this

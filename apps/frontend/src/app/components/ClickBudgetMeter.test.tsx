@@ -123,53 +123,7 @@ describe("ClickBudgetMeter", () => {
     })
 })
 
-describe("ClickBudgetMeter while a bonus runs", () => {
-    const running = (seconds = 60) => ({
-        reward: {kind: "tripleClicks", seconds} as const,
-        endsAt: performance.now() + seconds * 1000,
-    })
-
-    it("says nothing about a bonus when none is running", () => {
-        render(<ClickBudgetMeter budget={reading()}/>)
-
-        expect(document.querySelector(".click-budget-bonus")).toBeNull()
-        expect(meter().classList.contains("click-budget-boosted")).toBe(false)
-    })
-
-    it("shows the multiplier that was won", () => {
-        render(<ClickBudgetMeter budget={reading()} bonus={running()}/>)
-
-        expect(screen.getByText("3×")).toBeTruthy()
-    })
-
-    it("counts down how long is left", () => {
-        render(<ClickBudgetMeter budget={reading()} bonus={running(45)}/>)
-
-        expect(screen.getByText("45s")).toBeTruthy()
-    })
-
-    it("marks the whole meter, so the boost reads at a glance", () => {
-        render(<ClickBudgetMeter budget={reading()} bonus={running()}/>)
-
-        expect(meter().classList.contains("click-budget-boosted")).toBe(true)
-    })
-
-    it("still reports the server's own allowance, never a multiplied guess", () => {
-        // The boost is the server's to grant: when it does, capacity and rate
-        // arrive in the reading and the pips widen on their own. Nothing here
-        // may invent them in the meantime.
-        render(<ClickBudgetMeter budget={reading({capacity: 10})} bonus={running()}/>)
-
-        expect(pips()).toHaveLength(10)
-        expect(meter().getAttribute("aria-valuemax")).toBe("10")
-    })
-
-    it("leaves the count itself alone", () => {
-        render(<ClickBudgetMeter budget={reading({tokens: 4})} bonus={running()}/>)
-
-        expect(meter().getAttribute("aria-valuenow")).toBe("4")
-    })
-
+describe("ClickBudgetMeter and the price", () => {
     it("says why the refill is slow for a country that holds much of the map", () => {
         render(<ClickBudgetMeter countryName="Bulgaria"
                                  budget={reading({price: {slowdown: 8, share: 0.8, next: {share: 0.9, slowdown: 10}}})}/>)
@@ -225,5 +179,52 @@ describe("ClickBudgetMeter for a guest", () => {
         render(<ClickBudgetMeter budget={reading()} onSignIn={vi.fn()}/>)
 
         expect(screen.queryByRole("button")).toBeNull()
+    })
+
+    it("offers a guest who shares its bank one of its own", () => {
+        render(<ClickBudgetMeter budget={reading({linkedMultiplier: 2, sharedWith: "guests"})} onSignIn={vi.fn()}/>)
+
+        expect(screen.getByRole("button", {name: "Sign in: your own clicks"})).toBeTruthy()
+    })
+})
+
+describe("ClickBudgetMeter's shared bucket", () => {
+    it("says nothing about a player's own bucket", () => {
+        render(<ClickBudgetMeter budget={reading()}/>)
+
+        expect(document.querySelector(".click-budget-shared")).toBeNull()
+    })
+
+    it("says who else spends from it", () => {
+        const {rerender} = render(<ClickBudgetMeter budget={reading({sharedWith: "guests"})}/>)
+        expect(screen.getByText("Shared with the guests on your network")).toBeTruthy()
+
+        rerender(<ClickBudgetMeter budget={reading({sharedWith: "network"})}/>)
+        expect(screen.getByText("Shared with everyone on your network")).toBeTruthy()
+    })
+})
+
+describe("ClickBudgetMeter's dock", () => {
+    it("holds what it is given under the meter", () => {
+        render(<ClickBudgetMeter budget={reading()}><p>held</p></ClickBudgetMeter>)
+
+        expect(document.querySelector(".click-budget-dock")?.textContent).toContain("held")
+    })
+
+    // One panel, and the smaller part is the lower one: the inventory used to
+    // sit on top of the wider meter, which read as a mistake.
+    it("puts it after the reading, in the one panel", () => {
+        render(<ClickBudgetMeter budget={reading()}><p>held</p></ClickBudgetMeter>)
+
+        const dock = document.querySelector(".click-budget-dock")!
+        expect(Array.from(dock.children).indexOf(meter()))
+            .toBeLessThan(Array.from(dock.children).indexOf(screen.getByText("held")))
+    })
+
+    it("still holds it against a server that reports no allowance", () => {
+        render(<ClickBudgetMeter><p>held</p></ClickBudgetMeter>)
+
+        expect(screen.getByText("held")).toBeTruthy()
+        expect(screen.queryByRole("meter")).toBeNull()
     })
 })

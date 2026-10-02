@@ -13,7 +13,11 @@ npm run lint       # ESLint check
 npm run proto      # Regenerate protobuf types from the shared ../../proto/ using buf CLI
 npm run atlas      # Repack the flag sprite atlas from static/countries/png100px
 npm run map        # Copy the shared /map coordinates blob into static/ (see "Static assets")
-npm run borders    # Resolve every tile to a landmass (see "The zoomed-out view")
+npm run map:generate # Rewrite both shared map blobs from the ground oracle (see ../../map/README.md)
+npm run map:audit  # Check the tile set, Natural Earth and the globe texture against each other
+npm run quiz:generate # Rewrite the shared quiz bank (see ../../quiz/README.md). The backend embeds it; this app never does
+npm run borderLines # Trace the countries' outlines onto the tile lattice (see "The countries' outlines")
+npm run earth      # Cut the globe's texture from the tile field (see "The globe's texture")
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
 ```
@@ -31,11 +35,20 @@ The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
 
-In fake mode the console has a few commands: `giveBomb()` arms a bomb as if a box
-holding one had just been caught, `giveBonus("spreadClicks")` does the same for
-any other bonus, and `fakeBackend.botBomb(tile, "fr")`, `fakeBackend.botSpread(tile, "fr")`
-and `fakeBackend.botBoost(tile, "fr")` play somebody else's bomb, spread click or
-boosted click.
+The fake plays native land as the server does, off the real borders blob: every
+tile starts French, so on France's own ground another flag's first click clears
+the tile.
+
+In fake mode the console has a few commands: `giveBomb()` puts a bomb in the
+inventory as if a box holding one had just been caught, `giveBonus("refill")` does
+the same for any other bonus (the fake holds charges as the server does: a refill
+and a bomb at most, a pool of 8 spread clicks and a stack of 3 enclosures, a box
+adding 1 to 4 and 1 to 3 of them, spread and enclose spent only while switched on,
+both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
+banner up at once, and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
+play somebody else's bomb or spread click. `fakeBackend.shareClicks("guests")` (or
+`"network"`) reads the bucket as shared, and `fakeBackend.shareClicks()` as the
+player's own again.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` runs chat (it is always on), and the Go server answers
@@ -154,6 +167,16 @@ app/       components
   pixel is drawn: the `?c=<code>` link, the text that rides with it, the line
   under the flag, and the size the card comes out at. See [Sharing the
   globe](#sharing-the-globe).
+- `homeSoil.ts` — `outcomeOf` and `ownerAfter`, the server's home-soil rule
+  copied so a click is painted as the server will write it. See [Native land
+  takes two clicks](#native-land-takes-two-clicks). `clearNotes.ts` counts how
+  often the line explaining a clear has been shown.
+- `clickOrDrag.ts` — `ClickOrDrag`, whether a press was a click or a drag of
+  the globe. The browser sends `click` after a drag too, so turning the globe
+  claimed the tile under the cursor on release. A press that moves more than
+  6px (12px for a finger, which rolls as it lifts), or that a second finger
+  joins, is a drag, and `globe.ts` drops the click that ends it — the bonus box
+  included.
 - `warnOnce.ts` — for things that would otherwise warn on every frame.
 
 ### `src/backends/` — three contracts, one transport
@@ -283,7 +306,7 @@ still get.
 
 **One bank, one click per token.** The bank's size never moves: not with the
 country, a bonus or signing in. The more of the map a country holds, the slower
-its players refill; signing in refills faster, and so does a triple bonus. The
+its players refill; signing in refills faster, and a refill charge fills the bank. The
 server sets that pace on each click, from the country clicked for, so a switch
 of flag moves nothing on the meter until the next click. The reading carries the
 selected country's slowdown beside it (`ClickBudget.price`): `useClickBudget`
@@ -398,6 +421,17 @@ is the list, and the backend refuses any other.
   beside the balloon (`AddReactionButton`) that opens the picker. The button
   shows on hover; a touch screen has no hover, so there it stays, faint. The
   picker closes on a pick, on Escape and on a click elsewhere.
+- **A chip says who reacted while the pointer rests on it**, or while it holds
+  the focus: the reaction's name, then the players under it (`whoReacted`,
+  `ReactionWho`). The names come from the server on the count itself
+  (`ReactionCount.reactors`), oldest first, cut at 20; the server reads them
+  from the accounts under the reaction rather than any stored name, so a rename
+  shows here too. `count` is what says how many gave it, so the popup ends on
+  "and N more" whenever it has fewer names than that — a long list the server
+  cut, or somebody it could not name at all. It is drawn in a portal on the body, not beside the chip: the log
+  both scrolls and clips, and the panel's `backdrop-filter` would hold a
+  `position: fixed` child to the panel instead of the screen. Anything that
+  moves the chip — a scroll, a resize — closes it rather than making it follow.
 - **`mine` is only known from a call.** `GetHistory` sends the token already
   held (`SessionProvider.held()`, never a mint) so the server can mark the
   player's own; `React` answers the counts with `mine` set. The stream is
@@ -413,7 +447,12 @@ is the list, and the backend refuses any other.
   to this player's own reaction) drop one older than what the log holds.
 - `useChat.react` shows the change at once (`toggledReactions`), then takes the
   server's answer, or undoes it when refused. A message the server no longer
-  shows reads as `ChatMessageGoneError`.
+  shows reads as `ChatMessageGoneError`. It puts this player's own name in and
+  out of the popup's list too: `useChat` derives `displayName` — the `username`
+  prop, or the name the server posted under (`nameSentUnder`) for a guest — and
+  reads it through a ref, so a guest learning its name builds no new callback.
+  Without one the reaction is counted and nobody new is named, until the
+  answer lands.
 - A reaction is not a new message: `ChatLog` shows the "New messages" pill only
   when the last message changes, and the unread count and the sound only count
   messages.
@@ -513,8 +552,9 @@ while a modal dialog is on the page.
 
 **It announces only with a token it already holds.** `SessionProvider.held()`
 answers the click token in hand and never mints: a mint is a Turnstile check,
-and presence is not worth one. So a visitor who never clicked is not listed, by
-design. The schedule announces as soon as a token is held that the last
+and presence is not worth one. So a visitor who has never clicked is not listed,
+by design; one whose kept token is still live is listed from the load — see
+[Sessions](#sessions). The schedule announces as soon as a token is held that the last
 announce did not go out under (the first click, a re-mint, a sign-in), once
 the flag or the username has held still for a second, and every
 30s — the server drops a player 90s after its last one. An announce carries the
@@ -579,6 +619,27 @@ that carries a cookie is one no shared cache serves. Both halves are pinned in
 origin and send `Access-Control-Allow-Credentials: true` — Caddy does in
 production, and a local backend does from `httpServer.allowedOrigin`, which
 must be the dev server's origin (`http://localhost:5173`).
+
+**A held token outlives the page it was minted on.** `localTokenStore` keeps it
+in local storage (`clickplanet-session`) and the client takes it back at
+construction, by the same margin `held` applies to one it minted. Nothing mints
+at load, so without this a reload held nothing until its first click and
+everything that reads the token without minting read as a caller with no
+account: the inventory came back empty, the meter showed the scope's bucket
+rather than the player's, the stream followed the address, and presence listed
+nobody. An invalidation and a failed mint both drop what was kept, so a reload
+after a sign-out does not bring the old account's token back.
+
+**It keeps the click token and never the account.** The account is the `cp_sid`
+cookie, which is HttpOnly and out of this page's reach either way. A token
+lapses within the hour, is bound to the address that minted it, and a page that
+could read this could mint one of its own off that cookie. A token restored on
+another network is refused, which is the case a click already retries against a
+fresh mint; a read that carries it answers for nobody, exactly as no token did.
+
+**The store is injected, not read in the client.** `SessionClient` stays the
+half with no DOM and no network — the same split as `turnstileAttester` — so
+every rule about what is kept and when is under test without a browser.
 
 **A fresh widget per attestation**, not one reset between uses. Turnstile tokens
 are redeemed exactly once, and a widget that is created and destroyed has no
@@ -732,9 +793,17 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
    `linkedElsewhere` tells them how to move the identity: sign in with it,
    delete that account, then link it here.
 
-**A signed-in player picks a unique username** in `AccountPanel`: 3 to 20 ASCII
-letters, digits or `_`, not starting with `guest_` in any case, unique ignoring
-case. `isValidUsername` mirrors the rule for the Save button; the server is the
+**A signed-in player picks a unique username** in `AccountPanel`: 3 to 15
+code points of letters of any script, digits, `_` and single spaces, not
+starting with `guest_` in any case, unique ignoring case (the server's rule is
+`players.NameOf`, see the backend's CLAUDE.md). `usernameOf` puts the draft in
+NFC and cuts the spaces at its ends, as the server does, and that is what is
+sent. `isValidUsername` mirrors the rule for the Save button with `\p{…}`
+classes, and counts code points (`[...name].length`), never `length`. The input's
+`maxLength` counts UTF-16 units, so it is twice the rule: the rule is the bound.
+One part is the server's alone: JavaScript cannot name a character's script, so
+the client refuses only Latin, Greek and Cyrillic mixed (the lookalikes), and a
+name mixing other scripts comes back `invalid`. The server is the
 authority and alone knows what is taken. The chat shows it (see [Live
 chat](#live-chat)). **It is read after the account, not with it**: `GetProfile`
 needs a click token, which can mean a mint, so the section shows as soon as
@@ -768,7 +837,8 @@ mint a guest and insert a row into `auth.identities` for its account.
 
 - `globe.ts` — `createGlobe(options): Promise<Globe>`. Builds the scene, wires
   input and the backends to it, starts rendering. Returns `{tilesCount,
-  setCountry, dispose}`.
+  setCountry, dispose}`. Its loop draws on demand — see [Drawing only when
+  something changed](#drawing-only-when-something-changed).
 - `useGlobe.ts` — owns one globe for the lifetime of the component. **Its effect
   must not depend on anything that changes per render**; the selected country is
   pushed into the running globe through a separate effect rather than rebuilding
@@ -799,8 +869,11 @@ mint a guest and insert a row into `auth.identities` for its account.
 - `borderField.ts` / `bordersAsset.ts` — the zoomed-out view: tile → landmass,
   who holds how much of each, and the per-landmass table the vertex shader reads.
   See [The zoomed-out view](#the-zoomed-out-view).
-- `pointSize.ts` — how big a tile is drawn, and the single schedule that hands
-  the frame from the painted flag to the tiles.
+- `borderLines.ts` / `borderLinesAsset.ts` — the grey outline between one
+  country's ground and the next, at a width that does not move with the zoom.
+  See [The countries' outlines](#the-countries-outlines).
+- `pointSize.ts` — how big a tile is drawn, how far apart two of them sit, and
+  the single schedule that hands the frame from the painted flag to the tiles.
 - `zoom.ts` — how far the camera may pull back and push in. The camera is
   orthographic against a globe of radius 1, so `zoom` reads as the share of the
   viewport's height the globe fills: it opens at 1, edge to edge, and pulls back
@@ -822,14 +895,218 @@ mint a guest and insert a row into `auth.identities` for its account.
   size in pixels, so a shape closed while zoomed out is still seen. A shape that
   arrives while the tab is hidden is not played — it would all start at once on
   return.
-- `bonusClickEffects.ts` — the same, for every click made under a spread bonus
+- `bonusClickEffects.ts` — the same, for every click made with spread on
   (`tilesSpread`: a green burst, a spark popping onto each tile around it in
-  turn, two rings) or a triple clicks bonus (`Update.boosted` on a live tile
-  update, played from the update batch: a cyan flash, three streaks, three quick
-  rings). It reuses the enclosure's shaders, with normal
-  rather than additive rings, which vanished on the white of a flag. Boosted
-  players click fast, so an effect is short and at most `MAX_PLAYING` run at once.
-- `shaders/` — GLSL for the display, picking, star and enclosure passes.
+  turn, two rings). It reuses the enclosure's shaders, with normal rather than
+  additive rings, which vanished on the white of a flag. A busy planet spreads a
+  lot, so at most `MAX_PLAYING` run at once. It also puffs dust on a tile this
+  player's click cleared rather than took (`playClear`): a small burst, six motes
+  drifting off it, one ring, 0.8s.
+- `earth.ts` — the opaque sphere under the tiles, in the globe's light with
+  `?gfx=earth`. See [The light](#the-light).
+- `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe the URL
+  turns on. See [`?gfx=`](#gfx-the-sharper-lit-globe-off-unless-asked-for).
+- `shaders/` — GLSL for the display, picking, earth, star and enclosure passes.
+  `light.glsl` is not a pass but the light they share, pulled in with
+  `#include ../light.glsl;` (vite-plugin-glsl's own include, not three's).
+
+### Drawing only when something changed
+
+**The loop draws a frame only when the one on screen has stopped being right.**
+It used to draw every frame the browser offered, for as long as the tab was
+open, and almost all of them were the same picture: measured at rest, before
+any interaction, the drawing buffer was byte-identical across a second while
+262k tiles and 98k pieces of outline were redrawn 60 times through it. On a
+phone that is a flat battery for a still image, and it is why the game was
+reported as a battery eater.
+
+`drawsFrame` in `globe.ts` is the whole rule, kept out of the loop so it is
+under test. Three things can ask for a frame:
+
+- **The camera turned** — for a drag, the damping glide after one, a zoom, or
+  the idle spin. The loop reads this from OrbitControls' `change` event as well
+  as from its own `controls.update()`, because a wheel zoom is applied inside
+  the wheel handler: `_handleMouseWheel` calls `update()` there, and that call
+  is the one that moves the camera and clears the pending scale. Asking the
+  loop's own `update()` afterwards gets `false`, and a zoom used to look to the
+  loop like a still globe. `change` is dispatched by whichever `update()`
+  actually moved the camera, so it is the signal that survives. It is cleared on
+  the frame that draws it rather than the tick that reads it, so the cap below
+  can hold a frame back without losing the move that asked for it.
+- **Something the loop drives is still moving** — every `update` that animates
+  answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, `bonusClickEffects`
+  and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the
+  one that takes the flash, the box or the highlight off the screen, so each one
+  answers `true` on the tick it stops as well as while it runs.
+- **Something outside the loop touched the scene** — `invalidate()`, which
+  `applyChanges` calls for every claim, batch and rollback, and which the resize
+  listener, the lapsed-box branch and `capture()` call for themselves. It is
+  read and cleared once per tick, and only ever set from outside the loop, so
+  clearing it on a tick that then skips its frame cannot lose one.
+
+**The idle spin is capped at `IDLE_FRAME_MS`, and it is the one animation the
+cap has to be generous with.** It is the only thing that moves with nobody
+touching the page, and it is the first thing anybody sees. At a turn in thirty
+seconds the surface goes by at a little over a hundred pixels a second: two
+pixels a frame at sixty, four at thirty. Thirty was tried and the step is
+visible as a step, so the cap is sixty — which still leaves half of what a
+120Hz phone or a ProMotion Mac offers. The cap is lifted while the globe is
+being handled and for `INTERACTION_GRACE_MS` after — the damping glide is
+looked at closely enough to be worth every frame — and it never holds back a
+frame that something *changed*: a claim or a blast is drawn as it comes.
+
+**The cap takes the display's nearest frame, not the first one past it.** A cap
+in milliseconds lands between two of the display's own frames, and waiting for
+the first one strictly past it leaves the answer to a fraction of a
+millisecond: 16ms against a 16.7ms frame came out 60fps, then 40, then 60
+again. That unevenness is seen where the rate itself is not, so `drawsFrame`
+takes `sinceLastTick` and allows half a frame of slack.
+
+**The spin turns by the clock, not by the frame.** `controls.update()` is
+handed `spinStep(sinceLastTick)`, and `autoRotateSpeed` is then read as **turns
+per minute** — `SPIN_TURNS_PER_MINUTE`, 2, a turn in thirty seconds. Handed
+nothing, OrbitControls advances a fixed angle per call instead, which assumes
+every display runs at 60: the globe went round in fifteen seconds on a 120Hz
+screen and thirty on a 60Hz one, and so travelled twice as far between the
+frames that were drawn — the very distance the cap exists to keep small.
+`spinStep` caps one tick at `MAX_SPIN_STEP_MS`, because a hidden tab is offered
+no frames at all and the whole of that wait would otherwise arrive as one step,
+with the globe somewhere else by the time it is looked at again.
+
+**The uniforms the tile pass reads are written before the render, not after
+it.** They used to be written at the end of the loop, for the next frame; with
+a frame skipped whenever nothing moved, a size worked out for a frame that is
+never drawn is a size that never arrives, and the tiles would be left drawn for
+a zoom the outline had already moved off.
+
+`preserveDrawingBuffer` stays off (see [Sharing the
+globe](#sharing-the-globe)). A skipped frame draws nothing at all, so nothing is
+composited and the last frame stays on screen; a drawn frame always clears and
+redraws everything, so nothing accumulates either.
+
+### The far side of the globe is not drawn
+
+The earth's own sphere is opaque at radius 0.999, so **half of every pass is
+behind it** — and was being run through its whole vertex shader before the depth
+test threw it away. The display and border-line vertex shaders now drop it on
+one dot product, before the four vertex texture fetches the painted flag costs.
+
+What may not be dropped is what the earth's silhouette does not cover. A point
+at radius *r*, an angle *θ* past the limb, projects to a screen radius of
+*r·cos θ*, so it still shows while *θ < acos(0.999 / r)* — about 0.045 for the
+tiles at 1, and `limbOf(lift)` for each outline pass. On top of that comes half
+the tile's own disc, half the line's own width, and how far a blast may throw a
+tile outward. `borderLines.test.ts` pins `limbOf` against the earth's radius.
+
+Measured against the same frame with the culling off, the limb comes out
+pixel-for-pixel identical. It is worth a few percent of those two passes and no
+more — the vertex shader still runs for every point and still reads every
+attribute, and only its body is skipped.
+
+### `?gfx=`: the sharper, lit globe, off unless asked for
+
+The two sections below — the screen's pixel ratio and the light — shipped on in
+#254 and turned the globe **almost white, flickering as it turned**, for players
+on Windows Chrome with an Intel GPU (ANGLE on Direct3D 11). Antialiasing off
+(#255) did not fix it, and both were reverted (#256). It could not be reproduced
+on a Mac (Metal), on SwiftShader, or on a Windows laptop with the same GPU
+(Iris Xe, ratio 1.25) in either a dev or a production build. So the cause can
+only be found on the screens that have it.
+
+**Every part is in the build and off by default**; the URL turns them on, one
+at a time, for the page load (`graphicsOf` in `graphics.ts`, read once in
+`createGlobe`):
+
+| `?gfx=` | Turns on |
+|---|---|
+| `ratio` | the screen's pixel ratio, capped at 2, instead of 1 |
+| `aa` | `antialias` on the context |
+| `earth` | the earth's own shader, in the light, with the glint |
+| `tiles` | the light on the tiles |
+| `halo` | the light on the halo |
+| `light` | `earth`, `tiles` and `halo` |
+| `all` | all of the above: #254 as it shipped |
+
+Words add up (`?gfx=ratio,tiles`), and sit beside the rest of the query
+(`?c=fr&gfx=halo`). A word it does not know turns nothing on.
+
+**Off is the code from before #254, not the new code multiplied by zero.** The
+light is compiled out with `#ifdef LIT` (three's `defines`, which leaves out a
+`false` one), so a driver that miscompiles `light.glsl` never sees it; the plain
+earth is three's standard material under the ambient light again; the plain halo
+has its own `colour` uniform. What is left on every page is the ratio
+arithmetic, which is a multiplication by 1.
+
+**To use it**, send a player who has the bug the links, one per part, and ask
+which come out white: `https://clickplanet.lol/play?gfx=all` first, which must
+show the bug, then `ratio`, `aa`, `earth`, `tiles`, `halo`. Ask for
+`chrome://gpu` too: it names the driver. **Once the culprit is fixed, turn the
+rest on for everyone and take the switches out** — this is a bisection, not a
+settings page.
+
+### CSS pixels in, drawing-buffer pixels out
+
+**`?gfx=ratio` draws the canvas at the screen's pixel ratio, capped at 2**
+(`pixelRatio()` in `scene.ts`); without it the ratio is 1, as it always was. At
+1, on a phone or a laptop the browser stretches every frame over twice its
+pixels and the whole globe is soft. Past 2 is more than twice the work again for
+a difference nobody sees at arm's length.
+
+**Antialiasing is off unless `?gfx=aa`.** #254 turned it on below a ratio of 2,
+and it was the first suspect for the white globe on Intel; turning it off
+(#255) did not fix that, so it is one of the switches rather than a verdict.
+
+**Every size in pixels in this viewer is a CSS pixel**, and is multiplied by the
+ratio on its way to the GPU: the tile's point size, the outline's width
+(`halfWidthOf`), the keyline around a painted flag, the smallest a mark or a
+ring of the bonus effects may be, the smallest debris. So are the thresholds:
+`coarseHandover`, `flagPaint` and the size a landmass must reach before its flag
+fades in are worked out in CSS pixels, or a sharper screen would hand over at
+half the zoom. What is measured against `gl_PointSize` stays in drawing-buffer
+pixels — `pixelsPerRadian`, the picker's window, the one-pixel feathers that
+soften an edge.
+
+The click is already in drawing-buffer pixels: `canvasPosition` scales the
+pointer by `canvas.width / rect.width`. `resize` sets the ratio again, because a
+browser zoom changes it. **Read the ratio back from the renderer, never from
+`window.devicePixelRatio`**: a ratio that changes with no `resize` then leaves
+the frame no sharper, but every size still agrees with every other.
+
+### The light
+
+**Only with `?gfx=light`, or one of its three parts** — see [`?gfx=`](#gfx-the-sharper-lit-globe-off-unless-asked-for).
+Without it the earth is three's standard material under an ambient light, the
+tiles are unlit, and the globe reads as a flat blue disc.
+
+**The globe is lit by one light, and everything on its surface calls the same
+function for it** — `shaders/light.glsl`, included by the earth, the tiles and
+the halo. Lighting only the earth would have left the flags floating flat on a
+shaded ball.
+
+**It is a studio light, not the sun.** It sits with the camera, up and to the
+left, so the same side is always lit however the globe is turned: a real sun
+would put half the players' countries in the dark. Half-Lambert, squared, wraps
+it round the globe with no terminator, and the far limb keeps about half.
+
+**`shadeOf` is exactly 1 at the middle of the disc**, which is what the camera
+looks straight at and, zoomed in, the whole screen. A player at work on a
+country sees its flags as bright as before there was a light; the lit side of
+the globe seen whole comes out brighter still.
+
+**The air is lit too.** `hazeOf` lays the halo's colour over the ground seen
+edge-on, and `lit` shades it with the ground, so the rim is bright on the lit
+side and fades on the far one. The halo itself is shaded by the same function,
+taking the limb under it as its normal. `AIR` is the colour, and `COLOUR` in
+`atmosphere.ts` is the same one for the unlit halo, until the switches go.
+
+**Only the sea shines.** The earth adds a glint, read off the texture: the sea
+is one deep blue whose blue stands clear of its red and green, and no land does
+that. The photo itself is drawn as the standard material used to draw it,
+`sRGB(texel · 2/π)`, so the sea is still the blue it was.
+
+**None of it moves on its own**, so none of it costs a frame: the light turns
+with the camera, and a still globe is still the same picture. See [Drawing only
+when something changed](#drawing-only-when-something-changed).
 
 ### The zoomed-out view
 
@@ -840,9 +1117,13 @@ for sparkle. Neither end works, so from far enough away the globe is drawn from
 something coarser than a tile.
 
 Every tile resolves **offline** to a *landmass*: a country's tiles split into the
-separate pieces of land they actually form (Natural Earth 1:50m, 189 countries →
-630 landmasses). Neither borders nor tiles move, so `npm run borders` writes the
-whole table once and nothing recomputes it at runtime. A landmass rather than a
+separate pieces of land they actually form (Natural Earth 1:50m, 205 countries →
+658 landmasses). Neither borders nor tiles move, so `npm run map:generate` writes
+the whole table once and nothing recomputes it at runtime. Two tiles are the same
+piece when they **touch on the lattice** and carry the same country — not when
+they are within a tuned radius, which reached past the neighbours in places and
+joined two islands across a strait into one flag painted over the water between
+them. A landmass rather than a
 country because a flag belongs to a piece of ground — one frame spanning mainland
 France, Corsica, Guiana and Réunion would stretch the tricolour across half the
 planet and paint nothing recognisable anywhere.
@@ -851,6 +1132,33 @@ Each landmass flies the flag of whoever holds most of it, painted onto the spher
 with distance measured **along the surface**, so it bends with the globe and is
 cropped by its own coastline. `BorderField` keeps the running count per landmass
 and writes one row per landmass into a `DataTexture` the vertex shader reads.
+
+**The painted flag is read under the pixel, not per tile.** It still reaches the
+screen through the discs — that is what the widening is for — but what each
+fragment shows is the flag at the point of ground beneath it, so overlapping
+discs agree and the landmass comes out as one image at the resolution of the
+screen. The vertex shader hands the fragment shader the frame rather than a
+colour: where the tile's own centre falls in the flag, and how far that slides
+under one screen pixel across and up. A pixel is a step on the *screen*, so the
+ground step behind it is the one whose projection is a pixel — the tangent part
+of the camera's axis over how much of itself the projection keeps, floored near
+the limb where that divisor runs to zero. Those same two vectors are the
+footprint the atlas is sampled over (`textureGrad`), which is the only reason a
+mip level can be chosen at all: the frame is flat across a sprite, so without
+them the driver takes the top one and point-samples a 100px flag into a few
+dozen pixels.
+
+One sample per disc was the whole flag's resolution before, and a landmass is
+often only a few tiles across at the zoom where its flag is painted — six or
+seven samples of Macedonia's sun or Serbia's arms, with neighbouring discs each
+landing on a different one. Bands survived it; anything carrying a device came
+out as pixel soup on exactly the countries that are too small to zoom past.
+
+The lookup is skipped outright while `flagPaint` is 0, which pays for it: zoomed
+in it was four vertex texture fetches and a frame per tile for a colour the
+fragment shader mixed straight back out, and the fragment shader now skips the
+tile's own atlas fetch at the other end, where the painted flag has the frame to
+itself.
 
 **Opacity is the leader's share, and the curve it goes through is not a free
 knob.** Zoomed in, that share is already on screen as the fraction of discs
@@ -861,24 +1169,151 @@ you zoom into it — measured at 5x for Sudan at contrast 3. `borderField.test.t
 pins this.
 
 **One schedule owns the whole handover** — `coarseHandover` in `pointSize.ts`
-drives the flag fading out, the tiles fading in, and the disc widening being
-undone. They only work together: the flag reaches the ground only through the
-discs, so while it is painted they must cover the ground (circles on this hex
-lattice cover it at 1.155x the spacing), and a tile you are about to aim at must
-not be fattened. Running them on separate schedules left a band where the flag
-was painted through a lattice with holes in it. `pointSize.test.ts` pins that
-too, and those tests fail if the two are split again.
+drives the flag fading out, the tiles fading in, the disc widening being undone,
+and the outline moving from over the tiles to under them. They only work
+together: the flag reaches the ground only through the discs, so while it is
+painted they must cover the ground (circles on this hex lattice cover it at
+1.155x the spacing), and a tile you are about to aim at must not be fattened.
+Running them on separate schedules left a band where the flag was painted
+through a lattice with holes in it. `pointSize.test.ts` pins that too, and those
+tests fail if the two are split again.
 
 `npm run flagFit` decides the rest: a flag that is only bands can be pulled to
 the country's own shape and still say what it is, while one carrying a device is
 cropped, anchored on the part that names it rather than on its middle. The
 result is `static/countries/flagFit.json`.
 
-Two known faults, both inherited from the coordinates blob rather than from this:
-the antimeridian row carries about a quarter of the tiles it should, and 2,523
-tiles fall outside every country. Regenerating the blob would fix both and
-**renumber every tile** — ids are implicit in array position — moving every
-player's territory, so it has not been done.
+**Every tile is in a country**, because both blobs come from one Natural Earth
+query: a tile exists exactly where `groundOf` answers a code, and that same answer
+is what the borders blob records. The 2,191 tiles that used to fall outside every
+country are what the globe drew as discs floating on open water with no outline
+round them. See [`/map/README.md`](../../map/README.md).
+
+### The globe's texture
+
+The sphere under the tiles is a photograph, and it used to be the third thing
+that answered "sea or land" — disagreeing with both the tile set and Natural
+Earth. It cannot be an authority: at 4096×2048 a one-tile island is three pixels,
+so the mosaic blends it into open water however carefully the polygons are drawn.
+A player must never see green with nothing to click on it, or a disc floating on
+open water.
+
+So `npm run earth` cuts it from the tile field instead. Each tile's Voronoi cell —
+a hexagon of circumradius `spacing/√3`, the same 1.155× the renderer widens the
+discs by when they have to cover the ground for the painted flag — is rasterised
+onto an equirectangular image as `cover`, and the photo is corrected toward it:
+
+```
+out = photo + (cover - opinion) * (landColour - seaColour)
+```
+
+**It is the identity wherever the photo already agrees.** `opinion` is what the
+pixel's own colour says, read off the same two colours, so the correction is zero
+where the two agree — most of the globe — and full on a three-pixel island. The
+two colours are the photo's own local averages over the land and over the water,
+in 64-pixel blocks, so they follow latitude, depth and biome and nothing is
+painted in a palette somebody chose.
+
+**The two colours are found twice.** Taken straight off `cover`, a block whose only
+land is an island the photo drew as water learns that land here looks like water,
+and then leaves that island exactly as it found it — the one case this exists for.
+The second pass weights each pixel by whether the photo and the tile field already
+agree about it, and a block with no agreement left takes its colours from a
+neighbour that has some.
+
+Where land and water are the same colour — under cloud, on an ice shelf — there is
+no direction to move a pixel along, and nothing is moved. `scripts/map/recolour.mjs`
+holds the rule and `recolour.test.mjs` pins every case above.
+
+An earlier version was a frequency separation, `mix(sea, land, cover) + (photo -
+average)`. That is only the identity inside a block that is all land or all water;
+along a coast it pushed the land further from the water in both directions and
+moved 37% of the image.
+
+### The countries' outlines
+
+A thin dark-grey line runs between one country's ground and the next, and it is
+the **same width at every zoom** — `borderLines.ts` builds each piece as a quad
+laid out in screen pixels, not on the sphere, so pulling the view back thins
+nothing. That is the only way a border survives the range this camera covers: at
+0.5 the whole planet is half a screen tall, at 50 a single tile is a disc you can
+aim at. Grey and not black: black carried fine at map scale but up close, where
+the line is the only thing between two rows of discs, it read as a bar drawn over
+the planet rather than a border on it.
+
+**The line is not the administrative border.** It is the boundary of each
+country's *tiles*. The tiles are the vertices of a geodesic sphere, so their
+cells are its dual — a honeycomb — and the outline runs along the cell edges
+between two tiles that belong to different countries. Natural Earth's border is
+therefore moved onto the lattice, by up to half a tile, about 12 km.
+
+That move is the point. A line on the real border crosses tiles, and a crossed
+tile belongs to one side while reading as split between both. A line on the cell
+edges passes *between* the discs: the tile field is 76% covered once zoomed in,
+and the gap it leaves is exactly where this runs. So a tile is never cut, and
+which side of a border it is on is never a matter of where the line happened to
+fall across it. `borderLines.test.ts` pins the width against that gap.
+
+**What is drawn is not that polyline but its quadratic B-spline**, four straight
+pieces to a cell edge (`SAMPLES`). The lattice is a honeycomb, so the bare
+outline turns 60° at every corner and reads as a staircase from a few zooms in;
+the spline is the curve through the middle of every cell edge, reaching a quarter
+of the way toward each corner without touching it.
+
+That curve is not a compromise on the tile rule — it is the most a curve can be
+smoothed and still obey it. The narrowest the corridor between two tiles of
+different countries ever gets is at the middle of the cell edge between them, and
+any line separating them has to thread that point; the spline goes through it
+exactly, and at the corners, where there is half as much room again, it spends a
+fraction of what it has. `borderLines.test.ts` measures the drawn line against a
+lone tile's own cell and pins its near edge clear of the disc at every zoom the
+fine pass is drawn at.
+
+**Each pass carries the outline at the resolution it is looked at.** The over
+pass is on screen only while the flag is painted, where a cell edge is at most
+six pixels, so two pieces put it within a tenth of a pixel of the fine one and it
+draws half the geometry — and it is the pass that is up whenever the whole globe
+is. The fine one is only ever drawn pushed in.
+
+**A run ends at every junction** — a corner three countries share, or where a
+land border reaches the sea — which is the one corner the smoothing may not round
+off. The generator cuts the runs there so the renderer clamps the curve to it,
+and the three branches meeting there meet on the point rather than a fraction of
+a tile apart.
+
+**It is drawn twice, on either side of the tiles, and `flagPaint` picks.**
+Zoomed in the outline sits just inside the tile shell, so the discs' own depth
+hides whatever they cover and the line only ever shows in the gaps — which is
+the whole width of it. Zoomed out that gap is gone: the discs are widened until
+they cover the ground so the painted flag can reach it, and a line underneath
+them would be invisible. So the same outline is drawn just outside the shell as
+well, at the painted flag's own opacity, and the two hand over on the one
+schedule that owns the rest of the handover. Neither pass writes depth, and both
+are the same grey, so the stretch where they overlap — a coast, which has no
+tiles on the sea side to hide the under pass — only ever comes out that grey.
+
+`npm run borderLines` writes the geometry, from the coordinates blob and the
+borders blob and nothing else. It rebuilds the whole `IcosahedronGeometry(1, 300)`
+the tiles were cut from, because the coordinates blob holds only the land
+vertices and a coast needs the sea around it; every tile has to land on a lattice
+vertex or it refuses. A cell corner is the circumcentre of a lattice triangle —
+the normal of the plane through its three vertices — which makes the cells a true
+Voronoi diagram of the tiles and the corners meet exactly, so there are no seams
+to cover up at the joins. The edges are then chained into runs, which is what
+keeps the file to one corner per edge rather than two: 49,632 edges in 302 KB.
+The smoothing is not baked in — the blob is the outline on the lattice, and how
+finely it is rounded off is the renderer's business and four times the size.
+
+**Pinholes are filled before the outline is traced.** A vertex in no country
+takes its neighbours' country when at least four of the six agree and none
+disagrees, twice over. Without it every one-tile lake, every strait one tile
+wide gets an outline of its own, and every coast frays. It closes about 1,650 of
+them — it was 2,500 before the two blobs agreed on where the land is — and takes a
+fifth off the coastline's length.
+
+It stays out of `/map`, unlike the two blobs it is built from: the backend has no
+use for it. Where a tile is and who owns the ground under it are the game's rules
+and are shared; how thick a line is drawn between them is this app's.
 
 ### Data flow
 
@@ -948,8 +1383,32 @@ player's territory, so it has not been done.
    is refused, the moment a guest meets the wall. It opens `SignInPitchModal`,
    which has the account panel's sign-in buttons. The account panel's guest text
    says the same. **Nothing is offered without the server's number**, nor with
-   sign-in off. The meter and the dialog sit in `.click-budget-dock`, which takes
-   the corner.
+   sign-in off.
+
+   **It says when somebody else spends from the bucket.** The guests behind one
+   address share one bank, and every player behind it shares the scope's, so a
+   count can drop by clicks this player never made: another tab, or a stranger
+   on the same carrier. `ClickBudget.sharedWith` is the server's answer to whose
+   bucket the reading is, and the meter says "Shared with the guests on your
+   network" or "…everyone on your network" under the reading. Absent, it is the
+   player's own and nothing is said. A guest who shares is offered "Sign in:
+   your own clicks" instead, and `SignInPitchModal` says why.
+
+   **It is one panel, and its width is set rather than grown.** The reading, the
+   offer and the inventory all live in `.click-budget-dock`, which takes the
+   corner and carries the only border, background and blur; `.click-budget`
+   itself draws nothing, so `role="meter"` stays a leaf with no button inside
+   it. The dock's width is a number (288px, 240px on a phone) because the three
+   parts are three different widths: shrink-to-fit handed the widest one the
+   say, and the others then trailed a stripe of dead space to their right —
+   worse, the price row wrapping made the meter's max-content that whole row
+   *unwrapped*, which is where the empty half of the pill came from. The gauge
+   is `flex: 1` and the slots `flex: 1 1 0`, so both fill whatever the panel
+   gives them. The panel's border is what carries state: the inventory's glow
+   first, then low, empty and refused, in that source order so red at the wall
+   beats a bonus being switched on. The reading still jolts on a refusal
+   (`.click-budget-refused`, taken off on its own `animationend`), but the red
+   flash is the dock's, through `:has()`.
 
 ### Sampling the leaderboard
 
@@ -1017,15 +1476,219 @@ ever takes back what that click itself painted.**
 going back to unowned, which `TileField` writes as a zero-sized atlas region —
 what the fragment shader already draws as an unclaimed tile.
 
+**A click predicted to clear paints `undefined`**, and its claim remembers that
+like any other paint: a refused clear gives the natives their flag back, and a
+refused take behind a clear still in flight falls back to the empty tile.
+
 Rolling back on *any* failure, including a transport fault, is deliberate: if
 the click did land and only the response was lost, the stream's echo repaints
 it, and if the echo arrives first the rollback is already a no-op.
 
+## Charges
+
+A bonus box holds a **charge**, which has no clock and is never used on its own:
+a refill (the click bank, filled when the player presses it), a bomb (one drop), a
+stack of enclosures (one shape each, `maxTiles` at most) and a pool of spread
+clicks. The server keeps them per account, in postgres: a refill and a bomb at
+most, up to 3 enclosures and up to 8 spread clicks. A box adds a random 1 to 3
+enclosures or 1 to 4 spread clicks, capped at the size; the reward it announces
+is what was kept (`+2 spread clicks`), which is what the server answers in
+`ClaimBonusResponse.amount`.
+
+**`PlanetBackend` holds `Charges` (`domain/bonus.ts`) and nothing pushes them.**
+It reads `GetCharges` at load, with the token in hand and never a fresh one, and
+again when a click goes out under a new token (`followSession`): the charges are
+the account's. `ClaimBonusResponse.charges` replaces them on a claim, and
+`UseRefillResponse.charges` on a refill, which also brings the full budget. Otherwise
+it follows its own calls: an accepted click **sent with spread on** takes a spread
+click off, this player's own `tilesEnclosed` takes an enclosure off, and a drop
+takes the bomb off at once and gives it back only if the call never reached the
+server. The click answer says nothing about charges, on purpose (see the backend's
+CLAUDE.md). A charge spent in another tab stays on screen until the next read. It
+reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` hands it to the
+inventory.
+
+**The sizes are rules, read once**: `GetBonusRules` (a cached GET) answers the
+blast radius, the enclose's `maxTiles`, the spread pool's size and the enclosure
+stack's size as `BonusRules`, through `onRules`, and whether native land takes
+two clicks (`homeSoil`). A page open across a change of rules shows the old sizes
+until it is reloaded.
+
+### Off by default, one at a time
+
+**Nothing is used until the player says so.** Spread and enclose are switches
+(`Switches`), off at load and never turned on by the client. Every click carries
+them: `TileClicker.clickTile(tile, country, switches)` sends
+`ClickRequest.spread` and `enclose`, and the server spends a charge only when its
+switch is on. A switch goes off by itself when its pool runs out
+(`switchesHeld`), so it never says a click does something it will not.
+
+**One bonus at a time**, the bomb included: `switched` turns the other switch off
+when one goes on, aiming the bomb switches both off, and switching one on puts the
+bomb away. `globe.ts` holds the one copy (`setSwitch`, `onSwitchesChange`). The
+server refuses a click with both switches on (`INVALID_ARGUMENT`), before it
+writes or spends anything.
+
+### The inventory
+
+`components/Inventory.tsx` is the section that shows them, the **lower half of
+the click meter's panel** (the meter takes it as `children`, and shows it even
+with no budget). It draws no border, background or blur of its own: the one
+panel is `.click-budget-dock`, and a hairline divides the reading from the slots.
+One slot per kind, always shown, each drawn with its box's
+icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
+`BonusAward.css`, shared with the announcement). An empty slot is dimmed and
+cannot be pressed. A pool shows its count against its size (`5/8`, `2/3`), and a
+word over the icon says what the slot is doing (`On`, `Aim`, `Full`).
+
+- **Refill** fills the bank (`Refiller.useRefill`). **On a full bank it sends
+  nothing** and says "Full" for two seconds: a refill there would be wasted. The
+  server refuses it too, `FailedPrecondition`, read as `BankFullError`, and spends
+  nothing.
+- **Bomb** aims it, or puts it away (`Globe.setArmed`).
+- **Spread** and **Enclose** switch (`Globe.setSwitch`), `aria-pressed`.
+
+**The whole section folds** from a header over the slots: the name on the left,
+the count of kinds held while folded (open, every slot already says its own), and
+a `ChevronIcon` at the right end that turns over when it opens. That is the
+page's one way of folding something — the same icon and the same turn as
+`MenuHeader`'s collapse and the chat's header — so it is written the same way
+here rather than invented again. The fold is kept in local storage
+(`clickplanet-inventory-folded`, read and written in a `try`, since a private
+window can throw). The panel glows while something is on or aimed, so a folded
+inventory still says the next click does more than paint.
+
+## Native land takes two clicks
+
+On a country's own ground, a tile wearing that country's flag is **cleared** by
+the first click for any other flag, not taken; the next click on the empty tile
+takes it, and its natives take it back in one. Every click still costs one. The
+server decides (see the backend's CLAUDE.md, "Native land takes two clicks"), and
+says whether the rule is on in `BonusRules.homeSoil`.
+
+- **The click is painted as the server will write it.** `globe.ts` reads the
+  tile's ground off the borders blob it already loads (`countryOfTile`), asks
+  `domain/homeSoil.ts`, and paints `ownerAfter`: a clear as an empty tile, never
+  the flag. `homeSoil.test.ts` holds the same cases as the server's
+  `home_soil_test.go`. Before the rules are read, or with no bonus feed, a click
+  is painted as a take and the server's echo corrects it.
+- **A clear says so twice.** A tile going blank under a newcomer's click reads as
+  a click that went wrong, so it puffs dust on the tile (`bonusClickEffects.ts`,
+  every time), and `NativeLandNote` says "Poland's native land takes two clicks.
+  One more to take it." under the bomb line — only the first three times in a
+  browser (`domain/clearNotes.ts`, in `clickplanet-home-soil-notes`, counted in
+  memory when storage throws). It gives the quiz the band the way the bomb line does.
+- **Spread and enclose follow the rule on every tile they touch**, on the server.
+  Nothing here predicts them: their tiles arrive over the stream as ever, a cleared
+  one as an update with no country.
+- **Only the clicker sees the dust.** Everybody else sees the tile go empty, as a
+  `TileUpdate` with no country: the stream does not say why.
+
+## Quizzes
+
+A banner at the top of the screen: press it and you get a question with three
+choices and **a short clock**. A right answer is worth a charge, the same as a
+caught box; a wrong one, and running out of time, cost nothing.
+
+`src/app/quiz/` is the whole of it — `useQuiz.ts` drives, `Quiz.tsx` draws,
+`Quiz.css` styles — plus `domain/quiz.ts` for the shapes and the two pieces of
+arithmetic a countdown needs. The backend half is `QuizMaster` in
+`backends/backend.ts`.
+
+**It never touches `globe.ts`.** A quiz is DOM at the top of the screen, not an
+object in the scene, so `useQuiz` subscribes to the feed itself rather than
+being handed offers down through the globe the way a flying box is. What a right
+answer wins reaches the inventory the way every other charge does: the backend
+holds the charges and tells whoever is listening.
+
+**The client never knows an answer before it gives one.** The bank lives on the
+server and is deliberately not shipped to the browser (see
+[`/quiz/README.md`](../../quiz/README.md)). `listenForQuizzes` brings a banner
+carrying **a token and a deadline and nothing else**; `openQuiz` brings the
+question and its three choices and **starts the server's clock**; `answerQuiz` is
+the first thing that says which of the three was right.
+
+**One state machine, `QuizState`:**
+
+```
+idle → offered → opening → asking → answered → idle
+```
+
+Each phase is a different thing on screen *and* a different thing to a player:
+`offered` is an invitation that costs nothing to ignore, `asking` is a clock
+already running. Anything that goes wrong — a token the server will not honour, a
+stream that dropped — falls back to `idle`, because a quiz nobody can answer
+should leave nothing behind. **The token rides through the state** rather than
+sitting beside it, so there is no way to answer one quiz with another's token
+while a banner and a question are changing places.
+
+**A banner arrives only into an empty screen.** The server will not offer a
+second, but a stale one arriving mid-question would take the clock away from
+under somebody already reaching for a choice.
+
+**The banner gives nothing away** — not the question, not the choices, and not
+what it is about. It named the subject country and flew its flag once, which
+read as a harmless teaser and was not: that flag was the answer to **417 of the
+bank's 1014 questions**, every "Tallinn is the capital of which country?" and
+every "which of these has the most people?". The fix is not to pick safer
+templates, because a teaser that has to be checked against every question in the
+bank leaks again the first time a template is added. What makes the banner worth
+pressing is the charge behind it.
+
+It draws no countdown of its own either, because it is free to ignore, and it
+goes away by itself.
+
+**The countdown bar starts at what is actually left, not at full.** The five
+seconds are the server's and they began when it answered, so a slow round trip
+has already spent some of them; a bar that started full would promise time the
+player does not have. From there it is **one CSS transition on `transform`** to
+empty — on the compositor, so a whole window of continuous animation costs nothing
+beside a WebGL globe drawing at the same time, where a `width` transition would
+relayout every frame. Under `prefers-reduced-motion` the countdown **stays**: it
+is information, not decoration.
+
+**Running out of time is sent as a choice past the end of the three.** The server
+reads it as wrong, which it is, and answers with the right one — so a question
+nobody managed to answer still says what it was. There is no other way to learn
+it.
+
+**The result says which one was right whether or not that was the one pressed.**
+A wrong answer costs nothing, so the only thing left to give back is the answer.
+
+**The quiz and `BombNews` both want the band at the top**, and the bomb line is
+the one that gives it up (`lowered`): four seconds of news nobody presses moves,
+a question somebody is answering does not.
+
+**Three sounds, one switch.** `quiz` when the banner arrives (the same reason
+`bonusSpawn` exists: it is at the top of the screen and the player is looking at
+the globe), `quizRight` and `quizWrong` when the answer lands. All three answer
+to one `quiz` switch through `switchOf` — a quiz is one feature making three
+noises inside ten seconds, and three lines in the settings panel for that is two
+lines too many. `quiz` is the banner's sound, which is also what the panel plays
+when the switch is turned on.
+
+`quizWrong` is gentle on purpose, and rounder and higher than `refused`: a wrong
+answer costs nothing, so it says "ah well" rather than "no". A sound that
+punished a guess would make guessing feel expensive when it is free.
+
+`useQuiz` takes the player and holds it in a ref, so a settings toggle does not
+resubscribe the feed; it is optional, and a page with no sound wired still works.
+
+`giveQuiz()` in the console puts one up at once against the fake backend, beside
+`giveBomb()` and `giveBonus()`. The fake's bank is three questions — it is there
+to develop the banner and the card against, not to be played.
+
 ## Bombs
 
-A bonus box can hold a bomb (`BonusReward` kind `bomb`). The player has
-`seconds` to drop it anywhere on the planet, and it clears every tile within
-`radius` of where it lands — the server's call, not this client's. The pieces:
+A bonus box can hold a bomb (`BonusReward` kind `bomb`), kept until it is dropped
+anywhere on the planet. It clears every tile within `radius` of where it lands —
+the server's call, not this client's.
+
+**A bomb is aimed or put away.** It is kept until it is dropped, so it cannot stay
+aimed: while aimed, a click claims no tile. It is never aimed on its own, not
+even when it is caught: the inventory's bomb slot aims it and puts it away
+(`Globe.setArmed`), and Escape puts it away. The radius comes from the rules, so a bomb still in hand
+after a reload can be aimed. The pieces:
 `backends/backend.ts` declares `Bomber` and `BombDrop`, `domain/blast.ts` the
 timeline every screen agrees on, `domain/holdToDrop.ts` the gesture,
 `viewer/blasts.ts` the drawing, and `components/BombNews.tsx` the line at the top.
@@ -1153,14 +1816,16 @@ a row measured in `px` of font is mostly leading. **A flex `margin-top` doing
 this correction has to be twice the rise**, because centring applies to the
 margin box; getting that wrong left the camera icon exactly half-corrected.
 
-**The canvas is sized in CSS pixels** (`renderer.setSize` with no pixel ratio),
-so a phone captures around 390×844. `cardSize` lifts that to a short edge of
-720 — the globe softens a little and the flag and the counts stay crisp, which
-is the half anyone reads — and caps the long edge at 2400 so a share sheet will
-still take the file.
+**The capture is the drawing buffer**, at a ratio of 1, or at the screen's
+capped at 2 with `?gfx=ratio` (see [CSS pixels in, drawing-buffer pixels
+out](#css-pixels-in-drawing-buffer-pixels-out)): a phone captures around 390×844,
+or 780×1688 with the switch, and a ratio-1 desktop its CSS size. `cardSize` lifts a small one to a
+short edge of 720 — the globe softens a little and the flag and the counts stay
+crisp, which is the half anyone reads — and caps the long edge at 2400 so a
+share sheet will still take the file.
 
-**And the card is the middle of the frame, not all of it.** 390×844 is a 1:2.2
-column that every timeline either shows as a sliver or crops for you;
+**And the card is the middle of the frame, not all of it.** A phone's frame is
+a 1:2.2 column that every timeline either shows as a sliver or crops for you;
 `cropToAspect` brings the shape back inside 9:16 … 16:9 first, centred, because
 the globe is centred — the camera looks at the origin. The portrait limit is the
 loosest of the standard shapes on purpose: at rest the sphere's diameter is the
@@ -1234,9 +1899,9 @@ not a "nope"); the box appearing and being caught at the same places the box
 itself does; the bomb when its broadcast arrives, with the boom scheduled
 `IMPACT_DELAY` later so it lands with the tiles, quieter for someone else's,
 and a splash instead of a blast when the drop has no tile under it (the ocean);
-your own spread click, boosted click and closed shape when their broadcast comes
+your own spread click and closed shape when their broadcast comes
 back, so each lands with its effect on screen. **Only the player who made one
-hears it.** An enclosure carries `yours`; a spread or a boost says nothing of
+hears it.** An enclosure carries `yours`; a spread says nothing of
 whose it is, so `domain/ownClicks.ts` remembers the tiles this client clicked in
 the last 3s and a broadcast on one of them, for the same country, is taken as
 ours. They have no switch of their own: `switchOf` puts them under the tile
@@ -1259,7 +1924,9 @@ Territories share their country's file (`SHARES` in the script); a country with
 no recording shows the player with its play button off.
 
 - `domain/anthemLeader.ts` — `followLeader`: a new leader must hold first place
-  for `HOLD_MS` (15s) before the music follows it. The first leader plays at once.
+  for `HOLD_MS` (15s) before the music follows it. The first leader plays at once,
+  so `Viewer` hands `useAnthem` no board until the map is loaded: the board is
+  sampled while the batches arrive, and a half-loaded map's leader is not the real one.
 - `anthemPlayer.ts` — two `<audio>` elements crossfade through Web Audio gain
   nodes. **Not `audio.volume`: iOS ignores it.** A muted or hidden tab fades out
   and pauses rather than streaming silence.
@@ -1299,37 +1966,63 @@ served stale. Each has a generated TS module holding its current URL — do not
 edit those by hand, and do not add a `?ts=` cache-buster, which defeats the
 cache entirely:
 
-- `/static/borders-<hash>.bin` — tile → landmass and a frame per landmass,
-  fetched at runtime by `borderField.ts`. URL in `bordersAsset.ts`. Regenerate
-  with `npm run borders`, which needs the coordinates blob to already be in
-  place — it resolves *those* tiles. It writes `/map` too, because the backend's
-  admin tools read it: **run the backend's `make map` after it, and commit all
-  three copies.**
-- `/static/coordinates-<hash>.bin` — tile positions, fetched at runtime by
-  `points.ts`. Format in `coordinatesBinary.ts`; URL in `coordinatesAsset.ts`.
-  **This one is not ours alone.** The source of truth is the monorepo-shared
-  [`/map`](../../map/README.md), which the backend also builds its tile adjacency
-  from; `static/` holds a generated copy, exactly as `src/gen/grpc/` holds a copy
-  of the proto contract. `npm run map` re-copies it, and the generators —
-  `npm run coordinates <detail> <mapFilePath> [threshold]`, or
-  `npm run coordinates:convert` to rebuild from the existing JSON — write to
-  `/map` first and then sync. **Run the backend's `make map` after either, and
-  commit all three copies**, or the two apps disagree about what a tile id means.
+- `/static/coordinates-<hash>.bin` and `/static/borders-<hash>.bin` — where every
+  tile is, and whose ground it sits on. Fetched at runtime by `points.ts` and
+  `borderField.ts`; URLs in `coordinatesAsset.ts` and `bordersAsset.ts`. Formats
+  in `coordinatesBinary.ts` and [`/map/README.md`](../../map/README.md).
+  **These two are not ours alone.** The source of truth is the monorepo-shared
+  [`/map`](../../map/README.md), which the backend builds its tile adjacency from
+  and its admin tools read; `static/` holds a generated copy, exactly as
+  `src/gen/grpc/` holds a copy of the proto contract. `npm run map` re-copies the
+  coordinates blob, and `npm run map:generate` rewrites **both** — one command,
+  because a tile exists exactly where the borders blob says a country does and the
+  two must not be able to disagree. **Run the backend's `make map` after it, and
+  commit all three copies of each**, or the two apps disagree about what a tile id
+  means. It renumbers every tile, so it also writes the postgres migration that
+  follows the owned ones across; see `/map/README.md`.
+- `/static/borderLines-<hash>.bin` — the countries' outlines, traced onto the
+  tile lattice, fetched at runtime by `borderLines.ts`. URL in
+  `borderLinesAsset.ts`. Regenerate with `npm run borderLines`, which reads both
+  blobs above and so needs them in place first — and **regenerate it whenever
+  either of them changes**, or the outline is drawn around a map nobody is
+  playing on. Unlike them it is this app's alone and is not copied to `/map`.
+- `/static/earth/earth-<hash>.jpg` — the globe's texture, its coastline cut from
+  the tile field. URL in `earthAsset.ts`. Regenerate with `npm run earth`, which
+  reads the coordinates blob — so **after `npm run map:generate`**, or the coast
+  has discs in the water again. See [The globe's texture](#the-globes-texture).
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
   size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
 - `/static/reactions/<name>-<hash>.svg` — the chat's reaction images. URLs in
   `app/chat/reactionsAsset.ts`. Regenerate with `npm run reactions` — see
   [Reactions](#reactions).
 
-`/static/coordinates.json` is the human-readable generator output, kept in the
-repo but **not deployed** (`copy:static` deletes it from `dist/static/`). So is
-`/static/og-source.png`, the raw screenshot the social preview is built from.
+`/static/og-source.png`, the raw screenshot the social preview is built from, and
+`/static/earth/earth-source.jpg`, the satellite mosaic the texture is cut from,
+are kept in the repo but **not deployed** (`copy:static` deletes both from
+`dist/static/`).
 
-`/static/og-image.jpg` is that preview, generated by `npm run og-image` at the
-1200×627 scrapers ask for. It is letterboxed onto black rather than cropped —
-the screenshot is wider than 1.91:1 with the leaderboard against one edge and
-the buttons against the other. If you regenerate it at a different size, update
-`og:image:width` / `og:image:height` in `index.html` and `play.html` to match.
+`/static/og-image-<hash>.jpg` is that preview, generated by `npm run og-image` at
+the 1200×627 scrapers ask for; the script also rewrites its URL in `index.html`
+and `play.html`. It is content-addressed because **scrapers cache a preview by
+its URL**: under a fixed name, a link shared after a new screenshot still showed
+the old one. If you regenerate it at a different size, update
+`og:image:width` / `og:image:height` in both pages to match.
+
+The source is the home page's hero, taken from the live site with a fresh
+profile (a returning player is sent to the game) at a 1840×962 window — about
+1.91:1, and the narrowest the whole hero fits in — at 2× for a sharp downscale.
+The script letterboxes onto black rather than crop, so a source of another
+shape keeps its edges. Like the home page's screenshots, it must not show the
+chat. To retake it:
+
+```bash
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new \
+  --hide-scrollbars --force-device-scale-factor=2 --window-size=1840,962 \
+  --user-data-dir="$(mktemp -d)" --virtual-time-budget=5000 \
+  --screenshot=static/og-source.png https://clickplanet.lol/
+```
+
+Chrome may not exit after it writes the file; stop it once the file is there.
 
 `public/` holds the files that must be served as themselves rather than as the
 app: `_headers`, `robots.txt`, `sitemap.xml`, `privacy.html` and `terms.html`. Vite copies them to the root of

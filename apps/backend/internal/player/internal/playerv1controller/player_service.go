@@ -6,6 +6,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler"
@@ -32,6 +33,7 @@ var _ playerv1connect.PlayerServiceHandler = PlayerService{}
 // InternalService is what the other modules ask, served on the internal listener alone.
 type InternalService struct {
 	get_author_handler.GetAuthorHandler
+	get_authors_handler.GetAuthorsHandler
 }
 
 var _ playerv1connect.InternalServiceHandler = InternalService{}

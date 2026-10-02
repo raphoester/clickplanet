@@ -6,6 +6,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
@@ -22,9 +23,14 @@ type Config struct {
 	TilesStorage inmemory_tile_storage.Config
 	RateLimiter  clicks.ThrottleConfig
 	Toll         clicks.TollConfig
+	// Native land takes two clicks: on a country's own ground, another flag clears its tile before it can take it.
+	HomeSoil     clicks.HomeSoilConfig
 	VPNBlocklist cpipblock.Config
 	AntiBot      antibot.Config
 	Bonus        bonuses.Config
+
+	// The charges each account holds, kept in postgres between boots.
+	ChargeStorage inmemory_charge_storage.Config
 
 	// Who last took each tile, for the operator tools.
 	Ledger        ledger.Config

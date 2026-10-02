@@ -72,7 +72,8 @@ export type Blasts = {
     /** Where the newest blast still worth pointing at is, if any. */
     newest(seconds: number): THREE.Vector3 | undefined
 
-    update(seconds: number, camera: THREE.Camera): void
+    /** Whether this frame changed anything: the frame a blast ends on counts. */
+    update(seconds: number, camera: THREE.Camera): boolean
 
     dispose(): void
 }
@@ -100,7 +101,11 @@ type Slot = {
  * tiles are dots with sea and gaps between them, and a ring made of them breaks
  * up and flickers as it moves.
  */
-export function createBlasts(uniforms: BlastUniforms, pixelsPerRadian: THREE.IUniform<number>): Blasts {
+export function createBlasts(
+    uniforms: BlastUniforms,
+    pixelsPerRadian: THREE.IUniform<number>,
+    pixelRatio: THREE.IUniform<number>,
+): Blasts {
     const group = new THREE.Group()
     const flashTexture = glowTexture()
     const seeds = debrisSeeds()
@@ -136,6 +141,7 @@ export function createBlasts(uniforms: BlastUniforms, pixelsPerRadian: THREE.IUn
                 radius: {value: 0},
                 time: uniforms.time,
                 pixelsPerRadian,
+                pixelRatio,
                 water: {value: 0},
             },
             vertexShader: debrisVertex,
@@ -206,10 +212,18 @@ export function createBlasts(uniforms: BlastUniforms, pixelsPerRadian: THREE.IUn
             // A slow breath rather than a blink: this is held for many seconds.
             ringOpacity(aim, 0.85 + 0.15 * Math.sin(seconds * 4))
 
+            // Whether anything here still moves, which is what the animation
+            // loop draws a frame for. The aiming ring breathes for as long as
+            // it is up, and a blast's last frame is the one that clears it.
+            let drawing = aim.visible
+
             slots.forEach((slot, index) => {
                 const elapsed = seconds - slot.startedAt
 
                 if (blastOver(elapsed)) {
+                    drawing ||= uniforms.blastRadii.value[index] > 0
+                        || slot.flash.visible || slot.debris.visible || slot.incoming.visible
+
                     // Freed, so the shader skips it on the cheapest test it has.
                     uniforms.blastRadii.value[index] = 0
                     slot.flash.visible = false
@@ -217,6 +231,8 @@ export function createBlasts(uniforms: BlastUniforms, pixelsPerRadian: THREE.IUn
                     slot.incoming.visible = false
                     return
                 }
+
+                drawing = true
 
                 const sinceImpact = elapsed - BLAST_TIMELINE.fall
 
@@ -239,6 +255,8 @@ export function createBlasts(uniforms: BlastUniforms, pixelsPerRadian: THREE.IUn
                 slot.flash.scale.setScalar(slot.splash ? scale * SPLASH_SCALE : scale)
                 slot.flash.material.opacity = opacity
             })
+
+            return drawing
         },
 
         dispose() {

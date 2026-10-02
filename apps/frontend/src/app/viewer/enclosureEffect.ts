@@ -43,7 +43,7 @@ export const LIFETIME_SECONDS = 2.6
 /** Above the tiles, which sit on the unit sphere, so the marks are never inside them. */
 const LIFT = 1.003
 
-/** A mark is never drawn smaller than this, however far out the camera is. */
+/** A mark is never drawn smaller than this, in CSS pixels, however far out the camera is. */
 const MIN_MARK_PX = 5
 
 /** Nor is a ring, which is what finds the shape for a player zoomed right out. */
@@ -193,7 +193,10 @@ export type EnclosureEffects = {
     readonly object: THREE.Object3D
     /** Starts a shape's effect on the next frame. */
     play(enclosure: Enclosure): void
-    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number): void
+    /** Whether this frame changed anything: the frame an effect ends on counts. */
+    /** `viewportHeight` is the drawing buffer's, and `pixelRatio` how many of
+     *  its pixels make a CSS one. */
+    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number): boolean
     dispose(): void
 }
 
@@ -305,10 +308,11 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
         }
     }
 
-    const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number) => {
-        if (playing.length === 0) return
+    const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number) => {
+        if (playing.length === 0) return false
 
         const tileSize = tilePointSize(camera.zoom, viewportHeight)
+        const minMark = MIN_MARK_PX * pixelRatio
         // The camera's frustum is two units tall at zoom 1, so this is how many
         // pixels one world unit spans on screen right now.
         const pixelsPerUnit = (viewportHeight / 2) * camera.zoom
@@ -323,6 +327,7 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
             }
 
             effect.marks.uniforms.tileSize.value = tileSize
+            effect.marks.uniforms.minSize.value = minMark
             effect.choreography.marks.forEach((mark, i) => {
                 const look = markLook(mark, age, calm)
                 effect.glow.setX(i, look.glow)
@@ -333,7 +338,7 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
             effect.scale.needsUpdate = true
             effect.white.needsUpdate = true
 
-            const reach = Math.max(effect.choreography.radius * WAVE_REACH, MIN_WAVE_PX / pixelsPerUnit)
+            const reach = Math.max(effect.choreography.radius * WAVE_REACH, MIN_WAVE_PX * pixelRatio / pixelsPerUnit)
             for (const wave of effect.waves) {
                 const look = waveLook(wave.startsAt, age)
                 wave.mesh.visible = look !== undefined
@@ -346,6 +351,11 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
 
             return true
         })
+
+        // Something was on screen when this frame started, so it has to be
+        // drawn — including the frame the last effect was stopped on, which is
+        // the one that takes it off.
+        return true
     }
 
     return {

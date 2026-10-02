@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -19,12 +20,19 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase/prom_answer_quiz"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/antibot_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/prom_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/publishing_drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/get_charges_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/open_quiz_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
@@ -61,21 +69,27 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/top_players_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/answer_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/ban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -142,8 +156,16 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the ledger: %w", err)
 			}
 
-			// The pool closes after both runners' last flush, not as a closer: closers run first.
-			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings))
+			// The bomb, enclose and spread charges each account holds, so a restart does not take them.
+			charges := inmemory_charge_storage.New(config.ChargeStorage, config.Bonus.ChargesConfig(),
+				postgres_charge_store.New(db), props.Logger)
+			if err := charges.Load(ctx); err != nil {
+				_ = db.Close()
+				return fmt.Errorf("failed to load the charges: %w", err)
+			}
+
+			// The pool closes after every runner's last flush, not as a closer: closers run first.
+			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
 			// One limiter holds both buckets a click spends: the account's, and its scope's at scopeMultiplier.
@@ -153,18 +175,42 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			pricer := clicks.NewToll(config.Toll, tilesStorage)
 
+			// Native land takes two clicks, on the ground the borders say is each country's. Only the player's click
+			// path reads it — the rule, the spread, the enclose and the jury — never the bomb or the operator tools.
+			homeSoil := clicks.NewHomeSoil(config.HomeSoil, borders)
+			if homeSoil.Enabled() {
+				props.Logger.Info("home soil enabled: native land takes two clicks")
+			}
+
 			// writer is the storage as the click chain writes it, so every tile it takes lands in the ledger,
 			// and each one taken by an account is told to the other modules as planet.v1.TileTaken.
 			writer := ledger.NewRecording(tilesStorage, publishing_ledger_storage.New(takings, props.Events), clock)
 
-			// ---- Bonus boxes ----
+			// ---- Bonus boxes and quizzes ----
 
-			registry := bonuses.New(config.Bonus, clock)
+			// It reads the charges held, so nobody is offered a second of a kind.
+			registry := bonuses.New(config.Bonus, clock, charges)
 			props.Runners.Add(registry)
 
-			spreads := bonuses.NewSpreads(clock)
-			bombs := bonuses.NewBombs(clock)
-			enclosures := bonuses.NewEnclosures(clock)
+			// The quizzes are a second way to earn one of those charges, on a schedule of their own.
+			// Off unless switched on, and switched on is what hands the registry a bank to draw from:
+			// with no bank there is no offer, and the boxes fly exactly as they did.
+			//
+			// The bank reads the live map at every draw, which is how a question leans towards the
+			// countries that are winning — the same shares the toll prices a click from, so there is
+			// no second leaderboard to keep in step.
+			if config.Bonus.Quiz.Enabled {
+				bank, err := quizzes.Load(config.Bonus.Quiz, tilesStorage)
+				if err != nil {
+					return fmt.Errorf("failed to load the quiz bank: %w", err)
+				}
+
+				registry.Quizzing(config.Bonus.Quiz, bank)
+				props.Logger.Info("quizzes enabled",
+					slog.String("bank", bank.Name()),
+					slog.Int("questions", bank.Size()),
+					slog.Int("subjects", bank.Subjects()))
+			}
 
 			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 
@@ -178,12 +224,12 @@ func NewModule(config Config) cpbootstrap.Module {
 			// Right against the rule, inside the shadow ban: a dropped click never
 			// reaches the rule, so it spreads and encloses nothing either. It is counted
 			// as one click however many tiles it took.
-			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
-			clickUseCase = spread_click.New(clickUseCase, spreads, geography, writer, registry)
+			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries, homeSoil)
+			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, homeSoil, registry)
 
-			clickUseCase = enclose_click.New(clickUseCase, enclosures,
+			clickUseCase = enclose_click.New(clickUseCase, charges,
 				bonuses.NewTerrain(geography, tilesStorage),
-				enclose_click.NewAnnexer(writer, prom_enclose.New(registry, props.Metrics)))
+				enclose_click.NewAnnexer(writer, homeSoil, charges, prom_enclose.New(registry, props.Metrics)))
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
@@ -202,7 +248,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			props.Runners.Add(guard)
 
-			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, clock, props.Metrics)
+			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, homeSoil, clock, props.Metrics)
 
 			// Inside the throttle: presence is what a caller actually managed to do,
 			// not what they attempted.
@@ -288,7 +334,14 @@ func NewModule(config Config) cpbootstrap.Module {
 			// anywhere near right. What each caller did with their box goes to the
 			// guard as well, for the catcher watchdog.
 			claimBonus, counters := prom_claim_bonus.New(
-				claim_bonus_usecase.New(registry, limiter, pricer, spreads, bombs, bombRules.Radius, enclosures, buckets, clock),
+				claim_bonus_usecase.New(registry, charges),
+				props.Metrics)
+
+			// A right answer pays out through the same charger a caught box does, and announces itself
+			// down the same broadcast: one way for a charge to be granted, reached two ways.
+			openQuiz := open_quiz_usecase.New(registry)
+			answerQuiz, quizCounters := prom_answer_quiz.New(
+				answer_quiz_usecase.New(registry, charges),
 				props.Metrics)
 
 			registry.Observe(bonuses.Report{
@@ -301,12 +354,25 @@ func NewModule(config Config) cpbootstrap.Module {
 					counters.Caught.Observe(after.Seconds())
 					guard.Caught(scope, after)
 				},
+				Foreign: func(scope string) {
+					counters.Foreign.Inc()
+					guard.Foreign(scope)
+				},
+
+				// The quizzes' half. Not told to the catcher watchdog: it measures how fast a box
+				// flying past the planet was caught, and a quiz is read and thought about — a
+				// person who answers one quickly is a person who knew the answer.
+				QuizOffered: quizCounters.Offered.Inc,
+				QuizLapsed:  func(string) { quizCounters.Lapsed.Inc() },
+				QuizAnswered: func(_ string, correct bool, after time.Duration) {
+					quizCounters.Answered.WithLabelValues(strconv.FormatBool(correct)).Observe(after.Seconds())
+				},
 			})
 
 			// Every bomb that went off is told to the other modules as planet.v1.BombLanded: the chat announces it.
 			dropped := prom_drop_bomb.New(
 				publishing_drop_bomb.New(
-					drop_bomb_usecase.New(bombs, registry, geography, tilesStorage, countries, bombRules),
+					drop_bomb_usecase.New(charges, geography, tilesStorage, countries, bombRules),
 					borders, props.Events, clock),
 				props.Metrics)
 
@@ -319,6 +385,15 @@ func NewModule(config Config) cpbootstrap.Module {
 			// storage appears three times here rather than once as a single object the
 			// service holds: the map reader, the subscription and the tile writer are
 			// three ports that happen to be served by one adapter.
+			// How big each charge is, and whether native land takes two clicks, fixed at boot: the client reads
+			// both once.
+			rules := bonuses.Rules{
+				BlastRadius:       bombRules.Radius,
+				EnclosureMaxTiles: charges.EnclosureMaxTiles(),
+				SpreadClicks:      charges.SpreadClicks(),
+				Enclosures:        charges.Enclosures(),
+			}
+
 			service := planetv1controller.ClickService{
 				ClickHandler:      click_handler.New(clickUseCase),
 				GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(limiter, pricer, buckets)),
@@ -327,8 +402,13 @@ func NewModule(config Config) cpbootstrap.Module {
 					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker)),
 				ListenForEventsHandler: listen_for_events_handler.New(antibot_listen_for_events.New(
 					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard)),
-				ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
-				DropBombHandler:   drop_bomb_handler.New(dropBomb),
+				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),
+				DropBombHandler:      drop_bomb_handler.New(dropBomb),
+				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
+				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
+				GetBonusRulesHandler: get_bonus_rules_handler.New(rules, homeSoil),
+				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
+				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 			}
 
 			return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

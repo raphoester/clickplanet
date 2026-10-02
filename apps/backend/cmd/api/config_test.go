@@ -26,9 +26,21 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	require.True(t, config.Planet.AntiBot.Enabled)
 
-	assert.Equal(t, 30*time.Second, config.Planet.Bonus.Enclose.Duration)
-	assert.Equal(t, 3, config.Planet.Bonus.Enclose.Shapes)
-	assert.Equal(t, 15, config.Planet.Bonus.Enclose.MaxTiles)
+	assert.Equal(t, 25, config.Planet.Bonus.Enclose.MaxTiles)
+	assert.Equal(t, 8, config.Planet.Bonus.Spread.Clicks)
+	assert.Equal(t, 4, config.Planet.Bonus.Spread.MaxPerBox)
+	assert.Equal(t, 3, config.Planet.Bonus.Enclose.Held)
+	assert.Equal(t, 3, config.Planet.Bonus.Enclose.MaxPerBox)
+	assert.Equal(t, 12, config.Planet.Bonus.MaxChargesPerHour)
+
+	quiz := config.Planet.Bonus.Quiz
+	assert.True(t, quiz.Enabled)
+	assert.Equal(t, 6*time.Minute, quiz.MinInterval)
+	assert.Equal(t, 11*time.Minute, quiz.MaxInterval)
+	assert.Equal(t, 25*time.Second, quiz.OfferTTL)
+	assert.Equal(t, 8*time.Second, quiz.AnswerWindow, "example.yaml must load the answerWindow it documents")
+	assert.InDelta(t, 1.0, quiz.LeaderBias, 1e-9)
+	assert.Equal(t, 6, quiz.MaxChargesPerHour)
 
 	assert.Equal(t, 72*time.Hour, config.Planet.Ledger.Retention)
 	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
@@ -69,6 +81,15 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.InDelta(t, 5, config.Planet.AntiBot.Scraper.Detector.MinMaps, 1e-9)
 	assert.InDelta(t, 15, config.Planet.AntiBot.Scraper.Detector.CertainMaps, 1e-9)
 	assert.Equal(t, 15*time.Minute, config.Planet.AntiBot.Scraper.Detector.TrackWindow)
+
+	churner := config.Planet.AntiBot.Churner
+	require.True(t, churner.Enabled)
+	assert.Equal(t, time.Hour, churner.Detector.Window)
+	assert.Equal(t, 6, churner.Detector.V6.CertainAccounts)
+	assert.Equal(t, 20, churner.Detector.V4.CertainAccounts)
+	assert.Equal(t, 90*time.Second, churner.Detector.Relay.Handoff)
+	assert.Equal(t, 32, churner.Detector.Relay.V6Bits)
+	assert.Equal(t, 6, churner.Detector.Relay.CertainLinks)
 }
 
 // The blocks the antibot rewrite did not touch, so that moving one of them is a
@@ -82,8 +103,8 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.InDelta(t, 0.2, config.Planet.RateLimiter.PerSecond, 1e-9, "one click every 5s")
 	assert.Equal(t, 60, config.Planet.RateLimiter.Burst)
 	require.Len(t, config.Planet.Toll.Steps, 3)
-	assert.InDelta(t, 0.70, config.Planet.Toll.Steps[2].Share, 1e-9)
-	assert.InDelta(t, 3, config.Planet.Toll.Steps[2].Slowdown, 1e-9)
+	assert.InDelta(t, 0.30, config.Planet.Toll.Steps[2].Share, 1e-9)
+	assert.InDelta(t, 4, config.Planet.Toll.Steps[2].Slowdown, 1e-9)
 	require.NoError(t, config.Planet.Validate())
 	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
 	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.AdminBindAddress)
@@ -96,7 +117,6 @@ func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
-	assert.Equal(t, 30*time.Second, config.Planet.Bonus.Bomb.Duration)
 	assert.InDelta(t, 4.0, config.Planet.Bonus.Bomb.Rings, 1e-9)
 	assert.InDelta(t, 1.0, config.Planet.Bonus.Kinds["bomb"], 1e-9)
 	require.NoError(t, config.Planet.Bonus.Validate())
@@ -186,7 +206,10 @@ func TestTheExampleConfigReachesTheScopeMultiplier(t *testing.T) {
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
 	assert.InDelta(t, 10.0, config.Planet.RateLimiter.ScopeMultiplier, 1e-9)
+	assert.InDelta(t, 1.0, config.Planet.RateLimiter.GuestScopeMultiplier, 1e-9)
 	assert.InDelta(t, 2.0, config.Planet.RateLimiter.LinkedMultiplier, 1e-9)
+	require.NotNil(t, config.Planet.RateLimiter.NewAccountClicks)
+	assert.InDelta(t, 10.0, *config.Planet.RateLimiter.NewAccountClicks, 1e-9)
 	assert.Equal(t, 60, config.Planet.RateLimiter.Burst, "the squashed policy still reads rateLimiter.burst")
 }
 

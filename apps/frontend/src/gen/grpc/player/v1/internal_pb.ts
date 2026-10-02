@@ -94,3 +94,137 @@ export class GetAuthorResponse extends Message<GetAuthorResponse> {
   }
 }
 
+/**
+ * @generated from message player.v1.GetAuthorsRequest
+ */
+export class GetAuthorsRequest extends Message<GetAuthorsRequest> {
+  /**
+   * Ids the caller already holds. One that is not an account is
+   * InvalidArgument; a repeat is answered once, and none is an empty answer.
+   *
+   * @generated from field: repeated string account_ids = 1;
+   */
+  accountIds: string[] = [];
+
+  constructor(data?: PartialMessage<GetAuthorsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetAuthorsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAuthorsRequest {
+    return new GetAuthorsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAuthorsRequest {
+    return new GetAuthorsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAuthorsRequest {
+    return new GetAuthorsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAuthorsRequest | PlainMessage<GetAuthorsRequest> | undefined, b: GetAuthorsRequest | PlainMessage<GetAuthorsRequest> | undefined): boolean {
+    return proto3.util.equals(GetAuthorsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.GetAuthorsResponse
+ */
+export class GetAuthorsResponse extends Message<GetAuthorsResponse> {
+  /**
+   * One per account that could be named, in no particular order. An account
+   * the module knows nothing about is absent, and the caller decides what to
+   * show in its place.
+   *
+   * @generated from field: repeated player.v1.Author authors = 1;
+   */
+  authors: Author[] = [];
+
+  constructor(data?: PartialMessage<GetAuthorsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetAuthorsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "authors", kind: "message", T: Author, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAuthorsResponse {
+    return new GetAuthorsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAuthorsResponse {
+    return new GetAuthorsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAuthorsResponse {
+    return new GetAuthorsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAuthorsResponse | PlainMessage<GetAuthorsResponse> | undefined, b: GetAuthorsResponse | PlainMessage<GetAuthorsResponse> | undefined): boolean {
+    return proto3.util.equals(GetAuthorsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.Author
+ */
+export class Author extends Message<Author> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * The username, or "guest_" and the guest code, as on a chat message.
+   *
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * An admin of the game. False with no username.
+   *
+   * @generated from field: bool admin = 3;
+   */
+  admin = false;
+
+  constructor(data?: PartialMessage<Author>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.Author";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Author {
+    return new Author().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Author {
+    return new Author().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Author {
+    return new Author().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Author | PlainMessage<Author> | undefined, b: Author | PlainMessage<Author> | undefined): boolean {
+    return proto3.util.equals(Author, a, b);
+  }
+}
+

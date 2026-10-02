@@ -95,7 +95,7 @@ func TestANameNoAccountMayHoldIsNoProfileAndReadsNothing(t *testing.T) {
 	f := setUp(t)
 	f.store.FailWith(errors.New("postgres is down"))
 
-	for _, name := range []string{"", "guest_Ada", "a b", "Émile"} {
+	for _, name := range []string{"", "guest_Ada", "a  b", "Ada!"} {
 		_, err := f.useCase.Execute(t.Context(), name)
 
 		assert.ErrorIs(t, err, players.ErrNoProfile, "%q", name)

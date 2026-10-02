@@ -6,21 +6,46 @@
 import {GUEST_PREFIX} from "./chat.ts"
 
 export const MIN_USERNAME_LENGTH = 3
-export const MAX_USERNAME_LENGTH = 20
+export const MAX_USERNAME_LENGTH = 15
 
-const USERNAME_CHARACTERS = /^[A-Za-z0-9_]+$/
+const USERNAME_CHARACTERS = /^[\p{L}\p{Mn}\p{Mc}\p{Nd}_ ]+$/u
+const INVISIBLE = /[\p{Default_Ignorable_Code_Point}\p{Variation_Selector}]/u
+/** A mark after anything but a letter or a mark, or more than three in a row. */
+const STRAY_MARKS = /(^|[^\p{L}\p{M}])\p{M}|\p{M}{4}/u
+/** The scripts whose letters look alike. The server refuses every other mix too. */
+const LOOKALIKE_SCRIPTS = [/\p{Script=Latin}/u, /\p{Script=Greek}/u, /\p{Script=Cyrillic}/u]
 
 /**
- * Mirrors `player.v1.PlayerService/SetName`'s rule, for the input: 3 to 20
- * ASCII letters, digits or underscores, and not starting with the prefix the
- * chat puts before every guest's name. The server is the authority, and it
- * alone knows whether another account holds the name.
+ * The name as the server keeps it: in NFC, the spaces at its ends cut.
+ */
+export function usernameOf(typed: string): string {
+    return typed.normalize("NFC").replace(/^ +| +$/g, "")
+}
+
+/**
+ * Mirrors `player.v1.PlayerService/SetName`'s rule, for the input, on a name
+ * from `usernameOf`: 3 to 15 code points, letters of any script, marks after a
+ * letter, digits, underscores and single spaces, no Latin, Greek and Cyrillic
+ * letters mixed, and not starting with the prefix the chat puts before every
+ * guest's name. The server is the authority: it also refuses other mixes of
+ * scripts, and it alone knows whether another account holds the name.
  */
 export function isValidUsername(name: string): boolean {
-    return name.length >= MIN_USERNAME_LENGTH
-        && name.length <= MAX_USERNAME_LENGTH
+    const length = [...name].length
+    return length >= MIN_USERNAME_LENGTH
+        && length <= MAX_USERNAME_LENGTH
         && USERNAME_CHARACTERS.test(name)
-        && !name.toLowerCase().startsWith(GUEST_PREFIX)
+        && !INVISIBLE.test(name)
+        && !STRAY_MARKS.test(name)
+        && !name.includes("  ")
+        && name === usernameOf(name)
+        && LOOKALIKE_SCRIPTS.filter((script) => script.test(name)).length <= 1
+        && !folded(name).startsWith(GUEST_PREFIX)
+}
+
+/** Close to the server's case fold: enough to see the guest prefix under any case or width. */
+function folded(name: string): string {
+    return name.normalize("NFKC").toLowerCase()
 }
 
 export type Profile = {

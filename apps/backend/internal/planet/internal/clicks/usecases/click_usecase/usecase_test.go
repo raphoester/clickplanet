@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"testing"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
@@ -24,7 +23,17 @@ type testSuite struct {
 	useCase *click_usecase.UseCase
 }
 
-func (s *testSuite) SetupSuite() {
+// Poland's ground is tiles 100 to 199; every other tile is in no country.
+type grounds struct{}
+
+func (grounds) CountryOf(tile uint32) string {
+	if tile >= 100 && tile < 200 {
+		return "pl"
+	}
+	return ""
+}
+
+func (s *testSuite) SetupTest() {
 	const maxIndex = 250_000
 	s.storage = inmemory_tile_storage.New(
 		maxIndex,
@@ -34,7 +43,8 @@ func (s *testSuite) SetupSuite() {
 	)
 	tileChecker := clicks.NewBoard(maxIndex)
 	countryChecker := cpcountries.New()
-	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker)
+	homeSoil := clicks.NewHomeSoil(clicks.HomeSoilConfig{Enabled: true}, grounds{})
+	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker, homeSoil)
 }
 
 func (s *testSuite) execute(tileID uint32, countryID string) error {
@@ -42,22 +52,22 @@ func (s *testSuite) execute(tileID uint32, countryID string) error {
 	return err
 }
 
-func (s *testSuite) TestABoostedClickPublishesABoostedUpdate() {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
+func (s *testSuite) TestSpreadAndEncloseTogetherAreRefusedAndWriteNothing() {
+	_, err := s.useCase.Execute(context.Background(),
+		click_usecase.In{TileID: 77, CountryID: "fr", Spread: true, Enclose: true})
 
-	listener, err := s.storage.Subscribe(ctx)
-	s.Require().NoError(err)
+	s.ErrorIs(err, clicks.ErrBonusesTogether)
+	owner, _ := s.storage.Owner(77)
+	s.Empty(owner)
+}
 
-	_, err = s.useCase.Execute(context.Background(), click_usecase.In{TileID: 77, CountryID: "jp", Boosted: true})
-	s.Require().NoError(err)
-
-	select {
-	case <-ctx.Done():
-		s.T().Fatal("timeout")
-	case change := <-listener:
-		s.Require().NotNil(change.Update)
-		s.True(change.Update.Boosted)
+func (s *testSuite) TestOneBonusAtATimeIsAccepted() {
+	for _, in := range []click_usecase.In{
+		{TileID: 78, CountryID: "fr", Spread: true},
+		{TileID: 79, CountryID: "fr", Enclose: true},
+	} {
+		_, err := s.useCase.Execute(context.Background(), in)
+		s.NoError(err)
 	}
 }
 
@@ -79,4 +89,64 @@ func (s *testSuite) TestInvalidTile() {
 
 func (s *testSuite) TestTileOnLimit() {
 	s.NoError(s.execute(250_000, "fr"))
+}
+
+func (s *testSuite) click(tileID uint32, countryID string) click_usecase.Out {
+	out, err := s.useCase.Execute(context.Background(), click_usecase.In{TileID: tileID, CountryID: countryID})
+	s.Require().NoError(err)
+	return out
+}
+
+func (s *testSuite) owner(tile uint32) string {
+	owner, _ := s.storage.Owner(tile)
+	return owner
+}
+
+func (s *testSuite) TestAForeignClickOnANativeTileClearsIt() {
+	s.Equal(clicks.Taken, s.click(150, "pl").Outcome)
+
+	s.Equal(clicks.Cleared, s.click(150, "de").Outcome)
+	s.Empty(s.owner(150), "the first foreign click clears the tile, it does not take it")
+
+	s.Equal(clicks.Taken, s.click(150, "de").Outcome)
+	s.Equal("de", s.owner(150), "the next click takes the empty tile")
+}
+
+func (s *testSuite) TestNativesTakeBackTheirGroundInOneClick() {
+	s.click(151, "pl")
+	s.click(151, "de")
+	s.click(151, "de")
+	s.Require().Equal("de", s.owner(151))
+
+	s.Equal(clicks.Taken, s.click(151, "pl").Outcome)
+	s.Equal("pl", s.owner(151))
+}
+
+func (s *testSuite) TestNativesClickingTheirOwnTileChangeNothing() {
+	s.click(152, "pl")
+
+	s.Equal(clicks.Unchanged, s.click(152, "pl").Outcome)
+	s.Equal("pl", s.owner(152))
+}
+
+func (s *testSuite) TestForeignGroundIsTakenInOneClickAsAlways() {
+	s.click(300, "pl")
+
+	s.Equal(clicks.Taken, s.click(300, "de").Outcome)
+	s.Equal("de", s.owner(300))
+}
+
+func (s *testSuite) TestAClearReachesTheFeedAsAnUpdateWithNoCountry() {
+	s.click(153, "pl")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	feed, err := s.storage.Subscribe(ctx)
+	s.Require().NoError(err)
+
+	s.click(153, "de")
+
+	change := <-feed
+	s.Require().NotNil(change.Update, "a clear is an ordinary update, never a blast")
+	s.Equal(clicks.TileUpdate{Tile: 153, Value: "", Previous: "pl"}, *change.Update)
 }

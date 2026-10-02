@@ -9,19 +9,14 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 // ErrNoBomb covers never won, already dropped and held too long, for the reason ErrNoSuchBonus does.
 var ErrNoBomb = errors.New("no bomb to drop")
 
+// Bombs spends the bomb charge a caller holds, and says whether there was one.
 type Bombs interface {
-	Take(scope string) bool
-}
-
-// Schedule is told a bomb went off, so the next box is not held back by time it was not held.
-type Schedule interface {
-	Dropped(scope string)
+	SpendBomb(holder bonuses.Holder) bool
 }
 
 type Map interface {
@@ -45,10 +40,9 @@ type In struct {
 	Dud bool
 }
 
-func New(bombs Bombs, schedule Schedule, geography Map, clearer Clearer, countries CountryChecker, rules bonuses.BombRules) *UseCase {
+func New(bombs Bombs, geography Map, clearer Clearer, countries CountryChecker, rules bonuses.BombRules) *UseCase {
 	return &UseCase{
 		bombs:     bombs,
-		schedule:  schedule,
 		geography: geography,
 		clearer:   clearer,
 		countries: countries,
@@ -58,7 +52,6 @@ func New(bombs Bombs, schedule Schedule, geography Map, clearer Clearer, countri
 
 type UseCase struct {
 	bombs     Bombs
-	schedule  Schedule
 	geography Map
 	clearer   Clearer
 	countries CountryChecker
@@ -76,11 +69,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (clicks.Blast, error) {
 		return clicks.Blast{}, fmt.Errorf("%w: a target with no direction", clicks.ErrTileOutOfRange)
 	}
 
-	scope := cpctx.RateLimitKey(ctx)
-	if !u.bombs.Take(scope) {
+	if !u.bombs.SpendBomb(bonuses.HolderOf(clicks.PayerOf(ctx))) {
 		return clicks.Blast{}, ErrNoBomb
 	}
-	u.schedule.Dropped(scope)
 
 	if in.Dud {
 		return clicks.Blast{}, nil
