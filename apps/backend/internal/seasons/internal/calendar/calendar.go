@@ -68,3 +68,13 @@ func (c Calendar) Current(now time.Time) (Season, bool) {
 
 	return Season{}, false
 }
+
+func (c Calendar) Season(number Number) (Season, bool) {
+	for _, season := range c.seasons {
+		if season.Number == number {
+			return season, true
+		}
+	}
+
+	return Season{}, false
+}

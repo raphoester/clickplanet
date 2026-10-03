@@ -107,3 +107,18 @@ func TestAFinaleOfNothingIsRefused(t *testing.T) {
 	config.List[0].Finale = -time.Hour
 	require.ErrorContains(t, config.Validate(), "list[0].finale")
 }
+
+func TestASeasonIsFoundByItsNumberWhetherOrNotItIsOver(t *testing.T) {
+	seasons := calendar.New(twoSeasons())
+
+	season, ok := seasons.Season(0)
+	require.True(t, ok)
+	assert.Equal(t, seasonZeroEnds, season.EndsAt)
+
+	season, ok = seasons.Season(1)
+	require.True(t, ok)
+	assert.Equal(t, seasonOneEnds, season.EndsAt)
+
+	_, ok = seasons.Season(2)
+	assert.False(t, ok)
+}

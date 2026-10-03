@@ -670,8 +670,8 @@ is the player's own view.
 - `domain/seasonClock.ts` — `seasonClock`, the time left to the second
   (`27d 14h 05m 12s`, `13h 05m 12s`, `52m 10s`, nothing once over) and whether the finale runs, and `finaleWindow`,
   the finale's day and hours in the player's own time zone.
-- `domain/seasonCalendar.ts` — `finaleCalendar`, the `.ics` of the finale, built
-  from `GetSeason` so no date is typed twice.
+- `domain/seasonCalendar.ts` — `finaleLinks`, the ways to put the finale in a
+  calendar, built from `GetSeason` so no date is typed twice.
 - `app/season/` — `useSeason`, which drops the season at its end (a page open
   across it goes back to no season), `SeasonBanner` and `AddToCalendarButton`.
 
@@ -686,6 +686,24 @@ says "Final Battle ends in" and does not fold.
 (`useBottomEdge`, which `useDockBottom` is built on). The quiz, the bomb news and
 the native-land note sit under it, and on a phone so does the click budget dock.
 With no season the property is unset and they sit where they always did.
+
+**"Add to calendar" opens a list, and nothing is downloaded from the page.** It
+was a blob saved through `<a download>`, and a phone then saved a file nobody
+opens. Each calendar has its own way in:
+
+- **Google Calendar** and **Outlook** (outlook.live.com) are links to their own
+  new-event form, filled in from the query: the title, the times in UTC and the
+  link to `/play`. They open in a new tab.
+- **Apple Calendar** has no such link, so it is the server's file,
+  `GET /seasons/{number}/finale.ics` on the API, the URL `seasons.proto` gives
+  `GetFinaleCalendar` (`Season.finaleFile`, which
+  `seasonBackend.ts` builds from the base URL). It opens in the same tab: iOS
+  Safari shows a `text/calendar` answer as the "Add to Calendar" sheet, and a
+  desktop browser downloads it. The fake has no server, so fake mode lists only
+  the other two.
+
+The list closes on a pick, on Escape and on a press elsewhere. While it is open
+the banner is lifted over the quiz and the bomb news (`:has`), which sit under it.
 
 ### Sessions
 
@@ -2108,7 +2126,10 @@ Types are defined in the monorepo-shared [`/proto`](../../proto), one package pe
 bounded context, and generated to `src/gen/grpc/<package>/v1/` — `*_pb.ts` for
 the messages and `*_connect.ts` for the service client. `buf.gen.yaml` points at
 the whole `proto` directory, so a new package needs no config change; run
-`npm run proto` after changing a `.proto`.
+`npm run proto` after changing a `.proto`. `protoc-gen-es` runs with
+`include_imports`, so the `google/api` files a contract imports (from the
+googleapis dependency in `proto/buf.yaml`) are generated to
+`src/gen/grpc/google/api/` too.
 
 - [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) — `ClickRequest`,
   `ClickBudget`, `GetMapResponse`, `TileUpdate`
