@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package marketing.v1;
+
+service SubscriptionService {
+  rpc GetSubscription(GetSubscriptionRequest) returns (GetSubscriptionResponse);
+  rpc Subscribe(SubscribeRequest) returns (SubscribeResponse);
+  rpc Unsubscribe(UnsubscribeRequest) returns (UnsubscribeResponse);
+}
+
+enum SubscriptionState {
+  SUBSCRIPTION_STATE_UNSPECIFIED = 0;
+  SUBSCRIPTION_STATE_NONE = 1;
+  SUBSCRIPTION_STATE_WAITING = 2;
+  SUBSCRIPTION_STATE_ACTIVE = 3;
+}
+
+message GetSubscriptionRequest {}
+
+message GetSubscriptionResponse {
+  SubscriptionState state = 1;
+  string address = 2;
+}
+
+message SubscribeRequest {
+  string address = 1;
+}
+
+message SubscribeResponse {
+  SubscriptionState state = 1;
+}
+
+message UnsubscribeRequest {}
+
+message UnsubscribeResponse {}

@@ -60,6 +60,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 - **`internal/auth/`** — who a caller is and what it has to prove before it may click: Turnstile, accounts, the click token. See [Auth](#auth-internalauth).
 - **`internal/player/`** — what the game keeps about one account: the name it chose, the tiles it took, its daily streak. See [Player](#player-internalplayer).
 - **`internal/seasons/`** — the season calendar, above the game. See [Seasons](#seasons-internalseasons).
+- **`internal/marketing/`** — the players who agreed to hear from us, kept in step with the Brevo list. See [Marketing](#marketing-internalmarketing).
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
@@ -95,6 +96,7 @@ root package**:
 | `auth` | `Config`, `NewModule`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
 | `player` | `Config`, `NewModule` |
 | `seasons` | `Config`, `NewModule` |
+| `marketing` | `Config`, `NewModule`; behind the `testing` tag, `NewModuleWithFakeAudience` and the fake's types |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
@@ -200,9 +202,10 @@ return []bootstrap.Module{
 
 | caller | asks | for | through |
 |---|---|---|---|
-| `planet`, `player`, `chat` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | each its own `rpc_session_verifier` |
+| `planet`, `player`, `chat`, `marketing` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | each its own `rpc_session_verifier` |
 | `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` and each title award (`StatsChanged`) | `players/rpc_account_reader` |
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
+| `marketing` | `auth.v1.InternalService/GetAccount` | whether an account is linked and its verified addresses, on each season email call | `subscriptions/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory` | `messages/rpc_player_authors` |
 
@@ -245,7 +248,7 @@ The events today:
 |---|---|---|---|
 | `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile. A clear of native land is recorded and never published | `player`, for the stats |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
-| `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit |
+| `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `marketing`, which forgets the Brevo contact and the consent row |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account |
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
@@ -871,7 +874,7 @@ internal/auth/internal/
 - **Ids and tokens are injected** (`IDProvider`, `TokenGenerator`), like the clock. Tests use `accounts.SequentialIDs` and `SequentialTokens` (behind the tag), so they assert exact ids.
 - **`accounts.StoreContractSuite` is the port's behaviour**, like `clicks.TileStorageContractSuite`. Both stores embed it: postgres adds only what the port cannot show (the token is never stored, `last_seen_at`, an unverified email is `NULL`), and the use cases are tested over the in-memory one, which can `FailWith` an error.
 - **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and a sign-out has nothing to invalidate.
-- **`InternalService/GetAccount(account_id)`** answers `linked`: whether the account signed in with a provider (`Account.Linked`). An unknown account, or an id that is not one (`accounts.AccountIDOf`), is `linked` false and not an error; a store failure is. `player` asks it before it gives an account a username.
+- **`InternalService/GetAccount(account_id)`** answers `linked`: whether the account signed in with a provider (`Account.Linked`). An unknown account, or an id that is not one (`accounts.AccountIDOf`), is `linked` false and not an error; a store failure is. `player` asks it before it gives an account a username. It also answers `emails`, the account's verified addresses (`Account.Emails`): the email sign-in first, then Google, then Discord, each once ignoring case; `marketing` fills its field with the first.
 - **`InternalService/GetAccounts(account_ids)`** is a page of accounts at once, each with `linked` and `created_at_unix_ms`, in two queries (`Store.Accounts`: the accounts, then their identities, both `id = ANY(...)`), for the title reconciliation. An account it does not know is left out; an id that is not one is `InvalidArgument`, since a caller holding one has a bug. It is `NO_SIDE_EFFECTS`.
 - **`create_session_usecase` mints whether the account is linked** (`Session.Linked`, read by the store), so the token says it and `planet` gives a linked account its faster bucket.
 - **`planet` reads the account off the token**: the session interceptor puts it on the context (`cpctx.GetAccount`, and `cpctx.GetLinked`), and the throttle, the bans and the ledger key on it beside the scope — see [Two buckets per click](#two-buckets-per-click), [Anti-bot](#anti-bot-internalantibot) and [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
@@ -1058,6 +1061,37 @@ internal/seasons/internal/
 - **The boot is refused** when the numbers do not count up from 0, the ends do not go up, or a finale is not above 0 and shorter than its season.
 - **`GetSeason` is a GET** (`NO_SIDE_EFFECTS`), answered `public, max-age=60`. No current season is an empty answer.
 
+### Marketing (`internal/marketing/`)
+
+**The players who agreed to hear from us, kept in step with the Brevo list.** Auth knows addresses and player knows names; neither knows Brevo. The emails themselves are written and sent by hand in Brevo; Cloudflare Email Sending stays for sign-in codes, which are transactional. Off by default (`marketing.enabled`); off, `marketing.v1` 404s, which the client reads as no season emails.
+
+```
+internal/marketing/internal/
+  subscriptions/                     AccountID, Account (linked, verified addresses), Address (AddressOf, auth's rule copied),
+                                     Consent, Subscription, Status; the Store and Audience ports, the Store's contract suite,
+                                     FakeAudience (testing tag)
+    postgres_subscription_store/     marketing.subscriptions
+    inmemory_subscription_store/     the same port in a map, behind the testing tag
+    rpc_account_reader/              linked and verified addresses, from auth.v1.InternalService/GetAccount
+    brevo_audience/  log_audience/   the Brevo API, or the server log for a local backend
+    log_failing_audience/            logs a call Brevo refused, without the address
+    usecases/get_subscription_usecase/  subscribe_usecase/  unsubscribe_usecase/  forget_account_usecase/
+    usecases/withdraw_address_usecase/   an unsubscribe Brevo reports, for every row holding the address
+  marketingv1controller/             SubscriptionService and BrevoService (bags), the session, throttle and webhook interceptors
+  subscribers/account_deleted_subscriber/  log_subscriber/
+  migrations/
+```
+
+- **Every `SubscriptionService` call sits behind the session interceptor, always enforcing** (`marketing_session_checks{verdict}`), on a copy of `rpc_session_verifier`. `Subscribe` and `Unsubscribe` also spend a bucket per account (`marketing.rateLimiter`, 5 then one a minute), inside the session check, so a script cannot hammer Brevo or have it mail strangers.
+- **`GetSubscription`** answers the state (`NONE`, `WAITING`, `ACTIVE`) and one address: the waiting or subscribed one, else the account's first verified address, empty with none. A waiting row is asked about on each read (`Audience.Joined`) and saved active once Brevo says the address joined; a Brevo that cannot answer leaves it waiting. `no-store`.
+- **`Subscribe(address)`** reads one bare address (`subscriptions.AddressOf`; `InvalidArgument`), refuses a guest (`PermissionDenied`, `ErrNotLinked`) and another address while one is waiting or subscribed (`FailedPrecondition`). An address auth verified for the account joins at once: `Audience.Join`, then the row as active; if the save fails, `Audience.Forget`. Any other address is invited: `Audience.Invite` (Brevo sends the confirmation), then the row as waiting. A Brevo failure saves nothing and answers `Unavailable`. No flag or country is sent or kept.
+- **`Unsubscribe`** is `Audience.Leave` (the contact blacklisted, as Brevo's own link does), then the row as withdrawn.
+- **The consent record is `marketing.subscriptions`**: `account_id` (key), `address`, `state` (`waiting`, `active`, `withdrawn`), `consent` (`season-emails-1`, the version of the button's words, which a frontend test pins), `asked_at`, `withdrawn_at`. A withdrawal keeps the row, as proof of what the player agreed to and when; a new opt-in replaces it. **Only `auth.v1.AccountDeleted` deletes it** (`forget_account_usecase`: `Audience.Forget`, then the row). The address is kept in the row because auth has already deleted it by then.
+- **Unsubscribes from an email reach the game as a Connect RPC**, `marketing.v1.BrevoService/Unsubscribed`: Brevo posts plain JSON, which connect-go takes with no Connect header, dropping the fields the message does not name. `NewWebhookInterceptor` checks `Authorization: Bearer <marketing.webhookSecret>` in constant time (`Unauthenticated` otherwise, and always while the secret is empty). An `unsubscribe` event withdraws every live row holding the address; any other event is answered and ignored. The webhook must be unbatched: a batch is a JSON array, which no proto message reads.
+- **`brevo_audience`** is five calls with the `api-key` header and a 5s timeout: `POST /v3/contacts` (join), `POST /v3/contacts/doubleOptinConfirmation` (invite, with `doiTemplateId` and the redirect to `/play`), `GET`, `PUT` and `DELETE /v3/contacts/{email}?identifierType=email_id` (joined, leave, forget; a 404 is no, or a success). Its errors name the call, never the address. `log_audience` (`marketing.audience.delivery: log`) writes each call to the log at Warn and answers every `Joined` yes, as `log_mailer` does for codes.
+- `subscriptions.StoreContractSuite` runs on both stores; the use cases run over the in-memory store and `FakeAudience`, whose `Confirm` makes `Joined` answer yes. `e2e/marketing_test.go` links an account with the fake providers, subscribes, deletes the account and sees the contact forgotten and the row gone.
+
+### Bonus boxes (`internal/planet/internal/bonuses/`)
 
 A question-mark box flies past the planet every so often; whoever catches it
 gets one of four bonuses. Each box draws its kind from `bonus.kinds`, a weight
@@ -2586,6 +2620,12 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `player.tagSalt` — salts the hash of an address the roster caps its visits with. It is never shown, so empty, which generates one at boot, costs nothing. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
 - `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
+- `marketing.enabled` — off registers nothing, so `marketing.v1` 404s
+- `marketing.database.*` — the consent records, same shape as `database`, schema `marketing`; required when `marketing.enabled`
+- `marketing.audience.delivery` — `brevo`, or `log` for a local backend; anything else refuses the boot while marketing is on
+- `marketing.audience.brevo.apiKey`, `listId`, `doiTemplateId` — the key (`env://BREVO_API_KEY` in `deploy/vps/backend.yaml`), the list the season emails go to, and the double opt-in template; any of them unset, with `delivery: brevo`, refuses the boot
+- `marketing.webhookSecret` — the token Brevo's unsubscribe webhook sends (`env://BREVO_WEBHOOK_SECRET`); empty refuses the boot while marketing is on
+- `marketing.rateLimiter.*` — the per-account throttle on `Subscribe` and `Unsubscribe`, same shape as `rateLimiter` (default 5, then one a minute)
 
 ### Protobuf
 
@@ -2599,7 +2639,7 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
-**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused.
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused; `marketing_test.go` boots auth (with fake providers) and marketing (with a fake audience), sees a guest refused, links an account with a verified address, subscribes it, and deletes the account to see the contact forgotten and the row gone.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 

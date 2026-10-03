@@ -21,6 +21,7 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 - `proto/session/v1/session.proto` — the deprecated mint (`SessionService`), served by the same auth module until no client calls it
 - `proto/player/v1/player.proto` — a player's name, color, stats and titles, and who is playing (`PlayerService`); the colors themselves are `NameColor` in `color.proto`, which `chat.proto` imports too
 - `proto/seasons/v1/seasons.proto` — when the current season ends and its finale starts (`SeasonService`)
+- `proto/marketing/v1/marketing.proto` — season emails (`SubscriptionService`): who agreed to hear from us, kept in step with the Brevo list; `brevo.proto` is the webhook Brevo calls when somebody unsubscribes from an email (`BrevoService`)
 
 Beside them, `internal.proto` is what one backend module asks another (`auth.v1`, `player.v1`), and `events.proto` is what one tells the others in process (`planet.v1.TileTaken`, `auth.v1.AccountDeleted`). Neither is on the public router; the frontend generates both without using them.
 

@@ -16,6 +16,7 @@
 			wrap json
 			request>headers>X-Session-Token replace REDACTED
 			request>headers>Cookie replace REDACTED
+			request>headers>Authorization replace REDACTED
 			resp_headers>Set-Cookie replace REDACTED
 		}
 	}
@@ -80,6 +81,18 @@
 		}
 	}
 
+	handle /marketing.v1.SubscriptionService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
+	handle /marketing.v1.BrevoService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
 	handle {
 		respond "not found" 404
 	}
@@ -94,6 +107,7 @@
 			wrap json
 			request>headers>X-Session-Token replace REDACTED
 			request>headers>Cookie replace REDACTED
+			request>headers>Authorization replace REDACTED
 			resp_headers>Set-Cookie replace REDACTED
 		}
 	}
@@ -104,6 +118,7 @@
 			wrap console
 			request>headers>X-Session-Token replace REDACTED
 			request>headers>Cookie replace REDACTED
+			request>headers>Authorization replace REDACTED
 			resp_headers>Set-Cookie replace REDACTED
 		}
 	}

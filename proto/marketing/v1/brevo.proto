@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package marketing.v1;
+
+// Brevo's webhook posts plain JSON here; the fields it sends and these do not name are dropped.
+service BrevoService {
+  rpc Unsubscribed(UnsubscribedRequest) returns (UnsubscribedResponse);
+}
+
+message UnsubscribedRequest {
+  string event = 1;
+  string email = 2;
+}
+
+message UnsubscribedResponse {}

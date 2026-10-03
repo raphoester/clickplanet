@@ -296,3 +296,30 @@ seasons:
 	err := cpconfigs.Load(&config, cpconfigs.FromFile(path))
 	require.ErrorContains(t, err, "seasons: list[0].number is 1")
 }
+
+func TestTheExampleConfigReachesTheMarketingBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.False(t, config.Marketing.Enabled, "the example ships without auth, and season emails need an account")
+	assert.Equal(t, "marketing", config.Marketing.Database.Schema)
+	assert.Equal(t, "log", config.Marketing.Audience.Delivery)
+	assert.Equal(t, "local-webhook-secret", config.Marketing.WebhookSecret)
+	assert.Equal(t, 5, config.Marketing.RateLimiter.Burst)
+
+	config.Marketing.Enabled = true
+	require.NoError(t, config.Marketing.Validate())
+}
+
+func TestTheBrevoSettingsReachTheMarketingBlock(t *testing.T) {
+	t.Setenv("marketing.audience.brevo.apiKey", "the-api-key")
+	t.Setenv("marketing.audience.brevo.listId", "7")
+	t.Setenv("marketing.audience.brevo.doiTemplateId", "12")
+
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "the-api-key", config.Marketing.Audience.Brevo.APIKey)
+	assert.Equal(t, int64(7), config.Marketing.Audience.Brevo.ListID)
+	assert.Equal(t, int64(12), config.Marketing.Audience.Brevo.DOITemplateID)
+}

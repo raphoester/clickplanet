@@ -343,3 +343,26 @@ seasons:
     - number: 0
       endsAt: 2026-10-31T23:00:00Z
       finale: 2h
+
+marketing:
+  enabled: false
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: marketing
+    pool:
+      maxOpenConns: 2
+  audience:
+    delivery: log
+    brevo:
+      apiKey: ""
+      listId: 0
+      doiTemplateId: 0
+  webhookSecret: local-webhook-secret
+  rateLimiter:
+    perSecond: 0.0167
+    burst: 5

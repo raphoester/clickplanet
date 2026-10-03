@@ -431,6 +431,61 @@ run. It needs the Workers Paid plan: 3,000 emails a month are included.
 4. Set `auth.email.enabled: true` and deploy. An empty token refuses the
    boot.
 
+### Season emails (Brevo)
+
+Off in `backend.yaml` (`marketing.enabled: false`). Signed-in players ask for an
+email before the finale; the emails are written and sent by hand in Brevo. The
+backend keeps the consent record and the Brevo list in step. Cloudflare Email
+Sending stays for sign-in codes only.
+
+`backend.yaml` already names both secrets (`env://BREVO_API_KEY`,
+`env://BREVO_WEBHOOK_SECRET`). A secret missing from the Actions secrets is
+rendered as an empty line, which loads, so the boot is safe while marketing is
+off; turned on with either empty, the boot is refused.
+
+1. Open a Brevo account and sign its data processing agreement.
+2. Add the sending domain `news.clickplanet.lol`, with its DKIM and DMARC
+   records in Cloudflare DNS, so a complaint about season emails cannot hurt
+   the sign-in codes.
+3. Create the list "Season emails". Its id goes in
+   `marketing.audience.brevo.listId`.
+4. Create the double opt-in template, with Brevo's `{{ doubleoptin }}` link.
+   Its id goes in `marketing.audience.brevo.doiTemplateId`. Brevo sends it to
+   an address the player typed and the account has not verified.
+5. Create the automation "contact added to the list" that sends the welcome
+   email: the finale date, an "Add to calendar" link, and Brevo's unsubscribe
+   footer.
+6. Create an API key, and a webhook secret, and put both in the Actions secrets:
+
+   ```bash
+   read -rsp 'Brevo API key: ' s && echo && printf '%s' "$s" | gh secret set BREVO_API_KEY --repo raphoester/clickplanet && unset s
+   openssl rand -hex 32 | tee /dev/tty | tr -d '\n' | gh secret set BREVO_WEBHOOK_SECRET --repo raphoester/clickplanet
+   ```
+
+   Keep the webhook secret it prints for the next step, and in the password
+   manager.
+7. Create the unsubscribe webhook, unbatched (a batch is a JSON array the
+   backend cannot read), with the secret as its bearer token. The API takes the
+   token; the backend refuses a call without `Authorization: Bearer <secret>`.
+   With both values in your shell:
+
+   ```bash
+   curl -s https://api.brevo.com/v3/webhooks -H "api-key: $BREVO_API_KEY" -H 'content-type: application/json' \
+     -d '{"type":"marketing","events":["unsubscribed"],"batched":false,
+          "url":"https://api.clickplanet.lol/marketing.v1.BrevoService/Unsubscribed",
+          "auth":{"type":"bearer","token":"'"$BREVO_WEBHOOK_SECRET"'"},
+          "description":"ClickPlanet season emails: unsubscribes"}'
+   ```
+
+8. Set `marketing.enabled: true`, `listId` and `doiTemplateId`, and deploy.
+   Opt in with your own account: the contact is on the list and the welcome
+   email arrives. Unsubscribe from that email, and the row reads `withdrawn`:
+
+   ```bash
+   docker compose exec postgres psql -U clickplanet -c \
+     "SELECT state, count(*) FROM marketing.subscriptions GROUP BY state"
+   ```
+
 ## 6. Watching for bots
 
 Sessions raise the floor to "drive a real browser". What gets through that is a

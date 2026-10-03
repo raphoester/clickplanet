@@ -322,3 +322,26 @@ seasons:
     - number: 0
       endsAt: 2026-10-31T23:00:00Z
       finale: 2h
+
+marketing:
+  enabled: false
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: marketing
+    pool:
+      maxOpenConns: 2
+  audience:
+    delivery: brevo
+    brevo:
+      apiKey: env://BREVO_API_KEY
+      listId: 0
+      doiTemplateId: 0
+  webhookSecret: env://BREVO_WEBHOOK_SECRET
+  rateLimiter:
+    perSecond: 0.0167
+    burst: 5
