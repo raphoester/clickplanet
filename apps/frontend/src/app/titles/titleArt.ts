@@ -21,6 +21,10 @@ const TITLE_METALS: Partial<Record<string, Metal>> = {
     loyal: "bronze",
     devoted: "gold",
     unbroken: "prism",
+    talker: "bronze",
+    chatterbox: "silver",
+    socialite: "gold",
+    icon: "prism",
 }
 
 export function metalOf(title: PlayerTitle): Metal {
@@ -29,6 +33,7 @@ export function metalOf(title: PlayerTitle): Metal {
 
 export function enamelOf(title: PlayerTitle): string {
     if (title.rank?.trackId === "devotion") return "#3A1606"
+    if (title.rank?.trackId === "chatter") return "#0B2E2B"
     if (title.rank) return "#14223D"
     return "#1F1238"
 }
@@ -62,6 +67,10 @@ const TRACK_UNITS: Partial<Record<string, {step: (n: string) => string, left: (n
     devotion: {
         step: (n) => `${n} days in a row`,
         left: (n, next, progress) => `Day ${progress} · ${n} more to ${next}`,
+    },
+    chatter: {
+        step: (n) => `${n} messages`,
+        left: (n, next) => `${n} messages to ${next}`,
     },
 }
 

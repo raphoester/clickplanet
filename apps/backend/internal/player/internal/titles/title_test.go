@@ -36,7 +36,7 @@ func TestTheCatalogNamesTheTitlesStatsEarnInItsOrder(t *testing.T) {
 }
 
 func TestAGuestEarnsNothing(t *testing.T) {
-	guest := titles.Career{Stats: players.Stats{TilesTaken: 1_000_000, StreakBest: 1_000}}
+	guest := titles.Career{Stats: players.Stats{TilesTaken: 1_000_000, StreakBest: 1_000, MessagesSent: 1_000_000}}
 
 	assert.Empty(t, catalog.EarnedBy(guest))
 	assert.Empty(t, titles.NewCatalog().EarnedBy(guest))

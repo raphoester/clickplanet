@@ -219,7 +219,7 @@
 
 @media only screen and (max-width: 768px) {
     .click-budget-dock {
-        top: 66px;
+        top: calc(var(--season-banner-bottom, 58px) + 8px);
         left: 16px;
         right: auto;
         z-index: 127;

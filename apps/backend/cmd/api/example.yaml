@@ -337,3 +337,9 @@ player:
     pool:
       maxOpenConns: 2
   tagSalt: ""
+
+seasons:
+  list:
+    - number: 0
+      endsAt: 2026-10-31T23:00:00Z
+      finale: 2h
