@@ -6,11 +6,12 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Authors interface {
-	Execute(ctx context.Context, account players.AccountID) (players.Author, error)
+	Execute(ctx context.Context, account players.AccountID) (wearing.Author, error)
 }
 
 type Visits interface {

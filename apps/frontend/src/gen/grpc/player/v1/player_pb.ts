@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { NameColor } from "./color_pb.js";
+import { Title } from "./title_pb.js";
 
 /**
  * @generated from message player.v1.Profile
@@ -632,6 +633,11 @@ export class RosterEntry extends Message<RosterEntry> {
    */
   streak = 0;
 
+  /**
+   * @generated from field: player.v1.Title worn_title = 9;
+   */
+  wornTitle?: Title;
+
   constructor(data?: PartialMessage<RosterEntry>) {
     super();
     proto3.util.initPartial(data, this);
@@ -647,6 +653,7 @@ export class RosterEntry extends Message<RosterEntry> {
     { no: 6, name: "key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 8, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "worn_title", kind: "message", T: Title },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RosterEntry {
@@ -1017,110 +1024,6 @@ export class Player extends Message<Player> {
 
   static equals(a: Player | PlainMessage<Player> | undefined, b: Player | PlainMessage<Player> | undefined): boolean {
     return proto3.util.equals(Player, a, b);
-  }
-}
-
-/**
- * @generated from message player.v1.Title
- */
-export class Title extends Message<Title> {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * @generated from field: string name = 2;
-   */
-  name = "";
-
-  /**
-   * @generated from field: player.v1.Rank rank = 3;
-   */
-  rank?: Rank;
-
-  constructor(data?: PartialMessage<Title>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "player.v1.Title";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "rank", kind: "message", T: Rank },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Title {
-    return new Title().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Title {
-    return new Title().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Title {
-    return new Title().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: Title | PlainMessage<Title> | undefined, b: Title | PlainMessage<Title> | undefined): boolean {
-    return proto3.util.equals(Title, a, b);
-  }
-}
-
-/**
- * @generated from message player.v1.Rank
- */
-export class Rank extends Message<Rank> {
-  /**
-   * @generated from field: string track_id = 1;
-   */
-  trackId = "";
-
-  /**
-   * @generated from field: string track_name = 2;
-   */
-  trackName = "";
-
-  /**
-   * @generated from field: uint32 number = 3;
-   */
-  number = 0;
-
-  /**
-   * @generated from field: uint32 count = 4;
-   */
-  count = 0;
-
-  constructor(data?: PartialMessage<Rank>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "player.v1.Rank";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "track_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "track_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 4, name: "count", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rank {
-    return new Rank().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Rank {
-    return new Rank().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Rank {
-    return new Rank().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: Rank | PlainMessage<Rank> | undefined, b: Rank | PlainMessage<Rank> | undefined): boolean {
-    return proto3.util.equals(Rank, a, b);
   }
 }
 

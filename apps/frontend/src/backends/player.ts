@@ -1,7 +1,9 @@
 import {NameColor} from "../gen/grpc/player/v1/color_pb.ts"
 import {GUEST_PREFIX} from "./chat.ts"
+import {PlayerTitle} from "./title.ts"
 
 export {NameColor}
+export type {PlayerTitle, TitleRank} from "./title.ts"
 
 export const MIN_USERNAME_LENGTH = 3
 export const MAX_USERNAME_LENGTH = 15
@@ -83,6 +85,7 @@ export type PlayerLine = {
     admin: boolean
     color: NameColor
     streak: number
+    wornTitle?: PlayerTitle
 }
 
 export type RosterEntry = PlayerLine & {
@@ -106,19 +109,6 @@ export interface PresenceBackend {
         onUnavailable: () => void,
         onTitleEarned: (title: PlayerTitle) => void,
     ): () => void
-}
-
-export type TitleRank = {
-    trackId: string
-    trackName: string
-    number: number
-    count: number
-}
-
-export type PlayerTitle = {
-    id: string
-    name: string
-    rank?: TitleRank
 }
 
 export type TitleStep = {

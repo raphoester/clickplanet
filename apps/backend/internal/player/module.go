@@ -71,6 +71,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/postgres_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/usecases/forget_worn_title_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/usecases/wear_title_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/usecases/wear_title_usecase/dressing_wear_title"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -121,9 +122,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	store := postgres_player_store.New(db)
 
-	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}), clock)
-	manyAuthors := get_authors_usecase.New(store, clock)
-
 	accounts := rpc_account_reader.New(props.Internal)
 	titleStore := postgres_title_store.New(db)
 	catalog := titles.NewCatalog()
@@ -131,6 +129,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	titleFeed := inprocess_title_feed.New()
 	wornTitleStore := postgres_worn_title_store.New(db)
 	wardrobe := wearing.NewWardrobe(wornTitleStore, titleBook, catalog)
+
+	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}), wardrobe, clock)
+	manyAuthors := get_authors_usecase.New(store, wardrobe, clock)
 
 	visits := inmemory_visit_storage.New(clock)
 	props.Runners.Add(visits)
@@ -222,7 +223,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		),
 		GetPlayerHandler: get_player_handler.New(get_player_usecase.New(store, store, wardrobe, accounts, clock)),
 		GetTitlesHandler: get_titles_handler.New(get_titles_usecase.New(store, titleBook, wardrobe, clock)),
-		WearTitleHandler: wear_title_handler.New(wear_title_usecase.New(wardrobe, clock)),
+		WearTitleHandler: wear_title_handler.New(dressing_wear_title.New(wear_title_usecase.New(wardrobe, clock), visits)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)

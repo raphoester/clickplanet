@@ -726,6 +726,7 @@ type RosterEntry struct {
 	Key           string                 `protobuf:"bytes,6,opt,name=key,proto3" json:"key,omitempty"`
 	Color         NameColor              `protobuf:"varint,7,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
 	Streak        uint32                 `protobuf:"varint,8,opt,name=streak,proto3" json:"streak,omitempty"`
+	WornTitle     *Title                 `protobuf:"bytes,9,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -807,6 +808,13 @@ func (x *RosterEntry) GetStreak() uint32 {
 		return x.Streak
 	}
 	return 0
+}
+
+func (x *RosterEntry) GetWornTitle() *Title {
+	if x != nil {
+		return x.WornTitle
+	}
+	return nil
 }
 
 type ListenForEventsRequest struct {
@@ -1279,134 +1287,6 @@ func (x *Player) GetWornTitle() *Title {
 	return nil
 }
 
-type Title struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Rank          *Rank                  `protobuf:"bytes,3,opt,name=rank,proto3" json:"rank,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Title) Reset() {
-	*x = Title{}
-	mi := &file_player_v1_player_proto_msgTypes[25]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Title) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Title) ProtoMessage() {}
-
-func (x *Title) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[25]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Title.ProtoReflect.Descriptor instead.
-func (*Title) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{25}
-}
-
-func (x *Title) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *Title) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *Title) GetRank() *Rank {
-	if x != nil {
-		return x.Rank
-	}
-	return nil
-}
-
-type Rank struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TrackId       string                 `protobuf:"bytes,1,opt,name=track_id,json=trackId,proto3" json:"track_id,omitempty"`
-	TrackName     string                 `protobuf:"bytes,2,opt,name=track_name,json=trackName,proto3" json:"track_name,omitempty"`
-	Number        uint32                 `protobuf:"varint,3,opt,name=number,proto3" json:"number,omitempty"`
-	Count         uint32                 `protobuf:"varint,4,opt,name=count,proto3" json:"count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Rank) Reset() {
-	*x = Rank{}
-	mi := &file_player_v1_player_proto_msgTypes[26]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Rank) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Rank) ProtoMessage() {}
-
-func (x *Rank) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[26]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Rank.ProtoReflect.Descriptor instead.
-func (*Rank) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{26}
-}
-
-func (x *Rank) GetTrackId() string {
-	if x != nil {
-		return x.TrackId
-	}
-	return ""
-}
-
-func (x *Rank) GetTrackName() string {
-	if x != nil {
-		return x.TrackName
-	}
-	return ""
-}
-
-func (x *Rank) GetNumber() uint32 {
-	if x != nil {
-		return x.Number
-	}
-	return 0
-}
-
-func (x *Rank) GetCount() uint32 {
-	if x != nil {
-		return x.Count
-	}
-	return 0
-}
-
 type TitleEarned struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Title         *Title                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
@@ -1416,7 +1296,7 @@ type TitleEarned struct {
 
 func (x *TitleEarned) Reset() {
 	*x = TitleEarned{}
-	mi := &file_player_v1_player_proto_msgTypes[27]
+	mi := &file_player_v1_player_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1428,7 +1308,7 @@ func (x *TitleEarned) String() string {
 func (*TitleEarned) ProtoMessage() {}
 
 func (x *TitleEarned) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[27]
+	mi := &file_player_v1_player_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1441,7 +1321,7 @@ func (x *TitleEarned) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TitleEarned.ProtoReflect.Descriptor instead.
 func (*TitleEarned) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{27}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *TitleEarned) GetTitle() *Title {
@@ -1459,7 +1339,7 @@ type GetTitlesRequest struct {
 
 func (x *GetTitlesRequest) Reset() {
 	*x = GetTitlesRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[28]
+	mi := &file_player_v1_player_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1471,7 +1351,7 @@ func (x *GetTitlesRequest) String() string {
 func (*GetTitlesRequest) ProtoMessage() {}
 
 func (x *GetTitlesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[28]
+	mi := &file_player_v1_player_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1484,7 +1364,7 @@ func (x *GetTitlesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTitlesRequest.ProtoReflect.Descriptor instead.
 func (*GetTitlesRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{28}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{26}
 }
 
 type GetTitlesResponse struct {
@@ -1498,7 +1378,7 @@ type GetTitlesResponse struct {
 
 func (x *GetTitlesResponse) Reset() {
 	*x = GetTitlesResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[29]
+	mi := &file_player_v1_player_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1510,7 +1390,7 @@ func (x *GetTitlesResponse) String() string {
 func (*GetTitlesResponse) ProtoMessage() {}
 
 func (x *GetTitlesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[29]
+	mi := &file_player_v1_player_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1523,7 +1403,7 @@ func (x *GetTitlesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTitlesResponse.ProtoReflect.Descriptor instead.
 func (*GetTitlesResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{29}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GetTitlesResponse) GetWorn() *Title {
@@ -1559,7 +1439,7 @@ type Track struct {
 
 func (x *Track) Reset() {
 	*x = Track{}
-	mi := &file_player_v1_player_proto_msgTypes[30]
+	mi := &file_player_v1_player_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1571,7 +1451,7 @@ func (x *Track) String() string {
 func (*Track) ProtoMessage() {}
 
 func (x *Track) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[30]
+	mi := &file_player_v1_player_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1584,7 +1464,7 @@ func (x *Track) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Track.ProtoReflect.Descriptor instead.
 func (*Track) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{30}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *Track) GetId() string {
@@ -1626,7 +1506,7 @@ type Step struct {
 
 func (x *Step) Reset() {
 	*x = Step{}
-	mi := &file_player_v1_player_proto_msgTypes[31]
+	mi := &file_player_v1_player_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1638,7 +1518,7 @@ func (x *Step) String() string {
 func (*Step) ProtoMessage() {}
 
 func (x *Step) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[31]
+	mi := &file_player_v1_player_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1651,7 +1531,7 @@ func (x *Step) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Step.ProtoReflect.Descriptor instead.
 func (*Step) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{31}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *Step) GetTitle() *Title {
@@ -1684,7 +1564,7 @@ type WearTitleRequest struct {
 
 func (x *WearTitleRequest) Reset() {
 	*x = WearTitleRequest{}
-	mi := &file_player_v1_player_proto_msgTypes[32]
+	mi := &file_player_v1_player_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1696,7 +1576,7 @@ func (x *WearTitleRequest) String() string {
 func (*WearTitleRequest) ProtoMessage() {}
 
 func (x *WearTitleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[32]
+	mi := &file_player_v1_player_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1709,7 +1589,7 @@ func (x *WearTitleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WearTitleRequest.ProtoReflect.Descriptor instead.
 func (*WearTitleRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{32}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *WearTitleRequest) GetTitleId() string {
@@ -1728,7 +1608,7 @@ type WearTitleResponse struct {
 
 func (x *WearTitleResponse) Reset() {
 	*x = WearTitleResponse{}
-	mi := &file_player_v1_player_proto_msgTypes[33]
+	mi := &file_player_v1_player_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1740,7 +1620,7 @@ func (x *WearTitleResponse) String() string {
 func (*WearTitleResponse) ProtoMessage() {}
 
 func (x *WearTitleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_player_proto_msgTypes[33]
+	mi := &file_player_v1_player_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1753,7 +1633,7 @@ func (x *WearTitleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WearTitleResponse.ProtoReflect.Descriptor instead.
 func (*WearTitleResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_player_proto_rawDescGZIP(), []int{33}
+	return file_player_v1_player_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *WearTitleResponse) GetWorn() *Title {
@@ -1767,7 +1647,7 @@ var File_player_v1_player_proto protoreflect.FileDescriptor
 
 const file_player_v1_player_proto_rawDesc = "" +
 	"\n" +
-	"\x16player/v1/player.proto\x12\tplayer.v1\x1a\x15player/v1/color.proto\"<\n" +
+	"\x16player/v1/player.proto\x12\tplayer.v1\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\"<\n" +
 	"\aProfile\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x12\n" +
@@ -1803,7 +1683,7 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\rLeaveResponse\"\x12\n" +
 	"\x10GetRosterRequest\"E\n" +
 	"\x11GetRosterResponse\x120\n" +
-	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"\xcd\x01\n" +
+	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"\xfe\x01\n" +
 	"\vRosterEntry\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
@@ -1812,7 +1692,9 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x05admin\x18\x05 \x01(\bR\x05admin\x12\x10\n" +
 	"\x03key\x18\x06 \x01(\tR\x03key\x12*\n" +
 	"\x05color\x18\a \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12\x16\n" +
-	"\x06streak\x18\b \x01(\rR\x06streakJ\x04\b\x02\x10\x03R\x03tag\"\x18\n" +
+	"\x06streak\x18\b \x01(\rR\x06streak\x12/\n" +
+	"\n" +
+	"worn_title\x18\t \x01(\v2\x10.player.v1.TitleR\twornTitleJ\x04\b\x02\x10\x03R\x03tag\"\x18\n" +
 	"\x16ListenForEventsRequest\"\x93\x02\n" +
 	"\vPlayerEvent\x12+\n" +
 	"\x06roster\x18\x01 \x01(\v2\x11.player.v1.RosterH\x00R\x06roster\x12.\n" +
@@ -1839,17 +1721,7 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x05color\x18\x05 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12(\n" +
 	"\x06titles\x18\x06 \x03(\v2\x10.player.v1.TitleR\x06titles\x12/\n" +
 	"\n" +
-	"worn_title\x18\a \x01(\v2\x10.player.v1.TitleR\twornTitle\"P\n" +
-	"\x05Title\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
-	"\x04rank\x18\x03 \x01(\v2\x0f.player.v1.RankR\x04rank\"n\n" +
-	"\x04Rank\x12\x19\n" +
-	"\btrack_id\x18\x01 \x01(\tR\atrackId\x12\x1d\n" +
-	"\n" +
-	"track_name\x18\x02 \x01(\tR\ttrackName\x12\x16\n" +
-	"\x06number\x18\x03 \x01(\rR\x06number\x12\x14\n" +
-	"\x05count\x18\x04 \x01(\rR\x05count\"5\n" +
+	"worn_title\x18\a \x01(\v2\x10.player.v1.TitleR\twornTitle\"5\n" +
 	"\vTitleEarned\x12&\n" +
 	"\x05title\x18\x01 \x01(\v2\x10.player.v1.TitleR\x05title\"\x12\n" +
 	"\x10GetTitlesRequest\"\x91\x01\n" +
@@ -1898,7 +1770,7 @@ func file_player_v1_player_proto_rawDescGZIP() []byte {
 	return file_player_v1_player_proto_rawDescData
 }
 
-var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_player_v1_player_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
 var file_player_v1_player_proto_goTypes = []any{
 	(*Profile)(nil),                // 0: player.v1.Profile
 	(*GetProfileRequest)(nil),      // 1: player.v1.GetProfileRequest
@@ -1925,45 +1797,44 @@ var file_player_v1_player_proto_goTypes = []any{
 	(*GetPlayerRequest)(nil),       // 22: player.v1.GetPlayerRequest
 	(*GetPlayerResponse)(nil),      // 23: player.v1.GetPlayerResponse
 	(*Player)(nil),                 // 24: player.v1.Player
-	(*Title)(nil),                  // 25: player.v1.Title
-	(*Rank)(nil),                   // 26: player.v1.Rank
-	(*TitleEarned)(nil),            // 27: player.v1.TitleEarned
-	(*GetTitlesRequest)(nil),       // 28: player.v1.GetTitlesRequest
-	(*GetTitlesResponse)(nil),      // 29: player.v1.GetTitlesResponse
-	(*Track)(nil),                  // 30: player.v1.Track
-	(*Step)(nil),                   // 31: player.v1.Step
-	(*WearTitleRequest)(nil),       // 32: player.v1.WearTitleRequest
-	(*WearTitleResponse)(nil),      // 33: player.v1.WearTitleResponse
-	(NameColor)(0),                 // 34: player.v1.NameColor
+	(*TitleEarned)(nil),            // 25: player.v1.TitleEarned
+	(*GetTitlesRequest)(nil),       // 26: player.v1.GetTitlesRequest
+	(*GetTitlesResponse)(nil),      // 27: player.v1.GetTitlesResponse
+	(*Track)(nil),                  // 28: player.v1.Track
+	(*Step)(nil),                   // 29: player.v1.Step
+	(*WearTitleRequest)(nil),       // 30: player.v1.WearTitleRequest
+	(*WearTitleResponse)(nil),      // 31: player.v1.WearTitleResponse
+	(NameColor)(0),                 // 32: player.v1.NameColor
+	(*Title)(nil),                  // 33: player.v1.Title
 }
 var file_player_v1_player_proto_depIdxs = []int32{
 	0,  // 0: player.v1.GetProfileResponse.profile:type_name -> player.v1.Profile
-	34, // 1: player.v1.GetProfileResponse.color:type_name -> player.v1.NameColor
+	32, // 1: player.v1.GetProfileResponse.color:type_name -> player.v1.NameColor
 	0,  // 2: player.v1.SetNameResponse.profile:type_name -> player.v1.Profile
-	34, // 3: player.v1.SetColorRequest.color:type_name -> player.v1.NameColor
-	34, // 4: player.v1.SetColorResponse.color:type_name -> player.v1.NameColor
+	32, // 3: player.v1.SetColorRequest.color:type_name -> player.v1.NameColor
+	32, // 4: player.v1.SetColorResponse.color:type_name -> player.v1.NameColor
 	7,  // 5: player.v1.GetStatsResponse.stats:type_name -> player.v1.Stats
 	16, // 6: player.v1.GetRosterResponse.entries:type_name -> player.v1.RosterEntry
-	34, // 7: player.v1.RosterEntry.color:type_name -> player.v1.NameColor
-	19, // 8: player.v1.PlayerEvent.roster:type_name -> player.v1.Roster
-	16, // 9: player.v1.PlayerEvent.entry:type_name -> player.v1.RosterEntry
-	20, // 10: player.v1.PlayerEvent.left:type_name -> player.v1.PlayerLeft
-	21, // 11: player.v1.PlayerEvent.heartbeat:type_name -> player.v1.Heartbeat
-	27, // 12: player.v1.PlayerEvent.title_earned:type_name -> player.v1.TitleEarned
-	16, // 13: player.v1.Roster.entries:type_name -> player.v1.RosterEntry
-	24, // 14: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
-	7,  // 15: player.v1.Player.stats:type_name -> player.v1.Stats
-	34, // 16: player.v1.Player.color:type_name -> player.v1.NameColor
-	25, // 17: player.v1.Player.titles:type_name -> player.v1.Title
-	25, // 18: player.v1.Player.worn_title:type_name -> player.v1.Title
-	26, // 19: player.v1.Title.rank:type_name -> player.v1.Rank
-	25, // 20: player.v1.TitleEarned.title:type_name -> player.v1.Title
-	25, // 21: player.v1.GetTitlesResponse.worn:type_name -> player.v1.Title
-	25, // 22: player.v1.GetTitlesResponse.wearable:type_name -> player.v1.Title
-	30, // 23: player.v1.GetTitlesResponse.tracks:type_name -> player.v1.Track
-	31, // 24: player.v1.Track.steps:type_name -> player.v1.Step
-	25, // 25: player.v1.Step.title:type_name -> player.v1.Title
-	25, // 26: player.v1.WearTitleResponse.worn:type_name -> player.v1.Title
+	32, // 7: player.v1.RosterEntry.color:type_name -> player.v1.NameColor
+	33, // 8: player.v1.RosterEntry.worn_title:type_name -> player.v1.Title
+	19, // 9: player.v1.PlayerEvent.roster:type_name -> player.v1.Roster
+	16, // 10: player.v1.PlayerEvent.entry:type_name -> player.v1.RosterEntry
+	20, // 11: player.v1.PlayerEvent.left:type_name -> player.v1.PlayerLeft
+	21, // 12: player.v1.PlayerEvent.heartbeat:type_name -> player.v1.Heartbeat
+	25, // 13: player.v1.PlayerEvent.title_earned:type_name -> player.v1.TitleEarned
+	16, // 14: player.v1.Roster.entries:type_name -> player.v1.RosterEntry
+	24, // 15: player.v1.GetPlayerResponse.player:type_name -> player.v1.Player
+	7,  // 16: player.v1.Player.stats:type_name -> player.v1.Stats
+	32, // 17: player.v1.Player.color:type_name -> player.v1.NameColor
+	33, // 18: player.v1.Player.titles:type_name -> player.v1.Title
+	33, // 19: player.v1.Player.worn_title:type_name -> player.v1.Title
+	33, // 20: player.v1.TitleEarned.title:type_name -> player.v1.Title
+	33, // 21: player.v1.GetTitlesResponse.worn:type_name -> player.v1.Title
+	33, // 22: player.v1.GetTitlesResponse.wearable:type_name -> player.v1.Title
+	28, // 23: player.v1.GetTitlesResponse.tracks:type_name -> player.v1.Track
+	29, // 24: player.v1.Track.steps:type_name -> player.v1.Step
+	33, // 25: player.v1.Step.title:type_name -> player.v1.Title
+	33, // 26: player.v1.WearTitleResponse.worn:type_name -> player.v1.Title
 	1,  // 27: player.v1.PlayerService.GetProfile:input_type -> player.v1.GetProfileRequest
 	3,  // 28: player.v1.PlayerService.SetName:input_type -> player.v1.SetNameRequest
 	5,  // 29: player.v1.PlayerService.SetColor:input_type -> player.v1.SetColorRequest
@@ -1973,8 +1844,8 @@ var file_player_v1_player_proto_depIdxs = []int32{
 	14, // 33: player.v1.PlayerService.GetRoster:input_type -> player.v1.GetRosterRequest
 	17, // 34: player.v1.PlayerService.ListenForEvents:input_type -> player.v1.ListenForEventsRequest
 	22, // 35: player.v1.PlayerService.GetPlayer:input_type -> player.v1.GetPlayerRequest
-	28, // 36: player.v1.PlayerService.GetTitles:input_type -> player.v1.GetTitlesRequest
-	32, // 37: player.v1.PlayerService.WearTitle:input_type -> player.v1.WearTitleRequest
+	26, // 36: player.v1.PlayerService.GetTitles:input_type -> player.v1.GetTitlesRequest
+	30, // 37: player.v1.PlayerService.WearTitle:input_type -> player.v1.WearTitleRequest
 	2,  // 38: player.v1.PlayerService.GetProfile:output_type -> player.v1.GetProfileResponse
 	4,  // 39: player.v1.PlayerService.SetName:output_type -> player.v1.SetNameResponse
 	6,  // 40: player.v1.PlayerService.SetColor:output_type -> player.v1.SetColorResponse
@@ -1984,8 +1855,8 @@ var file_player_v1_player_proto_depIdxs = []int32{
 	15, // 44: player.v1.PlayerService.GetRoster:output_type -> player.v1.GetRosterResponse
 	18, // 45: player.v1.PlayerService.ListenForEvents:output_type -> player.v1.PlayerEvent
 	23, // 46: player.v1.PlayerService.GetPlayer:output_type -> player.v1.GetPlayerResponse
-	29, // 47: player.v1.PlayerService.GetTitles:output_type -> player.v1.GetTitlesResponse
-	33, // 48: player.v1.PlayerService.WearTitle:output_type -> player.v1.WearTitleResponse
+	27, // 47: player.v1.PlayerService.GetTitles:output_type -> player.v1.GetTitlesResponse
+	31, // 48: player.v1.PlayerService.WearTitle:output_type -> player.v1.WearTitleResponse
 	38, // [38:49] is the sub-list for method output_type
 	27, // [27:38] is the sub-list for method input_type
 	27, // [27:27] is the sub-list for extension type_name
@@ -1999,6 +1870,7 @@ func file_player_v1_player_proto_init() {
 		return
 	}
 	file_player_v1_color_proto_init()
+	file_player_v1_title_proto_init()
 	file_player_v1_player_proto_msgTypes[18].OneofWrappers = []any{
 		(*PlayerEvent_Roster)(nil),
 		(*PlayerEvent_Entry)(nil),
@@ -2012,7 +1884,7 @@ func file_player_v1_player_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_player_proto_rawDesc), len(file_player_v1_player_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   34,
+			NumMessages:   32,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

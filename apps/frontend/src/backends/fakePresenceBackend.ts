@@ -123,7 +123,9 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
 
     private roster(): RosterEntry[] {
         const now = this.now()
-        const entries = PLAYERS.filter((_, index) => onShift(index, now))
+        const entries = PLAYERS
+            .filter((_, index) => onShift(index, now))
+            .map((entry) => entry.guest ? entry : {...entry, wornTitle: this.career(entry).wornTitle})
 
         if (this.own && now - this.own.at < 90_000) {
             const {countryCode} = this.own.presence
@@ -140,22 +142,22 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         const player = PLAYERS.find((p) => !p.guest && p.name.toLowerCase() === name.toLowerCase())
         if (!player) return undefined
 
+        return {
+            ...this.career(player),
+            name: player.name,
+            streakCurrent: player.streak,
+            admin: player.admin,
+            color: player.color,
+        }
+    }
+
+    private career(player: RosterEntry) {
         const seed = [...player.name].reduce((sum, c) => sum * 31 + c.charCodeAt(0), 7) >>> 0
         const tilesTaken = seed % 25_000
         const streakBest = player.streak + seed % 40
         const createdAt = this.now() - (1 + seed % 200) * 86_400_000
         const titles = shownTitles(tilesTaken, streakBest, createdAt)
-        return {
-            name: player.name,
-            tilesTaken,
-            streakCurrent: player.streak,
-            streakBest,
-            createdAt,
-            admin: player.admin,
-            color: player.color,
-            titles,
-            wornTitle: titles.find((title) => title.rank) ?? titles[0],
-        }
+        return {tilesTaken, streakBest, createdAt, titles, wornTitle: titles.find((title) => title.rank) ?? titles[0]}
     }
 }
 

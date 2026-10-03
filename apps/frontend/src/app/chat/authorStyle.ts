@@ -18,5 +18,6 @@ export function authorOf(message: ChatMessage): PlayerLine {
         admin: message.authorAdmin,
         color: message.authorColor,
         streak: message.authorStreak,
+        wornTitle: message.authorTitle,
     }
 }
