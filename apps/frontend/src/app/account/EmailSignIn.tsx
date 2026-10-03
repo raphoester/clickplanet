@@ -37,7 +37,7 @@ function AddressForm({state, store, intent}: EmailSignInProps) {
         <label className="menu-label" htmlFor={inputId}>{label}</label>
         <div className="account-name-row">
             <input id={inputId}
-                   className="account-name-input"
+                   className="field account-name-input"
                    type="email"
                    inputMode="email"
                    autoComplete="email"
@@ -46,7 +46,7 @@ function AddressForm({state, store, intent}: EmailSignInProps) {
                    placeholder="you@example.com"
                    value={address}
                    onChange={(e) => setAddress(e.target.value)}/>
-            <button type="submit" className="button button-mini account-name-save" disabled={!canSend}>
+            <button type="submit" className="button button-mini button-action account-name-save" disabled={!canSend}>
                 Send code
             </button>
         </div>
@@ -73,14 +73,14 @@ function CodeForm({state, store, code}: {state: Ready, store: AccountStore, code
         </p>
         <div className="account-name-row">
             <input id={inputId}
-                   className="account-name-input account-code-input"
+                   className="field account-name-input account-code-input"
                    inputMode="numeric"
                    autoComplete="one-time-code"
                    maxLength={CODE_LENGTH * 2}
                    placeholder="123456"
                    value={draft}
                    onChange={(e) => setDraft(e.target.value)}/>
-            <button type="submit" className="button button-mini account-name-save" disabled={!canCheck}>
+            <button type="submit" className="button button-mini button-action account-name-save" disabled={!canCheck}>
                 {code.intent === "link" ? "Link" : "Sign in"}
             </button>
         </div>

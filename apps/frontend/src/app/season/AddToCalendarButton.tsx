@@ -10,7 +10,7 @@ export default function AddToCalendarButton({season}: {season: Season}) {
         download(new File([calendar.text], calendar.name, {type: "text/calendar"}))
     }
 
-    return <button type="button" className="button button-mini season-calendar" onClick={add}>
+    return <button type="button" className="button button-mini button-secondary season-calendar" onClick={add}>
         <CalendarIcon size={15}/>
         <span>Add to calendar</span>
     </button>

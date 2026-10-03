@@ -1,29 +1,28 @@
 .stat-tiles {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: var(--space-2);
     margin: 0;
 }
 
 .stat-tile {
-    padding: 10px 12px;
-    border: 1px solid #FFFFFF1A;
-    border-radius: 14px;
-    background-color: #FFFFFF0D;
+    padding: 10px var(--space-3);
 }
 
 .stat-tile dt {
-    font-family: Oswald, sans-serif;
-    font-weight: 500;
-    font-size: 12px;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    color: #FFFFFF80;
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
 }
 
 .stat-tile dd {
-    margin: 4px 0 0;
-    font-size: 20px;
+    margin: 6px 0 0;
+    padding-top: 2px;
+    font-family: var(--font-display);
+    font-size: var(--display-m);
+    line-height: 1;
     font-variant-numeric: tabular-nums;
-    color: white;
+    color: var(--text);
+    text-shadow: var(--text-drop);
 }

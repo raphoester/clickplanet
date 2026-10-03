@@ -42,7 +42,7 @@ export default function Leaderboard(props: LeaderboardProps) {
                     return <tr key={entry.country.code}
                                className={isPlayer ? "leaderboard-entry leaderboard-entry-player" : "leaderboard-entry"}
                                aria-current={isPlayer ? "true" : undefined}>
-                        <td className="leaderboard-entry-index">{index + 1}</td>
+                        <td className="leaderboard-entry-index">{rankBadge(index + 1, isPlayer)}</td>
                         <td className="leaderboard-entry-country">
                             <CountryFlag code={entry.country.code}/>
                             {truncate(entry.country.name, NAME_MAX_LENGTH)}
@@ -63,6 +63,12 @@ export default function Leaderboard(props: LeaderboardProps) {
             </table>
         </div>
     </section>
+}
+
+function rankBadge(rank: number, isPlayer: boolean) {
+    if (isPlayer) return <span className="coin coin-you">{rank}</span>
+    if (rank <= 3) return <span className={`coin coin-${rank}`}>{rank}</span>
+    return <span className="leaderboard-rank">{rank}</span>
 }
 
 function share(tiles: number, tilesCount: number): string {

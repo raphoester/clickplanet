@@ -49,7 +49,7 @@ export default function SignInCallback(props: SignInCallbackProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    const back = <button type="button" className="button button-ghost" onClick={props.onDone}>
+    const back = <button type="button" className="button" onClick={props.onDone}>
         Back to the game
     </button>
 
@@ -57,7 +57,7 @@ export default function SignInCallback(props: SignInCallbackProps) {
         return <Card title="You did not sign in">
             <p>You can play without an account.</p>
             <div className="sign-in-callback-actions">
-                {props.startAgain && <button type="button" className="button sign-in-callback-primary" onClick={() => void startAgain()}>
+                {props.startAgain && <button type="button" className="button button-action" onClick={() => void startAgain()}>
                     Try again
                 </button>}
                 {back}
@@ -81,10 +81,10 @@ export default function SignInCallback(props: SignInCallbackProps) {
     return <Card title={notLinked ? "Not linked" : "Sign-in did not work"}>
         <p role="alert">{messageOf(step.failure, props.provider)}</p>
         <div className="sign-in-callback-actions">
-            {retry === "complete" && <button type="button" className="button sign-in-callback-primary" onClick={() => void complete()}>
+            {retry === "complete" && <button type="button" className="button button-action" onClick={() => void complete()}>
                 Try again
             </button>}
-            {retry === "start" && props.startAgain && <button type="button" className="button sign-in-callback-primary" onClick={() => void startAgain()}>
+            {retry === "start" && props.startAgain && <button type="button" className="button button-action" onClick={() => void startAgain()}>
                 Try again
             </button>}
             {back}
@@ -94,7 +94,7 @@ export default function SignInCallback(props: SignInCallbackProps) {
 
 function Card(props: {title: string, working?: boolean, children?: React.ReactNode}) {
     return <main className="sign-in-callback">
-        <div className="sign-in-callback-card" aria-live="polite">
+        <div className="panel sign-in-callback-card" aria-live="polite">
             {props.working && <div className="sign-in-callback-spinner"/>}
             <h1>{props.title}</h1>
             {props.children}

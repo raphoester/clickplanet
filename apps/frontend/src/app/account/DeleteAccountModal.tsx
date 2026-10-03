@@ -15,13 +15,13 @@ export default function DeleteAccountModal(props: DeleteAccountModalProps) {
                   stayOnBackdropClick={props.busy}
                   footer={<div className="account-confirm">
                       <button type="button"
-                              className="button button-ghost"
+                              className="button"
                               disabled={props.busy}
                               onClick={props.onClose}>
                           Cancel
                       </button>
                       <button type="button"
-                              className="button account-delete"
+                              className="button button-action"
                               disabled={props.busy}
                               onClick={props.onConfirm}>
                           Delete

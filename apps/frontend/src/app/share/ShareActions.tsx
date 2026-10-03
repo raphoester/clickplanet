@@ -48,7 +48,7 @@ export default function ShareActions({file, text}: ShareActionsProps) {
         {deliveries.map((delivery) =>
             <button key={delivery}
                     type="button"
-                    className={`button button-ghost button-share button-share-${delivery}`}
+                    className={`button button-secondary button-share button-share-${delivery}`}
                     disabled={state.kind === "working"}
                     onClick={() => run(delivery)}>
                 <Icon delivery={delivery}/>

@@ -8,7 +8,7 @@ export type SessionUnavailableModalProps = {
 export default function SessionUnavailableModal(props: SessionUnavailableModalProps) {
     return <Modal
         title="Couldn't verify your browser"
-        footer={<button type="button" className="button" onClick={props.onClose}>Got it</button>}
+        footer={<button type="button" className="button button-action" onClick={props.onClose}>Got it</button>}
         onClose={props.onClose}>
         <div className="session-unavailable-text">
             <h3>That click didn't go through 🤖</h3>

@@ -47,7 +47,7 @@ export default function Inventory({charges, rules, switches, onToggle, bombArmed
                 onClick={fold}>
             <span className="inventory-fold-name">Inventory</span>
             {folded && kindsHeld > 0 &&
-                <span className="inventory-held" aria-label={`${kindsHeld} kinds held`}>{kindsHeld}</span>}
+                <span className="chip inventory-held" aria-label={`${kindsHeld} kinds held`}>{kindsHeld}</span>}
             <span className="inventory-chevron"><ChevronIcon size={16}/></span>
         </button>
 
@@ -99,6 +99,7 @@ function Slot({kind, name, held, count, on, state, hint, onPress}: {
 }) {
     const className = [
         "inventory-slot",
+        "panel-box",
         `inventory-slot--${kind}`,
         !held && "inventory-slot--empty",
         on && "inventory-slot--on",
@@ -114,7 +115,7 @@ function Slot({kind, name, held, count, on, state, hint, onPress}: {
                    disabled={!held || !onPress}
                    onClick={onPress}>
         <span className="inventory-box"><BonusIcon kind={kind}/></span>
-        {state && <span className="inventory-state" aria-hidden="true">{state}</span>}
+        {state && <span className="chip inventory-state" aria-hidden="true">{state}</span>}
         {count && <span className="inventory-count" aria-hidden="true">{count}</span>}
         <span className="inventory-name" aria-hidden="true">{name}</span>
     </button>

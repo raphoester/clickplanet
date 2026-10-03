@@ -14,17 +14,20 @@
 .native-land-note-line {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border: 1px solid #EDCC9466;
-    border-radius: 999px;
-    background: #0A0A0Acc;
-    backdrop-filter: blur(10px);
-    color: #FFFFFF;
-    font-size: 15px;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    color: var(--text-soft);
+    font-size: var(--text-m);
     white-space: nowrap;
-    box-shadow: 0 0 18px #EDCC9433;
     animation: native-land-note 4s ease-out forwards;
+}
+
+.native-land-note-line strong {
+    font-family: var(--font-display);
+    font-weight: normal;
+    font-size: var(--display-s);
+    color: var(--text);
+    text-shadow: var(--text-drop);
 }
 
 @keyframes native-land-note {
@@ -55,7 +58,7 @@
         width: max-content;
         max-width: calc(100vw - 32px);
         white-space: normal;
-        font-size: 13px;
+        font-size: var(--text-s);
     }
 }
 

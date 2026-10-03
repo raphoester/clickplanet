@@ -62,12 +62,12 @@ export default function ProgressTab({store, me}: {store: AccountStore, me: Me}) 
                                    type="button"
                                    role="radio"
                                    aria-checked={checked}
-                                   className="account-wear-option"
+                                   className="panel-box account-wear-option"
                                    disabled={wearing !== undefined}
                                    onClick={() => {
                                        if (!checked) wear(title.id)
                                    }}>
-                        <TitleEmblem title={title} size={44}/>
+                        <TitleEmblem title={title} size={44} ribbon/>
                         <span className="account-wear-name">{title.name}</span>
                     </button>
                 })}

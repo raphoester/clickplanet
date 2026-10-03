@@ -28,7 +28,7 @@ export default function Modal(props: ModalProps) {
             }}>
             <div
                 ref={panel}
-                className={props.className ? `modal-content ${props.className}` : "modal-content"}
+                className={props.className ? `modal-content panel ${props.className}` : "modal-content panel"}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}

@@ -114,7 +114,7 @@ export default function Menu(props: MenuProps) {
     }
 
     return <>
-        <div className="menu">
+        <div className="menu panel">
             <MenuHeader country={props.country}
                         rank={rankOf(props.leaderboard, props.country)}
                         isOpen={isOpen}
@@ -142,7 +142,7 @@ export default function Menu(props: MenuProps) {
                         <PlayersPanel entries={props.players} onOpenPlayer={props.onOpenPlayer}/>
                     </MenuPanel>
                     : <>
-                        <div className="menu-playing">
+                        <div className="menu-playing panel-box">
                             <span className="menu-label">You’re playing for</span>
                             <div className="menu-playing-row">
                                 <span className="menu-playing-name">
@@ -151,7 +151,7 @@ export default function Menu(props: MenuProps) {
                                 </span>
                                 <button ref={changeButton}
                                         type="button"
-                                        className="button button-mini menu-change"
+                                        className="button button-mini button-secondary menu-change"
                                         onClick={openPicker}>
                                     <SwapIcon/>
                                     <span>Change</span>
@@ -166,7 +166,7 @@ export default function Menu(props: MenuProps) {
 
                         <div className="menu-actions">
                             <a href="/#home"
-                               className="button button-ghost menu-icon"
+                               className="button menu-icon"
                                aria-label="Home"
                                title="Home">
                                 <HomeIcon size={26}/>
@@ -178,7 +178,7 @@ export default function Menu(props: MenuProps) {
                                                              buttonRef={playersButton}
                                                              onOpen={openPlayers}/>}
                             <button type="button"
-                                    className="button button-ghost menu-icon"
+                                    className="button menu-icon"
                                     aria-label="About"
                                     title="About"
                                     onClick={() => setAboutOpen(true)}>
@@ -186,7 +186,7 @@ export default function Menu(props: MenuProps) {
                             </button>
                             {props.sound && <button ref={soundButton}
                                                     type="button"
-                                                    className="button button-ghost menu-sound"
+                                                    className="button menu-sound"
                                                     aria-label="Sound settings"
                                                     onClick={openSound}>
                                 {props.sound.settings.enabled ? <SpeakerIcon size={26}/> : <SpeakerOffIcon size={26}/>}
