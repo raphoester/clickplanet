@@ -230,7 +230,7 @@ export default function Viewer(props: ViewerProps) {
 
 function StatusCard({status}: {status: GlobeStatus}) {
     return <div className="viewer-status">
-        <div className="viewer-status-card" role="status">
+        <div className="viewer-status-card panel" role="status">
             {status.state === 'loading'
                 ? <LoadingCard territories={status.territories}/>
                 : status.state === 'failed' && <>

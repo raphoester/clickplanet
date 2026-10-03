@@ -1,11 +1,6 @@
-@keyframes title-sheen {
-    0% { transform: translateX(-120%) skewX(-20deg); }
-    55%, 100% { transform: translateX(320%) skewX(-20deg); }
-}
-
 @keyframes title-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 #F2B63266; }
-    50% { box-shadow: 0 0 0 10px #F2B63200; }
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 40%, transparent); }
+    50% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--gold) 0%, transparent); }
 }
 
 @keyframes title-spin {
@@ -18,24 +13,14 @@
     overflow: visible;
 }
 
-.title-sheen {
-    position: relative;
-    overflow: hidden;
-}
-
-.title-sheen::after {
+.title-pulse::before {
     content: "";
     position: absolute;
-    inset: 0 auto 0 0;
-    width: 35%;
-    background: linear-gradient(90deg, #FFFFFF00, #FFFFFF40, #FFFFFF00);
-    animation: title-sheen 3.2s ease-in-out infinite;
-    pointer-events: none;
-}
-
-.title-pulse {
-    border-radius: 999px;
+    inset: 0 0 auto 0;
+    aspect-ratio: 1;
+    border-radius: 50%;
     animation: title-pulse 1.8s ease-in-out infinite;
+    pointer-events: none;
 }
 
 .og-stamp {
@@ -43,64 +28,61 @@
     flex-shrink: 0;
     align-items: center;
     height: 24px;
-    padding: 0 9px;
-    border-radius: 8px;
-    background: linear-gradient(110deg, #B6FFE9, #8FB8FF 35%, #C79BFF 65%, #FFE59A);
-    color: #1F1238;
-    font-family: "Luckiest Guy", sans-serif;
-    font-size: 15px;
-    letter-spacing: 1px;
+    padding: 3px 9px 0;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--og);
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: var(--display-s);
     line-height: 1;
+    text-shadow: var(--text-drop);
     transform: rotate(-6deg);
-    box-shadow: 0 0 14px #C79BFF88, 0 3px 0 #000000;
+    box-shadow: var(--drop-xs);
 }
 
 .title-banner {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px;
-    border: 1px solid;
-    border-radius: 20px;
-    background: linear-gradient(135deg, #2A2A2A, #121212);
-    box-shadow: inset 0 1px 0 #FFFFFF22;
+    gap: var(--space-3);
+    padding: var(--space-3);
 }
 
 .title-banner-compact {
-    gap: 12px;
-    padding: 10px 14px;
+    padding: var(--space-2) var(--space-3);
 }
 
 .title-banner-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
     flex: 1;
     min-width: 0;
 }
 
 .title-banner-rank {
-    font-family: Oswald, sans-serif;
-    font-weight: 600;
-    font-size: 12px;
-    letter-spacing: 1.6px;
-    text-transform: uppercase;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
 }
 
 .title-banner-name {
-    margin-top: 4px;
-    font-family: "Luckiest Guy", sans-serif;
-    font-size: 32px;
-    line-height: 1.05;
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: var(--display-xl);
+    line-height: 1;
+    color: var(--gold);
+    text-shadow: var(--text-outline);
     overflow-wrap: anywhere;
 }
 
 .title-banner-compact .title-banner-name {
-    font-size: 24px;
+    font-size: var(--display-l);
 }
 
 .track-path {
-    padding: 14px 0 10px;
-    border: 1px solid #FFFFFF1A;
-    border-radius: 18px;
-    background: #FFFFFF08;
+    padding: var(--space-3) 0 10px;
 }
 
 .track-path-head {
@@ -108,35 +90,33 @@
     flex-wrap: wrap;
     align-items: baseline;
     justify-content: space-between;
-    gap: 4px 12px;
-    padding: 0 16px;
+    gap: var(--space-1) var(--space-3);
+    padding: 0 var(--space-3);
 }
 
 .track-path-name {
     margin: 0;
-    font-family: "Luckiest Guy", sans-serif;
-    font-weight: normal;
-    font-size: 20px;
-    letter-spacing: 0.5px;
+    padding-top: 2px;
+    font-size: var(--display-m);
+    line-height: 1;
+    text-align: left;
+    color: var(--gold);
 }
 
 .track-path-left {
-    font-family: Oswald, sans-serif;
-    font-size: 13px;
-    color: #FFD45A;
-}
-
-.track-path-left-devotion {
-    color: #FF9A3D;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-s);
+    color: var(--gold);
 }
 
 .track-path-scroll {
-    margin-top: 14px;
+    margin-top: var(--space-3);
     overflow-x: auto;
     scroll-snap-type: x proximity;
     scrollbar-width: none;
-    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000000 28px, #000000 calc(100% - 28px), transparent 100%);
-    mask-image: linear-gradient(90deg, transparent 0, #000000 28px, #000000 calc(100% - 28px), transparent 100%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, var(--ink) 28px, var(--ink) calc(100% - 28px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, var(--ink) 28px, var(--ink) calc(100% - 28px), transparent 100%);
 }
 
 .track-path-scroll::-webkit-scrollbar {
@@ -151,14 +131,18 @@
 
 .track-path-bar {
     position: absolute;
-    top: 25px;
-    height: 6px;
-    border-radius: 999px;
-    background: #2E2E2E;
+    top: 22px;
+    height: 12px;
+    overflow: hidden;
+    border: var(--outline) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--panel-sunk);
 }
 
 .track-path-bar-filled {
-    background: linear-gradient(90deg, #C97B12, #FFD45A);
+    height: 100%;
+    background: var(--gold);
+    box-shadow: inset 0 -3px 0 var(--gold-shade);
 }
 
 .track-path-list {
@@ -181,38 +165,38 @@
 }
 
 .track-path-medal {
+    position: relative;
     display: block;
-    border-radius: 999px;
-    background: #101010;
 }
 
 .track-path-step-name {
-    font-family: "Luckiest Guy", sans-serif;
-    font-size: 15px;
+    padding-top: 2px;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    line-height: 1;
     white-space: nowrap;
-    color: #FFFFFF73;
+    color: var(--text-faint);
+    text-shadow: var(--text-drop);
 }
 
 .track-path-step-earned .track-path-step-name {
-    color: #FFFFFF;
+    color: var(--text);
 }
 
 .track-path-step-next .track-path-step-name {
-    color: #F2B632;
+    color: var(--gold);
 }
 
 .track-path-step-threshold {
-    font-family: Oswald, sans-serif;
+    font-family: var(--font-text);
     font-weight: 600;
-    font-size: 12px;
+    font-size: var(--text-xs);
     text-align: center;
-    color: #FFFFFF99;
+    color: var(--text-muted);
 }
 
 .title-unlocked {
     text-align: center;
-    border-color: #F2B63266;
-    box-shadow: 0 0 60px #F2B63233, 0 18px 40px #000000AA;
 }
 
 .title-unlocked .modal-scroll::after {
@@ -220,27 +204,30 @@
 }
 
 .title-unlocked .modal-header h2 {
-    font-family: Oswald, sans-serif;
-    font-weight: 600;
-    font-size: 14px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: #F2B632;
+    padding-left: 50px;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-s);
+    color: var(--text-muted);
+    text-shadow: none;
+    text-align: center;
 }
 
 .title-unlocked-stage {
     position: relative;
-    width: min(320px, 100%);
+    width: min(260px, 100%);
     aspect-ratio: 1;
     margin: 0 auto;
-    overflow: hidden;
 }
 
 .title-rays {
     position: absolute;
     inset: 0;
-    width: 100%;
-    height: 100%;
+    border-radius: 50%;
+    background: repeating-conic-gradient(var(--gold) 0deg 9deg, transparent 9deg 18deg);
+    opacity: 0.35;
+    -webkit-mask-image: radial-gradient(circle, var(--ink) 30%, transparent 70%);
+    mask-image: radial-gradient(circle, var(--ink) 30%, transparent 70%);
     animation: title-spin 24s linear infinite;
 }
 
@@ -248,63 +235,61 @@
     position: absolute;
     left: 50%;
     top: 50%;
-    transform: translate(-50%, -54%);
+    transform: translate(-50%, -44%);
 }
 
 .title-unlocked-name {
-    margin: 4px 0 0;
-    font-family: "Luckiest Guy", sans-serif;
-    font-size: 48px;
+    margin: var(--space-1) 0 0;
+    padding-top: 6px;
+    font-family: var(--font-display);
+    font-size: var(--display-xxl);
     line-height: 1;
+    color: var(--gold);
+    text-shadow: var(--text-outline);
+    overflow-wrap: anywhere;
 }
 
 .title-unlocked-rank {
-    margin: 12px 0 0;
-    font-family: Oswald, sans-serif;
-    font-size: 16px;
-    color: #FFFFFFD9;
+    margin: var(--space-3) 0 0;
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-m);
+    color: var(--text-soft);
 }
 
 .title-unlocked-actions {
     display: flex;
-    gap: 10px;
+    gap: var(--space-3);
     width: 100%;
 }
 
 .title-unlocked-actions .button {
     flex: 1;
-    height: 52px;
-    font-size: 20px;
 }
 
-.title-wear-button {
+.title-unlocked-actions .title-wear-button {
     flex: 1.6;
-    color: #2A1600;
-    background: linear-gradient(180deg, #FFD45A, #E39A12);
-    box-shadow: 0 4px 0 #8F5605;
 }
 
-.title-wear-button:disabled {
-    opacity: 0.6;
-    cursor: default;
-}
-
-.title-frame-bronze { --title-frame: linear-gradient(135deg, #F6C59A, #C97B45, #6E3615); --title-glow: #C97B4555; }
-.title-frame-silver { --title-frame: linear-gradient(135deg, #FFFFFF, #C3CBD6, #6F7A88); --title-glow: #C3CBD655; }
-.title-frame-gold { --title-frame: linear-gradient(135deg, #FFF3BF, #F2B632, #8F5605); --title-glow: #F2B63255; }
-.title-frame-platinum { --title-frame: linear-gradient(135deg, #F4F9FF, #A9C1DD, #4E6178); --title-glow: #A9C1DD55; }
-.title-frame-prism { --title-frame: linear-gradient(135deg, #8EF6FF, #9C7BFF, #FF7AD0, #FFD36E); --title-glow: #9C7BFF66; }
-.title-frame-holo { --title-frame: linear-gradient(135deg, #B6FFE9, #8FB8FF, #C79BFF, #FFE59A); --title-glow: #8FB8FF55; }
+.title-frame-bronze { --title-frame: var(--bronze); }
+.title-frame-silver { --title-frame: var(--silver); }
+.title-frame-gold { --title-frame: var(--gold); }
+.title-frame-platinum { --title-frame: var(--platinum); }
+.title-frame-prism { --title-frame: color-mix(in srgb, var(--prism-2) 70%, var(--text)); }
+.title-frame-holo { --title-frame: color-mix(in srgb, var(--holo-1) 50%, var(--holo-2)); }
 
 .modal-content[class*="title-frame-"] {
-    border: 2px solid transparent;
-    background: linear-gradient(#101010, #101010) padding-box, var(--title-frame) border-box;
-    box-shadow: 0 0 30px var(--title-glow), 0 18px 40px #00000099;
+    box-shadow: var(--drop-l), inset 0 0 0 var(--outline-thin) var(--title-frame);
+}
+
+@media only screen and (max-width: 768px) {
+    .title-unlocked .modal-header h2 {
+        padding-left: 46px;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .title-sheen::after,
-    .title-pulse,
+    .title-pulse::before,
     .title-rays {
         animation: none;
     }

@@ -7,21 +7,15 @@
     flex-direction: column;
     width: 288px;
     max-width: calc(100vw - 32px);
-    padding: 10px 12px;
-    border: 1px solid #FFFFFF33;
-    border-radius: 20px;
-    background: #00000075;
-    backdrop-filter: blur(8px);
-    color: #FFFFFF;
-    text-shadow: -1px 1px 0 #000000;
+    padding: var(--space-3);
     pointer-events: none;
     transition: border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
 .click-budget-dock > .inventory {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid #FFFFFF26;
+    margin-top: var(--space-3);
+    padding-top: var(--space-2);
+    border-top: var(--outline-thin) solid var(--ink);
 }
 
 .click-budget-dock > .inventory:first-child {
@@ -33,75 +27,82 @@
 .click-budget {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--space-2);
     --click-budget-tokens: 0;
-    --click-budget-ink: #FFFFFF;
+    --click-budget-ink: var(--gold);
     transition: opacity 0.4s ease;
 }
 
 .click-budget-reading {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-3);
 }
 
 .click-budget-full {
     opacity: 0.45;
 }
 
-.click-budget-low {
-    --click-budget-ink: #FFB13F;
-}
-
+.click-budget-low,
 .click-budget-empty {
-    --click-budget-ink: #FF5C5C;
+    --click-budget-ink: var(--loss);
 }
 
 .click-budget-count {
     display: flex;
     align-items: baseline;
     gap: 6px;
+    padding-top: 3px;
+    font-family: var(--font-display);
+    line-height: 1;
+    text-shadow: var(--text-drop);
 }
 
 .click-budget-number {
     min-width: 1.1ch;
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1;
+    font-size: var(--display-xl);
     text-align: right;
     font-variant-numeric: tabular-nums;
     color: var(--click-budget-ink);
 }
 
 .click-budget-unit {
-    font-size: 16px;
-    letter-spacing: 0.5px;
-    color: #FFFFFFB3;
+    font-size: var(--display-s);
+    color: var(--text-soft);
 }
 
 .click-budget-pips {
     display: flex;
     flex: 1;
-    gap: 4px;
+    gap: 3px;
+    padding: 3px;
+}
+
+.click-budget-pips,
+.click-budget-bar {
+    background: var(--panel-sunk);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
 }
 
 .click-budget-pip,
 .click-budget-bar {
     position: relative;
-    height: 20px;
-    border-radius: 3px;
-    background: #FFFFFF26;
     overflow: hidden;
 }
 
 .click-budget-pip {
     flex: 1 1 0;
     min-width: 5px;
+    height: 14px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--text) 10%, transparent);
 }
 
 .click-budget-bar {
     flex: 1;
-    border-radius: 10px;
+    height: 24px;
+    border-radius: var(--radius-pill);
 }
 
 .click-budget-pip::after,
@@ -126,17 +127,18 @@
     left: 0;
     bottom: 0;
     z-index: 1;
-    height: 3px;
+    height: 4px;
     width: calc(var(--click-budget-next, 0) * 100%);
-    background: #5CC8FF;
+    background: var(--secondary);
 }
 
 .click-budget-next {
     min-width: 7ch;
-    font-size: 13px;
+    font-size: var(--text-s);
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
     text-align: right;
-    color: #FFFFFFB3;
+    color: var(--text-muted);
 }
 
 .click-budget-next:empty {
@@ -146,9 +148,9 @@
 .click-budget-toll {
     display: flex;
     flex-direction: column;
-    font-size: 12px;
+    font-size: var(--text-xs);
     line-height: 1.3;
-    color: #FFFFFFB3;
+    color: var(--text-muted);
 }
 
 .click-budget-toll-detail {
@@ -157,36 +159,15 @@
 
 .click-budget-shared {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--text-xs);
     line-height: 1.3;
-    color: #FFFFFFB3;
+    color: var(--text-muted);
 }
 
 .click-budget-sign-in {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    margin-top: 8px;
-    padding: 6px 14px;
-    border: 1px solid #FFB13F88;
-    border-radius: 999px;
-    background: #2A1A04D9;
-    color: #FFC061;
-    font-family: Oswald, sans-serif;
-    font-size: 14px;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    text-shadow: -1px 1px 0 #000000;
-    cursor: pointer;
+    margin-top: var(--space-3);
+    border-radius: var(--radius-pill);
     pointer-events: auto;
-    transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-.click-budget-sign-in:hover,
-.click-budget-sign-in:focus-visible {
-    border-color: #FFB13F;
-    background: #3A2401E6;
 }
 
 .click-budget-sign-in-icon {
@@ -194,27 +175,26 @@
 }
 
 .click-budget-dock:has(.inventory--active) {
-    border-color: #FFFFFF77;
-    box-shadow: 0 0 14px #FFFFFF22;
+    border-color: var(--gold);
+    box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 16px color-mix(in srgb, var(--gold) 45%, transparent);
 }
 
 .click-budget-dock:has(.click-budget-low) {
-    border-color: #FFB13F66;
+    border-color: color-mix(in srgb, var(--loss) 55%, var(--ink));
 }
 
 .click-budget-dock:has(.click-budget-empty) {
-    border-color: #FF5C5C88;
+    border-color: var(--loss);
 }
 
 .click-budget-dock:has(.click-budget-refused) {
-    border-color: #FF5C5C;
-    box-shadow: 0 0 22px #FF5C5CAA;
+    border-color: var(--action);
+    box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 22px color-mix(in srgb, var(--action-light) 70%, transparent);
 }
 
-.click-budget-dock:has(.click-budget-empty) .click-budget-sign-in,
-.click-budget-dock:has(.click-budget-refused) .click-budget-sign-in {
-    border-color: #FFB13F;
-    box-shadow: 0 0 16px #FFB13F66;
+.click-budget-dock:has(.click-budget-empty) .click-budget-sign-in:not(:active),
+.click-budget-dock:has(.click-budget-refused) .click-budget-sign-in:not(:active) {
+    box-shadow: var(--drop-s), 0 0 16px color-mix(in srgb, var(--action-light) 70%, transparent);
 }
 
 @media only screen and (max-width: 768px) {
@@ -224,16 +204,15 @@
         right: auto;
         z-index: 127;
         width: 240px;
-        padding: 8px 10px;
-        border-radius: 16px;
+        padding: var(--space-2) 10px;
     }
 
     .click-budget-reading {
-        gap: 8px;
+        gap: var(--space-2);
     }
 
     .click-budget-number {
-        font-size: 16px;
+        font-size: var(--display-m);
     }
 
     .click-budget-unit {
@@ -241,40 +220,30 @@
     }
 
     .click-budget-pips {
-        gap: 3px;
-    }
-
-    .click-budget-pip,
-    .click-budget-bar {
-        height: 11px;
-        border-radius: 2px;
+        gap: 2px;
+        padding: 2px;
     }
 
     .click-budget-pip {
         min-width: 4px;
+        height: 8px;
+        border-radius: 2px;
     }
 
     .click-budget-bar {
-        border-radius: 7px;
+        height: 16px;
     }
 
     .click-budget-bar::before {
-        height: 2px;
+        height: 3px;
     }
 
     .click-budget-next {
-        font-size: 11px;
-    }
-
-    .click-budget-toll,
-    .click-budget-shared {
-        font-size: 11px;
+        font-size: var(--text-xs);
     }
 
     .click-budget-sign-in {
-        padding: 5px 8px;
-        font-size: 11px;
-        letter-spacing: 0.3px;
+        margin-top: var(--space-2);
     }
 }
 

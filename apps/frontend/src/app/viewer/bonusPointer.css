@@ -15,12 +15,11 @@
     justify-content: center;
     width: 28px;
     height: 28px;
-    border: 2px solid #4A2C02;
-    border-radius: 6px;
-    background: #F2A91C;
-    color: #4A2C02;
-    text-shadow: -1px 1px 0 #4A2C02;
-    box-shadow: 0 0 14px #FFB13F88;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-xs);
+    background: var(--enclose);
+    color: var(--ink);
+    box-shadow: var(--drop-s);
     animation:
         bonus-pointer-pulse 1.4s ease-in-out infinite,
         bonus-pointer-badge-colours 2.8s ease-in-out infinite;
@@ -39,63 +38,54 @@
     height: 0;
     border-top: 7px solid transparent;
     border-bottom: 7px solid transparent;
-    border-left: 11px solid #FFC061;
+    border-left: 11px solid var(--enclose-light);
+    filter:
+        drop-shadow(1.5px 0 0 var(--ink))
+        drop-shadow(-1.5px 0 0 var(--ink))
+        drop-shadow(0 1.5px 0 var(--ink))
+        drop-shadow(0 -1.5px 0 var(--ink));
     transform: rotate(var(--bonus-pointer-angle, 0deg)) translateX(24px);
     transform-origin: 3px 7px;
     animation: bonus-pointer-arrow-colours 2.8s ease-in-out infinite;
 }
 
 .bonus-pointer--blast .bonus-pointer-badge {
-    border-color: #4A0A02;
-    background: #D8341C;
-    box-shadow: 0 0 14px #FF5A3F88;
+    background: var(--bomb);
     animation: bonus-pointer-pulse 1.4s ease-in-out infinite;
 }
 
 .bonus-pointer--blast .bonus-pointer-arrow {
-    border-left-color: #FF6A4F;
+    border-left-color: var(--bomb-light);
     animation: none;
 }
 
 @keyframes bonus-pointer-badge-colours {
     0%, 100% {
-        border-color: #4A2C02;
-        background-color: #F2A91C;
-        color: #4A2C02;
-        box-shadow: 0 0 14px #FFB13F88;
+        background-color: var(--enclose);
     }
     25% {
-        border-color: #4A0E07;
-        background-color: #E0412F;
-        color: #4A0E07;
-        box-shadow: 0 0 14px #FF7A6B88;
+        background-color: var(--bomb);
     }
     50% {
-        border-color: #0A2A55;
-        background-color: #2F8CFF;
-        color: #0A2A55;
-        box-shadow: 0 0 14px #7CC4FF88;
+        background-color: var(--refill);
     }
     75% {
-        border-color: #0B3D25;
-        background-color: #25B872;
-        color: #0B3D25;
-        box-shadow: 0 0 14px #6FE3A888;
+        background-color: var(--spread);
     }
 }
 
 @keyframes bonus-pointer-arrow-colours {
     0%, 100% {
-        border-left-color: #FFC061;
+        border-left-color: var(--enclose-light);
     }
     25% {
-        border-left-color: #FF7A6B;
+        border-left-color: var(--bomb-light);
     }
     50% {
-        border-left-color: #7CC4FF;
+        border-left-color: var(--refill-light);
     }
     75% {
-        border-left-color: #6FE3A8;
+        border-left-color: var(--spread-light);
     }
 }
 

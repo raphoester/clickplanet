@@ -2,12 +2,18 @@ import {CapturedFrame} from "../viewer/capture.ts";
 import {regions} from "../viewer/atlas.ts";
 import {ATLAS_URL} from "../viewer/atlasAsset.ts";
 import {cardLayout, Crop, fitInBox, shareLabel, ShareStats, statsLine} from "../../domain/shareCard.ts";
-import {TITLE_CAP_HEIGHT, TITLE_FONT_FAMILY} from "../titleFont.ts";
-
-const TITLE_FONT = TITLE_FONT_FAMILY
-const LABEL_FONT = 'Oswald, sans-serif'
+import {TITLE_CAP_HEIGHT} from "../titleFont.ts";
 
 const LOGO_URL = "/static/logo.svg"
+
+type Look = {
+    display: string
+    text: string
+    ink: string
+    panel: string
+    white: string
+    soft: string
+}
 
 export async function drawShareCard(frame: CapturedFrame, stats: ShareStats): Promise<Blob> {
     const {crop, ...size} = cardLayout(frame.width, frame.height)
@@ -21,17 +27,33 @@ export async function drawShareCard(frame: CapturedFrame, stats: ShareStats): Pr
 
     drawGlobe(context, frame, crop, size)
 
+    const look = lookOfThePage()
+
     // Fonts must be ready before the first measureText: a fallback face measures differently.
     const [atlas, logo] = await Promise.all([
         loadImage(ATLAS_URL),
         loadImage(LOGO_URL),
-        fontsReady(),
+        fontsReady(look),
     ])
 
-    drawMasthead(context, size, stats, logo)
-    drawBadge(context, size, stats, atlas)
+    drawMasthead(context, size, stats, logo, look)
+    drawBadge(context, size, stats, atlas, look)
 
     return encode(canvas)
+}
+
+function lookOfThePage(): Look {
+    const style = getComputedStyle(document.documentElement)
+    const token = (name: string) => style.getPropertyValue(name).trim()
+
+    return {
+        display: token("--font-display"),
+        text: token("--font-text"),
+        ink: token("--ink"),
+        panel: token("--panel"),
+        white: token("--text"),
+        soft: token("--text-soft"),
+    }
 }
 
 function drawGlobe(
@@ -58,6 +80,7 @@ function drawMasthead(
     size: {width: number, height: number},
     stats: ShareStats,
     logo: HTMLImageElement,
+    look: Look,
 ) {
     const unit = Math.min(size.width, size.height) / 100
     const margin = 4 * unit
@@ -66,24 +89,21 @@ function drawMasthead(
 
     context.drawImage(logo, margin, margin, logoSize, logoSize)
 
-    shadow(context, unit)
-    context.fillStyle = "#FFFFFF"
     context.textBaseline = "alphabetic"
 
     const nameSize = 5 * unit
     context.textAlign = "left"
-    context.font = `${nameSize}px ${TITLE_FONT}`
-    context.fillText("ClickPlanet", margin + logoSize + 1.6 * unit, capCentred(context, middle, nameSize))
+    context.font = `${nameSize}px ${look.display}`
+    outlinedText(context, "ClickPlanet",
+        margin + logoSize + 1.6 * unit, capCentred(context, middle, nameSize),
+        0.7 * unit, look)
 
     const linkSize = 3.2 * unit
     context.textAlign = "right"
-    context.font = `500 ${linkSize}px ${LABEL_FONT}`
-    tracking(context, 0.1 * unit)
-    context.fillText(shareLabel(stats.country.code),
-        size.width - margin, capCentred(context, middle, linkSize))
-    tracking(context, 0)
-
-    clearShadow(context)
+    context.font = `600 ${linkSize}px ${look.text}`
+    outlinedText(context, shareLabel(stats.country.code),
+        size.width - margin, capCentred(context, middle, linkSize),
+        0.5 * unit, look)
 }
 
 function drawBadge(
@@ -91,6 +111,7 @@ function drawBadge(
     size: {width: number, height: number},
     stats: ShareStats,
     atlas: HTMLImageElement,
+    look: Look,
 ) {
     const unit = Math.min(size.width, size.height) / 100
     const margin = 4 * unit
@@ -108,21 +129,19 @@ function drawBadge(
 
     const flagRun = flag.width > 0 ? flag.width + gap : 0
     const room = size.width - margin * 2 - padding * 2 - flagRun
-    context.font = `${nameSize}px ${TITLE_FONT}`
+    context.font = `${nameSize}px ${look.display}`
     const natural = context.measureText(stats.country.name).width
     if (natural > room) {
         nameSize *= room / natural
-        context.font = `${nameSize}px ${TITLE_FONT}`
+        context.font = `${nameSize}px ${look.display}`
     }
     const nameWidth = context.measureText(stats.country.name).width
     const nameCap = capHeight(context, nameSize)
 
     const label = statsLine(stats)
-    context.font = `${labelSize}px ${LABEL_FONT}`
-    tracking(context, 0.18 * unit)
+    context.font = `600 ${labelSize}px ${look.text}`
     const labelWidth = context.measureText(label).width
     const labelCap = capHeight(context, labelSize)
-    tracking(context, 0)
 
     const topRow = Math.max(flag.height, nameCap)
     const width = Math.max(flagRun + nameWidth, labelWidth) + padding * 2
@@ -130,7 +149,7 @@ function drawBadge(
     const left = margin
     const top = size.height - margin - height
 
-    panel(context, left, top, width, height, 2.6 * unit, unit)
+    panel(context, left, top, width, height, 2.6 * unit, unit, look)
 
     const middle = top + padding + topRow / 2
     if (region && flag.width > 0) {
@@ -139,19 +158,17 @@ function drawBadge(
             left + padding, middle - flag.height / 2, flag.width, flag.height)
     }
 
-    shadow(context, unit)
-    context.fillStyle = "#FFFFFF"
+    drop(context, 0.5 * unit, look)
+    context.fillStyle = look.white
     context.textBaseline = "alphabetic"
-    context.font = `${nameSize}px ${TITLE_FONT}`
+    context.font = `${nameSize}px ${look.display}`
     context.fillText(stats.country.name,
         left + padding + flagRun, capCentred(context, middle, nameSize))
 
     clearShadow(context)
-    context.fillStyle = "#FFFFFFB3"
-    context.font = `${labelSize}px ${LABEL_FONT}`
-    tracking(context, 0.18 * unit)
+    context.fillStyle = look.soft
+    context.font = `600 ${labelSize}px ${look.text}`
     context.fillText(label, left + padding, top + padding + topRow + gap + labelCap)
-    tracking(context, 0)
 }
 
 function capCentred(context: CanvasRenderingContext2D, middle: number, fontSize: number): number {
@@ -164,28 +181,60 @@ function capHeight(context: CanvasRenderingContext2D, fontSize: number): number 
     return measured > 0 ? measured : fontSize * TITLE_CAP_HEIGHT
 }
 
+function outlinedText(
+    context: CanvasRenderingContext2D,
+    text: string,
+    x: number, y: number,
+    outline: number,
+    look: Look,
+) {
+    context.lineJoin = "round"
+    context.lineWidth = outline
+    context.strokeStyle = look.ink
+    drop(context, outline, look)
+    context.strokeText(text, x, y)
+    clearShadow(context)
+
+    context.fillStyle = look.white
+    context.fillText(text, x, y)
+}
+
 function panel(
     context: CanvasRenderingContext2D,
     x: number, y: number, width: number, height: number,
     radius: number,
     unit: number,
+    look: Look,
+) {
+    const outline = 0.45 * unit
+
+    roundedRect(context, x, y + 0.7 * unit, width, height, radius)
+    context.fillStyle = look.ink
+    context.fill()
+
+    roundedRect(context, x, y, width, height, radius)
+    context.fillStyle = look.panel
+    context.fill()
+    context.lineWidth = outline
+    context.strokeStyle = look.ink
+    context.stroke()
+}
+
+function roundedRect(
+    context: CanvasRenderingContext2D,
+    x: number, y: number, width: number, height: number,
+    radius: number,
 ) {
     context.beginPath()
     if (context.roundRect) context.roundRect(x, y, width, height, radius)
     else context.rect(x, y, width, height)
-
-    context.fillStyle = "#000000B8"
-    context.fill()
-    context.lineWidth = Math.max(1, 0.2 * unit)
-    context.strokeStyle = "#FFFFFF33"
-    context.stroke()
 }
 
-function shadow(context: CanvasRenderingContext2D, unit: number) {
-    context.shadowColor = "#000000"
-    context.shadowOffsetX = -0.15 * unit
-    context.shadowOffsetY = 0.15 * unit
-    context.shadowBlur = 0.4 * unit
+function drop(context: CanvasRenderingContext2D, offset: number, look: Look) {
+    context.shadowColor = look.ink
+    context.shadowOffsetX = 0
+    context.shadowOffsetY = offset
+    context.shadowBlur = 0
 }
 
 function clearShadow(context: CanvasRenderingContext2D) {
@@ -193,10 +242,6 @@ function clearShadow(context: CanvasRenderingContext2D) {
     context.shadowOffsetX = 0
     context.shadowOffsetY = 0
     context.shadowBlur = 0
-}
-
-function tracking(context: CanvasRenderingContext2D, pixels: number) {
-    (context as {letterSpacing?: string}).letterSpacing = `${pixels}px`
 }
 
 const images = new Map<string, Promise<HTMLImageElement>>()
@@ -219,7 +264,9 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     return loading
 }
 
-async function fontsReady(): Promise<void> {
+async function fontsReady(look: Look): Promise<void> {
+    await Promise.all([`16px ${look.display}`, `600 16px ${look.text}`]
+        .map((font) => document.fonts?.load(font)))
     await document.fonts?.ready
 }
 

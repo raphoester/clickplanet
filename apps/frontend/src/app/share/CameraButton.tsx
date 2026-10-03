@@ -8,7 +8,7 @@ export type CameraButtonProps = {
 
 export default function CameraButton({busy, onClick}: CameraButtonProps) {
     return <button type="button"
-                   className="camera-button"
+                   className="button camera-button"
                    aria-label="Take a picture of your planet"
                    aria-busy={busy}
                    disabled={busy}

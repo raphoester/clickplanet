@@ -87,7 +87,7 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
                 value={search}
                 onChange={(event) => handleSearchChange(event.target.value)}
                 onKeyDown={handleSearchKeyDown}
-                className="input-search"
+                className="field input-search"
                 autoComplete="off"
             />
         </div>

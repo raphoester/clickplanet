@@ -23,7 +23,7 @@ export function PlayersButton({entries, onOpen, buttonRef}: PlayersButtonProps) 
     const label = entries.length === 1 ? "1 player online" : `${entries.length} players online`
     return <button ref={buttonRef}
                    type="button"
-                   className="button button-ghost menu-players"
+                   className="button menu-players"
                    aria-label={label}
                    title={label}
                    onClick={onOpen}>

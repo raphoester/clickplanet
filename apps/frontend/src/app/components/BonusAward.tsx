@@ -36,7 +36,7 @@ export default function BonusAward({reward, onDone}: BonusAwardProps) {
     }, [reward])
 
     return <div className={`bonus-award bonus-award--${reward.kind}`} role="status" aria-live="polite">
-        <div className="bonus-award-card">
+        <div className="bonus-award-card panel">
             <span className="bonus-award-box" aria-hidden="true"><BonusIcon kind={reward.kind}/></span>
             <strong className="bonus-award-title">{title}</strong>
             <span className="bonus-award-detail">{detail}</span>

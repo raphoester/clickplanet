@@ -16,13 +16,15 @@ toy box; they do not fit a space station or a TV studio.
 - **`src/tokens.css`** holds every color, font, size, radius, outline and
   shadow, and nothing else. A value that is not there is not part of the game's
   look.
-- **`src/index.css`** builds the shared pieces out of them: the panel, the
-  buttons, the chips, the field, the author colors.
+- **`src/index.css`** builds the shared pieces out of them: the panel, the box
+  inside a panel, the buttons, the chips, the coins, the field.
 - **A component's own CSS says only what makes that component itself**, and
   says it in tokens. It never restates a shared piece's size, radius or font
   (see "Styling" in `CLAUDE.md` for how that went wrong once).
 - A shade the tokens lack is a mix, not a new literal:
   `color-mix(in srgb, var(--gold) 30%, transparent)`.
+- **`src/designTokens.test.ts` holds all of this**: it fails on a color or a
+  font family written anywhere but `tokens.css`.
 
 ## Type
 
