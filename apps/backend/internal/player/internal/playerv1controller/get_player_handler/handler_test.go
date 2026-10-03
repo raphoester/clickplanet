@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
 type stubUseCase struct {
@@ -45,7 +46,13 @@ func TestThePlayerIsMappedAndMayBeCached(t *testing.T) {
 			},
 			CreatedAt: createdAt,
 		},
-		Titles: []titles.Title{titles.Settler{}, titles.Loyal{}},
+		Titles: wearing.Showcase{
+			Worn: titles.Standing{Title: titles.Warlord{}, Place: titles.Place{Track: "conquest", TrackName: "Conquest", Number: 3, Count: 5}},
+			Shown: []titles.Standing{
+				{Title: titles.OG{}},
+				{Title: titles.Warlord{}, Place: titles.Place{Track: "conquest", TrackName: "Conquest", Number: 3, Count: 5}},
+			},
+		},
 	}}
 
 	res, err := getPlayer(t, useCase, "ada_l")
@@ -60,9 +67,10 @@ func TestThePlayerIsMappedAndMayBeCached(t *testing.T) {
 	assert.Equal(t, "2026-09-14", player.GetStats().GetStreakLastDay())
 	assert.Equal(t, createdAt.UnixMilli(), player.GetCreatedAtUnixMs())
 	require.Len(t, player.GetTitles(), 2)
-	assert.Equal(t, "settler", player.GetTitles()[0].GetId())
-	assert.Equal(t, "Settler", player.GetTitles()[0].GetName())
-	assert.Equal(t, "loyal", player.GetTitles()[1].GetId())
+	assert.Equal(t, "og", player.GetTitles()[0].GetId())
+	assert.Nil(t, player.GetTitles()[0].GetRank(), "a title outside any track has no rank")
+	assert.Equal(t, "Warlord", player.GetWornTitle().GetName())
+	assert.Equal(t, &playerv1.Rank{TrackId: "conquest", TrackName: "Conquest", Number: 3, Count: 5}, player.GetWornTitle().GetRank())
 	assert.Equal(t, "public, max-age=10", res.Header().Get("Cache-Control"))
 }
 

@@ -1,7 +1,6 @@
 package titles_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -19,57 +18,64 @@ var (
 	ada = players.AccountID{15: 1}
 )
 
-func TestAwardGrantsWhatTheStatsEarn(t *testing.T) {
+func holding(t *testing.T, ids ...titles.ID) *inmemory_title_store.Store {
+	t.Helper()
+
+	store := inmemory_title_store.New()
+	require.NoError(t, store.Grant(t.Context(), titles.Holdings{ada: ids}, at))
+	return store
+}
+
+func TestUnheldIsWhatTheCareerEarnsAndTheAccountDoesNotHold(t *testing.T) {
+	unheld, err := titles.NewBook(holding(t, "first"), catalog).Unheld(t.Context(), ada, tiles(3))
+
+	require.NoError(t, err)
+	assert.Equal(t, titles.IDs{"third"}, unheld)
+}
+
+func TestAGuestEarnsNothingAndNoStoreIsRead(t *testing.T) {
+	store := inmemory_title_store.New()
+	store.FailWith(errors.New("postgres is down"))
+
+	unheld, err := titles.NewBook(store, catalog).Unheld(t.Context(), ada, titles.Career{Stats: players.Stats{TilesTaken: 3}})
+
+	require.NoError(t, err)
+	assert.Empty(t, unheld)
+}
+
+func TestGrantedTitlesAreHeld(t *testing.T) {
 	store := inmemory_title_store.New()
 
-	require.NoError(t, titles.NewBook(store, catalog).Award(t.Context(), ada, tiles(3), at))
+	require.NoError(t, titles.NewBook(store, catalog).Grant(t.Context(), ada, titles.IDs{"first"}, at))
 
 	held, err := store.Held(t.Context(), ada)
 	require.NoError(t, err)
-	assert.Equal(t, titles.IDs{"first", "third"}, held)
+	assert.Equal(t, titles.IDs{"first"}, held)
 }
 
-type refusingGrants struct {
-	*inmemory_title_store.Store
-}
-
-func (refusingGrants) Grant(context.Context, titles.Holdings, time.Time) error {
-	return errors.New("nothing was to be granted")
-}
-
-func TestAwardWritesNothingWhenEveryEarnedTitleIsHeld(t *testing.T) {
-	store := inmemory_title_store.New()
-	require.NoError(t, store.Grant(t.Context(), titles.Holdings{ada: {"first"}}, at))
-
-	err := titles.NewBook(refusingGrants{store}, catalog).Award(t.Context(), ada, tiles(2), at)
-
-	assert.NoError(t, err)
-}
-
-func TestTheTitlesOfAnAccountAreTheCatalogsObjects(t *testing.T) {
-	store := inmemory_title_store.New()
-	require.NoError(t, store.Grant(t.Context(), titles.Holdings{ada: {"third", "first"}}, at))
-
-	held, err := titles.NewBook(store, catalog).TitlesOf(t.Context(), ada)
+func TestShownIsWhatTheCatalogShowsOfTheTitlesHeld(t *testing.T) {
+	shown, err := titles.NewBook(holding(t, "badge", "low", "mid"), tracks).Shown(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, []titles.Title{first, third}, held)
+	assert.Equal(t, []titles.Standing{{Title: badge}, {Title: mid, Place: place(ladder, 2)}}, shown)
 }
 
-func TestAGuestsAwardTouchesNoStore(t *testing.T) {
-	store := inmemory_title_store.New()
-	store.FailWith(errors.New("postgres is down"))
-	guest := titles.Career{Stats: players.Stats{TilesTaken: 3}}
+func TestProgressIsEachTrackMeasuredOnTheCareerAgainstTheTitlesHeld(t *testing.T) {
+	progress, err := titles.NewBook(holding(t, "badge", "low"), tracks).Progress(t.Context(), ada, tiles(3))
 
-	assert.NoError(t, titles.NewBook(store, catalog).Award(t.Context(), ada, guest, at))
+	require.NoError(t, err)
+	assert.Equal(t, tracks.Progress(tiles(3), titles.IDs{"badge", "low"}), progress)
 }
 
 func TestAStoreFailureIsAnError(t *testing.T) {
 	store := inmemory_title_store.New()
 	store.FailWith(errors.New("postgres is down"))
-	book := titles.NewBook(store, catalog)
+	book := titles.NewBook(store, tracks)
 
-	_, err := book.TitlesOf(t.Context(), ada)
+	_, err := book.Shown(t.Context(), ada)
 	require.Error(t, err)
-	assert.Error(t, book.Award(t.Context(), ada, tiles(3), at))
+	_, err = book.Progress(t.Context(), ada, tiles(3))
+	require.Error(t, err)
+	_, err = book.Unheld(t.Context(), ada, tiles(3))
+	assert.Error(t, err)
 }

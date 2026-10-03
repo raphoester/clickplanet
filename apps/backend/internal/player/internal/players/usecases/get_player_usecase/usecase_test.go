@@ -13,6 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/inmemory_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -25,6 +27,7 @@ var (
 type fixture struct {
 	store    *inmemory_player_store.Store
 	titles   *inmemory_title_store.Store
+	worn     *inmemory_worn_title_store.Store
 	accounts *get_player_usecase.FakeAccounts
 	clock    *cptime.FixedClock
 	useCase  *get_player_usecase.UseCase
@@ -38,11 +41,12 @@ func setUp(t *testing.T) fixture {
 	accounts := get_player_usecase.NewFakeAccounts()
 	accounts.Create(ada, createdAt)
 	clock := cptime.NewFixedClock(monday)
-	held := inmemory_title_store.New()
+	held, worn := inmemory_title_store.New(), inmemory_worn_title_store.New()
+	catalog := titles.NewCatalog()
 
 	return fixture{
-		store: store, titles: held, accounts: accounts, clock: clock,
-		useCase: get_player_usecase.New(store, store, titles.NewBook(held, titles.NewCatalog()), accounts, clock),
+		store: store, titles: held, worn: worn, accounts: accounts, clock: clock,
+		useCase: get_player_usecase.New(store, store, wearing.NewWardrobe(worn, titles.NewBook(held, catalog), catalog), accounts, clock),
 	}
 }
 
@@ -73,14 +77,31 @@ func TestAnAdminIsSaidToBeOne(t *testing.T) {
 	assert.True(t, player.Admin)
 }
 
-func TestTheHeldTitlesAreReadInTheLaddersOrder(t *testing.T) {
+func TestThePlayerShowsItsBestOfEachTrackAndWearsTheFirst(t *testing.T) {
 	f := setUp(t)
-	require.NoError(t, f.titles.Grant(t.Context(), titles.Holdings{ada: {"loyal", "governor", "settler"}}, monday))
+	require.NoError(t, f.titles.Grant(t.Context(), titles.Holdings{ada: {"loyal", "raider", "settler", "og"}}, monday))
 
 	player, err := f.useCase.Execute(t.Context(), "Ada_L")
 
 	require.NoError(t, err)
-	assert.Equal(t, []titles.Title{titles.Settler{}, titles.Governor{}, titles.Loyal{}}, player.Titles)
+	raider, _ := titles.NewCatalog().StandingOf("raider")
+	loyal, _ := titles.NewCatalog().StandingOf("loyal")
+	assert.Equal(t, wearing.Showcase{
+		Worn:  raider,
+		Shown: []titles.Standing{{Title: titles.OG{}}, raider, loyal},
+	}, player.Titles)
+}
+
+func TestThePlayerWearsTheTitleItChose(t *testing.T) {
+	f := setUp(t)
+	require.NoError(t, f.titles.Grant(t.Context(), titles.Holdings{ada: {"loyal", "settler", "og"}}, monday))
+	require.NoError(t, f.worn.Wear(t.Context(), ada, "loyal", monday))
+
+	player, err := f.useCase.Execute(t.Context(), "Ada_L")
+
+	require.NoError(t, err)
+	loyal, _ := titles.NewCatalog().StandingOf("loyal")
+	assert.Equal(t, loyal, player.Titles.Worn)
 }
 
 func TestAPlayerThatNeverTookATileHasEmptyStats(t *testing.T) {

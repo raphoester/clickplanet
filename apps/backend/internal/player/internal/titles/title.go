@@ -35,43 +35,18 @@ type Reconciliation struct {
 	Revocations Holdings
 }
 
-type Catalog []Title
-
-func (c Catalog) EarnedBy(career Career) IDs {
-	if !career.Account.Linked {
-		return nil
-	}
-
-	var earned IDs
-	for _, title := range c {
-		if title.EarnedBy(career) {
-			earned = append(earned, title.ID())
-		}
-	}
-	return earned
+type Place struct {
+	Track     TrackID
+	TrackName string
+	Number    int
+	Count     int
 }
 
-func (c Catalog) ReconciliationOf(careers []Career, held Holdings) Reconciliation {
-	reconciliation := Reconciliation{Grants: Holdings{}, Revocations: Holdings{}}
-	for _, career := range careers {
-		account := career.Stats.Account
-		earned := c.EarnedBy(career)
-		if missing := earned.Without(held[account]); len(missing) > 0 {
-			reconciliation.Grants[account] = missing
-		}
-		if unearned := held[account].Without(earned); len(unearned) > 0 {
-			reconciliation.Revocations[account] = unearned
-		}
-	}
-	return reconciliation
+func (p Place) Ranked() bool { return p.Count > 0 }
+
+type Standing struct {
+	Title Title
+	Place Place
 }
 
-func (c Catalog) Of(held IDs) []Title {
-	var titles []Title
-	for _, title := range c {
-		if slices.Contains(held, title.ID()) {
-			titles = append(titles, title)
-		}
-	}
-	return titles
-}
+func (s Standing) Empty() bool { return s.Title == nil }

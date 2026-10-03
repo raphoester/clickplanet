@@ -9,7 +9,7 @@ import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
 import {NameColor, RosterEntry} from "../backends/player.ts"
-import {PlayerBackend, PlayerError} from "../backends/player.ts"
+import {PlayerBackend, PlayerError, PlayerTitle, TitleDashboard} from "../backends/player.ts"
 
 const france = Countries.get("fr")!
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
@@ -327,6 +327,20 @@ describe("Menu", () => {
     })
 
     describe("the account", () => {
+        const settler = {id: "settler", name: "Settler", rank: {trackId: "conquest", trackName: "Conquest", number: 1, count: 5}}
+        const raider = {id: "raider", name: "Raider", rank: {trackId: "conquest", trackName: "Conquest", number: 2, count: 5}}
+        const og = {id: "og", name: "OG"}
+        const dashboard = (progress: number): TitleDashboard => ({
+            worn: settler,
+            wearable: [og, settler],
+            tracks: [{
+                id: "conquest", name: "Conquest", progress, steps: [
+                    {title: settler, threshold: 100, earned: true},
+                    {title: raider, threshold: 1_000, earned: false},
+                ],
+            }],
+        })
+
         const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number, players?: RosterEntry[]) => {
             const backend = {
                 signInOptions: vi.fn(async () => offered),
@@ -344,12 +358,18 @@ describe("Menu", () => {
                 profile: vi.fn(async () => ({accountId: "account-1", name: username, color: NameColor.UNSPECIFIED})),
                 setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
                 setColor: vi.fn(async (color: NameColor) => color),
-                streak: vi.fn(async () => ({current: 0, best: 0})),
+                titles: vi.fn(async (): Promise<TitleDashboard> => ({wearable: [], tracks: []})),
+                wearTitle: vi.fn(async (): Promise<PlayerTitle | undefined> => undefined),
             } satisfies PlayerBackend
             const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                                       account={store} linkedMultiplier={linkedMultiplier} players={players}/>)
-            return {...view, backend, player, navigate, user: userEvent.setup()}
+            const user = userEvent.setup()
+            const openSettings = async () => {
+                await user.click(await screen.findByRole("button", {name: "Account"}))
+                await user.click(screen.getByRole("tab", {name: "Settings"}))
+            }
+            return {...view, backend, player, navigate, user, openSettings}
         }
 
         it("keeps the account button beside the players button", async () => {
@@ -411,18 +431,18 @@ describe("Menu", () => {
         })
 
         it("sends a link, not a sign-in, from a linked account", async () => {
-            const {user, backend} = withAccount(["google", "discord"], {linked: ["discord"]})
+            const {user, backend, openSettings} = withAccount(["google", "discord"], {linked: ["discord"]})
 
-            await user.click(await screen.findByRole("button", {name: "Account"}))
+            await openSettings()
             await user.click(button("Link Google"))
 
             expect(backend.startSignIn).toHaveBeenCalledWith("google", "link")
         })
 
         it("shows who is signed in, and links the missing provider", async () => {
-            const {user} = withAccount(["google", "discord"], {linked: ["google"]})
+            const {openSettings} = withAccount(["google", "discord"], {linked: ["google"]})
 
-            await user.click(await screen.findByRole("button", {name: "Account"}))
+            await openSettings()
 
             expect(screen.getByText("Signed in with Google.")).toBeDefined()
             expect(button("Link Discord")).toBeDefined()
@@ -431,34 +451,50 @@ describe("Menu", () => {
             expect(button("Sign out everywhere")).toBeDefined()
         })
 
-        it("shows a signed-in player its streak, read again each time the account opens", async () => {
+        it("opens a signed-in player's account on its progress, read again each time the account opens", async () => {
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
-            player.streak.mockResolvedValue({current: 1, best: 9})
+            player.titles.mockResolvedValue(dashboard(140))
 
             await user.click(await screen.findByRole("button", {name: "Account"}))
-            expect(await screen.findByText("1 day")).toBeDefined()
-            expect(screen.getByText("Best streak").nextElementSibling?.textContent).toBe("9 days")
+            expect(screen.getByRole("tab", {name: "Progress"}).getAttribute("aria-selected")).toBe("true")
+            expect(await screen.findByText("860 tiles to Raider")).toBeDefined()
 
-            player.streak.mockResolvedValue({current: 2, best: 9})
+            player.titles.mockResolvedValue(dashboard(400))
             await user.click(button("Back"))
             await user.click(await screen.findByRole("button", {name: "Account"}))
-            expect(await screen.findByText("2 days")).toBeDefined()
-            expect(player.streak).toHaveBeenCalledTimes(2)
+            expect(await screen.findByText("600 tiles to Raider")).toBeDefined()
+            expect(player.titles).toHaveBeenCalledTimes(2)
         })
 
-        it("shows a guest no streak, and reads none", async () => {
+        it("wears the title pressed, and shows it worn", async () => {
+            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
+            player.titles.mockResolvedValueOnce(dashboard(140)).mockResolvedValue({...dashboard(140), worn: og})
+            player.wearTitle.mockResolvedValue(og)
+
+            await user.click(await screen.findByRole("button", {name: "Account"}))
+            const wear = await screen.findByRole("radiogroup", {name: "Wear a title"})
+            expect(within(wear).getByRole("radio", {name: "Settler"}).getAttribute("aria-checked")).toBe("true")
+
+            await user.click(within(wear).getByRole("radio", {name: "OG"}))
+
+            expect(player.wearTitle).toHaveBeenCalledWith("og")
+            await vi.waitFor(() =>
+                expect(within(wear).getByRole("radio", {name: "OG"}).getAttribute("aria-checked")).toBe("true"))
+        })
+
+        it("shows a guest no tabs, and reads no titles", async () => {
             const {user, player} = withAccount(["google"], {linked: []})
 
             await user.click(await screen.findByRole("button", {name: "Sign in"}))
 
-            expect(screen.queryByText("Best streak")).toBeNull()
-            expect(player.streak).not.toHaveBeenCalled()
+            expect(screen.queryByRole("tab")).toBeNull()
+            expect(player.titles).not.toHaveBeenCalled()
         })
 
         it("shows the username, and saves a new one", async () => {
-            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
+            const {user, player, openSettings} = withAccount(["google"], {linked: ["google"]}, "ana")
 
-            await user.click(await screen.findByRole("button", {name: "Account"}))
+            await openSettings()
             const input = await screen.findByDisplayValue("ana")
             expect(button("Save")).toHaveProperty("disabled", true)
 
@@ -474,8 +510,8 @@ describe("Menu", () => {
         })
 
         it("offers a color to a player with a username, and saves the one pressed", async () => {
-            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana")
-            await user.click(await screen.findByRole("button", {name: "Account"}))
+            const {user, player, openSettings} = withAccount(["google"], {linked: ["google"]}, "ana")
+            await openSettings()
 
             const colors = await screen.findByRole("group", {name: "Name color"})
             expect(within(colors).getAllByRole("button")).toHaveLength(13)
@@ -489,18 +525,18 @@ describe("Menu", () => {
         })
 
         it("offers no color before a username is chosen", async () => {
-            const {user} = withAccount(["google"], {linked: ["google"]})
-            await user.click(await screen.findByRole("button", {name: "Account"}))
+            const {openSettings} = withAccount(["google"], {linked: ["google"]})
+            await openSettings()
             await screen.findByLabelText("Username")
 
             expect(screen.queryByRole("group", {name: "Name color"})).toBeNull()
         })
 
         it("says why a username was refused", async () => {
-            const {user, player} = withAccount(["google"], {linked: ["google"]})
+            const {user, player, openSettings} = withAccount(["google"], {linked: ["google"]})
             player.setName.mockRejectedValue(new PlayerError("taken"))
 
-            await user.click(await screen.findByRole("button", {name: "Account"}))
+            await openSettings()
             await user.type(screen.getByLabelText("Username"), "ana")
             await user.click(button("Save"))
 
@@ -516,9 +552,9 @@ describe("Menu", () => {
         })
 
         it("deletes the account only after the dialog says what goes", async () => {
-            const {user, backend} = withAccount(["google"], {linked: ["google"]})
+            const {user, backend, openSettings} = withAccount(["google"], {linked: ["google"]})
 
-            await user.click(await screen.findByRole("button", {name: "Account"}))
+            await openSettings()
             await user.click(button("Delete account"))
 
             const dialog = screen.getByRole("dialog", {name: "Delete your account?"})
@@ -533,9 +569,9 @@ describe("Menu", () => {
         })
 
         it("keeps the account when the dialog is cancelled", async () => {
-            const {user, backend} = withAccount(["google"], {linked: ["google"]})
+            const {user, backend, openSettings} = withAccount(["google"], {linked: ["google"]})
 
-            await user.click(await screen.findByRole("button", {name: "Account"}))
+            await openSettings()
             await user.click(button("Delete account"))
             await user.click(button("Cancel"))
 

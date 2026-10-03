@@ -19,7 +19,7 @@ import (
 var (
 	monday  = time.Date(2026, 9, 14, 20, 0, 0, 0, time.UTC)
 	ada     = players.AccountID{15: 1}
-	catalog = titles.Catalog{titles.FakeTitle{Key: "first", Tiles: 1}, titles.FakeTitle{Key: "third", Tiles: 3}}
+	catalog = titles.CatalogOf([]titles.Title{titles.FakeTitle{Key: "first", Tiles: 1}, titles.FakeTitle{Key: "third", Tiles: 3}})
 )
 
 type fixture struct {
@@ -37,8 +37,31 @@ func setUp() fixture {
 func (f fixture) award(t *testing.T, catalog titles.Catalog) error {
 	t.Helper()
 
-	return award_titles_usecase.New(f.stats, f.accounts, titles.NewBook(f.titles, catalog), cptime.NewFixedClock(monday)). //nolint:wrapcheck // the tests read the use case's error.
-																Execute(t.Context(), ada)
+	_, err := f.awarded(t, catalog)
+	return err
+}
+
+func (f fixture) awarded(t *testing.T, catalog titles.Catalog) (titles.IDs, error) {
+	t.Helper()
+
+	useCase := award_titles_usecase.New(f.stats, f.accounts, titles.NewBook(f.titles, catalog), cptime.NewFixedClock(monday))
+	return useCase.Execute(t.Context(), ada) //nolint:wrapcheck // the tests read the use case's error.
+}
+
+func TestTheAnswerIsWhatThisTakeGranted(t *testing.T) {
+	f := setUp()
+	for range 3 {
+		require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
+	}
+	require.NoError(t, f.titles.Grant(t.Context(), titles.Holdings{ada: {"first"}}, monday))
+
+	granted, err := f.awarded(t, catalog)
+	require.NoError(t, err)
+	assert.Equal(t, titles.IDs{"third"}, granted)
+
+	granted, err = f.awarded(t, catalog)
+	require.NoError(t, err)
+	assert.Empty(t, granted, "a take that earns nothing new grants nothing")
 }
 
 func (f fixture) held(t *testing.T) titles.IDs {

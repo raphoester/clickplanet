@@ -35,8 +35,9 @@ import AnthemBar from "../anthem/AnthemBar.tsx";
 import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
 import {useAccount} from "../account/useAccount.ts";
-import {PlayerInfoBackend, PresenceBackend, PlayerLine} from "../../backends/player.ts";
+import {PlayerInfoBackend, PlayerLine, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
+import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
@@ -72,7 +73,8 @@ export default function Viewer(props: ViewerProps) {
     usePresence(props.presence, {countryCode: countryState.code, username, color})
 
     const quiz = useQuiz(props.quizMaster, countryState.code, sound.play)
-    const roster = useRoster(props.presence)
+    const [unlocked, setUnlocked] = useState<readonly PlayerTitle[]>([])
+    const roster = useRoster(props.presence, (title) => setUnlocked((queue) => [...queue, title]))
     const [pitchOpen, setPitchOpen] = useState(false)
     const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
     const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
@@ -186,6 +188,11 @@ export default function Viewer(props: ViewerProps) {
                                                        player={openPlayer}
                                                        backend={props.playerInfo}
                                                        onClose={() => setOpenPlayer(undefined)}/>}
+
+        {unlocked.length > 0 && <TitleUnlocked key={unlocked[0].id}
+                                               title={unlocked[0]}
+                                               onWear={props.account?.wearTitle}
+                                               onClose={() => setUnlocked((queue) => queue.slice(1))}/>}
 
         {award && <BonusAward reward={award} onDone={dismissAward}/>}
 

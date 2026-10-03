@@ -39,26 +39,36 @@
     margin: 4px 0 20px;
 }
 
+.player-card .title-banner {
+    margin-bottom: 14px;
+}
+
 .player-card-titles {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin: 0 0 14px;
-    padding: 0;
+    justify-content: center;
+    gap: 8px;
+    margin: 0 0 16px;
+    padding: 14px 8px 10px;
+    border: 1px solid #FFFFFF14;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #FFFFFF0A, #FFFFFF03);
     list-style: none;
 }
 
-.player-card-titles li {
-    padding: 4px 10px;
-    border: 1px solid #FFFFFF1A;
-    border-radius: 999px;
-    background-color: #FFFFFF0D;
-    font-family: Oswald, sans-serif;
-    font-weight: 500;
-    font-size: 12px;
-    letter-spacing: 0.8px;
-    text-transform: uppercase;
-    color: white;
+.player-card-held {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 76px;
+}
+
+.player-card-held-name {
+    font-family: "Luckiest Guy", sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    color: #FFFFFFD9;
 }
 
 .player-card .stat-tiles {

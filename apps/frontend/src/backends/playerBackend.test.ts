@@ -5,14 +5,21 @@ import {
     PlayerEvent as PlayerEventPb,
     PlayerLeft as PlayerLeftPb,
     Profile as ProfilePb,
+    Rank as RankPb,
     Roster as RosterPb,
     RosterEntry as RosterEntryPb,
     Stats as StatsPb,
+    Step as StepPb,
     Title as TitlePb,
+    TitleEarned as TitleEarnedPb,
+    Track as TrackPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
-import {isValidUsername, NameColor, PlayerError, RosterEvent, usernameOf} from "./player.ts"
+import {isValidUsername, NameColor, PlayerError, PlayerTitle, RosterEvent, usernameOf} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
+
+const settlerPb = new TitlePb({id: "settler", name: "Settler", rank: new RankPb({trackId: "conquest", trackName: "Conquest", number: 1, count: 5})})
+const settler: PlayerTitle = {id: "settler", name: "Settler", rank: {trackId: "conquest", trackName: "Conquest", number: 1, count: 5}}
 
 const refusing = (code: Code) => vi.fn(async () => {
     throw new ConnectError("no", code)
@@ -109,18 +116,50 @@ describe("ConnectPlayerBackend", () => {
         expect(await backend.profile()).toEqual({accountId: "", name: ""})
     })
 
-    it("reads the streak with the click token", async () => {
-        const getStats = vi.fn(async () => ({stats: new StatsPb({tilesTaken: 12n, streakCurrent: 4, streakBest: 9, streakLastDay: "2026-10-01"})}))
-        const backend = backendWith({getStats})
+    it("reads the titles with the click token: the one worn, the ones to wear and each track", async () => {
+        const getTitles = vi.fn(async () => ({
+            worn: settlerPb,
+            wearable: [new TitlePb({id: "og", name: "OG"}), settlerPb],
+            tracks: [new TrackPb({
+                id: "conquest", name: "Conquest", progress: 140n, steps: [
+                    new StepPb({title: settlerPb, threshold: 100n, earned: true}),
+                    new StepPb({title: new TitlePb({id: "raider", name: "Raider", rank: new RankPb({trackId: "conquest", trackName: "Conquest", number: 2, count: 5})}), threshold: 1000n}),
+                ],
+            })],
+        }))
+        const backend = backendWith({getTitles})
 
-        expect(await backend.streak()).toEqual({current: 4, best: 9})
-        expect(headersOf(getStats).headers.get(SESSION_HEADER)).toBe("token-1")
+        expect(await backend.titles()).toEqual({
+            worn: settler,
+            wearable: [{id: "og", name: "OG"}, settler],
+            tracks: [{
+                id: "conquest", name: "Conquest", progress: 140, steps: [
+                    {title: settler, threshold: 100, earned: true},
+                    {title: {id: "raider", name: "Raider", rank: {trackId: "conquest", trackName: "Conquest", number: 2, count: 5}}, threshold: 1000, earned: false},
+                ],
+            }],
+        })
+        expect(headersOf(getTitles).headers.get(SESSION_HEADER)).toBe("token-1")
     })
 
-    it("reads no stats as no streak", async () => {
-        const backend = backendWith({getStats: vi.fn(async () => ({}))})
+    it("reads no worn title as none", async () => {
+        const backend = backendWith({getTitles: vi.fn(async () => ({wearable: [], tracks: []}))})
 
-        expect(await backend.streak()).toEqual({current: 0, best: 0})
+        expect((await backend.titles()).worn).toBeUndefined()
+    })
+
+    it("wears a title with the click token, and answers the one the server says is worn", async () => {
+        const wearTitle = vi.fn(async () => ({worn: settlerPb}))
+        const backend = backendWith({wearTitle})
+
+        expect(await backend.wearTitle("settler")).toEqual(settler)
+        expect(wearTitle).toHaveBeenCalledWith({titleId: "settler"}, expect.anything())
+        expect(headersOf(wearTitle).headers.get(SESSION_HEADER)).toBe("token-1")
+    })
+
+    it("reports a title that cannot be worn as invalid", async () => {
+        await expect(backendWith({wearTitle: refusing(Code.InvalidArgument)}).wearTitle("warmaster"))
+            .rejects.toMatchObject({failure: "invalid"})
     })
 
     it("sends the name with the click token, and answers what the server stored", async () => {
@@ -307,7 +346,7 @@ describe("ConnectPlayerBackend live roster", () => {
         const events: RosterEvent[] = []
         const onUnavailable = vi.fn()
 
-        const stop = backendWith({listenForEvents}).listenForRoster((event) => events.push(event), onUnavailable)
+        const stop = backendWith({listenForEvents}).listenForRoster((event) => events.push(event), onUnavailable, vi.fn())
         await vi.waitFor(() => expect(events).toHaveLength(3))
         stop()
 
@@ -317,9 +356,28 @@ describe("ConnectPlayerBackend live roster", () => {
             {kind: "left", key: "k1"},
         ])
         expect(onUnavailable).not.toHaveBeenCalled()
-        const options = (listenForEvents.mock.calls[0] as unknown[])[1] as {headers?: Headers, timeoutMs: number}
-        expect(options.headers).toBeUndefined()
+        const options = (listenForEvents.mock.calls[0] as unknown[])[1] as {headers: Headers, timeoutMs: number}
+        expect(options.headers.get(SESSION_HEADER)).toBeNull()
         expect(options.timeoutMs).toBe(0)
+    })
+
+    it("opens the stream with the token it holds, and hands a title earned to its own callback", async () => {
+        const session = {token: vi.fn(async () => "minted"), held: vi.fn(() => "token-1"), invalidate: vi.fn()}
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlayerEventPb({event: {case: "titleEarned", value: new TitleEarnedPb({title: settlerPb})}})
+            await new Promise(() => {})
+        })
+        const onEvent = vi.fn()
+        const titles: PlayerTitle[] = []
+
+        const stop = backendWith({listenForEvents}, session).listenForRoster(onEvent, vi.fn(), (title) => titles.push(title))
+        await vi.waitFor(() => expect(titles).toEqual([settler]))
+        stop()
+
+        expect(onEvent).not.toHaveBeenCalled()
+        const options = (listenForEvents.mock.calls[0] as unknown[])[1] as {headers: Headers}
+        expect(options.headers.get(SESSION_HEADER)).toBe("token-1")
+        expect(session.token).not.toHaveBeenCalled()
     })
 
     it("reports a server without the stream once, and does not reconnect to it", async () => {
@@ -328,7 +386,7 @@ describe("ConnectPlayerBackend live roster", () => {
             const listenForEvents = vi.fn(failingWith(new ConnectError("no", code)))
             const onUnavailable = vi.fn()
 
-            backendWith({listenForEvents}).listenForRoster(() => {}, onUnavailable)
+            backendWith({listenForEvents}).listenForRoster(() => {}, onUnavailable, vi.fn())
             await vi.advanceTimersByTimeAsync(60_000)
 
             expect(onUnavailable).toHaveBeenCalledTimes(1)
@@ -342,7 +400,7 @@ describe("ConnectPlayerBackend live roster", () => {
         const listenForEvents = vi.fn(failingWith(new ConnectError("down", Code.Unavailable)))
         const onUnavailable = vi.fn()
 
-        const stop = backendWith({listenForEvents}).listenForRoster(() => {}, onUnavailable)
+        const stop = backendWith({listenForEvents}).listenForRoster(() => {}, onUnavailable, vi.fn())
         await vi.advanceTimersByTimeAsync(1_000)
         stop()
 
@@ -361,14 +419,16 @@ describe("ConnectPlayerBackend player info", () => {
                 createdAtUnixMs: 1_788_000_000_000n,
                 admin: true,
                 color: NameColor.VIOLET,
-                titles: [new TitlePb({id: "settler", name: "Settler"}), new TitlePb({id: "loyal", name: "Loyal"})],
+                titles: [new TitlePb({id: "og", name: "OG"}), settlerPb],
+                wornTitle: settlerPb,
             }),
         }))
 
         expect(await backendWith({getPlayer}, session).playerInfo("ana")).toEqual({
             name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
             color: NameColor.VIOLET,
-            titles: [{id: "settler", name: "Settler"}, {id: "loyal", name: "Loyal"}],
+            titles: [{id: "og", name: "OG"}, settler],
+            wornTitle: settler,
         })
         expect(getPlayer).toHaveBeenCalledWith({name: "ana"})
         expect(session.token).not.toHaveBeenCalled()

@@ -23,6 +23,10 @@ service PlayerService {
   rpc GetPlayer(GetPlayerRequest) returns (GetPlayerResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc GetTitles(GetTitlesRequest) returns (GetTitlesResponse);
+
+  rpc WearTitle(WearTitleRequest) returns (WearTitleResponse);
 }
 
 message Profile {
@@ -104,6 +108,7 @@ message PlayerEvent {
     RosterEntry entry = 2;
     PlayerLeft left = 3;
     Heartbeat heartbeat = 4;
+    TitleEarned title_earned = 5;
   }
 }
 
@@ -132,9 +137,51 @@ message Player {
   bool admin = 4;
   NameColor color = 5;
   repeated Title titles = 6;
+  Title worn_title = 7;
 }
 
 message Title {
   string id = 1;
   string name = 2;
+  Rank rank = 3;
+}
+
+message Rank {
+  string track_id = 1;
+  string track_name = 2;
+  uint32 number = 3;
+  uint32 count = 4;
+}
+
+message TitleEarned {
+  Title title = 1;
+}
+
+message GetTitlesRequest {}
+
+message GetTitlesResponse {
+  Title worn = 1;
+  repeated Title wearable = 2;
+  repeated Track tracks = 3;
+}
+
+message Track {
+  string id = 1;
+  string name = 2;
+  uint64 progress = 3;
+  repeated Step steps = 4;
+}
+
+message Step {
+  Title title = 1;
+  uint64 threshold = 2;
+  bool earned = 3;
+}
+
+message WearTitleRequest {
+  string title_id = 1;
+}
+
+message WearTitleResponse {
+  Title worn = 1;
 }

@@ -53,6 +53,10 @@ const (
 	PlayerServiceListenForEventsProcedure = "/player.v1.PlayerService/ListenForEvents"
 	// PlayerServiceGetPlayerProcedure is the fully-qualified name of the PlayerService's GetPlayer RPC.
 	PlayerServiceGetPlayerProcedure = "/player.v1.PlayerService/GetPlayer"
+	// PlayerServiceGetTitlesProcedure is the fully-qualified name of the PlayerService's GetTitles RPC.
+	PlayerServiceGetTitlesProcedure = "/player.v1.PlayerService/GetTitles"
+	// PlayerServiceWearTitleProcedure is the fully-qualified name of the PlayerService's WearTitle RPC.
+	PlayerServiceWearTitleProcedure = "/player.v1.PlayerService/WearTitle"
 )
 
 // PlayerServiceClient is a client for the player.v1.PlayerService service.
@@ -66,6 +70,8 @@ type PlayerServiceClient interface {
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlayerEvent], error)
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
+	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
+	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
 }
 
 // NewPlayerServiceClient constructs a client for the player.v1.PlayerService service. By default,
@@ -135,6 +141,18 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getTitles: connect.NewClient[v1.GetTitlesRequest, v1.GetTitlesResponse](
+			httpClient,
+			baseURL+PlayerServiceGetTitlesProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("GetTitles")),
+			connect.WithClientOptions(opts...),
+		),
+		wearTitle: connect.NewClient[v1.WearTitleRequest, v1.WearTitleResponse](
+			httpClient,
+			baseURL+PlayerServiceWearTitleProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("WearTitle")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -149,6 +167,8 @@ type playerServiceClient struct {
 	getRoster       *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.PlayerEvent]
 	getPlayer       *connect.Client[v1.GetPlayerRequest, v1.GetPlayerResponse]
+	getTitles       *connect.Client[v1.GetTitlesRequest, v1.GetTitlesResponse]
+	wearTitle       *connect.Client[v1.WearTitleRequest, v1.WearTitleResponse]
 }
 
 // GetProfile calls player.v1.PlayerService.GetProfile.
@@ -196,6 +216,16 @@ func (c *playerServiceClient) GetPlayer(ctx context.Context, req *connect.Reques
 	return c.getPlayer.CallUnary(ctx, req)
 }
 
+// GetTitles calls player.v1.PlayerService.GetTitles.
+func (c *playerServiceClient) GetTitles(ctx context.Context, req *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error) {
+	return c.getTitles.CallUnary(ctx, req)
+}
+
+// WearTitle calls player.v1.PlayerService.WearTitle.
+func (c *playerServiceClient) WearTitle(ctx context.Context, req *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error) {
+	return c.wearTitle.CallUnary(ctx, req)
+}
+
 // PlayerServiceHandler is an implementation of the player.v1.PlayerService service.
 type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
@@ -207,6 +237,8 @@ type PlayerServiceHandler interface {
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlayerEvent]) error
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
+	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
+	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
 }
 
 // NewPlayerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -272,6 +304,18 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	playerServiceGetTitlesHandler := connect.NewUnaryHandler(
+		PlayerServiceGetTitlesProcedure,
+		svc.GetTitles,
+		connect.WithSchema(playerServiceMethods.ByName("GetTitles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	playerServiceWearTitleHandler := connect.NewUnaryHandler(
+		PlayerServiceWearTitleProcedure,
+		svc.WearTitle,
+		connect.WithSchema(playerServiceMethods.ByName("WearTitle")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.PlayerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PlayerServiceGetProfileProcedure:
@@ -292,6 +336,10 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceListenForEventsHandler.ServeHTTP(w, r)
 		case PlayerServiceGetPlayerProcedure:
 			playerServiceGetPlayerHandler.ServeHTTP(w, r)
+		case PlayerServiceGetTitlesProcedure:
+			playerServiceGetTitlesHandler.ServeHTTP(w, r)
+		case PlayerServiceWearTitleProcedure:
+			playerServiceWearTitleHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -335,4 +383,12 @@ func (UnimplementedPlayerServiceHandler) ListenForEvents(context.Context, *conne
 
 func (UnimplementedPlayerServiceHandler) GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetPlayer is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetTitles is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.WearTitle is not implemented"))
 }

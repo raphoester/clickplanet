@@ -47,21 +47,46 @@ describe("PlayerCard", () => {
         expect(screen.queryByText("Playing since")).toBeNull()
     })
 
-    it("lists every title the player holds, in the order read", async () => {
+    it("wears the worn title on a banner and in the card's frame, with a medal for each title shown", async () => {
+        const warlord = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
+        const devoted = {id: "devoted", name: "Devoted", rank: {trackId: "devotion", trackName: "Devotion", number: 2, count: 3}}
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
                                name: "Ana", tilesTaken: 12_000, streakCurrent: 0, streakBest: 30, admin: false, color: NameColor.UNSPECIFIED,
-                               titles: [
-                                   {id: "settler", name: "Settler"},
-                                   {id: "governor", name: "Governor"},
-                                   {id: "loyal", name: "Loyal"},
-                               ],
+                               titles: [{id: "og", name: "OG"}, warlord, devoted],
+                               wornTitle: warlord,
                            }))}
                            onClose={() => {}}/>)
 
         const titles = await screen.findByRole("list", {name: "Titles"})
-        expect(within(titles).getAllByRole("listitem").map((item) => item.textContent))
-            .toEqual(["Settler", "Governor", "Loyal"])
+        expect(within(titles).getAllByRole("listitem").map((item) => item.querySelector(".player-card-held-name")?.textContent))
+            .toEqual(["OG", "Warlord", "Devoted"])
+        expect(screen.getByText("Rank 3 of 5 · Conquest")).toBeDefined()
+        expect(document.querySelector(".player-card.title-frame-gold")).not.toBeNull()
+    })
+
+    it("stamps OG beside the name of a player who holds it", async () => {
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({
+                               name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED,
+                               titles: [{id: "og", name: "OG"}],
+                               wornTitle: {id: "og", name: "OG"},
+                           }))}
+                           onClose={() => {}}/>)
+
+        const dialog = screen.getByRole("dialog")
+        expect(await within(dialog).findByRole("img", {name: "OG"})).toBeDefined()
+        expect(document.querySelector(".player-card.title-frame-holo")).not.toBeNull()
+    })
+
+    it("draws no frame and no stamp for a player with no title", async () => {
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 3, streakCurrent: 1, streakBest: 1, admin: false, color: NameColor.UNSPECIFIED, titles: []}))}
+                           onClose={() => {}}/>)
+
+        await screen.findByText("Tiles taken")
+        expect(screen.queryByRole("img", {name: "OG"})).toBeNull()
+        expect(document.querySelector("[class*='title-frame-']")).toBeNull()
     })
 
     it("shows no list for a player with no title", async () => {
