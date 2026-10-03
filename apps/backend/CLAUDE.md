@@ -752,6 +752,7 @@ number of the old `cost`, whose meaning it replaces.
   players of every flag, so it refills at its plain rate.
 - **The budget goes out as the bucket holds it**, in clicks, with the slowdown,
   the share and the next step of the country asked about so the client can say why.
+  The whole table goes out once per page load, in `GetBonusRules.toll_steps`.
 - **Bonuses compose with it.** A refill fills the bank to its size and leaves the
   pace alone. A spread is one click. A bomb is not throttled, and lowers the
   share of whoever it hits.
@@ -1336,7 +1337,9 @@ its own.
   blast radius, the enclose's `maxTiles`, the spread pool's size and the
   enclosure stack's size (`bonuses.Rules`, built in `module.go`), and whether
   native land takes two clicks (`home_soil`, from `clicks.HomeSoil`: see
-  [Native land takes two clicks](#native-land-takes-two-clicks-clickshomesoil)). It is
+  [Native land takes two clicks](#native-land-takes-two-clicks-clickshomesoil)), and
+  every step of the toll (`toll_steps`, from `clicks.Toll.Steps`), so the client can
+  show the whole table and the slowdown of a country it does not play for. It is
   `NO_SIDE_EFFECTS`, a GET the cache interceptor marks for 5 minutes, and the
   client reads it once per page load. A page open across a deploy that changes
   them shows the old sizes until it reloads.
