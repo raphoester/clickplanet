@@ -17,7 +17,7 @@ export function newSeasonServiceClient(config: Config): PromiseClient<typeof Sea
 export class ConnectSeasonBackend implements SeasonBackend {
     private read?: Promise<Season | undefined>
 
-    constructor(private readonly client: PromiseClient<typeof SeasonService>, private readonly baseUrl: string) {
+    constructor(private readonly client: PromiseClient<typeof SeasonService>) {
     }
 
     public season(): Promise<Season | undefined> {
@@ -28,7 +28,7 @@ export class ConnectSeasonBackend implements SeasonBackend {
     private async current(): Promise<Season | undefined> {
         try {
             const res = await retrying(() => this.client.getSeason({}), "GetSeason")
-            return res.season && seasonOf(res.season, this.baseUrl)
+            return res.season && seasonOf(res.season)
         } catch (e) {
             if (e instanceof ConnectError && (e.code === Code.Unimplemented || e.code === Code.NotFound)) return undefined
             throw e
@@ -36,11 +36,10 @@ export class ConnectSeasonBackend implements SeasonBackend {
     }
 }
 
-function seasonOf(season: SeasonPb, baseUrl: string): Season {
+function seasonOf(season: SeasonPb): Season {
     return {
         number: season.number,
         finaleStartsAt: Number(season.finaleStartsAtUnixMs),
         endsAt: Number(season.endsAtUnixMs),
-        finaleFile: `${baseUrl.replace(/\/$/, "")}/seasons/${season.number}/finale.ics`,
     }
 }

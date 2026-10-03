@@ -3,9 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetFinaleCalendarRequest, GetSeasonRequest, GetSeasonResponse } from "./seasons_pb.js";
+import { GetSeasonRequest, GetSeasonResponse } from "./seasons_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { HttpBody } from "../../google/api/httpbody_pb.js";
 
 /**
  * @generated from service seasons.v1.SeasonService
@@ -20,18 +19,6 @@ export const SeasonService = {
       name: "GetSeason",
       I: GetSeasonRequest,
       O: GetSeasonResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
-    },
-    /**
-     * An iCalendar file at a plain URL: iOS Safari opens text/calendar in Calendar.
-     *
-     * @generated from rpc seasons.v1.SeasonService.GetFinaleCalendar
-     */
-    getFinaleCalendar: {
-      name: "GetFinaleCalendar",
-      I: GetFinaleCalendarRequest,
-      O: HttpBody,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

@@ -7,8 +7,6 @@
 package seasonsv1
 
 import (
-	_ "google.golang.org/genproto/googleapis/api/annotations"
-	httpbody "google.golang.org/genproto/googleapis/api/httpbody"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -163,68 +161,21 @@ func (x *Season) GetEndsAtUnixMs() int64 {
 	return 0
 }
 
-type GetFinaleCalendarRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Number        uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetFinaleCalendarRequest) Reset() {
-	*x = GetFinaleCalendarRequest{}
-	mi := &file_seasons_v1_seasons_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetFinaleCalendarRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetFinaleCalendarRequest) ProtoMessage() {}
-
-func (x *GetFinaleCalendarRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_seasons_v1_seasons_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetFinaleCalendarRequest.ProtoReflect.Descriptor instead.
-func (*GetFinaleCalendarRequest) Descriptor() ([]byte, []int) {
-	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *GetFinaleCalendarRequest) GetNumber() uint32 {
-	if x != nil {
-		return x.Number
-	}
-	return 0
-}
-
 var File_seasons_v1_seasons_proto protoreflect.FileDescriptor
 
 const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"\n" +
 	"\x18seasons/v1/seasons.proto\x12\n" +
-	"seasons.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x19google/api/httpbody.proto\"\x12\n" +
+	"seasons.v1\"\x12\n" +
 	"\x10GetSeasonRequest\"?\n" +
 	"\x11GetSeasonResponse\x12*\n" +
 	"\x06season\x18\x01 \x01(\v2\x12.seasons.v1.SeasonR\x06season\"\x7f\n" +
 	"\x06Season\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\rR\x06number\x126\n" +
 	"\x18finale_starts_at_unix_ms\x18\x02 \x01(\x03R\x14finaleStartsAtUnixMs\x12%\n" +
-	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\"2\n" +
-	"\x18GetFinaleCalendarRequest\x12\x16\n" +
-	"\x06number\x18\x01 \x01(\rR\x06number2\xd8\x01\n" +
+	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs2^\n" +
 	"\rSeasonService\x12M\n" +
-	"\tGetSeason\x12\x1c.seasons.v1.GetSeasonRequest\x1a\x1d.seasons.v1.GetSeasonResponse\"\x03\x90\x02\x01\x12x\n" +
-	"\x11GetFinaleCalendar\x12$.seasons.v1.GetFinaleCalendarRequest\x1a\x14.google.api.HttpBody\"'\x82\xd3\xe4\x93\x02\x1e\x12\x1c/seasons/{number}/finale.ics\x90\x02\x01B\xbb\x01\n" +
+	"\tGetSeason\x12\x1c.seasons.v1.GetSeasonRequest\x1a\x1d.seasons.v1.GetSeasonResponse\"\x03\x90\x02\x01B\xbb\x01\n" +
 	"\x0ecom.seasons.v1B\fSeasonsProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1;seasonsv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Seasons.V1\xca\x02\n" +
 	"Seasons\\V1\xe2\x02\x16Seasons\\V1\\GPBMetadata\xea\x02\vSeasons::V1b\x06proto3"
@@ -241,22 +192,18 @@ func file_seasons_v1_seasons_proto_rawDescGZIP() []byte {
 	return file_seasons_v1_seasons_proto_rawDescData
 }
 
-var file_seasons_v1_seasons_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_seasons_v1_seasons_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_seasons_v1_seasons_proto_goTypes = []any{
-	(*GetSeasonRequest)(nil),         // 0: seasons.v1.GetSeasonRequest
-	(*GetSeasonResponse)(nil),        // 1: seasons.v1.GetSeasonResponse
-	(*Season)(nil),                   // 2: seasons.v1.Season
-	(*GetFinaleCalendarRequest)(nil), // 3: seasons.v1.GetFinaleCalendarRequest
-	(*httpbody.HttpBody)(nil),        // 4: google.api.HttpBody
+	(*GetSeasonRequest)(nil),  // 0: seasons.v1.GetSeasonRequest
+	(*GetSeasonResponse)(nil), // 1: seasons.v1.GetSeasonResponse
+	(*Season)(nil),            // 2: seasons.v1.Season
 }
 var file_seasons_v1_seasons_proto_depIdxs = []int32{
 	2, // 0: seasons.v1.GetSeasonResponse.season:type_name -> seasons.v1.Season
 	0, // 1: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
-	3, // 2: seasons.v1.SeasonService.GetFinaleCalendar:input_type -> seasons.v1.GetFinaleCalendarRequest
-	1, // 3: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
-	4, // 4: seasons.v1.SeasonService.GetFinaleCalendar:output_type -> google.api.HttpBody
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
+	1, // 2: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -273,7 +220,7 @@ func file_seasons_v1_seasons_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seasons_v1_seasons_proto_rawDesc), len(file_seasons_v1_seasons_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

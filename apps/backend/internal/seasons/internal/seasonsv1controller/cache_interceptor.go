@@ -13,8 +13,7 @@ const seasonMaxAge = 60
 
 func NewCacheInterceptor() connect.Interceptor {
 	maxAge := map[string]int{
-		seasonsv1connect.SeasonServiceGetSeasonProcedure:         seasonMaxAge,
-		seasonsv1connect.SeasonServiceGetFinaleCalendarProcedure: seasonMaxAge,
+		seasonsv1connect.SeasonServiceGetSeasonProcedure: seasonMaxAge,
 	}
 
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {

@@ -9,7 +9,6 @@ import (
 	context "context"
 	errors "errors"
 	v1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
-	httpbody "google.golang.org/genproto/googleapis/api/httpbody"
 	http "net/http"
 	strings "strings"
 )
@@ -36,16 +35,11 @@ const (
 const (
 	// SeasonServiceGetSeasonProcedure is the fully-qualified name of the SeasonService's GetSeason RPC.
 	SeasonServiceGetSeasonProcedure = "/seasons.v1.SeasonService/GetSeason"
-	// SeasonServiceGetFinaleCalendarProcedure is the fully-qualified name of the SeasonService's
-	// GetFinaleCalendar RPC.
-	SeasonServiceGetFinaleCalendarProcedure = "/seasons.v1.SeasonService/GetFinaleCalendar"
 )
 
 // SeasonServiceClient is a client for the seasons.v1.SeasonService service.
 type SeasonServiceClient interface {
 	GetSeason(context.Context, *connect.Request[v1.GetSeasonRequest]) (*connect.Response[v1.GetSeasonResponse], error)
-	// An iCalendar file at a plain URL: iOS Safari opens text/calendar in Calendar.
-	GetFinaleCalendar(context.Context, *connect.Request[v1.GetFinaleCalendarRequest]) (*connect.Response[httpbody.HttpBody], error)
 }
 
 // NewSeasonServiceClient constructs a client for the seasons.v1.SeasonService service. By default,
@@ -66,20 +60,12 @@ func NewSeasonServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
-		getFinaleCalendar: connect.NewClient[v1.GetFinaleCalendarRequest, httpbody.HttpBody](
-			httpClient,
-			baseURL+SeasonServiceGetFinaleCalendarProcedure,
-			connect.WithSchema(seasonServiceMethods.ByName("GetFinaleCalendar")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // seasonServiceClient implements SeasonServiceClient.
 type seasonServiceClient struct {
-	getSeason         *connect.Client[v1.GetSeasonRequest, v1.GetSeasonResponse]
-	getFinaleCalendar *connect.Client[v1.GetFinaleCalendarRequest, httpbody.HttpBody]
+	getSeason *connect.Client[v1.GetSeasonRequest, v1.GetSeasonResponse]
 }
 
 // GetSeason calls seasons.v1.SeasonService.GetSeason.
@@ -87,16 +73,9 @@ func (c *seasonServiceClient) GetSeason(ctx context.Context, req *connect.Reques
 	return c.getSeason.CallUnary(ctx, req)
 }
 
-// GetFinaleCalendar calls seasons.v1.SeasonService.GetFinaleCalendar.
-func (c *seasonServiceClient) GetFinaleCalendar(ctx context.Context, req *connect.Request[v1.GetFinaleCalendarRequest]) (*connect.Response[httpbody.HttpBody], error) {
-	return c.getFinaleCalendar.CallUnary(ctx, req)
-}
-
 // SeasonServiceHandler is an implementation of the seasons.v1.SeasonService service.
 type SeasonServiceHandler interface {
 	GetSeason(context.Context, *connect.Request[v1.GetSeasonRequest]) (*connect.Response[v1.GetSeasonResponse], error)
-	// An iCalendar file at a plain URL: iOS Safari opens text/calendar in Calendar.
-	GetFinaleCalendar(context.Context, *connect.Request[v1.GetFinaleCalendarRequest]) (*connect.Response[httpbody.HttpBody], error)
 }
 
 // NewSeasonServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -113,19 +92,10 @@ func NewSeasonServiceHandler(svc SeasonServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	seasonServiceGetFinaleCalendarHandler := connect.NewUnaryHandler(
-		SeasonServiceGetFinaleCalendarProcedure,
-		svc.GetFinaleCalendar,
-		connect.WithSchema(seasonServiceMethods.ByName("GetFinaleCalendar")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/seasons.v1.SeasonService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SeasonServiceGetSeasonProcedure:
 			seasonServiceGetSeasonHandler.ServeHTTP(w, r)
-		case SeasonServiceGetFinaleCalendarProcedure:
-			seasonServiceGetFinaleCalendarHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -137,8 +107,4 @@ type UnimplementedSeasonServiceHandler struct{}
 
 func (UnimplementedSeasonServiceHandler) GetSeason(context.Context, *connect.Request[v1.GetSeasonRequest]) (*connect.Response[v1.GetSeasonResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("seasons.v1.SeasonService.GetSeason is not implemented"))
-}
-
-func (UnimplementedSeasonServiceHandler) GetFinaleCalendar(context.Context, *connect.Request[v1.GetFinaleCalendarRequest]) (*connect.Response[httpbody.HttpBody], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("seasons.v1.SeasonService.GetFinaleCalendar is not implemented"))
 }
