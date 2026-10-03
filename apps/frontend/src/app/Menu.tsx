@@ -10,7 +10,7 @@ import MenuPanel from "./components/MenuPanel.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
 import Modal from "./components/Modal.tsx";
 import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
-import {CameraIcon, HomeIcon, InfoIcon, SpeakerIcon, SpeakerOffIcon, SwapIcon} from "./components/icons.tsx";
+import {CameraIcon, DiscordIcon, HomeIcon, InfoIcon, SpeakerIcon, SpeakerOffIcon, SwapIcon} from "./components/icons.tsx";
 import SoundSettingsPanel, {SoundSettingsPanelProps} from "./sound/SoundSettingsPanel.tsx";
 import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
@@ -18,6 +18,7 @@ import AccountPanel from "./account/AccountPanel.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerInfoBackend} from "../backends/player.ts";
 import {youLabel} from "./youLabel.ts"
+import {DISCORD_INVITE} from "../links.ts"
 import "./Menu.css"
 
 export type MenuTab = "board" | "you" | "more"
@@ -261,6 +262,13 @@ export function MorePlace({sound, onTakePicture, taking}: MorePlaceProps) {
             <a href="/#home" className="panel-box menu-tile">
                 <HomeIcon size={22}/>
                 <span>Home page</span>
+            </a>
+            <a href={DISCORD_INVITE}
+               target="_blank"
+               rel="noopener noreferrer"
+               className="panel-box menu-tile">
+                <DiscordIcon size={22}/>
+                <span>Discord</span>
             </a>
         </div>
 

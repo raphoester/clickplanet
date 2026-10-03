@@ -9,6 +9,7 @@ import type {LeaderboardEntry} from "../domain/leaderboard.ts"
 import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
+import {DISCORD_INVITE} from "../links.ts"
 import {NameColor} from "../backends/player.ts"
 import {PlayerBackend, PlayerError, PlayerInfoBackend, PlayerTitle, TitleDashboard} from "../backends/player.ts"
 
@@ -78,6 +79,16 @@ describe("Menu", () => {
         const {user} = setup()
         await user.click(tab("More"))
         expect(screen.getByRole("link", {name: "Home page"}).getAttribute("href")).toBe("/#home")
+    })
+
+    it("links Discord to the server's invite, in a new tab", async () => {
+        const {user} = setup()
+        await user.click(tab("More"))
+
+        const discord = screen.getByRole("link", {name: "Discord"})
+        expect(discord.getAttribute("href")).toBe(DISCORD_INVITE)
+        expect(discord.getAttribute("target")).toBe("_blank")
+        expect(discord.getAttribute("rel")).toBe("noopener noreferrer")
     })
 
     describe("the leader", () => {
