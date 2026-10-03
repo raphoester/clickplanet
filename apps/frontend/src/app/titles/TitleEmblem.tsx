@@ -5,6 +5,7 @@ import {enamelOf, METALS, metalOf} from "./titleArt.ts"
 const FLAME = "M50 26 C59 39 67 46 67 59 C67 70 59 76 50 76 C41 76 33 70 33 59 C33 50 39 45 41 37 C45 44 47 47 50 50 C51 41 48 34 50 26 Z"
 const FLAME_INNER = "M50 50 C55 56 59 60 59 65 C59 71 55 74 50 74 C45 74 41 71 41 65 C41 60 45 57 50 50 Z"
 const SMALLER = "translate(50 52) scale(0.72) translate(-50 -52)"
+const BUBBLE = "M28 32 Q28 26 34 26 H66 Q72 26 72 32 V54 Q72 60 66 60 H48 L37 71 V60 H34 Q28 60 28 54 Z"
 
 const TICKS = Array.from({length: 24}, (_, i) => {
     const angle = i * 2 * Math.PI / 24
@@ -60,6 +61,28 @@ function icon(title: PlayerTitle, ink: string, accent: string): ReactNode {
                 <circle cx="50" cy="51" r="27" stroke={ink} strokeWidth="3" strokeDasharray="5 4" fill="none"/>
                 <path d={FLAME} fill={accent} transform={SMALLER}/>
                 <path d={FLAME_INNER} fill={ink} transform={SMALLER}/>
+            </>
+        case "talker":
+            return <>
+                <path d={BUBBLE} fill={accent}/>
+                {[40, 50, 60].map((x) => <circle key={x} cx={x} cy="43" r="3.6" fill={ink}/>)}
+            </>
+        case "chatterbox":
+            return <>
+                <path d="M44 26 Q44 22 48 22 H68 Q72 22 72 26 V40 Q72 44 68 44 H66 V50 L60 44 H48 Q44 44 44 40 Z"
+                      stroke={ink} strokeWidth="3.5" strokeLinejoin="round" fill="none"/>
+                <path d="M26 40 Q26 36 30 36 H54 Q58 36 58 40 V58 Q58 62 54 62 H40 L31 71 V62 H30 Q26 62 26 58 Z" fill={accent}/>
+                {[34, 42, 50].map((x) => <circle key={x} cx={x} cy="49" r="3" fill={ink}/>)}
+            </>
+        case "socialite":
+            return <>
+                <path d={BUBBLE} fill={accent}/>
+                <path d="M50 53 C40 46 37 41 40 36.5 C43 32 48.5 33 50 37.5 C51.5 33 57 32 60 36.5 C63 41 60 46 50 53 Z" fill={ink}/>
+            </>
+        case "icon":
+            return <>
+                <path d={BUBBLE} fill={accent}/>
+                <path d="M50 32 L52.7 39.3 L60.5 39.6 L54.4 44.4 L56.5 51.9 L50 47.6 L43.5 51.9 L45.6 44.4 L39.5 39.6 L47.3 39.3 Z" fill={ink}/>
             </>
         default:
             return <text x="50" y="63" textAnchor="middle" fontFamily="Luckiest Guy, sans-serif" fontSize="34"

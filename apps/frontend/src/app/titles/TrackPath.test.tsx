@@ -60,6 +60,18 @@ describe("TrackPath", () => {
         expect(screen.getByText("30 days in a row")).toBeDefined()
     })
 
+    it("counts the chat in messages", () => {
+        render(<TrackPath track={{
+            id: "chatter", name: "Chatter", progress: 140, steps: [
+                {title: {id: "talker", name: "Talker"}, threshold: 100, earned: true},
+                {title: {id: "chatterbox", name: "Chatterbox"}, threshold: 1_000, earned: false},
+            ],
+        }}/>)
+
+        expect(screen.getByText("860 messages to Chatterbox")).toBeDefined()
+        expect(screen.getByText((1_000).toLocaleString() + " messages")).toBeDefined()
+    })
+
     it("says nothing is left once every rank is held", () => {
         render(<TrackPath track={conquest(12_000, 3)}/>)
 

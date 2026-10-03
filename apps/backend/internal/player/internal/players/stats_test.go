@@ -83,3 +83,11 @@ func TestNoTakeIsNoDay(t *testing.T) {
 	assert.Empty(t, stats.StreakLastDay.String())
 	assert.Equal(t, stats, stats.AsOf(players.DayOf(beforeMidnight)))
 }
+
+func TestAMessageCountsAMessageAndLeavesTheTilesAndTheStreakAlone(t *testing.T) {
+	want := taken(beforeMidnight)
+	want.MessagesSent = 2
+
+	assert.Equal(t, want, taken(beforeMidnight).WithMessage().WithMessage())
+	assert.True(t, players.Stats{}.WithMessage().StreakLastDay.Empty(), "a message is no take, so it starts no streak")
+}

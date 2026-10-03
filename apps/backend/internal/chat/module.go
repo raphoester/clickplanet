@@ -29,6 +29,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase/log_prune"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/publishing_send_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
@@ -101,8 +102,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	authors := log_authors.New(rpc_player_authors.New(props.Internal), props.Logger)
 
 	chatService := chatv1controller.ChatService{
-		SendMessageHandler: send_message_handler.New(send_message_usecase.New(
-			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service)),
+		SendMessageHandler: send_message_handler.New(publishing_send_message.New(send_message_usecase.New(
+			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service), props.Events)),
 		GetHistoryHandler: get_history_handler.New(get_history_usecase.New(
 			messageStore, reactionStore, announcementStore, authors, cptime.SystemClock{}, window)),
 		ListenForEventsHandler: listen_for_events_handler.New(
