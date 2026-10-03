@@ -2251,6 +2251,11 @@ thin as it is.
 
 ## Styling
 
+**Read [`DESIGN.md`](DESIGN.md) before touching a style.** It is the design
+system: what the game looks like, which token does which job, and the rules
+every piece follows. The values themselves are in `src/tokens.css`, imported
+first in `main.tsx`.
+
 Plain CSS files co-located with components. No CSS preprocessor or CSS-in-JS.
 
 `ChatPanel.css` is the one file with a custom property contract: each message
