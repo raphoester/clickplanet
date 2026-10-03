@@ -1,42 +1,79 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, describe, expect, it} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import AddToCalendarButton from "./AddToCalendarButton.tsx"
 import {SEASON_ZERO} from "../../backends/fakeSeasonBackend.ts"
 
-const textOf = (file: Blob) => new Promise<string>((resolve) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.readAsText(file)
-})
+const season = {...SEASON_ZERO, finaleFile: "https://api.clickplanet.lol/seasons/0/finale.ics"}
+const button = () => screen.getByRole("button", {name: "Add to calendar"})
+const links = () => screen.queryAllByRole("link")
 
-afterEach(() => {
-    cleanup()
-    vi.restoreAllMocks()
-})
+afterEach(cleanup)
 
 describe("AddToCalendarButton", () => {
-    it("downloads the finale as a calendar file, linking back to the game", async () => {
-        const files: Blob[] = []
-        URL.createObjectURL = vi.fn((file: Blob) => {
-            files.push(file)
-            return "blob:fake"
-        })
-        URL.revokeObjectURL = vi.fn()
-        let downloaded = ""
-        vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
-            downloaded = this.download
-        })
+    it("opens a choice of calendars, and closes it on a second press", async () => {
+        const user = userEvent.setup()
+        render(<AddToCalendarButton season={season}/>)
+        expect(button().getAttribute("aria-expanded")).toBe("false")
+        expect(links()).toHaveLength(0)
 
+        await user.click(button())
+        expect(button().getAttribute("aria-expanded")).toBe("true")
+        expect(links().map(link => link.textContent)).toEqual(["Google Calendar", "Apple Calendar", "Outlook"])
+
+        await user.click(button())
+        expect(links()).toHaveLength(0)
+    })
+
+    it("opens a web calendar in a new tab and the file in this one", async () => {
+        render(<AddToCalendarButton season={season}/>)
+        await userEvent.setup().click(button())
+
+        const google = screen.getByRole("link", {name: "Google Calendar"})
+        expect(new URL(google.getAttribute("href")!).origin).toBe("https://calendar.google.com")
+        expect(new URL(google.getAttribute("href")!).searchParams.get("details")).toBe(`${window.location.origin}/play`)
+        expect(google.getAttribute("target")).toBe("_blank")
+        expect(google.getAttribute("rel")).toBe("noopener noreferrer")
+
+        const apple = screen.getByRole("link", {name: "Apple Calendar"})
+        expect(apple.getAttribute("href")).toBe("https://api.clickplanet.lol/seasons/0/finale.ics")
+        expect(apple.getAttribute("target")).toBeNull()
+        expect(apple.hasAttribute("download")).toBe(false)
+    })
+
+    it("closes on a pick", async () => {
+        const user = userEvent.setup()
+        render(<AddToCalendarButton season={season}/>)
+        await user.click(button())
+
+        const apple = screen.getByRole("link", {name: "Apple Calendar"})
+        apple.addEventListener("click", (event) => event.preventDefault())
+        await user.click(apple)
+
+        expect(links()).toHaveLength(0)
+    })
+
+    it("closes on Escape and on a press elsewhere", async () => {
+        const user = userEvent.setup()
+        render(<>
+            <AddToCalendarButton season={season}/>
+            <p>elsewhere</p>
+        </>)
+
+        await user.click(button())
+        await user.keyboard("{Escape}")
+        expect(links()).toHaveLength(0)
+
+        await user.click(button())
+        await user.click(screen.getByText("elsewhere"))
+        expect(links()).toHaveLength(0)
+    })
+
+    it("offers no Apple Calendar without a file", async () => {
         render(<AddToCalendarButton season={SEASON_ZERO}/>)
-        await userEvent.setup().click(screen.getByRole("button", {name: "Add to calendar"}))
+        await userEvent.setup().click(button())
 
-        expect(downloaded).toBe("clickplanet-season-0-finale.ics")
-        expect(files).toHaveLength(1)
-        expect(files[0].type).toBe("text/calendar")
-        const text = await textOf(files[0])
-        expect(text).toContain("\r\nDTSTART:20261031T210000Z\r\nDTEND:20261031T230000Z\r\n")
-        expect(text).toContain(`\r\nURL:${window.location.origin}/play\r\n`)
+        expect(links().map(link => link.textContent)).toEqual(["Google Calendar", "Outlook"])
     })
 })

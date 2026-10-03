@@ -123,3 +123,40 @@ export class Season extends Message<Season> {
   }
 }
 
+/**
+ * @generated from message seasons.v1.GetFinaleCalendarRequest
+ */
+export class GetFinaleCalendarRequest extends Message<GetFinaleCalendarRequest> {
+  /**
+   * @generated from field: uint32 number = 1;
+   */
+  number = 0;
+
+  constructor(data?: PartialMessage<GetFinaleCalendarRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.GetFinaleCalendarRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetFinaleCalendarRequest {
+    return new GetFinaleCalendarRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetFinaleCalendarRequest {
+    return new GetFinaleCalendarRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetFinaleCalendarRequest {
+    return new GetFinaleCalendarRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetFinaleCalendarRequest | PlainMessage<GetFinaleCalendarRequest> | undefined, b: GetFinaleCalendarRequest | PlainMessage<GetFinaleCalendarRequest> | undefined): boolean {
+    return proto3.util.equals(GetFinaleCalendarRequest, a, b);
+  }
+}
+

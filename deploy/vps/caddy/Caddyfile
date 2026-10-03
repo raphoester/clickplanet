@@ -81,6 +81,12 @@
 		}
 	}
 
+	handle /seasons/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
 	handle /marketing.v1.SubscriptionService/* {
 		reverse_proxy backend:8080 {
 			header_up X-Real-IP {client_ip}

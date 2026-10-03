@@ -25,6 +25,8 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 
 Beside them, `internal.proto` is what one backend module asks another (`auth.v1`, `player.v1`), and `events.proto` is what one tells the others in process (`planet.v1.TileTaken`, `auth.v1.AccountDeleted`). Neither is on the public router; the frontend generates both without using them.
 
+`proto/buf.yaml` depends on `buf.build/googleapis/googleapis` (pinned in `buf.lock`) for `google.api.http` and `google.api.HttpBody`: an RPC with an `http` option is also served at that plain URL, which is how `GetFinaleCalendar` serves an `.ics`. Neither app adds a route by hand.
+
 Connect derives each service's route from its proto package, so a new context gets its own path with no prefix to allocate. Both `buf.gen.yaml` inputs point at the whole `proto` directory, so a new package is picked up by either generator with no config change.
 
 After editing a `.proto`:
