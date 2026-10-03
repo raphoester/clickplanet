@@ -448,8 +448,7 @@ is the list, and the backend refuses any other.
   shows here too. `count` is what says how many gave it, so the popup ends on
   "and N more" whenever it has fewer names than that — a long list the server
   cut, or somebody it could not name at all. It is drawn in a portal on the body, not beside the chip: the log
-  both scrolls and clips, and the panel's `backdrop-filter` would hold a
-  `position: fixed` child to the panel instead of the screen. Anything that
+  both scrolls and clips. Anything that
   moves the chip — a scroll, a resize — closes it rather than making it follow.
 - **`mine` is only known from a call.** `GetHistory` sends the token already
   held (`SessionProvider.held()`, never a mint) so the server can mark the
@@ -632,13 +631,16 @@ is the player's own view.
   number, how many ranks). Conquest counts tiles taken, Devotion the streak; OG
   stands alone. **Only the highest rank of each track is ever shown or worn**, so
   the client never filters: it draws what the server sends, in its order.
-- **Every title is a medal** (`TitleEmblem`): an SVG per id, in the metal
-  `titleArt.ts` gives it (`TITLE_METALS`, bronze up to prism). An id this build
-  has no picture for gets the first letter of its name in silver, so a new title
-  shows before its art ships. `locked` greys it with a padlock, for a rank not
-  held. Each medal names its gradient with `useId`: two on one page cannot share one.
+- **Every title is a medal** (`TitleEmblem`): an SVG per id, drawn by the
+  medal rules of [`DESIGN.md`](DESIGN.md), in the metal `titleArt.ts` gives it
+  (`TITLE_METALS`, bronze up to prism) and the colors of its track (`enamelOf`,
+  `ribbonOf`). An id this build has no picture for gets the first letter of its
+  name in silver, so a new title shows before its art ships. `locked` greys it
+  with a padlock, for a rank not held. Each medal names its masks with `useId`:
+  two on one page cannot share one. Its colors are tokens set through `style`,
+  since an SVG presentation attribute does not resolve `var()`.
 - **The public card** wears the worn title: a banner (`TitleBanner`, the rank line
-  and the name in its metal), and the card's border in that metal
+  and the name), and a ring of its metal inside the card's ink border
   (`title-frame-<metal>` on the `Modal`). Under it, one medal per title shown.
   OG is also a stamp beside the name (`OgStamp`).
 - **The Progress tab** is the worn title (a compact banner), "Wear a title" (a
@@ -1981,8 +1983,8 @@ menu header flies — with the link at the other end of that line, and the
 player's badge at the bottom.
 
 **The link is drawn into the image**, not only attached to it: a picture is what
-survives being reposted. It is drawn in Oswald rather than the page's title
-face, which has no lowercase — a query parameter reading `?C=PS` is a link that
+survives being reposted. It is drawn in the text face (`--font-text`, Rubik)
+rather than the title face, which has no lowercase — a query parameter reading `?C=PS` is a link that
 does not work for whoever retypes it — and it sits on the masthead's line rather
 than over the badge, so a long country name never has to share a width with it.
 
@@ -2267,6 +2269,18 @@ only `GpuPicker` genuinely needs a WebGL context, which is why it is kept as
 thin as it is.
 
 ## Styling
+
+**Read [`DESIGN.md`](DESIGN.md) before touching a style.** It is the design
+system: what the game looks like, which token does which job, and the rules
+every piece follows. The values themselves are in `src/tokens.css`, imported
+first in `main.tsx`.
+
+**`designTokens.test.ts` fails on a color or a font named anywhere else**: in a
+stylesheet, in the home page's style, or in a component (the Google and Discord
+sign-in colors aside). Code that draws outside CSS reads the tokens as well:
+`drawShareCard.ts` with `getComputedStyle` at draw time, the medals through
+`style`. `public/privacy.html` and `terms.html` are not built, so each carries a
+copy of the tokens it uses, and the test holds the copy to `tokens.css`.
 
 Plain CSS files co-located with components. No CSS preprocessor or CSS-in-JS.
 

@@ -3,26 +3,7 @@
     left: 16px;
     bottom: 16px;
     z-index: 128;
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    height: 44px;
-    padding: 0 17px 0 15px;
-    border: 1px solid #FFFFFF33;
-    border-radius: 30px;
-    background: #00000075;
-    backdrop-filter: blur(8px);
-    cursor: pointer;
-    color: #FFFFFF;
-    font-family: "Luckiest Guy", sans-serif;
-    font-size: 18px;
-    text-shadow: -1px 1px 0 #000000;
-    transition: background-color 0.125s ease, border-color 0.125s ease, opacity 0.125s ease;
-}
-
-.camera-button:hover {
-    background: #000000A0;
-    border-color: #FFFFFF66;
+    padding: 3px 15px 0 13px;
 }
 
 .camera-button svg {
@@ -41,16 +22,13 @@
 
 .camera-button:disabled {
     cursor: progress;
-    opacity: 0.55;
 }
 
 @media only screen and (max-width: 768px) {
     .camera-button {
         bottom: 72px;
         width: 40px;
-        height: 40px;
         padding: 0;
-        justify-content: center;
         gap: 0;
     }
 

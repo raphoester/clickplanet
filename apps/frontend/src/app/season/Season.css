@@ -6,19 +6,13 @@
     transform: translateX(-50%);
     display: flex;
     flex-direction: column;
-    width: 340px;
+    width: clamp(340px, calc(100vw - 784px), 376px);
     max-width: calc(100vw - 32px);
-    padding: 6px 8px;
-    border: 1px solid #FF813F80;
-    border-radius: 18px;
-    background: #00000099;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 0 18px #FF813F33;
+    padding: 6px var(--space-2);
 }
 
 .season-banner--live {
-    border-color: #FF813F;
-    background: #3A1A0ACC;
+    box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 18px color-mix(in srgb, var(--action) 30%, transparent);
     animation: season-banner-live 2.4s ease-in-out infinite;
 }
 
@@ -28,9 +22,9 @@
     gap: 10px;
     padding: 2px 6px;
     border: none;
-    border-radius: 12px;
+    border-radius: var(--radius-m);
     background: none;
-    color: white;
+    color: var(--text);
     text-align: left;
 }
 
@@ -40,34 +34,32 @@ button.season-banner-head {
 
 button.season-banner-head:hover,
 button.season-banner-head:focus-visible {
-    background: #FFFFFF14;
+    background: var(--panel-raised);
 }
 
 .season-banner-label {
-    font-family: Oswald, sans-serif;
-    font-weight: 500;
-    font-size: 12px;
-    letter-spacing: 1.4px;
-    text-transform: uppercase;
-    color: #FFFFFFCC;
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    color: var(--text-soft);
     white-space: nowrap;
 }
 
 .season-banner-left {
-    font-family: Oswald, sans-serif;
-    font-weight: 600;
-    font-size: 22px;
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: var(--display-m);
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
-    color: #FF813F;
-    text-shadow: -1px 1px 0 #000000;
+    color: var(--gold);
+    text-shadow: var(--text-drop);
     white-space: nowrap;
 }
 
 .season-banner-chevron {
     display: flex;
     margin-left: auto;
-    color: #FFFFFFB3;
+    color: var(--text-muted);
     transition: transform 0.18s ease;
 }
 
@@ -77,12 +69,13 @@ button.season-banner-head:focus-visible {
 
 .season-banner-finale {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
+    gap: var(--space-2);
     margin: 6px 0 2px;
-    padding: 8px 6px 0;
-    border-top: 1px solid #FFFFFF26;
+    padding: var(--space-2) 6px 0;
+    border-top: var(--outline-thin) solid var(--ink);
 }
 
 .season-banner-when {
@@ -91,18 +84,19 @@ button.season-banner-head:focus-visible {
     gap: 1px;
     min-width: 0;
     margin: 0;
-    font-family: Oswald, sans-serif;
+    font-family: var(--font-text);
     font-weight: 500;
-    font-size: 15px;
-    color: white;
+    font-size: var(--text-s);
+    color: var(--text);
     white-space: nowrap;
 }
 
 .season-banner-finale-name {
-    font-size: 12px;
-    letter-spacing: 1.4px;
-    text-transform: uppercase;
-    color: #FF813F;
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--gold);
+    text-shadow: var(--text-drop);
 }
 
 /* Over the quiz and the bomb news, which sit under the banner. */
@@ -115,65 +109,44 @@ button.season-banner-head:focus-visible {
     flex-shrink: 0;
 }
 
-.season-calendar-button {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 0;
-    padding: 3px 9px 0 8px;
-    height: 32px;
-    border-radius: 10px;
-    border-color: #FF813F;
-    background: #FF813F;
-    font-size: 13px;
-}
-
-.season-calendar-button:hover,
-.season-calendar-button[aria-expanded="true"] {
-    background: #FF9459;
-}
-
-.season-calendar-button svg {
+.season-calendar svg {
     margin-top: -3px;
 }
 
 .season-calendar-list {
     position: absolute;
-    top: calc(100% + 6px);
+    top: calc(100% + var(--space-2));
     right: 0;
     z-index: 1;
     display: flex;
     flex-direction: column;
-    min-width: 168px;
+    min-width: 176px;
     margin: 0;
-    padding: 4px;
+    padding: var(--space-1);
     list-style: none;
-    border: 1px solid #FF813F80;
-    border-radius: 12px;
-    background: #000000E6;
-    box-shadow: 0 6px 18px #00000080;
 }
 
 .season-calendar-link {
     display: block;
-    padding: 8px 10px;
-    border-radius: 8px;
-    font-family: Oswald, sans-serif;
-    font-weight: 500;
-    font-size: 15px;
-    color: white;
+    padding: 11px var(--space-3) var(--space-2);
+    border-radius: var(--radius-m);
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--text);
+    text-shadow: var(--text-drop);
     text-decoration: none;
     white-space: nowrap;
+    transition: background-color 0.12s ease;
 }
 
 .season-calendar-link:hover,
 .season-calendar-link:focus-visible {
-    background: #FF813F33;
+    background: var(--panel-raised);
 }
 
 @keyframes season-banner-live {
     50% {
-        box-shadow: 0 0 30px #FF813F99;
+        box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 30px color-mix(in srgb, var(--action) 60%, transparent);
     }
 }
 
@@ -185,25 +158,20 @@ button.season-banner-head:focus-visible {
         z-index: 127;
         transform: none;
         width: auto;
-        padding: 4px 6px;
-        border-radius: 16px;
-    }
-
-    .season-banner-left {
-        font-size: 19px;
-    }
-
-    .season-banner-when {
-        font-size: 14px;
+        padding: var(--space-1) 6px;
     }
 
     .season-calendar-link {
-        padding: 12px 12px;
+        padding: 15px var(--space-3) var(--space-3);
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .season-banner--live {
         animation: none;
+    }
+
+    .season-calendar-link {
+        transition: none;
     }
 }

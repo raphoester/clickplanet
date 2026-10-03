@@ -32,14 +32,14 @@ export default function SeasonBanner({season}: {season: Season}) {
     </>
 
     if (clock.finale) {
-        return <section ref={setBanner} className="season-banner season-banner--live" aria-label="Final Battle">
+        return <section ref={setBanner} className="season-banner panel season-banner--live" aria-label="Final Battle">
             <div className="season-banner-head">{head}</div>
         </section>
     }
 
     const finale = finaleWindow(season)
 
-    return <section ref={setBanner} className="season-banner" aria-label={`Season ${season.number}`}>
+    return <section ref={setBanner} className="season-banner panel" aria-label={`Season ${season.number}`}>
         <button type="button" className="season-banner-head" aria-expanded={!folded} onClick={toggle}>
             {head}
             <span className="season-banner-chevron"><ChevronIcon size={16}/></span>

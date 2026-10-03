@@ -101,7 +101,7 @@ export default function ClickBudgetMeter({
         return () => cancelAnimationFrame(frame)
     }, [budget])
 
-    if (!budget) return children ? <div ref={setDock} className="click-budget-dock">{children}</div> : null
+    if (!budget) return children ? <div ref={setDock} className="click-budget-dock panel">{children}</div> : null
 
     const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
 
@@ -111,7 +111,7 @@ export default function ClickBudgetMeter({
 
     const speedUp = onSignIn && budget.linkedMultiplier
 
-    return <div ref={setDock} className="click-budget-dock">
+    return <div ref={setDock} className="click-budget-dock panel">
         <div
             ref={root}
             className="click-budget"
@@ -150,7 +150,7 @@ export default function ClickBudgetMeter({
             {budget.sharedWith && <p className="click-budget-shared">{SHARED_WITH[budget.sharedWith]}</p>}
         </div>
 
-        {speedUp && <button type="button" className="click-budget-sign-in" onClick={onSignIn}>
+        {speedUp && <button type="button" className="button button-mini button-action click-budget-sign-in" onClick={onSignIn}>
             <BoltIcon/>
             <span>{budget.sharedWith === "guests" ? "Sign in: your own clicks" : `Sign in: clicks ${factor(speedUp)}× faster`}</span>
         </button>}

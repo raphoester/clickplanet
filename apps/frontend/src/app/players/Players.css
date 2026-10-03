@@ -14,7 +14,7 @@
 }
 
 .menu-players-count {
-    font-size: 22px;
+    font-size: var(--display-l);
     font-variant-numeric: tabular-nums;
 }
 
@@ -29,12 +29,12 @@
 }
 
 .players-group + .players-group .players-group-title {
-    margin-top: 12px;
+    margin-top: var(--space-3);
 }
 
 .players-group-count {
     order: 1;
-    color: #FFFFFF80;
+    color: var(--text-muted);
 }
 
 .players-list {
@@ -46,14 +46,14 @@
 .players-entry {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: var(--space-2);
     min-width: 0;
-    padding: 6px 4px;
+    padding: 6px var(--space-1);
 }
 
 .players-entry-country {
     flex-shrink: 0;
-    font-size: 18px;
+    font-size: var(--display-m);
 }
 
 .players-entry-country .country-flag {
@@ -65,14 +65,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 17px;
-    letter-spacing: 0.4px;
-    color: hsl(var(--author-hue, 0), calc(80% * var(--author-chroma, 1)), 78%);
-    text-shadow: -1px 1px 0 #000000;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-l);
+    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
 }
 
 .players-empty {
-    margin: 8px 4px;
+    margin: var(--space-2) var(--space-1);
 }
 
 @media only screen and (max-width: 768px) {
@@ -82,10 +82,10 @@
     }
 
     .menu-players-count {
-        font-size: 18px;
+        font-size: var(--display-m);
     }
 
     .players-entry {
-        padding: 5px 4px;
+        padding: 5px var(--space-1);
     }
 }

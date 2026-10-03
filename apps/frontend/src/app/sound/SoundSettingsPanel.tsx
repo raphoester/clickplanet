@@ -34,7 +34,7 @@ export default function SoundSettingsPanel({settings, onChange, preview}: SoundS
     return <div className="sound-settings">
         <Switch label="Sound" checked={settings.enabled} onChange={setEnabled} main/>
 
-        <div className={settings.enabled ? "sound-settings-list" : "sound-settings-list sound-settings-list--off"}>
+        <div className={settings.enabled ? "sound-settings-list panel-box" : "sound-settings-list panel-box sound-settings-list--off"}>
             <Switch label="Leader's national anthem"
                     checked={settings.anthem.on}
                     disabled={!settings.enabled}
@@ -50,7 +50,7 @@ export default function SoundSettingsPanel({settings, onChange, preview}: SoundS
             </label>
         </div>
 
-        <ul className={settings.enabled ? "sound-settings-list" : "sound-settings-list sound-settings-list--off"}>
+        <ul className={settings.enabled ? "sound-settings-list panel-box" : "sound-settings-list panel-box sound-settings-list--off"}>
             {SWITCHES.map((name) => <li key={name}>
                 <Switch label={LABELS[name]}
                         checked={settings.sounds[name]}
@@ -71,7 +71,7 @@ type SwitchProps = {
 
 function Switch({label, checked, disabled, main, onChange}: SwitchProps) {
     const id = useId()
-    return <label className={main ? "sound-switch sound-switch--main" : "sound-switch"} htmlFor={id}>
+    return <label className={main ? "sound-switch sound-switch--main panel-box" : "sound-switch"} htmlFor={id}>
         <span className="sound-switch-label">{label}</span>
         <input id={id}
                type="checkbox"

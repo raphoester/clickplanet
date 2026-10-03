@@ -14,7 +14,7 @@
     bottom: 0;
     height: 36px;
     pointer-events: none;
-    background: linear-gradient(180deg, rgba(4, 9, 15, 0), rgba(4, 9, 15, 0.85));
+    background: linear-gradient(180deg, transparent, var(--panel));
 }
 
 .leaderboard-table-container {
@@ -24,78 +24,99 @@
 }
 
 .leaderboard-table-head {
-    font-family: Oswald, sans-serif;
-    font-weight: 500;
-    font-size: 11px;
-    letter-spacing: 1.4px;
-    text-transform: uppercase;
-    color: #FFFFFF80;
-    text-shadow: none;
-    padding: 0 0 6px 0;
-    border-bottom: 1px solid #FFFFFF1F;
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    padding: var(--space-2) 0 6px 0;
+    border-bottom: var(--outline-thin) solid var(--ink);
 }
 
 .leaderboard-table {
     width: 100%;
     table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-family: var(--font-display);
+    font-size: var(--display-m);
+    color: var(--text);
+    text-shadow: var(--text-drop);
 }
 
 .leaderboard-entry td {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    padding-block: 7px;
+    padding-block: 5px 3px;
 }
 
 .leaderboard-entry:first-child td {
-    padding-top: 14px;
+    padding-top: 12px;
 }
 
 .leaderboard-entry-country .country-flag {
-    margin-right: 0.3em;
+    margin-right: 0.35em;
 }
 
 .leaderboard-table-number {
     width: 66px;
     text-align: right;
-    padding-left: 12px;
+    padding-left: var(--space-3);
 }
 
 .leaderboard-table-share {
     width: 76px;
+    padding-right: var(--space-2);
 }
 
 .leaderboard-entry .leaderboard-table-number {
-    font-family: Oswald, sans-serif;
-    font-weight: 500;
-    font-size: 16px;
+    font-size: var(--display-s);
 }
 
-.leaderboard-table-tiles {
-    color: #FFFFFF99;
-    text-shadow: -1px 1px 0px #404040;
+.leaderboard-entry .leaderboard-table-share {
+    color: var(--text-muted);
 }
 
 .leaderboard-table-rank {
-    width: 34px;
+    width: 38px;
 }
 
 .leaderboard-entry-index {
-    text-align: right;
-    padding-right: 8px;
-    font-family: Oswald, sans-serif;
-    font-weight: 500;
-    font-size: 15px;
-    color: #FFFFFF80;
+    text-align: center;
+    padding-right: var(--space-2);
     text-overflow: clip;
 }
 
+.leaderboard-entry-index .coin {
+    min-width: 24px;
+    width: auto;
+    padding: 0 5px;
+    border-radius: var(--radius-pill);
+    vertical-align: middle;
+}
+
+.leaderboard-rank {
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-s);
+    color: var(--text-muted);
+    text-shadow: none;
+}
+
 .leaderboard-entry-player td {
-    background: #FF813F1F;
+    background: var(--action);
 }
 
 .leaderboard-entry-player td:first-child {
-    box-shadow: inset 3px 0 0 #FF813F;
+    border-radius: var(--radius-m) 0 0 var(--radius-m);
+}
+
+.leaderboard-entry-player td:last-child {
+    border-radius: 0 var(--radius-m) var(--radius-m) 0;
+}
+
+.leaderboard-entry-player .leaderboard-table-share {
+    color: var(--text);
 }
 
 .leaderboard-entry .leaderboard-table-tiles {
@@ -105,11 +126,11 @@
 }
 
 .leaderboard-entry .leaderboard-tiles-up {
-    color: #7BE3A0;
+    color: var(--gain);
 }
 
 .leaderboard-entry .leaderboard-tiles-down {
-    color: #FF8A8A;
+    color: var(--loss);
 }
 
 .leaderboard-delta {
@@ -117,13 +138,12 @@
     right: 0;
     bottom: calc(100% - 7px);
     pointer-events: none;
-    font-family: Oswald, sans-serif;
-    font-weight: 600;
-    font-size: 11px;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-xs);
     line-height: 1;
-    letter-spacing: 0.5px;
     color: inherit;
-    text-shadow: 0 0 6px #000000, 0 1px 2px #000000;
+    text-shadow: var(--text-drop);
     animation: leaderboard-delta 2.5s ease-out forwards;
 }
 
@@ -151,20 +171,12 @@
 }
 
 @media only screen and (max-width: 768px) {
-    .leaderboard-entry td {
-        font-size: 17px;
+    .leaderboard-table {
+        font-size: var(--display-s);
     }
 
     .leaderboard-entry .leaderboard-table-number {
-        font-size: 14px;
-    }
-
-    .leaderboard-entry .leaderboard-entry-index {
-        font-size: 13px;
-    }
-
-    .leaderboard-delta {
-        font-size: 10px;
+        font-size: var(--text-m);
     }
 }
 

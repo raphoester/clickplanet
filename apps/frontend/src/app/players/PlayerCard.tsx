@@ -32,7 +32,7 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
     const admin = player.admin || (state.kind === "ready" && state.info.admin)
     const color = state.kind === "ready" ? state.info.color : player.color
     const info = state.kind === "ready" ? state.info : undefined
-    const title = <span className="player-card-title">
+    const title = <span className="player-card-title" style={authorStyle({...player, color})}>
         {truncate(player.name, NAME_MAX_LENGTH)}
         {admin && <AdminCrown size={20}/>}
         {info?.titles.some((held) => held.id === OG) && <OgStamp/>}
@@ -40,7 +40,7 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
     const frame = info?.wornTitle ? ` title-frame-${metalOf(info.wornTitle)}` : ""
 
     return <Modal title={title} className={`player-card${frame}`} onClose={onClose}>
-        <div className="player-card-who" style={authorStyle({...player, color})}>
+        <div className="player-card-who">
             <span className="player-card-country" role="img" aria-label={country} title={country}>
                 <CountryFlag code={player.countryCode}/>
             </span>
@@ -64,7 +64,7 @@ function PlayerTitles({titles}: {titles: PlayerTitle[]}) {
 
     return <ul className="player-card-titles" aria-label="Titles">
         {titles.map((title) => <li key={title.id} className="player-card-held">
-            <TitleEmblem title={title} size={56}/>
+            <TitleEmblem title={title} size={48} ribbon/>
             <span className="player-card-held-name">{title.name}</span>
         </li>)}
     </ul>

@@ -134,7 +134,7 @@ export default function ChatPanel(props: ChatPanelProps) {
             <span className="chat-header-row">
                 <span className="chat-header-title">Chat</span>
                 {waiting &&
-                    <span className="chat-badge"
+                    <span className="chip chat-badge"
                           key={unread}
                           aria-label={unread === 1 ? "1 new message" : `${unread} new messages`}>
                         {unread > UNREAD_CAP ? `${UNREAD_CAP}+` : unread}
@@ -174,5 +174,5 @@ export default function ChatPanel(props: ChatPanelProps) {
 }
 
 function panelClass(isOpen: boolean, waiting: boolean): string {
-    return ["chat", isOpen && "chat-open", waiting && "chat-waiting"].filter(Boolean).join(" ")
+    return ["chat", "panel", isOpen && "chat-open", waiting && "chat-waiting"].filter(Boolean).join(" ")
 }

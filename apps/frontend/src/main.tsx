@@ -1,5 +1,6 @@
 import {createRoot} from 'react-dom/client'
 import {StrictMode} from "react"
+import './tokens.css'
 import './index.css'
 
 import {newClickServiceClient, PlanetBackend} from "./backends/planetBackend.ts"

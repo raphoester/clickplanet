@@ -9,83 +9,173 @@
     <link rel="icon" href="/static/favicon.png" type="image/x-icon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Oswald:wght@400;500&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Rubik:wght@400;500;600;700&display=swap"
           rel="stylesheet">
     <style>
+        :root {
+            --font-display: "Luckiest Guy", "Rubik", system-ui, sans-serif;
+            --font-text: "Rubik", system-ui, sans-serif;
+
+            --text-xs: 12px;
+            --text-s: 13px;
+            --text-m: 14px;
+            --text-l: 16px;
+            --display-l: 24px;
+            --display-xl: 30px;
+            --display-xxl: 46px;
+
+            --ink: #05070D;
+            --ground: #0B1226;
+            --ground-glow: #1D2D5C;
+            --panel: #18224A;
+            --panel-raised: #222F61;
+            --sheen: #FFFFFF14;
+
+            --text: #FFFFFF;
+            --text-soft: #C9D1F5;
+            --text-muted: #9DAAE0;
+
+            --gold: #FFC93C;
+
+            --outline: 3px;
+            --outline-thin: 2px;
+            --radius-xs: 6px;
+            --radius-l: 20px;
+            --drop-l: 0 5px 0 var(--ink);
+            --text-drop: 0 2px 0 var(--ink);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
-            background: #04090F;
-            color: #FFFFFFDD;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            font-size: 16px;
+            padding: 32px 16px 64px;
+            background-color: var(--ground);
+            background-image: radial-gradient(130% 700px at 50% -120px, var(--ground-glow), transparent 75%);
+            background-repeat: no-repeat;
+            color: var(--text-soft);
+            font-family: var(--font-text);
+            font-size: var(--text-l);
             line-height: 1.6;
         }
 
         main {
-            max-width: 680px;
+            max-width: 760px;
             margin: 0 auto;
-            padding: 32px 16px 64px;
+            padding: 28px 40px 40px;
+            background: var(--panel);
+            border: var(--outline) solid var(--ink);
+            border-radius: var(--radius-l);
+            box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen);
         }
 
         h1, h2 {
-            font-family: "Luckiest Guy", sans-serif;
+            font-family: var(--font-display);
             font-weight: normal;
-            letter-spacing: 1px;
-            color: #FFFFFF;
+            line-height: 1.05;
+            text-shadow: var(--text-drop);
         }
 
         h1 {
-            font-size: 36px;
-            margin: 24px 0 4px;
+            font-size: var(--display-xxl);
+            margin: 24px 0 8px;
+            color: var(--text);
         }
 
         h2 {
-            font-size: 22px;
+            font-size: var(--display-l);
             margin: 36px 0 8px;
+            color: var(--gold);
         }
 
         a {
-            color: #FF813F;
+            color: var(--text);
+            text-decoration-color: var(--gold);
+            text-decoration-thickness: 2px;
+            text-underline-offset: 3px;
+        }
+
+        a:hover, a:focus-visible {
+            color: var(--gold);
+        }
+
+        strong {
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        li + li {
+            margin-top: 6px;
         }
 
         .back {
-            font-family: Oswald, sans-serif;
-            text-transform: uppercase;
-            letter-spacing: 1.4px;
-            font-size: 14px;
+            font-size: var(--text-m);
+            font-weight: 600;
+            color: var(--text-soft);
             text-decoration: none;
         }
 
+        .back:hover, .back:focus-visible {
+            color: var(--text);
+        }
+
         .updated {
-            font-family: Oswald, sans-serif;
-            color: #FFFFFF80;
             margin: 0;
+            font-size: var(--text-s);
+            color: var(--text-muted);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 15px;
+            font-size: var(--text-m);
         }
 
         th, td {
             text-align: left;
             vertical-align: top;
-            padding: 8px 8px 8px 0;
-            border-bottom: 1px solid #FFFFFF1F;
+            padding: 10px 12px 10px 0;
+            border-bottom: 1px solid var(--ink);
         }
 
         th {
-            font-family: Oswald, sans-serif;
-            font-weight: 500;
-            font-size: 12px;
-            letter-spacing: 1.4px;
-            text-transform: uppercase;
-            color: #FFFFFF80;
+            font-weight: 600;
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            border-bottom: var(--outline-thin) solid var(--ink);
         }
 
         code {
-            font-size: 14px;
+            padding: 1px 6px;
+            border-radius: var(--radius-xs);
+            background: var(--panel-raised);
+            color: var(--text);
+            font-size: var(--text-s);
+        }
+
+        @media only screen and (max-width: 600px) {
+            body {
+                padding: 16px 16px 48px;
+            }
+
+            main {
+                padding: 20px 16px 28px;
+            }
+
+            h1 {
+                font-size: var(--display-xl);
+                margin-top: 20px;
+            }
+
+            table {
+                font-size: var(--text-s);
+            }
+
+            th, td {
+                padding: 8px 8px 8px 0;
+            }
         }
     </style>
 </head>

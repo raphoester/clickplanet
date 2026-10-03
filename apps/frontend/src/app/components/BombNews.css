@@ -14,17 +14,20 @@
 .bomb-news-line {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border: 1px solid #FF5A3F66;
-    border-radius: 999px;
-    background: #0A0A0Acc;
-    backdrop-filter: blur(10px);
-    color: #FFFFFF;
-    font-size: 15px;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    color: var(--text-soft);
+    font-size: var(--text-m);
     white-space: nowrap;
-    box-shadow: 0 0 18px #FF5A3F44;
     animation: bomb-news 4s ease-out forwards;
+}
+
+.bomb-news-line strong {
+    font-family: var(--font-display);
+    font-weight: normal;
+    font-size: var(--display-s);
+    color: var(--text);
+    text-shadow: var(--text-drop);
 }
 
 @keyframes bomb-news {
@@ -53,21 +56,21 @@
         bottom: 96px;
     }
 
-.bomb-news--lowered {
-    top: calc(var(--season-banner-bottom, 8px) + 212px);
-}
+    .bomb-news--lowered {
+        top: calc(var(--season-banner-bottom, 8px) + 212px);
+    }
 
-.bomb-news-line {
-        font-size: 13px;
+    .bomb-news-line {
+        font-size: var(--text-s);
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-.bomb-news--lowered {
-    top: calc(var(--season-banner-bottom, 8px) + 212px);
-}
+    .bomb-news--lowered {
+        top: calc(var(--season-banner-bottom, 8px) + 212px);
+    }
 
-.bomb-news-line {
+    .bomb-news-line {
         animation: none;
     }
 }

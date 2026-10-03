@@ -45,10 +45,10 @@ export default function AnthemBar({anthem, settings, onChange}: AnthemBarProps) 
     const setVolume = (volume: number) =>
         onChange({...settings, anthem: {on: volume > 0 || settings.anthem.on, volume}})
 
-    return <section className={playing ? "anthem-bar anthem-bar--playing" : "anthem-bar"}
+    return <section className={playing ? "anthem-bar panel anthem-bar--playing" : "anthem-bar panel"}
                     aria-label="National anthem">
         <button type="button"
-                className="anthem-bar-play"
+                className="icon-button anthem-bar-play"
                 aria-label={playing ? "Pause the anthem" : "Play the anthem"}
                 disabled={!recorded}
                 onClick={toggle}>

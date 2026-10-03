@@ -5,7 +5,7 @@ export default function BuyMeACoffee() {
         href="https://buymeacoffee.com/raphoester"
         target="_blank"
         rel="noopener noreferrer"
-        className="button button-coffee"
+        className="button button-gold button-coffee"
     >
         Buy me a coffee
     </a>

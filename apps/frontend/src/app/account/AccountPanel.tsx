@@ -24,7 +24,7 @@ export function AccountButton({state, onOpen, buttonRef}: AccountButtonProps) {
     const label = state.me.linked.length > 0 ? "Account" : "Sign in"
     return <button ref={buttonRef}
                    type="button"
-                   className="button button-ghost menu-icon"
+                   className="button menu-icon"
                    aria-label={label}
                    title={label}
                    onClick={onOpen}>
@@ -52,7 +52,7 @@ export default function AccountPanel(props: AccountPanelProps) {
                                                               id={`${tabsId}-${value}`}
                                                               aria-selected={tab === value}
                                                               aria-controls={`${tabsId}-panel`}
-                                                              className="account-tab"
+                                                              className={`button button-mini account-tab${tab === value ? " button-secondary" : ""}`}
                                                               onClick={() => setTab(value)}>
         {label}
     </button>
@@ -98,19 +98,19 @@ function AccountSettings({state, store, onDelete, linkedMultiplier}: AccountPane
 
         {linked.length > 0 && <>
             <button type="button"
-                    className="button button-ghost account-button"
+                    className="button account-button"
                     disabled={busy}
                     onClick={() => void store.signOut()}>
                 Sign out
             </button>
             <button type="button"
-                    className="button button-ghost account-button"
+                    className="button account-button"
                     disabled={busy}
                     onClick={() => void store.signOutEverywhere()}>
                 Sign out everywhere
             </button>
             <button type="button"
-                    className="button button-ghost account-button account-delete"
+                    className="button account-button account-delete"
                     disabled={busy}
                     onClick={onDelete}>
                 Delete account
@@ -150,7 +150,7 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
         </div>
         <div className="account-name-row">
             <input id={inputId}
-                   className="account-name-input"
+                   className="field account-name-input"
                    value={draft}
                    autoComplete="off"
                    autoCapitalize="off"
@@ -160,7 +160,7 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
                    aria-describedby={hintId}
                    onChange={(e) => setDraft(e.target.value)}/>
             <button type="submit"
-                    className="button button-mini account-name-save"
+                    className="button button-mini button-secondary account-name-save"
                     disabled={!canSave}>
                 Save
             </button>

@@ -29,7 +29,7 @@ export default function AddToCalendarButton({season}: {season: Season}) {
 
     return <div className="season-calendar" ref={shell}>
         <button type="button"
-                className="button button-mini season-calendar-button"
+                className="button button-mini button-secondary"
                 aria-expanded={open}
                 aria-controls={list}
                 onClick={() => setOpen(!open)}>
@@ -37,7 +37,7 @@ export default function AddToCalendarButton({season}: {season: Season}) {
             <span>Add to calendar</span>
         </button>
 
-        {open && <ul id={list} className="season-calendar-list">
+        {open && <ul id={list} className="panel season-calendar-list">
             {links.map(link => <li key={link.name}>
                 <a className="season-calendar-link"
                    href={link.url}

@@ -14,21 +14,23 @@
     bottom: 0;
     height: 36px;
     pointer-events: none;
-    background: linear-gradient(180deg, rgba(4, 9, 15, 0), rgba(4, 9, 15, 0.85));
+    background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--panel) 85%, transparent));
 }
 
 .menu-panel-header {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-top: 14px;
+    margin-top: var(--space-4);
     flex-shrink: 0;
 }
 
 .menu-panel-title {
     margin: 0;
     min-width: 0;
-    font-size: 24px;
+    padding-top: 3px;
+    font-size: var(--display-l);
+    color: var(--gold);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -44,15 +46,17 @@
     min-height: 0;
     flex: 1 1 auto;
     overflow-y: auto;
-    margin-top: 12px;
+    margin-top: var(--space-3);
+    padding-right: var(--space-2);
+    scrollbar-gutter: stable;
 }
 
 @media only screen and (max-width: 768px) {
     .menu-panel-header {
-        margin-top: 8px;
+        margin-top: var(--space-2);
     }
 
     .menu-panel-title {
-        font-size: 20px;
+        font-size: var(--display-m);
     }
 }
