@@ -45,7 +45,8 @@ the same for any other bonus (the fake holds charges as the server does: a refil
 and a bomb at most, a pool of 8 spread clicks and a stack of 3 enclosures, a box
 adding 1 to 4 and 1 to 3 of them, spread and enclose spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
-banner up at once, and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
+banner up at once, `giveTitle("warlord")` plays the unlock of any title (the fake
+wires no account, so the overlay offers Close only), and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
 play somebody else's bomb or spread click. `fakeBackend.shareClicks("guests")` (or
 `"network"`) reads the bucket as shared, and `fakeBackend.shareClicks()` as the
 player's own again.
@@ -574,13 +575,11 @@ once it lands. In fake mode, Ana is the admin.
 hands `onOpenPlayer` to `Menu` → `PlayersPanel` and to `ChatPanel` → `ChatLog`;
 without a `PlayerInfoBackend` wired the names are plain text. The card shows the
 flag and the country, then, for a player with a username, what
-`player.v1.PlayerService/GetPlayer` answers: the titles it holds, as chips in the
-server's order (none, no list), then tiles taken, the current and best
+`player.v1.PlayerService/GetPlayer` answers: the title it wears and the titles
+it shows (see [Titles](#titles)), then tiles taken, the current and best
 streak, and "Playing since", the day the account was made (left out when the
-server does not know it). A title arrives as `{id, name}` and the card shows
-the name: the server owns the list, so a new title needs no change here. The
-fake gives its players a few titles of its own over their fake stats and
-creation date. **A guest's card asks nothing**: a guest has no
+server does not know it). The fake gives its players titles of its own over
+their fake stats and creation date. **A guest's card asks nothing**: a guest has no
 username, so there is nothing to look up, and the card says so. The chat tells
 a guest by `GUEST_PREFIX`, which no username starts with. `GetPlayer` needs no
 token and goes out as a GET, like `GetRoster`; `NotFound` (renamed, or the
@@ -602,7 +601,11 @@ would mint; the next click brings one. `NoSession` holds nothing, so a build
 without a sitekey never announces.
 
 **The roster is streamed**, over `ListenForEvents` through `openStream`, with
-no token and no header. Every connection starts with the whole roster, then
+the token already held (`held()`, never a mint) when there is one. The roster
+needs none; the token is what lets the same stream bring this player's own
+titles (`titleEarned`, see [Titles](#titles)). The server reads it when the
+stream opens, so `useRoster` checks `heldSession()` every `SETTLE_MS` and
+reopens the stream when it changes, keeping the list it has. Every connection starts with the whole roster, then
 sends one line that joined or changed (`entry`) or one key that left (`left`).
 A line is named by its `key`, which the server keeps through a new flag, a
 sign-in and a new name, so a guest who signs in is one row renamed in place;
@@ -620,6 +623,69 @@ client whose `fetch` sets `keepalive` (`newKeepalivePlayerServiceClient`), so it
 is still sent after the page is gone. The server takes the account off at once.
 Two tabs of one browser are one account: closing one takes the line off until
 the other's next announce, at most 30s later.
+
+### Titles
+
+A linked account earns titles; the server decides which and keeps them (see
+the backend's CLAUDE.md). `app/titles/` draws them and `app/account/ProgressTab.tsx`
+is the player's own view.
+
+- **Most titles are ranks on a track** (`TitleRank`: the track, the rank's
+  number, how many ranks). Conquest counts tiles taken, Devotion the streak; OG
+  stands alone. **Only the highest rank of each track is ever shown or worn**, so
+  the client never filters: it draws what the server sends, in its order.
+- **Every title is a medal** (`TitleEmblem`): an SVG per id, in the metal
+  `titleArt.ts` gives it (`TITLE_METALS`, bronze up to prism). An id this build
+  has no picture for gets the first letter of its name in silver, so a new title
+  shows before its art ships. `locked` greys it with a padlock, for a rank not
+  held. Each medal names its gradient with `useId`: two on one page cannot share one.
+- **The public card** wears the worn title: a banner (`TitleBanner`, the rank line
+  and the name in its metal), and the card's border in that metal
+  (`title-frame-<metal>` on the `Modal`). Under it, one medal per title shown.
+  OG is also a stamp beside the name (`OgStamp`).
+- **The Progress tab** is the worn title (a compact banner), "Wear a title" (a
+  `radiogroup` of the titles that can be worn; a press sends `WearTitle` and reads
+  the titles again), and one `TrackPath` per track: every rank, its threshold
+  (`stepLabel`), a bar filled up to the progress (`filledOf`), and in its header
+  what is left to the next rank (`leftLabel`). The path scrolls sideways and opens
+  centred on the next rank. `useTitles` reads `GetTitles` (the click token, as
+  `GetProfile`) each time the panel opens; a failed read says so.
+- **The unlock moment is live.** The player stream carries `titleEarned` to a
+  stream opened with this player's token. `useRoster` hands it to `Viewer`, which
+  queues them and shows `TitleUnlocked` over the game, one at a time: the medal,
+  rays, the name, the rank line, "Close" and "Wear it" (`AccountStore.wearTitle`;
+  left out when no account store is wired). The server sends only the highest
+  rank per track of what one take earned, so a jump of two ranks is one overlay.
+  A title earned while no tab is open is never announced; it is simply there next
+  time.
+- **UI copy is not documentation.** The card and the tab say nothing about the
+  rules ("one per track", "others see the title you wear"): what is drawn is the rule.
+
+### The season
+
+`backends/season.ts` is the contract, `seasonBackend.ts` reads
+`seasons.v1.SeasonService/GetSeason` once per page load (a cached GET), and
+`fakeSeasonBackend.ts` answers Season 0 in fake mode. A 404 reads as no season.
+
+- `domain/seasonClock.ts` — `seasonClock`, the time left to the second
+  (`27d 14h 05m 12s`, `13h 05m 12s`, `52m 10s`, nothing once over) and whether the finale runs, and `finaleWindow`,
+  the finale's day and hours in the player's own time zone.
+- `domain/seasonCalendar.ts` — `finaleCalendar`, the `.ics` of the finale, built
+  from `GetSeason` so no date is typed twice.
+- `app/season/` — `useSeason`, which drops the season at its end (a page open
+  across it goes back to no season), `SeasonBanner` and `AddToCalendarButton`.
+
+**The season is a banner at the top centre**, outside the menu: "Season 0 ends
+in 28d 14h 05m 12s", then the Final Battle's day and hours with "Add to calendar"
+beside them. The first line folds the rest away; the fold is kept in
+`clickplanet-season-banner-folded`, and a first visit under 768px starts folded.
+Under 768px it is a strip under the menu header. During the finale it glows,
+says "Final Battle ends in" and does not fold.
+
+**It writes its bottom edge on `:root` as `--season-banner-bottom`**
+(`useBottomEdge`, which `useDockBottom` is built on). The quiz, the bomb news and
+the native-land note sit under it, and on a phone so does the click budget dock.
+With no season the property is unset and they sit where they always did.
 
 ### Sessions
 
@@ -861,11 +927,10 @@ both. A color is refused without a username (`FailedPrecondition` → `unnamed`)
 which is why the picker only shows with one. `usePresence` announces again once
 the color held still for a second (`SETTLE_MS`), so the roster line follows.
 
-**A signed-in player sees its own streak** at the top of `AccountPanel`: the
-current and the best, in the same `StatTiles` as the player card. `useStreak`
-reads it each time the panel opens and each time the account is read again,
-with `GetStats` and the click token, so it is as of today and needs no
-username. A guest is shown none and reads none; a failed read shows nothing.
+**A signed-in account's panel has two tabs**: Progress, open first (see
+[Titles](#titles)), and Settings, which holds the username, the color, linking
+and signing out. A guest has no tabs: its panel is the sign-in buttons alone,
+and it reads no titles.
 
 **Signing in by email stays on the page.** The server offers `email` beside the
 providers when `auth.email.enabled` is on, and `EmailSignIn` draws it under the
@@ -981,8 +1046,8 @@ mint a guest and insert a row into `auth.identities` for its account.
   turn, two rings). It reuses the enclosure's shaders, with normal rather than
   additive rings, which vanished on the white of a flag. A busy planet spreads a
   lot, so at most `MAX_PLAYING` run at once. It also puffs dust on a tile this
-  player's click cleared rather than took (`playClear`): a small burst, six motes
-  drifting off it, one ring, 0.8s.
+  player's click cleared rather than took (`playClear`): a small burst and one
+  ring, 0.35s.
 
   **Every other click puffs on its tile** (`playClick`): this player's at once,
   and anyone else's when its `TileUpdate` says `clicked` — the server sets it only
@@ -1156,11 +1221,10 @@ and it was the first suspect for the white globe on Intel; turning it off
 ratio on its way to the GPU: the tile's point size, the outline's width
 (`halfWidthOf`), the keyline around a painted flag, the smallest a mark or a
 ring of the bonus effects may be, the smallest debris. So are the thresholds:
-`coarseHandover`, `flagPaint` and the size a landmass must reach before its flag
-fades in are worked out in CSS pixels, or a sharper screen would hand over at
-half the zoom. What is measured against `gl_PointSize` stays in drawing-buffer
-pixels — `pixelsPerRadian`, the picker's window, the one-pixel feathers that
-soften an edge.
+`coarseHandover` and `flagPaint` are worked out in CSS pixels, or a sharper
+screen would hand over at half the zoom. What is measured against
+`gl_PointSize` stays in drawing-buffer pixels — `pixelsPerRadian`, the picker's
+window, the one-pixel feathers that soften an edge.
 
 The click is already in drawing-buffer pixels: `canvasPosition` scales the
 pointer by `canvas.width / rect.width`. `resize` sets the ratio again, because a
@@ -2053,6 +2117,8 @@ the whole `proto` directory, so a new package needs no config change; run
   deprecated mint, no longer called
 - [`player/v1/player.proto`](../../proto/player/v1/player.proto) — the
   username and who is playing (`PlayerService`)
+- [`seasons/v1/seasons.proto`](../../proto/seasons/v1/seasons.proto) — the
+  current season (`SeasonService`)
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in

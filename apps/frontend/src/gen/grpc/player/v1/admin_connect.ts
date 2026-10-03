@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BackfillTitlesRequest, BackfillTitlesResponse } from "./admin_pb.js";
+import { ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,12 +15,12 @@ export const AdminService = {
   typeName: "player.v1.AdminService",
   methods: {
     /**
-     * @generated from rpc player.v1.AdminService.BackfillTitles
+     * @generated from rpc player.v1.AdminService.ReconcileTitles
      */
-    backfillTitles: {
-      name: "BackfillTitles",
-      I: BackfillTitlesRequest,
-      O: BackfillTitlesResponse,
+    reconcileTitles: {
+      name: "ReconcileTitles",
+      I: ReconcileTitlesRequest,
+      O: ReconcileTitlesResponse,
       kind: MethodKind.Unary,
     },
   }

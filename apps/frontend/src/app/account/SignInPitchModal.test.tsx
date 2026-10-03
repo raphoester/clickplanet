@@ -25,7 +25,8 @@ async function guest() {
         profile: vi.fn(async () => ({accountId: "account-1", name: "", color: NameColor.UNSPECIFIED})),
         setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
         setColor: vi.fn(async (color: NameColor) => color),
-        streak: vi.fn(async () => ({current: 0, best: 0})),
+        titles: vi.fn(async () => ({wearable: [], tracks: []})),
+        wearTitle: vi.fn(async () => undefined),
     } satisfies PlayerBackend
     const navigate = vi.fn()
     const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})

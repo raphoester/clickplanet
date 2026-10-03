@@ -20,36 +20,33 @@ func (i IDs) Without(held IDs) IDs {
 	return slices.DeleteFunc(slices.Clone(i), func(id ID) bool { return slices.Contains(held, id) })
 }
 
-type Grants map[players.AccountID]IDs
+type Holdings map[players.AccountID]IDs
 
-type Catalog []Title
-
-func (c Catalog) EarnedBy(career Career) IDs {
-	var earned IDs
-	for _, title := range c {
-		if title.EarnedBy(career) {
-			earned = append(earned, title.ID())
-		}
+func (h Holdings) Len() int {
+	total := 0
+	for _, ids := range h {
+		total += len(ids)
 	}
-	return earned
+	return total
 }
 
-func (c Catalog) GrantsFor(careers []Career) Grants {
-	grants := Grants{}
-	for _, career := range careers {
-		if earned := c.EarnedBy(career); len(earned) > 0 {
-			grants[career.Stats.Account] = earned
-		}
-	}
-	return grants
+type Reconciliation struct {
+	Grants      Holdings
+	Revocations Holdings
 }
 
-func (c Catalog) Of(held IDs) []Title {
-	var titles []Title
-	for _, title := range c {
-		if slices.Contains(held, title.ID()) {
-			titles = append(titles, title)
-		}
-	}
-	return titles
+type Place struct {
+	Track     TrackID
+	TrackName string
+	Number    int
+	Count     int
 }
+
+func (p Place) Ranked() bool { return p.Count > 0 }
+
+type Standing struct {
+	Title Title
+	Place Place
+}
+
+func (s Standing) Empty() bool { return s.Title == nil }

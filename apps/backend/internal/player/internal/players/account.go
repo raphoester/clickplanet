@@ -3,6 +3,7 @@ package players
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -19,4 +20,9 @@ func AccountIDOf(value string) (AccountID, error) {
 		return AccountID{}, fmt.Errorf("%w: %q", ErrInvalidAccount, value)
 	}
 	return AccountID(id), nil
+}
+
+type Account struct {
+	Linked    bool
+	CreatedAt time.Time
 }

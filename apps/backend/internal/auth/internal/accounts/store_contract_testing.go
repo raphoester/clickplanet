@@ -119,7 +119,7 @@ func (s *StoreContractSuite) TestAnUnknownAccountIsNotFound() {
 	s.Nil(account)
 }
 
-func (s *StoreContractSuite) TestCreationDatesAnswerTheKnownAccountsAndLeaveOutTheOthers() {
+func (s *StoreContractSuite) TestAccountsAnswerTheKnownOnesWithTheirIdentitiesAndLeaveOutTheOthers() {
 	s.createGuest(1, "a-token")
 	identity := NewIdentity("google", contractClaim, AccountID{15: 2}, contractStart.Add(time.Hour))
 	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{
@@ -127,17 +127,20 @@ func (s *StoreContractSuite) TestCreationDatesAnswerTheKnownAccountsAndLeaveOutT
 		Session: LinkedSession(identity.Account, TokenOf("b-token"), contractLifetime, contractStart.Add(time.Hour)),
 	}))
 
-	dates, err := s.store.CreationDates(s.T().Context(), []AccountID{{15: 1}, {15: 2}, {15: 9}})
+	found, err := s.store.Accounts(s.T().Context(), []AccountID{{15: 1}, {15: 2}, {15: 9}})
 
 	s.Require().NoError(err)
-	s.Equal(map[AccountID]time.Time{{15: 1}: contractStart, {15: 2}: contractStart.Add(time.Hour)}, dates)
+	s.ElementsMatch([]*Account{
+		{ID: AccountID{15: 1}, CreatedAt: contractStart, Identities: []Identity{}},
+		{ID: AccountID{15: 2}, CreatedAt: contractStart.Add(time.Hour), Identities: []Identity{*identity}},
+	}, found)
 }
 
-func (s *StoreContractSuite) TestNoAccountsAskedIsNoCreationDates() {
-	dates, err := s.store.CreationDates(s.T().Context(), nil)
+func (s *StoreContractSuite) TestNoAccountsAskedIsNoAccounts() {
+	found, err := s.store.Accounts(s.T().Context(), nil)
 
 	s.Require().NoError(err)
-	s.Empty(dates)
+	s.Empty(found)
 }
 
 func (s *StoreContractSuite) TestAnUnknownIdentityIsNotFound() {

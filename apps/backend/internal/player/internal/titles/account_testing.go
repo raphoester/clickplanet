@@ -5,26 +5,25 @@ package titles
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
 type FakeAccounts struct {
 	mu       sync.Mutex
-	created  map[players.AccountID]time.Time
+	accounts map[players.AccountID]players.Account
 	failWith error
 }
 
 func NewFakeAccounts() *FakeAccounts {
-	return &FakeAccounts{created: map[players.AccountID]time.Time{}}
+	return &FakeAccounts{accounts: map[players.AccountID]players.Account{}}
 }
 
-func (f *FakeAccounts) Create(account players.AccountID, at time.Time) {
+func (f *FakeAccounts) Create(id players.AccountID, account players.Account) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	f.created[account] = at
+	f.accounts[id] = account
 }
 
 func (f *FakeAccounts) FailWith(err error) {
@@ -34,28 +33,28 @@ func (f *FakeAccounts) FailWith(err error) {
 	f.failWith = err
 }
 
-func (f *FakeAccounts) CreatedAt(_ context.Context, account players.AccountID) (time.Time, error) {
+func (f *FakeAccounts) Account(_ context.Context, id players.AccountID) (players.Account, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	if f.failWith != nil {
-		return time.Time{}, f.failWith
+		return players.Account{}, f.failWith
 	}
-	return f.created[account], nil
+	return f.accounts[id], nil
 }
 
-func (f *FakeAccounts) CreationDates(_ context.Context, accounts []players.AccountID) (map[players.AccountID]time.Time, error) {
+func (f *FakeAccounts) Accounts(_ context.Context, ids []players.AccountID) (map[players.AccountID]players.Account, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	if f.failWith != nil {
 		return nil, f.failWith
 	}
-	dates := map[players.AccountID]time.Time{}
-	for _, account := range accounts {
-		if at, ok := f.created[account]; ok {
-			dates[account] = at
+	found := map[players.AccountID]players.Account{}
+	for _, id := range ids {
+		if account, ok := f.accounts[id]; ok {
+			found[id] = account
 		}
 	}
-	return dates, nil
+	return found, nil
 }

@@ -6,11 +6,12 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, account players.AccountID) error
+	Execute(ctx context.Context, account players.AccountID) (titles.IDs, error)
 }
 
 func New(useCase UseCase) Subscriber {
@@ -32,5 +33,6 @@ func (s Subscriber) Handle(ctx context.Context, event *playerv1.StatsChanged) er
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, account) //nolint:wrapcheck // the use case named it.
+	_, err = s.useCase.Execute(ctx, account)
+	return err //nolint:wrapcheck // the use case named it.
 }

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package seasons.v1;
+
+service SeasonService {
+  rpc GetSeason(GetSeasonRequest) returns (GetSeasonResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetSeasonRequest {}
+
+message GetSeasonResponse {
+  Season season = 1;
+}
+
+message Season {
+  uint32 number = 1;
+  int64 finale_starts_at_unix_ms = 2;
+  int64 ends_at_unix_ms = 3;
+}

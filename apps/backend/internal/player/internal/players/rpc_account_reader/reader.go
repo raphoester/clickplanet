@@ -45,10 +45,18 @@ func (r *Reader) CreatedAt(ctx context.Context, account players.AccountID) (time
 	return time.UnixMilli(res.GetCreatedAtUnixMs()).UTC(), nil
 }
 
-func (r *Reader) CreationDates(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]time.Time, error) {
-	dates := make(map[players.AccountID]time.Time, len(accounts))
+func (r *Reader) Account(ctx context.Context, account players.AccountID) (players.Account, error) {
+	res, err := r.account(ctx, account)
+	if err != nil {
+		return players.Account{}, fmt.Errorf("failed to ask auth about the account: %w", err)
+	}
+	return accountOf(res.GetLinked(), res.GetCreatedAtUnixMs()), nil
+}
+
+func (r *Reader) Accounts(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]players.Account, error) {
+	found := make(map[players.AccountID]players.Account, len(accounts))
 	if len(accounts) == 0 {
-		return dates, nil
+		return found, nil
 	}
 
 	client, baseURL, err := r.dial.Dial()
@@ -65,19 +73,19 @@ func (r *Reader) CreationDates(ctx context.Context, accounts []players.AccountID
 	defer cancel()
 
 	res, err := authv1connect.NewInternalServiceClient(client, baseURL).
-		GetCreationDates(ctx, connect.NewRequest(&authv1.GetCreationDatesRequest{AccountIds: ids}))
+		GetAccounts(ctx, connect.NewRequest(&authv1.GetAccountsRequest{AccountIds: ids}))
 	if err != nil {
-		return nil, fmt.Errorf("failed to call auth.v1.InternalService/GetCreationDates: %w", err)
+		return nil, fmt.Errorf("failed to call auth.v1.InternalService/GetAccounts: %w", err)
 	}
 
-	for _, date := range res.Msg.GetDates() {
-		account, err := players.AccountIDOf(date.GetAccountId())
+	for _, answered := range res.Msg.GetAccounts() {
+		account, err := players.AccountIDOf(answered.GetAccountId())
 		if err != nil {
-			return nil, fmt.Errorf("auth answered a creation date for %w", err)
+			return nil, fmt.Errorf("auth answered %w", err)
 		}
-		dates[account] = time.UnixMilli(date.GetCreatedAtUnixMs()).UTC()
+		found[account] = accountOf(answered.GetLinked(), answered.GetCreatedAtUnixMs())
 	}
-	return dates, nil
+	return found, nil
 }
 
 func (r *Reader) account(ctx context.Context, account players.AccountID) (*authv1.GetAccountResponse, error) {
@@ -95,4 +103,11 @@ func (r *Reader) account(ctx context.Context, account players.AccountID) (*authv
 		return nil, fmt.Errorf("failed to call auth.v1.InternalService/GetAccount: %w", err)
 	}
 	return res.Msg, nil
+}
+
+func accountOf(linked bool, createdAtUnixMs int64) players.Account {
+	if createdAtUnixMs == 0 {
+		return players.Account{Linked: linked}
+	}
+	return players.Account{Linked: linked, CreatedAt: time.UnixMilli(createdAtUnixMs).UTC()}
 }

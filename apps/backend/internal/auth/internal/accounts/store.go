@@ -13,7 +13,7 @@ type Store interface {
 	DeleteSessions(ctx context.Context, account AccountID) error
 
 	Account(ctx context.Context, account AccountID) (*Account, error)
-	CreationDates(ctx context.Context, accounts []AccountID) (map[AccountID]time.Time, error)
+	Accounts(ctx context.Context, accounts []AccountID) ([]*Account, error)
 	Identity(ctx context.Context, provider string, subject string) (*Identity, error)
 	AccountOfEmail(ctx context.Context, address string) (*Account, error)
 	SaveSignIn(ctx context.Context, signIn SignIn) error

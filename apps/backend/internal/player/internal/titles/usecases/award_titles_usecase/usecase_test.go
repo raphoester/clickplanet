@@ -19,7 +19,7 @@ import (
 var (
 	monday  = time.Date(2026, 9, 14, 20, 0, 0, 0, time.UTC)
 	ada     = players.AccountID{15: 1}
-	catalog = titles.Catalog{titles.FakeTitle{Key: "first", Tiles: 1}, titles.FakeTitle{Key: "third", Tiles: 3}}
+	catalog = titles.CatalogOf([]titles.Title{titles.FakeTitle{Key: "first", Tiles: 1}, titles.FakeTitle{Key: "third", Tiles: 3}})
 )
 
 type fixture struct {
@@ -29,14 +29,39 @@ type fixture struct {
 }
 
 func setUp() fixture {
-	return fixture{stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts()}
+	f := fixture{stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts()}
+	f.accounts.Create(ada, players.Account{Linked: true, CreatedAt: monday})
+	return f
 }
 
 func (f fixture) award(t *testing.T, catalog titles.Catalog) error {
 	t.Helper()
 
-	return award_titles_usecase.New(f.stats, f.accounts, titles.NewBook(f.titles, catalog), cptime.NewFixedClock(monday)). //nolint:wrapcheck // the tests read the use case's error.
-																Execute(t.Context(), ada)
+	_, err := f.awarded(t, catalog)
+	return err
+}
+
+func (f fixture) awarded(t *testing.T, catalog titles.Catalog) (titles.IDs, error) {
+	t.Helper()
+
+	useCase := award_titles_usecase.New(f.stats, f.accounts, titles.NewBook(f.titles, catalog), cptime.NewFixedClock(monday))
+	return useCase.Execute(t.Context(), ada) //nolint:wrapcheck // the tests read the use case's error.
+}
+
+func TestTheAnswerIsWhatThisTakeGranted(t *testing.T) {
+	f := setUp()
+	for range 3 {
+		require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
+	}
+	require.NoError(t, f.titles.Grant(t.Context(), titles.Holdings{ada: {"first"}}, monday))
+
+	granted, err := f.awarded(t, catalog)
+	require.NoError(t, err)
+	assert.Equal(t, titles.IDs{"third"}, granted)
+
+	granted, err = f.awarded(t, catalog)
+	require.NoError(t, err)
+	assert.Empty(t, granted, "a take that earns nothing new grants nothing")
 }
 
 func (f fixture) held(t *testing.T) titles.IDs {
@@ -63,12 +88,25 @@ func TestTheTakeThatReachesATitleGrantsIt(t *testing.T) {
 
 func TestANewAccountMadeBeforeNovemberIsOGAtItsFirstTake(t *testing.T) {
 	f := setUp()
-	f.accounts.Create(ada, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC))
+	f.accounts.Create(ada, players.Account{Linked: true, CreatedAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)})
 	require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
 
 	require.NoError(t, f.award(t, titles.NewCatalog()))
 
 	assert.Equal(t, titles.IDs{"og"}, f.held(t))
+}
+
+func TestAGuestsTakeGrantsNothing(t *testing.T) {
+	f := setUp()
+	f.accounts.Create(ada, players.Account{CreatedAt: time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)})
+	for range 3 {
+		require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
+	}
+
+	require.NoError(t, f.award(t, titles.NewCatalog()))
+	require.NoError(t, f.award(t, catalog))
+
+	assert.Empty(t, f.held(t))
 }
 
 func TestAnAccountWithNoStatsEarnsNothing(t *testing.T) {

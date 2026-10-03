@@ -11,8 +11,6 @@ uniform float flagPaint;
 
 uniform float pixelsPerRadian;
 
-uniform float pixelRatio;
-
 // Must match MAX_BLASTS and BLAST_TIMELINE in domain/blast.ts.
 #define MAX_BLASTS 4
 const float BLAST_FALL = 0.8;
@@ -93,7 +91,7 @@ void main() {
         vec4 region = texture(landmassData, vec2(5.0 / 8.0, row));
         vec4 held = texture(landmassData, vec2(7.0 / 8.0, row));
 
-        float share = held.r * smoothstep(5.0, 16.0, held.g * pixelsPerRadian / pixelRatio);
+        float share = held.r;
         vec2 anchor = held.ba;
 
         if (region.z > 0.0 && share > 0.0) {

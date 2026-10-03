@@ -6,6 +6,8 @@ import {
     PlayerEvent as PlayerEventPb,
     Profile as ProfilePb,
     RosterEntry as RosterEntryPb,
+    Title as TitlePb,
+    Track as TrackPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
 import {
     ColoredProfile,
@@ -15,12 +17,14 @@ import {
     PlayerFailure,
     PlayerInfo,
     PlayerInfoBackend,
+    PlayerTitle,
     Presence,
     PresenceBackend,
     Profile,
     RosterEntry,
     RosterEvent,
-    Streak,
+    TitleDashboard,
+    TitleTrack,
 } from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
@@ -74,10 +78,19 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
         return res.color
     }
 
-    public async streak(): Promise<Streak> {
+    public async titles(): Promise<TitleDashboard> {
         const res = await this.authenticated((headers) =>
-            retrying(() => this.client.getStats({}, {headers}), "GetStats"))
-        return {current: res.stats?.streakCurrent ?? 0, best: res.stats?.streakBest ?? 0}
+            retrying(() => this.client.getTitles({}, {headers}), "GetTitles"))
+        return {
+            worn: titleOf(res.worn),
+            wearable: res.wearable.flatMap((title) => titleOf(title) ?? []),
+            tracks: res.tracks.map(trackOf),
+        }
+    }
+
+    public async wearTitle(id: string): Promise<PlayerTitle | undefined> {
+        const res = await this.authenticated((headers) => this.client.wearTitle({titleId: id}, {headers}))
+        return titleOf(res.worn)
     }
 
     public heldSession(): string | undefined {
@@ -107,14 +120,22 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
             .catch((e) => console.error("Leave failed", e))
     }
 
-    public listenForRoster(onEvent: (event: RosterEvent) => void, onUnavailable: () => void): () => void {
+    public listenForRoster(
+        onEvent: (event: RosterEvent) => void,
+        onUnavailable: () => void,
+        onTitleEarned: (title: PlayerTitle) => void,
+    ): () => void {
         const client = this.client
+        const session = this.session
         let unavailable = false
         let stop = () => {}
         stop = openStream(
             async function* (signal) {
+                const token = session.held()
+                const headers = new Headers()
+                if (token) headers.set(SESSION_HEADER, token)
                 try {
-                    yield* client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT})
+                    yield* client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT, headers})
                 } catch (e) {
                     if (e instanceof ConnectError && (e.code === Code.Unimplemented || e.code === Code.NotFound)) {
                         unavailable = true
@@ -126,8 +147,14 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
                 }
             },
             (event) => {
+                if (unavailable) return
+                if (event.event.case === "titleEarned") {
+                    const title = titleOf(event.event.value.title)
+                    if (title) onTitleEarned(title)
+                    return
+                }
                 const rosterEvent = rosterEventOf(event)
-                if (rosterEvent && !unavailable) onEvent(rosterEvent)
+                if (rosterEvent) onEvent(rosterEvent)
             },
             "roster",
         )
@@ -208,6 +235,32 @@ function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
         createdAt: createdAt > 0 ? createdAt : undefined,
         admin: player?.admin ?? false,
         color: player?.color ?? NameColor.UNSPECIFIED,
-        titles: (player?.titles ?? []).map((title) => ({id: title.id, name: title.name})),
+        titles: (player?.titles ?? []).flatMap((title) => titleOf(title) ?? []),
+        wornTitle: titleOf(player?.wornTitle),
+    }
+}
+
+function titleOf(title: TitlePb | undefined): PlayerTitle | undefined {
+    if (!title || !title.id) return undefined
+
+    const rank = title.rank
+    return {
+        id: title.id,
+        name: title.name,
+        rank: rank && rank.count > 0
+            ? {trackId: rank.trackId, trackName: rank.trackName, number: rank.number, count: rank.count}
+            : undefined,
+    }
+}
+
+function trackOf(track: TrackPb): TitleTrack {
+    return {
+        id: track.id,
+        name: track.name,
+        progress: Number(track.progress),
+        steps: track.steps.flatMap((step) => {
+            const title = titleOf(step.title)
+            return title ? [{title, threshold: Number(step.threshold), earned: step.earned}] : []
+        }),
     }
 }

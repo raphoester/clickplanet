@@ -37,7 +37,7 @@ func (s *testSuite) SetupTest() {
 var at = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 
 func (s *testSuite) TestATitleKeepsTheTimeItWasFirstEarned() {
-	grant := titles.Grants{{15: 1}: {"settler"}}
+	grant := titles.Holdings{{15: 1}: {"settler"}}
 	s.Require().NoError(s.store.Grant(s.T().Context(), grant, at))
 
 	s.Require().NoError(s.store.Grant(s.T().Context(), grant, at.Add(time.Hour)))

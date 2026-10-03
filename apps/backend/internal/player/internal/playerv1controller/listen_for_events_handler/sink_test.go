@@ -10,6 +10,7 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 )
 
 type recordingStream struct {
@@ -31,6 +32,9 @@ func TestEachFrameIsItsCaseOfTheEnvelope(t *testing.T) {
 	require.NoError(t, sink.SendChange(presence.Change{Entry: ada}))
 	require.NoError(t, sink.SendChange(presence.Change{Entry: ada, Left: true}))
 	require.NoError(t, sink.SendHeartbeat())
+	require.NoError(t, sink.SendTitleEarned(titles.Standing{
+		Title: titles.Conqueror{}, Place: titles.Place{Track: "conquest", TrackName: "Conquest", Number: 4, Count: 5},
+	}))
 
 	entry := &playerv1.RosterEntry{Key: "k1", Name: "Ada_L", CountryId: "fr"}
 	want := []*playerv1.PlayerEvent{
@@ -38,6 +42,9 @@ func TestEachFrameIsItsCaseOfTheEnvelope(t *testing.T) {
 		{Event: &playerv1.PlayerEvent_Entry{Entry: entry}},
 		{Event: &playerv1.PlayerEvent_Left{Left: &playerv1.PlayerLeft{Key: "k1"}}},
 		{Event: &playerv1.PlayerEvent_Heartbeat{Heartbeat: &playerv1.Heartbeat{}}},
+		{Event: &playerv1.PlayerEvent_TitleEarned{TitleEarned: &playerv1.TitleEarned{Title: &playerv1.Title{
+			Id: "conqueror", Name: "Conqueror", Rank: &playerv1.Rank{TrackId: "conquest", TrackName: "Conquest", Number: 4, Count: 5},
+		}}}},
 	}
 	require.Len(t, stream.sent, len(want))
 	for i := range want {

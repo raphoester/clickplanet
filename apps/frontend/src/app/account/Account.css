@@ -404,3 +404,84 @@
     opacity: 0.5;
     cursor: default;
 }
+
+.account-tabbed {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.account-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    border-radius: 16px;
+    background: #FFFFFF0A;
+}
+
+.account-tab {
+    flex: 1;
+    height: 44px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    color: #FFFFFF99;
+    font-family: "Luckiest Guy", sans-serif;
+    font-size: 18px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+}
+
+.account-tab[aria-selected="true"] {
+    border-color: #FFFFFF40;
+    background: #FFFFFF1F;
+    color: #FFFFFF;
+}
+
+.account-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 36px;
+}
+
+.account-wear {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.account-wear-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: 8px;
+}
+
+.account-wear-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 4px 8px;
+    border: 2px solid transparent;
+    border-radius: 16px;
+    background: #FFFFFF08;
+    color: #FFFFFF;
+    cursor: pointer;
+}
+
+.account-wear-option[aria-checked="true"] {
+    border-color: #F2B632;
+    background: #F2B63214;
+    box-shadow: 0 0 14px #F2B63244;
+}
+
+.account-wear-option:disabled {
+    cursor: default;
+}
+
+.account-wear-name {
+    font-family: "Luckiest Guy", sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+}
