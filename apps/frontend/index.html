@@ -25,8 +25,8 @@
     <meta property="og:site_name" content="ClickPlanet"/>
     <meta property="og:locale" content="en_US"/>
 
-    <meta property="og:image" content="https://clickplanet.lol/static/og-image-e8ac259e.jpg"/>
-    <meta property="og:image:secure_url" content="https://clickplanet.lol/static/og-image-e8ac259e.jpg"/>
+    <meta property="og:image" content="https://clickplanet.lol/static/og-image-2e919462.jpg"/>
+    <meta property="og:image:secure_url" content="https://clickplanet.lol/static/og-image-2e919462.jpg"/>
     <meta property="og:image:type" content="image/jpeg"/>
     <meta property="og:image:width" content="1200"/>
     <meta property="og:image:height" content="627"/>
@@ -35,7 +35,7 @@
     <meta name="twitter:card" content="summary_large_image"/>
     <meta name="twitter:title" content="ClickPlanet"/>
     <meta name="twitter:description" content="Conquer the world with your flag, one click at a time"/>
-    <meta name="twitter:image" content="https://clickplanet.lol/static/og-image-e8ac259e.jpg"/>
+    <meta name="twitter:image" content="https://clickplanet.lol/static/og-image-2e919462.jpg"/>
     <meta name="twitter:image:alt" content="The ClickPlanet home page: Paint the planet with your flag, beside the game with its globe covered in flags and its country leaderboard"/>
     <meta name="twitter:site" content="@raphael_oester"/>
 
@@ -120,6 +120,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            gap: 10px;
             height: 48px;
             padding-left: 22px;
             padding-right: 22px;
@@ -232,13 +233,13 @@
 
 
         .hero {
-            padding: 88px 0 96px;
+            padding: 72px 0 40px;
         }
 
         .hero .wrap {
             display: grid;
-            grid-template-columns: 520px minmax(0, 1fr);
-            gap: 64px;
+            grid-template-columns: minmax(0, 500px) minmax(0, 1fr);
+            gap: 72px;
             align-items: center;
         }
 
@@ -297,51 +298,37 @@
             color: var(--text-muted);
         }
 
-        /* "2× faster" is the backend's rateLimiter.linkedMultiplier: change both together. */
-        .boost {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 16px 20px;
-            background: var(--panel);
-            border: var(--outline) solid var(--ink);
-            border-radius: var(--radius-m);
-            box-shadow: var(--drop-m), inset 0 2px 0 var(--sheen);
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            margin: 0;
+            padding: 0;
+            list-style: none;
         }
 
-        .boost-icon {
-            width: 44px;
-            height: 44px;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: var(--outline-thin) solid var(--ink);
-            border-radius: var(--radius-s);
-            background: var(--gold);
-            box-shadow: inset 0 -3px 0 var(--gold-shade);
-            color: var(--gold-ink);
-        }
-
-        .boost-text {
+        .stats li {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
+            padding: 18px 20px 16px;
         }
 
-        .boost-text strong {
-            padding-top: 0.1em;
+        .stats li + li {
+            border-left: var(--outline-thin) solid var(--ink);
+        }
+
+        .stats strong {
             font-family: var(--font-display);
-            font-size: var(--display-l);
+            font-size: var(--display-xl);
             font-weight: normal;
-            line-height: 1.1;
+            line-height: 1;
             color: var(--gold);
             text-shadow: var(--text-drop);
         }
 
-        .boost-text span {
+        .stats span {
             font-size: var(--text-m);
-            line-height: 1.5;
+            line-height: 1.3;
         }
 
         .hero-shot {
@@ -351,7 +338,7 @@
         .hero-shot::before {
             content: "";
             position: absolute;
-            inset: 32px -32px -32px 32px;
+            inset: 28px -28px -28px 28px;
             background: var(--panel-raised);
             border: var(--outline) solid var(--ink);
             border-radius: var(--radius-l);
@@ -362,7 +349,7 @@
             width: 100%;
             height: 640px;
             object-fit: cover;
-            object-position: 30% center;
+            object-position: left center;
             border: var(--outline) solid var(--ink);
             border-radius: var(--radius-l);
             box-shadow: var(--drop-l);
@@ -420,11 +407,14 @@
         }
 
 
+        #board {
+            padding-top: 0;
+        }
+
         .showcase {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
             gap: 32px;
-            margin-bottom: 32px;
         }
 
         .showcase .panel {
@@ -441,25 +431,57 @@
             gap: 16px;
         }
 
-        .leaderboard {
+        .rivalry {
             display: flex;
             align-items: center;
             gap: 32px;
             padding: 48px 40px 48px 48px;
         }
 
-        .leaderboard .showcase-text {
+        .rivalry .showcase-text {
             flex: 1;
         }
 
-        .leaderboard img {
-            width: 220px;
-            height: 390px;
+        .rivalry img {
+            flex-shrink: 0;
+            width: 240px;
+            height: 440px;
             object-fit: cover;
             object-position: top;
             border: var(--outline) solid var(--ink);
             border-radius: var(--radius-m);
             box-shadow: var(--drop-l);
+        }
+
+        .perks {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin: 8px 0 0;
+            padding: 0;
+            list-style: none;
+            font-size: var(--text-l);
+            line-height: 1.45;
+        }
+
+        .perks li {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .perk-icon {
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--panel-raised);
+            border: var(--outline-thin) solid var(--ink);
+            border-radius: var(--radius-s);
+            box-shadow: var(--drop-s);
+            color: var(--gold);
         }
 
         .map {
@@ -474,50 +496,10 @@
         .map img {
             flex: 1;
             width: 100%;
-            min-height: 240px;
+            min-height: 260px;
             object-fit: cover;
-            object-position: 70% 60%;
+            object-position: 20% 40%;
             border-top: var(--outline) solid var(--ink);
-        }
-
-        .features {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 24px;
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-
-        .feature {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            padding: 32px;
-        }
-
-        .feature-icon {
-            width: 56px;
-            height: 56px;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--panel-raised);
-            border: var(--outline-thin) solid var(--ink);
-            border-radius: var(--radius-m);
-            box-shadow: var(--drop-s);
-            color: var(--gold);
-        }
-
-        .feature-text {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .feature h3 {
-            font-size: var(--display-l);
         }
 
 
@@ -543,6 +525,10 @@
 
         .anywhere h2 {
             font-size: 56px;
+        }
+
+        .anywhere p {
+            font-size: 19px;
         }
 
         .anywhere .button {
@@ -574,84 +560,45 @@
         }
 
 
-        .creator {
+        .rally {
             display: flex;
             align-items: center;
-            gap: 48px;
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 56px;
+            gap: 40px;
+            padding: 56px 64px;
         }
 
-        .creator img {
-            width: 200px;
-            height: 200px;
+        .rally > img {
+            width: 112px;
+            height: 112px;
             flex-shrink: 0;
-            margin: 9px;
-            border-radius: 50%;
-            object-fit: cover;
             border: var(--outline) solid var(--ink);
-            box-shadow: 0 0 0 6px var(--gold), 0 0 0 9px var(--ink), 0 5px 0 9px var(--ink);
+            border-radius: var(--radius-pill);
+            box-shadow: var(--drop-l);
         }
 
-        .creator-text {
+        .rally-text {
+            flex: 1;
             display: flex;
             flex-direction: column;
             gap: 14px;
         }
 
-        .creator h2 {
-            font-size: var(--display-xxl);
-        }
-
-        .socials {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            padding-top: 6px;
-        }
-
-        .socials .button {
-            height: 44px;
-            padding-left: 18px;
-            padding-right: 18px;
-        }
-
-
-        .discord {
-            padding-top: 0;
-        }
-
-        .discord-band {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 48px;
-            padding: 64px 72px;
-        }
-
-        .discord-band div {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-
-        .discord-band h2 {
+        .rally h2 {
             font-size: 56px;
         }
 
-        .discord-band p {
+        .rally p {
             font-size: 19px;
         }
 
-        .discord-band .button {
+        .rally .button {
             flex-shrink: 0;
             width: 280px;
         }
 
 
         footer {
-            padding: 64px 0 48px;
+            padding: 64px 0 40px;
             background: var(--panel);
             border-top: var(--outline) solid var(--ink);
             box-shadow: inset 0 2px 0 var(--sheen);
@@ -659,29 +606,59 @@
 
         .footer-columns {
             display: grid;
-            grid-template-columns: 2fr repeat(3, minmax(0, 1fr));
+            grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
             gap: 48px;
         }
 
-        .footer-brand {
+        .creator {
             display: flex;
-            flex-direction: column;
-            gap: 16px;
+            align-items: flex-start;
+            gap: 28px;
+            scroll-margin-top: 112px;
         }
 
-        .footer-brand .brand {
+        .creator img {
+            width: 112px;
+            height: 112px;
+            flex-shrink: 0;
+            margin: 7px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: var(--outline) solid var(--ink);
+            box-shadow: 0 0 0 4px var(--gold), 0 0 0 7px var(--ink), 0 4px 0 7px var(--ink);
+        }
+
+        .creator-text {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .creator h2 {
             font-size: var(--display-l);
         }
 
-        .footer-brand .brand img {
-            width: 40px;
-            height: 40px;
+        .creator p {
+            font-size: var(--text-m);
         }
 
-        .footer-brand p {
-            max-width: 340px;
-            font-size: var(--text-m);
-            color: var(--text-muted);
+        .socials {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding-top: 6px;
+        }
+
+        .socials .button {
+            height: 40px;
+            padding-left: 14px;
+            padding-right: 14px;
+            font-size: var(--display-s);
+            box-shadow: var(--drop-s);
+        }
+
+        .socials .button:active {
+            transform: translateY(3px);
         }
 
         .footer-column {
@@ -710,11 +687,25 @@
         }
 
         .copyright {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
             margin-top: 48px;
             padding-top: 24px;
             border-top: var(--outline-thin) solid var(--ink);
             font-size: var(--text-s);
             color: var(--text-muted);
+        }
+
+        .copyright .brand {
+            gap: 10px;
+            font-size: var(--display-m);
+        }
+
+        .copyright .brand img {
+            width: 30px;
+            height: 30px;
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -726,7 +717,7 @@
                 transition: none;
             }
 
-            .button:active, .button-large:active {
+            .button:active, .button-large:active, .socials .button:active {
                 transform: none;
             }
         }
@@ -734,6 +725,7 @@
         @media only screen and (max-width: 1100px) {
             .hero .wrap {
                 grid-template-columns: minmax(0, 1fr);
+                gap: 56px;
             }
 
             .hero-text {
@@ -742,15 +734,27 @@
 
             .hero-shot img {
                 height: auto;
-                aspect-ratio: 1210 / 1000;
+                aspect-ratio: 1600 / 1000;
             }
 
             .showcase {
                 grid-template-columns: minmax(0, 1fr);
             }
 
-            .features {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+            .rally {
+                flex-wrap: wrap;
+            }
+
+            .rally .button {
+                width: 100%;
+            }
+
+            .footer-columns {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .creator {
+                grid-column: 1 / -1;
             }
         }
 
@@ -798,11 +802,11 @@
             }
 
             .hero {
-                padding: 40px 0 48px;
+                padding: 36px 0 48px;
             }
 
             .hero .wrap {
-                gap: 32px;
+                gap: 36px;
             }
 
             .hero-text {
@@ -834,19 +838,17 @@
                 font-size: var(--text-s);
             }
 
-            .boost {
-                align-items: flex-start;
-                gap: 12px;
-                padding: 14px 16px;
+            .stats li {
+                gap: 4px;
+                padding: 14px 12px 12px;
             }
 
-            .boost-icon {
-                width: 36px;
-                height: 36px;
-            }
-
-            .boost-text strong {
+            .stats strong {
                 font-size: var(--display-m);
+            }
+
+            .stats span {
+                font-size: var(--text-s);
             }
 
             .hero-shot::before {
@@ -854,9 +856,8 @@
             }
 
             .hero-shot img {
-                height: 300px;
-                aspect-ratio: auto;
-                object-position: 20% center;
+                aspect-ratio: 1;
+                object-position: 78% center;
             }
 
             .section-head {
@@ -866,7 +867,7 @@
                 text-align: left;
             }
 
-            .section-head h2, .anywhere h2, .discord-band h2 {
+            .section-head h2, .anywhere h2, .rally h2 {
                 font-size: 38px;
             }
 
@@ -900,7 +901,6 @@
 
             .showcase {
                 gap: 16px;
-                margin-bottom: 16px;
             }
 
             .showcase h2 {
@@ -911,20 +911,30 @@
                 gap: 12px;
             }
 
-            .showcase-text p {
+            .showcase-text p, .perks {
                 font-size: var(--text-m);
             }
 
-            .leaderboard {
+            .perk-icon {
+                width: 34px;
+                height: 34px;
+            }
+
+            .perk-icon svg {
+                width: 18px;
+                height: 18px;
+            }
+
+            .rivalry {
                 flex-direction: column;
                 align-items: stretch;
                 gap: 24px;
                 padding: 28px 24px 0;
             }
 
-            .leaderboard img {
+            .rivalry img {
                 align-self: center;
-                height: 280px;
+                height: 300px;
                 border-radius: var(--radius-m) var(--radius-m) 0 0;
                 border-bottom: none;
                 box-shadow: none;
@@ -937,42 +947,7 @@
             .map img {
                 flex: none;
                 height: 240px;
-                object-position: 80% 70%;
-            }
-
-            .features {
-                grid-template-columns: minmax(0, 1fr);
-                gap: 16px;
-            }
-
-            .feature {
-                flex-direction: row;
-                align-items: flex-start;
-                gap: 16px;
-                padding: 24px;
-            }
-
-            .feature-icon {
-                width: 48px;
-                height: 48px;
-            }
-
-            .feature-icon svg {
-                width: 26px;
-                height: 26px;
-            }
-
-            .feature-text {
-                gap: 8px;
-            }
-
-            .feature h3 {
-                padding-top: 4px;
-                font-size: var(--display-m);
-            }
-
-            .feature p {
-                font-size: var(--text-m);
+                min-height: 0;
             }
 
             .anywhere .wrap {
@@ -983,6 +958,10 @@
             .anywhere .showcase-text {
                 gap: 16px;
                 padding-bottom: 0;
+            }
+
+            .anywhere p {
+                font-size: var(--text-l);
             }
 
             .anywhere .button {
@@ -1000,47 +979,20 @@
                 border-radius: 31px 31px 0 0;
             }
 
-            .creator {
-                flex-direction: column;
-                gap: 24px;
-                padding: 32px 24px;
-                text-align: center;
-            }
-
-            .creator img {
-                width: 128px;
-                height: 128px;
-            }
-
-            .creator h2 {
-                font-size: var(--display-xl);
-            }
-
-            .socials {
-                justify-content: center;
-                gap: 8px;
-            }
-
-            .socials .button {
-                height: 40px;
-                padding-left: 14px;
-                padding-right: 14px;
-                font-size: var(--display-s);
-            }
-
-            .discord-band {
+            .rally {
                 flex-direction: column;
                 align-items: stretch;
-                gap: 24px;
+                gap: 20px;
                 padding: 32px 24px;
             }
 
-            .discord-band p {
-                font-size: var(--text-l);
+            .rally > img {
+                width: 72px;
+                height: 72px;
             }
 
-            .discord-band .button {
-                width: auto;
+            .rally p {
+                font-size: var(--text-l);
             }
 
             footer {
@@ -1049,17 +1001,16 @@
 
             .footer-columns {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 28px 16px;
+                gap: 32px 16px;
             }
 
-            .footer-brand {
-                grid-column: 1 / -1;
-                gap: 12px;
+            .creator {
+                gap: 20px;
             }
 
-            .footer-brand .brand img {
-                width: 34px;
-                height: 34px;
+            .creator img {
+                width: 80px;
+                height: 80px;
             }
 
             .footer-column {
@@ -1067,6 +1018,8 @@
             }
 
             .copyright {
+                flex-direction: column;
+                align-items: flex-start;
                 margin-top: 32px;
                 padding-top: 20px;
                 font-size: var(--text-xs);
@@ -1083,7 +1036,7 @@
         </a>
         <nav class="nav" aria-label="Sections">
             <a href="#how">How it works</a>
-            <a href="#features">Features</a>
+            <a href="#board">The board</a>
             <a href="#creator">Who made it</a>
         </nav>
         <div class="header-actions">
@@ -1111,23 +1064,16 @@
                     <a class="button button-discord button-large" href="https://discord.gg/Nwekj6ndbn" target="_blank"
                        rel="noopener noreferrer">Discord</a>
                 </div>
-                <div class="boost">
-                    <div class="boost-icon" aria-hidden="true">
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M13 2 4 14h7l-1 8 9-12h-7z"/>
-                        </svg>
-                    </div>
-                    <p class="boost-text">
-                        <strong>Sign in, click 2× faster</strong>
-                        <span>No account needed to play. Sign in with Google or Discord to get your clicks back
-                            twice as fast, and keep your account on every device.</span>
-                    </p>
-                </div>
+                <ul class="stats panel">
+                    <li><strong>262,000</strong><span>tiles to take</span></li>
+                    <li><strong>239</strong><span>flags to fly</span></li>
+                    <li><strong>1</strong><span>planet, shared live</span></li>
+                </ul>
                 <noscript><p class="note">The game needs JavaScript and WebGL.</p></noscript>
             </div>
             <div class="hero-shot">
-                <img src="/static/home/game.jpg" width="1210" height="1000"
-                     alt="The ClickPlanet game: a 3D globe painted with flags, the leaderboard beside it"/>
+                <img src="/static/home/play-desktop.jpg" width="1600" height="1000"
+                     alt="The ClickPlanet game: a 3D globe painted with flags, the board of countries beside it"/>
             </div>
         </div>
     </section>
@@ -1158,87 +1104,52 @@
         </div>
     </section>
 
-    <section id="features">
+    <section id="board">
         <div class="wrap">
             <div class="showcase">
-                <div class="panel leaderboard">
+                <div class="panel rivalry">
                     <div class="showcase-text">
-                        <span class="eyebrow">Leaderboard</span>
-                        <h2>Watch the ranks move</h2>
-                        <p>Every country, its tiles and its share of the map, updated as players click around the
-                            world.</p>
+                        <span class="eyebrow">The board</span>
+                        <h2>Country against country</h2>
+                        <p>Every tile you paint counts for your country. The board ranks every flag on the planet
+                            and moves with every click.</p>
+                        <ul class="perks">
+                            <li>
+                                <span class="perk-icon" aria-hidden="true">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                         stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M9 18V5l12-2v13"/>
+                                        <circle cx="6" cy="18" r="3"/>
+                                        <circle cx="18" cy="16" r="3"/>
+                                    </svg>
+                                </span>
+                                <span>First place plays its anthem to every player.</span>
+                            </li>
+                            <li>
+                                <span class="perk-icon" aria-hidden="true">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                         stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="13" r="8"/>
+                                        <path d="M12 9v4l2.5 2.5M9 2h6"/>
+                                    </svg>
+                                </span>
+                                <span>Each season ends with a Final Battle.</span>
+                            </li>
+                        </ul>
                     </div>
-                    <img src="/static/home/leaderboard.jpg" width="362" height="642" loading="lazy"
-                         alt="The leaderboard, with countries ranked by tiles held"/>
+                    <img src="/static/home/board.jpg" width="720" height="1438" loading="lazy"
+                         alt="The board: Poland first, then France and Algeria, with Bulgaria fourth"/>
                 </div>
                 <div class="panel map">
                     <div class="showcase-text">
                         <span class="eyebrow">The map</span>
                         <h2>Whole continents, flag by flag</h2>
+                        <p>Zoom in to aim at a single tile. Zoom out to see who holds the world.</p>
                     </div>
-                    <img src="/static/home/globe.jpg" width="660" height="520" loading="lazy"
-                         alt="A close view of the globe: Australia painted with the Bulgarian flag"/>
+                    <img src="/static/home/globe-close.jpg" width="1200" height="812" loading="lazy"
+                         alt="A close view of the globe: Europe, Africa and Asia painted with flags"/>
                 </div>
             </div>
-
-            <ul class="features">
-                <li class="feature panel">
-                    <div class="feature-icon" aria-hidden="true">
-                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="11" cy="14" r="7"/>
-                            <path d="M15.5 8.5 18 6M19 3v2M21 5h-2M8 13a3 3 0 0 1 3-3"/>
-                        </svg>
-                    </div>
-                    <div class="feature-text">
-                        <h3>Bonus boxes</h3>
-                        <p>Catch one to keep a bomb, spread clicks, a refill of your clicks, or the power to close a
-                            shape and take what is inside. Use it when you choose.</p>
-                    </div>
-                </li>
-                <li class="feature panel">
-                    <div class="feature-icon" aria-hidden="true">
-                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12zM9 11h6M9 14h4"/>
-                        </svg>
-                    </div>
-                    <div class="feature-text">
-                        <h3>Live chat</h3>
-                        <p>Talk with everyone on the planet while you play. Make alliances, or argue about
-                            borders.</p>
-                    </div>
-                </li>
-                <li class="feature panel">
-                    <div class="feature-icon" aria-hidden="true">
-                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M9 18V5l12-2v13"/>
-                            <circle cx="6" cy="18" r="3"/>
-                            <circle cx="18" cy="16" r="3"/>
-                        </svg>
-                    </div>
-                    <div class="feature-text">
-                        <h3>The leader's anthem</h3>
-                        <p>The national anthem of the country in first place plays while you click. Take the lead
-                            to change the music.</p>
-                    </div>
-                </li>
-                <li class="feature panel">
-                    <div class="feature-icon" aria-hidden="true">
-                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 8h3l2-3h6l2 3h3v11H4z"/>
-                            <circle cx="12" cy="13" r="3.5"/>
-                        </svg>
-                    </div>
-                    <div class="feature-text">
-                        <h3>Take a picture</h3>
-                        <p>Photograph the globe with your country's badge on it, and share it with the link to join
-                            you.</p>
-                    </div>
-                </li>
-            </ul>
         </div>
     </section>
 
@@ -1247,44 +1158,25 @@
             <div class="showcase-text">
                 <span class="eyebrow">Anywhere</span>
                 <h2>On your phone, on your computer</h2>
-                <p>Nothing to install. Open the page and play. Sign in with Google or Discord when you want your
-                    account on every device.</p>
+                <p>Nothing to install. Open the page and play. Sign in with Google or Discord to take your account
+                    to every device.</p>
                 <a class="button button-action button-large" href="/play">Play now</a>
             </div>
             <div class="phone">
-                <img src="/static/home/phone.jpg" width="520" height="1125" loading="lazy"
-                     alt="ClickPlanet on a phone"/>
+                <img src="/static/home/play-phone.jpg" width="600" height="1298" loading="lazy"
+                     alt="ClickPlanet on a phone: Europe and Africa painted with flags"/>
             </div>
         </div>
     </section>
 
-    <section id="creator">
+    <section>
         <div class="wrap">
-            <div class="panel creator">
-                <img src="/static/raphael.jpeg" width="200" height="200" loading="lazy" alt="Raphaël Oester"/>
-                <div class="creator-text">
-                    <span class="eyebrow">Created by</span>
-                    <h2>Raphaël Oester</h2>
-                    <p>Freelance developer, open to new opportunities.</p>
-                    <div class="socials">
-                        <a class="button button-secondary" href="https://www.linkedin.com/in/raphael-oester/"
-                           target="_blank" rel="noopener noreferrer">LinkedIn</a>
-                        <a class="button button-secondary" href="https://x.com/raphael_oester" target="_blank"
-                           rel="noopener noreferrer">X</a>
-                        <a class="button button-secondary" href="https://github.com/raphoester" target="_blank"
-                           rel="noopener noreferrer">GitHub</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="discord">
-        <div class="wrap">
-            <div class="panel discord-band">
-                <div>
-                    <h2>Join us on Discord</h2>
-                    <p>Plan your next attack with your country, report a bug, or ask for a feature.</p>
+            <div class="panel rally">
+                <img src="/static/discord.svg" alt="" width="112" height="112" loading="lazy"/>
+                <div class="rally-text">
+                    <h2>Rally your country</h2>
+                    <p>Talk to the whole planet in the live chat. Plan your next attack with your country on
+                        Discord.</p>
                 </div>
                 <a class="button button-discord button-large" href="https://discord.gg/Nwekj6ndbn" target="_blank"
                    rel="noopener noreferrer">Join Discord</a>
@@ -1296,12 +1188,21 @@
 <footer>
     <div class="wrap">
         <div class="footer-columns">
-            <div class="footer-brand">
-                <a class="brand" href="#home">
-                    <img src="/static/logo.svg" alt="" width="40" height="40"/>
-                    <span>ClickPlanet</span>
-                </a>
-                <p>A free multiplayer game in your browser. Paint the planet with your flag, one click at a time.</p>
+            <div class="creator" id="creator">
+                <img src="/static/raphael.jpeg" width="112" height="112" loading="lazy" alt="Raphaël Oester"/>
+                <div class="creator-text">
+                    <span class="eyebrow">Made by</span>
+                    <h2>Raphaël Oester</h2>
+                    <p>Freelance developer, open to new opportunities.</p>
+                    <div class="socials">
+                        <a class="button button-secondary" href="https://www.linkedin.com/in/raphael-oester/"
+                           target="_blank" rel="noopener noreferrer">LinkedIn</a>
+                        <a class="button button-secondary" href="https://x.com/raphael_oester" target="_blank"
+                           rel="noopener noreferrer">X</a>
+                        <a class="button button-secondary" href="https://github.com/raphoester" target="_blank"
+                           rel="noopener noreferrer">GitHub</a>
+                    </div>
+                </div>
             </div>
             <ul class="footer-column">
                 <li><h3>Game</h3></li>
@@ -1321,7 +1222,13 @@
                 </li>
             </ul>
         </div>
-        <p class="copyright">© ClickPlanet · Made by Raphaël Oester</p>
+        <div class="copyright">
+            <a class="brand" href="#home">
+                <img src="/static/logo.svg" alt="" width="30" height="30"/>
+                <span>ClickPlanet</span>
+            </a>
+            <p>© ClickPlanet · A free multiplayer game in your browser</p>
+        </div>
     </div>
 </footer>
 </body>
