@@ -4,17 +4,17 @@ import {isAnthemAudible, SoundSettings} from "../../domain/soundSettings.ts";
 import CountryFlag from "../components/CountryFlag.tsx";
 import {PauseIcon, PlayIcon} from "../components/icons.tsx";
 import {Anthem} from "./useAnthem.ts";
-import "./AnthemBar.css"
+import "./AnthemControls.css"
 
 const PROGRESS_MS = 250
 
-export type AnthemBarProps = {
+export type AnthemControlsProps = {
     anthem: Anthem
     settings: SoundSettings
     onChange: (settings: SoundSettings) => void
 }
 
-export default function AnthemBar({anthem, settings, onChange}: AnthemBarProps) {
+export default function AnthemControls({anthem, settings, onChange}: AnthemControlsProps) {
     const progress = useRef<HTMLDivElement>(null)
     const recorded = anthem.title !== undefined
     const playing = isAnthemAudible(settings) && recorded
@@ -45,33 +45,32 @@ export default function AnthemBar({anthem, settings, onChange}: AnthemBarProps) 
     const setVolume = (volume: number) =>
         onChange({...settings, anthem: {on: volume > 0 || settings.anthem.on, volume}})
 
-    return <section className={playing ? "anthem-bar panel anthem-bar--playing" : "anthem-bar panel"}
-                    aria-label="National anthem">
+    return <section className={playing ? "anthem anthem--playing" : "anthem"} aria-label="National anthem">
         <button type="button"
-                className="icon-button anthem-bar-play"
+                className="icon-button anthem-play"
                 aria-label={playing ? "Pause the anthem" : "Play the anthem"}
                 disabled={!recorded}
                 onClick={toggle}>
             {playing ? <PauseIcon/> : <PlayIcon/>}
         </button>
 
-        <div className="anthem-bar-text">
-            <div className="anthem-bar-title">
+        <div className="anthem-text">
+            <div className="anthem-title">
                 <CountryFlag code={code}/>
-                <span className="anthem-bar-name">{anthem.title ?? country}</span>
+                <span className="anthem-name">{anthem.title ?? country}</span>
             </div>
-            <div className="anthem-bar-subtitle">{subtitle(anthem, playing, country)}</div>
+            <div className="anthem-subtitle">{subtitle(anthem, playing, country)}</div>
         </div>
 
         <input type="range"
-               className="anthem-bar-volume"
+               className="anthem-volume"
                aria-label="Anthem volume"
                min={0} max={1} step={0.05}
                value={settings.enabled && settings.anthem.on ? settings.anthem.volume : 0}
                disabled={!recorded}
                onChange={(event) => setVolume(Number(event.target.value))}/>
 
-        <div ref={progress} className="anthem-bar-progress" aria-hidden="true"/>
+        <div ref={progress} className="anthem-progress" aria-hidden="true"/>
     </section>
 }
 

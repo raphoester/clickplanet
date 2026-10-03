@@ -1,3 +1,12 @@
+.account-who {
+    margin: 0 0 var(--space-2);
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-l);
+    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
+    overflow-wrap: anywhere;
+}
+
 .account-panel {
     display: flex;
     flex-direction: column;

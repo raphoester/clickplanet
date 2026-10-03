@@ -12,10 +12,10 @@ afterEach(cleanup)
 describe("DonationModal", () => {
     it("appears on a high roll and takes the whole screen", () => {
         vi.spyOn(Math, "random").mockReturnValue(0.9)
-        const {container} = render(<DonationModal/>)
+        render(<DonationModal/>)
 
         expect(shown()).not.toBeNull()
-        expect(container.querySelector(".modal")).not.toBeNull()
+        expect(document.querySelector(".modal")).not.toBeNull()
     })
 
     it("stays away on a low roll", () => {
@@ -36,12 +36,12 @@ describe("DonationModal", () => {
     it("closes on the backdrop, but not on the panel", async () => {
         vi.spyOn(Math, "random").mockReturnValue(0.9)
         const user = userEvent.setup()
-        const {container} = render(<DonationModal/>)
+        render(<DonationModal/>)
 
         await user.click(screen.getByText("Do you like ClickPlanet ?"))
         expect(shown()).not.toBeNull()
 
-        await user.click(container.querySelector(".modal")!)
+        await user.click(document.querySelector(".modal")!)
         expect(shown()).toBeNull()
     })
 
@@ -64,17 +64,17 @@ describe("DonationModal", () => {
 
     it("moves focus into the dialog when it opens", () => {
         vi.spyOn(Math, "random").mockReturnValue(0.9)
-        const {container} = render(<DonationModal/>)
+        render(<DonationModal/>)
 
-        expect(container.querySelector(".modal-content")!.contains(document.activeElement)).toBe(true)
+        expect(document.querySelector(".modal-content")!.contains(document.activeElement)).toBe(true)
     })
 
     it("keeps Tab inside the dialog", async () => {
         vi.spyOn(Math, "random").mockReturnValue(0.9)
         const user = userEvent.setup()
-        const {container} = render(<DonationModal/>)
+        render(<DonationModal/>)
 
-        const panel = container.querySelector(".modal-content")!
+        const panel = document.querySelector(".modal-content")!
         for (let i = 0; i < 6; i++) {
             await user.tab()
             expect(panel.contains(document.activeElement)).toBe(true)

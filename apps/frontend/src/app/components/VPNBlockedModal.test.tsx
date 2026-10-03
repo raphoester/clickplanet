@@ -8,10 +8,10 @@ afterEach(cleanup)
 
 describe("VPNBlockedModal", () => {
     it("says what happened, over a backdrop that covers the globe", () => {
-        const {container} = render(<VPNBlockedModal onClose={vi.fn()}/>)
+        render(<VPNBlockedModal onClose={vi.fn()}/>)
 
         expect(screen.getByText("You can't paint through a VPN 🛡️")).not.toBeNull()
-        expect(container.querySelector(".modal")).not.toBeNull()
+        expect(document.querySelector(".modal")).not.toBeNull()
     })
 
     it("tells the player to turn the VPN off", () => {

@@ -1,15 +1,20 @@
-import {ReactNode, useEffect, useRef, useState} from 'react'
-import {ClickBudget, nextClickProgress, now, secondsToOneMore, SharedBy, tokensAt} from "../../backends/clickBudget.ts"
-import {describePrice, factor} from "../../domain/clickPrice.ts"
-import {useDockBottom} from "./useDockBottom.ts"
+import {ReactNode, useEffect, useRef} from 'react'
+import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
+import {factor} from "../../domain/clickPrice.ts"
+import {HourglassIcon, UsersIcon} from "./icons.tsx"
+import {useEscape} from "./useDialog.ts"
+import {offerText, SHARED_WITH} from "./clickOffer.ts"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
     budget?: ClickBudget
     children?: ReactNode
-    countryName?: string
     refusals?: number
     onSignIn?: () => void
+    compact?: boolean
+    open?: boolean
+    onToggleOpen?: () => void
+    popover?: ReactNode
 }
 
 const MAX_PIPS = 12
@@ -23,15 +28,16 @@ const STEP_MS = 250
 export default function ClickBudgetMeter({
     budget,
     children,
-    countryName = "",
     refusals = 0,
     onSignIn,
+    compact = false,
+    open = false,
+    onToggleOpen,
+    popover,
 }: ClickBudgetMeterProps) {
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const wait = useRef<HTMLSpanElement>(null)
-    const [dock, setDock] = useState<HTMLDivElement | null>(null)
-    useDockBottom(dock)
 
     useEffect(() => {
         const box = root.current
@@ -101,28 +107,29 @@ export default function ClickBudgetMeter({
         return () => cancelAnimationFrame(frame)
     }, [budget])
 
-    if (!budget) return children ? <div ref={setDock} className="click-budget-dock panel">{children}</div> : null
+    if (!budget) return children ? <div className="click-budget-dock panel">{children}</div> : null
 
     const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
 
     const whole = Math.floor(tokensAt(budget, now()))
 
-    const price = describePrice(budget.price, countryName)
+    const slowdown = budget.price && budget.price.slowdown > 1 ? budget.price.slowdown : undefined
 
     const speedUp = onSignIn && budget.linkedMultiplier
 
-    return <div ref={setDock} className="click-budget-dock panel">
-        <div
-            ref={root}
-            className="click-budget"
-            role="meter"
-            aria-valuemin={0}
-            aria-valuenow={whole}
-            aria-valuemax={budget.capacity}
-            aria-label="Clicks left before the server slows you down"
-            style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
+    const offer = speedUp && !compact && !slowdown
 
-            <div className="click-budget-reading">
+    return <div className="click-budget-dock panel">
+        <div className="click-budget-shell">
+            <div
+                ref={root}
+                className="click-budget"
+                role="meter"
+                aria-valuemin={0}
+                aria-valuenow={whole}
+                aria-valuemax={budget.capacity}
+                aria-label="Clicks left before the server slows you down"
+                style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
                 <div className="click-budget-count">
                     <span ref={count} className="click-budget-number">{whole}</span>
                     <span className="click-budget-unit">left</span>
@@ -138,30 +145,46 @@ export default function ClickBudgetMeter({
                         )}
                     </div>
                     : <div className="click-budget-bar"/>}
-
-                {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
             </div>
 
-            {price && <div className="click-budget-toll">
-                <span className="click-budget-toll-headline">{price.headline}</span>
-                <span className="click-budget-toll-detail">{price.detail}</span>
-            </div>}
+            <div className="click-budget-line">
+                {slowdown && <span className="chip click-budget-toll"
+                                   role="img"
+                                   aria-label={`Refills ${factor(slowdown)}× slower`}>
+                    <HourglassIcon/>
+                    <span aria-hidden="true">{compact ? `${factor(slowdown)}×` : `${factor(slowdown)}× slower`}</span>
+                </span>}
+                {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
+                {budget.sharedWith && <span className="click-budget-shared"
+                                            role="img"
+                                            aria-label={SHARED_WITH[budget.sharedWith]}
+                                            title={SHARED_WITH[budget.sharedWith]}>
+                    <UsersIcon size={15}/>
+                </span>}
+                {offer && <button type="button"
+                                  className="button button-mini button-action click-budget-sign-in"
+                                  onClick={onSignIn}>
+                    <BoltIcon/>
+                    <span>{offerText(budget.sharedWith, speedUp)}</span>
+                </button>}
+            </div>
 
-            {budget.sharedWith && <p className="click-budget-shared">{SHARED_WITH[budget.sharedWith]}</p>}
+            {onToggleOpen && <button type="button"
+                                     className="click-budget-open"
+                                     aria-label="Your clicks"
+                                     aria-expanded={open}
+                                     onClick={onToggleOpen}/>}
         </div>
 
-        {speedUp && <button type="button" className="button button-mini button-action click-budget-sign-in" onClick={onSignIn}>
-            <BoltIcon/>
-            <span>{budget.sharedWith === "guests" ? "Sign in: your own clicks" : `Sign in: clicks ${factor(speedUp)}× faster`}</span>
-        </button>}
-
         {children}
+
+        {open && !compact && popover && onToggleOpen && <Popover onClose={onToggleOpen}>{popover}</Popover>}
     </div>
 }
 
-const SHARED_WITH: Record<SharedBy, string> = {
-    guests: "Shared with the guests on your network",
-    network: "Shared with everyone on your network",
+function Popover({children, onClose}: {children: ReactNode, onClose: () => void}) {
+    useEscape(onClose)
+    return <div className="click-budget-popover panel">{children}</div>
 }
 
 function slow(budget: ClickBudget): boolean {
@@ -173,7 +196,7 @@ function waitText(budget: ClickBudget, at: number): string {
     return left === undefined ? "" : `+1 in ${Math.ceil(left)}s`
 }
 
-function BoltIcon() {
+export function BoltIcon() {
     return <svg className="click-budget-sign-in-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
                 aria-hidden="true">
         <path d="M13 2 4 14h7l-1 8 9-12h-7z"/>

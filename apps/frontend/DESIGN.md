@@ -125,6 +125,25 @@ Every title is a medal, and the medals obey the same rules as everything else:
 - **The icon** is in the metal and `--cream`, outlined in ink.
 - **A locked medal** is a grey ring, a sunk center and a padlock.
 
+## Layout
+
+**The globe is the game, and four zones are all that is drawn over it.** A new
+feature goes in one of them; there is no fifth panel and no new fold.
+
+| Zone | What goes there | Where |
+|---|---|---|
+| **Status** | Who you play for, its rank, the season's clock: chips that are read at a glance | Phone: the top bar. Desktop: the menu's head, the season at the top centre |
+| **Moments** | Something that just happened: the quiz, a bomb, a caught box, native land. One at a time, then gone | Under the status zone |
+| **Play** | What every click needs: the clicks left, the slowdown, the four bonuses | One bar, at the bottom |
+| **Places** | Everything read or set: the board, the chat, the account, More. One open at a time | Phone: tabs at the bottom, each a sheet. Desktop: the menu's tabs on the left, the chat on the right |
+
+- **Ask in this order.** A moment? Moments. Needed on every click? Play, and that
+  is rare. Anything else is a place, or a line inside one.
+- **A panel is as tall as what it holds**, up to the screen, and scrolls inside.
+- **A line holds two things at most.** A third goes where it fits, a place.
+- **The leader's frame holds the anthem**: the music is the leader's, so the
+  player is on the board, not on the globe.
+
 ## Motion
 
 Short and springy: a press lands in about 120ms, a panel opens in about 200ms.

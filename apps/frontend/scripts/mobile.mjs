@@ -16,7 +16,7 @@ if (!url || url.startsWith("--") || has("help")) {
 
   --out <path>    write a PNG there
   --eval <expr>   evaluate in the page and print the result (await supported)
-  --open-menu     dismiss the donation modal and unfold the menu first
+  --open-menu     dismiss the donation modal and open the Board sheet first
   --w --h --dpr   viewport, default iPhone 14 (390 x 844 @3)
   --full          capture the whole page rather than the viewport
   --settle <ms>   wait after load before acting, default 1500
@@ -121,8 +121,8 @@ try {
     if (has("open-menu")) {
         await evaluate(`(async () => {
             document.querySelector("[role=dialog] button")?.click()
-            const toggle = document.querySelector(".menu-collapse")
-            if (toggle?.getAttribute("aria-expanded") !== "true") toggle?.click()
+            const board = document.querySelector(".tab-bar-tab")
+            if (board?.getAttribute("aria-expanded") !== "true") board?.click()
             await new Promise(r => setTimeout(r, 600))
         })()`);
     }

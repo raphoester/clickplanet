@@ -1,12 +1,14 @@
-import {useCallback, useEffect, useId, useRef, useState} from "react";
-import {ChatBackend, OutgoingMessage} from "../../backends/chat.ts";
-import {PlayerLine} from "../../backends/player.ts";
+import {ReactNode, useCallback, useEffect, useId, useRef, useState} from "react";
+import {ChatBackend, ChatMessage, OutgoingMessage} from "../../backends/chat.ts";
+import {PlayerLine, RosterEntry} from "../../backends/player.ts";
 import {Country} from "../../domain/countries.ts";
 import {idsSince, unreadSince} from "../../domain/chatLog.ts";
 import {ChevronIcon} from "../components/icons.tsx";
 import {opensFolded} from "../compact.ts";
 import {truncate} from "../truncate.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
+import Sheet from "../hud/Sheet.tsx";
+import PlayersPanel from "../players/PlayersPanel.tsx";
 import {authorOf, authorStyle} from "./authorStyle.ts";
 import {RESIZE_EDGES} from "./chatSize.ts";
 import ChatComposer from "./ChatComposer.tsx";
@@ -22,19 +24,38 @@ export type ChatPanelProps = {
     playSound?: PlaySound
     username?: string
     onOpenPlayer?: (player: PlayerLine) => void
+    players?: readonly RosterEntry[]
+    compact?: boolean
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
+    onUnread?: (unread: number) => void
 }
+
+type View = "chat" | "online"
 
 const UNREAD_CAP = 99
 
 const PEEK_AUTHOR_MAX_LENGTH = 12
 
+const PEEK_TEXT_MAX_LENGTH = 80
+
 const FLASH_MS = 1600
+
+const TOAST_MS = 4000
 
 const NOTHING: ReadonlySet<string> = new Set()
 
 export default function ChatPanel(props: ChatPanelProps) {
-    const [isOpen, setIsOpen] = useState(() => !opensFolded())
+    const [ownOpen, setOwnOpen] = useState(() => !opensFolded())
+    const isOpen = props.open ?? ownOpen
+    const {onOpenChange} = props
+    const setOpen = useCallback((open: boolean) => onOpenChange ? onOpenChange(open) : setOwnOpen(open), [onOpenChange])
+    const [view, setView] = useState<View>("chat")
+    const players = props.players
+    const seeing = isOpen && (view === "chat" || !players)
+
     const [unread, setUnread] = useState(0)
+    const [toast, setToast] = useState<ChatMessage>()
     const [flashing, setFlashing] = useState<ReadonlySet<string>>(NOTHING)
     const bodyId = useId()
     const panel = useRef<HTMLElement>(null)
@@ -65,24 +86,38 @@ export default function ChatPanel(props: ChatPanelProps) {
     useEffect(() => () => fading.current.forEach(clearTimeout), [])
 
     useEffect(() => {
-        const last = messages[messages.length - 1]?.id
+        const last = messages[messages.length - 1]
 
         if (!seenAnything.current) {
             seenAnything.current = messages.length > 0
-            lastSeen.current = last
+            lastSeen.current = last?.id
             setUnread(0)
             return
         }
 
-        if (!isOpen) {
-            setUnread(unreadSince(messages, lastSeen.current))
+        if (!seeing) {
+            const missed = unreadSince(messages, lastSeen.current)
+            setUnread(missed)
+            if (missed > 0 && last && !mine.has(last.id) && last.authorName !== displayName) setToast(last)
             return
         }
 
         flash(idsSince(messages, lastSeen.current).filter(id => !mine.has(id)))
-        lastSeen.current = last
+        lastSeen.current = last?.id
         setUnread(0)
-    }, [messages, isOpen, mine, flash])
+        setToast(undefined)
+    }, [messages, seeing, mine, displayName, flash])
+
+    useEffect(() => {
+        if (!toast) return
+        const timer = setTimeout(() => setToast(undefined), TOAST_MS)
+        return () => clearTimeout(timer)
+    }, [toast])
+
+    const {onUnread} = props
+    useEffect(() => {
+        onUnread?.(unread)
+    }, [unread, onUnread])
 
     const {playSound} = props
     useEffect(() => {
@@ -114,49 +149,27 @@ export default function ChatPanel(props: ChatPanelProps) {
         return send(message)
     }
 
-    const latest = messages[messages.length - 1]
-    const waiting = !isOpen && unread > 0
-
-    return <section ref={panel} className={panelClass(isOpen, waiting)} aria-label="Live chat">
-        {isOpen && RESIZE_EDGES.map(edge =>
-            <div key={edge}
-                 className={`chat-resize chat-resize-${edge}`}
-                 aria-hidden="true"
-                 title="Drag to resize, double-click to reset"
-                 onPointerDown={event => startResize(edge, event)}
-                 onDoubleClick={resetSize}/>)}
-
+    const tabs = players && <div className="chat-tabs" role="tablist" aria-label="Chat">
         <button type="button"
-                className="chat-header"
-                aria-expanded={isOpen}
-                aria-controls={bodyId}
-                onClick={() => setIsOpen(!isOpen)}>
-            <span className="chat-header-row">
-                <span className="chat-header-title">Chat</span>
-                {waiting &&
-                    <span className="chip chat-badge"
-                          key={unread}
-                          aria-label={unread === 1 ? "1 new message" : `${unread} new messages`}>
-                        {unread > UNREAD_CAP ? `${UNREAD_CAP}+` : unread}
-                    </span>}
-                <span className={isOpen ? "chat-chevron chat-chevron-open" : "chat-chevron"}>
-                    <ChevronIcon/>
-                </span>
-            </span>
-
-            {waiting && latest &&
-                <span className="chat-peek"
-                      key={latest.id}
-                      aria-hidden="true"
-                      style={authorStyle(authorOf(latest))}>
-                    <span className="chat-peek-author">
-                        {truncate(latest.authorName, PEEK_AUTHOR_MAX_LENGTH)}
-                    </span>
-                    <span className="chat-peek-text">{latest.text}</span>
-                </span>}
+                role="tab"
+                aria-selected={view === "chat"}
+                className={view === "chat" ? "chat-tab chat-tab--on" : "chat-tab"}
+                onClick={() => setView("chat")}>
+            Chat
         </button>
+        <button type="button"
+                role="tab"
+                aria-selected={view === "online"}
+                aria-label={players.length === 1 ? "1 player online" : `${players.length} players online`}
+                className={view === "online" ? "chat-tab chat-tab--on" : "chat-tab"}
+                onClick={() => setView("online")}>
+            Online · {players.length}
+        </button>
+    </div>
 
-        {isOpen && <div className="chat-body" id={bodyId}>
+    const body: ReactNode = view === "online" && players
+        ? <div className="chat-players"><PlayersPanel entries={players} onOpenPlayer={props.onOpenPlayer}/></div>
+        : <>
             <ChatLog messages={messages}
                      announcements={announcements}
                      loading={status === 'loading'}
@@ -169,7 +182,85 @@ export default function ChatPanel(props: ChatPanelProps) {
                           guestName={username === undefined ? displayName : undefined}
                           failure={failure}
                           onSend={onSend}/>
-        </div>}
+        </>
+
+    if (props.compact) {
+        if (isOpen) {
+            return <Sheet title="Live chat"
+                          head={tabs ?? <span className="chat-sheet-title">Chat</span>}
+                          className="chat-sheet"
+                          onClose={() => setOpen(false)}>
+                {body}
+            </Sheet>
+        }
+
+        return toast ? <button type="button"
+                               key={toast.id}
+                               className="chat-toast"
+                               style={authorStyle(authorOf(toast))}
+                               aria-label={`Open the chat: ${toast.authorName}, ${toast.text}`}
+                               onClick={() => setOpen(true)}>
+            <span className="chat-toast-author" aria-hidden="true">
+                {truncate(toast.authorName, PEEK_AUTHOR_MAX_LENGTH)}
+            </span>
+            <span className="chat-toast-text" aria-hidden="true">{truncate(toast.text, PEEK_TEXT_MAX_LENGTH)}</span>
+        </button> : null
+    }
+
+    const latest = messages[messages.length - 1]
+    const waiting = !isOpen && unread > 0
+
+    return <section ref={panel} className={panelClass(isOpen, waiting)} aria-label="Live chat">
+        {isOpen && RESIZE_EDGES.map(edge =>
+            <div key={edge}
+                 className={`chat-resize chat-resize-${edge}`}
+                 aria-hidden="true"
+                 title="Drag to resize, double-click to reset"
+                 onPointerDown={event => startResize(edge, event)}
+                 onDoubleClick={resetSize}/>)}
+
+        {isOpen
+            ? <div className="chat-header chat-header-open">
+                {tabs ?? <span className="chat-header-title">Chat</span>}
+                <button type="button"
+                        className="icon-button chat-fold"
+                        aria-label="Fold the chat"
+                        aria-expanded={true}
+                        aria-controls={bodyId}
+                        onClick={() => setOpen(false)}>
+                    <ChevronIcon/>
+                </button>
+            </div>
+            : <button type="button"
+                      className="chat-header"
+                      aria-expanded={false}
+                      onClick={() => setOpen(true)}>
+                <span className="chat-header-row">
+                    <span className="chat-header-title">Chat</span>
+                    {waiting &&
+                        <span className="chip chat-badge"
+                              key={unread}
+                              aria-label={unread === 1 ? "1 new message" : `${unread} new messages`}>
+                            {unread > UNREAD_CAP ? `${UNREAD_CAP}+` : unread}
+                        </span>}
+                    <span className="chat-chevron">
+                        <ChevronIcon/>
+                    </span>
+                </span>
+
+                {waiting && latest &&
+                    <span className="chat-peek"
+                          key={latest.id}
+                          aria-hidden="true"
+                          style={authorStyle(authorOf(latest))}>
+                        <span className="chat-peek-author">
+                            {truncate(latest.authorName, PEEK_AUTHOR_MAX_LENGTH)}
+                        </span>
+                        <span className="chat-peek-text">{latest.text}</span>
+                    </span>}
+            </button>}
+
+        {isOpen && <div className="chat-body" id={bodyId}>{body}</div>}
     </section>
 }
 
