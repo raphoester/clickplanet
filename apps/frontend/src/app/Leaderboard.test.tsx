@@ -4,6 +4,8 @@ import {cleanup, render, screen, within} from "@testing-library/react"
 import Leaderboard from "./Leaderboard.tsx"
 import {Countries} from "../domain/countries.ts"
 import {TileDelta, TileDeltas} from "../domain/tileDeltas.ts"
+import {seasonEnd} from "../domain/seasonClock.ts"
+import {SEASON_ZERO} from "../backends/fakeSeasonBackend.ts"
 
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
 
@@ -17,6 +19,16 @@ const cells = () => rows().map(r => within(r).getAllByRole("cell").map(c => c.te
 afterEach(cleanup)
 
 describe("Leaderboard", () => {
+    it("is titled Leaderboard with no season", () => {
+        render(<Leaderboard tilesCount={1000} data={[]}/>)
+        expect(screen.getByRole("heading").textContent).toBe("Leaderboard")
+    })
+
+    it("is titled by the season, with when it ends in the player's own time", () => {
+        render(<Leaderboard tilesCount={1000} data={[]} season={SEASON_ZERO}/>)
+        expect(screen.getByRole("heading").textContent).toBe(`Season 0 ${seasonEnd(SEASON_ZERO)}`)
+    })
+
     it("renders one row per country, in the order it was given", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
 

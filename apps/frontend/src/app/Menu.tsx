@@ -19,6 +19,8 @@ import AccountPanel, {AccountButton} from "./account/AccountPanel.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerLine, RosterEntry} from "../backends/player.ts";
 import PlayersPanel, {PlayersButton} from "./players/PlayersPanel.tsx";
+import AddToCalendarButton from "./season/AddToCalendarButton.tsx";
+import {Season} from "../backends/season.ts";
 import "./Menu.css"
 
 export type MenuProps = {
@@ -32,6 +34,7 @@ export type MenuProps = {
     players?: readonly RosterEntry[],
     onOpenPlayer?: (player: PlayerLine) => void,
     linkedMultiplier?: number,
+    season?: Season,
 }
 
 export default function Menu(props: MenuProps) {
@@ -119,7 +122,8 @@ export default function Menu(props: MenuProps) {
                         rank={rankOf(props.leaderboard, props.country)}
                         isOpen={isOpen}
                         onToggle={() => setIsOpen(!isOpen)}
-                        bodyId={bodyId}/>
+                        bodyId={bodyId}
+                        season={props.season}/>
 
             {isOpen && <div className="menu-body" id={bodyId}>
                 {pickingCountry
@@ -162,7 +166,12 @@ export default function Menu(props: MenuProps) {
                         <Leaderboard data={props.leaderboard}
                                      deltas={props.tileDeltas ?? NO_TILE_DELTAS}
                                      tilesCount={props.tilesCount}
-                                     highlight={props.country}/>
+                                     highlight={props.country}
+                                     season={props.season}/>
+
+                        {props.season && <div className="menu-season">
+                            <AddToCalendarButton season={props.season}/>
+                        </div>}
 
                         <div className="menu-actions">
                             <a href="/#home"

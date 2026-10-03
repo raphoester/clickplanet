@@ -42,6 +42,8 @@ import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
 import {LeaderboardEntry} from "../../domain/leaderboard.ts";
+import {SeasonBackend} from "../../backends/season.ts";
+import {useSeason} from "../season/useSeason.ts";
 import "./Viewer.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
@@ -59,6 +61,7 @@ export type ViewerProps = {
     account?: AccountStore
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
+    season?: SeasonBackend
 }
 
 export default function Viewer(props: ViewerProps) {
@@ -75,6 +78,7 @@ export default function Viewer(props: ViewerProps) {
     const quiz = useQuiz(props.quizMaster, countryState.code, sound.play)
     const [unlocked, setUnlocked] = useState<readonly PlayerTitle[]>([])
     const roster = useRoster(props.presence, (title) => setUnlocked((queue) => [...queue, title]))
+    const season = useSeason(props.season)
     const [pitchOpen, setPitchOpen] = useState(false)
     const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
     const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
@@ -145,6 +149,7 @@ export default function Viewer(props: ViewerProps) {
             players={roster.kind === 'ready' ? roster.entries : undefined}
             onOpenPlayer={onOpenPlayer}
             linkedMultiplier={clickBudget?.linkedMultiplier}
+            season={season}
         />}
 
         {status.state === 'ready' && <AnthemBar anthem={anthem}

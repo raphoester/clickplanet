@@ -5,12 +5,15 @@ import {LeaderboardEntry} from "../domain/leaderboard.ts";
 import {DELTA_HOLD_MS, NO_TILE_DELTAS, signed, TileDeltas} from "../domain/tileDeltas.ts";
 import {truncate} from "./truncate.ts";
 import CountryFlag from "./components/CountryFlag.tsx";
+import {Season} from "../backends/season.ts";
+import {seasonEnd} from "../domain/seasonClock.ts";
 
 type LeaderboardProps = {
     tilesCount: number,
     data: LeaderboardEntry[],
     deltas?: TileDeltas,
     highlight?: Country,
+    season?: Season,
 }
 
 const NAME_MAX_LENGTH = 18
@@ -20,7 +23,11 @@ export default function Leaderboard(props: LeaderboardProps) {
     const deltas = props.deltas ?? NO_TILE_DELTAS
 
     return <section className="leaderboard" aria-labelledby={titleId}>
-        <h2 className="menu-section-title" id={titleId}>Leaderboard</h2>
+        <h2 className="menu-section-title" id={titleId}>
+            {props.season
+                ? <>Season {props.season.number} <span className="leaderboard-season-end">{seasonEnd(props.season)}</span></>
+                : "Leaderboard"}
+        </h2>
 
         <div className="leaderboard-table-container">
             <table className="leaderboard-table">

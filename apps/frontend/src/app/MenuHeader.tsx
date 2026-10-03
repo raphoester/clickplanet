@@ -1,6 +1,8 @@
 import {Country} from "../domain/countries.ts";
 import {ChevronIcon} from "./components/icons.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
+import SeasonClock from "./season/SeasonClock.tsx";
+import {Season} from "../backends/season.ts";
 import "./MenuHeader.css"
 
 export type MenuHeaderProps = {
@@ -9,6 +11,7 @@ export type MenuHeaderProps = {
     isOpen: boolean,
     onToggle: () => void,
     bodyId: string,
+    season?: Season,
 }
 
 export default function MenuHeader(props: MenuHeaderProps) {
@@ -19,12 +22,16 @@ export default function MenuHeader(props: MenuHeaderProps) {
              width="42px"
              height="42px"/>
 
-        {props.isOpen
-            ? <h1>ClickPlanet</h1>
-            : <span className="menu-header-country">
-                <CountryFlag code={props.country.code}/>
-                {props.country.name}
-            </span>}
+        <div className="menu-header-title">
+            {props.isOpen
+                ? <h1>ClickPlanet</h1>
+                : <span className="menu-header-country">
+                    <CountryFlag code={props.country.code}/>
+                    {props.country.name}
+                </span>}
+
+            {props.season && <SeasonClock season={props.season}/>}
+        </div>
 
         <span className="menu-header-spacer"/>
 

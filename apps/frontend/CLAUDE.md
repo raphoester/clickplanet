@@ -659,6 +659,26 @@ is the player's own view.
 - **UI copy is not documentation.** The card and the tab say nothing about the
   rules ("one per track", "others see the title you wear"): what is drawn is the rule.
 
+### The season
+
+`backends/season.ts` is the contract, `seasonBackend.ts` reads
+`seasons.v1.SeasonService/GetSeason` once per page load (a cached GET), and
+`fakeSeasonBackend.ts` answers Season 0 in fake mode. A 404 reads as no season.
+
+- `domain/seasonClock.ts` — `seasonClock`, the clock's text (`S0 · 27d 14h`,
+  `13h 05m`, `52:10`, `Final Assault · 1h 12m`, nothing once over), and
+  `seasonEnd`, "Ends Sun 1 Nov, 00:00" in the player's own time zone.
+- `domain/seasonCalendar.ts` — `finaleCalendar`, the `.ics` of the finale, built
+  from `GetSeason` so no date is typed twice.
+- `app/season/` — `useSeason`, which drops the season at its end (a page open
+  across it goes back to no season), `SeasonClock` and `AddToCalendarButton`.
+
+**The clock is a second line under the title**, in `MenuHeader`, folded or
+open, level with the rank's value. Beside the rank it does not fit: the open
+header is 326px wide and the title, the rank and the button already fill it.
+With a season the leaderboard is titled "Season 0" with its end, and "Add to
+calendar" sits under it. With none, the menu is as it was.
+
 ### Sessions
 
 The backend gates `Click` on a token it minted, and refuses one that carries
@@ -2089,6 +2109,8 @@ the whole `proto` directory, so a new package needs no config change; run
   deprecated mint, no longer called
 - [`player/v1/player.proto`](../../proto/player/v1/player.proto) — the
   username and who is playing (`PlayerService`)
+- [`seasons/v1/seasons.proto`](../../proto/seasons/v1/seasons.proto) — the
+  current season (`SeasonService`)
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in

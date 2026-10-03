@@ -10,16 +10,17 @@ import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
 import {NameColor, RosterEntry} from "../backends/player.ts"
 import {PlayerBackend, PlayerError, PlayerTitle, TitleDashboard} from "../backends/player.ts"
+import {Season} from "../backends/season.ts"
 
 const france = Countries.get("fr")!
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
 
 afterEach(cleanup)
 
-function setup(leaderboard: LeaderboardEntry[] = [], country = france) {
+function setup(leaderboard: LeaderboardEntry[] = [], country = france, season?: Season) {
     const setCountry = vi.fn()
     const view = render(
-        <Menu country={country} setCountry={setCountry} leaderboard={leaderboard} tilesCount={1000}/>,
+        <Menu country={country} setCountry={setCountry} leaderboard={leaderboard} tilesCount={1000} season={season}/>,
     )
     return {...view, setCountry, user: userEvent.setup()}
 }
@@ -578,5 +579,29 @@ describe("Menu", () => {
             expect(screen.queryByRole("dialog")).toBeNull()
             expect(backend.deleteAccount).not.toHaveBeenCalled()
         })
+    })
+})
+
+describe("Menu during a season", () => {
+    const HOUR = 60 * 60 * 1000
+    const inThreeDays = (): Season => ({number: 0, finaleStartsAt: Date.now() + 70 * HOUR, endsAt: Date.now() + 72 * HOUR})
+
+    it("shows the season clock in the header, open or folded", async () => {
+        const {user} = setup([entry("fr", 500)], france, inThreeDays())
+        expect(screen.getByRole("timer").textContent).toMatch(/^S0 · [23]d \d{2}h$/)
+
+        await user.click(collapse())
+        expect(screen.getByRole("timer").textContent).toMatch(/^S0 · [23]d \d{2}h$/)
+    })
+
+    it("offers the finale to a calendar under the leaderboard", () => {
+        setup([entry("fr", 500)], france, inThreeDays())
+        expect(button("Add to calendar")).toBeDefined()
+    })
+
+    it("shows no clock and no calendar with no season", () => {
+        setup([entry("fr", 500)])
+        expect(screen.queryByRole("timer")).toBeNull()
+        expect(screen.queryByRole("button", {name: "Add to calendar"})).toBeNull()
     })
 })
