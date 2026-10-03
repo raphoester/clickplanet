@@ -1,6 +1,6 @@
 .bomb-news {
     position: fixed;
-    top: 16px;
+    top: calc(var(--season-banner-bottom, 8px) + 8px);
     left: 50%;
     z-index: 150;
     transform: translateX(-50%);
@@ -8,7 +8,7 @@
 }
 
 .bomb-news--lowered {
-    top: 220px;
+    top: calc(var(--season-banner-bottom, 8px) + 212px);
 }
 
 .bomb-news-line {
@@ -54,7 +54,7 @@
     }
 
 .bomb-news--lowered {
-    top: 220px;
+    top: calc(var(--season-banner-bottom, 8px) + 212px);
 }
 
 .bomb-news-line {
@@ -64,7 +64,7 @@
 
 @media (prefers-reduced-motion: reduce) {
 .bomb-news--lowered {
-    top: 220px;
+    top: calc(var(--season-banner-bottom, 8px) + 212px);
 }
 
 .bomb-news-line {

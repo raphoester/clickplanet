@@ -7,15 +7,12 @@ const DAY = 24 * HOUR
 export type SeasonClock = {
     finale: boolean
     left: string
-    line: string
 }
 
 export function seasonClock(season: Season, now: number): SeasonClock | undefined {
     if (now >= season.endsAt) return undefined
 
-    const finale = now >= season.finaleStartsAt
-    const left = timeLeft(Math.ceil((season.endsAt - now) / 1000))
-    return {finale, left, line: `${finale ? "Final Assault" : `Season ${season.number}`} · ${left}`}
+    return {finale: now >= season.finaleStartsAt, left: timeLeft(Math.ceil((season.endsAt - now) / 1000))}
 }
 
 function timeLeft(seconds: number): string {

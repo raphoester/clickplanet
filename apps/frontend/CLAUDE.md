@@ -666,20 +666,24 @@ is the player's own view.
 `fakeSeasonBackend.ts` answers Season 0 in fake mode. A 404 reads as no season.
 
 - `domain/seasonClock.ts` — `seasonClock`, the time left (`27d 14h`, `13h 05m`,
-  `52:10`, nothing once over) and the header's line (`Season 0 · 27d 14h`,
-  `Final Assault · 1h 12m`), and `finaleWindow`, the finale's day and hours in
-  the player's own time zone.
+  `52:10`, nothing once over) and whether the finale runs, and `finaleWindow`,
+  the finale's day and hours in the player's own time zone.
 - `domain/seasonCalendar.ts` — `finaleCalendar`, the `.ics` of the finale, built
   from `GetSeason` so no date is typed twice.
 - `app/season/` — `useSeason`, which drops the season at its end (a page open
-  across it goes back to no season), `SeasonCard`, `SeasonClock` and
-  `AddToCalendarButton`.
+  across it goes back to no season), `SeasonBanner` and `AddToCalendarButton`.
 
-**The season is one card, the leaderboard's title**: "Season 0", the time left
-in large type, then the Final Assault's day and hours with "Add to calendar"
-beside them. During the finale the card glows and says "Now · until 00:00".
-**A folded menu shows an orange pill under the country instead**
-(`SeasonClock`), since the card is hidden. With no season, the menu is as it was.
+**The season is a banner at the top centre**, outside the menu: "Season 0 ends
+in 28d 14h", then the Final Assault's day and hours with "Add to calendar"
+beside them. The first line folds the rest away; the fold is kept in
+`clickplanet-season-banner-folded`, and a first visit under 768px starts folded.
+Under 768px it is a strip under the menu header. During the finale it glows,
+says "Final Assault ends in" and does not fold.
+
+**It writes its bottom edge on `:root` as `--season-banner-bottom`**
+(`useBottomEdge`, which `useDockBottom` is built on). The quiz, the bomb news and
+the native-land note sit under it, and on a phone so does the click budget dock.
+With no season the property is unset and they sit where they always did.
 
 ### Sessions
 

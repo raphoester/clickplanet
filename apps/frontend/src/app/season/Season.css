@@ -1,103 +1,107 @@
-.season-clock {
-    align-self: flex-start;
-    margin: 3px 0 0 0;
-    padding: 2px 8px 1px;
-    border-radius: 8px;
-    border: 1px solid #FF813F66;
-    background: #FF813F26;
-    font-family: Oswald, sans-serif;
-    font-weight: 500;
-    font-size: 13px;
-    line-height: 1.3;
-    letter-spacing: 0.3px;
-    font-variant-numeric: tabular-nums;
-    color: #FFD9C4;
-    white-space: nowrap;
-}
-
-.season-clock-finale {
-    border-color: #FF813F;
-    background: #FF813F59;
-    color: white;
-}
-
-.season-card {
-    flex-shrink: 0;
-    margin-top: 14px;
-    padding: 10px 12px 12px;
-    border-radius: 16px;
-    border: 1px solid #FF813F73;
-    background: linear-gradient(135deg, #FF813F33, #FF813F0D 70%);
-}
-
-.season-card-live {
-    border-color: #FF813F;
-    box-shadow: 0 0 22px #FF813F59;
-    animation: season-card-live 2.4s ease-in-out infinite;
-}
-
-.season-card-head {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.season-card-title {
-    margin: 0;
-    font-size: 26px;
-    line-height: 1;
-    white-space: nowrap;
-}
-
-.season-card-clock {
+.season-banner {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    z-index: 128;
+    transform: translateX(-50%);
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
-    gap: 2px;
-    margin: 0;
+    width: max-content;
+    max-width: calc(100vw - 32px);
+    padding: 6px 8px;
+    border: 1px solid #FF813F80;
+    border-radius: 18px;
+    background: #00000099;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0 18px #FF813F33;
 }
 
-.season-card-left {
+.season-banner--live {
+    border-color: #FF813F;
+    background: #3A1A0ACC;
+    animation: season-banner-live 2.4s ease-in-out infinite;
+}
+
+.season-banner-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 2px 6px;
+    border: none;
+    border-radius: 12px;
+    background: none;
+    color: white;
+    text-align: left;
+}
+
+button.season-banner-head {
+    cursor: pointer;
+}
+
+button.season-banner-head:hover,
+button.season-banner-head:focus-visible {
+    background: #FFFFFF14;
+}
+
+.season-banner-label {
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #FFFFFFCC;
+    white-space: nowrap;
+}
+
+.season-banner-left {
     font-family: Oswald, sans-serif;
     font-weight: 600;
-    font-size: 26px;
-    line-height: 1;
+    font-size: 22px;
+    line-height: 1.1;
     font-variant-numeric: tabular-nums;
     color: #FF813F;
     text-shadow: -1px 1px 0 #000000;
     white-space: nowrap;
 }
 
-.season-card-finale {
+.season-banner-chevron {
+    display: flex;
+    margin-left: auto;
+    color: #FFFFFFB3;
+    transition: transform 0.18s ease;
+}
+
+.season-banner-head[aria-expanded="true"] .season-banner-chevron {
+    transform: rotate(180deg);
+}
+
+.season-banner-finale {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
-    margin-top: 10px;
-    padding-top: 10px;
+    gap: 14px;
+    margin: 6px 0 2px;
+    padding: 8px 6px 0;
     border-top: 1px solid #FFFFFF26;
 }
 
-.season-card-when {
+.season-banner-when {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     min-width: 0;
     margin: 0;
     font-family: Oswald, sans-serif;
     font-weight: 500;
-    font-size: 14px;
+    font-size: 15px;
     color: white;
     white-space: nowrap;
 }
 
-.season-card-when > span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.season-card-finale-name {
+.season-banner-finale-name {
+    font-size: 12px;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
     color: #FF813F;
 }
 
@@ -123,40 +127,35 @@
     margin-top: -3px;
 }
 
-@keyframes season-card-live {
+@keyframes season-banner-live {
     50% {
-        box-shadow: 0 0 32px #FF813F8C;
+        box-shadow: 0 0 30px #FF813F99;
     }
 }
 
 @media only screen and (max-width: 768px) {
-    .season-clock {
-        font-size: 12px;
+    .season-banner {
+        top: 66px;
+        left: 16px;
+        right: 16px;
+        z-index: 127;
+        transform: none;
+        width: auto;
+        padding: 4px 6px;
+        border-radius: 16px;
     }
 
-    .season-card {
-        margin-top: 8px;
-        padding: 8px 10px 10px;
+    .season-banner-left {
+        font-size: 19px;
     }
 
-    .season-card-title,
-    .season-card-left {
-        font-size: 22px;
-    }
-
-    .season-card-finale {
-        margin-top: 8px;
-        padding-top: 8px;
-    }
-
-    .season-calendar {
-        height: 30px;
-        padding: 2px 8px 0 7px;
+    .season-banner-when {
+        font-size: 14px;
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .season-card-live {
+    .season-banner--live {
         animation: none;
     }
 }

@@ -44,6 +44,7 @@ import SignInPitchModal from "../account/SignInPitchModal.tsx";
 import {LeaderboardEntry} from "../../domain/leaderboard.ts";
 import {SeasonBackend} from "../../backends/season.ts";
 import {useSeason} from "../season/useSeason.ts";
+import SeasonBanner from "../season/SeasonBanner.tsx";
 import "./Viewer.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
@@ -149,8 +150,9 @@ export default function Viewer(props: ViewerProps) {
             players={roster.kind === 'ready' ? roster.entries : undefined}
             onOpenPlayer={onOpenPlayer}
             linkedMultiplier={clickBudget?.linkedMultiplier}
-            season={season}
         />}
+
+        {status.state === 'ready' && season && <SeasonBanner season={season}/>}
 
         {status.state === 'ready' && <AnthemBar anthem={anthem}
                                                 settings={sound.settings}

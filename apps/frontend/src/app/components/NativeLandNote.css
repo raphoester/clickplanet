@@ -1,6 +1,6 @@
 .native-land-note {
     position: fixed;
-    top: 64px;
+    top: calc(var(--season-banner-bottom, 8px) + 56px);
     left: 50%;
     z-index: 150;
     transform: translateX(-50%);
@@ -8,7 +8,7 @@
 }
 
 .native-land-note--lowered {
-    top: 268px;
+    top: calc(var(--season-banner-bottom, 8px) + 260px);
 }
 
 .native-land-note-line {
