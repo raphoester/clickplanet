@@ -2370,6 +2370,14 @@ focus**, and never zooms back out. That is why `.chat-input` is 16px — at 14px
 the zoom pushed the send button off the right of the screen. Keep every `input`
 here at 16px or more; the emulator will not tell you when one drops below.
 
+Nor does it draw the browser's toolbars, so **`100vh` looks right in the
+emulator and is not on a phone**: there it is the height with the toolbars
+hidden, and this page never scrolls them away. A `Modal` sized `100vh` put the
+bottom of the player card under the toolbar, with nothing left to scroll and a
+drag that pulled the page to refresh. Size a full-screen layer with
+`position: fixed; inset: 0` instead. `overscroll-behavior: none` on the root
+stops pull-to-refresh everywhere.
+
 `--open-menu` dismisses the donation modal and opens the Board sheet:
 `DonationModal` rolls a coin on **every** load (`SHOW_PROBABILITY`), so without
 it you will screenshot the donation modal half the time.
