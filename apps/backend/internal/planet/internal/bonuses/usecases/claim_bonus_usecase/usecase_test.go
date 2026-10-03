@@ -17,12 +17,13 @@ type stubRegistry struct {
 	claimable bool
 
 	token     string
+	entrant   bonuses.Entrant
 	scope     string
 	published []bonuses.Taken
 }
 
-func (s *stubRegistry) Claim(token string, scope string) (bonuses.Reward, bool) {
-	s.token, s.scope = token, scope
+func (s *stubRegistry) Claim(token string, entrant bonuses.Entrant, scope string) (bonuses.Reward, bool) {
+	s.token, s.entrant, s.scope = token, entrant, scope
 	if !s.claimable {
 		return bonuses.Reward{}, false
 	}
@@ -89,10 +90,22 @@ func TestAClaimHandsTheChargeToTheAccount(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "a-token", registry.token)
-	assert.Equal(t, "1.2.3.4", registry.scope, "the offer is the scope's")
+	assert.Equal(t, bonuses.Entrant("1.2.3.4"), registry.entrant, "a guest's offer is the scope's")
 	assert.Equal(t, []grantedCharge{{holder: "a-guest", kind: bonuses.KindRefill, amount: 1}}, charger.granted)
 	assert.Equal(t, bonuses.KindRefill, out.Kind)
 	assert.Equal(t, bonuses.Held{Refill: true}, out.Held)
+}
+
+func TestALinkedAccountClaimsWhatWasOfferedToTheAccount(t *testing.T) {
+	registry := granting(bonuses.KindRefill)
+	ctx := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-player"))
+
+	_, err := claim_bonus_usecase.New(registry, &stubCharger{}).
+		Execute(ctx, claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
+	require.NoError(t, err)
+
+	assert.Equal(t, bonuses.Entrant("account:a-player"), registry.entrant)
+	assert.Equal(t, "1.2.3.4", registry.scope)
 }
 
 func TestEveryKindIsGrantedAsACharge(t *testing.T) {

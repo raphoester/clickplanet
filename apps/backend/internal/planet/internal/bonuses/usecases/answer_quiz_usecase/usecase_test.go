@@ -22,13 +22,13 @@ type fakeRegistry struct {
 	answered bonuses.Answered
 	known    bool
 
-	choice    int
-	forScope  string
-	published []bonuses.Taken
+	choice     int
+	forEntrant bonuses.Entrant
+	published  []bonuses.Taken
 }
 
-func (f *fakeRegistry) AnswerQuiz(_ string, scope string, choice int) (bonuses.Answered, bool) {
-	f.choice, f.forScope = choice, scope
+func (f *fakeRegistry) AnswerQuiz(_ string, entrant bonuses.Entrant, choice int) (bonuses.Answered, bool) {
+	f.choice, f.forEntrant = choice, entrant
 
 	return f.answered, f.known
 }
@@ -74,7 +74,7 @@ func TestARightAnswerGrantsTheChargeAndTellsThePlanet(t *testing.T) {
 		CountryID: "bg", Kind: bonuses.KindSpreadClicks, QuizSubject: "ee",
 	}, registry.published[0], "the planet hears who won it, and what the question was about")
 
-	assert.NotEmpty(t, registry.forScope, "the answer is settled against the caller's own scope")
+	assert.Equal(t, bonuses.Entrant("1.2.3.4"), registry.forEntrant, "a guest's answer is settled against its scope")
 }
 
 func TestAWrongAnswerChangesNothingAndTellsNobody(t *testing.T) {

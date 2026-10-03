@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubSubscriber struct {
@@ -26,7 +27,7 @@ func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error)
 
 type silentFeed struct{}
 
-func (silentFeed) Attend(string) (<-chan bonuses.Event, func()) {
+func (silentFeed) Attend(bonuses.Entrant) (<-chan bonuses.Event, func()) {
 	return nil, func() {}
 }
 
@@ -54,6 +55,30 @@ func (r *recorder) seen() []listen_for_events_usecase.Event {
 	defer r.mu.Unlock()
 
 	return append([]listen_for_events_usecase.Event(nil), r.events...)
+}
+
+type attendedFeed struct{ entrants []bonuses.Entrant }
+
+func (f *attendedFeed) Attend(entrant bonuses.Entrant) (<-chan bonuses.Event, func()) {
+	f.entrants = append(f.entrants, entrant)
+
+	closed := make(chan bonuses.Event)
+	close(closed)
+
+	return closed, func() {}
+}
+
+func TestAStreamListensForTheBoxesOfTheEntrantThatOpenedIt(t *testing.T) {
+	address := cpctx.AddIPToContext(t.Context(), "1.2.3.4")
+	linked := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(address, "a-player"))
+	guest := cpctx.AddAccountToContext(address, "a-guest")
+	feed := &attendedFeed{}
+
+	for _, ctx := range []context.Context{linked, guest} {
+		require.NoError(t, listen_for_events_usecase.New(stubSubscriber{}, time.Hour, feed).Execute(ctx, &recorder{}))
+	}
+
+	assert.Equal(t, []bonuses.Entrant{"account:a-player", "1.2.3.4"}, feed.entrants)
 }
 
 func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
