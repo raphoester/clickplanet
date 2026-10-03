@@ -11,7 +11,7 @@ export default function AddToCalendarButton({season}: {season: Season}) {
     }
 
     return <button type="button" className="button button-mini season-calendar" onClick={add}>
-        <CalendarIcon/>
+        <CalendarIcon size={15}/>
         <span>Add to calendar</span>
     </button>
 }

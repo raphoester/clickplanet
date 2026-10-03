@@ -4,7 +4,6 @@ import {cleanup, render, screen, within} from "@testing-library/react"
 import Leaderboard from "./Leaderboard.tsx"
 import {Countries} from "../domain/countries.ts"
 import {TileDelta, TileDeltas} from "../domain/tileDeltas.ts"
-import {seasonEnd} from "../domain/seasonClock.ts"
 import {SEASON_ZERO} from "../backends/fakeSeasonBackend.ts"
 
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
@@ -24,9 +23,9 @@ describe("Leaderboard", () => {
         expect(screen.getByRole("heading").textContent).toBe("Leaderboard")
     })
 
-    it("is titled by the season, with when it ends in the player's own time", () => {
-        render(<Leaderboard tilesCount={1000} data={[]} season={SEASON_ZERO}/>)
-        expect(screen.getByRole("heading").textContent).toBe(`Season 0 ${seasonEnd(SEASON_ZERO)}`)
+    it("is titled by the season while one runs", () => {
+        render(<Leaderboard tilesCount={1000} data={[]} season={{...SEASON_ZERO, endsAt: Date.now() + 3_600_000}}/>)
+        expect(screen.getByRole("region", {name: "Season 0"})).toBeDefined()
     })
 
     it("renders one row per country, in the order it was given", () => {

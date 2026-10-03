@@ -74,17 +74,6 @@
     flex-shrink: 0;
 }
 
-.menu-season {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-    flex-shrink: 0;
-}
-
-.menu-season > * {
-    flex: 1 1 0;
-}
-
 .menu-actions > .menu-sound,
 .menu-actions > .menu-icon {
     flex: 1 1 56px;
@@ -122,10 +111,6 @@
     }
 
     .menu-actions {
-        margin-top: 8px;
-    }
-
-    .menu-season {
         margin-top: 8px;
     }
 

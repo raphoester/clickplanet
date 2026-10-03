@@ -586,15 +586,15 @@ describe("Menu during a season", () => {
     const HOUR = 60 * 60 * 1000
     const inThreeDays = (): Season => ({number: 0, finaleStartsAt: Date.now() + 70 * HOUR, endsAt: Date.now() + 72 * HOUR})
 
-    it("shows the season clock in the header, open or folded", async () => {
+    it("shows the season over the leaderboard, and in the header once folded", async () => {
         const {user} = setup([entry("fr", 500)], france, inThreeDays())
-        expect(screen.getByRole("timer").textContent).toMatch(/^S0 · [23]d \d{2}h$/)
+        expect(screen.getByRole("timer").textContent).toMatch(/^Ends in[23]d \d{2}h$/)
 
         await user.click(collapse())
-        expect(screen.getByRole("timer").textContent).toMatch(/^S0 · [23]d \d{2}h$/)
+        expect(screen.getByRole("timer").textContent).toMatch(/^Season 0 · [23]d \d{2}h$/)
     })
 
-    it("offers the finale to a calendar under the leaderboard", () => {
+    it("offers the finale to a calendar", () => {
         setup([entry("fr", 500)], france, inThreeDays())
         expect(button("Add to calendar")).toBeDefined()
     })

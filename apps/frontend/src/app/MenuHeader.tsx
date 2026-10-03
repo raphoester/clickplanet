@@ -30,7 +30,7 @@ export default function MenuHeader(props: MenuHeaderProps) {
                     {props.country.name}
                 </span>}
 
-            {props.season && <SeasonClock season={props.season}/>}
+            {props.season && !props.isOpen && <SeasonClock season={props.season}/>}
         </div>
 
         <span className="menu-header-spacer"/>

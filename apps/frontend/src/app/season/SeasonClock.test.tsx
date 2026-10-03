@@ -18,10 +18,10 @@ describe("SeasonClock", () => {
     it("ticks down every second, then goes at the end", () => {
         vi.useFakeTimers({now: endsAt - 52 * MINUTE - 10_000})
         render(<SeasonClock season={{...season, finaleStartsAt: endsAt}}/>)
-        expect(screen.getByRole("timer").textContent).toBe("52:10")
+        expect(screen.getByRole("timer").textContent).toBe("Season 0 · 52:10")
 
         act(() => vi.advanceTimersByTime(1000))
-        expect(screen.getByRole("timer").textContent).toBe("52:09")
+        expect(screen.getByRole("timer").textContent).toBe("Season 0 · 52:09")
 
         act(() => vi.advanceTimersByTime(52 * MINUTE + 9_000))
         expect(screen.queryByRole("timer")).toBeNull()
@@ -36,12 +36,12 @@ describe("SeasonClock", () => {
         expect(clock.classList.contains("season-clock-finale")).toBe(true)
     })
 
-    it("is plain before the finale", () => {
+    it("names the season before the finale", () => {
         vi.useFakeTimers({now: endsAt - 27 * 24 * HOUR - 14 * HOUR})
         render(<SeasonClock season={season}/>)
 
         const clock = screen.getByRole("timer")
-        expect(clock.textContent).toBe("S0 · 27d 14h")
+        expect(clock.textContent).toBe("Season 0 · 27d 14h")
         expect(clock.classList.contains("season-clock-finale")).toBe(false)
     })
 })

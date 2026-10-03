@@ -1,34 +1,132 @@
 .season-clock {
-    margin: 2px 0 0 0;
+    align-self: flex-start;
+    margin: 3px 0 0 0;
+    padding: 2px 8px 1px;
+    border-radius: 8px;
+    border: 1px solid #FF813F66;
+    background: #FF813F26;
     font-family: Oswald, sans-serif;
     font-weight: 500;
-    font-size: 14px;
-    line-height: 1.2;
-    letter-spacing: 0.4px;
+    font-size: 13px;
+    line-height: 1.3;
+    letter-spacing: 0.3px;
     font-variant-numeric: tabular-nums;
-    color: #FFFFFFB3;
+    color: #FFD9C4;
     white-space: nowrap;
-    text-shadow: -1px 1px 0 #000000;
 }
 
 .season-clock-finale {
+    border-color: #FF813F;
+    background: #FF813F59;
+    color: white;
+}
+
+.season-card {
+    flex-shrink: 0;
+    margin-top: 14px;
+    padding: 10px 12px 12px;
+    border-radius: 16px;
+    border: 1px solid #FF813F73;
+    background: linear-gradient(135deg, #FF813F33, #FF813F0D 70%);
+}
+
+.season-card-live {
+    border-color: #FF813F;
+    box-shadow: 0 0 22px #FF813F59;
+    animation: season-card-live 2.4s ease-in-out infinite;
+}
+
+.season-card-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.season-card-title {
+    margin: 0;
+    font-size: 26px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.season-card-clock {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    margin: 0;
+}
+
+.season-card-left {
+    font-family: Oswald, sans-serif;
+    font-weight: 600;
+    font-size: 26px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: #FF813F;
+    text-shadow: -1px 1px 0 #000000;
+    white-space: nowrap;
+}
+
+.season-card-finale {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #FFFFFF26;
+}
+
+.season-card-when {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    margin: 0;
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    color: white;
+    white-space: nowrap;
+}
+
+.season-card-when > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.season-card-finale-name {
     color: #FF813F;
 }
 
 .season-calendar {
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 6px;
+    flex-shrink: 0;
     margin-top: 0;
-    padding: 4px 12px 0 10px;
+    padding: 3px 9px 0 8px;
+    height: 32px;
     border-radius: 10px;
-    border-color: #FFFFFFAA;
-    font-size: 16px;
+    border-color: #FF813F;
+    background: #FF813F;
+    font-size: 13px;
+}
+
+.season-calendar:hover {
+    background: #FF9459;
 }
 
 .season-calendar svg {
     margin-top: -3px;
+}
+
+@keyframes season-card-live {
+    50% {
+        box-shadow: 0 0 32px #FF813F8C;
+    }
 }
 
 @media only screen and (max-width: 768px) {
@@ -36,9 +134,29 @@
         font-size: 12px;
     }
 
+    .season-card {
+        margin-top: 8px;
+        padding: 8px 10px 10px;
+    }
+
+    .season-card-title,
+    .season-card-left {
+        font-size: 22px;
+    }
+
+    .season-card-finale {
+        margin-top: 8px;
+        padding-top: 8px;
+    }
+
     .season-calendar {
-        font-size: 13px;
-        padding: 2px 10px 0 8px;
-        height: 32px;
+        height: 30px;
+        padding: 2px 8px 0 7px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .season-card-live {
+        animation: none;
     }
 }

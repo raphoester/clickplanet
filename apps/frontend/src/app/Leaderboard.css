@@ -17,13 +17,6 @@
     background: linear-gradient(180deg, rgba(4, 9, 15, 0), rgba(4, 9, 15, 0.85));
 }
 
-.leaderboard-season-end {
-    order: 1;
-    text-transform: none;
-    letter-spacing: 0.4px;
-    color: #FFFFFF80;
-}
-
 .leaderboard-table-container {
     min-height: 0;
     flex: 1 1 auto;

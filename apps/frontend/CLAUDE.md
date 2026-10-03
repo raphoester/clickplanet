@@ -665,19 +665,21 @@ is the player's own view.
 `seasons.v1.SeasonService/GetSeason` once per page load (a cached GET), and
 `fakeSeasonBackend.ts` answers Season 0 in fake mode. A 404 reads as no season.
 
-- `domain/seasonClock.ts` — `seasonClock`, the clock's text (`S0 · 27d 14h`,
-  `13h 05m`, `52:10`, `Final Assault · 1h 12m`, nothing once over), and
-  `seasonEnd`, "Ends Sun 1 Nov, 00:00" in the player's own time zone.
+- `domain/seasonClock.ts` — `seasonClock`, the time left (`27d 14h`, `13h 05m`,
+  `52:10`, nothing once over) and the header's line (`Season 0 · 27d 14h`,
+  `Final Assault · 1h 12m`), and `finaleWindow`, the finale's day and hours in
+  the player's own time zone.
 - `domain/seasonCalendar.ts` — `finaleCalendar`, the `.ics` of the finale, built
   from `GetSeason` so no date is typed twice.
 - `app/season/` — `useSeason`, which drops the season at its end (a page open
-  across it goes back to no season), `SeasonClock` and `AddToCalendarButton`.
+  across it goes back to no season), `SeasonCard`, `SeasonClock` and
+  `AddToCalendarButton`.
 
-**The clock is a second line under the title**, in `MenuHeader`, folded or
-open, level with the rank's value. Beside the rank it does not fit: the open
-header is 326px wide and the title, the rank and the button already fill it.
-With a season the leaderboard is titled "Season 0" with its end, and "Add to
-calendar" sits under it. With none, the menu is as it was.
+**The season is one card, the leaderboard's title**: "Season 0", the time left
+in large type, then the Final Assault's day and hours with "Add to calendar"
+beside them. During the finale the card glows and says "Now · until 00:00".
+**A folded menu shows an orange pill under the country instead**
+(`SeasonClock`), since the card is hidden. With no season, the menu is as it was.
 
 ### Sessions
 

@@ -19,7 +19,6 @@ import AccountPanel, {AccountButton} from "./account/AccountPanel.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerLine, RosterEntry} from "../backends/player.ts";
 import PlayersPanel, {PlayersButton} from "./players/PlayersPanel.tsx";
-import AddToCalendarButton from "./season/AddToCalendarButton.tsx";
 import {Season} from "../backends/season.ts";
 import "./Menu.css"
 
@@ -168,10 +167,6 @@ export default function Menu(props: MenuProps) {
                                      tilesCount={props.tilesCount}
                                      highlight={props.country}
                                      season={props.season}/>
-
-                        {props.season && <div className="menu-season">
-                            <AddToCalendarButton season={props.season}/>
-                        </div>}
 
                         <div className="menu-actions">
                             <a href="/#home"
