@@ -105,11 +105,20 @@ button.season-banner-head:focus-visible {
     color: #FF813F;
 }
 
+/* Over the quiz and the bomb news, which sit under the banner. */
+.season-banner:has(.season-calendar-list) {
+    z-index: 170;
+}
+
 .season-calendar {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.season-calendar-button {
     display: flex;
     align-items: center;
     gap: 6px;
-    flex-shrink: 0;
     margin-top: 0;
     padding: 3px 9px 0 8px;
     height: 32px;
@@ -119,12 +128,47 @@ button.season-banner-head:focus-visible {
     font-size: 13px;
 }
 
-.season-calendar:hover {
+.season-calendar-button:hover,
+.season-calendar-button[aria-expanded="true"] {
     background: #FF9459;
 }
 
-.season-calendar svg {
+.season-calendar-button svg {
     margin-top: -3px;
+}
+
+.season-calendar-list {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 168px;
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+    border: 1px solid #FF813F80;
+    border-radius: 12px;
+    background: #000000E6;
+    box-shadow: 0 6px 18px #00000080;
+}
+
+.season-calendar-link {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-family: Oswald, sans-serif;
+    font-weight: 500;
+    font-size: 15px;
+    color: white;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.season-calendar-link:hover,
+.season-calendar-link:focus-visible {
+    background: #FF813F33;
 }
 
 @keyframes season-banner-live {
@@ -151,6 +195,10 @@ button.season-banner-head:focus-visible {
 
     .season-banner-when {
         font-size: 14px;
+    }
+
+    .season-calendar-link {
+        padding: 12px 12px;
     }
 }
 

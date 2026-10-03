@@ -80,6 +80,12 @@
 		}
 	}
 
+	handle /seasons/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
 	handle {
 		respond "not found" 404
 	}

@@ -27,7 +27,7 @@ func newRPCRoutes(errorNet, drain connect.Interceptor) *rpcRoutes {
 	}
 }
 
-func (r *rpcRoutes) forModule(module string) RPCRegistrar {
+func (r *rpcRoutes) forModule(module string) moduleRoutes {
 	return moduleRoutes{module: module, routes: r}
 }
 
@@ -51,6 +51,14 @@ func (m moduleRoutes) Mount(build ServiceBuilder, interceptors ...connect.Interc
 
 	path, handler := build(connect.WithInterceptors(chain...))
 
+	return m.claim(path, handler)
+}
+
+func (m moduleRoutes) Handle(pattern string, handler http.Handler) error {
+	return m.claim(pattern, handler)
+}
+
+func (m moduleRoutes) claim(path string, handler http.Handler) error {
 	if path == "" {
 		return fmt.Errorf("module %s mounted a handler on no path", m.module)
 	}

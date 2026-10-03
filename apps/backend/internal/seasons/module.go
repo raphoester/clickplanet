@@ -11,7 +11,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/get_numbered_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/get_season_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/icalcontroller/finale_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -31,15 +33,24 @@ func NewModule(config Config) cpbootstrap.Module {
 }
 
 func build(config Config, props cpbootstrap.Props) error {
+	seasons := calendar.New(config.Calendar)
+
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(
-			get_season_usecase.New(calendar.New(config.Calendar), cptime.SystemClock{}),
+			get_season_usecase.New(seasons, cptime.SystemClock{}),
 		),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return seasonsv1connect.NewSeasonServiceHandler(service, options...)
 	}, seasonsv1controller.NewCacheInterceptor()); err != nil {
 		return fmt.Errorf("failed to mount seasons.v1.SeasonService: %w", err)
+	}
+
+	finale := finale_handler.New(
+		get_numbered_season_usecase.New(seasons), cptime.SystemClock{}, props.Server.AllowedOrigin+"/play",
+	)
+	if err := props.HTTP.Handle(finale_handler.Pattern, finale); err != nil {
+		return fmt.Errorf("failed to handle %s: %w", finale_handler.Pattern, err)
 	}
 
 	props.Logger.Info("seasons built", slog.Int("seasons", len(config.Calendar.List)))
