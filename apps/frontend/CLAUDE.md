@@ -979,8 +979,8 @@ mint a guest and insert a row into `auth.identities` for its account.
   turn, two rings). It reuses the enclosure's shaders, with normal rather than
   additive rings, which vanished on the white of a flag. A busy planet spreads a
   lot, so at most `MAX_PLAYING` run at once. It also puffs dust on a tile this
-  player's click cleared rather than took (`playClear`): a small burst, six motes
-  drifting off it, one ring, 0.8s.
+  player's click cleared rather than took (`playClear`): a small burst and one
+  ring, 0.8s.
 
   **Every other click puffs on its tile** (`playClick`): this player's at once,
   and anyone else's when its `TileUpdate` says `clicked` — the server sets it only
