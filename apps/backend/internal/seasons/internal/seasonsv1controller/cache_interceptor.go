@@ -9,11 +9,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
 )
 
-const seasonMaxAge = 60
+const (
+	seasonMaxAge    = 60
+	standingsMaxAge = 15
+)
 
 func NewCacheInterceptor() connect.Interceptor {
 	maxAge := map[string]int{
-		seasonsv1connect.SeasonServiceGetSeasonProcedure: seasonMaxAge,
+		seasonsv1connect.SeasonServiceGetSeasonProcedure:    seasonMaxAge,
+		seasonsv1connect.SeasonServiceGetStandingsProcedure: standingsMaxAge,
 	}
 
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {

@@ -704,6 +704,41 @@ is the player's own view.
 - **UI copy is not documentation.** The card and the tab say nothing about the
   rules ("one per track", "others see the title you wear"): what is drawn is the rule.
 
+### Season standings
+
+`backends/standings.ts` is the contract: `StandingsBackend`, `Standing` (a
+ranked player: rank, name, color, main flag, tiles) and `MySeason` (the caller's
+main flag, tiles and ranks). `standingsBackend.ts` implements it over
+`seasons.v1.SeasonService/GetStandings` and `GetMySeason`, and
+`fakeStandingsBackend.ts` stands in for it in fake mode, counting the player's
+own clicks. `app/standings/` draws it.
+
+- **A player's season is the tiles it took this season for its main flag**, the
+  flag it took the most for. The server ranks only accounts with a username, and
+  ties share a rank (1, 2, 2, 4). `RankCoin` draws the rank, as on the countries'
+  board.
+- **The board has three views** (`BoardViews`): Countries, the `Leaderboard` as
+  it was; Players; and the players whose main flag is the country played for,
+  named by its flag and name. `Viewer` holds the view, so a closed sheet or
+  another menu tab keeps it. With no `StandingsBackend` wired the board has no
+  views.
+- **`GetStandings` is a public GET**, cached 15s on the server, and
+  `useStandings` reads it every 15s while a players' view is shown. A server
+  without it reads as nobody.
+- **`GetMySeason` carries the token already held** (`held()`, never a mint).
+  With none held it is not sent, and `unauthenticated` reads as unknown and
+  keeps the token. A linked account holds one once its profile is read.
+  `useMySeason` reads it when a players' view opens, when the account or the
+  username changes, and 3s after the last of a run of accepted clicks:
+  `acceptedClicks` wraps the `TileClicker` the globe uses and tells its listeners
+  once the server took a click, with no render of `Viewer` per click.
+- **The caller's own line.** "Your season" sits over the table: the tiles, and
+  with a username the rank among all players and in the main flag. A guest gets
+  a Sign in button beside its tiles, which opens `SignInPitchModal`. In the table
+  the caller's row is marked when it is in the top 10, and otherwise added under
+  it with its rank in that view: the global rank, or the country rank when the
+  country shown is its main flag. Its name and color come from the profile.
+
 ### The season
 
 `backends/season.ts` is the contract, `seasonBackend.ts` reads
