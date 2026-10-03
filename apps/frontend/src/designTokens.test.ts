@@ -54,16 +54,6 @@ function stylesOf(html: string): string {
     return [...html.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((match) => match[1]).join("\n")
 }
 
-function rootBlockOf(css: string): string {
-    return css.match(/:root\s*\{([^}]*)\}/)?.[1] ?? ""
-}
-
-function customPropertiesOf(block: string): Map<string, string> {
-    return new Map([...block.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((match) => [match[1], match[2].trim()]))
-}
-
-const tokens = customPropertiesOf(rootBlockOf(read(`${SRC}tokens.css`)))
-
 describe("the design tokens", () => {
     it("are the only place a stylesheet of the game names a color or a font", () => {
         const found = filesUnder(SRC, /\.css$/)
@@ -73,21 +63,12 @@ describe("the design tokens", () => {
         expect(found).toEqual([])
     })
 
-    it("are the only place the home page names a color or a font", () => {
-        const home = read(`${APP}index.html`)
+    for (const page of ["index.html", "privacy.html", "terms.html"]) {
+        it(`are the only place ${page} names a color or a font`, () => {
+            const html = read(`${APP}${page}`)
 
-        expect(home).toContain(`<link rel="stylesheet" href="/src/tokens.css">`)
-        expect(offences(stylesOf(home))).toEqual([])
-    })
-
-    for (const page of ["privacy.html", "terms.html"]) {
-        it(`reach ${page} as an exact copy, since nothing builds the public pages`, () => {
-            const css = stylesOf(read(`${APP}public/${page}`))
-            const copy = customPropertiesOf(rootBlockOf(css))
-
-            expect(copy.size).toBeGreaterThan(0)
-            for (const [name, value] of copy) expect([name, value]).toEqual([name, tokens.get(name)])
-            expect(offences(css.replace(/:root\s*\{[^}]*\}/, ""))).toEqual([])
+            expect(html).toContain(`<link rel="stylesheet" href="/src/tokens.css">`)
+            expect(offences(stylesOf(html))).toEqual([])
         })
     }
 

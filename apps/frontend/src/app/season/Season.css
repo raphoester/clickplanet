@@ -90,15 +90,6 @@
     transform: rotate(180deg);
 }
 
-.season-chip-finale,
-.season-details-finale {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-}
-
 .season-chip-finale {
     margin: 2px var(--space-2) var(--space-2);
     padding: var(--space-2) var(--space-1) 0;
@@ -124,7 +115,6 @@
     display: flex;
     flex-direction: column;
     gap: 1px;
-    min-width: 0;
     margin: 0;
     font-family: var(--font-text);
     font-weight: 500;
@@ -141,79 +131,14 @@
     text-shadow: var(--text-drop);
 }
 
-/* Over the quiz and the bomb news, which sit under the chip. */
-.season-chip:has(.season-calendar-list) {
-    z-index: 170;
-}
-
-.season-calendar {
-    position: relative;
-    flex-shrink: 0;
-}
-
-.season-calendar svg {
-    margin-top: -3px;
-}
-
-.season-calendar-list {
-    position: absolute;
-    top: calc(100% + var(--space-2));
-    right: 0;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 176px;
-    margin: 0;
-    padding: var(--space-1);
-    list-style: none;
-}
-
-.season-calendar-link {
-    display: block;
-    padding: 11px var(--space-3) var(--space-2);
-    border-radius: var(--radius-m);
-    font-family: var(--font-display);
-    font-size: var(--display-s);
-    color: var(--text);
-    text-shadow: var(--text-drop);
-    text-decoration: none;
-    white-space: nowrap;
-    transition: background-color 0.12s ease;
-}
-
-.season-calendar-link:hover,
-.season-calendar-link:focus-visible {
-    background: var(--panel-raised);
-}
-
-/* In a sheet the list is in the flow: a sheet scrolls, and would hide one hung below it. */
-.sheet .season-details-finale {
-    align-items: flex-start;
-}
-
-.sheet .season-calendar-list {
-    position: static;
-    margin-top: var(--space-2);
-}
-
 @keyframes season-chip-live {
     50% {
         box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 30px color-mix(in srgb, var(--action) 60%, transparent);
     }
 }
 
-@media only screen and (max-width: 768px) {
-    .season-calendar-link {
-        padding: 15px var(--space-3) var(--space-3);
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
     .season-chip--live {
         animation: none;
-    }
-
-    .season-calendar-link {
-        transition: none;
     }
 }

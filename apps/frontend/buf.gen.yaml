@@ -7,7 +7,6 @@ plugins:
   - local: protoc-gen-es
     out: src/gen/grpc
     strategy: all
-    include_imports: true
     opt:
       - target=ts
   - local: protoc-gen-connect-es

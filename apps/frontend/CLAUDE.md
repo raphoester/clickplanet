@@ -76,7 +76,7 @@ Two pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
 | `/` | `index.html` | The home page. Plain HTML, no bundle. |
 | `/play` | `play.html` | The game. |
 | `/auth/callback` | `auth/callback.html` | The game again, for the sign-in callback. |
-| `/privacy`, `/terms` | `public/*.html` | Plain pages. |
+| `/privacy`, `/terms` | `privacy.html`, `terms.html` | Plain pages, no bundle. |
 | anything else | `index.html` | `not_found_handling` fallback. |
 
 **Why `/` is not the game.** Google's brand verification, which lets anyone
@@ -713,44 +713,20 @@ is the player's own view.
 - `domain/seasonClock.ts` — `seasonClock`, the time left to the second
   (`27d 14h 05m 12s`, `13h 05m 12s`, `52m 10s`, nothing once over) and whether the finale runs, and `finaleWindow`,
   the finale's day and hours in the player's own time zone.
-- `domain/seasonCalendar.ts` — `finaleLinks`, the ways to put the finale in a
-  calendar, built from `GetSeason` so no date is typed twice.
 - `app/season/` — `useSeason`, which drops the season at its end (a page open
-  across it goes back to no season), `SeasonChip`, `SeasonDetails` and
-  `AddToCalendarButton`.
+  across it goes back to no season), `SeasonChip` and `SeasonDetails`.
 
 **The season is a chip in the status zone.** On a desktop it sits at the top
 centre: "Season 0 ends in 28d 14h 05m 12s", and a press opens the Final Battle's
-day and hours with "Add to calendar" below it (Escape closes it). On a phone it
-is the right end of the status bar, the two largest units alone ("28d 14h",
-named in full for a screen reader), and a press opens the same details as a
-sheet. During the finale it glows, says "Final Battle ends in" and opens nothing.
+day and hours (Escape closes it). On a phone it is the right end of the status
+bar, the two largest units alone ("28d 14h", named in full for a screen reader),
+and a press opens the same details as a sheet. During the finale it glows, says
+"Final Battle ends in" and opens nothing.
 
 **The desktop chip writes its bottom edge on `:root` as `--status-bottom`**
 (`useBottomEdge`), and on a phone the status bar does: the quiz, the bomb news
 and the native-land note sit under it. With neither, the property is unset and
 they sit at the top.
-
-**"Add to calendar" opens a list, and nothing is downloaded from the page.** It
-was a blob saved through `<a download>`, and a phone then saved a file nobody
-opens. Each calendar has its own way in:
-
-- **Google Calendar** and **Outlook** (outlook.live.com) are links to their own
-  new-event form, filled in from the query: the title, the times in UTC and the
-  link to `/play`. They open in a new tab.
-- **Apple Calendar** has no such link, so it is the server's file,
-  `GET /seasons/{number}/finale.ics` on the API, the URL `seasons.proto` gives
-  `GetFinaleCalendar` (`Season.finaleFile`, which
-  `seasonBackend.ts` builds from the base URL). It opens in the same tab: iOS
-  Safari shows a `text/calendar` answer as the "Add to Calendar" sheet, and a
-  desktop browser downloads it. The fake has no server, so fake mode lists only
-  the other two.
-
-The list closes on a pick, on Escape and on a press elsewhere. Its Escape goes
-through `useEscape`, so it closes the list and leaves the chip's popover or the
-season sheet open. While it is open on a desktop the chip is lifted over the
-quiz and the bomb news (`:has`), which sit under it; in the phone's sheet the
-list is in the flow under the button, since a sheet scrolls.
 
 ### Sessions
 
@@ -2177,10 +2153,7 @@ Types are defined in the monorepo-shared [`/proto`](../../proto), one package pe
 bounded context, and generated to `src/gen/grpc/<package>/v1/` — `*_pb.ts` for
 the messages and `*_connect.ts` for the service client. `buf.gen.yaml` points at
 the whole `proto` directory, so a new package needs no config change; run
-`npm run proto` after changing a `.proto`. `protoc-gen-es` runs with
-`include_imports`, so the `google/api` files a contract imports (from the
-googleapis dependency in `proto/buf.yaml`) are generated to
-`src/gen/grpc/google/api/` too.
+`npm run proto` after changing a `.proto`.
 
 - [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) — `ClickRequest`,
   `ClickBudget`, `GetMapResponse`, `TileUpdate`
@@ -2266,7 +2239,7 @@ chat. To retake it:
 Chrome may not exit after it writes the file; stop it once the file is there.
 
 `public/` holds the files that must be served as themselves rather than as the
-app: `_headers`, `robots.txt`, `sitemap.xml`, `privacy.html` and `terms.html`. Vite copies them to the root of
+app: `_headers`, `robots.txt` and `sitemap.xml`. Vite copies them to the root of
 `dist/`, and the Workers asset handler serves a real file before
 `not_found_handling` applies — **without them, every unmatched path including
 `/robots.txt` answers 200 with `index.html`**, so a crawler asking for the rules
@@ -2279,7 +2252,7 @@ fetch the preview from.
 It is a plain page, not a component: it loads with no WebGL and no bundle, and a
 crawler reads it as it is. The Workers asset handler serves it at `/privacy`
 (`html_handling` drops the extension) and `nginx.conf` does the same with
-`$uri.html`; `npm run dev` only serves it at `/privacy.html`. **It states
+`$uri.html`; `npm run dev` serves it at both `/privacy` and `/privacy.html`. **It states
 retention periods, so it goes stale when the backend's do**: `ledger.retention`,
 `antiBot.evidence.retention`, `chat.storage.retention` and
 `auth.sessions.guestTTL` in `deploy/vps/backend.yaml`, and `roll_keep_for` in
@@ -2305,6 +2278,11 @@ a fresh profile opens it on a desktop, so fold it first. They are fixed names
 under a week of cache, so a retake gets a new name. The section links (`#how`,
 `#board`, `#creator`) work in the page, but a returning player who opens one
 directly is sent to the game like any other hash but `#home`.
+
+**The Discord invite is written once, in `src/links.ts`.** The menu imports it;
+`vite.config.ts` hands it to the three plain pages, which write
+`%DISCORD_INVITE%` (Vite's own HTML replacement, fed through `define`).
+`links.test.ts` fails on an invite pasted into a page.
 
 **`terms.html` is the terms of service**, linked beside it and built
 the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. The
@@ -2340,8 +2318,8 @@ first in `main.tsx`.
 stylesheet, in the home page's style, or in a component (the Google and Discord
 sign-in colors aside). Code that draws outside CSS reads the tokens as well:
 `drawShareCard.ts` with `getComputedStyle` at draw time, the medals through
-`style`. `public/privacy.html` and `terms.html` are not built, so each carries a
-copy of the tokens it uses, and the test holds the copy to `tokens.css`.
+`style`. The home page, `privacy.html` and `terms.html` link `src/tokens.css`
+themselves.
 
 Plain CSS files co-located with components. No CSS preprocessor or CSS-in-JS.
 

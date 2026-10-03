@@ -5,7 +5,6 @@ import {ChevronIcon, ClockIcon} from "../components/icons.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
 import {useEscape} from "../components/useDialog.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
-import AddToCalendarButton from "./AddToCalendarButton.tsx"
 import {useNow} from "./useNow.ts"
 import "./Season.css"
 
@@ -73,13 +72,10 @@ export function SeasonDetails({season}: {season: Season}) {
 
 function FinaleLine({season}: {season: Season}) {
     const finale = finaleWindow(season)
-    return <>
-        <p className="season-finale-when">
-            <span className="season-finale-name">Final Battle</span>
-            <span>{finale.day} · {finale.from}–{finale.to}</span>
-        </p>
-        <AddToCalendarButton season={season}/>
-    </>
+    return <p className="season-finale-when">
+        <span className="season-finale-name">Final Battle</span>
+        <span>{finale.day} · {finale.from}–{finale.to}</span>
+    </p>
 }
 
 function shortLeft(clock: SeasonClock): string {
