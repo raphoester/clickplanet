@@ -60,10 +60,10 @@ seasons:
 	return "http://" + server.BindAddress
 }
 
-func TestTheFinaleIsACalendarFileLinkingBackToTheGame(t *testing.T) {
-	baseURL := startSeasons(t)
+func getFile(t *testing.T, url string) (int, http.Header, string) {
+	t.Helper()
 
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, baseURL+"/seasons/0/finale.ics", nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, nil)
 	require.NoError(t, err)
 	res, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
@@ -71,8 +71,26 @@ func TestTheFinaleIsACalendarFileLinkingBackToTheGame(t *testing.T) {
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 
-	require.Equal(t, http.StatusOK, res.StatusCode)
-	assert.Equal(t, "text/calendar; charset=utf-8", res.Header.Get("Content-Type"))
-	assert.Contains(t, string(body), "\r\nDTSTART:20261031T210000Z\r\nDTEND:20261031T230000Z\r\n")
-	assert.Contains(t, string(body), "\r\nURL:https://clickplanet.lol/play\r\n")
+	return res.StatusCode, res.Header, string(body)
+}
+
+func TestTheFinaleIsACalendarFileAtTheRouteTheProtoDeclares(t *testing.T) {
+	status, header, body := getFile(t, startSeasons(t)+"/seasons/0/finale.ics")
+
+	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, "text/calendar; charset=utf-8", header.Get("Content-Type"))
+	assert.Equal(t, `inline; filename="clickplanet-season-0-finale.ics"`, header.Get("Content-Disposition"))
+	assert.Equal(t, "public, max-age=60", header.Get("Cache-Control"))
+	assert.Contains(t, body, "\r\nDTSTART:20261031T210000Z\r\nDTEND:20261031T230000Z\r\n")
+	assert.Contains(t, body, "\r\nURL:https://clickplanet.lol/play\r\n")
+}
+
+func TestAFinaleNotInTheCalendarIsNotFound(t *testing.T) {
+	baseURL := startSeasons(t)
+
+	status, _, _ := getFile(t, baseURL+"/seasons/1/finale.ics")
+	assert.Equal(t, http.StatusNotFound, status)
+
+	status, _, _ = getFile(t, baseURL+"/seasons/zero/finale.ics")
+	assert.Equal(t, http.StatusBadRequest, status)
 }

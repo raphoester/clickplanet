@@ -695,7 +695,8 @@ opens. Each calendar has its own way in:
   new-event form, filled in from the query: the title, the times in UTC and the
   link to `/play`. They open in a new tab.
 - **Apple Calendar** has no such link, so it is the server's file,
-  `GET /seasons/{number}/finale.ics` on the API (`Season.finaleFile`, which
+  `GET /seasons/{number}/finale.ics` on the API, the URL `seasons.proto` gives
+  `GetFinaleCalendar` (`Season.finaleFile`, which
   `seasonBackend.ts` builds from the base URL). It opens in the same tab: iOS
   Safari shows a `text/calendar` answer as the "Add to Calendar" sheet, and a
   desktop browser downloads it. The fake has no server, so fake mode lists only
@@ -2125,7 +2126,10 @@ Types are defined in the monorepo-shared [`/proto`](../../proto), one package pe
 bounded context, and generated to `src/gen/grpc/<package>/v1/` — `*_pb.ts` for
 the messages and `*_connect.ts` for the service client. `buf.gen.yaml` points at
 the whole `proto` directory, so a new package needs no config change; run
-`npm run proto` after changing a `.proto`.
+`npm run proto` after changing a `.proto`. `protoc-gen-es` runs with
+`include_imports`, so the `google/api` files a contract imports (from the
+googleapis dependency in `proto/buf.yaml`) are generated to
+`src/gen/grpc/google/api/` too.
 
 - [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto) — `ClickRequest`,
   `ClickBudget`, `GetMapResponse`, `TileUpdate`

@@ -35,7 +35,6 @@ type Props struct {
 	Server ServerConfig
 
 	RPC     RPCRegistrar
-	HTTP    HTTPRegistrar
 	Runners RunnerRegistrar
 	Closers CloserRegistrar
 
@@ -56,10 +55,6 @@ type RPCRegistrar interface {
 }
 
 type ServiceBuilder func(options ...connect.HandlerOption) (string, http.Handler)
-
-type HTTPRegistrar interface {
-	Handle(pattern string, handler http.Handler) error
-}
 
 type RunnerRegistrar interface {
 	Add(runner Runner)
@@ -188,11 +183,15 @@ func Run(ctx context.Context, options Options) error {
 	events.seal()
 
 	router := http.NewServeMux()
-	routes.mountOn(router, cphttpserver.MiddlewareStack(
+	middlewares := cphttpserver.MiddlewareStack(
 		cphttpserver.NewLoggingMiddleware(options.Logger),
 		cphttpserver.IPReaderMiddleware,
 		cphttpserver.NewCorsMiddleware(options.Server.AllowedOrigin),
-	))
+	)
+	routes.mountOn(router, middlewares)
+	if err := routes.transcodeOn(router, middlewares); err != nil {
+		return err
+	}
 	mountMetrics(router, metrics, options.Logger)
 
 	loopbacks, err := listenLoopbacks(options, adminRoutes, internalRoutes)
@@ -258,7 +257,6 @@ func buildModules(
 			Metrics:     metrics,
 			Server:      options.Server,
 			RPC:         registrars.routes.forModule(module.Name),
-			HTTP:        registrars.routes.forModule(module.Name),
 			AdminRPC:    registrars.admin.forModule(module.Name),
 			InternalRPC: registrars.internal.forModule(module.Name),
 			Internal:    internalDialer{address: options.Server.InternalBindAddress},

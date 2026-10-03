@@ -1,18 +1,19 @@
-package finale_handler_test
+package get_finale_calendar_handler_test
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/genproto/googleapis/api/httpbody"
 
+	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/icalcontroller/finale_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_finale_calendar_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -39,25 +40,19 @@ var (
 	now = time.Date(2026, 10, 3, 10, 15, 30, 250_000_000, time.UTC)
 )
 
-func get(t *testing.T, playURL, path string) *httptest.ResponseRecorder {
+func finale(t *testing.T, playURL string, number uint32) (*connect.Response[httpbody.HttpBody], error) {
 	t.Helper()
 
-	router := http.NewServeMux()
-	router.Handle(finale_handler.Pattern, finale_handler.New(seasons, cptime.NewFixedClock(now), playURL))
-
-	recorder := httptest.NewRecorder()
-	router.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil))
-
-	return recorder
+	return get_finale_calendar_handler.New(seasons, cptime.NewFixedClock(now), playURL). //nolint:wrapcheck // the test reads the connect code.
+												GetFinaleCalendar(t.Context(), connect.NewRequest(&seasonsv1.GetFinaleCalendarRequest{Number: number}))
 }
 
 func TestTheFinaleIsOneEventInUTCWithALinkToTheGame(t *testing.T) {
-	res := get(t, "https://clickplanet.lol/play", "/seasons/0/finale.ics")
+	res, err := finale(t, "https://clickplanet.lol/play", 0)
+	require.NoError(t, err)
 
-	require.Equal(t, http.StatusOK, res.Code)
-	assert.Equal(t, "text/calendar; charset=utf-8", res.Header().Get("Content-Type"))
+	assert.Equal(t, "text/calendar; charset=utf-8", res.Msg.GetContentType())
 	assert.Equal(t, `inline; filename="clickplanet-season-0-finale.ics"`, res.Header().Get("Content-Disposition"))
-	assert.Equal(t, "public, max-age=60", res.Header().Get("Cache-Control"))
 	assert.Equal(t, strings.Join([]string{
 		"BEGIN:VCALENDAR",
 		"VERSION:2.0",
@@ -75,35 +70,38 @@ func TestTheFinaleIsOneEventInUTCWithALinkToTheGame(t *testing.T) {
 		"END:VEVENT",
 		"END:VCALENDAR",
 		"",
-	}, "\r\n"), res.Body.String())
+	}, "\r\n"), string(res.Msg.GetData()))
 }
 
 func TestTheFileTakesItsDatesAndItsNumberFromTheSeason(t *testing.T) {
-	res := get(t, "https://clickplanet.lol/play", "/seasons/2/finale.ics")
+	res, err := finale(t, "https://clickplanet.lol/play", 2)
+	require.NoError(t, err)
 
-	require.Equal(t, http.StatusOK, res.Code)
+	data := string(res.Msg.GetData())
 	assert.Equal(t, `inline; filename="clickplanet-season-2-finale.ics"`, res.Header().Get("Content-Disposition"))
-	assert.Contains(t, res.Body.String(), "\r\nUID:season-2-finale@clickplanet.lol\r\n")
-	assert.Contains(t, res.Body.String(), "\r\nDTSTART:20270131T203000Z\r\nDTEND:20270131T230000Z\r\n")
-	assert.Contains(t, res.Body.String(), "\r\nSUMMARY:ClickPlanet Season 2: Final Battle\r\n")
+	assert.Contains(t, data, "\r\nUID:season-2-finale@clickplanet.lol\r\n")
+	assert.Contains(t, data, "\r\nDTSTART:20270131T203000Z\r\nDTEND:20270131T230000Z\r\n")
+	assert.Contains(t, data, "\r\nSUMMARY:ClickPlanet Season 2: Final Battle\r\n")
 }
 
 func TestATextValueIsEscaped(t *testing.T) {
-	res := get(t, `https://example.com/play?a=1,b;c\d`, "/seasons/0/finale.ics")
+	res, err := finale(t, `https://example.com/play?a=1,b;c\d`, 0)
+	require.NoError(t, err)
 
-	assert.Contains(t, res.Body.String(), "\r\nDESCRIPTION:https://example.com/play?a=1\\,b\\;c\\\\d\r\n")
+	assert.Contains(t, string(res.Msg.GetData()), "\r\nDESCRIPTION:https://example.com/play?a=1\\,b\\;c\\\\d\r\n")
 }
 
-func TestEveryLineIsWithin75Octets(t *testing.T) {
-	res := get(t, "https://clickplanet.lol/play", "/seasons/0/finale.ics")
+func TestALongLineIsFoldedWithin75Octets(t *testing.T) {
+	res, err := finale(t, "https://clickplanet.lol/play?"+strings.Repeat("x", 100), 0)
+	require.NoError(t, err)
 
-	for _, line := range strings.Split(res.Body.String(), "\r\n") {
+	for _, line := range strings.Split(string(res.Msg.GetData()), "\r\n") {
 		assert.LessOrEqual(t, len(line), 75, line)
 	}
 }
 
 func TestASeasonNotInTheCalendarIsNotFound(t *testing.T) {
-	for _, path := range []string{"/seasons/1/finale.ics", "/seasons/zero/finale.ics", "/seasons/-1/finale.ics", "/seasons/4294967296/finale.ics"} {
-		assert.Equal(t, http.StatusNotFound, get(t, "https://clickplanet.lol/play", path).Code, path)
-	}
+	_, err := finale(t, "https://clickplanet.lol/play", 1)
+
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }

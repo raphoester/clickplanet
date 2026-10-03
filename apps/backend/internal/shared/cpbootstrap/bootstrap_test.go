@@ -3,7 +3,6 @@ package cpbootstrap_test
 import (
 	"context"
 	"errors"
-	"io"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -46,46 +45,6 @@ func TestTwoModulesCannotClaimTheSameRoute(t *testing.T) {
 	require.Error(t, mountErr)
 	assert.Contains(t, mountErr.Error(), "impostor")
 	assert.Contains(t, mountErr.Error(), "planet")
-}
-
-func TestAPlainRouteIsServedOnThePublicRouter(t *testing.T) {
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
-
-	serveUntil(t, server, func() {
-		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+server.BindAddress+"/seasons/0/finale.ics", nil)
-		require.NoError(t, err)
-		res, err := http.DefaultClient.Do(req)
-		require.NoError(t, err)
-		defer func() { _ = res.Body.Close() }()
-
-		body, err := io.ReadAll(res.Body)
-		require.NoError(t, err)
-		assert.Equal(t, http.StatusOK, res.StatusCode)
-		assert.Equal(t, "served", string(body))
-	}, newModule("seasons", func(props cpbootstrap.Props) error {
-		return props.HTTP.Handle("GET /seasons/{number}/finale.ics", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			_, _ = io.WriteString(w, "served")
-		}))
-	}))
-}
-
-func TestAPlainRouteCannotTakeAServicePath(t *testing.T) {
-	var handleErr error
-
-	err := run(t, []cpbootstrap.Module{
-		newModule("planet", func(props cpbootstrap.Props) error {
-			return props.RPC.Mount(mountOn("/planet.v1.ClickService/"))
-		}),
-		newModule("impostor", func(props cpbootstrap.Props) error {
-			handleErr = props.HTTP.Handle("/planet.v1.ClickService/", http.NotFoundHandler())
-			return handleErr //nolint:wrapcheck // the test reads the message.
-		}),
-	})
-
-	require.Error(t, err)
-	require.Error(t, handleErr)
-	assert.Contains(t, handleErr.Error(), "impostor")
-	assert.Contains(t, handleErr.Error(), "planet")
 }
 
 func TestCleanupsRunInReverseRegistrationOrder(t *testing.T) {
