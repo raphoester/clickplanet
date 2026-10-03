@@ -1154,11 +1154,10 @@ and it was the first suspect for the white globe on Intel; turning it off
 ratio on its way to the GPU: the tile's point size, the outline's width
 (`halfWidthOf`), the keyline around a painted flag, the smallest a mark or a
 ring of the bonus effects may be, the smallest debris. So are the thresholds:
-`coarseHandover`, `flagPaint` and the size a landmass must reach before its flag
-fades in are worked out in CSS pixels, or a sharper screen would hand over at
-half the zoom. What is measured against `gl_PointSize` stays in drawing-buffer
-pixels — `pixelsPerRadian`, the picker's window, the one-pixel feathers that
-soften an edge.
+`coarseHandover` and `flagPaint` are worked out in CSS pixels, or a sharper
+screen would hand over at half the zoom. What is measured against
+`gl_PointSize` stays in drawing-buffer pixels — `pixelsPerRadian`, the picker's
+window, the one-pixel feathers that soften an edge.
 
 The click is already in drawing-buffer pixels: `canvasPosition` scales the
 pointer by `canvas.width / rect.width`. `resize` sets the ratio again, because a

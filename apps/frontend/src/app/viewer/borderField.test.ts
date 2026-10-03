@@ -132,15 +132,6 @@ describe("opacity", () => {
 })
 
 describe("the landmass table", () => {
-    it("carries how far the landmass reaches, whoever holds it", () => {
-        const field = new BorderField(world(8), 8)
-        const reach = () => rows(field)[TEXELS * 4 + 13]
-
-        expect(reach()).toBeCloseTo(0.1)
-        field.apply(claims("fr", 1, 8))
-        expect(reach()).toBeCloseTo(0.1)
-    })
-
     it("is not re-uploaded when nothing about a landmass changed", () => {
         const field = new BorderField(world(8), 8)
         field.apply(claims("fr", 1, 5))
