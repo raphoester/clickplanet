@@ -91,33 +91,6 @@ func TestShownIsEveryStandaloneTitleHeldAndTheHighestRankOfEachTrack(t *testing.
 	assert.Empty(t, tracks.Shown(nil))
 }
 
-func TestTheWornTitleIsTheChoiceOrTheHighestRankOfItsTrack(t *testing.T) {
-	held := titles.IDs{"badge", "low", "mid", "other"}
-
-	assert.Equal(t, titles.Standing{Title: badge}, tracks.Worn(held, "badge"))
-	assert.Equal(t, titles.Standing{Title: other, Place: place(side, 1)}, tracks.Worn(held, "other"))
-	assert.Equal(t, titles.Standing{Title: mid, Place: place(ladder, 2)}, tracks.Worn(held, "low"),
-		"a track is worn at its highest rank held")
-}
-
-func TestWithNoChoiceHeldTheFirstTracksHighestRankIsWorn(t *testing.T) {
-	assert.Equal(t, titles.Standing{Title: mid, Place: place(ladder, 2)}, tracks.Worn(titles.IDs{"badge", "low", "mid"}, ""))
-	assert.Equal(t, titles.Standing{Title: mid, Place: place(ladder, 2)}, tracks.Worn(titles.IDs{"badge", "mid"}, "high"),
-		"a choice no longer held is not worn")
-	assert.Equal(t, titles.Standing{Title: badge}, tracks.Worn(titles.IDs{"badge"}, ""), "then a standalone title")
-	assert.True(t, tracks.Worn(nil, "").Empty(), "and nothing when nothing is held")
-}
-
-func TestOnlyAShownTitleIsWearable(t *testing.T) {
-	held := titles.IDs{"badge", "low", "mid"}
-
-	assert.True(t, tracks.Wearable(held, "badge"))
-	assert.True(t, tracks.Wearable(held, "mid"))
-	assert.False(t, tracks.Wearable(held, "low"), "a rank below the highest held")
-	assert.False(t, tracks.Wearable(held, "high"), "a rank not held")
-	assert.False(t, tracks.Wearable(held, "retired"))
-}
-
 func TestProgressListsEachTracksRanksWhatIsHeldAndHowFarTheCareerIs(t *testing.T) {
 	progress := tracks.Progress(tiles(6), titles.IDs{"low", "mid"})
 

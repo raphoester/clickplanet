@@ -7,6 +7,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
 func Profile(profile players.Profile) *playerv1.Profile {
@@ -58,19 +59,19 @@ func Titles(standings []titles.Standing) []*playerv1.Title {
 	return encoded
 }
 
-func Dashboard(dashboard titles.Dashboard) *playerv1.GetTitlesResponse {
-	tracks := make([]*playerv1.Track, 0, len(dashboard.Tracks))
-	for _, track := range dashboard.Tracks {
+func Dashboard(showcase wearing.Showcase, progress []titles.TrackProgress) *playerv1.GetTitlesResponse {
+	tracks := make([]*playerv1.Track, 0, len(progress))
+	for _, track := range progress {
 		steps := make([]*playerv1.Step, 0, len(track.Steps))
 		for _, step := range track.Steps {
 			steps = append(steps, &playerv1.Step{Title: Title(step.Standing), Threshold: step.Threshold, Earned: step.Earned})
 		}
 		tracks = append(tracks, &playerv1.Track{Id: string(track.ID), Name: track.Name, Progress: track.Progress, Steps: steps})
 	}
-	return &playerv1.GetTitlesResponse{Worn: Title(dashboard.Worn), Wearable: Titles(dashboard.Wearable), Tracks: tracks}
+	return &playerv1.GetTitlesResponse{Worn: Title(showcase.Worn), Wearable: Titles(showcase.Shown), Tracks: tracks}
 }
 
-func Player(player players.Player, showcase titles.Showcase) *playerv1.Player {
+func Player(player players.Player, showcase wearing.Showcase) *playerv1.Player {
 	message := &playerv1.Player{
 		Name: string(player.Name), Stats: Stats(player.Stats), Admin: player.Admin, Color: Color(player.Color),
 		Titles: Titles(showcase.Shown), WornTitle: Title(showcase.Worn),

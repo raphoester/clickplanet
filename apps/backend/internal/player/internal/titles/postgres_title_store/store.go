@@ -3,7 +3,6 @@ package postgres_title_store
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 
@@ -96,50 +95,9 @@ func (s *Store) Revoke(ctx context.Context, revocations titles.Holdings) error {
 	return nil
 }
 
-func (s *Store) Worn(ctx context.Context, account players.AccountID) (titles.ID, error) {
-	var title string
-	err := s.db.QueryRowContext(ctx, `SELECT title FROM worn_titles WHERE account_id = $1`, uuid.UUID(account)).Scan(&title)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", nil
-	}
-	if err != nil {
-		return "", fmt.Errorf("failed to read the worn title: %w", err)
-	}
-	return titles.ID(title), nil
-}
-
-func (s *Store) Wear(ctx context.Context, account players.AccountID, title titles.ID, at time.Time) error {
-	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO worn_titles (account_id, title, worn_at) VALUES ($1, $2, $3)
-		ON CONFLICT (account_id) DO UPDATE SET title = excluded.title, worn_at = excluded.worn_at
-	`, uuid.UUID(account), string(title), at.UTC()); err != nil {
-		return fmt.Errorf("failed to wear the title: %w", err)
-	}
-	return nil
-}
-
-func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (err error) {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to begin deleting the account's titles: %w", err)
-	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
-		}
-	}()
-
-	for _, statement := range []string{
-		`DELETE FROM titles WHERE account_id = $1`,
-		`DELETE FROM worn_titles WHERE account_id = $1`,
-	} {
-		if _, err := tx.ExecContext(ctx, statement, uuid.UUID(account)); err != nil {
-			return fmt.Errorf("failed to delete the account's titles: %w", err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the deletion of the account's titles: %w", err)
+func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM titles WHERE account_id = $1`, uuid.UUID(account)); err != nil {
+		return fmt.Errorf("failed to delete the account's titles: %w", err)
 	}
 	return nil
 }

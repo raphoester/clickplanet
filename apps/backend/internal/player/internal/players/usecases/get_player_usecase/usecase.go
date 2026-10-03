@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -20,12 +20,12 @@ type Stats interface {
 }
 
 type Titles interface {
-	Showcase(ctx context.Context, account players.AccountID) (titles.Showcase, error)
+	Showcase(ctx context.Context, account players.AccountID) (wearing.Showcase, error)
 }
 
 type Player struct {
 	players.Player
-	Titles titles.Showcase
+	Titles wearing.Showcase
 }
 
 type Accounts interface {

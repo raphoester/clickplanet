@@ -12,14 +12,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/get_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubUseCase struct {
-	dashboard titles.Dashboard
+	dashboard get_titles_usecase.Dashboard
 }
 
-func (s stubUseCase) Execute(context.Context, players.AccountID) (titles.Dashboard, error) {
+func (s stubUseCase) Execute(context.Context, players.AccountID) (get_titles_usecase.Dashboard, error) {
 	return s.dashboard, nil
 }
 
@@ -27,9 +29,8 @@ var conquest = titles.Place{Track: "conquest", TrackName: "Conquest", Number: 1,
 
 func TestTheDashboardIsMapped(t *testing.T) {
 	settler := titles.Standing{Title: titles.Settler{}, Place: conquest}
-	useCase := stubUseCase{dashboard: titles.Dashboard{
-		Worn:     settler,
-		Wearable: []titles.Standing{{Title: titles.OG{}}, settler},
+	useCase := stubUseCase{dashboard: get_titles_usecase.Dashboard{
+		Showcase: wearing.Showcase{Worn: settler, Shown: []titles.Standing{{Title: titles.OG{}}, settler}},
 		Tracks: []titles.TrackProgress{{ID: "conquest", Name: "Conquest", Progress: 150, Steps: []titles.Step{
 			{Standing: settler, Threshold: 100, Earned: true},
 		}}},

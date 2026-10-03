@@ -13,6 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/get_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/inmemory_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -21,17 +23,23 @@ var (
 	ada    = players.AccountID{15: 1}
 )
 
+func useCaseOver(stats *inmemory_player_store.Store, held *inmemory_title_store.Store, clock cptime.Clock) *get_titles_usecase.UseCase {
+	catalog := titles.NewCatalog()
+	book := titles.NewBook(held, catalog)
+	return get_titles_usecase.New(stats, book, wearing.NewWardrobe(inmemory_worn_title_store.New(), book, catalog), clock)
+}
+
 func TestTheDashboardMeasuresTheStreakAsOfToday(t *testing.T) {
 	stats, held := inmemory_player_store.New(), inmemory_title_store.New()
 	require.NoError(t, stats.RecordTake(t.Context(), ada, monday))
 	require.NoError(t, stats.RecordTake(t.Context(), ada, monday.Add(24*time.Hour)))
 	require.NoError(t, held.Grant(t.Context(), titles.Holdings{ada: {"settler"}}, monday))
 	clock := cptime.NewFixedClock(monday.Add(24 * time.Hour))
-	useCase := get_titles_usecase.New(stats, titles.NewBook(held, titles.NewCatalog()), clock)
+	useCase := useCaseOver(stats, held, clock)
 
 	dashboard, err := useCase.Execute(t.Context(), ada)
 	require.NoError(t, err)
-	assert.Equal(t, "settler", string(dashboard.Worn.Title.ID()))
+	assert.Equal(t, "settler", string(dashboard.Showcase.Worn.Title.ID()))
 	assert.Equal(t, uint64(2), dashboard.Tracks[0].Progress, "tiles taken")
 	assert.Equal(t, uint64(2), dashboard.Tracks[1].Progress, "the streak on its second day")
 
@@ -42,14 +50,13 @@ func TestTheDashboardMeasuresTheStreakAsOfToday(t *testing.T) {
 }
 
 func TestAnAccountWithNoStatsStartsEveryTrackAtZero(t *testing.T) {
-	useCase := get_titles_usecase.New(inmemory_player_store.New(), titles.NewBook(inmemory_title_store.New(), titles.NewCatalog()),
-		cptime.NewFixedClock(monday))
+	useCase := useCaseOver(inmemory_player_store.New(), inmemory_title_store.New(), cptime.NewFixedClock(monday))
 
 	dashboard, err := useCase.Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.True(t, dashboard.Worn.Empty())
-	assert.Empty(t, dashboard.Wearable)
+	assert.True(t, dashboard.Showcase.Worn.Empty())
+	assert.Empty(t, dashboard.Showcase.Shown)
 	for _, track := range dashboard.Tracks {
 		assert.Zero(t, track.Progress, track.ID)
 	}
@@ -58,7 +65,7 @@ func TestAnAccountWithNoStatsStartsEveryTrackAtZero(t *testing.T) {
 func TestAStoreFailureIsAnError(t *testing.T) {
 	stats := inmemory_player_store.New()
 	stats.FailWith(errors.New("postgres is down"))
-	useCase := get_titles_usecase.New(stats, titles.NewBook(inmemory_title_store.New(), titles.NewCatalog()), cptime.NewFixedClock(monday))
+	useCase := useCaseOver(stats, inmemory_title_store.New(), cptime.NewFixedClock(monday))
 
 	_, err := useCase.Execute(t.Context(), ada)
 

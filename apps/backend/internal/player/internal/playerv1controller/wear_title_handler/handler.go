@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/caller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
 type UseCase interface {
@@ -36,8 +37,8 @@ func (h WearTitleHandler) WearTitle(
 
 	worn, err := h.useCase.Execute(ctx, account, titles.ID(req.Msg.GetTitleId()))
 	switch {
-	case errors.Is(err, titles.ErrNotWearable):
-		return nil, connect.NewError(connect.CodeInvalidArgument, titles.ErrNotWearable)
+	case errors.Is(err, wearing.ErrNotWearable):
+		return nil, connect.NewError(connect.CodeInvalidArgument, wearing.ErrNotWearable)
 	case err != nil:
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
 type stubUseCase struct {
@@ -45,7 +46,7 @@ func TestThePlayerIsMappedAndMayBeCached(t *testing.T) {
 			},
 			CreatedAt: createdAt,
 		},
-		Titles: titles.Showcase{
+		Titles: wearing.Showcase{
 			Worn: titles.Standing{Title: titles.Warlord{}, Place: titles.Place{Track: "conquest", TrackName: "Conquest", Number: 3, Count: 5}},
 			Shown: []titles.Standing{
 				{Title: titles.OG{}},

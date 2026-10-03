@@ -9,11 +9,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/caller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/get_titles_usecase"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, account players.AccountID) (titles.Dashboard, error)
+	Execute(ctx context.Context, account players.AccountID) (get_titles_usecase.Dashboard, error)
 }
 
 func New(useCase UseCase) GetTitlesHandler {
@@ -38,5 +38,5 @@ func (h GetTitlesHandler) GetTitles(
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
 	}
 
-	return connect.NewResponse(playermessage.Dashboard(dashboard)), nil
+	return connect.NewResponse(playermessage.Dashboard(dashboard.Showcase, dashboard.Tracks)), nil
 }

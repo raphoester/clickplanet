@@ -93,30 +93,6 @@ func (c Catalog) Shown(held IDs) []Standing {
 	return shown
 }
 
-func (c Catalog) Worn(held IDs, choice ID) Standing {
-	shown := c.Shown(held)
-	if chosen, ok := c.StandingOf(choice); ok && slices.Contains(held, choice) {
-		for _, standing := range shown {
-			if standing.Title.ID() == choice || (chosen.Place.Ranked() && standing.Place.Track == chosen.Place.Track) {
-				return standing
-			}
-		}
-	}
-	for _, standing := range shown {
-		if standing.Place.Ranked() {
-			return standing
-		}
-	}
-	if len(shown) > 0 {
-		return shown[0]
-	}
-	return Standing{}
-}
-
-func (c Catalog) Wearable(held IDs, id ID) bool {
-	return slices.ContainsFunc(c.Shown(held), func(standing Standing) bool { return standing.Title.ID() == id })
-}
-
 type Step struct {
 	Standing  Standing
 	Threshold uint64

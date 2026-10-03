@@ -53,45 +53,18 @@ func TestGrantedTitlesAreHeld(t *testing.T) {
 	assert.Equal(t, titles.IDs{"first"}, held)
 }
 
-func TestTheShowcaseIsTheWornTitleAndWhatIsShown(t *testing.T) {
-	showcase, err := titles.NewBook(holding(t, "badge", "low", "mid"), tracks).Showcase(t.Context(), ada)
+func TestShownIsWhatTheCatalogShowsOfTheTitlesHeld(t *testing.T) {
+	shown, err := titles.NewBook(holding(t, "badge", "low", "mid"), tracks).Shown(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, titles.Showcase{
-		Worn:  titles.Standing{Title: mid, Place: place(ladder, 2)},
-		Shown: []titles.Standing{{Title: badge}, {Title: mid, Place: place(ladder, 2)}},
-	}, showcase)
+	assert.Equal(t, []titles.Standing{{Title: badge}, {Title: mid, Place: place(ladder, 2)}}, shown)
 }
 
-func TestWearingAShownTitleChangesTheShowcase(t *testing.T) {
-	book := titles.NewBook(holding(t, "badge", "low", "mid"), tracks)
-
-	require.NoError(t, book.Wear(t.Context(), ada, "badge", at))
-
-	showcase, err := book.Showcase(t.Context(), ada)
-	require.NoError(t, err)
-	assert.Equal(t, titles.Standing{Title: badge}, showcase.Worn)
-}
-
-func TestATitleNotShownCannotBeWorn(t *testing.T) {
-	store := holding(t, "badge", "low", "mid")
-	book := titles.NewBook(store, tracks)
-
-	for _, id := range []titles.ID{"low", "high", "retired"} {
-		assert.ErrorIs(t, book.Wear(t.Context(), ada, id, at), titles.ErrNotWearable, id)
-	}
-	worn, err := store.Worn(t.Context(), ada)
-	require.NoError(t, err)
-	assert.Empty(t, worn, "a refused title writes nothing")
-}
-
-func TestTheDashboardIsTheWornTitleWhatCanBeWornAndEachTracksProgress(t *testing.T) {
-	dashboard, err := titles.NewBook(holding(t, "badge", "low"), tracks).Dashboard(t.Context(), ada, tiles(3))
+func TestProgressIsEachTrackMeasuredOnTheCareerAgainstTheTitlesHeld(t *testing.T) {
+	progress, err := titles.NewBook(holding(t, "badge", "low"), tracks).Progress(t.Context(), ada, tiles(3))
 
 	require.NoError(t, err)
-	assert.Equal(t, titles.Standing{Title: low, Place: place(ladder, 1)}, dashboard.Worn)
-	assert.Equal(t, []titles.Standing{{Title: badge}, {Title: low, Place: place(ladder, 1)}}, dashboard.Wearable)
-	assert.Equal(t, tracks.Progress(tiles(3), titles.IDs{"badge", "low"}), dashboard.Tracks)
+	assert.Equal(t, tracks.Progress(tiles(3), titles.IDs{"badge", "low"}), progress)
 }
 
 func TestAStoreFailureIsAnError(t *testing.T) {
@@ -99,11 +72,10 @@ func TestAStoreFailureIsAnError(t *testing.T) {
 	store.FailWith(errors.New("postgres is down"))
 	book := titles.NewBook(store, tracks)
 
-	_, err := book.Showcase(t.Context(), ada)
+	_, err := book.Shown(t.Context(), ada)
 	require.Error(t, err)
-	_, err = book.Dashboard(t.Context(), ada, tiles(3))
+	_, err = book.Progress(t.Context(), ada, tiles(3))
 	require.Error(t, err)
 	_, err = book.Unheld(t.Context(), ada, tiles(3))
-	require.Error(t, err)
-	assert.Error(t, book.Wear(t.Context(), ada, "badge", at))
+	assert.Error(t, err)
 }

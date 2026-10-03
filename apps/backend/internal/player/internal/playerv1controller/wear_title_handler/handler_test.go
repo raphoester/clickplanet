@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/wear_title_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
@@ -51,7 +52,7 @@ func TestTheTitleWornIsAnswered(t *testing.T) {
 }
 
 func TestATitleThatCannotBeWornIsInvalid(t *testing.T) {
-	_, err := wear(t, signedIn(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", titles.ErrNotWearable)}, "emperor")
+	_, err := wear(t, signedIn(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", wearing.ErrNotWearable)}, "emperor")
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

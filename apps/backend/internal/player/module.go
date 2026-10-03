@@ -64,7 +64,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/listen_for_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/reconcile_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/reconcile_titles_usecase/audit_reconcile_titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/wear_title_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/postgres_worn_title_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/usecases/forget_worn_title_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/usecases/wear_title_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -122,6 +125,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	catalog := titles.NewCatalog()
 	titleBook := titles.NewBook(titleStore, catalog)
 	titleFeed := inprocess_title_feed.New()
+	wornTitleStore := postgres_worn_title_store.New(db)
+	wardrobe := wearing.NewWardrobe(wornTitleStore, titleBook, catalog)
 
 	visits := inmemory_visit_storage.New(clock)
 	props.Runners.Add(visits)
@@ -154,6 +159,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe the titles to auth.v1.AccountDeleted: %w", err)
 	}
+	forgottenChoices, err := cpbootstrap.Subscribe(props.Events, "player-wearing-accounts", accountDeletedBuffer,
+		log_subscriber.New(account_deleted_subscriber.New(forget_worn_title_usecase.New(wornTitleStore)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the worn titles to auth.v1.AccountDeleted: %w", err)
+	}
 
 	forgetVisit := forget_visit_usecase.New(visits)
 	signIns, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-ins", signInBuffer,
@@ -177,7 +188,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(signOuts)
 	props.Runners.Add(gone)
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, awards, deletions, forgottenTitles, signIns))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, awards, deletions, forgottenTitles, forgottenChoices, signIns))
 
 	verifier := rpc_session_verifier.New(props.Internal, props.Logger)
 
@@ -197,9 +208,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat),
 			listen_for_titles_usecase.New(titleFeed, catalog),
 		),
-		GetPlayerHandler: get_player_handler.New(get_player_usecase.New(store, store, titleBook, accounts, clock)),
-		GetTitlesHandler: get_titles_handler.New(get_titles_usecase.New(store, titleBook, clock)),
-		WearTitleHandler: wear_title_handler.New(wear_title_usecase.New(titleBook, clock)),
+		GetPlayerHandler: get_player_handler.New(get_player_usecase.New(store, store, wardrobe, accounts, clock)),
+		GetTitlesHandler: get_titles_handler.New(get_titles_usecase.New(store, titleBook, wardrobe, clock)),
+		WearTitleHandler: wear_title_handler.New(wear_title_usecase.New(wardrobe, clock)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)

@@ -119,34 +119,3 @@ func (s *StoreContractSuite) TestRevokingATitleNotHeldOrNothingIsNotAnError() {
 
 	s.Equal(IDs{"settler"}, s.held(1))
 }
-
-func (s *StoreContractSuite) TestAnAccountThatNeverChoseWearsNothing() {
-	worn, err := s.store.Worn(s.T().Context(), players.AccountID{15: 1})
-
-	s.Require().NoError(err)
-	s.Empty(worn)
-}
-
-func (s *StoreContractSuite) TestTheLastTitleWornIsKept() {
-	s.Require().NoError(s.store.Wear(s.T().Context(), players.AccountID{15: 1}, "settler", contractAt))
-	s.Require().NoError(s.store.Wear(s.T().Context(), players.AccountID{15: 1}, "og", contractAt.Add(time.Hour)))
-	s.Require().NoError(s.store.Wear(s.T().Context(), players.AccountID{15: 2}, "loyal", contractAt))
-
-	worn, err := s.store.Worn(s.T().Context(), players.AccountID{15: 1})
-	s.Require().NoError(err)
-	s.Equal(ID("og"), worn)
-	worn, err = s.store.Worn(s.T().Context(), players.AccountID{15: 2})
-	s.Require().NoError(err)
-	s.Equal(ID("loyal"), worn)
-}
-
-func (s *StoreContractSuite) TestADeletedAccountWearsNothing() {
-	s.grant(1, "settler")
-	s.Require().NoError(s.store.Wear(s.T().Context(), players.AccountID{15: 1}, "settler", contractAt))
-
-	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), players.AccountID{15: 1}))
-
-	worn, err := s.store.Worn(s.T().Context(), players.AccountID{15: 1})
-	s.Require().NoError(err)
-	s.Empty(worn)
-}
