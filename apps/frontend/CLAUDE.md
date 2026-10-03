@@ -2264,14 +2264,20 @@ sentence. A new Google scope changes that section.
 
 **`index.html` is the home page** and says what the game is in plain HTML — see
 [Pages and routes](#pages-and-routes). It is a full landing page (header,
-hero, how it works, features, creator, Discord, footer) in the game's look, with
-one stylesheet inline and no script but the redirect. The hero's `.boost` callout
-says signing in clicks 2× faster: plain HTML cannot read the server's number, so
-**change it with `rateLimiter.linkedMultiplier` in `deploy/vps/backend.yaml`**. Its screenshots are
-`static/home/*.jpg`, taken from the live game; a new one must not show the chat,
-which carries players' own words. The section links (`#how`, `#features`,
-`#creator`) work in the page, but a returning player who opens one directly is
-sent to the game like any other hash but `#home`.
+hero, how it works, the board and the map, phone, Discord, and a footer that
+carries the creator) in the game's look, with one stylesheet inline and no
+script but the redirect. **It sells the game, not its mechanics**: country
+against country on one live planet. What only makes sense once playing (signing
+in to click faster, bonus boxes, the camera) stays in the game. The hero's
+counts are written by hand, since plain HTML cannot read them: 262,000 tiles is
+`gameMap.maxIndex` in `deploy/vps/backend.yaml`, 239 flags is
+`static/countries/countries.json`. Its screenshots are `static/home/*.jpg`,
+taken from the live game at 1440×900 (390×844 for the phone) at 2× with a fresh
+profile; a new one must not show the chat, which carries players' own words, and
+a fresh profile opens it on a desktop, so fold it first. They are fixed names
+under a week of cache, so a retake gets a new name. The section links (`#how`,
+`#board`, `#creator`) work in the page, but a returning player who opens one
+directly is sent to the game like any other hash but `#home`.
 
 **The Discord invite is written once, in `src/links.ts`.** The menu imports it;
 `vite.config.ts` hands it to the three plain pages, which write
