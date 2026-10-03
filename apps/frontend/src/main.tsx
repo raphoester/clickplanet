@@ -99,7 +99,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session)
-    const season = new ConnectSeasonBackend(newSeasonServiceClient(config))
+    const season = new ConnectSeasonBackend(newSeasonServiceClient(config), config.baseUrl)
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {
         navigate: (url) => window.location.assign(url),

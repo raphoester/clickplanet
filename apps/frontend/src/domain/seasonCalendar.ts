@@ -1,39 +1,44 @@
 import {Season} from "../backends/season.ts"
 
-export type CalendarFile = {
+export type CalendarLink = {
     name: string
-    text: string
+    url: string
+    web: boolean
 }
 
-export function finaleCalendar(season: Season, playUrl: string, now: number): CalendarFile {
-    const lines = [
-        "BEGIN:VCALENDAR",
-        "VERSION:2.0",
-        "PRODID:-//ClickPlanet//Seasons//EN",
-        "CALSCALE:GREGORIAN",
-        "METHOD:PUBLISH",
-        "BEGIN:VEVENT",
-        `UID:season-${season.number}-finale@clickplanet.lol`,
-        `DTSTAMP:${utc(now)}`,
-        `DTSTART:${utc(season.finaleStartsAt)}`,
-        `DTEND:${utc(season.endsAt)}`,
-        `SUMMARY:${text(`ClickPlanet Season ${season.number}: Final Battle`)}`,
-        `DESCRIPTION:${text(playUrl)}`,
-        `URL:${playUrl}`,
-        "END:VEVENT",
-        "END:VCALENDAR",
+export function finaleLinks(season: Season, playUrl: string): CalendarLink[] {
+    const title = `ClickPlanet Season ${season.number}: Final Battle`
+
+    const google = query({
+        action: "TEMPLATE",
+        text: title,
+        dates: `${compact(season.finaleStartsAt)}/${compact(season.endsAt)}`,
+        details: playUrl,
+    })
+    const outlook = query({
+        path: "/calendar/action/compose",
+        rru: "addevent",
+        subject: title,
+        startdt: iso(season.finaleStartsAt),
+        enddt: iso(season.endsAt),
+        body: playUrl,
+    })
+
+    return [
+        {name: "Google Calendar", url: `https://calendar.google.com/calendar/render?${google}`, web: true},
+        ...(season.finaleFile ? [{name: "Apple Calendar", url: season.finaleFile, web: false}] : []),
+        {name: "Outlook", url: `https://outlook.live.com/calendar/0/deeplink/compose?${outlook}`, web: true},
     ]
-
-    return {
-        name: `clickplanet-season-${season.number}-finale.ics`,
-        text: lines.map((line) => `${line}\r\n`).join(""),
-    }
 }
 
-function utc(ms: number): string {
-    return new Date(ms).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")
+function query(params: Record<string, string>): string {
+    return Object.entries(params).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&")
 }
 
-function text(value: string): string {
-    return value.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n")
+function iso(ms: number): string {
+    return new Date(ms).toISOString().replace(/\.\d{3}/, "")
+}
+
+function compact(ms: number): string {
+    return iso(ms).replace(/[-:]/g, "")
 }

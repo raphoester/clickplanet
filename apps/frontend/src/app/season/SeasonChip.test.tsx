@@ -57,6 +57,19 @@ describe("SeasonChip", () => {
         expect(onToggle).toHaveBeenCalledTimes(2)
     })
 
+    it("closes the calendar list on Escape, and leaves the chip open", () => {
+        vi.useFakeTimers({now: endsAt - 27 * DAY})
+        const onToggle = vi.fn()
+        render(<SeasonChip season={season} compact={false} open onToggle={onToggle}/>)
+
+        fireEvent.click(calendar()!)
+        expect(screen.getByRole("link", {name: "Google Calendar"})).toBeDefined()
+
+        fireEvent.keyDown(document, {key: "Escape"})
+        expect(screen.queryByRole("link", {name: "Google Calendar"})).toBeNull()
+        expect(onToggle).not.toHaveBeenCalled()
+    })
+
     it("names the finale while it runs, with nothing to open", () => {
         vi.useFakeTimers({now: endsAt - HOUR - 12 * MINUTE})
         render(<SeasonChip season={season} compact={false} open onToggle={vi.fn()}/>)
