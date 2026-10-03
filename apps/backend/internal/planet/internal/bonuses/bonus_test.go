@@ -552,6 +552,20 @@ func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
 	assert.Equal(t, offer.Kind, reward.Kind, "the claim grants what the box said it was")
 }
 
+func TestAnOfferIsReportedAgainstItsCaller(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	var offeredTo []string
+	registry.Observe(Report{Offered: func(scope string) { offeredTo = append(offeredTo, scope) }})
+
+	events := playing(t, registry, "scope-a")
+
+	waitOut(registry, clock)
+	require.NotNil(t, offered(t, events))
+
+	assert.Equal(t, []string{"scope-a"}, offeredTo)
+}
+
 func TestACatchIsReportedWithHowLongItTook(t *testing.T) {
 	registry, clock := newTestRegistry()
 

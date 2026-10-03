@@ -13,7 +13,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/activity"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/activity/inmemory_event_buffer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/activity/inmemory_event_buffer/log_flush"
+	activitymigrations "github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/activity/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/activity/postgres_event_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/activity/usecases/prune_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/activity/usecases/prune_usecase/log_prune"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/activity_boxes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
@@ -32,6 +40,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/activity_attempt_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/activity_take_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_attempt_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/bonus_click"
@@ -42,8 +52,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase/activity_get_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase/antibot_get_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase/activity_listen_for_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase/antibot_listen_for_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase"
@@ -149,6 +161,28 @@ func NewModule(config Config) cpbootstrap.Module {
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
+			var recorder activity.Recorder = activity.Discard{}
+			if config.Activity.Enabled {
+				activityConfig := config.Activity.WithDefaults()
+
+				events := cppg.New(activityConfig.Database)
+				if err := events.ConnectCtx(ctx); err != nil {
+					return fmt.Errorf("failed to connect the activity to postgres: %w", err)
+				}
+				if err := events.Migrate(ctx, activitymigrations.FS); err != nil {
+					_ = events.Close()
+					return fmt.Errorf("failed to migrate the %s schema: %w", activityConfig.Database.Schema, err)
+				}
+
+				store := postgres_event_store.New(events)
+				buffer := inmemory_event_buffer.New(activityConfig.MaxPending, store)
+				props.Runners.Add(cppg.CloseAfter(events, props.Logger,
+					inmemory_event_buffer.NewRunner(activityConfig.FlushInterval, log_flush.New(buffer, props.Logger)),
+					prune_usecase.NewRunner(activityConfig.SweepInterval, log_prune.New(
+						prune_usecase.New(activityConfig.Retention, activityConfig.MaxEvents, clock, store), props.Logger))))
+				recorder = buffer
+			}
+
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter.Config, clock)
 			props.Runners.Add(limiter)
 			buckets := config.RateLimiter.Buckets()
@@ -199,6 +233,9 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			props.Runners.Add(guard)
 
+			// Inside the shadow ban: a click it dropped took no tile.
+			clickUseCase = activity_take_click.New(clickUseCase, recorder, tilesStorage, clock)
+
 			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, homeSoil, clock, props.Metrics)
 
 			clickUseCase = bonus_click.New(clickUseCase, registry)
@@ -207,6 +244,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
 
 			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, clock)
+			clickUseCase = activity_attempt_click.New(clickUseCase, recorder, tilesStorage, clock)
 
 			adminBatch := config.TilesStorage.SubscriberBuffer / 4
 			if adminBatch <= 0 {
@@ -265,19 +303,26 @@ func NewModule(config Config) cpbootstrap.Module {
 				answer_quiz_usecase.New(registry, charges),
 				props.Metrics)
 
+			boxes := activity_boxes.New(recorder, clock)
 			registry.Observe(bonuses.Report{
-				Offered: counters.Offered.Inc,
+				Offered: func(scope string) {
+					counters.Offered.Inc()
+					boxes.Offered(scope)
+				},
 				Lapsed: func(scope string) {
 					counters.Lapsed.Inc()
 					guard.Missed(scope)
+					boxes.Lapsed(scope)
 				},
 				Caught: func(scope string, after time.Duration) {
 					counters.Caught.Observe(after.Seconds())
 					guard.Caught(scope, after)
+					boxes.Caught(scope, after)
 				},
 				Foreign: func(scope string) {
 					counters.Foreign.Inc()
 					guard.Foreign(scope)
+					boxes.Foreign(scope)
 				},
 
 				QuizOffered: quizCounters.Offered.Inc,
@@ -306,10 +351,13 @@ func NewModule(config Config) cpbootstrap.Module {
 				ClickHandler:      click_handler.New(clickUseCase),
 				GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(limiter, pricer, buckets)),
 				MapDensityHandler: map_density_handler.New(map_density_usecase.New(tilesChecker)),
-				GetMapHandler: get_map_handler.New(
-					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker)),
-				ListenForEventsHandler: listen_for_events_handler.New(antibot_listen_for_events.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard)),
+				GetMapHandler: get_map_handler.New(activity_get_map.New(
+					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker),
+					recorder, tilesChecker, clock)),
+				ListenForEventsHandler: listen_for_events_handler.New(activity_listen_for_events.New(
+					antibot_listen_for_events.New(
+						listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard),
+					recorder, clock)),
 				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),
 				DropBombHandler:      drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),

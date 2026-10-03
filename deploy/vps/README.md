@@ -948,6 +948,20 @@ through an SSH tunnel:
 ssh -N -L 5432:127.0.0.1:5432 deploy@YOUR_IP
 ```
 
+### Exporting the activity
+
+With `activity.enabled`, the `activity` schema holds every raw event of every
+caller for 72 hours (see "Activity" in `apps/backend/CLAUDE.md`). One day of it,
+as CSV, for offline analysis:
+
+```bash
+docker compose exec -T postgres psql -U clickplanet -c "\copy (SELECT * FROM activity.events WHERE at >= '2026-10-01' AND at < '2026-10-02' ORDER BY id) TO STDOUT WITH (FORMAT csv, HEADER)" > activity-2026-10-01.csv
+```
+
+The `data` column holds what only its kind has (tile, country, outcome, and so
+on) as JSON text. The file is personal data: an address beside what it did. Keep
+it off shared drives, and delete it when the analysis is done.
+
 ### Backups
 
 **Nothing is backed up yet.** All state is in postgres. For a copy by hand:

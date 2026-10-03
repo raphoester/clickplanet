@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -178,6 +179,29 @@ func TestTheExampleConfigReachesTheDatabaseBlock(t *testing.T) {
 	assert.Equal(t, "planet", config.Planet.Database.Schema)
 	require.NotNil(t, config.Planet.Database.Pool.MaxOpenConns)
 	assert.Equal(t, 4, *config.Planet.Database.Pool.MaxOpenConns)
+}
+
+func TestTheExampleConfigReachesTheActivityBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	activity := config.Planet.Activity
+	require.True(t, activity.Enabled)
+	assert.Equal(t, "activity", activity.Database.Schema)
+	assert.Equal(t, time.Second, activity.FlushInterval)
+	assert.Equal(t, 100_000, activity.MaxPending)
+	assert.Equal(t, 72*time.Hour, activity.Retention, "what the privacy policy promises")
+	assert.Equal(t, 5*time.Minute, activity.SweepInterval)
+	assert.Equal(t, 10_000_000, activity.MaxEvents)
+	require.NoError(t, activity.Validate())
+}
+
+func TestTheActivityWithNoDatabaseIsRefused(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+	config.Planet.Activity.Database = cppg.Config{}
+
+	require.ErrorContains(t, config.Validate(), "activity.database: [host port user dbName sslMode schema] is empty")
 }
 
 func TestTheExampleConfigReachesThePlayerBlock(t *testing.T) {

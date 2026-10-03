@@ -36,6 +36,7 @@ type gameStack struct {
 	baseURL  string
 	adminURL string
 	fakes    auth.FakeProviders
+	activity cppg.Config
 }
 
 func startGame(t *testing.T) gameStack {
@@ -60,6 +61,9 @@ func startGame(t *testing.T) gameStack {
 	planetConfig.RateLimiter.PerSecond = 100
 	planetConfig.RateLimiter.Burst = 100
 	planetConfig.RateLimiter.ScopeMultiplier = 1
+	planetConfig.Activity.Enabled = true
+	planetConfig.Activity.Database = postgres.ConfigFor("activity")
+	planetConfig.Activity.FlushInterval = 20 * time.Millisecond
 
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), TagSalt: "pepper"}
 
@@ -95,7 +99,10 @@ func startGame(t *testing.T) gameStack {
 		return true
 	}, time.Minute, 50*time.Millisecond, "the server never came up")
 
-	return gameStack{baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes}
+	return gameStack{
+		baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes,
+		activity: planetConfig.Activity.Database,
+	}
 }
 
 type gamer struct {

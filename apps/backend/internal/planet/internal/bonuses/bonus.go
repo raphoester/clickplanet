@@ -112,7 +112,7 @@ func (c *caller) send(event Event) {
 
 // Every hook runs with the registry locked, so none may call back into it.
 type Report struct {
-	Offered func()
+	Offered func(scope string)
 
 	Lapsed func(scope string)
 
@@ -464,7 +464,9 @@ func (r *Registry) offer(entrant Entrant, entry *caller, now time.Time, kinds *c
 	entry.nextOfferAt = offer.ExpiresAt.Add(r.window())
 
 	entry.send(Event{Offer: &offer})
-	r.counted(r.report.Offered)
+	if r.report.Offered != nil {
+		r.report.Offered(scope)
+	}
 }
 
 func (r *Registry) collectMisses(now time.Time) {

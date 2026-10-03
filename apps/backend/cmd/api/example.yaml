@@ -34,6 +34,25 @@ ledgerStorage:
   flushInterval: 1s
   maxTakes: 4000000
 
+activity:
+  enabled: true
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: activity
+    pool:
+      maxOpenConns: 2
+  flushInterval: 1s
+  maxPending: 100000
+  # The privacy policy promises 72 hours: change it first.
+  retention: 72h
+  sweepInterval: 5m
+  maxEvents: 10000000
+
 rateLimiter:
   perSecond: 0.2
   burst: 60

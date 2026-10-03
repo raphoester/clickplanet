@@ -29,6 +29,22 @@ ledgerStorage:
   flushInterval: 1s
   maxTakes: 4000000
 
+activity:
+  enabled: false
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: activity
+    pool:
+      maxOpenConns: 2
+  # The privacy policy promises 72 hours: change it first.
+  retention: 72h
+  maxEvents: 10000000
+
 rateLimiter:
   perSecond: 0.2
   burst: 60

@@ -20,6 +20,16 @@ type In struct {
 	End   uint32
 }
 
+// OffMap is a bound the web app never asks for: ids run from 1 and it clamps its last batch.
+func (in In) OffMap(maxIndex uint32) bool {
+	end := in.End
+	if end == 0 {
+		end = maxIndex
+	}
+
+	return in.Start == 0 || end > maxIndex
+}
+
 func New(tilesChecker MaxIndexReader, mapReader DenseMapReader) *UseCase {
 	return &UseCase{
 		tilesChecker: tilesChecker,

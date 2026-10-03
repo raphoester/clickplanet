@@ -38,16 +38,7 @@ func (d *Decorator) Execute(ctx context.Context, in get_map_usecase.In) (clicks.
 	}
 
 	maxIndex := d.board.MaxIndex()
-	d.guard.Fetched(cpctx.RateLimitKey(ctx), float64(len(batch.Tiles)/2)/float64(maxIndex), offMap(in, maxIndex))
+	d.guard.Fetched(cpctx.RateLimitKey(ctx), float64(len(batch.Tiles)/2)/float64(maxIndex), in.OffMap(maxIndex))
 
 	return batch, nil
-}
-
-func offMap(in get_map_usecase.In, maxIndex uint32) bool {
-	end := in.End
-	if end == 0 {
-		end = maxIndex
-	}
-
-	return in.Start == 0 || end > maxIndex
 }
