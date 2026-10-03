@@ -294,3 +294,27 @@ func TestAnAccountIDIsAUUIDAndNeverTheNilOne(t *testing.T) {
 		require.ErrorIs(t, err, accounts.ErrInvalidAccount, "%q", value)
 	}
 }
+
+func TestTheVerifiedAddressesComeEmailFirstThenGoogleThenDiscord(t *testing.T) {
+	found := &accounts.Account{Identities: []accounts.Identity{
+		{Provider: "discord", Email: "ada@discord.example", EmailVerified: true},
+		{Provider: "google", Email: "ada@gmail.com", EmailVerified: true},
+		{Provider: "email", Email: "ada@example.com", EmailVerified: true},
+	}}
+
+	assert.Equal(t, []string{"ada@example.com", "ada@gmail.com", "ada@discord.example"}, found.Emails())
+}
+
+func TestAnUnverifiedOrRepeatedAddressIsLeftOut(t *testing.T) {
+	found := &accounts.Account{Identities: []accounts.Identity{
+		{Provider: "google", Email: "Ada@Example.com", EmailVerified: true},
+		{Provider: "discord", Email: "ada@unverified.example"},
+		{Provider: "email", Email: "ada@example.com", EmailVerified: true},
+	}}
+
+	assert.Equal(t, []string{"ada@example.com"}, found.Emails())
+}
+
+func TestAGuestHasNoAddress(t *testing.T) {
+	assert.Empty(t, (&accounts.Account{}).Emails())
+}

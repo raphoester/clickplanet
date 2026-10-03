@@ -42,5 +42,6 @@ func (h GetAccountHandler) GetAccount(
 	return connect.NewResponse(&authv1.GetAccountResponse{
 		Linked:          account.Linked(),
 		CreatedAtUnixMs: account.CreatedAt.UnixMilli(),
+		Emails:          account.Emails(),
 	}), nil
 }

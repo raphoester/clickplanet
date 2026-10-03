@@ -125,6 +125,13 @@ export class GetAccountResponse extends Message<GetAccountResponse> {
    */
   createdAtUnixMs = protoInt64.zero;
 
+  /**
+   * Verified only: the email sign-in first, then Google, then Discord.
+   *
+   * @generated from field: repeated string emails = 3;
+   */
+  emails: string[] = [];
+
   constructor(data?: PartialMessage<GetAccountResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -135,6 +142,7 @@ export class GetAccountResponse extends Message<GetAccountResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "created_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "emails", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAccountResponse {

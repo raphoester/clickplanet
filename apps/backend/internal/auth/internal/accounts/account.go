@@ -1,7 +1,9 @@
 package accounts
 
 import (
+	"cmp"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -21,6 +23,35 @@ func (a *Account) Providers() []string {
 		providers = append(providers, identity.Provider)
 	}
 	return providers
+}
+
+// The address the player typed comes before the ones a provider answered.
+var emailRanks = map[string]int{"email": 0, "google": 1, "discord": 2}
+
+func (a *Account) Emails() []string {
+	identities := slices.Clone(a.Identities)
+	slices.SortStableFunc(identities, func(x, y Identity) int {
+		return cmp.Compare(emailRankOf(x.Provider), emailRankOf(y.Provider))
+	})
+
+	emails := []string{}
+	for _, identity := range identities {
+		if !identity.EmailVerified || identity.Email == "" {
+			continue
+		}
+		if slices.ContainsFunc(emails, func(email string) bool { return strings.EqualFold(email, identity.Email) }) {
+			continue
+		}
+		emails = append(emails, identity.Email)
+	}
+	return emails
+}
+
+func emailRankOf(provider string) int {
+	if rank, ranked := emailRanks[provider]; ranked {
+		return rank
+	}
+	return len(emailRanks)
 }
 
 func (a *Account) linkedTo(provider string) bool {

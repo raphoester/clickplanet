@@ -149,8 +149,10 @@ type GetAccountResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Linked          bool                   `protobuf:"varint,1,opt,name=linked,proto3" json:"linked,omitempty"`
 	CreatedAtUnixMs int64                  `protobuf:"varint,2,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Verified only: the email sign-in first, then Google, then Discord.
+	Emails        []string `protobuf:"bytes,3,rep,name=emails,proto3" json:"emails,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetAccountResponse) Reset() {
@@ -195,6 +197,13 @@ func (x *GetAccountResponse) GetCreatedAtUnixMs() int64 {
 		return x.CreatedAtUnixMs
 	}
 	return 0
+}
+
+func (x *GetAccountResponse) GetEmails() []string {
+	if x != nil {
+		return x.Emails
+	}
+	return nil
 }
 
 type GetAccountsRequest struct {
@@ -356,10 +365,11 @@ const file_auth_v1_internal_proto_rawDesc = "" +
 	"public_key\x18\x01 \x01(\tR\tpublicKey\"2\n" +
 	"\x11GetAccountRequest\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\"Y\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"q\n" +
 	"\x12GetAccountResponse\x12\x16\n" +
 	"\x06linked\x18\x01 \x01(\bR\x06linked\x12+\n" +
-	"\x12created_at_unix_ms\x18\x02 \x01(\x03R\x0fcreatedAtUnixMs\"5\n" +
+	"\x12created_at_unix_ms\x18\x02 \x01(\x03R\x0fcreatedAtUnixMs\x12\x16\n" +
+	"\x06emails\x18\x03 \x03(\tR\x06emails\"5\n" +
 	"\x12GetAccountsRequest\x12\x1f\n" +
 	"\vaccount_ids\x18\x01 \x03(\tR\n" +
 	"accountIds\"C\n" +

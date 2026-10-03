@@ -60,6 +60,18 @@ func TestTheAccountSaysWhenItWasMade(t *testing.T) {
 	assert.Equal(t, createdAt.UnixMilli(), res.GetCreatedAtUnixMs())
 }
 
+func TestTheAccountAnswersItsVerifiedAddresses(t *testing.T) {
+	useCase := &stubUseCase{account: &accounts.Account{Identities: []accounts.Identity{
+		{Provider: "google", Email: "ada@gmail.com", EmailVerified: true},
+		{Provider: "email", Email: "ada@example.com", EmailVerified: true},
+	}}}
+
+	res, err := getAccount(t, useCase, accountID)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"ada@example.com", "ada@gmail.com"}, res.GetEmails())
+}
+
 func TestAGuestIsNotLinked(t *testing.T) {
 	res, err := getAccount(t, &stubUseCase{account: &accounts.Account{}}, accountID)
 

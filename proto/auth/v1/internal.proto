@@ -24,6 +24,8 @@ message GetAccountRequest {
 message GetAccountResponse {
   bool linked = 1;
   int64 created_at_unix_ms = 2;
+  // Verified only: the email sign-in first, then Google, then Discord.
+  repeated string emails = 3;
 }
 
 message GetAccountsRequest {
