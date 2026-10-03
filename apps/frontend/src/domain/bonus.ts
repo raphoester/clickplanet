@@ -1,3 +1,5 @@
+import {TollStep} from "./toll.ts"
+
 export type BonusReward =
     | {
     kind: "refill"
@@ -49,6 +51,7 @@ export type BonusRules = {
     spreadClicks: number
     enclosures: number
     homeSoil: boolean
+    toll: readonly TollStep[]
 }
 
 export function describeReward(reward: BonusReward): {

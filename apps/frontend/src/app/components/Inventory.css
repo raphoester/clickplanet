@@ -1,67 +1,24 @@
 .inventory {
     display: flex;
-    flex-direction: column;
-    align-items: stretch;
+    flex: none;
     pointer-events: auto;
 }
 
 .inventory-slots {
     display: flex;
-    gap: 6px;
-    margin-top: var(--space-3);
-}
-
-.inventory-fold {
-    display: flex;
-    align-items: center;
     gap: var(--space-2);
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--gold);
-    font-family: var(--font-display);
-    font-size: var(--display-s);
-    line-height: 1;
-    text-shadow: var(--text-drop);
-    cursor: pointer;
-    transition: color 0.2s ease;
-}
-
-.inventory-fold:hover,
-.inventory-fold:focus-visible {
-    color: var(--gold-light);
-}
-
-.inventory-fold-name {
-    padding-top: 3px;
-}
-
-.inventory-chevron {
-    display: flex;
-    flex-shrink: 0;
-    margin-left: auto;
-    transition: transform 0.18s ease;
-}
-
-.inventory-fold[aria-expanded="true"] .inventory-chevron {
-    transform: rotate(180deg);
-}
-
-.inventory-held {
-    justify-content: center;
-    min-width: 22px;
-    color: var(--gold-ink);
-    background: var(--gold);
 }
 
 .inventory-slot {
     position: relative;
     display: flex;
-    flex: 1 1 0;
+    flex: none;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: var(--space-1);
-    min-width: 0;
+    width: 72px;
+    min-height: 64px;
     padding: 6px 0 5px;
     color: var(--text-soft);
     box-shadow: var(--drop-s);
@@ -152,24 +109,50 @@
     }
 }
 
-@media only screen and (max-width: 768px) {
+@media only screen and (max-width: 1279px) {
     .inventory-slots {
-        gap: var(--space-1);
+        gap: 6px;
+    }
+
+    .inventory-slot {
+        width: 48px;
+        min-height: 48px;
+        padding: 0;
     }
 
     .inventory-box {
-        width: 28px;
-        height: 28px;
+        width: 30px;
+        height: 30px;
     }
 
     .inventory-box .bonus-icon {
-        width: 21px;
-        height: 21px;
+        width: 22px;
+        height: 22px;
+    }
+
+    .inventory-name {
+        display: none;
     }
 
     .inventory-count {
-        top: 20px;
-        right: 2px;
+        top: auto;
+        right: -7px;
+        bottom: -7px;
+        padding: 2px 4px;
+        border-radius: var(--radius-pill);
+        background: var(--cream);
+        color: var(--ink);
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .inventory-slots {
+        gap: 5px;
+    }
+
+    .inventory-slot {
+        width: 44px;
+        min-height: 44px;
     }
 }
 

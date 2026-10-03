@@ -1,0 +1,82 @@
+.sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom, 0px) - var(--outline));
+    z-index: 140;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100% - var(--status-bar-height) - var(--tab-bar-height) - var(--space-3));
+    border-bottom: none;
+    border-left: none;
+    border-right: none;
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
+    box-shadow: inset 0 2px 0 var(--sheen);
+    animation: sheet-in 0.2s ease-out;
+}
+
+.sheet-head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    flex-shrink: 0;
+    padding: var(--space-2) var(--space-4) var(--space-3);
+}
+
+.sheet-handle {
+    align-self: center;
+    width: 44px;
+    height: 5px;
+    border-radius: var(--radius-pill);
+    background: var(--text-faint);
+}
+
+.sheet-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+}
+
+.sheet-title-row > :not(.icon-button):not(.sr-only) {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.sheet-title {
+    margin: 0;
+    padding-top: 3px;
+    font-size: var(--display-l);
+    color: var(--gold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sheet-title:focus {
+    outline: none;
+}
+
+.sheet-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 var(--space-4) var(--space-4);
+    -webkit-overflow-scrolling: touch;
+}
+
+@keyframes sheet-in {
+    from {
+        transform: translateY(24px);
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sheet {
+        animation: none;
+    }
+}

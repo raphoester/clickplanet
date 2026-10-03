@@ -70,7 +70,7 @@ function PlayerTitles({titles}: {titles: PlayerTitle[]}) {
     </ul>
 }
 
-function PlayerStats({info}: {info: PlayerInfo}) {
+export function PlayerStats({info}: {info: PlayerInfo}) {
     return <StatTiles>
         <StatTile label="Tiles taken" value={count.format(info.tilesTaken)}/>
         <StatTile label="Streak" value={days(info.streakCurrent)}/>

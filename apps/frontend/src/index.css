@@ -1,7 +1,37 @@
-/* The chat stops 16px short of the anthem bar (440px, centred on 50vw - 90px) and of the click budget dock. */
+/* The chat stops 16px short of the dock, which is centred at the bottom; under 1100px it sits above it. */
 :root {
-    --chat-width: max(360px, min(var(--chat-wanted-width, 360px), calc(50vw - 162px)));
-    --chat-height: min(calc(100vh - 32px - var(--click-budget-dock-bottom, 0px)), max(280px, var(--chat-wanted-height, 460px)));
+    --status-bar-height: 62px;
+    --tab-bar-height: 66px;
+    --dock-width: 620px;
+    --dock-height: 92px;
+    --chat-lift: 0px;
+    --chat-width: max(300px, min(var(--chat-wanted-width, 360px), calc(50vw - var(--dock-width) / 2 - 32px)));
+    --chat-height: min(calc(100vh - 32px - var(--chat-lift)), max(280px, var(--chat-wanted-height, 520px)));
+}
+
+@media only screen and (max-width: 1279px) {
+    :root {
+        --dock-width: 460px;
+        --dock-height: 72px;
+    }
+}
+
+@media only screen and (min-width: 769px) and (max-width: 1099px) {
+    :root {
+        --chat-lift: calc(var(--dock-height) + 16px);
+    }
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
 }
 
 html,

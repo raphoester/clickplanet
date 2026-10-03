@@ -342,6 +342,39 @@ hourly re-mint for the same account reopens it too: telling the two apart would
 mean reading the token, which is the server's business. A refused call reopens
 nothing.
 
+### The screen: four zones
+
+**Nothing is drawn over the globe but four zones**, and a new feature goes in one
+of them rather than in a fifth panel. The rule is in [`DESIGN.md`](DESIGN.md);
+this is where each zone lives. `Viewer` composes them, and `useCompact`
+(`compact.ts`, the 768px query, kept live) picks the phone or the desktop form.
+
+| Zone | Phone | Desktop |
+|---|---|---|
+| **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end | `Menu`'s header and "playing for", `SeasonChip` at the top centre |
+| **Moments** | under the status bar (`--status-bottom`) | under the season chip |
+| **Play** | the dock (`ClickBudgetMeter` + `Inventory`) above the tab bar, the chat's peek above it | the dock at the bottom centre |
+| **Places** | `hud/TabBar` (Board, Chat, Sign in / You, More), each a `hud/Sheet` | `Menu`'s tabs (Board, You, More) on the left, the chat on the right |
+
+- **One sheet at a time on a phone.** `Viewer` holds which (`sheet`): the four
+  tabs, and the season and "Your clicks", which the status bar and the dock open.
+  A tab pressed again closes it. The sheets are the same places the desktop
+  shows: `BoardPlace`, `YouPlace` and `MorePlace` in `Menu.tsx`, `SeasonDetails`,
+  `ClicksPanel`, and the chat's own sheet.
+- **A sheet sits above the tab bar** and is as tall as what it holds, up to the
+  room under the status bar; the chat's is that tall always, for its log to
+  scroll. It covers the dock: a sheet is for reading, the dock for playing.
+- **The desktop menu is as tall as what it holds**, up to the screen (less the
+  dock under 1444px, where the two would meet): a short place makes a short
+  panel, and only the board, or the account, scrolls inside it.
+- **Escape closes the innermost** (`useEscape` keeps a stack): a sub-panel such
+  as the country picker steps back, then the sheet closes. A modal dialog
+  still takes Escape first.
+- **Every `Modal` is drawn in a portal on the body**, so a dialog opened from
+  inside the menu or a sheet covers the page and not its panel.
+- **The other player's card** is the same `Modal`; on a phone its CSS makes it a
+  bottom sheet as tall as the card.
+
 ### Live chat
 
 The client for the backend's second bounded context: `chat.ts` declares
@@ -349,20 +382,26 @@ The client for the backend's second bounded context: `chat.ts` declares
 `ChatBackend`, the four together), `chatBackend.ts` implements them against
 `/chat.v1.ChatService/` alone — `SendMessage`, `GetHistory`, `React` and the
 `ListenForEvents` stream — and
-`fakeChatBackend.ts` is the dev stand-in. `ChatPanel` docks
-bottom-right, opposite the menu, and starts folded under 768px.
+`fakeChatBackend.ts` is the dev stand-in. On a desktop `ChatPanel` is the
+right-hand column, folded and unfolded from its own header. On a phone it is the
+Chat tab's sheet, and `Viewer` holds whether it is open (`open`,
+`onOpenChange`); see [The screen](#the-screen-four-zones). **It is always
+mounted**, open or not, on both: it owns the history load, the stream, the unread
+count and the sound. Closed on a phone it draws only the peek (below) and hands
+the unread count up through `onUnread`, for the tab's badge.
+
+**The chat and who is online share the panel**: with a roster wired, its header
+is two tabs, Chat and "Online · N" (see [Who is playing](#who-is-playing)).
 
 **The open panel is resized from its top edge, its left edge or its top-left
 corner**, and a double-click on one puts the default back (`useChatSize`). Not
-under 768px, where it is a full-width sheet. What the player dragged to is kept
+on a phone, where it is a sheet. What the player dragged to is kept
 in `clickplanet-chat-size` and written on `:root` as `--chat-wanted-width` and
 `--chat-wanted-height`; `index.css` clamps them into `--chat-width` and
-`--chat-height`. **The clamp keeps the chat 16px clear of the anthem bar and of
-the click budget dock**: the anthem bar never moves, so the width stops where it
-ends (`50vw - 162px`, and that number changes with the anthem bar's box), and
-`ClickBudgetMeter` writes the dock's bottom edge on `:root` as
-`--click-budget-dock-bottom` (`useDockBottom`), so the chat gets shorter when
-the inventory opens. The log stays pinned
+`--chat-height`. **The clamp keeps the chat 16px clear of the dock**, centred at
+the bottom: the width stops at `50vw - var(--dock-width) / 2 - 32px`, and under
+1100px wide, where that leaves too little, the chat sits above the dock instead
+(`--chat-lift`). The log stays pinned
 to its newest line while the panel changes size (a `ResizeObserver` in `ChatLog`).
 
 **`MAX_TEXT_LENGTH` in `chat.ts` mirrors `chat.service.maxTextLength` on the
@@ -518,10 +557,14 @@ the eye without stealing it. Four things say it, each for a different glance:
 - **A folded panel breathes.** `chat-waiting` puts the accent on the title, pops
   the unread badge (remounted on every count change, so it replays per message)
   and pulses the panel's own border and glow. It is a slow breath rather than a
-  blink: this sits over a game.
+  blink: this sits over a game. On a phone the badge is on the Chat tab.
 - **The newest line is quoted under the folded header**, in its author's colour.
   It is `aria-hidden` — a screen reader gets the count from the badge and the
-  text from the log, and the quote would only say it a third time.
+  text from the log, and the quote would only say it a third time. **On a phone
+  it is a peek over the dock instead** (`.chat-toast`): the newest line, as a
+  balloon, for `TOAST_MS` (4s) after it lands, and a press opens the chat. It is
+  a button named by the line it quotes, since it is the only thing on screen
+  that opens the chat from it.
 
 **The log is never yanked down under someone who scrolled up to read.** It
 auto-scrolls only while it is pinned to the bottom (`PINNED_SLACK_PX`);
@@ -533,7 +576,7 @@ Every one of these animations is dropped or reduced under
 
 ### Who is playing
 
-The "players online" button in the menu's action row opens a `MenuPanel` listing
+The "Online · N" tab beside Chat, in the chat's header, lists
 everyone playing: players with a username, then guests, each with a flag, a name
 in its chat colour (`authorStyle`, the same hue as in the chat). A line's name
 is the one the chat shows for that account: the username, or `guest_` and its
@@ -673,19 +716,20 @@ is the player's own view.
 - `domain/seasonCalendar.ts` — `finaleCalendar`, the `.ics` of the finale, built
   from `GetSeason` so no date is typed twice.
 - `app/season/` — `useSeason`, which drops the season at its end (a page open
-  across it goes back to no season), `SeasonBanner` and `AddToCalendarButton`.
+  across it goes back to no season), `SeasonChip`, `SeasonDetails` and
+  `AddToCalendarButton`.
 
-**The season is a banner at the top centre**, outside the menu: "Season 0 ends
-in 28d 14h 05m 12s", then the Final Battle's day and hours with "Add to calendar"
-beside them. The first line folds the rest away; the fold is kept in
-`clickplanet-season-banner-folded`, and a first visit under 768px starts folded.
-Under 768px it is a strip under the menu header. During the finale it glows,
-says "Final Battle ends in" and does not fold.
+**The season is a chip in the status zone.** On a desktop it sits at the top
+centre: "Season 0 ends in 28d 14h 05m 12s", and a press opens the Final Battle's
+day and hours with "Add to calendar" below it (Escape closes it). On a phone it
+is the right end of the status bar, the two largest units alone ("28d 14h",
+named in full for a screen reader), and a press opens the same details as a
+sheet. During the finale it glows, says "Final Battle ends in" and opens nothing.
 
-**It writes its bottom edge on `:root` as `--season-banner-bottom`**
-(`useBottomEdge`, which `useDockBottom` is built on). The quiz, the bomb news and
-the native-land note sit under it, and on a phone so does the click budget dock.
-With no season the property is unset and they sit where they always did.
+**The desktop chip writes its bottom edge on `:root` as `--status-bottom`**
+(`useBottomEdge`), and on a phone the status bar does: the quiz, the bomb news
+and the native-land note sit under it. With neither, the property is unset and
+they sit at the top.
 
 ### Sessions
 
@@ -846,8 +890,8 @@ Discord or a code sent to an email address keeps that account on every device.
   the action in flight and the last failure, and the username with its own save
   in flight and its own failure. No DOM and no network of its own, like
   `SessionClient`, so every transition is under test.
-- `app/account/` — the rest is React: `AccountRow` (one line in the menu),
-  `AccountPanel` (a `MenuPanel`, like the sound settings), `DeleteAccountModal`,
+- `app/account/` — the rest is React: `AccountPanel` (the menu's You tab, named
+  "Sign in" for a guest; a sheet on a phone), `DeleteAccountModal`,
   `SignInCallback` and `SignInGate`.
 
 **The buttons come from `GetSignInOptions`**, which answers the providers the
@@ -1514,7 +1558,8 @@ and are shared; how thick a line is drawn between them is this app's.
    refusal does not clear on its own — the player has to change network — so the
    next click raises it again.
 
-6. `ClickBudgetMeter` shows what is left of the bucket, top-right. It warns
+6. `ClickBudgetMeter` shows what is left of the bucket, in the dock at the bottom
+   (see [The screen](#the-screen-four-zones)). It warns
    before the wall, and shakes when a click hits it. **Its shape is read off the server's policy**: one
    pip per click in the burst (one bar past 12 of them), and the partly-filled
    pip is the click being granted back, at the server's own rate. Change
@@ -1522,7 +1567,7 @@ and are shared; how thick a line is drawn between them is this app's.
 
    **A slow refill gets a countdown.** When a click takes 1.5s or more to come
    back (`COUNTDOWN_FROM_S`; production is one every 5s), the meter says
-   "+1 in 4s" beside the bar, and says nothing at a full bucket. Past 12 pips
+   "+1 in 4s" under the bar, and says nothing at a full bucket. Past 12 pips
    the bar moves a sixtieth per click, too little to see, so a blue strip under
    it (`--click-budget-next`) fills once per click, as a pip would.
 
@@ -1534,16 +1579,30 @@ and are shared; how thick a line is drawn between them is this app's.
    thread. Under `prefers-reduced-motion` the fill steps four times a second
    instead of gliding.
 
-   On a phone it moves to under the folded menu: both ends of the screen are
-   full-width sheets there, the menu above and the chat below.
+   **It says when the toll slows the refill**: a chip before the countdown,
+   "4× slower" (on a phone "4×", named in full), whenever `ClickBudget.price`
+   says a slowdown above 1. The chip, the countdown and the offer below are a
+   line beside the meter, never inside it.
+
+   **The reading opens "Your clicks"** (`ClicksPanel`): a button laid over the
+   reading (`.click-budget-open`), so `role="meter"` stays a leaf. On a desktop it
+   is a popover over the dock, closed by the reading or Escape; on a phone, a
+   sheet. It holds the count, the country's share of the map, the whole toll
+   table from `BonusRules.toll` with the step the country is on marked, who else
+   spends from the bank, and the offer. **It shows no seconds per click**: the
+   reading's rate is the pace of the last click, which a change of flag only
+   moves at the next click (see the backend's toll), so a time worked out from it
+   would be wrong exactly when the player is looking.
 
    **A guest is offered to click faster.** A signed-in account refills
    `ClickBudget.linkedMultiplier` times faster (2 in production), into a bank of
    the same size. For a guest the
-   server offers sign-in to, `Viewer` passes `onSignIn` and the meter shows
-   "Sign in: clicks 2× faster" under the pips — a button beside the meter, not in
+   server offers sign-in to, `Viewer` passes `onSignIn` and the dock shows
+   "Sign in: clicks 2× faster" in its line — a button beside the meter, not in
    it, since the meter is a reading. It glows when the bucket is empty or a click
-   is refused, the moment a guest meets the wall. It opens `SignInPitchModal`,
+   is refused, the moment a guest meets the wall. **It is in the line only where
+   it fits**: on a desktop with no slowdown chip. Otherwise it is in "Your
+   clicks" and the Sign in tab, so the line never holds more than two things. It opens `SignInPitchModal`,
    which has the account panel's sign-in buttons. **The pitch sells more than
    speed**: a list of what a guest does not have — the clicks, a name, a color
    (guests are grey), a place on the board (players with a name are listed above
@@ -1556,22 +1615,20 @@ and are shared; how thick a line is drawn between them is this app's.
    address share one bank, and every player behind it shares the scope's, so a
    count can drop by clicks this player never made: another tab, or a stranger
    on the same carrier. `ClickBudget.sharedWith` is the server's answer to whose
-   bucket the reading is, and the meter says "Shared with the guests on your
-   network" or "…everyone on your network" under the reading. Absent, it is the
+   bucket the reading is: the dock's line shows a players icon named "Shared with
+   the guests on your network" or "…everyone on your network", and "Your clicks"
+   says it in words. Absent, it is the
    player's own and nothing is said. A guest who shares is offered "Sign in:
    your own clicks" instead, and `SignInPitchModal` says why.
 
-   **It is one panel, and its width is set rather than grown.** The reading, the
-   offer and the inventory all live in `.click-budget-dock`, which takes the
-   corner and carries the only border, background and blur; `.click-budget`
-   itself draws nothing, so `role="meter"` stays a leaf with no button inside
-   it. The dock's width is a number (288px, 240px on a phone) because the three
-   parts are three different widths: shrink-to-fit handed the widest one the
-   say, and the others then trailed a stripe of dead space to their right —
-   worse, the price row wrapping made the meter's max-content that whole row
-   *unwrapped*, which is where the empty half of the pill came from. The gauge
-   is `flex: 1` and the slots `flex: 1 1 0`, so both fill whatever the panel
-   gives them. The panel's border is what carries state: the inventory's glow
+   **It is one panel, and its width is set rather than grown.** The reading, its
+   line and the inventory all live in `.click-budget-dock`, one row at the bottom
+   centre that carries the only border and background; `.click-budget` itself
+   draws nothing, so `role="meter"` stays a leaf with no button inside it. The
+   dock's width is `--dock-width` (620px, 460px under 1280px, the screen less 24px
+   on a phone): shrink-to-fit handed the widest part the say before, and the
+   others trailed dead space. The reading is `flex: 1` and the slots keep their
+   size, so the bar takes what is left. The panel's border is what carries state: the inventory's glow
    first, then low, empty and refused, in that source order so red at the wall
    beats a bonus being switched on. The reading still jolts on a refusal
    (`.click-budget-refused`, taken off on its own `animationend`), but the red
@@ -1698,10 +1755,9 @@ writes or spends anything.
 
 ### The inventory
 
-`components/Inventory.tsx` is the section that shows them, the **lower half of
-the click meter's panel** (the meter takes it as `children`, and shows it even
-with no budget). It draws no border, background or blur of its own: the one
-panel is `.click-budget-dock`, and a hairline divides the reading from the slots.
+`components/Inventory.tsx` is the section that shows them, the **right half of
+the dock** (the meter takes it as `children`, and shows it even with no budget).
+It draws no border or background of its own: the one panel is `.click-budget-dock`.
 One slot per kind, always shown, each drawn with its box's
 icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement). An empty slot is dimmed and
@@ -1715,15 +1771,10 @@ word over the icon says what the slot is doing (`On`, `Aim`, `Full`).
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).
 - **Spread** and **Enclose** switch (`Globe.setSwitch`), `aria-pressed`.
 
-**The whole section folds** from a header over the slots: the name on the left,
-the count of kinds held while folded (open, every slot already says its own), and
-a `ChevronIcon` at the right end that turns over when it opens. That is the
-page's one way of folding something — the same icon and the same turn as
-`MenuHeader`'s collapse and the chat's header — so it is written the same way
-here rather than invented again. The fold is kept in local storage
-(`clickplanet-inventory-folded`, read and written in a `try`, since a private
-window can throw). The panel glows while something is on or aimed, so a folded
-inventory still says the next click does more than paint.
+**It does not fold**: four slots are one row, labelled from 1280px and icons
+with their counts below that (the name stays in `aria-label`). A fold on a row
+this small hid the one thing that says the next click does more than paint.
+The dock glows while something is on or aimed.
 
 ## Native land takes two clicks
 
@@ -1912,26 +1963,20 @@ different picture on every platform.
 
 The game's own map is the marketing material, so the globe can be photographed
 and the picture taken out of the browser. `src/app/share/` holds it:
-`CameraButton.tsx` takes the shot, `takePicture.ts` captures and composes it,
+the "Take a picture" tile under More (`MorePlace` in `Menu.tsx`) takes the shot,
+`takePicture.ts` captures and composes it,
 `drawShareCard.ts` draws the card, `SharePreview.tsx` shows it, `ShareActions
 .tsx` is the row of buttons under it and `deliverShare.ts` is what they do.
 `useSharePicture.ts` holds the one picture there is at a time.
 `src/domain/shareCard.ts` holds everything decided before a pixel is drawn.
 
-**The camera sits on the canvas, bottom-left, not in the menu.** The globe is
-what it photographs and the card over it is not in the picture, so the button
-belongs beside the subject. It is also the wrong shape for the menu's row of
-actions: those are 56px slabs for things you do to the *page*, and three of them
-do not fit across the card anyway — an earlier version put the share buttons
-there and pushed Discord out over the edge, and moving the camera up beside the
-collapse chevron did the same to the chevron. It is the click meter's pill
-instead, and on a phone it clears the folded chat the way the meter clears the
-menu, losing its label there: a camera needs no caption and the name stays in
-`aria-label`.
+**The camera is a tile under More, not a button on the globe.** It used to sit
+on the canvas, bottom-left, beside its subject; it was one of six things over
+the globe on a phone, and it is pressed rarely. On a phone the press closes the
+sheet first, so the globe is what the preview shows the player framed.
 
-**Its label never changes.** A pill anchored to a corner that rewrites itself
-mid-press resizes under the cursor, and what answers the press is the preview
-opening. Working is said by the button dimming.
+**Its label never changes.** What answers the press is the preview opening.
+Working is said by the tile dimming (`aria-busy`, disabled).
 
 **Pressing it opens a preview, and the preview is where the choice lives.** The
 framing is the player's — the camera takes the globe at whatever angle and zoom
@@ -2081,7 +2126,7 @@ message of its own came back, so its first can still ping.
 ### The leader's anthem
 
 The one sound that **is** a file. `src/app/anthem/` plays the national anthem of
-the country leading the map, on a loop, with a player at the bottom of the screen.
+the country leading the map, on a loop, with a player in the leader's frame on the board.
 The recordings are the US Navy Band's (public domain); `npm run anthems` downloads
 them, normalises loudness, trims the silence so the loop has no gap, and writes
 `static/anthems/<code>-<hash>.m4a` plus `anthemsAsset.ts`, which pairs each file
@@ -2099,8 +2144,11 @@ no recording shows the player with its play button off.
   and pauses rather than streaming silence.
 - `useAnthem.ts` — ties the board and the settings to the player, which is built
   once, so a tick or a toggle never restarts the music.
-- `AnthemBar.tsx` — the player: the anthem's title, then the country. Play and volume write `SoundSettings.anthem`, so
+- `AnthemControls.tsx` — the player, in the board's frame for the first country (`Leaderboard`'s `anthem`): the anthem's title, then the country. Play and volume write `SoundSettings.anthem`, so
   it and the settings panel never disagree. Pressing play lifts the master switch.
+  It plays the country the music follows, which holds first place `HOLD_MS` before
+  it changes, so for that long after a new leader the frame shows the last one's
+  anthem, under its own flag.
 
 ## Protocol Buffers
 
@@ -2305,7 +2353,7 @@ makes, so viewport, DPR, touch and the iOS user agent all resolve like a phone:
 ```bash
 npm run dev
 npm run mobile -- http://localhost:5173/play --open-menu --out /tmp/shot.png \
-  --eval 'JSON.stringify(getComputedStyle(document.querySelector(".button-discord")).height)'
+  --eval 'JSON.stringify(document.querySelector(".sheet").getBoundingClientRect())'
 ```
 
 It runs headless Chrome under a throwaway profile, so it never disturbs the
@@ -2320,7 +2368,6 @@ focus**, and never zooms back out. That is why `.chat-input` is 16px — at 14px
 the zoom pushed the send button off the right of the screen. Keep every `input`
 here at 16px or more; the emulator will not tell you when one drops below.
 
-`--open-menu` exists because two things sit between a fresh load and the menu:
-`DonationModal` rolls a coin on **every** load (`SHOW_PROBABILITY`), and the
-menu starts folded on mobile. Without it you will screenshot the donation modal
-half the time and the folded header the other half.
+`--open-menu` dismisses the donation modal and opens the Board sheet:
+`DonationModal` rolls a coin on **every** load (`SHOW_PROBABILITY`), so without
+it you will screenshot the donation modal half the time.

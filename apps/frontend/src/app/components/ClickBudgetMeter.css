@@ -1,42 +1,35 @@
 .click-budget-dock {
     position: absolute;
-    right: 16px;
-    top: 16px;
+    left: 50%;
+    bottom: 16px;
     z-index: 128;
+    transform: translateX(-50%);
     display: flex;
-    flex-direction: column;
-    width: 288px;
+    align-items: center;
+    gap: var(--space-4);
+    width: var(--dock-width);
     max-width: calc(100vw - 32px);
-    padding: var(--space-3);
-    pointer-events: none;
+    min-height: var(--dock-height);
+    padding: var(--space-2) var(--space-4);
     transition: border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
-.click-budget-dock > .inventory {
-    margin-top: var(--space-3);
-    padding-top: var(--space-2);
-    border-top: var(--outline-thin) solid var(--ink);
-}
-
-.click-budget-dock > .inventory:first-child {
-    margin-top: 0;
-    padding-top: 0;
-    border-top: none;
+.click-budget-shell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .click-budget {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
+    align-items: center;
+    gap: var(--space-3);
     --click-budget-tokens: 0;
     --click-budget-ink: var(--gold);
     transition: opacity 0.4s ease;
-}
-
-.click-budget-reading {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
 }
 
 .click-budget-full {
@@ -52,6 +45,7 @@
     display: flex;
     align-items: baseline;
     gap: 6px;
+    flex-shrink: 0;
     padding-top: 3px;
     font-family: var(--font-display);
     line-height: 1;
@@ -60,7 +54,7 @@
 
 .click-budget-number {
     min-width: 1.1ch;
-    font-size: var(--display-xl);
+    font-size: var(--display-l);
     text-align: right;
     font-variant-numeric: tabular-nums;
     color: var(--click-budget-ink);
@@ -94,14 +88,15 @@
 .click-budget-pip {
     flex: 1 1 0;
     min-width: 5px;
-    height: 14px;
+    height: 12px;
     border-radius: 3px;
     background: color-mix(in srgb, var(--text) 10%, transparent);
 }
 
 .click-budget-bar {
     flex: 1;
-    height: 24px;
+    min-width: 40px;
+    height: 16px;
     border-radius: var(--radius-pill);
 }
 
@@ -127,18 +122,30 @@
     left: 0;
     bottom: 0;
     z-index: 1;
-    height: 4px;
+    height: 3px;
     width: calc(var(--click-budget-next, 0) * 100%);
     background: var(--secondary);
 }
 
+.click-budget-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    min-height: 22px;
+}
+
+.click-budget-line:empty {
+    display: none;
+}
+
 .click-budget-next {
-    min-width: 7ch;
-    font-size: var(--text-s);
+    flex-shrink: 0;
+    font-size: var(--text-xs);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
-    text-align: right;
     color: var(--text-muted);
+    white-space: nowrap;
 }
 
 .click-budget-next:empty {
@@ -146,32 +153,72 @@
 }
 
 .click-budget-toll {
-    display: flex;
-    flex-direction: column;
-    font-size: var(--text-xs);
-    line-height: 1.3;
-    color: var(--text-muted);
-}
-
-.click-budget-toll-detail {
-    color: var(--click-budget-ink);
+    flex-shrink: 0;
+    gap: 4px;
+    border-radius: var(--radius-pill);
+    background: var(--panel-sunk);
+    color: var(--gold-light);
+    white-space: nowrap;
 }
 
 .click-budget-shared {
-    margin: 0;
-    font-size: var(--text-xs);
-    line-height: 1.3;
+    display: flex;
+    flex-shrink: 0;
     color: var(--text-muted);
 }
 
+.click-budget-open {
+    position: absolute;
+    inset: -6px -8px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-m);
+    background: none;
+    cursor: pointer;
+}
+
+.click-budget-open:hover,
+.click-budget-open[aria-expanded="true"] {
+    background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.click-budget-open:focus-visible {
+    outline: var(--outline-thin) solid var(--text);
+    outline-offset: 0;
+}
+
 .click-budget-sign-in {
-    margin-top: var(--space-3);
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+    height: 26px;
+    padding: 0 10px;
+    border-width: var(--outline-thin);
     border-radius: var(--radius-pill);
-    pointer-events: auto;
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    text-shadow: none;
+    box-shadow: var(--drop-xs);
+}
+
+.click-budget-sign-in span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .click-budget-sign-in-icon {
     flex-shrink: 0;
+}
+
+.click-budget-popover {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + var(--space-3));
+    width: min(420px, calc(100vw - 32px));
+    padding: var(--space-4);
+    animation: click-budget-popover-in 0.18s ease-out;
 }
 
 .click-budget-dock:has(.inventory--active) {
@@ -194,20 +241,24 @@
 
 .click-budget-dock:has(.click-budget-empty) .click-budget-sign-in:not(:active),
 .click-budget-dock:has(.click-budget-refused) .click-budget-sign-in:not(:active) {
-    box-shadow: var(--drop-s), 0 0 16px color-mix(in srgb, var(--action-light) 70%, transparent);
+    box-shadow: var(--drop-xs), 0 0 16px color-mix(in srgb, var(--action-light) 70%, transparent);
 }
 
 @media only screen and (max-width: 768px) {
     .click-budget-dock {
-        top: calc(var(--season-banner-bottom, 58px) + 8px);
-        left: 16px;
-        right: auto;
-        z-index: 127;
-        width: 240px;
-        padding: var(--space-2) 10px;
+        left: 12px;
+        right: 12px;
+        bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom, 0px) + 10px);
+        z-index: 130;
+        transform: none;
+        width: auto;
+        max-width: none;
+        min-height: 72px;
+        gap: 10px;
+        padding: var(--space-2) var(--space-3);
     }
 
-    .click-budget-reading {
+    .click-budget {
         gap: var(--space-2);
     }
 
@@ -225,25 +276,13 @@
     }
 
     .click-budget-pip {
-        min-width: 4px;
+        min-width: 3px;
         height: 8px;
         border-radius: 2px;
     }
 
     .click-budget-bar {
-        height: 16px;
-    }
-
-    .click-budget-bar::before {
-        height: 3px;
-    }
-
-    .click-budget-next {
-        font-size: var(--text-xs);
-    }
-
-    .click-budget-sign-in {
-        margin-top: var(--space-2);
+        height: 12px;
     }
 }
 
@@ -272,6 +311,13 @@
     }
 }
 
+@keyframes click-budget-popover-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+}
+
 /* Not `animation: none`: the class only comes off on animationend. */
 @keyframes click-budget-refused-still {
     from {
@@ -282,5 +328,9 @@
 @media (prefers-reduced-motion: reduce) {
     .click-budget-refused {
         animation-name: click-budget-refused-still;
+    }
+
+    .click-budget-popover {
+        animation: none;
     }
 }
