@@ -1146,13 +1146,26 @@ last hour the slot is lost, like a caller's who was away; 12 is above the ten
 boxes an hour a person catching every one would get. A kind another box would
 add nothing to (a refill or a bomb held, a full stack or pool) is not offered.
 
-**A caller is a scope, not a connection.** `Attend` is keyed on `cpipscope.Of`,
-the same unit the session token binds to, and holds every stream
-sharing it — so twenty tabs are one entrant on one schedule, and all of them are
-sent the box. Offers stay on the scope; the charge a box grants lands on the
-claiming account. The handler's `defer` is what removes it; there is no
-context goroutine per connected client, because the fanout deliberately does not
-pay that cost.
+**A caller is an entrant, not a connection.** `bonuses.EntrantOf(payer)` is the
+account (`account:<id>`) when the click token says it is linked, and its scope
+(`cpipscope.Of`) otherwise. `Attend`, `Clicked`, `Claim`, `OpenQuiz`,
+`AnswerQuiz` and `PublishEnclosed` are all keyed on it, and it holds every
+stream sharing it — so twenty tabs are one entrant on one schedule, and all of
+them are sent the box. Two signed-in players behind one address are two
+entrants: each gets its own boxes and quizzes, and neither can claim the other's.
+The guests behind an address are still one entrant, because a guest account is
+free to make and a schedule each would be a box each per private tab. A linked
+account keeps its schedule across networks. The charge a box grants lands on the
+claiming account either way. **The antibot still hears the scope**: `Caught` and
+`Foreign` report the claiming request's, `Lapsed` the one the entrant last
+clicked from, since the catcher judges and bans a network. The handler's `defer`
+is what removes a stream; there is no context goroutine per connected client,
+because the fanout deliberately does not pay that cost.
+
+The stream and the claim must name the same entrant, so the client opens the
+stream with the token it clicks with and reopens it when that token changes
+(`followSession` in the frontend's `planetBackend.ts`): signing in moves the
+stream to the account at the next click.
 
 **The offer is the state, so there is no crypto here.** The registry already has
 to remember who it offered what, so the token is 16 random bytes and the map is
@@ -1300,10 +1313,11 @@ its own.
   `crypto/rand`) and the grant caps it at the size. The claim answers
   `ClaimBonusResponse.amount` as **what was kept**, `Count` after less `Count`
   before, so a player is never told of clicks that did not fit.
-- **The schedule offers no kind that is full** for any account that clicked from
-  the scope within `activeWithin` (`Registry.offerable`). The schedule is by scope
-  and a charge is by account, so `bonus_click` tells the registry both on every
-  accepted click: `Clicked(scope, holder)`. The registry reads the charges through
+- **The schedule offers no kind that is full** for any account that clicked as
+  the entrant within `activeWithin` (`Registry.offerable`): the linked account
+  itself, or every guest behind the scope. The schedule is by entrant and a charge
+  is by account, so `bonus_click` tells the registry both on every accepted click,
+  with the scope for the antibot: `Clicked(entrant, scope, holder)`. The registry reads the charges through
   its `Holdings` port, which the storage satisfies.
 - **Off by default, one at a time.** `ClickRequest.spread` and `enclose` say what
   the player switched on for this click, and `click_usecase.In` carries them.
@@ -1512,9 +1526,9 @@ guest, its scope's guests' — never the scope's** (`Buckets.Bank`): the scope's
 is shared with every other player behind the address, so a refill that filled it
 would be a refill for all of them. The guests' is filled because the guests on
 one network are one bank: a refill that left it empty would be a refill of
-nothing. Boxes are already offered per scope, so this is no new allowance. A
-refilled player still spends from the scope's bucket, so it is bounded by it —
-`TestARefillDoesNotFillTheScopesBucket`. The bank never grows past its size, and
+nothing. A guest's boxes are already offered per scope, so this is no new
+allowance. A refilled player still spends from the scope's bucket, so it is
+bounded by it — `TestARefillDoesNotFillTheScopesBucket`. The bank never grows past its size, and
 the pace is left as it was. `Fill` is **additive**: nothing that never calls it
 can tell it exists, which matters because the same limiter type throttles chat
 and session mints.

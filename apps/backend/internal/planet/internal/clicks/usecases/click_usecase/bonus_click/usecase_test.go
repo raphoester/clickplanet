@@ -21,11 +21,13 @@ func (s stubClick) Execute(context.Context, click_usecase.In) (click_usecase.Out
 }
 
 type recordingPresence struct {
-	scopes  []string
-	holders []bonuses.Holder
+	entrants []bonuses.Entrant
+	scopes   []string
+	holders  []bonuses.Holder
 }
 
-func (r *recordingPresence) Clicked(scope string, holder bonuses.Holder) {
+func (r *recordingPresence) Clicked(entrant bonuses.Entrant, scope string, holder bonuses.Holder) {
+	r.entrants = append(r.entrants, entrant)
 	r.scopes = append(r.scopes, scope)
 	r.holders = append(r.holders, holder)
 }
@@ -55,6 +57,19 @@ func TestAClickSaysWhichAccountPlaysBehindTheScope(t *testing.T) {
 	_, err := bonus_click.New(stubClick{}, presence).Execute(ctx, click_usecase.In{})
 	require.NoError(t, err)
 
+	assert.Equal(t, []bonuses.Entrant{"1.2.3.4"}, presence.entrants)
 	assert.Equal(t, []string{"1.2.3.4"}, presence.scopes)
 	assert.Equal(t, []bonuses.Holder{"a-guest"}, presence.holders)
+}
+
+func TestALinkedAccountPlaysOnItsOwnSchedule(t *testing.T) {
+	presence := &recordingPresence{}
+	ctx := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-player"))
+
+	_, err := bonus_click.New(stubClick{}, presence).Execute(ctx, click_usecase.In{})
+	require.NoError(t, err)
+
+	assert.Equal(t, []bonuses.Entrant{"account:a-player"}, presence.entrants)
+	assert.Equal(t, []string{"1.2.3.4"}, presence.scopes)
+	assert.Equal(t, []bonuses.Holder{"a-player"}, presence.holders)
 }

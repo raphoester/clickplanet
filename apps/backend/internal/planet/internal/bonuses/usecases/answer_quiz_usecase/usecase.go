@@ -11,7 +11,7 @@ import (
 var ErrNoSuchQuiz = errors.New("no quiz to answer")
 
 type Registry interface {
-	AnswerQuiz(token string, scope string, choice int) (bonuses.Answered, bool)
+	AnswerQuiz(token string, entrant bonuses.Entrant, choice int) (bonuses.Answered, bool)
 	Publish(taken bonuses.Taken)
 }
 
@@ -50,7 +50,7 @@ type UseCase struct {
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	payer := clicks.PayerOf(ctx)
 
-	answered, ok := u.registry.AnswerQuiz(in.Token, payer.Scope, in.Choice)
+	answered, ok := u.registry.AnswerQuiz(in.Token, bonuses.EntrantOf(payer), in.Choice)
 	if !ok {
 		return Out{}, ErrNoSuchQuiz
 	}

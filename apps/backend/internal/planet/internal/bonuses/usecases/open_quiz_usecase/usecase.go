@@ -12,7 +12,7 @@ import (
 var ErrNoSuchQuiz = errors.New("no quiz to open")
 
 type Registry interface {
-	OpenQuiz(token string, scope string) (bonuses.Asked, bool)
+	OpenQuiz(token string, entrant bonuses.Entrant) (bonuses.Asked, bool)
 }
 
 type In struct {
@@ -38,7 +38,7 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
-	asked, ok := u.registry.OpenQuiz(in.Token, clicks.PayerOf(ctx).Scope)
+	asked, ok := u.registry.OpenQuiz(in.Token, bonuses.EntrantOf(clicks.PayerOf(ctx)))
 	if !ok {
 		return Out{}, ErrNoSuchQuiz
 	}

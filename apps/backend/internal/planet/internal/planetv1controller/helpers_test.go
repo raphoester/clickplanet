@@ -180,6 +180,6 @@ func errorNet() connect.Interceptor {
 
 type noBoxes struct{}
 
-func (noBoxes) Attend(string) (<-chan bonuses.Event, func()) {
+func (noBoxes) Attend(bonuses.Entrant) (<-chan bonuses.Event, func()) {
 	return nil, func() {}
 }

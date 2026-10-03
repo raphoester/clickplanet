@@ -7,7 +7,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 // Must stay well under Cloudflare's ~125s idle cut, which kills a silent stream.
@@ -30,7 +29,7 @@ type Event struct {
 }
 
 type BonusFeed interface {
-	Attend(scope string) (<-chan bonuses.Event, func())
+	Attend(entrant bonuses.Entrant) (<-chan bonuses.Event, func())
 }
 
 type Sink interface {
@@ -61,7 +60,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
 	}
 
-	boxes, leave := u.bonuses.Attend(cpctx.RateLimitKey(ctx))
+	boxes, leave := u.bonuses.Attend(bonuses.EntrantOf(clicks.PayerOf(ctx)))
 	defer leave()
 
 	heartbeat := time.NewTicker(u.heartbeat)

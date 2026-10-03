@@ -25,12 +25,12 @@ type fakeRegistry struct {
 	asked bonuses.Asked
 	known bool
 
-	token    string
-	forScope string
+	token      string
+	forEntrant bonuses.Entrant
 }
 
-func (f *fakeRegistry) OpenQuiz(token string, scope string) (bonuses.Asked, bool) {
-	f.token, f.forScope = token, scope
+func (f *fakeRegistry) OpenQuiz(token string, entrant bonuses.Entrant) (bonuses.Asked, bool) {
+	f.token, f.forEntrant = token, entrant
 
 	return f.asked, f.known
 }
@@ -52,7 +52,7 @@ func TestOpeningReadsTheQuestionAndTheClockItStarted(t *testing.T) {
 	assert.Equal(t, 5*time.Second, out.Window)
 
 	assert.Equal(t, "t", registry.token)
-	assert.NotEmpty(t, registry.forScope, "the question is read against the caller's own scope")
+	assert.Equal(t, bonuses.Entrant("1.2.3.4"), registry.forEntrant, "a guest's question is its scope's")
 }
 
 func TestAQuizThatIsNotThisCallersIsNotFound(t *testing.T) {
