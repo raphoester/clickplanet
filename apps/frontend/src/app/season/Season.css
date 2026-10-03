@@ -1,4 +1,4 @@
-.season-banner {
+.season-chip {
     position: absolute;
     top: 16px;
     left: 50%;
@@ -6,156 +6,214 @@
     transform: translateX(-50%);
     display: flex;
     flex-direction: column;
-    width: 340px;
     max-width: calc(100vw - 32px);
-    padding: 6px 8px;
-    border: 1px solid #FF813F80;
-    border-radius: 18px;
-    background: #00000099;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 0 18px #FF813F33;
+    padding: 4px;
+    border-radius: var(--radius-l);
 }
 
-.season-banner--live {
-    border-color: #FF813F;
-    background: #3A1A0ACC;
-    animation: season-banner-live 2.4s ease-in-out infinite;
-}
-
-.season-banner-head {
-    display: flex;
+.season-chip--compact {
+    position: static;
+    transform: none;
+    flex-direction: row;
     align-items: center;
-    gap: 10px;
-    padding: 2px 6px;
-    border: none;
-    border-radius: 12px;
-    background: none;
-    color: white;
-    text-align: left;
-}
-
-button.season-banner-head {
+    gap: 6px;
+    flex-shrink: 0;
+    height: 44px;
+    padding: 0 var(--space-3);
+    box-shadow: var(--drop-s);
+    color: var(--gold);
     cursor: pointer;
 }
 
-button.season-banner-head:hover,
-button.season-banner-head:focus-visible {
-    background: #FFFFFF14;
+.season-chip--live {
+    box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 18px color-mix(in srgb, var(--action) 30%, transparent);
+    animation: season-chip-live 2.4s ease-in-out infinite;
 }
 
-.season-banner-label {
-    font-family: Oswald, sans-serif;
-    font-weight: 500;
-    font-size: 12px;
-    letter-spacing: 1.4px;
-    text-transform: uppercase;
-    color: #FFFFFFCC;
+.season-chip--compact.season-chip--live {
+    box-shadow: var(--drop-s), 0 0 14px color-mix(in srgb, var(--action) 45%, transparent);
+}
+
+.season-chip-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 6px var(--space-3);
+    border: none;
+    border-radius: var(--radius-pill);
+    background: none;
+    color: var(--gold);
+    text-align: left;
+    cursor: pointer;
+}
+
+.season-chip-head:disabled {
+    cursor: default;
+}
+
+.season-chip-head:not(:disabled):hover,
+.season-chip-head:focus-visible {
+    background: var(--panel-raised);
+}
+
+.season-chip-label {
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-s);
+    color: var(--text-soft);
     white-space: nowrap;
 }
 
-.season-banner-left {
-    font-family: Oswald, sans-serif;
-    font-weight: 600;
-    font-size: 22px;
+.season-chip-left {
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: var(--display-m);
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
-    color: #FF813F;
-    text-shadow: -1px 1px 0 #000000;
+    color: var(--gold);
+    text-shadow: var(--text-drop);
     white-space: nowrap;
 }
 
-.season-banner-chevron {
+.season-chip--compact .season-chip-left {
+    font-size: var(--display-s);
+}
+
+.season-chip-chevron {
     display: flex;
     margin-left: auto;
-    color: #FFFFFFB3;
+    color: var(--text-muted);
     transition: transform 0.18s ease;
 }
 
-.season-banner-head[aria-expanded="true"] .season-banner-chevron {
+.season-chip-head[aria-expanded="true"] .season-chip-chevron {
     transform: rotate(180deg);
 }
 
-.season-banner-finale {
+.season-chip-finale,
+.season-details-finale {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    margin: 6px 0 2px;
-    padding: 8px 6px 0;
-    border-top: 1px solid #FFFFFF26;
+    gap: var(--space-2);
 }
 
-.season-banner-when {
+.season-chip-finale {
+    margin: 2px var(--space-2) var(--space-2);
+    padding: var(--space-2) var(--space-1) 0;
+    border-top: var(--outline-thin) solid var(--ink);
+}
+
+.season-details-left {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+}
+
+.season-details-left .season-chip-left {
+    font-size: var(--display-xl);
+}
+
+.season-details-finale {
+    padding: 10px var(--space-3);
+}
+
+.season-finale-when {
     display: flex;
     flex-direction: column;
     gap: 1px;
     min-width: 0;
     margin: 0;
-    font-family: Oswald, sans-serif;
+    font-family: var(--font-text);
     font-weight: 500;
-    font-size: 15px;
-    color: white;
+    font-size: var(--text-s);
+    color: var(--text);
     white-space: nowrap;
 }
 
-.season-banner-finale-name {
-    font-size: 12px;
-    letter-spacing: 1.4px;
-    text-transform: uppercase;
-    color: #FF813F;
+.season-finale-name {
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--gold);
+    text-shadow: var(--text-drop);
+}
+
+/* Over the quiz and the bomb news, which sit under the chip. */
+.season-chip:has(.season-calendar-list) {
+    z-index: 170;
 }
 
 .season-calendar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    position: relative;
     flex-shrink: 0;
-    margin-top: 0;
-    padding: 3px 9px 0 8px;
-    height: 32px;
-    border-radius: 10px;
-    border-color: #FF813F;
-    background: #FF813F;
-    font-size: 13px;
-}
-
-.season-calendar:hover {
-    background: #FF9459;
 }
 
 .season-calendar svg {
     margin-top: -3px;
 }
 
-@keyframes season-banner-live {
+.season-calendar-list {
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    right: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 176px;
+    margin: 0;
+    padding: var(--space-1);
+    list-style: none;
+}
+
+.season-calendar-link {
+    display: block;
+    padding: 11px var(--space-3) var(--space-2);
+    border-radius: var(--radius-m);
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    color: var(--text);
+    text-shadow: var(--text-drop);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color 0.12s ease;
+}
+
+.season-calendar-link:hover,
+.season-calendar-link:focus-visible {
+    background: var(--panel-raised);
+}
+
+/* In a sheet the list is in the flow: a sheet scrolls, and would hide one hung below it. */
+.sheet .season-details-finale {
+    align-items: flex-start;
+}
+
+.sheet .season-calendar-list {
+    position: static;
+    margin-top: var(--space-2);
+}
+
+@keyframes season-chip-live {
     50% {
-        box-shadow: 0 0 30px #FF813F99;
+        box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 30px color-mix(in srgb, var(--action) 60%, transparent);
     }
 }
 
 @media only screen and (max-width: 768px) {
-    .season-banner {
-        top: 66px;
-        left: 16px;
-        right: 16px;
-        z-index: 127;
-        transform: none;
-        width: auto;
-        padding: 4px 6px;
-        border-radius: 16px;
-    }
-
-    .season-banner-left {
-        font-size: 19px;
-    }
-
-    .season-banner-when {
-        font-size: 14px;
+    .season-calendar-link {
+        padding: 15px var(--space-3) var(--space-3);
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .season-banner--live {
+    .season-chip--live {
         animation: none;
+    }
+
+    .season-calendar-link {
+        transition: none;
     }
 }

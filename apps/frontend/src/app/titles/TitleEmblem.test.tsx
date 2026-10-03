@@ -12,13 +12,36 @@ describe("TitleEmblem", () => {
         expect(container.querySelector("text")?.textContent).toBe("G")
     })
 
-    it("gives each medal its own gradient, so two on one page do not share one", () => {
+    it("gives each medal its own masks, so two on one page do not share one", () => {
         const {container} = render(<>
             <TitleEmblem title={{id: "settler", name: "Settler"}} size={56}/>
             <TitleEmblem title={{id: "raider", name: "Raider"}} size={56}/>
         </>)
 
-        const ids = [...container.querySelectorAll("linearGradient")].map((gradient) => gradient.id)
-        expect(new Set(ids).size).toBe(2)
+        const ids = [...container.querySelectorAll("mask")].map((mask) => mask.id)
+        expect(ids).toHaveLength(4)
+        expect(new Set(ids).size).toBe(4)
+        for (const masked of container.querySelectorAll("[mask]")) {
+            expect(ids).toContain(masked.getAttribute("mask")?.slice("url(#".length, -1))
+        }
+    })
+
+    it("draws the ribbon in the track's color only when asked", () => {
+        const devoted = {id: "devoted", name: "Devoted", rank: {trackId: "devotion", trackName: "Devotion", number: 2, count: 3}}
+        const plain = render(<TitleEmblem title={devoted} size={56}/>).container
+        const ribboned = render(<TitleEmblem title={devoted} size={56} ribbon/>).container
+
+        const ribbons = (container: HTMLElement) => [...container.querySelectorAll("path")]
+            .filter((path) => path.style.fill === "var(--devotion)")
+        expect(ribbons(plain)).toHaveLength(0)
+        expect(ribbons(ribboned)).toHaveLength(2)
+    })
+
+    it("greys a locked medal and hangs a padlock on it, with no ribbon", () => {
+        const {container} = render(<TitleEmblem title={{id: "warlord", name: "Warlord"}} size={56} locked ribbon/>)
+
+        expect(container.querySelector("svg")?.classList.contains("title-emblem-locked")).toBe(true)
+        expect(container.querySelector("rect")).not.toBeNull()
+        expect([...container.querySelectorAll("path")].some((path) => path.style.fill === "var(--og)")).toBe(false)
     })
 })

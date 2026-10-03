@@ -161,6 +161,8 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 **A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `LoadSnapshot`, `cpipblock.New` then `Load`, `antibot.New` then `LoadState` (which connects to its schema too), `inmemory_ledger_storage.New` then `Load`.
 
+**A route the proto declares is served too, with no module asking for it.** An RPC with a `google.api.http` option (today only `seasons.v1.SeasonService/GetFinaleCalendar`, at `GET /seasons/{number}/finale.ics`) is reachable at that plain URL: `cpbootstrap` finds such services in the registry and puts one Vanguard transcoder (`connectrpc.com/vanguard`) on the public router's `/`, which turns the REST call into a Connect one, so the handler and its interceptors are the RPC's own. Every service's own path is more specific, so a Connect call never goes through the transcoder; a path nobody declares is a 404. A method that answers `google.api.HttpBody` sets the response's `Content-Type` itself, which is how a file that is not protobuf is served. There is no plain-HTTP registrar: a URL starts in the proto. `transcoder_test.go` pins it.
+
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
 **Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger, bans and evidence all flush from their runners, after the closers, once the server has stopped taking writes.
@@ -810,6 +812,7 @@ number of the old `cost`, whose meaning it replaces.
   the share and the next step of the main flag a click for the country asked
   about would leave, and that flag in `ClickBudget.country`, so the client can
   say why and name it.
+  The whole table goes out once per page load, in `GetBonusRules.toll_steps`.
 - **Bonuses compose with it.** A refill fills the bank to its size and leaves the
   pace alone. A spread is one click. A bomb is not throttled, and lowers the
   share of whoever it hits.
@@ -1105,16 +1108,19 @@ internal/player/internal/
 
 ```
 internal/seasons/internal/
-  calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current)
+  calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current, Season)
     usecases/get_season_usecase/  the calendar and the clock
+    usecases/get_numbered_season_usecase/
   seasonsv1controller/            SeasonService (a bag), the cache interceptor
     get_season_handler/
+    get_finale_calendar_handler/  the finale as an iCalendar file (golang-ical)
 ```
 
 - **The calendar is the config**, `seasons.list`, and there is no database. An empty list is no season.
 - **`Calendar.Current(now)` is the first season whose end is after now.** A season starts when the one before it ends; the first started before anything.
 - **The boot is refused** when the numbers do not count up from 0, the ends do not go up, or a finale is not above 0 and shorter than its season.
 - **`GetSeason` is a GET** (`NO_SIDE_EFFECTS`), answered `public, max-age=60`. No current season is an empty answer.
+- **`GetFinaleCalendar` is the finale as an iCalendar file**, at `GET /seasons/{number}/finale.ics` (its `google.api.http` option; see [The composite layer](#the-composite-layer)). It is what the frontend's "Apple Calendar" opens. It answers a `google.api.HttpBody`: `text/calendar`, `Content-Disposition: inline` (iOS Safari then offers the event to Calendar instead of saving a file), `public, max-age=60` from the cache interceptor. `github.com/arran4/golang-ical` writes the file, escaping and line folding included; it is told CRLF, which RFC 5545 requires and its default does not follow. Any season in the list is served, over or not; a number not in it is `NotFound` (404), and one that is not a number a 400. The event links to `httpServer.allowedOrigin` + `/play`. Caddy forwards `/seasons/*` for it.
 
 
 A question-mark box flies past the planet every so often; whoever catches it
@@ -1394,7 +1400,9 @@ its own.
   blast radius, the enclose's `maxTiles`, the spread pool's size and the
   enclosure stack's size (`bonuses.Rules`, built in `module.go`), and whether
   native land takes two clicks (`home_soil`, from `clicks.HomeSoil`: see
-  [Native land takes two clicks](#native-land-takes-two-clicks-clickshomesoil)). It is
+  [Native land takes two clicks](#native-land-takes-two-clicks-clickshomesoil)), and
+  every step of the toll (`toll_steps`, from `clicks.Toll.Steps`), so the client can
+  show the whole table and the slowdown of a country it does not play for. It is
   `NO_SIDE_EFFECTS`, a GET the cache interceptor marks for 5 minutes, and the
   client reads it once per page load. A page open across a deploy that changes
   them shows the old sizes until it reloads.
@@ -2648,7 +2656,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto) and [`player/v1/player.proto`](../../proto/player/v1/player.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto) and [`player/v1/player.proto`](../../proto/player/v1/player.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. `proto/buf.yaml` depends on `buf.build/googleapis/googleapis` for `google.api.http` and `google.api.HttpBody`; `buf.gen.yaml` leaves that module's `go_package` alone, so its Go types are `google.golang.org/genproto`'s and are not generated here. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
 `generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
 
@@ -2658,7 +2666,7 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
-**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused.
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused; `seasons_test.go` boots seasons alone, its calendar read from YAML as in production, and fetches the finale's `.ics` at its plain URL.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 

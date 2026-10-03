@@ -1,4 +1,5 @@
 import {ReactNode, useId, useRef} from "react";
+import {createPortal} from "react-dom";
 import {CloseIcon} from "./icons.tsx";
 import {useModalDialog} from "./useDialog.ts";
 import "./Modal.css"
@@ -18,7 +19,7 @@ export default function Modal(props: ModalProps) {
 
     useModalDialog(panel, props.onClose)
 
-    return (
+    return createPortal(
         // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
         <div
             className="modal"
@@ -28,7 +29,7 @@ export default function Modal(props: ModalProps) {
             }}>
             <div
                 ref={panel}
-                className={props.className ? `modal-content ${props.className}` : "modal-content"}
+                className={props.className ? `modal-content panel ${props.className}` : "modal-content panel"}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
@@ -49,6 +50,7 @@ export default function Modal(props: ModalProps) {
                 </div>
                 {props.footer && <div className="modal-footer">{props.footer}</div>}
             </div>
-        </div>
+        </div>,
+        document.body,
     )
 }

@@ -2,13 +2,20 @@ import {PlayerTitle, TitleTrack} from "../../backends/player.ts"
 
 export type Metal = "bronze" | "silver" | "gold" | "platinum" | "prism" | "holo"
 
-export const METALS: Record<Metal, readonly string[]> = {
-    bronze: ["#F6C59A", "#C97B45", "#6E3615"],
-    silver: ["#FFFFFF", "#C3CBD6", "#6F7A88"],
-    gold: ["#FFF3BF", "#F2B632", "#8F5605"],
-    platinum: ["#F4F9FF", "#A9C1DD", "#4E6178"],
-    prism: ["#8EF6FF", "#9C7BFF", "#FF7AD0", "#FFD36E"],
-    holo: ["#B6FFE9", "#8FB8FF", "#C79BFF", "#FFE59A"],
+type Track = "conquest" | "chatter" | "devotion" | "og"
+
+export const METALS: Record<Metal, string> = {
+    bronze: "var(--bronze)",
+    silver: "var(--silver)",
+    gold: "var(--gold)",
+    platinum: "var(--platinum)",
+    prism: "color-mix(in srgb, var(--prism-2) 70%, var(--text))",
+    holo: "color-mix(in srgb, var(--holo-1) 50%, var(--holo-2))",
+}
+
+export const BANDS: Partial<Record<Metal, readonly string[]>> = {
+    prism: ["var(--prism-1)", "var(--prism-2)", "var(--prism-3)", "var(--prism-4)"],
+    holo: ["var(--holo-1)", "var(--holo-2)", "var(--holo-3)", "var(--holo-4)"],
 }
 
 const TITLE_METALS: Partial<Record<string, Metal>> = {
@@ -31,11 +38,19 @@ export function metalOf(title: PlayerTitle): Metal {
     return TITLE_METALS[title.id] ?? "silver"
 }
 
+function trackOf(title: PlayerTitle): Track {
+    if (title.rank?.trackId === "devotion") return "devotion"
+    if (title.rank?.trackId === "chatter") return "chatter"
+    if (title.rank) return "conquest"
+    return "og"
+}
+
 export function enamelOf(title: PlayerTitle): string {
-    if (title.rank?.trackId === "devotion") return "#3A1606"
-    if (title.rank?.trackId === "chatter") return "#0B2E2B"
-    if (title.rank) return "#14223D"
-    return "#1F1238"
+    return `var(--${trackOf(title)}-enamel)`
+}
+
+export function ribbonOf(title: PlayerTitle): string {
+    return `var(--${trackOf(title)})`
 }
 
 export const OG = "og"

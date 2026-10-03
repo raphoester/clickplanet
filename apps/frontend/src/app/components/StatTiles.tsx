@@ -6,7 +6,7 @@ export function StatTiles({children}: {children: ReactNode}) {
 }
 
 export function StatTile({label, value}: {label: string, value: string}) {
-    return <div className="stat-tile">
+    return <div className="panel-box stat-tile">
         <dt>{label}</dt>
         <dd>{value}</dd>
     </div>

@@ -1,9 +1,11 @@
 import {useEffect, useId, useState} from "react"
 import {Me} from "../../backends/account.ts"
-import {TitleDashboard} from "../../backends/player.ts"
+import {NameColor, PlayerInfoBackend, TitleDashboard} from "../../backends/player.ts"
 import TitleBanner from "../titles/TitleBanner.tsx"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import TrackPath from "../titles/TrackPath.tsx"
+import {PlayerStats} from "../players/PlayerCard.tsx"
+import {usePlayerInfo} from "../players/usePlayerInfo.ts"
 import {AccountStore} from "./accountStore.ts"
 
 type Titles =
@@ -34,7 +36,13 @@ function useTitles(store: AccountStore, me: Me): [Titles, () => void] {
     return [titles, () => setRead((n) => n + 1)]
 }
 
-export default function ProgressTab({store, me}: {store: AccountStore, me: Me}) {
+export type ProgressTabProps = {
+    store: AccountStore
+    me: Me
+    stats?: {backend: PlayerInfoBackend, name: string}
+}
+
+export default function ProgressTab({store, me, stats}: ProgressTabProps) {
     const [titles, reread] = useTitles(store, me)
     const [wearing, setWearing] = useState<string>()
     const labelId = useId()
@@ -53,6 +61,8 @@ export default function ProgressTab({store, me}: {store: AccountStore, me: Me}) 
     return <div className="account-progress">
         {worn && <TitleBanner title={worn} compact/>}
 
+        {stats && <OwnStats {...stats}/>}
+
         {wearable.length > 0 && <div className="account-wear">
             <span className="menu-label" id={labelId}>Wear a title</span>
             <div className="account-wear-options" role="radiogroup" aria-labelledby={labelId}>
@@ -62,12 +72,12 @@ export default function ProgressTab({store, me}: {store: AccountStore, me: Me}) 
                                    type="button"
                                    role="radio"
                                    aria-checked={checked}
-                                   className="account-wear-option"
+                                   className="panel-box account-wear-option"
                                    disabled={wearing !== undefined}
                                    onClick={() => {
                                        if (!checked) wear(title.id)
                                    }}>
-                        <TitleEmblem title={title} size={44}/>
+                        <TitleEmblem title={title} size={44} ribbon/>
                         <span className="account-wear-name">{title.name}</span>
                     </button>
                 })}
@@ -76,4 +86,9 @@ export default function ProgressTab({store, me}: {store: AccountStore, me: Me}) 
 
         {tracks.map((track) => <TrackPath key={track.id} track={track}/>)}
     </div>
+}
+
+function OwnStats({backend, name}: {backend: PlayerInfoBackend, name: string}) {
+    const state = usePlayerInfo(backend, {name, countryCode: "", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0})
+    return state.kind === "ready" ? <PlayerStats info={state.info}/> : null
 }

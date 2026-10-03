@@ -5,31 +5,15 @@
 
 .input-search-icon {
     position: absolute;
-    left: 14px;
-    top: 18px;
-    color: #FFFFFF80;
+    left: var(--space-3);
+    top: var(--space-3);
+    color: var(--text-faint);
     pointer-events: none;
 }
 
 .input-search {
     width: 100%;
-    height: 56px;
-    font-size: 22px;
-    border-radius: 16px;
-    padding: 8px 12px 0 44px;
-    border: 2px solid transparent;
-    background-color: #202020;
-    font-family: "Luckiest Guy", sans-serif;
-    color: white;
-}
-
-.input-search:hover {
-    background-color: #303030;
-}
-
-.input-search:focus-visible {
-    outline: none;
-    border-color: #FFFFFF40;
+    padding-left: 40px;
 }
 
 .select-with-search {
@@ -45,28 +29,26 @@
     min-height: 120px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    font-size: 22px;
-    margin-top: 10px;
-    border: none;
-    border-radius: 16px;
-    background-color: transparent;
-    font-family: "Luckiest Guy", sans-serif;
-    color: white;
+    margin-top: var(--space-3);
+    border-radius: var(--radius-m);
+    font-family: var(--font-display);
+    font-size: var(--display-m);
+    color: var(--text);
+    text-shadow: var(--text-drop);
     text-align: left;
 }
 
 .input-select:focus-visible {
-    outline: 2px solid #FFFFFF40;
+    outline: var(--outline-thin) solid var(--secondary);
     outline-offset: -2px;
 }
 
 .input-select-option {
     width: 100%;
-    height: 56px;
-    padding: 14px 0 0 16px;
-    box-sizing: border-box;
-    background-color: transparent;
-    color: white;
+    height: 44px;
+    padding: 13px var(--space-2) 0 var(--space-3);
+    border-radius: var(--radius-m);
+    color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -74,19 +56,24 @@
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
     cursor: pointer;
+    transition: background-color 0.12s ease;
 }
 
-.input-select-option[aria-selected="true"] {
-    background-color: #FFFFFF18;
+.input-select-option:hover,
+.input-select-option[data-active="true"] {
+    background-color: var(--panel-raised);
 }
 
 .input-select-option[data-active="true"] {
-    background-color: #FFFFFF30;
-    box-shadow: inset 3px 0 0 #FFFFFF80;
+    box-shadow: inset 0 0 0 var(--outline-thin) var(--ink);
 }
 
-.input-select-option:hover {
-    background-color: #FFFFFF30;
-    transition: 0.125s ease;
+.input-select-option[aria-selected="true"] {
+    background-color: var(--secondary);
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .input-select-option {
+        transition: none;
+    }
+}

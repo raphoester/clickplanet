@@ -40,6 +40,7 @@ import {createBonusBox} from "./bonusBox.ts";
 import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createClickEffects} from "./clickEffects.ts";
+import {createClickGlints} from "./clickGlints.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
 import {now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
@@ -139,6 +140,7 @@ export type Globe = {
     takeReward(claimed: ClaimedBonus): void
     setArmed(armed: boolean): void
     setSwitch(name: keyof Switches, on: boolean): void
+    setClickHue(hue: number | undefined): void
     capture(): Promise<CapturedFrame>
     dispose(): void
 }
@@ -225,8 +227,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const bonusClicks = createClickEffects(geometryData.positions)
     scene.add(bonusClicks.object)
 
-    // Apart from the bonus ones, so a busy planet's clicks never push a spread off the screen.
-    const plainClicks = createClickEffects(geometryData.positions)
+    const plainClicks = createClickGlints(geometryData.positions)
     scene.add(plainClicks.object)
 
     const outline = createBorderLines(borderLines)
@@ -537,10 +538,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         ownClicks.record(tile, country.code, performance.now() / 1000)
 
         if (outcome === "cleared" && ground !== undefined) {
-            bonusClicks.playClear(tile)
+            plainClicks.playOwnClear(tile)
             onNativeCleared(ground)
         } else {
-            plainClicks.playClick(tile, camera)
+            plainClicks.playOwnClick(tile, camera)
         }
 
         tileClicker.clickTile(tile, country.code, switches).catch((e) => {
@@ -623,6 +624,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (next[name]) disarm()
             switchTo(next)
         },
+        setClickHue: (hue: number | undefined) => plainClicks.setOwnHue(hue),
         capture: () => new Promise<CapturedFrame>((resolve, reject) => {
             if (lifetime.signal.aborted) {
                 reject(new Error("the globe is no longer running"))

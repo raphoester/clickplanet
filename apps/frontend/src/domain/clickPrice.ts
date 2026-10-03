@@ -2,6 +2,13 @@ import {ClickPrice} from "../backends/clickBudget.ts"
 
 export const NEAR_NEXT_STEP = 0.8
 
+/** Who holds the share the refill is priced from: the player's main flag when it is not the country selected. */
+export function holdsLine(share: number, countryName: string, mainFlagName?: string): string {
+    const holds = `holds ${percent(share)} of the map`
+
+    return mainFlagName && mainFlagName !== countryName ? `Your main flag, ${mainFlagName}, ${holds}` : `${countryName} ${holds}`
+}
+
 export function describePrice(
     price: ClickPrice | undefined,
     countryName: string,
@@ -9,10 +16,7 @@ export function describePrice(
 ): {headline: string, detail: string} | undefined {
     if (!price) return undefined
 
-    const holds = `holds ${percent(price.share)} of the map`
-    const headline = mainFlagName && mainFlagName !== countryName
-        ? `Your main flag, ${mainFlagName}, ${holds}`
-        : `${countryName} ${holds}`
+    const headline = holdsLine(price.share, countryName, mainFlagName)
     const next = price.next
 
     if (price.slowdown > 1) {

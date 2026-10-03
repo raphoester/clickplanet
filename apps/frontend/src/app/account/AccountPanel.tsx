@@ -1,12 +1,18 @@
 import {CSSProperties, FormEvent, useId, useState} from "react"
 import {PROVIDER_NAMES} from "../../backends/account.ts"
-import {isValidUsername, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH, NameColor, usernameOf} from "../../backends/player.ts"
+import {
+    isValidUsername,
+    MAX_USERNAME_LENGTH,
+    MIN_USERNAME_LENGTH,
+    NameColor,
+    PlayerInfoBackend,
+    usernameOf,
+} from "../../backends/player.ts"
 import {AccountState, AccountStore} from "./accountStore.ts"
 import {colorMessageOf, messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
 import {factor} from "../../domain/clickPrice.ts"
 import {authorHue, NAME_COLORS} from "../../domain/authorColor.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
-import {UserIcon} from "../components/icons.tsx"
 import ProviderButton from "./ProviderButton.tsx"
 import EmailSignIn from "./EmailSignIn.tsx"
 import ProgressTab from "./ProgressTab.tsx"
@@ -14,29 +20,12 @@ import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
 
-export type AccountButtonProps = {
-    state: Ready
-    onOpen: () => void
-    buttonRef?: React.Ref<HTMLButtonElement>
-}
-
-export function AccountButton({state, onOpen, buttonRef}: AccountButtonProps) {
-    const label = state.me.linked.length > 0 ? "Account" : "Sign in"
-    return <button ref={buttonRef}
-                   type="button"
-                   className="button button-ghost menu-icon"
-                   aria-label={label}
-                   title={label}
-                   onClick={onOpen}>
-        <UserIcon size={26}/>
-    </button>
-}
-
 export type AccountPanelProps = {
     state: Ready
     store: AccountStore
     onDelete: () => void
     linkedMultiplier?: number
+    playerInfo?: PlayerInfoBackend
 }
 
 type Tab = "progress" | "settings"
@@ -52,19 +41,25 @@ export default function AccountPanel(props: AccountPanelProps) {
                                                               id={`${tabsId}-${value}`}
                                                               aria-selected={tab === value}
                                                               aria-controls={`${tabsId}-panel`}
-                                                              className="account-tab"
+                                                              className={`button button-mini account-tab${tab === value ? " button-secondary" : ""}`}
                                                               onClick={() => setTab(value)}>
         {label}
     </button>
 
+    const name = props.state.username
     return <div className="account-tabbed">
+        {name && <p className="account-who" style={authorStyle({name, color: props.state.color ?? NameColor.UNSPECIFIED, guest: false})}>
+            {name}
+        </p>}
         <div className="account-tabs" role="tablist" aria-label="Account">
             {tabButton("progress", "Progress")}
             {tabButton("settings", "Settings")}
         </div>
         <div role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-${tab}`}>
             {tab === "progress"
-                ? <ProgressTab store={props.store} me={props.state.me}/>
+                ? <ProgressTab store={props.store}
+                               me={props.state.me}
+                               stats={props.playerInfo && name ? {backend: props.playerInfo, name} : undefined}/>
                 : <AccountSettings {...props}/>}
         </div>
     </div>
@@ -98,19 +93,19 @@ function AccountSettings({state, store, onDelete, linkedMultiplier}: AccountPane
 
         {linked.length > 0 && <>
             <button type="button"
-                    className="button button-ghost account-button"
+                    className="button account-button"
                     disabled={busy}
                     onClick={() => void store.signOut()}>
                 Sign out
             </button>
             <button type="button"
-                    className="button button-ghost account-button"
+                    className="button account-button"
                     disabled={busy}
                     onClick={() => void store.signOutEverywhere()}>
                 Sign out everywhere
             </button>
             <button type="button"
-                    className="button button-ghost account-button account-delete"
+                    className="button account-button account-delete"
                     disabled={busy}
                     onClick={onDelete}>
                 Delete account
@@ -150,7 +145,7 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
         </div>
         <div className="account-name-row">
             <input id={inputId}
-                   className="account-name-input"
+                   className="field account-name-input"
                    value={draft}
                    autoComplete="off"
                    autoCapitalize="off"
@@ -160,7 +155,7 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
                    aria-describedby={hintId}
                    onChange={(e) => setDraft(e.target.value)}/>
             <button type="submit"
-                    className="button button-mini account-name-save"
+                    className="button button-mini button-secondary account-name-save"
                     disabled={!canSave}>
                 Save
             </button>

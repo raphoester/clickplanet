@@ -17,9 +17,9 @@ export default function About() {
             <h3>Raphaël Oester</h3>
             <p className="center-align">Freelance developer, open to new opportunities</p>
             <div className="about-social">
-                <a target="_blank" rel="noopener noreferrer" href="https://www.linkedin.com/in/raphael-oester/"><b>in</b></a>
-                <a target="_blank" rel="noopener noreferrer" href="https://x.com/raphael_oester"><b>X</b></a>
-                <a target="_blank" rel="noopener noreferrer" href="https://github.com/raphoester"><b>GitHub</b></a>
+                <a className="button button-mini" target="_blank" rel="noopener noreferrer" href="https://www.linkedin.com/in/raphael-oester/"><b>in</b></a>
+                <a className="button button-mini" target="_blank" rel="noopener noreferrer" href="https://x.com/raphael_oester"><b>X</b></a>
+                <a className="button button-mini" target="_blank" rel="noopener noreferrer" href="https://github.com/raphoester"><b>GitHub</b></a>
             </div>
         </div>
         <p className="about-legal">

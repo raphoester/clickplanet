@@ -8,7 +8,7 @@ export type VPNBlockedModalProps = {
 export default function VPNBlockedModal(props: VPNBlockedModalProps) {
     return <Modal
         title="VPN detected"
-        footer={<button type="button" className="button" onClick={props.onClose}>Got it</button>}
+        footer={<button type="button" className="button button-action" onClick={props.onClose}>Got it</button>}
         onClose={props.onClose}>
         <div className="vpn-blocked-text">
             <h3>You can't paint through a VPN 🛡️</h3>

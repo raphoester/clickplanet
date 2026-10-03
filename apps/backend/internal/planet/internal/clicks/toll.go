@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -82,6 +83,10 @@ func (t *Toll) PriceFor(ctx context.Context, payer Payer, country string) (Price
 	}
 
 	return t.Price(tallies[key].With(country, t.clock.Now()).Flag()), nil
+}
+
+func (t *Toll) Steps() []TollStep {
+	return slices.Clone(t.steps)
 }
 
 func (t *Toll) Price(country string) Price {

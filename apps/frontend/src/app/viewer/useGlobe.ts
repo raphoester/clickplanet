@@ -24,10 +24,11 @@ export type UseGlobeOptions = {
     // Must keep its identity: a new one rebuilds the globe.
     playSound?: PlaySound
     country: Country
+    clickHue: number | undefined
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, country} = options
+    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, country, clickHue} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -68,6 +69,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const globeRef = useRef<Globe | null>(null)
 
     const initialCountry = useRef(country)
+    const latestClickHue = useRef(clickHue)
 
     useEffect(() => {
         const element = container.current
@@ -110,6 +112,7 @@ export function useGlobe(options: UseGlobeOptions) {
             }
 
             globeRef.current = globe
+            globe.setClickHue(latestClickHue.current)
             if (import.meta.env.DEV) Object.assign(window, {clickplanetGlobe: globe})
             setTilesCount(globe.tilesCount)
             publishLeaderboard()
@@ -132,6 +135,11 @@ export function useGlobe(options: UseGlobeOptions) {
         initialCountry.current = country
         globeRef.current?.setCountry(country)
     }, [country])
+
+    useEffect(() => {
+        latestClickHue.current = clickHue
+        globeRef.current?.setClickHue(clickHue)
+    }, [clickHue])
 
     const capture = useCallback((): Promise<CapturedFrame> => {
         const globe = globeRef.current

@@ -78,6 +78,7 @@ const RULES: Omit<BonusRules, "homeSoil"> = {
     enclosureMaxTiles: ENCLOSE_MAX_TILES,
     spreadClicks: SPREAD_CLICKS,
     enclosures: ENCLOSURES,
+    toll: TOLL_STEPS,
 }
 
 export type FakeBackendOptions = {

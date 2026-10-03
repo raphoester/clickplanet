@@ -805,6 +805,13 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
    */
   homeSoil = false;
 
+  /**
+   * Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower.
+   *
+   * @generated from field: repeated planet.v1.TollStep toll_steps = 6;
+   */
+  tollSteps: TollStep[] = [];
+
   constructor(data?: PartialMessage<GetBonusRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -818,6 +825,7 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
     { no: 3, name: "spread_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "home_soil", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "toll_steps", kind: "message", T: TollStep, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBonusRulesResponse {
@@ -834,6 +842,49 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
 
   static equals(a: GetBonusRulesResponse | PlainMessage<GetBonusRulesResponse> | undefined, b: GetBonusRulesResponse | PlainMessage<GetBonusRulesResponse> | undefined): boolean {
     return proto3.util.equals(GetBonusRulesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.TollStep
+ */
+export class TollStep extends Message<TollStep> {
+  /**
+   * @generated from field: double share = 1;
+   */
+  share = 0;
+
+  /**
+   * @generated from field: double slowdown = 2;
+   */
+  slowdown = 0;
+
+  constructor(data?: PartialMessage<TollStep>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TollStep";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 2, name: "slowdown", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TollStep {
+    return new TollStep().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TollStep {
+    return new TollStep().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TollStep {
+    return new TollStep().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TollStep | PlainMessage<TollStep> | undefined, b: TollStep | PlainMessage<TollStep> | undefined): boolean {
+    return proto3.util.equals(TollStep, a, b);
   }
 }
 

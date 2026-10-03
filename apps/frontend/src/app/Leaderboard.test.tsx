@@ -11,24 +11,33 @@ const deltas = (pairs: Record<string, number>): TileDeltas => new Map(
     Object.entries(pairs).map(([code, net]): [string, TileDelta] =>
         [code, {net, beat: 1, at: 0}]))
 
+const leader = () => screen.queryByRole("region", {name: /^First: /})
 const rows = () => screen.queryAllByRole("row").slice(1)
 const cells = () => rows().map(r => within(r).getAllByRole("cell").map(c => c.textContent))
 
 afterEach(cleanup)
 
 describe("Leaderboard", () => {
-    it("renders one row per country, in the order it was given", () => {
-        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
+    it("frames the first country, then lists the rest in the order it was given", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250), entry("de", 100)]}/>)
 
+        expect(leader()!.getAttribute("aria-label")).toBe("First: France")
         expect(cells()).toEqual([
-            ["1", "France", "500", "50.00"],
             ["2", "Japan", "250", "25.00"],
+            ["3", "Germany", "100", "10.00"],
         ])
     })
 
-    it("shows each country's share of the map to two decimals", () => {
+    it("gives the first country its share of the map and its tiles", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 123)]}/>)
-        expect(screen.getByText("12.30")).toBeDefined()
+
+        expect(within(leader()!).getByText("12.30")).toBeDefined()
+        expect(within(leader()!).getByText("123 tiles")).toBeDefined()
+    })
+
+    it("shows each country's share of the map to two decimals", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 123)]}/>)
+        expect(within(rows()[0]).getByText("12.30")).toBeDefined()
     })
 
     it("says a share is small rather than rounding it away to nothing", () => {
@@ -41,17 +50,20 @@ describe("Leaderboard", () => {
         expect(screen.getByText("0.00")).toBeDefined()
     })
 
-    it("renders nothing but the header when no country holds a tile", () => {
+    it("renders no frame and no table when no country holds a tile", () => {
         render(<Leaderboard tilesCount={1000} data={[]}/>)
-        expect(rows()).toEqual([])
+
+        expect(leader()).toBeNull()
+        expect(screen.queryByRole("table")).toBeNull()
     })
 
     it("draws a country's flag from the atlas, never as an emoji", () => {
-        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500)]}/>)
+        render(<Leaderboard tilesCount={1000} data={[entry("jp", 600), entry("fr", 500)]}/>)
 
-        const row = rows()[0]
-        expect(row.querySelectorAll(".country-flag")).toHaveLength(1)
-        expect(row.textContent).not.toMatch(/\p{RI}|\p{Extended_Pictographic}/u)
+        for (const place of [leader()!, rows()[0]]) {
+            expect(place.querySelectorAll(".country-flag")).toHaveLength(1)
+            expect(place.textContent).not.toMatch(/\p{RI}|\p{Extended_Pictographic}/u)
+        }
     })
 
     it("does not chop a country name to fit its flag", () => {
@@ -60,7 +72,7 @@ describe("Leaderboard", () => {
     })
 
     it("names itself, and labels its columns in words", () => {
-        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500)]}/>)
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
 
         expect(screen.getByRole("region", {name: "Leaderboard"})).toBeDefined()
         expect(screen.getAllByRole("columnheader").map(h => h.textContent))
@@ -75,47 +87,66 @@ describe("Leaderboard", () => {
         const marked = rows().filter(r => r.getAttribute("aria-current") === "true")
         expect(marked).toHaveLength(1)
         expect(within(marked[0]).getByText("Japan")).toBeDefined()
+        expect(leader()!.getAttribute("aria-current")).toBeNull()
+    })
+
+    it("marks the frame when the player's country leads", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]} highlight={Countries.get("fr")!}/>)
+
+        expect(leader()!.getAttribute("aria-current")).toBe("true")
+        expect(rows().filter(r => r.getAttribute("aria-current") === "true")).toEqual([])
     })
 
     it("marks nothing when the player's country holds no tile", () => {
         render(<Leaderboard tilesCount={1000}
-                            data={[entry("fr", 500)]}
+                            data={[entry("fr", 500), entry("de", 100)]}
                             highlight={Countries.get("jp")!}/>)
 
+        expect(leader()!.getAttribute("aria-current")).toBeNull()
         expect(rows().filter(r => r.getAttribute("aria-current") === "true")).toEqual([])
     })
 
     it("owns no toggle of its own", () => {
-        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500)]}/>)
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
         expect(screen.queryAllByRole("button")).toEqual([])
+    })
+
+    it("says how much slower the first country refills, off the toll", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 250)]} toll={[{share: 0.1, slowdown: 1.5}, {share: 0.2, slowdown: 2.5}]}/>)
+        expect(within(leader()!).getByText("Refills 2.5× slower")).toBeDefined()
+    })
+
+    it("holds what it is given beside the first country", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 250)]} anthem={<p>the anthem</p>}/>)
+        expect(within(leader()!).getByText("the anthem")).toBeDefined()
     })
 })
 
 describe("Leaderboard tile deltas", () => {
-    const badges = () => rows().map(r => r.querySelector(".leaderboard-delta")?.textContent)
+    const badges = () => [leader()!, ...rows()].map(r => r.querySelector(".leaderboard-delta")?.textContent)
 
     it("floats what a country just won next to its count", () => {
         render(<Leaderboard tilesCount={1000}
-                            data={[entry("fr", 503), entry("jp", 250)]}
-                            deltas={deltas({fr: 3})}/>)
+                            data={[entry("fr", 503), entry("jp", 250), entry("de", 100)]}
+                            deltas={deltas({fr: 3, jp: 2})}/>)
 
-        expect(badges()).toEqual(["+3", undefined])
+        expect(badges()).toEqual(["+3", "+2", undefined])
     })
 
     it("spells a loss with its minus", () => {
-        render(<Leaderboard tilesCount={1000} data={[entry("fr", 498)]} deltas={deltas({fr: -2})}/>)
-        expect(badges()).toEqual(["-2"])
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 600), entry("jp", 498)]} deltas={deltas({jp: -2})}/>)
+        expect(badges()).toEqual([undefined, "-2"])
     })
 
     it("badges nothing while the board is still", () => {
-        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500)]}/>)
-        expect(badges()).toEqual([undefined])
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
+        expect(badges()).toEqual([undefined, undefined])
     })
 
     it("colours the count itself the way the badge reads", () => {
         render(<Leaderboard tilesCount={1000}
-                            data={[entry("fr", 503), entry("jp", 248), entry("gb-eng", 10)]}
-                            deltas={deltas({fr: 3, jp: -2})}/>)
+                            data={[entry("fr", 600), entry("jp", 503), entry("de", 248), entry("gb-eng", 10)]}
+                            deltas={deltas({jp: 3, de: -2})}/>)
 
         expect(rows().map(r => r.querySelector(".leaderboard-table-tiles")!.className))
             .toEqual([
@@ -125,15 +156,16 @@ describe("Leaderboard tile deltas", () => {
             ])
     })
 
-    it("keeps the badge out of the row a screen reader reads", () => {
-        render(<Leaderboard tilesCount={1000} data={[entry("fr", 503)]} deltas={deltas({fr: 3})}/>)
+    it("keeps the badge out of what a screen reader reads", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 503), entry("jp", 250)]} deltas={deltas({fr: 3, jp: 1})}/>)
 
-        const badge = rows()[0].querySelector(".leaderboard-delta")!
-        expect(badge.getAttribute("aria-hidden")).toBe("true")
+        for (const place of [leader()!, rows()[0]]) {
+            expect(place.querySelector(".leaderboard-delta")!.getAttribute("aria-hidden")).toBe("true")
+        }
     })
 
     it("leaves the count itself as the number it is", () => {
-        render(<Leaderboard tilesCount={1000} data={[entry("fr", 503)]} deltas={deltas({fr: 3})}/>)
-        expect(cells()).toEqual([["1", "France", "503+3", "50.30"]])
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 600), entry("jp", 503)]} deltas={deltas({jp: 3})}/>)
+        expect(cells()).toEqual([["2", "Japan", "503+3", "50.30"]])
     })
 })

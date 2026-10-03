@@ -5,21 +5,24 @@
 .player-card-title {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     max-width: 100%;
+    font-family: var(--font-text);
+    font-weight: 700;
+    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
 }
 
 .player-card-who {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: var(--space-2);
     min-width: 0;
-    margin-bottom: 14px;
+    margin-bottom: var(--space-3);
 }
 
 .player-card-country {
     flex-shrink: 0;
-    font-size: 20px;
+    font-size: var(--display-m);
 }
 
 .player-card-country .country-flag {
@@ -31,28 +34,26 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: hsl(var(--author-hue, 0), calc(80% * var(--author-chroma, 1)), 78%);
-    text-shadow: -1px 1px 0 #000000;
+    font-weight: 600;
+    font-size: var(--text-s);
+    color: var(--text-soft);
 }
 
 .player-card-note {
-    margin: 4px 0 20px;
+    margin: var(--space-1) 0 var(--space-5);
 }
 
 .player-card .title-banner {
-    margin-bottom: 14px;
+    margin-bottom: var(--space-3);
 }
 
 .player-card-titles {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px;
-    margin: 0 0 16px;
-    padding: 14px 8px 10px;
-    border: 1px solid #FFFFFF14;
-    border-radius: 18px;
-    background: linear-gradient(180deg, #FFFFFF0A, #FFFFFF03);
+    gap: var(--space-2);
+    margin: 0 0 var(--space-4);
+    padding: 0;
     list-style: none;
 }
 
@@ -61,18 +62,21 @@
     flex-direction: column;
     align-items: center;
     gap: 6px;
-    width: 76px;
+    width: 88px;
 }
 
 .player-card-held-name {
-    font-family: "Luckiest Guy", sans-serif;
-    font-size: 13px;
-    letter-spacing: 0.5px;
-    color: #FFFFFFD9;
+    padding-top: 2px;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--text);
+    text-shadow: var(--text-drop);
 }
 
 .player-card .stat-tiles {
-    margin-bottom: 20px;
+    margin-bottom: var(--space-5);
 }
 
 /* :where() keeps specificity at zero, so the name styles win whatever the stylesheet order. */
@@ -91,4 +95,25 @@
 :where(.player-name-button):focus-visible {
     text-decoration: underline;
     text-underline-offset: 3px;
+}
+
+@media only screen and (max-width: 768px) {
+    .modal:has(.player-card) {
+        align-items: flex-end;
+        padding: var(--status-bar-height) 0 0;
+    }
+
+    .modal-content.player-card {
+        max-width: none;
+        border-bottom: none;
+        border-left: none;
+        border-right: none;
+        border-radius: var(--radius-l) var(--radius-l) 0 0;
+        padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+        animation: sheet-in 0.2s ease-out;
+    }
+
+    .player-card .stat-tiles {
+        margin-bottom: 0;
+    }
 }
