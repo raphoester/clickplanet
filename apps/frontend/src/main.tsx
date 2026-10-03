@@ -20,6 +20,8 @@ import App from "./app/App.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
 import {ConnectPlayerBackend, newKeepalivePlayerServiceClient, newPlayerServiceClient} from "./backends/playerBackend.ts"
 import {AccountStore} from "./app/account/accountStore.ts"
+import {ConnectMarketingBackend, newSubscriptionServiceClient} from "./backends/marketingBackend.ts"
+import {SeasonEmailsStore} from "./app/marketing/seasonEmailsStore.ts"
 import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
 import SignInGate from "./app/account/SignInGate.tsx"
 import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
@@ -105,6 +107,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
     })
+    const seasonEmails = new SeasonEmailsStore(new ConnectMarketingBackend(newSubscriptionServiceClient(config), session))
 
     root.render(
         <StrictMode>
@@ -123,6 +126,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     presence={player}
                     playerInfo={player}
                     season={season}
+                    seasonEmails={seasonEmails}
                 />
             </SignInGate>
         </StrictMode>,

@@ -1,4 +1,4 @@
-import {CSSProperties, FormEvent, useId, useState} from "react"
+import {CSSProperties, FormEvent, ReactNode, useId, useState} from "react"
 import {PROVIDER_NAMES} from "../../backends/account.ts"
 import {isValidUsername, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH, NameColor, usernameOf} from "../../backends/player.ts"
 import {AccountState, AccountStore} from "./accountStore.ts"
@@ -37,6 +37,7 @@ export type AccountPanelProps = {
     store: AccountStore
     onDelete: () => void
     linkedMultiplier?: number
+    emails?: ReactNode
 }
 
 type Tab = "progress" | "settings"
@@ -70,7 +71,7 @@ export default function AccountPanel(props: AccountPanelProps) {
     </div>
 }
 
-function AccountSettings({state, store, onDelete, linkedMultiplier}: AccountPanelProps) {
+function AccountSettings({state, store, onDelete, linkedMultiplier, emails}: AccountPanelProps) {
     const busy = state.busy !== undefined
     const linked = state.me.linked
     const toLink = state.offered.filter((p) => !linked.includes(p))
@@ -87,6 +88,7 @@ function AccountSettings({state, store, onDelete, linkedMultiplier}: AccountPane
 
         {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
         {linked.length > 0 && state.username !== undefined && <ColorPicker name={state.username} state={state} store={store}/>}
+        {linked.length > 0 && emails}
 
         {buttons.map((provider) => <ProviderButton key={provider}
                                                    provider={provider}

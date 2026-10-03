@@ -19,6 +19,9 @@ import AccountPanel, {AccountButton} from "./account/AccountPanel.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerLine, RosterEntry} from "../backends/player.ts";
 import PlayersPanel, {PlayersButton} from "./players/PlayersPanel.tsx";
+import SeasonEmails from "./marketing/SeasonEmails.tsx";
+import {SeasonEmailsStore} from "./marketing/seasonEmailsStore.ts";
+import {useSeasonEmails} from "./marketing/useSeasonEmails.ts";
 import "./Menu.css"
 
 export type MenuProps = {
@@ -32,6 +35,8 @@ export type MenuProps = {
     players?: readonly RosterEntry[],
     onOpenPlayer?: (player: PlayerLine) => void,
     linkedMultiplier?: number,
+    seasonEmails?: SeasonEmailsStore,
+    onSignIn?: () => void,
 }
 
 export default function Menu(props: MenuProps) {
@@ -70,6 +75,7 @@ export default function Menu(props: MenuProps) {
     }
 
     const account = useAccount(props.account)
+    const seasonEmails = useSeasonEmails(props.seasonEmails, account)
     const [accountOpen, setAccountOpen] = useState(false)
     const [confirmingDelete, setConfirmingDelete] = useState(false)
 
@@ -135,6 +141,8 @@ export default function Menu(props: MenuProps) {
                         <AccountPanel state={account}
                                       store={props.account}
                                       linkedMultiplier={props.linkedMultiplier}
+                                      emails={props.seasonEmails && <SeasonEmails state={seasonEmails}
+                                                                                  store={props.seasonEmails}/>}
                                       onDelete={() => setConfirmingDelete(true)}/>
                     </MenuPanel>
                     : playersOpen && props.players
@@ -163,6 +171,10 @@ export default function Menu(props: MenuProps) {
                                      deltas={props.tileDeltas ?? NO_TILE_DELTAS}
                                      tilesCount={props.tilesCount}
                                      highlight={props.country}/>
+
+                        {props.seasonEmails && <SeasonEmails state={seasonEmails}
+                                                             store={props.seasonEmails}
+                                                             onSignIn={props.onSignIn ?? openAccount}/>}
 
                         <div className="menu-actions">
                             <a href="/#home"

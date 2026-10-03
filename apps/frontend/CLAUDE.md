@@ -976,6 +976,17 @@ refusal. A whole sign-in needs a real client registered with
 `http://localhost:5173/auth/callback`. To see the signed-in panel without one,
 mint a guest and insert a row into `auth.identities` for its account.
 
+### Season emails
+
+A signed-in player can ask for an email before the Season 0 finale. One control, `app/marketing/SeasonEmails.tsx`, sits under the leaderboard and in the account panel's Settings tab (through `AccountPanel`'s `emails` slot, so the panel knows nothing of marketing); `Menu` reads the state once with `useSeasonEmails` and hands it to both.
+
+- `backends/marketing.ts` — the contract: `MarketingBackend`, `Subscription` and `MarketingError`, whose `failure` says why the server said no. `marketingBackend.ts` is `ConnectMarketingBackend` over `marketing.v1.SubscriptionService`; `fakeMarketingBackend.ts` holds one subscription in memory, and `confirm()` turns a waiting one active.
+- `app/marketing/seasonEmailsStore.ts` — `SeasonEmailsStore`, the state machine: `hidden`, `guest`, or `ready` with the state (`none`, `waiting`, `active`), the address, the call in flight and the last failure. No DOM and no network of its own, like `AccountStore`. `follow(me)` reads once per account the menu shows, and hides the control while it does.
+- **A guest is offered the button without minting.** `offered()` calls `GetSubscription` with no token: a server with season emails answers `unauthenticated`, one without answers 404 (`unimplemented`). The press opens `SignInPitchModal`, or the account panel when no pitch can be shown. A signed-in player's field is filled from `GetSubscription` and free to change; a press subscribes what it holds. A waiting address is read again whenever the page becomes visible, since the confirmation link opens in another tab.
+- **The button's words are the consent.** `domain/seasonEmailsConsent.ts` pins "Email me before the finale" to `season-emails-1`, the version the server keeps beside each opt-in, and a test pins both. New words need a new version, in both apps.
+- Only `GetSubscription` is retried: a write refused `unavailable` means Brevo did not answer, and sending it again would spend the throttle.
+- To try it locally, run the backend with `auth.enabled`, `auth.email.enabled` and `auth.email.delivery: log`, and `marketing.enabled` with `marketing.audience.delivery: log`, and the dev server with Turnstile's test sitekey (see [Sign-in](#sign-in)). Sign in by email with the code from the server log; a typed address waits, and reads active on the next load, since the log audience answers every confirmation yes.
+
 ### `src/app/viewer/` — the GPU layer
 
 - `globe.ts` — `createGlobe(options): Promise<Globe>`. Builds the scene, wires

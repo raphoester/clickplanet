@@ -10,6 +10,9 @@ import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
 import {NameColor, RosterEntry} from "../backends/player.ts"
 import {PlayerBackend, PlayerError, PlayerTitle, TitleDashboard} from "../backends/player.ts"
+import {FakeMarketingBackend} from "../backends/fakeMarketingBackend.ts"
+import {SeasonEmailsStore} from "./marketing/seasonEmailsStore.ts"
+import {SEASON_EMAILS_CONSENT} from "../domain/seasonEmailsConsent.ts"
 
 const france = Countries.get("fr")!
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
@@ -341,7 +344,10 @@ describe("Menu", () => {
             }],
         })
 
-        const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number, players?: RosterEntry[]) => {
+        const withAccount = (
+            offered: Provider[], me: Me, username = "", linkedMultiplier?: number, players?: RosterEntry[],
+            emails: {seasonEmails?: SeasonEmailsStore, onSignIn?: () => void} = {},
+        ) => {
             const backend = {
                 signInOptions: vi.fn(async () => offered),
                 me: vi.fn(async () => me),
@@ -363,7 +369,7 @@ describe("Menu", () => {
             } satisfies PlayerBackend
             const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
-                                      account={store} linkedMultiplier={linkedMultiplier} players={players}/>)
+                                      account={store} linkedMultiplier={linkedMultiplier} players={players} {...emails}/>)
             const user = userEvent.setup()
             const openSettings = async () => {
                 await user.click(await screen.findByRole("button", {name: "Account"}))
@@ -371,6 +377,48 @@ describe("Menu", () => {
             }
             return {...view, backend, player, navigate, user, openSettings}
         }
+
+        it("puts the season emails under the leaderboard, filled with the account's address", async () => {
+            const {container} = withAccount(["google"], {linked: ["google"]}, "", undefined, undefined,
+                {seasonEmails: new SeasonEmailsStore(new FakeMarketingBackend(["ada@example.com"]))})
+
+            const field = await screen.findByLabelText("Email") as HTMLInputElement
+            expect(field.value).toBe("ada@example.com")
+            const leaderboard = container.querySelector(".leaderboard")!
+            expect(leaderboard.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        })
+
+        it("sends a guest's press on the season emails to the sign-in pitch", async () => {
+            const onSignIn = vi.fn()
+            const {user} = withAccount(["google"], {linked: []}, "", 2, undefined,
+                {seasonEmails: new SeasonEmailsStore(new FakeMarketingBackend()), onSignIn})
+
+            await user.click(await screen.findByRole("button", {name: SEASON_EMAILS_CONSENT.words}))
+
+            expect(onSignIn).toHaveBeenCalledTimes(1)
+        })
+
+        it("opens the account panel for a guest when there is no pitch to show", async () => {
+            const {user} = withAccount(["google"], {linked: []}, "", undefined, undefined,
+                {seasonEmails: new SeasonEmailsStore(new FakeMarketingBackend())})
+
+            await user.click(await screen.findByRole("button", {name: SEASON_EMAILS_CONSENT.words}))
+
+            expect(screen.getByRole("button", {name: "Sign in with Google"})).toBeDefined()
+            expect(screen.queryByRole("button", {name: SEASON_EMAILS_CONSENT.words})).toBeNull()
+        })
+
+        it("shows the same season emails in the account settings", async () => {
+            const seasonEmails = new SeasonEmailsStore(new FakeMarketingBackend(["ada@example.com"]))
+            const {user, openSettings} = withAccount(["google"], {linked: ["google"]}, "", undefined, undefined, {seasonEmails})
+            await user.click(await screen.findByRole("button", {name: SEASON_EMAILS_CONSENT.words}))
+            expect(await screen.findByText("Emails on · ada@example.com")).toBeDefined()
+
+            await openSettings()
+
+            expect(screen.getByText("Emails on · ada@example.com")).toBeDefined()
+            expect(screen.getByRole("button", {name: "Turn off"})).toBeDefined()
+        })
 
         it("keeps the account button beside the players button", async () => {
             withAccount(["google"], {linked: ["google"]}, "ana", undefined,

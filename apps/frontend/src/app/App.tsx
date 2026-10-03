@@ -21,6 +21,7 @@ export default function App(props: AppProps) {
             presence={props.presence}
             playerInfo={props.playerInfo}
             season={props.season}
+            seasonEmails={props.seasonEmails}
         />
     </>
 }

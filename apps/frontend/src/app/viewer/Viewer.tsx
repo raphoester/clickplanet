@@ -42,6 +42,7 @@ import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
+import {SeasonEmailsStore} from "../marketing/seasonEmailsStore.ts";
 import {LeaderboardEntry} from "../../domain/leaderboard.ts";
 import {SeasonBackend} from "../../backends/season.ts";
 import {useSeason} from "../season/useSeason.ts";
@@ -64,6 +65,7 @@ export type ViewerProps = {
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
     season?: SeasonBackend
+    seasonEmails?: SeasonEmailsStore
 }
 
 export default function Viewer(props: ViewerProps) {
@@ -152,6 +154,8 @@ export default function Viewer(props: ViewerProps) {
             players={roster.kind === 'ready' ? roster.entries : undefined}
             onOpenPlayer={onOpenPlayer}
             linkedMultiplier={clickBudget?.linkedMultiplier}
+            seasonEmails={props.seasonEmails}
+            onSignIn={guest && clickBudget?.linkedMultiplier ? () => setPitchOpen(true) : undefined}
         />}
 
         {status.state === 'ready' && season && <SeasonBanner season={season}/>}
