@@ -24,12 +24,12 @@ function fakeGlobe(): Globe & {
     capture: ReturnType<typeof vi.fn>,
     dispose: ReturnType<typeof vi.fn>,
 } {
-    return {tilesCount: 257_948, setCountry: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), capture: vi.fn(), dispose: vi.fn()}
+    return {tilesCount: 257_948, setCountry: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), capture: vi.fn(), dispose: vi.fn()}
 }
 
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {
     const container = useRef<HTMLDivElement>(null)
-    props.onResult(useGlobe({container, ...props.backends, country: props.country}))
+    props.onResult(useGlobe({container, ...props.backends, country: props.country, clickHue: undefined}))
     return <div ref={container}/>
 }
 
@@ -134,6 +134,26 @@ describe("useGlobe", () => {
         expect(globe.dispose).not.toHaveBeenCalled()
     })
 
+    it("gives the running globe the player's hue, and every change of it", async () => {
+        const globe = fakeGlobe()
+        createGlobe.mockResolvedValue(globe)
+        const deps = backends()
+
+        function Hued(props: {hue: number | undefined}) {
+            const container = useRef<HTMLDivElement>(null)
+            useGlobe({container, ...deps, country: FRANCE, clickHue: props.hue})
+            return <div ref={container}/>
+        }
+
+        const view = render(<Hued hue={270}/>)
+        await waitFor(() => expect(globe.setClickHue).toHaveBeenCalledWith(270))
+
+        await act(async () => {view.rerender(<Hued hue={undefined}/>)})
+
+        expect(globe.setClickHue).toHaveBeenLastCalledWith(undefined)
+        expect(createGlobe).toHaveBeenCalledTimes(1)
+    })
+
     it("rebuilds the globe when a backend is swapped", async () => {
         const globe = fakeGlobe()
         createGlobe.mockResolvedValue(globe)
@@ -232,7 +252,7 @@ describe("useGlobe", () => {
         createGlobe.mockResolvedValue(fakeGlobe())
 
         function NoContainer() {
-            useGlobe({container: createRef<HTMLDivElement>(), ...backends(), country: FRANCE})
+            useGlobe({container: createRef<HTMLDivElement>(), ...backends(), country: FRANCE, clickHue: undefined})
             return null
         }
         render(<NoContainer/>)

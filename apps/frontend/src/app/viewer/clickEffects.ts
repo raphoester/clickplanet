@@ -24,12 +24,6 @@ const MAX_PLAYING = 32
 
 const GREEN = new THREE.Color(0.3, 1.0, 0.45)
 
-export const CLEAR_LIFETIME_SECONDS = 0.8
-
-const DUST = new THREE.Color(0.93, 0.8, 0.58)
-
-const SKY = new THREE.Color(0.35, 0.75, 1.0)
-
 export type Spark = {
     from: THREE.Vector3
     to: THREE.Vector3
@@ -99,31 +93,6 @@ export function choreographSpread(spread: SpreadClick, positions: ArrayLike<numb
     }
 }
 
-export function choreographClear(tile: number, positions: ArrayLike<number>): Choreography {
-    const centre = at(positions, tile)
-
-    return {
-        sparks: [{from: centre, to: centre, start: 0, travel: 0, role: "burst"}],
-        waves: [{startsAt: 0.04, seconds: 0.55, peak: 0.85}],
-        centre,
-        reach: TILE_SPACING * 3,
-        minReachPx: 36,
-        lifetime: CLEAR_LIFETIME_SECONDS,
-        colour: DUST,
-    }
-}
-
-export function choreographClick(tile: number, positions: ArrayLike<number>): Choreography {
-    return {...choreographClear(tile, positions), colour: SKY}
-}
-
-export function inView(point: THREE.Vector3, camera: THREE.Camera): boolean {
-    if (point.dot(camera.getWorldDirection(new THREE.Vector3())) >= 0) return false
-
-    const {x, y} = point.clone().project(camera)
-    return Math.abs(x) <= 1 && Math.abs(y) <= 1
-}
-
 export type SparkLook = {
     progress: number
     glow: number
@@ -177,8 +146,6 @@ function smoothstep(from: number, to: number, x: number): number {
 export type ClickEffects = {
     readonly object: THREE.Object3D
     playSpread(spread: SpreadClick): void
-    playClear(tile: number): void
-    playClick(tile: number, camera: THREE.Camera): void
     update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number): boolean
     dispose(): void
 }
@@ -335,11 +302,6 @@ export function createClickEffects(positions: ArrayLike<number>): ClickEffects {
     return {
         object: group,
         playSpread: (spread) => play(choreographSpread(spread, positions)),
-        playClear: (tile) => play(choreographClear(tile, positions)),
-        playClick: (tile, camera) => {
-            const choreography = choreographClick(tile, positions)
-            if (inView(choreography.centre, camera)) play(choreography)
-        },
         update,
         dispose: () => {
             for (const effect of playing) stop(effect)
