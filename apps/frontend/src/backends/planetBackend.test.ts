@@ -9,6 +9,7 @@ import {
     QuizOffered,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
+    GetBonusRulesResponse,
     GetMapResponse,
     GlobePoint,
     Heartbeat,
@@ -146,7 +147,7 @@ async function ruled(backend: PlanetBackend): Promise<void> {
 
 function bonusReads() {
     return {
-        getBonusRules: vi.fn().mockResolvedValue({blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3}),
+        getBonusRules: vi.fn().mockResolvedValue(new GetBonusRulesResponse({blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3})),
         getCharges: vi.fn().mockResolvedValue({charges: new ChargesHeld()}),
     }
 }
@@ -1023,9 +1024,11 @@ describe("the rules", () => {
         ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(),
             listenForEvents: noEvents(), ...fields}) as never
 
-    it("reads whether native land takes two clicks with the sizes of the charges", async () => {
-        const getBonusRules = vi.fn().mockResolvedValue(
-            {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: true})
+    it("reads whether native land takes two clicks, the toll and the sizes of the charges", async () => {
+        const getBonusRules = vi.fn().mockResolvedValue(new GetBonusRulesResponse({
+            blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: true,
+            tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
+        }))
         const backend = new PlanetBackend(clientWith({getBonusRules}), 1_000)
 
         const seen: BonusRules[] = []
@@ -1034,8 +1037,10 @@ describe("the rules", () => {
             onRules: (rules) => seen.push(rules),
         })
 
-        await vi.waitFor(() => expect(seen.at(-1)).toEqual(
-            {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: true}))
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({
+            blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: true,
+            toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
+        }))
         backend.close()
     })
 })

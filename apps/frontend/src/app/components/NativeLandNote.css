@@ -1,6 +1,6 @@
 .native-land-note {
     position: fixed;
-    top: calc(var(--season-banner-bottom, 8px) + 56px);
+    top: calc(var(--status-bottom, 8px) + 56px);
     left: 50%;
     z-index: 150;
     transform: translateX(-50%);
@@ -8,7 +8,7 @@
 }
 
 .native-land-note--lowered {
-    top: calc(var(--season-banner-bottom, 8px) + 260px);
+    top: calc(var(--status-bottom, 8px) + 260px);
 }
 
 .native-land-note-line {
@@ -48,12 +48,6 @@
 }
 
 @media (max-width: 768px) {
-    .native-land-note,
-    .native-land-note--lowered {
-        top: auto;
-        bottom: 144px;
-    }
-
     .native-land-note-line {
         width: max-content;
         max-width: calc(100vw - 32px);

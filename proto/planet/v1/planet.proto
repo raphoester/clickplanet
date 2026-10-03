@@ -156,6 +156,14 @@ message GetBonusRulesResponse {
   uint32 enclosures = 4;
 
   bool home_soil = 5;
+
+  // Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower.
+  repeated TollStep toll_steps = 6;
+}
+
+message TollStep {
+  double share = 1;
+  double slowdown = 2;
 }
 
 enum BonusKind {

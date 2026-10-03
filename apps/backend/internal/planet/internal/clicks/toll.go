@@ -3,6 +3,7 @@ package clicks
 import (
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
@@ -58,6 +59,10 @@ func NewToll(config TollConfig, shares ShareReader) *Toll {
 type Toll struct {
 	steps  []TollStep
 	shares ShareReader
+}
+
+func (t *Toll) Steps() []TollStep {
+	return slices.Clone(t.steps)
 }
 
 func (t *Toll) Price(country string) Price {

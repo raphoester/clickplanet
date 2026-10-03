@@ -1,12 +1,18 @@
 import {CSSProperties, FormEvent, ReactNode, useId, useState} from "react"
 import {PROVIDER_NAMES} from "../../backends/account.ts"
-import {isValidUsername, MAX_USERNAME_LENGTH, MIN_USERNAME_LENGTH, NameColor, usernameOf} from "../../backends/player.ts"
+import {
+    isValidUsername,
+    MAX_USERNAME_LENGTH,
+    MIN_USERNAME_LENGTH,
+    NameColor,
+    PlayerInfoBackend,
+    usernameOf,
+} from "../../backends/player.ts"
 import {AccountState, AccountStore} from "./accountStore.ts"
 import {colorMessageOf, messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
 import {factor} from "../../domain/clickPrice.ts"
 import {authorHue, NAME_COLORS} from "../../domain/authorColor.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
-import {UserIcon} from "../components/icons.tsx"
 import ProviderButton from "./ProviderButton.tsx"
 import EmailSignIn from "./EmailSignIn.tsx"
 import ProgressTab from "./ProgressTab.tsx"
@@ -14,29 +20,12 @@ import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
 
-export type AccountButtonProps = {
-    state: Ready
-    onOpen: () => void
-    buttonRef?: React.Ref<HTMLButtonElement>
-}
-
-export function AccountButton({state, onOpen, buttonRef}: AccountButtonProps) {
-    const label = state.me.linked.length > 0 ? "Account" : "Sign in"
-    return <button ref={buttonRef}
-                   type="button"
-                   className="button menu-icon"
-                   aria-label={label}
-                   title={label}
-                   onClick={onOpen}>
-        <UserIcon size={26}/>
-    </button>
-}
-
 export type AccountPanelProps = {
     state: Ready
     store: AccountStore
     onDelete: () => void
     linkedMultiplier?: number
+    playerInfo?: PlayerInfoBackend
     emails?: ReactNode
 }
 
@@ -58,14 +47,20 @@ export default function AccountPanel(props: AccountPanelProps) {
         {label}
     </button>
 
+    const name = props.state.username
     return <div className="account-tabbed">
+        {name && <p className="account-who" style={authorStyle({name, color: props.state.color ?? NameColor.UNSPECIFIED, guest: false})}>
+            {name}
+        </p>}
         <div className="account-tabs" role="tablist" aria-label="Account">
             {tabButton("progress", "Progress")}
             {tabButton("settings", "Settings")}
         </div>
         <div role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-${tab}`}>
             {tab === "progress"
-                ? <ProgressTab store={props.store} me={props.state.me}/>
+                ? <ProgressTab store={props.store}
+                               me={props.state.me}
+                               stats={props.playerInfo && name ? {backend: props.playerInfo, name} : undefined}/>
                 : <AccountSettings {...props}/>}
         </div>
     </div>

@@ -96,3 +96,24 @@
     text-decoration: underline;
     text-underline-offset: 3px;
 }
+
+@media only screen and (max-width: 768px) {
+    .modal:has(.player-card) {
+        align-items: flex-end;
+        padding: var(--status-bar-height) 0 0;
+    }
+
+    .modal-content.player-card {
+        max-width: none;
+        border-bottom: none;
+        border-left: none;
+        border-right: none;
+        border-radius: var(--radius-l) var(--radius-l) 0 0;
+        padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+        animation: sheet-in 0.2s ease-out;
+    }
+
+    .player-card .stat-tiles {
+        margin-bottom: 0;
+    }
+}
