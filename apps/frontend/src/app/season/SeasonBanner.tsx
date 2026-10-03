@@ -26,13 +26,13 @@ export default function SeasonBanner({season}: {season: Season}) {
 
     const head = <>
         <span className="season-banner-label">
-            {clock.finale ? "Final Assault ends in" : `Season ${season.number} ends in`}
+            {clock.finale ? "Final Battle ends in" : `Season ${season.number} ends in`}
         </span>
         <span className="season-banner-left" role="timer">{clock.left}</span>
     </>
 
     if (clock.finale) {
-        return <section ref={setBanner} className="season-banner season-banner--live" aria-label="Final Assault">
+        return <section ref={setBanner} className="season-banner season-banner--live" aria-label="Final Battle">
             <div className="season-banner-head">{head}</div>
         </section>
     }
@@ -47,7 +47,7 @@ export default function SeasonBanner({season}: {season: Season}) {
 
         {!folded && <div className="season-banner-finale">
             <p className="season-banner-when">
-                <span className="season-banner-finale-name">Final Assault</span>
+                <span className="season-banner-finale-name">Final Battle</span>
                 <span>{finale.day} · {finale.from}–{finale.to}</span>
             </p>
             <AddToCalendarButton season={season}/>

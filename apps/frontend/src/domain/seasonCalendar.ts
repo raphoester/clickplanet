@@ -17,7 +17,7 @@ export function finaleCalendar(season: Season, playUrl: string, now: number): Ca
         `DTSTAMP:${utc(now)}`,
         `DTSTART:${utc(season.finaleStartsAt)}`,
         `DTEND:${utc(season.endsAt)}`,
-        `SUMMARY:${text(`ClickPlanet Season ${season.number}: Final Assault`)}`,
+        `SUMMARY:${text(`ClickPlanet Season ${season.number}: Final Battle`)}`,
         `DESCRIPTION:${text(playUrl)}`,
         `URL:${playUrl}`,
         "END:VEVENT",

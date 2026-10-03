@@ -16,9 +16,10 @@ export function seasonClock(season: Season, now: number): SeasonClock | undefine
 }
 
 function timeLeft(seconds: number): string {
-    if (seconds >= DAY) return `${Math.floor(seconds / DAY)}d ${twoDigits(seconds % DAY / HOUR)}h`
-    if (seconds >= HOUR) return `${Math.floor(seconds / HOUR)}h ${twoDigits(seconds % HOUR / MINUTE)}m`
-    return `${twoDigits(seconds / MINUTE)}:${twoDigits(seconds % MINUTE)}`
+    const minutesAndSeconds = `${twoDigits(seconds % HOUR / MINUTE)}m ${twoDigits(seconds % MINUTE)}s`
+    if (seconds >= DAY) return `${Math.floor(seconds / DAY)}d ${twoDigits(seconds % DAY / HOUR)}h ${minutesAndSeconds}`
+    if (seconds >= HOUR) return `${Math.floor(seconds / HOUR)}h ${minutesAndSeconds}`
+    return minutesAndSeconds
 }
 
 function twoDigits(n: number): string {

@@ -20,7 +20,7 @@ describe("finaleCalendar", () => {
             "DTSTAMP:20261003T101530Z",
             "DTSTART:20261031T210000Z",
             "DTEND:20261031T230000Z",
-            "SUMMARY:ClickPlanet Season 0: Final Assault",
+            "SUMMARY:ClickPlanet Season 0: Final Battle",
             "DESCRIPTION:https://clickplanet.lol/play",
             "URL:https://clickplanet.lol/play",
             "END:VEVENT",
@@ -38,7 +38,7 @@ describe("finaleCalendar", () => {
         expect(file.name).toBe("clickplanet-season-2-finale.ics")
         expect(file.text).toContain("\r\nUID:season-2-finale@clickplanet.lol\r\n")
         expect(file.text).toContain("\r\nDTSTART:20270131T203000Z\r\nDTEND:20270131T230000Z\r\n")
-        expect(file.text).toContain("\r\nSUMMARY:ClickPlanet Season 2: Final Assault\r\n")
+        expect(file.text).toContain("\r\nSUMMARY:ClickPlanet Season 2: Final Battle\r\n")
     })
 
     it("escapes what a text value may not hold", () => {

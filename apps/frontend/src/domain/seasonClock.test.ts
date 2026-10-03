@@ -12,33 +12,33 @@ const before = {...season, finaleStartsAt: endsAt}
 const left = (ms: number) => seasonClock(season, endsAt - ms)
 
 describe("seasonClock", () => {
-    it("counts days and hours while more than a day is left", () => {
-        expect(left(27 * DAY + 14 * HOUR + 30 * MINUTE)).toEqual({finale: false, left: "27d 14h"})
-        expect(left(DAY + 4 * HOUR)?.left).toBe("1d 04h")
-        expect(left(DAY)?.left).toBe("1d 00h")
+    it("counts days, hours, minutes and seconds while more than a day is left", () => {
+        expect(left(27 * DAY + 14 * HOUR + 5 * MINUTE + 12 * SECOND)).toEqual({finale: false, left: "27d 14h 05m 12s"})
+        expect(left(DAY + 4 * HOUR)?.left).toBe("1d 04h 00m 00s")
+        expect(left(DAY)?.left).toBe("1d 00h 00m 00s")
     })
 
-    it("counts hours and minutes once less than a day is left", () => {
-        expect(left(DAY - SECOND)?.left).toBe("23h 59m")
-        expect(left(13 * HOUR + 5 * MINUTE + 20 * SECOND)).toEqual({finale: false, left: "13h 05m"})
-        expect(left(2 * HOUR + SECOND)?.left).toBe("2h 00m")
+    it("drops the days once less than a day is left", () => {
+        expect(left(DAY - SECOND)?.left).toBe("23h 59m 59s")
+        expect(left(13 * HOUR + 5 * MINUTE + 20 * SECOND)).toEqual({finale: false, left: "13h 05m 20s"})
+        expect(left(2 * HOUR + SECOND)?.left).toBe("2h 00m 01s")
     })
 
-    it("counts minutes and seconds once less than an hour is left", () => {
-        expect(seasonClock(before, endsAt - (52 * MINUTE + 10 * SECOND))?.left).toBe("52:10")
-        expect(seasonClock(before, endsAt - (5 * MINUTE + 9 * SECOND))?.left).toBe("05:09")
+    it("drops the hours once less than an hour is left", () => {
+        expect(seasonClock(before, endsAt - (52 * MINUTE + 10 * SECOND))?.left).toBe("52m 10s")
+        expect(seasonClock(before, endsAt - (5 * MINUTE + 9 * SECOND))?.left).toBe("05m 09s")
     })
 
-    it("rounds a part second up, so it reads 00:01 until the end", () => {
-        expect(seasonClock(before, endsAt - 300)?.left).toBe("00:01")
-        expect(seasonClock(before, endsAt - HOUR + 300)?.left).toBe("1h 00m")
+    it("rounds a part second up, so it reads 00m 01s until the end", () => {
+        expect(seasonClock(before, endsAt - 300)?.left).toBe("00m 01s")
+        expect(seasonClock(before, endsAt - HOUR + 300)?.left).toBe("1h 00m 00s")
     })
 
     it("says when the finale runs", () => {
         expect(left(2 * HOUR + SECOND)?.finale).toBe(false)
-        expect(left(2 * HOUR)).toEqual({finale: true, left: "2h 00m"})
-        expect(left(HOUR + 12 * MINUTE)).toEqual({finale: true, left: "1h 12m"})
-        expect(left(52 * MINUTE + 10 * SECOND)).toEqual({finale: true, left: "52:10"})
+        expect(left(2 * HOUR)).toEqual({finale: true, left: "2h 00m 00s"})
+        expect(left(HOUR + 12 * MINUTE)).toEqual({finale: true, left: "1h 12m 00s"})
+        expect(left(52 * MINUTE + 10 * SECOND)).toEqual({finale: true, left: "52m 10s"})
     })
 
     it("is gone once the season is over", () => {

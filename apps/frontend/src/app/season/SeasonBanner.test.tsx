@@ -29,7 +29,7 @@ describe("SeasonBanner", () => {
 
         expect(screen.getByRole("region", {name: "Season 0"})).toBeDefined()
         expect(screen.getByText("Season 0 ends in")).toBeDefined()
-        expect(screen.getByRole("timer").textContent).toBe("27d 14h")
+        expect(screen.getByRole("timer").textContent).toBe("27d 14h 00m 00s")
         expect(screen.getByText(`${finale.day} · ${finale.from}–${finale.to}`)).toBeDefined()
         expect(calendar()).not.toBeNull()
     })
@@ -37,10 +37,13 @@ describe("SeasonBanner", () => {
     it("ticks down every second", () => {
         vi.useFakeTimers({now: endsAt - 2 * HOUR - 52 * MINUTE - 10_000})
         render(<SeasonBanner season={{...season, finaleStartsAt: endsAt}}/>)
-        expect(screen.getByRole("timer").textContent).toBe("2h 52m")
+        expect(screen.getByRole("timer").textContent).toBe("2h 52m 10s")
 
-        act(() => vi.advanceTimersByTime(2 * HOUR + 1000))
-        expect(screen.getByRole("timer").textContent).toBe("52:09")
+        act(() => vi.advanceTimersByTime(1000))
+        expect(screen.getByRole("timer").textContent).toBe("2h 52m 09s")
+
+        act(() => vi.advanceTimersByTime(2 * HOUR))
+        expect(screen.getByRole("timer").textContent).toBe("52m 09s")
     })
 
     it("folds to the countdown alone, and stays folded on the next load", async () => {
@@ -64,9 +67,9 @@ describe("SeasonBanner", () => {
         vi.useFakeTimers({now: endsAt - HOUR - 12 * MINUTE})
         render(<SeasonBanner season={season}/>)
 
-        expect(screen.getByRole("region", {name: "Final Assault"})).toBeDefined()
-        expect(screen.getByText("Final Assault ends in")).toBeDefined()
-        expect(screen.getByRole("timer").textContent).toBe("1h 12m")
+        expect(screen.getByRole("region", {name: "Final Battle"})).toBeDefined()
+        expect(screen.getByText("Final Battle ends in")).toBeDefined()
+        expect(screen.getByRole("timer").textContent).toBe("1h 12m 00s")
         expect(screen.queryByRole("button")).toBeNull()
     })
 
