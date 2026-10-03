@@ -50,3 +50,9 @@ player:
     sslMode: disable
     schema: player
   tagSalt: "local-development-salt"
+
+seasons:
+  list:
+    - number: 0
+      endsAt: 2026-10-31T23:00:00Z
+      finale: 2h

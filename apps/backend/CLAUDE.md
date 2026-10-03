@@ -53,12 +53,13 @@ make dBuild
 
 This is a Go backend for a collaborative map-clicking game. It follows **hexagonal architecture (ports & adapters)**.
 
-### Four bounded contexts, one process
+### Five bounded contexts, one process
 
 - **`internal/planet/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
 - **`internal/auth/`** — who a caller is and what it has to prove before it may click: Turnstile, accounts, the click token. See [Auth](#auth-internalauth).
 - **`internal/player/`** — what the game keeps about one account: the name it chose, the tiles it took, its daily streak. See [Player](#player-internalplayer).
+- **`internal/seasons/`** — the season calendar, above the game. See [Seasons](#seasons-internalseasons).
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
@@ -93,6 +94,7 @@ root package**:
 | `chat` | `Config`, `StorageConfig`, `NewModule` |
 | `auth` | `Config`, `NewModule`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
 | `player` | `Config`, `NewModule` |
+| `seasons` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
@@ -173,10 +175,11 @@ return []bootstrap.Module{
 	planet.NewModule(config.Planet),
 	chat.NewModule(config.Chat),
 	player.NewModule(config.Player),
+	seasons.NewModule(config.Seasons),
 }
 ```
 
-**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet`, `chat` and `player` have no switch and are always on; `auth` has one. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
+**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet`, `chat`, `player` and `seasons` have no switch and are always on; `auth` has one. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
 
 #### What two contexts need, without either handing it to the other
 
@@ -1031,7 +1034,23 @@ internal/player/internal/
 - **No foreign key to `auth.accounts`**: the schemas are each module's own, and the event is how a deletion crosses.
 - **If takes ever outgrow one transaction each**, the subscriber can batch them; nothing else changes.
 
-### Bonus boxes (`internal/planet/internal/bonuses/`)
+### Seasons (`internal/seasons/`)
+
+**When a season ends, and when its finale starts.** Planet never imports, calls or hears it: a later slice will have seasons call a planet internal service, never the other way.
+
+```
+internal/seasons/internal/
+  calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current)
+    usecases/get_season_usecase/  the calendar and the clock
+  seasonsv1controller/            SeasonService (a bag), the cache interceptor
+    get_season_handler/
+```
+
+- **The calendar is the config**, `seasons.list`, and there is no database. An empty list is no season.
+- **`Calendar.Current(now)` is the first season whose end is after now.** A season starts when the one before it ends; the first started before anything.
+- **The boot is refused** when the numbers do not count up from 0, the ends do not go up, or a finale is not above 0 and shorter than its season.
+- **`GetSeason` is a GET** (`NO_SIDE_EFFECTS`), answered `public, max-age=60`. No current season is an empty answer.
+
 
 A question-mark box flies past the planet every so often; whoever catches it
 gets one of four bonuses. Each box draws its kind from `bonus.kinds`, a weight
@@ -2559,6 +2578,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/cpipblock` exactly as `vpnBlocklist.allow` is
 - `player.tagSalt` — salts the hash of an address the roster caps its visits with. It is never shown, so empty, which generates one at boot, costs nothing. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
+- `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
 
 ### Protobuf
 

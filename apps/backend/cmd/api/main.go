@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 )
@@ -20,9 +21,10 @@ type Config struct {
 
 	Planet planet.Config `koanf:",squash"`
 
-	Auth   auth.Config
-	Chat   chat.Config
-	Player player.Config
+	Auth    auth.Config
+	Chat    chat.Config
+	Player  player.Config
+	Seasons seasons.Config
 }
 
 func main() {
@@ -56,6 +58,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		planet.NewModule(config.Planet),
 		chat.NewModule(config.Chat),
 		player.NewModule(config.Player),
+		seasons.NewModule(config.Seasons),
 	}
 }
 
@@ -75,5 +78,6 @@ func (c Config) Validate() error {
 		c.Chat.Validate(),
 		c.Auth.Validate(),
 		c.Player.Validate(),
+		c.Seasons.Validate(),
 	)
 }
