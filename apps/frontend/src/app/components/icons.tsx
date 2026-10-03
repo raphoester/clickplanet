@@ -72,15 +72,6 @@ export function DownloadIcon({size = 14}: IconProps) {
     </svg>
 }
 
-export function CalendarIcon({size = 14}: IconProps) {
-    return <svg {...base(size)} strokeWidth={2.2}>
-        <rect x="3.5" y="5" width="17" height="15.5" rx="2.6"/>
-        <path d="M3.5 10h17"/>
-        <path d="M8 3v4"/>
-        <path d="M16 3v4"/>
-    </svg>
-}
-
 export function SearchIcon({size = 20}: IconProps) {
     return <svg {...base(size)} strokeWidth={2} className="input-search-icon">
         <circle cx="11" cy="11" r="7"/>

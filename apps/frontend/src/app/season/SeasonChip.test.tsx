@@ -12,7 +12,7 @@ const DAY = 24 * HOUR
 const endsAt = Date.UTC(2026, 9, 31, 23)
 const season = {number: 0, finaleStartsAt: endsAt - 2 * HOUR, endsAt}
 const finale = finaleWindow(season)
-const calendar = () => screen.queryByRole("button", {name: "Add to calendar"})
+const finaleLine = () => screen.queryByText(`${finale.day} · ${finale.from}–${finale.to}`)
 
 afterEach(() => {
     cleanup()
@@ -28,7 +28,7 @@ describe("SeasonChip", () => {
         expect(screen.getByRole("region", {name: "Season 0"})).toBeDefined()
         expect(screen.getByText("Season 0 ends in")).toBeDefined()
         expect(screen.getByRole("timer").textContent).toBe("27d 14h 00m 00s")
-        expect(calendar()).toBeNull()
+        expect(finaleLine()).toBeNull()
     })
 
     it("ticks down every second", () => {
@@ -40,7 +40,7 @@ describe("SeasonChip", () => {
         expect(screen.getByRole("timer").textContent).toBe("2h 52m 09s")
     })
 
-    it("opens on the finale's day and hours, with a calendar to add it to", () => {
+    it("opens on the finale's day and hours", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY})
         const onToggle = vi.fn()
         const {rerender} = render(<SeasonChip season={season} compact={false} open={false} onToggle={onToggle}/>)
@@ -50,24 +50,10 @@ describe("SeasonChip", () => {
 
         rerender(<SeasonChip season={season} compact={false} open onToggle={onToggle}/>)
         expect(screen.getByRole("button", {name: /Season 0 ends in/}).getAttribute("aria-expanded")).toBe("true")
-        expect(screen.getByText(`${finale.day} · ${finale.from}–${finale.to}`)).toBeDefined()
-        expect(calendar()).not.toBeNull()
+        expect(finaleLine()).not.toBeNull()
 
         fireEvent.keyDown(document, {key: "Escape"})
         expect(onToggle).toHaveBeenCalledTimes(2)
-    })
-
-    it("closes the calendar list on Escape, and leaves the chip open", () => {
-        vi.useFakeTimers({now: endsAt - 27 * DAY})
-        const onToggle = vi.fn()
-        render(<SeasonChip season={season} compact={false} open onToggle={onToggle}/>)
-
-        fireEvent.click(calendar()!)
-        expect(screen.getByRole("link", {name: "Google Calendar"})).toBeDefined()
-
-        fireEvent.keyDown(document, {key: "Escape"})
-        expect(screen.queryByRole("link", {name: "Google Calendar"})).toBeNull()
-        expect(onToggle).not.toHaveBeenCalled()
     })
 
     it("names the finale while it runs, with nothing to open", () => {
@@ -78,7 +64,7 @@ describe("SeasonChip", () => {
         expect(screen.getByText("Final Battle ends in")).toBeDefined()
         expect(screen.getByRole("timer").textContent).toBe("1h 12m 00s")
         expect(screen.getByRole("button")).toHaveProperty("disabled", true)
-        expect(calendar()).toBeNull()
+        expect(finaleLine()).toBeNull()
     })
 
     it("is gone once the season is over", () => {
@@ -116,11 +102,11 @@ describe("SeasonChip", () => {
 })
 
 describe("SeasonDetails", () => {
-    it("counts down and offers the finale to a calendar", () => {
+    it("counts down and names the finale's day and hours", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY})
         render(<SeasonDetails season={season}/>)
 
         expect(screen.getByRole("timer").textContent).toBe("27d 00h 00m 00s")
-        expect(calendar()).not.toBeNull()
+        expect(finaleLine()).not.toBeNull()
     })
 })

@@ -2,18 +2,9 @@ syntax = "proto3";
 
 package seasons.v1;
 
-import "google/api/annotations.proto";
-import "google/api/httpbody.proto";
-
 service SeasonService {
   rpc GetSeason(GetSeasonRequest) returns (GetSeasonResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
-  }
-
-  // An iCalendar file at a plain URL: iOS Safari opens text/calendar in Calendar.
-  rpc GetFinaleCalendar(GetFinaleCalendarRequest) returns (google.api.HttpBody) {
-    option idempotency_level = NO_SIDE_EFFECTS;
-    option (google.api.http) = {get: "/seasons/{number}/finale.ics"};
   }
 }
 
@@ -27,8 +18,4 @@ message Season {
   uint32 number = 1;
   int64 finale_starts_at_unix_ms = 2;
   int64 ends_at_unix_ms = 3;
-}
-
-message GetFinaleCalendarRequest {
-  uint32 number = 1;
 }
