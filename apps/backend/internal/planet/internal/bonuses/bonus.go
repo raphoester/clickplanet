@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -110,7 +111,8 @@ func (c *caller) send(event Event) {
 
 // Every hook runs with the registry locked, so none may call back into it.
 type Report struct {
-	Offered func()
+	// Offered is a box's kind, and the share its band starts at.
+	Offered func(kind Kind, band float64)
 
 	Lapsed func(scope string)
 
@@ -118,7 +120,7 @@ type Report struct {
 
 	Foreign func(scope string)
 
-	QuizOffered func()
+	QuizOffered func(kind Kind, band float64)
 
 	QuizLapsed func(scope string)
 
@@ -130,6 +132,9 @@ type Registry struct {
 	clock    cptime.Clock
 	report   Report
 	holdings Holdings
+	shares   Shares
+	flags    Flags
+	bands    Bands
 	charges  ChargesConfig
 
 	quizConfig quizzes.Config
@@ -166,7 +171,21 @@ type Holdings interface {
 	Held(holder Holder) Held
 }
 
-func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
+// Shares is how much of the map a country holds, 0 to 1: the same count the toll reads.
+type Shares interface {
+	Share(country string) float64
+}
+
+// Flags is every tally of who takes tiles for which flag, by key, which the band is read from. A key with no
+// tally is absent.
+type Flags interface {
+	Allegiances(ctx context.Context, keys ...clicks.AllegianceKey) (map[clicks.AllegianceKey]clicks.Allegiance, error)
+}
+
+// flagsTimeout bounds a sweep's read of the flags, so a slow database delays the boxes and nothing else.
+const flagsTimeout = 2 * time.Second
+
+func New(config Config, clock cptime.Clock, holdings Holdings, shares Shares, flags Flags) *Registry {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
@@ -176,8 +195,11 @@ func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
 	return &Registry{
 		config:     config,
 		charges:    config.ChargesConfig(),
+		bands:      config.Bands(),
 		clock:      clock,
 		holdings:   holdings,
+		shares:     shares,
+		flags:      flags,
 		callers:    make(map[string]*caller),
 		offers:     make(map[string]*pending),
 		spent:      make(map[string]spentOffer),
@@ -190,12 +212,6 @@ func (r *Registry) Observe(report Report) {
 	defer r.mu.Unlock()
 
 	r.report = report
-}
-
-func (r *Registry) counted(hook func()) {
-	if hook != nil {
-		hook()
-	}
 }
 
 func (r *Registry) Attend(scope string) (<-chan Event, func()) {
@@ -349,37 +365,112 @@ func (r *Registry) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			r.sweep()
+			r.sweep(ctx)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (r *Registry) sweep() {
+// sweep reads the flags of every caller due a box or a quiz between two holds of the lock, never under it: the
+// read waits on postgres, and every click takes the lock.
+func (r *Registry) sweep(ctx context.Context) {
 	now := r.clock.Now()
+
+	due := r.tidy(now)
+	if len(due) == 0 {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, flagsTimeout)
+	defer cancel()
+
+	flags, err := r.readFlags(ctx, due)
+	if err != nil {
+		// Nobody is offered anything this sweep; the callers stay due and the next sweep reads again.
+		return
+	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.collectMisses(now)
-	r.forgetSpent(now)
-	r.sweepQuizzes(now)
-	r.forgetStale(now)
+	r.offerQuizzes(now, due, flags)
 
-	for scope, entry := range r.callers {
-		if !r.due(entry, now) {
+	for scope := range due {
+		entry, known := r.callers[scope]
+		if !known || !r.due(entry, now) {
 			continue
 		}
 
-		kinds := r.offerable(entry, now)
+		r.forgetIdlePlayers(entry, now)
+		band, read := r.band(flags, scope, entry)
+		if !read {
+			continue
+		}
+
+		kinds := r.offerable(entry, now, band)
 		if kinds.Empty() {
 			entry.nextOfferAt = now.Add(r.window())
 			continue
 		}
 
-		r.offer(scope, entry, now, kinds)
+		r.offer(scope, entry, now, band, kinds)
 	}
+}
+
+// tidy forgets what lapsed, and says which callers are due a box or a quiz, with the flags their band needs.
+func (r *Registry) tidy(now time.Time) map[string][]clicks.AllegianceKey {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.collectMisses(now)
+	r.forgetSpent(now)
+	r.collectStaleQuizzes(now)
+	r.forgetStale(now)
+
+	due := map[string][]clicks.AllegianceKey{}
+	for scope, entry := range r.callers {
+		if r.due(entry, now) || (r.quizzing() && r.quizDue(entry, now)) {
+			r.forgetIdlePlayers(entry, now)
+			due[scope] = keysOf(scope, entry)
+		}
+	}
+
+	return due
+}
+
+// readFlags reads every tally the due callers need. Each key asked for is in the answer, a zero tally when it has
+// no row, so a key missing from it is one this sweep did not read.
+func (r *Registry) readFlags(
+	ctx context.Context, due map[string][]clicks.AllegianceKey,
+) (map[clicks.AllegianceKey]clicks.Allegiance, error) {
+	var keys []clicks.AllegianceKey
+	for _, needed := range due {
+		keys = append(keys, needed...)
+	}
+
+	found, err := r.flags.Allegiances(ctx, keys...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the flags: %w", err)
+	}
+
+	flags := make(map[clicks.AllegianceKey]clicks.Allegiance, len(keys))
+	for _, key := range keys {
+		flags[key] = found[key]
+	}
+
+	return flags, nil
+}
+
+// keysOf is the flags a caller's band is read from: its scope's, and each of its players'.
+func keysOf(scope string, entry *caller) []clicks.AllegianceKey {
+	keys := make([]clicks.AllegianceKey, 0, 1+len(entry.players))
+	keys = append(keys, clicks.ScopeAllegianceKey(scope))
+	for holder := range entry.players {
+		keys = append(keys, clicks.AccountAllegianceKey(string(holder)))
+	}
+
+	return keys
 }
 
 func (r *Registry) due(entry *caller, now time.Time) bool {
@@ -395,29 +486,48 @@ func (r *Registry) due(entry *caller, now time.Time) bool {
 	return true
 }
 
-func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
+func (r *Registry) offerable(entry *caller, now time.Time, band KindBand) *cpcolls.Set[Kind] {
 	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
-
-	held := cpcolls.NewSet[Kind]()
-	for holder, clicked := range entry.players {
-		if now.Sub(clicked) > r.config.ActiveWithin {
-			delete(entry.players, holder)
-			continue
-		}
-		held.Add(r.holdings.Held(holder).Full(r.charges)...)
-	}
-
 	if len(entry.players) == 0 || r.grantedWithinTheHour(entry, now) >= r.config.MaxChargesPerHour {
 		return kinds
 	}
 
+	held := cpcolls.NewSet[Kind]()
+	for holder := range entry.players {
+		held.Add(r.holdings.Held(holder).Full(r.charges)...)
+	}
+
 	for _, kind := range Kinds {
-		if r.config.Kinds[kind] > 0 && !held.Contains(kind) {
+		if band.Kinds[kind] > 0 && !held.Contains(kind) {
 			kinds.Add(kind)
 		}
 	}
 
 	return kinds
+}
+
+// forgetIdlePlayers drops the players who have not clicked from the scope within ActiveWithin.
+func (r *Registry) forgetIdlePlayers(entry *caller, now time.Time) {
+	for holder, clicked := range entry.players {
+		if now.Sub(clicked) > r.config.ActiveWithin {
+			delete(entry.players, holder)
+		}
+	}
+}
+
+// band is the band of the biggest country among the scope's main flag and each playing account's: any of them can
+// claim the box. False when a flag it needs is not in flags: a player who joined since they were read.
+func (r *Registry) band(flags map[clicks.AllegianceKey]clicks.Allegiance, scope string, entry *caller) (KindBand, bool) {
+	share := 0.0
+	for _, key := range keysOf(scope, entry) {
+		tally, read := flags[key]
+		if !read {
+			return KindBand{}, false
+		}
+		share = max(share, r.shares.Share(tally.Flag()))
+	}
+
+	return r.bands.At(share), true
 }
 
 func (r *Registry) grantedWithinTheHour(entry *caller, now time.Time) int {
@@ -434,13 +544,13 @@ func (r *Registry) grantedWithinTheHour(entry *caller, now time.Time) int {
 	return len(kept)
 }
 
-func (r *Registry) offer(scope string, entry *caller, now time.Time, kinds *cpcolls.Set[Kind]) {
+func (r *Registry) offer(scope string, entry *caller, now time.Time, band KindBand, kinds *cpcolls.Set[Kind]) {
 	token, err := newToken()
 	if err != nil {
 		return
 	}
 
-	kind := r.drawKind(kinds)
+	kind := drawKind(band, kinds)
 	offer := Offer{
 		Token:     token,
 		Seed:      randomSeed(),
@@ -459,7 +569,9 @@ func (r *Registry) offer(scope string, entry *caller, now time.Time, kinds *cpco
 	entry.nextOfferAt = offer.ExpiresAt.Add(r.window())
 
 	entry.send(Event{Offer: &offer})
-	r.counted(r.report.Offered)
+	if r.report.Offered != nil {
+		r.report.Offered(kind, band.Share)
+	}
 }
 
 func (r *Registry) collectMisses(now time.Time) {
@@ -527,12 +639,12 @@ func drawWindow(shortest, longest time.Duration) time.Duration {
 	return shortest + time.Duration(n.Int64())
 }
 
-func (r *Registry) drawKind(kinds *cpcolls.Set[Kind]) Kind {
+func drawKind(band KindBand, kinds *cpcolls.Set[Kind]) Kind {
 	total := 0.0
 	var last Kind
 	for _, kind := range Kinds {
 		if kinds.Contains(kind) {
-			total += r.config.Kinds[kind]
+			total += band.Kinds[kind]
 			last = kind
 		}
 	}
@@ -545,7 +657,7 @@ func (r *Registry) drawKind(kinds *cpcolls.Set[Kind]) Kind {
 
 	left := float64(n.Int64()) / resolution * total
 	for _, kind := range Kinds {
-		weight := r.config.Kinds[kind]
+		weight := band.Kinds[kind]
 		if !kinds.Contains(kind) {
 			continue
 		}

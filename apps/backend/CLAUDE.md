@@ -739,10 +739,11 @@ The scope is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if pr
 
 #### A player's main flag (`clicks.Allegiance`)
 
-**A player can switch flag at each click, so what a click costs is read from the
-flag it clicks for most, never from its last click.** Priced by the last click, a
-player could spend its bank on a big country, pick a small one for one click and
-refill at the small one's pace.
+**A player can switch flag at each click, so what a click costs and what a box
+holds are read from the flag it clicks for most, never from its last click.**
+Priced by the last click, a player could spend its bank on a big country, pick a
+small one for one click and refill at the small one's pace; and a big country's
+player could click once for a tiny flag and draw a tiny flag's bomb.
 
 - **The value.** `clicks.Allegiance` is the tiles taken for each country, each
   counting half as much every 12h. `With(country, at)` is a copy with one more,
@@ -773,11 +774,14 @@ refill at the small one's pace.
 - **The store keeps opaque keys.** Only `clicks` says whose a key is
   (`AccountAllegianceKey`, `ScopeAllegianceKey`, `Payer.AllegianceKey(s)`), the
   way `Buckets.Keys` names the limiter's buckets.
-- **The reader is on the click path.** The toll reads the payer's tally on every
-  click, `GetBudget` and `UseRefill` (one primary-key read), so a click now waits
-  on postgres for that, and **a click whose flag cannot be read fails** with the
-  error net's `Internal`. There is no cache: the read is cheap, and a cache with a
-  short TTL can wrap the store's read port later if the latency shows.
+- **Two readers.** The toll reads the payer's tally on every click, `GetBudget`
+  and `UseRefill` (one primary-key read), so a click now waits on postgres for
+  that, and **a click whose flag cannot be read fails** with the error net's
+  `Internal`. The bonus registry reads the tallies of every caller due a box or a
+  quiz in one query per sweep, outside its lock (see
+  [A big country draws from a smaller table](#a-big-country-draws-from-a-smaller-table-bonusesbands)).
+  There is no cache: the read is cheap, and a cache with a short TTL can wrap the
+  store's read port later if the latency shows.
 - **Not read from the ledger.** It holds 72h of takes with the account and the
   country, but no index by account, so one account's flag is a scan of up to 4M
   takes. The event is the same take, counted as it happens.
@@ -1126,7 +1130,9 @@ internal/seasons/internal/
 A question-mark box flies past the planet every so often; whoever catches it
 gets one of four bonuses. Each box draws its kind from `bonus.kinds`, a weight
 per kind — a kind's chance is its weight over the sum of the weights, so the
-strong ones can be made rare (production runs 5 : 2 : 1 : 2):
+strong ones can be made rare (production runs 5 : 3 : 1 : 2). A player of a big
+country draws from a smaller table instead — see
+[A big country draws from a smaller table](#a-big-country-draws-from-a-smaller-table-bonusesbands):
 
 - **`refill`** — a charge: fills the caller's click bank to full, when the
   caller chooses. Up to one bank, 60 clicks. See [What a refill does to the bucket](#what-a-refill-does-to-the-bucket).
@@ -1239,6 +1245,56 @@ whole reason the envelope exists.
 The catch is published **after** the charge is held, so a catch announced to the
 planet that then failed to apply is the one lie this cannot tell.
 
+#### A big country draws from a smaller table (`bonuses.Bands`)
+
+**The Mario Kart rule.** `bonus.kindsByShare` is a list of `{share, kinds}`: from
+`share` of the map up, `kinds` replaces `bonus.kinds` as the weights a box is
+drawn with. Production runs no bomb from 10% and only refills from 20%. One
+country took 40% of the map in under three days, and its bombs erased small
+countries' work faster than they could paint it. Now the strong kinds go to the
+countries behind, and mostly land on the leaders. A refill is still slowed by
+the [toll](#a-big-country-refills-slower-clickstoll). No bands is the table from
+before.
+
+- **The rule is a value.** `Config.Bands()` is `bonus.kinds` from 0, then each
+  band from its share; `Bands.At(share)` is the last band that starts at or below
+  it. The registry reads the share and calls it, in `offerable`, which both the
+  box and the quiz go through. `offerable` still leaves out what the players
+  hold, so a band with nothing left loses the slot, as before.
+- **The share is the toll's `Share`**, the count `inmemory_tile_storage` keeps:
+  one read, and no second leaderboard. It is read at offer time and the kind
+  still goes out in `BonusOffered.kind`, so a country that crosses a band
+  changes the next box, not the one in the air.
+- **A player's country is its [main flag](#a-players-main-flag-clicksallegiance),
+  not its last click**, or a big country's player could click once for a tiny
+  flag, draw a bomb and drop it for the big one. The registry reads the flags
+  through its `Flags` port, which the allegiance store satisfies.
+- **Read outside the registry's lock.** Every click takes that lock, and a read
+  waits on postgres, so the sweep takes the lock to see who is due a box or a
+  quiz, lets go of it to read all their flags in one query, and takes it again to
+  offer. A caller with a player who joined in between waits for the next sweep,
+  a second later, rather than be drawn without that player's flag. A failed read
+  offers nothing that sweep, keeps everyone due, and is logged by
+  `bonuses/log_flags`.
+- **A box goes by the biggest country playing from the scope.** The share read
+  is the largest among the scope's main flag and the main flag of each account
+  that clicked from it within `activeWithin`. Every account on the scope is sent
+  the box and any of them can claim it, so it has to be a box the biggest country
+  among them may have. The cost: a small country's player behind the same
+  address as a big country's (a campus, a family) gets only refills while that
+  player plays, or while the address clicks mostly for the big flag.
+- **Two tallies, because each closes a hole the other leaves.** The account's
+  follows the player to a new address, so moving from Wi-Fi to mobile data keeps
+  its flag. The scope's catches a second account on the same address — a private
+  window that clicks once for a tiny flag — which has no history of its own. A
+  new account on a new address is a new player, and waits a whole window like one.
+- `bonus_offers_total{kind, band}` and `quiz_offers_total{kind, band}` count the
+  offers by kind and by the share their band starts at (`0`, `0.1`, `0.2`), so
+  the effect shows. Never an address or an account.
+- **The client says nothing about it.** A big country's player just sees
+  refills. `ClickBudget` carries the toll's next step and not the band, so a line
+  like "big countries only get refills" needs a field there first.
+
 #### Quizzes (`internal/planet/internal/quizzes/`, scheduled in `bonuses/quiz.go`)
 
 A banner appears over the planet: press it and you get a question with three
@@ -1250,7 +1306,8 @@ clock (`bonus.quiz.minInterval` / `maxInterval`), its own banner lifetime, and
 its own `bonus.quiz.maxChargesPerHour` on top of the boxes'. A caller can be
 holding an unopened banner and a flying box at the same time. What it *does*
 share with a box is the reward: the kind is drawn at offer time from
-`bonus.kinds`, filtered by `offerable` exactly as a box's is, so nobody is ever
+the caller's band (`bonus.kinds`, or the `bonus.kindsByShare` band its biggest
+flag is in), filtered by `offerable` exactly as a box's is, so nobody is ever
 asked a question for a bomb they already hold, and a caller with nothing to gain
 is asked nothing.
 
@@ -2598,7 +2655,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
-- `bonus.kinds` — a weight per kind (`refill`, `spread_clicks`, `bomb`, `enclose_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
+- `bonus.kinds` — a weight per kind (`refill`, `spread_clicks`, `bomb`, `enclose_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty takes the defaults (5 : 3 : 2 : 1 for refill, spread, enclose, bomb), and an unknown kind, a negative weight or all zeros refuse the boot
+- `bonus.kindsByShare` — a list of `{share, kinds}`: from `share` of the map up, `kinds` replaces `bonus.kinds` for a caller whose biggest flag holds that much (production: no bomb from 0.10, only refills from 0.20). Empty, everyone draws from `bonus.kinds`. Shares not rising inside (0, 1), and a band's `kinds` checked as `bonus.kinds` is but with empty refused too, refuse the boot. See [A big country draws from a smaller table](#a-big-country-draws-from-a-smaller-table-bonusesbands)
 - `bonus.spread.clicks`, `bonus.spread.maxPerBox` — the most spread clicks held (8, about 56 tiles, a bomb's worth), and the most one box adds (4; it draws 1 to that). A count, not a time: a timed spread let a full bank of clicks be dumped inside it
 - `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
 - `chargeStorage.flushInterval` — how often the charges that changed are written to postgres (default 1s); also flushed on shutdown

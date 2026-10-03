@@ -1,6 +1,7 @@
 package bonuses
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_allegiance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -33,7 +35,7 @@ func newRegistryOffering(kinds map[Kind]float64) (*Registry, *cptime.FixedClock)
 		ForgetAfter:       5 * time.Minute,
 		MaxChargesPerHour: 6,
 		SweepInterval:     time.Second,
-	}, clock, newFakeHoldings()), clock
+	}, clock, newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New()), clock
 }
 
 func holderOf(scope string) Holder {
@@ -65,6 +67,23 @@ func (f *fakeHoldings) grant(holder Holder, kind Kind) {
 
 func (f *fakeHoldings) take(holder Holder) {
 	delete(f.held, holder)
+}
+
+// fakeShares is how much of the map each country holds, set by the test; any other holds nothing.
+type fakeShares map[string]float64
+
+func (f fakeShares) Share(country string) float64 { return f[country] }
+
+func flagsOf(r *Registry) *inmemory_allegiance_store.Store {
+	return r.flags.(*inmemory_allegiance_store.Store) //nolint:forcetypeassert // every registry in these tests is built with one.
+}
+
+// paint makes country the main flag of the tally under key.
+func paint(t *testing.T, r *Registry, key clicks.AllegianceKey, country string) {
+	t.Helper()
+
+	require.NoError(t, flagsOf(r).SaveAllegiances(t.Context(),
+		map[clicks.AllegianceKey]clicks.Allegiance{key: clicks.Allegiance{}.With(country, epoch)}))
 }
 
 func holdingsOf(r *Registry) *fakeHoldings {
@@ -121,7 +140,7 @@ func drain(events <-chan Event) {
 
 func waitOut(r *Registry, clock *cptime.FixedClock) {
 	clock.Advance(window + time.Second)
-	r.sweep()
+	r.sweep(context.Background())
 }
 
 func TestABoxGoesToAnAttendingCallerOnceTheWindowPasses(t *testing.T) {
@@ -193,11 +212,11 @@ func TestATurnThatCameUpWhileAwayIsLostRatherThanBanked(t *testing.T) {
 	events := playing(t, registry, "scope-a")
 
 	clock.Advance(10 * time.Minute)
-	registry.sweep()
+	registry.sweep(t.Context())
 	require.Nil(t, offered(t, events))
 
 	clicked(registry, "scope-a")
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.Nil(t, offered(t, events), "the slot was lost, not saved up")
 
 	waitOut(registry, clock)
@@ -212,7 +231,7 @@ func TestOnlyOneBoxIsOutstandingAtATime(t *testing.T) {
 	require.NotNil(t, offered(t, events))
 
 	clock.Advance(time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.Nil(t, offered(t, events))
 }
@@ -225,11 +244,11 @@ func TestAMissedBoxBringsTheNextOneForwardOnce(t *testing.T) {
 	require.NotNil(t, offered(t, events))
 
 	clock.Advance(16 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 	require.Nil(t, offered(t, events))
 
 	clock.Advance(21 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.NotNil(t, offered(t, events), "a missed box should come back sooner")
 }
@@ -242,11 +261,11 @@ func TestASecondMissInARowWaitsTheOrdinaryWindow(t *testing.T) {
 		waitOut(registry, clock)
 		require.NotNil(t, offered(t, events))
 		clock.Advance(16 * time.Second)
-		registry.sweep()
+		registry.sweep(t.Context())
 	}
 
 	clock.Advance(21 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.Nil(t, offered(t, events), "the second miss is not accelerated")
 
 	waitOut(registry, clock)
@@ -260,10 +279,10 @@ func TestCatchingOneClearsTheMissThatCameBefore(t *testing.T) {
 	waitOut(registry, clock)
 	require.NotNil(t, offered(t, events))
 	clock.Advance(16 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	clock.Advance(21 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
@@ -288,7 +307,7 @@ func TestReloadingCannotRerollTheSchedule(t *testing.T) {
 	assert.Equal(t, due, registry.callers["scope-a"].nextOfferAt)
 
 	clock.Advance(29 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.Nil(t, offered(t, events), "the wait carried over the reconnect")
 }
 
@@ -299,11 +318,11 @@ func TestAScheduleIsForgottenOnceTheCallerHasBeenGoneLongEnough(t *testing.T) {
 	leave()
 
 	clock.Advance(4 * time.Minute)
-	registry.sweep()
+	registry.sweep(t.Context())
 	require.Len(t, registry.callers, 1)
 
 	clock.Advance(2 * time.Minute)
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.Empty(t, registry.callers)
 }
 
@@ -314,7 +333,7 @@ func TestTheHourlyCapStopsTheOffers(t *testing.T) {
 	for range 6 {
 		clock.Advance(window + time.Second)
 		clicked(registry, "scope-a")
-		registry.sweep()
+		registry.sweep(t.Context())
 
 		offer := offered(t, events)
 		require.NotNil(t, offer)
@@ -326,13 +345,13 @@ func TestTheHourlyCapStopsTheOffers(t *testing.T) {
 	for range 5 {
 		clock.Advance(window + time.Second)
 		clicked(registry, "scope-a")
-		registry.sweep()
+		registry.sweep(t.Context())
 		require.Nil(t, offered(t, events), "the cap should hold")
 	}
 
 	clock.Advance(time.Hour)
 	clicked(registry, "scope-a")
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.NotNil(t, offered(t, events))
 }
 
@@ -340,7 +359,7 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
 		MinInterval: time.Minute, MaxInterval: 3 * time.Minute,
-	}, clock, newFakeHoldings())
+	}, clock, newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New())
 
 	seen := cpcolls.NewSet[time.Duration]()
 	for range 200 {
@@ -355,18 +374,18 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 }
 
 func TestEveryKindConfiguredIsOffered(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New())
 
 	seen := cpcolls.NewSet[Kind]()
 	for range 200 {
-		seen.Add(registry.drawKind(everyKind()))
+		seen.Add(drawKind(registry.bands.At(0), everyKind()))
 	}
 
 	assert.Equal(t, len(Kinds), seen.Len(), "an empty bonus.kinds takes the defaults, which offer every kind")
 }
 
 func TestAnEmptyKindsTakesTheDefaultWeights(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New())
 
 	assert.Equal(t, map[Kind]float64{
 		KindRefill:        5,
@@ -416,7 +435,7 @@ func TestAKindHeldIsNotOfferedAgainUntilItIsSpent(t *testing.T) {
 	for range 5 {
 		clock.Advance(window + time.Second)
 		clicked(registry, "scope-a")
-		registry.sweep()
+		registry.sweep(t.Context())
 		require.Nil(t, offered(t, events), "a second bomb would be a stockpile")
 	}
 
@@ -424,7 +443,7 @@ func TestAKindHeldIsNotOfferedAgainUntilItIsSpent(t *testing.T) {
 
 	waitOut(registry, clock)
 	clicked(registry, "scope-a")
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.NotNil(t, offered(t, events), "a bomb dropped is a bomb that may be offered again")
 }
 
@@ -436,14 +455,14 @@ func TestAKindHeldIsLeftOutOfTheDrawAndTheOthersStillCome(t *testing.T) {
 	for range 20 {
 		clock.Advance(window + time.Second)
 		clicked(registry, "scope-a")
-		registry.sweep()
+		registry.sweep(t.Context())
 
 		offer := offered(t, events)
 		require.NotNil(t, offer)
 		require.Equal(t, KindRefill, offer.Kind)
 
 		clock.Advance(16 * time.Second)
-		registry.sweep()
+		registry.sweep(t.Context())
 	}
 }
 
@@ -472,7 +491,7 @@ func TestAPlayerWhoStoppedClickingNoLongerHoldsBackAKind(t *testing.T) {
 
 	waitOut(registry, clock)
 	clicked(registry, "scope-a")
-	registry.sweep()
+	registry.sweep(t.Context())
 	assert.NotNil(t, offered(t, events), "a bomb held by somebody who left is not this player's")
 }
 
@@ -483,7 +502,7 @@ func TestACallerWithNoAccountIsOfferedNothing(t *testing.T) {
 	for range 5 {
 		clock.Advance(window + time.Second)
 		registry.Clicked("scope-a", NoHolder)
-		registry.sweep()
+		registry.sweep(t.Context())
 
 		require.Nil(t, offered(t, events), "every bonus is a charge, and only an account can hold one")
 	}
@@ -508,19 +527,19 @@ func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
 		clicked(registry, "scope-a")
 		entry := registry.callers["scope-a"]
 
-		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), registry.offerable(entry, clock.Now()))
+		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), registry.offerable(entry, clock.Now(), registry.bands.At(0)))
 	}
 }
 
 func TestKindsAreDrawnInProportionToTheirWeight(t *testing.T) {
 	registry := New(Config{
 		Kinds: map[Kind]float64{KindRefill: 9, KindSpreadClicks: 1},
-	}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New())
 
 	const draws = 20_000
 	spreads := 0
 	for range draws {
-		if registry.drawKind(everyKind()) == KindSpreadClicks {
+		if drawKind(registry.bands.At(0), everyKind()) == KindSpreadClicks {
 			spreads++
 		}
 	}
@@ -535,7 +554,7 @@ func TestKindWeightsThatMakeNoSenseRefuseTheConfig(t *testing.T) {
 
 	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{"quadruple_clicks": 1}}.Validate(), "quadruple_clicks")
 	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{KindSpreadClicks: -1}}.Validate(), "spread_clicks")
-	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{KindRefill: 0}}.Validate(), "weight of 0")
+	assert.ErrorContains(t, Config{Kinds: map[Kind]float64{KindRefill: 0}}.Validate(), "no kind a weight")
 }
 
 func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
@@ -605,7 +624,7 @@ func TestALapsedBoxIsReportedAgainstItsCaller(t *testing.T) {
 	require.NotNil(t, offered(t, events))
 
 	clock.Advance(16 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.Equal(t, []string{"scope-a"}, missedBy)
 }
@@ -717,7 +736,7 @@ func TestClaimingYourOwnBoxTwiceOrLateIsNotReported(t *testing.T) {
 
 	clock.Advance(16 * time.Second)
 	_, beforeTheSweep := registry.Claim(second.Token, "scope-a")
-	registry.sweep()
+	registry.sweep(t.Context())
 	_, afterTheSweep := registry.Claim(second.Token, "scope-a")
 
 	assert.False(t, beforeTheSweep)
@@ -736,7 +755,7 @@ func TestASpentTokenIsForgottenAfterAWhile(t *testing.T) {
 	require.True(t, claimed)
 
 	clock.Advance(rememberSpent + time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.Empty(t, registry.spent)
 }
@@ -749,7 +768,7 @@ func TestLapsedTokensAreForgottenRatherThanKept(t *testing.T) {
 	require.NotNil(t, offered(t, events))
 
 	clock.Advance(16 * time.Second)
-	registry.sweep()
+	registry.sweep(t.Context())
 
 	assert.Empty(t, registry.offers)
 }
@@ -762,7 +781,7 @@ func TestEveryTokenIsDifferent(t *testing.T) {
 	for range 20 {
 		clock.Advance(window + time.Second)
 		clicked(registry, "scope-a")
-		registry.sweep()
+		registry.sweep(t.Context())
 
 		offer := offered(t, events)
 		require.NotNil(t, offer)
@@ -770,7 +789,7 @@ func TestEveryTokenIsDifferent(t *testing.T) {
 		seen.Add(offer.Token)
 
 		clock.Advance(16 * time.Second)
-		registry.sweep()
+		registry.sweep(t.Context())
 	}
 }
 
@@ -826,7 +845,7 @@ func TestACallerThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 }
 
 func TestTheDefaultsFillInWhatTheFileLeavesOut(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New())
 
 	assert.Equal(t, defaultMinInterval, registry.config.MinInterval)
 	assert.Equal(t, defaultMaxInterval, registry.config.MaxInterval)
@@ -836,7 +855,7 @@ func TestTheDefaultsFillInWhatTheFileLeavesOut(t *testing.T) {
 func TestAMaxBelowTheMinIsNotAWindow(t *testing.T) {
 	registry := New(Config{
 		MinInterval: 10 * time.Minute, MaxInterval: time.Second,
-	}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	}, cptime.NewFixedClock(epoch), newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New())
 
 	assert.GreaterOrEqual(t, registry.config.MaxInterval, registry.config.MinInterval)
 	assert.Equal(t, 10*time.Minute, registry.window())

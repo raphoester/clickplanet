@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/log_flags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase/prom_answer_quiz"
@@ -155,7 +156,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			// The flag each account and scope takes tiles for most, counted from planet.v1.TileTaken: the toll prices
-			// a click from it. Tallies with no take in 3 days are deleted every hour.
+			// a click from it, and the bonus bands read it. Tallies with no take in 3 days are deleted every hour.
 			allegiances := postgres_allegiance_store.New(db)
 			takes, err := cpbootstrap.Subscribe(props.Events, "planet-allegiances", tileTakenBuffer,
 				log_subscriber.New(tile_taken_subscriber.New(record_allegiance_usecase.New(allegiances)), props.Logger))
@@ -183,7 +184,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			writer := ledger.NewRecording(tilesStorage, publishing_ledger_storage.New(takings, props.Events), clock)
 
-			registry := bonuses.New(config.Bonus, clock, charges)
+			registry := bonuses.New(config.Bonus, clock, charges, tilesStorage, log_flags.New(allegiances, props.Logger))
 			props.Runners.Add(registry)
 
 			if config.Bonus.Quiz.Enabled {
@@ -287,7 +288,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				props.Metrics)
 
 			registry.Observe(bonuses.Report{
-				Offered: counters.Offered.Inc,
+				Offered: counters.Offered,
 				Lapsed: func(scope string) {
 					counters.Lapsed.Inc()
 					guard.Missed(scope)
@@ -301,7 +302,7 @@ func NewModule(config Config) cpbootstrap.Module {
 					guard.Foreign(scope)
 				},
 
-				QuizOffered: quizCounters.Offered.Inc,
+				QuizOffered: quizCounters.Offered,
 				QuizLapsed:  func(string) { quizCounters.Lapsed.Inc() },
 				QuizAnswered: func(_ string, correct bool, after time.Duration) {
 					quizCounters.Answered.WithLabelValues(strconv.FormatBool(correct)).Observe(after.Seconds())
