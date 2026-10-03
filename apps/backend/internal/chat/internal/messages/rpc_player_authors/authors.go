@@ -46,6 +46,7 @@ func (a *Authors) Author(ctx context.Context, account messages.AccountID) (messa
 		Admin:  res.Msg.GetAdmin(),
 		Color:  int32(res.Msg.GetColor()),
 		Streak: res.Msg.GetStreak(),
+		Title:  titleOf(res.Msg.GetWornTitle()),
 	}, nil
 }
 
@@ -83,7 +84,22 @@ func (a *Authors) Authors(
 			Admin:  author.GetAdmin(),
 			Color:  int32(author.GetColor()),
 			Streak: author.GetStreak(),
+			Title:  titleOf(author.GetWornTitle()),
 		}
 	}
 	return found, nil
+}
+
+func titleOf(title *playerv1.Title) messages.Title {
+	rank := title.GetRank()
+	return messages.Title{
+		ID:   title.GetId(),
+		Name: title.GetName(),
+		Rank: messages.Rank{
+			TrackID:   rank.GetTrackId(),
+			TrackName: rank.GetTrackName(),
+			Number:    rank.GetNumber(),
+			Count:     rank.GetCount(),
+		},
+	}
 }

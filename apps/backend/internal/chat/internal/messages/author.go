@@ -27,6 +27,24 @@ type Author struct {
 	Admin  bool
 	Color  int32
 	Streak uint32
+	Title  Title
 }
+
+type Title struct {
+	ID   string
+	Name string
+	Rank Rank
+}
+
+type Rank struct {
+	TrackID   string
+	TrackName string
+	Number    uint32
+	Count     uint32
+}
+
+func (t Title) Empty() bool { return t.ID == "" }
+
+func (r Rank) Empty() bool { return r.Count == 0 }
 
 var ErrAuthorUnavailable = errors.New("the sender could not be identified")

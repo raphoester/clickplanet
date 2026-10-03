@@ -13,6 +13,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_authors_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/inmemory_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -42,7 +46,11 @@ func getAuthors(t *testing.T, ids ...string) (*connect.Response[playerv1.GetAuth
 	require.NoError(t, store.RecordTake(t.Context(), guest, today.AddDate(0, 0, -1)))
 	require.NoError(t, store.RecordTake(t.Context(), guest, today))
 
-	return get_authors_handler.New(get_authors_usecase.New(store, cptime.NewFixedClock(today))).GetAuthors(t.Context(), //nolint:wrapcheck // the test reads the handler's own error.
+	held, worn := inmemory_title_store.New(), inmemory_worn_title_store.New()
+	require.NoError(t, held.Grant(t.Context(), titles.Holdings{ada: {"og"}, guest: {"og"}}, today))
+	wardrobe := wearing.NewWardrobe(worn, titles.NewBook(held, titles.NewCatalog()), titles.NewCatalog())
+
+	return get_authors_handler.New(get_authors_usecase.New(store, wardrobe, cptime.NewFixedClock(today))).GetAuthors(t.Context(), //nolint:wrapcheck // the test reads the handler's own error.
 		connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: ids}))
 }
 
@@ -110,4 +118,18 @@ func TestEachAuthorCarriesItsColorAndItsStreakAsOfToday(t *testing.T) {
 	assert.Equal(t, uint32(2), by[adaID].GetStreak())
 	assert.Equal(t, playerv1.NameColor_NAME_COLOR_UNSPECIFIED, by[guestID].GetColor())
 	assert.Equal(t, uint32(0), by[guestID].GetStreak(), "a guest shows no streak, however long it runs")
+}
+
+func TestEachAuthorCarriesTheTitleItWearsAndAGuestNone(t *testing.T) {
+	res, err := getAuthors(t, adaID, guestID)
+	require.NoError(t, err)
+
+	by := make(map[string]*playerv1.Author, len(res.Msg.GetAuthors()))
+	for _, author := range res.Msg.GetAuthors() {
+		by[author.GetAccountId()] = author
+	}
+
+	assert.Equal(t, "og", by[adaID].GetWornTitle().GetId())
+	assert.Equal(t, "OG", by[adaID].GetWornTitle().GetName())
+	assert.Nil(t, by[guestID].GetWornTitle())
 }

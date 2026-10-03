@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package player.v1;
+
+message Title {
+  string id = 1;
+  string name = 2;
+  Rank rank = 3;
+}
+
+message Rank {
+  string track_id = 1;
+  string track_name = 2;
+  uint32 number = 3;
+  uint32 count = 4;
+}

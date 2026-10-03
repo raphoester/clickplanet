@@ -6,7 +6,6 @@ import {
     PlayerEvent as PlayerEventPb,
     Profile as ProfilePb,
     RosterEntry as RosterEntryPb,
-    Title as TitlePb,
     Track as TrackPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
 import {
@@ -27,6 +26,7 @@ import {
     TitleTrack,
 } from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
+import {titleOf} from "./title.ts"
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
 
 export function newPlayerServiceClient(config: Config): PromiseClient<typeof PlayerService> {
@@ -209,6 +209,7 @@ function rosterEntryOf(entry: RosterEntryPb): RosterEntry {
         admin: entry.admin,
         color: entry.color,
         streak: entry.streak,
+        wornTitle: titleOf(entry.wornTitle),
     }
 }
 
@@ -237,19 +238,6 @@ function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
         color: player?.color ?? NameColor.UNSPECIFIED,
         titles: (player?.titles ?? []).flatMap((title) => titleOf(title) ?? []),
         wornTitle: titleOf(player?.wornTitle),
-    }
-}
-
-function titleOf(title: TitlePb | undefined): PlayerTitle | undefined {
-    if (!title || !title.id) return undefined
-
-    const rank = title.rank
-    return {
-        id: title.id,
-        name: title.name,
-        rank: rank && rank.count > 0
-            ? {trackId: rank.trackId, trackName: rank.trackName, number: rank.number, count: rank.count}
-            : undefined,
     }
 }
 

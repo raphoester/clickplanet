@@ -14,6 +14,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/move_visit_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/inmemory_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -32,12 +36,14 @@ func keyless(visits []presence.Visit) []presence.Visit {
 
 func guestVisit() presence.Visit {
 	return presence.Visit{
-		Account: guest, Author: players.Author{Name: "guest_0b1c2d", Guest: true}, Tag: "aaaaaa", Country: "fr", At: now,
+		Account: guest, Author: wearing.Author{Author: players.Author{Name: "guest_0b1c2d", Guest: true}}, Tag: "aaaaaa", Country: "fr", At: now,
 	}
 }
 
 func useCase(store *inmemory_player_store.Store, visits *inmemory_visit_storage.Storage) *move_visit_usecase.UseCase {
-	authors := get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}), cptime.NewFixedClock(now))
+	catalog := titles.NewCatalog()
+	wardrobe := wearing.NewWardrobe(inmemory_worn_title_store.New(), titles.NewBook(inmemory_title_store.New(), catalog), catalog)
+	authors := get_author_usecase.New(store, players.NewGuestCodes(store, &players.SequentialCodes{}), wardrobe, cptime.NewFixedClock(now))
 	return move_visit_usecase.New(authors, visits)
 }
 
@@ -50,7 +56,7 @@ func TestSigningInToAKnownAccountShowsItsUsernameInPlaceOfTheGuest(t *testing.T)
 	err := useCase(store, visits).Execute(t.Context(), guest, ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, []presence.Visit{guestVisit().For(ada, players.Author{Name: "Ada_L"})}, keyless(visits.Visits()))
+	assert.Equal(t, []presence.Visit{guestVisit().For(ada, wearing.Author{Author: players.Author{Name: "Ada_L"}})}, keyless(visits.Visits()))
 }
 
 func TestSigningInToANewAccountShowsItsOwnGuestCode(t *testing.T) {
@@ -61,7 +67,7 @@ func TestSigningInToANewAccountShowsItsOwnGuestCode(t *testing.T) {
 	err := useCase(store, visits).Execute(t.Context(), guest, ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, []presence.Visit{guestVisit().For(ada, players.Author{Name: "guest_000001", Guest: true})},
+	assert.Equal(t, []presence.Visit{guestVisit().For(ada, wearing.Author{Author: players.Author{Name: "guest_000001", Guest: true}})},
 		keyless(visits.Visits()), "the code of the account the browser is on now, not the one it left")
 }
 
