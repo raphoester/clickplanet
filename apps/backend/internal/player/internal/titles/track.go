@@ -35,3 +35,13 @@ func (Devotion) Name() string { return "Devotion" }
 func (Devotion) Ranks() []Rank { return []Rank{Loyal{}, Devoted{}, Unbroken{}} }
 
 func (Devotion) Progress(career Career) uint64 { return uint64(career.Stats.StreakCurrent) }
+
+type Chatter struct{}
+
+func (Chatter) ID() TrackID { return "chatter" }
+
+func (Chatter) Name() string { return "Chatter" }
+
+func (Chatter) Ranks() []Rank { return []Rank{Talker{}, Chatterbox{}, Socialite{}, Icon{}} }
+
+func (Chatter) Progress(career Career) uint64 { return career.Stats.MessagesSent }

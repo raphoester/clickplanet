@@ -21,6 +21,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_profile_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_stats_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_message_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_message_usecase/publishing_record_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_take_usecase/publishing_record_take"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_color_usecase"
@@ -50,6 +52,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/move_visit_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/message_sent_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/stats_changed_subscriber"
@@ -81,6 +84,7 @@ const (
 	tileTakenBuffer      = 8192
 	accountDeletedBuffer = 2048
 	signInBuffer         = 256
+	messageSentBuffer    = 256
 )
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -139,6 +143,14 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
+	posts, err := cpbootstrap.Subscribe(props.Events, "player-stats-messages", messageSentBuffer,
+		log_subscriber.New(message_sent_subscriber.New(
+			publishing_record_message.New(record_message_usecase.New(store), props.Events),
+		), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to chat.v1.MessageSent: %w", err)
+	}
 	awards, err := cpbootstrap.Subscribe(props.Events, "player-titles", tileTakenBuffer,
 		log_subscriber.New(stats_changed_subscriber.New(notifying_award_titles.New(
 			award_titles_usecase.New(store, accounts, titleBook, clock), titleFeed,
@@ -188,7 +200,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(signOuts)
 	props.Runners.Add(gone)
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, awards, deletions, forgottenTitles, forgottenChoices, signIns))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, posts, awards, deletions, forgottenTitles, forgottenChoices, signIns))
 
 	verifier := rpc_session_verifier.New(props.Internal, props.Logger)
 

@@ -11,7 +11,7 @@ type Catalog struct {
 }
 
 func NewCatalog() Catalog {
-	return CatalogOf([]Title{OG{}}, Conquest{}, Devotion{})
+	return CatalogOf([]Title{OG{}}, Conquest{}, Devotion{}, Chatter{})
 }
 
 func CatalogOf(standalone []Title, tracks ...Track) Catalog {
@@ -222,3 +222,43 @@ func (Unbroken) Threshold() uint64 { return 100 }
 func (u Unbroken) EarnedBy(career Career) bool {
 	return uint64(career.Stats.StreakBest) >= u.Threshold()
 }
+
+type Talker struct{}
+
+func (Talker) ID() ID { return "talker" }
+
+func (Talker) Name() string { return "Talker" }
+
+func (Talker) Threshold() uint64 { return 100 }
+
+func (t Talker) EarnedBy(career Career) bool { return career.Stats.MessagesSent >= t.Threshold() }
+
+type Chatterbox struct{}
+
+func (Chatterbox) ID() ID { return "chatterbox" }
+
+func (Chatterbox) Name() string { return "Chatterbox" }
+
+func (Chatterbox) Threshold() uint64 { return 1_000 }
+
+func (c Chatterbox) EarnedBy(career Career) bool { return career.Stats.MessagesSent >= c.Threshold() }
+
+type Socialite struct{}
+
+func (Socialite) ID() ID { return "socialite" }
+
+func (Socialite) Name() string { return "Socialite" }
+
+func (Socialite) Threshold() uint64 { return 10_000 }
+
+func (s Socialite) EarnedBy(career Career) bool { return career.Stats.MessagesSent >= s.Threshold() }
+
+type Icon struct{}
+
+func (Icon) ID() ID { return "icon" }
+
+func (Icon) Name() string { return "Icon" }
+
+func (Icon) Threshold() uint64 { return 100_000 }
+
+func (i Icon) EarnedBy(career Career) bool { return career.Stats.MessagesSent >= i.Threshold() }

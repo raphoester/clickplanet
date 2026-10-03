@@ -60,6 +60,34 @@ func TestAPlayerPostsInTheColorItChoseAndWithItsStreak(t *testing.T) {
 	assert.Equal(t, uint32(1), message.GetAuthorStreak())
 }
 
+func TestEachMessageSentClimbsTheChatterTrackAndTakesNoTile(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+
+	for range 3 {
+		_, err := ada.post()
+		require.NoError(t, err)
+	}
+
+	chatter := func() *playerv1.Track {
+		req := connect.NewRequest(&playerv1.GetTitlesRequest{})
+		ada.send(req.Header())
+		res, err := ada.players().GetTitles(t.Context(), req)
+		require.NoError(t, err)
+		for _, track := range res.Msg.GetTracks() {
+			if track.GetId() == "chatter" {
+				return track
+			}
+		}
+		return nil
+	}
+	require.Eventually(t, func() bool { return chatter().GetProgress() == 3 }, 5*time.Second, 20*time.Millisecond,
+		"chat publishes each message and player counts it")
+	assert.Zero(t, ada.stats().GetTilesTaken())
+	assert.Zero(t, ada.stats().GetStreakCurrent(), "a message is no take")
+}
+
 func TestAGuestMayNotChooseAColor(t *testing.T) {
 	game := startGame(t)
 

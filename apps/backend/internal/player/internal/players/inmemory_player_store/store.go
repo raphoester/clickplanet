@@ -172,6 +172,21 @@ func (s *Store) RecordTake(_ context.Context, account players.AccountID, at time
 	return nil
 }
 
+func (s *Store) RecordMessage(_ context.Context, account players.AccountID) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return s.failWith
+	}
+	stats, ok := s.stats[account]
+	if !ok {
+		stats = players.Stats{Account: account}
+	}
+	s.stats[account] = stats.WithMessage()
+	return nil
+}
+
 func (s *Store) StatsAfter(_ context.Context, after players.AccountID, limit int) ([]players.Stats, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
