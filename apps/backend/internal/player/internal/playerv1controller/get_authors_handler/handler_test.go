@@ -111,3 +111,15 @@ func TestEachAuthorCarriesItsColorAndItsStreakAsOfToday(t *testing.T) {
 	assert.Equal(t, playerv1.NameColor_NAME_COLOR_UNSPECIFIED, by[guestID].GetColor())
 	assert.Equal(t, uint32(0), by[guestID].GetStreak(), "a guest shows no streak, however long it runs")
 }
+
+func TestAGuestIsToldApartFromAUsername(t *testing.T) {
+	res, err := getAuthors(t, adaID, guestID)
+	require.NoError(t, err)
+
+	guests := make(map[string]bool, len(res.Msg.GetAuthors()))
+	for _, author := range res.Msg.GetAuthors() {
+		guests[author.GetAccountId()] = author.GetGuest()
+	}
+
+	assert.Equal(t, map[string]bool{adaID: false, guestID: true}, guests)
+}

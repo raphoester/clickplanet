@@ -41,4 +41,5 @@ message Author {
   bool admin = 3;
   NameColor color = 4;
   uint32 streak = 5;
+  bool guest = 6;
 }
