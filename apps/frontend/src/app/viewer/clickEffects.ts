@@ -24,7 +24,7 @@ const MAX_PLAYING = 32
 
 const GREEN = new THREE.Color(0.3, 1.0, 0.45)
 
-export const CLEAR_LIFETIME_SECONDS = 0.8
+export const CLEAR_LIFETIME_SECONDS = 0.35
 
 const DUST = new THREE.Color(0.93, 0.8, 0.58)
 
@@ -104,7 +104,7 @@ export function choreographClear(tile: number, positions: ArrayLike<number>): Ch
 
     return {
         sparks: [{from: centre, to: centre, start: 0, travel: 0, role: "burst"}],
-        waves: [{startsAt: 0.04, seconds: 0.55, peak: 0.85}],
+        waves: [{startsAt: 0, seconds: CLEAR_LIFETIME_SECONDS, peak: 0.85}],
         centre,
         reach: TILE_SPACING * 3,
         minReachPx: 36,
