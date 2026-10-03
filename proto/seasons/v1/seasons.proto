@@ -2,10 +2,18 @@ syntax = "proto3";
 
 package seasons.v1;
 
+import "player/v1/color.proto";
+
 service SeasonService {
   rpc GetSeason(GetSeasonRequest) returns (GetSeasonResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc GetStandings(GetStandingsRequest) returns (GetStandingsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  rpc GetMySeason(GetMySeasonRequest) returns (GetMySeasonResponse);
 }
 
 message GetSeasonRequest {}
@@ -18,4 +26,29 @@ message Season {
   uint32 number = 1;
   int64 finale_starts_at_unix_ms = 2;
   int64 ends_at_unix_ms = 3;
+}
+
+message GetStandingsRequest {
+  string country_id = 1;
+}
+
+message GetStandingsResponse {
+  repeated Standing standings = 1;
+}
+
+message Standing {
+  uint32 rank = 1;
+  string name = 2;
+  player.v1.NameColor color = 3;
+  string country_id = 4;
+  uint64 tiles = 5;
+}
+
+message GetMySeasonRequest {}
+
+message GetMySeasonResponse {
+  string country_id = 1;
+  uint64 tiles = 2;
+  uint32 global_rank = 3;
+  uint32 country_rank = 4;
 }
