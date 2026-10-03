@@ -659,6 +659,32 @@ is the player's own view.
 - **UI copy is not documentation.** The card and the tab say nothing about the
   rules ("one per track", "others see the title you wear"): what is drawn is the rule.
 
+### The season
+
+`backends/season.ts` is the contract, `seasonBackend.ts` reads
+`seasons.v1.SeasonService/GetSeason` once per page load (a cached GET), and
+`fakeSeasonBackend.ts` answers Season 0 in fake mode. A 404 reads as no season.
+
+- `domain/seasonClock.ts` — `seasonClock`, the time left to the second
+  (`27d 14h 05m 12s`, `13h 05m 12s`, `52m 10s`, nothing once over) and whether the finale runs, and `finaleWindow`,
+  the finale's day and hours in the player's own time zone.
+- `domain/seasonCalendar.ts` — `finaleCalendar`, the `.ics` of the finale, built
+  from `GetSeason` so no date is typed twice.
+- `app/season/` — `useSeason`, which drops the season at its end (a page open
+  across it goes back to no season), `SeasonBanner` and `AddToCalendarButton`.
+
+**The season is a banner at the top centre**, outside the menu: "Season 0 ends
+in 28d 14h 05m 12s", then the Final Battle's day and hours with "Add to calendar"
+beside them. The first line folds the rest away; the fold is kept in
+`clickplanet-season-banner-folded`, and a first visit under 768px starts folded.
+Under 768px it is a strip under the menu header. During the finale it glows,
+says "Final Battle ends in" and does not fold.
+
+**It writes its bottom edge on `:root` as `--season-banner-bottom`**
+(`useBottomEdge`, which `useDockBottom` is built on). The quiz, the bomb news and
+the native-land note sit under it, and on a phone so does the click budget dock.
+With no season the property is unset and they sit where they always did.
+
 ### Sessions
 
 The backend gates `Click` on a token it minted, and refuses one that carries
@@ -2089,6 +2115,8 @@ the whole `proto` directory, so a new package needs no config change; run
   deprecated mint, no longer called
 - [`player/v1/player.proto`](../../proto/player/v1/player.proto) — the
   username and who is playing (`PlayerService`)
+- [`seasons/v1/seasons.proto`](../../proto/seasons/v1/seasons.proto) — the
+  current season (`SeasonService`)
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in
