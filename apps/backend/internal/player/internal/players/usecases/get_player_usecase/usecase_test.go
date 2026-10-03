@@ -73,14 +73,19 @@ func TestAnAdminIsSaidToBeOne(t *testing.T) {
 	assert.True(t, player.Admin)
 }
 
-func TestTheHeldTitlesAreReadInTheLaddersOrder(t *testing.T) {
+func TestThePlayerShowsItsBestOfEachTrackAndWearsTheFirst(t *testing.T) {
 	f := setUp(t)
-	require.NoError(t, f.titles.Grant(t.Context(), titles.Holdings{ada: {"loyal", "governor", "settler"}}, monday))
+	require.NoError(t, f.titles.Grant(t.Context(), titles.Holdings{ada: {"loyal", "raider", "settler", "og"}}, monday))
 
 	player, err := f.useCase.Execute(t.Context(), "Ada_L")
 
 	require.NoError(t, err)
-	assert.Equal(t, []titles.Title{titles.Settler{}, titles.Governor{}, titles.Loyal{}}, player.Titles)
+	raider, _ := titles.NewCatalog().StandingOf("raider")
+	loyal, _ := titles.NewCatalog().StandingOf("loyal")
+	assert.Equal(t, titles.Showcase{
+		Worn:  raider,
+		Shown: []titles.Standing{{Title: titles.OG{}}, raider, loyal},
+	}, player.Titles)
 }
 
 func TestAPlayerThatNeverTookATileHasEmptyStats(t *testing.T) {

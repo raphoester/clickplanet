@@ -15,13 +15,14 @@ import (
 type Store struct {
 	mu       sync.Mutex
 	held     map[players.AccountID]titles.IDs
+	worn     map[players.AccountID]titles.ID
 	failWith error
 }
 
 var _ titles.Store = (*Store)(nil)
 
 func New() *Store {
-	return &Store{held: map[players.AccountID]titles.IDs{}}
+	return &Store{held: map[players.AccountID]titles.IDs{}, worn: map[players.AccountID]titles.ID{}}
 }
 
 func (s *Store) FailWith(err error) {
@@ -86,6 +87,27 @@ func (s *Store) Revoke(_ context.Context, revocations titles.Holdings) error {
 	return nil
 }
 
+func (s *Store) Worn(_ context.Context, account players.AccountID) (titles.ID, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return "", s.failWith
+	}
+	return s.worn[account], nil
+}
+
+func (s *Store) Wear(_ context.Context, account players.AccountID, title titles.ID, _ time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return s.failWith
+	}
+	s.worn[account] = title
+	return nil
+}
+
 func (s *Store) DeleteAccount(_ context.Context, account players.AccountID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -94,5 +116,6 @@ func (s *Store) DeleteAccount(_ context.Context, account players.AccountID) erro
 		return s.failWith
 	}
 	delete(s.held, account)
+	delete(s.worn, account)
 	return nil
 }

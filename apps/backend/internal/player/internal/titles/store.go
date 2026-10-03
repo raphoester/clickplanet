@@ -12,5 +12,7 @@ type Store interface {
 	Holdings(ctx context.Context, accounts []players.AccountID) (Holdings, error)
 	Grant(ctx context.Context, grants Holdings, at time.Time) error
 	Revoke(ctx context.Context, revocations Holdings) error
+	Worn(ctx context.Context, account players.AccountID) (ID, error)
+	Wear(ctx context.Context, account players.AccountID, title ID, at time.Time) error
 	DeleteAccount(ctx context.Context, account players.AccountID) error
 }

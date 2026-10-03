@@ -355,3 +355,60 @@ func TestAnOperatorReconcilesTheTitlesOnTheAdminListenerOnly(t *testing.T) {
 	assert.Zero(t, second.Msg.GetGranted())
 	assert.Zero(t, second.Msg.GetRevoked())
 }
+
+func TestASignedInStreamHearsTheTitleItsTakesEarnAndTheTitleCanBeWorn(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	listen := connect.NewRequest(&playerv1.ListenForEventsRequest{})
+	ada.send(listen.Header())
+	stream, err := ada.players().ListenForEvents(ctx, listen)
+	require.NoError(t, err)
+	require.True(t, stream.Receive(), "the roster comes first")
+
+	earned := make(chan string, 16)
+	go func() {
+		for stream.Receive() {
+			if title := stream.Msg().GetTitleEarned(); title != nil {
+				earned <- title.GetTitle().GetId()
+			}
+		}
+	}()
+
+	for tile := range uint32(100) {
+		ada.click(tile+1, "fr")
+	}
+
+	require.Eventually(t, func() bool {
+		select {
+		case id := <-earned:
+			return id == "settler"
+		default:
+			return false
+		}
+	}, 10*time.Second, 20*time.Millisecond, "the hundredth take earns Settler, live")
+
+	get := connect.NewRequest(&playerv1.GetTitlesRequest{})
+	ada.send(get.Header())
+	dashboard, err := ada.players().GetTitles(t.Context(), get)
+	require.NoError(t, err)
+	conquest := dashboard.Msg.GetTracks()[0]
+	assert.Equal(t, "conquest", conquest.GetId())
+	assert.Equal(t, uint64(100), conquest.GetProgress())
+	assert.True(t, conquest.GetSteps()[0].GetEarned())
+
+	wear := connect.NewRequest(&playerv1.WearTitleRequest{TitleId: "settler"})
+	ada.send(wear.Header())
+	worn, err := ada.players().WearTitle(t.Context(), wear)
+	require.NoError(t, err)
+	assert.Equal(t, "settler", worn.Msg.GetWorn().GetId())
+	assert.Equal(t, uint32(1), worn.Msg.GetWorn().GetRank().GetNumber())
+
+	refused := connect.NewRequest(&playerv1.WearTitleRequest{TitleId: "warmaster"})
+	ada.send(refused.Header())
+	_, err = ada.players().WearTitle(t.Context(), refused)
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}

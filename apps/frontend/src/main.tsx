@@ -44,6 +44,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         tilePositions: () => loadPointGeometryData().then((data) => data.positions),
         grounds: () => loadBorders(BORDERS_URL).then((data) => (tile: number) => countryOfTile(data, tile)),
     })
+    const fakePresence = new FakePresenceBackend()
     Object.assign(window, {
         fakeBackend: fake,
         giveBomb: () => {
@@ -62,9 +63,11 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             globe.takeReward(fake.grantBonus(kind))
             return `${kind} in your inventory — switch it on from there`
         },
+        giveTitle: (id?: string) => {
+            fakePresence.earnTitle(id)
+            return "a title is unlocked"
+        },
     })
-
-    const fakePresence = new FakePresenceBackend()
 
     const fakeChat = new FakeChatBackend()
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))

@@ -1,0 +1,311 @@
+@keyframes title-sheen {
+    0% { transform: translateX(-120%) skewX(-20deg); }
+    55%, 100% { transform: translateX(320%) skewX(-20deg); }
+}
+
+@keyframes title-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 #F2B63266; }
+    50% { box-shadow: 0 0 0 10px #F2B63200; }
+}
+
+@keyframes title-spin {
+    to { transform: rotate(360deg); }
+}
+
+.title-emblem {
+    display: block;
+    flex-shrink: 0;
+    overflow: visible;
+}
+
+.title-sheen {
+    position: relative;
+    overflow: hidden;
+}
+
+.title-sheen::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 35%;
+    background: linear-gradient(90deg, #FFFFFF00, #FFFFFF40, #FFFFFF00);
+    animation: title-sheen 3.2s ease-in-out infinite;
+    pointer-events: none;
+}
+
+.title-pulse {
+    border-radius: 999px;
+    animation: title-pulse 1.8s ease-in-out infinite;
+}
+
+.og-stamp {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: 24px;
+    padding: 0 9px;
+    border-radius: 8px;
+    background: linear-gradient(110deg, #B6FFE9, #8FB8FF 35%, #C79BFF 65%, #FFE59A);
+    color: #1F1238;
+    font-family: "Luckiest Guy", sans-serif;
+    font-size: 15px;
+    letter-spacing: 1px;
+    line-height: 1;
+    transform: rotate(-6deg);
+    box-shadow: 0 0 14px #C79BFF88, 0 3px 0 #000000;
+}
+
+.title-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #2A2A2A, #121212);
+    box-shadow: inset 0 1px 0 #FFFFFF22;
+}
+
+.title-banner-compact {
+    gap: 12px;
+    padding: 10px 14px;
+}
+
+.title-banner-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.title-banner-rank {
+    font-family: Oswald, sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+}
+
+.title-banner-name {
+    margin-top: 4px;
+    font-family: "Luckiest Guy", sans-serif;
+    font-size: 32px;
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+}
+
+.title-banner-compact .title-banner-name {
+    font-size: 24px;
+}
+
+.track-path {
+    padding: 14px 0 10px;
+    border: 1px solid #FFFFFF1A;
+    border-radius: 18px;
+    background: #FFFFFF08;
+}
+
+.track-path-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 12px;
+    padding: 0 16px;
+}
+
+.track-path-name {
+    margin: 0;
+    font-family: "Luckiest Guy", sans-serif;
+    font-weight: normal;
+    font-size: 20px;
+    letter-spacing: 0.5px;
+}
+
+.track-path-left {
+    font-family: Oswald, sans-serif;
+    font-size: 13px;
+    color: #FFD45A;
+}
+
+.track-path-left-devotion {
+    color: #FF9A3D;
+}
+
+.track-path-scroll {
+    margin-top: 14px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000000 28px, #000000 calc(100% - 28px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000000 28px, #000000 calc(100% - 28px), transparent 100%);
+}
+
+.track-path-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.track-path-steps {
+    position: relative;
+    box-sizing: content-box;
+    padding: 0 24px 6px;
+}
+
+.track-path-bar {
+    position: absolute;
+    top: 25px;
+    height: 6px;
+    border-radius: 999px;
+    background: #2E2E2E;
+}
+
+.track-path-bar-filled {
+    background: linear-gradient(90deg, #C97B12, #FFD45A);
+}
+
+.track-path-list {
+    position: relative;
+    display: flex;
+    gap: 16px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.track-path-step {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    width: 104px;
+    scroll-snap-align: center;
+}
+
+.track-path-medal {
+    display: block;
+    border-radius: 999px;
+    background: #101010;
+}
+
+.track-path-step-name {
+    font-family: "Luckiest Guy", sans-serif;
+    font-size: 15px;
+    white-space: nowrap;
+    color: #FFFFFF73;
+}
+
+.track-path-step-earned .track-path-step-name {
+    color: #FFFFFF;
+}
+
+.track-path-step-next .track-path-step-name {
+    color: #F2B632;
+}
+
+.track-path-step-threshold {
+    font-family: Oswald, sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    text-align: center;
+    color: #FFFFFF99;
+}
+
+.title-unlocked {
+    text-align: center;
+    border-color: #F2B63266;
+    box-shadow: 0 0 60px #F2B63233, 0 18px 40px #000000AA;
+}
+
+.title-unlocked .modal-scroll::after {
+    display: none;
+}
+
+.title-unlocked .modal-header h2 {
+    font-family: Oswald, sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #F2B632;
+}
+
+.title-unlocked-stage {
+    position: relative;
+    width: min(320px, 100%);
+    aspect-ratio: 1;
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+.title-rays {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    animation: title-spin 24s linear infinite;
+}
+
+.title-unlocked-medal {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -54%);
+}
+
+.title-unlocked-name {
+    margin: 4px 0 0;
+    font-family: "Luckiest Guy", sans-serif;
+    font-size: 48px;
+    line-height: 1;
+}
+
+.title-unlocked-rank {
+    margin: 12px 0 0;
+    font-family: Oswald, sans-serif;
+    font-size: 16px;
+    color: #FFFFFFD9;
+}
+
+.title-unlocked-actions {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.title-unlocked-actions .button {
+    flex: 1;
+    height: 52px;
+    font-size: 20px;
+}
+
+.title-wear-button {
+    flex: 1.6;
+    color: #2A1600;
+    background: linear-gradient(180deg, #FFD45A, #E39A12);
+    box-shadow: 0 4px 0 #8F5605;
+}
+
+.title-wear-button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.title-frame-bronze { --title-frame: linear-gradient(135deg, #F6C59A, #C97B45, #6E3615); --title-glow: #C97B4555; }
+.title-frame-silver { --title-frame: linear-gradient(135deg, #FFFFFF, #C3CBD6, #6F7A88); --title-glow: #C3CBD655; }
+.title-frame-gold { --title-frame: linear-gradient(135deg, #FFF3BF, #F2B632, #8F5605); --title-glow: #F2B63255; }
+.title-frame-platinum { --title-frame: linear-gradient(135deg, #F4F9FF, #A9C1DD, #4E6178); --title-glow: #A9C1DD55; }
+.title-frame-prism { --title-frame: linear-gradient(135deg, #8EF6FF, #9C7BFF, #FF7AD0, #FFD36E); --title-glow: #9C7BFF66; }
+.title-frame-holo { --title-frame: linear-gradient(135deg, #B6FFE9, #8FB8FF, #C79BFF, #FFE59A); --title-glow: #8FB8FF55; }
+
+.modal-content[class*="title-frame-"] {
+    border: 2px solid transparent;
+    background: linear-gradient(#101010, #101010) padding-box, var(--title-frame) border-box;
+    box-shadow: 0 0 30px var(--title-glow), 0 18px 40px #00000099;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .title-sheen::after,
+    .title-pulse,
+    .title-rays {
+        animation: none;
+    }
+}

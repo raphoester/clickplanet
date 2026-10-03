@@ -21,7 +21,7 @@ var (
 	now     = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 	first   = titles.FakeTitle{Key: "first", Tiles: 1}
 	third   = titles.FakeTitle{Key: "third", Tiles: 3}
-	catalog = titles.Catalog{first, third}
+	catalog = titles.CatalogOf([]titles.Title{first, third})
 	linked  = players.Account{Linked: true, CreatedAt: now}
 )
 
@@ -110,7 +110,7 @@ func TestTheLinkedAccountsMadeBeforeNovemberAreOG(t *testing.T) {
 	f.player(t, 2, 1, players.Account{Linked: true, CreatedAt: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)})
 	f.player(t, 3, 1, players.Account{CreatedAt: time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)})
 
-	_, err := f.reconcile(t, f.titles, titles.Catalog{titles.OG{}})
+	_, err := f.reconcile(t, f.titles, titles.CatalogOf([]titles.Title{titles.OG{}}))
 
 	require.NoError(t, err)
 	assert.Equal(t, titles.IDs{"og"}, f.held(t, 1))
