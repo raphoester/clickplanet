@@ -35,6 +35,7 @@ import AnthemBar from "../anthem/AnthemBar.tsx";
 import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
 import {useAccount} from "../account/useAccount.ts";
+import {authorHue} from "../../domain/authorColor.ts";
 import {PlayerInfoBackend, PlayerLine, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
 import TitleUnlocked from "../titles/TitleUnlocked.tsx";
@@ -117,6 +118,7 @@ export default function Viewer(props: ViewerProps) {
         bomber: props.bomber,
         playSound: sound.play,
         country: countryState,
+        clickHue: username === undefined ? undefined : authorHue(username, color),
     })
 
     const refiller = props.refiller

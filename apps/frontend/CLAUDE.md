@@ -981,9 +981,9 @@ mint a guest and insert a row into `auth.identities` for its account.
   setCountry, dispose}`. Its loop draws on demand — see [Drawing only when
   something changed](#drawing-only-when-something-changed).
 - `useGlobe.ts` — owns one globe for the lifetime of the component. **Its effect
-  must not depend on anything that changes per render**; the selected country is
-  pushed into the running globe through a separate effect rather than rebuilding
-  it.
+  must not depend on anything that changes per render**; the selected country and
+  the player's hue are pushed into the running globe through separate effects
+  rather than rebuilding it.
 - `useLeaderboardFeed.ts` — the one place React hears about the board, and
   **it samples rather than follows**. See [Sampling the
   leaderboard](#sampling-the-leaderboard).
@@ -1043,29 +1043,32 @@ mint a guest and insert a row into `auth.identities` for its account.
   (`tilesSpread`: a green burst, a spark popping onto each tile around it in
   turn, two rings). It reuses the enclosure's shaders, with normal rather than
   additive rings, which vanished on the white of a flag. A busy planet spreads a
-  lot, so at most `MAX_PLAYING` run at once. It also puffs dust on a tile this
-  player's click cleared rather than took (`playClear`): a small burst and one
-  ring, 0.35s.
-
-  **Every other click puffs on its tile** (`playClick`): this player's at once,
-  and anyone else's when its `TileUpdate` says `clicked` — the server sets it only
-  on the tile a click named, never on a spread's neighbours, an enclosure's
-  inside or a moderator's write. Own clicks echoed back are skipped through
-  `OwnClicks`. **It is the clear's puff in sky blue** (`choreographClick`, pinned
-  by `clickEffects.test.ts`), the level the product wants for the most frequent
-  thing on the map: it lights the tile and sends one small ring, seen from space
-  but no bigger than a clear. Two tries missed it on either side: a lone faint
-  ring at 20px could not be seen, and a full-strength ring of at least 44px with
-  a dark edge looked like a bonus. Sky blue rather than white, which vanished on
-  the white of a flag. **A click out of view is not played** (`inView`): on the
-  far side or off the screen it would cost frames and show nothing. Plain clicks
-  run in a second instance, so a busy planet's clicks never push a spread off the
-  screen. With less motion it is a still puff that fades, like a clear.
+  lot, so at most `MAX_PLAYING` run at once.
+- `clickGlints.ts` — **every other click glints on its tile**: this player's at
+  once, and anyone else's when its `TileUpdate` says `clicked` — the server sets
+  it only on the tile a click named, never on a spread's neighbours, an
+  enclosure's inside or a moderator's write. Own clicks echoed back are skipped
+  through `OwnClicks`. **A glint is one soft glow and no ring**, gone in 0.7s
+  and mostly gone by 0.35s: it is the most frequent thing on the map, a flash
+  with a ring was too much at that rate even at its smallest, and a puff that
+  held the tile for half a second got in the way of play zoomed in. Before that, a lone faint ring at 20px
+  could not be seen, and a full-strength ring of at least 44px with a dark edge
+  looked like a bonus. **It is never under `MIN_GLINT_PX`**, so from orbit a
+  click is a spark that keeps the planet alive, and otherwise 1.8 tiles wide, so
+  pushed in it stays on its tile (`glintSize`). **A clear is the same glint
+  shrinking as it fades** (`playOwnClear`), on a tile this player's click
+  cleared rather than took. **This player's glints are in its name's hue**
+  (`authorHue`, handed down through `Globe.setClickHue`); a player with no name
+  glints sky blue and clears in dust. Everyone else's are sky blue: a
+  `TileUpdate` does not say who clicked. Not white, which vanished on the white
+  of a flag. **A click out of view is not played** (`inView`): on the far side
+  or off the screen it would cost frames and show nothing. With less motion a
+  clear fades without shrinking.
 - `earth.ts` — the opaque sphere under the tiles, in the globe's light with
   `?gfx=earth`. See [The light](#the-light).
 - `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe the URL
   turns on. See [`?gfx=`](#gfx-the-sharper-lit-globe-off-unless-asked-for).
-- `shaders/` — GLSL for the display, picking, earth, star and enclosure passes.
+- `shaders/` — GLSL for the display, picking, earth, star, enclosure and glint passes.
   `light.glsl` is not a pass but the light they share, pulled in with
   `#include ../light.glsl;` (vite-plugin-glsl's own include, not three's).
 
@@ -1093,8 +1096,8 @@ under test. Three things can ask for a frame:
   the frame that draws it rather than the tick that reads it, so the cap below
   can hold a frame back without losing the move that asked for it.
 - **Something the loop drives is still moving** — every `update` that animates
-  answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, both `clickEffects`
-  and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the
+  answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, `clickEffects`,
+  `clickGlints` and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the
   one that takes the flash, the box or the highlight off the screen, so each one
   answers `true` on the tick it stops as well as while it runs.
 - **Something outside the loop touched the scene** — `invalidate()`, which
@@ -1735,7 +1738,7 @@ says whether the rule is on in `BonusRules.homeSoil`.
   `home_soil_test.go`. Before the rules are read, or with no bonus feed, a click
   is painted as a take and the server's echo corrects it.
 - **A clear says so twice.** A tile going blank under a newcomer's click reads as
-  a click that went wrong, so it puffs dust on the tile (`clickEffects.ts`,
+  a click that went wrong, so its glint shrinks as it fades (`clickGlints.ts`,
   every time), and `NativeLandNote` says "Poland's native land takes two clicks.
   One more to take it." under the bomb line — only the first three times in a
   browser (`domain/clearNotes.ts`, in `clickplanet-home-soil-notes`, counted in
@@ -1743,7 +1746,7 @@ says whether the rule is on in `BonusRules.homeSoil`.
 - **Spread and enclose follow the rule on every tile they touch**, on the server.
   Nothing here predicts them: their tiles arrive over the stream as ever, a cleared
   one as an update with no country.
-- **Only the clicker sees the dust.** Everybody else sees the tile go empty, as a
+- **Only the clicker sees the clear's glint.** Everybody else sees the tile go empty, as a
   `TileUpdate` with no country: the stream does not say why.
 
 ## Quizzes
