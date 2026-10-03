@@ -76,7 +76,7 @@ Two pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
 | `/` | `index.html` | The home page. Plain HTML, no bundle. |
 | `/play` | `play.html` | The game. |
 | `/auth/callback` | `auth/callback.html` | The game again, for the sign-in callback. |
-| `/privacy`, `/terms` | `public/*.html` | Plain pages. |
+| `/privacy`, `/terms` | `privacy.html`, `terms.html` | Plain pages, no bundle. |
 | anything else | `index.html` | `not_found_handling` fallback. |
 
 **Why `/` is not the game.** Google's brand verification, which lets anyone
@@ -2266,7 +2266,7 @@ chat. To retake it:
 Chrome may not exit after it writes the file; stop it once the file is there.
 
 `public/` holds the files that must be served as themselves rather than as the
-app: `_headers`, `robots.txt`, `sitemap.xml`, `privacy.html` and `terms.html`. Vite copies them to the root of
+app: `_headers`, `robots.txt` and `sitemap.xml`. Vite copies them to the root of
 `dist/`, and the Workers asset handler serves a real file before
 `not_found_handling` applies — **without them, every unmatched path including
 `/robots.txt` answers 200 with `index.html`**, so a crawler asking for the rules
@@ -2279,7 +2279,7 @@ fetch the preview from.
 It is a plain page, not a component: it loads with no WebGL and no bundle, and a
 crawler reads it as it is. The Workers asset handler serves it at `/privacy`
 (`html_handling` drops the extension) and `nginx.conf` does the same with
-`$uri.html`; `npm run dev` only serves it at `/privacy.html`. **It states
+`$uri.html`; `npm run dev` serves it at both `/privacy` and `/privacy.html`. **It states
 retention periods, so it goes stale when the backend's do**: `ledger.retention`,
 `antiBot.evidence.retention`, `chat.storage.retention` and
 `auth.sessions.guestTTL` in `deploy/vps/backend.yaml`, and `roll_keep_for` in
@@ -2299,6 +2299,11 @@ says signing in clicks 2× faster: plain HTML cannot read the server's number, s
 which carries players' own words. The section links (`#how`, `#features`,
 `#creator`) work in the page, but a returning player who opens one directly is
 sent to the game like any other hash but `#home`.
+
+**The Discord invite is written once, in `src/links.ts`.** The menu imports it;
+`vite.config.ts` hands it to the three plain pages, which write
+`%DISCORD_INVITE%` (Vite's own HTML replacement, fed through `define`).
+`links.test.ts` fails on an invite pasted into a page.
 
 **`terms.html` is the terms of service**, linked beside it and built
 the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. The
@@ -2334,8 +2339,8 @@ first in `main.tsx`.
 stylesheet, in the home page's style, or in a component (the Google and Discord
 sign-in colors aside). Code that draws outside CSS reads the tokens as well:
 `drawShareCard.ts` with `getComputedStyle` at draw time, the medals through
-`style`. `public/privacy.html` and `terms.html` are not built, so each carries a
-copy of the tokens it uses, and the test holds the copy to `tokens.css`.
+`style`. The home page, `privacy.html` and `terms.html` link `src/tokens.css`
+themselves.
 
 Plain CSS files co-located with components. No CSS preprocessor or CSS-in-JS.
 
