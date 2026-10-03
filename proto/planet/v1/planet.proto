@@ -55,6 +55,13 @@ message ClickBudget {
   double linked_multiplier = 10;
 
   SharedWith shared_with = 11;
+
+  // The country the slowdown, the share and the next step are for: the caller's
+  // main flag, the one it clicks for most, once a click for the country asked
+  // about counts. So a player who painted France all day and picks Spain is
+  // still priced as France. Empty from a server too old to know, which means the
+  // country asked about.
+  string country = 12;
 }
 
 enum SharedWith {

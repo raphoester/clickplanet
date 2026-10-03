@@ -125,6 +125,17 @@ export class ClickBudget extends Message<ClickBudget> {
    */
   sharedWith = SharedWith.UNSPECIFIED;
 
+  /**
+   * The country the slowdown, the share and the next step are for: the caller's
+   * main flag, the one it clicks for most, once a click for the country asked
+   * about counts. So a player who painted France all day and picks Spain is
+   * still priced as France. Empty from a server too old to know, which means the
+   * country asked about.
+   *
+   * @generated from field: string country = 12;
+   */
+  country = "";
+
   constructor(data?: PartialMessage<ClickBudget>) {
     super();
     proto3.util.initPartial(data, this);
@@ -142,6 +153,7 @@ export class ClickBudget extends Message<ClickBudget> {
     { no: 9, name: "next_slowdown", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 10, name: "linked_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 11, name: "shared_with", kind: "enum", T: proto3.getEnumType(SharedWith) },
+    { no: 12, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBudget {

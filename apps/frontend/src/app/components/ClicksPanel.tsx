@@ -1,5 +1,6 @@
 import {ClickBudget, now, tokensAt} from "../../backends/clickBudget.ts"
-import {describePrice, factor, percent} from "../../domain/clickPrice.ts"
+import {describePrice, factor, holdsLine, percent} from "../../domain/clickPrice.ts"
+import {Countries} from "../../domain/countries.ts"
 import {TollStep, tollRows} from "../../domain/toll.ts"
 import {useNow} from "../season/useNow.ts"
 import {BoltIcon} from "./ClickBudgetMeter.tsx"
@@ -19,7 +20,8 @@ export default function ClicksPanel({budget, countryName, share, toll, onSignIn}
 
     const price = budget?.price
     const held = price?.share ?? share
-    const detail = describePrice(price, countryName)?.detail
+    const mainFlagName = price?.country && (Countries.get(price.country)?.name ?? price.country.toUpperCase())
+    const detail = describePrice(price, countryName, mainFlagName)?.detail
     const rows = held === undefined ? [] : tollRows(toll, held)
     const speedUp = onSignIn && budget?.linkedMultiplier
 
@@ -29,7 +31,7 @@ export default function ClicksPanel({budget, countryName, share, toll, onSignIn}
             <span className="clicks-of">of {budget.capacity}</span>
         </div>}
 
-        {held !== undefined && <p className="clicks-headline">{countryName} holds {percent(held)} of the map</p>}
+        {held !== undefined && <p className="clicks-headline">{holdsLine(held, countryName, mainFlagName)}</p>}
         {detail && <p className="clicks-detail">{detail}</p>}
 
         {rows.length > 1 && <table className="clicks-steps">

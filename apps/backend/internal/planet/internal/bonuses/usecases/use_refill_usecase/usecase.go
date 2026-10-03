@@ -3,6 +3,7 @@ package use_refill_usecase
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -26,7 +27,7 @@ type Bank interface {
 }
 
 type Pricer interface {
-	Price(country string) clicks.Price
+	PriceFor(ctx context.Context, payer clicks.Payer, country string) (clicks.Price, error)
 }
 
 type In struct {
@@ -68,7 +69,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		_, _ = u.bank.Fill(key)
 	}
 
-	price := u.pricer.Price(in.CountryID)
+	price, err := u.pricer.PriceFor(ctx, payer, in.CountryID)
+	if err != nil {
+		return Out{}, fmt.Errorf("failed to price the refilled budget: %w", err)
+	}
 	keys := u.buckets.Keys(payer, price)
 	states := make([]cpratelimit.State, len(keys))
 	for i, key := range keys {

@@ -313,13 +313,15 @@ still get.
 **One bank, one click per token.** The bank's size never moves: not with the
 country, a bonus or signing in. The more of the map a country holds, the slower
 its players refill; signing in refills faster, and a refill charge fills the bank. The
-server sets that pace on each click, from the country clicked for, so a switch
-of flag moves nothing on the meter until the next click. The reading carries the
-selected country's slowdown beside it (`ClickBudget.price`): `useClickBudget`
-calls `priceFor(country)` whenever the selected country changes, and
-`PlanetBackend` keeps the count of every reading but only the price of one for
-that country. The meter only explains the price (`domain/clickPrice.ts`): it
-says nothing at the plain rate unless the country is within 80% of the first step.
+server sets that pace on each click, from the player's main flag — the one it
+clicks for most — so picking a smaller flag does not refill faster until the clicks
+for it outweigh the old one's. The reading carries the price beside it
+(`ClickBudget.price`), with the country it is for (`price.country`): `useClickBudget`
+calls `priceFor(country)` whenever the selected country changes, which answers what
+a click for it would cost, and `PlanetBackend` keeps the count of every reading but
+only the price of one for that country. "Your clicks" (`ClicksPanel`) explains the
+price (`domain/clickPrice.ts`), and names the main flag when it is not the one
+selected; the meter only shows the slowdown.
 
 A server that reports nothing — no throttle, or one too old for the call —
 leaves the counter hidden rather than showing a made-up allowance, so this ships

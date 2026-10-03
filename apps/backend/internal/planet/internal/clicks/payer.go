@@ -110,6 +110,28 @@ func PayerOf(ctx context.Context) Payer {
 	}
 }
 
+// AllegianceKey is the tally that prices payer: its account's, or its scope's with no account, as its own bucket is.
+func (p Payer) AllegianceKey() AllegianceKey {
+	if p.Account == "" {
+		return ScopeAllegianceKey(p.Scope)
+	}
+
+	return AccountAllegianceKey(p.Account)
+}
+
+// AllegianceKeys is every tally a take by payer counts for: its account's, when it has one, and its scope's.
+func (p Payer) AllegianceKeys() []AllegianceKey {
+	keys := make([]AllegianceKey, 0, 2)
+	if p.Account != "" {
+		keys = append(keys, AccountAllegianceKey(p.Account))
+	}
+	if p.Scope != "" {
+		keys = append(keys, ScopeAllegianceKey(p.Scope))
+	}
+
+	return keys
+}
+
 func (b Buckets) Keys(payer Payer, price Price) []cpratelimit.Key {
 	pools := b.pools(payer, price)
 

@@ -1,11 +1,13 @@
 package clicks
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"slices"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type TollStep struct {
@@ -34,6 +36,9 @@ func (c TollConfig) Validate() error {
 }
 
 type Price struct {
+	// The country priced: the payer's main flag, which is not always the one it clicks for now.
+	Country string
+
 	Slowdown float64
 	Share    float64
 
@@ -52,13 +57,32 @@ type ShareReader interface {
 	Share(country string) float64
 }
 
-func NewToll(config TollConfig, shares ShareReader) *Toll {
-	return &Toll{steps: config.Steps, shares: shares}
+// Flags is every tally of who takes tiles for which flag, by key. A key with no tally is absent.
+type Flags interface {
+	Allegiances(ctx context.Context, keys ...AllegianceKey) (map[AllegianceKey]Allegiance, error)
+}
+
+func NewToll(config TollConfig, shares ShareReader, flags Flags, clock cptime.Clock) *Toll {
+	return &Toll{steps: config.Steps, shares: shares, flags: flags, clock: clock}
 }
 
 type Toll struct {
 	steps  []TollStep
 	shares ShareReader
+	flags  Flags
+	clock  cptime.Clock
+}
+
+// PriceFor is the price of payer's next click for country: its own tally's main flag once that click counts.
+func (t *Toll) PriceFor(ctx context.Context, payer Payer, country string) (Price, error) {
+	key := payer.AllegianceKey()
+
+	tallies, err := t.flags.Allegiances(ctx, key)
+	if err != nil {
+		return Price{}, fmt.Errorf("failed to read the payer's flag: %w", err)
+	}
+
+	return t.Price(tallies[key].With(country, t.clock.Now()).Flag()), nil
 }
 
 func (t *Toll) Steps() []TollStep {
@@ -66,7 +90,7 @@ func (t *Toll) Steps() []TollStep {
 }
 
 func (t *Toll) Price(country string) Price {
-	price := Price{Slowdown: 1, Share: t.shares.Share(country)}
+	price := Price{Country: country, Slowdown: 1, Share: t.shares.Share(country)}
 
 	for _, step := range t.steps {
 		if price.Share < step.Share {

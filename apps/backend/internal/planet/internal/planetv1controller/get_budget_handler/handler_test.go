@@ -20,12 +20,12 @@ type stubUseCase struct {
 	country *string
 }
 
-func (s stubUseCase) Execute(_ context.Context, country string) (clicks.Budget, bool) {
+func (s stubUseCase) Execute(_ context.Context, country string) (clicks.Budget, bool, error) {
 	if s.country != nil {
 		*s.country = country
 	}
 
-	return s.state, s.limited
+	return s.state, s.limited, nil
 }
 
 func getBudget(t *testing.T, useCase stubUseCase) *planetv1.ClickBudget {
