@@ -10,6 +10,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
@@ -30,16 +31,15 @@ var _ inmemory_ledger_storage.Persistence = (*Store)(nil)
 func (s *Store) Load(ctx context.Context, visit func(inmemory_ledger_storage.Stored)) (inmemory_ledger_storage.Marks, error) {
 	marks := inmemory_ledger_storage.Marks{Forgotten: map[ledger.Caller]ledger.Position{}}
 
-	if err := s.loadTakes(ctx, visit); err != nil {
+	head, err := storedHead(ctx, s.db)
+	if err != nil {
 		return marks, err
 	}
-
-	var head int64
-	err := s.db.QueryRowContext(ctx, `SELECT head FROM ledger_head`).Scan(&head)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return marks, fmt.Errorf("failed to read the ledger head: %w", err)
-	}
 	marks.Head = ledger.Position(head) //nolint:gosec // CHECK (head >= 0).
+
+	if err := s.loadTakes(ctx, head, visit); err != nil {
+		return marks, err
+	}
 
 	if err := s.loadForgotten(ctx, `SELECT scope, before_position FROM ledger_forgotten`, marks.Forgotten,
 		func(scope string) ledger.Caller { return ledger.Caller{Scope: scope} }); err != nil {
@@ -84,9 +84,22 @@ func (s *Store) loadForgotten(
 	return nil
 }
 
-func (s *Store) loadTakes(ctx context.Context, visit func(inmemory_ledger_storage.Stored)) error {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT position, tile, scope, account::text, country, previous, taken_at FROM ledger_takes ORDER BY position`)
+func storedHead(ctx context.Context, db cppg.Querier) (int64, error) {
+	var head int64
+	err := db.QueryRowContext(ctx, `SELECT head FROM ledger_head`).Scan(&head)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return 0, fmt.Errorf("failed to read the ledger head: %w", err)
+	}
+	return head, nil
+}
+
+func (s *Store) loadTakes(ctx context.Context, head int64, visit func(inmemory_ledger_storage.Stored)) error {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT position, tile, scope, account::text, country, previous, taken_at
+		FROM ledger_takes
+		WHERE position >= $1
+		ORDER BY position
+	`, head)
 	if err != nil {
 		return fmt.Errorf("failed to read takes: %w", err)
 	}
@@ -123,16 +136,29 @@ func (s *Store) Save(ctx context.Context, changes inmemory_ledger_storage.Change
 
 	head := int64(changes.Marks.Head) //nolint:gosec // a position fits a bigint.
 
+	kept, err := storedHead(ctx, tx)
+	if err != nil {
+		return err
+	}
+
 	// Rows at or past From come from a flush whose commit answer was lost.
 	if _, err := tx.ExecContext(ctx,
-		`DELETE FROM ledger_takes WHERE position >= $1 OR position < $2`,
-		int64(changes.From), head, //nolint:gosec // a position fits a bigint.
+		`DELETE FROM ledger_takes WHERE position >= $1`,
+		int64(changes.From), //nolint:gosec // a position fits a bigint.
 	); err != nil {
 		return fmt.Errorf("failed to delete takes: %w", err)
 	}
 
 	if err := copyTakes(ctx, tx, changes); err != nil {
 		return err
+	}
+
+	if head > kept {
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE ledger_takes SET scope = NULL WHERE position >= $1 AND position < $2`, kept, head,
+		); err != nil {
+			return fmt.Errorf("failed to blank the scopes behind the head: %w", err)
+		}
 	}
 
 	if _, err := tx.ExecContext(ctx, `
@@ -150,6 +176,15 @@ func (s *Store) Save(ctx context.Context, changes inmemory_ledger_storage.Change
 		return fmt.Errorf("failed to commit the ledger: %w", err)
 	}
 
+	return nil
+}
+
+func (s *Store) AnonymizeTakes(ctx context.Context, account ledger.AccountID) error {
+	if _, err := s.db.ExecContext(ctx,
+		`UPDATE ledger_takes SET account = NULL WHERE account = $1`, uuid.UUID(account),
+	); err != nil {
+		return fmt.Errorf("failed to anonymize an account's takes: %w", err)
+	}
 	return nil
 }
 
