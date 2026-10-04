@@ -728,14 +728,24 @@ is the player's own view.
   (`27d 14h 05m 12s`, `13h 05m 12s`, `52m 10s`, nothing once over) and whether the finale runs, and `finaleWindow`,
   the finale's day and hours in the player's own time zone.
 - `app/season/` — `useSeason`, which drops the season at its end (a page open
-  across it goes back to no season), `SeasonChip` and `SeasonDetails`.
+  across it goes back to no season), `SeasonChip`, `SeasonDetails` and
+  `SeasonFacts`, the rows both of them open on.
 
 **The season is a chip in the status zone.** On a desktop it sits at the top
-centre: "Season 0 ends in 28d 14h 05m 12s", and a press opens the Final Battle's
-day and hours (Escape closes it). On a phone it is the right end of the status
-bar, the two largest units alone ("28d 14h", named in full for a screen reader),
-and a press opens the same details as a sheet. During the finale it glows, says
-"Final Battle ends in" and opens nothing.
+centre: "Season 0 ends in 28d 14h 05m 12s", and a press opens a dropdown (Escape
+closes it). On a phone it is the right end of the status bar, the two largest
+units alone ("28d 14h", named in full for a screen reader), and a press opens the
+same details as a sheet. During the finale it glows and says "Final Battle ends
+in"; it still opens.
+
+**What it opens is the one place the UI explains the rules**, asked for on
+purpose: four rows (`SeasonFacts`), the Final Battle with its day and hours, held
+ground counted at the end, the winner's trophy in the Hall of Fame, and the
+titles. During the finale the first row is the power-ups instead of the date.
+**Say only what is decided**: a battle full of power-ups, points for held ground
+counted at the end, a trophy for the winning country, a title for every
+signed-in player and one more for the winning country's. Guests get no title, so
+the row says "signed-in".
 
 **The desktop chip writes its bottom edge on `:root` as `--status-bottom`**
 (`useBottomEdge`), and on a phone the status bar does: the quiz, the bomb news
