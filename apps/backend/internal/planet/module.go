@@ -56,6 +56,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/publishing_ledger_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/anonymize_takes_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase/audit_ban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/find_players_usecase"
@@ -86,6 +87,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/account_deleted_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -95,7 +98,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-const moduleName = "planet"
+const (
+	moduleName = "planet"
+
+	accountDeletedBuffer = 2048
+)
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -135,10 +142,19 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the tile map: %w", err)
 			}
 
-			takings := inmemory_ledger_storage.New(config.LedgerStorage, postgres_ledger_store.New(db), props.Logger)
+			ledgerStore := postgres_ledger_store.New(db)
+			takings := inmemory_ledger_storage.New(config.LedgerStorage, ledgerStore, props.Logger)
 			if err := takings.Load(ctx); err != nil {
 				_ = db.Close()
 				return fmt.Errorf("failed to load the ledger: %w", err)
+			}
+
+			deletions, err := cpbootstrap.Subscribe(props.Events, "planet-ledger-accounts", accountDeletedBuffer,
+				log_subscriber.New(account_deleted_subscriber.New(
+					anonymize_takes_usecase.New(takings, ledgerStore)), props.Logger))
+			if err != nil {
+				_ = db.Close()
+				return fmt.Errorf("failed to subscribe the ledger to auth.v1.AccountDeleted: %w", err)
 			}
 
 			charges := inmemory_charge_storage.New(config.ChargeStorage, config.Bonus.ChargesConfig(),
@@ -149,7 +165,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			// Not a closer: closers run before the runners' last flush.
-			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges))
+			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges, deletions))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter.Config, clock)

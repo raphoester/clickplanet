@@ -39,6 +39,8 @@ func waitUntilServed(t *testing.T, address string) {
 
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+address+"/metrics", nil)
 	require.NoError(t, err)
+	// Pooled, it can come back while the next call dials, leaving a silent spare that holds Shutdown for 5s.
+	req.Close = true
 	res, err := http.DefaultClient.Do(req)
 	require.NoError(t, err, "the server never came up")
 	require.NoError(t, res.Body.Close())

@@ -92,7 +92,7 @@ func TestAFailedFlushKeepsTheChangesForTheNextOne(t *testing.T) {
 	assert.Equal(t, map[ledger.Caller]ledger.Position{{Scope: "bot"}: 1}, persistence.Marks().Forgotten)
 }
 
-func TestFlushDeletesWhatTheRetentionDropped(t *testing.T) {
+func TestFlushKeepsWhatTheRetentionDroppedWithoutItsScope(t *testing.T) {
 	ctx := t.Context()
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
@@ -104,8 +104,27 @@ func TestFlushDeletesWhatTheRetentionDropped(t *testing.T) {
 	storage.ForgetBefore(start.Add(time.Minute))
 	require.NoError(t, storage.Flush(ctx))
 
-	assert.Equal(t, []inmemory_ledger_storage.Stored{{Position: 1, Taking: take(2, "a", "fr", "", start.Add(time.Hour))}}, persistence.Stored())
+	assert.Equal(t, []inmemory_ledger_storage.Stored{
+		{Position: 0, Taking: take(1, "", "fr", "", start)},
+		{Position: 1, Taking: take(2, "a", "fr", "", start.Add(time.Hour))},
+	}, persistence.Stored())
 	assert.Equal(t, ledger.Position(1), persistence.Marks().Head)
+}
+
+func TestARestartLoadsOnlyTheTakesFromTheHead(t *testing.T) {
+	ctx := t.Context()
+	persistence := inmemory_ledger_storage.NewMemoryPersistence()
+	before := loaded(t, inmemory_ledger_storage.Config{}, persistence)
+
+	before.Append(take(1, "a", "fr", "", start))
+	before.Append(take(2, "b", "de", "", start.Add(time.Hour)))
+	require.NoError(t, before.Flush(ctx))
+	before.ForgetBefore(start.Add(time.Minute))
+	require.NoError(t, before.Flush(ctx))
+
+	after := loaded(t, inmemory_ledger_storage.Config{}, persistence)
+	assert.Equal(t, []ledger.Taking{take(2, "b", "de", "", start.Add(time.Hour))}, replay(after))
+	assert.Len(t, persistence.Stored(), 2, "the persistence keeps the take memory left behind")
 }
 
 func TestATakeDroppedBeforeItWasFlushedIsNeverWritten(t *testing.T) {
