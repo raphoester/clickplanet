@@ -271,6 +271,9 @@ chat:
   reactionLimiter:
     perSecond: 1
     burst: 10
+  seenLimiter:
+    perSecond: 1
+    burst: 10
   blockedIPs: []
 
 auth:

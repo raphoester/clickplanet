@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ChatEvent, GetHistoryRequest, GetHistoryResponse, ListenForEventsRequest, ReactRequest, ReactResponse, SendMessageRequest, SendMessageResponse } from "./chat_pb.js";
+import { ChatEvent, GetHistoryRequest, GetHistoryResponse, ListenForEventsRequest, MarkSeenRequest, MarkSeenResponse, ReactRequest, ReactResponse, SendMessageRequest, SendMessageResponse } from "./chat_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -47,6 +47,15 @@ export const ChatService = {
       name: "React",
       I: ReactRequest,
       O: ReactResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc chat.v1.ChatService.MarkSeen
+     */
+    markSeen: {
+      name: "MarkSeen",
+      I: MarkSeenRequest,
+      O: MarkSeenResponse,
       kind: MethodKind.Unary,
     },
   }

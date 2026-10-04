@@ -3,13 +3,17 @@ package chatv1controller
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -178,4 +182,33 @@ func blocklistOf(t *testing.T, prefixes []string) SenderBlocklist {
 	require.NoError(t, err)
 
 	return blocklist
+}
+
+type identityVerifier struct{}
+
+func (identityVerifier) Verify(context.Context, string, string, time.Time) (*cpsession.Claims, error) {
+	return &cpsession.Claims{ID: "a-mint", Account: cpsession.AccountID{15: 1}}, nil
+}
+
+func TestAnIdentityTokenNamesTheReaderAndTheSeenMarkOnly(t *testing.T) {
+	for procedure, named := range map[string]bool{
+		chatv1connect.ChatServiceGetHistoryProcedure:  true,
+		chatv1connect.ChatServiceMarkSeenProcedure:    true,
+		chatv1connect.ChatServiceSendMessageProcedure: false,
+		chatv1connect.ChatServiceReactProcedure:       false,
+	} {
+		var account string
+		next := connect.UnaryFunc(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
+			account = cpctx.GetAccount(ctx)
+			return connect.NewResponse(&chatv1.GetHistoryResponse{}), nil
+		})
+		inner := connect.NewRequest(&chatv1.GetHistoryRequest{})
+		inner.Header().Set(cpconnect.SessionHeader, "an-identity-token")
+
+		_, err := NewSessionInterceptor(identityVerifier{}, cptime.SystemClock{}).WrapUnary(next)(t.Context(),
+			fakeRequest{AnyRequest: inner, spec: connect.Spec{Procedure: procedure}})
+
+		require.NoError(t, err)
+		require.Equal(t, named, account != "", procedure)
+	}
 }

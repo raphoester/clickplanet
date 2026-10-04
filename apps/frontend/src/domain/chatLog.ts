@@ -76,6 +76,25 @@ export function idsSince(log: readonly ChatMessage[], lastSeenId: string | undef
     return count === 0 ? [] : log.slice(log.length - count).map(message => message.id)
 }
 
+export function newestAt(
+    messages: readonly ChatMessage[],
+    announcements: readonly ChatAnnouncement[],
+): number | undefined {
+    const times = [messages[messages.length - 1]?.sentAt, announcements[announcements.length - 1]?.announcedAt]
+        .filter((at): at is number => at !== undefined)
+    return times.length === 0 ? undefined : Math.max(...times)
+}
+
+export function unseenAfter(
+    messages: readonly ChatMessage[],
+    announcements: readonly ChatAnnouncement[],
+    seenUntil: number,
+    own: (message: ChatMessage) => boolean,
+): number {
+    return messages.filter(message => message.sentAt > seenUntil && !own(message)).length
+        + announcements.filter(announcement => announcement.announcedAt > seenUntil).length
+}
+
 export function nameSentUnder(log: readonly ChatMessage[], sent: ReadonlySet<string>): string | undefined {
     for (let i = log.length - 1; i >= 0; i--) {
         if (sent.has(log[i].id)) return log[i].authorName

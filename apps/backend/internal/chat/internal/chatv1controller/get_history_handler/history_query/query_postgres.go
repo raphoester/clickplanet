@@ -2,6 +2,7 @@ package history_query
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,6 +53,7 @@ func (q *PostgresQuery) History(ctx context.Context, viewer cpsession.AccountID)
 	var (
 		shown     []*chatv1.ChatMessage
 		announced []*chatv1.Announcement
+		seenUntil int64
 	)
 	group, ctx := errgroup.WithContext(ctx)
 	group.Go(func() error {
@@ -64,11 +66,38 @@ func (q *PostgresQuery) History(ctx context.Context, viewer cpsession.AccountID)
 		announced, err = q.announced(ctx, since)
 		return err
 	})
+	group.Go(func() error {
+		var err error
+		seenUntil, err = q.seenUntil(ctx, viewer)
+		return err
+	})
 	if err := group.Wait(); err != nil {
-		return nil, err //nolint:wrapcheck // each half already names what failed.
+		return nil, err //nolint:wrapcheck // each part already names what failed.
 	}
 
-	return &chatv1.GetHistoryResponse{Messages: shown, Announcements: announced}, nil
+	return &chatv1.GetHistoryResponse{Messages: shown, Announcements: announced, SeenUntilUnixMs: seenUntil}, nil
+}
+
+const seenMark = `
+	SELECT floor(extract(epoch FROM seen_until) * 1000)::bigint
+	FROM seen
+	WHERE account_id = $1
+`
+
+func (q *PostgresQuery) seenUntil(ctx context.Context, viewer cpsession.AccountID) (int64, error) {
+	if viewer == cpsession.NoAccount {
+		return 0, nil
+	}
+
+	var until int64
+	err := q.db.QueryRowContext(ctx, seenMark, uuid.UUID(viewer)).Scan(&until)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("failed to read until when the caller saw the chat: %w", err)
+	}
+	return until, nil
 }
 
 const inWindow = `

@@ -10,6 +10,7 @@ import {
     ChatRateLimitedError,
     ChatReactor,
     ChatRejectedError,
+    ChatSeenMarker,
     ChatSender,
     OutgoingMessage,
     OutgoingReaction,
@@ -38,10 +39,19 @@ export function newChatServiceClient(config: Config): PromiseClient<typeof ChatS
     }))
 }
 
-export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor {
+export function newKeepaliveChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
+    return createPromiseClient(ChatService, createConnectTransport({
+        baseUrl: config.baseUrl,
+        useBinaryFormat: true,
+        fetch: (input, init) => globalThis.fetch(input, {...init, keepalive: true}),
+    }))
+}
+
+export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor, ChatSeenMarker {
     constructor(
         private client: PromiseClient<typeof ChatService>,
         private readonly session: SessionProvider,
+        private readonly keepalive: PromiseClient<typeof ChatService>,
     ) {
     }
 
@@ -115,10 +125,25 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
                 signal,
             )
 
+            const seenUntil = Number(res.seenUntilUnixMs)
             return {
                 messages: res.messages.map(decodedMessage),
                 announcements: res.announcements.flatMap(announcement => decodedAnnouncement(announcement) ?? []),
+                seenUntil: seenUntil > 0 ? seenUntil : undefined,
             }
+        } catch (e) {
+            throw translate(e)
+        }
+    }
+
+    // The token in hand and no resume: it also goes out as the page closes, with no time for a call first.
+    public async markSeen(until: number): Promise<void> {
+        const headers = new Headers()
+        const identity = this.session.heldIdentity()
+        if (identity) headers.set(SESSION_HEADER, identity)
+
+        try {
+            await this.keepalive.markSeen({seenUntilUnixMs: BigInt(Math.floor(until))}, {headers})
         } catch (e) {
             throw translate(e)
         }
