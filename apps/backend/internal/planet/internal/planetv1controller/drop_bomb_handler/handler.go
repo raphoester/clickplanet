@@ -8,6 +8,8 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/frozenmap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 )
 
 type UseCase interface {
@@ -39,6 +41,8 @@ func (h DropBombHandler) DropBomb(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, drop_bomb_usecase.ErrNoBomb):
 		return nil, connect.NewError(connect.CodeNotFound, drop_bomb_usecase.ErrNoBomb)
+	case errors.Is(err, tempo.ErrFrozen):
+		return nil, frozenmap.Refusal(err)
 	default:
 		return nil, err
 	}

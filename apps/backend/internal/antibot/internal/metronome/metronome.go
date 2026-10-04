@@ -244,9 +244,11 @@ type spender struct {
 	slices   []slice
 }
 
+// pace is the fastest the bank refilled at in the slice: a busy slice is as many clicks at that pace.
 type slice struct {
 	index  int64
 	clicks int
+	pace   float64
 }
 
 func (w *Watchdog) Name() string { return Name }
@@ -271,6 +273,8 @@ func (w *Watchdog) Attempted(click detect.Click) {
 	across := w.outage.Across(c.lastSeen, click.At)
 	gap := w.outage.Gap(c.lastSeen, click.At)
 	c.lastSeen = click.At
+	// A gap read at the plain pace: a hand waiting on a faster refill is no steadier for it.
+	plain := time.Duration(float64(gap) * max(click.Pace, 1))
 
 	if !across && gap >= 0 && gap <= w.config.Shape.MaxGap {
 		c.shape = append(c.shape, gap)
@@ -279,7 +283,7 @@ func (w *Watchdog) Attempted(click detect.Click) {
 		}
 	}
 
-	if gap < 0 || gap > w.config.MaxGap {
+	if gap < 0 || plain > w.config.MaxGap {
 		c.restart(click.At)
 		return
 	}
@@ -291,7 +295,7 @@ func (w *Watchdog) Attempted(click detect.Click) {
 		return
 	}
 
-	c.gaps = append(c.gaps, gap)
+	c.gaps = append(c.gaps, plain)
 	if capacity := w.capacity(); len(c.gaps) > capacity {
 		c.gaps = append(c.gaps[:0], c.gaps[len(c.gaps)-capacity:]...)
 	}
@@ -314,7 +318,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	defer w.mu.Unlock()
 
 	payer := payerOf(click)
-	w.spend(payer, click.At)
+	w.spend(payer, click.At, max(click.Pace, 1))
 	stamina, staminaEvidence := w.stamina(w.spenders[payer])
 
 	c, ok := w.callers[click.Scope]
@@ -322,7 +326,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		return stamina, staminaEvidence
 	}
 
-	verdict, evidence := w.cadence(c)
+	verdict, evidence := w.cadence(c, click.Pace)
 	if shape, shapeEvidence := w.shape(c); shape > verdict {
 		verdict, evidence = shape, shapeEvidence
 	}
@@ -342,7 +346,7 @@ func payerOf(click detect.Click) string {
 	return "scope:" + click.Scope
 }
 
-func (w *Watchdog) spend(payer string, at time.Time) {
+func (w *Watchdog) spend(payer string, at time.Time, pace float64) {
 	s, ok := w.spenders[payer]
 	if !ok {
 		s = &spender{}
@@ -353,8 +357,9 @@ func (w *Watchdog) spend(payer string, at time.Time) {
 	index := w.sliceOf(at)
 	if last := len(s.slices) - 1; last >= 0 && index <= s.slices[last].index {
 		s.slices[last].clicks++
+		s.slices[last].pace = max(s.slices[last].pace, pace)
 	} else {
-		s.slices = append(s.slices, slice{index: index, clicks: 1})
+		s.slices = append(s.slices, slice{index: index, clicks: 1, pace: pace})
 	}
 
 	s.forget(w.firstSliceOf(index))
@@ -396,7 +401,7 @@ func (w *Watchdog) firstSliceOf(index int64) int64 {
 
 func (s *spender) tally(atLeast int) (busy, clicks int) {
 	for _, counted := range s.slices {
-		if counted.clicks >= atLeast {
+		if float64(counted.clicks) >= float64(atLeast)*max(counted.pace, 1) {
 			busy++
 		}
 		clicks += counted.clicks
@@ -412,7 +417,7 @@ func (s *spender) forget(before int64) {
 	s.slices = append(s.slices[:0], s.slices[kept:]...)
 }
 
-func (w *Watchdog) cadence(c *caller) (detect.Verdict, detect.Evidence) {
+func (w *Watchdog) cadence(c *caller, pace float64) (detect.Verdict, detect.Evidence) {
 	if c.runClicks < w.config.MinClicks {
 		return detect.Clear, detect.Evidence{}
 	}
@@ -429,15 +434,17 @@ func (w *Watchdog) cadence(c *caller) (detect.Verdict, detect.Evidence) {
 		verdict = detect.Certain
 	}
 
-	return verdict, detect.Evidence{
-		Rule: "cadence",
-		Fields: []detect.Field{
-			{Key: "spread", Value: spread},
-			{Key: "median", Value: median},
-			{Key: "clicks", Value: c.runClicks},
-			{Key: "sustained", Value: sustained},
-		},
+	fields := []detect.Field{
+		{Key: "spread", Value: spread},
+		{Key: "median", Value: median},
+		{Key: "clicks", Value: c.runClicks},
+		{Key: "sustained", Value: sustained},
 	}
+	if pace > 1 {
+		fields = append(fields, detect.Field{Key: "pace", Value: pace})
+	}
+
+	return verdict, detect.Evidence{Rule: "cadence", Fields: fields}
 }
 
 func (w *Watchdog) shape(c *caller) (detect.Verdict, detect.Evidence) {

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -33,7 +34,7 @@ func newRegistryOffering(kinds map[Kind]float64) (*Registry, *cptime.FixedClock)
 		ForgetAfter:       5 * time.Minute,
 		MaxChargesPerHour: 6,
 		SweepInterval:     time.Second,
-	}, clock, newFakeHoldings()), clock
+	}, clock, newFakeHoldings(), tempo.NewSwitches()), clock
 }
 
 func holderOf(entrant Entrant) Holder {
@@ -340,7 +341,7 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
 	registry := New(Config{
 		MinInterval: time.Minute, MaxInterval: 3 * time.Minute,
-	}, clock, newFakeHoldings())
+	}, clock, newFakeHoldings(), tempo.NewSwitches())
 
 	seen := cpcolls.NewSet[time.Duration]()
 	for range 200 {
@@ -355,7 +356,7 @@ func TestTheWaitIsDrawnFromTheConfiguredWindow(t *testing.T) {
 }
 
 func TestEveryKindConfiguredIsOffered(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings(), tempo.NewSwitches())
 
 	seen := cpcolls.NewSet[Kind]()
 	for range 200 {
@@ -366,7 +367,7 @@ func TestEveryKindConfiguredIsOffered(t *testing.T) {
 }
 
 func TestAnEmptyKindsTakesTheDefaultWeights(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings(), tempo.NewSwitches())
 
 	assert.Equal(t, map[Kind]float64{
 		KindRefill:        5,
@@ -515,7 +516,7 @@ func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
 func TestKindsAreDrawnInProportionToTheirWeight(t *testing.T) {
 	registry := New(Config{
 		Kinds: map[Kind]float64{KindRefill: 9, KindSpreadClicks: 1},
-	}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	}, cptime.NewFixedClock(epoch), newFakeHoldings(), tempo.NewSwitches())
 
 	const draws = 20_000
 	spreads := 0
@@ -826,7 +827,7 @@ func TestACallerThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 }
 
 func TestTheDefaultsFillInWhatTheFileLeavesOut(t *testing.T) {
-	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	registry := New(Config{}, cptime.NewFixedClock(epoch), newFakeHoldings(), tempo.NewSwitches())
 
 	assert.Equal(t, defaultMinInterval, registry.config.MinInterval)
 	assert.Equal(t, defaultMaxInterval, registry.config.MaxInterval)
@@ -836,7 +837,7 @@ func TestTheDefaultsFillInWhatTheFileLeavesOut(t *testing.T) {
 func TestAMaxBelowTheMinIsNotAWindow(t *testing.T) {
 	registry := New(Config{
 		MinInterval: 10 * time.Minute, MaxInterval: time.Second,
-	}, cptime.NewFixedClock(epoch), newFakeHoldings())
+	}, cptime.NewFixedClock(epoch), newFakeHoldings(), tempo.NewSwitches())
 
 	assert.GreaterOrEqual(t, registry.config.MaxInterval, registry.config.MinInterval)
 	assert.Equal(t, 10*time.Minute, registry.window())

@@ -130,6 +130,21 @@ func (s *Storage) Share(country string) float64 {
 	return float64(s.counts[id]) / float64(s.maxIndex)
 }
 
+func (s *Storage) Holdings() []clicks.Holding {
+	s.tilesMu.RLock()
+	defer s.tilesMu.RUnlock()
+
+	holdings := make([]clicks.Holding, 0, len(s.codes))
+	for id, country := range s.codes {
+		if id == int(unownedCode) || s.counts[id] == 0 {
+			continue
+		}
+		holdings = append(holdings, clicks.Holding{Country: country, Tiles: s.counts[id]})
+	}
+
+	return holdings
+}
+
 func (s *Storage) Owner(tile uint32) (string, bool) {
 	if tile > s.maxIndex {
 		return "", false

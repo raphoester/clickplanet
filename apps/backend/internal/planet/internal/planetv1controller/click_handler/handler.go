@@ -35,7 +35,7 @@ func (h ClickHandler) Click(
 		return nil, toConnect(err, out)
 	}
 
-	res := &planetv1.ClickResponse{}
+	res := &planetv1.ClickResponse{Gift: out.Gift}
 	if out.Limited {
 		res.Budget = clickbudget.Encode(out.Budget)
 	}

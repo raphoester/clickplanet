@@ -98,6 +98,25 @@ func TestStaminaSurvivesASaveAndLoad(t *testing.T) {
 	assert.Equal(t, wantEvidence, gotEvidence)
 }
 
+func TestTheSlicesPaceSurvivesASaveAndLoad(t *testing.T) {
+	clock := cptime.NewFixedClock(time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC))
+	config := Config{Stamina: StaminaConfig{MinBusy: 10 * time.Minute}}
+
+	w := New(config, clock, func(float64) {}, func(float64) {}, func(time.Duration) {})
+	for range 60 {
+		clock.Advance(5 * time.Second)
+		w.Watch(detect.Click{Scope: "finale", Account: "ada", At: clock.Now(), Pace: 3})
+	}
+
+	data, err := w.Save()
+	require.NoError(t, err)
+	restarted := New(config, clock, func(float64) {}, func(float64) {}, func(time.Duration) {})
+	require.NoError(t, restarted.Load(data))
+
+	verdict, evidence := restarted.Watch(detect.Click{Scope: "finale", Account: "ada", At: clock.Now(), Pace: 3})
+	assert.Equal(t, detect.Clear, verdict, "61 clicks at three times the pace are not a busy slice: %s", evidence)
+}
+
 func TestStaminaCountedInAnotherSliceIsDropped(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 28, 21, 51, 0, 0, time.UTC))
 

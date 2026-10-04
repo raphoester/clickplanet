@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 )
 
 type stubUseCase struct {
@@ -60,4 +61,16 @@ func TestAMalformedDropIsAnInvalidArgument(t *testing.T) {
 
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	}
+}
+
+func TestDroppingOnAFrozenMapIsAFailedPreconditionThatSaysSo(t *testing.T) {
+	err := drop(t, &stubUseCase{err: tempo.ErrFrozen})
+
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	var connectErr *connect.Error
+	require.ErrorAs(t, err, &connectErr)
+	require.Len(t, connectErr.Details(), 1)
+	value, valueErr := connectErr.Details()[0].Value()
+	require.NoError(t, valueErr)
+	assert.IsType(t, &planetv1.MapFrozen{}, value)
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/antibot_drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/frozen_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/prom_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/publishing_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/get_charges_usecase"
@@ -29,6 +30,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase/audit_grant_charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/open_quiz_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase/frozen_use_refill"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
@@ -39,12 +41,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/bonus_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click/prom_enclose"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/frozen_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/gift_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/prom_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase/antibot_get_map"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_shares_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase/antibot_listen_for_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
@@ -52,6 +57,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase/audit_paint_random"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/gifts/inmemory_gift_cache"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/gifts/log_gift_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/gifts/postgres_gift_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -76,6 +84,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_shares_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
@@ -84,11 +93,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/set_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo/usecases/set_rules_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo/usecases/set_rules_usecase/log_set_rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -172,7 +185,9 @@ func NewModule(config Config) cpbootstrap.Module {
 			props.Runners.Add(limiter)
 			buckets := config.RateLimiter.Buckets()
 
-			pricer := clicks.NewToll(config.Toll, tilesStorage)
+			switches := tempo.NewSwitches()
+			toll := clicks.NewToll(config.Toll, tilesStorage)
+			pricer := tempo.NewPricing(toll, switches)
 
 			homeSoil := clicks.NewHomeSoil(config.HomeSoil, borders)
 			if homeSoil.Enabled() {
@@ -181,7 +196,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			writer := ledger.NewRecording(tilesStorage, publishing_ledger_storage.New(takings, props.Events), clock)
 
-			registry := bonuses.New(config.Bonus, clock, charges)
+			registry := bonuses.New(config.Bonus, clock, charges, switches)
 			props.Runners.Add(registry)
 
 			if config.Bonus.Quiz.Enabled {
@@ -218,14 +233,19 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			props.Runners.Add(guard)
 
-			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, homeSoil, clock, props.Metrics)
+			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, homeSoil, switches, clock, props.Metrics)
 
 			clickUseCase = bonus_click.New(clickUseCase, registry)
+
+			gifts := log_gift_storage.New(inmemory_gift_cache.New(postgres_gift_store.New(db)), props.Logger)
+			clickUseCase = gift_click.New(clickUseCase, switches, gifts, limiter, charges, buckets)
 
 			// Outside the shadow ban, or a banned caller would stop seeing 429s and know.
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
 
-			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, clock)
+			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, switches, clock)
+
+			clickUseCase = frozen_click.New(clickUseCase, switches)
 
 			adminBatch := config.TilesStorage.SubscriberBuffer / 4
 			if adminBatch <= 0 {
@@ -252,6 +272,18 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewAdminServiceHandler(adminService, options...)
+			}); err != nil {
+				return err
+			}
+
+			internalService := planetv1controller.InternalService{
+				SetRulesHandler: set_rules_handler.New(
+					log_set_rules.New(set_rules_usecase.New(switches), props.Logger)),
+				GetSharesHandler: get_shares_handler.New(get_shares_usecase.New(tilesStorage, tilesChecker)),
+			}
+
+			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+				return planetv1connect.NewInternalServiceHandler(internalService, options...)
 			}); err != nil {
 				return err
 			}
@@ -314,7 +346,7 @@ func NewModule(config Config) cpbootstrap.Module {
 					borders, props.Events, clock),
 				props.Metrics)
 
-			dropBomb := antibot_drop_bomb.New(dropped, guard)
+			dropBomb := frozen_drop_bomb.New(antibot_drop_bomb.New(dropped, guard), switches)
 
 			rules := bonuses.Rules{
 				BlastRadius:       bombRules.Radius,
@@ -331,11 +363,12 @@ func NewModule(config Config) cpbootstrap.Module {
 					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker)),
 				ListenForEventsHandler: listen_for_events_handler.New(antibot_listen_for_events.New(
 					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard)),
-				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),
-				DropBombHandler:      drop_bomb_handler.New(dropBomb),
-				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
+				ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
+				DropBombHandler:   drop_bomb_handler.New(dropBomb),
+				UseRefillHandler: use_refill_handler.New(frozen_use_refill.New(
+					use_refill_usecase.New(charges, limiter, pricer, buckets), switches)),
 				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
-				GetBonusRulesHandler: get_bonus_rules_handler.New(rules, homeSoil, pricer),
+				GetBonusRulesHandler: get_bonus_rules_handler.New(rules, homeSoil, toll),
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 			}

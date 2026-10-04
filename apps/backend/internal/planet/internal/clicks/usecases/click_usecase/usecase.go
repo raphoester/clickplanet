@@ -37,6 +37,8 @@ type Out struct {
 
 	Limited bool
 
+	Gift bool
+
 	// Never on the wire: a dropped click answers the zero Out, so it would expose a ban.
 	Outcome clicks.Outcome
 }

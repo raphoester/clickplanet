@@ -5,11 +5,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"sync"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -132,6 +134,7 @@ type Registry struct {
 	clock    cptime.Clock
 	report   Report
 	holdings Holdings
+	tempo    Tempo
 	charges  ChargesConfig
 
 	quizConfig quizzes.Config
@@ -169,7 +172,11 @@ type Holdings interface {
 	Held(holder Holder) Held
 }
 
-func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
+type Tempo interface {
+	Rules() tempo.Rules
+}
+
+func New(config Config, clock cptime.Clock, holdings Holdings, tempo Tempo) *Registry {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
@@ -181,6 +188,7 @@ func New(config Config, clock cptime.Clock, holdings Holdings) *Registry {
 		charges:    config.ChargesConfig(),
 		clock:      clock,
 		holdings:   holdings,
+		tempo:      tempo,
 		callers:    make(map[Entrant]*caller),
 		offers:     make(map[string]*pending),
 		spent:      make(map[string]spentOffer),
@@ -368,6 +376,13 @@ func (r *Registry) sweep() {
 
 	r.collectMisses(now)
 	r.forgetSpent(now)
+
+	if r.tempo.Rules().Frozen() {
+		r.collectStaleQuizzes(now)
+		r.forgetStale(now)
+		return
+	}
+
 	r.sweepQuizzes(now)
 	r.forgetStale(now)
 
@@ -387,6 +402,10 @@ func (r *Registry) sweep() {
 }
 
 func (r *Registry) due(entry *caller, now time.Time) bool {
+	if interval, scheduled := r.tempo.Rules().BoxInterval(); scheduled && entry.nextOfferAt.After(now.Add(interval)) {
+		entry.nextOfferAt = now.Add(interval)
+	}
+
 	if !entry.watching() || entry.outstanding != "" || now.Before(entry.nextOfferAt) {
 		return false
 	}
@@ -411,7 +430,7 @@ func (r *Registry) offerable(entry *caller, now time.Time) *cpcolls.Set[Kind] {
 		held.Add(r.holdings.Held(holder).Full(r.charges)...)
 	}
 
-	if len(entry.players) == 0 || r.grantedWithinTheHour(entry, now) >= r.config.MaxChargesPerHour {
+	if len(entry.players) == 0 || r.grantedWithinTheHour(entry, now) >= r.chargesPerHour() {
 		return kinds
 	}
 
@@ -514,7 +533,20 @@ func (r *Registry) forgetStale(now time.Time) {
 	}
 }
 
+func (r *Registry) chargesPerHour() int {
+	interval, scheduled := r.tempo.Rules().BoxInterval()
+	if !scheduled {
+		return r.config.MaxChargesPerHour
+	}
+
+	return max(r.config.MaxChargesPerHour, int(math.Ceil(float64(time.Hour)/float64(interval))))
+}
+
 func (r *Registry) window() time.Duration {
+	if interval, scheduled := r.tempo.Rules().BoxInterval(); scheduled {
+		return interval
+	}
+
 	return drawWindow(r.config.MinInterval, r.config.MaxInterval)
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -79,10 +80,24 @@ func executeOn(
 ) error {
 	t.Helper()
 
+	return executeUnder(t, ctx, guard, owner, ground, inner, tempo.NewSwitches())
+}
+
+func executeUnder(
+	t *testing.T,
+	ctx context.Context,
+	guard antibot_click.ClickGuard,
+	owner antibot_click.TileOwner,
+	ground fakeGround,
+	inner *fakeClick,
+	switches *tempo.Switches,
+) error {
+	t.Helper()
+
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 	homeSoil := clicks.NewHomeSoil(clicks.HomeSoilConfig{Enabled: true}, ground)
 
-	useCase := antibot_click.New(inner, guard, owner, homeSoil, clock, prometheus.NewRegistry())
+	useCase := antibot_click.New(inner, guard, owner, homeSoil, switches, clock, prometheus.NewRegistry())
 
 	_, executeErr := useCase.Execute(ctx, click_usecase.In{TileID: 42, CountryID: "PS"})
 
@@ -90,6 +105,18 @@ func executeOn(
 }
 
 func TestAntiBotClick(t *testing.T) {
+	t.Run("tells the guard the pace the refill runs at", func(t *testing.T) {
+		guard := &fakeGuard{}
+		switches := tempo.NewSwitches()
+		rules, err := tempo.NewRules(3, 0, false)
+		require.NoError(t, err)
+		switches.Set(rules)
+
+		require.NoError(t, executeUnder(t, t.Context(), guard, fakeOwner{}, fakeGround{}, &fakeClick{}, switches))
+		require.Len(t, guard.seen, 1)
+		assert.InDelta(t, 3.0, guard.seen[0].Pace, 1e-9)
+	})
+
 	t.Run("lets an unflagged click through to the map", func(t *testing.T) {
 		guard := &fakeGuard{drop: false}
 		inner := &fakeClick{}

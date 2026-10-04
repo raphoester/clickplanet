@@ -5,6 +5,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -14,17 +15,22 @@ type AttemptGuard interface {
 	Attempted(click antibot.Click)
 }
 
-func New(implementation click_usecase.IUseCase, guard AttemptGuard, clock cptime.Clock) *UseCase {
+type Tempo interface {
+	Rules() tempo.Rules
+}
+
+func New(implementation click_usecase.IUseCase, guard AttemptGuard, tempo Tempo, clock cptime.Clock) *UseCase {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
 
-	return &UseCase{implementation: implementation, guard: guard, clock: clock}
+	return &UseCase{implementation: implementation, guard: guard, tempo: tempo, clock: clock}
 }
 
 type UseCase struct {
 	implementation click_usecase.IUseCase
 	guard          AttemptGuard
+	tempo          Tempo
 	clock          cptime.Clock
 }
 
@@ -36,6 +42,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		Tile:     in.TileID,
 		Country:  in.CountryID,
 		At:       u.clock.Now(),
+		Pace:     u.tempo.Rules().RefillMultiplier(),
 	})
 
 	return u.implementation.Execute(ctx, in)

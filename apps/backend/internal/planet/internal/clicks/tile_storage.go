@@ -6,6 +6,7 @@ type TileStorage interface {
 	Owner(tile uint32) (string, bool)
 	Share(country string) float64
 	Held(country string) int
+	Holdings() []Holding
 	StateBatchDense(start uint32, end uint32) (DenseBatch, error)
 
 	Set(ctx context.Context, tile uint32, value string) error

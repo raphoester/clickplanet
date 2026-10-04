@@ -32,9 +32,9 @@ func TestASignedInAccountRefillsItsOwnBucketFasterAtTheSameSize(t *testing.T) {
 	assert.Equal(t, []cpratelimit.Key{
 		{Name: "account:an-account", Scale: 1, Pace: 1},
 		{Name: "guests:1.2.3.4", Scale: 1, Pace: 1},
-		{Name: "scope:1.2.3.4", Scale: 10},
+		{Name: "scope:1.2.3.4", Scale: 10, Pace: 1},
 	}, clicks.ThrottleConfig{}.Buckets().Keys(guest, clicks.Price{}))
-	assert.Equal(t, []cpratelimit.Key{{Name: "account:an-account", Scale: 1, Pace: 2}, {Name: "scope:1.2.3.4", Scale: 10}},
+	assert.Equal(t, []cpratelimit.Key{{Name: "account:an-account", Scale: 1, Pace: 2}, {Name: "scope:1.2.3.4", Scale: 10, Pace: 1}},
 		clicks.ThrottleConfig{}.Buckets().Keys(linked, clicks.Price{}), "the same bucket, and none shared with guests")
 	assert.InDelta(t, 3.0, clicks.ThrottleConfig{LinkedMultiplier: 3}.Buckets().Keys(linked, clicks.Price{})[0].Pace, 1e-9)
 	assert.InDelta(t, 2.0, clicks.ThrottleConfig{}.Buckets().BudgetOf(guest, make([]cpratelimit.State, 3), clicks.Price{}).LinkedMultiplier, 1e-9,
@@ -56,13 +56,33 @@ func TestABigCountrySlowsThePayersOwnRefillAndNotTheScopes(t *testing.T) {
 	guest := buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, price)
 	assert.InDelta(t, 1/1.5, guest[0].Pace, 1e-9)
 	assert.InDelta(t, 1/1.5, guest[1].Pace, 1e-9, "ten tabs on a big country refill no faster than one")
-	assert.Zero(t, guest[2].Pace, "the scope's bucket keeps its plain rate")
+	assert.InDelta(t, 1.0, guest[2].Pace, 1e-9, "the scope's bucket keeps its plain rate")
 
 	linked := buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true}, price)
 	assert.InDelta(t, 2/1.5, linked[0].Pace, 1e-9)
 
 	anonymous := buckets.Keys(clicks.Payer{Scope: "1.2.3.4"}, price)
 	assert.InDelta(t, 1/1.5, anonymous[0].Pace, 1e-9)
+}
+
+func TestASpeedupComposesWithTheLinkedMultiplierAndTheTollAndReachesTheSharedBuckets(t *testing.T) {
+	buckets := clicks.ThrottleConfig{}.Buckets()
+	price := clicks.Price{Slowdown: 1.5, Speedup: 3}
+
+	guest := buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, price)
+	assert.InDelta(t, 3/1.5, guest[0].Pace, 1e-9)
+	assert.InDelta(t, 3/1.5, guest[1].Pace, 1e-9, "the guests behind one network share the speedup")
+	assert.InDelta(t, 3.0, guest[2].Pace, 1e-9, "the scope's bucket speeds up, or nobody behind it would")
+
+	linked := buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true}, price)
+	assert.InDelta(t, 3*2/1.5, linked[0].Pace, 1e-9)
+	assert.InDelta(t, 3.0, linked[1].Pace, 1e-9)
+
+	anonymous := buckets.Keys(clicks.Payer{Scope: "1.2.3.4"}, price)
+	assert.InDelta(t, 3/1.5, anonymous[0].Pace, 1e-9)
+
+	plain := buckets.Keys(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}, clicks.Price{Speedup: 1})
+	assert.InDelta(t, 1.0, plain[2].Pace, 1e-9, "once the speedup ends, the scope's bucket is set back to its plain rate")
 }
 
 func TestTheGuestScopeMultiplierDefaultsToOneAndRefusesLessThanOneAccount(t *testing.T) {

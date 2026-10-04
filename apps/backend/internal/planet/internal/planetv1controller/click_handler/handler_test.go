@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
@@ -78,6 +79,18 @@ func TestClickMapsTheBudget(t *testing.T) {
 	})
 }
 
+func TestAClickThatBroughtAGiftSaysSo(t *testing.T) {
+	res, err := clickOn(t, &stubUseCase{out: click_usecase.Out{Gift: true}}, &planetv1.ClickRequest{})
+
+	require.NoError(t, err)
+	assert.True(t, res.Msg.GetGift())
+
+	res, err = clickOn(t, &stubUseCase{}, &planetv1.ClickRequest{})
+
+	require.NoError(t, err)
+	assert.False(t, res.Msg.GetGift())
+}
+
 func TestClickMapsTheErrors(t *testing.T) {
 	for name, sentinel := range map[string]error{
 		"an unknown country":          clicks.ErrUnknownCountry,
@@ -109,6 +122,18 @@ func TestClickMapsTheErrors(t *testing.T) {
 		budget, ok := value.(*planetv1.ClickBudget)
 		require.True(t, ok)
 		assert.InDelta(t, 0.4, budget.GetTokens(), 1e-6)
+	})
+
+	t.Run("a click on a frozen map is a failed precondition that says so", func(t *testing.T) {
+		_, err := clickOn(t, &stubUseCase{err: tempo.ErrFrozen}, &planetv1.ClickRequest{})
+
+		require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+		var connectErr *connect.Error
+		require.ErrorAs(t, err, &connectErr)
+		require.Len(t, connectErr.Details(), 1)
+		value, valueErr := connectErr.Details()[0].Value()
+		require.NoError(t, valueErr)
+		assert.IsType(t, &planetv1.MapFrozen{}, value, "not the throttle: there is no wait to show")
 	})
 
 	t.Run("anything else is left for the error interceptor", func(t *testing.T) {
