@@ -26,14 +26,21 @@ type Verifier struct {
 
 	mu       sync.Mutex
 	verifier *cpsession.Verifier
+	pending  *pending
+}
+
+type pending struct {
+	done     chan struct{}
+	verifier *cpsession.Verifier
+	err      error
 }
 
 func New(dial Dialer, logger *slog.Logger) *Verifier {
 	return &Verifier{dial: dial, logger: logger}
 }
 
-func (v *Verifier) Verify(token string, ip string, now time.Time) (*cpsession.Claims, error) {
-	verifier, err := v.fetched()
+func (v *Verifier) Verify(ctx context.Context, token string, ip string, now time.Time) (*cpsession.Claims, error) {
+	verifier, err := v.fetched(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -41,21 +48,49 @@ func (v *Verifier) Verify(token string, ip string, now time.Time) (*cpsession.Cl
 	return verifier.Verify(token, ip, now)
 }
 
-func (v *Verifier) fetched() (*cpsession.Verifier, error) {
+func (v *Verifier) fetched(ctx context.Context) (*cpsession.Verifier, error) {
 	v.mu.Lock()
-	defer v.mu.Unlock()
-
 	if v.verifier != nil {
+		defer v.mu.Unlock()
 		return v.verifier, nil
 	}
+	current := v.pending
+	if current == nil {
+		current = &pending{done: make(chan struct{})}
+		v.pending = current
+		// Without the caller's cancellation: one caller leaving must not fail the others waiting on this fetch.
+		go v.fetchKey(context.WithoutCancel(ctx), current)
+	}
+	v.mu.Unlock()
 
+	select {
+	case <-current.done:
+		return current.verifier, current.err
+	case <-ctx.Done():
+		return nil, fmt.Errorf("stopped waiting for the click token verifying key: %w", ctx.Err())
+	}
+}
+
+func (v *Verifier) fetchKey(ctx context.Context, current *pending) {
+	current.verifier, current.err = v.key(ctx)
+
+	v.mu.Lock()
+	if current.err == nil {
+		v.verifier = current.verifier
+	}
+	v.pending = nil
+	v.mu.Unlock()
+
+	close(current.done)
+}
+
+func (v *Verifier) key(ctx context.Context) (*cpsession.Verifier, error) {
 	client, baseURL, err := v.dial.Dial()
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach the auth module: %w", err)
 	}
 
-	// Not the caller's ctx: one caller leaving must not cancel the fetch others wait on.
-	ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
 	defer cancel()
 
 	res, err := authv1connect.NewInternalServiceClient(client, baseURL).
@@ -70,7 +105,6 @@ func (v *Verifier) fetched() (*cpsession.Verifier, error) {
 	}
 
 	v.logger.Info("the seasons module took the click token verifying key from the auth module")
-	v.verifier = verifier
 
 	return verifier, nil
 }
