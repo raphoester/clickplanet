@@ -35,6 +35,7 @@ type gameStack struct {
 	baseURL  string
 	adminURL string
 	fakes    auth.FakeProviders
+	postgres *cppg.TestServer
 }
 
 func startGame(t *testing.T) gameStack {
@@ -90,7 +91,9 @@ func startGame(t *testing.T) gameStack {
 
 	waitUntilServed(t, server.BindAddress)
 
-	return gameStack{baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes}
+	return gameStack{
+		baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes, postgres: postgres,
+	}
 }
 
 type gamer struct {
