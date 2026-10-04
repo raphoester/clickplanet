@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/get_roster_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -17,8 +18,8 @@ func TestTheRosterIsTheFreshVisitsAsOfTheClock(t *testing.T) {
 	start := time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 	clock := cptime.NewFixedClock(start)
 	visits := inmemory_visit_storage.New(clock)
-	visits.Record(presence.Visit{Account: players.AccountID{15: 1}, Author: players.Author{Name: "Ada"}, Tag: "aaaaaa", Country: "fr", At: start})
-	visits.Record(presence.Visit{Account: players.AccountID{15: 2}, Author: players.Author{Name: "Bob"}, Tag: "bbbbbb", Country: "de", At: start.Add(time.Minute)})
+	visits.Record(presence.Visit{Account: players.AccountID{15: 1}, Author: wearing.Author{Author: players.Author{Name: "Ada"}}, Tag: "aaaaaa", Country: "fr", At: start})
+	visits.Record(presence.Visit{Account: players.AccountID{15: 2}, Author: wearing.Author{Author: players.Author{Name: "Bob"}}, Tag: "bbbbbb", Country: "de", At: start.Add(time.Minute)})
 
 	clock.Advance(presence.TTL)
 

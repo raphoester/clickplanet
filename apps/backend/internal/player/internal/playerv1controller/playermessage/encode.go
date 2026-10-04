@@ -91,6 +91,7 @@ func RosterEntry(entry presence.Entry) *playerv1.RosterEntry {
 		Admin:     entry.Admin,
 		Color:     Color(entry.Color),
 		Streak:    entry.Streak,
+		WornTitle: Title(entry.Title),
 	}
 }
 

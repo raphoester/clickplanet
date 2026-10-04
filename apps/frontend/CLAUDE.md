@@ -604,6 +604,15 @@ flame (`StreakFlame`) is the Noto fire of the reactions, `role="img"` named
 neither**: the server sends it no color and a streak of 0, so a signed-in player
 shows a flame only once it has a username.
 
+**A name wears its title too**, in the chat log and the roster: the medal of the
+title its player wears, small, after the crown (`TitleBadge`, a `TitleEmblem`
+with `role="img"` named by the title). The server sends it with the name
+(`ChatMessage.authorTitle`, `RosterEntry.wornTitle`), read when shown, so a new
+pick shows on the roster at once, on the next message, and on older ones once the
+chat is read again. A guest
+wears none. `backends/title.ts` holds `PlayerTitle` and `titleOf`, the one
+decoder of `player.v1.Title`, shared by the chat and the player backends.
+
 **An admin of the game wears a crown** (`AdminCrown`, gold, `role="img"` named
 "Admin") beside its name in the chat log, the roster and the card's title.
 The server says so: `ChatMessage.authorAdmin`, `RosterEntry.admin` and
@@ -701,6 +710,8 @@ is the player's own view.
   rank per track of what one take earned, so a jump of two ranks is one overlay.
   A title earned while no tab is open is never announced; it is simply there next
   time.
+- **The worn title follows the name** in the chat and the roster, as a small
+  medal (see [Who is playing](#who-is-playing)).
 - **UI copy is not documentation.** The card and the tab say nothing about the
   rules ("one per track", "others see the title you wear"): what is drawn is the rule.
 
@@ -2410,6 +2421,14 @@ page: **Safari zooms the whole page in when a text field under 16px takes
 focus**, and never zooms back out. That is why `.chat-input` is 16px — at 14px
 the zoom pushed the send button off the right of the screen. Keep every `input`
 here at 16px or more; the emulator will not tell you when one drops below.
+
+Nor does it draw the browser's toolbars, so **`100vh` looks right in the
+emulator and is not on a phone**: there it is the height with the toolbars
+hidden, and this page never scrolls them away. A `Modal` sized `100vh` put the
+bottom of the player card under the toolbar, with nothing left to scroll and a
+drag that pulled the page to refresh. Size a full-screen layer with
+`position: fixed; inset: 0` instead. `overscroll-behavior: none` on the root
+stops pull-to-refresh everywhere.
 
 `--open-menu` dismisses the donation modal and opens the Board sheet:
 `DonationModal` rolls a coin on **every** load (`SHOW_PROBABILITY`), so without

@@ -55,3 +55,20 @@ func TestAMessageCarriesItsAuthorsColorAndStreak(t *testing.T) {
 	assert.Equal(t, playerv1.NameColor_NAME_COLOR_PINK, encoded.GetAuthorColor())
 	assert.Equal(t, uint32(12), encoded.GetAuthorStreak())
 }
+
+func TestAMessageCarriesTheTitleItsAuthorWears(t *testing.T) {
+	settler := messages.Title{
+		ID: "settler", Name: "Settler", Rank: messages.Rank{TrackID: "conquest", TrackName: "Conquest", Number: 1, Count: 5},
+	}
+
+	ranked := chatmessage.Encode(messages.Message{ID: "message-1", AuthorTitle: settler}, nil, 0)
+	standalone := chatmessage.Encode(messages.Message{ID: "message-2", AuthorTitle: messages.Title{ID: "og", Name: "OG"}}, nil, 0)
+	bare := chatmessage.Encode(messages.Message{ID: "message-3"}, nil, 0)
+
+	assert.Equal(t, "settler", ranked.GetAuthorTitle().GetId())
+	assert.Equal(t, "conquest", ranked.GetAuthorTitle().GetRank().GetTrackId())
+	assert.Equal(t, uint32(5), ranked.GetAuthorTitle().GetRank().GetCount())
+	assert.Equal(t, "OG", standalone.GetAuthorTitle().GetName())
+	assert.Nil(t, standalone.GetAuthorTitle().GetRank())
+	assert.Nil(t, bare.GetAuthorTitle())
+}

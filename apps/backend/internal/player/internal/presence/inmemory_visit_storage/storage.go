@@ -8,6 +8,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -60,7 +62,7 @@ func (s *Storage) Record(visit presence.Visit) {
 	}
 }
 
-func (s *Storage) Move(from, to players.AccountID, author players.Author) {
+func (s *Storage) Move(from, to players.AccountID, author wearing.Author) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -91,11 +93,29 @@ func (s *Storage) Rename(account players.AccountID, username players.Name) {
 		return
 	}
 
-	renamed := visit.For(account, players.Author{Name: players.DisplayNameOf(username, ""), Admin: visit.Author.Admin})
+	named := players.Author{Name: players.DisplayNameOf(username, ""), Admin: visit.Author.Admin}
+	renamed := visit.For(account, wearing.AuthorOf(named, visit.Author.Worn))
 	s.visits[account] = renamed
 
 	if presence.EntryOf(visit) != presence.EntryOf(renamed) {
 		s.publish(presence.Change{Entry: presence.EntryOf(renamed)})
+	}
+}
+
+func (s *Storage) Wear(account players.AccountID, worn titles.Standing) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	visit, held := s.visits[account]
+	if !held {
+		return
+	}
+
+	dressed := visit.For(account, wearing.AuthorOf(visit.Author.Author, worn))
+	s.visits[account] = dressed
+
+	if presence.EntryOf(visit) != presence.EntryOf(dressed) {
+		s.publish(presence.Change{Entry: presence.EntryOf(dressed)})
 	}
 }
 

@@ -3,6 +3,7 @@ syntax = "proto3";
 package player.v1;
 
 import "player/v1/color.proto";
+import "player/v1/title.proto";
 
 service InternalService {
   rpc GetAuthor(GetAuthorRequest) returns (GetAuthorResponse);
@@ -25,6 +26,7 @@ message GetAuthorResponse {
   bool admin = 3;
   NameColor color = 4;
   uint32 streak = 5;
+  Title worn_title = 6;
 }
 
 message GetAuthorsRequest {
@@ -41,5 +43,6 @@ message Author {
   bool admin = 3;
   NameColor color = 4;
   uint32 streak = 5;
-  bool guest = 6;
+  Title worn_title = 6;
+  bool guest = 7;
 }

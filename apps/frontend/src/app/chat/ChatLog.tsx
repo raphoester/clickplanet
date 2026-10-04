@@ -5,6 +5,7 @@ import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
 import StreakFlame from "../components/StreakFlame.tsx";
+import TitleBadge from "../titles/TitleBadge.tsx";
 import {ChevronIcon} from "../components/icons.tsx";
 import {interleave, startsGroup} from "../../domain/chatLog.ts";
 import {describeBlast} from "../../domain/blast.ts";
@@ -128,6 +129,7 @@ export default function ChatLog(props: ChatLogProps) {
                                     {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
                                 </span>}
                             {message.authorAdmin && <AdminCrown size={13}/>}
+                            <TitleBadge title={message.authorTitle}/>
                             <StreakFlame days={message.authorStreak}/>
                             <time className="chat-message-time"
                                   dateTime={new Date(message.sentAt).toISOString()}>

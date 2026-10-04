@@ -20,6 +20,7 @@ import {
 } from "./chat.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {NameColor} from "./player.ts"
+import {Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 
 const outgoing = {authorId: "author-1", countryCode: "fr", text: "hello"}
 
@@ -48,6 +49,7 @@ const proto = () => new ChatMessagePb({
     authorAdmin: true,
     authorColor: NameColor.TEAL,
     authorStreak: 12,
+    authorTitle: new TitlePb({id: "og", name: "OG"}),
     countryId: "fr",
     text: "hello",
     reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]})],
@@ -72,6 +74,7 @@ describe("decodedMessage", () => {
             authorAdmin: true,
             authorColor: NameColor.TEAL,
             authorStreak: 12,
+            authorTitle: {id: "og", name: "OG", rank: undefined},
             countryCode: "fr",
             text: "hello",
             reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]}],

@@ -416,3 +416,38 @@ func TestASignedInStreamHearsTheTitleItsTakesEarnAndTheTitleCanBeWorn(t *testing
 	_, err = ada.players().WearTitle(t.Context(), refused)
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
+
+func TestAWornTitleShowsOnTheRosterAtOnceAndOnTheChat(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+	_, err := ada.setName("Ada_L")
+	require.NoError(t, err)
+	require.NoError(t, ada.announce("fr"))
+
+	for tile := range uint32(100) {
+		ada.click(tile+1, "fr")
+	}
+	require.Eventually(t, func() bool {
+		get := connect.NewRequest(&playerv1.GetTitlesRequest{})
+		ada.send(get.Header())
+		dashboard, err := ada.players().GetTitles(t.Context(), get)
+		return err == nil && dashboard.Msg.GetWorn().GetId() == "settler"
+	}, 10*time.Second, 20*time.Millisecond, "the hundredth take earns Settler")
+	require.Nil(t, game.roster(t).Msg.GetEntries()[0].GetWornTitle(), "announced before it held a title")
+
+	wear := connect.NewRequest(&playerv1.WearTitleRequest{TitleId: "settler"})
+	ada.send(wear.Header())
+	_, err = ada.players().WearTitle(t.Context(), wear)
+	require.NoError(t, err)
+
+	entries := game.roster(t).Msg.GetEntries()
+	require.Len(t, entries, 1)
+	assert.Equal(t, "settler", entries[0].GetWornTitle().GetId())
+
+	message, err := ada.post()
+	require.NoError(t, err)
+	assert.Equal(t, "settler", message.GetAuthorTitle().GetId())
+	assert.Equal(t, "conquest", message.GetAuthorTitle().GetRank().GetTrackId())
+	assert.Equal(t, "settler", ada.history()[0].GetAuthorTitle().GetId())
+}

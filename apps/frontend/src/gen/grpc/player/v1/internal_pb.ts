@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { NameColor } from "./color_pb.js";
+import { Title } from "./title_pb.js";
 
 /**
  * @generated from message player.v1.GetAuthorRequest
@@ -68,6 +69,11 @@ export class GetAuthorResponse extends Message<GetAuthorResponse> {
    */
   streak = 0;
 
+  /**
+   * @generated from field: player.v1.Title worn_title = 6;
+   */
+  wornTitle?: Title;
+
   constructor(data?: PartialMessage<GetAuthorResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -80,6 +86,7 @@ export class GetAuthorResponse extends Message<GetAuthorResponse> {
     { no: 3, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 5, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "worn_title", kind: "message", T: Title },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAuthorResponse {
@@ -203,7 +210,12 @@ export class Author extends Message<Author> {
   streak = 0;
 
   /**
-   * @generated from field: bool guest = 6;
+   * @generated from field: player.v1.Title worn_title = 6;
+   */
+  wornTitle?: Title;
+
+  /**
+   * @generated from field: bool guest = 7;
    */
   guest = false;
 
@@ -220,7 +232,8 @@ export class Author extends Message<Author> {
     { no: 3, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 5, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "worn_title", kind: "message", T: Title },
+    { no: 7, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Author {

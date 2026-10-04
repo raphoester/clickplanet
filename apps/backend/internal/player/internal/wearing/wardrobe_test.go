@@ -102,11 +102,33 @@ func TestATitleNotShownCannotBeWornAndNothingIsWritten(t *testing.T) {
 	assert.Empty(t, choice)
 }
 
+func TestWornByIsEachAccountsWornTitleAndLeavesOutWhoWearsNone(t *testing.T) {
+	closet, owned, _ := wardrobe(t, "badge", "low", "mid")
+	bob, cy := players.AccountID{15: 2}, players.AccountID{15: 3}
+	require.NoError(t, owned.Grant(t.Context(), titles.Holdings{bob: {"badge", "other"}}, at))
+	require.NoError(t, closet.Wear(t.Context(), bob, "badge", at))
+
+	worn, err := closet.WornBy(t.Context(), []players.AccountID{ada, bob, cy})
+
+	require.NoError(t, err)
+	assert.Equal(t, map[players.AccountID]titles.Standing{ada: standing("mid"), bob: standing("badge")}, worn)
+}
+
+func TestAnAuthorWearsItsTitleUnlessItIsAGuest(t *testing.T) {
+	named := players.Author{Name: "Ada"}
+	guest := players.Author{Name: "guest_a1b2c3", Guest: true}
+
+	assert.Equal(t, wearing.Author{Author: named, Worn: standing("mid")}, wearing.AuthorOf(named, standing("mid")))
+	assert.Equal(t, wearing.Author{Author: guest}, wearing.AuthorOf(guest, standing("mid")))
+}
+
 func TestAStoreFailureIsAnError(t *testing.T) {
 	closet, owned, _ := wardrobe(t, "badge")
 	owned.FailWith(errors.New("postgres is down"))
 
 	_, err := closet.Showcase(t.Context(), ada)
+	require.Error(t, err)
+	_, err = closet.WornBy(t.Context(), []players.AccountID{ada})
 	require.Error(t, err)
 	require.Error(t, closet.Wear(t.Context(), ada, "badge", at))
 
@@ -114,6 +136,8 @@ func TestAStoreFailureIsAnError(t *testing.T) {
 	worn.FailWith(errors.New("postgres is down"))
 
 	_, err = closet.Showcase(t.Context(), ada)
+	require.Error(t, err)
+	_, err = closet.WornBy(t.Context(), []players.AccountID{ada})
 	require.Error(t, err)
 	assert.Error(t, closet.Wear(t.Context(), ada, "badge", at))
 }

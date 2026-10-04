@@ -8,10 +8,11 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]players.Author, error)
+	Execute(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]wearing.Author, error)
 }
 
 func New(useCase UseCase) GetAuthorsHandler {
@@ -48,6 +49,7 @@ func (h GetAuthorsHandler) GetAuthors(
 			Admin:     author.Admin,
 			Color:     playermessage.Color(author.Color),
 			Streak:    author.Streak.Days,
+			WornTitle: playermessage.Title(author.Worn),
 			Guest:     author.Guest,
 		})
 	}
