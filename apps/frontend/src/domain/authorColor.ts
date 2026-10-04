@@ -21,18 +21,6 @@ export const NAME_COLORS: readonly NameColorChoice[] = [
     {color: NameColor.PINK, label: "Pink", hue: 330},
 ]
 
-export function authorHue(authorName: string, color: NameColor = NameColor.UNSPECIFIED): number {
-    return NAME_COLORS.find((choice) => choice.color === color)?.hue ?? hash(authorName) % 360
-}
-
-const FNV_OFFSET = 0x811c9dc5
-const FNV_PRIME = 0x01000193
-
-function hash(key: string): number {
-    let value = FNV_OFFSET
-    for (const rune of key) {
-        value ^= rune.codePointAt(0)!
-        value = Math.imul(value, FNV_PRIME)
-    }
-    return value >>> 0
+export function hueOf(color: NameColor | undefined): number | undefined {
+    return NAME_COLORS.find((choice) => choice.color === color)?.hue
 }
