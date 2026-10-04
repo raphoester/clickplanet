@@ -42,6 +42,9 @@ const (
 	// InternalServiceGetAccountsProcedure is the fully-qualified name of the InternalService's
 	// GetAccounts RPC.
 	InternalServiceGetAccountsProcedure = "/auth.v1.InternalService/GetAccounts"
+	// InternalServiceGetCallerProcedure is the fully-qualified name of the InternalService's GetCaller
+	// RPC.
+	InternalServiceGetCallerProcedure = "/auth.v1.InternalService/GetCaller"
 )
 
 // InternalServiceClient is a client for the auth.v1.InternalService service.
@@ -49,6 +52,8 @@ type InternalServiceClient interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
 	GetAccount(context.Context, *connect.Request[v1.GetAccountRequest]) (*connect.Response[v1.GetAccountResponse], error)
 	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
+	// Not NO_SIDE_EFFECTS: a GET would put the session cookie in the URL.
+	GetCaller(context.Context, *connect.Request[v1.GetCallerRequest]) (*connect.Response[v1.GetCallerResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the auth.v1.InternalService service. By default,
@@ -81,6 +86,12 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getCaller: connect.NewClient[v1.GetCallerRequest, v1.GetCallerResponse](
+			httpClient,
+			baseURL+InternalServiceGetCallerProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetCaller")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -89,6 +100,7 @@ type internalServiceClient struct {
 	getVerifyingKey *connect.Client[v1.GetVerifyingKeyRequest, v1.GetVerifyingKeyResponse]
 	getAccount      *connect.Client[v1.GetAccountRequest, v1.GetAccountResponse]
 	getAccounts     *connect.Client[v1.GetAccountsRequest, v1.GetAccountsResponse]
+	getCaller       *connect.Client[v1.GetCallerRequest, v1.GetCallerResponse]
 }
 
 // GetVerifyingKey calls auth.v1.InternalService.GetVerifyingKey.
@@ -106,11 +118,18 @@ func (c *internalServiceClient) GetAccounts(ctx context.Context, req *connect.Re
 	return c.getAccounts.CallUnary(ctx, req)
 }
 
+// GetCaller calls auth.v1.InternalService.GetCaller.
+func (c *internalServiceClient) GetCaller(ctx context.Context, req *connect.Request[v1.GetCallerRequest]) (*connect.Response[v1.GetCallerResponse], error) {
+	return c.getCaller.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the auth.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
 	GetAccount(context.Context, *connect.Request[v1.GetAccountRequest]) (*connect.Response[v1.GetAccountResponse], error)
 	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
+	// Not NO_SIDE_EFFECTS: a GET would put the session cookie in the URL.
+	GetCaller(context.Context, *connect.Request[v1.GetCallerRequest]) (*connect.Response[v1.GetCallerResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -139,6 +158,12 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetCallerHandler := connect.NewUnaryHandler(
+		InternalServiceGetCallerProcedure,
+		svc.GetCaller,
+		connect.WithSchema(internalServiceMethods.ByName("GetCaller")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetVerifyingKeyProcedure:
@@ -147,6 +172,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetAccountHandler.ServeHTTP(w, r)
 		case InternalServiceGetAccountsProcedure:
 			internalServiceGetAccountsHandler.ServeHTTP(w, r)
+		case InternalServiceGetCallerProcedure:
+			internalServiceGetCallerHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -166,4 +193,8 @@ func (UnimplementedInternalServiceHandler) GetAccount(context.Context, *connect.
 
 func (UnimplementedInternalServiceHandler) GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetAccounts is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetCaller(context.Context, *connect.Request[v1.GetCallerRequest]) (*connect.Response[v1.GetCallerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetCaller is not implemented"))
 }

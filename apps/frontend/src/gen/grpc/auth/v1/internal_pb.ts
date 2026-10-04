@@ -7,6 +7,80 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
+ * @generated from message auth.v1.GetCallerRequest
+ */
+export class GetCallerRequest extends Message<GetCallerRequest> {
+  /**
+   * @generated from field: string cookie = 1;
+   */
+  cookie = "";
+
+  constructor(data?: PartialMessage<GetCallerRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.GetCallerRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "cookie", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCallerRequest {
+    return new GetCallerRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCallerRequest {
+    return new GetCallerRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCallerRequest {
+    return new GetCallerRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetCallerRequest | PlainMessage<GetCallerRequest> | undefined, b: GetCallerRequest | PlainMessage<GetCallerRequest> | undefined): boolean {
+    return proto3.util.equals(GetCallerRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.GetCallerResponse
+ */
+export class GetCallerResponse extends Message<GetCallerResponse> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<GetCallerResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.GetCallerResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCallerResponse {
+    return new GetCallerResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCallerResponse {
+    return new GetCallerResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCallerResponse {
+    return new GetCallerResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetCallerResponse | PlainMessage<GetCallerResponse> | undefined, b: GetCallerResponse | PlainMessage<GetCallerResponse> | undefined): boolean {
+    return proto3.util.equals(GetCallerResponse, a, b);
+  }
+}
+
+/**
  * @generated from message auth.v1.GetVerifyingKeyRequest
  */
 export class GetVerifyingKeyRequest extends Message<GetVerifyingKeyRequest> {

@@ -29,12 +29,14 @@ import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
 import {titleOf} from "./title.ts";
 
+// With the cookie: it names the account for longer than a click token lives.
 export function newChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
     return createPromiseClient(ChatService, createConnectTransport({
         baseUrl: config.baseUrl,
         useBinaryFormat: true,
         useHttpGet: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
+        fetch: (input, init) => globalThis.fetch(input, {...init, credentials: "include"}),
     }))
 }
 

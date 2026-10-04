@@ -194,3 +194,52 @@ func withClaims(ctx context.Context, claims *cpsession.Claims) context.Context {
 
 	return cpctx.AddLinkedToContext(ctx)
 }
+
+const CookieHeader = "Cookie"
+
+type CookieCallers interface {
+	Caller(ctx context.Context, cookie string) (cpsession.AccountID, error)
+}
+
+// After NewSessionReaderInterceptor: a valid click token names the caller, and the cookie is not looked up.
+func NewCookieReaderInterceptor(callers CookieCallers, procedures ...string) connect.Interceptor {
+	return cookieReader{callers: callers, procedures: procedures}
+}
+
+type cookieReader struct {
+	callers    CookieCallers
+	procedures []string
+}
+
+func (r cookieReader) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		return next(r.context(ctx, req.Spec().Procedure, req.Header().Get(CookieHeader)), req)
+	}
+}
+
+func (r cookieReader) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return next
+}
+
+func (r cookieReader) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
+		return next(r.context(ctx, conn.Spec().Procedure, conn.RequestHeader().Get(CookieHeader)), conn)
+	}
+}
+
+func (r cookieReader) context(ctx context.Context, procedure string, cookie string) context.Context {
+	if cookie == "" || cpctx.GetAccount(ctx) != "" || !slices.Contains(r.procedures, procedure) {
+		return ctx
+	}
+
+	account, err := r.callers.Caller(ctx, cookie)
+	if err != nil || account == cpsession.NoAccount {
+		return ctx
+	}
+
+	ctx = cpctx.AddAccountToContext(ctx, account.String())
+	if created, ok := account.CreatedAt(); ok {
+		ctx = cpctx.AddAccountCreatedToContext(ctx, created)
+	}
+	return ctx
+}

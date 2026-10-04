@@ -495,9 +495,8 @@ is the list, and the backend refuses any other.
   held (`SessionProvider.held()`, never a mint) so the server can mark the
   player's own; `React` answers the counts with `mine` set. The stream is
   nobody's, so `mergedReactions` keeps what the log already knew. A player
-  whose token is not held yet when the history loads sees its own reactions
-  unmarked; the server treats a second "on" as nothing, so a click still ends
-  right.
+  whose token is not held yet when the history loads is still named by its
+  cookie, which the chat client sends (see [Sessions](#sessions)).
 - `React` goes out with the click token, minted when none is held, like a
   message: every caller reacts as its account, guests included.
 - **Each message keeps its reactions' version** (`reactionsVersion`). The
@@ -768,12 +767,15 @@ backend and this build no longer calls it.
 the account the cookie names, and a token minted before that would name the old
 one for its hour. A generation counter keeps such a mint from being stored.
 
-**`newAuthServiceClient` is the only transport that sends credentials.** Its
-`fetch` wrapper adds `credentials: "include"`; without it connect-web sends
-`same-origin`, and a cross-origin mint neither sends the cookie nor keeps the
-one it is given — every mint would start a new guest. The click, map and chat
-clients stay without it: nothing there needs to know who is asking, and a read
-that carries a cookie is one no shared cache serves. Both halves are pinned in
+**`newAuthServiceClient` and `newChatServiceClient` are the transports that send
+credentials.** Their `fetch` wrapper adds `credentials: "include"`; without it
+connect-web sends `same-origin`, and a cross-origin mint neither sends the
+cookie nor keeps the one it is given — every mint would start a new guest. The
+chat sends it so the server knows who reads the history without a click token,
+which lives an hour (the backend's CLAUDE.md, "Who is calling"); its history is
+never cached anyway. The click and map clients stay without it: nothing there
+needs to know who is asking, and a read that carries a cookie is one no shared
+cache serves. Both halves are pinned in
 `turnstileSession.test.ts`. A credentialed call needs the API to name the exact
 origin and send `Access-Control-Allow-Credentials: true` — Caddy does in
 production, and a local backend does from `httpServer.allowedOrigin`, which
