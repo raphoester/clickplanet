@@ -33,19 +33,19 @@ func NewSessionInterceptor(
 		ErrNoSession,
 		enforce,
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
-		planetv1connect.ClickServiceClickProcedure,
-		planetv1connect.ClickServiceClaimBonusProcedure,
-		planetv1connect.ClickServiceDropBombProcedure,
-		planetv1connect.ClickServiceUseRefillProcedure,
-		planetv1connect.ClickServiceOpenQuizProcedure,
-		planetv1connect.ClickServiceAnswerQuizProcedure,
+		cpconnect.Attested(planetv1connect.ClickServiceClickProcedure),
+		cpconnect.Attested(planetv1connect.ClickServiceClaimBonusProcedure),
+		cpconnect.Attested(planetv1connect.ClickServiceDropBombProcedure),
+		cpconnect.Attested(planetv1connect.ClickServiceUseRefillProcedure),
+		cpconnect.Attested(planetv1connect.ClickServiceOpenQuizProcedure),
+		cpconnect.Attested(planetv1connect.ClickServiceAnswerQuizProcedure),
 	)
 }
 
 func NewSessionReaderInterceptor(verifier ClickSessionVerifier, clock cptime.Clock) connect.Interceptor {
 	return cpconnect.NewSessionReaderInterceptor(verifier, clock,
-		planetv1connect.ClickServiceGetBudgetProcedure,
-		planetv1connect.ClickServiceGetChargesProcedure,
-		planetv1connect.ClickServiceListenForEventsProcedure,
+		cpconnect.Identified(planetv1connect.ClickServiceGetBudgetProcedure),
+		cpconnect.Identified(planetv1connect.ClickServiceGetChargesProcedure),
+		cpconnect.Identified(planetv1connect.ClickServiceListenForEventsProcedure),
 	)
 }

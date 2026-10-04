@@ -417,6 +417,94 @@ func (x *CreateSessionResponse) GetExpiresAtUnixMs() int64 {
 	return 0
 }
 
+type ResumeSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeSessionRequest) Reset() {
+	*x = ResumeSessionRequest{}
+	mi := &file_auth_v1_auth_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeSessionRequest) ProtoMessage() {}
+
+func (x *ResumeSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeSessionRequest.ProtoReflect.Descriptor instead.
+func (*ResumeSessionRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{2}
+}
+
+type ResumeSessionResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Token           string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	ExpiresAtUnixMs int64                  `protobuf:"varint,2,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ResumeSessionResponse) Reset() {
+	*x = ResumeSessionResponse{}
+	mi := &file_auth_v1_auth_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeSessionResponse) ProtoMessage() {}
+
+func (x *ResumeSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeSessionResponse.ProtoReflect.Descriptor instead.
+func (*ResumeSessionResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ResumeSessionResponse) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *ResumeSessionResponse) GetExpiresAtUnixMs() int64 {
+	if x != nil {
+		return x.ExpiresAtUnixMs
+	}
+	return 0
+}
+
 type GetMeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -425,7 +513,7 @@ type GetMeRequest struct {
 
 func (x *GetMeRequest) Reset() {
 	*x = GetMeRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[2]
+	mi := &file_auth_v1_auth_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -437,7 +525,7 @@ func (x *GetMeRequest) String() string {
 func (*GetMeRequest) ProtoMessage() {}
 
 func (x *GetMeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[2]
+	mi := &file_auth_v1_auth_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -450,7 +538,7 @@ func (x *GetMeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMeRequest.ProtoReflect.Descriptor instead.
 func (*GetMeRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{2}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{4}
 }
 
 type GetMeResponse struct {
@@ -464,7 +552,7 @@ type GetMeResponse struct {
 
 func (x *GetMeResponse) Reset() {
 	*x = GetMeResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[3]
+	mi := &file_auth_v1_auth_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +564,7 @@ func (x *GetMeResponse) String() string {
 func (*GetMeResponse) ProtoMessage() {}
 
 func (x *GetMeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[3]
+	mi := &file_auth_v1_auth_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +577,7 @@ func (x *GetMeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMeResponse.ProtoReflect.Descriptor instead.
 func (*GetMeResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{3}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetMeResponse) GetAccountId() string {
@@ -521,7 +609,7 @@ type GetSignInOptionsRequest struct {
 
 func (x *GetSignInOptionsRequest) Reset() {
 	*x = GetSignInOptionsRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[4]
+	mi := &file_auth_v1_auth_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -533,7 +621,7 @@ func (x *GetSignInOptionsRequest) String() string {
 func (*GetSignInOptionsRequest) ProtoMessage() {}
 
 func (x *GetSignInOptionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[4]
+	mi := &file_auth_v1_auth_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -546,7 +634,7 @@ func (x *GetSignInOptionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSignInOptionsRequest.ProtoReflect.Descriptor instead.
 func (*GetSignInOptionsRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{4}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{6}
 }
 
 type GetSignInOptionsResponse struct {
@@ -558,7 +646,7 @@ type GetSignInOptionsResponse struct {
 
 func (x *GetSignInOptionsResponse) Reset() {
 	*x = GetSignInOptionsResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[5]
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -570,7 +658,7 @@ func (x *GetSignInOptionsResponse) String() string {
 func (*GetSignInOptionsResponse) ProtoMessage() {}
 
 func (x *GetSignInOptionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[5]
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -583,7 +671,7 @@ func (x *GetSignInOptionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSignInOptionsResponse.ProtoReflect.Descriptor instead.
 func (*GetSignInOptionsResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{5}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetSignInOptionsResponse) GetProviders() []Provider {
@@ -603,7 +691,7 @@ type StartSignInRequest struct {
 
 func (x *StartSignInRequest) Reset() {
 	*x = StartSignInRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[6]
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -615,7 +703,7 @@ func (x *StartSignInRequest) String() string {
 func (*StartSignInRequest) ProtoMessage() {}
 
 func (x *StartSignInRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[6]
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -628,7 +716,7 @@ func (x *StartSignInRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartSignInRequest.ProtoReflect.Descriptor instead.
 func (*StartSignInRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{6}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *StartSignInRequest) GetProvider() Provider {
@@ -654,7 +742,7 @@ type StartSignInResponse struct {
 
 func (x *StartSignInResponse) Reset() {
 	*x = StartSignInResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	mi := &file_auth_v1_auth_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -666,7 +754,7 @@ func (x *StartSignInResponse) String() string {
 func (*StartSignInResponse) ProtoMessage() {}
 
 func (x *StartSignInResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	mi := &file_auth_v1_auth_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -679,7 +767,7 @@ func (x *StartSignInResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartSignInResponse.ProtoReflect.Descriptor instead.
 func (*StartSignInResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *StartSignInResponse) GetAuthorizationUrl() string {
@@ -699,7 +787,7 @@ type CompleteSignInRequest struct {
 
 func (x *CompleteSignInRequest) Reset() {
 	*x = CompleteSignInRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_auth_v1_auth_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -711,7 +799,7 @@ func (x *CompleteSignInRequest) String() string {
 func (*CompleteSignInRequest) ProtoMessage() {}
 
 func (x *CompleteSignInRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_auth_v1_auth_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -724,7 +812,7 @@ func (x *CompleteSignInRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteSignInRequest.ProtoReflect.Descriptor instead.
 func (*CompleteSignInRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CompleteSignInRequest) GetCode() string {
@@ -751,7 +839,7 @@ type CompleteSignInResponse struct {
 
 func (x *CompleteSignInResponse) Reset() {
 	*x = CompleteSignInResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[9]
+	mi := &file_auth_v1_auth_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -763,7 +851,7 @@ func (x *CompleteSignInResponse) String() string {
 func (*CompleteSignInResponse) ProtoMessage() {}
 
 func (x *CompleteSignInResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[9]
+	mi := &file_auth_v1_auth_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -776,7 +864,7 @@ func (x *CompleteSignInResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteSignInResponse.ProtoReflect.Descriptor instead.
 func (*CompleteSignInResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{9}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CompleteSignInResponse) GetAccountId() string {
@@ -802,7 +890,7 @@ type LinkRefusal struct {
 
 func (x *LinkRefusal) Reset() {
 	*x = LinkRefusal{}
-	mi := &file_auth_v1_auth_proto_msgTypes[10]
+	mi := &file_auth_v1_auth_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -814,7 +902,7 @@ func (x *LinkRefusal) String() string {
 func (*LinkRefusal) ProtoMessage() {}
 
 func (x *LinkRefusal) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[10]
+	mi := &file_auth_v1_auth_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -827,7 +915,7 @@ func (x *LinkRefusal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkRefusal.ProtoReflect.Descriptor instead.
 func (*LinkRefusal) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{10}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *LinkRefusal) GetReason() LinkRefusalReason {
@@ -848,7 +936,7 @@ type StartEmailSignInRequest struct {
 
 func (x *StartEmailSignInRequest) Reset() {
 	*x = StartEmailSignInRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[11]
+	mi := &file_auth_v1_auth_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -860,7 +948,7 @@ func (x *StartEmailSignInRequest) String() string {
 func (*StartEmailSignInRequest) ProtoMessage() {}
 
 func (x *StartEmailSignInRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[11]
+	mi := &file_auth_v1_auth_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -873,7 +961,7 @@ func (x *StartEmailSignInRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartEmailSignInRequest.ProtoReflect.Descriptor instead.
 func (*StartEmailSignInRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{11}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *StartEmailSignInRequest) GetEmail() string {
@@ -905,7 +993,7 @@ type StartEmailSignInResponse struct {
 
 func (x *StartEmailSignInResponse) Reset() {
 	*x = StartEmailSignInResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[12]
+	mi := &file_auth_v1_auth_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -917,7 +1005,7 @@ func (x *StartEmailSignInResponse) String() string {
 func (*StartEmailSignInResponse) ProtoMessage() {}
 
 func (x *StartEmailSignInResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[12]
+	mi := &file_auth_v1_auth_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -930,7 +1018,7 @@ func (x *StartEmailSignInResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartEmailSignInResponse.ProtoReflect.Descriptor instead.
 func (*StartEmailSignInResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{12}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{14}
 }
 
 type CompleteEmailSignInRequest struct {
@@ -942,7 +1030,7 @@ type CompleteEmailSignInRequest struct {
 
 func (x *CompleteEmailSignInRequest) Reset() {
 	*x = CompleteEmailSignInRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[13]
+	mi := &file_auth_v1_auth_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -954,7 +1042,7 @@ func (x *CompleteEmailSignInRequest) String() string {
 func (*CompleteEmailSignInRequest) ProtoMessage() {}
 
 func (x *CompleteEmailSignInRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[13]
+	mi := &file_auth_v1_auth_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -967,7 +1055,7 @@ func (x *CompleteEmailSignInRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteEmailSignInRequest.ProtoReflect.Descriptor instead.
 func (*CompleteEmailSignInRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{13}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CompleteEmailSignInRequest) GetCode() string {
@@ -987,7 +1075,7 @@ type CompleteEmailSignInResponse struct {
 
 func (x *CompleteEmailSignInResponse) Reset() {
 	*x = CompleteEmailSignInResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[14]
+	mi := &file_auth_v1_auth_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -999,7 +1087,7 @@ func (x *CompleteEmailSignInResponse) String() string {
 func (*CompleteEmailSignInResponse) ProtoMessage() {}
 
 func (x *CompleteEmailSignInResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[14]
+	mi := &file_auth_v1_auth_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1012,7 +1100,7 @@ func (x *CompleteEmailSignInResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteEmailSignInResponse.ProtoReflect.Descriptor instead.
 func (*CompleteEmailSignInResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{14}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CompleteEmailSignInResponse) GetAccountId() string {
@@ -1038,7 +1126,7 @@ type EmailRefusal struct {
 
 func (x *EmailRefusal) Reset() {
 	*x = EmailRefusal{}
-	mi := &file_auth_v1_auth_proto_msgTypes[15]
+	mi := &file_auth_v1_auth_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1050,7 +1138,7 @@ func (x *EmailRefusal) String() string {
 func (*EmailRefusal) ProtoMessage() {}
 
 func (x *EmailRefusal) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[15]
+	mi := &file_auth_v1_auth_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1063,7 +1151,7 @@ func (x *EmailRefusal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailRefusal.ProtoReflect.Descriptor instead.
 func (*EmailRefusal) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{15}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *EmailRefusal) GetReason() EmailRefusalReason {
@@ -1081,7 +1169,7 @@ type SignOutRequest struct {
 
 func (x *SignOutRequest) Reset() {
 	*x = SignOutRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[16]
+	mi := &file_auth_v1_auth_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1093,7 +1181,7 @@ func (x *SignOutRequest) String() string {
 func (*SignOutRequest) ProtoMessage() {}
 
 func (x *SignOutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[16]
+	mi := &file_auth_v1_auth_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1106,7 +1194,7 @@ func (x *SignOutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignOutRequest.ProtoReflect.Descriptor instead.
 func (*SignOutRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{16}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{18}
 }
 
 type SignOutResponse struct {
@@ -1117,7 +1205,7 @@ type SignOutResponse struct {
 
 func (x *SignOutResponse) Reset() {
 	*x = SignOutResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[17]
+	mi := &file_auth_v1_auth_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1129,7 +1217,7 @@ func (x *SignOutResponse) String() string {
 func (*SignOutResponse) ProtoMessage() {}
 
 func (x *SignOutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[17]
+	mi := &file_auth_v1_auth_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1142,7 +1230,7 @@ func (x *SignOutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignOutResponse.ProtoReflect.Descriptor instead.
 func (*SignOutResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{17}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{19}
 }
 
 type SignOutEverywhereRequest struct {
@@ -1153,7 +1241,7 @@ type SignOutEverywhereRequest struct {
 
 func (x *SignOutEverywhereRequest) Reset() {
 	*x = SignOutEverywhereRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[18]
+	mi := &file_auth_v1_auth_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1165,7 +1253,7 @@ func (x *SignOutEverywhereRequest) String() string {
 func (*SignOutEverywhereRequest) ProtoMessage() {}
 
 func (x *SignOutEverywhereRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[18]
+	mi := &file_auth_v1_auth_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1178,7 +1266,7 @@ func (x *SignOutEverywhereRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignOutEverywhereRequest.ProtoReflect.Descriptor instead.
 func (*SignOutEverywhereRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{18}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{20}
 }
 
 type SignOutEverywhereResponse struct {
@@ -1189,7 +1277,7 @@ type SignOutEverywhereResponse struct {
 
 func (x *SignOutEverywhereResponse) Reset() {
 	*x = SignOutEverywhereResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[19]
+	mi := &file_auth_v1_auth_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1201,7 +1289,7 @@ func (x *SignOutEverywhereResponse) String() string {
 func (*SignOutEverywhereResponse) ProtoMessage() {}
 
 func (x *SignOutEverywhereResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[19]
+	mi := &file_auth_v1_auth_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1214,7 +1302,7 @@ func (x *SignOutEverywhereResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignOutEverywhereResponse.ProtoReflect.Descriptor instead.
 func (*SignOutEverywhereResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{19}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{21}
 }
 
 type DeleteAccountRequest struct {
@@ -1225,7 +1313,7 @@ type DeleteAccountRequest struct {
 
 func (x *DeleteAccountRequest) Reset() {
 	*x = DeleteAccountRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[20]
+	mi := &file_auth_v1_auth_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1237,7 +1325,7 @@ func (x *DeleteAccountRequest) String() string {
 func (*DeleteAccountRequest) ProtoMessage() {}
 
 func (x *DeleteAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[20]
+	mi := &file_auth_v1_auth_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1250,7 +1338,7 @@ func (x *DeleteAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAccountRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAccountRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{20}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{22}
 }
 
 type DeleteAccountResponse struct {
@@ -1261,7 +1349,7 @@ type DeleteAccountResponse struct {
 
 func (x *DeleteAccountResponse) Reset() {
 	*x = DeleteAccountResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[21]
+	mi := &file_auth_v1_auth_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1273,7 +1361,7 @@ func (x *DeleteAccountResponse) String() string {
 func (*DeleteAccountResponse) ProtoMessage() {}
 
 func (x *DeleteAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[21]
+	mi := &file_auth_v1_auth_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1286,7 +1374,7 @@ func (x *DeleteAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAccountResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAccountResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{21}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{23}
 }
 
 var File_auth_v1_auth_proto protoreflect.FileDescriptor
@@ -1297,6 +1385,10 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x14CreateSessionRequest\x12+\n" +
 	"\x11attestation_token\x18\x01 \x01(\tR\x10attestationToken\"Z\n" +
 	"\x15CreateSessionResponse\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12+\n" +
+	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMs\"\x16\n" +
+	"\x14ResumeSessionRequest\"Z\n" +
+	"\x15ResumeSessionResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12+\n" +
 	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMs\"\x0e\n" +
 	"\fGetMeRequest\"\x89\x01\n" +
@@ -1366,9 +1458,10 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x12EmailRefusalReason\x12$\n" +
 	" EMAIL_REFUSAL_REASON_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cEMAIL_REFUSAL_REASON_INVALID\x10\x01\x12#\n" +
-	"\x1fEMAIL_REFUSAL_REASON_DISPOSABLE\x10\x022\xb0\x06\n" +
+	"\x1fEMAIL_REFUSAL_REASON_DISPOSABLE\x10\x022\x80\a\n" +
 	"\vAuthService\x12N\n" +
-	"\rCreateSession\x12\x1d.auth.v1.CreateSessionRequest\x1a\x1e.auth.v1.CreateSessionResponse\x126\n" +
+	"\rCreateSession\x12\x1d.auth.v1.CreateSessionRequest\x1a\x1e.auth.v1.CreateSessionResponse\x12N\n" +
+	"\rResumeSession\x12\x1d.auth.v1.ResumeSessionRequest\x1a\x1e.auth.v1.ResumeSessionResponse\x126\n" +
 	"\x05GetMe\x12\x15.auth.v1.GetMeRequest\x1a\x16.auth.v1.GetMeResponse\x12W\n" +
 	"\x10GetSignInOptions\x12 .auth.v1.GetSignInOptionsRequest\x1a!.auth.v1.GetSignInOptionsResponse\x12H\n" +
 	"\vStartSignIn\x12\x1b.auth.v1.StartSignInRequest\x1a\x1c.auth.v1.StartSignInResponse\x12Q\n" +
@@ -1393,7 +1486,7 @@ func file_auth_v1_auth_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_auth_v1_auth_proto_goTypes = []any{
 	(Provider)(0),                       // 0: auth.v1.Provider
 	(AccountKind)(0),                    // 1: auth.v1.AccountKind
@@ -1403,26 +1496,28 @@ var file_auth_v1_auth_proto_goTypes = []any{
 	(EmailRefusalReason)(0),             // 5: auth.v1.EmailRefusalReason
 	(*CreateSessionRequest)(nil),        // 6: auth.v1.CreateSessionRequest
 	(*CreateSessionResponse)(nil),       // 7: auth.v1.CreateSessionResponse
-	(*GetMeRequest)(nil),                // 8: auth.v1.GetMeRequest
-	(*GetMeResponse)(nil),               // 9: auth.v1.GetMeResponse
-	(*GetSignInOptionsRequest)(nil),     // 10: auth.v1.GetSignInOptionsRequest
-	(*GetSignInOptionsResponse)(nil),    // 11: auth.v1.GetSignInOptionsResponse
-	(*StartSignInRequest)(nil),          // 12: auth.v1.StartSignInRequest
-	(*StartSignInResponse)(nil),         // 13: auth.v1.StartSignInResponse
-	(*CompleteSignInRequest)(nil),       // 14: auth.v1.CompleteSignInRequest
-	(*CompleteSignInResponse)(nil),      // 15: auth.v1.CompleteSignInResponse
-	(*LinkRefusal)(nil),                 // 16: auth.v1.LinkRefusal
-	(*StartEmailSignInRequest)(nil),     // 17: auth.v1.StartEmailSignInRequest
-	(*StartEmailSignInResponse)(nil),    // 18: auth.v1.StartEmailSignInResponse
-	(*CompleteEmailSignInRequest)(nil),  // 19: auth.v1.CompleteEmailSignInRequest
-	(*CompleteEmailSignInResponse)(nil), // 20: auth.v1.CompleteEmailSignInResponse
-	(*EmailRefusal)(nil),                // 21: auth.v1.EmailRefusal
-	(*SignOutRequest)(nil),              // 22: auth.v1.SignOutRequest
-	(*SignOutResponse)(nil),             // 23: auth.v1.SignOutResponse
-	(*SignOutEverywhereRequest)(nil),    // 24: auth.v1.SignOutEverywhereRequest
-	(*SignOutEverywhereResponse)(nil),   // 25: auth.v1.SignOutEverywhereResponse
-	(*DeleteAccountRequest)(nil),        // 26: auth.v1.DeleteAccountRequest
-	(*DeleteAccountResponse)(nil),       // 27: auth.v1.DeleteAccountResponse
+	(*ResumeSessionRequest)(nil),        // 8: auth.v1.ResumeSessionRequest
+	(*ResumeSessionResponse)(nil),       // 9: auth.v1.ResumeSessionResponse
+	(*GetMeRequest)(nil),                // 10: auth.v1.GetMeRequest
+	(*GetMeResponse)(nil),               // 11: auth.v1.GetMeResponse
+	(*GetSignInOptionsRequest)(nil),     // 12: auth.v1.GetSignInOptionsRequest
+	(*GetSignInOptionsResponse)(nil),    // 13: auth.v1.GetSignInOptionsResponse
+	(*StartSignInRequest)(nil),          // 14: auth.v1.StartSignInRequest
+	(*StartSignInResponse)(nil),         // 15: auth.v1.StartSignInResponse
+	(*CompleteSignInRequest)(nil),       // 16: auth.v1.CompleteSignInRequest
+	(*CompleteSignInResponse)(nil),      // 17: auth.v1.CompleteSignInResponse
+	(*LinkRefusal)(nil),                 // 18: auth.v1.LinkRefusal
+	(*StartEmailSignInRequest)(nil),     // 19: auth.v1.StartEmailSignInRequest
+	(*StartEmailSignInResponse)(nil),    // 20: auth.v1.StartEmailSignInResponse
+	(*CompleteEmailSignInRequest)(nil),  // 21: auth.v1.CompleteEmailSignInRequest
+	(*CompleteEmailSignInResponse)(nil), // 22: auth.v1.CompleteEmailSignInResponse
+	(*EmailRefusal)(nil),                // 23: auth.v1.EmailRefusal
+	(*SignOutRequest)(nil),              // 24: auth.v1.SignOutRequest
+	(*SignOutResponse)(nil),             // 25: auth.v1.SignOutResponse
+	(*SignOutEverywhereRequest)(nil),    // 26: auth.v1.SignOutEverywhereRequest
+	(*SignOutEverywhereResponse)(nil),   // 27: auth.v1.SignOutEverywhereResponse
+	(*DeleteAccountRequest)(nil),        // 28: auth.v1.DeleteAccountRequest
+	(*DeleteAccountResponse)(nil),       // 29: auth.v1.DeleteAccountResponse
 }
 var file_auth_v1_auth_proto_depIdxs = []int32{
 	1,  // 0: auth.v1.GetMeResponse.kind:type_name -> auth.v1.AccountKind
@@ -1436,27 +1531,29 @@ var file_auth_v1_auth_proto_depIdxs = []int32{
 	3,  // 8: auth.v1.CompleteEmailSignInResponse.outcome:type_name -> auth.v1.SignInOutcome
 	5,  // 9: auth.v1.EmailRefusal.reason:type_name -> auth.v1.EmailRefusalReason
 	6,  // 10: auth.v1.AuthService.CreateSession:input_type -> auth.v1.CreateSessionRequest
-	8,  // 11: auth.v1.AuthService.GetMe:input_type -> auth.v1.GetMeRequest
-	10, // 12: auth.v1.AuthService.GetSignInOptions:input_type -> auth.v1.GetSignInOptionsRequest
-	12, // 13: auth.v1.AuthService.StartSignIn:input_type -> auth.v1.StartSignInRequest
-	14, // 14: auth.v1.AuthService.CompleteSignIn:input_type -> auth.v1.CompleteSignInRequest
-	17, // 15: auth.v1.AuthService.StartEmailSignIn:input_type -> auth.v1.StartEmailSignInRequest
-	19, // 16: auth.v1.AuthService.CompleteEmailSignIn:input_type -> auth.v1.CompleteEmailSignInRequest
-	22, // 17: auth.v1.AuthService.SignOut:input_type -> auth.v1.SignOutRequest
-	24, // 18: auth.v1.AuthService.SignOutEverywhere:input_type -> auth.v1.SignOutEverywhereRequest
-	26, // 19: auth.v1.AuthService.DeleteAccount:input_type -> auth.v1.DeleteAccountRequest
-	7,  // 20: auth.v1.AuthService.CreateSession:output_type -> auth.v1.CreateSessionResponse
-	9,  // 21: auth.v1.AuthService.GetMe:output_type -> auth.v1.GetMeResponse
-	11, // 22: auth.v1.AuthService.GetSignInOptions:output_type -> auth.v1.GetSignInOptionsResponse
-	13, // 23: auth.v1.AuthService.StartSignIn:output_type -> auth.v1.StartSignInResponse
-	15, // 24: auth.v1.AuthService.CompleteSignIn:output_type -> auth.v1.CompleteSignInResponse
-	18, // 25: auth.v1.AuthService.StartEmailSignIn:output_type -> auth.v1.StartEmailSignInResponse
-	20, // 26: auth.v1.AuthService.CompleteEmailSignIn:output_type -> auth.v1.CompleteEmailSignInResponse
-	23, // 27: auth.v1.AuthService.SignOut:output_type -> auth.v1.SignOutResponse
-	25, // 28: auth.v1.AuthService.SignOutEverywhere:output_type -> auth.v1.SignOutEverywhereResponse
-	27, // 29: auth.v1.AuthService.DeleteAccount:output_type -> auth.v1.DeleteAccountResponse
-	20, // [20:30] is the sub-list for method output_type
-	10, // [10:20] is the sub-list for method input_type
+	8,  // 11: auth.v1.AuthService.ResumeSession:input_type -> auth.v1.ResumeSessionRequest
+	10, // 12: auth.v1.AuthService.GetMe:input_type -> auth.v1.GetMeRequest
+	12, // 13: auth.v1.AuthService.GetSignInOptions:input_type -> auth.v1.GetSignInOptionsRequest
+	14, // 14: auth.v1.AuthService.StartSignIn:input_type -> auth.v1.StartSignInRequest
+	16, // 15: auth.v1.AuthService.CompleteSignIn:input_type -> auth.v1.CompleteSignInRequest
+	19, // 16: auth.v1.AuthService.StartEmailSignIn:input_type -> auth.v1.StartEmailSignInRequest
+	21, // 17: auth.v1.AuthService.CompleteEmailSignIn:input_type -> auth.v1.CompleteEmailSignInRequest
+	24, // 18: auth.v1.AuthService.SignOut:input_type -> auth.v1.SignOutRequest
+	26, // 19: auth.v1.AuthService.SignOutEverywhere:input_type -> auth.v1.SignOutEverywhereRequest
+	28, // 20: auth.v1.AuthService.DeleteAccount:input_type -> auth.v1.DeleteAccountRequest
+	7,  // 21: auth.v1.AuthService.CreateSession:output_type -> auth.v1.CreateSessionResponse
+	9,  // 22: auth.v1.AuthService.ResumeSession:output_type -> auth.v1.ResumeSessionResponse
+	11, // 23: auth.v1.AuthService.GetMe:output_type -> auth.v1.GetMeResponse
+	13, // 24: auth.v1.AuthService.GetSignInOptions:output_type -> auth.v1.GetSignInOptionsResponse
+	15, // 25: auth.v1.AuthService.StartSignIn:output_type -> auth.v1.StartSignInResponse
+	17, // 26: auth.v1.AuthService.CompleteSignIn:output_type -> auth.v1.CompleteSignInResponse
+	20, // 27: auth.v1.AuthService.StartEmailSignIn:output_type -> auth.v1.StartEmailSignInResponse
+	22, // 28: auth.v1.AuthService.CompleteEmailSignIn:output_type -> auth.v1.CompleteEmailSignInResponse
+	25, // 29: auth.v1.AuthService.SignOut:output_type -> auth.v1.SignOutResponse
+	27, // 30: auth.v1.AuthService.SignOutEverywhere:output_type -> auth.v1.SignOutEverywhereResponse
+	29, // 31: auth.v1.AuthService.DeleteAccount:output_type -> auth.v1.DeleteAccountResponse
+	21, // [21:32] is the sub-list for method output_type
+	10, // [10:21] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
 	10, // [10:10] is the sub-list for extension extendee
 	0,  // [0:10] is the sub-list for field type_name
@@ -1473,7 +1570,7 @@ func file_auth_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_auth_proto_rawDesc), len(file_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   22,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

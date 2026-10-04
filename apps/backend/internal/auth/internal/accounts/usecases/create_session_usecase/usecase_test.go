@@ -54,8 +54,9 @@ func setUp(t *testing.T) fixture {
 }
 
 func (f fixture) useCase(attester attestation.Attester) *create_session_usecase.UseCase {
-	return create_session_usecase.New(attester, f.sessions, &accounts.SequentialIDs{}, &accounts.SequentialTokens{},
-		f.signer, accounts.Lifetime{}.WithDefaults(), f.clock)
+	lifetime := accounts.Lifetime{}.WithDefaults()
+	return create_session_usecase.New(attester, accounts.NewResumer(f.sessions, lifetime),
+		accounts.NewGuests(f.sessions, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime), f.signer, f.clock)
 }
 
 func (f fixture) create(t *testing.T, useCase *create_session_usecase.UseCase, cookieHeader string) *create_session_usecase.Out {

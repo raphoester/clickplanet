@@ -172,15 +172,20 @@ func TestTheBudgetIsAbsentWithoutAThrottle(t *testing.T) {
 
 type accountVerifier struct{}
 
-const linkedPrefix = "linked "
+const (
+	linkedPrefix = "linked "
+	namedPrefix  = "named "
+)
 
 func (accountVerifier) Verify(_ context.Context, token string, _ string, _ time.Time) (*cpsession.Claims, error) {
+	named := strings.HasPrefix(token, namedPrefix)
+	token = strings.TrimPrefix(token, namedPrefix)
 	linked := strings.HasPrefix(token, linkedPrefix)
 	account, err := uuid.Parse(strings.TrimPrefix(token, linkedPrefix))
 	if err != nil {
 		return nil, fmt.Errorf("not an account: %w", err)
 	}
-	return &cpsession.Claims{ID: "a-mint", Account: cpsession.AccountID(account), Linked: linked}, nil
+	return &cpsession.Claims{ID: "a-mint", Account: cpsession.AccountID(account), Linked: linked, Attested: !named}, nil
 }
 
 func accountServer(t *testing.T, config clicks.ThrottleConfig) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
