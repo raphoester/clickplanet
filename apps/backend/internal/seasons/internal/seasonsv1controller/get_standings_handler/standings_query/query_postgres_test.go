@@ -228,6 +228,24 @@ func (s *testSuite) TestACountryThatIsNotOneIsRefusedAndReadsNothing() {
 	s.Zero(s.authors.asked)
 }
 
+func (s *testSuite) TestABoardIsTheTopAndTheAccountOfEachLineInItsOrder() {
+	s.player(1, "fr", 5)
+	s.guest(2, "fr", 9)
+	s.player(3, "de", 7)
+
+	board, accounts, err := s.query().Board(s.T().Context(), "")
+
+	s.Require().NoError(err)
+	s.Equal(lines(s.standings("")), lines(&seasonsv1.GetStandingsResponse{Standings: board.GetStandings()}))
+	s.Equal([]standings.AccountID{account(3), account(1)}, accounts)
+}
+
+func (s *testSuite) TestABoardOfACountryThatIsNotOneIsRefused() {
+	_, _, err := s.query().Board(s.T().Context(), "zz")
+
+	s.Require().ErrorIs(err, standings_query.ErrUnknownCountry)
+}
+
 func (s *testSuite) TestAFailureToNameIsAnError() {
 	s.player(1, "fr", 3)
 	refused := errors.New("the player module is down")

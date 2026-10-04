@@ -463,6 +463,212 @@ func (x *GetMySeasonResponse) GetCountryTiles() uint64 {
 	return 0
 }
 
+type ListenForEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListenForEventsRequest) Reset() {
+	*x = ListenForEventsRequest{}
+	mi := &file_seasons_v1_seasons_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListenForEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListenForEventsRequest) ProtoMessage() {}
+
+func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_seasons_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListenForEventsRequest) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+type SeasonEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Event:
+	//
+	//	*SeasonEvent_Board
+	//	*SeasonEvent_Heartbeat
+	Event         isSeasonEvent_Event `protobuf_oneof:"event"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SeasonEvent) Reset() {
+	*x = SeasonEvent{}
+	mi := &file_seasons_v1_seasons_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SeasonEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeasonEvent) ProtoMessage() {}
+
+func (x *SeasonEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_seasons_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeasonEvent.ProtoReflect.Descriptor instead.
+func (*SeasonEvent) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SeasonEvent) GetEvent() isSeasonEvent_Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *SeasonEvent) GetBoard() *Board {
+	if x != nil {
+		if x, ok := x.Event.(*SeasonEvent_Board); ok {
+			return x.Board
+		}
+	}
+	return nil
+}
+
+func (x *SeasonEvent) GetHeartbeat() *Heartbeat {
+	if x != nil {
+		if x, ok := x.Event.(*SeasonEvent_Heartbeat); ok {
+			return x.Heartbeat
+		}
+	}
+	return nil
+}
+
+type isSeasonEvent_Event interface {
+	isSeasonEvent_Event()
+}
+
+type SeasonEvent_Board struct {
+	Board *Board `protobuf:"bytes,1,opt,name=board,proto3,oneof"`
+}
+
+type SeasonEvent_Heartbeat struct {
+	Heartbeat *Heartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
+}
+
+func (*SeasonEvent_Board) isSeasonEvent_Event() {}
+
+func (*SeasonEvent_Heartbeat) isSeasonEvent_Event() {}
+
+type Board struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Standings     []*Standing            `protobuf:"bytes,1,rep,name=standings,proto3" json:"standings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Board) Reset() {
+	*x = Board{}
+	mi := &file_seasons_v1_seasons_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Board) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Board) ProtoMessage() {}
+
+func (x *Board) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_seasons_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Board.ProtoReflect.Descriptor instead.
+func (*Board) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *Board) GetStandings() []*Standing {
+	if x != nil {
+		return x.Standings
+	}
+	return nil
+}
+
+type Heartbeat struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Heartbeat) Reset() {
+	*x = Heartbeat{}
+	mi := &file_seasons_v1_seasons_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Heartbeat) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Heartbeat) ProtoMessage() {}
+
+func (x *Heartbeat) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_seasons_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
+func (*Heartbeat) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{11}
+}
+
 var File_seasons_v1_seasons_proto protoreflect.FileDescriptor
 
 const file_seasons_v1_seasons_proto_rawDesc = "" +
@@ -502,11 +708,22 @@ const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"\fcountry_rank\x18\x04 \x01(\rR\vcountryRank\x12/\n" +
 	"\n" +
 	"worn_title\x18\x05 \x01(\v2\x10.player.v1.TitleR\twornTitle\x12#\n" +
-	"\rcountry_tiles\x18\x06 \x01(\x04R\fcountryTiles2\x86\x02\n" +
+	"\rcountry_tiles\x18\x06 \x01(\x04R\fcountryTiles\"7\n" +
+	"\x16ListenForEventsRequest\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\"x\n" +
+	"\vSeasonEvent\x12)\n" +
+	"\x05board\x18\x01 \x01(\v2\x11.seasons.v1.BoardH\x00R\x05board\x125\n" +
+	"\theartbeat\x18\x02 \x01(\v2\x15.seasons.v1.HeartbeatH\x00R\theartbeatB\a\n" +
+	"\x05event\";\n" +
+	"\x05Board\x122\n" +
+	"\tstandings\x18\x01 \x03(\v2\x14.seasons.v1.StandingR\tstandings\"\v\n" +
+	"\tHeartbeat2\xd8\x02\n" +
 	"\rSeasonService\x12M\n" +
 	"\tGetSeason\x12\x1c.seasons.v1.GetSeasonRequest\x1a\x1d.seasons.v1.GetSeasonResponse\"\x03\x90\x02\x01\x12V\n" +
 	"\fGetStandings\x12\x1f.seasons.v1.GetStandingsRequest\x1a .seasons.v1.GetStandingsResponse\"\x03\x90\x02\x01\x12N\n" +
-	"\vGetMySeason\x12\x1e.seasons.v1.GetMySeasonRequest\x1a\x1f.seasons.v1.GetMySeasonResponseB\xbb\x01\n" +
+	"\vGetMySeason\x12\x1e.seasons.v1.GetMySeasonRequest\x1a\x1f.seasons.v1.GetMySeasonResponse\x12P\n" +
+	"\x0fListenForEvents\x12\".seasons.v1.ListenForEventsRequest\x1a\x17.seasons.v1.SeasonEvent0\x01B\xbb\x01\n" +
 	"\x0ecom.seasons.v1B\fSeasonsProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1;seasonsv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Seasons.V1\xca\x02\n" +
 	"Seasons\\V1\xe2\x02\x16Seasons\\V1\\GPBMetadata\xea\x02\vSeasons::V1b\x06proto3"
@@ -523,36 +740,45 @@ func file_seasons_v1_seasons_proto_rawDescGZIP() []byte {
 	return file_seasons_v1_seasons_proto_rawDescData
 }
 
-var file_seasons_v1_seasons_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_seasons_v1_seasons_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_seasons_v1_seasons_proto_goTypes = []any{
-	(*GetSeasonRequest)(nil),     // 0: seasons.v1.GetSeasonRequest
-	(*GetSeasonResponse)(nil),    // 1: seasons.v1.GetSeasonResponse
-	(*Season)(nil),               // 2: seasons.v1.Season
-	(*GetStandingsRequest)(nil),  // 3: seasons.v1.GetStandingsRequest
-	(*GetStandingsResponse)(nil), // 4: seasons.v1.GetStandingsResponse
-	(*Standing)(nil),             // 5: seasons.v1.Standing
-	(*GetMySeasonRequest)(nil),   // 6: seasons.v1.GetMySeasonRequest
-	(*GetMySeasonResponse)(nil),  // 7: seasons.v1.GetMySeasonResponse
-	(v1.NameColor)(0),            // 8: player.v1.NameColor
-	(*v1.Title)(nil),             // 9: player.v1.Title
+	(*GetSeasonRequest)(nil),       // 0: seasons.v1.GetSeasonRequest
+	(*GetSeasonResponse)(nil),      // 1: seasons.v1.GetSeasonResponse
+	(*Season)(nil),                 // 2: seasons.v1.Season
+	(*GetStandingsRequest)(nil),    // 3: seasons.v1.GetStandingsRequest
+	(*GetStandingsResponse)(nil),   // 4: seasons.v1.GetStandingsResponse
+	(*Standing)(nil),               // 5: seasons.v1.Standing
+	(*GetMySeasonRequest)(nil),     // 6: seasons.v1.GetMySeasonRequest
+	(*GetMySeasonResponse)(nil),    // 7: seasons.v1.GetMySeasonResponse
+	(*ListenForEventsRequest)(nil), // 8: seasons.v1.ListenForEventsRequest
+	(*SeasonEvent)(nil),            // 9: seasons.v1.SeasonEvent
+	(*Board)(nil),                  // 10: seasons.v1.Board
+	(*Heartbeat)(nil),              // 11: seasons.v1.Heartbeat
+	(v1.NameColor)(0),              // 12: player.v1.NameColor
+	(*v1.Title)(nil),               // 13: player.v1.Title
 }
 var file_seasons_v1_seasons_proto_depIdxs = []int32{
-	2, // 0: seasons.v1.GetSeasonResponse.season:type_name -> seasons.v1.Season
-	5, // 1: seasons.v1.GetStandingsResponse.standings:type_name -> seasons.v1.Standing
-	8, // 2: seasons.v1.Standing.color:type_name -> player.v1.NameColor
-	9, // 3: seasons.v1.Standing.worn_title:type_name -> player.v1.Title
-	9, // 4: seasons.v1.GetMySeasonResponse.worn_title:type_name -> player.v1.Title
-	0, // 5: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
-	3, // 6: seasons.v1.SeasonService.GetStandings:input_type -> seasons.v1.GetStandingsRequest
-	6, // 7: seasons.v1.SeasonService.GetMySeason:input_type -> seasons.v1.GetMySeasonRequest
-	1, // 8: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
-	4, // 9: seasons.v1.SeasonService.GetStandings:output_type -> seasons.v1.GetStandingsResponse
-	7, // 10: seasons.v1.SeasonService.GetMySeason:output_type -> seasons.v1.GetMySeasonResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	2,  // 0: seasons.v1.GetSeasonResponse.season:type_name -> seasons.v1.Season
+	5,  // 1: seasons.v1.GetStandingsResponse.standings:type_name -> seasons.v1.Standing
+	12, // 2: seasons.v1.Standing.color:type_name -> player.v1.NameColor
+	13, // 3: seasons.v1.Standing.worn_title:type_name -> player.v1.Title
+	13, // 4: seasons.v1.GetMySeasonResponse.worn_title:type_name -> player.v1.Title
+	10, // 5: seasons.v1.SeasonEvent.board:type_name -> seasons.v1.Board
+	11, // 6: seasons.v1.SeasonEvent.heartbeat:type_name -> seasons.v1.Heartbeat
+	5,  // 7: seasons.v1.Board.standings:type_name -> seasons.v1.Standing
+	0,  // 8: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
+	3,  // 9: seasons.v1.SeasonService.GetStandings:input_type -> seasons.v1.GetStandingsRequest
+	6,  // 10: seasons.v1.SeasonService.GetMySeason:input_type -> seasons.v1.GetMySeasonRequest
+	8,  // 11: seasons.v1.SeasonService.ListenForEvents:input_type -> seasons.v1.ListenForEventsRequest
+	1,  // 12: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
+	4,  // 13: seasons.v1.SeasonService.GetStandings:output_type -> seasons.v1.GetStandingsResponse
+	7,  // 14: seasons.v1.SeasonService.GetMySeason:output_type -> seasons.v1.GetMySeasonResponse
+	9,  // 15: seasons.v1.SeasonService.ListenForEvents:output_type -> seasons.v1.SeasonEvent
+	12, // [12:16] is the sub-list for method output_type
+	8,  // [8:12] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_seasons_v1_seasons_proto_init() }
@@ -560,13 +786,17 @@ func file_seasons_v1_seasons_proto_init() {
 	if File_seasons_v1_seasons_proto != nil {
 		return
 	}
+	file_seasons_v1_seasons_proto_msgTypes[9].OneofWrappers = []any{
+		(*SeasonEvent_Board)(nil),
+		(*SeasonEvent_Heartbeat)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seasons_v1_seasons_proto_rawDesc), len(file_seasons_v1_seasons_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

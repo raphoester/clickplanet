@@ -205,7 +205,7 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
-| `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason` | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
+| `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 
 A module cannot import another's interior, so the key client all four need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -514,7 +514,7 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
 
 Both live feeds are served **two ways at once**, and that is a transition, not a design:
 
-- `ClickService.ListenForEvents` → `stream PlanetEvent`, `ChatService.ListenForEvents` → `stream ChatEvent`, and `PlayerService.ListenForEvents` → `stream PlayerEvent`. Ordinary Connect server-streaming RPCs, on the same routes and the same port as everything else.
+- `ClickService.ListenForEvents` → `stream PlanetEvent`, `ChatService.ListenForEvents` → `stream ChatEvent`, `PlayerService.ListenForEvents` → `stream PlayerEvent`, and `SeasonService.ListenForEvents` → `stream SeasonEvent`. Ordinary Connect server-streaming RPCs, on the same routes and the same port as everything else.
 
 **One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message`, `heartbeat`, `reactions` and `announcement`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
 
@@ -1201,10 +1201,16 @@ internal/seasons/internal/
     postgres_contribution_store/  the Store over seasons.contributions
     inmemory_contribution_store/  the same port in a map, behind the testing tag
     usecases/record_take_usecase/  forget_account_usecase/
+      record_take_usecase/marking_record_take/        marks the live boards a take moved, once it is kept
+      forget_account_usecase/marking_forget_account/  marks the live boards that list an account, once it is forgotten
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
-    get_standings_handler/standings_query/   PostgresQuery: GetStandingsResponse from SQL, named — Authors
+    get_standings_handler/standings_query/   PostgresQuery: GetStandingsResponse from SQL, named, and the same top as
+                                  a Board with the account of each line, for the live boards — Authors
       rpc_player_authors/         Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
+    listen_for_events_handler/    the stream: the view's board, each new one, a heartbeat — Boards, CountryChecker
+      inprocess_board_feed/       the boards streams follow, each read through standings_query; a Runner
+        log_board_reader/         logs a board it could not read
     get_my_season_handler/my_season_query/   PostgresQuery: GetMySeasonResponse from SQL, ranked — Authors
       rpc_player_authors/         the same adapter, for this query
     caller/                       the account on the context, or Unauthenticated
@@ -1226,7 +1232,12 @@ internal/seasons/internal/
 - **`auth.v1.AccountDeleted`** (`seasons-standings-accounts`) deletes the account's rows in every season.
 - **The reads are queries** (see [Reads are queries](#reads-are-queries)): the write model is `Take`, `Tally` and a `Store` that only records and deletes. Each query reads `seasons.contributions` itself and asks `GetAuthors` through its own `rpc_player_authors`. The module dials the internal listener once, at build, and both adapters share that one `player.v1` client; with no internal listener the boot is refused.
 - **Only a signed-in player is ranked**: every one has a username (see [Player](#player-internalplayer)), and a guest has none. SQL cannot tell them apart, so a query reads the rows and Go skips what `GetAuthors` answers as a guest, or does not answer at all. A tie shares the rank (1, 1, 3).
-- **`GetStandings(country_id)`** (`standings_query`) is the current season's top 10 (`standings_query.Shown`): of every player by its main flag's tiles, or of every player who took tiles for `country_id` by those tiles. Each is rank, name, color, worn title, the flag its tiles are for (the main flag, or `country_id`) and tiles. It needs no token, is a GET (`NO_SIDE_EFFECTS`) and answers `public, max-age=15`. The rows (the main rows, or the country's) come best first, then by account id, 200 at a time from a keyset on `(tiles, account_id)`, with one `GetAuthors` a page, until 10 are named. A country that is not one is `InvalidArgument` (`standings_query.ErrUnknownCountry`); no season is an empty answer.
+- **`GetStandings(country_id)`** (`standings_query`) is the current season's top 10 (`standings_query.Shown`): of every player by its main flag's tiles, or of every player who took tiles for `country_id` by those tiles. Each is rank, name, color, worn title, the flag its tiles are for (the main flag, or `country_id`) and tiles. It needs no token, is a GET (`NO_SIDE_EFFECTS`) and answers `public, max-age=15`. The rows (the main rows, or the country's) come best first, then by account id, 200 at a time from a keyset on `(tiles, account_id)`, with one `GetAuthors` a page, until 10 are named. A country that is not one is `InvalidArgument` (`standings_query.ErrUnknownCountry`); no season is an empty answer. The web client no longer calls it: it stays for clients from before the stream.
+- **`ListenForEvents(country_id)`** is the same top 10, live. It needs no token. The first event is the view's whole `board` (`Board`, the `Standing`s of `GetStandings`), each one after is the whole board again once it changed, and a `heartbeat` comes every `httpServer.streamHeartbeat`. A country that is not one is `InvalidArgument` before anything is followed. **One read per view, whatever the number of streams**: `inprocess_board_feed` keeps, for each view a stream follows, the last board and the accounts on it, and forgets the view when its last stream closes.
+  - **What moves a board.** `marking_record_take` wraps `record_take_usecase` and, once a take is kept, marks the board of every player and the board of the take's flag: a take changes only the taker's tiles for that flag, which only those two boards show. `marking_forget_account` marks every board that lists a deleted account. So a board no take touched is not read.
+  - **When it is read** (`Feed.Refresh`, every 250ms, and at once for a view nobody followed before): a marked board at most once a second (`Every`), and every followed board at least every 15s (`AtLeast`), for what no event here says: a rename, a new color or title, a guest who signed in, the season's end. A board equal to the last one is not sent. Up to 8 views are read at once, each through `standings_query.Board`, one query and one `GetAuthors` a page, as `GetStandings`.
+  - **A slow stream skips to the newest board**: each holds one, and a new one replaces the one it did not take. A board is whole, so nothing is lost.
+  - **A failed read is tried again a second later** and logged (`log_board_reader`), but not when the shutdown cut it. The feed runs under the pool's `cppg.CloseAfter`, so it stops before the pool closes.
 - **`GetMySeason(country_id)`** (`my_season_query`) is the caller's main flag, its tiles for it and its rank among every player, and its tiles for `country_id` and its rank on that country's board (`country_tiles`, `country_rank`), and the title it wears, from the `GetAuthors` that tells it is not a guest. A rank is 0 and there is no title for a guest, and every number is 0 for an account with no take this season; the country's are 0 with no `country_id`, or no take for it. A country that is not one is `InvalidArgument` (`my_season_query.ErrUnknownCountry`). It sits behind `seasonsv1controller.NewSessionInterceptor`, always enforcing, on the key `auth` hands over (`seasons_session_checks{verdict}`), and takes the identity token (`cpconnect.Identified`): it only reads. It counts the ranked players above the caller: SQL reads the main rows with more tiles than the caller's main flag, and the country's rows with more than the caller's for it, each 500 at a time and both at once, and costs one `GetAuthors` a page.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
 

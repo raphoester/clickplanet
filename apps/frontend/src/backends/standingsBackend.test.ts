@@ -1,14 +1,18 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    Board,
     GetMySeasonResponse,
-    GetStandingsResponse,
+    Heartbeat,
+    SeasonEvent,
     Standing as StandingPb,
 } from "../gen/grpc/seasons/v1/seasons_pb.ts"
 import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 import {NameColor} from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
+import {Standing} from "./standings.ts"
 import {ConnectStandingsBackend} from "./standingsBackend.ts"
+import {NO_TIMEOUT} from "./transport.ts"
 
 const refusing = (code: Code) => vi.fn(async () => {
     throw new ConnectError("no", code)
@@ -39,55 +43,82 @@ const warlord = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", tra
 
 afterEach(() => vi.restoreAllMocks())
 
-describe("ConnectStandingsBackend.standings", () => {
-    it("reads each player's rank, name, color, main flag and tiles, in numbers", async () => {
-        const getStandings = vi.fn(async () => new GetStandingsResponse({
-            standings: [
+describe("ConnectStandingsBackend.listenForStandings", () => {
+    const board = (...standings: StandingPb[]) => new SeasonEvent({event: {case: "board", value: new Board({standings})}})
+    const heartbeat = new SeasonEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+
+    const streaming = (...events: SeasonEvent[]) =>
+        vi.fn<(req: object, options: {signal: AbortSignal, timeoutMs: number, headers?: Headers}) => AsyncIterable<SeasonEvent>>(
+            () => (async function* () {
+                yield* events
+                await new Promise(() => {})
+            })(),
+        )
+
+    it("reads each board the stream sends, in numbers, and skips the heartbeats", async () => {
+        const listenForEvents = streaming(
+            board(
                 new StandingPb({rank: 1, name: "Ana", color: NameColor.PINK, countryId: "fr", tiles: 1_204n}),
                 new StandingPb({rank: 2, name: "kiran_07", countryId: "in", tiles: 12n}),
-                new StandingPb({rank: 2, name: "Mateus", color: NameColor.TEAL, countryId: "br", tiles: 12n}),
-            ],
-        }))
+            ),
+            heartbeat,
+            board(new StandingPb({rank: 1, name: "Mateus", color: NameColor.TEAL, countryId: "br", tiles: 1_300n})),
+        )
+        const seen: unknown[] = []
 
-        expect(await backendWith({getStandings}).standings("")).toEqual([
-            {rank: 1, name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 1_204},
-            {rank: 2, name: "kiran_07", color: NameColor.UNSPECIFIED, countryCode: "in", tiles: 12},
-            {rank: 2, name: "Mateus", color: NameColor.TEAL, countryCode: "br", tiles: 12},
+        const stop = backendWith({listenForEvents}).listenForStandings("", (standings) => seen.push(standings))
+
+        await vi.waitFor(() => expect(seen).toHaveLength(2))
+        expect(seen).toEqual([
+            [
+                {rank: 1, name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 1_204},
+                {rank: 2, name: "kiran_07", color: NameColor.UNSPECIFIED, countryCode: "in", tiles: 12},
+            ],
+            [{rank: 1, name: "Mateus", color: NameColor.TEAL, countryCode: "br", tiles: 1_300}],
         ])
+        stop()
     })
 
     it("reads the title each player wears, and none where it wears none", async () => {
-        const getStandings = vi.fn(async () => new GetStandingsResponse({
-            standings: [
-                new StandingPb({rank: 1, name: "Ana", countryId: "fr", tiles: 9n, wornTitle: warlordPb}),
-                new StandingPb({rank: 2, name: "kiran_07", countryId: "in", tiles: 3n}),
-            ],
-        }))
+        const listenForEvents = streaming(board(
+            new StandingPb({rank: 1, name: "Ana", countryId: "fr", tiles: 9n, wornTitle: warlordPb}),
+            new StandingPb({rank: 2, name: "kiran_07", countryId: "in", tiles: 3n}),
+        ))
+        const seen: Standing[][] = []
 
-        const [ana, kiran] = await backendWith({getStandings}).standings("")
+        const stop = backendWith({listenForEvents}).listenForStandings("", (standings) => seen.push(standings))
 
+        await vi.waitFor(() => expect(seen).toHaveLength(1))
+        const [ana, kiran] = seen[0]
         expect(ana.wornTitle).toEqual(warlord)
         expect(kiran.wornTitle).toBeUndefined()
+        stop()
     })
 
-    it("asks for the players of one country, without a token", async () => {
-        const getStandings = vi.fn(async () => new GetStandingsResponse())
+    it("follows the players of one country, with no timeout and without a token", async () => {
+        const listenForEvents = streaming()
         const session = holding("token-1")
 
-        await backendWith({getStandings}, session).standings("fr")
+        const stop = backendWith({listenForEvents}, session).listenForStandings("fr", () => {})
 
-        expect(getStandings).toHaveBeenCalledWith({countryId: "fr"})
+        await vi.waitFor(() => expect(listenForEvents).toHaveBeenCalled())
+        const [req, options] = listenForEvents.mock.calls[0]
+        expect(req).toEqual({countryId: "fr"})
+        expect(options.timeoutMs).toBe(NO_TIMEOUT)
+        expect(options.headers?.get(SESSION_HEADER)).toBeUndefined()
         expect(session.held).not.toHaveBeenCalled()
         expect(session.token).not.toHaveBeenCalled()
+        stop()
     })
 
-    it("has nobody on a server without standings", async () => {
-        expect(await backendWith({getStandings: refusing(Code.Unimplemented)}).standings("")).toEqual([])
-        expect(await backendWith({getStandings: refusing(Code.NotFound)}).standings("")).toEqual([])
-    })
+    it("closes the stream when told to stop", async () => {
+        const listenForEvents = streaming()
 
-    it("passes on a refusal it does not know", async () => {
-        await expect(backendWith({getStandings: refusing(Code.PermissionDenied)}).standings("")).rejects.toThrow(ConnectError)
+        const stop = backendWith({listenForEvents}).listenForStandings("", () => {})
+        await vi.waitFor(() => expect(listenForEvents).toHaveBeenCalled())
+        stop()
+
+        expect(listenForEvents.mock.calls[0][1].signal.aborted).toBe(true)
     })
 })
 
