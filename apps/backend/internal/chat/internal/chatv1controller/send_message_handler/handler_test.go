@@ -29,13 +29,7 @@ func (s stubUseCase) Execute(_ context.Context, in send_message_usecase.In) (mes
 		return messages.Message{}, s.err
 	}
 
-	return messages.Message{
-		ID:         "message-1",
-		SentAt:     time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-		AuthorName: "guest_0b1c2d",
-		CountryID:  in.CountryID,
-		Text:       in.Text,
-	}, nil
+	return messages.NewMessage("message-1", time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), messages.NoAccount, in.CountryID, in.Text).Named(messages.AuthorOf("guest_0b1c2d", false, 0, 0, messages.Title{})), nil
 }
 
 func send(useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], error) {

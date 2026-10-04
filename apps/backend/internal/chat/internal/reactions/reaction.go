@@ -91,10 +91,10 @@ func (r Reactions) Tally(viewer Reactor) []Count {
 	counts := make([]Count, 0, len(r.given))
 	for _, each := range r.given {
 		counts = append(counts, Count{
-			Reaction: each.reaction,
-			Count:    len(each.reactors),
-			Mine:     viewer != NoReactor && slices.Contains(each.reactors, viewer),
-			Reactors: slices.Clone(each.reactors),
+			reaction: each.reaction,
+			total:    len(each.reactors),
+			mine:     viewer != NoReactor && slices.Contains(each.reactors, viewer),
+			reactors: slices.Clone(each.reactors),
 		})
 	}
 	return counts
@@ -120,21 +120,31 @@ func (r Reactions) Versioned(version uint64) Reactions {
 }
 
 func (r Reactions) TallyOf(id messages.MessageID) Tally {
-	return Tally{MessageID: id, Counts: r.Tally(NoReactor), Version: r.version}
+	return Tally{messageID: id, counts: r.Tally(NoReactor), version: r.version}
 }
 
 type Count struct {
-	Reaction Reaction
-	Count    int
-	Mine     bool
-	Reactors []Reactor
-	Names    []string
+	reaction Reaction
+	total    int
+	mine     bool
+	reactors []Reactor
+	names    []string
 }
+
+func (c Count) Reaction() Reaction { return c.reaction }
+
+func (c Count) Total() int { return c.total }
+
+func (c Count) Mine() bool { return c.mine }
+
+func (c Count) Reactors() []Reactor { return c.reactors }
+
+func (c Count) Names() []string { return c.names }
 
 func Named(counts []Count, authors map[messages.AccountID]messages.Author) []Count {
 	named := make([]Count, 0, len(counts))
 	for _, count := range counts {
-		count.Names = namesOf(count.Reactors, authors)
+		count.names = namesOf(count.reactors, authors)
 		named = append(named, count)
 	}
 	return named
@@ -148,7 +158,7 @@ func namesOf(reactors []Reactor, authors map[messages.AccountID]messages.Author)
 			continue
 		}
 		if author, known := authors[account]; known {
-			names = append(names, author.Name)
+			names = append(names, author.Name())
 		}
 	}
 	return names
@@ -158,7 +168,7 @@ func AccountsOf(counts []Count) []messages.AccountID {
 	seen := cpcolls.NewSetWithCapacity[messages.AccountID](len(counts))
 	accounts := make([]messages.AccountID, 0, len(counts))
 	for _, count := range counts {
-		for _, reactor := range count.Reactors {
+		for _, reactor := range count.reactors {
 			account, isAccount := AccountOf(reactor)
 			if !isAccount || seen.Contains(account) {
 				continue
@@ -171,24 +181,53 @@ func AccountsOf(counts []Count) []messages.AccountID {
 }
 
 type Tally struct {
-	MessageID messages.MessageID
-	Counts    []Count
-	Version   uint64
+	messageID messages.MessageID
+	counts    []Count
+	version   uint64
+}
+
+func (t Tally) MessageID() messages.MessageID { return t.messageID }
+
+func (t Tally) Counts() []Count { return t.counts }
+
+func (t Tally) Version() uint64 { return t.version }
+
+func (t Tally) Named(authors map[messages.AccountID]messages.Author) Tally {
+	t.counts = Named(t.counts, authors)
+	return t
 }
 
 type Change struct {
-	MessageID messages.MessageID
-	Reaction  Reaction
-	Reactor   Reactor
-	On        bool
-	At        time.Time
+	messageID messages.MessageID
+	reaction  Reaction
+	reactor   Reactor
+	on        bool
+	at        time.Time
 }
 
+func On(message messages.MessageID, reaction Reaction, reactor Reactor, at time.Time) Change {
+	return Change{messageID: message, reaction: reaction, reactor: reactor, on: true, at: at}
+}
+
+func Off(message messages.MessageID, reaction Reaction, reactor Reactor, at time.Time) Change {
+	return Change{messageID: message, reaction: reaction, reactor: reactor, at: at}
+}
+
+func (c Change) MessageID() messages.MessageID { return c.messageID }
+
+func (c Change) Reaction() Reaction { return c.reaction }
+
+func (c Change) Reactor() Reactor { return c.reactor }
+
+func (c Change) On() bool { return c.on }
+
+func (c Change) At() time.Time { return c.at }
+
 func (r Reactions) Applied(change Change) Reactions {
-	if change.On {
-		return r.With(change.Reaction, change.Reactor)
+	if change.on {
+		return r.With(change.reaction, change.reactor)
 	}
-	return r.Without(change.Reaction, change.Reactor)
+	return r.Without(change.reaction, change.reactor)
 }
 
 var ErrUnknownMessage = errors.New("no such chat message")

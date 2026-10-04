@@ -9,9 +9,9 @@ import (
 
 func Encode(announcement announcements.Announcement) *chatv1.Announcement {
 	return &chatv1.Announcement{
-		Id:                uuid.UUID(announcement.ID).String(),
-		AnnouncedAtUnixMs: announcement.At.UnixMilli(),
-		Kind:              string(announcement.Kind),
-		Payload:           string(announcement.Payload),
+		Id:                uuid.UUID(announcement.ID()).String(),
+		AnnouncedAtUnixMs: announcement.At().UnixMilli(),
+		Kind:              string(announcement.Kind()),
+		Payload:           string(announcement.Payload()),
 	}
 }

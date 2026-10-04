@@ -90,7 +90,7 @@ func TestItAnswersTheName(t *testing.T) {
 	author, err := authors(t, player).Author(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, messages.Author{Name: "Ada_L", Admin: true}, author)
+	assert.Equal(t, messages.AuthorOf("Ada_L", true, 0, 0, messages.Title{}), author)
 	assert.Equal(t, ada.String(), *asked)
 }
 
@@ -105,7 +105,7 @@ func TestItAnswersTheColorAndTheStreak(t *testing.T) {
 	author, err := authors(t, player).Author(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, messages.Author{Name: "Ada_L", Color: int32(playerv1.NameColor_NAME_COLOR_TEAL), Streak: 12}, author)
+	assert.Equal(t, messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_TEAL), 12, messages.Title{}), author)
 }
 
 var settler = &playerv1.Title{
@@ -124,11 +124,9 @@ func TestItAnswersTheTitleWorn(t *testing.T) {
 	many, err := authors(t, player).Authors(t.Context(), []messages.AccountID{ada})
 	require.NoError(t, err)
 
-	want := messages.Title{
-		ID: "settler", Name: "Settler", Rank: messages.Rank{TrackID: "conquest", TrackName: "Conquest", Number: 1, Count: 5},
-	}
-	assert.Equal(t, want, author.Title)
-	assert.Equal(t, want, many[ada].Title)
+	want := messages.TitleOf("settler", "Settler", messages.RankOf("conquest", "Conquest", 1, 5))
+	assert.Equal(t, want, author.Title())
+	assert.Equal(t, want, many[ada].Title())
 }
 
 func TestAnAuthorWearingNothingHasNoTitle(t *testing.T) {
@@ -137,7 +135,7 @@ func TestAnAuthorWearingNothingHasNoTitle(t *testing.T) {
 	author, err := authors(t, player).Author(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.True(t, author.Title.Empty())
+	assert.True(t, author.Title().Empty())
 }
 
 func TestAPlayerModuleThatFailsIsAnError(t *testing.T) {

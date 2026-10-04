@@ -36,7 +36,7 @@ func react(ctx context.Context, useCase *stubUseCase, reaction chatv1.Reaction) 
 
 func TestReactMapsTheRequestAndTheAnswer(t *testing.T) {
 	ada := cpsession.AccountID{15: 1}
-	useCase := &stubUseCase{out: react_usecase.Out{Counts: []reactions.Count{{Reaction: 2, Count: 4, Mine: true}}, Version: 9}}
+	useCase := &stubUseCase{out: react_usecase.Out{Counts: []reactions.Count{reactions.CountOf(2, 4, true, nil, nil)}, Version: 9}}
 
 	res, err := react(cpctx.AddAccountToContext(t.Context(), ada.String()), useCase, chatv1.Reaction_REACTION_CLOWN)
 

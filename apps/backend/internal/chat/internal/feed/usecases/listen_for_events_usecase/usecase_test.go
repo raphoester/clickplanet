@@ -61,7 +61,7 @@ func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
 
 func TestAMessageIsCarriedToTheSink(t *testing.T) {
 	updates := make(chan feed.Update, 1)
-	updates <- feed.Update{Message: &messages.Message{ID: "message-1", Text: "hello"}}
+	updates <- feed.MessageSent(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", "hello"))
 
 	sink := &recorder{fed: make(chan struct{})}
 
@@ -76,7 +76,7 @@ func TestAMessageIsCarriedToTheSink(t *testing.T) {
 	require.NoError(t, <-done)
 
 	require.Equal(t, []listen_for_events_usecase.Event{
-		{Update: feed.Update{Message: &messages.Message{ID: "message-1", Text: "hello"}}},
+		{Update: feed.MessageSent(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", "hello"))},
 	}, sink.seen())
 }
 
@@ -113,7 +113,7 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 
 func TestAFailedSendEndsTheFeed(t *testing.T) {
 	updates := make(chan feed.Update, 1)
-	updates <- feed.Update{Message: &messages.Message{ID: "message-1"}}
+	updates <- feed.MessageSent(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", ""))
 
 	err := listen_for_events_usecase.New(stubSubscriber{feed: updates}, time.Hour).
 		Execute(t.Context(), &recorder{err: assert.AnError})
