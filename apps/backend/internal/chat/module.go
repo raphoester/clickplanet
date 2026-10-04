@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/postgres_announcement_store"
@@ -115,7 +116,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "chat")))
-	callers := cpcallers.NewLogged(cpcallers.New(props.Internal), props.Logger.With(slog.String("module", "chat")))
+	internal, internalURL, err := props.Internal.Dial()
+	if err != nil {
+		return fmt.Errorf("failed to reach the other modules: %w", err)
+	}
+	callers := cpcallers.NewLogged(cpcallers.New(authv1connect.NewInternalServiceClient(internal, internalURL)),
+		props.Logger.With(slog.String("module", "chat")))
 
 	err = props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return chatv1connect.NewChatServiceHandler(chatService, options...)

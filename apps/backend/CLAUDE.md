@@ -2310,6 +2310,9 @@ mounts them and lists its procedures, and nothing else.
 - The cookie names the account and when it was made (`cpctx.GetAccountCreated`, off the id), never whether it is
   linked: that rides on the token alone.
 - `cpcallers` is in `shared` for the same reason `cpsessionverifier` is: one copy for every module that asks.
+  It takes the auth client the module builds once, from `props.Internal.Dial()`, in its DI sequence: a call
+  builds nothing. So the chat refuses to boot with no `httpServer.internalBindAddress`, which it could not post
+  without anyway.
 - `TestTheCookieAloneNamesWhoReadsTheHistory` pins it over HTTP.
 
 ### Durability

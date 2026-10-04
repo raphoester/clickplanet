@@ -10,35 +10,28 @@ import (
 	"github.com/google/uuid"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-type Dialer interface {
-	Dial() (connect.HTTPClient, string, error)
+type Auth interface {
+	GetCaller(ctx context.Context, req *connect.Request[authv1.GetCallerRequest]) (*connect.Response[authv1.GetCallerResponse], error)
 }
 
 const askTimeout = time.Second
 
-func New(dial Dialer) *Callers {
-	return &Callers{dial: dial}
+func New(auth Auth) *Callers {
+	return &Callers{auth: auth}
 }
 
 type Callers struct {
-	dial Dialer
+	auth Auth
 }
 
 func (c *Callers) Caller(ctx context.Context, cookie string) (cpsession.AccountID, error) {
-	client, baseURL, err := c.dial.Dial()
-	if err != nil {
-		return cpsession.NoAccount, fmt.Errorf("failed to reach the auth module: %w", err)
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	res, err := authv1connect.NewInternalServiceClient(client, baseURL).GetCaller(ctx,
-		connect.NewRequest(&authv1.GetCallerRequest{Cookie: cookie}))
+	res, err := c.auth.GetCaller(ctx, connect.NewRequest(&authv1.GetCallerRequest{Cookie: cookie}))
 	if err != nil {
 		return cpsession.NoAccount, fmt.Errorf("failed to ask the auth module whose cookie this is: %w", err)
 	}
