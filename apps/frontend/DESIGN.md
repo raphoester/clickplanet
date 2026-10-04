@@ -69,9 +69,9 @@ system exists to stop.
 | `--refill`, `--spread`, `--bomb`, `--enclose` (and `-light`) | A bonus kind: its box, its slot, its reward line |
 | `--bronze` … `--holo-4`, `--conquest` … `--og-enamel` | Medals only (below) |
 
-- **A name's color is only a hue.** `authorHue` picks it; the saturation and the
-  lightness are tokens (`--author-*`), so no pick can be unreadable on a panel.
-  A guest has `--author-chroma: 0` and is grey.
+- **A name's color is only a hue.** `hueOf` reads it off the pick; the saturation
+  and the lightness are tokens (`--author-*`), so no pick can be unreadable on a
+  panel. A guest, or a player with no pick, has `--author-chroma: 0` and is grey.
 - **Other companies' colors follow their own rules**: the Google and Discord
   sign-in buttons keep their brand colors, in their components.
 - **The globe is not part of the system.** The earth, the flags, the tile

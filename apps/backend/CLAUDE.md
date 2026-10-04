@@ -986,7 +986,7 @@ internal/player/internal/
 - **`SetColor` picks the color a username is drawn in**, from `player.v1.NameColor`: the proto enum is the list,
   as `chat.v1.Reaction` is for reactions, and the number is what is stored, so a value is never renumbered or
   reused. `playermessage.ColorOf` refuses a number the proto does not name (`InvalidArgument`, `ErrInvalidColor`);
-  `NAME_COLOR_UNSPECIFIED` is a choice too, and gives the name back the hue the client hashes from it. It is one
+  `NAME_COLOR_UNSPECIFIED` is accepted too, and the client draws it grey, as a guest; it no longer offers it. It is one
   column, `profiles.color` (migration `20261002120000_name_colors`, `smallint`, 0 by default), written by
   `Store.SaveColor` alone: `SaveProfile` never writes it, so a rename keeps it. **Only a username has a color**:
   an account with no profile row is `FailedPrecondition` (`ErrNoProfile`), and a guest is drawn grey by the client
