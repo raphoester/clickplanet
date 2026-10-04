@@ -4,6 +4,7 @@ import {
     Bomber,
     BonusListener,
     BonusLostError,
+    MapFrozenError,
     OwnershipsGetter,
     QuizMaster,
     Refiller,
@@ -147,7 +148,7 @@ export default function Viewer(props: ViewerProps) {
     const spendRefill = refiller && (() => {
         if (clickBudget && tokensAt(clickBudget, budgetNow()) >= clickBudget.capacity) return false
         refiller.useRefill(countryState.code).catch((e) => {
-            if (e instanceof BankFullError || e instanceof BonusLostError) return
+            if (e instanceof BankFullError || e instanceof BonusLostError || e instanceof MapFrozenError) return
             console.error("could not use the refill", e)
         })
         return true

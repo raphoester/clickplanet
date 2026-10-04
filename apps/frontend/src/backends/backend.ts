@@ -143,3 +143,10 @@ export class VPNBlockedError extends Error {
         this.name = "VPNBlockedError"
     }
 }
+
+export class MapFrozenError extends Error {
+    constructor(options?: {cause?: unknown}) {
+        super("the map takes no more writes", options)
+        this.name = "MapFrozenError"
+    }
+}

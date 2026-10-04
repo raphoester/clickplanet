@@ -214,6 +214,20 @@ describe("optimistic clicks", () => {
         expect(store.rollback(claim)).toEqual([])
         expect(counts(store)).toEqual({})
     })
+
+    it("paints no click once the map is frozen, and still takes the server's word", () => {
+        const store = new TileOwnership(10)
+        store.applyBatch(batch({1: "jp"}))
+        store.freeze()
+
+        const {changes, claim} = store.applyOptimistic(1, "fr")
+
+        expect(changes).toEqual([])
+        expect(claim).toBeUndefined()
+        expect(store.ownerOf(1)).toBe("jp")
+        expect(store.applyUpdates([update(1, "fr")])).toEqual([{tile: 1, country: "fr"}])
+        expect(counts(store)).toEqual({fr: 1})
+    })
 })
 
 describe("optimistic clears", () => {

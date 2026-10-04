@@ -10,6 +10,7 @@ import {
     BonusOffer,
     ClaimedBonus,
     Enclosure,
+    MapFrozenError,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
@@ -28,6 +29,7 @@ import {
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
     GetMapResponse,
+    MapFrozen,
     PlanetEvent,
     SharedWith,
 } from "../gen/grpc/planet/v1/planet_pb.ts";
@@ -149,6 +151,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             this.followSession(token)
             if (spread && this.charges.spreadClicksLeft > 0) {
                 this.holdCharges({...this.charges, spreadClicksLeft: this.charges.spreadClicksLeft - 1})
+            }
+            if (res.gift) {
+                void this.readCharges(token)
+                void this.readBudget()
             }
         } catch (e) {
             this.anchorBudget(budgetDetailOf(e), countryId)
@@ -651,6 +657,7 @@ export function asBonusError(e: unknown): unknown {
     if (e instanceof SessionUnavailableError) return e
 
     if (e instanceof ConnectError) {
+        if (frozen(e)) return new MapFrozenError({cause: e})
         if (e.code === Code.NotFound || e.code === Code.Unimplemented) return new BonusLostError({cause: e})
         if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})
     }
@@ -659,9 +666,13 @@ export function asBonusError(e: unknown): unknown {
 }
 
 export function asRefillError(e: unknown): unknown {
-    if (e instanceof ConnectError && e.code === Code.FailedPrecondition) return new BankFullError({cause: e})
+    if (e instanceof ConnectError && e.code === Code.FailedPrecondition && !frozen(e)) return new BankFullError({cause: e})
 
     return asBonusError(e)
+}
+
+function frozen(e: ConnectError): boolean {
+    return e.code === Code.FailedPrecondition && e.findDetails(MapFrozen).length > 0
 }
 
 const SHARED_BY: Partial<Record<SharedWith, SharedBy>> = {
@@ -689,6 +700,7 @@ export function asClickError(e: unknown): unknown {
     if (e instanceof SessionUnavailableError) return e
 
     if (e instanceof ConnectError) {
+        if (frozen(e)) return new MapFrozenError({cause: e})
         if (e.code === Code.ResourceExhausted) return new RateLimitedError({cause: e})
         if (e.code === Code.PermissionDenied) return new VPNBlockedError({cause: e})
         if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})

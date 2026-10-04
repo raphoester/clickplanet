@@ -1,5 +1,18 @@
 import {describe, expect, it, vi} from "vitest"
-import {asBonusError, bindingsOf, bombOf, catchOf, enclosureOf, offerOf, PlanetBackend, quizOf, spreadOf, updateOf} from "./planetBackend.ts"
+import {
+    asBonusError,
+    asClickError,
+    asRefillError,
+    bindingsOf,
+    bombOf,
+    catchOf,
+    enclosureOf,
+    offerOf,
+    PlanetBackend,
+    quizOf,
+    spreadOf,
+    updateOf,
+} from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
     BombDropped,
@@ -13,13 +26,14 @@ import {
     GetMapResponse,
     GlobePoint,
     Heartbeat,
+    MapFrozen,
     PlanetEvent,
     SharedWith,
     TilesEnclosed,
     TilesSpread,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {BankFullError, BonusLostError, RateLimitedError, VPNBlockedError} from "./backend.ts"
+import {BankFullError, BonusLostError, MapFrozenError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
@@ -130,6 +144,10 @@ describe("bindingsOf", () => {
         expect(bindingsOf(res)).toEqual(new Map([[4, "jp"]]))
     })
 })
+
+function frozenMap(): ConnectError {
+    return new ConnectError("the map takes no more writes", Code.FailedPrecondition, undefined, [new MapFrozen()])
+}
 
 function noBudget() {
     return vi.fn().mockResolvedValue({})
@@ -332,6 +350,15 @@ describe("PlanetBackend.clickTile", () => {
         const backend = backendWith(vi.fn().mockRejectedValue(refused))
 
         await expect(backend.clickTile(1, "fr")).rejects.toMatchObject({cause: refused})
+        backend.close()
+    })
+
+    it("reports a frozen map as a MapFrozenError, without retrying", async () => {
+        const click = vi.fn().mockRejectedValue(frozenMap())
+        const backend = backendWith(click)
+
+        await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(MapFrozenError)
+        expect(click).toHaveBeenCalledTimes(1)
         backend.close()
     })
 
@@ -1047,6 +1074,29 @@ describe("asBonusError", () => {
     })
 })
 
+describe("a refusal from a frozen map", () => {
+    const onTheWire = () => {
+        const refused = new ConnectError("the map takes no more writes", Code.FailedPrecondition)
+        refused.details.push({type: MapFrozen.typeName, value: new Uint8Array()})
+        return refused
+    }
+
+    it("reads as MapFrozenError on a click, a drop and a refill, as the detail comes off the wire too", () => {
+        for (const refused of [frozenMap(), onTheWire()]) {
+            expect(asClickError(refused)).toBeInstanceOf(MapFrozenError)
+            expect(asBonusError(refused)).toBeInstanceOf(MapFrozenError)
+            expect(asRefillError(refused)).toBeInstanceOf(MapFrozenError)
+        }
+    })
+
+    it("needs the detail: a FailedPrecondition without it is still a full bank, and nothing for a click", () => {
+        const full = new ConnectError("full", Code.FailedPrecondition)
+
+        expect(asRefillError(full)).toBeInstanceOf(BankFullError)
+        expect(asClickError(full)).toBe(full)
+    })
+})
+
 describe("the rules", () => {
     const clientWith = (fields: Record<string, unknown>) =>
         ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(),
@@ -1179,6 +1229,19 @@ describe("the charges held", () => {
         backend.close()
     })
 
+    it("gives the bomb back when the map is frozen", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bomb: true})})
+        const dropBomb = vi.fn().mockRejectedValue(frozenMap())
+        const backend = new PlanetBackend(clientWith({getCharges, dropBomb}), 1_000)
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.bomb).toBe(true))
+
+        await expect(backend.dropBomb({x: 0, y: 0, z: 1}, "fr")).rejects.toBeInstanceOf(MapFrozenError)
+
+        expect(seen.at(-1)?.bomb).toBe(true)
+        backend.close()
+    })
+
     it("keeps the bomb gone when the server had none to drop", async () => {
         const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bomb: true})})
         const dropBomb = vi.fn().mockRejectedValue(new ConnectError("no bomb", Code.NotFound))
@@ -1209,6 +1272,38 @@ describe("the charges held", () => {
         await vi.waitFor(() => expect(getCharges).toHaveBeenCalledTimes(2))
         const headers = getCharges.mock.calls[1][1].headers as Headers
         expect(headers.get(SESSION_HEADER)).toBe("session-1")
+        backend.close()
+    })
+
+    it("reads them and the budget again after a click that brought a gift, and after no other", async () => {
+        const reading = (tokens: number) => ({budget: new ClickBudgetMessage({tokens, capacity: 10, refillPerSecond: 1})})
+        const getCharges = vi.fn()
+            .mockResolvedValueOnce({charges: new ChargesHeld()})
+            .mockResolvedValue({charges: new ChargesHeld({bomb: true})})
+        const getBudget = vi.fn()
+            .mockResolvedValueOnce(reading(3))
+            .mockResolvedValue(reading(10))
+        const click = vi.fn()
+            .mockResolvedValueOnce(reading(2))
+            .mockResolvedValueOnce({...reading(1), gift: true})
+        const backend = new PlanetBackend(clientWith({getCharges, getBudget, click}), 1_000, fixedSession("session-1"))
+        const seen = follow(backend)
+        const tokens: number[] = []
+        backend.watchClickBudget(b => tokens.push(b.tokens))
+        await vi.waitFor(() => expect(getCharges).toHaveBeenCalledTimes(1))
+        await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(1))
+
+        await backend.clickTile(1, "fr")
+        expect(getCharges).toHaveBeenCalledTimes(1)
+        expect(getBudget).toHaveBeenCalledTimes(1)
+
+        await backend.clickTile(2, "fr")
+
+        await vi.waitFor(() => expect(seen.at(-1)?.bomb).toBe(true))
+        await vi.waitFor(() => expect(tokens.at(-1)).toBe(10))
+        expect(getCharges).toHaveBeenCalledTimes(2)
+        expect(getBudget).toHaveBeenCalledTimes(2)
+        expect((getCharges.mock.calls[1][1].headers as Headers).get(SESSION_HEADER)).toBe("session-1")
         backend.close()
     })
 })
@@ -1252,6 +1347,19 @@ describe("the refill", () => {
         await vi.waitFor(() => expect(seen.at(-1)?.refill).toBe(true))
 
         await expect(backend.useRefill("fr")).rejects.toBeInstanceOf(BankFullError)
+
+        expect(seen.at(-1)?.refill).toBe(true)
+        backend.close()
+    })
+
+    it("reads a frozen map as MapFrozenError, not a full bank, and keeps the refill", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({refill: true})})
+        const useRefill = vi.fn().mockRejectedValue(frozenMap())
+        const backend = new PlanetBackend(clientWith({getCharges, useRefill}), 1_000)
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.refill).toBe(true))
+
+        await expect(backend.useRefill("fr")).rejects.toBeInstanceOf(MapFrozenError)
 
         expect(seen.at(-1)?.refill).toBe(true)
         backend.close()

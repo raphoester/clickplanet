@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
-import {drawsFrame, reportClickFailure, spinStep} from "./globe.ts"
-import {RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
+import {drawsFrame, reportClaimFailure, reportClickFailure, spinStep} from "./globe.ts"
+import {BonusLostError, MapFrozenError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts"
@@ -9,7 +9,7 @@ import {TileField} from "./tileField.ts"
 import {regions} from "./atlas.ts"
 
 function handlers() {
-    return {onRateLimited: vi.fn(), onVPNBlocked: vi.fn(), onSessionUnavailable: vi.fn()}
+    return {onRateLimited: vi.fn(), onVPNBlocked: vi.fn(), onSessionUnavailable: vi.fn(), onMapFrozen: vi.fn()}
 }
 
 describe("reportClickFailure", () => {
@@ -43,6 +43,20 @@ describe("reportClickFailure", () => {
         expect(h.onVPNBlocked).not.toHaveBeenCalled()
     })
 
+    it("takes a frozen map quietly: no dialog, no shake, nothing logged", () => {
+        const h = handlers()
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {})
+
+        expect(reportClickFailure(new MapFrozenError(), h)).toBe(true)
+
+        expect(h.onMapFrozen).toHaveBeenCalledTimes(1)
+        expect(h.onRateLimited).not.toHaveBeenCalled()
+        expect(h.onVPNBlocked).not.toHaveBeenCalled()
+        expect(h.onSessionUnavailable).not.toHaveBeenCalled()
+        expect(logged).not.toHaveBeenCalled()
+        logged.mockRestore()
+    })
+
     it("logs anything else and raises no dialog", () => {
         const h = handlers()
         const logged = vi.spyOn(console, "error").mockImplementation(() => {})
@@ -53,6 +67,22 @@ describe("reportClickFailure", () => {
         expect(h.onRateLimited).not.toHaveBeenCalled()
         expect(h.onVPNBlocked).not.toHaveBeenCalled()
         expect(h.onSessionUnavailable).not.toHaveBeenCalled()
+        expect(h.onMapFrozen).not.toHaveBeenCalled()
+        logged.mockRestore()
+    })
+})
+
+describe("reportClaimFailure", () => {
+    it("takes a bomb or a box refused on a frozen map quietly", () => {
+        const h = {onSessionUnavailable: vi.fn(), onMapFrozen: vi.fn()}
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {})
+
+        reportClaimFailure(new MapFrozenError(), h)
+        reportClaimFailure(new BonusLostError(), h)
+
+        expect(h.onMapFrozen).toHaveBeenCalledTimes(1)
+        expect(h.onSessionUnavailable).not.toHaveBeenCalled()
+        expect(logged).not.toHaveBeenCalled()
         logged.mockRestore()
     })
 })
@@ -124,6 +154,23 @@ describe("a refused click, from the paint to the rollback", () => {
 
         expect(regionOf(3)).toEqual([fr.x, fr.y, fr.width, fr.height])
         expect(tiles()).toEqual([{country: Countries.get("fr"), tiles: 1}])
+    })
+
+    it("paints no later click once one came back from a frozen map", () => {
+        const {ownership, applyChanges, regionOf, tiles} = wiring()
+
+        const first = ownership.applyOptimistic(3, "fr")
+        applyChanges(first.changes)
+        applyChanges(ownership.rollback(first.claim))
+        reportClickFailure(new MapFrozenError(), {...handlers(), onMapFrozen: () => ownership.freeze()})
+
+        const second = ownership.applyOptimistic(4, "fr")
+        applyChanges(second.changes)
+
+        expect(second.claim).toBeUndefined()
+        expect(regionOf(3)).toEqual([0, 0, 0, 0])
+        expect(regionOf(4)).toEqual([0, 0, 0, 0])
+        expect(tiles()).toEqual([])
     })
 })
 

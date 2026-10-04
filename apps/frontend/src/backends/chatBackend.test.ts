@@ -173,7 +173,7 @@ describe("messageOf", () => {
 })
 
 describe("decodedAnnouncement", () => {
-    const bomb = (payload: string, kind = "bomb") => new Announcement({
+    const announced = (payload: string, kind = "bomb") => new Announcement({
         id: "announcement-1",
         announcedAtUnixMs: BigInt(1_700_000_000_000),
         kind,
@@ -181,7 +181,7 @@ describe("decodedAnnouncement", () => {
     })
 
     it("reads a bomb on land", () => {
-        expect(decodedAnnouncement(bomb(`{"country":"fr","ground":"de","tile":42,"cleared":3}`))).toEqual({
+        expect(decodedAnnouncement(announced(`{"country":"fr","ground":"de","tile":42,"cleared":3}`))).toEqual({
             kind: "bomb",
             id: "announcement-1",
             announcedAt: 1_700_000_000_000,
@@ -193,24 +193,70 @@ describe("decodedAnnouncement", () => {
     })
 
     it("reads a bomb in the sea, with no ground and no tile", () => {
-        const announcement = decodedAnnouncement(bomb(`{"country":"fr","cleared":0}`))
+        expect(decodedAnnouncement(announced(`{"country":"fr","cleared":0}`))).toEqual({
+            kind: "bomb",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            country: "fr",
+            ground: undefined,
+            tile: undefined,
+            cleared: 0,
+        })
+    })
 
-        expect(announcement?.tile).toBeUndefined()
-        expect(announcement?.ground).toBeUndefined()
-        expect(announcement?.cleared).toBe(0)
+    it("reads a country passing the leader", () => {
+        expect(decodedAnnouncement(announced(`{"season":0,"leader":"bg","passed":"fr"}`, "lead_changed"))).toEqual({
+            kind: "leadChanged",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            season: 0,
+            leader: "bg",
+            passed: "fr",
+        })
+    })
+
+    it("drops a lead change with a country or the season missing", () => {
+        const lead = (payload: string) => decodedAnnouncement(announced(payload, "lead_changed"))
+
+        expect(lead(`{"season":0,"leader":"bg"}`)).toBeUndefined()
+        expect(lead(`{"season":0,"leader":"","passed":"fr"}`)).toBeUndefined()
+        expect(lead(`{"season":0,"leader":"bg","passed":7}`)).toBeUndefined()
+        expect(lead(`{"leader":"bg","passed":"fr"}`)).toBeUndefined()
+        expect(lead(`{"season":-1,"leader":"bg","passed":"fr"}`)).toBeUndefined()
+        expect(lead(`{"season":"0","leader":"bg","passed":"fr"}`)).toBeUndefined()
+    })
+
+    it("reads the winner of a season", () => {
+        expect(decodedAnnouncement(announced(`{"season":2,"winner":"dz"}`, "season_won"))).toEqual({
+            kind: "seasonWon",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            season: 2,
+            winner: "dz",
+        })
+    })
+
+    it("drops a season won with no winner or no season", () => {
+        const won = (payload: string) => decodedAnnouncement(announced(payload, "season_won"))
+
+        expect(won(`{"season":0}`)).toBeUndefined()
+        expect(won(`{"season":0,"winner":""}`)).toBeUndefined()
+        expect(won(`{"winner":"dz"}`)).toBeUndefined()
+        expect(won(`{"season":1.5,"winner":"dz"}`)).toBeUndefined()
+        expect(won(`null`)).toBeUndefined()
     })
 
     it("drops a kind it does not know, and a payload that is not the kind's", () => {
-        expect(decodedAnnouncement(bomb(`{"country":"fr"}`, "meteor"))).toBeUndefined()
-        expect(decodedAnnouncement(bomb(`not json`))).toBeUndefined()
-        expect(decodedAnnouncement(bomb(`{"cleared":3}`))).toBeUndefined()
-        expect(decodedAnnouncement(bomb(`null`))).toBeUndefined()
+        expect(decodedAnnouncement(announced(`{"country":"fr"}`, "meteor"))).toBeUndefined()
+        expect(decodedAnnouncement(announced(`not json`))).toBeUndefined()
+        expect(decodedAnnouncement(announced(`{"cleared":3}`))).toBeUndefined()
+        expect(decodedAnnouncement(announced(`null`))).toBeUndefined()
     })
 
     it("comes off the stream as the announcement case only", () => {
-        const event = new ChatEvent({event: {case: "announcement", value: bomb(`{"country":"fr","cleared":0}`)}})
+        const event = new ChatEvent({event: {case: "announcement", value: announced(`{"country":"fr","cleared":0}`)}})
 
-        expect(announcementOf(event)?.country).toBe("fr")
+        expect(announcementOf(event)).toMatchObject({kind: "bomb", country: "fr"})
         expect(announcementOf(new ChatEvent({event: {case: "message", value: proto()}}))).toBeUndefined()
     })
 })

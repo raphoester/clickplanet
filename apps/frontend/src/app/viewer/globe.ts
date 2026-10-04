@@ -22,6 +22,7 @@ import {
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
+    MapFrozenError,
     OwnershipsGetter,
     RateLimitedError,
     TileClicker,
@@ -213,6 +214,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const picker = new GpuPicker(renderer, field.pickingPoints);
     const ownership = new TileOwnership(field.size);
+    const onMapFrozen = () => ownership.freeze()
 
     let country: Country = initialCountry;
 
@@ -354,7 +356,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber.dropBomb({x: point.x, y: point.y, z: point.z}, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
             ownDropAt = undefined
-            reportClaimFailure(e, {onSessionUnavailable})
+            reportClaimFailure(e, {onSessionUnavailable, onMapFrozen})
         })
     }
 
@@ -513,7 +515,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 .then(takeReward)
                 .catch((e) => {
                     if (lifetime.signal.aborted) return
-                    reportClaimFailure(e, {onSessionUnavailable})
+                    reportClaimFailure(e, {onSessionUnavailable, onMapFrozen})
                 })
             return
         }
@@ -533,21 +535,23 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const outcome = outcomeOf(owner, ground, country.code)
 
         const {changes, claim} = ownership.applyOptimistic(tile, ownerAfter(outcome, owner, country.code))
-        applyChanges(changes)
-        playSound("click")
-        ownClicks.record(tile, country.code, performance.now() / 1000)
+        if (claim) {
+            applyChanges(changes)
+            playSound("click")
+            ownClicks.record(tile, country.code, performance.now() / 1000)
 
-        if (outcome === "cleared" && ground !== undefined) {
-            plainClicks.playOwnClear(tile)
-            onNativeCleared(ground)
-        } else {
-            plainClicks.playOwnClick(tile, camera)
+            if (outcome === "cleared" && ground !== undefined) {
+                plainClicks.playOwnClear(tile)
+                onNativeCleared(ground)
+            } else {
+                plainClicks.playOwnClick(tile, camera)
+            }
         }
 
         tileClicker.clickTile(tile, country.code, switches).catch((e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
-            if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onSessionUnavailable})) playSound("refused")
+            if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onSessionUnavailable, onMapFrozen})) playSound("refused")
         })
     }, listenerOptions);
 
@@ -773,10 +777,11 @@ function prefersReducedMotion(): boolean {
 
 export function reportClaimFailure(
     error: unknown,
-    handlers: {onSessionUnavailable: () => void},
+    handlers: {onSessionUnavailable: () => void, onMapFrozen: () => void},
 ) {
     if (error instanceof BonusLostError) return
     if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
+    else if (error instanceof MapFrozenError) handlers.onMapFrozen()
     else console.error(error)
 }
 
@@ -786,11 +791,13 @@ export function reportClickFailure(
         onRateLimited: () => void,
         onVPNBlocked: () => void,
         onSessionUnavailable: () => void,
+        onMapFrozen: () => void,
     },
 ): boolean {
     if (error instanceof RateLimitedError) handlers.onRateLimited()
     else if (error instanceof VPNBlockedError) handlers.onVPNBlocked()
     else if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
+    else if (error instanceof MapFrozenError) handlers.onMapFrozen()
     else {
         console.error(error)
         return false

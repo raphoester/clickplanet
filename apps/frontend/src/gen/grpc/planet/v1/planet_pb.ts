@@ -225,6 +225,13 @@ export class ClickResponse extends Message<ClickResponse> {
    */
   budget?: ClickBudget;
 
+  /**
+   * Read the charges again: this click brought a gift. Set whether or not the caller is banned.
+   *
+   * @generated from field: bool gift = 2;
+   */
+  gift = false;
+
   constructor(data?: PartialMessage<ClickResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -234,6 +241,7 @@ export class ClickResponse extends Message<ClickResponse> {
   static readonly typeName = "planet.v1.ClickResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "budget", kind: "message", T: ClickBudget },
+    { no: 2, name: "gift", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickResponse {
@@ -250,6 +258,39 @@ export class ClickResponse extends Message<ClickResponse> {
 
   static equals(a: ClickResponse | PlainMessage<ClickResponse> | undefined, b: ClickResponse | PlainMessage<ClickResponse> | undefined): boolean {
     return proto3.util.equals(ClickResponse, a, b);
+  }
+}
+
+/**
+ * The detail of a FailedPrecondition: the map takes no more writes.
+ *
+ * @generated from message planet.v1.MapFrozen
+ */
+export class MapFrozen extends Message<MapFrozen> {
+  constructor(data?: PartialMessage<MapFrozen>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.MapFrozen";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MapFrozen {
+    return new MapFrozen().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MapFrozen {
+    return new MapFrozen().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MapFrozen {
+    return new MapFrozen().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MapFrozen | PlainMessage<MapFrozen> | undefined, b: MapFrozen | PlainMessage<MapFrozen> | undefined): boolean {
+    return proto3.util.equals(MapFrozen, a, b);
   }
 }
 

@@ -48,6 +48,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         grounds: () => loadBorders(BORDERS_URL).then((data) => (tile: number) => countryOfTile(data, tile)),
     })
     const fakePresence = new FakePresenceBackend()
+    const fakeChat = new FakeChatBackend()
     Object.assign(window, {
         fakeBackend: fake,
         giveBomb: () => {
@@ -70,9 +71,16 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fakePresence.earnTitle(id)
             return "a title is unlocked"
         },
+        announceLead: (leader: string, passed: string, season?: number) => {
+            fakeChat.announceLead(leader, passed, season)
+            return "a lead change is in the chat"
+        },
+        announceWinner: (winner: string, season?: number) => {
+            fakeChat.announceWinner(winner, season)
+            return "a winner is in the chat"
+        },
     })
 
-    const fakeChat = new FakeChatBackend()
     const fakeSeason = new FakeSeasonBackend(SEASON_ZERO)
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
 
