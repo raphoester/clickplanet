@@ -31,12 +31,20 @@ type stubAuth struct {
 	calls int
 	key   string
 	err   error
+	held  chan struct{}
 }
 
 func (s *stubAuth) GetVerifyingKey(
 	_ context.Context,
 	_ *connect.Request[authv1.GetVerifyingKeyRequest],
 ) (*connect.Response[authv1.GetVerifyingKeyResponse], error) {
+	s.mu.Lock()
+	held := s.held
+	s.mu.Unlock()
+	if held != nil {
+		<-held
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -53,6 +61,14 @@ func (s *stubAuth) asked() int {
 	defer s.mu.Unlock()
 
 	return s.calls
+}
+
+func (s *stubAuth) hold() chan struct{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.held = make(chan struct{})
+	return s.held
 }
 
 func (s *stubAuth) answerWith(key string, err error) {
@@ -97,7 +113,7 @@ func TestItAsksAuthOnceAndKeepsTheKey(t *testing.T) {
 	require.NoError(t, err)
 
 	for range 5 {
-		_, err := verifier.Verify(token.Value, ip, now)
+		_, err := verifier.Verify(t.Context(), token.Value, ip, now)
 		require.NoError(t, err)
 	}
 
@@ -115,7 +131,7 @@ func TestConcurrentFirstClicksAskOnce(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := verifier.Verify(token.Value, ip, now)
+			_, err := verifier.Verify(t.Context(), token.Value, ip, now)
 			assert.NoError(t, err)
 		}()
 	}
@@ -134,12 +150,12 @@ func TestAFailedFetchIsNotRememberedAndTheNextClickTriesAgain(t *testing.T) {
 	token, err := signer.Mint(ip, cpsession.Nobody, now)
 	require.NoError(t, err)
 
-	_, err = verifier.Verify(token.Value, ip, now)
+	_, err = verifier.Verify(t.Context(), token.Value, ip, now)
 	require.Error(t, err)
 
 	auth.answerWith(public, nil)
 
-	claims, err := verifier.Verify(token.Value, ip, now)
+	claims, err := verifier.Verify(t.Context(), token.Value, ip, now)
 	require.NoError(t, err)
 	assert.Equal(t, token.ID, claims.ID)
 	assert.Equal(t, 2, auth.asked())
@@ -152,7 +168,7 @@ func TestAKeyThisServerCannotUseIsAnError(t *testing.T) {
 	token, err := signer.Mint(ip, cpsession.Nobody, now)
 	require.NoError(t, err)
 
-	_, err = verifier.Verify(token.Value, ip, now)
+	_, err = verifier.Verify(t.Context(), token.Value, ip, now)
 	assert.ErrorContains(t, err, "verifying key")
 }
 
@@ -160,6 +176,57 @@ func TestAnUnreachableAuthIsAnErrorRatherThanAPanic(t *testing.T) {
 	verifier := rpc_session_verifier.New(
 		dialer{err: errors.New("no internal listener")}, slog.New(slog.DiscardHandler))
 
-	_, err := verifier.Verify("whatever", ip, now)
+	_, err := verifier.Verify(t.Context(), "whatever", ip, now)
 	assert.ErrorContains(t, err, "failed to reach the auth module")
+}
+
+func TestACallerThatLeavesStopsWaitingAndTheFetchGoesOnForTheOthers(t *testing.T) {
+	verifier, auth, signer := setUp(t)
+	held := auth.hold()
+	token, err := signer.Mint(ip, cpsession.Nobody, now)
+	require.NoError(t, err)
+
+	leaving, leave := context.WithCancel(t.Context())
+	left := make(chan error, 1)
+	go func() {
+		_, err := verifier.Verify(leaving, token.Value, ip, now)
+		left <- err
+	}()
+	staying := make(chan error, 1)
+	go func() {
+		_, err := verifier.Verify(t.Context(), token.Value, ip, now)
+		staying <- err
+	}()
+
+	leave()
+	select {
+	case err := <-left:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(time.Second):
+		require.Fail(t, "a caller that left kept waiting for the key")
+	}
+
+	close(held)
+	select {
+	case err := <-staying:
+		require.NoError(t, err, "the fetch was not cancelled with the caller that started it")
+	case <-time.After(time.Second):
+		require.Fail(t, "the caller that stayed never got the key")
+	}
+	assert.Equal(t, 1, auth.asked())
+}
+
+func TestACallerWhoseContextIsDoneDoesNotWaitForAuth(t *testing.T) {
+	verifier, auth, signer := setUp(t)
+	held := auth.hold()
+	t.Cleanup(func() { close(held) })
+	token, err := signer.Mint(ip, cpsession.Nobody, now)
+	require.NoError(t, err)
+
+	done, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, err = verifier.Verify(done, token.Value, ip, now)
+
+	require.ErrorIs(t, err, context.Canceled)
 }
