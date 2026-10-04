@@ -5,6 +5,7 @@ import {
     GetStandingsResponse,
     Standing as StandingPb,
 } from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 import {NameColor} from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {ConnectStandingsBackend} from "./standingsBackend.ts"
@@ -29,6 +30,13 @@ const backendWith = (methods: Record<string, unknown>, session: SessionProvider 
 const headersOf = (call: ReturnType<typeof vi.fn>) =>
     (call.mock.calls[0] as unknown[])[1] as {headers: Headers}
 
+const warlordPb = new TitlePb({
+    id: "warlord",
+    name: "Warlord",
+    rank: new RankPb({trackId: "conquest", trackName: "Conquest", number: 3, count: 5}),
+})
+const warlord = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
+
 afterEach(() => vi.restoreAllMocks())
 
 describe("ConnectStandingsBackend.standings", () => {
@@ -46,6 +54,20 @@ describe("ConnectStandingsBackend.standings", () => {
             {rank: 2, name: "kiran_07", color: NameColor.UNSPECIFIED, countryCode: "in", tiles: 12},
             {rank: 2, name: "Mateus", color: NameColor.TEAL, countryCode: "br", tiles: 12},
         ])
+    })
+
+    it("reads the title each player wears, and none where it wears none", async () => {
+        const getStandings = vi.fn(async () => new GetStandingsResponse({
+            standings: [
+                new StandingPb({rank: 1, name: "Ana", countryId: "fr", tiles: 9n, wornTitle: warlordPb}),
+                new StandingPb({rank: 2, name: "kiran_07", countryId: "in", tiles: 3n}),
+            ],
+        }))
+
+        const [ana, kiran] = await backendWith({getStandings}).standings("")
+
+        expect(ana.wornTitle).toEqual(warlord)
+        expect(kiran.wornTitle).toBeUndefined()
     })
 
     it("asks for the players of one country, without a token", async () => {
@@ -75,6 +97,12 @@ describe("ConnectStandingsBackend.mySeason", () => {
 
         expect(await backendWith({getMySeason}).mySeason()).toEqual({countryCode: "fr", tiles: 340, globalRank: 12, countryRank: 3})
         expect(headersOf(getMySeason).headers.get(SESSION_HEADER)).toBe("token-1")
+    })
+
+    it("reads the title the caller wears", async () => {
+        const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "fr", tiles: 340n, globalRank: 12, countryRank: 3, wornTitle: warlordPb}))
+
+        expect((await backendWith({getMySeason}).mySeason())?.wornTitle).toEqual(warlord)
     })
 
     it("reads no flag and no rank where the server answers none", async () => {

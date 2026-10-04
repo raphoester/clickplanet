@@ -60,6 +60,7 @@ func (q *PostgresQuery) MySeason(ctx context.Context, account standings.AccountI
 		return mine, nil
 	}
 
+	mine.WornTitle = named[account].GetWornTitle()
 	mine.GlobalRank, mine.CountryRank = 1, 1
 	var after standings.AccountID
 	for {

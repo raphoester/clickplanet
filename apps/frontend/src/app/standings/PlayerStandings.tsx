@@ -5,6 +5,7 @@ import {boardWith} from "../../domain/standings.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import RankCoin from "../components/RankCoin.tsx"
+import TitleBadge from "../titles/TitleBadge.tsx"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {Caller, useMySeason} from "./useMySeason.ts"
 import {useStandings} from "./useStandings.ts"
@@ -51,6 +52,7 @@ function ownLine(caller: Caller, mine: MySeason | undefined, countryCode: string
         color: caller.color ?? NameColor.UNSPECIFIED,
         countryCode: mine.countryCode,
         tiles: mine.tiles,
+        wornTitle: mine.wornTitle,
     }
 }
 
@@ -122,6 +124,7 @@ function StandingRow({standing, you, onOpenPlayer}: StandingRowProps) {
                     : <span className="standings-name" style={style} title={standing.name}>
                         {standing.name}
                     </span>}
+                <TitleBadge title={standing.wornTitle} size={18}/>
             </span>
         </td>
         <td className="leaderboard-table-number">{standing.tiles}</td>
@@ -136,5 +139,6 @@ function playerOf(standing: Standing): PlayerLine {
         admin: false,
         color: standing.color,
         streak: 0,
+        wornTitle: standing.wornTitle,
     }
 }

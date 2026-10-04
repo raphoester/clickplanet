@@ -653,14 +653,14 @@ flame (`StreakFlame`) is the Noto fire of the reactions, `role="img"` named
 neither**: the server sends it no color and a streak of 0, so a signed-in player
 shows a flame only once it has a username.
 
-**A name wears its title too**, in the chat log and the roster: the medal of the
+**A name wears its title too**, in the chat log, the roster and the season board: the medal of the
 title its player wears, small, after the crown (`TitleBadge`, a `TitleEmblem`
 with `role="img"` named by the title). The server sends it with the name
-(`ChatMessage.authorTitle`, `RosterEntry.wornTitle`), read when shown, so a new
+(`ChatMessage.authorTitle`, `RosterEntry.wornTitle`, `Standing.wornTitle`), read when shown, so a new
 pick shows on the roster at once, on the next message, and on older ones once the
 chat is read again. A guest
 wears none. `backends/title.ts` holds `PlayerTitle` and `titleOf`, the one
-decoder of `player.v1.Title`, shared by the chat and the player backends.
+decoder of `player.v1.Title`, shared by the chat, the player and the standings backends.
 
 **An admin of the game wears a crown** (`AdminCrown`, gold, `role="img"` named
 "Admin") beside its name in the chat log, the roster and the card's title.
@@ -769,17 +769,17 @@ is the player's own view.
   rank per track of what one take earned, so a jump of two ranks is one overlay.
   A title earned while no tab is open is never announced; it is simply there next
   time.
-- **The worn title follows the name** in the chat and the roster, as a small
-  medal (see [Who is playing](#who-is-playing)).
+- **The worn title follows the name** in the chat, the roster and the season
+  board, as a small medal (see [Who is playing](#who-is-playing)).
 - **UI copy is not documentation.** The card and the tab say nothing about the
   rules ("one per track", "others see the title you wear"): what is drawn is the rule.
 
 ### Season standings
 
 `backends/standings.ts` is the contract: `StandingsBackend`, `Standing` (a
-ranked player: rank, name, color, main flag, tiles) and `MySeason` (the caller's
-main flag, tiles and ranks). `standingsBackend.ts` implements it over
-`seasons.v1.SeasonService/GetStandings` and `GetMySeason`, and
+ranked player: rank, name, color, worn title, main flag, tiles) and `MySeason`
+(the caller's main flag, tiles, ranks and worn title). `standingsBackend.ts`
+implements it over `seasons.v1.SeasonService/GetStandings` and `GetMySeason`, and
 `fakeStandingsBackend.ts` stands in for it in fake mode, counting the player's
 own clicks. `app/standings/` draws it.
 
@@ -827,9 +827,11 @@ own clicks. `app/standings/` draws it.
   a Sign in button beside its tiles, which opens `SignInPitchModal`. In the table
   the caller's row is marked when it is in the top 10, and otherwise added under
   it with its rank in that view: the global rank, or the country rank when the
-  country shown is its main flag. Its name and color come from the profile.
+  country shown is its main flag. Its name and color come from the profile, its
+  title from `GetMySeason`: read again after clicks, it follows a rank-up, and
+  a title picked meanwhile shows at the next read.
 - **A name opens the player card**, as in the roster and the chat, with its
-  main flag.
+  main flag and its title.
 - **The head's line is a background**, 7px above its bottom edge: the gap under
   it was the first row's top padding, and the caller's highlight took it in
   when it was first.

@@ -80,6 +80,7 @@ func (q *PostgresQuery) Standings(ctx context.Context, country string) (*seasons
 				Color:     author.GetColor(),
 				CountryId: line.country,
 				Tiles:     line.tiles,
+				WornTitle: author.GetWornTitle(),
 			})
 			if len(top) == Shown {
 				return &seasonsv1.GetStandingsResponse{Standings: top}, nil

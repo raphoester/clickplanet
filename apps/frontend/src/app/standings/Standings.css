@@ -68,6 +68,10 @@
     color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
 }
 
+.standings-who .title-badge {
+    margin-left: 0.35em;
+}
+
 .leaderboard-entry-player .standings-name {
     color: var(--text);
 }

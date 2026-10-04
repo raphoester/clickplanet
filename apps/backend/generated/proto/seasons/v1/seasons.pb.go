@@ -257,6 +257,7 @@ type Standing struct {
 	Color         v1.NameColor           `protobuf:"varint,3,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
 	CountryId     string                 `protobuf:"bytes,4,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	Tiles         uint64                 `protobuf:"varint,5,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	WornTitle     *v1.Title              `protobuf:"bytes,6,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -326,6 +327,13 @@ func (x *Standing) GetTiles() uint64 {
 	return 0
 }
 
+func (x *Standing) GetWornTitle() *v1.Title {
+	if x != nil {
+		return x.WornTitle
+	}
+	return nil
+}
+
 type GetMySeasonRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -368,6 +376,7 @@ type GetMySeasonResponse struct {
 	Tiles         uint64                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
 	GlobalRank    uint32                 `protobuf:"varint,3,opt,name=global_rank,json=globalRank,proto3" json:"global_rank,omitempty"`
 	CountryRank   uint32                 `protobuf:"varint,4,opt,name=country_rank,json=countryRank,proto3" json:"country_rank,omitempty"`
+	WornTitle     *v1.Title              `protobuf:"bytes,5,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -430,12 +439,19 @@ func (x *GetMySeasonResponse) GetCountryRank() uint32 {
 	return 0
 }
 
+func (x *GetMySeasonResponse) GetWornTitle() *v1.Title {
+	if x != nil {
+		return x.WornTitle
+	}
+	return nil
+}
+
 var File_seasons_v1_seasons_proto protoreflect.FileDescriptor
 
 const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"\n" +
 	"\x18seasons/v1/seasons.proto\x12\n" +
-	"seasons.v1\x1a\x15player/v1/color.proto\"\x12\n" +
+	"seasons.v1\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\"\x12\n" +
 	"\x10GetSeasonRequest\"?\n" +
 	"\x11GetSeasonResponse\x12*\n" +
 	"\x06season\x18\x01 \x01(\v2\x12.seasons.v1.SeasonR\x06season\"\x7f\n" +
@@ -447,22 +463,26 @@ const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\"J\n" +
 	"\x14GetStandingsResponse\x122\n" +
-	"\tstandings\x18\x01 \x03(\v2\x14.seasons.v1.StandingR\tstandings\"\x93\x01\n" +
+	"\tstandings\x18\x01 \x03(\v2\x14.seasons.v1.StandingR\tstandings\"\xc4\x01\n" +
 	"\bStanding\x12\x12\n" +
 	"\x04rank\x18\x01 \x01(\rR\x04rank\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12*\n" +
 	"\x05color\x18\x03 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x04 \x01(\tR\tcountryId\x12\x14\n" +
-	"\x05tiles\x18\x05 \x01(\x04R\x05tiles\"\x14\n" +
-	"\x12GetMySeasonRequest\"\x8e\x01\n" +
+	"\x05tiles\x18\x05 \x01(\x04R\x05tiles\x12/\n" +
+	"\n" +
+	"worn_title\x18\x06 \x01(\v2\x10.player.v1.TitleR\twornTitle\"\x14\n" +
+	"\x12GetMySeasonRequest\"\xbf\x01\n" +
 	"\x13GetMySeasonResponse\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x05tiles\x18\x02 \x01(\x04R\x05tiles\x12\x1f\n" +
 	"\vglobal_rank\x18\x03 \x01(\rR\n" +
 	"globalRank\x12!\n" +
-	"\fcountry_rank\x18\x04 \x01(\rR\vcountryRank2\x86\x02\n" +
+	"\fcountry_rank\x18\x04 \x01(\rR\vcountryRank\x12/\n" +
+	"\n" +
+	"worn_title\x18\x05 \x01(\v2\x10.player.v1.TitleR\twornTitle2\x86\x02\n" +
 	"\rSeasonService\x12M\n" +
 	"\tGetSeason\x12\x1c.seasons.v1.GetSeasonRequest\x1a\x1d.seasons.v1.GetSeasonResponse\"\x03\x90\x02\x01\x12V\n" +
 	"\fGetStandings\x12\x1f.seasons.v1.GetStandingsRequest\x1a .seasons.v1.GetStandingsResponse\"\x03\x90\x02\x01\x12N\n" +
@@ -494,22 +514,25 @@ var file_seasons_v1_seasons_proto_goTypes = []any{
 	(*GetMySeasonRequest)(nil),   // 6: seasons.v1.GetMySeasonRequest
 	(*GetMySeasonResponse)(nil),  // 7: seasons.v1.GetMySeasonResponse
 	(v1.NameColor)(0),            // 8: player.v1.NameColor
+	(*v1.Title)(nil),             // 9: player.v1.Title
 }
 var file_seasons_v1_seasons_proto_depIdxs = []int32{
 	2, // 0: seasons.v1.GetSeasonResponse.season:type_name -> seasons.v1.Season
 	5, // 1: seasons.v1.GetStandingsResponse.standings:type_name -> seasons.v1.Standing
 	8, // 2: seasons.v1.Standing.color:type_name -> player.v1.NameColor
-	0, // 3: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
-	3, // 4: seasons.v1.SeasonService.GetStandings:input_type -> seasons.v1.GetStandingsRequest
-	6, // 5: seasons.v1.SeasonService.GetMySeason:input_type -> seasons.v1.GetMySeasonRequest
-	1, // 6: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
-	4, // 7: seasons.v1.SeasonService.GetStandings:output_type -> seasons.v1.GetStandingsResponse
-	7, // 8: seasons.v1.SeasonService.GetMySeason:output_type -> seasons.v1.GetMySeasonResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	9, // 3: seasons.v1.Standing.worn_title:type_name -> player.v1.Title
+	9, // 4: seasons.v1.GetMySeasonResponse.worn_title:type_name -> player.v1.Title
+	0, // 5: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
+	3, // 6: seasons.v1.SeasonService.GetStandings:input_type -> seasons.v1.GetStandingsRequest
+	6, // 7: seasons.v1.SeasonService.GetMySeason:input_type -> seasons.v1.GetMySeasonRequest
+	1, // 8: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
+	4, // 9: seasons.v1.SeasonService.GetStandings:output_type -> seasons.v1.GetStandingsResponse
+	7, // 10: seasons.v1.SeasonService.GetMySeason:output_type -> seasons.v1.GetMySeasonResponse
+	8, // [8:11] is the sub-list for method output_type
+	5, // [5:8] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_seasons_v1_seasons_proto_init() }
