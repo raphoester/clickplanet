@@ -142,7 +142,14 @@
 }
 
 .account-color-swatch-auto {
-    border-style: dashed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink);
+    font-family: var(--font-text);
+    font-size: var(--text-m);
+    font-weight: 700;
+    line-height: 1;
 }
 
 .account-color-swatch[aria-pressed="true"] {

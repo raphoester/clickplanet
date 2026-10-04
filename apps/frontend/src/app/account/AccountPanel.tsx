@@ -170,13 +170,14 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
 function ColorPicker({name, state, store}: {name: string, state: Ready, store: AccountStore}) {
     const labelId = useId()
     const chosen = state.color ?? NameColor.UNSPECIFIED
-    const blocked = state.busy !== undefined || state.naming === true || state.coloring === true
+    const blocked = state.busy !== undefined || state.naming === true
 
     const swatch = (color: NameColor, label: string, hue: number) => {
         const selected = color === chosen
+        const auto = color === NameColor.UNSPECIFIED
         return <button key={color}
                        type="button"
-                       className={color === NameColor.UNSPECIFIED ? "account-color-swatch account-color-swatch-auto" : "account-color-swatch"}
+                       className={auto ? "account-color-swatch account-color-swatch-auto" : "account-color-swatch"}
                        style={{"--author-hue": hue} as CSSProperties}
                        aria-label={label}
                        aria-pressed={selected}
@@ -184,7 +185,9 @@ function ColorPicker({name, state, store}: {name: string, state: Ready, store: A
                        disabled={blocked}
                        onClick={() => {
                            if (!selected) void store.setColor(color)
-                       }}/>
+                       }}>
+            {auto && <span aria-hidden="true">{[...name][0]?.toUpperCase()}</span>}
+        </button>
     }
 
     return <div className="account-color" aria-busy={state.coloring === true}>

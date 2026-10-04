@@ -204,7 +204,7 @@ export class AccountStore {
         const ready = this.current
         if (ready.kind !== "ready" || ready.busy || ready.naming || ready.coloring || ready.username === undefined) return
 
-        this.set({...kept(ready), coloring: true})
+        this.set({...kept(ready), color, coloring: true})
         const generation = this.generation
 
         try {

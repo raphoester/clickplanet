@@ -629,7 +629,8 @@ it shows (see [Titles](#titles)), then tiles taken, the current and best
 streak, and "Playing since", the day the account was made (left out when the
 server does not know it). The fake gives its players titles of its own over
 their fake stats and creation date. **A guest's card asks nothing**: a guest has no
-username, so there is nothing to look up, and the card says so. The chat tells
+username, so there is nothing to look up, and the card shows the name and the
+flag alone. It says nothing to the viewer, who may well be signed in. The chat tells
 a guest by `GUEST_PREFIX`, which no username starts with. `GetPlayer` needs no
 token and goes out as a GET, like `GetRoster`; `NotFound` (renamed, or the
 account is gone) reads as `undefined`. `usePlayerInfo` reads it once per card.
