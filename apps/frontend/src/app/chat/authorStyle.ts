@@ -1,13 +1,14 @@
 import {CSSProperties} from "react"
 import {ChatMessage, GUEST_PREFIX} from "../../backends/chat.ts"
-import {PlayerLine} from "../../backends/player.ts"
-import {authorHue} from "../../domain/authorColor.ts"
+import {NameColor, PlayerLine} from "../../backends/player.ts"
+import {hueOf} from "../../domain/authorColor.ts"
 
-export type Painted = Pick<PlayerLine, "name" | "color" | "guest">
+export type Painted = {color: NameColor | undefined, guest: boolean}
 
-export function authorStyle({name, color, guest}: Painted): CSSProperties {
-    if (guest) return {"--author-hue": 0, "--author-chroma": 0} as CSSProperties
-    return {"--author-hue": authorHue(name, color)} as CSSProperties
+export function authorStyle({color, guest}: Painted): CSSProperties {
+    const hue = guest ? undefined : hueOf(color)
+    if (hue === undefined) return {"--author-hue": 0, "--author-chroma": 0} as CSSProperties
+    return {"--author-hue": hue} as CSSProperties
 }
 
 export function authorOf(message: ChatMessage): PlayerLine {
@@ -18,5 +19,6 @@ export function authorOf(message: ChatMessage): PlayerLine {
         admin: message.authorAdmin,
         color: message.authorColor,
         streak: message.authorStreak,
+        wornTitle: message.authorTitle,
     }
 }

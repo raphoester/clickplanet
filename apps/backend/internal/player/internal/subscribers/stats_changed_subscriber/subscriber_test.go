@@ -19,9 +19,11 @@ import (
 
 var now = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 
-func subscriber(stats *inmemory_player_store.Store, held *inmemory_title_store.Store) stats_changed_subscriber.Subscriber {
-	book := titles.NewBook(held, titles.Catalog{titles.FakeTitle{Key: "first", Tiles: 1}})
-	return stats_changed_subscriber.New(award_titles_usecase.New(stats, titles.NewFakeAccounts(), book, cptime.NewFixedClock(now)))
+func subscriber(stats *inmemory_player_store.Store, held *inmemory_title_store.Store, linked players.AccountID) stats_changed_subscriber.Subscriber {
+	accounts := titles.NewFakeAccounts()
+	accounts.Create(linked, players.Account{Linked: true, CreatedAt: now})
+	book := titles.NewBook(held, titles.CatalogOf([]titles.Title{titles.FakeTitle{Key: "first", Tiles: 1}}))
+	return stats_changed_subscriber.New(award_titles_usecase.New(stats, accounts, book, cptime.NewFixedClock(now)))
 }
 
 func TestChangedStatsAreCheckedForTitles(t *testing.T) {
@@ -30,7 +32,7 @@ func TestChangedStatsAreCheckedForTitles(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, stats.RecordTake(t.Context(), account, now))
 
-	err = subscriber(stats, held).Handle(t.Context(), &playerv1.StatsChanged{AccountId: account.String()})
+	err = subscriber(stats, held, account).Handle(t.Context(), &playerv1.StatsChanged{AccountId: account.String()})
 
 	require.NoError(t, err)
 	granted, err := held.Held(t.Context(), account)
@@ -39,7 +41,7 @@ func TestChangedStatsAreCheckedForTitles(t *testing.T) {
 }
 
 func TestAnEventWithNoAccountIsRefused(t *testing.T) {
-	err := subscriber(inmemory_player_store.New(), inmemory_title_store.New()).Handle(t.Context(), &playerv1.StatsChanged{})
+	err := subscriber(inmemory_player_store.New(), inmemory_title_store.New(), players.AccountID{15: 1}).Handle(t.Context(), &playerv1.StatsChanged{})
 
 	assert.ErrorIs(t, err, players.ErrInvalidAccount)
 }

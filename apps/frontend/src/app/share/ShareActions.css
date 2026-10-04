@@ -1,19 +1,12 @@
 .share-actions {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     min-width: 0;
 }
 
 .share-actions > * {
     flex: 1 1 0;
     min-width: 0;
-}
-
-.button-share {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
 }
 
 .button-share svg {
@@ -30,6 +23,4 @@
 
 .button-share:disabled {
     cursor: progress;
-    color: #FFFFFFB3;
-    border-color: #FFFFFF26;
 }

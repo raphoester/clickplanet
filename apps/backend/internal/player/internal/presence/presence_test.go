@@ -8,16 +8,18 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
 var now = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 
-func player(name string) players.Author {
-	return players.Author{Name: name}
+func player(name string) wearing.Author {
+	return wearing.Author{Author: players.Author{Name: name}}
 }
 
-func guest(code string) players.Author {
-	return players.Author{Name: "guest_" + code, Guest: true}
+func guest(code string) wearing.Author {
+	return wearing.Author{Author: players.Author{Name: "guest_" + code, Guest: true}}
 }
 
 func TestAVisitIsFreshForTheTTL(t *testing.T) {
@@ -97,7 +99,15 @@ func names(roster []presence.Entry) []string {
 func TestALineCarriesTheColorAndTheStreakItWasAnnouncedWith(t *testing.T) {
 	ada := players.Author{Name: "Ada_L", Color: 3, Streak: players.Streak{Days: 12, LastDay: players.DayOf(now)}}
 
-	entry := presence.EntryOf(presence.Visit{Key: "1", Author: ada, Country: "fr", At: now})
+	entry := presence.EntryOf(presence.Visit{Key: "1", Author: wearing.Author{Author: ada}, Country: "fr", At: now})
 
 	assert.Equal(t, presence.Entry{Key: "1", Name: "Ada_L", Country: "fr", Color: 3, Streak: 12}, entry)
+}
+
+func TestALineCarriesTheTitleItsPlayerWears(t *testing.T) {
+	og := titles.Standing{Title: titles.OG{}}
+
+	entry := presence.EntryOf(presence.Visit{Key: "1", Author: wearing.AuthorOf(players.Author{Name: "Ada_L"}, og), At: now})
+
+	assert.Equal(t, presence.Entry{Key: "1", Name: "Ada_L", Title: og}, entry)
 }

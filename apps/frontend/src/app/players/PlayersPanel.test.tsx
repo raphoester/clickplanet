@@ -3,7 +3,6 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {NameColor, RosterEntry} from "../../backends/player.ts"
-import {authorHue} from "../../domain/authorColor.ts"
 import PlayersPanel from "./PlayersPanel.tsx"
 
 afterEach(cleanup)
@@ -64,11 +63,13 @@ describe("PlayersPanel", () => {
         expect(name.getAttribute("title")).toBe(long)
     })
 
-    it("colours a name with the hue the chat gives it", () => {
-        render(<PlayersPanel entries={[entry("ana", false, "fr")]}/>)
+    it("colours a name in the color its player chose, and grey with none", () => {
+        render(<PlayersPanel entries={[entry("ana", false, "fr", false, NameColor.TEAL), entry("bo", false)]}/>)
 
-        const row = screen.getByRole("listitem") as HTMLElement
-        expect(row.style.getPropertyValue("--author-hue")).toBe(String(authorHue("ana")))
+        const [ana, bo] = screen.getAllByRole("listitem") as HTMLElement[]
+        expect(ana.style.getPropertyValue("--author-hue")).toBe("165")
+        expect(ana.style.getPropertyValue("--author-chroma")).toBe("")
+        expect(bo.style.getPropertyValue("--author-chroma")).toBe("0")
     })
 
     it("opens a player, guest or not, from its name", async () => {
@@ -85,6 +86,15 @@ describe("PlayersPanel", () => {
         render(<PlayersPanel entries={[entry("ana", false)]}/>)
 
         expect(screen.queryByRole("button")).toBeNull()
+    })
+
+    it("shows the title a player wears beside its name, and nothing beside one that wears none", () => {
+        const og = {id: "og", name: "OG"}
+        render(<PlayersPanel entries={[{...entry("ana", false), wornTitle: og}, entry("kiran_07", false)]}/>)
+
+        const [ana, kiran] = screen.getAllByRole("listitem")
+        expect(within(ana).getByRole("img", {name: "OG"}).querySelector(".title-emblem")).not.toBeNull()
+        expect(within(kiran).queryByRole("img", {name: "OG"})).toBeNull()
     })
 
     it("crowns an admin, and nobody else", () => {

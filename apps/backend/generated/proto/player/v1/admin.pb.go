@@ -21,26 +21,26 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type BackfillTitlesRequest struct {
+type ReconcileTitlesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *BackfillTitlesRequest) Reset() {
-	*x = BackfillTitlesRequest{}
+func (x *ReconcileTitlesRequest) Reset() {
+	*x = ReconcileTitlesRequest{}
 	mi := &file_player_v1_admin_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BackfillTitlesRequest) String() string {
+func (x *ReconcileTitlesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BackfillTitlesRequest) ProtoMessage() {}
+func (*ReconcileTitlesRequest) ProtoMessage() {}
 
-func (x *BackfillTitlesRequest) ProtoReflect() protoreflect.Message {
+func (x *ReconcileTitlesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_player_v1_admin_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -52,32 +52,33 @@ func (x *BackfillTitlesRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BackfillTitlesRequest.ProtoReflect.Descriptor instead.
-func (*BackfillTitlesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReconcileTitlesRequest.ProtoReflect.Descriptor instead.
+func (*ReconcileTitlesRequest) Descriptor() ([]byte, []int) {
 	return file_player_v1_admin_proto_rawDescGZIP(), []int{0}
 }
 
-type BackfillTitlesResponse struct {
+type ReconcileTitlesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Accounts      uint32                 `protobuf:"varint,1,opt,name=accounts,proto3" json:"accounts,omitempty"`
+	Granted       uint32                 `protobuf:"varint,1,opt,name=granted,proto3" json:"granted,omitempty"`
+	Revoked       uint32                 `protobuf:"varint,2,opt,name=revoked,proto3" json:"revoked,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *BackfillTitlesResponse) Reset() {
-	*x = BackfillTitlesResponse{}
+func (x *ReconcileTitlesResponse) Reset() {
+	*x = ReconcileTitlesResponse{}
 	mi := &file_player_v1_admin_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BackfillTitlesResponse) String() string {
+func (x *ReconcileTitlesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BackfillTitlesResponse) ProtoMessage() {}
+func (*ReconcileTitlesResponse) ProtoMessage() {}
 
-func (x *BackfillTitlesResponse) ProtoReflect() protoreflect.Message {
+func (x *ReconcileTitlesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_player_v1_admin_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -89,14 +90,101 @@ func (x *BackfillTitlesResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BackfillTitlesResponse.ProtoReflect.Descriptor instead.
-func (*BackfillTitlesResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReconcileTitlesResponse.ProtoReflect.Descriptor instead.
+func (*ReconcileTitlesResponse) Descriptor() ([]byte, []int) {
 	return file_player_v1_admin_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *BackfillTitlesResponse) GetAccounts() uint32 {
+func (x *ReconcileTitlesResponse) GetGranted() uint32 {
 	if x != nil {
-		return x.Accounts
+		return x.Granted
+	}
+	return 0
+}
+
+func (x *ReconcileTitlesResponse) GetRevoked() uint32 {
+	if x != nil {
+		return x.Revoked
+	}
+	return 0
+}
+
+type NameAccountsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NameAccountsRequest) Reset() {
+	*x = NameAccountsRequest{}
+	mi := &file_player_v1_admin_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NameAccountsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NameAccountsRequest) ProtoMessage() {}
+
+func (x *NameAccountsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_admin_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NameAccountsRequest.ProtoReflect.Descriptor instead.
+func (*NameAccountsRequest) Descriptor() ([]byte, []int) {
+	return file_player_v1_admin_proto_rawDescGZIP(), []int{2}
+}
+
+type NameAccountsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Named         uint32                 `protobuf:"varint,1,opt,name=named,proto3" json:"named,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NameAccountsResponse) Reset() {
+	*x = NameAccountsResponse{}
+	mi := &file_player_v1_admin_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NameAccountsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NameAccountsResponse) ProtoMessage() {}
+
+func (x *NameAccountsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_admin_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NameAccountsResponse.ProtoReflect.Descriptor instead.
+func (*NameAccountsResponse) Descriptor() ([]byte, []int) {
+	return file_player_v1_admin_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *NameAccountsResponse) GetNamed() uint32 {
+	if x != nil {
+		return x.Named
 	}
 	return 0
 }
@@ -105,12 +193,17 @@ var File_player_v1_admin_proto protoreflect.FileDescriptor
 
 const file_player_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x15player/v1/admin.proto\x12\tplayer.v1\"\x17\n" +
-	"\x15BackfillTitlesRequest\"4\n" +
-	"\x16BackfillTitlesResponse\x12\x1a\n" +
-	"\baccounts\x18\x01 \x01(\rR\baccounts2e\n" +
-	"\fAdminService\x12U\n" +
-	"\x0eBackfillTitles\x12 .player.v1.BackfillTitlesRequest\x1a!.player.v1.BackfillTitlesResponseB\xb2\x01\n" +
+	"\x15player/v1/admin.proto\x12\tplayer.v1\"\x18\n" +
+	"\x16ReconcileTitlesRequest\"M\n" +
+	"\x17ReconcileTitlesResponse\x12\x18\n" +
+	"\agranted\x18\x01 \x01(\rR\agranted\x12\x18\n" +
+	"\arevoked\x18\x02 \x01(\rR\arevoked\"\x15\n" +
+	"\x13NameAccountsRequest\",\n" +
+	"\x14NameAccountsResponse\x12\x14\n" +
+	"\x05named\x18\x01 \x01(\rR\x05named2\xb9\x01\n" +
+	"\fAdminService\x12X\n" +
+	"\x0fReconcileTitles\x12!.player.v1.ReconcileTitlesRequest\x1a\".player.v1.ReconcileTitlesResponse\x12O\n" +
+	"\fNameAccounts\x12\x1e.player.v1.NameAccountsRequest\x1a\x1f.player.v1.NameAccountsResponseB\xb2\x01\n" +
 	"\rcom.player.v1B\n" +
 	"AdminProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +
 	"Player::V1b\x06proto3"
@@ -127,16 +220,20 @@ func file_player_v1_admin_proto_rawDescGZIP() []byte {
 	return file_player_v1_admin_proto_rawDescData
 }
 
-var file_player_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_player_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_player_v1_admin_proto_goTypes = []any{
-	(*BackfillTitlesRequest)(nil),  // 0: player.v1.BackfillTitlesRequest
-	(*BackfillTitlesResponse)(nil), // 1: player.v1.BackfillTitlesResponse
+	(*ReconcileTitlesRequest)(nil),  // 0: player.v1.ReconcileTitlesRequest
+	(*ReconcileTitlesResponse)(nil), // 1: player.v1.ReconcileTitlesResponse
+	(*NameAccountsRequest)(nil),     // 2: player.v1.NameAccountsRequest
+	(*NameAccountsResponse)(nil),    // 3: player.v1.NameAccountsResponse
 }
 var file_player_v1_admin_proto_depIdxs = []int32{
-	0, // 0: player.v1.AdminService.BackfillTitles:input_type -> player.v1.BackfillTitlesRequest
-	1, // 1: player.v1.AdminService.BackfillTitles:output_type -> player.v1.BackfillTitlesResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	0, // 0: player.v1.AdminService.ReconcileTitles:input_type -> player.v1.ReconcileTitlesRequest
+	2, // 1: player.v1.AdminService.NameAccounts:input_type -> player.v1.NameAccountsRequest
+	1, // 2: player.v1.AdminService.ReconcileTitles:output_type -> player.v1.ReconcileTitlesResponse
+	3, // 3: player.v1.AdminService.NameAccounts:output_type -> player.v1.NameAccountsResponse
+	2, // [2:4] is the sub-list for method output_type
+	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -153,7 +250,7 @@ func file_player_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_admin_proto_rawDesc), len(file_player_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,4 +1,4 @@
-import {useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {
     BankFullError,
     Bomber,
@@ -16,13 +16,14 @@ import Quiz from "../quiz/Quiz.tsx";
 import {useQuiz} from "../quiz/useQuiz.ts";
 import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
-import Menu from "../Menu.tsx";
+import Menu, {BoardPlace, MenuTab, MorePlace, YouPlace} from "../Menu.tsx";
+import {youLabel} from "../youLabel.ts";
 import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
+import ClicksPanel from "../components/ClicksPanel.tsx";
 import Inventory from "../components/Inventory.tsx";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
-import CameraButton from "../share/CameraButton.tsx";
 import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
 import {shareStats} from "../../domain/shareCard.ts";
@@ -31,19 +32,30 @@ import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
 import {useSound} from '../sound/useSound.ts';
-import AnthemBar from "../anthem/AnthemBar.tsx";
+import AnthemControls from "../anthem/AnthemControls.tsx";
 import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
 import {useAccount} from "../account/useAccount.ts";
-import {PlayerInfoBackend, PresenceBackend, PlayerLine} from "../../backends/player.ts";
+import {hueOf} from "../../domain/authorColor.ts";
+import {PlayerInfoBackend, PlayerLine, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
+import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
 import SignInPitchModal from "../account/SignInPitchModal.tsx";
-import {LeaderboardEntry} from "../../domain/leaderboard.ts";
+import {LeaderboardEntry, rankOf} from "../../domain/leaderboard.ts";
+import {SeasonBackend} from "../../backends/season.ts";
+import {useSeason} from "../season/useSeason.ts";
+import SeasonChip, {SeasonDetails} from "../season/SeasonChip.tsx";
+import {useCompact} from "../compact.ts";
+import Sheet from "../hud/Sheet.tsx";
+import StatusBar from "../hud/StatusBar.tsx";
+import TabBar from "../hud/TabBar.tsx";
 import "./Viewer.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
+
+type SheetName = "board" | "chat" | "you" | "more" | "season" | "clicks"
 
 export type ViewerProps = {
     tileClicker: TileClicker
@@ -58,6 +70,7 @@ export type ViewerProps = {
     account?: AccountStore
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
+    season?: SeasonBackend
 }
 
 export default function Viewer(props: ViewerProps) {
@@ -72,11 +85,28 @@ export default function Viewer(props: ViewerProps) {
     usePresence(props.presence, {countryCode: countryState.code, username, color})
 
     const quiz = useQuiz(props.quizMaster, countryState.code, sound.play)
-    const roster = useRoster(props.presence)
+    const [unlocked, setUnlocked] = useState<readonly PlayerTitle[]>([])
+    const roster = useRoster(props.presence, (title) => setUnlocked((queue) => [...queue, title]))
+    const season = useSeason(props.season)
     const [pitchOpen, setPitchOpen] = useState(false)
     const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
     const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
     const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
+
+    const compact = useCompact()
+    const [sheet, setSheet] = useState<SheetName>()
+    const [menuTab, setMenuTab] = useState<MenuTab>("board")
+    const [seasonOpen, setSeasonOpen] = useState(false)
+    const [clicksOpen, setClicksOpen] = useState(false)
+    const [unread, setUnread] = useState(0)
+    const toggleSheet = (name: SheetName) => setSheet((current) => current === name ? undefined : name)
+    const closeSheet = () => setSheet(undefined)
+
+    useEffect(() => {
+        setSheet(undefined)
+        setSeasonOpen(false)
+        setClicksOpen(false)
+    }, [compact])
 
     const {
         status,
@@ -110,6 +140,7 @@ export default function Viewer(props: ViewerProps) {
         bomber: props.bomber,
         playSound: sound.play,
         country: countryState,
+        clickHue: hueOf(color),
     })
 
     const refiller = props.refiller
@@ -127,38 +158,70 @@ export default function Viewer(props: ViewerProps) {
     const {shot, taking, take, discard} = useSharePicture(
         capture, shareStats(leaderboard, countryState))
 
+    const openPitch = guest ? () => {
+        closeSheet()
+        setClicksOpen(false)
+        setPitchOpen(true)
+    } : undefined
+
+    const linked = account.kind === 'ready' && account.me.linked.length > 0
+    const toll = rules?.toll ?? []
+    const held = leaderboard.find((entry) => entry.country.code === countryState.code)?.tiles ?? 0
+
+    const board = {
+        country: countryState,
+        setCountry: handleSetCountry,
+        leaderboard,
+        tileDeltas,
+        tilesCount,
+        toll,
+        anthem: <AnthemControls anthem={anthem} settings={sound.settings} onChange={sound.setSettings}/>,
+    }
+    const you = {account: props.account, linkedMultiplier: clickBudget?.linkedMultiplier, playerInfo: props.playerInfo}
+    const more = {
+        sound: {settings: sound.settings, onChange: sound.setSettings, preview: sound.preview},
+        onTakePicture: () => {
+            closeSheet()
+            take()
+        },
+        taking,
+    }
+    const clicks = <ClicksPanel budget={clickBudget}
+                                countryName={countryState.name}
+                                share={tilesCount > 0 ? held / tilesCount : undefined}
+                                toll={toll}
+                                onSignIn={openPitch}/>
+
+    const ready = status.state === 'ready'
+
     return <>
         <div ref={container} className="viewer-canvas"/>
 
-        {status.state !== 'ready' && <StatusCard status={status}/>}
+        {!ready && <StatusCard status={status}/>}
 
-        {status.state === 'ready' && <Menu
-            country={countryState}
-            setCountry={handleSetCountry}
-            leaderboard={leaderboard}
-            tileDeltas={tileDeltas}
-            tilesCount={tilesCount}
-            sound={{settings: sound.settings, onChange: sound.setSettings, preview: sound.preview}}
-            account={props.account}
-            players={roster.kind === 'ready' ? roster.entries : undefined}
-            onOpenPlayer={onOpenPlayer}
-            linkedMultiplier={clickBudget?.linkedMultiplier}
-        />}
+        {ready && !compact && <Menu {...board} {...you} {...more} tab={menuTab} onTab={setMenuTab}/>}
 
-        {status.state === 'ready' && <AnthemBar anthem={anthem}
-                                                settings={sound.settings}
-                                                onChange={sound.setSettings}/>}
+        {ready && !compact && season && <SeasonChip season={season}
+                                                    compact={false}
+                                                    open={seasonOpen}
+                                                    onToggle={() => setSeasonOpen((open) => !open)}/>}
 
-        {status.state === 'ready' && <CameraButton busy={taking} onClick={take}/>}
+        {ready && compact && <StatusBar country={countryState}
+                                        rank={rankOf(leaderboard, countryState)}
+                                        boardOpen={sheet === "board"}
+                                        onOpenBoard={() => toggleSheet("board")}
+                                        trailing={season && <SeasonChip season={season}
+                                                                        compact
+                                                                        open={sheet === "season"}
+                                                                        onToggle={() => toggleSheet("season")}/>}/>}
 
-        {shot && <SharePreview shot={shot}
-                               stats={shareStats(leaderboard, countryState)}
-                               onClose={discard}/>}
-
-        {status.state === 'ready' && <ClickBudgetMeter budget={clickBudget}
-                                                       countryName={countryState.name}
-                                                       refusals={refusals}
-                                                       onSignIn={guest ? () => setPitchOpen(true) : undefined}>
+        {ready && <ClickBudgetMeter budget={clickBudget}
+                                    refusals={refusals}
+                                    onSignIn={openPitch}
+                                    compact={compact}
+                                    open={compact ? sheet === "clicks" : clicksOpen}
+                                    onToggleOpen={compact ? () => toggleSheet("clicks") : () => setClicksOpen((open) => !open)}
+                                    popover={clicks}>
             {props.bonusListener && <Inventory charges={charges}
                                                rules={rules}
                                                switches={switches}
@@ -168,24 +231,60 @@ export default function Viewer(props: ViewerProps) {
                                                onUseRefill={spendRefill}/>}
         </ClickBudgetMeter>}
 
+        {ready && <ChatPanel
+            backend={props.chatBackend}
+            country={countryState}
+            playSound={sound.play}
+            username={username}
+            onOpenPlayer={onOpenPlayer}
+            players={roster.kind === 'ready' ? roster.entries : undefined}
+            compact={compact}
+            open={compact ? sheet === "chat" : undefined}
+            onOpenChange={compact ? (open) => setSheet(open ? "chat" : undefined) : undefined}
+            onUnread={setUnread}
+        />}
+
+        {ready && compact && <>
+            {sheet === "board" && <Sheet title="Leaderboard" onClose={closeSheet}>
+                <BoardPlace {...board} playing/>
+            </Sheet>}
+            {sheet === "you" && account.kind === 'ready' && <Sheet title={youLabel(linked)} onClose={closeSheet}>
+                <YouPlace {...you}/>
+            </Sheet>}
+            {sheet === "more" && <Sheet title="More" onClose={closeSheet}>
+                <MorePlace {...more}/>
+            </Sheet>}
+            {sheet === "season" && season && <Sheet title={`Season ${season.number}`} onClose={closeSheet}>
+                <SeasonDetails season={season}/>
+            </Sheet>}
+            {sheet === "clicks" && <Sheet title="Your clicks" onClose={closeSheet}>{clicks}</Sheet>}
+
+            <TabBar open={sheet}
+                    onOpen={toggleSheet}
+                    chat={props.chatBackend !== undefined}
+                    unread={unread}
+                    you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}/>
+        </>}
+
+        {shot && <SharePreview shot={shot}
+                               stats={shareStats(leaderboard, countryState)}
+                               onClose={discard}/>}
+
         {pitchOpen && guest && props.account && clickBudget?.linkedMultiplier && <SignInPitchModal
             state={account}
             store={props.account}
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
 
-        {status.state === 'ready' && <ChatPanel
-            backend={props.chatBackend}
-            country={countryState}
-            playSound={sound.play}
-            username={username}
-            onOpenPlayer={onOpenPlayer}
-        />}
-
         {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.name}
                                                        player={openPlayer}
                                                        backend={props.playerInfo}
                                                        onClose={() => setOpenPlayer(undefined)}/>}
+
+        {unlocked.length > 0 && <TitleUnlocked key={unlocked[0].id}
+                                               title={unlocked[0]}
+                                               onWear={props.account?.wearTitle}
+                                               onClose={() => setUnlocked((queue) => queue.slice(1))}/>}
 
         {award && <BonusAward reward={award} onDone={dismissAward}/>}
 
@@ -214,7 +313,7 @@ export default function Viewer(props: ViewerProps) {
 
 function StatusCard({status}: {status: GlobeStatus}) {
     return <div className="viewer-status">
-        <div className="viewer-status-card" role="status">
+        <div className="viewer-status-card panel" role="status">
             {status.state === 'loading'
                 ? <LoadingCard territories={status.territories}/>
                 : status.state === 'failed' && <>

@@ -6,6 +6,10 @@ import CountryFlag from "../components/CountryFlag.tsx"
 import Modal from "../components/Modal.tsx"
 import {StatTile, StatTiles} from "../components/StatTiles.tsx"
 import {days} from "../days.ts"
+import OgStamp from "../titles/OgStamp.tsx"
+import TitleBanner from "../titles/TitleBanner.tsx"
+import TitleEmblem from "../titles/TitleEmblem.tsx"
+import {metalOf, OG} from "../titles/titleArt.ts"
 import {truncate} from "../truncate.ts"
 import {usePlayerInfo} from "./usePlayerInfo.ts"
 import "./PlayerCard.css"
@@ -27,13 +31,16 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
 
     const admin = player.admin || (state.kind === "ready" && state.info.admin)
     const color = state.kind === "ready" ? state.info.color : player.color
-    const title = <span className="player-card-title">
+    const info = state.kind === "ready" ? state.info : undefined
+    const title = <span className="player-card-title" style={authorStyle({...player, color})}>
         {truncate(player.name, NAME_MAX_LENGTH)}
         {admin && <AdminCrown size={20}/>}
+        {info?.titles.some((held) => held.id === OG) && <OgStamp/>}
     </span>
+    const frame = info?.wornTitle ? ` title-frame-${metalOf(info.wornTitle)}` : ""
 
-    return <Modal title={title} className="player-card" onClose={onClose}>
-        <div className="player-card-who" style={authorStyle({...player, color})}>
+    return <Modal title={title} className={`player-card${frame}`} onClose={onClose}>
+        <div className="player-card-who">
             <span className="player-card-country" role="img" aria-label={country} title={country}>
                 <CountryFlag code={player.countryCode}/>
             </span>
@@ -41,13 +48,11 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
         </div>
 
         {state.kind === "loading" && <p className="player-card-note" role="status">Loading…</p>}
-        {state.kind === "guest" && <p className="player-card-note">
-            Guests have no stats. Sign in and pick a username to get yours.
-        </p>}
         {state.kind === "missing" && <p className="player-card-note">No player holds this name now.</p>}
         {state.kind === "failed" && <p className="player-card-note">The stats could not be loaded.</p>}
-        {state.kind === "ready" && <PlayerTitles titles={state.info.titles}/>}
-        {state.kind === "ready" && <PlayerStats info={state.info}/>}
+        {info?.wornTitle && <TitleBanner title={info.wornTitle}/>}
+        {info && <PlayerTitles titles={info.titles}/>}
+        {info && <PlayerStats info={info}/>}
     </Modal>
 }
 
@@ -55,11 +60,14 @@ function PlayerTitles({titles}: {titles: PlayerTitle[]}) {
     if (titles.length === 0) return null
 
     return <ul className="player-card-titles" aria-label="Titles">
-        {titles.map((title) => <li key={title.id}>{title.name}</li>)}
+        {titles.map((title) => <li key={title.id} className="player-card-held">
+            <TitleEmblem title={title} size={48} ribbon/>
+            <span className="player-card-held-name">{title.name}</span>
+        </li>)}
     </ul>
 }
 
-function PlayerStats({info}: {info: PlayerInfo}) {
+export function PlayerStats({info}: {info: PlayerInfo}) {
     return <StatTiles>
         <StatTile label="Tiles taken" value={count.format(info.tilesTaken)}/>
         <StatTile label="Streak" value={days(info.streakCurrent)}/>

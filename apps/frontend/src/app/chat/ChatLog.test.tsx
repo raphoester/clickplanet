@@ -65,14 +65,29 @@ describe("ChatLog", () => {
         expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({streak: 12}))
     })
 
-    it("paints a name in the color its player chose, and a guest grey", () => {
+    it("shows the title its author wears beside the name, and keeps it on the player it opens", async () => {
+        const onOpenPlayer = vi.fn()
+        const warlord = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
+        const dressed = {...message("1", "Ana", "fr"), authorTitle: warlord}
+        const bare = message("2", "kiran_07", "in")
+        render(<ChatLog loading={false} onOpenPlayer={onOpenPlayer} messages={[dressed, bare]}/>)
+
+        expect(screen.getAllByRole("img", {name: "Warlord"})).toHaveLength(1)
+        expect(screen.getByRole("img", {name: "Warlord"}).querySelector(".title-emblem")).not.toBeNull()
+        await userEvent.click(screen.getByRole("button", {name: "Ana"}))
+        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({wornTitle: warlord}))
+    })
+
+    it("paints a name in the color its player chose, and grey with none or as a guest", () => {
         const chosen = {...message("1", "Ana", "fr"), authorColor: NameColor.TEAL}
         const guest = {...message("2", "guest_Bo", "de"), authorColor: NameColor.TEAL}
-        const {container} = render(<ChatLog loading={false} messages={[chosen, guest]}/>)
+        const none = message("3", "Cy", "it")
+        const {container} = render(<ChatLog loading={false} messages={[chosen, guest, none]}/>)
 
-        const [ana, bo] = [...container.querySelectorAll<HTMLElement>(".chat-message")]
+        const [ana, bo, cy] = [...container.querySelectorAll<HTMLElement>(".chat-message")]
         expect(ana.style.getPropertyValue("--author-hue")).toBe("165")
         expect(ana.style.getPropertyValue("--author-chroma")).toBe("")
         expect(bo.style.getPropertyValue("--author-chroma")).toBe("0")
+        expect(cy.style.getPropertyValue("--author-chroma")).toBe("0")
     })
 })

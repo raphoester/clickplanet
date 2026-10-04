@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
 import {AccountBackend, AuthError, AuthFailure, Me, Provider} from "../../backends/account.ts"
-import {ColoredProfile, NameColor, PlayerBackend, PlayerError, PlayerFailure, Profile, Streak} from "../../backends/player.ts"
+import {ColoredProfile, NameColor, PlayerBackend, PlayerError, PlayerFailure, Profile, TitleDashboard} from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
 import {AccountStore} from "./accountStore.ts"
 
@@ -27,7 +27,8 @@ function fakePlayer(name = "", color = NameColor.UNSPECIFIED): FakePlayer {
         profile: vi.fn(async (): Promise<ColoredProfile> => ({accountId: "account-1", name, color})),
         setName: vi.fn(async (name: string): Promise<Profile> => ({accountId: "account-1", name})),
         setColor: vi.fn(async (color: NameColor): Promise<NameColor> => color),
-        streak: vi.fn(async (): Promise<Streak> => ({current: 0, best: 0})),
+        titles: vi.fn(async (): Promise<TitleDashboard> => ({wearable: [], tracks: []})),
+        wearTitle: vi.fn(async () => undefined),
     }
 }
 
@@ -552,7 +553,7 @@ describe("AccountStore", () => {
             await vi.waitFor(() => expect(store.state()).toMatchObject({username: "ana", color: NameColor.TEAL}))
         })
 
-        it("is busy while the server answers, then shows the color it stored", async () => {
+        it("shows the pick while the server answers, then the color it stored", async () => {
             const player = fakePlayer("ana")
             const saved = held<NameColor>()
             player.setColor.mockReturnValue(saved.promise)
@@ -562,7 +563,7 @@ describe("AccountStore", () => {
 
             const saving = store.setColor(NameColor.PINK)
             expect(player.setColor).toHaveBeenCalledWith(NameColor.PINK)
-            expect(store.state()).toMatchObject({coloring: true})
+            expect(store.state()).toMatchObject({color: NameColor.PINK, coloring: true})
 
             saved.release(NameColor.PINK)
             await saving

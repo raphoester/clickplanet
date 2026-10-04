@@ -41,7 +41,23 @@ func (s *Store) Held(_ context.Context, account players.AccountID) (titles.IDs, 
 	return slices.Clone(s.held[account]), nil
 }
 
-func (s *Store) Grant(_ context.Context, grants titles.Grants, _ time.Time) error {
+func (s *Store) Holdings(_ context.Context, accounts []players.AccountID) (titles.Holdings, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+	holdings := titles.Holdings{}
+	for _, account := range accounts {
+		if held := s.held[account]; len(held) > 0 {
+			holdings[account] = slices.Clone(held)
+		}
+	}
+	return holdings, nil
+}
+
+func (s *Store) Grant(_ context.Context, grants titles.Holdings, _ time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -50,6 +66,22 @@ func (s *Store) Grant(_ context.Context, grants titles.Grants, _ time.Time) erro
 	}
 	for account, granted := range grants {
 		s.held[account] = append(s.held[account], granted.Without(s.held[account])...)
+	}
+	return nil
+}
+
+func (s *Store) Revoke(_ context.Context, revocations titles.Holdings) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return s.failWith
+	}
+	for account, revoked := range revocations {
+		s.held[account] = s.held[account].Without(revoked)
+		if len(s.held[account]) == 0 {
+			delete(s.held, account)
+		}
 	}
 	return nil
 }

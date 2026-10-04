@@ -1,0 +1,143 @@
+package wearing_test
+
+import (
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inmemory_title_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/inmemory_worn_title_store"
+)
+
+var (
+	at  = time.Date(2026, 10, 3, 12, 0, 0, 0, time.UTC)
+	ada = players.AccountID{15: 1}
+
+	badge   = titles.FakeTitle{Key: "badge", Tiles: 0}
+	low     = titles.FakeTitle{Key: "low", Tiles: 2}
+	mid     = titles.FakeTitle{Key: "mid", Tiles: 5}
+	high    = titles.FakeTitle{Key: "high", Tiles: 9}
+	other   = titles.FakeTitle{Key: "other", Tiles: 4}
+	ladder  = titles.FakeTrack{Key: "ladder", Steps: []titles.Rank{low, mid, high}}
+	side    = titles.FakeTrack{Key: "side", Steps: []titles.Rank{other}}
+	catalog = titles.CatalogOf([]titles.Title{badge}, ladder, side)
+)
+
+func standing(id titles.ID) titles.Standing {
+	standing, _ := catalog.StandingOf(id)
+	return standing
+}
+
+func TestTheWornTitleIsTheChoiceOrTheRankShownOnItsTrack(t *testing.T) {
+	shown := catalog.Shown(titles.IDs{"badge", "low", "mid", "other"})
+
+	assert.Equal(t, standing("badge"), wearing.WornOf(shown, standing("badge")))
+	assert.Equal(t, standing("other"), wearing.WornOf(shown, standing("other")))
+	assert.Equal(t, standing("mid"), wearing.WornOf(shown, standing("low")), "a track is worn at the rank it shows")
+}
+
+func TestWithNoChoiceShownTheFirstTrackShownIsWorn(t *testing.T) {
+	assert.Equal(t, standing("mid"), wearing.WornOf(catalog.Shown(titles.IDs{"badge", "mid"}), titles.Standing{}))
+	assert.Equal(t, standing("mid"), wearing.WornOf(catalog.Shown(titles.IDs{"badge", "mid"}), standing("other")),
+		"a choice on a track the account no longer shows")
+	assert.Equal(t, standing("badge"), wearing.WornOf(catalog.Shown(titles.IDs{"badge"}), titles.Standing{}), "then a standalone title")
+	assert.True(t, wearing.WornOf(nil, standing("badge")).Empty(), "and nothing when nothing is shown")
+}
+
+func TestOnlyAShownTitleIsWearable(t *testing.T) {
+	shown := catalog.Shown(titles.IDs{"badge", "low", "mid"})
+
+	assert.True(t, wearing.Wearable(shown, "badge"))
+	assert.True(t, wearing.Wearable(shown, "mid"))
+	assert.False(t, wearing.Wearable(shown, "low"), "a rank below the one shown")
+	assert.False(t, wearing.Wearable(shown, "high"), "a rank not held")
+	assert.False(t, wearing.Wearable(shown, "retired"))
+}
+
+func wardrobe(t *testing.T, held ...titles.ID) (wearing.Wardrobe, *inmemory_title_store.Store, *inmemory_worn_title_store.Store) {
+	t.Helper()
+
+	owned := inmemory_title_store.New()
+	require.NoError(t, owned.Grant(t.Context(), titles.Holdings{ada: held}, at))
+	worn := inmemory_worn_title_store.New()
+	return wearing.NewWardrobe(worn, titles.NewBook(owned, catalog), catalog), owned, worn
+}
+
+func TestTheShowcaseIsTheWornTitleAndWhatIsShown(t *testing.T) {
+	closet, _, _ := wardrobe(t, "badge", "low", "mid")
+
+	showcase, err := closet.Showcase(t.Context(), ada)
+
+	require.NoError(t, err)
+	assert.Equal(t, wearing.Showcase{
+		Worn:  standing("mid"),
+		Shown: []titles.Standing{standing("badge"), standing("mid")},
+	}, showcase)
+}
+
+func TestWearingAShownTitleChangesTheShowcase(t *testing.T) {
+	closet, _, _ := wardrobe(t, "badge", "low", "mid")
+
+	require.NoError(t, closet.Wear(t.Context(), ada, "badge", at))
+
+	showcase, err := closet.Showcase(t.Context(), ada)
+	require.NoError(t, err)
+	assert.Equal(t, standing("badge"), showcase.Worn)
+}
+
+func TestATitleNotShownCannotBeWornAndNothingIsWritten(t *testing.T) {
+	closet, _, worn := wardrobe(t, "badge", "low", "mid")
+
+	for _, id := range []titles.ID{"low", "high", "retired"} {
+		assert.ErrorIs(t, closet.Wear(t.Context(), ada, id, at), wearing.ErrNotWearable, id)
+	}
+	choice, err := worn.Choice(t.Context(), ada)
+	require.NoError(t, err)
+	assert.Empty(t, choice)
+}
+
+func TestWornByIsEachAccountsWornTitleAndLeavesOutWhoWearsNone(t *testing.T) {
+	closet, owned, _ := wardrobe(t, "badge", "low", "mid")
+	bob, cy := players.AccountID{15: 2}, players.AccountID{15: 3}
+	require.NoError(t, owned.Grant(t.Context(), titles.Holdings{bob: {"badge", "other"}}, at))
+	require.NoError(t, closet.Wear(t.Context(), bob, "badge", at))
+
+	worn, err := closet.WornBy(t.Context(), []players.AccountID{ada, bob, cy})
+
+	require.NoError(t, err)
+	assert.Equal(t, map[players.AccountID]titles.Standing{ada: standing("mid"), bob: standing("badge")}, worn)
+}
+
+func TestAnAuthorWearsItsTitleUnlessItIsAGuest(t *testing.T) {
+	named := players.Author{Name: "Ada"}
+	guest := players.Author{Name: "guest_a1b2c3", Guest: true}
+
+	assert.Equal(t, wearing.Author{Author: named, Worn: standing("mid")}, wearing.AuthorOf(named, standing("mid")))
+	assert.Equal(t, wearing.Author{Author: guest}, wearing.AuthorOf(guest, standing("mid")))
+}
+
+func TestAStoreFailureIsAnError(t *testing.T) {
+	closet, owned, _ := wardrobe(t, "badge")
+	owned.FailWith(errors.New("postgres is down"))
+
+	_, err := closet.Showcase(t.Context(), ada)
+	require.Error(t, err)
+	_, err = closet.WornBy(t.Context(), []players.AccountID{ada})
+	require.Error(t, err)
+	require.Error(t, closet.Wear(t.Context(), ada, "badge", at))
+
+	closet, _, worn := wardrobe(t, "badge")
+	worn.FailWith(errors.New("postgres is down"))
+
+	_, err = closet.Showcase(t.Context(), ada)
+	require.Error(t, err)
+	_, err = closet.WornBy(t.Context(), []players.AccountID{ada})
+	require.Error(t, err)
+	assert.Error(t, closet.Wear(t.Context(), ada, "badge", at))
+}

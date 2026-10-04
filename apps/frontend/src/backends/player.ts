@@ -1,7 +1,9 @@
 import {NameColor} from "../gen/grpc/player/v1/color_pb.ts"
 import {GUEST_PREFIX} from "./chat.ts"
+import {PlayerTitle} from "./title.ts"
 
 export {NameColor}
+export type {PlayerTitle, TitleRank} from "./title.ts"
 
 export const MIN_USERNAME_LENGTH = 3
 export const MAX_USERNAME_LENGTH = 15
@@ -41,11 +43,6 @@ export type ColoredProfile = Profile & {
     color: NameColor
 }
 
-export type Streak = {
-    current: number
-    best: number
-}
-
 export interface PlayerBackend {
     profile(): Promise<ColoredProfile>
 
@@ -53,7 +50,9 @@ export interface PlayerBackend {
 
     setColor(color: NameColor): Promise<NameColor>
 
-    streak(): Promise<Streak>
+    titles(): Promise<TitleDashboard>
+
+    wearTitle(id: string): Promise<PlayerTitle | undefined>
 }
 
 export type PlayerFailure =
@@ -86,6 +85,7 @@ export type PlayerLine = {
     admin: boolean
     color: NameColor
     streak: number
+    wornTitle?: PlayerTitle
 }
 
 export type RosterEntry = PlayerLine & {
@@ -104,12 +104,30 @@ export interface PresenceBackend {
 
     leave(): void
 
-    listenForRoster(onEvent: (event: RosterEvent) => void, onUnavailable: () => void): () => void
+    listenForRoster(
+        onEvent: (event: RosterEvent) => void,
+        onUnavailable: () => void,
+        onTitleEarned: (title: PlayerTitle) => void,
+    ): () => void
 }
 
-export type PlayerTitle = {
+export type TitleStep = {
+    title: PlayerTitle
+    threshold: number
+    earned: boolean
+}
+
+export type TitleTrack = {
     id: string
     name: string
+    progress: number
+    steps: TitleStep[]
+}
+
+export type TitleDashboard = {
+    worn?: PlayerTitle
+    wearable: PlayerTitle[]
+    tracks: TitleTrack[]
 }
 
 export type PlayerInfo = {
@@ -121,6 +139,7 @@ export type PlayerInfo = {
     admin: boolean
     color: NameColor
     titles: PlayerTitle[]
+    wornTitle?: PlayerTitle
 }
 
 export interface PlayerInfoBackend {

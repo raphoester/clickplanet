@@ -31,7 +31,7 @@ export default function BombNews({drop, land, lowered, onDone}: BombNewsProps) {
     }, [drop])
 
     return <div className={`bomb-news${lowered ? " bomb-news--lowered" : ""}`} role="status" aria-live="polite">
-        <div className="bomb-news-line">
+        <div className="bomb-news-line panel">
             <span aria-hidden="true">{drop.tile === undefined ? "🌊" : "💥"}</span>
             <CountryFlag code={drop.countryId}/>
             <span><strong>{name}</strong> {describeBlast({tile: drop.tile, cleared: drop.cleared.length}, landName)}</span>

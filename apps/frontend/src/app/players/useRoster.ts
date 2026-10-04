@@ -1,5 +1,6 @@
-import {useEffect, useState} from "react"
-import {PresenceBackend, RosterEntry} from "../../backends/player.ts"
+import {useEffect, useRef, useState} from "react"
+import {PlayerTitle, PresenceBackend, RosterEntry} from "../../backends/player.ts"
+import {SETTLE_MS} from "../../domain/presence.ts"
 import {applyRosterEvent} from "../../domain/roster.ts"
 
 export type RosterState =
@@ -9,8 +10,18 @@ export type RosterState =
 
 const UNAVAILABLE: RosterState = {kind: "unavailable"}
 
-export function useRoster(backend: PresenceBackend | undefined): RosterState {
+export function useRoster(backend: PresenceBackend | undefined, onTitleEarned?: (title: PlayerTitle) => void): RosterState {
     const [state, setState] = useState<RosterState>(() => backend ? {kind: "loading"} : UNAVAILABLE)
+    const [session, setSession] = useState(() => backend?.heldSession())
+    const titleEarned = useRef(onTitleEarned)
+    titleEarned.current = onTitleEarned
+
+    useEffect(() => {
+        if (!backend) return
+        const check = () => setSession(backend.heldSession())
+        const timer = window.setInterval(check, SETTLE_MS)
+        return () => window.clearInterval(timer)
+    }, [backend])
 
     useEffect(() => {
         if (!backend) {
@@ -18,7 +29,7 @@ export function useRoster(backend: PresenceBackend | undefined): RosterState {
             return
         }
 
-        setState({kind: "loading"})
+        setState((current) => current.kind === "ready" ? current : {kind: "loading"})
         return backend.listenForRoster(
             (event) => setState((current) => {
                 if (current.kind !== "ready") {
@@ -28,8 +39,9 @@ export function useRoster(backend: PresenceBackend | undefined): RosterState {
                 return entries === current.entries ? current : {kind: "ready", entries}
             }),
             () => setState(UNAVAILABLE),
+            (title) => titleEarned.current?.(title),
         )
-    }, [backend])
+    }, [backend, session])
 
     return state
 }

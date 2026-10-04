@@ -16,7 +16,7 @@ import (
 
 func TestADeletedAccountLosesItsTitles(t *testing.T) {
 	store := inmemory_title_store.New()
-	require.NoError(t, store.Grant(t.Context(), titles.Grants{{15: 1}: {"og"}}, time.Now()))
+	require.NoError(t, store.Grant(t.Context(), titles.Holdings{{15: 1}: {"og"}}, time.Now()))
 
 	require.NoError(t, forget_titles_usecase.New(store).Execute(t.Context(), players.AccountID{15: 1}))
 

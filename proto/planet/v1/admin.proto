@@ -4,6 +4,7 @@ package planet.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "planet/v1/planet.proto";
 
 // Unauthenticated: serve only on the loopback admin listener, never the public router.
 service AdminService {
@@ -20,6 +21,22 @@ service AdminService {
   rpc PaintRandomTiles(PaintRandomTilesRequest) returns (PaintRandomTilesResponse);
 
   rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse);
+
+  rpc GrantCharges(GrantChargesRequest) returns (GrantChargesResponse);
+}
+
+message GrantChargesRequest {
+  string account_id = 1;
+  bool refill = 2;
+  bool bomb = 3;
+  uint32 enclosures = 4;
+  uint32 spread_clicks = 5;
+}
+
+message GrantChargesResponse {
+  string account_id = 1;
+  ChargesHeld before = 2;
+  ChargesHeld after = 3;
 }
 
 message PaintRandomTilesRequest {

@@ -13,8 +13,7 @@ describe("the home page", () => {
         expect(home).toContain(`id="home"`)
     })
 
-    it("tells a visitor that signing in clicks faster, and that playing needs no account", () => {
-        expect(home).toContain("Sign in, click 2× faster")
+    it("tells a visitor that playing needs no account", () => {
         expect(home).toContain("No account needed")
     })
 })

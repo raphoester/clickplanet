@@ -1,13 +1,8 @@
 import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 import {
-    CLEAR_DRIFT_SECONDS,
-    CLEAR_LIFETIME_SECONDS,
-    choreographClear,
-    choreographClick,
     choreographSpread,
     createClickEffects,
-    inView,
     type Spark,
     sparkLook,
     SPREAD_LIFETIME_SECONDS,
@@ -64,76 +59,6 @@ describe("choreographSpread", () => {
     })
 })
 
-describe("choreographClear", () => {
-    it("puffs on the tile cleared and drifts six motes off it, short of the next tile", () => {
-        const {sparks, centre} = choreographClear(1, positions)
-
-        expect(centre.distanceTo(tileAt(1))).toBeLessThan(1e-6)
-        expect(sparks.map(spark => spark.role)).toEqual(["burst", "mote", "mote", "mote", "mote", "mote", "mote"])
-
-        for (const mote of sparks.slice(1)) {
-            expect(mote.from.distanceTo(tileAt(1))).toBeLessThan(1e-6)
-            expect(mote.to.distanceTo(tileAt(1))).toBeGreaterThan(0)
-            expect(mote.to.distanceTo(tileAt(1))).toBeLessThan(STEP)
-        }
-    })
-
-    it("settles before the effect is over, and is over well inside a second", () => {
-        const last = choreographClear(1, positions).sparks.at(-1)!
-        expect(last.start + last.travel).toBeLessThan(CLEAR_LIFETIME_SECONDS)
-        expect(CLEAR_LIFETIME_SECONDS).toBeLessThan(1)
-    })
-})
-
-describe("choreographClick", () => {
-    it("puffs on the tile clicked like a clear, in sky blue rather than dust", () => {
-        const click = choreographClick(1, positions)
-        const clear = choreographClear(1, positions)
-
-        expect(click.centre.distanceTo(tileAt(1))).toBeLessThan(1e-6)
-        expect({...click, colour: clear.colour}).toEqual(clear)
-        expect(click.colour.equals(clear.colour)).toBe(false)
-    })
-
-    it("stays smaller and shorter than a spread", () => {
-        const click = choreographClick(1, positions)
-        const spreading = choreographSpread(spread, positions)
-
-        expect(click.lifetime).toBeLessThan(spreading.lifetime)
-        expect(click.reach).toBeLessThan(spreading.reach)
-        expect(click.minReachPx).toBeLessThan(spreading.minReachPx)
-        expect(click.waves.length).toBeLessThan(spreading.waves.length)
-    })
-})
-
-describe("inView", () => {
-    const camera = () => {
-        const looking = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10)
-        looking.position.set(0, 0, 5)
-        looking.lookAt(0, 0, 0)
-        looking.updateMatrixWorld()
-        return looking
-    }
-
-    it("sees the side of the globe facing the camera", () => {
-        expect(inView(new THREE.Vector3(0, 0, 1), camera())).toBe(true)
-        expect(inView(new THREE.Vector3(0.6, 0, 0.8), camera())).toBe(true)
-    })
-
-    it("does not see the far side, though it projects inside the screen", () => {
-        expect(inView(new THREE.Vector3(0, 0, -1), camera())).toBe(false)
-    })
-
-    it("does not see what a zoom pushed off the screen", () => {
-        const zoomed = camera()
-        zoomed.zoom = 4
-        zoomed.updateProjectionMatrix()
-
-        expect(inView(new THREE.Vector3(0, 0, 1), zoomed)).toBe(true)
-        expect(inView(new THREE.Vector3(0.6, 0, 0.8), zoomed)).toBe(false)
-    })
-})
-
 describe("sparkLook", () => {
     const origin = new THREE.Vector3(0, 0, 1)
     const burst: Spark = {from: origin, to: origin, start: 0, travel: 0, role: "burst"}
@@ -167,18 +92,6 @@ describe("sparkLook", () => {
 
     it("fades everything to nothing by the end", () => {
         expect(sparkLook(landing, 0.99, 1).glow).toBeLessThan(0.01)
-    })
-
-    it("drifts a mote out and fades it as it goes", () => {
-        const mote: Spark = {from: origin, to: origin, start: 0, travel: CLEAR_DRIFT_SECONDS, role: "mote"}
-        const early = sparkLook(mote, 0.05, CLEAR_LIFETIME_SECONDS)
-        const late = sparkLook(mote, CLEAR_DRIFT_SECONDS, CLEAR_LIFETIME_SECONDS)
-
-        expect(late.progress).toBeGreaterThan(early.progress)
-        expect(late.glow).toBeLessThan(early.glow)
-        expect(late.scale).toBeLessThan(early.scale)
-        expect(sparkLook(mote, 0.1, CLEAR_LIFETIME_SECONDS, true).progress)
-            .toBe(sparkLook(mote, 0.4, CLEAR_LIFETIME_SECONDS, true).progress)
     })
 
     it("keeps still for less motion: no flight, no flash", () => {
@@ -226,58 +139,12 @@ describe("createClickEffects", () => {
         const zoomed = new THREE.OrthographicCamera(-1, 1, 1, -1)
         zoomed.zoom = 4
 
-        effects.playClear(1)
+        effects.playSpread(spread)
         effects.update(1000, zoomed, 800, 1)
 
         const marks = effects.object.children.find(child => child instanceof THREE.Points)!
         expect((marks.material as THREE.ShaderMaterial).uniforms.unitsPerPixel.value).toBeCloseTo(1 / (400 * 4))
 
-        effects.dispose()
-    })
-
-    it("plays a clear's dust and takes it off once it is over", () => {
-        const effects = createClickEffects(positions)
-
-        effects.playClear(1)
-        expect(effects.object.children.length).toBeGreaterThan(0)
-
-        effects.update(1000, camera, 800, 1)
-        effects.update(1000 + CLEAR_LIFETIME_SECONDS / 2, camera, 800, 1)
-        expect(effects.object.children.length).toBeGreaterThan(0)
-
-        effects.update(1000 + CLEAR_LIFETIME_SECONDS + 0.01, camera, 800, 1)
-        expect(effects.object.children).toHaveLength(0)
-
-        effects.dispose()
-    })
-
-    it("plays a click in view and takes it off once it is over", () => {
-        const effects = createClickEffects(positions)
-        camera.position.set(0, 0, 5)
-        camera.lookAt(0, 0, 0)
-        camera.updateMatrixWorld()
-
-        effects.playClick(1, camera)
-        expect(effects.object.children.length).toBeGreaterThan(0)
-
-        expect(effects.update(1000, camera, 800, 1)).toBe(true)
-        expect(effects.update(1000 + CLEAR_LIFETIME_SECONDS + 0.01, camera, 800, 1)).toBe(true)
-        expect(effects.object.children).toHaveLength(0)
-        expect(effects.update(1000 + CLEAR_LIFETIME_SECONDS + 0.1, camera, 800, 1)).toBe(false)
-
-        effects.dispose()
-    })
-
-    it("plays nothing for a click nobody can see", () => {
-        const effects = createClickEffects(new Float32Array([0, 0, -1]))
-        camera.position.set(0, 0, 5)
-        camera.lookAt(0, 0, 0)
-        camera.updateMatrixWorld()
-
-        effects.playClick(1, camera)
-
-        expect(effects.object.children).toHaveLength(0)
-        expect(effects.update(1000, camera, 800, 1)).toBe(false)
         effects.dispose()
     })
 

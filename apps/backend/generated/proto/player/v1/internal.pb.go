@@ -71,6 +71,7 @@ type GetAuthorResponse struct {
 	Admin         bool                   `protobuf:"varint,3,opt,name=admin,proto3" json:"admin,omitempty"`
 	Color         NameColor              `protobuf:"varint,4,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
 	Streak        uint32                 `protobuf:"varint,5,opt,name=streak,proto3" json:"streak,omitempty"`
+	WornTitle     *Title                 `protobuf:"bytes,6,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -131,6 +132,13 @@ func (x *GetAuthorResponse) GetStreak() uint32 {
 		return x.Streak
 	}
 	return 0
+}
+
+func (x *GetAuthorResponse) GetWornTitle() *Title {
+	if x != nil {
+		return x.WornTitle
+	}
+	return nil
 }
 
 type GetAuthorsRequest struct {
@@ -228,6 +236,7 @@ type Author struct {
 	Admin         bool                   `protobuf:"varint,3,opt,name=admin,proto3" json:"admin,omitempty"`
 	Color         NameColor              `protobuf:"varint,4,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
 	Streak        uint32                 `protobuf:"varint,5,opt,name=streak,proto3" json:"streak,omitempty"`
+	WornTitle     *Title                 `protobuf:"bytes,6,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -297,31 +306,42 @@ func (x *Author) GetStreak() uint32 {
 	return 0
 }
 
+func (x *Author) GetWornTitle() *Title {
+	if x != nil {
+		return x.WornTitle
+	}
+	return nil
+}
+
 var File_player_v1_internal_proto protoreflect.FileDescriptor
 
 const file_player_v1_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x18player/v1/internal.proto\x12\tplayer.v1\x1a\x15player/v1/color.proto\";\n" +
+	"\x18player/v1/internal.proto\x12\tplayer.v1\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\";\n" +
 	"\x10GetAuthorRequest\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountIdJ\x04\b\x02\x10\x03R\x02ip\"\x8c\x01\n" +
+	"account_id\x18\x01 \x01(\tR\taccountIdJ\x04\b\x02\x10\x03R\x02ip\"\xbd\x01\n" +
 	"\x11GetAuthorResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05admin\x18\x03 \x01(\bR\x05admin\x12*\n" +
 	"\x05color\x18\x04 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12\x16\n" +
-	"\x06streak\x18\x05 \x01(\rR\x06streakJ\x04\b\x02\x10\x03R\x03tag\"4\n" +
+	"\x06streak\x18\x05 \x01(\rR\x06streak\x12/\n" +
+	"\n" +
+	"worn_title\x18\x06 \x01(\v2\x10.player.v1.TitleR\twornTitleJ\x04\b\x02\x10\x03R\x03tag\"4\n" +
 	"\x11GetAuthorsRequest\x12\x1f\n" +
 	"\vaccount_ids\x18\x01 \x03(\tR\n" +
 	"accountIds\"A\n" +
 	"\x12GetAuthorsResponse\x12+\n" +
-	"\aauthors\x18\x01 \x03(\v2\x11.player.v1.AuthorR\aauthors\"\x95\x01\n" +
+	"\aauthors\x18\x01 \x03(\v2\x11.player.v1.AuthorR\aauthors\"\xc6\x01\n" +
 	"\x06Author\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05admin\x18\x03 \x01(\bR\x05admin\x12*\n" +
 	"\x05color\x18\x04 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12\x16\n" +
-	"\x06streak\x18\x05 \x01(\rR\x06streak2\xa9\x01\n" +
+	"\x06streak\x18\x05 \x01(\rR\x06streak\x12/\n" +
+	"\n" +
+	"worn_title\x18\x06 \x01(\v2\x10.player.v1.TitleR\twornTitle2\xa9\x01\n" +
 	"\x0fInternalService\x12F\n" +
 	"\tGetAuthor\x12\x1b.player.v1.GetAuthorRequest\x1a\x1c.player.v1.GetAuthorResponse\x12N\n" +
 	"\n" +
@@ -349,20 +369,23 @@ var file_player_v1_internal_proto_goTypes = []any{
 	(*GetAuthorsResponse)(nil), // 3: player.v1.GetAuthorsResponse
 	(*Author)(nil),             // 4: player.v1.Author
 	(NameColor)(0),             // 5: player.v1.NameColor
+	(*Title)(nil),              // 6: player.v1.Title
 }
 var file_player_v1_internal_proto_depIdxs = []int32{
 	5, // 0: player.v1.GetAuthorResponse.color:type_name -> player.v1.NameColor
-	4, // 1: player.v1.GetAuthorsResponse.authors:type_name -> player.v1.Author
-	5, // 2: player.v1.Author.color:type_name -> player.v1.NameColor
-	0, // 3: player.v1.InternalService.GetAuthor:input_type -> player.v1.GetAuthorRequest
-	2, // 4: player.v1.InternalService.GetAuthors:input_type -> player.v1.GetAuthorsRequest
-	1, // 5: player.v1.InternalService.GetAuthor:output_type -> player.v1.GetAuthorResponse
-	3, // 6: player.v1.InternalService.GetAuthors:output_type -> player.v1.GetAuthorsResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	6, // 1: player.v1.GetAuthorResponse.worn_title:type_name -> player.v1.Title
+	4, // 2: player.v1.GetAuthorsResponse.authors:type_name -> player.v1.Author
+	5, // 3: player.v1.Author.color:type_name -> player.v1.NameColor
+	6, // 4: player.v1.Author.worn_title:type_name -> player.v1.Title
+	0, // 5: player.v1.InternalService.GetAuthor:input_type -> player.v1.GetAuthorRequest
+	2, // 6: player.v1.InternalService.GetAuthors:input_type -> player.v1.GetAuthorsRequest
+	1, // 7: player.v1.InternalService.GetAuthor:output_type -> player.v1.GetAuthorResponse
+	3, // 8: player.v1.InternalService.GetAuthors:output_type -> player.v1.GetAuthorsResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_player_v1_internal_proto_init() }
@@ -371,6 +394,7 @@ func file_player_v1_internal_proto_init() {
 		return
 	}
 	file_player_v1_color_proto_init()
+	file_player_v1_title_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

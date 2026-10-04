@@ -201,6 +201,11 @@ func TestTheStreamSendsTheRosterThenEachJoinRenameAndLeave(t *testing.T) {
 	assert.Regexp(t, guestName, joined.GetName())
 
 	ada.link("google-ada")
+	generated := next(t, events).GetEntry()
+	require.NotNil(t, generated)
+	assert.Regexp(t, generatedName, generated.GetName())
+	assert.Equal(t, joined.GetKey(), generated.GetKey(), "the same line, named on sign-in")
+
 	_, err := ada.setName("Ada_L")
 	require.NoError(t, err)
 	renamed := next(t, events).GetEntry()

@@ -1,20 +1,18 @@
 package titles
 
 import (
-	"time"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
 type Career struct {
-	Stats     players.Stats
-	CreatedAt time.Time
+	Stats   players.Stats
+	Account players.Account
 }
 
-func CareersOf(page []players.Stats, created map[players.AccountID]time.Time) []Career {
+func CareersOf(page []players.Stats, accounts map[players.AccountID]players.Account) []Career {
 	careers := make([]Career, 0, len(page))
 	for _, stats := range page {
-		careers = append(careers, Career{Stats: stats, CreatedAt: created[stats.Account]})
+		careers = append(careers, Career{Stats: stats, Account: accounts[stats.Account]})
 	}
 	return careers
 }

@@ -3,6 +3,7 @@ syntax = "proto3";
 package player.v1;
 
 import "player/v1/color.proto";
+import "player/v1/title.proto";
 
 service PlayerService {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
@@ -23,6 +24,10 @@ service PlayerService {
   rpc GetPlayer(GetPlayerRequest) returns (GetPlayerResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc GetTitles(GetTitlesRequest) returns (GetTitlesResponse);
+
+  rpc WearTitle(WearTitleRequest) returns (WearTitleResponse);
 }
 
 message Profile {
@@ -94,6 +99,7 @@ message RosterEntry {
   string key = 6;
   NameColor color = 7;
   uint32 streak = 8;
+  Title worn_title = 9;
 }
 
 message ListenForEventsRequest {}
@@ -104,6 +110,7 @@ message PlayerEvent {
     RosterEntry entry = 2;
     PlayerLeft left = 3;
     Heartbeat heartbeat = 4;
+    TitleEarned title_earned = 5;
   }
 }
 
@@ -132,9 +139,38 @@ message Player {
   bool admin = 4;
   NameColor color = 5;
   repeated Title titles = 6;
+  Title worn_title = 7;
 }
 
-message Title {
+message TitleEarned {
+  Title title = 1;
+}
+
+message GetTitlesRequest {}
+
+message GetTitlesResponse {
+  Title worn = 1;
+  repeated Title wearable = 2;
+  repeated Track tracks = 3;
+}
+
+message Track {
   string id = 1;
   string name = 2;
+  uint64 progress = 3;
+  repeated Step steps = 4;
+}
+
+message Step {
+  Title title = 1;
+  uint64 threshold = 2;
+  bool earned = 3;
+}
+
+message WearTitleRequest {
+  string title_id = 1;
+}
+
+message WearTitleResponse {
+  Title worn = 1;
 }

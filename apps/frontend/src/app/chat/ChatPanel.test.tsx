@@ -322,20 +322,20 @@ describe("ChatPanel", () => {
             expect(item("mine").className).not.toContain("chat-message-new")
         })
 
-        it("gives every author their own colour, and the same one every time", async () => {
+        it("paints every message in the colour its author chose", async () => {
             const {backend} = stubBackend([
-                {...message("a", "first"), authorName: "Ana"},
-                {...message("b", "second", 1_700_000_100_000), authorName: "Bo"},
-                {...message("c", "third", 1_700_000_200_000), authorName: "Ana"},
+                {...message("a", "first"), authorName: "Ana", authorColor: NameColor.TEAL},
+                {...message("b", "second", 1_700_000_100_000), authorName: "Bo", authorColor: NameColor.PINK},
+                {...message("c", "third", 1_700_000_200_000), authorName: "Ana", authorColor: NameColor.TEAL},
             ])
             setup(backend)
             await screen.findByText("first")
 
             const hue = (text: string) => item(text).style.getPropertyValue("--author-hue")
 
-            expect(hue("first")).not.toBe("")
-            expect(hue("third")).toBe(hue("first"))
-            expect(hue("second")).not.toBe(hue("first"))
+            expect(hue("first")).toBe("165")
+            expect(hue("second")).toBe("330")
+            expect(hue("third")).toBe("165")
         })
     })
 
@@ -695,5 +695,119 @@ describe("ChatPanel size", () => {
         unmount()
 
         expect(wanted()).toEqual({width: "", height: ""})
+    })
+})
+
+describe("ChatPanel on a desktop", () => {
+    it("folds from its header and unfolds again", async () => {
+        const {backend} = stubBackend([message("a", "who took Brittany")])
+        const {user} = setup(backend)
+        expect(await screen.findByText("who took Brittany")).toBeDefined()
+
+        await user.click(screen.getByRole("button", {name: "Fold the chat"}))
+        expect(screen.queryByText("who took Brittany")).toBeNull()
+
+        await user.click(screen.getByRole("button", {name: /Chat/}))
+        expect(await screen.findByText("who took Brittany")).toBeDefined()
+    })
+})
+
+describe("ChatPanel's players", () => {
+    const players = [
+        {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+        {key: "k2", name: "guest_b0b0b0", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+    ]
+
+    it("shows who is online beside the chat, and goes back to it", async () => {
+        const {backend} = stubBackend([message("a", "who took Brittany")])
+        const user = userEvent.setup()
+        render(<ChatPanel backend={backend} country={france} players={players}/>)
+        await screen.findByText("who took Brittany")
+
+        await user.click(screen.getByRole("tab", {name: "2 players online"}))
+        expect(screen.getByText("ana")).toBeDefined()
+        expect(screen.queryByText("who took Brittany")).toBeNull()
+
+        await user.click(screen.getByRole("tab", {name: "Chat"}))
+        expect(await screen.findByText("who took Brittany")).toBeDefined()
+    })
+
+    it("counts one player in the singular", () => {
+        render(<ChatPanel backend={stubBackend().backend} country={france} players={players.slice(0, 1)}/>)
+        expect(screen.getByRole("tab", {name: "1 player online"})).toBeDefined()
+    })
+
+    it("says so when nobody is playing", async () => {
+        const user = userEvent.setup()
+        render(<ChatPanel backend={stubBackend().backend} country={france} players={[]}/>)
+
+        await user.click(screen.getByRole("tab", {name: "0 players online"}))
+        expect(screen.getByText("Nobody is playing right now.")).toBeDefined()
+    })
+
+    it("offers no list without a roster", () => {
+        render(<ChatPanel backend={stubBackend().backend} country={france}/>)
+        expect(screen.queryByRole("tab")).toBeNull()
+    })
+})
+
+describe("ChatPanel on a phone", () => {
+    const phone = (backend: ChatBackend, open: boolean, onOpenChange = vi.fn(), onUnread = vi.fn()) =>
+        render(<ChatPanel backend={backend} country={france} compact open={open} onOpenChange={onOpenChange} onUnread={onUnread}/>)
+
+    it("is a sheet while it is open, and closes on its ×", async () => {
+        const {backend} = stubBackend([message("a", "who took Brittany")])
+        const onOpenChange = vi.fn()
+        phone(backend, true, onOpenChange)
+
+        expect(await screen.findByText("who took Brittany")).toBeDefined()
+        fireEvent.click(screen.getByRole("button", {name: "Close"}))
+        expect(onOpenChange).toHaveBeenCalledWith(false)
+    })
+
+    it("shows nothing while it is closed and nobody spoke", async () => {
+        const {backend} = stubBackend([message("a", "seen already")])
+        const {container} = phone(backend, false)
+        await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
+
+        expect(container.innerHTML).toBe("")
+    })
+
+    it("counts what arrived while it was closed, for the tab", async () => {
+        const {backend, broadcast} = stubBackend([message("a", "seen already")])
+        const onUnread = vi.fn()
+        phone(backend, false, vi.fn(), onUnread)
+        await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
+
+        broadcast(message("b", "and one more", 1_700_000_200_000))
+
+        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(1))
+    })
+
+    it("peeks at a new message for a moment, and opens on it", async () => {
+        const {backend, broadcast} = stubBackend([message("a", "seen already")])
+        const onOpenChange = vi.fn()
+        phone(backend, false, onOpenChange)
+        await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
+
+        broadcast(message("b", "who took Brittany", 1_700_000_200_000))
+
+        const peek = await screen.findByRole("button", {name: "Open the chat: Ana, who took Brittany"})
+        fireEvent.click(peek)
+        expect(onOpenChange).toHaveBeenCalledWith(true)
+    })
+
+    it("lets the peek go after a few seconds", async () => {
+        vi.useFakeTimers({shouldAdvanceTime: true})
+        const {backend, broadcast} = stubBackend([message("a", "seen already")])
+        phone(backend, false)
+        await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
+
+        broadcast(message("b", "who took Brittany", 1_700_000_200_000))
+        await screen.findByRole("button", {name: /Open the chat/})
+
+        act(() => vi.advanceTimersByTime(4_000))
+        expect(screen.queryByRole("button", {name: /Open the chat/})).toBeNull()
+        vi.useRealTimers()
     })
 })

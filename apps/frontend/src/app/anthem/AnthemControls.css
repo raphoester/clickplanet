@@ -1,0 +1,117 @@
+.anthem {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px var(--space-3) 6px 6px;
+    overflow: hidden;
+    background: var(--panel-sunk);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-m);
+    color: var(--text);
+    --anthem-progress: 0;
+}
+
+.anthem-play {
+    border-radius: var(--radius-pill);
+    background: var(--action);
+}
+
+.anthem-play:disabled {
+    cursor: default;
+    opacity: 0.4;
+    filter: none;
+}
+
+.anthem-play:focus-visible,
+.anthem-volume:focus-visible {
+    outline: var(--outline-thin) solid var(--text);
+    outline-offset: 2px;
+}
+
+.anthem-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.anthem-title {
+    padding-top: 3px;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    line-height: 1.2;
+    text-shadow: var(--text-drop);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.anthem-subtitle {
+    font-family: var(--font-text);
+    font-weight: 500;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.anthem-volume {
+    flex: none;
+    width: 76px;
+    height: 14px;
+    margin: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--panel);
+    cursor: pointer;
+}
+
+.anthem-volume::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: var(--drop-xs);
+}
+
+.anthem-volume::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: 50%;
+    background: var(--gold);
+    box-shadow: var(--drop-xs);
+}
+
+.anthem-volume:disabled {
+    cursor: default;
+    opacity: 0.4;
+}
+
+.anthem-progress {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 100%;
+    background: var(--gold);
+    transform-origin: left;
+    transform: scaleX(var(--anthem-progress));
+    transition: transform 0.25s linear;
+    opacity: 0;
+}
+
+.anthem--playing .anthem-progress {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .anthem-progress {
+        transition: none;
+    }
+}

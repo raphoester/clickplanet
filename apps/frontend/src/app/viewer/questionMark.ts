@@ -61,7 +61,7 @@ function markGroup(colour: string): SVGGElement {
     const hook = document.createElementNS(SVG_NS, "path")
     hook.setAttribute("d", QUESTION_MARK.hook)
     hook.setAttribute("fill", "none")
-    hook.setAttribute("stroke", colour)
+    hook.style.setProperty("stroke", colour)
     hook.setAttribute("stroke-width", String(QUESTION_MARK.strokeWidth))
     hook.setAttribute("stroke-linecap", "round")
     hook.setAttribute("stroke-linejoin", "round")
@@ -70,7 +70,7 @@ function markGroup(colour: string): SVGGElement {
     dot.setAttribute("cx", String(QUESTION_MARK.dot.cx))
     dot.setAttribute("cy", String(QUESTION_MARK.dot.cy))
     dot.setAttribute("r", String(QUESTION_MARK.dot.r))
-    dot.setAttribute("fill", colour)
+    dot.style.setProperty("fill", colour)
 
     group.append(hook, dot)
 

@@ -1027,23 +1027,38 @@ To go back: stop the backend (its last flush runs on the way down), then
 `truncate planet.tiles; insert into planet.tiles select * from planet.tiles_before_reassign;` in psql,
 then start it.
 
-### Backfill the players' titles
+### Reconcile the players' titles
 
-Run it **once after the deploy that brings titles**. It gives every player
-that took a tile the titles its stats earn, and OG to an account made before
-2026-11-01. After that, titles are granted as players take tiles. Run it again
-only after adding a title or changing a rule:
+Makes every player's titles what the rules give it, no more and no less. Run
+it **after a deploy that adds a title or changes a rule**: it grants what is
+now earned and revokes what no longer is. Between such deploys there is
+nothing to run, since titles are granted as players take tiles.
 
 ```bash
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/player.v1.AdminService/BackfillTitles
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/player.v1.AdminService/ReconcileTitles
 ```
 
-- The answer is `{"accounts":N}`: how many players earn at least one title.
-  `{}` means none.
-- **Running it twice is harmless**: a title already held is not granted again,
-  and keeps the date it was first earned. A failed run is simply run again.
-- It reads 500 players at a time and asks auth when each page's accounts were made.
-- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin title backfill"`.
+- The answer is `{"granted":N,"revoked":M}`, in titles. `{}` means nothing changed.
+- **Guests hold no title**: only a signed-in account earns one, so a run
+  revokes any title a guest still holds.
+- **Running it twice is harmless**: the second run changes nothing. A title
+  kept keeps the date it was first earned. A failed run is simply run again.
+- It reads 500 players at a time and asks auth about each page at once.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin title reconciliation"`.
+
+### Name the signed-in players who have no username
+
+Gives a generated username to every signed-in account that took a tile or
+sent a message and has none. Run it **once after the deploy that brought
+generated names**: an account signing in since then is named at once.
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/player.v1.AdminService/NameAccounts
+```
+
+- The answer is `{"named":N}`. `{}` means nobody was named.
+- **Running it twice is harmless**: a name, chosen or given, is never replaced.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin account naming"`.
 
 ### Paint random tiles of a country with a flag
 
@@ -1062,6 +1077,24 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - A tile somebody takes while it runs stays theirs: `painted` can be below `picked`.
 - It is not undone by anything. Copy the table first, as for a reassign.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin random paint"`.
+
+### Give a player charges
+
+Gives one account a refill, a bomb, enclosures or spread clicks, as a box
+would. Send any of them together:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10","refill":true,"bomb":true,"enclosures":3,"spreadClicks":8}' http://127.0.0.1:8081/planet.v1.AdminService/GrantCharges
+```
+
+- The account id of a username is in postgres:
+  `docker compose exec postgres psql -U clickplanet -c "SELECT account_id FROM player.profiles WHERE name = 'TheUsername'"`
+- **The caps hold**: one refill, one bomb, 3 enclosures and 8 spread clicks at
+  most. `before` and `after` in the answer say what the account holds, so you see
+  what fit.
+- The player sees it when the page loads again.
+- A bad account id or a grant of nothing shows as `server returned error: HTTP/1.1 400`.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin charge grant"`.
 
 ### Find, ban and revert one player
 

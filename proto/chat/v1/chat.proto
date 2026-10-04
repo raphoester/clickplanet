@@ -3,6 +3,7 @@ syntax = "proto3";
 package chat.v1;
 
 import "player/v1/color.proto";
+import "player/v1/title.proto";
 
 service ChatService {
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
@@ -56,6 +57,7 @@ message ChatMessage {
   uint64 reactions_version = 9;
   player.v1.NameColor author_color = 10;
   uint32 author_streak = 11;
+  player.v1.Title author_title = 12;
 }
 
 message SendMessageRequest {

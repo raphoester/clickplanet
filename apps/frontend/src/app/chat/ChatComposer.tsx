@@ -52,7 +52,7 @@ export default function ChatComposer(props: ChatComposerProps) {
 
     return <form className="chat-composer" onSubmit={submitMessage}>
         <div className="chat-composer-row">
-            <textarea className="chat-input"
+            <textarea className="field chat-input"
                       ref={box}
                       rows={1}
                       value={text}
@@ -63,7 +63,7 @@ export default function ChatComposer(props: ChatComposerProps) {
                       onKeyDown={sendOnEnter}
                       onChange={e => setText(e.target.value.replace(/[\r\n]+/g, " "))}/>
             <button type="submit"
-                    className="button button-mini chat-send"
+                    className="button button-mini button-action chat-send"
                     disabled={length === 0 || length > MAX_TEXT_LENGTH}>
                 Send
             </button>

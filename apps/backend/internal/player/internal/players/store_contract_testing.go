@@ -45,6 +45,36 @@ func (s *StoreContractSuite) TestAnUnknownAccountHasNoProfileAndNoStats() {
 	s.Require().ErrorIs(err, ErrNoStats)
 }
 
+func (s *StoreContractSuite) TestACreatedProfileReadsBack() {
+	s.Require().NoError(s.store.CreateProfile(s.T().Context(), contractProfile(1, "BraveFox42")))
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(contractProfile(1, "BraveFox42"), profile)
+}
+
+func (s *StoreContractSuite) TestCreatingAProfileForAnAccountThatHasOneChangesNothing() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "Bob")))
+
+	s.Require().ErrorIs(s.store.CreateProfile(s.T().Context(), contractProfile(1, "BraveFox42")), ErrProfileExists)
+	s.Require().ErrorIs(s.store.CreateProfile(s.T().Context(), contractProfile(1, "bob")), ErrProfileExists,
+		"an account with a profile is refused before its name is looked at")
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(Name("Ada"), profile.Name)
+}
+
+func (s *StoreContractSuite) TestCreatingAProfileWithANameAnotherHoldsIsNameTaken() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "BraveFox42")))
+
+	s.Require().ErrorIs(s.store.CreateProfile(s.T().Context(), contractProfile(2, "bravefox42")), ErrNameTaken)
+
+	_, err := s.store.Profile(s.T().Context(), AccountID{15: 2})
+	s.Require().ErrorIs(err, ErrNoProfile)
+}
+
 func (s *StoreContractSuite) TestASavedProfileReadsBackAndASecondReplacesIt() {
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Emile_1858")))
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
@@ -119,6 +149,23 @@ func (s *StoreContractSuite) TestTakesOfOneAccountDoNotCountOnAnother() {
 
 	s.Equal(uint64(1), s.stats(1).TilesTaken)
 	s.Equal(uint64(2), s.stats(2).TilesTaken)
+}
+
+func (s *StoreContractSuite) TestEachMessageIsCountedAndStartsNoStreak() {
+	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
+	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
+
+	s.Equal(Stats{Account: AccountID{15: 1}}.WithMessage().WithMessage(), s.stats(1))
+}
+
+func (s *StoreContractSuite) TestMessagesAndTakesAddUpOnOneAccount() {
+	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
+	s.recordTake(1, contractAt)
+	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
+	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 2}))
+
+	s.Equal(Stats{Account: AccountID{15: 1}}.WithMessage().WithTake(contractAt).WithMessage(), s.stats(1))
+	s.Equal(uint64(1), s.stats(2).MessagesSent)
 }
 
 func (s *StoreContractSuite) TestADeletedAccountLosesBothAndTheOthersKeepTheirs() {
@@ -397,4 +444,14 @@ func (s *StoreContractSuite) TestAuthorsCarryTheColorAndTheStreakAsStored() {
 		{15: 1}: {Name: "Ada", Color: 3, Streak: Streak{Days: 2, LastDay: DayOf(contractAt.Add(time.Hour))}},
 		{15: 2}: {Name: ReservedPrefix + "91aa3d", Guest: true, Streak: Streak{Days: 1, LastDay: DayOf(contractAt)}},
 	}, authors, "the store does not know what day it is: the streak is read as of today above it")
+}
+
+func (s *StoreContractSuite) TestAnAuthorWhoOnlyPostedHasNoStreak() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
+
+	authors, err := s.store.Authors(s.T().Context(), []AccountID{{15: 1}})
+
+	s.Require().NoError(err)
+	s.Equal(map[AccountID]Author{{15: 1}: {Name: "Ada"}}, authors)
 }

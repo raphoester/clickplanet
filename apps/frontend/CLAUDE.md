@@ -45,7 +45,8 @@ the same for any other bonus (the fake holds charges as the server does: a refil
 and a bomb at most, a pool of 8 spread clicks and a stack of 3 enclosures, a box
 adding 1 to 4 and 1 to 3 of them, spread and enclose spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
-banner up at once, and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
+banner up at once, `giveTitle("warlord")` plays the unlock of any title (the fake
+wires no account, so the overlay offers Close only), and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
 play somebody else's bomb or spread click. `fakeBackend.shareClicks("guests")` (or
 `"network"`) reads the bucket as shared, and `fakeBackend.shareClicks()` as the
 player's own again.
@@ -75,7 +76,7 @@ Two pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
 | `/` | `index.html` | The home page. Plain HTML, no bundle. |
 | `/play` | `play.html` | The game. |
 | `/auth/callback` | `auth/callback.html` | The game again, for the sign-in callback. |
-| `/privacy`, `/terms` | `public/*.html` | Plain pages. |
+| `/privacy`, `/terms` | `privacy.html`, `terms.html` | Plain pages, no bundle. |
 | anything else | `index.html` | `not_found_handling` fallback. |
 
 **Why `/` is not the game.** Google's brand verification, which lets anyone
@@ -158,14 +159,16 @@ app/       components
   messages, for highlighting them once they are on screen. `nameSentUnder` is
   the name the server gave the latest message this client sent — the only way
   it learns a guest's name.
-- `authorColor.ts` — `authorHue`, the hue of a name, and `NAME_COLORS`, the 12
-  a player with a username may pick from (`player.v1.NameColor`, one hue each).
-  A picked color is its hue; no pick, or a color this build does not know,
-  hashes the name the log displays. **Only the hue is chosen**: the saturation
-  and the lightness are fixed in the CSS, so no pick and no hash can produce a
-  colour that is unreadable against the dark panel. `app/chat/authorStyle.ts`
-  turns a line into the style: a guest gets `--author-chroma: 0`, which every
-  rule multiplies its saturation by, so **guests are grey** whatever they hold.
+- `authorColor.ts` — `NAME_COLORS`, the 12 a player with a username may pick
+  from (`player.v1.NameColor`, one hue each), and `hueOf`, the hue of a pick.
+  No pick, or a color this build does not know, has no hue. **Only the hue is
+  chosen**: the saturation and the lightness are fixed in the CSS, so no pick
+  can produce a colour that is unreadable against the dark panel.
+  `app/chat/authorStyle.ts` turns a line into the style: a guest, or a name with
+  no hue, gets `--author-chroma: 0`, which every rule multiplies its saturation
+  by. So **guests are grey** whatever they hold, and **so is a player who has
+  not picked a color**: there is no color from the name, so the grey is a
+  reason to pick one.
 - `streak.ts` — `streakShown`: a flame is drawn from a streak of 3 days. Every
   player of today has 1, so a short run would mean nothing.
 - `shareCard.ts` — everything about a shared image that is decided before a
@@ -341,6 +344,39 @@ hourly re-mint for the same account reopens it too: telling the two apart would
 mean reading the token, which is the server's business. A refused call reopens
 nothing.
 
+### The screen: four zones
+
+**Nothing is drawn over the globe but four zones**, and a new feature goes in one
+of them rather than in a fifth panel. The rule is in [`DESIGN.md`](DESIGN.md);
+this is where each zone lives. `Viewer` composes them, and `useCompact`
+(`compact.ts`, the 768px query, kept live) picks the phone or the desktop form.
+
+| Zone | Phone | Desktop |
+|---|---|---|
+| **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end | `Menu`'s header and "playing for", `SeasonChip` at the top centre |
+| **Moments** | under the status bar (`--status-bottom`) | under the season chip |
+| **Play** | the dock (`ClickBudgetMeter` + `Inventory`) above the tab bar, the chat's peek above it | the dock at the bottom centre |
+| **Places** | `hud/TabBar` (Board, Chat, Sign in / You, More), each a `hud/Sheet` | `Menu`'s tabs (Board, You, More) on the left, the chat on the right |
+
+- **One sheet at a time on a phone.** `Viewer` holds which (`sheet`): the four
+  tabs, and the season and "Your clicks", which the status bar and the dock open.
+  A tab pressed again closes it. The sheets are the same places the desktop
+  shows: `BoardPlace`, `YouPlace` and `MorePlace` in `Menu.tsx`, `SeasonDetails`,
+  `ClicksPanel`, and the chat's own sheet.
+- **A sheet sits above the tab bar** and is as tall as what it holds, up to the
+  room under the status bar; the chat's is that tall always, for its log to
+  scroll. It covers the dock: a sheet is for reading, the dock for playing.
+- **The desktop menu is as tall as what it holds**, up to the screen (less the
+  dock under 1444px, where the two would meet): a short place makes a short
+  panel, and only the board, or the account, scrolls inside it.
+- **Escape closes the innermost** (`useEscape` keeps a stack): a sub-panel such
+  as the country picker steps back, then the sheet closes. A modal dialog
+  still takes Escape first.
+- **Every `Modal` is drawn in a portal on the body**, so a dialog opened from
+  inside the menu or a sheet covers the page and not its panel.
+- **The other player's card** is the same `Modal`; on a phone its CSS makes it a
+  bottom sheet as tall as the card.
+
 ### Live chat
 
 The client for the backend's second bounded context: `chat.ts` declares
@@ -348,20 +384,26 @@ The client for the backend's second bounded context: `chat.ts` declares
 `ChatBackend`, the four together), `chatBackend.ts` implements them against
 `/chat.v1.ChatService/` alone — `SendMessage`, `GetHistory`, `React` and the
 `ListenForEvents` stream — and
-`fakeChatBackend.ts` is the dev stand-in. `ChatPanel` docks
-bottom-right, opposite the menu, and starts folded under 768px.
+`fakeChatBackend.ts` is the dev stand-in. On a desktop `ChatPanel` is the
+right-hand column, folded and unfolded from its own header. On a phone it is the
+Chat tab's sheet, and `Viewer` holds whether it is open (`open`,
+`onOpenChange`); see [The screen](#the-screen-four-zones). **It is always
+mounted**, open or not, on both: it owns the history load, the stream, the unread
+count and the sound. Closed on a phone it draws only the peek (below) and hands
+the unread count up through `onUnread`, for the tab's badge.
+
+**The chat and who is online share the panel**: with a roster wired, its header
+is two tabs, Chat and "Online · N" (see [Who is playing](#who-is-playing)).
 
 **The open panel is resized from its top edge, its left edge or its top-left
 corner**, and a double-click on one puts the default back (`useChatSize`). Not
-under 768px, where it is a full-width sheet. What the player dragged to is kept
+on a phone, where it is a sheet. What the player dragged to is kept
 in `clickplanet-chat-size` and written on `:root` as `--chat-wanted-width` and
 `--chat-wanted-height`; `index.css` clamps them into `--chat-width` and
-`--chat-height`. **The clamp keeps the chat 16px clear of the anthem bar and of
-the click budget dock**: the anthem bar never moves, so the width stops where it
-ends (`50vw - 162px`, and that number changes with the anthem bar's box), and
-`ClickBudgetMeter` writes the dock's bottom edge on `:root` as
-`--click-budget-dock-bottom` (`useDockBottom`), so the chat gets shorter when
-the inventory opens. The log stays pinned
+`--chat-height`. **The clamp keeps the chat 16px clear of the dock**, centred at
+the bottom: the width stops at `50vw - var(--dock-width) / 2 - 32px`, and under
+1100px wide, where that leaves too little, the chat sits above the dock instead
+(`--chat-lift`). The log stays pinned
 to its newest line while the panel changes size (a `ResizeObserver` in `ChatLog`).
 
 **`MAX_TEXT_LENGTH` in `chat.ts` mirrors `chat.service.maxTextLength` on the
@@ -447,8 +489,7 @@ is the list, and the backend refuses any other.
   shows here too. `count` is what says how many gave it, so the popup ends on
   "and N more" whenever it has fewer names than that — a long list the server
   cut, or somebody it could not name at all. It is drawn in a portal on the body, not beside the chip: the log
-  both scrolls and clips, and the panel's `backdrop-filter` would hold a
-  `position: fixed` child to the panel instead of the screen. Anything that
+  both scrolls and clips. Anything that
   moves the chip — a scroll, a resize — closes it rather than making it follow.
 - **`mine` is only known from a call.** `GetHistory` sends the token already
   held (`SessionProvider.held()`, never a mint) so the server can mark the
@@ -518,10 +559,14 @@ the eye without stealing it. Four things say it, each for a different glance:
 - **A folded panel breathes.** `chat-waiting` puts the accent on the title, pops
   the unread badge (remounted on every count change, so it replays per message)
   and pulses the panel's own border and glow. It is a slow breath rather than a
-  blink: this sits over a game.
+  blink: this sits over a game. On a phone the badge is on the Chat tab.
 - **The newest line is quoted under the folded header**, in its author's colour.
   It is `aria-hidden` — a screen reader gets the count from the badge and the
-  text from the log, and the quote would only say it a third time.
+  text from the log, and the quote would only say it a third time. **On a phone
+  it is a peek over the dock instead** (`.chat-toast`): the newest line, as a
+  balloon, for `TOAST_MS` (4s) after it lands, and a press opens the chat. It is
+  a button named by the line it quotes, since it is the only thing on screen
+  that opens the chat from it.
 
 **The log is never yanked down under someone who scrolled up to read.** It
 auto-scrolls only while it is pinned to the bottom (`PINNED_SLACK_PX`);
@@ -533,7 +578,7 @@ Every one of these animations is dropped or reduced under
 
 ### Who is playing
 
-The "players online" button in the menu's action row opens a `MenuPanel` listing
+The "Online · N" tab beside Chat, in the chat's header, lists
 everyone playing: players with a username, then guests, each with a flag, a name
 in its chat colour (`authorStyle`, the same hue as in the chat). A line's name
 is the one the chat shows for that account: the username, or `guest_` and its
@@ -561,6 +606,15 @@ flame (`StreakFlame`) is the Noto fire of the reactions, `role="img"` named
 neither**: the server sends it no color and a streak of 0, so a signed-in player
 shows a flame only once it has a username.
 
+**A name wears its title too**, in the chat log and the roster: the medal of the
+title its player wears, small, after the crown (`TitleBadge`, a `TitleEmblem`
+with `role="img"` named by the title). The server sends it with the name
+(`ChatMessage.authorTitle`, `RosterEntry.wornTitle`), read when shown, so a new
+pick shows on the roster at once, on the next message, and on older ones once the
+chat is read again. A guest
+wears none. `backends/title.ts` holds `PlayerTitle` and `titleOf`, the one
+decoder of `player.v1.Title`, shared by the chat and the player backends.
+
 **An admin of the game wears a crown** (`AdminCrown`, gold, `role="img"` named
 "Admin") beside its name in the chat log, the roster and the card's title.
 The server says so: `ChatMessage.authorAdmin`, `RosterEntry.admin` and
@@ -572,14 +626,13 @@ once it lands. In fake mode, Ana is the admin.
 hands `onOpenPlayer` to `Menu` → `PlayersPanel` and to `ChatPanel` → `ChatLog`;
 without a `PlayerInfoBackend` wired the names are plain text. The card shows the
 flag and the country, then, for a player with a username, what
-`player.v1.PlayerService/GetPlayer` answers: the titles it holds, as chips in the
-server's order (none, no list), then tiles taken, the current and best
+`player.v1.PlayerService/GetPlayer` answers: the title it wears and the titles
+it shows (see [Titles](#titles)), then tiles taken, the current and best
 streak, and "Playing since", the day the account was made (left out when the
-server does not know it). A title arrives as `{id, name}` and the card shows
-the name: the server owns the list, so a new title needs no change here. The
-fake gives its players a few titles of its own over their fake stats and
-creation date. **A guest's card asks nothing**: a guest has no
-username, so there is nothing to look up, and the card says so. The chat tells
+server does not know it). The fake gives its players titles of its own over
+their fake stats and creation date. **A guest's card asks nothing**: a guest has no
+username, so there is nothing to look up, and the card shows the name and the
+flag alone. It says nothing to the viewer, who may well be signed in. The chat tells
 a guest by `GUEST_PREFIX`, which no username starts with. `GetPlayer` needs no
 token and goes out as a GET, like `GetRoster`; `NotFound` (renamed, or the
 account is gone) reads as `undefined`. `usePlayerInfo` reads it once per card.
@@ -600,7 +653,11 @@ would mint; the next click brings one. `NoSession` holds nothing, so a build
 without a sitekey never announces.
 
 **The roster is streamed**, over `ListenForEvents` through `openStream`, with
-no token and no header. Every connection starts with the whole roster, then
+the token already held (`held()`, never a mint) when there is one. The roster
+needs none; the token is what lets the same stream bring this player's own
+titles (`titleEarned`, see [Titles](#titles)). The server reads it when the
+stream opens, so `useRoster` checks `heldSession()` every `SETTLE_MS` and
+reopens the stream when it changes, keeping the list it has. Every connection starts with the whole roster, then
 sends one line that joined or changed (`entry`) or one key that left (`left`).
 A line is named by its `key`, which the server keeps through a new flag, a
 sign-in and a new name, so a guest who signs in is one row renamed in place;
@@ -618,6 +675,72 @@ client whose `fetch` sets `keepalive` (`newKeepalivePlayerServiceClient`), so it
 is still sent after the page is gone. The server takes the account off at once.
 Two tabs of one browser are one account: closing one takes the line off until
 the other's next announce, at most 30s later.
+
+### Titles
+
+A linked account earns titles; the server decides which and keeps them (see
+the backend's CLAUDE.md). `app/titles/` draws them and `app/account/ProgressTab.tsx`
+is the player's own view.
+
+- **Most titles are ranks on a track** (`TitleRank`: the track, the rank's
+  number, how many ranks). Conquest counts tiles taken, Devotion the streak; OG
+  stands alone. **Only the highest rank of each track is ever shown or worn**, so
+  the client never filters: it draws what the server sends, in its order.
+- **Every title is a medal** (`TitleEmblem`): an SVG per id, drawn by the
+  medal rules of [`DESIGN.md`](DESIGN.md), in the metal `titleArt.ts` gives it
+  (`TITLE_METALS`, bronze up to prism) and the colors of its track (`enamelOf`,
+  `ribbonOf`). An id this build has no picture for gets the first letter of its
+  name in silver, so a new title shows before its art ships. `locked` greys it
+  with a padlock, for a rank not held. Each medal names its masks with `useId`:
+  two on one page cannot share one. Its colors are tokens set through `style`,
+  since an SVG presentation attribute does not resolve `var()`.
+- **The public card** wears the worn title: a banner (`TitleBanner`, the rank line
+  and the name), and a ring of its metal inside the card's ink border
+  (`title-frame-<metal>` on the `Modal`). Under it, one medal per title shown.
+  OG is also a stamp beside the name (`OgStamp`).
+- **The Progress tab** is the worn title (a compact banner), "Wear a title" (a
+  `radiogroup` of the titles that can be worn; a press sends `WearTitle` and reads
+  the titles again), and one `TrackPath` per track: every rank, its threshold
+  (`stepLabel`), a bar filled up to the progress (`filledOf`), and in its header
+  what is left to the next rank (`leftLabel`). The path scrolls sideways and opens
+  centred on the next rank. `useTitles` reads `GetTitles` (the click token, as
+  `GetProfile`) each time the panel opens; a failed read says so.
+- **The unlock moment is live.** The player stream carries `titleEarned` to a
+  stream opened with this player's token. `useRoster` hands it to `Viewer`, which
+  queues them and shows `TitleUnlocked` over the game, one at a time: the medal,
+  rays, the name, the rank line, "Close" and "Wear it" (`AccountStore.wearTitle`;
+  left out when no account store is wired). The server sends only the highest
+  rank per track of what one take earned, so a jump of two ranks is one overlay.
+  A title earned while no tab is open is never announced; it is simply there next
+  time.
+- **The worn title follows the name** in the chat and the roster, as a small
+  medal (see [Who is playing](#who-is-playing)).
+- **UI copy is not documentation.** The card and the tab say nothing about the
+  rules ("one per track", "others see the title you wear"): what is drawn is the rule.
+
+### The season
+
+`backends/season.ts` is the contract, `seasonBackend.ts` reads
+`seasons.v1.SeasonService/GetSeason` once per page load (a cached GET), and
+`fakeSeasonBackend.ts` answers Season 0 in fake mode. A 404 reads as no season.
+
+- `domain/seasonClock.ts` — `seasonClock`, the time left to the second
+  (`27d 14h 05m 12s`, `13h 05m 12s`, `52m 10s`, nothing once over) and whether the finale runs, and `finaleWindow`,
+  the finale's day and hours in the player's own time zone.
+- `app/season/` — `useSeason`, which drops the season at its end (a page open
+  across it goes back to no season), `SeasonChip` and `SeasonDetails`.
+
+**The season is a chip in the status zone.** On a desktop it sits at the top
+centre: "Season 0 ends in 28d 14h 05m 12s", and a press opens the Final Battle's
+day and hours (Escape closes it). On a phone it is the right end of the status
+bar, the two largest units alone ("28d 14h", named in full for a screen reader),
+and a press opens the same details as a sheet. During the finale it glows, says
+"Final Battle ends in" and opens nothing.
+
+**The desktop chip writes its bottom edge on `:root` as `--status-bottom`**
+(`useBottomEdge`), and on a phone the status bar does: the quiz, the bomb news
+and the native-land note sit under it. With neither, the property is unset and
+they sit at the top.
 
 ### Sessions
 
@@ -778,8 +901,8 @@ Discord or a code sent to an email address keeps that account on every device.
   the action in flight and the last failure, and the username with its own save
   in flight and its own failure. No DOM and no network of its own, like
   `SessionClient`, so every transition is under test.
-- `app/account/` — the rest is React: `AccountRow` (one line in the menu),
-  `AccountPanel` (a `MenuPanel`, like the sound settings), `DeleteAccountModal`,
+- `app/account/` — the rest is React: `AccountPanel` (the menu's You tab, named
+  "Sign in" for a guest; a sheet on a phone), `DeleteAccountModal`,
   `SignInCallback` and `SignInGate`.
 
 **The buttons come from `GetSignInOptions`**, which answers the providers the
@@ -830,7 +953,8 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
    `linkedElsewhere` tells them how to move the identity: sign in with it,
    delete that account, then link it here.
 
-**A signed-in player picks a unique username** in `AccountPanel`: 3 to 15
+**A signed-in player is given a username when it signs in** (the server draws
+one, see the backend's CLAUDE.md), **and may pick another** in `AccountPanel`: 3 to 15
 code points of letters of any script, digits, `_` and single spaces, not
 starting with `guest_` in any case, unique ignoring case (the server's rule is
 `players.NameOf`, see the backend's CLAUDE.md). `usernameOf` puts the draft in
@@ -851,19 +975,18 @@ once. A sign-in reads it again; a sign-out or a delete forgets it, and a read or
 a save that lands after the account changed is dropped.
 
 **A player with a username picks its name color** in `AccountPanel`, under the
-username: 13 buttons in a `role="group"` named "Name color", "From your name"
-(the hashed hue, `NameColor.UNSPECIFIED`) and the 12 of `NAME_COLORS`, each
-`aria-pressed`. `AccountStore.setColor` sends `SetColor` and keeps the color the
-server answers; `GetProfile` answers it with the name, and `readProfile` reads
+username: the 12 of `NAME_COLORS` in a `role="group"` named "Name color", each
+`aria-pressed`, none pressed before the first pick. There is no way back to no
+color. `AccountStore.setColor` shows the pick at once, sends `SetColor` and
+keeps the color the server answers, or the old one on a refusal; `GetProfile` answers it with the name, and `readProfile` reads
 both. A color is refused without a username (`FailedPrecondition` → `unnamed`),
 which is why the picker only shows with one. `usePresence` announces again once
 the color held still for a second (`SETTLE_MS`), so the roster line follows.
 
-**A signed-in player sees its own streak** at the top of `AccountPanel`: the
-current and the best, in the same `StatTiles` as the player card. `useStreak`
-reads it each time the panel opens and each time the account is read again,
-with `GetStats` and the click token, so it is as of today and needs no
-username. A guest is shown none and reads none; a failed read shows nothing.
+**A signed-in account's panel has two tabs**: Progress, open first (see
+[Titles](#titles)), and Settings, which holds the username, the color, linking
+and signing out. A guest has no tabs: its panel is the sign-in buttons alone,
+and it reads no titles.
 
 **Signing in by email stays on the page.** The server offers `email` beside the
 providers when `auth.email.enabled` is on, and `EmailSignIn` draws it under the
@@ -884,7 +1007,7 @@ typed (digits only), and `cancelCode` goes back to the address.
   `disposableEmail`. `tooManyCodes` is the address's budget or the network's.
 - **On success the account is read again** and the click token invalidated,
   exactly as after `CompleteSignIn`. An email account is linked: it clicks
-  faster and may pick a username.
+  faster and is given a username it may change.
 - To try it locally, run the backend with `auth.email.enabled` and
   `auth.email.delivery: log` (no Cloudflare account needed): the code is in the
   server log.
@@ -916,9 +1039,9 @@ mint a guest and insert a row into `auth.identities` for its account.
   setCountry, dispose}`. Its loop draws on demand — see [Drawing only when
   something changed](#drawing-only-when-something-changed).
 - `useGlobe.ts` — owns one globe for the lifetime of the component. **Its effect
-  must not depend on anything that changes per render**; the selected country is
-  pushed into the running globe through a separate effect rather than rebuilding
-  it.
+  must not depend on anything that changes per render**; the selected country and
+  the player's hue are pushed into the running globe through separate effects
+  rather than rebuilding it.
 - `useLeaderboardFeed.ts` — the one place React hears about the board, and
   **it samples rather than follows**. See [Sampling the
   leaderboard](#sampling-the-leaderboard).
@@ -978,29 +1101,32 @@ mint a guest and insert a row into `auth.identities` for its account.
   (`tilesSpread`: a green burst, a spark popping onto each tile around it in
   turn, two rings). It reuses the enclosure's shaders, with normal rather than
   additive rings, which vanished on the white of a flag. A busy planet spreads a
-  lot, so at most `MAX_PLAYING` run at once. It also puffs dust on a tile this
-  player's click cleared rather than took (`playClear`): a small burst, six motes
-  drifting off it, one ring, 0.8s.
-
-  **Every other click puffs on its tile** (`playClick`): this player's at once,
-  and anyone else's when its `TileUpdate` says `clicked` — the server sets it only
-  on the tile a click named, never on a spread's neighbours, an enclosure's
-  inside or a moderator's write. Own clicks echoed back are skipped through
-  `OwnClicks`. **It is the clear's puff in sky blue** (`choreographClick`, pinned
-  by `clickEffects.test.ts`), the level the product wants for the most frequent
-  thing on the map: it lights the tile and sends one small ring, seen from space
-  but no bigger than a clear. Two tries missed it on either side: a lone faint
-  ring at 20px could not be seen, and a full-strength ring of at least 44px with
-  a dark edge looked like a bonus. Sky blue rather than white, which vanished on
-  the white of a flag. **A click out of view is not played** (`inView`): on the
-  far side or off the screen it would cost frames and show nothing. Plain clicks
-  run in a second instance, so a busy planet's clicks never push a spread off the
-  screen. With less motion it is a still puff that fades, like a clear.
+  lot, so at most `MAX_PLAYING` run at once.
+- `clickGlints.ts` — **every other click glints on its tile**: this player's at
+  once, and anyone else's when its `TileUpdate` says `clicked` — the server sets
+  it only on the tile a click named, never on a spread's neighbours, an
+  enclosure's inside or a moderator's write. Own clicks echoed back are skipped
+  through `OwnClicks`. **A glint is one soft glow and no ring**, gone in 0.7s
+  and mostly gone by 0.35s: it is the most frequent thing on the map, a flash
+  with a ring was too much at that rate even at its smallest, and a puff that
+  held the tile for half a second got in the way of play zoomed in. Before that, a lone faint ring at 20px
+  could not be seen, and a full-strength ring of at least 44px with a dark edge
+  looked like a bonus. **It is never under `MIN_GLINT_PX`**, so from orbit a
+  click is a spark that keeps the planet alive, and otherwise 1.8 tiles wide, so
+  pushed in it stays on its tile (`glintSize`). **A clear is the same glint
+  shrinking as it fades** (`playOwnClear`), on a tile this player's click
+  cleared rather than took. **This player's glints are in its color's hue**
+  (`hueOf`, handed down through `Globe.setClickHue`); a player with no color
+  glints sky blue and clears in dust. Everyone else's are sky blue: a
+  `TileUpdate` does not say who clicked. Not white, which vanished on the white
+  of a flag. **A click out of view is not played** (`inView`): on the far side
+  or off the screen it would cost frames and show nothing. With less motion a
+  clear fades without shrinking.
 - `earth.ts` — the opaque sphere under the tiles, in the globe's light with
   `?gfx=earth`. See [The light](#the-light).
 - `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe the URL
   turns on. See [`?gfx=`](#gfx-the-sharper-lit-globe-off-unless-asked-for).
-- `shaders/` — GLSL for the display, picking, earth, star and enclosure passes.
+- `shaders/` — GLSL for the display, picking, earth, star, enclosure and glint passes.
   `light.glsl` is not a pass but the light they share, pulled in with
   `#include ../light.glsl;` (vite-plugin-glsl's own include, not three's).
 
@@ -1028,8 +1154,8 @@ under test. Three things can ask for a frame:
   the frame that draws it rather than the tick that reads it, so the cap below
   can hold a frame back without losing the move that asked for it.
 - **Something the loop drives is still moving** — every `update` that animates
-  answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, both `clickEffects`
-  and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the
+  answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, `clickEffects`,
+  `clickGlints` and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the
   one that takes the flash, the box or the highlight off the screen, so each one
   answers `true` on the tick it stops as well as while it runs.
 - **Something outside the loop touched the scene** — `invalidate()`, which
@@ -1154,11 +1280,10 @@ and it was the first suspect for the white globe on Intel; turning it off
 ratio on its way to the GPU: the tile's point size, the outline's width
 (`halfWidthOf`), the keyline around a painted flag, the smallest a mark or a
 ring of the bonus effects may be, the smallest debris. So are the thresholds:
-`coarseHandover`, `flagPaint` and the size a landmass must reach before its flag
-fades in are worked out in CSS pixels, or a sharper screen would hand over at
-half the zoom. What is measured against `gl_PointSize` stays in drawing-buffer
-pixels — `pixelsPerRadian`, the picker's window, the one-pixel feathers that
-soften an edge.
+`coarseHandover` and `flagPaint` are worked out in CSS pixels, or a sharper
+screen would hand over at half the zoom. What is measured against
+`gl_PointSize` stays in drawing-buffer pixels — `pixelsPerRadian`, the picker's
+window, the one-pixel feathers that soften an edge.
 
 The click is already in drawing-buffer pixels: `canvasPosition` scales the
 pointer by `canvas.width / rect.width`. `resize` sets the ratio again, because a
@@ -1445,7 +1570,8 @@ and are shared; how thick a line is drawn between them is this app's.
    refusal does not clear on its own — the player has to change network — so the
    next click raises it again.
 
-6. `ClickBudgetMeter` shows what is left of the bucket, top-right. It warns
+6. `ClickBudgetMeter` shows what is left of the bucket, in the dock at the bottom
+   (see [The screen](#the-screen-four-zones)). It warns
    before the wall, and shakes when a click hits it. **Its shape is read off the server's policy**: one
    pip per click in the burst (one bar past 12 of them), and the partly-filled
    pip is the click being granted back, at the server's own rate. Change
@@ -1453,7 +1579,7 @@ and are shared; how thick a line is drawn between them is this app's.
 
    **A slow refill gets a countdown.** When a click takes 1.5s or more to come
    back (`COUNTDOWN_FROM_S`; production is one every 5s), the meter says
-   "+1 in 4s" beside the bar, and says nothing at a full bucket. Past 12 pips
+   "+1 in 4s" under the bar, and says nothing at a full bucket. Past 12 pips
    the bar moves a sixtieth per click, too little to see, so a blue strip under
    it (`--click-budget-next`) fills once per click, as a pip would.
 
@@ -1465,16 +1591,30 @@ and are shared; how thick a line is drawn between them is this app's.
    thread. Under `prefers-reduced-motion` the fill steps four times a second
    instead of gliding.
 
-   On a phone it moves to under the folded menu: both ends of the screen are
-   full-width sheets there, the menu above and the chat below.
+   **It says when the toll slows the refill**: a chip before the countdown,
+   "4× slower" (on a phone "4×", named in full), whenever `ClickBudget.price`
+   says a slowdown above 1. The chip, the countdown and the offer below are a
+   line beside the meter, never inside it.
+
+   **The reading opens "Your clicks"** (`ClicksPanel`): a button laid over the
+   reading (`.click-budget-open`), so `role="meter"` stays a leaf. On a desktop it
+   is a popover over the dock, closed by the reading or Escape; on a phone, a
+   sheet. It holds the count, the country's share of the map, the whole toll
+   table from `BonusRules.toll` with the step the country is on marked, who else
+   spends from the bank, and the offer. **It shows no seconds per click**: the
+   reading's rate is the pace of the last click, which a change of flag only
+   moves at the next click (see the backend's toll), so a time worked out from it
+   would be wrong exactly when the player is looking.
 
    **A guest is offered to click faster.** A signed-in account refills
    `ClickBudget.linkedMultiplier` times faster (2 in production), into a bank of
    the same size. For a guest the
-   server offers sign-in to, `Viewer` passes `onSignIn` and the meter shows
-   "Sign in: clicks 2× faster" under the pips — a button beside the meter, not in
+   server offers sign-in to, `Viewer` passes `onSignIn` and the dock shows
+   "Sign in: clicks 2× faster" in its line — a button beside the meter, not in
    it, since the meter is a reading. It glows when the bucket is empty or a click
-   is refused, the moment a guest meets the wall. It opens `SignInPitchModal`,
+   is refused, the moment a guest meets the wall. **It is in the line only where
+   it fits**: on a desktop with no slowdown chip. Otherwise it is in "Your
+   clicks" and the Sign in tab, so the line never holds more than two things. It opens `SignInPitchModal`,
    which has the account panel's sign-in buttons. **The pitch sells more than
    speed**: a list of what a guest does not have — the clicks, a name, a color
    (guests are grey), a place on the board (players with a name are listed above
@@ -1487,22 +1627,20 @@ and are shared; how thick a line is drawn between them is this app's.
    address share one bank, and every player behind it shares the scope's, so a
    count can drop by clicks this player never made: another tab, or a stranger
    on the same carrier. `ClickBudget.sharedWith` is the server's answer to whose
-   bucket the reading is, and the meter says "Shared with the guests on your
-   network" or "…everyone on your network" under the reading. Absent, it is the
+   bucket the reading is: the dock's line shows a players icon named "Shared with
+   the guests on your network" or "…everyone on your network", and "Your clicks"
+   says it in words. Absent, it is the
    player's own and nothing is said. A guest who shares is offered "Sign in:
    your own clicks" instead, and `SignInPitchModal` says why.
 
-   **It is one panel, and its width is set rather than grown.** The reading, the
-   offer and the inventory all live in `.click-budget-dock`, which takes the
-   corner and carries the only border, background and blur; `.click-budget`
-   itself draws nothing, so `role="meter"` stays a leaf with no button inside
-   it. The dock's width is a number (288px, 240px on a phone) because the three
-   parts are three different widths: shrink-to-fit handed the widest one the
-   say, and the others then trailed a stripe of dead space to their right —
-   worse, the price row wrapping made the meter's max-content that whole row
-   *unwrapped*, which is where the empty half of the pill came from. The gauge
-   is `flex: 1` and the slots `flex: 1 1 0`, so both fill whatever the panel
-   gives them. The panel's border is what carries state: the inventory's glow
+   **It is one panel, and its width is set rather than grown.** The reading, its
+   line and the inventory all live in `.click-budget-dock`, one row at the bottom
+   centre that carries the only border and background; `.click-budget` itself
+   draws nothing, so `role="meter"` stays a leaf with no button inside it. The
+   dock's width is `--dock-width` (620px, 460px under 1280px, the screen less 24px
+   on a phone): shrink-to-fit handed the widest part the say before, and the
+   others trailed dead space. The reading is `flex: 1` and the slots keep their
+   size, so the bar takes what is left. The panel's border is what carries state: the inventory's glow
    first, then low, empty and refused, in that source order so red at the wall
    beats a bonus being switched on. The reading still jolts on a refusal
    (`.click-budget-refused`, taken off on its own `animationend`), but the red
@@ -1629,10 +1767,9 @@ writes or spends anything.
 
 ### The inventory
 
-`components/Inventory.tsx` is the section that shows them, the **lower half of
-the click meter's panel** (the meter takes it as `children`, and shows it even
-with no budget). It draws no border, background or blur of its own: the one
-panel is `.click-budget-dock`, and a hairline divides the reading from the slots.
+`components/Inventory.tsx` is the section that shows them, the **right half of
+the dock** (the meter takes it as `children`, and shows it even with no budget).
+It draws no border or background of its own: the one panel is `.click-budget-dock`.
 One slot per kind, always shown, each drawn with its box's
 icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement). An empty slot is dimmed and
@@ -1646,15 +1783,10 @@ word over the icon says what the slot is doing (`On`, `Aim`, `Full`).
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).
 - **Spread** and **Enclose** switch (`Globe.setSwitch`), `aria-pressed`.
 
-**The whole section folds** from a header over the slots: the name on the left,
-the count of kinds held while folded (open, every slot already says its own), and
-a `ChevronIcon` at the right end that turns over when it opens. That is the
-page's one way of folding something — the same icon and the same turn as
-`MenuHeader`'s collapse and the chat's header — so it is written the same way
-here rather than invented again. The fold is kept in local storage
-(`clickplanet-inventory-folded`, read and written in a `try`, since a private
-window can throw). The panel glows while something is on or aimed, so a folded
-inventory still says the next click does more than paint.
+**It does not fold**: four slots are one row, labelled from 1280px and icons
+with their counts below that (the name stays in `aria-label`). A fold on a row
+this small hid the one thing that says the next click does more than paint.
+The dock glows while something is on or aimed.
 
 ## Native land takes two clicks
 
@@ -1671,7 +1803,7 @@ says whether the rule is on in `BonusRules.homeSoil`.
   `home_soil_test.go`. Before the rules are read, or with no bonus feed, a click
   is painted as a take and the server's echo corrects it.
 - **A clear says so twice.** A tile going blank under a newcomer's click reads as
-  a click that went wrong, so it puffs dust on the tile (`clickEffects.ts`,
+  a click that went wrong, so its glint shrinks as it fades (`clickGlints.ts`,
   every time), and `NativeLandNote` says "Poland's native land takes two clicks.
   One more to take it." under the bomb line — only the first three times in a
   browser (`domain/clearNotes.ts`, in `clickplanet-home-soil-notes`, counted in
@@ -1679,7 +1811,7 @@ says whether the rule is on in `BonusRules.homeSoil`.
 - **Spread and enclose follow the rule on every tile they touch**, on the server.
   Nothing here predicts them: their tiles arrive over the stream as ever, a cleared
   one as an update with no country.
-- **Only the clicker sees the dust.** Everybody else sees the tile go empty, as a
+- **Only the clicker sees the clear's glint.** Everybody else sees the tile go empty, as a
   `TileUpdate` with no country: the stream does not say why.
 
 ## Quizzes
@@ -1843,26 +1975,20 @@ different picture on every platform.
 
 The game's own map is the marketing material, so the globe can be photographed
 and the picture taken out of the browser. `src/app/share/` holds it:
-`CameraButton.tsx` takes the shot, `takePicture.ts` captures and composes it,
+the "Take a picture" tile under More (`MorePlace` in `Menu.tsx`) takes the shot,
+`takePicture.ts` captures and composes it,
 `drawShareCard.ts` draws the card, `SharePreview.tsx` shows it, `ShareActions
 .tsx` is the row of buttons under it and `deliverShare.ts` is what they do.
 `useSharePicture.ts` holds the one picture there is at a time.
 `src/domain/shareCard.ts` holds everything decided before a pixel is drawn.
 
-**The camera sits on the canvas, bottom-left, not in the menu.** The globe is
-what it photographs and the card over it is not in the picture, so the button
-belongs beside the subject. It is also the wrong shape for the menu's row of
-actions: those are 56px slabs for things you do to the *page*, and three of them
-do not fit across the card anyway — an earlier version put the share buttons
-there and pushed Discord out over the edge, and moving the camera up beside the
-collapse chevron did the same to the chevron. It is the click meter's pill
-instead, and on a phone it clears the folded chat the way the meter clears the
-menu, losing its label there: a camera needs no caption and the name stays in
-`aria-label`.
+**The camera is a tile under More, not a button on the globe.** It used to sit
+on the canvas, bottom-left, beside its subject; it was one of six things over
+the globe on a phone, and it is pressed rarely. On a phone the press closes the
+sheet first, so the globe is what the preview shows the player framed.
 
-**Its label never changes.** A pill anchored to a corner that rewrites itself
-mid-press resizes under the cursor, and what answers the press is the preview
-opening. Working is said by the button dimming.
+**Its label never changes.** What answers the press is the preview opening.
+Working is said by the tile dimming (`aria-busy`, disabled).
 
 **Pressing it opens a preview, and the preview is where the choice lives.** The
 framing is the player's — the camera takes the globe at whatever angle and zoom
@@ -1897,8 +2023,8 @@ menu header flies — with the link at the other end of that line, and the
 player's badge at the bottom.
 
 **The link is drawn into the image**, not only attached to it: a picture is what
-survives being reposted. It is drawn in Oswald rather than the page's title
-face, which has no lowercase — a query parameter reading `?C=PS` is a link that
+survives being reposted. It is drawn in the text face (`--font-text`, Rubik)
+rather than the title face, which has no lowercase — a query parameter reading `?C=PS` is a link that
 does not work for whoever retypes it — and it sits on the masthead's line rather
 than over the badge, so a long country name never has to share a width with it.
 
@@ -2012,7 +2138,7 @@ message of its own came back, so its first can still ping.
 ### The leader's anthem
 
 The one sound that **is** a file. `src/app/anthem/` plays the national anthem of
-the country leading the map, on a loop, with a player at the bottom of the screen.
+the country leading the map, on a loop, with a player in the leader's frame on the board.
 The recordings are the US Navy Band's (public domain); `npm run anthems` downloads
 them, normalises loudness, trims the silence so the loop has no gap, and writes
 `static/anthems/<code>-<hash>.m4a` plus `anthemsAsset.ts`, which pairs each file
@@ -2030,8 +2156,11 @@ no recording shows the player with its play button off.
   and pauses rather than streaming silence.
 - `useAnthem.ts` — ties the board and the settings to the player, which is built
   once, so a tick or a toggle never restarts the music.
-- `AnthemBar.tsx` — the player: the anthem's title, then the country. Play and volume write `SoundSettings.anthem`, so
+- `AnthemControls.tsx` — the player, in the board's frame for the first country (`Leaderboard`'s `anthem`): the anthem's title, then the country. Play and volume write `SoundSettings.anthem`, so
   it and the settings panel never disagree. Pressing play lifts the master switch.
+  It plays the country the music follows, which holds first place `HOLD_MS` before
+  it changes, so for that long after a new leader the frame shows the last one's
+  anthem, under its own flag.
 
 ## Protocol Buffers
 
@@ -2051,6 +2180,8 @@ the whole `proto` directory, so a new package needs no config change; run
   deprecated mint, no longer called
 - [`player/v1/player.proto`](../../proto/player/v1/player.proto) — the
   username and who is playing (`PlayerService`)
+- [`seasons/v1/seasons.proto`](../../proto/seasons/v1/seasons.proto) — the
+  current season (`SeasonService`)
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in
@@ -2123,7 +2254,7 @@ chat. To retake it:
 Chrome may not exit after it writes the file; stop it once the file is there.
 
 `public/` holds the files that must be served as themselves rather than as the
-app: `_headers`, `robots.txt`, `sitemap.xml`, `privacy.html` and `terms.html`. Vite copies them to the root of
+app: `_headers`, `robots.txt` and `sitemap.xml`. Vite copies them to the root of
 `dist/`, and the Workers asset handler serves a real file before
 `not_found_handling` applies — **without them, every unmatched path including
 `/robots.txt` answers 200 with `index.html`**, so a crawler asking for the rules
@@ -2136,7 +2267,7 @@ fetch the preview from.
 It is a plain page, not a component: it loads with no WebGL and no bundle, and a
 crawler reads it as it is. The Workers asset handler serves it at `/privacy`
 (`html_handling` drops the extension) and `nginx.conf` does the same with
-`$uri.html`; `npm run dev` only serves it at `/privacy.html`. **It states
+`$uri.html`; `npm run dev` serves it at both `/privacy` and `/privacy.html`. **It states
 retention periods, so it goes stale when the backend's do**: `ledger.retention`,
 `antiBot.evidence.retention`, `chat.storage.retention` and
 `auth.sessions.guestTTL` in `deploy/vps/backend.yaml`, and `roll_keep_for` in
@@ -2148,14 +2279,25 @@ sentence. A new Google scope changes that section.
 
 **`index.html` is the home page** and says what the game is in plain HTML — see
 [Pages and routes](#pages-and-routes). It is a full landing page (header,
-hero, how it works, features, creator, Discord, footer) in the game's look, with
-one stylesheet inline and no script but the redirect. The hero's `.boost` callout
-says signing in clicks 2× faster: plain HTML cannot read the server's number, so
-**change it with `rateLimiter.linkedMultiplier` in `deploy/vps/backend.yaml`**. Its screenshots are
-`static/home/*.jpg`, taken from the live game; a new one must not show the chat,
-which carries players' own words. The section links (`#how`, `#features`,
-`#creator`) work in the page, but a returning player who opens one directly is
-sent to the game like any other hash but `#home`.
+hero, how it works, the board and the map, phone, Discord, and a footer that
+carries the creator) in the game's look, with one stylesheet inline and no
+script but the redirect. **It sells the game, not its mechanics**: country
+against country on one live planet. What only makes sense once playing (signing
+in to click faster, bonus boxes, the camera) stays in the game. The hero's
+counts are written by hand, since plain HTML cannot read them: 262,000 tiles is
+`gameMap.maxIndex` in `deploy/vps/backend.yaml`, 239 flags is
+`static/countries/countries.json`. Its screenshots are `static/home/*.jpg`,
+taken from the live game at 1440×900 (390×844 for the phone) at 2× with a fresh
+profile; a new one must not show the chat, which carries players' own words, and
+a fresh profile opens it on a desktop, so fold it first. They are fixed names
+under a week of cache, so a retake gets a new name. The section links (`#how`,
+`#board`, `#creator`) work in the page, but a returning player who opens one
+directly is sent to the game like any other hash but `#home`.
+
+**The Discord invite is written once, in `src/links.ts`.** The menu imports it;
+`vite.config.ts` hands it to the three plain pages, which write
+`%DISCORD_INVITE%` (Vite's own HTML replacement, fed through `define`).
+`links.test.ts` fails on an invite pasted into a page.
 
 **`terms.html` is the terms of service**, linked beside it and built
 the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. The
@@ -2182,10 +2324,22 @@ thin as it is.
 
 ## Styling
 
+**Read [`DESIGN.md`](DESIGN.md) before touching a style.** It is the design
+system: what the game looks like, which token does which job, and the rules
+every piece follows. The values themselves are in `src/tokens.css`, imported
+first in `main.tsx`.
+
+**`designTokens.test.ts` fails on a color or a font named anywhere else**: in a
+stylesheet, in the home page's style, or in a component (the Google and Discord
+sign-in colors aside). Code that draws outside CSS reads the tokens as well:
+`drawShareCard.ts` with `getComputedStyle` at draw time, the medals through
+`style`. The home page, `privacy.html` and `terms.html` link `src/tokens.css`
+themselves.
+
 Plain CSS files co-located with components. No CSS preprocessor or CSS-in-JS.
 
 `ChatPanel.css` is the one file with a custom property contract: each message
-and the folded peek carry `--author-hue` from `authorHue`, and the CSS builds
+and the folded peek carry `--author-hue` from `hueOf`, and the CSS builds
 the author's stripe, name colour and arrival glow out of it. Keep the hue in the
 TS and the rest in the CSS — that is what stops an author's colour from being
 computed in two places with two different saturations.
@@ -2222,7 +2376,7 @@ makes, so viewport, DPR, touch and the iOS user agent all resolve like a phone:
 ```bash
 npm run dev
 npm run mobile -- http://localhost:5173/play --open-menu --out /tmp/shot.png \
-  --eval 'JSON.stringify(getComputedStyle(document.querySelector(".button-discord")).height)'
+  --eval 'JSON.stringify(document.querySelector(".sheet").getBoundingClientRect())'
 ```
 
 It runs headless Chrome under a throwaway profile, so it never disturbs the
@@ -2237,7 +2391,14 @@ focus**, and never zooms back out. That is why `.chat-input` is 16px — at 14px
 the zoom pushed the send button off the right of the screen. Keep every `input`
 here at 16px or more; the emulator will not tell you when one drops below.
 
-`--open-menu` exists because two things sit between a fresh load and the menu:
-`DonationModal` rolls a coin on **every** load (`SHOW_PROBABILITY`), and the
-menu starts folded on mobile. Without it you will screenshot the donation modal
-half the time and the folded header the other half.
+Nor does it draw the browser's toolbars, so **`100vh` looks right in the
+emulator and is not on a phone**: there it is the height with the toolbars
+hidden, and this page never scrolls them away. A `Modal` sized `100vh` put the
+bottom of the player card under the toolbar, with nothing left to scroll and a
+drag that pulled the page to refresh. Size a full-screen layer with
+`position: fixed; inset: 0` instead. `overscroll-behavior: none` on the root
+stops pull-to-refresh everywhere.
+
+`--open-menu` dismisses the donation modal and opens the Board sheet:
+`DonationModal` rolls a coin on **every** load (`SHOW_PROBABILITY`), so without
+it you will screenshot the donation modal half the time.

@@ -32,9 +32,9 @@ type Publisher struct {
 
 var _ enclose_click.Publisher = (*Publisher)(nil)
 
-func (p *Publisher) PublishEnclosed(scope string, enclosed bonuses.Enclosed) {
+func (p *Publisher) PublishEnclosed(entrant bonuses.Entrant, enclosed bonuses.Enclosed) {
 	p.shapes.Inc()
 	p.tiles.Add(float64(len(enclosed.Filled)))
 
-	p.implementation.PublishEnclosed(scope, enclosed)
+	p.implementation.PublishEnclosed(entrant, enclosed)
 }

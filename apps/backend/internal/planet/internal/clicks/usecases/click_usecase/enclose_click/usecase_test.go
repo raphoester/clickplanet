@@ -74,7 +74,7 @@ func (r rule) Execute(ctx context.Context, in click_usecase.In) (click_usecase.O
 
 type recorder struct{ published []bonuses.Enclosed }
 
-func (r *recorder) PublishEnclosed(_ string, enclosed bonuses.Enclosed) {
+func (r *recorder) PublishEnclosed(_ bonuses.Entrant, enclosed bonuses.Enclosed) {
 	r.published = append(r.published, enclosed)
 }
 

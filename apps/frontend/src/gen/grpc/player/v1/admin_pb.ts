@@ -7,70 +7,144 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
- * @generated from message player.v1.BackfillTitlesRequest
+ * @generated from message player.v1.ReconcileTitlesRequest
  */
-export class BackfillTitlesRequest extends Message<BackfillTitlesRequest> {
-  constructor(data?: PartialMessage<BackfillTitlesRequest>) {
+export class ReconcileTitlesRequest extends Message<ReconcileTitlesRequest> {
+  constructor(data?: PartialMessage<ReconcileTitlesRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "player.v1.BackfillTitlesRequest";
+  static readonly typeName = "player.v1.ReconcileTitlesRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BackfillTitlesRequest {
-    return new BackfillTitlesRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReconcileTitlesRequest {
+    return new ReconcileTitlesRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BackfillTitlesRequest {
-    return new BackfillTitlesRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReconcileTitlesRequest {
+    return new ReconcileTitlesRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BackfillTitlesRequest {
-    return new BackfillTitlesRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReconcileTitlesRequest {
+    return new ReconcileTitlesRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: BackfillTitlesRequest | PlainMessage<BackfillTitlesRequest> | undefined, b: BackfillTitlesRequest | PlainMessage<BackfillTitlesRequest> | undefined): boolean {
-    return proto3.util.equals(BackfillTitlesRequest, a, b);
+  static equals(a: ReconcileTitlesRequest | PlainMessage<ReconcileTitlesRequest> | undefined, b: ReconcileTitlesRequest | PlainMessage<ReconcileTitlesRequest> | undefined): boolean {
+    return proto3.util.equals(ReconcileTitlesRequest, a, b);
   }
 }
 
 /**
- * @generated from message player.v1.BackfillTitlesResponse
+ * @generated from message player.v1.ReconcileTitlesResponse
  */
-export class BackfillTitlesResponse extends Message<BackfillTitlesResponse> {
+export class ReconcileTitlesResponse extends Message<ReconcileTitlesResponse> {
   /**
-   * @generated from field: uint32 accounts = 1;
+   * @generated from field: uint32 granted = 1;
    */
-  accounts = 0;
+  granted = 0;
 
-  constructor(data?: PartialMessage<BackfillTitlesResponse>) {
+  /**
+   * @generated from field: uint32 revoked = 2;
+   */
+  revoked = 0;
+
+  constructor(data?: PartialMessage<ReconcileTitlesResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "player.v1.BackfillTitlesResponse";
+  static readonly typeName = "player.v1.ReconcileTitlesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "accounts", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 1, name: "granted", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "revoked", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BackfillTitlesResponse {
-    return new BackfillTitlesResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReconcileTitlesResponse {
+    return new ReconcileTitlesResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BackfillTitlesResponse {
-    return new BackfillTitlesResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReconcileTitlesResponse {
+    return new ReconcileTitlesResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BackfillTitlesResponse {
-    return new BackfillTitlesResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReconcileTitlesResponse {
+    return new ReconcileTitlesResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: BackfillTitlesResponse | PlainMessage<BackfillTitlesResponse> | undefined, b: BackfillTitlesResponse | PlainMessage<BackfillTitlesResponse> | undefined): boolean {
-    return proto3.util.equals(BackfillTitlesResponse, a, b);
+  static equals(a: ReconcileTitlesResponse | PlainMessage<ReconcileTitlesResponse> | undefined, b: ReconcileTitlesResponse | PlainMessage<ReconcileTitlesResponse> | undefined): boolean {
+    return proto3.util.equals(ReconcileTitlesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.NameAccountsRequest
+ */
+export class NameAccountsRequest extends Message<NameAccountsRequest> {
+  constructor(data?: PartialMessage<NameAccountsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.NameAccountsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NameAccountsRequest {
+    return new NameAccountsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NameAccountsRequest {
+    return new NameAccountsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NameAccountsRequest {
+    return new NameAccountsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NameAccountsRequest | PlainMessage<NameAccountsRequest> | undefined, b: NameAccountsRequest | PlainMessage<NameAccountsRequest> | undefined): boolean {
+    return proto3.util.equals(NameAccountsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.NameAccountsResponse
+ */
+export class NameAccountsResponse extends Message<NameAccountsResponse> {
+  /**
+   * @generated from field: uint32 named = 1;
+   */
+  named = 0;
+
+  constructor(data?: PartialMessage<NameAccountsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.NameAccountsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "named", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NameAccountsResponse {
+    return new NameAccountsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NameAccountsResponse {
+    return new NameAccountsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NameAccountsResponse {
+    return new NameAccountsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NameAccountsResponse | PlainMessage<NameAccountsResponse> | undefined, b: NameAccountsResponse | PlainMessage<NameAccountsResponse> | undefined): boolean {
+    return proto3.util.equals(NameAccountsResponse, a, b);
   }
 }
 

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -20,12 +20,12 @@ type Stats interface {
 }
 
 type Titles interface {
-	TitlesOf(ctx context.Context, account players.AccountID) ([]titles.Title, error)
+	Showcase(ctx context.Context, account players.AccountID) (wearing.Showcase, error)
 }
 
 type Player struct {
 	players.Player
-	Titles []titles.Title
+	Titles wearing.Showcase
 }
 
 type Accounts interface {
@@ -66,7 +66,7 @@ func (u *UseCase) Execute(ctx context.Context, value string) (Player, error) {
 		return Player{}, fmt.Errorf("failed to read the stats: %w", err)
 	}
 
-	held, err := u.titles.TitlesOf(ctx, profile.Account)
+	showcase, err := u.titles.Showcase(ctx, profile.Account)
 	if err != nil {
 		return Player{}, fmt.Errorf("failed to read the titles: %w", err)
 	}
@@ -84,6 +84,6 @@ func (u *UseCase) Execute(ctx context.Context, value string) (Player, error) {
 			Admin:     profile.Admin,
 			Color:     profile.Color,
 		},
-		Titles: held,
+		Titles: showcase,
 	}, nil
 }

@@ -110,3 +110,30 @@ func TestCountIsHowManyOfAKindAreHeld(t *testing.T) {
 	assert.Equal(t, 2, held.Count(KindEncloseClicks))
 	assert.Equal(t, 5, held.Count(KindSpreadClicks))
 }
+
+func TestAHolderIsParsedFromAnAccountID(t *testing.T) {
+	holder, err := ParseHolder("0B7E5B6C-8F3A-4D2E-9C1A-2F6D8E4B7A10")
+	require.NoError(t, err)
+
+	assert.Equal(t, Holder("0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"), holder, "as the click token names it")
+}
+
+func TestOnlyAnAccountIDIsAHolder(t *testing.T) {
+	for _, account := range []string{"", "a-guest", "1.2.3.4", "00000000-0000-0000-0000-000000000000"} {
+		_, err := ParseHolder(account)
+		require.ErrorIs(t, err, ErrInvalidHolder, account)
+	}
+}
+
+func TestAGrantNamesAtLeastOneCharge(t *testing.T) {
+	require.ErrorIs(t, Held{}.GrantError(), ErrNothingToGrant)
+
+	for _, grant := range []Held{{Refill: true}, {Bomb: true}, {Enclosures: 1}, {SpreadClicks: 1}} {
+		assert.NoError(t, grant.GrantError(), grant)
+	}
+}
+
+func TestAGrantTakesNothingAway(t *testing.T) {
+	require.ErrorIs(t, Held{Bomb: true, Enclosures: -1}.GrantError(), ErrNegativeGrant)
+	require.ErrorIs(t, Held{SpreadClicks: -1}.GrantError(), ErrNegativeGrant)
+}

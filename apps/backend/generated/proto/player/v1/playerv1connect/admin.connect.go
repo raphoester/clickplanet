@@ -33,14 +33,18 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// AdminServiceBackfillTitlesProcedure is the fully-qualified name of the AdminService's
-	// BackfillTitles RPC.
-	AdminServiceBackfillTitlesProcedure = "/player.v1.AdminService/BackfillTitles"
+	// AdminServiceReconcileTitlesProcedure is the fully-qualified name of the AdminService's
+	// ReconcileTitles RPC.
+	AdminServiceReconcileTitlesProcedure = "/player.v1.AdminService/ReconcileTitles"
+	// AdminServiceNameAccountsProcedure is the fully-qualified name of the AdminService's NameAccounts
+	// RPC.
+	AdminServiceNameAccountsProcedure = "/player.v1.AdminService/NameAccounts"
 )
 
 // AdminServiceClient is a client for the player.v1.AdminService service.
 type AdminServiceClient interface {
-	BackfillTitles(context.Context, *connect.Request[v1.BackfillTitlesRequest]) (*connect.Response[v1.BackfillTitlesResponse], error)
+	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
+	NameAccounts(context.Context, *connect.Request[v1.NameAccountsRequest]) (*connect.Response[v1.NameAccountsResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the player.v1.AdminService service. By default, it
@@ -54,10 +58,16 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 	baseURL = strings.TrimRight(baseURL, "/")
 	adminServiceMethods := v1.File_player_v1_admin_proto.Services().ByName("AdminService").Methods()
 	return &adminServiceClient{
-		backfillTitles: connect.NewClient[v1.BackfillTitlesRequest, v1.BackfillTitlesResponse](
+		reconcileTitles: connect.NewClient[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse](
 			httpClient,
-			baseURL+AdminServiceBackfillTitlesProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("BackfillTitles")),
+			baseURL+AdminServiceReconcileTitlesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ReconcileTitles")),
+			connect.WithClientOptions(opts...),
+		),
+		nameAccounts: connect.NewClient[v1.NameAccountsRequest, v1.NameAccountsResponse](
+			httpClient,
+			baseURL+AdminServiceNameAccountsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("NameAccounts")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -65,17 +75,24 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	backfillTitles *connect.Client[v1.BackfillTitlesRequest, v1.BackfillTitlesResponse]
+	reconcileTitles *connect.Client[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse]
+	nameAccounts    *connect.Client[v1.NameAccountsRequest, v1.NameAccountsResponse]
 }
 
-// BackfillTitles calls player.v1.AdminService.BackfillTitles.
-func (c *adminServiceClient) BackfillTitles(ctx context.Context, req *connect.Request[v1.BackfillTitlesRequest]) (*connect.Response[v1.BackfillTitlesResponse], error) {
-	return c.backfillTitles.CallUnary(ctx, req)
+// ReconcileTitles calls player.v1.AdminService.ReconcileTitles.
+func (c *adminServiceClient) ReconcileTitles(ctx context.Context, req *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error) {
+	return c.reconcileTitles.CallUnary(ctx, req)
+}
+
+// NameAccounts calls player.v1.AdminService.NameAccounts.
+func (c *adminServiceClient) NameAccounts(ctx context.Context, req *connect.Request[v1.NameAccountsRequest]) (*connect.Response[v1.NameAccountsResponse], error) {
+	return c.nameAccounts.CallUnary(ctx, req)
 }
 
 // AdminServiceHandler is an implementation of the player.v1.AdminService service.
 type AdminServiceHandler interface {
-	BackfillTitles(context.Context, *connect.Request[v1.BackfillTitlesRequest]) (*connect.Response[v1.BackfillTitlesResponse], error)
+	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
+	NameAccounts(context.Context, *connect.Request[v1.NameAccountsRequest]) (*connect.Response[v1.NameAccountsResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -85,16 +102,24 @@ type AdminServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	adminServiceMethods := v1.File_player_v1_admin_proto.Services().ByName("AdminService").Methods()
-	adminServiceBackfillTitlesHandler := connect.NewUnaryHandler(
-		AdminServiceBackfillTitlesProcedure,
-		svc.BackfillTitles,
-		connect.WithSchema(adminServiceMethods.ByName("BackfillTitles")),
+	adminServiceReconcileTitlesHandler := connect.NewUnaryHandler(
+		AdminServiceReconcileTitlesProcedure,
+		svc.ReconcileTitles,
+		connect.WithSchema(adminServiceMethods.ByName("ReconcileTitles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceNameAccountsHandler := connect.NewUnaryHandler(
+		AdminServiceNameAccountsProcedure,
+		svc.NameAccounts,
+		connect.WithSchema(adminServiceMethods.ByName("NameAccounts")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/player.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case AdminServiceBackfillTitlesProcedure:
-			adminServiceBackfillTitlesHandler.ServeHTTP(w, r)
+		case AdminServiceReconcileTitlesProcedure:
+			adminServiceReconcileTitlesHandler.ServeHTTP(w, r)
+		case AdminServiceNameAccountsProcedure:
+			adminServiceNameAccountsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -104,6 +129,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 // UnimplementedAdminServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAdminServiceHandler struct{}
 
-func (UnimplementedAdminServiceHandler) BackfillTitles(context.Context, *connect.Request[v1.BackfillTitlesRequest]) (*connect.Response[v1.BackfillTitlesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.BackfillTitles is not implemented"))
+func (UnimplementedAdminServiceHandler) ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.ReconcileTitles is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) NameAccounts(context.Context, *connect.Request[v1.NameAccountsRequest]) (*connect.Response[v1.NameAccountsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.NameAccounts is not implemented"))
 }

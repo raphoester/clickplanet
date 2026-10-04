@@ -30,6 +30,7 @@ type Stats struct {
 	StreakCurrent uint32
 	StreakBest    uint32
 	StreakLastDay Day
+	MessagesSent  uint64
 }
 
 func (s Stats) WithTake(at time.Time) Stats {
@@ -50,6 +51,11 @@ func (s Stats) WithTake(at time.Time) Stats {
 	s.StreakLastDay = day
 	s.StreakBest = max(s.StreakBest, s.StreakCurrent)
 
+	return s
+}
+
+func (s Stats) WithMessage() Stats {
+	s.MessagesSent++
 	return s
 }
 

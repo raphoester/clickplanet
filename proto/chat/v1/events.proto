@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package chat.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message MessageSent {
+  string message_id = 1;
+  string account_id = 2;
+  google.protobuf.Timestamp sent_at = 3;
+}

@@ -23,14 +23,14 @@ export function blastMarkSvg(className: string): SVGSVGElement {
 
     const outer = document.createElementNS(SVG_NS, "polygon")
     outer.setAttribute("points", burstPoints(10, 44, 25, 4))
-    outer.setAttribute("fill", "#FFA928")
-    outer.setAttribute("stroke", "#4A0A02")
+    outer.style.setProperty("fill", "var(--gold)")
+    outer.style.setProperty("stroke", "var(--ink)")
     outer.setAttribute("stroke-width", "7")
     outer.setAttribute("stroke-linejoin", "round")
 
     const core = document.createElementNS(SVG_NS, "polygon")
     core.setAttribute("points", burstPoints(8, 24, 13, 2))
-    core.setAttribute("fill", "#FFF1B8")
+    core.style.setProperty("fill", "var(--cream)")
 
     svg.append(outer, core)
 

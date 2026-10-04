@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -60,7 +61,7 @@ func (s *recordingSink) sent() []frame {
 
 func TestTheRosterComesFirstThenEachChange(t *testing.T) {
 	visits := inmemory_visit_storage.New(cptime.NewFixedClock(now))
-	visits.Record(presence.Visit{Account: players.AccountID{15: 1}, Author: players.Author{Name: "Ada_L"}, Tag: "aaaaaa", Country: "fr", At: now})
+	visits.Record(presence.Visit{Account: players.AccountID{15: 1}, Author: wearing.Author{Author: players.Author{Name: "Ada_L"}}, Tag: "aaaaaa", Country: "fr", At: now})
 	sink := &recordingSink{}
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
