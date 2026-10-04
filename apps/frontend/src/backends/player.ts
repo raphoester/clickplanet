@@ -100,6 +100,8 @@ export type RosterEvent =
 export interface PresenceBackend {
     heldSession(): string | undefined
 
+    heldIdentity(): string | undefined
+
     announce(presence: Presence): Promise<boolean>
 
     leave(): void

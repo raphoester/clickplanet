@@ -24,6 +24,7 @@ function streaming() {
     }
     const backend = {
         heldSession: vi.fn((): string | undefined => undefined),
+        heldIdentity: vi.fn((): string | undefined => undefined),
         announce: vi.fn(),
         leave: vi.fn(),
         listenForRoster: vi.fn((onEvent: (event: RosterEvent) => void, onUnavailable: () => void, onTitleEarned: (title: PlayerTitle) => void) => {
@@ -104,7 +105,7 @@ describe("useRoster", () => {
         render(<Harness backend={backend}/>)
         stream.emit({kind: "roster", entries: [ana]})
 
-        backend.heldSession.mockReturnValue("token-1")
+        backend.heldIdentity.mockReturnValue("token-1")
         act(() => vi.advanceTimersByTime(SETTLE_MS))
 
         expect(stream.stop).toHaveBeenCalledTimes(1)

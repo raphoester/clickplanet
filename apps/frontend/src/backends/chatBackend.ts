@@ -105,8 +105,8 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
 
     public async getHistory(signal?: AbortSignal): Promise<ChatHistory> {
         const headers = new Headers()
-        const held = this.session.held()
-        if (held) headers.set(SESSION_HEADER, held)
+        const identity = await this.session.identity()
+        if (identity) headers.set(SESSION_HEADER, identity)
 
         try {
             const res = await retrying(

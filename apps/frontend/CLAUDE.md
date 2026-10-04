@@ -491,11 +491,12 @@ is the list, and the backend refuses any other.
   cut, or somebody it could not name at all. It is drawn in a portal on the body, not beside the chip: the log
   both scrolls and clips. Anything that
   moves the chip — a scroll, a resize — closes it rather than making it follow.
-- **`mine` is only known from a call.** `GetHistory` sends the token already
-  held (`SessionProvider.held()`, never a mint) so the server can mark the
+- **`mine` is only known from a call.** `GetHistory` sends the reader's token
+  (`SessionProvider.identity()`, never a mint) so the server can mark the
   player's own; `React` answers the counts with `mine` set. The stream is
   nobody's, so `mergedReactions` keeps what the log already knew. A player
-  whose token is not held yet when the history loads sees its own reactions
+  whose click token is not held yet when the history loads is named by its
+  identity token instead (see [Sessions](#sessions)); one with neither sees its own reactions
   unmarked; the server treats a second "on" as nothing, so a click still ends
   right.
 - `React` goes out with the click token, minted when none is held, like a
@@ -804,7 +805,33 @@ rather than the player's, the stream followed the address, and presence listed
 nobody. An invalidation and a failed mint both drop what was kept, so a reload
 after a sign-out does not bring the old account's token back.
 
-**It keeps the click token and never the account.** The account is the `cp_sid`
+**Two tokens, one held at a time: the click token and the identity token.** The
+click token comes from `CreateSession`, after a Turnstile check, and is the only
+thing that may act. The identity token comes from `ResumeSession`, off the
+`cp_sid` cookie with no Turnstile check: it names the same account and proves
+no check, so the server takes it for reads alone (the backend's CLAUDE.md, "The
+click token and the identity token"). A click token names the reader too, so
+one token in hand serves both.
+
+- **`token()`** answers the click token, minting through Turnstile when what is
+  held is only an identity. **`held()`** never answers the identity token, so
+  nothing that acts can send it by mistake: a click, a post, a reaction, a
+  claim, an announce.
+- **`identity()`** answers any fresh token, and otherwise resumes one silently;
+  **`heldIdentity()`** is the same without the call. The reads use them: the
+  history, the budget, the charges, both streams, the roster. `PlanetBackend`
+  resumes at load (`followIdentity`), so a player back the next day is named
+  from the first frame, with no Turnstile check and no click.
+- **A cookie with no live session resumes nothing**: a first visit stays
+  anonymous until its first click, as before. A resume that fails is no
+  identity, logged, never an error a read would surface.
+- **A resume that lands after a click token was minted leaves the click token**:
+  it names the same account and proves more.
+- **Kept like the click token**, with `identity: true` beside it, so a reload
+  still knows a click must pass Turnstile. A kept token with no flag is a click
+  token, as every token an older build kept was.
+
+**It keeps the tokens and never the account.** The account is the `cp_sid`
 cookie, which is HttpOnly and out of this page's reach either way. A token
 lapses within the hour, is bound to the address that minted it, and a page that
 could read this could mint one of its own off that cookie. A token restored on

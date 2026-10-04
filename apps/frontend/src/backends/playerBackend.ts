@@ -97,6 +97,10 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
         return this.session.held()
     }
 
+    public heldIdentity(): string | undefined {
+        return this.session.heldIdentity()
+    }
+
     public async announce(presence: Presence): Promise<boolean> {
         const token = this.session.held()
         if (!token) return false
@@ -131,7 +135,7 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
         let stop = () => {}
         stop = openStream(
             async function* (signal) {
-                const token = session.held()
+                const token = session.heldIdentity()
                 const headers = new Headers()
                 if (token) headers.set(SESSION_HEADER, token)
                 try {
