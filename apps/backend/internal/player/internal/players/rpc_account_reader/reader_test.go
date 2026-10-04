@@ -131,7 +131,7 @@ func TestItSaysWhetherAnAccountIsLinkedAndWhenItWasMadeInOneCall(t *testing.T) {
 
 	account, err := accounts.Account(t.Context(), ada)
 	require.NoError(t, err)
-	assert.Equal(t, players.Account{Linked: true, CreatedAt: createdAt}, account)
+	assert.Equal(t, players.AccountOf(true, createdAt), account)
 
 	account, err = accounts.Account(t.Context(), guest)
 	require.NoError(t, err)
@@ -149,8 +149,8 @@ func TestItAsksAuthAboutAPageOfAccountsAtOnce(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, map[players.AccountID]players.Account{
-		ada:   {Linked: true, CreatedAt: createdAt},
-		guest: {CreatedAt: createdAt},
+		ada:   players.AccountOf(true, createdAt),
+		guest: players.AccountOf(false, createdAt),
 	}, found, "an account auth does not know is left out")
 }
 

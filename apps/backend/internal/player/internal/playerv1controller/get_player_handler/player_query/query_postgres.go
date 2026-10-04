@@ -5,32 +5,40 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/unicode/norm"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Accounts interface {
-	CreatedAt(ctx context.Context, account players.AccountID) (time.Time, error)
+type Titles interface {
+	Shown(held []string) []*playerv1.Title
+	Worn(held []string, choice string) *playerv1.Title
 }
 
-func NewPostgresQuery(db cppg.Querier, accounts Accounts, catalog titles.Catalog, clock cptime.Clock) *PostgresQuery {
-	return &PostgresQuery{db: db, accounts: accounts, catalog: catalog, clock: clock}
+type Accounts interface {
+	CreatedAt(ctx context.Context, account cpsession.AccountID) (time.Time, error)
+}
+
+var ErrNoPlayer = errors.New("no player has this name")
+
+func NewPostgresQuery(db cppg.Querier, titles Titles, accounts Accounts, clock cptime.Clock) *PostgresQuery {
+	return &PostgresQuery{db: db, titles: titles, accounts: accounts, clock: clock}
 }
 
 type PostgresQuery struct {
 	db       cppg.Querier
+	titles   Titles
 	accounts Accounts
-	catalog  titles.Catalog
 	clock    cptime.Clock
 }
 
@@ -41,9 +49,9 @@ const player = `
 		profiles.admin,
 		profiles.color,
 		COALESCE(stats.tiles_taken, 0),
-		COALESCE(stats.streak_current, 0),
+		` + playerread.StreakNow + `,
 		COALESCE(stats.streak_best, 0),
-		stats.streak_last_day,
+		COALESCE(to_char(stats.streak_last_day, 'YYYY-MM-DD'), ''),
 		COALESCE(worn_titles.title, ''),
 		COALESCE(
 			(SELECT array_agg(titles.title ORDER BY titles.earned_at, titles.title) FROM titles WHERE titles.account_id = profiles.account_id),
@@ -55,67 +63,44 @@ const player = `
 	WHERE profiles.name_folded = $1
 `
 
-func (q *PostgresQuery) Player(ctx context.Context, value string) (*playerv1.GetPlayerResponse, error) {
-	name, err := players.NameOf(value)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", players.ErrNoProfile, err)
-	}
-
+func (q *PostgresQuery) Player(ctx context.Context, name string) (*playerv1.GetPlayerResponse, error) {
 	var (
 		account uuid.UUID
-		shown   string
-		admin   bool
 		color   int32
-		stats   players.Stats
-		lastDay sql.NullTime
 		choice  string
 		held    []string
+		answer  = &playerv1.Player{Stats: &playerv1.Stats{}}
 	)
-	err = q.db.QueryRowContext(ctx, player, name.Folded()).Scan(
-		&account, &shown, &admin, &color,
-		&stats.TilesTaken, &stats.StreakCurrent, &stats.StreakBest, &lastDay,
+	err := q.db.QueryRowContext(ctx, player, folded(name), q.clock.Now().UTC().Format(time.DateOnly)).Scan(
+		&account, &answer.Name, &answer.Admin, &color,
+		&answer.Stats.TilesTaken, &answer.Stats.StreakCurrent, &answer.Stats.StreakBest, &answer.Stats.StreakLastDay,
 		&choice, pq.Array(&held),
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, players.ErrNoProfile
+		return nil, ErrNoPlayer
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the player: %w", err)
 	}
 
-	kept, err := playermessage.KeptColor(color)
-	if err != nil {
+	if answer.Color, err = playerread.KeptColor(color); err != nil {
 		return nil, fmt.Errorf("failed to read the player's color: %w", err)
 	}
-	stats.Account = players.AccountID(account)
-	if lastDay.Valid {
-		stats.StreakLastDay = players.DayOf(lastDay.Time)
-	}
 
-	createdAt, err := q.accounts.CreatedAt(ctx, stats.Account)
+	createdAt, err := q.accounts.CreatedAt(ctx, cpsession.AccountID(account))
 	if err != nil {
 		return nil, fmt.Errorf("failed to ask when the account was made: %w", err)
-	}
-
-	showcase := wearing.ShowcaseOf(q.catalog, idsOf(held), titles.ID(choice))
-	answer := &playerv1.Player{
-		Name:      shown,
-		Stats:     playermessage.Stats(stats.AsOf(players.DayOf(q.clock.Now()))),
-		Admin:     admin,
-		Color:     kept,
-		Titles:    playermessage.Titles(showcase.Shown),
-		WornTitle: playermessage.Title(showcase.Worn),
 	}
 	if !createdAt.IsZero() {
 		answer.CreatedAtUnixMs = createdAt.UnixMilli()
 	}
+
+	answer.Titles = q.titles.Shown(held)
+	answer.WornTitle = q.titles.Worn(held, choice)
 	return &playerv1.GetPlayerResponse{Player: answer}, nil
 }
 
-func idsOf(held []string) titles.IDs {
-	ids := make(titles.IDs, 0, len(held))
-	for _, id := range held {
-		ids = append(ids, titles.ID(id))
-	}
-	return ids
+// The same fold the profile was kept under, or a name typed in another case finds nobody.
+func folded(name string) string {
+	return norm.NFKC.String(cases.Fold().String(norm.NFKD.String(strings.Trim(norm.NFC.String(name), " "))))
 }

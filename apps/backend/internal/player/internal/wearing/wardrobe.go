@@ -24,26 +24,40 @@ type Titles interface {
 }
 
 type Showcase struct {
-	Worn  titles.Standing
-	Shown []titles.Standing
+	worn  titles.Standing
+	shown []titles.Standing
 }
 
 func ShowcaseOf(catalog titles.Catalog, held titles.IDs, choice titles.ID) Showcase {
 	shown := catalog.Shown(held)
 	chosen, _ := catalog.StandingOf(choice)
-	return Showcase{Worn: WornOf(shown, chosen), Shown: shown}
+	return Showcase{worn: WornOf(shown, chosen), shown: shown}
 }
+
+func (s Showcase) Worn() titles.Standing { return s.worn }
+
+func (s Showcase) Shown() []titles.Standing { return s.shown }
+
+type author = players.Author
 
 type Author struct {
-	players.Author
-	Worn titles.Standing
+	author
+	worn titles.Standing
 }
 
-func AuthorOf(author players.Author, worn titles.Standing) Author {
-	if author.Guest {
-		return Author{Author: author}
+func AuthorOf(shown players.Author, worn titles.Standing) Author {
+	if shown.Guest() {
+		return Author{author: shown}
 	}
-	return Author{Author: author, Worn: worn}
+	return Author{author: shown, worn: worn}
+}
+
+func (a Author) Worn() titles.Standing { return a.worn }
+
+func (a Author) Wearing(worn titles.Standing) Author { return AuthorOf(a.author, worn) }
+
+func (a Author) Renamed(username players.Name) Author {
+	return AuthorOf(a.author.Renamed(username), a.worn)
 }
 
 type Wardrobe struct {
@@ -66,7 +80,7 @@ func (w Wardrobe) Showcase(ctx context.Context, account players.AccountID) (Show
 		return Showcase{}, fmt.Errorf("failed to read the title chosen: %w", err)
 	}
 	chosen, _ := w.catalog.StandingOf(choice)
-	return Showcase{Worn: WornOf(shown, chosen), Shown: shown}, nil
+	return Showcase{worn: WornOf(shown, chosen), shown: shown}, nil
 }
 
 func (w Wardrobe) Wear(ctx context.Context, account players.AccountID, title titles.ID, at time.Time) error {
@@ -86,13 +100,13 @@ func (w Wardrobe) Wear(ctx context.Context, account players.AccountID, title tit
 func WornOf(shown []titles.Standing, chosen titles.Standing) titles.Standing {
 	if !chosen.Empty() {
 		for _, standing := range shown {
-			if standing.Title.ID() == chosen.Title.ID() || (chosen.Place.Ranked() && standing.Place.Track == chosen.Place.Track) {
+			if standing.Title().ID() == chosen.Title().ID() || (chosen.Place().Ranked() && standing.Place().Track() == chosen.Place().Track()) {
 				return standing
 			}
 		}
 	}
 	for _, standing := range shown {
-		if standing.Place.Ranked() {
+		if standing.Place().Ranked() {
 			return standing
 		}
 	}
@@ -103,5 +117,5 @@ func WornOf(shown []titles.Standing, chosen titles.Standing) titles.Standing {
 }
 
 func Wearable(shown []titles.Standing, title titles.ID) bool {
-	return slices.ContainsFunc(shown, func(standing titles.Standing) bool { return standing.Title.ID() == title })
+	return slices.ContainsFunc(shown, func(standing titles.Standing) bool { return standing.Title().ID() == title })
 }

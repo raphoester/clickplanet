@@ -11,8 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
 )
 
 type stubQuery struct {
@@ -44,7 +44,7 @@ func TestThePlayerIsTheQuerysAndMayBeCached(t *testing.T) {
 }
 
 func TestANameNobodyHoldsIsNotFound(t *testing.T) {
-	_, err := getPlayer(t, &stubQuery{err: players.ErrNoProfile}, "Bob")
+	_, err := getPlayer(t, &stubQuery{err: player_query.ErrNoPlayer}, "Bob")
 
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }

@@ -15,7 +15,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/inprocess_title_catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/postgres_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/postgres_worn_title_store"
@@ -68,11 +70,11 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) named(account players.AccountID, name players.Name) {
-	s.Require().NoError(s.players.SaveProfile(s.T().Context(), players.Profile{Account: account, Name: name, UpdatedAt: monday}))
+	s.Require().NoError(s.players.SaveProfile(s.T().Context(), players.NewProfile(account, name, monday)))
 }
 
 func (s *testSuite) query() *player_query.PostgresQuery {
-	return player_query.NewPostgresQuery(s.db, s.accounts, titles.NewCatalog(), s.clock)
+	return player_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()), s.accounts, s.clock)
 }
 
 func (s *testSuite) player(name string) *playerv1.Player {
@@ -122,7 +124,8 @@ func (s *testSuite) TestThePlayerShowsItsBestOfEachTrackAndWearsTheFirst() {
 	raider, _ := titles.NewCatalog().StandingOf("raider")
 	loyal, _ := titles.NewCatalog().StandingOf("loyal")
 	s.True(proto.Equal(playermessage.Title(raider), player.GetWornTitle()))
-	want := playermessage.Titles([]titles.Standing{{Title: titles.OG{}}, raider, loyal})
+	og, _ := titles.NewCatalog().StandingOf("og")
+	want := playermessage.Titles([]titles.Standing{og, raider, loyal})
 	s.Require().Len(player.GetTitles(), len(want))
 	for i := range want {
 		s.True(proto.Equal(want[i], player.GetTitles()[i]), want[i].GetId())
@@ -161,18 +164,15 @@ func (s *testSuite) TestANameNobodyHoldsIsNoProfile() {
 	for _, name := range []string{"Bob", "Ada_L"} {
 		_, err := s.query().Player(s.T().Context(), name)
 
-		s.ErrorIs(err, players.ErrNoProfile, "%q: a rename frees the old name", name)
+		s.ErrorIs(err, player_query.ErrNoPlayer, "%q: a rename frees the old name", name)
 	}
 }
 
-func (s *testSuite) TestANameNoAccountMayHoldIsNoProfileAndReadsNothing() {
-	ctx, cancel := context.WithCancel(s.T().Context())
-	cancel()
-
+func (s *testSuite) TestANameNoAccountMayHoldFindsNobody() {
 	for _, name := range []string{"", "guest_Ada", "a  b", "Ada!"} {
-		_, err := s.query().Player(ctx, name)
+		_, err := s.query().Player(s.T().Context(), name)
 
-		s.ErrorIs(err, players.ErrNoProfile, "%q", name)
+		s.ErrorIs(err, player_query.ErrNoPlayer, "%q", name)
 	}
 }
 
@@ -187,7 +187,7 @@ func (s *testSuite) TestAColorTheProtoDoesNotNameIsAnError() {
 
 	_, err := s.query().Player(s.T().Context(), "Ada_L")
 
-	s.ErrorIs(err, playermessage.ErrUnknownColor)
+	s.ErrorIs(err, playerread.ErrUnknownColor)
 }
 
 func (s *testSuite) TestAStoreFailureIsNotNoProfile() {
@@ -197,7 +197,7 @@ func (s *testSuite) TestAStoreFailureIsNotNoProfile() {
 	_, err := s.query().Player(ctx, "Ada_L")
 
 	s.Require().Error(err)
-	s.NotErrorIs(err, players.ErrNoProfile)
+	s.NotErrorIs(err, player_query.ErrNoPlayer)
 }
 
 func (s *testSuite) TestAnAuthFailureIsAnError() {
@@ -206,5 +206,38 @@ func (s *testSuite) TestAnAuthFailureIsAnError() {
 	_, err := s.query().Player(s.T().Context(), "Ada_L")
 
 	s.Require().ErrorIs(err, s.accounts.err)
-	s.NotErrorIs(err, players.ErrNoProfile)
+	s.NotErrorIs(err, player_query.ErrNoPlayer)
+}
+
+func (s *testSuite) TestANameIsFoundExactlyWhenTheDomainFoldsItToANameKept() {
+	kept := []players.Name{"Ada_L", "Straße", "Émile", "Ａｄａ", "Жанна", "東京タワー", "Ada L"}
+	for i, name := range kept[1:] {
+		s.named(players.AccountID{14: 2, 15: byte(i)}, name)
+	}
+	typed := []string{
+		"Ada_L", "ada_l", " ADA_L ", "STRASSE", "strasse", "Strasse", "straße", " Straße  ", "E\u0301MILE", "émile",
+		"EMILE", "ada", "ａｄａ", "ＡＤＡ", "жАННА", "ЖАННА", "東京タワー", " Ada L ", "ada l", "ada  l", "\u00a0Ada L",
+		"A\u200bda L", "Ada\u00adL", "Ada!", "", "   ", "guest_ada", "ＧＵＥＳＴ_ada", "Ada_L\u0301", "ada_ｌ", "ＡＤＡ_Ｌ",
+	}
+
+	for _, value := range typed {
+		var want players.Name
+		if name, err := players.NameOf(value); err == nil {
+			for _, k := range kept {
+				if k.Folded() == name.Folded() {
+					want = k
+				}
+			}
+		}
+
+		answer, err := s.query().Player(s.T().Context(), value)
+
+		if want == "" {
+			s.ErrorIs(err, player_query.ErrNoPlayer, "%q", value)
+			continue
+		}
+		if s.NoError(err, "%q", value) {
+			s.Equal(string(want), answer.GetPlayer().GetName(), "%q", value)
+		}
+	}
 }

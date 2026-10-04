@@ -8,7 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
 )
 
 const maxAge = 10
@@ -31,8 +31,8 @@ func (h GetPlayerHandler) GetPlayer(
 ) (*connect.Response[playerv1.GetPlayerResponse], error) {
 	player, err := h.query.Player(ctx, req.Msg.GetName())
 	switch {
-	case errors.Is(err, players.ErrNoProfile):
-		return nil, connect.NewError(connect.CodeNotFound, players.ErrNoProfile)
+	case errors.Is(err, player_query.ErrNoPlayer):
+		return nil, connect.NewError(connect.CodeNotFound, player_query.ErrNoPlayer)
 	case err != nil:
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
 	}

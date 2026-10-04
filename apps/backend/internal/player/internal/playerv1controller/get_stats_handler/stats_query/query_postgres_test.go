@@ -79,3 +79,45 @@ func (s *testSuite) TestAFailedReadIsAnError() {
 
 	s.Error(err, "not empty stats")
 }
+
+func (s *testSuite) TestTheStreakReadsAsTheCommandsReadIt() {
+	cest := time.FixedZone("CEST", 2*60*60)
+	clocks := []time.Time{
+		monday,
+		time.Date(2026, 9, 14, 23, 59, 59, 0, time.UTC),
+		time.Date(2026, 9, 15, 0, 30, 0, 0, cest),
+		time.Date(2026, 9, 15, 0, 0, 1, 0, time.UTC),
+	}
+	careers := map[string][]time.Time{
+		"a take today":                    {monday},
+		"a run ending yesterday":          {monday.AddDate(0, 0, -2), monday.AddDate(0, 0, -1)},
+		"a run ending two days ago":       {monday.AddDate(0, 0, -3), monday.AddDate(0, 0, -2)},
+		"a take tomorrow":                 {monday.AddDate(0, 0, 1)},
+		"a take next week":                {monday.AddDate(0, 0, 7)},
+		"a take just before UTC midnight": {time.Date(2026, 9, 13, 23, 59, 59, 0, time.UTC)},
+		"messages only":                   nil,
+	}
+
+	for name, takes := range careers {
+		for _, now := range clocks {
+			s.Run(name+" at "+now.Format(time.RFC3339), func() {
+				s.Require().NoError(s.db.Purge(s.T().Context()))
+				for _, at := range takes {
+					s.Require().NoError(s.players.RecordTake(s.T().Context(), ada, at))
+				}
+				s.Require().NoError(s.players.RecordMessage(s.T().Context(), ada))
+
+				kept, err := s.players.Stats(s.T().Context(), ada)
+				s.Require().NoError(err)
+				want := kept.AsOf(players.DayOf(now))
+
+				s.True(proto.Equal(&playerv1.Stats{
+					TilesTaken:    want.TilesTaken(),
+					StreakCurrent: want.Streak().Days(),
+					StreakBest:    want.StreakBest(),
+					StreakLastDay: want.Streak().LastDay().String(),
+				}, s.stats(cptime.NewFixedClock(now))))
+			})
+		}
+	}
+}

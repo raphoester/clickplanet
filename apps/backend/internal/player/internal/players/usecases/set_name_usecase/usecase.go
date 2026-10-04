@@ -46,7 +46,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (players.Profile, error) {
 		return players.Profile{}, players.ErrNotLinked
 	}
 
-	profile := players.Profile{Account: in.Account, Name: name, UpdatedAt: u.clock.Now()}
+	profile := players.NewProfile(in.Account, name, u.clock.Now())
 	err = u.profiles.SaveProfile(ctx, profile)
 	if errors.Is(err, players.ErrNameTaken) {
 		return players.Profile{}, err //nolint:wrapcheck // the handler maps the port's sentinel.

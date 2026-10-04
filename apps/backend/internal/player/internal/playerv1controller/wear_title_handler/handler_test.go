@@ -42,7 +42,8 @@ func signedIn(t *testing.T) context.Context {
 }
 
 func TestTheTitleWornIsAnswered(t *testing.T) {
-	useCase := &stubUseCase{worn: titles.Standing{Title: titles.OG{}}}
+	og, _ := titles.NewCatalog().StandingOf("og")
+	useCase := &stubUseCase{worn: og}
 
 	res, err := wear(t, signedIn(t), useCase, "og")
 

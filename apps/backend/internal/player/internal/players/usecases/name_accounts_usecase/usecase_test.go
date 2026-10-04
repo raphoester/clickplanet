@@ -40,7 +40,7 @@ func (f fixture) player(t *testing.T, account players.AccountID, linked bool) {
 	t.Helper()
 
 	require.NoError(t, f.store.RecordTake(t.Context(), account, now))
-	f.accounts.Create(account, players.Account{Linked: linked})
+	f.accounts.Create(account, players.AccountOf(linked, time.Time{}))
 }
 
 func TestEveryLinkedAccountWithNoNameIsNamedAndNoOtherOne(t *testing.T) {
@@ -48,7 +48,7 @@ func TestEveryLinkedAccountWithNoNameIsNamedAndNoOtherOne(t *testing.T) {
 	f.player(t, players.AccountID{15: 1}, true)
 	f.player(t, players.AccountID{15: 2}, false)
 	f.player(t, players.AccountID{15: 3}, true)
-	require.NoError(t, f.store.SaveProfile(t.Context(), players.Profile{Account: players.AccountID{15: 3}, Name: "Ada", UpdatedAt: now}))
+	require.NoError(t, f.store.SaveProfile(t.Context(), players.NewProfile(players.AccountID{15: 3}, "Ada", now)))
 
 	named, err := f.useCase.Execute(t.Context())
 
@@ -56,12 +56,12 @@ func TestEveryLinkedAccountWithNoNameIsNamedAndNoOtherOne(t *testing.T) {
 	assert.Equal(t, 1, named)
 	profile, err := f.store.Profile(t.Context(), players.AccountID{15: 1})
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("BraveFox42"), profile.Name)
+	assert.Equal(t, players.Name("BraveFox42"), profile.Name())
 	_, err = f.store.Profile(t.Context(), players.AccountID{15: 2})
 	require.ErrorIs(t, err, players.ErrNoProfile, "a guest is not named")
 	profile, err = f.store.Profile(t.Context(), players.AccountID{15: 3})
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("Ada"), profile.Name)
+	assert.Equal(t, players.Name("Ada"), profile.Name())
 }
 
 func TestASecondRunNamesNobody(t *testing.T) {

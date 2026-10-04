@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -21,7 +22,7 @@ var (
 	now = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 	ada = players.AccountID{15: 1}
 
-	guest = wearing.Author{Author: players.Author{Name: "guest_0b1c2d", Guest: true}}
+	guest = wearing.AuthorOf(players.GuestAuthor("0b1c2d", players.Streak{}), titles.Standing{})
 )
 
 type fixture struct {
@@ -34,7 +35,7 @@ func setup() fixture {
 	clock := cptime.NewFixedClock(now)
 	accounts := set_name_usecase.NewFakeAccounts()
 	visits := inmemory_visit_storage.New(clock)
-	visits.Record(presence.Visit{Account: ada, Author: guest, Tag: "aaaaaa", Country: "fr", At: now})
+	visits.Record(presence.NewVisit(ada, guest, "aaaaaa", "fr", now))
 
 	return fixture{
 		accounts: accounts,
@@ -50,9 +51,9 @@ func TestAKeptNameShowsOnTheRosterAtOnce(t *testing.T) {
 	profile, err := f.useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada_L"})
 
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("Ada_L"), profile.Name)
+	assert.Equal(t, players.Name("Ada_L"), profile.Name())
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, wearing.Author{Author: players.Author{Name: "Ada_L"}}, f.visits.Visits()[0].Author)
+	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), titles.Standing{}), f.visits.Visits()[0].Author())
 }
 
 func TestARefusedNameRenamesNothing(t *testing.T) {
@@ -62,5 +63,5 @@ func TestARefusedNameRenamesNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, players.ErrNotLinked)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, guest, f.visits.Visits()[0].Author)
+	assert.Equal(t, guest, f.visits.Visits()[0].Author())
 }

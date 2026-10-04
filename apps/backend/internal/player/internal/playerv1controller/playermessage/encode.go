@@ -1,7 +1,6 @@
 package playermessage
 
 import (
-	"errors"
 	"fmt"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
@@ -11,20 +10,11 @@ import (
 )
 
 func Profile(profile players.Profile) *playerv1.Profile {
-	return &playerv1.Profile{AccountId: profile.Account.String(), Name: string(profile.Name)}
+	return &playerv1.Profile{AccountId: profile.Account().String(), Name: string(profile.Name())}
 }
 
 func Color(color players.Color) playerv1.NameColor {
 	return playerv1.NameColor(color)
-}
-
-var ErrUnknownColor = errors.New("a kept color the proto does not name")
-
-func KeptColor(value int32) (playerv1.NameColor, error) {
-	if _, named := playerv1.NameColor_name[value]; !named {
-		return 0, fmt.Errorf("%w: %d", ErrUnknownColor, value)
-	}
-	return playerv1.NameColor(value), nil
 }
 
 func ColorOf(color playerv1.NameColor) (players.Color, error) {
@@ -34,27 +24,18 @@ func ColorOf(color playerv1.NameColor) (players.Color, error) {
 	return players.Color(color), nil
 }
 
-func Stats(stats players.Stats) *playerv1.Stats {
-	return &playerv1.Stats{
-		TilesTaken:    stats.TilesTaken,
-		StreakCurrent: stats.StreakCurrent,
-		StreakBest:    stats.StreakBest,
-		StreakLastDay: stats.StreakLastDay.String(),
-	}
-}
-
 func Title(standing titles.Standing) *playerv1.Title {
 	if standing.Empty() {
 		return nil
 	}
 
-	title := &playerv1.Title{Id: string(standing.Title.ID()), Name: standing.Title.Name()}
-	if standing.Place.Ranked() {
+	title := &playerv1.Title{Id: string(standing.Title().ID()), Name: standing.Title().Name()}
+	if place := standing.Place(); place.Ranked() {
 		title.Rank = &playerv1.Rank{
-			TrackId:   string(standing.Place.Track),
-			TrackName: standing.Place.TrackName,
-			Number:    uint32(standing.Place.Number), //nolint:gosec // a place in a track of a handful of ranks.
-			Count:     uint32(standing.Place.Count),  //nolint:gosec // as above.
+			TrackId:   string(place.Track()),
+			TrackName: place.TrackName(),
+			Number:    uint32(place.Number()), //nolint:gosec // a place in a track of a handful of ranks.
+			Count:     uint32(place.Count()),  //nolint:gosec // as above.
 		}
 	}
 	return title
@@ -70,14 +51,14 @@ func Titles(standings []titles.Standing) []*playerv1.Title {
 
 func RosterEntry(entry presence.Entry) *playerv1.RosterEntry {
 	return &playerv1.RosterEntry{
-		Key:       string(entry.Key),
-		Name:      entry.Name,
-		CountryId: entry.Country,
-		Guest:     entry.Guest,
-		Admin:     entry.Admin,
-		Color:     Color(entry.Color),
-		Streak:    entry.Streak,
-		WornTitle: Title(entry.Title),
+		Key:       string(entry.Key()),
+		Name:      entry.Name(),
+		CountryId: entry.Country(),
+		Guest:     entry.Guest(),
+		Admin:     entry.Admin(),
+		Color:     Color(entry.Color()),
+		Streak:    entry.Streak(),
+		WornTitle: Title(entry.Title()),
 	}
 }
 

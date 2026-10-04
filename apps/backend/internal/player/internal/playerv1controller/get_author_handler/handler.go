@@ -38,10 +38,10 @@ func (h GetAuthorHandler) GetAuthor(
 	}
 
 	return connect.NewResponse(&playerv1.GetAuthorResponse{
-		Name:      author.Name,
-		Admin:     author.Admin,
-		Color:     playermessage.Color(author.Color),
-		Streak:    author.Streak.Days,
-		WornTitle: playermessage.Title(author.Worn),
+		Name:      author.Name(),
+		Admin:     author.Admin(),
+		Color:     playermessage.Color(author.Color()),
+		Streak:    author.Streak().Days(),
+		WornTitle: playermessage.Title(author.Worn()),
 	}), nil
 }

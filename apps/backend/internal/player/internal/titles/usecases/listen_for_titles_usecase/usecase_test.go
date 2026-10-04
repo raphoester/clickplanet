@@ -29,7 +29,7 @@ func (r *recordingSink) SendTitleEarned(standing titles.Standing) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.earned = append(r.earned, standing.Title.ID())
+	r.earned = append(r.earned, standing.Title().ID())
 	return r.err
 }
 

@@ -12,18 +12,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-var member = players.Account{Linked: true}
+var member = players.AccountOf(true, time.Time{})
 
 func tiles(n uint64) titles.Career {
-	return titles.Career{Stats: players.Stats{TilesTaken: n}, Account: member}
+	return titles.CareerOf(players.StatsOf(players.AccountID{}, n, players.StreakOf(0, players.Day{}), 0, 0), member)
 }
 
 func streak(days uint32) titles.Career {
-	return titles.Career{Stats: players.Stats{StreakBest: days}, Account: member}
+	return titles.CareerOf(players.StatsOf(players.AccountID{}, 0, players.StreakOf(0, players.Day{}), days, 0), member)
 }
 
 func messages(n uint64) titles.Career {
-	return titles.Career{Stats: players.Stats{MessagesSent: n}, Account: member}
+	return titles.CareerOf(players.StatsOf(players.AccountID{}, 0, players.StreakOf(0, players.Day{}), 0, n), member)
 }
 
 func TestEachTitleIsEarnedAtItsThresholdAndNotBefore(t *testing.T) {
@@ -50,15 +50,15 @@ func TestEachTitleIsEarnedAtItsThresholdAndNotBefore(t *testing.T) {
 }
 
 func TestAStreakTitleCountsTheBestStreakNotTheCurrentOne(t *testing.T) {
-	assert.False(t, titles.Devoted{}.EarnedBy(titles.Career{Stats: players.Stats{StreakCurrent: 30, StreakBest: 1}}))
-	assert.True(t, titles.Devoted{}.EarnedBy(titles.Career{Stats: players.Stats{StreakCurrent: 0, StreakBest: 30}}))
+	assert.False(t, titles.Devoted{}.EarnedBy(titles.CareerOf(players.StatsOf(players.AccountID{}, 0, players.StreakOf(30, players.Day{}), 1, 0), players.Account{})))
+	assert.True(t, titles.Devoted{}.EarnedBy(titles.CareerOf(players.StatsOf(players.AccountID{}, 0, players.StreakOf(0, players.Day{}), 30, 0), players.Account{})))
 }
 
 func TestAnAccountMadeBeforeNovemberIsOG(t *testing.T) {
 	november := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 
-	assert.True(t, titles.OG{}.EarnedBy(titles.Career{Account: players.Account{Linked: true, CreatedAt: november.Add(-time.Millisecond)}}))
-	assert.False(t, titles.OG{}.EarnedBy(titles.Career{Account: players.Account{Linked: true, CreatedAt: november}}))
+	assert.True(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november.Add(-time.Millisecond)))))
+	assert.False(t, titles.OG{}.EarnedBy(titles.CareerOf(players.Stats{}, players.AccountOf(true, november))))
 	assert.False(t, titles.OG{}.EarnedBy(titles.Career{}), "an account auth does not know has no date")
 }
 
@@ -67,14 +67,14 @@ func TestEachTrackClimbsItsRanksByItsOwnMeasure(t *testing.T) {
 		var previous uint64
 		for _, rank := range track.Ranks() {
 			assert.Greater(t, rank.Threshold(), previous, "%s: %s", track.ID(), rank.ID())
-			reached := players.Stats{TilesTaken: rank.Threshold(), StreakBest: uint32(rank.Threshold()), MessagesSent: rank.Threshold()}
-			assert.True(t, rank.EarnedBy(titles.Career{Stats: reached}),
+			reached := players.StatsOf(players.AccountID{}, rank.Threshold(), players.StreakOf(0, players.Day{}), uint32(rank.Threshold()), rank.Threshold())
+			assert.True(t, rank.EarnedBy(titles.CareerOf(reached, players.Account{})),
 				"%s: %s is earned at its threshold", track.ID(), rank.ID())
 			previous = rank.Threshold()
 		}
 	}
 
-	career := titles.Career{Stats: players.Stats{TilesTaken: 14_468, StreakCurrent: 4, StreakBest: 7, MessagesSent: 312}}
+	career := titles.CareerOf(players.StatsOf(players.AccountID{}, 14_468, players.StreakOf(4, players.Day{}), 7, 312), players.Account{})
 	assert.Equal(t, uint64(14_468), titles.Conquest{}.Progress(career))
 	assert.Equal(t, uint64(4), titles.Devotion{}.Progress(career), "the streak a player is on now, not its best")
 	assert.Equal(t, uint64(312), titles.Chatter{}.Progress(career))

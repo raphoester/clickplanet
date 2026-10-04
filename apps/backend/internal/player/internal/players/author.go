@@ -7,19 +7,43 @@ import (
 )
 
 type Author struct {
-	Name   string
-	Guest  bool
-	Admin  bool
-	Color  Color
-	Streak Streak
+	name   string
+	guest  bool
+	admin  bool
+	color  Color
+	streak Streak
 }
 
+func NamedAuthor(profile Profile, streak Streak) Author {
+	return Author{name: DisplayNameOf(profile.name, ""), admin: profile.admin, color: profile.color, streak: streak}
+}
+
+func GuestAuthor(code GuestCode, streak Streak) Author {
+	return Author{name: DisplayNameOf("", code), guest: true, streak: streak}
+}
+
+func (a Author) Name() string { return a.name }
+
+func (a Author) Guest() bool { return a.guest }
+
+func (a Author) Admin() bool { return a.admin }
+
+func (a Author) Color() Color { return a.color }
+
+func (a Author) Streak() Streak { return a.streak }
+
 func (a Author) Shown(today Day) Author {
-	if a.Guest {
-		a.Streak = Streak{}
+	if a.guest {
+		a.streak = Streak{}
 		return a
 	}
-	a.Streak = a.Streak.AsOf(today)
+	a.streak = a.streak.AsOf(today)
+	return a
+}
+
+func (a Author) Renamed(username Name) Author {
+	a.name = DisplayNameOf(username, "")
+	a.guest = false
 	return a
 }
 
@@ -30,26 +54,17 @@ type AuthorStore interface {
 }
 
 func AuthorOf(ctx context.Context, store AuthorStore, account AccountID) (Author, error) {
-	author, err := namedAuthor(ctx, store, account)
-	if err != nil {
-		return Author{}, err
-	}
-
 	stats, err := store.Stats(ctx, account)
-	if errors.Is(err, ErrNoStats) {
-		return author, nil
-	}
-	if err != nil {
+	switch {
+	case errors.Is(err, ErrNoStats):
+		stats = NewStats(account)
+	case err != nil:
 		return Author{}, fmt.Errorf("failed to read the stats: %w", err)
 	}
-	author.Streak = stats.Streak()
-	return author, nil
-}
 
-func namedAuthor(ctx context.Context, store AuthorStore, account AccountID) (Author, error) {
 	profile, err := store.Profile(ctx, account)
 	if err == nil {
-		return Author{Name: DisplayNameOf(profile.Name, ""), Admin: profile.Admin, Color: profile.Color}, nil
+		return NamedAuthor(profile, stats.Streak()), nil
 	}
 	if !errors.Is(err, ErrNoProfile) {
 		return Author{}, fmt.Errorf("failed to read the profile: %w", err)
@@ -59,5 +74,5 @@ func namedAuthor(ctx context.Context, store AuthorStore, account AccountID) (Aut
 	if err != nil {
 		return Author{}, fmt.Errorf("failed to read the guest code: %w", err)
 	}
-	return Author{Name: DisplayNameOf("", code), Guest: true}, nil
+	return GuestAuthor(code, stats.Streak()), nil
 }

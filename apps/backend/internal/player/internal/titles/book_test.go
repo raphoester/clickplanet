@@ -37,7 +37,7 @@ func TestAGuestEarnsNothingAndNoStoreIsRead(t *testing.T) {
 	store := inmemory_title_store.New()
 	store.FailWith(errors.New("postgres is down"))
 
-	unheld, err := titles.NewBook(store, catalog).Unheld(t.Context(), ada, titles.Career{Stats: players.Stats{TilesTaken: 3}})
+	unheld, err := titles.NewBook(store, catalog).Unheld(t.Context(), ada, titles.CareerOf(players.StatsOf(players.AccountID{}, 3, players.StreakOf(0, players.Day{}), 0, 0), players.Account{}))
 
 	require.NoError(t, err)
 	assert.Empty(t, unheld)
@@ -57,7 +57,7 @@ func TestShownIsWhatTheCatalogShowsOfTheTitlesHeld(t *testing.T) {
 	shown, err := titles.NewBook(holding(t, "badge", "low", "mid"), tracks).Shown(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, []titles.Standing{{Title: badge}, {Title: mid, Place: place(ladder, 2)}}, shown)
+	assert.Equal(t, []standingView{alone(badge), ranked(mid, ladder, 2)}, viewsOf(shown))
 }
 
 func TestAStoreFailureIsAnError(t *testing.T) {
