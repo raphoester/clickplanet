@@ -132,12 +132,12 @@
 .track-path-steps {
     position: relative;
     box-sizing: content-box;
-    padding: 0 24px 6px;
+    padding: 10px 24px 6px;
 }
 
 .track-path-bar {
     position: absolute;
-    top: 22px;
+    top: 32px;
     height: 12px;
     overflow: hidden;
     border: var(--outline) solid var(--ink);
