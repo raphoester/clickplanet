@@ -16,6 +16,7 @@ func Encode(budget clicks.Budget) *planetv1.ClickBudget {
 		NextSlowdown:     budget.Price.NextSlowdown,
 		LinkedMultiplier: budget.LinkedMultiplier,
 		SharedWith:       sharedWith[budget.SharedWith],
+		Country:          budget.Price.Country,
 	}
 }
 

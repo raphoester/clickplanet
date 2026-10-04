@@ -17,6 +17,9 @@ export type ClickBudget = {
 export type SharedBy = "guests" | "network"
 
 export type ClickPrice = {
+    /** The country priced: the player's main flag, which is not always the one selected. */
+    country?: string
+
     slowdown: number
 
     share: number

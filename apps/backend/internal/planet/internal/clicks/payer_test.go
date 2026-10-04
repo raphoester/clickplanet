@@ -140,3 +140,17 @@ func TestTheBudgetIsTheTightestBucketAndSaysWhoShares(t *testing.T) {
 	budget = buckets.BudgetOf(clicks.Payer{Scope: "1.2.3.4"}, []cpratelimit.State{guests}, clicks.Price{})
 	assert.Equal(t, clicks.SharedWithNobody, budget.SharedWith, "no account reads the only bucket it has")
 }
+
+func TestAPayerIsPricedByItsAccountsTallyOrItsScopesWithNoAccount(t *testing.T) {
+	assert.Equal(t, clicks.AccountAllegianceKey("ada"), clicks.Payer{Scope: "2001:db8::/64", Account: "ada"}.AllegianceKey())
+	assert.Equal(t, clicks.ScopeAllegianceKey("2001:db8::/64"), clicks.Payer{Scope: "2001:db8::/64"}.AllegianceKey())
+}
+
+func TestATakeCountsForItsAccountAndItsScope(t *testing.T) {
+	assert.Equal(t,
+		[]clicks.AllegianceKey{clicks.AccountAllegianceKey("ada"), clicks.ScopeAllegianceKey("2001:db8::/64")},
+		clicks.Payer{Scope: "2001:db8::/64", Account: "ada"}.AllegianceKeys())
+	assert.Equal(t, []clicks.AllegianceKey{clicks.ScopeAllegianceKey("2001:db8::/64")},
+		clicks.Payer{Scope: "2001:db8::/64"}.AllegianceKeys())
+	assert.NotEqual(t, clicks.AccountAllegianceKey("x"), clicks.ScopeAllegianceKey("x"), "an account and a scope never share a tally")
+}

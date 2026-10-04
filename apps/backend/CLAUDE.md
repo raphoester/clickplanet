@@ -63,7 +63,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Three do: `planet`, `player` and `chat` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, and `chat` asks `player` who posts: the username, or the guest code. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent`, and `player` publishes `StatsChanged`; `player` hears all six.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Three do: `planet`, `player` and `chat` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, and `chat` asks `player` who posts: the username, or the guest code. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent`, and `player` publishes `StatsChanged`; `player` hears all six, and `planet` hears its own `TileTaken` for the [main flags](#a-players-main-flag-clicksallegiance).
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -243,7 +243,7 @@ The events today:
 
 | event | published by | when | heard by |
 |---|---|---|---|
-| `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile. A clear of native land is recorded and never published | `player`, for the stats |
+| `planet.v1.TileTaken{account_id, tile_id, country, taken_at, scope}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile. A clear of native land is recorded and never published | `player`, for the stats; `planet` itself, for the [main flags](#a-players-main-flag-clicksallegiance), the only reader of `scope` |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account |
@@ -280,6 +280,7 @@ internal/planet/internal/
     postgres_charge_store/
     usecases/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
+  subscribers/                    the other edge: maps an event to a use case
 ```
 
 - **`clicks/`** — what a click is worth, what the map looks like, and what
@@ -309,10 +310,14 @@ a no-op publishes nothing, a blast is one event, a restore is a compare-and-set,
 and so on. An adapter's test suite embeds it and sets `NewStorage`, then adds only
 what is its own — `inmemory_tile_storage` adds the snapshot and the slow-subscriber
 tests. A second tile storage runs the same suite by embedding it the same way.
+`clicks.AllegianceStorage` has one too (`AllegianceStorageContractSuite`): `postgres_allegiance_store` and the
+tagged `inmemory_allegiance_store`, which the use case and toll tests use, both run it.
 A port with one adapter and no second one coming (`ledger.Storage`) has no suite.
 
 **The controller is the one exception**, at `internal/planet/internal/planetv1controller/`,
 because it serves every concept over one Connect service. It only maps.
+`subscribers/` is the same for the event bus, one `<event>_subscriber` per event
+heard, as in `player` and `chat`.
 
 #### Use cases (`<concept>/usecases/`)
 
@@ -325,6 +330,8 @@ because it serves every concept over one Connect service. It only maps.
 | `clicks/usecases/get_map_usecase` | a range of the map as one dense batch | `MaxIndexReader`, `DenseMapReader` |
 | `clicks/usecases/map_density_usecase` | how many tiles there are | `MaxIndexReader` |
 | `clicks/usecases/get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader` |
+| `clicks/usecases/record_allegiance_usecase` | counts a tile taken for its account's and its scope's flag | `Allegiances` |
+| `clicks/usecases/forget_allegiances_usecase` | deletes the tallies with no take in 3 days, every hour | `Allegiances` |
 | `clicks/usecases/listen_for_events_usecase` | one client's live feed, heartbeat included | `UpdatesSubscriber` |
 | `clicks/usecases/reassign_country_usecase` | gives one country's tiles to another | `Map`, `CountryChecker` |
 | `clicks/usecases/paint_random_tiles_usecase` | paints random tiles with a flag, starting on one country's ground or anywhere | `Borders`, `Neighbours`, `Map`, `CountryChecker` |
@@ -728,6 +735,51 @@ Either way the decorator decides the policy and the handler decides how to say i
 
 The scope is whatever `IPReaderMiddleware` put on the context: `X-Real-IP` if present, otherwise the peer address. **The reverse proxy must set that header itself** — `deploy/vps/caddy/Caddyfile` does, with `header_up X-Real-IP {client_ip}` on every backend route. Merely forwarding it would let a client send its own and buy a fresh bucket per request. The fallback is the peer address rather than a constant precisely so a missing header degrades to per-connection buckets instead of rate limiting the whole game as one player.
 
+#### A player's main flag (`clicks.Allegiance`)
+
+**A player can switch flag at each click, so what a click costs is read from the
+flag it clicks for most, never from its last click.** Priced by the last click, a
+player could spend its bank on a big country, pick a small one for one click and
+refill at the small one's pace.
+
+- **The value.** `clicks.Allegiance` is the tiles taken for each country, each
+  counting half as much every 12h. `With(country, at)` is a copy with one more,
+  `Flag()` the heaviest country, so the main flag is about the last day's. A tie
+  goes to the code that sorts first. A country below 1/64 of a take drops out of
+  the tally. `NewAllegiance`, `Weights` and `At` are what a store needs to keep one.
+- **Fed by a listener, not by the click chain.** `subscribers/tile_taken_subscriber`
+  hears `planet.v1.TileTaken`, the event the ledger publishes for every take an
+  account makes, and `clicks/usecases/record_allegiance_usecase` reads the
+  account's tally and the scope's, adds the take to each and saves them. So it
+  counts tiles painted, a spread's or an enclose's included, and not clicks on a
+  tile already held. A take with no account is never published, so a caller with
+  no token feeds no tally. The subscriber is the one writer, which is why a read
+  then a save needs no lock. Delivery is at most once: a dropped take only leaves
+  a tally a little short. A refused event is logged by `subscribers/log_subscriber`
+  and counted by the bus.
+- **Kept in postgres.** `clicks/postgres_allegiance_store` writes
+  `planet.allegiances`, one row per tally: the key, each country's weight as
+  jsonb, and `at`, the time of the last take. A restart keeps every flag.
+  `forget_allegiances_usecase` deletes the rows with no take in 3 days
+  (`clicks.FadedBefore`), every hour, logged by `log_forget_allegiances`. A scope
+  is an address, so it is kept about as long as the ledger keeps one.
+- **One contract, two stores.** `clicks.AllegianceStorage` is the whole store, and
+  `AllegianceStorageContractSuite` (behind the `testing` tag) pins it: absent keys,
+  replace, the same instant back, delete before the cutoff and keep at it.
+  `postgres_allegiance_store` and the tagged `inmemory_allegiance_store` both run
+  it, so the tests that use the in-memory one test against what postgres does.
+- **The store keeps opaque keys.** Only `clicks` says whose a key is
+  (`AccountAllegianceKey`, `ScopeAllegianceKey`, `Payer.AllegianceKey(s)`), the
+  way `Buckets.Keys` names the limiter's buckets.
+- **The reader is on the click path.** The toll reads the payer's tally on every
+  click, `GetBudget` and `UseRefill` (one primary-key read), so a click now waits
+  on postgres for that, and **a click whose flag cannot be read fails** with the
+  error net's `Internal`. There is no cache: the read is cheap, and a cache with a
+  short TTL can wrap the store's read port later if the latency shows.
+- **Not read from the ledger.** It holds 72h of takes with the account and the
+  country, but no index by account, so one account's flag is a scan of up to 4M
+  takes. The event is the same take, counted as it happens.
+
 #### A big country refills slower (`clicks.Toll`)
 
 **Every click costs one token.** What the map share changes is how fast the
@@ -740,24 +792,30 @@ number of the old `cost`, whose meaning it replaces.
 - **The bank never changes size**: not with the country, a bonus or signing in.
   Only its rate moves, so the number a player sees changes when it clicks, when
   time passes, or when a bonus is caught — never on a switch of flag.
-- **The pace is set by each click, from the country clicked for, and applies from
-  then on.** The time already past was refilled at the pace in force over it, so
-  switching flags moves nothing until the next click. A refused click sets it too.
-  A player can refill on a small country and spend the bank on a big one; the
-  bank bounds what that buys.
+- **The pace is set by each click, from the player's
+  [main flag](#a-players-main-flag-clicksallegiance), and applies from then on.**
+  `Toll.PriceFor(payer, country)` prices the flag the payer's allegiance would
+  have once a click for `country` counts: the account's, or the scope's with no
+  account, as its own bucket is. So a player that spent its bank on a big country
+  and picks a small one still refills at the big one's pace, until its clicks for
+  the small one outweigh the big one's. A new player is priced by the country it
+  clicks for. The time already past was refilled at the pace in force over it. A
+  refused click sets the pace too.
 - **The share is of the whole map, not of owned tiles**, so early in a game nobody is slowed.
 - **`inmemory_tile_storage` keeps a tile count per country**, moved by `set` and
   `Clear` and rebuilt at boot from postgres, so `Share` is one read and no scan.
 - **Only the payer's own bucket is slowed.** The scope's is a ceiling shared by
   players of every flag, so it refills at its plain rate.
 - **The budget goes out as the bucket holds it**, in clicks, with the slowdown,
-  the share and the next step of the country asked about so the client can say why.
+  the share and the next step of the main flag a click for the country asked
+  about would leave, and that flag in `ClickBudget.country`, so the client can
+  say why and name it.
   The whole table goes out once per page load, in `GetBonusRules.toll_steps`.
 - **Bonuses compose with it.** A refill fills the bank to its size and leaves the
   pace alone. A spread is one click. A bomb is not throttled, and lowers the
   share of whoever it hits.
 
-`GetBudget` takes the country, for the slowdown it answers. Known risk, not
+`GetBudget` takes the country a click would be for, and prices the answer as that click. Known risk, not
 handled yet: a country sitting on a step can cross it back and forth click to click.
 
 Chat and sessions each have **their own limiter instance** with their own budget, because what each call costs has nothing to do with what a click costs:
@@ -2254,7 +2312,8 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 ### Durability
 
-**The map lives in memory; postgres is where it is kept.** A click never waits on the database.
+**The map lives in memory; postgres is where it is kept.** A click waits on the database for one read only: its
+payer's [main flag](#a-players-main-flag-clicksallegiance).
 
 - **Boot loads it.** `inmemory_tile_storage.Load` reads every row of `planet.tiles` — one per owned tile, `(id, country)`; an unowned tile has no row. 180k rows load in about 60ms. **A failed load refuses the boot**: an empty map that then flushes would be every player's territory gone. A row past `gameMap.maxIndex` is skipped and logged.
 - **A flush writes what changed.** Every write under the tiles lock sets the tile's bit in a `dirty` bitmap (one bit per tile, ~32 KB). Every `tilesStorage.flushInterval` (1s), `Flush` takes the bits, reads each tile's owner **as it is now**, and hands them to `postgres_tile_store.Save`: one transaction, an upsert for owned tiles and a delete for freed ones, in chunks of 10k. A tile clicked five times between flushes is written once. A failed save puts the bits back; the next tick retries. Each flush has a 10s timeout, so a stuck connection cannot stall the loop.

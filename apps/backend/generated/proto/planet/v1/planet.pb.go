@@ -139,8 +139,14 @@ type ClickBudget struct {
 	NextSlowdown     float64                `protobuf:"fixed64,9,opt,name=next_slowdown,json=nextSlowdown,proto3" json:"next_slowdown,omitempty"`
 	LinkedMultiplier float64                `protobuf:"fixed64,10,opt,name=linked_multiplier,json=linkedMultiplier,proto3" json:"linked_multiplier,omitempty"`
 	SharedWith       SharedWith             `protobuf:"varint,11,opt,name=shared_with,json=sharedWith,proto3,enum=planet.v1.SharedWith" json:"shared_with,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The country the slowdown, the share and the next step are for: the caller's
+	// main flag, the one it clicks for most, once a click for the country asked
+	// about counts. So a player who painted France all day and picks Spain is
+	// still priced as France. Empty from a server too old to know, which means the
+	// country asked about.
+	Country       string `protobuf:"bytes,12,opt,name=country,proto3" json:"country,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ClickBudget) Reset() {
@@ -234,6 +240,13 @@ func (x *ClickBudget) GetSharedWith() SharedWith {
 		return x.SharedWith
 	}
 	return SharedWith_SHARED_WITH_UNSPECIFIED
+}
+
+func (x *ClickBudget) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
 }
 
 type ClickRequest struct {
@@ -2268,7 +2281,7 @@ var File_planet_v1_planet_proto protoreflect.FileDescriptor
 
 const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\xd4\x02\n" +
+	"\x16planet/v1/planet.proto\x12\tplanet.v1\"\xee\x02\n" +
 	"\vClickBudget\x12\x16\n" +
 	"\x06tokens\x18\x01 \x01(\x01R\x06tokens\x12\x1a\n" +
 	"\bcapacity\x18\x02 \x01(\rR\bcapacity\x12*\n" +
@@ -2281,7 +2294,8 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11linked_multiplier\x18\n" +
 	" \x01(\x01R\x10linkedMultiplier\x126\n" +
 	"\vshared_with\x18\v \x01(\x0e2\x15.planet.v1.SharedWithR\n" +
-	"sharedWithJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"x\n" +
+	"sharedWith\x12\x18\n" +
+	"\acountry\x18\f \x01(\tR\acountryJ\x04\b\x04\x10\x05J\x04\b\a\x10\b\"x\n" +
 	"\fClickRequest\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +

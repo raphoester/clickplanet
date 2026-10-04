@@ -30,6 +30,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_allegiance_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_attempt_click"
@@ -40,6 +41,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/prom_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/forget_allegiances_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/forget_allegiances_usecase/log_forget_allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase/antibot_get_map"
@@ -50,6 +53,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase/audit_paint_random"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/record_allegiance_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -84,6 +88,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -93,6 +99,9 @@ import (
 )
 
 const moduleName = "planet"
+
+// A take is one tile, up to a few dozen per click with a spread or an enclose: this is seconds of the whole game.
+const tileTakenBuffer = 8192
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -145,15 +154,27 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the charges: %w", err)
 			}
 
+			// The flag each account and scope takes tiles for most, counted from planet.v1.TileTaken: the toll prices
+			// a click from it. Tallies with no take in 3 days are deleted every hour.
+			allegiances := postgres_allegiance_store.New(db)
+			takes, err := cpbootstrap.Subscribe(props.Events, "planet-allegiances", tileTakenBuffer,
+				log_subscriber.New(tile_taken_subscriber.New(record_allegiance_usecase.New(allegiances)), props.Logger))
+			if err != nil {
+				_ = db.Close()
+				return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
+			}
+			forgetAllegiances := forget_allegiances_usecase.NewRunner(time.Hour,
+				log_forget_allegiances.New(forget_allegiances_usecase.New(clock, allegiances), props.Logger))
+
 			// Not a closer: closers run before the runners' last flush.
-			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges))
+			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges, takes, forgetAllegiances))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter.Config, clock)
 			props.Runners.Add(limiter)
 			buckets := config.RateLimiter.Buckets()
 
-			pricer := clicks.NewToll(config.Toll, tilesStorage)
+			pricer := clicks.NewToll(config.Toll, tilesStorage, allegiances, clock)
 
 			homeSoil := clicks.NewHomeSoil(config.HomeSoil, borders)
 			if homeSoil.Enabled() {

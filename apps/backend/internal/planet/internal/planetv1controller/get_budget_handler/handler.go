@@ -10,7 +10,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, country string) (clicks.Budget, bool)
+	Execute(ctx context.Context, country string) (clicks.Budget, bool, error)
 }
 
 func New(useCase UseCase) GetBudgetHandler {
@@ -25,8 +25,13 @@ func (h GetBudgetHandler) GetBudget(
 	ctx context.Context,
 	req *connect.Request[planetv1.GetBudgetRequest],
 ) (*connect.Response[planetv1.GetBudgetResponse], error) {
+	budget, limited, err := h.useCase.Execute(ctx, req.Msg.GetCountryId())
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the error net answers it.
+	}
+
 	res := &planetv1.GetBudgetResponse{}
-	if budget, limited := h.useCase.Execute(ctx, req.Msg.GetCountryId()); limited {
+	if limited {
 		res.Budget = clickbudget.Encode(budget)
 	}
 

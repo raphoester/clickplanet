@@ -9,6 +9,9 @@ message TileTaken {
   uint32 tile_id = 2;
   string country = 3;
   google.protobuf.Timestamp taken_at = 4;
+  // Where the take came from: the address, or its /64 over IPv6. The planet
+  // reads it for the flag each address plays for; nothing keeps it.
+  string scope = 5;
 }
 
 message BombLanded {

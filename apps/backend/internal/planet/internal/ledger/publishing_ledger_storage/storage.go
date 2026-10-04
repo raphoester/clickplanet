@@ -35,5 +35,6 @@ func (s Storage) Append(taking ledger.Taking) {
 		TileId:    taking.Tile,
 		Country:   taking.Country,
 		TakenAt:   timestamppb.New(taking.At),
+		Scope:     taking.Scope,
 	})
 }

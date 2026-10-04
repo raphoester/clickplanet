@@ -36,6 +36,13 @@ describe("ClicksPanel", () => {
         expect(here().map((row) => within(row).getAllByRole("cell")[0].textContent)).toEqual(["30%"])
     })
 
+    it("names the main flag when the price is not the selected country's", () => {
+        render(<ClicksPanel budget={reading({price: {country: "fr", slowdown: 4, share: 0.4}})} countryName="Spain" toll={TOLL}/>)
+
+        expect(screen.getByText("Your main flag, France, holds 40% of the map")).toBeTruthy()
+        expect(screen.getByText("Refills 4× slower")).toBeTruthy()
+    })
+
     it("reads the share off the board when the server prices nothing", () => {
         render(<ClicksPanel budget={reading()} countryName="Bulgaria" share={0.001} toll={TOLL}/>)
 
