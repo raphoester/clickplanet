@@ -51,21 +51,6 @@ func (s *Store) Profile(_ context.Context, account players.AccountID) (players.P
 	return profile, nil
 }
 
-func (s *Store) ProfileNamed(_ context.Context, name players.Name) (players.Profile, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return players.Profile{}, s.failWith
-	}
-	for _, profile := range s.profiles {
-		if profile.Name.Folded() == name.Folded() {
-			return profile, nil
-		}
-	}
-	return players.Profile{}, players.ErrNoProfile
-}
-
 func (s *Store) SaveProfile(_ context.Context, profile players.Profile) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -250,33 +235,4 @@ func (s *Store) Names(_ context.Context, accounts []players.AccountID) (map[play
 		}
 	}
 	return names, nil
-}
-
-func (s *Store) Authors(
-	_ context.Context,
-	accounts []players.AccountID,
-) (map[players.AccountID]players.Author, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
-	authors := make(map[players.AccountID]players.Author, len(accounts))
-	for _, account := range accounts {
-		streak := s.stats[account].Streak()
-		if profile, ok := s.profiles[account]; ok {
-			authors[account] = players.Author{
-				Name:   players.DisplayNameOf(profile.Name, ""),
-				Admin:  profile.Admin,
-				Color:  profile.Color,
-				Streak: streak,
-			}
-			continue
-		}
-		if code, ok := s.codes[account]; ok {
-			authors[account] = players.Author{Name: players.DisplayNameOf("", code), Guest: true, Streak: streak}
-		}
-	}
-	return authors, nil
 }

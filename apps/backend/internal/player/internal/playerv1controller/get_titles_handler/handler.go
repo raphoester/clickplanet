@@ -8,20 +8,18 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/caller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/get_titles_usecase"
 )
 
-type UseCase interface {
-	Execute(ctx context.Context, account players.AccountID) (get_titles_usecase.Dashboard, error)
+type Query interface {
+	Titles(ctx context.Context, account players.AccountID) (*playerv1.GetTitlesResponse, error)
 }
 
-func New(useCase UseCase) GetTitlesHandler {
-	return GetTitlesHandler{useCase: useCase}
+func New(query Query) GetTitlesHandler {
+	return GetTitlesHandler{query: query}
 }
 
 type GetTitlesHandler struct {
-	useCase UseCase
+	query Query
 }
 
 func (h GetTitlesHandler) GetTitles(
@@ -33,10 +31,9 @@ func (h GetTitlesHandler) GetTitles(
 		return nil, err //nolint:wrapcheck // already the connect error the caller reads.
 	}
 
-	dashboard, err := h.useCase.Execute(ctx, account)
+	dashboard, err := h.query.Titles(ctx, account)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
 	}
-
-	return connect.NewResponse(playermessage.Dashboard(dashboard.Showcase, dashboard.Tracks)), nil
+	return connect.NewResponse(dashboard), nil
 }
