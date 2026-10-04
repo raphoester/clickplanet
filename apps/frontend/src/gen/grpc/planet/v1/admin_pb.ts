@@ -5,6 +5,117 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { ChargesHeld } from "./planet_pb.js";
+
+/**
+ * @generated from message planet.v1.GrantChargesRequest
+ */
+export class GrantChargesRequest extends Message<GrantChargesRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: bool refill = 2;
+   */
+  refill = false;
+
+  /**
+   * @generated from field: bool bomb = 3;
+   */
+  bomb = false;
+
+  /**
+   * @generated from field: uint32 enclosures = 4;
+   */
+  enclosures = 0;
+
+  /**
+   * @generated from field: uint32 spread_clicks = 5;
+   */
+  spreadClicks = 0;
+
+  constructor(data?: PartialMessage<GrantChargesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GrantChargesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "bomb", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "spread_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GrantChargesRequest {
+    return new GrantChargesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GrantChargesRequest {
+    return new GrantChargesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GrantChargesRequest {
+    return new GrantChargesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GrantChargesRequest | PlainMessage<GrantChargesRequest> | undefined, b: GrantChargesRequest | PlainMessage<GrantChargesRequest> | undefined): boolean {
+    return proto3.util.equals(GrantChargesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GrantChargesResponse
+ */
+export class GrantChargesResponse extends Message<GrantChargesResponse> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: planet.v1.ChargesHeld before = 2;
+   */
+  before?: ChargesHeld;
+
+  /**
+   * @generated from field: planet.v1.ChargesHeld after = 3;
+   */
+  after?: ChargesHeld;
+
+  constructor(data?: PartialMessage<GrantChargesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GrantChargesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "before", kind: "message", T: ChargesHeld },
+    { no: 3, name: "after", kind: "message", T: ChargesHeld },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GrantChargesResponse {
+    return new GrantChargesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GrantChargesResponse {
+    return new GrantChargesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GrantChargesResponse {
+    return new GrantChargesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GrantChargesResponse | PlainMessage<GrantChargesResponse> | undefined, b: GrantChargesResponse | PlainMessage<GrantChargesResponse> | undefined): boolean {
+    return proto3.util.equals(GrantChargesResponse, a, b);
+  }
+}
 
 /**
  * @generated from message planet.v1.PaintRandomTilesRequest
