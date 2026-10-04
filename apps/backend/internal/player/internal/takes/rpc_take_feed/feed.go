@@ -9,14 +9,17 @@ import (
 	"connectrpc.com/connect"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/takes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-type Dialer interface {
-	Dial() (connect.HTTPClient, string, error)
+type Planet interface {
+	GetFeedStart(
+		ctx context.Context,
+		req *connect.Request[planetv1.GetFeedStartRequest],
+	) (*connect.Response[planetv1.GetFeedStartResponse], error)
+	ReadLog(ctx context.Context, req *connect.Request[planetv1.ReadLogRequest]) (*connect.Response[planetv1.ReadLogResponse], error)
 }
 
 const (
@@ -27,23 +30,18 @@ const (
 var errNoTime = errors.New("the take has no time")
 
 type Feed struct {
-	dial Dialer
+	planet Planet
 }
 
-func New(dial Dialer) *Feed {
-	return &Feed{dial: dial}
+func New(planet Planet) *Feed {
+	return &Feed{planet: planet}
 }
 
 func (f *Feed) Start(ctx context.Context) (takes.Position, error) {
-	client, err := f.client()
-	if err != nil {
-		return 0, err
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	res, err := client.GetFeedStart(ctx, connect.NewRequest(&planetv1.GetFeedStartRequest{}))
+	res, err := f.planet.GetFeedStart(ctx, connect.NewRequest(&planetv1.GetFeedStartRequest{}))
 	if err != nil {
 		return 0, fmt.Errorf("failed to call planet.v1.InternalService/GetFeedStart: %w", err)
 	}
@@ -51,15 +49,10 @@ func (f *Feed) Start(ctx context.Context) (takes.Position, error) {
 }
 
 func (f *Feed) Batch(ctx context.Context, from takes.Position) (takes.Batch, error) {
-	client, err := f.client()
-	if err != nil {
-		return takes.Batch{}, err
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	res, err := client.ReadLog(ctx, connect.NewRequest(&planetv1.ReadLogRequest{FromPosition: uint64(from), Limit: limit}))
+	res, err := f.planet.ReadLog(ctx, connect.NewRequest(&planetv1.ReadLogRequest{FromPosition: uint64(from), Limit: limit}))
 	if err != nil {
 		return takes.Batch{}, fmt.Errorf("failed to call planet.v1.InternalService/ReadLog: %w", err)
 	}
@@ -89,14 +82,6 @@ func (f *Feed) Batch(ctx context.Context, from takes.Position) (takes.Batch, err
 		return takes.Batch{}, fmt.Errorf("planet answered: %w", err)
 	}
 	return batch, nil
-}
-
-func (f *Feed) client() (planetv1connect.InternalServiceClient, error) {
-	client, baseURL, err := f.dial.Dial()
-	if err != nil {
-		return nil, fmt.Errorf("failed to reach the planet module: %w", err)
-	}
-	return planetv1connect.NewInternalServiceClient(client, baseURL), nil
 }
 
 func takeOf(position takes.Position, answered *planetv1.Take) (takes.Take, error) {

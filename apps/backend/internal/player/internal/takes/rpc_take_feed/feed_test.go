@@ -52,16 +52,6 @@ func take(position uint64, take *planetv1.Take) *planetv1.LogEntry {
 	return &planetv1.LogEntry{Position: position, Fact: &planetv1.LogEntry_Take{Take: take}}
 }
 
-type dialer struct {
-	client connect.HTTPClient
-	url    string
-	err    error
-}
-
-func (d dialer) Dial() (connect.HTTPClient, string, error) {
-	return d.client, d.url, d.err
-}
-
 const adaID = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
 
 var noon = time.Date(2026, 10, 5, 12, 0, 0, 0, time.UTC)
@@ -74,7 +64,7 @@ func feed(t *testing.T, planet stubPlanet) *rpc_take_feed.Feed {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	return rpc_take_feed.New(dialer{client: server.Client(), url: server.URL})
+	return rpc_take_feed.New(planetv1connect.NewInternalServiceClient(server.Client(), server.URL))
 }
 
 func TestTheStartIsPlanets(t *testing.T) {
@@ -148,16 +138,11 @@ func TestAnAnswerThatIsNotATakeIsRefused(t *testing.T) {
 	}
 }
 
-func TestPlanetFailingOrUnreachableIsAnError(t *testing.T) {
+func TestAPlanetThatFailsIsAnError(t *testing.T) {
 	failing := stubPlanet{asked: make(chan *planetv1.ReadLogRequest, 1), err: connect.NewError(connect.CodeInternal, errors.New("down"))}
+
 	_, err := feed(t, failing).Batch(t.Context(), 0)
 	require.Error(t, err)
 	_, err = feed(t, failing).Start(t.Context())
-	require.Error(t, err)
-
-	unreachable := rpc_take_feed.New(dialer{err: errors.New("no internal listener")})
-	_, err = unreachable.Batch(t.Context(), 0)
-	require.Error(t, err)
-	_, err = unreachable.Start(t.Context())
 	require.Error(t, err)
 }

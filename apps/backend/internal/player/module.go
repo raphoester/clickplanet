@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
@@ -119,9 +120,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the player module asks auth about accounts: %w", err)
+		return fmt.Errorf("the player module asks auth about accounts and reads planet's log: %w", err)
 	}
 	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
+	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
 
 	tagSalt := config.TagSalt
 	if tagSalt == "" {
@@ -161,7 +163,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	takeStore := postgres_take_store.New(db)
 	counting := count_takes_usecase.NewRunner(config.Takes, log_count_takes.New(
-		publishing_count_takes.New(count_takes_usecase.New(rpc_take_feed.New(props.Internal), takeStore), props.Events),
+		publishing_count_takes.New(count_takes_usecase.New(rpc_take_feed.New(planet), takeStore), props.Events),
 		props.Logger))
 	baselines, err := cpbootstrap.Subscribe(props.Events, "player-takes-accounts", accountDeletedBuffer,
 		log_subscriber.New(account_deleted_subscriber.New(forget_baseline_usecase.New(takeStore)), props.Logger))

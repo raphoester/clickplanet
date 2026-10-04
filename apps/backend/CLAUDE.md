@@ -196,7 +196,7 @@ return []bootstrap.Module{
 
 #### Calling another module
 
-**Over Connect, on a loopback listener, never in the caller's stack trace.** A module that other modules call mounts an internal service with `props.InternalRPC.Mount`; `cpbootstrap` serves it on `httpServer.internalBindAddress` alone, which must be loopback. The caller dials once, in its `module.go`, builds the generated client over `props.Internal.Dial()`, and hands that one client to every adapter that needs it. An adapter takes a narrow port of the procedures it calls (`rpc_account_reader.Auth`, `rpc_player_authors.Player`), never the dialer, so no call builds a client.
+**Over Connect, on a loopback listener, never in the caller's stack trace.** A module that other modules call mounts an internal service with `props.InternalRPC.Mount`; `cpbootstrap` serves it on `httpServer.internalBindAddress` alone, which must be loopback. The caller dials once, in its `module.go`, builds the generated client over `props.Internal.Dial()`, and hands that one client to every adapter that needs it. An adapter takes a narrow port of the procedures it calls (`rpc_account_reader.Auth`, `rpc_player_authors.Player`, `rpc_take_feed.Planet`), never the dialer, so no call builds a client.
 
 | caller | asks | for | through |
 |---|---|---|---|
