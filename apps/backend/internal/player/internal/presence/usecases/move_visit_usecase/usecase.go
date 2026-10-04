@@ -5,14 +5,15 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
 type Authors interface {
-	Execute(ctx context.Context, account players.AccountID) (players.Author, error)
+	Execute(ctx context.Context, account players.AccountID) (wearing.Author, error)
 }
 
 type Visits interface {
-	Move(from, to players.AccountID, author players.Author)
+	Move(from, to players.AccountID, author wearing.Author)
 }
 
 type UseCase struct {

@@ -69,16 +69,16 @@ func quizOffered(t *testing.T, events <-chan Event) *QuizOffer {
 	}
 }
 
-func takeQuiz(t *testing.T, r *Registry, clock *cptime.FixedClock, scope string) (*QuizOffer, Asked) {
+func takeQuiz(t *testing.T, r *Registry, clock *cptime.FixedClock, entrant Entrant) (*QuizOffer, Asked) {
 	t.Helper()
 
-	events := playing(t, r, scope)
+	events := playing(t, r, entrant)
 	waitOutQuiz(r, clock)
 
 	offer := quizOffered(t, events)
 	require.NotNil(t, offer, "expected a quiz")
 
-	asked, ok := r.OpenQuiz(offer.Token, scope)
+	asked, ok := r.OpenQuiz(offer.Token, entrant)
 	require.True(t, ok)
 
 	return offer, asked

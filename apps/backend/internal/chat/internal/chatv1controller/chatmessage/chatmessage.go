@@ -17,11 +17,29 @@ func Encode(message messages.Message, counts []reactions.Count, version uint64) 
 		AuthorAdmin:      message.AuthorAdmin,
 		AuthorColor:      playerv1.NameColor(message.AuthorColor),
 		AuthorStreak:     message.AuthorStreak,
+		AuthorTitle:      encodedTitle(message.AuthorTitle),
 		CountryId:        message.CountryID,
 		Text:             message.Text,
 		Reactions:        EncodeCounts(counts),
 		ReactionsVersion: version,
 	}
+}
+
+func encodedTitle(title messages.Title) *playerv1.Title {
+	if title.Empty() {
+		return nil
+	}
+
+	encoded := &playerv1.Title{Id: title.ID, Name: title.Name}
+	if !title.Rank.Empty() {
+		encoded.Rank = &playerv1.Rank{
+			TrackId:   title.Rank.TrackID,
+			TrackName: title.Rank.TrackName,
+			Number:    title.Rank.Number,
+			Count:     title.Rank.Count,
+		}
+	}
+	return encoded
 }
 
 const NamedReactors = 20

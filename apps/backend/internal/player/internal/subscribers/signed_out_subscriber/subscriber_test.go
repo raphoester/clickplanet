@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/forget_visit_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -21,7 +22,7 @@ func TestASignedOutAccountLeavesTheRoster(t *testing.T) {
 	account, err := players.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
 	require.NoError(t, err)
 	visits := inmemory_visit_storage.New(cptime.NewFixedClock(now))
-	visits.Record(presence.Visit{Account: account, Author: players.Author{Name: "Ada_L"}, Tag: "aaaaaa", Country: "fr", At: now})
+	visits.Record(presence.Visit{Account: account, Author: wearing.Author{Author: players.Author{Name: "Ada_L"}}, Tag: "aaaaaa", Country: "fr", At: now})
 
 	err = signed_out_subscriber.New(forget_visit_usecase.New(visits)).Handle(t.Context(), &authv1.SignedOut{AccountId: account.String()})
 

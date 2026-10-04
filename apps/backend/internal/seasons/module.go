@@ -11,10 +11,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/get_numbered_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/get_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_finale_calendar_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -33,14 +31,9 @@ func NewModule(config Config) cpbootstrap.Module {
 }
 
 func build(config Config, props cpbootstrap.Props) error {
-	seasons := calendar.New(config.Calendar)
-
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(
-			get_season_usecase.New(seasons, cptime.SystemClock{}),
-		),
-		GetFinaleCalendarHandler: get_finale_calendar_handler.New(
-			get_numbered_season_usecase.New(seasons), cptime.SystemClock{}, props.Server.AllowedOrigin+"/play",
+			get_season_usecase.New(calendar.New(config.Calendar), cptime.SystemClock{}),
 		),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

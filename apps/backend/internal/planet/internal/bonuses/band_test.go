@@ -97,19 +97,19 @@ func plays(t *testing.T, r *Registry, scope string, account string, country stri
 	t.Helper()
 
 	paint(t, r, clicks.AccountAllegianceKey(account), country)
-	r.Clicked(scope, Holder(account))
+	r.Clicked(Entrant(scope), scope, Holder(account))
 }
 
 // offerableTo is what a sweep would offer scope now, its flags read as a sweep reads them.
 func offerableTo(t *testing.T, r *Registry, scope string, clock *cptime.FixedClock) *cpcolls.Set[Kind] {
 	t.Helper()
 
-	entry := r.callers[scope]
+	entry := r.callers[Entrant(scope)]
 	r.forgetIdlePlayers(entry, clock.Now())
-	flags, err := r.readFlags(t.Context(), map[string][]clicks.AllegianceKey{scope: keysOf(scope, entry)})
+	flags, err := r.readFlags(t.Context(), map[Entrant][]clicks.AllegianceKey{Entrant(scope): keysOf(entry)})
 	require.NoError(t, err)
 
-	band, read := r.band(flags, scope, entry)
+	band, read := r.band(flags, entry)
 	require.True(t, read)
 	return r.offerable(entry, clock.Now(), band)
 }
@@ -244,10 +244,25 @@ func TestACallerWhosePlayersFlagWasNotReadWaitsForTheNextSweep(t *testing.T) {
 	entry := registry.callers["scope-a"]
 
 	read := map[clicks.AllegianceKey]clicks.Allegiance{clicks.ScopeAllegianceKey("scope-a"): {}}
-	_, ok := registry.band(read, "scope-a", entry)
+	_, ok := registry.band(read, entry)
 	assert.False(t, ok, "a big country's player who joined after the read could be left out of the band")
 
 	read[clicks.AccountAllegianceKey("acc-ad")] = clicks.Allegiance{}
-	_, ok = registry.band(read, "scope-a", entry)
+	_, ok = registry.band(read, entry)
 	assert.True(t, ok)
+}
+
+func TestASignedInPlayersBandReadsItsOwnFlagAndItsNetworks(t *testing.T) {
+	registry, clock := newBandedRegistry(everyWeight)
+	attend(t, registry, "account:acc-ad")
+	paint(t, registry, clicks.AccountAllegianceKey("acc-ad"), smallFlag)
+	registry.Clicked("account:acc-ad", "scope-a", "acc-ad")
+
+	assert.Equal(t, cpcolls.NewSet(Kinds...), offerableTo(t, registry, "account:acc-ad", clock),
+		"its own box, drawn from its own small flag")
+
+	paint(t, registry, clicks.ScopeAllegianceKey("scope-a"), bigFlag)
+
+	assert.Equal(t, cpcolls.NewSet(KindRefill), offerableTo(t, registry, "account:acc-ad", clock),
+		"a fresh account on a big country's network is not a way around the band")
 }

@@ -24,6 +24,7 @@ type stubPlayer struct {
 	admins map[string]bool
 	colors map[string]playerv1.NameColor
 	streak map[string]uint32
+	titles map[string]*playerv1.Title
 	err    error
 	asked  *string
 }
@@ -37,11 +38,26 @@ func (s stubPlayer) GetAuthor(
 		return nil, s.err
 	}
 	return connect.NewResponse(&playerv1.GetAuthorResponse{
-		Name:   s.names[req.Msg.GetAccountId()],
-		Admin:  s.admins[req.Msg.GetAccountId()],
-		Color:  s.colors[req.Msg.GetAccountId()],
-		Streak: s.streak[req.Msg.GetAccountId()],
+		Name:      s.names[req.Msg.GetAccountId()],
+		Admin:     s.admins[req.Msg.GetAccountId()],
+		Color:     s.colors[req.Msg.GetAccountId()],
+		Streak:    s.streak[req.Msg.GetAccountId()],
+		WornTitle: s.titles[req.Msg.GetAccountId()],
 	}), nil
+}
+
+func (s stubPlayer) GetAuthors(
+	_ context.Context,
+	req *connect.Request[playerv1.GetAuthorsRequest],
+) (*connect.Response[playerv1.GetAuthorsResponse], error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	found := make([]*playerv1.Author, 0, len(req.Msg.GetAccountIds()))
+	for _, id := range req.Msg.GetAccountIds() {
+		found = append(found, &playerv1.Author{AccountId: id, Name: s.names[id], WornTitle: s.titles[id]})
+	}
+	return connect.NewResponse(&playerv1.GetAuthorsResponse{Authors: found}), nil
 }
 
 type dialer struct {
@@ -90,6 +106,38 @@ func TestItAnswersTheColorAndTheStreak(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, messages.Author{Name: "Ada_L", Color: int32(playerv1.NameColor_NAME_COLOR_TEAL), Streak: 12}, author)
+}
+
+var settler = &playerv1.Title{
+	Id: "settler", Name: "Settler", Rank: &playerv1.Rank{TrackId: "conquest", TrackName: "Conquest", Number: 1, Count: 5},
+}
+
+func TestItAnswersTheTitleWorn(t *testing.T) {
+	player := stubPlayer{
+		names:  map[string]string{ada.String(): "Ada_L"},
+		titles: map[string]*playerv1.Title{ada.String(): settler},
+		asked:  new(string),
+	}
+
+	author, err := authors(t, player).Author(t.Context(), ada)
+	require.NoError(t, err)
+	many, err := authors(t, player).Authors(t.Context(), []messages.AccountID{ada})
+	require.NoError(t, err)
+
+	want := messages.Title{
+		ID: "settler", Name: "Settler", Rank: messages.Rank{TrackID: "conquest", TrackName: "Conquest", Number: 1, Count: 5},
+	}
+	assert.Equal(t, want, author.Title)
+	assert.Equal(t, want, many[ada].Title)
+}
+
+func TestAnAuthorWearingNothingHasNoTitle(t *testing.T) {
+	player := stubPlayer{names: map[string]string{ada.String(): "Ada_L"}, asked: new(string)}
+
+	author, err := authors(t, player).Author(t.Context(), ada)
+
+	require.NoError(t, err)
+	assert.True(t, author.Title.Empty())
 }
 
 func TestAPlayerModuleThatFailsIsAnError(t *testing.T) {

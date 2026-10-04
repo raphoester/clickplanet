@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -20,7 +21,7 @@ var (
 	now = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 	ada = players.AccountID{15: 1}
 
-	guest = players.Author{Name: "guest_0b1c2d", Guest: true}
+	guest = wearing.Author{Author: players.Author{Name: "guest_0b1c2d", Guest: true}}
 )
 
 type fixture struct {
@@ -51,7 +52,7 @@ func TestAKeptNameShowsOnTheRosterAtOnce(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, players.Name("Ada_L"), profile.Name)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, players.Author{Name: "Ada_L"}, f.visits.Visits()[0].Author)
+	assert.Equal(t, wearing.Author{Author: players.Author{Name: "Ada_L"}}, f.visits.Visits()[0].Author)
 }
 
 func TestARefusedNameRenamesNothing(t *testing.T) {

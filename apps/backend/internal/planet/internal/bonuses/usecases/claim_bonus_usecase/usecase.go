@@ -12,7 +12,7 @@ import (
 var ErrNoSuchBonus = errors.New("no bonus to claim")
 
 type Registry interface {
-	Claim(token string, scope string) (bonuses.Reward, bool)
+	Claim(token string, entrant bonuses.Entrant, scope string) (bonuses.Reward, bool)
 	Publish(taken bonuses.Taken)
 }
 
@@ -46,7 +46,7 @@ type UseCase struct {
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	payer := clicks.PayerOf(ctx)
 
-	reward, ok := u.registry.Claim(in.Token, payer.Scope)
+	reward, ok := u.registry.Claim(in.Token, bonuses.EntrantOf(payer), payer.Scope)
 	if !ok {
 		return Out{}, ErrNoSuchBonus
 	}

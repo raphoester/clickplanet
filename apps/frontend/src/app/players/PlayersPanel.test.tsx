@@ -87,6 +87,15 @@ describe("PlayersPanel", () => {
         expect(screen.queryByRole("button")).toBeNull()
     })
 
+    it("shows the title a player wears beside its name, and nothing beside one that wears none", () => {
+        const og = {id: "og", name: "OG"}
+        render(<PlayersPanel entries={[{...entry("ana", false), wornTitle: og}, entry("kiran_07", false)]}/>)
+
+        const [ana, kiran] = screen.getAllByRole("listitem")
+        expect(within(ana).getByRole("img", {name: "OG"}).querySelector(".title-emblem")).not.toBeNull()
+        expect(within(kiran).queryByRole("img", {name: "OG"})).toBeNull()
+    })
+
     it("crowns an admin, and nobody else", () => {
         render(<PlayersPanel entries={[entry("ana", false, "fr", true), entry("kiran_07", false)]}/>)
 

@@ -4,20 +4,15 @@ import {GetSeasonResponse, Season as SeasonPb} from "../gen/grpc/seasons/v1/seas
 import {ConnectSeasonBackend} from "./seasonBackend.ts"
 
 const backendWith = (getSeason: () => Promise<GetSeasonResponse>) =>
-    new ConnectSeasonBackend({getSeason: vi.fn(getSeason)} as never, "https://api.clickplanet.lol")
+    new ConnectSeasonBackend({getSeason: vi.fn(getSeason)} as never)
 
 describe("ConnectSeasonBackend", () => {
-    it("reads the season in milliseconds, with where its finale's calendar file is", async () => {
+    it("reads the season in milliseconds", async () => {
         const backend = backendWith(async () => new GetSeasonResponse({
             season: new SeasonPb({number: 2, finaleStartsAtUnixMs: 1793480400000n, endsAtUnixMs: 1793487600000n}),
         }))
 
-        expect(await backend.season()).toEqual({
-            number: 2,
-            finaleStartsAt: 1793480400000,
-            endsAt: 1793487600000,
-            finaleFile: "https://api.clickplanet.lol/seasons/2/finale.ics",
-        })
+        expect(await backend.season()).toEqual({number: 2, finaleStartsAt: 1793480400000, endsAt: 1793487600000})
     })
 
     it("has no season when the server answers none", async () => {
@@ -34,7 +29,7 @@ describe("ConnectSeasonBackend", () => {
 
     it("asks once per page load", async () => {
         const getSeason = vi.fn(async () => new GetSeasonResponse())
-        const backend = new ConnectSeasonBackend({getSeason} as never, "https://api.clickplanet.lol")
+        const backend = new ConnectSeasonBackend({getSeason} as never)
 
         await Promise.all([backend.season(), backend.season()])
         await backend.season()

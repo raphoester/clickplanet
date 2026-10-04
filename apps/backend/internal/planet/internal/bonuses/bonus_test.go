@@ -38,8 +38,8 @@ func newRegistryOffering(kinds map[Kind]float64) (*Registry, *cptime.FixedClock)
 	}, clock, newFakeHoldings(), fakeShares{}, inmemory_allegiance_store.New()), clock
 }
 
-func holderOf(scope string) Holder {
-	return HolderOf(clicks.Payer{Scope: scope, Account: "acc-" + scope})
+func holderOf(entrant Entrant) Holder {
+	return HolderOf(clicks.Payer{Scope: string(entrant), Account: "acc-" + string(entrant)})
 }
 
 type fakeHoldings struct{ held map[Holder]Held }
@@ -90,24 +90,24 @@ func holdingsOf(r *Registry) *fakeHoldings {
 	return r.holdings.(*fakeHoldings) //nolint:forcetypeassert // every registry in these tests is built with one.
 }
 
-func attend(t *testing.T, r *Registry, scope string) <-chan Event {
+func attend(t *testing.T, r *Registry, entrant Entrant) <-chan Event {
 	t.Helper()
 
-	events, leave := r.Attend(scope)
+	events, leave := r.Attend(entrant)
 	t.Cleanup(leave)
 
 	return events
 }
 
-func clicked(r *Registry, scope string) {
-	r.Clicked(scope, holderOf(scope))
+func clicked(r *Registry, entrant Entrant) {
+	r.Clicked(entrant, string(entrant), holderOf(entrant))
 }
 
-func playing(t *testing.T, r *Registry, scope string) <-chan Event {
+func playing(t *testing.T, r *Registry, entrant Entrant) <-chan Event {
 	t.Helper()
 
-	events := attend(t, r, scope)
-	clicked(r, scope)
+	events := attend(t, r, entrant)
+	clicked(r, entrant)
 
 	return events
 }
@@ -157,15 +157,15 @@ func TestABoxGoesToAnAttendingCallerOnceTheWindowPasses(t *testing.T) {
 func TestEveryCallerIsOnTheirOwnScheduleRatherThanSharingOne(t *testing.T) {
 	registry, clock := newTestRegistry()
 
-	channels := map[string]<-chan Event{}
-	for _, scope := range []string{"a", "b", "c", "d"} {
-		channels[scope] = playing(t, registry, scope)
+	channels := map[Entrant]<-chan Event{}
+	for _, entrant := range []Entrant{"a", "b", "c", "d"} {
+		channels[entrant] = playing(t, registry, entrant)
 	}
 
 	waitOut(registry, clock)
 
-	for scope, events := range channels {
-		assert.NotNilf(t, offered(t, events), "%s was not offered a box on its own turn", scope)
+	for entrant, events := range channels {
+		assert.NotNilf(t, offered(t, events), "%s was not offered a box on its own turn", entrant)
 	}
 }
 
@@ -286,7 +286,7 @@ func TestCatchingOneClearsTheMissThatCameBefore(t *testing.T) {
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
-	_, claimed := registry.Claim(offer.Token, "scope-a")
+	_, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
 	require.True(t, claimed)
 
 	assert.Equal(t, 0, registry.callers["scope-a"].misses)
@@ -338,7 +338,7 @@ func TestTheHourlyCapStopsTheOffers(t *testing.T) {
 		offer := offered(t, events)
 		require.NotNil(t, offer)
 
-		_, claimed := registry.Claim(offer.Token, "scope-a")
+		_, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
 		require.True(t, claimed)
 	}
 
@@ -405,7 +405,7 @@ func TestEveryKindIsClaimedAsItself(t *testing.T) {
 		require.NotNil(t, offer)
 		assert.Equal(t, kind, offer.Kind)
 
-		reward, claimed := registry.Claim(offer.Token, "scope-a")
+		reward, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
 		require.True(t, claimed)
 		assert.Equal(t, kind, reward.Kind)
 		assert.GreaterOrEqual(t, reward.Amount, 1)
@@ -420,7 +420,7 @@ func TestCatchingAChargeBringsTheNextBoxAWindowAfterTheClaim(t *testing.T) {
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
-	_, claimed := registry.Claim(offer.Token, "scope-a")
+	_, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
 	require.True(t, claimed)
 
 	assert.Equal(t, clock.Now().Add(window), registry.callers["scope-a"].nextOfferAt,
@@ -471,7 +471,7 @@ func TestAKindHeldByAnAccountThatClicksFromTheScopeIsNotOffered(t *testing.T) {
 	account := HolderOf(clicks.Payer{Scope: "scope-a", Account: "acc-1"})
 
 	events := attend(t, registry, "scope-a")
-	registry.Clicked("scope-a", account)
+	registry.Clicked("scope-a", "scope-a", account)
 	holdingsOf(registry).grant(account, KindEncloseClicks)
 
 	waitOut(registry, clock)
@@ -483,7 +483,7 @@ func TestAPlayerWhoStoppedClickingNoLongerHoldsBackAKind(t *testing.T) {
 	gone := HolderOf(clicks.Payer{Scope: "scope-a", Account: "gone"})
 
 	events := attend(t, registry, "scope-a")
-	registry.Clicked("scope-a", gone)
+	registry.Clicked("scope-a", "scope-a", gone)
 	holdingsOf(registry).grant(gone, KindBomb)
 
 	clock.Advance(6 * time.Minute)
@@ -501,7 +501,7 @@ func TestACallerWithNoAccountIsOfferedNothing(t *testing.T) {
 
 	for range 5 {
 		clock.Advance(window + time.Second)
-		registry.Clicked("scope-a", NoHolder)
+		registry.Clicked("scope-a", "scope-a", NoHolder)
 		registry.sweep(t.Context())
 
 		require.Nil(t, offered(t, events), "every bonus is a charge, and only an account can hold one")
@@ -565,7 +565,7 @@ func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
-	reward, claimed := registry.Claim(offer.Token, "scope-a")
+	reward, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
 
 	require.True(t, claimed)
 	assert.Equal(t, offer.Kind, reward.Kind, "the claim grants what the box said it was")
@@ -587,7 +587,7 @@ func TestACatchIsReportedWithHowLongItTook(t *testing.T) {
 	require.NotNil(t, offer)
 
 	clock.Advance(1200 * time.Millisecond)
-	_, claimed := registry.Claim(offer.Token, "scope-a")
+	_, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
 	require.True(t, claimed)
 
 	assert.Equal(t, "scope-a", caughtBy)
@@ -606,7 +606,7 @@ func TestARefusedClaimIsNotACatch(t *testing.T) {
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
-	_, stolen := registry.Claim(offer.Token, "scope-b")
+	_, stolen := registry.Claim(offer.Token, "scope-b", "scope-b")
 	require.False(t, stolen)
 
 	assert.Zero(t, caught)
@@ -637,10 +637,10 @@ func TestATokenIsWorthNothingToAnybodyElse(t *testing.T) {
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
-	_, stolen := registry.Claim(offer.Token, "scope-b")
+	_, stolen := registry.Claim(offer.Token, "scope-b", "scope-b")
 	assert.False(t, stolen)
 
-	_, mine := registry.Claim(offer.Token, "scope-a")
+	_, mine := registry.Claim(offer.Token, "scope-a", "scope-a")
 	assert.True(t, mine, "a failed theft must not spend the owner's box")
 }
 
@@ -652,8 +652,8 @@ func TestATokenIsSpentExactlyOnce(t *testing.T) {
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
-	_, first := registry.Claim(offer.Token, "scope-a")
-	_, second := registry.Claim(offer.Token, "scope-a")
+	_, first := registry.Claim(offer.Token, "scope-a", "scope-a")
+	_, second := registry.Claim(offer.Token, "scope-a", "scope-a")
 
 	assert.True(t, first)
 	assert.False(t, second)
@@ -669,14 +669,14 @@ func TestALapsedTokenIsRefused(t *testing.T) {
 
 	clock.Advance(16 * time.Second)
 
-	_, claimed := registry.Claim(offer.Token, "scope-a")
+	_, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
 	assert.False(t, claimed)
 }
 
 func TestAnUnknownTokenIsRefused(t *testing.T) {
 	registry, _ := newTestRegistry()
 
-	_, claimed := registry.Claim("not-a-token", "scope-a")
+	_, claimed := registry.Claim("not-a-token", "scope-a", "scope-a")
 
 	assert.False(t, claimed)
 }
@@ -696,9 +696,9 @@ func TestClaimingABoxOfferedToAnotherCallerIsReported(t *testing.T) {
 	offer := offered(t, events)
 	require.NotNil(t, offer)
 
-	_, stolen := registry.Claim(offer.Token, "scope-b")
-	_, mine := registry.Claim(offer.Token, "scope-a")
-	_, late := registry.Claim(offer.Token, "scope-c")
+	_, stolen := registry.Claim(offer.Token, "scope-b", "scope-b")
+	_, mine := registry.Claim(offer.Token, "scope-a", "scope-a")
+	_, late := registry.Claim(offer.Token, "scope-c", "scope-c")
 
 	assert.False(t, stolen)
 	assert.True(t, mine)
@@ -710,7 +710,7 @@ func TestClaimingATokenNeverOfferedIsReported(t *testing.T) {
 	registry, _ := newTestRegistry()
 	claims := foreign(registry)
 
-	_, claimed := registry.Claim("not-a-token", "scope-a")
+	_, claimed := registry.Claim("not-a-token", "scope-a", "scope-a")
 
 	assert.False(t, claimed)
 	assert.Equal(t, map[string]int{"scope-a": 1}, claims)
@@ -725,8 +725,8 @@ func TestClaimingYourOwnBoxTwiceOrLateIsNotReported(t *testing.T) {
 	first := offered(t, events)
 	require.NotNil(t, first)
 
-	_, once := registry.Claim(first.Token, "scope-a")
-	_, twice := registry.Claim(first.Token, "scope-a")
+	_, once := registry.Claim(first.Token, "scope-a", "scope-a")
+	_, twice := registry.Claim(first.Token, "scope-a", "scope-a")
 	require.True(t, once)
 	require.False(t, twice)
 
@@ -735,9 +735,9 @@ func TestClaimingYourOwnBoxTwiceOrLateIsNotReported(t *testing.T) {
 	require.NotNil(t, second)
 
 	clock.Advance(16 * time.Second)
-	_, beforeTheSweep := registry.Claim(second.Token, "scope-a")
+	_, beforeTheSweep := registry.Claim(second.Token, "scope-a", "scope-a")
 	registry.sweep(t.Context())
-	_, afterTheSweep := registry.Claim(second.Token, "scope-a")
+	_, afterTheSweep := registry.Claim(second.Token, "scope-a", "scope-a")
 
 	assert.False(t, beforeTheSweep)
 	assert.False(t, afterTheSweep)
@@ -751,7 +751,7 @@ func TestASpentTokenIsForgottenAfterAWhile(t *testing.T) {
 	waitOut(registry, clock)
 	offer := offered(t, events)
 	require.NotNil(t, offer)
-	_, claimed := registry.Claim(offer.Token, "scope-a")
+	_, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
 	require.True(t, claimed)
 
 	clock.Advance(rememberSpent + time.Second)

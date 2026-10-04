@@ -183,15 +183,11 @@ func Run(ctx context.Context, options Options) error {
 	events.seal()
 
 	router := http.NewServeMux()
-	middlewares := cphttpserver.MiddlewareStack(
+	routes.mountOn(router, cphttpserver.MiddlewareStack(
 		cphttpserver.NewLoggingMiddleware(options.Logger),
 		cphttpserver.IPReaderMiddleware,
 		cphttpserver.NewCorsMiddleware(options.Server.AllowedOrigin),
-	)
-	routes.mountOn(router, middlewares)
-	if err := routes.transcodeOn(router, middlewares); err != nil {
-		return err
-	}
+	))
 	mountMetrics(router, metrics, options.Logger)
 
 	loopbacks, err := listenLoopbacks(options, adminRoutes, internalRoutes)

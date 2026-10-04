@@ -15,7 +15,7 @@ import (
 
 type recorder struct{ published []bonuses.Enclosed }
 
-func (r *recorder) PublishEnclosed(_ string, enclosed bonuses.Enclosed) {
+func (r *recorder) PublishEnclosed(_ bonuses.Entrant, enclosed bonuses.Enclosed) {
 	r.published = append(r.published, enclosed)
 }
 

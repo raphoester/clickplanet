@@ -25,6 +25,19 @@ func (b Book) Shown(ctx context.Context, account players.AccountID) ([]Standing,
 	return b.catalog.Shown(held), nil
 }
 
+func (b Book) ShownBy(ctx context.Context, accounts []players.AccountID) (map[players.AccountID][]Standing, error) {
+	holdings, err := b.store.Holdings(ctx, accounts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the titles: %w", err)
+	}
+
+	shown := make(map[players.AccountID][]Standing, len(holdings))
+	for account, held := range holdings {
+		shown[account] = b.catalog.Shown(held)
+	}
+	return shown, nil
+}
+
 func (b Book) Progress(ctx context.Context, account players.AccountID, career Career) ([]TrackProgress, error) {
 	held, err := b.store.Held(ctx, account)
 	if err != nil {

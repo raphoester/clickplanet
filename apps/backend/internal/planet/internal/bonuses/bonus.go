@@ -80,6 +80,8 @@ type Reward struct {
 type caller struct {
 	streams map[uint64]chan Event
 
+	scope string
+
 	nextOfferAt time.Time
 	lastSeen    time.Time
 	lastClickAt time.Time
@@ -141,7 +143,7 @@ type Registry struct {
 	bank       Questions
 
 	mu      sync.Mutex
-	callers map[string]*caller
+	callers map[Entrant]*caller
 	offers  map[string]*pending
 
 	spent map[string]spentOffer
@@ -152,6 +154,7 @@ type Registry struct {
 }
 
 type pending struct {
+	entrant   Entrant
 	scope     string
 	kind      Kind
 	offeredAt time.Time
@@ -159,8 +162,8 @@ type pending struct {
 }
 
 type spentOffer struct {
-	scope string
-	until time.Time
+	entrant Entrant
+	until   time.Time
 }
 
 const rememberSpent = 10 * time.Minute
@@ -200,7 +203,7 @@ func New(config Config, clock cptime.Clock, holdings Holdings, shares Shares, fl
 		holdings:   holdings,
 		shares:     shares,
 		flags:      flags,
-		callers:    make(map[string]*caller),
+		callers:    make(map[Entrant]*caller),
 		offers:     make(map[string]*pending),
 		spent:      make(map[string]spentOffer),
 		quizOffers: make(map[string]*pendingQuiz),
@@ -214,13 +217,13 @@ func (r *Registry) Observe(report Report) {
 	r.report = report
 }
 
-func (r *Registry) Attend(scope string) (<-chan Event, func()) {
+func (r *Registry) Attend(entrant Entrant) (<-chan Event, func()) {
 	now := r.clock.Now()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	entry := r.caller(scope, now)
+	entry := r.caller(entrant, now)
 
 	r.nextID++
 	id := r.nextID
@@ -229,11 +232,11 @@ func (r *Registry) Attend(scope string) (<-chan Event, func()) {
 	entry.streams[id] = events
 	entry.lastSeen = now
 
-	return events, func() { r.leave(scope, id) }
+	return events, func() { r.leave(entrant, id) }
 }
 
-func (r *Registry) caller(scope string, now time.Time) *caller {
-	entry, ok := r.callers[scope]
+func (r *Registry) caller(entrant Entrant, now time.Time) *caller {
+	entry, ok := r.callers[entrant]
 	if ok {
 		return entry
 	}
@@ -245,16 +248,16 @@ func (r *Registry) caller(scope string, now time.Time) *caller {
 		nextQuizAt:  now.Add(r.quizWindow()),
 		lastSeen:    now,
 	}
-	r.callers[scope] = entry
+	r.callers[entrant] = entry
 
 	return entry
 }
 
-func (r *Registry) leave(scope string, id uint64) {
+func (r *Registry) leave(entrant Entrant, id uint64) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	entry, ok := r.callers[scope]
+	entry, ok := r.callers[entrant]
 	if !ok {
 		return
 	}
@@ -263,39 +266,40 @@ func (r *Registry) leave(scope string, id uint64) {
 	entry.lastSeen = r.clock.Now()
 }
 
-func (r *Registry) Clicked(scope string, holder Holder) {
+func (r *Registry) Clicked(entrant Entrant, scope string, holder Holder) {
 	now := r.clock.Now()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	entry := r.caller(scope, now)
+	entry := r.caller(entrant, now)
+	entry.scope = scope
 	entry.lastClickAt = now
 	if holder != NoHolder {
 		entry.players[holder] = now
 	}
 }
 
-func (r *Registry) Claim(token string, scope string) (Reward, bool) {
+func (r *Registry) Claim(token string, entrant Entrant, scope string) (Reward, bool) {
 	now := r.clock.Now()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	offer, ok := r.offers[token]
-	if !ok || offer.scope != scope || !now.Before(offer.expiresAt) {
-		r.refuse(token, scope)
+	if !ok || offer.entrant != entrant || !now.Before(offer.expiresAt) {
+		r.refuse(token, entrant, scope)
 		return Reward{}, false
 	}
 
 	delete(r.offers, token)
-	r.spent[token] = spentOffer{scope: scope, until: now.Add(rememberSpent)}
+	r.spent[token] = spentOffer{entrant: entrant, until: now.Add(rememberSpent)}
 
 	if r.report.Caught != nil {
 		r.report.Caught(scope, now.Sub(offer.offeredAt))
 	}
 
-	if entry, known := r.callers[scope]; known {
+	if entry, known := r.callers[entrant]; known {
 		entry.outstanding = ""
 		entry.misses = 0
 		entry.grants = append(entry.grants, now)
@@ -306,15 +310,15 @@ func (r *Registry) Claim(token string, scope string) (Reward, bool) {
 	return Reward{Kind: offer.kind, Amount: r.amountOf(offer.kind)}, true
 }
 
-func (r *Registry) refuse(token string, scope string) {
-	owner := ""
+func (r *Registry) refuse(token string, entrant Entrant, scope string) {
+	owner := Entrant("")
 	if offer, ok := r.offers[token]; ok {
-		owner = offer.scope
+		owner = offer.entrant
 	} else if spent, ok := r.spent[token]; ok {
-		owner = spent.scope
+		owner = spent.entrant
 	}
 
-	if owner != scope && r.report.Foreign != nil {
+	if owner != entrant && r.report.Foreign != nil {
 		r.report.Foreign(scope)
 	}
 }
@@ -323,7 +327,7 @@ func (r *Registry) Publish(taken Taken) {
 	r.broadcast(Event{Taken: &taken})
 }
 
-func (r *Registry) PublishEnclosed(scope string, enclosed Enclosed) {
+func (r *Registry) PublishEnclosed(entrant Entrant, enclosed Enclosed) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -331,7 +335,7 @@ func (r *Registry) PublishEnclosed(scope string, enclosed Enclosed) {
 	theirs.Yours = false
 
 	for other, entry := range r.callers {
-		if other == scope {
+		if other == entrant {
 			yours := enclosed
 			yours.Yours = true
 			entry.send(Event{Enclosed: &yours})
@@ -396,14 +400,14 @@ func (r *Registry) sweep(ctx context.Context) {
 
 	r.offerQuizzes(now, due, flags)
 
-	for scope := range due {
-		entry, known := r.callers[scope]
+	for entrant := range due {
+		entry, known := r.callers[entrant]
 		if !known || !r.due(entry, now) {
 			continue
 		}
 
 		r.forgetIdlePlayers(entry, now)
-		band, read := r.band(flags, scope, entry)
+		band, read := r.band(flags, entry)
 		if !read {
 			continue
 		}
@@ -414,12 +418,12 @@ func (r *Registry) sweep(ctx context.Context) {
 			continue
 		}
 
-		r.offer(scope, entry, now, band, kinds)
+		r.offer(entrant, entry, now, band, kinds)
 	}
 }
 
 // tidy forgets what lapsed, and says which callers are due a box or a quiz, with the flags their band needs.
-func (r *Registry) tidy(now time.Time) map[string][]clicks.AllegianceKey {
+func (r *Registry) tidy(now time.Time) map[Entrant][]clicks.AllegianceKey {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -428,11 +432,11 @@ func (r *Registry) tidy(now time.Time) map[string][]clicks.AllegianceKey {
 	r.collectStaleQuizzes(now)
 	r.forgetStale(now)
 
-	due := map[string][]clicks.AllegianceKey{}
-	for scope, entry := range r.callers {
+	due := map[Entrant][]clicks.AllegianceKey{}
+	for entrant, entry := range r.callers {
 		if r.due(entry, now) || (r.quizzing() && r.quizDue(entry, now)) {
 			r.forgetIdlePlayers(entry, now)
-			due[scope] = keysOf(scope, entry)
+			due[entrant] = keysOf(entry)
 		}
 	}
 
@@ -442,7 +446,7 @@ func (r *Registry) tidy(now time.Time) map[string][]clicks.AllegianceKey {
 // readFlags reads every tally the due callers need. Each key asked for is in the answer, a zero tally when it has
 // no row, so a key missing from it is one this sweep did not read.
 func (r *Registry) readFlags(
-	ctx context.Context, due map[string][]clicks.AllegianceKey,
+	ctx context.Context, due map[Entrant][]clicks.AllegianceKey,
 ) (map[clicks.AllegianceKey]clicks.Allegiance, error) {
 	var keys []clicks.AllegianceKey
 	for _, needed := range due {
@@ -462,10 +466,10 @@ func (r *Registry) readFlags(
 	return flags, nil
 }
 
-// keysOf is the flags a caller's band is read from: its scope's, and each of its players'.
-func keysOf(scope string, entry *caller) []clicks.AllegianceKey {
+// keysOf is the flags a caller's band is read from: the scope it plays from, and each of its players'.
+func keysOf(entry *caller) []clicks.AllegianceKey {
 	keys := make([]clicks.AllegianceKey, 0, 1+len(entry.players))
-	keys = append(keys, clicks.ScopeAllegianceKey(scope))
+	keys = append(keys, clicks.ScopeAllegianceKey(entry.scope))
 	for holder := range entry.players {
 		keys = append(keys, clicks.AccountAllegianceKey(string(holder)))
 	}
@@ -517,9 +521,9 @@ func (r *Registry) forgetIdlePlayers(entry *caller, now time.Time) {
 
 // band is the band of the biggest country among the scope's main flag and each playing account's: any of them can
 // claim the box. False when a flag it needs is not in flags: a player who joined since they were read.
-func (r *Registry) band(flags map[clicks.AllegianceKey]clicks.Allegiance, scope string, entry *caller) (KindBand, bool) {
+func (r *Registry) band(flags map[clicks.AllegianceKey]clicks.Allegiance, entry *caller) (KindBand, bool) {
 	share := 0.0
-	for _, key := range keysOf(scope, entry) {
+	for _, key := range keysOf(entry) {
 		tally, read := flags[key]
 		if !read {
 			return KindBand{}, false
@@ -544,7 +548,7 @@ func (r *Registry) grantedWithinTheHour(entry *caller, now time.Time) int {
 	return len(kept)
 }
 
-func (r *Registry) offer(scope string, entry *caller, now time.Time, band KindBand, kinds *cpcolls.Set[Kind]) {
+func (r *Registry) offer(entrant Entrant, entry *caller, now time.Time, band KindBand, kinds *cpcolls.Set[Kind]) {
 	token, err := newToken()
 	if err != nil {
 		return
@@ -559,7 +563,8 @@ func (r *Registry) offer(scope string, entry *caller, now time.Time, band KindBa
 	}
 
 	r.offers[token] = &pending{
-		scope:     scope,
+		entrant:   entrant,
+		scope:     entry.scope,
 		kind:      offer.Kind,
 		offeredAt: now,
 		expiresAt: offer.ExpiresAt,
@@ -581,9 +586,9 @@ func (r *Registry) collectMisses(now time.Time) {
 		}
 
 		delete(r.offers, token)
-		r.spent[token] = spentOffer{scope: offer.scope, until: now.Add(rememberSpent)}
+		r.spent[token] = spentOffer{entrant: offer.entrant, until: now.Add(rememberSpent)}
 
-		entry, ok := r.callers[offer.scope]
+		entry, ok := r.callers[offer.entrant]
 		if !ok || entry.outstanding != token {
 			continue
 		}
@@ -608,7 +613,7 @@ func (r *Registry) forgetSpent(now time.Time) {
 }
 
 func (r *Registry) forgetStale(now time.Time) {
-	for scope, entry := range r.callers {
+	for entrant, entry := range r.callers {
 		if entry.watching() || now.Sub(entry.lastSeen) <= r.config.ForgetAfter {
 			continue
 		}
@@ -617,7 +622,7 @@ func (r *Registry) forgetStale(now time.Time) {
 			delete(r.quizOffers, entry.outstandingQuiz)
 		}
 
-		delete(r.callers, scope)
+		delete(r.callers, entrant)
 	}
 }
 

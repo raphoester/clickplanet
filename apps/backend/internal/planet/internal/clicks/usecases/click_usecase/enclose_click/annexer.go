@@ -23,7 +23,7 @@ type Spender interface {
 }
 
 type Publisher interface {
-	PublishEnclosed(scope string, enclosed bonuses.Enclosed)
+	PublishEnclosed(entrant bonuses.Entrant, enclosed bonuses.Enclosed)
 }
 
 type Annexer struct {
@@ -37,7 +37,7 @@ func NewAnnexer(storage TileStorage, rule Rule, spender Spender, publisher Publi
 	return Annexer{storage: storage, rule: rule, spender: spender, publisher: publisher}
 }
 
-func (a Annexer) Annex(ctx context.Context, scope string, holder bonuses.Holder, closing click_usecase.In, pockets []bonuses.Pocket) error {
+func (a Annexer) Annex(ctx context.Context, entrant bonuses.Entrant, holder bonuses.Holder, closing click_usecase.In, pockets []bonuses.Pocket) error {
 	if len(pockets) == 0 || !a.spender.SpendEnclose(holder) {
 		return nil
 	}
@@ -47,7 +47,7 @@ func (a Annexer) Annex(ctx context.Context, scope string, holder bonuses.Holder,
 		return err
 	}
 
-	a.publisher.PublishEnclosed(scope, pocket.Announcement(closing.CountryID, closing.TileID))
+	a.publisher.PublishEnclosed(entrant, pocket.Announcement(closing.CountryID, closing.TileID))
 
 	return nil
 }
