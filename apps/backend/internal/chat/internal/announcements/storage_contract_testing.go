@@ -45,58 +45,10 @@ func (s *StorageContractSuite) append(names ...string) {
 	}
 }
 
-func (s *StorageContractSuite) recent(since time.Time, limit int) []AnnouncementID {
-	recent, err := s.storage.Recent(context.Background(), since, limit)
-	s.Require().NoError(err)
-
-	ids := make([]AnnouncementID, 0, len(recent))
-	for _, announcement := range recent {
-		ids = append(ids, announcement.ID)
-	}
-	return ids
-}
-
-func (s *StorageContractSuite) TestAnEmptyStorageHasNoRecentAnnouncements() {
-	s.Empty(s.recent(contractStart, 10))
-}
-
-func (s *StorageContractSuite) TestAnAnnouncementReadsBackAsItWasAppended() {
-	s.append("boom")
-
-	recent, err := s.storage.Recent(context.Background(), contractStart, 10)
-	s.Require().NoError(err)
-	s.Require().Len(recent, 1)
-
-	want := contractAnnouncement("boom", contractStart)
-	s.Equal(want.ID, recent[0].ID)
-	s.Equal(want.Kind, recent[0].Kind)
-	s.True(want.At.Equal(recent[0].At), "at %s, want %s", recent[0].At, want.At)
-	s.JSONEq(string(want.Payload), string(recent[0].Payload))
-}
-
-func (s *StorageContractSuite) TestRecentIsTheNewestOldestFirst() {
-	s.append("a", "b", "c")
-
-	s.Equal([]AnnouncementID{contractID("b"), contractID("c")}, s.recent(contractStart, 2))
-}
-
-func (s *StorageContractSuite) TestRecentIsInTimeOrderWhateverOrderItWasAppendedIn() {
-	s.Require().NoError(s.storage.Append(context.Background(), contractAnnouncement("late", contractStart.Add(time.Hour))))
-	s.Require().NoError(s.storage.Append(context.Background(), contractAnnouncement("early", contractStart)))
-
-	s.Equal([]AnnouncementID{contractID("early"), contractID("late")}, s.recent(contractStart, 10))
-}
-
 func (s *StorageContractSuite) TestAnIDIsKeptOnce() {
 	s.append("boom")
 
 	s.Error(s.storage.Append(context.Background(), contractAnnouncement("boom", contractStart.Add(time.Hour))))
-}
-
-func (s *StorageContractSuite) TestRecentLeavesOutWhatIsOlderThanSince() {
-	s.append("a", "b", "c")
-
-	s.Equal([]AnnouncementID{contractID("c")}, s.recent(contractStart.Add(90*time.Minute), 10))
 }
 
 func (s *StorageContractSuite) TestDeleteBeforeRemovesWhatIsOlderAndCountsIt() {
@@ -106,5 +58,7 @@ func (s *StorageContractSuite) TestDeleteBeforeRemovesWhatIsOlderAndCountsIt() {
 	s.Require().NoError(err)
 
 	s.Equal(int64(2), deleted)
-	s.Equal([]AnnouncementID{contractID("c")}, s.recent(time.Time{}, 10))
+	rest, err := s.storage.DeleteBefore(context.Background(), contractStart.Add(24*time.Hour))
+	s.Require().NoError(err)
+	s.Equal(int64(1), rest, "what was newer was kept")
 }
