@@ -2,6 +2,7 @@ import {ReactNode} from "react"
 import {StandingsBackend} from "../../backends/standings.ts"
 import {Country} from "../../domain/countries.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
+import HeadingSelect, {HeadingChoice} from "../components/HeadingSelect.tsx"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import PlayerStandings from "./PlayerStandings.tsx"
 import {Caller} from "./useMySeason.ts"
@@ -24,23 +25,21 @@ export type BoardViewsProps = BoardStandings & {
 }
 
 export default function BoardViews(props: BoardViewsProps) {
-    const tab = (view: BoardView, label: ReactNode) => <button type="button"
-                                                               role="tab"
-                                                               aria-selected={props.view === view}
-                                                               className={`button button-mini board-view${props.view === view ? " button-secondary" : ""}`}
-                                                               onClick={() => props.onView(view)}>
-        {label}
-    </button>
+    const choices: HeadingChoice<BoardView>[] = [
+        {value: "countries", name: "Countries", label: "Countries"},
+        {value: "players", name: "Players", label: "Players"},
+        {
+            value: "country",
+            name: props.country.name,
+            label: <>
+                <CountryFlag code={props.country.code}/>
+                <span>{props.country.name}</span>
+            </>,
+        },
+    ]
 
     return <>
-        <div className="board-views" role="tablist" aria-label="Leaderboard">
-            {tab("countries", "Countries")}
-            {tab("players", "Players")}
-            {tab("country", <>
-                <CountryFlag code={props.country.code}/>
-                <span className="board-view-name">{props.country.name}</span>
-            </>)}
-        </div>
+        <HeadingSelect label="Leaderboard" choices={choices} value={props.view} onChange={props.onView}/>
 
         {props.view === "countries"
             ? props.countries

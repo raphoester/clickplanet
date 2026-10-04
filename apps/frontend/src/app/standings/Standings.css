@@ -1,38 +1,3 @@
-.board-views {
-    display: flex;
-    gap: var(--space-2);
-    flex-shrink: 0;
-}
-
-.menu-body > .board-views {
-    margin-bottom: var(--space-3);
-}
-
-.board-view {
-    flex: 0 1 auto;
-    min-width: 0;
-}
-
-.board-view:last-child {
-    flex-grow: 1;
-}
-
-.board-view[aria-selected="false"] {
-    color: var(--text-soft);
-}
-
-.board-view .country-flag {
-    flex-shrink: 0;
-    margin-right: 0;
-}
-
-.board-view-name {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 .your-season {
     display: flex;
     align-items: center;

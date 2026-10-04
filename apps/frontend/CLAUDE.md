@@ -783,6 +783,9 @@ own clicks. `app/standings/` draws it.
   named by its flag and name. `Viewer` holds the view, so a closed sheet or
   another menu tab keeps it. With no `StandingsBackend` wired the board has no
   views.
+- **The view is picked from the board's heading** (`HeadingSelect`, a gold
+  section title that opens a listbox), not from tabs: the board is already a
+  tab of the menu, and tabs in a tab read as one row of places.
 - **`GetStandings` is a public GET**, cached 15s on the server, and
   `useStandings` reads it every 15s while a players' view is shown. A server
   without it reads as nobody.

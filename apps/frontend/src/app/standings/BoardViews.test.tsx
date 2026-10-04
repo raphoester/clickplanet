@@ -65,7 +65,14 @@ async function shown(props: HarnessProps) {
     return {...view, user: userEvent.setup()}
 }
 
-const tab = (name: string) => screen.getByRole("tab", {name})
+type User = ReturnType<typeof userEvent.setup>
+
+const heading = (name: string) => screen.getByRole("button", {name: `Leaderboard: ${name}`})
+const options = () => screen.getAllByRole("option")
+async function pick(user: User, from: string, to: string) {
+    await user.click(heading(from))
+    await user.click(screen.getByRole("option", {name: to}))
+}
 const rows = () => screen.getAllByRole("row").slice(1)
 const cells = () => rows().map((row) => within(row).getAllByRole("cell").map((cell) => cell.textContent))
 const yours = () => screen.queryByRole("region", {name: "Your season"})
@@ -79,11 +86,12 @@ afterEach(() => {
 
 describe("BoardViews", () => {
     it("starts on the countries, and offers the players and the players of the country played for", async () => {
-        await shown({backend: backendOf(), caller: GUEST})
+        const {user} = await shown({backend: backendOf(), caller: GUEST})
 
-        expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Countries", "Players", "France"])
-        expect(tab("Countries").getAttribute("aria-selected")).toBe("true")
         expect(screen.getByText("the countries")).toBeDefined()
+        await user.click(heading("Countries"))
+        expect(options().map((option) => option.textContent)).toEqual(["Countries", "Players", "France"])
+        expect(screen.getByRole("option", {name: "Countries"}).getAttribute("aria-selected")).toBe("true")
         expect(screen.queryByRole("table")).toBeNull()
     })
 
@@ -91,14 +99,15 @@ describe("BoardViews", () => {
         const backend = backendOf()
         const {user} = await shown({backend, caller: GUEST})
 
-        await user.click(tab("Players"))
-        expect(tab("Players").getAttribute("aria-selected")).toBe("true")
+        await pick(user, "Countries", "Players")
+        expect(heading("Players")).toBeDefined()
+        expect(screen.queryByRole("listbox")).toBeNull()
         expect(screen.queryByText("the countries")).toBeNull()
         expect(backend.standings).toHaveBeenLastCalledWith("")
         expect(screen.getByRole("table", {name: "Players"})).toBeDefined()
         expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "kiran_07", "1512"], ["2", "Mateus", "1512"]])
 
-        await user.click(tab("France"))
+        await pick(user, "Players", "France")
         expect(backend.standings).toHaveBeenLastCalledWith("fr")
         expect(screen.getByRole("table", {name: "Players, France"})).toBeDefined()
         expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Bastien", "402"]])
@@ -111,7 +120,7 @@ describe("BoardViews", () => {
         view.rerender(<Harness backend={backend} caller={GUEST} country={germany} view="country"/>)
         await act(async () => {})
 
-        expect(tab("Germany").getAttribute("aria-selected")).toBe("true")
+        expect(heading("Germany")).toBeDefined()
         expect(backend.standings).toHaveBeenLastCalledWith("de")
         expect(screen.getByText("Nobody yet.")).toBeDefined()
     })
