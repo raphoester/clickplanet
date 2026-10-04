@@ -98,11 +98,13 @@ describe("PlayerCard", () => {
         expect(screen.queryByRole("list", {name: "Titles"})).toBeNull()
     })
 
-    it("asks nothing for a guest, and says it has no stats", () => {
+    it("asks nothing for a guest, and shows only its flag", () => {
         const backend = backendAnswering(async () => undefined)
         render(<PlayerCard player={bo} backend={backend} onClose={() => {}}/>)
 
-        expect(screen.getByText(/Guests have no stats/)).toBeDefined()
+        const dialog = screen.getByRole("dialog", {name: "guest_Bo"})
+        expect(within(dialog).getByRole("img", {name: "Germany"})).toBeDefined()
+        expect(dialog.querySelector(".player-card-note")).toBeNull()
         expect(backend.playerInfo).not.toHaveBeenCalled()
     })
 
