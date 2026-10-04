@@ -738,6 +738,11 @@ units alone ("28d 14h", named in full for a screen reader), and a press opens th
 same details as a sheet. During the finale it glows and says "Final Battle ends
 in"; it still opens.
 
+**The desktop chip has a fixed width** (368px, the widest countdown plus a
+little). Luckiest Guy has no equal-width digits, so the countdown changes width
+every second: a chip as wide as its text moved every second and wrapped the
+dropdown's rows again with it.
+
 **What it opens is the one place the UI explains the rules**, asked for on
 purpose: four rows (`SeasonFacts`), the Final Battle with its day and hours, held
 ground counted at the end, the winner's trophy in the Hall of Fame, and the
