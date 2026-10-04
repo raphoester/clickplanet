@@ -153,6 +153,13 @@ func (s *Store) Save(ctx context.Context, changes inmemory_ledger_storage.Change
 		return err
 	}
 
+	marks := markListsOf(changes.Marks)
+
+	// Before the scopes behind the head are blanked: a scope's mark finds its takes by scope.
+	if err := markReverted(ctx, tx, marks, kept); err != nil {
+		return err
+	}
+
 	if head > kept {
 		if _, err := tx.ExecContext(ctx,
 			`UPDATE ledger_takes SET scope = NULL WHERE position >= $1 AND position < $2`, kept, head,
@@ -168,7 +175,7 @@ func (s *Store) Save(ctx context.Context, changes inmemory_ledger_storage.Change
 		return fmt.Errorf("failed to write the ledger head: %w", err)
 	}
 
-	if err := saveForgotten(ctx, tx, changes.Marks, head); err != nil {
+	if err := saveForgotten(ctx, tx, marks, head); err != nil {
 		return err
 	}
 
@@ -217,7 +224,51 @@ func copyTakes(ctx context.Context, tx *sql.Tx, changes inmemory_ledger_storage.
 	return nil
 }
 
-func saveForgotten(ctx context.Context, tx *sql.Tx, marks inmemory_ledger_storage.Marks, head int64) error {
+type markLists struct {
+	scopes, accounts             []string
+	scopeBefores, accountBefores []int64
+}
+
+func markListsOf(marks inmemory_ledger_storage.Marks) markLists {
+	var lists markLists
+	for _, caller := range slices.SortedFunc(maps.Keys(marks.Forgotten), compareCallers) {
+		before := int64(marks.Forgotten[caller]) //nolint:gosec // a position fits a bigint.
+		if caller.Account != "" {
+			lists.accounts, lists.accountBefores = append(lists.accounts, caller.Account), append(lists.accountBefores, before)
+			continue
+		}
+		lists.scopes, lists.scopeBefores = append(lists.scopes, caller.Scope), append(lists.scopeBefores, before)
+	}
+	return lists
+}
+
+func markReverted(ctx context.Context, tx *sql.Tx, marks markLists, kept int64) error {
+	if len(marks.scopes) > 0 {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE ledger_takes SET reverted = true
+			FROM unnest($1::text[], $2::bigint[]) AS marks (scope, before_position)
+			WHERE ledger_takes.scope = marks.scope
+			  AND ledger_takes.position >= $3 AND ledger_takes.position < marks.before_position
+		`, pq.Array(marks.scopes), pq.Array(marks.scopeBefores), kept); err != nil {
+			return fmt.Errorf("failed to mark a scope's takes reverted: %w", err)
+		}
+	}
+
+	if len(marks.accounts) > 0 {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE ledger_takes SET reverted = true
+			FROM unnest($1::uuid[], $2::bigint[]) AS marks (account, before_position)
+			WHERE ledger_takes.account = marks.account
+			  AND ledger_takes.position >= $3 AND ledger_takes.position < marks.before_position
+		`, pq.Array(marks.accounts), pq.Array(marks.accountBefores), kept); err != nil {
+			return fmt.Errorf("failed to mark an account's takes reverted: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func saveForgotten(ctx context.Context, tx *sql.Tx, marks markLists, head int64) error {
 	if _, err := tx.ExecContext(ctx, `DELETE FROM ledger_forgotten WHERE before_position <= $1`, head); err != nil {
 		return fmt.Errorf("failed to delete forgotten scopes: %w", err)
 	}
@@ -225,36 +276,23 @@ func saveForgotten(ctx context.Context, tx *sql.Tx, marks inmemory_ledger_storag
 		return fmt.Errorf("failed to delete forgotten accounts: %w", err)
 	}
 
-	var (
-		scopes, accounts             []string
-		scopeBefores, accountBefores []int64
-	)
-	for _, caller := range slices.SortedFunc(maps.Keys(marks.Forgotten), compareCallers) {
-		before := int64(marks.Forgotten[caller]) //nolint:gosec // a position fits a bigint.
-		if caller.Account != "" {
-			accounts, accountBefores = append(accounts, caller.Account), append(accountBefores, before)
-			continue
-		}
-		scopes, scopeBefores = append(scopes, caller.Scope), append(scopeBefores, before)
-	}
-
-	if len(scopes) > 0 {
+	if len(marks.scopes) > 0 {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO ledger_forgotten (scope, before_position)
 			SELECT * FROM unnest($1::text[], $2::bigint[])
 			ON CONFLICT (scope) DO UPDATE SET before_position = GREATEST(ledger_forgotten.before_position, EXCLUDED.before_position)
-		`, pq.Array(scopes), pq.Array(scopeBefores)); err != nil {
+		`, pq.Array(marks.scopes), pq.Array(marks.scopeBefores)); err != nil {
 			return fmt.Errorf("failed to write forgotten scopes: %w", err)
 		}
 	}
 
-	if len(accounts) > 0 {
+	if len(marks.accounts) > 0 {
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO ledger_forgotten_accounts (account, before_position)
 			SELECT * FROM unnest($1::uuid[], $2::bigint[])
 			ON CONFLICT (account) DO UPDATE SET
 				before_position = GREATEST(ledger_forgotten_accounts.before_position, EXCLUDED.before_position)
-		`, pq.Array(accounts), pq.Array(accountBefores)); err != nil {
+		`, pq.Array(marks.accounts), pq.Array(marks.accountBefores)); err != nil {
 			return fmt.Errorf("failed to write forgotten accounts: %w", err)
 		}
 	}

@@ -265,3 +265,80 @@ func (s *testSuite) TestAccountMarksAreKeptApartFromScopeMarks() {
 	_, loaded = s.load()
 	s.Equal(map[ledger.Caller]ledger.Position{{Account: guest}: 4}, loaded.Forgotten, "the head drops account marks too")
 }
+
+func (s *testSuite) reverted() []bool {
+	rows, err := s.db.QueryContext(context.Background(), `SELECT reverted FROM ledger_takes ORDER BY position`)
+	s.Require().NoError(err)
+	defer func() { s.Require().NoError(rows.Close()) }()
+
+	var out []bool
+	for rows.Next() {
+		var reverted bool
+		s.Require().NoError(rows.Scan(&reverted))
+		out = append(out, reverted)
+	}
+	s.Require().NoError(rows.Err())
+	return out
+}
+
+func (s *testSuite) TestAScopesMarkRevertsItsTakesBeforeTheMarkAndTheFlagOutlivesTheHead() {
+	ctx := context.Background()
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{},
+		stored(0, 1, "bot", "fr", "", start),
+		stored(1, 2, "player", "de", "", start),
+		stored(2, 3, "bot", "fr", "", start),
+	)))
+	s.Equal([]bool{false, false, false}, s.reverted(), "a take is not reverted until a mark says so")
+
+	s.Require().NoError(s.store.Save(ctx, changes(3, 0, map[ledger.Caller]ledger.Position{{Scope: "bot"}: 2},
+		stored(3, 4, "bot", "fr", "", start),
+	)))
+	s.Equal([]bool{true, false, false, false}, s.reverted(), "only the scope's takes before the mark")
+
+	s.Require().NoError(s.store.Save(ctx, changes(4, 4, map[ledger.Caller]ledger.Position{})))
+	_, marks := s.load()
+	s.Empty(marks.Forgotten, "the head dropped the mark")
+	s.Equal([]bool{true, false, false, false}, s.reverted(), "the take keeps its flag")
+}
+
+func (s *testSuite) TestAnAccountsMarkRevertsItsTakesFromEveryScopeInsideTheWindow() {
+	ctx := context.Background()
+	takes := []inmemory_ledger_storage.Stored{
+		stored(0, 1, "1.2.3.4", "fr", "", start),
+		stored(1, 2, "1.2.3.4", "fr", "", start),
+		stored(2, 3, "2001:db8::/64", "fr", "", start),
+		stored(3, 4, "1.2.3.4", "fr", "", start),
+	}
+	for i := range takes {
+		takes[i].Taking.Account = guest
+	}
+	takes[3].Taking.Account = ""
+	s.Require().NoError(s.store.Save(ctx, changes(0, 1, map[ledger.Caller]ledger.Position{}, takes...)))
+
+	s.Require().NoError(s.store.Save(ctx, changes(4, 1, map[ledger.Caller]ledger.Position{{Account: guest}: 4})))
+
+	s.Equal([]bool{false, true, true, false}, s.reverted(),
+		"a take behind the head was not in memory when the caller was reverted, and a take with no account is not its own")
+}
+
+func (s *testSuite) TestAMarkSavedWithItsTakesRevertsThem() {
+	ctx := context.Background()
+
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{{Scope: "bot"}: 2},
+		stored(0, 1, "bot", "fr", "", start),
+		stored(1, 2, "bot", "fr", "", start),
+	)))
+
+	s.Equal([]bool{true, true}, s.reverted())
+}
+
+func (s *testSuite) TestAFailedSaveRevertsNothing() {
+	ctx := context.Background()
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{}, stored(0, 1, "bot", "fr", "", start))))
+
+	s.Require().Error(s.store.Save(ctx, changes(1, 0, map[ledger.Caller]ledger.Position{{Scope: "bot"}: 2},
+		stored(1, 1<<31, "bot", "fr", "", start),
+	)))
+
+	s.Equal([]bool{false}, s.reverted())
+}

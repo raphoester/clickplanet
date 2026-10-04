@@ -75,6 +75,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_feed_start_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_feed_start_handler/feed_start_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
@@ -82,6 +84,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/read_log_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/read_log_handler/log_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
@@ -254,6 +258,16 @@ func NewModule(config Config) cpbootstrap.Module {
 				return planetv1connect.NewAdminServiceHandler(adminService, options...)
 			}); err != nil {
 				return err
+			}
+
+			internalService := planetv1controller.InternalService{
+				GetFeedStartHandler: get_feed_start_handler.New(feed_start_query.NewPostgresQuery(db)),
+				ReadLogHandler:      read_log_handler.New(log_query.NewPostgresQuery(db)),
+			}
+			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+				return planetv1connect.NewInternalServiceHandler(internalService, options...)
+			}); err != nil {
+				return fmt.Errorf("failed to mount planet.v1.InternalService: %w", err)
 			}
 
 			blocklist := cpipblock.New(config.VPNBlocklist)

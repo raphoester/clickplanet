@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package planet.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service InternalService {
+  rpc GetFeedStart(GetFeedStartRequest) returns (GetFeedStartResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  rpc ReadLog(ReadLogRequest) returns (ReadLogResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetFeedStartRequest {}
+
+message GetFeedStartResponse {
+  uint64 position = 1;
+}
+
+message ReadLogRequest {
+  uint64 from_position = 1;
+  uint32 limit = 2;
+}
+
+message ReadLogResponse {
+  repeated LogEntry entries = 1;
+}
+
+message LogEntry {
+  uint64 position = 1;
+
+  oneof fact {
+    Take take = 2;
+  }
+}
+
+message Take {
+  uint32 tile_id = 1;
+  string account_id = 2;
+  string country = 3;
+  string previous = 4;
+  google.protobuf.Timestamp taken_at = 5;
+  bool reverted = 6;
+}
