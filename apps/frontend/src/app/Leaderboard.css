@@ -109,6 +109,10 @@
     background: var(--action);
 }
 
+.leaderboard-entry-player td:not(:last-child) {
+    box-shadow: 1px 0 0 var(--action);
+}
+
 .leaderboard-entry-player td:first-child {
     border-radius: var(--radius-m) 0 0 var(--radius-m);
 }

@@ -67,6 +67,15 @@
     flex-shrink: 0;
 }
 
+.standings-table .leaderboard-table-rank,
+.standings-table .leaderboard-entry-index {
+    padding-inline: var(--space-1);
+}
+
+.standings-table .leaderboard-table-number {
+    padding-right: var(--space-2);
+}
+
 .standings-player .standings-flag {
     margin-right: 0.35em;
 }
