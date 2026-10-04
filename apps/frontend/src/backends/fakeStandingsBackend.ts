@@ -3,7 +3,7 @@ import {TileClicker} from "./backend.ts"
 import {NameColor, PlayerTitle} from "./player.ts"
 import {MySeason, Standing, StandingsBackend} from "./standings.ts"
 
-type FakePlayer = Pick<Standing, "name" | "color" | "wornTitle"> & {tiles: Record<string, number>}
+export type FakePlayer = Pick<Standing, "name" | "color" | "wornTitle"> & {tiles: Record<string, number>}
 
 const conquest = (id: string, name: string, number: number): PlayerTitle =>
     ({id, name, rank: {trackId: "conquest", trackName: "Conquest", number, count: 5}})
@@ -31,10 +31,17 @@ const PLAYERS: FakePlayer[] = [
     {name: "Noor", color: NameColor.UNSPECIFIED, tiles: {ae: 44, in: 12}},
 ]
 
+export const MOVE_EVERY_MS = 1_500
+const MOST_PER_MOVE = 40
+
 export class FakeStandingsBackend implements StandingsBackend {
     private readonly taken = new Map<string, number>()
+    private readonly players: FakePlayer[]
+    private readonly listeners = new Set<() => void>()
+    private timer?: ReturnType<typeof setInterval>
 
-    constructor(private readonly players: readonly FakePlayer[] = PLAYERS) {
+    constructor(players: readonly FakePlayer[] = PLAYERS, private readonly random: () => number = Math.random) {
+        this.players = players.map((player) => ({...player, tiles: {...player.tiles}}))
     }
 
     public counting(clicker: TileClicker): TileClicker {
@@ -46,7 +53,31 @@ export class FakeStandingsBackend implements StandingsBackend {
         }
     }
 
-    public async standings(countryCode: string): Promise<Standing[]> {
+    public listenForStandings(countryCode: string, onStandings: (standings: Standing[]) => void): () => void {
+        const send = () => onStandings(this.top(countryCode))
+        this.listeners.add(send)
+        void Promise.resolve().then(() => {
+            if (this.listeners.has(send)) send()
+        })
+        this.timer ??= setInterval(() => this.move(), MOVE_EVERY_MS)
+
+        return () => {
+            this.listeners.delete(send)
+            if (this.listeners.size > 0) return
+            clearInterval(this.timer)
+            this.timer = undefined
+        }
+    }
+
+    private move() {
+        const player = this.players[Math.floor(this.random() * this.players.length)]
+        const flags = Object.keys(player.tiles)
+        const flag = flags[Math.floor(this.random() * flags.length)]
+        player.tiles[flag] += 1 + Math.floor(this.random() * MOST_PER_MOVE)
+        this.listeners.forEach((send) => send())
+    }
+
+    private top(countryCode: string): Standing[] {
         const sorted = this.players
             .map(({tiles, ...player}) => ({...player, ...lineOf(new Map(Object.entries(tiles)), countryCode)}))
             .filter((line) => line.tiles > 0)

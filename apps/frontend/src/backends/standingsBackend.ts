@@ -4,7 +4,7 @@ import {GetMySeasonResponse, Standing as StandingPb} from "../gen/grpc/seasons/v
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {MySeason, Standing, StandingsBackend} from "./standings.ts"
 import {titleOf} from "./title.ts"
-import {retrying} from "./transport.ts"
+import {NO_TIMEOUT, openStream, retrying} from "./transport.ts"
 
 export class ConnectStandingsBackend implements StandingsBackend {
     constructor(
@@ -13,14 +13,15 @@ export class ConnectStandingsBackend implements StandingsBackend {
     ) {
     }
 
-    public async standings(countryCode: string): Promise<Standing[]> {
-        try {
-            const res = await retrying(() => this.client.getStandings({countryId: countryCode}), "GetStandings")
-            return res.standings.map(standingOf)
-        } catch (e) {
-            if (absent(e)) return []
-            throw e
-        }
+    public listenForStandings(countryCode: string, onStandings: (standings: Standing[]) => void): () => void {
+        const client = this.client
+        return openStream(
+            (signal) => client.listenForEvents({countryId: countryCode}, {signal, timeoutMs: NO_TIMEOUT}),
+            (event) => {
+                if (event.event.case === "board") onStandings(event.event.value.standings.map(standingOf))
+            },
+            "standings",
+        )
     }
 
     public async mySeason(countryCode: string): Promise<MySeason | undefined> {

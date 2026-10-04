@@ -51,7 +51,10 @@ const season = (main: MySeason, countries: Record<string, MySeason> = {}): Mine 
 
 function backendOf(mine?: Mine, world = WORLD, french = FRENCH) {
     return {
-        standings: vi.fn(async (countryCode: string) => countryCode === "" ? world : countryCode === "fr" ? french : []),
+        listenForStandings: vi.fn((countryCode: string, onStandings: (standings: Standing[]) => void) => {
+            void Promise.resolve().then(() => onStandings(countryCode === "" ? world : countryCode === "fr" ? french : []))
+            return () => {}
+        }),
         mySeason: vi.fn(async (countryCode: string) => mine?.(countryCode)),
     } satisfies StandingsBackend
 }
@@ -124,14 +127,35 @@ describe("BoardViews", () => {
         expect(heading("Players")).toBeDefined()
         expect(screen.queryByRole("listbox")).toBeNull()
         expect(screen.queryByText("the countries")).toBeNull()
-        expect(backend.standings).toHaveBeenLastCalledWith("")
+        expect(backend.listenForStandings).toHaveBeenLastCalledWith("", expect.any(Function))
         expect(screen.getByRole("table", {name: "Players"})).toBeDefined()
         expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "kiran_07", "1512"], ["2", "Mateus", "1512"]])
 
         await pick(user, "Players", "France")
-        expect(backend.standings).toHaveBeenLastCalledWith("fr")
+        expect(backend.listenForStandings).toHaveBeenLastCalledWith("fr", expect.any(Function))
         expect(screen.getByRole("table", {name: "Players, France"})).toBeDefined()
         expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Bastien", "402"]])
+    })
+
+    it("moves another player's row as soon as the stream sends a new board", async () => {
+        let send: (standings: Standing[]) => void = () => {}
+        const backend = {
+            listenForStandings: vi.fn((_: string, onStandings: (standings: Standing[]) => void) => {
+                send = onStandings
+                onStandings(WORLD)
+                return () => {}
+            }),
+            mySeason: vi.fn(async () => undefined),
+        } satisfies StandingsBackend
+        await shown({backend, caller: GUEST, view: "players"})
+
+        act(() => send([
+            standing(1, "Mateus", "br", 1900, NameColor.TEAL),
+            standing(2, "Ana", "fr", 1840, NameColor.PINK),
+            standing(3, "kiran_07", "in", 1512),
+        ]))
+
+        expect(cells()).toEqual([["1", "Mateus", "1900"], ["2", "Ana", "1840"], ["3", "kiran_07", "1512"]])
     })
 
     it("follows the country played for", async () => {
@@ -142,7 +166,7 @@ describe("BoardViews", () => {
         await act(async () => {})
 
         expect(heading("Germany")).toBeDefined()
-        expect(backend.standings).toHaveBeenLastCalledWith("de")
+        expect(backend.listenForStandings).toHaveBeenLastCalledWith("de", expect.any(Function))
         expect(screen.getByText("Nobody yet.")).toBeDefined()
     })
 

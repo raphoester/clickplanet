@@ -17,7 +17,7 @@ export type MySeason = {
 }
 
 export interface StandingsBackend {
-    standings(countryCode: string): Promise<Standing[]>
+    listenForStandings(countryCode: string, onStandings: (standings: Standing[]) => void): () => void
 
     mySeason(countryCode: string): Promise<MySeason | undefined>
 }

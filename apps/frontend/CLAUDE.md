@@ -780,9 +780,10 @@ is the player's own view.
 ranked player: rank, name, color, worn title, the flag its tiles are for, tiles)
 and `MySeason` (the caller's line on one board: that flag, its tiles, its rank
 and its worn title). `standingsBackend.ts` implements it over
-`seasons.v1.SeasonService/GetStandings` and `GetMySeason`, and
+`seasons.v1.SeasonService/ListenForEvents` and `GetMySeason`, and
 `fakeStandingsBackend.ts` stands in for it in fake mode, counting the player's
-own clicks. `app/standings/` draws it.
+own clicks and moving the other players a few tiles every 1.5s. `app/standings/`
+draws it.
 
 - **A player's season is the tiles it took this season for its main flag**, the
   flag it took the most for: that is the Players board. **A country's board is
@@ -802,9 +803,14 @@ own clicks. `app/standings/` draws it.
   scrolling body and made a short board scroll. It follows the button every
   frame (a sheet grows upward as the board loads), opens upward with no room
   below, and closes when something that holds it scrolls.
-- **`GetStandings` is a public GET**, cached 15s on the server, and
-  `useStandings` reads it every 15s while a players' view is shown. A server
-  without it reads as nobody.
+- **The board is streamed.** `useStandings` follows `ListenForEvents` for the
+  view shown (`country_id`, empty for every player) through `openStream`, with
+  no token and `NO_TIMEOUT`, and stops when the view changes or closes. The
+  server sends the view's whole top 10 when the stream opens and again each time
+  it changes, at most once a second; a `board` replaces what is shown, a
+  `heartbeat` is skipped. While the stream is down the last board stays, and a
+  reconnect starts with a whole board. A server without the stream is retried
+  with `openStream`'s backoff. `GetStandings` is no longer called.
 - **`GetMySeason` reads as the identity token** (`identity()`: a fresh token, or
   one resumed from the cookie, never a Turnstile mint), so a player back the next
   day sees its season at once. With none to be had it is not sent, and
@@ -828,8 +834,8 @@ own clicks. `app/standings/` draws it.
   tiles, and the ranks, wait for the next read.
 - **The caller's row is drawn from that count** (`boardWith`): it climbs into
   the top 10 and pushes the last out, its rank counted among the rows it passes,
-  and the rank in "Your season" follows it. The other rows move every 15s: a
-  `TileUpdate` does not say who took the tile.
+  and the rank in "Your season" follows it. The other rows move with the
+  stream: a `TileUpdate` does not say who took the tile.
 - **The caller's own line.** "Your season" sits over the table and shows only
   the board on screen: on Players the season's tiles and, with a username, the
   rank among all players; on a country's board the tiles taken for that country

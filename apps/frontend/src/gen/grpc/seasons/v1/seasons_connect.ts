@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMySeasonRequest, GetMySeasonResponse, GetSeasonRequest, GetSeasonResponse, GetStandingsRequest, GetStandingsResponse } from "./seasons_pb.js";
+import { GetMySeasonRequest, GetMySeasonResponse, GetSeasonRequest, GetSeasonResponse, GetStandingsRequest, GetStandingsResponse, ListenForEventsRequest, SeasonEvent } from "./seasons_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -40,6 +40,15 @@ export const SeasonService = {
       I: GetMySeasonRequest,
       O: GetMySeasonResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc seasons.v1.SeasonService.ListenForEvents
+     */
+    listenForEvents: {
+      name: "ListenForEvents",
+      I: ListenForEventsRequest,
+      O: SeasonEvent,
+      kind: MethodKind.ServerStreaming,
     },
   }
 } as const;

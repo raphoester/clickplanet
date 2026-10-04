@@ -21,7 +21,7 @@ function server(tiles = 10) {
     const kept = {tiles, de: 3}
     return {
         kept,
-        standings: vi.fn(async () => []),
+        listenForStandings: vi.fn(() => () => {}),
         mySeason: vi.fn(async (countryCode: string): Promise<MySeason> => countryCode === "de"
             ? {countryCode: "de", tiles: kept.de}
             : {countryCode: "fr", tiles: kept.tiles}),
