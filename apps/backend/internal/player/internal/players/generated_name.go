@@ -11,38 +11,32 @@ type NameGenerator interface {
 	NewName() (Name, error)
 }
 
-type ProfileStore interface {
-	Profile(ctx context.Context, account AccountID) (Profile, error)
-	SaveProfile(ctx context.Context, profile Profile) error
+type ProfileCreator interface {
+	CreateProfile(ctx context.Context, profile Profile) error
 }
 
 var ErrNoFreeName = errors.New("every name drawn was taken")
 
 type GeneratedNames struct {
-	store     ProfileStore
+	store     ProfileCreator
 	generator NameGenerator
 }
 
-func NewGeneratedNames(store ProfileStore, generator NameGenerator) GeneratedNames {
+func NewGeneratedNames(store ProfileCreator, generator NameGenerator) GeneratedNames {
 	return GeneratedNames{store: store, generator: generator}
 }
 
 func (g GeneratedNames) Assign(ctx context.Context, account AccountID, at time.Time) error {
-	_, err := g.store.Profile(ctx, account)
-	if err == nil {
-		return nil
-	}
-	if !errors.Is(err, ErrNoProfile) {
-		return fmt.Errorf("failed to read the profile: %w", err)
-	}
-
 	for range maxDraws {
 		name, err := g.generator.NewName()
 		if err != nil {
 			return fmt.Errorf("failed to draw a name: %w", err)
 		}
 
-		err = g.store.SaveProfile(ctx, Profile{Account: account, Name: name, UpdatedAt: at})
+		err = g.store.CreateProfile(ctx, Profile{Account: account, Name: name, UpdatedAt: at})
+		if errors.Is(err, ErrProfileExists) {
+			return nil
+		}
 		if errors.Is(err, ErrNameTaken) {
 			continue
 		}

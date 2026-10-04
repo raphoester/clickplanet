@@ -87,6 +87,29 @@ func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error 
 	return nil
 }
 
+func (s *Store) CreateProfile(ctx context.Context, profile players.Profile) error {
+	result, err := s.db.ExecContext(ctx, `
+		INSERT INTO profiles (account_id, name, name_folded, updated_at) VALUES ($1, $2, $3, $4)
+		ON CONFLICT (account_id) DO NOTHING
+	`, uuid.UUID(profile.Account), string(profile.Name), profile.Name.Folded(), profile.UpdatedAt.UTC())
+
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
+		return players.ErrNameTaken
+	}
+	if err != nil {
+		return fmt.Errorf("failed to create the profile: %w", err)
+	}
+	created, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to count the profiles created: %w", err)
+	}
+	if created == 0 {
+		return players.ErrProfileExists
+	}
+	return nil
+}
+
 func (s *Store) SaveColor(ctx context.Context, account players.AccountID, color players.Color) error {
 	result, err := s.db.ExecContext(ctx, `UPDATE profiles SET color = $2 WHERE account_id = $1`, uuid.UUID(account), int32(color))
 	if err != nil {

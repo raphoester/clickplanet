@@ -45,6 +45,36 @@ func (s *StoreContractSuite) TestAnUnknownAccountHasNoProfileAndNoStats() {
 	s.Require().ErrorIs(err, ErrNoStats)
 }
 
+func (s *StoreContractSuite) TestACreatedProfileReadsBack() {
+	s.Require().NoError(s.store.CreateProfile(s.T().Context(), contractProfile(1, "BraveFox42")))
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(contractProfile(1, "BraveFox42"), profile)
+}
+
+func (s *StoreContractSuite) TestCreatingAProfileForAnAccountThatHasOneChangesNothing() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "Bob")))
+
+	s.Require().ErrorIs(s.store.CreateProfile(s.T().Context(), contractProfile(1, "BraveFox42")), ErrProfileExists)
+	s.Require().ErrorIs(s.store.CreateProfile(s.T().Context(), contractProfile(1, "bob")), ErrProfileExists,
+		"an account with a profile is refused before its name is looked at")
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(Name("Ada"), profile.Name)
+}
+
+func (s *StoreContractSuite) TestCreatingAProfileWithANameAnotherHoldsIsNameTaken() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "BraveFox42")))
+
+	s.Require().ErrorIs(s.store.CreateProfile(s.T().Context(), contractProfile(2, "bravefox42")), ErrNameTaken)
+
+	_, err := s.store.Profile(s.T().Context(), AccountID{15: 2})
+	s.Require().ErrorIs(err, ErrNoProfile)
+}
+
 func (s *StoreContractSuite) TestASavedProfileReadsBackAndASecondReplacesIt() {
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Emile_1858")))
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
