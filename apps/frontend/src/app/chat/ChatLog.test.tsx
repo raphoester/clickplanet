@@ -78,14 +78,16 @@ describe("ChatLog", () => {
         expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({wornTitle: warlord}))
     })
 
-    it("paints a name in the color its player chose, and a guest grey", () => {
+    it("paints a name in the color its player chose, and grey with none or as a guest", () => {
         const chosen = {...message("1", "Ana", "fr"), authorColor: NameColor.TEAL}
         const guest = {...message("2", "guest_Bo", "de"), authorColor: NameColor.TEAL}
-        const {container} = render(<ChatLog loading={false} messages={[chosen, guest]}/>)
+        const none = message("3", "Cy", "it")
+        const {container} = render(<ChatLog loading={false} messages={[chosen, guest, none]}/>)
 
-        const [ana, bo] = [...container.querySelectorAll<HTMLElement>(".chat-message")]
+        const [ana, bo, cy] = [...container.querySelectorAll<HTMLElement>(".chat-message")]
         expect(ana.style.getPropertyValue("--author-hue")).toBe("165")
         expect(ana.style.getPropertyValue("--author-chroma")).toBe("")
         expect(bo.style.getPropertyValue("--author-chroma")).toBe("0")
+        expect(cy.style.getPropertyValue("--author-chroma")).toBe("0")
     })
 })

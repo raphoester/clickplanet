@@ -520,8 +520,8 @@ describe("Menu", () => {
             await openSettings()
 
             const colors = await screen.findByRole("group", {name: "Name color"})
-            expect(within(colors).getAllByRole("button")).toHaveLength(13)
-            expect(within(colors).getByRole("button", {name: "From your name"}).getAttribute("aria-pressed")).toBe("true")
+            expect(within(colors).getAllByRole("button")).toHaveLength(12)
+            expect(within(colors).getAllByRole("button").filter((b) => b.getAttribute("aria-pressed") === "true")).toHaveLength(0)
 
             await user.click(within(colors).getByRole("button", {name: "Teal"}))
 
