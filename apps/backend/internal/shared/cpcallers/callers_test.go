@@ -38,16 +38,6 @@ func (s stubAuth) GetCaller(
 	return connect.NewResponse(&authv1.GetCallerResponse{AccountId: s.accounts[req.Msg.GetCookie()]}), nil
 }
 
-type dialer struct {
-	client connect.HTTPClient
-	url    string
-	err    error
-}
-
-func (d dialer) Dial() (connect.HTTPClient, string, error) {
-	return d.client, d.url, d.err
-}
-
 func callers(t *testing.T, auth stubAuth) *cpcallers.Callers {
 	t.Helper()
 
@@ -56,7 +46,7 @@ func callers(t *testing.T, auth stubAuth) *cpcallers.Callers {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	return cpcallers.New(dialer{client: server.Client(), url: server.URL})
+	return cpcallers.New(authv1connect.NewInternalServiceClient(server.Client(), server.URL))
 }
 
 func TestItAnswersTheAccountTheCookieNames(t *testing.T) {
@@ -83,10 +73,14 @@ func TestAnAuthModuleThatFailsIsAnError(t *testing.T) {
 	assert.ErrorContains(t, err, "failed to ask the auth module")
 }
 
-func TestAnUnreachableAuthModuleIsAnError(t *testing.T) {
-	_, err := cpcallers.New(dialer{err: errors.New("no internal listener")}).Caller(t.Context(), "cp_sid=token-1")
+func TestAnAuthModuleThatIsNotListeningIsAnError(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	server.Close()
 
-	assert.ErrorContains(t, err, "failed to reach the auth module")
+	_, err := cpcallers.New(authv1connect.NewInternalServiceClient(server.Client(), server.URL)).
+		Caller(t.Context(), "cp_sid=token-1")
+
+	assert.ErrorContains(t, err, "failed to ask the auth module")
 }
 
 func logged(inner *cpcallers.Callers) (*cpcallers.Logged, *bytes.Buffer) {
