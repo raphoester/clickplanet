@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
@@ -55,6 +56,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
 	seasons := calendar.New(config.Calendar)
 
+	internal, baseURL, err := props.Internal.Dial()
+	if err != nil {
+		return fmt.Errorf("the seasons module asks the player module who plays: %w", err)
+	}
+	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
+
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
 		return fmt.Errorf("failed to connect the seasons module to postgres: %w", err)
@@ -85,10 +92,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			get_season_usecase.New(seasons, clock),
 		),
 		GetStandingsHandler: get_standings_handler.New(standings_query.NewPostgresQuery(
-			db, standings_authors.New(props.Internal), seasons, clock, cpcountries.New(),
+			db, standings_authors.New(player), seasons, clock, cpcountries.New(),
 		)),
 		GetMySeasonHandler: get_my_season_handler.New(my_season_query.NewPostgresQuery(
-			db, my_season_authors.New(props.Internal), seasons, clock,
+			db, my_season_authors.New(player), seasons, clock,
 		)),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "seasons")))

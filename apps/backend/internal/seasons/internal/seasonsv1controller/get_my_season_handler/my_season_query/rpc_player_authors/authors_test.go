@@ -43,16 +43,6 @@ func (s stubPlayer) GetAuthors(
 	return connect.NewResponse(&playerv1.GetAuthorsResponse{Authors: found}), nil
 }
 
-type dialer struct {
-	client connect.HTTPClient
-	url    string
-	err    error
-}
-
-func (d dialer) Dial() (connect.HTTPClient, string, error) {
-	return d.client, d.url, d.err
-}
-
 var (
 	ada     = standings.AccountID{15: 1}
 	deleted = standings.AccountID{15: 2}
@@ -66,7 +56,7 @@ func authors(t *testing.T, player stubPlayer) *rpc_player_authors.Authors {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	return rpc_player_authors.New(dialer{client: server.Client(), url: server.URL})
+	return rpc_player_authors.New(playerv1connect.NewInternalServiceClient(server.Client(), server.URL))
 }
 
 func TestEachAccountTheModuleKnowsIsAnsweredAsItsAuthor(t *testing.T) {
@@ -86,10 +76,13 @@ func TestEachAccountTheModuleKnowsIsAnsweredAsItsAuthor(t *testing.T) {
 }
 
 func TestNobodyToNameAsksNothing(t *testing.T) {
-	found, err := rpc_player_authors.New(dialer{err: errors.New("no internal listener")}).Authors(t.Context(), nil)
+	asked := new([]string)
+
+	found, err := authors(t, stubPlayer{asked: asked}).Authors(t.Context(), nil)
 
 	require.NoError(t, err)
 	assert.Empty(t, found)
+	assert.Empty(t, *asked)
 }
 
 func TestAnAnswerForSomethingThatIsNotAnAccountIsAnError(t *testing.T) {
@@ -109,11 +102,4 @@ func TestAPlayerModuleThatFailsIsAnError(t *testing.T) {
 	_, err := authors(t, player).Authors(t.Context(), []standings.AccountID{ada})
 
 	assert.ErrorContains(t, err, "failed to ask the player module")
-}
-
-func TestAnUnreachablePlayerModuleIsAnError(t *testing.T) {
-	_, err := rpc_player_authors.New(dialer{err: errors.New("no internal listener")}).
-		Authors(t.Context(), []standings.AccountID{ada})
-
-	assert.ErrorContains(t, err, "failed to reach the player module")
 }

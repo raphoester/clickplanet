@@ -9,23 +9,25 @@ import (
 	"github.com/google/uuid"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings"
 )
 
-type Dialer interface {
-	Dial() (connect.HTTPClient, string, error)
+type Player interface {
+	GetAuthors(
+		ctx context.Context,
+		req *connect.Request[playerv1.GetAuthorsRequest],
+	) (*connect.Response[playerv1.GetAuthorsResponse], error)
 }
 
 const askTimeout = time.Second
 
-func New(dial Dialer) *Authors {
-	return &Authors{dial: dial}
+func New(player Player) *Authors {
+	return &Authors{player: player}
 }
 
 type Authors struct {
-	dial Dialer
+	player Player
 }
 
 var _ my_season_query.Authors = (*Authors)(nil)
@@ -39,11 +41,6 @@ func (a *Authors) Authors(
 		return found, nil
 	}
 
-	client, baseURL, err := a.dial.Dial()
-	if err != nil {
-		return nil, fmt.Errorf("failed to reach the player module: %w", err)
-	}
-
 	ids := make([]string, 0, len(accounts))
 	for _, account := range accounts {
 		ids = append(ids, account.String())
@@ -52,8 +49,7 @@ func (a *Authors) Authors(
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	res, err := playerv1connect.NewInternalServiceClient(client, baseURL).GetAuthors(ctx,
-		connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: ids}))
+	res, err := a.player.GetAuthors(ctx, connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: ids}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to ask the player module who these accounts are: %w", err)
 	}
