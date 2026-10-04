@@ -414,8 +414,8 @@ internal/chat/internal/
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`) and player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`) follow
-this so far. **A command may still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which
+(`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`) and auth's
+internal `GetCaller` follow this so far. **A command may still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which
 draws a guest code); the rule is for what only reads.
 
 - **One package per read, under the handler that serves it**: `<controller>/<procedure>_handler/<read>_query/`. No
@@ -454,7 +454,8 @@ draws a guest code); the rule is for what only reads.
   as `account:<uuid>` in SQL, all of which the write side holds again (`messages.Window`, `announcements.Kinds`,
   `reactions.ReactorOf`).
 - **Every rule written twice has a parity test**, which runs the same stored rows through both copies and asks for
-  the same answer. Player: a command's stats as of a day against `GetStats`, `GetAuthor` against `GetAuthors`, the
+  the same answer. Auth (`caller_query/parity_test.go`): the cookie's name, the token's hash and the expiry, against
+  `accounts.Caller`, at, before and after the expiry. Player: a command's stats as of a day against `GetStats`, `GetAuthor` against `GetAuthors`, the
   domain's fold against the name `GetPlayer` finds. Chat (`history_query/parity_test.go`): a message is in the
   history exactly when `React` may react to it; `React`'s answer against the history's reactions, cap of names
   included; `SendMessage`'s answer against the message the history reads back; every `announcements.Kinds` the
@@ -2343,7 +2344,8 @@ mounts them and lists its procedures, and nothing else.
   day holds none; the `cp_sid` cookie lives 90 days for a guest and 30 signed in. It is an opaque token whose hash
   only `auth` holds, so `shared/cpcallers` asks `auth.v1.InternalService/GetCaller` whose it is: one loopback call,
   only for a call that takes the cookie and carries no valid token. Auth answers the live session's account, with
-  no extension and no Turnstile. No live session, or an auth that cannot answer (`cpcallers.Logged` logs it,
+  no extension and no Turnstile, from a query (`get_caller_handler/caller_query`, one `SELECT` on `sessions`): see
+  [Reads are queries](#reads-are-queries). No live session, or an auth that cannot answer (`cpcallers.Logged` logs it,
   never the cookie), leaves the call with no account. `GetCaller` is a POST: a GET would put the cookie in a URL.
 - **A procedure takes the cookie only for reading.** The cookie says *who* the browser is; the click token also
   says it *may act*: it was minted after a Turnstile check and is bound to the address. So a click, a post or a

@@ -3,7 +3,6 @@ package get_caller_handler_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -11,50 +10,34 @@ import (
 	"github.com/stretchr/testify/require"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_caller_handler"
 )
 
-type stubUseCase struct {
-	account accounts.AccountID
-	err     error
-	asked   []string
+type stubQuery struct {
+	answer *authv1.GetCallerResponse
+	err    error
+	asked  []string
 }
 
-func (s *stubUseCase) Execute(_ context.Context, cookieHeader string) (accounts.AccountID, error) {
+func (s *stubQuery) Caller(_ context.Context, cookieHeader string) (*authv1.GetCallerResponse, error) {
 	s.asked = append(s.asked, cookieHeader)
-	return s.account, s.err
+	return s.answer, s.err
 }
 
-func getCaller(t *testing.T, useCase *stubUseCase, cookie string) (*authv1.GetCallerResponse, error) {
-	t.Helper()
+func TestTheCookieGoesToTheQueryAndItsAnswerToTheCaller(t *testing.T) {
+	query := &stubQuery{answer: &authv1.GetCallerResponse{AccountId: "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"}}
 
-	res, err := get_caller_handler.New(useCase).GetCaller(t.Context(), connect.NewRequest(&authv1.GetCallerRequest{Cookie: cookie}))
-	if err != nil {
-		return nil, fmt.Errorf("GetCaller failed: %w", err)
-	}
-	return res.Msg, nil
-}
-
-func TestTheCookieIsAnsweredWithItsAccount(t *testing.T) {
-	useCase := &stubUseCase{account: accounts.AccountID{15: 1}}
-
-	res, err := getCaller(t, useCase, "cp_sid=token-1")
+	res, err := get_caller_handler.New(query).GetCaller(t.Context(),
+		connect.NewRequest(&authv1.GetCallerRequest{Cookie: "cp_sid=token-1"}))
 
 	require.NoError(t, err)
-	assert.Equal(t, accounts.AccountID{15: 1}.String(), res.GetAccountId())
-	assert.Equal(t, []string{"cp_sid=token-1"}, useCase.asked)
+	assert.Equal(t, "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11", res.Msg.GetAccountId())
+	assert.Equal(t, []string{"cp_sid=token-1"}, query.asked)
 }
 
-func TestNoAccountIsAnEmptyAnswerAndNotAnError(t *testing.T) {
-	res, err := getCaller(t, &stubUseCase{err: fmt.Errorf("wrapped: %w", accounts.ErrNoAccount)}, "cp_sid=made-up")
+func TestAQueryThatFailsIsLeftToTheErrorNet(t *testing.T) {
+	_, err := get_caller_handler.New(&stubQuery{err: errors.New("postgres is down")}).GetCaller(t.Context(),
+		connect.NewRequest(&authv1.GetCallerRequest{Cookie: "cp_sid=token-1"}))
 
-	require.NoError(t, err)
-	assert.Empty(t, res.GetAccountId())
-}
-
-func TestAStoreFailureIsAnError(t *testing.T) {
-	_, err := getCaller(t, &stubUseCase{err: errors.New("postgres is down")}, "cp_sid=token-1")
-
-	assert.Error(t, err)
+	assert.ErrorContains(t, err, "postgres is down")
 }

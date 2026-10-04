@@ -2,37 +2,31 @@ package get_caller_handler
 
 import (
 	"context"
-	"errors"
 
 	"connectrpc.com/connect"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 )
 
-type UseCase interface {
-	Execute(ctx context.Context, cookieHeader string) (accounts.AccountID, error)
+type Query interface {
+	Caller(ctx context.Context, cookieHeader string) (*authv1.GetCallerResponse, error)
 }
 
-func New(useCase UseCase) GetCallerHandler {
-	return GetCallerHandler{useCase: useCase}
+func New(query Query) GetCallerHandler {
+	return GetCallerHandler{query: query}
 }
 
 type GetCallerHandler struct {
-	useCase UseCase
+	query Query
 }
 
 func (h GetCallerHandler) GetCaller(
 	ctx context.Context,
 	req *connect.Request[authv1.GetCallerRequest],
 ) (*connect.Response[authv1.GetCallerResponse], error) {
-	account, err := h.useCase.Execute(ctx, req.Msg.GetCookie())
-	if errors.Is(err, accounts.ErrNoAccount) {
-		return connect.NewResponse(&authv1.GetCallerResponse{}), nil
-	}
+	caller, err := h.query.Caller(ctx, req.Msg.GetCookie())
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the error net answers it.
 	}
-
-	return connect.NewResponse(&authv1.GetCallerResponse{AccountId: account.String()}), nil
+	return connect.NewResponse(caller), nil
 }
