@@ -12,7 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler/profile_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -56,7 +56,7 @@ func (s *testSuite) TestAnAccountThatNeverChoseANameHasAnEmptyOne() {
 }
 
 func (s *testSuite) TestTheChosenNameAndColorAreAnswered() {
-	s.Require().NoError(s.players.SaveProfile(s.T().Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: at}))
+	s.Require().NoError(s.players.SaveProfile(s.T().Context(), players.NewProfile(ada, "Ada_L", at)))
 	s.Require().NoError(s.players.SaveColor(s.T().Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_TEAL)))
 
 	answer := s.profile(ada)
@@ -66,12 +66,12 @@ func (s *testSuite) TestTheChosenNameAndColorAreAnswered() {
 }
 
 func (s *testSuite) TestAColorTheProtoDoesNotNameIsAnError() {
-	s.Require().NoError(s.players.SaveProfile(s.T().Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: at}))
+	s.Require().NoError(s.players.SaveProfile(s.T().Context(), players.NewProfile(ada, "Ada_L", at)))
 	s.Require().NoError(s.players.SaveColor(s.T().Context(), ada, 99))
 
 	_, err := profile_query.NewPostgresQuery(s.db).Profile(s.T().Context(), ada)
 
-	s.ErrorIs(err, playermessage.ErrUnknownColor)
+	s.ErrorIs(err, playerread.ErrUnknownColor)
 }
 
 func (s *testSuite) TestAFailedReadIsAnError() {

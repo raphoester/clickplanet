@@ -13,7 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/inprocess_title_catalog"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/postgres_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/postgres_worn_title_store"
@@ -56,11 +57,11 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) named(account players.AccountID, name players.Name) {
-	s.Require().NoError(s.players.SaveProfile(s.T().Context(), players.Profile{Account: account, Name: name, UpdatedAt: today}))
+	s.Require().NoError(s.players.SaveProfile(s.T().Context(), players.NewProfile(account, name, today)))
 }
 
 func (s *testSuite) query() *authors_query.PostgresQuery {
-	return authors_query.NewPostgresQuery(s.db, titles.NewCatalog(), cptime.NewFixedClock(today))
+	return authors_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()), cptime.NewFixedClock(today))
 }
 
 func (s *testSuite) authors(accounts ...players.AccountID) map[string]*playerv1.Author {
@@ -180,7 +181,7 @@ func (s *testSuite) TestAColorTheProtoDoesNotNameIsAnError() {
 
 	_, err := s.query().Authors(s.T().Context(), []players.AccountID{ada})
 
-	s.ErrorIs(err, playermessage.ErrUnknownColor)
+	s.ErrorIs(err, playerread.ErrUnknownColor)
 }
 
 func (s *testSuite) TestAFailedReadIsAnError() {

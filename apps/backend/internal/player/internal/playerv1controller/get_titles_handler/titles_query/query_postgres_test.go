@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_titles_handler/titles_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/inprocess_title_catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/postgres_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/postgres_worn_title_store"
@@ -49,7 +50,7 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) dashboard(clock cptime.Clock) *playerv1.GetTitlesResponse {
-	answer, err := titles_query.NewPostgresQuery(s.db, titles.NewCatalog(), clock).Titles(s.T().Context(), ada)
+	answer, err := titles_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()), clock).Titles(s.T().Context(), ada)
 	s.Require().NoError(err)
 	return answer
 }
@@ -124,7 +125,7 @@ func (s *testSuite) TestAFailedReadIsAnError() {
 	ctx, cancel := context.WithCancel(s.T().Context())
 	cancel()
 
-	_, err := titles_query.NewPostgresQuery(s.db, titles.NewCatalog(), cptime.NewFixedClock(monday)).Titles(ctx, ada)
+	_, err := titles_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()), cptime.NewFixedClock(monday)).Titles(ctx, ada)
 
 	s.Error(err)
 }

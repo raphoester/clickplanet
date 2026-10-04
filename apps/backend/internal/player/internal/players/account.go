@@ -23,6 +23,14 @@ func AccountIDOf(value string) (AccountID, error) {
 }
 
 type Account struct {
-	Linked    bool
-	CreatedAt time.Time
+	linked    bool
+	createdAt time.Time
 }
+
+func AccountOf(linked bool, createdAt time.Time) Account {
+	return Account{linked: linked, createdAt: createdAt}
+}
+
+func (a Account) Linked() bool { return a.linked }
+
+func (a Account) CreatedAt() time.Time { return a.createdAt }

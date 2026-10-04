@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_account_usecase/renaming_name_account"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -21,14 +22,14 @@ import (
 var (
 	now   = time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)
 	ada   = players.AccountID{15: 1}
-	guest = wearing.Author{Author: players.Author{Name: "guest_0b1c2d", Guest: true}}
+	guest = wearing.AuthorOf(players.GuestAuthor("0b1c2d", players.Streak{}), titles.Standing{})
 )
 
 func setup() (*inmemory_player_store.Store, *inmemory_visit_storage.Storage, *renaming_name_account.Renaming) {
 	clock := cptime.NewFixedClock(now)
 	store := inmemory_player_store.New()
 	visits := inmemory_visit_storage.New(clock)
-	visits.Record(presence.Visit{Account: ada, Author: guest, Tag: "aaaaaa", Country: "fr", At: now})
+	visits.Record(presence.NewVisit(ada, guest, "aaaaaa", "fr", now))
 	names := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42"))
 	return store, visits, renaming_name_account.New(name_account_usecase.New(names, store, clock), visits)
 }
@@ -40,7 +41,7 @@ func TestAGeneratedNameShowsOnTheRosterAtOnce(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, visits.Visits(), 1)
-	assert.Equal(t, wearing.Author{Author: players.Author{Name: "BraveFox42"}}, visits.Visits()[0].Author)
+	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "BraveFox42", time.Time{}, false, 0), players.Streak{}), titles.Standing{}), visits.Visits()[0].Author())
 }
 
 func TestAFailureRenamesNothing(t *testing.T) {
@@ -50,5 +51,5 @@ func TestAFailureRenamesNothing(t *testing.T) {
 	_, err := useCase.Execute(t.Context(), ada)
 
 	require.Error(t, err)
-	assert.Equal(t, guest, visits.Visits()[0].Author)
+	assert.Equal(t, guest, visits.Visits()[0].Author())
 }

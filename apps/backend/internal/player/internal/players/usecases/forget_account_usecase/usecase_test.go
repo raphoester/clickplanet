@@ -17,7 +17,7 @@ func TestTheProfileAndTheStatsAreBothForgotten(t *testing.T) {
 	store := inmemory_player_store.New()
 	gone, kept := players.AccountID{15: 1}, players.AccountID{15: 2}
 	for name, account := range map[players.Name]players.AccountID{"Ada": gone, "Bob": kept} {
-		require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: account, Name: name, UpdatedAt: time.Now()}))
+		require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(account, name, time.Now())))
 		require.NoError(t, store.RecordTake(t.Context(), account, time.Now()))
 	}
 

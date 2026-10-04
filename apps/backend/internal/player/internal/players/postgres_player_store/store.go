@@ -39,9 +39,7 @@ func (s *Store) Profile(ctx context.Context, account players.AccountID) (players
 	if err != nil {
 		return players.Profile{}, fmt.Errorf("failed to read the profile: %w", err)
 	}
-	return players.Profile{
-		Account: account, Name: players.Name(name), UpdatedAt: updatedAt.UTC(), Admin: admin, Color: players.Color(color),
-	}, nil
+	return players.ProfileOf(account, players.Name(name), updatedAt.UTC(), admin, players.Color(color)), nil
 }
 
 const uniqueNameIndex = "profiles_name_key"
@@ -53,7 +51,7 @@ func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error 
 		INSERT INTO profiles (account_id, name, name_folded, updated_at) VALUES ($1, $2, $3, $4)
 		ON CONFLICT (account_id) DO UPDATE SET
 			name = excluded.name, name_folded = excluded.name_folded, updated_at = excluded.updated_at
-	`, uuid.UUID(profile.Account), string(profile.Name), profile.Name.Folded(), profile.UpdatedAt.UTC())
+	`, uuid.UUID(profile.Account()), string(profile.Name()), profile.Name().Folded(), profile.UpdatedAt().UTC())
 
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
@@ -69,7 +67,7 @@ func (s *Store) CreateProfile(ctx context.Context, profile players.Profile) erro
 	result, err := s.db.ExecContext(ctx, `
 		INSERT INTO profiles (account_id, name, name_folded, updated_at) VALUES ($1, $2, $3, $4)
 		ON CONFLICT (account_id) DO NOTHING
-	`, uuid.UUID(profile.Account), string(profile.Name), profile.Name.Folded(), profile.UpdatedAt.UTC())
+	`, uuid.UUID(profile.Account()), string(profile.Name()), profile.Name().Folded(), profile.UpdatedAt().UTC())
 
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
@@ -166,7 +164,8 @@ func (s *Store) record(ctx context.Context, account players.AccountID, change fu
 
 	current, err := statsOf(tx.QueryRowContext(ctx, `SELECT `+statsColumns+` FROM stats WHERE account_id = $1`, uuid.UUID(account)))
 	if errors.Is(err, players.ErrNoStats) {
-		current, err = players.Stats{Account: account}, nil
+		current = players.NewStats(account)
+		err = nil
 	}
 	if err != nil {
 		return err
@@ -182,9 +181,9 @@ func (s *Store) record(ctx context.Context, account players.AccountID, change fu
 			streak_best = excluded.streak_best,
 			streak_last_day = excluded.streak_last_day,
 			messages_sent = excluded.messages_sent
-	`, uuid.UUID(account), int64(next.TilesTaken), //nolint:gosec // one a tile taken: never past int64.
-		int64(next.StreakCurrent), int64(next.StreakBest), nullableDay(next.StreakLastDay),
-		int64(next.MessagesSent)); err != nil { //nolint:gosec // one a message sent: never past int64.
+	`, uuid.UUID(account), int64(next.TilesTaken()), //nolint:gosec // one a tile taken: never past int64.
+		int64(next.Streak().Days()), int64(next.StreakBest()), nullableDay(next.Streak().LastDay()),
+		int64(next.MessagesSent())); err != nil { //nolint:gosec // one a message sent: never past int64.
 		return fmt.Errorf("failed to save the stats: %w", err)
 	}
 
@@ -296,17 +295,17 @@ func statsOf(row scanner) (players.Stats, error) {
 		return players.Stats{}, fmt.Errorf("failed to read the stats: %w", err)
 	}
 
-	stats := players.Stats{
-		Account:       players.AccountID(account),
-		TilesTaken:    uint64(tiles),    //nolint:gosec // CHECK (tiles_taken >= 0).
-		StreakCurrent: uint32(current),  //nolint:gosec // CHECK (streak_current >= 0), and one a day.
-		StreakBest:    uint32(best),     //nolint:gosec // as above.
-		MessagesSent:  uint64(messages), //nolint:gosec // CHECK (messages_sent >= 0).
-	}
+	var day players.Day
 	if lastDay.Valid {
-		stats.StreakLastDay = players.DayOf(lastDay.Time)
+		day = players.DayOf(lastDay.Time)
 	}
-	return stats, nil
+	return players.StatsOf(
+		players.AccountID(account),
+		uint64(tiles),                          //nolint:gosec // CHECK (tiles_taken >= 0).
+		players.StreakOf(uint32(current), day), //nolint:gosec // CHECK (streak_current >= 0), and one a day.
+		uint32(best),                           //nolint:gosec // as above.
+		uint64(messages),                       //nolint:gosec // CHECK (messages_sent >= 0).
+	), nil
 }
 
 func nullableDay(day players.Day) sql.NullString {

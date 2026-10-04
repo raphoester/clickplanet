@@ -43,7 +43,7 @@ func (u *UseCase) Execute(ctx context.Context, account players.AccountID) (weari
 	}
 
 	shown := author.Shown(players.DayOf(u.clock.Now()))
-	if shown.Guest {
+	if shown.Guest() {
 		return wearing.AuthorOf(shown, titles.Standing{}), nil
 	}
 
@@ -51,5 +51,5 @@ func (u *UseCase) Execute(ctx context.Context, account players.AccountID) (weari
 	if err != nil {
 		return wearing.Author{}, fmt.Errorf("failed to read the title worn: %w", err)
 	}
-	return wearing.AuthorOf(shown, showcase.Worn), nil
+	return wearing.AuthorOf(shown, showcase.Worn()), nil
 }

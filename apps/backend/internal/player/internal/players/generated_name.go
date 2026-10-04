@@ -33,7 +33,7 @@ func (g GeneratedNames) Assign(ctx context.Context, account AccountID, at time.T
 			return fmt.Errorf("failed to draw a name: %w", err)
 		}
 
-		err = g.store.CreateProfile(ctx, Profile{Account: account, Name: name, UpdatedAt: at})
+		err = g.store.CreateProfile(ctx, NewProfile(account, name, at))
 		if errors.Is(err, ErrProfileExists) {
 			return nil
 		}
@@ -51,9 +51,9 @@ func (g GeneratedNames) Assign(ctx context.Context, account AccountID, at time.T
 func NamelessLinked(page []Stats, known map[AccountID]Account, named map[AccountID]Name) []AccountID {
 	var nameless []AccountID
 	for _, stats := range page {
-		_, hasName := named[stats.Account]
-		if known[stats.Account].Linked && !hasName {
-			nameless = append(nameless, stats.Account)
+		_, hasName := named[stats.account]
+		if known[stats.account].linked && !hasName {
+			nameless = append(nameless, stats.account)
 		}
 	}
 	return nameless
@@ -62,7 +62,7 @@ func NamelessLinked(page []Stats, known map[AccountID]Account, named map[Account
 func AccountsOf(page []Stats) []AccountID {
 	accounts := make([]AccountID, len(page))
 	for i, stats := range page {
-		accounts[i] = stats.Account
+		accounts[i] = stats.account
 	}
 	return accounts
 }

@@ -34,7 +34,7 @@ func TestTheAccountSignedInToIsNamedWhetherOrNotTheBrowserHadOne(t *testing.T) {
 		require.NoError(t, err)
 		profile, err := store.Profile(t.Context(), account)
 		require.NoError(t, err)
-		assert.Equal(t, players.Name("BraveFox42"), profile.Name)
+		assert.Equal(t, players.Name("BraveFox42"), profile.Name())
 	}
 }
 

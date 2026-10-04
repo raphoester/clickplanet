@@ -40,10 +40,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler/profile_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler/roster_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler/roster_query/inmemory_roster"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler/stats_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_titles_handler/titles_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/inprocess_title_catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/name_accounts_handler"
@@ -136,6 +138,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	titleFeed := inprocess_title_feed.New()
 	wornTitleStore := postgres_worn_title_store.New(db)
 	wardrobe := wearing.NewWardrobe(wornTitleStore, titleBook, catalog)
+	titleCards := inprocess_title_catalog.New(catalog)
 
 	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}), wardrobe, clock)
 
@@ -231,13 +234,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			announce_usecase.New(authors, visits, cpcountries.New(), clock, tagSalt),
 		),
 		LeaveHandler:     leave_handler.New(forgetVisit),
-		GetRosterHandler: get_roster_handler.New(roster_query.NewMemoryQuery(visits, clock)),
+		GetRosterHandler: get_roster_handler.New(roster_query.NewMemoryQuery(inmemory_roster.New(visits, clock))),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat),
 			listen_for_titles_usecase.New(titleFeed, catalog),
 		),
-		GetPlayerHandler: get_player_handler.New(player_query.NewPostgresQuery(db, accounts, catalog, clock)),
-		GetTitlesHandler: get_titles_handler.New(titles_query.NewPostgresQuery(db, catalog, clock)),
+		GetPlayerHandler: get_player_handler.New(player_query.NewPostgresQuery(db, titleCards, accounts, clock)),
+		GetTitlesHandler: get_titles_handler.New(titles_query.NewPostgresQuery(db, titleCards, clock)),
 		WearTitleHandler: wear_title_handler.New(dressing_wear_title.New(wear_title_usecase.New(wardrobe, clock), visits)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -249,7 +252,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internalService := playerv1controller.InternalService{
 		GetAuthorHandler:  get_author_handler.New(authors),
-		GetAuthorsHandler: get_authors_handler.New(authors_query.NewPostgresQuery(db, catalog, clock)),
+		GetAuthorsHandler: get_authors_handler.New(authors_query.NewPostgresQuery(db, titleCards, clock)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewInternalServiceHandler(internalService, options...)

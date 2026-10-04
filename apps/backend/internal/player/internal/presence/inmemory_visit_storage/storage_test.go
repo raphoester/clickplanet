@@ -24,23 +24,22 @@ func account(n int) players.AccountID {
 }
 
 func visit(n int, tag players.Tag, at time.Time) presence.Visit {
-	author := wearing.Author{Author: players.Author{Name: "guest_" + string(tag), Guest: true}}
-	return presence.Visit{Account: account(n), Author: author, Tag: tag, Country: "fr", At: at}
+	author := wearing.AuthorOf(players.GuestAuthor(players.GuestCode(tag), players.Streak{}), titles.Standing{})
+	return presence.NewVisit(account(n), author, tag, "fr", at)
 }
 
 var (
-	ada = wearing.Author{Author: players.Author{Name: "Ada_L"}}
-	og  = titles.Standing{Title: titles.OG{}}
+	ada   = wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), titles.Standing{})
+	og, _ = titles.NewCatalog().StandingOf("og")
 )
 
 func named(visit presence.Visit, author wearing.Author) presence.Visit {
-	visit.Author = author
-	return visit
+	return visit.For(visit.Account(), author)
 }
 
 func withoutKeys(visits []presence.Visit) []presence.Visit {
 	for i := range visits {
-		visits[i].Key = ""
+		visits[i] = visits[i].Keyed("")
 	}
 	return visits
 }
@@ -65,7 +64,7 @@ func changesOf(t *testing.T, changes <-chan presence.Change) []presence.Change {
 func accounts(visits []presence.Visit) []players.AccountID {
 	ids := make([]players.AccountID, 0, len(visits))
 	for _, v := range visits {
-		ids = append(ids, v.Account)
+		ids = append(ids, v.Account())
 	}
 	return ids
 }
@@ -74,8 +73,8 @@ func TestALaterVisitReplacesTheAccountsLastOne(t *testing.T) {
 	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
 
 	storage.Record(visit(1, "aaaaaa", start))
-	later := visit(1, "bbbbbb", start.Add(time.Second))
-	later.Country = "de"
+	base := visit(1, "bbbbbb", start.Add(time.Second))
+	later := presence.NewVisit(base.Account(), base.Author(), base.Tag(), "de", base.At())
 	storage.Record(later)
 
 	assert.Equal(t, []presence.Visit{later}, withoutKeys(storage.Visits()))
@@ -152,7 +151,7 @@ func TestAMoveToTheSameAccountRenamesIt(t *testing.T) {
 	storage.Move(account(1), account(1), ada)
 
 	require.Len(t, storage.Visits(), 1)
-	assert.Equal(t, ada, storage.Visits()[0].Author)
+	assert.Equal(t, ada, storage.Visits()[0].Author())
 }
 
 func TestAMoveReplacesTheVisitTheAccountHeld(t *testing.T) {
@@ -187,12 +186,12 @@ func TestARenameKeepsEverythingButTheName(t *testing.T) {
 
 func TestARenameKeepsTheTitleWorn(t *testing.T) {
 	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
-	storage.Record(named(visit(1, "aaaaaa", start), wearing.AuthorOf(players.Author{Name: "Ada"}, og)))
+	storage.Record(named(visit(1, "aaaaaa", start), wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada", time.Time{}, false, 0), players.Streak{}), og)))
 
 	storage.Rename(account(1), "Ada_L")
 
 	require.Len(t, storage.Visits(), 1)
-	assert.Equal(t, wearing.AuthorOf(players.Author{Name: "Ada_L"}, og), storage.Visits()[0].Author)
+	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), og), storage.Visits()[0].Author())
 }
 
 func TestAWornTitleShowsOnTheLineAndIsAChange(t *testing.T) {
@@ -205,10 +204,10 @@ func TestAWornTitleShowsOnTheLineAndIsAChange(t *testing.T) {
 	storage.Wear(account(2), og)
 
 	require.Len(t, storage.Visits(), 1)
-	assert.Equal(t, wearing.AuthorOf(ada.Author, og), storage.Visits()[0].Author)
+	assert.Equal(t, ada.Wearing(og), storage.Visits()[0].Author())
 	read := changesOf(t, changes)
 	require.Len(t, read, 1, "wearing the title already worn is not a change")
-	assert.Equal(t, og, read[0].Entry.Title)
+	assert.Equal(t, og, read[0].Entry().Title())
 }
 
 func TestAGuestLineWearsNoTitle(t *testing.T) {
@@ -218,7 +217,7 @@ func TestAGuestLineWearsNoTitle(t *testing.T) {
 	storage.Wear(account(1), og)
 
 	require.Len(t, storage.Visits(), 1)
-	assert.True(t, storage.Visits()[0].Author.Worn.Empty())
+	assert.True(t, storage.Visits()[0].Author().Worn().Empty())
 }
 
 func TestForgetTakesOnlyThatAccountOff(t *testing.T) {
@@ -243,12 +242,12 @@ func TestEachNewAccountGetsAKeyThatItsLaterVisitsKeep(t *testing.T) {
 
 	keys := map[players.AccountID]presence.Key{}
 	for _, v := range first {
-		keys[v.Account] = v.Key
+		keys[v.Account()] = v.Key()
 	}
 	assert.NotEqual(t, keys[account(1)], keys[account(2)])
 	for _, v := range storage.Visits() {
-		if v.Account == account(3) {
-			assert.Equal(t, keys[account(1)], v.Key, "a visit keeps its key through a new announce and a sign-in")
+		if v.Account() == account(3) {
+			assert.Equal(t, keys[account(1)], v.Key(), "a visit keeps its key through a new announce and a sign-in")
 		}
 	}
 }
@@ -270,10 +269,10 @@ func TestASubscriberReadsTheFreshRosterThenEveryChange(t *testing.T) {
 
 	read := changesOf(t, changes)
 	require.Len(t, read, 3, "an announce that changes nothing on the line is not a change")
-	assert.False(t, read[0].Left)
-	assert.Equal(t, "guest_cccccc", read[0].Entry.Name)
-	assert.Equal(t, presence.Change{Entry: presence.Entry{Key: one.Key, Name: "Ada_L", Country: "fr"}}, read[1])
-	assert.Equal(t, presence.Change{Entry: read[0].Entry, Left: true}, read[2])
+	assert.False(t, read[0].Left())
+	assert.Equal(t, "guest_cccccc", read[0].Entry().Name())
+	assert.Equal(t, presence.ChangeOf(presence.EntryOf(presence.NewVisit(account(1), ada, "aaaaaa", "fr", start).Keyed(one.Key()))), read[1])
+	assert.Equal(t, presence.DepartureOf(read[0].Entry()), read[2])
 }
 
 func TestAStaleVisitThatAnnouncesAgainJoinsAgain(t *testing.T) {
@@ -287,7 +286,7 @@ func TestAStaleVisitThatAnnouncesAgainJoinsAgain(t *testing.T) {
 
 	read := changesOf(t, changes)
 	require.Len(t, read, 1)
-	assert.False(t, read[0].Left)
+	assert.False(t, read[0].Left())
 }
 
 func TestAMoveOverAnotherVisitSaysThatOneLeft(t *testing.T) {
@@ -301,9 +300,9 @@ func TestAMoveOverAnotherVisitSaysThatOneLeft(t *testing.T) {
 
 	read := changesOf(t, changes)
 	require.Len(t, read, 2)
-	assert.True(t, read[0].Left)
-	assert.Equal(t, "guest_bbbbbb", read[0].Entry.Name)
-	assert.Equal(t, "Ada_L", read[1].Entry.Name)
+	assert.True(t, read[0].Left())
+	assert.Equal(t, "guest_bbbbbb", read[0].Entry().Name())
+	assert.Equal(t, "Ada_L", read[1].Entry().Name())
 }
 
 func TestPruneAndAFullTagSayWhoLeft(t *testing.T) {
@@ -320,10 +319,10 @@ func TestPruneAndAFullTagSayWhoLeft(t *testing.T) {
 
 	read := changesOf(t, changes)
 	require.Len(t, read, 2+inmemory_visit_storage.MaxVisitsPerTag)
-	assert.True(t, read[0].Left, "the oldest of the full tag leaves first")
-	assert.False(t, read[1].Left)
+	assert.True(t, read[0].Left(), "the oldest of the full tag leaves first")
+	assert.False(t, read[1].Left())
 	for _, change := range read[2:] {
-		assert.True(t, change.Left)
+		assert.True(t, change.Left())
 	}
 }
 
@@ -346,7 +345,7 @@ func TestASubscriberThatFallsBehindIsClosedAndTheOthersAreNot(t *testing.T) {
 	assert.False(t, open, "closed, so its stream starts over from a whole roster")
 	change, open := <-reading
 	assert.True(t, open)
-	assert.False(t, change.Left)
+	assert.False(t, change.Left())
 }
 
 func TestASubscriberIsClosedWhenItsContextEnds(t *testing.T) {

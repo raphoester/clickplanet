@@ -24,7 +24,7 @@ func (Conquest) Ranks() []Rank {
 	return []Rank{Settler{}, Raider{}, Warlord{}, Conqueror{}, Warmaster{}}
 }
 
-func (Conquest) Progress(career Career) uint64 { return career.Stats.TilesTaken }
+func (Conquest) Progress(career Career) uint64 { return career.Stats().TilesTaken() }
 
 type Devotion struct{}
 
@@ -34,7 +34,7 @@ func (Devotion) Name() string { return "Devotion" }
 
 func (Devotion) Ranks() []Rank { return []Rank{Loyal{}, Devoted{}, Unbroken{}} }
 
-func (Devotion) Progress(career Career) uint64 { return uint64(career.Stats.StreakCurrent) }
+func (Devotion) Progress(career Career) uint64 { return uint64(career.Stats().Streak().Days()) }
 
 type Chatter struct{}
 
@@ -44,4 +44,4 @@ func (Chatter) Name() string { return "Chatter" }
 
 func (Chatter) Ranks() []Rank { return []Rank{Talker{}, Chatterbox{}, Socialite{}, Icon{}} }
 
-func (Chatter) Progress(career Career) uint64 { return career.Stats.MessagesSent }
+func (Chatter) Progress(career Career) uint64 { return career.Stats().MessagesSent() }

@@ -25,58 +25,79 @@ func (d Day) String() string {
 }
 
 type Stats struct {
-	Account       AccountID
-	TilesTaken    uint64
-	StreakCurrent uint32
-	StreakBest    uint32
-	StreakLastDay Day
-	MessagesSent  uint64
+	account      AccountID
+	tilesTaken   uint64
+	streak       Streak
+	streakBest   uint32
+	messagesSent uint64
 }
+
+func NewStats(account AccountID) Stats {
+	return Stats{account: account}
+}
+
+func StatsOf(account AccountID, tilesTaken uint64, streak Streak, streakBest uint32, messagesSent uint64) Stats {
+	return Stats{account: account, tilesTaken: tilesTaken, streak: streak, streakBest: streakBest, messagesSent: messagesSent}
+}
+
+func (s Stats) Account() AccountID { return s.account }
+
+func (s Stats) TilesTaken() uint64 { return s.tilesTaken }
+
+func (s Stats) Streak() Streak { return s.streak }
+
+func (s Stats) StreakBest() uint32 { return s.streakBest }
+
+func (s Stats) MessagesSent() uint64 { return s.messagesSent }
 
 func (s Stats) WithTake(at time.Time) Stats {
 	day := DayOf(at)
-	s.TilesTaken++
+	s.tilesTaken++
 
 	switch {
-	case s.StreakLastDay.Empty():
-		s.StreakCurrent = 1
-	case day == s.StreakLastDay || day.Before(s.StreakLastDay):
+	case s.streak.lastDay.Empty():
+		s.streak.days = 1
+	case day == s.streak.lastDay || day.Before(s.streak.lastDay):
 		return s
-	case day == s.StreakLastDay.Following():
-		s.StreakCurrent++
+	case day == s.streak.lastDay.Following():
+		s.streak.days++
 	default:
-		s.StreakCurrent = 1
+		s.streak.days = 1
 	}
 
-	s.StreakLastDay = day
-	s.StreakBest = max(s.StreakBest, s.StreakCurrent)
+	s.streak.lastDay = day
+	s.streakBest = max(s.streakBest, s.streak.days)
 
 	return s
 }
 
 func (s Stats) WithMessage() Stats {
-	s.MessagesSent++
+	s.messagesSent++
 	return s
 }
 
-func (s Stats) Streak() Streak {
-	return Streak{Days: s.StreakCurrent, LastDay: s.StreakLastDay}
-}
-
 func (s Stats) AsOf(today Day) Stats {
-	s.StreakCurrent = s.Streak().AsOf(today).Days
+	s.streak = s.streak.AsOf(today)
 	return s
 }
 
 type Streak struct {
-	Days    uint32
-	LastDay Day
+	days    uint32
+	lastDay Day
 }
 
+func StreakOf(days uint32, lastDay Day) Streak {
+	return Streak{days: days, lastDay: lastDay}
+}
+
+func (s Streak) Days() uint32 { return s.days }
+
+func (s Streak) LastDay() Day { return s.lastDay }
+
 func (s Streak) AsOf(today Day) Streak {
-	if s.LastDay.Empty() || s.LastDay == today || s.LastDay.Following() == today {
+	if s.lastDay.Empty() || s.lastDay == today || s.lastDay.Following() == today {
 		return s
 	}
-	s.Days = 0
+	s.days = 0
 	return s
 }

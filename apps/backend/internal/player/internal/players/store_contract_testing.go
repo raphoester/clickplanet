@@ -24,7 +24,7 @@ func (s *StoreContractSuite) SetupTest() {
 var contractAt = time.Date(2026, 9, 17, 23, 30, 0, 123_456_000, time.UTC)
 
 func contractProfile(account byte, name Name) Profile {
-	return Profile{Account: AccountID{15: account}, Name: name, UpdatedAt: contractAt}
+	return NewProfile(AccountID{15: account}, name, contractAt)
 }
 
 func (s *StoreContractSuite) recordTake(account byte, at time.Time) {
@@ -63,7 +63,7 @@ func (s *StoreContractSuite) TestCreatingAProfileForAnAccountThatHasOneChangesNo
 
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(Name("Ada"), profile.Name)
+	s.Equal(Name("Ada"), profile.Name())
 }
 
 func (s *StoreContractSuite) TestCreatingAProfileWithANameAnotherHoldsIsNameTaken() {
@@ -81,8 +81,7 @@ func (s *StoreContractSuite) TestASavedProfileReadsBackAndASecondReplacesIt() {
 	s.Require().NoError(err)
 	s.Equal(contractProfile(1, "Emile_1858"), profile)
 
-	renamed := contractProfile(1, "Ada")
-	renamed.UpdatedAt = contractAt.Add(time.Hour)
+	renamed := NewProfile(AccountID{15: 1}, "Ada", contractAt.Add(time.Hour))
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), renamed))
 	profile, err = s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
@@ -94,7 +93,7 @@ func (s *StoreContractSuite) TestANewProfileIsNotAnAdmin() {
 
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.False(profile.Admin)
+	s.False(profile.Admin())
 }
 
 func (s *StoreContractSuite) TestAnAdminIsReadAndARenameKeepsIt() {
@@ -106,8 +105,8 @@ func (s *StoreContractSuite) TestAnAdminIsReadAndARenameKeepsIt() {
 
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.True(profile.Admin)
-	s.Equal(Name("Ada_L"), profile.Name)
+	s.True(profile.Admin())
+	s.Equal(Name("Ada_L"), profile.Name())
 }
 
 func (s *StoreContractSuite) TestEachTakeIsCountedByTheDomainsRule() {
@@ -115,9 +114,9 @@ func (s *StoreContractSuite) TestEachTakeIsCountedByTheDomainsRule() {
 	s.recordTake(1, contractAt.Add(time.Minute))
 	s.recordTake(1, contractAt.Add(time.Hour))
 
-	want := Stats{Account: AccountID{15: 1}}.WithTake(contractAt).WithTake(contractAt.Add(time.Minute)).WithTake(contractAt.Add(time.Hour))
+	want := NewStats(AccountID{15: 1}).WithTake(contractAt).WithTake(contractAt.Add(time.Minute)).WithTake(contractAt.Add(time.Hour))
 	s.Equal(want, s.stats(1))
-	s.Equal(uint32(2), s.stats(1).StreakCurrent, "the third take is past UTC midnight")
+	s.Equal(uint32(2), s.stats(1).Streak().Days(), "the third take is past UTC midnight")
 }
 
 func (s *StoreContractSuite) TestTakesOfOneAccountDoNotCountOnAnother() {
@@ -125,15 +124,15 @@ func (s *StoreContractSuite) TestTakesOfOneAccountDoNotCountOnAnother() {
 	s.recordTake(2, contractAt)
 	s.recordTake(2, contractAt)
 
-	s.Equal(uint64(1), s.stats(1).TilesTaken)
-	s.Equal(uint64(2), s.stats(2).TilesTaken)
+	s.Equal(uint64(1), s.stats(1).TilesTaken())
+	s.Equal(uint64(2), s.stats(2).TilesTaken())
 }
 
 func (s *StoreContractSuite) TestEachMessageIsCountedAndStartsNoStreak() {
 	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
 	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
 
-	s.Equal(Stats{Account: AccountID{15: 1}}.WithMessage().WithMessage(), s.stats(1))
+	s.Equal(NewStats(AccountID{15: 1}).WithMessage().WithMessage(), s.stats(1))
 }
 
 func (s *StoreContractSuite) TestMessagesAndTakesAddUpOnOneAccount() {
@@ -142,8 +141,8 @@ func (s *StoreContractSuite) TestMessagesAndTakesAddUpOnOneAccount() {
 	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
 	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 2}))
 
-	s.Equal(Stats{Account: AccountID{15: 1}}.WithMessage().WithTake(contractAt).WithMessage(), s.stats(1))
-	s.Equal(uint64(1), s.stats(2).MessagesSent)
+	s.Equal(NewStats(AccountID{15: 1}).WithMessage().WithTake(contractAt).WithMessage(), s.stats(1))
+	s.Equal(uint64(1), s.stats(2).MessagesSent())
 }
 
 func (s *StoreContractSuite) TestADeletedAccountLosesBothAndTheOthersKeepTheirs() {
@@ -158,7 +157,7 @@ func (s *StoreContractSuite) TestADeletedAccountLosesBothAndTheOthersKeepTheirs(
 	s.Require().ErrorIs(err, ErrNoProfile)
 	_, err = s.store.Stats(s.T().Context(), AccountID{15: 1})
 	s.Require().ErrorIs(err, ErrNoStats)
-	s.Equal(uint64(1), s.stats(2).TilesTaken)
+	s.Equal(uint64(1), s.stats(2).TilesTaken())
 }
 
 func (s *StoreContractSuite) TestDeletingAnUnknownAccountIsNotAnError() {
@@ -207,7 +206,7 @@ func (s *StoreContractSuite) TestAnAccountSavesItsOwnNameInAnotherCase() {
 
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(Name("ADA_L"), profile.Name)
+	s.Equal(Name("ADA_L"), profile.Name())
 }
 
 func (s *StoreContractSuite) TestARenameFreesTheOldName() {
@@ -224,13 +223,13 @@ func (s *StoreContractSuite) TestStatsArePagedInAccountOrderAfterTheCursor() {
 
 	first, err := s.store.StatsAfter(s.T().Context(), AccountID{}, 3)
 	s.Require().NoError(err)
-	rest, err := s.store.StatsAfter(s.T().Context(), first[len(first)-1].Account, 3)
+	rest, err := s.store.StatsAfter(s.T().Context(), first[len(first)-1].Account(), 3)
 	s.Require().NoError(err)
 
 	accountsOf := func(page []Stats) []AccountID {
 		accounts := make([]AccountID, 0, len(page))
 		for _, stats := range page {
-			accounts = append(accounts, stats.Account)
+			accounts = append(accounts, stats.Account())
 		}
 		return accounts
 	}
@@ -318,7 +317,7 @@ func (s *StoreContractSuite) TestAColorIsReadAndARenameKeepsIt() {
 
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(Color(3), profile.Color)
+	s.Equal(Color(3), profile.Color())
 }
 
 func (s *StoreContractSuite) TestAColorCanBeTakenBack() {
@@ -328,5 +327,5 @@ func (s *StoreContractSuite) TestAColorCanBeTakenBack() {
 
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(Color(0), profile.Color)
+	s.Equal(Color(0), profile.Color())
 }

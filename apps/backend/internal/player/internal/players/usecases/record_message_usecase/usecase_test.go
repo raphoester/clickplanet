@@ -21,7 +21,7 @@ func TestEachMessageIsCountedOnTheAccountsStats(t *testing.T) {
 
 	stats, err := store.Stats(t.Context(), players.AccountID{15: 1})
 	require.NoError(t, err)
-	assert.Equal(t, players.Stats{Account: players.AccountID{15: 1}, MessagesSent: 2}, stats)
+	assert.Equal(t, players.StatsOf(players.AccountID{15: 1}, 0, players.StreakOf(0, players.Day{}), 0, 2), stats)
 }
 
 func TestAStoreFailureIsAnError(t *testing.T) {

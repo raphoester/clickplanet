@@ -72,18 +72,18 @@ func (u *UseCase) Execute(ctx context.Context) (Reconciled, error) {
 		}
 
 		reconciliation := u.catalog.ReconciliationOf(titles.CareersOf(page, known), held)
-		if err := u.titles.Grant(ctx, reconciliation.Grants, at); err != nil {
+		if err := u.titles.Grant(ctx, reconciliation.Grants(), at); err != nil {
 			return reconciled, fmt.Errorf("failed to grant the titles: %w", err)
 		}
-		reconciled.Granted += reconciliation.Grants.Len()
-		if err := u.titles.Revoke(ctx, reconciliation.Revocations); err != nil {
+		reconciled.Granted += reconciliation.Grants().Len()
+		if err := u.titles.Revoke(ctx, reconciliation.Revocations()); err != nil {
 			return reconciled, fmt.Errorf("failed to revoke the titles: %w", err)
 		}
-		reconciled.Revoked += reconciliation.Revocations.Len()
+		reconciled.Revoked += reconciliation.Revocations().Len()
 
 		if len(page) < pageSize {
 			return reconciled, nil
 		}
-		after = page[len(page)-1].Account
+		after = page[len(page)-1].Account()
 	}
 }
