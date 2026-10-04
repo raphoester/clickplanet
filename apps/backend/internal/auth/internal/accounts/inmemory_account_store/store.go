@@ -59,8 +59,8 @@ func (s *Store) Session(_ context.Context, tokenHash accounts.TokenHash) (*accou
 	if !found {
 		return nil, accounts.ErrSessionNotFound
 	}
-	session.Linked = len(s.identitiesOf(session.Account)) > 0
-	return &session, nil
+	return accounts.SessionOf(session.TokenHash(), session.Account(), len(s.identitiesOf(session.Account())) > 0,
+		session.ExtendedAt(), session.ExpiresAt()), nil
 }
 
 func (s *Store) CreateGuest(_ context.Context, session *accounts.Session) error {
@@ -70,13 +70,13 @@ func (s *Store) CreateGuest(_ context.Context, session *accounts.Session) error 
 	if s.failWith != nil {
 		return s.failWith
 	}
-	if _, taken := s.sessions[string(session.TokenHash)]; taken {
+	if _, taken := s.sessions[string(session.TokenHash())]; taken {
 		return errTaken
 	}
 
-	s.created[session.Account] = session.ExtendedAt
-	s.lastSeen[session.Account] = session.ExtendedAt
-	s.sessions[string(session.TokenHash)] = *session
+	s.created[session.Account()] = session.ExtendedAt()
+	s.lastSeen[session.Account()] = session.ExtendedAt()
+	s.sessions[string(session.TokenHash())] = *session
 	return nil
 }
 
@@ -87,12 +87,12 @@ func (s *Store) SaveSession(_ context.Context, session *accounts.Session) error 
 	if s.failWith != nil {
 		return s.failWith
 	}
-	if _, found := s.sessions[string(session.TokenHash)]; !found {
+	if _, found := s.sessions[string(session.TokenHash())]; !found {
 		return accounts.ErrSessionNotFound
 	}
 
-	s.sessions[string(session.TokenHash)] = *session
-	s.lastSeen[session.Account] = session.ExtendedAt
+	s.sessions[string(session.TokenHash())] = *session
+	s.lastSeen[session.Account()] = session.ExtendedAt()
 	return nil
 }
 
@@ -131,23 +131,7 @@ func (s *Store) Account(_ context.Context, account accounts.AccountID) (*account
 		return nil, accounts.ErrAccountNotFound
 	}
 
-	return &accounts.Account{ID: account, CreatedAt: s.created[account], Identities: s.identitiesOf(account)}, nil
-}
-
-func (s *Store) Accounts(_ context.Context, asked []accounts.AccountID) ([]*accounts.Account, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
-	found := make([]*accounts.Account, 0, len(asked))
-	for _, account := range asked {
-		if _, known := s.lastSeen[account]; known {
-			found = append(found, &accounts.Account{ID: account, CreatedAt: s.created[account], Identities: s.identitiesOf(account)})
-		}
-	}
-	return found, nil
+	return accounts.AccountOf(account, s.created[account], s.identitiesOf(account)), nil
 }
 
 func (s *Store) Identity(_ context.Context, provider string, subject string) (*accounts.Identity, error) {
@@ -175,7 +159,7 @@ func (s *Store) AccountOfEmail(_ context.Context, address string) (*accounts.Acc
 
 	holders := []accounts.Identity{}
 	for _, identity := range s.identities {
-		if identity.EmailVerified && strings.EqualFold(identity.Email, address) {
+		if identity.EmailVerified() && strings.EqualFold(identity.Email(), address) {
 			holders = append(holders, identity)
 		}
 	}
@@ -183,9 +167,9 @@ func (s *Store) AccountOfEmail(_ context.Context, address string) (*accounts.Acc
 		return nil, accounts.ErrAccountNotFound
 	}
 	oldest := slices.MinFunc(holders, func(a, b accounts.Identity) int {
-		return cmp.Or(a.LinkedAt.Compare(b.LinkedAt), cmp.Compare(a.Provider, b.Provider))
+		return cmp.Or(a.LinkedAt().Compare(b.LinkedAt()), cmp.Compare(a.Provider(), b.Provider()))
 	})
-	return &accounts.Account{ID: oldest.Account, CreatedAt: s.created[oldest.Account], Identities: s.identitiesOf(oldest.Account)}, nil
+	return accounts.AccountOf(oldest.Account(), s.created[oldest.Account()], s.identitiesOf(oldest.Account())), nil
 }
 
 func (s *Store) SaveSignIn(_ context.Context, signIn accounts.SignIn) error {
@@ -195,27 +179,28 @@ func (s *Store) SaveSignIn(_ context.Context, signIn accounts.SignIn) error {
 	if s.failWith != nil {
 		return s.failWith
 	}
-	account := signIn.Session.Account
-	if _, taken := s.sessions[string(signIn.Session.TokenHash)]; taken {
+	session, identity := signIn.Session(), signIn.Identity()
+	account := session.Account()
+	if _, taken := s.sessions[string(session.TokenHash())]; taken {
 		return errTaken
 	}
-	if signIn.Identity != nil {
-		if _, taken := s.identities[keyOf(signIn.Identity)]; taken {
+	if identity != nil {
+		if _, taken := s.identities[keyOf(identity)]; taken {
 			return accounts.ErrIdentityTaken
 		}
 	}
 
-	if signIn.NewAccount {
-		s.created[account] = signIn.Session.ExtendedAt
+	if signIn.NewAccount() {
+		s.created[account] = session.ExtendedAt()
 	}
-	if signIn.Identity != nil {
-		s.identities[keyOf(signIn.Identity)] = *signIn.Identity
+	if identity != nil {
+		s.identities[keyOf(identity)] = *identity
 	}
-	if signIn.Replaces != nil {
-		delete(s.sessions, string(signIn.Replaces))
+	if replaces := signIn.Replaces(); replaces != nil {
+		delete(s.sessions, string(replaces))
 	}
-	s.sessions[string(signIn.Session.TokenHash)] = *signIn.Session
-	s.lastSeen[account] = signIn.Session.ExtendedAt
+	s.sessions[string(session.TokenHash())] = *session
+	s.lastSeen[account] = session.ExtendedAt()
 	return nil
 }
 
@@ -256,7 +241,7 @@ func (s *Store) deleteAccount(account accounts.AccountID) {
 	delete(s.created, account)
 	delete(s.lastSeen, account)
 	for key, identity := range s.identities {
-		if identity.Account == account {
+		if identity.Account() == account {
 			delete(s.identities, key)
 		}
 	}
@@ -265,7 +250,7 @@ func (s *Store) deleteAccount(account accounts.AccountID) {
 
 func (s *Store) deleteSessionsOf(account accounts.AccountID) {
 	for hash, session := range s.sessions {
-		if session.Account == account {
+		if session.Account() == account {
 			delete(s.sessions, hash)
 		}
 	}
@@ -274,16 +259,16 @@ func (s *Store) deleteSessionsOf(account accounts.AccountID) {
 func (s *Store) identitiesOf(account accounts.AccountID) []accounts.Identity {
 	identities := []accounts.Identity{}
 	for _, identity := range s.identities {
-		if identity.Account == account {
+		if identity.Account() == account {
 			identities = append(identities, identity)
 		}
 	}
 	slices.SortFunc(identities, func(a, b accounts.Identity) int {
-		return cmp.Or(a.LinkedAt.Compare(b.LinkedAt), cmp.Compare(a.Provider, b.Provider))
+		return cmp.Or(a.LinkedAt().Compare(b.LinkedAt()), cmp.Compare(a.Provider(), b.Provider()))
 	})
 	return identities
 }
 
 func keyOf(identity *accounts.Identity) identityKey {
-	return identityKey{provider: identity.Provider, subject: identity.Subject}
+	return identityKey{provider: identity.Provider(), subject: identity.Subject()}
 }

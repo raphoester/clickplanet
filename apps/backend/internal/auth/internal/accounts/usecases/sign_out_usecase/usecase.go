@@ -38,7 +38,7 @@ func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (string, err
 		return "", fmt.Errorf("failed to read the cookie: %w", err)
 	}
 
-	session, err := u.sessions.Session(ctx, token.Hash)
+	session, err := u.sessions.Session(ctx, token.Hash())
 	if errors.Is(err, accounts.ErrSessionNotFound) {
 		return accounts.ExpiredSessionCookie(), nil
 	}
@@ -46,11 +46,11 @@ func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (string, err
 		return "", fmt.Errorf("failed to find the session: %w", err)
 	}
 
-	if err := u.sessions.DeleteSession(ctx, token.Hash); err != nil {
+	if err := u.sessions.DeleteSession(ctx, token.Hash()); err != nil {
 		return "", fmt.Errorf("failed to delete the session: %w", err)
 	}
 
-	u.events.Publish(&authv1.SignedOut{AccountId: session.Account.String()})
+	u.events.Publish(&authv1.SignedOut{AccountId: session.Account().String()})
 
 	return accounts.ExpiredSessionCookie(), nil
 }

@@ -143,7 +143,7 @@ func TestAGuestLinksAProviderAndKeepsItsAccount(t *testing.T) {
 	player := stack.browser(t)
 	guest := player.mint()
 
-	linked := player.signIn(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1", auth.Claim{Subject: "google-1", Email: "a@example.com", EmailVerified: true})
+	linked := player.signIn(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1", auth.ClaimOf("google-1", "a@example.com", true))
 
 	assert.Equal(t, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED, linked.GetOutcome())
 	assert.Equal(t, guest.String(), linked.GetAccountId())
@@ -157,7 +157,7 @@ func TestAGuestLinksAProviderAndKeepsItsAccount(t *testing.T) {
 
 func TestAKnownIdentitySignsInToItsAccountAndLeavesTheGuestAlone(t *testing.T) {
 	stack, fakes := startSignIn(t)
-	claim := auth.Claim{Subject: "discord-1"}
+	claim := auth.ClaimOf("discord-1", "", false)
 	first := stack.browser(t)
 	owner := first.mint()
 	first.signIn(authv1.Provider_PROVIDER_DISCORD, fakes.Discord, "code-1", claim)
@@ -176,7 +176,7 @@ func TestABrowserWithNoAccountSignsInToANewOne(t *testing.T) {
 	stack, fakes := startSignIn(t)
 	player := stack.browser(t)
 
-	created := player.signIn(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1", auth.Claim{Subject: "google-1"})
+	created := player.signIn(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1", auth.ClaimOf("google-1", "", false))
 
 	assert.Equal(t, authv1.SignInOutcome_SIGN_IN_OUTCOME_CREATED, created.GetOutcome())
 	assert.Equal(t, created.GetAccountId(), player.mint().String())
@@ -184,12 +184,12 @@ func TestABrowserWithNoAccountSignsInToANewOne(t *testing.T) {
 
 func TestLinkingAnIdentityAnotherAccountUsesIsRefusedAndTheBrowserStays(t *testing.T) {
 	stack, fakes := startSignIn(t)
-	google := auth.Claim{Subject: "google-1"}
+	google := auth.ClaimOf("google-1", "", false)
 	elsewhere := stack.browser(t).signIn(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1", google)
 
 	player := stack.browser(t)
 	guest := player.mint()
-	discord := player.signIn(authv1.Provider_PROVIDER_DISCORD, fakes.Discord, "code-2", auth.Claim{Subject: "discord-1"})
+	discord := player.signIn(authv1.Provider_PROVIDER_DISCORD, fakes.Discord, "code-2", auth.ClaimOf("discord-1", "", false))
 	require.Equal(t, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED, discord.GetOutcome())
 
 	_, err := player.link(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-3", google)
@@ -212,9 +212,9 @@ func TestLinkingAnIdentityAnotherAccountUsesIsRefusedAndTheBrowserStays(t *testi
 func TestLinkingANewIdentityAddsItToTheAccount(t *testing.T) {
 	stack, fakes := startSignIn(t)
 	player := stack.browser(t)
-	account := player.signIn(authv1.Provider_PROVIDER_DISCORD, fakes.Discord, "code-1", auth.Claim{Subject: "discord-1"})
+	account := player.signIn(authv1.Provider_PROVIDER_DISCORD, fakes.Discord, "code-1", auth.ClaimOf("discord-1", "", false))
 
-	linked, err := player.link(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-2", auth.Claim{Subject: "google-1"})
+	linked, err := player.link(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-2", auth.ClaimOf("google-1", "", false))
 	require.NoError(t, err)
 
 	assert.Equal(t, authv1.SignInOutcome_SIGN_IN_OUTCOME_LINKED, linked.GetOutcome())
@@ -228,7 +228,7 @@ func TestALinkFromABrowserWithNoAccountIsNotStarted(t *testing.T) {
 	stack, fakes := startSignIn(t)
 	player := stack.browser(t)
 
-	_, err := player.link(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1", auth.Claim{Subject: "google-1"})
+	_, err := player.link(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1", auth.ClaimOf("google-1", "", false))
 
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	assert.NotContains(t, player.cookies, "cp_oauth")
@@ -245,7 +245,7 @@ func TestACallbackFromAnotherBrowserIsRefused(t *testing.T) {
 	require.NoError(t, err)
 	authorization, err := url.Parse(started.Msg.GetAuthorizationUrl())
 	require.NoError(t, err)
-	fakes.Google.Grant("attacker-code", auth.Claim{Subject: "attacker"})
+	fakes.Google.Grant("attacker-code", auth.ClaimOf("attacker", "", false))
 
 	complete := connect.NewRequest(&authv1.CompleteSignInRequest{Code: "attacker-code", State: authorization.Query().Get("state")})
 	victim.send(complete.Header())
@@ -256,7 +256,7 @@ func TestACallbackFromAnotherBrowserIsRefused(t *testing.T) {
 
 func TestSigningOutEndsOneSessionAndEverywhereEndsThemAll(t *testing.T) {
 	stack, fakes := startSignIn(t)
-	claim := auth.Claim{Subject: "google-1"}
+	claim := auth.ClaimOf("google-1", "", false)
 	laptop, phone, tablet := stack.browser(t), stack.browser(t), stack.browser(t)
 	laptop.signIn(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1", claim)
 	phone.signIn(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-2", claim)
@@ -285,7 +285,7 @@ func TestSigningOutEndsOneSessionAndEverywhereEndsThemAll(t *testing.T) {
 
 func TestADeletedAccountIsGoneAndItsIdentityIsFreeAgain(t *testing.T) {
 	stack, fakes := startSignIn(t)
-	claim := auth.Claim{Subject: "google-1"}
+	claim := auth.ClaimOf("google-1", "", false)
 	player := stack.browser(t)
 	deleted := player.signIn(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1", claim)
 

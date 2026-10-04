@@ -18,6 +18,18 @@ var (
 	account  = accounts.AccountID{15: 1}
 )
 
+func identityOf(provider string, subject string, account accounts.AccountID) *accounts.Identity {
+	return accounts.IdentityOf(provider, subject, account, "", false, time.Time{})
+}
+
+func accountOf(id accounts.AccountID, identities ...*accounts.Identity) *accounts.Account {
+	kept := make([]accounts.Identity, 0, len(identities))
+	for _, identity := range identities {
+		kept = append(kept, *identity)
+	}
+	return accounts.AccountOf(id, now, kept)
+}
+
 func TestTheTokenIsFoundAmongOtherCookies(t *testing.T) {
 	token, err := accounts.TokenFromCookies("theme=dark; cp_sid=abc123; lang=fr")
 
@@ -44,7 +56,7 @@ func TestNoTokenInAHeaderWithoutTheCookie(t *testing.T) {
 func TestATokensHashIsTheSHA256OfItsValue(t *testing.T) {
 	sum := sha256.Sum256([]byte("abc123"))
 
-	assert.Equal(t, &accounts.Token{Value: "abc123", Hash: sum[:]}, accounts.TokenOf("abc123"))
+	assert.Equal(t, accounts.TokenHash(sum[:]), accounts.TokenOf("abc123").Hash())
 }
 
 func TestAGuestStartsWithAFullLifetime(t *testing.T) {
@@ -52,9 +64,7 @@ func TestAGuestStartsWithAFullLifetime(t *testing.T) {
 
 	session := accounts.GuestSession(account, token, lifetime, now)
 
-	assert.Equal(t, &accounts.Session{
-		TokenHash: token.Hash, Account: account, ExtendedAt: now, ExpiresAt: now.Add(90 * 24 * time.Hour),
-	}, session)
+	assert.Equal(t, accounts.SessionOf(token.Hash(), account, false, now, now.Add(90*24*time.Hour)), session)
 }
 
 func TestASessionEndsAtItsExpiry(t *testing.T) {
@@ -77,10 +87,10 @@ func TestAnExtendedSessionIsACopyAndTheSessionIsLeftAsItWas(t *testing.T) {
 
 	extended := session.Extended(later, lifetime)
 
-	assert.Equal(t, later, extended.ExtendedAt)
-	assert.Equal(t, later.Add(90*24*time.Hour), extended.ExpiresAt)
-	assert.Equal(t, now, session.ExtendedAt)
-	assert.Equal(t, now.Add(90*24*time.Hour), session.ExpiresAt)
+	assert.Equal(t, later, extended.ExtendedAt())
+	assert.Equal(t, later.Add(90*24*time.Hour), extended.ExpiresAt())
+	assert.Equal(t, now, session.ExtendedAt())
+	assert.Equal(t, now.Add(90*24*time.Hour), session.ExpiresAt())
 }
 
 func TestTheCookieLivesAsLongAsTheSessionAndStaysOnThisSite(t *testing.T) {
@@ -101,18 +111,18 @@ func TestTheCookieLivesAsLongAsTheSessionAndStaysOnThisSite(t *testing.T) {
 
 func TestALinkedSessionLastsTheLinkedLifetimeAndExtendsByIt(t *testing.T) {
 	session := accounts.LinkedSession(account, accounts.TokenOf("abc123"), lifetime, now)
-	assert.Equal(t, now.Add(30*24*time.Hour), session.ExpiresAt)
+	assert.Equal(t, now.Add(30*24*time.Hour), session.ExpiresAt())
 
 	later := now.Add(24 * time.Hour)
-	assert.Equal(t, later.Add(30*24*time.Hour), session.Extended(later, lifetime).ExpiresAt)
+	assert.Equal(t, later.Add(30*24*time.Hour), session.Extended(later, lifetime).ExpiresAt())
 }
 
 func TestAGuestSessionExtendsByTheLinkedLifetimeOnceItsAccountIsLinked(t *testing.T) {
-	session := accounts.GuestSession(account, accounts.TokenOf("abc123"), lifetime, now)
-	session.Linked = true
+	guest := accounts.GuestSession(account, accounts.TokenOf("abc123"), lifetime, now)
+	session := accounts.SessionOf(guest.TokenHash(), account, true, guest.ExtendedAt(), guest.ExpiresAt())
 
 	later := now.Add(24 * time.Hour)
-	assert.Equal(t, later.Add(30*24*time.Hour), session.Extended(later, lifetime).ExpiresAt)
+	assert.Equal(t, later.Add(30*24*time.Hour), session.Extended(later, lifetime).ExpiresAt())
 }
 
 func TestClearingTheCookieExpiresItWithTheSameAttributes(t *testing.T) {
@@ -130,28 +140,28 @@ func TestClearingTheCookieExpiresItWithTheSameAttributes(t *testing.T) {
 
 func TestAnUnverifiedEmailIsNeverKept(t *testing.T) {
 	for name, claim := range map[string]accounts.Claim{
-		"unverified":         {Subject: "user", Email: "a@example.com"},
-		"verified with none": {Subject: "user", EmailVerified: true},
+		"unverified":         accounts.ClaimOf("user", "a@example.com", false),
+		"verified with none": accounts.ClaimOf("user", "", true),
 	} {
 		t.Run(name, func(t *testing.T) {
 			identity := accounts.NewIdentity("discord", claim, account, now)
 
-			assert.Equal(t, &accounts.Identity{Provider: "discord", Subject: "user", Account: account, LinkedAt: now}, identity)
+			assert.Equal(t, accounts.IdentityOf("discord", "user", account, "", false, now), identity)
 		})
 	}
 }
 
 func TestAVerifiedEmailIsKept(t *testing.T) {
-	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user", Email: "a@example.com", EmailVerified: true}, account, now)
+	identity := accounts.NewIdentity("google", accounts.ClaimOf("user", "a@example.com", true), account, now)
 
-	assert.Equal(t, "a@example.com", identity.Email)
-	assert.True(t, identity.EmailVerified)
+	assert.Equal(t, "a@example.com", identity.Email())
+	assert.True(t, identity.EmailVerified())
 }
 
 func TestAKnownIdentitySignsInWhateverTheBrowserIsOn(t *testing.T) {
-	known := &accounts.Identity{Provider: "google", Subject: "user", Account: accounts.AccountID{15: 2}}
+	known := identityOf("google", "user", accounts.AccountID{15: 2})
 
-	for name, current := range map[string]*accounts.Account{"no account": nil, "another account": {ID: account}} {
+	for name, current := range map[string]*accounts.Account{"no account": nil, "another account": accountOf(account)} {
 		t.Run(name, func(t *testing.T) {
 			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, known, nil, "google")
 
@@ -164,8 +174,8 @@ func TestAKnownIdentitySignsInWhateverTheBrowserIsOn(t *testing.T) {
 func TestANewIdentityLinksToTheAccountTheBrowserIsOn(t *testing.T) {
 	for _, intent := range []accounts.Intent{accounts.IntentSignIn, accounts.IntentLink} {
 		for name, current := range map[string]*accounts.Account{
-			"guest":                   {ID: account},
-			"linked to another place": {ID: account, Identities: []accounts.Identity{{Provider: "discord"}}},
+			"guest":                   accountOf(account),
+			"linked to another place": accountOf(account, identityOf("discord", "d", account)),
 		} {
 			t.Run(name, func(t *testing.T) {
 				outcome, err := accounts.OutcomeOf(intent, current, nil, nil, "google")
@@ -180,7 +190,7 @@ func TestANewIdentityLinksToTheAccountTheBrowserIsOn(t *testing.T) {
 func TestANewIdentityWithNowhereToGoCreatesAnAccount(t *testing.T) {
 	for name, current := range map[string]*accounts.Account{
 		"no account":    nil,
-		"same provider": {ID: account, Identities: []accounts.Identity{{Provider: "google", Subject: "someone else"}}},
+		"same provider": accountOf(account, identityOf("google", "someone else", account)),
 	} {
 		t.Run(name, func(t *testing.T) {
 			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, nil, nil, "google")
@@ -192,18 +202,19 @@ func TestANewIdentityWithNowhereToGoCreatesAnAccount(t *testing.T) {
 }
 
 func TestLinkingAnIdentityTheAccountAlreadyHasChangesNothing(t *testing.T) {
-	current := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "google", Subject: "user", Account: account}}}
+	known := identityOf("google", "user", account)
+	current := accountOf(account, known)
 
-	outcome, err := accounts.OutcomeOf(accounts.IntentLink, current, &current.Identities[0], nil, "google")
+	outcome, err := accounts.OutcomeOf(accounts.IntentLink, current, known, nil, "google")
 
 	require.NoError(t, err)
 	assert.Equal(t, accounts.SignedIn, outcome, "the browser stays on its account")
 }
 
 func TestALinkIsRefusedRatherThanLeaveTheAccount(t *testing.T) {
-	onDiscord := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "discord", Subject: "d", Account: account}}}
-	elsewhere := &accounts.Identity{Provider: "google", Subject: "user", Account: accounts.AccountID{15: 2}}
-	sameProvider := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "google", Subject: "someone else", Account: account}}}
+	onDiscord := accountOf(account, identityOf("discord", "d", account))
+	elsewhere := identityOf("google", "user", accounts.AccountID{15: 2})
+	sameProvider := accountOf(account, identityOf("google", "someone else", account))
 
 	for name, tc := range map[string]struct {
 		current *accounts.Account
@@ -223,17 +234,17 @@ func TestALinkIsRefusedRatherThanLeaveTheAccount(t *testing.T) {
 }
 
 func TestAnUnverifiedEmailIsNoAddress(t *testing.T) {
-	assert.Empty(t, accounts.Claim{Subject: "user", Email: "a@example.com"}.VerifiedEmail())
-	assert.Equal(t, "a@example.com", accounts.Claim{Subject: "user", Email: "a@example.com", EmailVerified: true}.VerifiedEmail())
+	assert.Empty(t, accounts.ClaimOf("user", "a@example.com", false).VerifiedEmail())
+	assert.Equal(t, "a@example.com", accounts.ClaimOf("user", "a@example.com", true).VerifiedEmail())
 }
 
 func TestANewIdentityJoinsTheAccountThatHoldsItsAddress(t *testing.T) {
-	owner := &accounts.Account{ID: accounts.AccountID{15: 2}, Identities: []accounts.Identity{{Provider: "google", Subject: "g"}}}
+	owner := accountOf(accounts.AccountID{15: 2}, identityOf("google", "g", accounts.AccountID{15: 2}))
 
 	for name, current := range map[string]*accounts.Account{
 		"no account":    nil,
-		"a guest":       {ID: account},
-		"linked to one": {ID: account, Identities: []accounts.Identity{{Provider: "discord"}}},
+		"a guest":       accountOf(account),
+		"linked to one": accountOf(account, identityOf("discord", "d", account)),
 	} {
 		t.Run(name, func(t *testing.T) {
 			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, nil, owner, "email")
@@ -245,7 +256,7 @@ func TestANewIdentityJoinsTheAccountThatHoldsItsAddress(t *testing.T) {
 }
 
 func TestANewIdentityOnTheAccountThatHoldsItsAddressLinks(t *testing.T) {
-	owner := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "google", Subject: "g"}}}
+	owner := accountOf(account, identityOf("google", "g", account))
 
 	outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, owner, nil, owner, "email")
 
@@ -254,8 +265,8 @@ func TestANewIdentityOnTheAccountThatHoldsItsAddressLinks(t *testing.T) {
 }
 
 func TestAKnownIdentityOutranksTheAddress(t *testing.T) {
-	known := &accounts.Identity{Provider: "email", Subject: "a@example.com", Account: accounts.AccountID{15: 3}}
-	owner := &accounts.Account{ID: accounts.AccountID{15: 2}}
+	known := identityOf("email", "a@example.com", accounts.AccountID{15: 3})
+	owner := accountOf(accounts.AccountID{15: 2})
 
 	outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, nil, known, owner, "email")
 
@@ -264,7 +275,7 @@ func TestAKnownIdentityOutranksTheAddress(t *testing.T) {
 }
 
 func TestAnOwnerThatHasThisProviderAlreadyIsNotJoined(t *testing.T) {
-	owner := &accounts.Account{ID: accounts.AccountID{15: 2}, Identities: []accounts.Identity{{Provider: "google", Subject: "other"}}}
+	owner := accountOf(accounts.AccountID{15: 2}, identityOf("google", "other", accounts.AccountID{15: 2}))
 
 	outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, nil, nil, owner, "google")
 
@@ -273,8 +284,8 @@ func TestAnOwnerThatHasThisProviderAlreadyIsNotJoined(t *testing.T) {
 }
 
 func TestLinkingAnAddressAnotherAccountHoldsIsRefused(t *testing.T) {
-	current := &accounts.Account{ID: account, Identities: []accounts.Identity{{Provider: "discord", Subject: "d"}}}
-	owner := &accounts.Account{ID: accounts.AccountID{15: 2}, Identities: []accounts.Identity{{Provider: "google", Subject: "g"}}}
+	current := accountOf(account, identityOf("discord", "d", account))
+	owner := accountOf(accounts.AccountID{15: 2}, identityOf("google", "g", accounts.AccountID{15: 2}))
 
 	_, err := accounts.OutcomeOf(accounts.IntentLink, current, nil, owner, "email")
 	require.ErrorIs(t, err, accounts.ErrIdentityLinkedElsewhere)

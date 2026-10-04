@@ -44,16 +44,16 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*Out, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the browser's account: %w", err)
 	}
-	if err := flow.AccountError(visitor.Account); err != nil {
+	if err := flow.AccountError(visitor.Account()); err != nil {
 		return nil, fmt.Errorf("failed to check the account: %w", err)
 	}
 
 	claim, err := provider.Exchange(ctx, in.Code, flow)
 	if err != nil {
-		return nil, fmt.Errorf("failed to ask %s who signed in: %w", flow.Provider, err)
+		return nil, fmt.Errorf("failed to ask %s who signed in: %w", flow.Provider(), err)
 	}
 
-	admission, err := u.admitter.Admit(ctx, flow.Provider, flow.Intent, *claim, visitor, now)
+	admission, err := u.admitter.Admit(ctx, flow.Provider(), flow.Intent(), *claim, visitor, now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign in: %w", err)
 	}
@@ -73,7 +73,7 @@ func (u *UseCase) flow(in In, now time.Time) (*signin.Flow, signin.Provider, err
 		return nil, nil, fmt.Errorf("failed to check the flow: %w", err)
 	}
 
-	provider, err := u.providers.Provider(flow.Provider)
+	provider, err := u.providers.Provider(flow.Provider())
 	if err != nil {
 		return nil, nil, fmt.Errorf("%w: %w", signin.ErrFlowInvalid, err)
 	}

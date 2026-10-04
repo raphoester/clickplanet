@@ -48,7 +48,7 @@ func TestAnIssuedChallengeComesBackInItsCookie(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, issued, opened)
-	assert.Equal(t, "000001", opened.Code)
+	assert.Equal(t, "000001", opened.Code())
 }
 
 func TestNoOrAForgedChallengeCookieIsStartedAgain(t *testing.T) {

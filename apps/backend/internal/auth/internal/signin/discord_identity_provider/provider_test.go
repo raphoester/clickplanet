@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,7 @@ const redirect = "https://clickplanet.lol/auth/callback"
 
 var (
 	client = signin.Client{ClientID: "the-client", ClientSecret: "the-secret"}
-	flow   = &signin.Flow{Provider: "discord", State: "the-state", Verifier: "the-verifier", Nonce: "unused"}
+	flow   = signin.FlowOf("discord", "the-state", "the-verifier", "unused", time.Time{}, accounts.IntentSignIn, accounts.AccountID{})
 )
 
 type discord struct {
@@ -71,7 +72,7 @@ func TestTheCodeIsTradedForTheUserBehindIt(t *testing.T) {
 	claim, err := d.provider(t).Exchange(t.Context(), "the-code", flow)
 
 	require.NoError(t, err)
-	assert.Equal(t, &accounts.Claim{Subject: "80351110224678912", Email: "a@example.com", EmailVerified: true}, claim)
+	assert.Equal(t, accounts.ClaimOf("80351110224678912", "a@example.com", true), *claim)
 	assert.Equal(t, "the-verifier", d.sentForm.Get("code_verifier"))
 	assert.Equal(t, "the-secret", d.sentForm.Get("client_secret"))
 	assert.Equal(t, "Bearer the-access-token", d.sentBearer)
@@ -83,7 +84,7 @@ func TestAnUnverifiedEmailIsSaidToBeUnverified(t *testing.T) {
 	claim, err := d.provider(t).Exchange(t.Context(), "the-code", flow)
 
 	require.NoError(t, err)
-	assert.False(t, claim.EmailVerified)
+	assert.Empty(t, claim.VerifiedEmail())
 }
 
 func TestARefusedCodeOrANamelessUserIsRefused(t *testing.T) {

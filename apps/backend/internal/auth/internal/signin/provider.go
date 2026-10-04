@@ -50,13 +50,17 @@ func (p Providers) Provider(name string) (Provider, error) {
 }
 
 type Offer struct {
-	Providers Providers
-	Email     bool
+	providers Providers
+	email     bool
+}
+
+func NewOffer(providers Providers, email bool) Offer {
+	return Offer{providers: providers, email: email}
 }
 
 func (o Offer) Names() []string {
-	names := o.Providers.Names()
-	if o.Email {
+	names := o.providers.Names()
+	if o.email {
 		names = append(names, Email)
 	}
 	return names

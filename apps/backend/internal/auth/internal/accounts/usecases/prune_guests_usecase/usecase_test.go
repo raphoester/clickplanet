@@ -42,18 +42,17 @@ func TestAGuestIsPrunedOnlyOnceItHasBeenIdleTheWholeWindow(t *testing.T) {
 	pruned, err = useCase(store, events, clock).Execute(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, 1, pruned)
-	_, err = store.Account(t.Context(), guest.Account)
+	_, err = store.Account(t.Context(), guest.Account())
 	require.ErrorIs(t, err, accounts.ErrAccountNotFound)
 	require.Len(t, events.Published(), 1, "a pruned guest is a deleted account")
-	assert.True(t, proto.Equal(&authv1.AccountDeleted{AccountId: guest.Account.String()}, events.Published()[0]))
+	assert.True(t, proto.Equal(&authv1.AccountDeleted{AccountId: guest.Account().String()}, events.Published()[0]))
 }
 
 func TestALinkedAccountIsNeverPruned(t *testing.T) {
 	store := inmemory_account_store.New()
-	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 1}, start)
-	require.NoError(t, store.SaveSignIn(t.Context(), accounts.SignIn{
-		NewAccount: true, Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("token-1"), lifetime, start),
-	}))
+	identity := accounts.NewIdentity("google", accounts.ClaimOf("user", "", false), accounts.AccountID{15: 1}, start)
+	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("token-1"), lifetime, start)
+	require.NoError(t, store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
 
 	pruned, err := useCase(store, cpbootstrap.NewRecordedEvents(), cptime.NewFixedClock(start.Add(365*24*time.Hour))).Execute(t.Context())
 

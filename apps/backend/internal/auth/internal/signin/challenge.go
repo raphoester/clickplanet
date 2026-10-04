@@ -16,12 +16,12 @@ const (
 )
 
 type Challenge struct {
-	ID        string
-	Address   Address
-	Code      string
-	ExpiresAt time.Time
-	Intent    accounts.Intent
-	Account   accounts.AccountID
+	id        string
+	address   Address
+	code      string
+	expiresAt time.Time
+	intent    accounts.Intent
+	account   accounts.AccountID
 }
 
 type Codes interface {
@@ -44,33 +44,63 @@ func NewChallenge(
 	if err != nil {
 		return nil, fmt.Errorf("failed to draw the code: %w", err)
 	}
-	return &Challenge{ID: id, Address: address, Code: code, ExpiresAt: now.Add(ChallengeTTL), Intent: intent, Account: account}, nil
+	return &Challenge{id: id, address: address, code: code, expiresAt: now.Add(ChallengeTTL), intent: intent, account: account}, nil
+}
+
+func ChallengeOf(
+	id string, address Address, code string, expiresAt time.Time, intent accounts.Intent, account accounts.AccountID,
+) *Challenge {
+	return &Challenge{id: id, address: address, code: code, expiresAt: expiresAt, intent: intent, account: account}
+}
+
+func (c *Challenge) ID() string {
+	return c.id
+}
+
+func (c *Challenge) Address() Address {
+	return c.address
+}
+
+func (c *Challenge) Code() string {
+	return c.code
+}
+
+func (c *Challenge) ExpiresAt() time.Time {
+	return c.expiresAt
+}
+
+func (c *Challenge) Intent() accounts.Intent {
+	return c.intent
+}
+
+func (c *Challenge) Account() accounts.AccountID {
+	return c.account
 }
 
 func (c *Challenge) CodeError(code string, now time.Time) error {
-	if !now.Before(c.ExpiresAt) {
-		return fmt.Errorf("%w: it lapsed at %s", ErrFlowInvalid, c.ExpiresAt.Format(time.RFC3339))
+	if !now.Before(c.expiresAt) {
+		return fmt.Errorf("%w: it lapsed at %s", ErrFlowInvalid, c.expiresAt.Format(time.RFC3339))
 	}
-	if subtle.ConstantTimeCompare([]byte(c.Code), []byte(code)) != 1 {
+	if subtle.ConstantTimeCompare([]byte(c.code), []byte(code)) != 1 {
 		return ErrWrongCode
 	}
 	return nil
 }
 
 func (c *Challenge) AccountError(current *accounts.Account) error {
-	return accountError(c.Intent, c.Account, current)
+	return accountError(c.intent, c.account, current)
 }
 
 func (c *Challenge) Letter() Letter {
-	return CodeLetter(c.Code)
+	return CodeLetter(c.code)
 }
 
 func (c *Challenge) Claim() accounts.Claim {
-	return accounts.Claim{Subject: string(c.Address), Email: string(c.Address), EmailVerified: true}
+	return accounts.ClaimOf(string(c.address), string(c.address), true)
 }
 
 func (c *Challenge) Cookie(sealed string, now time.Time) string {
-	return accounts.Cookie(ChallengeCookieName, sealed, c.ExpiresAt, now)
+	return accounts.Cookie(ChallengeCookieName, sealed, c.expiresAt, now)
 }
 
 func ExpiredChallengeCookie() string {

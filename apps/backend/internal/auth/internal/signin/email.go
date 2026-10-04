@@ -54,19 +54,31 @@ type Blocklist interface {
 }
 
 type Letter struct {
-	Subject string
-	Text    string
-	HTML    string
+	subject string
+	text    string
+	html    string
+}
+
+func (l Letter) Subject() string {
+	return l.subject
+}
+
+func (l Letter) Text() string {
+	return l.text
+}
+
+func (l Letter) HTML() string {
+	return l.html
 }
 
 func CodeLetter(code string) Letter {
 	minutes := int(ChallengeTTL.Minutes())
 	return Letter{
-		Subject: fmt.Sprintf("Your ClickPlanet code: %s", code),
-		Text: fmt.Sprintf("Your ClickPlanet sign-in code is:\n\n%s\n\n"+
+		subject: fmt.Sprintf("Your ClickPlanet code: %s", code),
+		text: fmt.Sprintf("Your ClickPlanet sign-in code is:\n\n%s\n\n"+
 			"It works for %d minutes, in the browser where you asked for it.\n\n"+
 			"Did you not ask for it? Ignore this email. Nobody can sign in without the code.\n", code, minutes),
-		HTML: fmt.Sprintf(`<!doctype html><html><body style="font-family:sans-serif;color:#222">`+
+		html: fmt.Sprintf(`<!doctype html><html><body style="font-family:sans-serif;color:#222">`+
 			`<p>Your ClickPlanet sign-in code is:</p>`+
 			`<p style="font-size:32px;font-weight:bold;letter-spacing:6px">%s</p>`+
 			`<p>It works for %d minutes, in the browser where you asked for it.</p>`+

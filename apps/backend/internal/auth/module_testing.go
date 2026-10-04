@@ -14,6 +14,10 @@ type FakeProvider = signin.FakeProvider
 
 type Claim = accounts.Claim
 
+func ClaimOf(subject string, email string, emailVerified bool) Claim {
+	return accounts.ClaimOf(subject, email, emailVerified)
+}
+
 type FakeMailer = signin.FakeMailer
 
 type FakeProviders struct {

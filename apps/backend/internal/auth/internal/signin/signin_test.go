@@ -30,9 +30,9 @@ func flow(t *testing.T) *signin.Flow {
 }
 
 func TestAFlowDrawsEachSecretApartAndLastsTenMinutes(t *testing.T) {
-	assert.Equal(t, &signin.Flow{
-		Provider: "google", State: "secret-1", Verifier: "secret-2", Nonce: "secret-3", ExpiresAt: now.Add(10 * time.Minute),
-	}, flow(t))
+	assert.Equal(t,
+		signin.FlowOf("google", "secret-1", "secret-2", "secret-3", now.Add(10*time.Minute), accounts.IntentSignIn, accounts.AccountID{}),
+		flow(t))
 }
 
 func TestAFlowWithoutEntropyIsNotStarted(t *testing.T) {
@@ -60,7 +60,7 @@ func TestASignInGoesWhereverTheBrowserIsNow(t *testing.T) {
 	flow := flow(t)
 
 	require.NoError(t, flow.AccountError(nil))
-	assert.NoError(t, flow.AccountError(&accounts.Account{ID: accounts.AccountID{15: 9}}))
+	assert.NoError(t, flow.AccountError(accounts.AccountOf(accounts.AccountID{15: 9}, time.Time{}, nil)))
 }
 
 func TestALinkMustEndOnTheAccountItStartedOn(t *testing.T) {
@@ -68,8 +68,8 @@ func TestALinkMustEndOnTheAccountItStartedOn(t *testing.T) {
 	flow, err := signin.NewFlow(signin.Google, accounts.IntentLink, started, &signin.SequentialSecrets{}, now)
 	require.NoError(t, err)
 
-	require.NoError(t, flow.AccountError(&accounts.Account{ID: started}))
-	require.ErrorIs(t, flow.AccountError(&accounts.Account{ID: accounts.AccountID{15: 8}}), signin.ErrFlowInvalid, "signed in elsewhere since")
+	require.NoError(t, flow.AccountError(accounts.AccountOf(started, time.Time{}, nil)))
+	require.ErrorIs(t, flow.AccountError(accounts.AccountOf(accounts.AccountID{15: 8}, time.Time{}, nil)), signin.ErrFlowInvalid, "signed in elsewhere since")
 	assert.ErrorIs(t, flow.AccountError(nil), signin.ErrFlowInvalid, "signed out since")
 }
 

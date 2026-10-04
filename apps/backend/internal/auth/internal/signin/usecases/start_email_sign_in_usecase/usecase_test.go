@@ -81,9 +81,9 @@ func TestTheCodeIsSentToTheAddressAndSealedInTheCookie(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, []signin.Sent{{To: "player@example.com", Letter: signin.CodeLetter("000001")}}, f.mailer.Sent())
-	assert.Equal(t, &signin.Challenge{
-		ID: "secret-1", Address: "player@example.com", Code: "000001", ExpiresAt: start.Add(10 * time.Minute), Intent: accounts.IntentSignIn,
-	}, f.opened(t, out.SetCookie))
+	assert.Equal(t,
+		signin.ChallengeOf("secret-1", "player@example.com", "000001", start.Add(10*time.Minute), accounts.IntentSignIn, accounts.AccountID{}),
+		f.opened(t, out.SetCookie))
 }
 
 func TestALinkRemembersTheAccountItStartedOn(t *testing.T) {
@@ -97,8 +97,8 @@ func TestALinkRemembersTheAccountItStartedOn(t *testing.T) {
 	require.NoError(t, err)
 
 	challenge := f.opened(t, out.SetCookie)
-	assert.Equal(t, accounts.IntentLink, challenge.Intent)
-	assert.Equal(t, accounts.AccountID{15: 7}, challenge.Account)
+	assert.Equal(t, accounts.IntentLink, challenge.Intent())
+	assert.Equal(t, accounts.AccountID{15: 7}, challenge.Account())
 }
 
 func TestALinkWithNoAccountSendsNothing(t *testing.T) {

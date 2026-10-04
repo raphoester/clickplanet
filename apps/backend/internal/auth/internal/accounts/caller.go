@@ -17,7 +17,7 @@ func Caller(ctx context.Context, sessions SessionFinder, cookieHeader string, no
 		return nil, fmt.Errorf("%w: %w", ErrNoAccount, err)
 	}
 
-	session, err := sessions.Session(ctx, token.Hash)
+	session, err := sessions.Session(ctx, token.hash)
 	if errors.Is(err, ErrSessionNotFound) {
 		return nil, fmt.Errorf("%w: %w", ErrNoAccount, err)
 	}

@@ -41,7 +41,7 @@ func completeSignIn(useCase *stubUseCase) (*connect.Response[authv1.CompleteSign
 }
 
 func TestTheAccountAndOutcomeAreAnsweredWithTheSessionCookieAndTheFlowCleared(t *testing.T) {
-	useCase := &stubUseCase{out: &complete_sign_in_usecase.Out{Account: accounts.AccountID{15: 1}, Outcome: accounts.Linked, SetCookie: "cp_sid=token-1"}}
+	useCase := &stubUseCase{out: signin.AdmissionOf(accounts.AccountID{15: 1}, accounts.Linked, "cp_sid=token-1")}
 
 	res, err := completeSignIn(useCase)
 	require.NoError(t, err)

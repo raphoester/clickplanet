@@ -42,8 +42,8 @@ func (p *FakeProvider) AuthorizationURL(flow *Flow) string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.challenges[flow.State] = flow.Challenge()
-	return "https://" + p.name + ".example/authorize?" + url.Values{"state": {flow.State}}.Encode()
+	p.challenges[flow.State()] = flow.Challenge()
+	return "https://" + p.name + ".example/authorize?" + url.Values{"state": {flow.State()}}.Encode()
 }
 
 func (p *FakeProvider) Exchange(_ context.Context, code string, flow *Flow) (*accounts.Claim, error) {
@@ -57,7 +57,7 @@ func (p *FakeProvider) Exchange(_ context.Context, code string, flow *Flow) (*ac
 	if !granted {
 		return nil, fmt.Errorf("%w: %s knows no code %q", ErrProviderRefused, p.name, code)
 	}
-	if p.challenges[flow.State] != flow.Challenge() {
+	if p.challenges[flow.State()] != flow.Challenge() {
 		return nil, fmt.Errorf("%w: the verifier does not match the challenge", ErrProviderRefused)
 	}
 

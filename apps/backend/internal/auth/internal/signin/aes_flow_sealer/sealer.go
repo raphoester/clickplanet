@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 )
 
@@ -44,28 +46,54 @@ func New(seed []byte) (*Sealer, error) {
 	return &Sealer{aead: aead}, nil
 }
 
+// The keys and types are the cookie's format: a cookie sealed before a release opens after it.
+type flowCookie struct {
+	Provider  string
+	State     string
+	Verifier  string
+	Nonce     string
+	ExpiresAt time.Time
+	Intent    accounts.Intent
+	Account   accounts.AccountID
+}
+
+type challengeCookie struct {
+	ID        string
+	Address   signin.Address
+	Code      string
+	ExpiresAt time.Time
+	Intent    accounts.Intent
+	Account   accounts.AccountID
+}
+
 func (s *Sealer) Sealed(flow *signin.Flow) (string, error) {
-	return s.sealed(flow, signin.FlowCookieName)
+	return s.sealed(flowCookie{
+		Provider: flow.Provider(), State: flow.State(), Verifier: flow.Verifier(), Nonce: flow.Nonce(),
+		ExpiresAt: flow.ExpiresAt(), Intent: flow.Intent(), Account: flow.Account(),
+	}, signin.FlowCookieName)
 }
 
 func (s *Sealer) Opened(sealed string) (*signin.Flow, error) {
-	var flow signin.Flow
-	if err := s.open(sealed, signin.FlowCookieName, &flow); err != nil {
+	var opened flowCookie
+	if err := s.open(sealed, signin.FlowCookieName, &opened); err != nil {
 		return nil, err
 	}
-	return &flow, nil
+	return signin.FlowOf(opened.Provider, opened.State, opened.Verifier, opened.Nonce, opened.ExpiresAt, opened.Intent, opened.Account), nil
 }
 
 func (s *Sealer) SealedChallenge(challenge *signin.Challenge) (string, error) {
-	return s.sealed(challenge, signin.ChallengeCookieName)
+	return s.sealed(challengeCookie{
+		ID: challenge.ID(), Address: challenge.Address(), Code: challenge.Code(),
+		ExpiresAt: challenge.ExpiresAt(), Intent: challenge.Intent(), Account: challenge.Account(),
+	}, signin.ChallengeCookieName)
 }
 
 func (s *Sealer) OpenedChallenge(sealed string) (*signin.Challenge, error) {
-	var challenge signin.Challenge
-	if err := s.open(sealed, signin.ChallengeCookieName, &challenge); err != nil {
+	var opened challengeCookie
+	if err := s.open(sealed, signin.ChallengeCookieName, &opened); err != nil {
 		return nil, err
 	}
-	return &challenge, nil
+	return signin.ChallengeOf(opened.ID, opened.Address, opened.Code, opened.ExpiresAt, opened.Intent, opened.Account), nil
 }
 
 func (s *Sealer) sealed(value any, cookie string) (string, error) {

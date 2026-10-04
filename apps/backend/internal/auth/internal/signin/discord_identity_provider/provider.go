@@ -42,7 +42,7 @@ func (p *Provider) AuthorizationURL(flow *signin.Flow) string {
 		"redirect_uri":          {p.redirectURL},
 		"response_type":         {"code"},
 		"scope":                 {"identify email"},
-		"state":                 {flow.State},
+		"state":                 {flow.State()},
 		"code_challenge":        {flow.Challenge()},
 		"code_challenge_method": {"S256"},
 	}
@@ -61,7 +61,7 @@ func (p *Provider) Exchange(ctx context.Context, code string, flow *signin.Flow)
 		"client_id":     {p.client.ClientID},
 		"client_secret": {p.client.ClientSecret},
 		"redirect_uri":  {p.redirectURL},
-		"code_verifier": {flow.Verifier},
+		"code_verifier": {flow.Verifier()},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("discord: %w", err)
@@ -74,5 +74,6 @@ func (p *Provider) Exchange(ctx context.Context, code string, flow *signin.Flow)
 	if me.ID == "" {
 		return nil, fmt.Errorf("%w: discord named no user", signin.ErrProviderRefused)
 	}
-	return &accounts.Claim{Subject: me.ID, Email: me.Email, EmailVerified: me.Verified}, nil
+	claim := accounts.ClaimOf(me.ID, me.Email, me.Verified)
+	return &claim, nil
 }
