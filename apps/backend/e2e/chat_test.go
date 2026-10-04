@@ -16,7 +16,10 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 )
 
-var guestName = regexp.MustCompile(`^guest_[0-9a-f]{6}$`)
+var (
+	guestName     = regexp.MustCompile(`^guest_[0-9a-f]{6}$`)
+	generatedName = regexp.MustCompile(`^[A-Z][a-z]+[A-Z][a-z]+[0-9]{2}$`)
+)
 
 func (p *gamer) post() (*chatv1.ChatMessage, error) {
 	p.t.Helper()

@@ -80,3 +80,71 @@ export class ReconcileTitlesResponse extends Message<ReconcileTitlesResponse> {
   }
 }
 
+/**
+ * @generated from message player.v1.NameAccountsRequest
+ */
+export class NameAccountsRequest extends Message<NameAccountsRequest> {
+  constructor(data?: PartialMessage<NameAccountsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.NameAccountsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NameAccountsRequest {
+    return new NameAccountsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NameAccountsRequest {
+    return new NameAccountsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NameAccountsRequest {
+    return new NameAccountsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NameAccountsRequest | PlainMessage<NameAccountsRequest> | undefined, b: NameAccountsRequest | PlainMessage<NameAccountsRequest> | undefined): boolean {
+    return proto3.util.equals(NameAccountsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.NameAccountsResponse
+ */
+export class NameAccountsResponse extends Message<NameAccountsResponse> {
+  /**
+   * @generated from field: uint32 named = 1;
+   */
+  named = 0;
+
+  constructor(data?: PartialMessage<NameAccountsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.NameAccountsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "named", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NameAccountsResponse {
+    return new NameAccountsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NameAccountsResponse {
+    return new NameAccountsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NameAccountsResponse {
+    return new NameAccountsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NameAccountsResponse | PlainMessage<NameAccountsResponse> | undefined, b: NameAccountsResponse | PlainMessage<NameAccountsResponse> | undefined): boolean {
+    return proto3.util.equals(NameAccountsResponse, a, b);
+  }
+}
+
