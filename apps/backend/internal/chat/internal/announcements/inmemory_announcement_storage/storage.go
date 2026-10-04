@@ -3,8 +3,6 @@
 package inmemory_announcement_storage
 
 import (
-	"bytes"
-	"cmp"
 	"context"
 	"errors"
 	"slices"
@@ -38,20 +36,11 @@ func (s *Storage) Append(_ context.Context, announcement announcements.Announcem
 	return nil
 }
 
-func (s *Storage) Recent(_ context.Context, since time.Time, limit int) ([]announcements.Announcement, error) {
+func (s *Storage) Kept() []announcements.Announcement {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	recent := slices.DeleteFunc(slices.Clone(s.kept), func(announcement announcements.Announcement) bool {
-		return announcement.At.Before(since)
-	})
-	slices.SortStableFunc(recent, func(a, b announcements.Announcement) int {
-		return cmp.Or(a.At.Compare(b.At), bytes.Compare(a.ID[:], b.ID[:]))
-	})
-	if len(recent) > limit {
-		recent = recent[len(recent)-limit:]
-	}
-	return recent, nil
+	return slices.Clone(s.kept)
 }
 
 func (s *Storage) DeleteBefore(_ context.Context, cutoff time.Time) (int64, error) {

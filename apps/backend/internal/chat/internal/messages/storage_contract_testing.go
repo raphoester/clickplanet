@@ -4,7 +4,6 @@ package messages
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/stretchr/testify/suite"
@@ -43,69 +42,31 @@ func (s *StorageContractSuite) append(texts ...string) {
 	}
 }
 
-func (s *StorageContractSuite) recent(since time.Time, limit int) []string {
-	recent, err := s.storage.Recent(context.Background(), since, limit)
-	s.Require().NoError(err)
-
-	texts := make([]string, 0, len(recent))
-	for _, message := range recent {
-		texts = append(texts, message.Text)
-	}
-	return texts
-}
-
 func (s *StorageContractSuite) shown(text string, since time.Time, limit int) bool {
 	shown, err := s.storage.Shown(context.Background(), MessageID("id-"+text), since, limit)
 	s.Require().NoError(err)
 	return shown
 }
 
-func (s *StorageContractSuite) TestAnEmptyStorageHasNoRecentMessages() {
-	s.Empty(s.recent(contractStart, 10))
+func (s *StorageContractSuite) TestAnEmptyStorageShowsNothing() {
+	s.False(s.shown("hello", contractStart, 10))
 }
 
-func (s *StorageContractSuite) TestAMessageReadsBackAsItWasAppended() {
-	s.Require().NoError(s.storage.Append(context.Background(), contractRecord("hello", contractStart)))
+func (s *StorageContractSuite) TestAMessageAppendedIsShown() {
+	s.append("hello")
 
-	recent, err := s.storage.Recent(context.Background(), contractStart, 10)
-	s.Require().NoError(err)
-
-	s.Equal([]Message{contractRecord("hello", contractStart).Message}, recent)
+	s.True(s.shown("hello", contractStart, 10))
 }
 
-func (s *StorageContractSuite) TestAMessageWithNoAccountReadsBackWithNone() {
-	legacy := contractRecord("hello", contractStart)
-	legacy.Message.Account = NoAccount
-	legacy.Message.AuthorName = "Bob"
-	s.Require().NoError(s.storage.Append(context.Background(), legacy))
-
-	recent, err := s.storage.Recent(context.Background(), contractStart, 10)
-	s.Require().NoError(err)
-
-	s.Require().Len(recent, 1)
-	s.Equal(NoAccount, recent[0].Account, "nobody is not somebody")
-	s.Equal("Bob", recent[0].AuthorName, "which is how a row from before accounts reads")
-}
-
-func (s *StorageContractSuite) TestRecentIsTheNewestWithinTheWindowOldestFirst() {
-	texts := make([]string, 0, 5)
-	for i := range 5 {
-		texts = append(texts, fmt.Sprintf("msg-%d", i))
-	}
-	s.append(texts...)
-
-	s.Equal([]string{"msg-3", "msg-4"}, s.recent(contractStart, 2))
-	s.Equal([]string{"msg-2", "msg-3", "msg-4"}, s.recent(contractStart.Add(2*time.Hour), 10))
-}
-
-func (s *StorageContractSuite) TestRecentKeepsTheOrderMessagesWereAppendedIn() {
+func (s *StorageContractSuite) TestTheNewestIsTheLastAppendedWhateverItsTime() {
 	s.Require().NoError(s.storage.Append(context.Background(), contractRecord("first", contractStart.Add(time.Second))))
 	s.Require().NoError(s.storage.Append(context.Background(), contractRecord("second", contractStart)))
 
-	s.Equal([]string{"first", "second"}, s.recent(contractStart, 10))
+	s.True(s.shown("second", contractStart, 1))
+	s.False(s.shown("first", contractStart, 1))
 }
 
-func (s *StorageContractSuite) TestAMessageIsShownOnlyWhileRecentAnswersIt() {
+func (s *StorageContractSuite) TestAMessageIsShownOnlyWhileItIsAmongTheNewestInTheWindow() {
 	s.append("old", "middle", "new")
 
 	s.True(s.shown("new", contractStart, 2))
@@ -123,5 +84,6 @@ func (s *StorageContractSuite) TestDeleteBeforeRemovesOnlyOlderMessages() {
 	s.Require().NoError(err)
 
 	s.Equal(int64(1), deleted)
-	s.Equal([]string{"recent"}, s.recent(contractStart, 10))
+	s.True(s.shown("recent", contractStart, 10))
+	s.False(s.shown("ancient", contractStart, 10))
 }
