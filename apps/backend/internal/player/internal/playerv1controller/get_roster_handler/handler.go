@@ -7,29 +7,27 @@ import (
 	"connectrpc.com/connect"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 )
 
 const maxAge = 5
 
-type UseCase interface {
-	Execute() []presence.Entry
+type Query interface {
+	Roster() *playerv1.GetRosterResponse
 }
 
-func New(useCase UseCase) GetRosterHandler {
-	return GetRosterHandler{useCase: useCase}
+func New(query Query) GetRosterHandler {
+	return GetRosterHandler{query: query}
 }
 
 type GetRosterHandler struct {
-	useCase UseCase
+	query Query
 }
 
 func (h GetRosterHandler) GetRoster(
 	_ context.Context,
 	_ *connect.Request[playerv1.GetRosterRequest],
 ) (*connect.Response[playerv1.GetRosterResponse], error) {
-	res := connect.NewResponse(&playerv1.GetRosterResponse{Entries: playermessage.RosterEntries(h.useCase.Execute())})
+	res := connect.NewResponse(h.query.Roster())
 	res.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", maxAge))
 	return res, nil
 }

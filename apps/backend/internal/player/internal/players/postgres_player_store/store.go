@@ -44,28 +44,6 @@ func (s *Store) Profile(ctx context.Context, account players.AccountID) (players
 	}, nil
 }
 
-func (s *Store) ProfileNamed(ctx context.Context, name players.Name) (players.Profile, error) {
-	var (
-		account   uuid.UUID
-		held      string
-		updatedAt time.Time
-		admin     bool
-		color     int32
-	)
-	err := s.db.QueryRowContext(ctx, `SELECT account_id, name, updated_at, admin, color FROM profiles WHERE name_folded = $1`, name.Folded()).
-		Scan(&account, &held, &updatedAt, &admin, &color)
-	if errors.Is(err, sql.ErrNoRows) {
-		return players.Profile{}, players.ErrNoProfile
-	}
-	if err != nil {
-		return players.Profile{}, fmt.Errorf("failed to read the profile by name: %w", err)
-	}
-	return players.Profile{
-		Account: players.AccountID(account), Name: players.Name(held), UpdatedAt: updatedAt.UTC(), Admin: admin,
-		Color: players.Color(color),
-	}, nil
-}
-
 const uniqueNameIndex = "profiles_name_key"
 
 const uniqueViolation = "23505"
@@ -265,67 +243,6 @@ func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (e
 		return fmt.Errorf("failed to commit the deletion: %w", err)
 	}
 	return nil
-}
-
-func (s *Store) Authors(
-	ctx context.Context,
-	accounts []players.AccountID,
-) (map[players.AccountID]players.Author, error) {
-	authors := make(map[players.AccountID]players.Author, len(accounts))
-	if len(accounts) == 0 {
-		return authors, nil
-	}
-
-	ids := make([]string, len(accounts))
-	for i, account := range accounts {
-		ids[i] = account.String()
-	}
-
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT asked.account_id, COALESCE(p.name, ''), COALESCE(p.admin, false), COALESCE(p.color, 0), COALESCE(g.code, ''),
-			COALESCE(st.streak_current, 0), st.streak_last_day
-		FROM unnest($1::uuid[]) AS asked(account_id)
-		LEFT JOIN profiles p ON p.account_id = asked.account_id
-		LEFT JOIN guest_codes g ON g.account_id = asked.account_id
-		LEFT JOIN stats st ON st.account_id = asked.account_id
-	`, pq.Array(ids))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the authors: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var (
-			account uuid.UUID
-			name    string
-			admin   bool
-			color   int32
-			code    string
-			streak  int64
-			lastDay sql.NullTime
-		)
-		if err := rows.Scan(&account, &name, &admin, &color, &code, &streak, &lastDay); err != nil {
-			return nil, fmt.Errorf("failed to read an author: %w", err)
-		}
-		if name == "" && code == "" {
-			continue
-		}
-		author := players.Author{
-			Name:   players.DisplayNameOf(players.Name(name), players.GuestCode(code)),
-			Guest:  name == "",
-			Admin:  name != "" && admin,
-			Color:  players.Color(color),
-			Streak: players.Streak{Days: uint32(streak)}, //nolint:gosec // CHECK (streak_current >= 0), and one a day.
-		}
-		if lastDay.Valid {
-			author.Streak.LastDay = players.DayOf(lastDay.Time)
-		}
-		authors[players.AccountID(account)] = author
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the authors: %w", err)
-	}
-	return authors, nil
 }
 
 func (s *Store) Names(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]players.Name, error) {

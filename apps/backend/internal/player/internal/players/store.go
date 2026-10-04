@@ -18,7 +18,6 @@ type Store interface {
 	GuestCodeStore
 
 	Profile(ctx context.Context, account AccountID) (Profile, error)
-	ProfileNamed(ctx context.Context, name Name) (Profile, error)
 	SaveProfile(ctx context.Context, profile Profile) error
 	CreateProfile(ctx context.Context, profile Profile) error
 	SaveColor(ctx context.Context, account AccountID, color Color) error
@@ -28,5 +27,4 @@ type Store interface {
 	StatsAfter(ctx context.Context, after AccountID, limit int) ([]Stats, error)
 	DeleteAccount(ctx context.Context, account AccountID) error
 	Names(ctx context.Context, accounts []AccountID) (map[AccountID]Name, error)
-	Authors(ctx context.Context, accounts []AccountID) (map[AccountID]Author, error)
 }

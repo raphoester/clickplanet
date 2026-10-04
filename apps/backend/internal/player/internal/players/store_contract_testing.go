@@ -108,28 +108,6 @@ func (s *StoreContractSuite) TestAnAdminIsReadAndARenameKeepsIt() {
 	s.Require().NoError(err)
 	s.True(profile.Admin)
 	s.Equal(Name("Ada_L"), profile.Name)
-	named, err := s.store.ProfileNamed(s.T().Context(), "ada_l")
-	s.Require().NoError(err)
-	s.True(named.Admin)
-}
-
-func (s *StoreContractSuite) TestAProfileIsFoundByItsNameIgnoringCase() {
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada_L")))
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "Bob")))
-
-	profile, err := s.store.ProfileNamed(s.T().Context(), "aDA_l")
-
-	s.Require().NoError(err)
-	s.Equal(contractProfile(1, "Ada_L"), profile)
-}
-
-func (s *StoreContractSuite) TestANameNobodyHoldsHasNoProfile() {
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Bob")))
-
-	_, err := s.store.ProfileNamed(s.T().Context(), "Ada")
-
-	s.Require().ErrorIs(err, ErrNoProfile, "a rename frees the old name")
 }
 
 func (s *StoreContractSuite) TestEachTakeIsCountedByTheDomainsRule() {
@@ -318,9 +296,6 @@ func (s *StoreContractSuite) TestANameOfAnyScriptIsTakenByItsFold() {
 		s.Require().NoError(s.store.SaveProfile(s.T().Context(), held))
 
 		s.Require().ErrorIs(s.store.SaveProfile(s.T().Context(), asked), ErrNameTaken, "%q holds %q", pair[0], pair[1])
-		profile, err := s.store.ProfileNamed(s.T().Context(), pair[1])
-		s.Require().NoError(err)
-		s.Equal(held, profile)
 	}
 }
 
@@ -328,76 +303,6 @@ func (s *StoreContractSuite) TestNamesThatOnlyLookAlikeAreTwoNames() {
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
 
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "Adá")))
-}
-
-func (s *StoreContractSuite) TestAuthorsNameAPlayerByItsUsernameAndAGuestByItsCode() {
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
-	s.Require().NoError(s.store.SaveGuestCode(s.T().Context(), AccountID{15: 2}, "91aa3d"))
-
-	authors, err := s.store.Authors(s.T().Context(), []AccountID{{15: 1}, {15: 2}})
-
-	s.Require().NoError(err)
-	s.Equal(map[AccountID]Author{
-		{15: 1}: {Name: "Ada"},
-		{15: 2}: {Name: ReservedPrefix + "91aa3d", Guest: true},
-	}, authors)
-}
-
-func (s *StoreContractSuite) TestAuthorsPreferTheUsernameOverTheGuestCode() {
-	s.Require().NoError(s.store.SaveGuestCode(s.T().Context(), AccountID{15: 1}, "91aa3d"))
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
-
-	authors, err := s.store.Authors(s.T().Context(), []AccountID{{15: 1}})
-
-	s.Require().NoError(err)
-	s.Equal(map[AccountID]Author{{15: 1}: {Name: "Ada"}}, authors,
-		"a player that chose a name keeps the code it no longer goes by")
-}
-
-func (s *StoreContractSuite) TestAuthorsCarryTheAdminMark() {
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
-	s.MakeAdmin(s.store, AccountID{15: 1})
-
-	authors, err := s.store.Authors(s.T().Context(), []AccountID{{15: 1}})
-
-	s.Require().NoError(err)
-	s.Equal(map[AccountID]Author{{15: 1}: {Name: "Ada", Admin: true}}, authors)
-}
-
-func (s *StoreContractSuite) TestAuthorsLeaveOutAnAccountTheyCannotName() {
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
-	s.recordTake(2, contractAt)
-
-	authors, err := s.store.Authors(s.T().Context(), []AccountID{{15: 1}, {15: 2}, {15: 3}})
-
-	s.Require().NoError(err)
-	s.Len(authors, 1, "an account with neither a profile nor a code is absent, and so is an unknown one")
-	s.Contains(authors, AccountID{15: 1})
-}
-
-func (s *StoreContractSuite) TestAuthorsGiveNobodyAGuestCode() {
-	_, err := s.store.Authors(s.T().Context(), []AccountID{{15: 1}})
-	s.Require().NoError(err)
-
-	_, err = s.store.GuestCode(s.T().Context(), AccountID{15: 1})
-	s.Require().ErrorIs(err, ErrNoGuestCode, "a read path never writes")
-}
-
-func (s *StoreContractSuite) TestADeletedAccountCanNoLongerBeNamed() {
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
-	s.Require().NoError(s.store.DeleteAccount(s.T().Context(), AccountID{15: 1}))
-
-	authors, err := s.store.Authors(s.T().Context(), []AccountID{{15: 1}})
-
-	s.Require().NoError(err)
-	s.Empty(authors, "what a caller shows in its place is the caller's to decide")
-}
-
-func (s *StoreContractSuite) TestNoAccountsAskedIsNoAuthors() {
-	authors, err := s.store.Authors(s.T().Context(), nil)
-
-	s.Require().NoError(err)
-	s.Empty(authors)
 }
 
 func (s *StoreContractSuite) TestAColorNeedsAProfile() {
@@ -414,9 +319,6 @@ func (s *StoreContractSuite) TestAColorIsReadAndARenameKeepsIt() {
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
 	s.Equal(Color(3), profile.Color)
-	named, err := s.store.ProfileNamed(s.T().Context(), "ada_l")
-	s.Require().NoError(err)
-	s.Equal(Color(3), named.Color)
 }
 
 func (s *StoreContractSuite) TestAColorCanBeTakenBack() {
@@ -427,31 +329,4 @@ func (s *StoreContractSuite) TestAColorCanBeTakenBack() {
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
 	s.Equal(Color(0), profile.Color)
-}
-
-func (s *StoreContractSuite) TestAuthorsCarryTheColorAndTheStreakAsStored() {
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
-	s.Require().NoError(s.store.SaveColor(s.T().Context(), AccountID{15: 1}, 3))
-	s.recordTake(1, contractAt)
-	s.recordTake(1, contractAt.Add(time.Hour))
-	s.Require().NoError(s.store.SaveGuestCode(s.T().Context(), AccountID{15: 2}, "91aa3d"))
-	s.recordTake(2, contractAt)
-
-	authors, err := s.store.Authors(s.T().Context(), []AccountID{{15: 1}, {15: 2}})
-
-	s.Require().NoError(err)
-	s.Equal(map[AccountID]Author{
-		{15: 1}: {Name: "Ada", Color: 3, Streak: Streak{Days: 2, LastDay: DayOf(contractAt.Add(time.Hour))}},
-		{15: 2}: {Name: ReservedPrefix + "91aa3d", Guest: true, Streak: Streak{Days: 1, LastDay: DayOf(contractAt)}},
-	}, authors, "the store does not know what day it is: the streak is read as of today above it")
-}
-
-func (s *StoreContractSuite) TestAnAuthorWhoOnlyPostedHasNoStreak() {
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
-	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
-
-	authors, err := s.store.Authors(s.T().Context(), []AccountID{{15: 1}})
-
-	s.Require().NoError(err)
-	s.Equal(map[AccountID]Author{{15: 1}: {Name: "Ada"}}, authors)
 }

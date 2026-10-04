@@ -15,19 +15,23 @@ var ErrNotWearable = errors.New("the account does not show this title")
 
 type Store interface {
 	Choice(ctx context.Context, account players.AccountID) (titles.ID, error)
-	Choices(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]titles.ID, error)
 	Wear(ctx context.Context, account players.AccountID, title titles.ID, at time.Time) error
 	DeleteAccount(ctx context.Context, account players.AccountID) error
 }
 
 type Titles interface {
 	Shown(ctx context.Context, account players.AccountID) ([]titles.Standing, error)
-	ShownBy(ctx context.Context, accounts []players.AccountID) (map[players.AccountID][]titles.Standing, error)
 }
 
 type Showcase struct {
 	Worn  titles.Standing
 	Shown []titles.Standing
+}
+
+func ShowcaseOf(catalog titles.Catalog, held titles.IDs, choice titles.ID) Showcase {
+	shown := catalog.Shown(held)
+	chosen, _ := catalog.StandingOf(choice)
+	return Showcase{Worn: WornOf(shown, chosen), Shown: shown}
 }
 
 type Author struct {
@@ -63,29 +67,6 @@ func (w Wardrobe) Showcase(ctx context.Context, account players.AccountID) (Show
 	}
 	chosen, _ := w.catalog.StandingOf(choice)
 	return Showcase{Worn: WornOf(shown, chosen), Shown: shown}, nil
-}
-
-func (w Wardrobe) WornBy(
-	ctx context.Context,
-	accounts []players.AccountID,
-) (map[players.AccountID]titles.Standing, error) {
-	shown, err := w.titles.ShownBy(ctx, accounts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the titles shown: %w", err)
-	}
-	choices, err := w.store.Choices(ctx, accounts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the titles chosen: %w", err)
-	}
-
-	worn := make(map[players.AccountID]titles.Standing, len(shown))
-	for account, standings := range shown {
-		chosen, _ := w.catalog.StandingOf(choices[account])
-		if standing := WornOf(standings, chosen); !standing.Empty() {
-			worn[account] = standing
-		}
-	}
-	return worn, nil
 }
 
 func (w Wardrobe) Wear(ctx context.Context, account players.AccountID, title titles.ID, at time.Time) error {
