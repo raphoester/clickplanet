@@ -33,15 +33,7 @@ func (s stubPlanet) GetShares(
 	return connect.NewResponse(s.res), nil
 }
 
-type dialer struct {
-	client connect.HTTPClient
-	url    string
-	err    error
-}
-
-func (d dialer) Dial() (connect.HTTPClient, string, error) { return d.client, d.url, d.err }
-
-func serve(t *testing.T, planet stubPlanet) dialer {
+func serve(t *testing.T, planet stubPlanet) planetv1connect.InternalServiceClient {
 	t.Helper()
 
 	mux := http.NewServeMux()
@@ -49,7 +41,7 @@ func serve(t *testing.T, planet stubPlanet) dialer {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	return dialer{client: server.Client(), url: server.URL}
+	return planetv1connect.NewInternalServiceClient(server.Client(), server.URL)
 }
 
 func TestTheSharesAreWhatPlanetHolds(t *testing.T) {
@@ -69,8 +61,5 @@ func TestTheSharesAreWhatPlanetHolds(t *testing.T) {
 
 func TestAFailureToAskIsAnError(t *testing.T) {
 	_, err := rpc_planet_shares.New(serve(t, stubPlanet{err: errors.New("down")})).Shares(t.Context())
-	require.Error(t, err)
-
-	_, err = rpc_planet_shares.New(dialer{err: errors.New("no listener")}).Shares(t.Context())
 	require.Error(t, err)
 }

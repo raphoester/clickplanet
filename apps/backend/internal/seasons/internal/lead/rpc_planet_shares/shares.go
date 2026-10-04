@@ -8,35 +8,31 @@ import (
 	"connectrpc.com/connect"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/lead"
 )
 
-type Dialer interface {
-	Dial() (connect.HTTPClient, string, error)
+type Planet interface {
+	GetShares(
+		ctx context.Context,
+		req *connect.Request[planetv1.GetSharesRequest],
+	) (*connect.Response[planetv1.GetSharesResponse], error)
 }
 
 const askTimeout = 2 * time.Second
 
-func New(dial Dialer) *Shares {
-	return &Shares{dial: dial}
+func New(planet Planet) *Shares {
+	return &Shares{planet: planet}
 }
 
 type Shares struct {
-	dial Dialer
+	planet Planet
 }
 
 func (s *Shares) Shares(ctx context.Context) (lead.Shares, error) {
-	client, baseURL, err := s.dial.Dial()
-	if err != nil {
-		return lead.Shares{}, fmt.Errorf("failed to reach the planet module: %w", err)
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	res, err := planetv1connect.NewInternalServiceClient(client, baseURL).
-		GetShares(ctx, connect.NewRequest(&planetv1.GetSharesRequest{}))
+	res, err := s.planet.GetShares(ctx, connect.NewRequest(&planetv1.GetSharesRequest{}))
 	if err != nil {
 		return lead.Shares{}, fmt.Errorf("failed to call planet.v1.InternalService/GetShares: %w", err)
 	}

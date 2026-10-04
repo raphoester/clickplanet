@@ -38,15 +38,7 @@ func (s *stubPlanet) SetRules(
 	return connect.NewResponse(&planetv1.SetRulesResponse{}), nil
 }
 
-type dialer struct {
-	client connect.HTTPClient
-	url    string
-	err    error
-}
-
-func (d dialer) Dial() (connect.HTTPClient, string, error) { return d.client, d.url, d.err }
-
-func serve(t *testing.T, planet *stubPlanet) dialer {
+func serve(t *testing.T, planet *stubPlanet) planetv1connect.InternalServiceClient {
 	t.Helper()
 
 	mux := http.NewServeMux()
@@ -54,7 +46,7 @@ func serve(t *testing.T, planet *stubPlanet) dialer {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	return dialer{client: server.Client(), url: server.URL}
+	return planetv1connect.NewInternalServiceClient(server.Client(), server.URL)
 }
 
 var (
@@ -93,5 +85,4 @@ func TestAFailureToAskIsAnError(t *testing.T) {
 	planet := &stubPlanet{err: connect.NewError(connect.CodeInvalidArgument, errors.New("no"))}
 
 	require.Error(t, rpc_planet_rules.New(serve(t, planet)).Set(t.Context(), switchesAt(seasonEnds)))
-	require.Error(t, rpc_planet_rules.New(dialer{err: errors.New("no listener")}).Set(t.Context(), switchesAt(seasonEnds)))
 }

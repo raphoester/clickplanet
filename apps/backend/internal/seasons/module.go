@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
@@ -50,13 +51,19 @@ func build(config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount seasons.v1.SeasonService: %w", err)
 	}
 
+	internal, baseURL, err := props.Internal.Dial()
+	if err != nil {
+		return fmt.Errorf("the seasons module sets planet's rules: %w", err)
+	}
+	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
+
 	seasons := calendar.New(config.Calendar)
 	clock := cptime.SystemClock{}
 
 	rules := log_converge_rules.New(converge_rules_usecase.New(
-		seasons, finale.NewRules(config.Finale), clock, rpc_planet_rules.New(props.Internal)), props.Logger)
+		seasons, finale.NewRules(config.Finale), clock, rpc_planet_rules.New(planet)), props.Logger)
 	watch := log_watch_lead.New(watch_lead_usecase.New(
-		seasons, config.Lead, clock, rpc_planet_shares.New(props.Internal), props.Events), props.Logger)
+		seasons, config.Lead, clock, rpc_planet_shares.New(planet), props.Events), props.Logger)
 	props.Runners.Add(converge_rules_usecase.NewRunner(config.Finale.WithDefaults().CheckEvery, rules, watch))
 
 	props.Logger.Info("seasons built", slog.Int("seasons", len(config.Calendar.List)))
