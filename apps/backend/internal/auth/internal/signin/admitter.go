@@ -39,8 +39,12 @@ func NewAdmitter(
 }
 
 type Visitor struct {
-	Account  *accounts.Account
-	Replaces accounts.TokenHash
+	account  *accounts.Account
+	replaces accounts.TokenHash
+}
+
+func (v *Visitor) Account() *accounts.Account {
+	return v.account
 }
 
 func (a *Admitter) Visitor(ctx context.Context, cookieHeader string, now time.Time) (*Visitor, error) {
@@ -52,20 +56,32 @@ func (a *Admitter) Visitor(ctx context.Context, cookieHeader string, now time.Ti
 		return nil, fmt.Errorf("failed to find the caller: %w", err)
 	}
 
-	account, err := a.store.Account(ctx, session.Account)
+	account, err := a.store.Account(ctx, session.Account())
 	if errors.Is(err, accounts.ErrAccountNotFound) {
-		return &Visitor{Replaces: session.TokenHash}, nil
+		return &Visitor{replaces: session.TokenHash()}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the caller's account: %w", err)
 	}
-	return &Visitor{Account: account, Replaces: session.TokenHash}, nil
+	return &Visitor{account: account, replaces: session.TokenHash()}, nil
 }
 
 type Admission struct {
-	Account   accounts.AccountID
-	Outcome   accounts.Outcome
-	SetCookie string
+	account   accounts.AccountID
+	outcome   accounts.Outcome
+	setCookie string
+}
+
+func (a *Admission) Account() accounts.AccountID {
+	return a.account
+}
+
+func (a *Admission) Outcome() accounts.Outcome {
+	return a.outcome
+}
+
+func (a *Admission) SetCookie() string {
+	return a.setCookie
 }
 
 func (a *Admitter) Admit(
@@ -82,7 +98,7 @@ func (a *Admitter) Admit(
 func (a *Admitter) admit(
 	ctx context.Context, provider string, intent accounts.Intent, claim accounts.Claim, visitor *Visitor, now time.Time,
 ) (*Admission, error) {
-	known, err := a.store.Identity(ctx, provider, claim.Subject)
+	known, err := a.store.Identity(ctx, provider, claim.Subject())
 	if errors.Is(err, accounts.ErrIdentityNotFound) {
 		known = nil
 	} else if err != nil {
@@ -99,35 +115,37 @@ func (a *Admitter) admit(
 		}
 	}
 
-	current := visitor.Account
+	current := visitor.account
 	outcome, err := accounts.OutcomeOf(intent, current, known, owner, provider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to link %s: %w", provider, err)
 	}
-	signIn := accounts.SignIn{Replaces: visitor.Replaces}
 	var account accounts.AccountID
 	switch outcome {
 	case accounts.SignedIn:
-		account = known.Account
+		account = known.Account()
 	case accounts.Linked:
-		account = current.ID
+		account = current.ID()
 	case accounts.Joined:
-		account = owner.ID
+		account = owner.ID()
 	case accounts.Created:
 		if account, err = a.ids.NewID(); err != nil {
 			return nil, fmt.Errorf("failed to get an account id: %w", err)
 		}
-		signIn.NewAccount = true
-	}
-	if outcome != accounts.SignedIn {
-		signIn.Identity = accounts.NewIdentity(provider, claim, account, now)
 	}
 
 	token, err := a.tokens.NewToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get a session token: %w", err)
 	}
-	signIn.Session = accounts.LinkedSession(account, token, a.lifetime, now)
+	session := accounts.LinkedSession(account, token, a.lifetime, now)
+	signIn := accounts.NewSignIn(session).WithReplaced(visitor.replaces)
+	if outcome == accounts.Created {
+		signIn = signIn.WithNewAccount()
+	}
+	if outcome != accounts.SignedIn {
+		signIn = signIn.WithIdentity(accounts.NewIdentity(provider, claim, account, now))
+	}
 
 	if err := a.store.SaveSignIn(ctx, signIn); err != nil {
 		return nil, fmt.Errorf("failed to save the sign-in: %w", err)
@@ -135,10 +153,10 @@ func (a *Admitter) admit(
 
 	signedIn := &authv1.SignedIn{AccountId: account.String()}
 	if current != nil {
-		signedIn.PreviousAccountId = current.ID.String()
+		signedIn.PreviousAccountId = current.ID().String()
 	}
 	// After the sign-in is saved: a subscriber moves what it keeps for the old account.
 	a.events.Publish(signedIn)
 
-	return &Admission{Account: account, Outcome: outcome, SetCookie: signIn.Session.Cookie(token, now)}, nil
+	return &Admission{account: account, outcome: outcome, setCookie: session.Cookie(token, now)}, nil
 }

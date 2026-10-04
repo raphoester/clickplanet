@@ -149,6 +149,30 @@ func TestAProcessWhereEveryModuleIsOffIsRefused(t *testing.T) {
 	assert.Contains(t, err.Error(), "serves nothing")
 }
 
+func TestATakenBindAddressRefusesTheBoot(t *testing.T) {
+	taken := listen(t)
+
+	err := cpbootstrap.Run(t.Context(), cpbootstrap.Options{
+		Server:  cpbootstrap.ServerConfig{BindAddress: taken.Addr().String()},
+		Logger:  slog.New(slog.DiscardHandler),
+		Modules: []cpbootstrap.Module{newModule("planet", func(cpbootstrap.Props) error { return nil })},
+	})
+
+	require.ErrorContains(t, err, "httpServer.bindAddress")
+}
+
+func TestRunOnBindsNoAddressItHoldsNoListenerFor(t *testing.T) {
+	public := listen(t)
+
+	err := cpbootstrap.RunOn(t.Context(), cpbootstrap.Options{
+		Server:  cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), InternalBindAddress: "127.0.0.1:0"},
+		Logger:  slog.New(slog.DiscardHandler),
+		Modules: []cpbootstrap.Module{newModule("planet", func(cpbootstrap.Props) error { return nil })},
+	}, public)
+
+	require.ErrorContains(t, err, "no listener held")
+}
+
 func newModule(name string, build func(cpbootstrap.Props) error) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:       name,

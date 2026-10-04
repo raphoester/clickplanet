@@ -24,15 +24,24 @@ import (
 
 const callerIP = "203.0.113.7"
 
-func freeAddress(t *testing.T) string {
+func listen(t *testing.T) net.Listener {
 	t.Helper()
 
 	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	address := listener.Addr().String()
-	require.NoError(t, listener.Close())
+	t.Cleanup(func() { _ = listener.Close() })
 
-	return address
+	return listener
+}
+
+func waitUntilServed(t *testing.T, address string) {
+	t.Helper()
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+address+"/metrics", nil)
+	require.NoError(t, err)
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err, "the server never came up")
+	require.NoError(t, res.Body.Close())
 }
 
 type authStack struct {
@@ -50,7 +59,8 @@ func startAuthModule(t *testing.T, newModule func(auth.Config) cpbootstrap.Modul
 	t.Helper()
 
 	secret, public := cpsession.TestKeyPair()
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
+	listener := listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: listener.Addr().String()}
 	config := auth.Config{
 		SignerConfig: cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: time.Hour},
 		Database:     cppg.StartTestServer(t).ConfigFor("auth"),
@@ -61,26 +71,19 @@ func startAuthModule(t *testing.T, newModule func(auth.Config) cpbootstrap.Modul
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
-		done <- cpbootstrap.Run(ctx, cpbootstrap.Options{
+		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
 			Server:         server,
 			Logger:         slog.New(slog.DiscardHandler),
 			StartupTimeout: time.Minute,
 			Modules:        []cpbootstrap.Module{newModule(config)},
-		})
+		}, listener)
 	}()
 	t.Cleanup(func() {
 		cancel()
 		assert.NoError(t, <-done)
 	})
 
-	require.Eventually(t, func() bool {
-		conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", server.BindAddress)
-		if err != nil {
-			return false
-		}
-		_ = conn.Close()
-		return true
-	}, time.Minute, 50*time.Millisecond, "the server never came up")
+	waitUntilServed(t, server.BindAddress)
 
 	verifier, err := cpsession.NewVerifier(public)
 	require.NoError(t, err)

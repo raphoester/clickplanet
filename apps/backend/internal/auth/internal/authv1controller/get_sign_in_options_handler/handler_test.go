@@ -32,7 +32,7 @@ func TestEveryOfferedProviderIsAnswered(t *testing.T) {
 }
 
 func TestEmailIsAnsweredAfterTheProviders(t *testing.T) {
-	offer := signin.Offer{Providers: signin.Providers{signin.Google: signin.NewFakeProvider(signin.Google)}, Email: true}
+	offer := signin.NewOffer(signin.Providers{signin.Google: signin.NewFakeProvider(signin.Google)}, true)
 
 	res, err := get_sign_in_options_handler.New(offer).GetSignInOptions(t.Context(), connect.NewRequest(&authv1.GetSignInOptionsRequest{}))
 	require.NoError(t, err)

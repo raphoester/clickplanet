@@ -80,7 +80,7 @@ type response struct {
 func (m *Mailer) Send(ctx context.Context, to signin.Address, letter signin.Letter) error {
 	body, err := json.Marshal(request{
 		To: string(to), From: from{Address: m.sender.Address, Name: m.sender.Name},
-		Subject: letter.Subject, Text: letter.Text, HTML: letter.HTML,
+		Subject: letter.Subject(), Text: letter.Text(), HTML: letter.HTML(),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to encode the letter: %w", err)

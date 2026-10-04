@@ -19,7 +19,7 @@ func (s *testSuite) TestTheQueryNamesTheCallerTheDomainNames() {
 			want := ""
 			session, err := accounts.Caller(s.T().Context(), s.store, header, now)
 			if err == nil {
-				want = session.Account.String()
+				want = session.Account().String()
 			} else {
 				s.Require().ErrorIs(err, accounts.ErrNoAccount, "%q at %s", header, now)
 			}

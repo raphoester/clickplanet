@@ -99,7 +99,7 @@ func (u *UseCase) resume(ctx context.Context, cookieHeader string, now time.Time
 		return nil, fmt.Errorf("failed to read the cookie: %w", err)
 	}
 
-	session, err := u.sessions.Session(ctx, token.Hash)
+	session, err := u.sessions.Session(ctx, token.Hash())
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the session: %w", err)
 	}
@@ -108,7 +108,7 @@ func (u *UseCase) resume(ctx context.Context, cookieHeader string, now time.Time
 	}
 
 	if !session.Extendable(now, u.lifetime) {
-		return &Out{Account: session.Account, Linked: session.Linked}, nil
+		return &Out{Account: session.Account(), Linked: session.Linked()}, nil
 	}
 
 	extended := session.Extended(now, u.lifetime)
@@ -116,7 +116,7 @@ func (u *UseCase) resume(ctx context.Context, cookieHeader string, now time.Time
 		return nil, fmt.Errorf("failed to save the extended session: %w", err)
 	}
 
-	return &Out{Account: extended.Account, Linked: extended.Linked, SetCookie: extended.Cookie(token, now)}, nil
+	return &Out{Account: extended.Account(), Linked: extended.Linked(), SetCookie: extended.Cookie(token, now)}, nil
 }
 
 func (u *UseCase) startGuest(ctx context.Context, now time.Time) (*Out, error) {
@@ -134,7 +134,7 @@ func (u *UseCase) startGuest(ctx context.Context, now time.Time) (*Out, error) {
 		return nil, fmt.Errorf("failed to store the guest: %w", err)
 	}
 
-	return &Out{Account: session.Account, SetCookie: session.Cookie(token, now)}, nil
+	return &Out{Account: session.Account(), SetCookie: session.Cookie(token, now)}, nil
 }
 
 func ended(err error) bool {

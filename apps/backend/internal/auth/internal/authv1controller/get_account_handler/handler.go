@@ -2,7 +2,6 @@ package get_account_handler
 
 import (
 	"context"
-	"errors"
 
 	"connectrpc.com/connect"
 
@@ -10,16 +9,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 )
 
-type UseCase interface {
-	Execute(ctx context.Context, account accounts.AccountID) (*accounts.Account, error)
+type Query interface {
+	Account(ctx context.Context, account accounts.AccountID) (*authv1.GetAccountResponse, error)
 }
 
-func New(useCase UseCase) GetAccountHandler {
-	return GetAccountHandler{useCase: useCase}
+func New(query Query) GetAccountHandler {
+	return GetAccountHandler{query: query}
 }
 
 type GetAccountHandler struct {
-	useCase UseCase
+	query Query
 }
 
 func (h GetAccountHandler) GetAccount(
@@ -31,16 +30,9 @@ func (h GetAccountHandler) GetAccount(
 		return connect.NewResponse(&authv1.GetAccountResponse{}), nil
 	}
 
-	account, err := h.useCase.Execute(ctx, id)
-	if errors.Is(err, accounts.ErrAccountNotFound) {
-		return connect.NewResponse(&authv1.GetAccountResponse{}), nil
-	}
+	account, err := h.query.Account(ctx, id)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the error net answers it.
 	}
-
-	return connect.NewResponse(&authv1.GetAccountResponse{
-		Linked:          account.Linked(),
-		CreatedAtUnixMs: account.CreatedAt.UnixMilli(),
-	}), nil
+	return connect.NewResponse(account), nil
 }

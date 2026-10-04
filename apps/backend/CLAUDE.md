@@ -113,7 +113,7 @@ directory.
 
 **An id is never a bare `uuid.UUID`, `string` or `[]byte` in a signature.** Each kind of id is its own named type, declared beside the entity it names: `accounts.AccountID` (`type AccountID uuid.UUID`) and `accounts.TokenHash` (`type TokenHash []byte`, which names a session). A function that asks for an account then says so, and passing a session's hash or any other uuid where an account is asked for **does not compile**. With bare types, `DeleteSessions(ctx, account)` and `DeleteSession(ctx, tokenHash)` differ by one letter and nothing checks which one a caller meant.
 
-- **The only conversions are at the edge of the process.** A storage adapter converts to the driver's type on the way out and back on the way in (`uuid.UUID(account)` in `postgres_account_store`; lib/pq cannot take a named array), a handler to the wire's type (`account.ID.String()`), and the token codec to bytes. The id type has no `Scan` or `Value` of its own.
+- **The only conversions are at the edge of the process.** A storage adapter converts to the driver's type on the way out and back on the way in (`uuid.UUID(account)` in `postgres_account_store`; lib/pq cannot take a named array), a handler to the wire's type (`admission.Account().String()`), and the token codec to bytes. The id type has no `Scan` or `Value` of its own.
 - **An id is never unwrapped to hand it on.** `uuid.UUID(account)` in a use case, to call a port or a shared package, throws away what the type was for. The id that crosses modules is declared where it crosses: `cpsession.AccountID` sits with the click token, which `auth` mints and `planet` reads, and `accounts.AccountID` is an alias of it, so an account reaches `Mint` and comes back in `Claims.Account` as the same type. `cpsession.NoAccount` is a token minted for nobody.
 - **A new id starts as a type.** Adding one later means touching every signature it already flows through.
 
@@ -136,7 +136,7 @@ class OutputPipe {
 - **A manipulator performs an action and changes state**: it writes a row, sends a request, spends a token, mutates its receiver or an argument. It is named from a verb — `SaveSignIn`, `DeleteSessions`, `Session.Extend`, `Grant`, `Execute`.
 - **A builder only reads or computes, and changes nothing** — not its receiver, not an argument, not the world. It is named from a noun, with `With`, `As` or `Of` where that reads better — `accounts.Cookie`, `accounts.ExpiredSessionCookie`, `store.Session(ctx, hash)`, `accounts.OutcomeOf`, `Flow.Challenge`, `Config.WithDefaults`, `oauth_http.Resource[T]`.
 - **A verb on a pure function is a bug in the name.** `ClearCookie()` that only returns a `Set-Cookie` string reads as if it cleared something; it is `ExpiredSessionCookie()`, and the caller is what sends it. Likewise a read port is `Session(ctx, hash)`, not `FindSession`.
-- **A builder that returns a boolean is an adjective** — `empty`, `readable`, `negative`: `Account.Linked()`, `Providers.Off()`, `Client.Configured()`, `Account.linkedTo(provider)`. Not `IsLinked`, `HasProvider` or `holds`. And the comma-ok second result of a builder (`CookieValue(…) (string, bool)`) is Go's idiom, not a name.
+- **A builder that returns a boolean is an adjective** — `empty`, `readable`, `negative`: `Session.Linked()`, `Providers.Off()`, `Client.Configured()`, `Account.linkedTo(provider)`. Not `IsLinked`, `HasProvider` or `holds`. And the comma-ok second result of a builder (`CookieValue(…) (string, bool)`) is Go's idiom, not a name.
 - **A manipulator returns no answer about what it did.** Ask first with an adjective, then act: `if session.Extendable(now, lifetime)`, then save `session.Extended(now, lifetime)`. Not `ExtendIfDue(...) bool`, which both acts and answers.
 - **Prefer immutable values: a builder returns a changed copy, it does not change its receiver.** `session.Extended(now, lifetime)` is a new `*Session` with the new expiry, and `session` is left as it was; the only manipulator left is the store's `SaveSession`, which writes the copy. A method that sets a field on a domain value is the last resort, not the default.
 - **A builder that returns an error is still a noun**: `Session.ExpiryError(now)`, `Flow.CallbackError(state, now)`, `Config.pruneError()`.
@@ -414,9 +414,11 @@ internal/chat/internal/
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`) and auth's
-internal `GetCaller` follow this so far. **A command may still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which
-draws a guest code); the rule is for what only reads.
+(`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`) and auth
+(`GetMe`, `GetAccount`, `GetAccounts`, and the internal `GetCaller`) follow this so far. **A command may still
+answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
+`signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
+through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
 
 - **One package per read, under the handler that serves it**: `<controller>/<procedure>_handler/<read>_query/`. No
   `queries/` directory: a query has one caller, so it sits with it. `query_postgres.go` holds its one entry point,
@@ -426,8 +428,9 @@ draws a guest code); the rule is for what only reads.
   counts, `COALESCE`, `json_agg` and lateral joins in SQL; Go only decodes, checks and stitches in what SQL cannot
   reach.
 - **Strict at the boundary.** A stored value the wire cannot carry is an error, never a default:
-  `history_query.ErrUnknownReaction`, `history_query.ErrUnknownKind`, `playerread.ErrUnknownColor`. A rollback
-  past a new reaction, kind or color therefore refuses the read until those rows are gone. A title id the catalog
+  `history_query.ErrUnknownReaction`, `history_query.ErrUnknownKind`, `playerread.ErrUnknownColor`,
+  `me_query.ErrUnknownProvider`. A rollback past a new reaction, kind, color or provider therefore refuses the read
+  until those rows are gone. A title id the catalog
   no longer has is the exception: the catalog drops it from what is shown, and the reconciliation revokes it.
 - **What SQL cannot read is a port in the wire's terms.** `history_query.Authors` answers `*player.v1.Author`, and its
   adapter is a subpackage (`history_query/rpc_player_authors`). The query asks it once and stitches the answer on.
@@ -452,14 +455,22 @@ draws a guest code); the rule is for what only reads.
   SQL. Chat's `history_query` imports neither `messages`, `reactions`, `announcements` nor `feed`: it takes the
   window as `chat.storage.historySize` and `retention`, keeps the kinds it can carry (`kinds`), and reads a reactor
   as `account:<uuid>` in SQL, all of which the write side holds again (`messages.Window`, `announcements.Kinds`,
-  `reactions.ReactorOf`).
+  `reactions.ReactorOf`). Auth's queries import neither `accounts` nor `signin`: `me_query` reads the `cp_sid`
+  cookie, hashes it and asks SQL for a session not expired as of now, which the commands do with `accounts.Caller`
+  (`CookieValue`, `TokenOf`, `Session.ExpiryError`); it lists the providers oldest link first, as the store does, and
+  names them with a map of its own, as `authprovider` does. The handlers still parse an id with
+  `accounts.AccountIDOf`, as every edge does.
 - **Every rule written twice has a parity test**, which runs the same stored rows through both copies and asks for
-  the same answer. Auth (`caller_query/parity_test.go`): the cookie's name, the token's hash and the expiry, against
-  `accounts.Caller`, at, before and after the expiry. Player: a command's stats as of a day against `GetStats`, `GetAuthor` against `GetAuthors`, the
+  the same answer. Player: a command's stats as of a day against `GetStats`, `GetAuthor` against `GetAuthors`, the
   domain's fold against the name `GetPlayer` finds. Chat (`history_query/parity_test.go`): a message is in the
   history exactly when `React` may react to it; `React`'s answer against the history's reactions, cap of names
   included; `SendMessage`'s answer against the message the history reads back; every `announcements.Kinds` the
-  chat announces read back. A rule a parity test does not cover is a rule that can drift.
+  chat announces read back. Auth: `GetMe` against `accounts.Caller` and `Store.Account` over cookies and clocks up to
+  a nanosecond either side of an expiry, the session's `Linked` included (`me_query/parity_test.go`); `GetCaller`
+  against `accounts.Caller` the same way (`caller_query/parity_test.go`); every provider
+  the proto names, saved under the name `authprovider` gives it, read back as itself; `GetAccounts` against
+  `GetAccount` and against the linked flag the click token carries (`accounts_query/parity_test.go`). A rule a parity
+  test does not cover is a rule that can drift.
 - **So the domain has no exported fields.** A player domain type is built by a constructor (`NewProfile`,
   `NewStats`, `NewVisit` to start one; `ProfileOf`, `StatsOf`, `StreakOf`, `AccountOf` to restore one a store or
   another module kept), read through nouns (`Profile.Name()`, `Stats.TilesTaken()`, `Visit.Author()`), and changed
@@ -469,7 +480,13 @@ draws a guest code); the rule is for what only reads.
   `feed.MessageSent`, `ReactionsChanged` and `Announced` for the three cases of an `Update`. A test outside the
   package compares through those nouns, or through a view of them (`title_test.go`'s `standingView`), since it
   cannot build the value by hand; where a test must, a constructor behind the `testing` tag builds it
-  (`reactions.CountOf`, `TallyFor`).
+  (`reactions.CountOf`, `TallyFor`). Auth the same: `AccountOf`, `NewIdentity` and `IdentityOf`, `ClaimOf`,
+  `GuestSession`, `LinkedSession` and `SessionOf`, `NewSignIn` with `WithNewAccount`, `WithIdentity` and
+  `WithReplaced`, `NewFlow` and `FlowOf`, `NewChallenge` and `ChallengeOf`, `NewOffer`, and `signin.AdmissionOf` behind
+  the tag. A config block keeps its exported fields, since koanf fills it (`accounts.Lifetime`, `signin.Config`,
+  `signin.Client`). **A value a browser holds keeps its format**: `aes_flow_sealer` seals a flow and a challenge
+  through structs of its own whose keys are the old exported fields, and `format_test.go` opens a cookie sealed in
+  that JSON and seals the same JSON back.
 
 ### Adapters
 
@@ -911,8 +928,6 @@ internal/auth/internal/
     uuid_id_provider/  random_token_generator/
     usecases/create_session_usecase/       attest, resume or start a guest, mint
     usecases/create_anonymous_session_usecase/   deprecated: attest, mint with no account
-    usecases/get_me_usecase/               reads only
-    usecases/get_account_usecase/          reads one account, for another module
     usecases/sign_out_usecase/  sign_out_everywhere_usecase/  delete_account_usecase/
     usecases/prune_guests_usecase/         deletes idle guests: Executor, Runner, and log_prune_guests
   signin/                                  Flow (state, PKCE verifier, nonce, intent), Provider, Providers, Offer, Sealer, the cp_oauth cookie;
@@ -926,6 +941,9 @@ internal/auth/internal/
   attestation/                             Attester, ErrAttestationFailed
     turnstile/  turnstile_attester/  open_attester/
   authv1controller/                        AuthService and InternalService: one handler package per procedure, authprovider for the enum
+    get_me_handler/me_query/               PostgresQuery: GetMeResponse from the cookie, straight from SQL
+    get_account_handler/account_query/     PostgresQuery: GetAccountResponse, for another module
+    get_accounts_handler/accounts_query/   PostgresQuery: GetAccountsResponse, a page at once
   sessionv1controller/                     deprecated SessionService
   migrations/
 ```
@@ -935,12 +953,12 @@ internal/auth/internal/
 - **The rules are on `accounts.Session`**: `GuestSession` builds one with a full `guestTTL` (90 days) and `LinkedSession` with a full `linkedTTL` (30 days), `ExpiryError` is `ErrSessionExpired` past it, `Extendable(now, lifetime)` is whether `extendEvery` (24h) has passed since the last extension, `Extended(now, lifetime)` is a copy whose expiry moved by the TTL of its kind, and `Cookie` is its `Set-Cookie`. `Session.Linked` is read by the store (does the account have an identity), never written, so every session of an account extends as a linked one once any browser links it. `create_session_usecase` only orders them: attest, read the cookie, find the session, check it, extend and save it when due — or, when there is no cookie, no such session or an expired one, start and store a guest — then mint.
 - **Only a caller that passed attestation gets an account**, so bots that fail Turnstile make no rows. The mint throttle bounds how many guests one address makes.
 - **A failing database fails the mint.** No fallback to a token with no account: the error net answers `internal`.
-- **Absence is a sentinel, never `nil, nil`**: `ErrNoSessionCookie`, `ErrSessionNotFound` (the port's, for an unknown token hash), `ErrSessionExpired`, and `ErrNoAccount`, which `GetMe` answers as `Unauthenticated`. `GetMe` creates, extends and saves nothing, and answers `no-store`.
+- **Absence is a sentinel, never `nil, nil`**: `ErrNoSessionCookie`, `ErrSessionNotFound` (the port's, for an unknown token hash), `ErrSessionExpired`, and `ErrNoAccount`. `GetMe` answers `me_query.ErrNoAccount` as `Unauthenticated`, creates, extends and saves nothing, and answers `no-store`.
 - **Ids and tokens are injected** (`IDProvider`, `TokenGenerator`), like the clock. Tests use `accounts.SequentialIDs` and `SequentialTokens` (behind the tag), so they assert exact ids.
 - **`accounts.StoreContractSuite` is the port's behaviour**, like `clicks.TileStorageContractSuite`. Both stores embed it: postgres adds only what the port cannot show (the token is never stored, `last_seen_at`, an unverified email is `NULL`), and the use cases are tested over the in-memory one, which can `FailWith` an error.
 - **No cache.** Mints are one per 30s per address, so one indexed read each is cheap, and a sign-out has nothing to invalidate.
-- **`InternalService/GetAccount(account_id)`** answers `linked`: whether the account signed in with a provider (`Account.Linked`). An unknown account, or an id that is not one (`accounts.AccountIDOf`), is `linked` false and not an error; a store failure is. `player` asks it before it gives an account a username.
-- **`InternalService/GetAccounts(account_ids)`** is a page of accounts at once, each with `linked` and `created_at_unix_ms`, in two queries (`Store.Accounts`: the accounts, then their identities, both `id = ANY(...)`), for the title reconciliation. An account it does not know is left out; an id that is not one is `InvalidArgument`, since a caller holding one has a bug. It is `NO_SIDE_EFFECTS`.
+- **`InternalService/GetAccount(account_id)`** answers `linked`: whether the account signed in with a provider, read by `account_query` (an identity exists). An unknown account, or an id that is not one (`accounts.AccountIDOf`), is `linked` false and not an error; a store failure is. `player` asks it before it gives an account a username.
+- **`InternalService/GetAccounts(account_ids)`** is a page of accounts at once, each with `linked` and `created_at_unix_ms`, in one statement (`accounts_query`: `id = ANY(...)`, in id order, linked when an identity exists), for the title reconciliation. An account it does not know is left out; an id that is not one is `InvalidArgument`, since a caller holding one has a bug. It is `NO_SIDE_EFFECTS`.
 - **`create_session_usecase` mints whether the account is linked** (`Session.Linked`, read by the store), so the token says it and `planet` gives a linked account its faster bucket.
 - **`planet` reads the account off the token**: the session interceptor puts it on the context (`cpctx.GetAccount`, and `cpctx.GetLinked`), and the throttle, the bans and the ledger key on it beside the scope — see [Two buckets per click](#two-buckets-per-click), [Anti-bot](#anti-bot-internalantibot) and [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
 
@@ -2734,11 +2752,11 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
-**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.Run` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire: `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused.
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.RunOn` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire. `RunOn` serves on listeners the test already holds, bound to `127.0.0.1:0`: a port picked free and closed again can be taken by another process before the server binds it. Under `RunOn`, `cpbootstrap` binds nothing, and an address with no held listener fails the boot. `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 
-**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile`, `cppg.StartTestServer`, `cpsession.TestKeyPair` (one fixed Ed25519 pair, so a test names both halves without carrying two magic strings), `cpbootstrap.RecordedEvents` (the bus, for a use case that only publishes) and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the shared ones.
+**Tests build with `-tags testing`, so use `make test` rather than a bare `go test ./...`.** Anything else that loads test files needs the tag too: `go vet -tags testing ./...`, and an editor's language server (`gopls` `buildFlags: ["-tags=testing"]`, or `go.buildTags` in VS Code), which otherwise reports the helpers as undefined. A helper that more than one package needs cannot live in a `_test.go` file, so it lives in an ordinary `.go` file carrying `//go:build testing`. The tag, not a filename convention, is what keeps such a helper out of the production binary — and what lets `make deadcode` tell a helper apart from production code. `cpctx.GetSessionID`, `cpconfigs.FromFile`, `cppg.StartTestServer`, `cpsession.TestKeyPair` (one fixed Ed25519 pair, so a test names both halves without carrying two magic strings), `cpbootstrap.RecordedEvents` (the bus, for a use case that only publishes), `cpbootstrap.RunOn` (the boot, on listeners the test holds) and `cptime.FixedClock` — the stand-still clock a dozen test packages drive time with — are the shared ones.
 
 ### Linting
 

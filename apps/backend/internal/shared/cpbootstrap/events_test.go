@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -99,9 +100,10 @@ func servedMetrics(t *testing.T, address string) string {
 
 func TestEventsPublishedWhileModulesAreBuiltReachASubscriberRegisteredBefore(t *testing.T) {
 	first, second := &received{}, &received{}
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
+	public := listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String()}
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, []net.Listener{public}, func() {
 		require.Eventually(t, func() bool { return len(first.values()) == 100 && len(second.values()) == 100 },
 			time.Second, time.Millisecond)
 	}, subscriberModule("first", 100, first), subscriberModule("second", 100, second), publisherModule(numbered(100)...))
@@ -112,9 +114,10 @@ func TestEventsPublishedWhileModulesAreBuiltReachASubscriberRegisteredBefore(t *
 
 func TestEachSubscriberGetsItsOwnCopy(t *testing.T) {
 	first, second := &received{}, &received{}
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
+	public := listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String()}
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, []net.Listener{public}, func() {
 		require.Eventually(t, func() bool { return len(first.values()) == 1 && len(second.values()) == 1 },
 			time.Second, time.Millisecond)
 	}, subscriberModule("first", 1, first), subscriberModule("second", 1, second), publisherModule("taken"))
@@ -127,9 +130,10 @@ func TestEachSubscriberGetsItsOwnCopy(t *testing.T) {
 
 func TestAFullBufferDropsTheEventAndCountsIt(t *testing.T) {
 	slow := &received{}
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
+	public := listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String()}
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, []net.Listener{public}, func() {
 		require.Eventually(t, func() bool { return len(slow.values()) == 2 }, time.Second, time.Millisecond)
 		assert.Contains(t, servedMetrics(t, server.BindAddress),
 			`events_dropped_total{event="google.protobuf.StringValue",subscriber="slow"} 3`)
@@ -140,7 +144,8 @@ func TestAFullBufferDropsTheEventAndCountsIt(t *testing.T) {
 
 func TestNoSubscriberCodeRunsInThePublishersStack(t *testing.T) {
 	subscriber := &received{}
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
+	public := listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String()}
 	published := make(chan struct{})
 
 	publisher := newModule("publisher", func(props cpbootstrap.Props) error {
@@ -151,7 +156,7 @@ func TestNoSubscriberCodeRunsInThePublishersStack(t *testing.T) {
 		return nil
 	})
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, []net.Listener{public}, func() {
 		<-published
 		require.Eventually(t, func() bool { return len(subscriber.values()) == 1 }, time.Second, time.Millisecond)
 	}, subscriberModule("subscriber", 1, subscriber), publisher)
@@ -162,7 +167,8 @@ func TestNoSubscriberCodeRunsInThePublishersStack(t *testing.T) {
 }
 
 func TestSubscribingAfterTheRunnersStartIsRefused(t *testing.T) {
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
+	public := listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String()}
 	refused := make(chan error, 1)
 
 	late := newModule("late", func(props cpbootstrap.Props) error {
@@ -173,7 +179,7 @@ func TestSubscribingAfterTheRunnersStartIsRefused(t *testing.T) {
 		return nil
 	})
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, []net.Listener{public}, func() {
 		assert.ErrorContains(t, <-refused, "subscribe while the module is built")
 	}, late)
 }
@@ -181,7 +187,8 @@ func TestSubscribingAfterTheRunnersStartIsRefused(t *testing.T) {
 func TestAnEventOfAnotherTypeIsNotDelivered(t *testing.T) {
 	subscriber := &received{}
 	numbers := make(chan int64, 1)
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
+	public := listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String()}
 
 	numberModule := newModule("numbers", func(props cpbootstrap.Props) error {
 		runner, err := cpbootstrap.Subscribe(props.Events, "numbers", 1,
@@ -197,7 +204,7 @@ func TestAnEventOfAnotherTypeIsNotDelivered(t *testing.T) {
 		return nil
 	})
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, []net.Listener{public}, func() {
 		assert.Equal(t, int64(7), <-numbers)
 	}, subscriberModule("strings", 1, subscriber), numberModule)
 
@@ -214,14 +221,15 @@ func TestTwoSubscribersOfOneTypeCannotShareAName(t *testing.T) {
 }
 
 func TestAHandlerErrorIsCounted(t *testing.T) {
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
+	public := listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String()}
 	handled := make(chan struct{}, 1)
 	failing := handlerFunc[*wrapperspb.StringValue](func(context.Context, *wrapperspb.StringValue) error {
 		handled <- struct{}{}
 		return errors.New("no such account")
 	})
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, []net.Listener{public}, func() {
 		<-handled
 		require.Eventually(t, func() bool {
 			return strings.Contains(servedMetrics(t, server.BindAddress),
@@ -232,7 +240,8 @@ func TestAHandlerErrorIsCounted(t *testing.T) {
 
 func TestWhatIsBufferedAtShutdownIsStillDelivered(t *testing.T) {
 	subscriber := &received{}
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
+	public := listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String()}
 	release := make(chan struct{})
 
 	blocked := handlerFunc[*wrapperspb.StringValue](func(ctx context.Context, event *wrapperspb.StringValue) error {
@@ -240,7 +249,7 @@ func TestWhatIsBufferedAtShutdownIsStillDelivered(t *testing.T) {
 		return subscriber.Handle(ctx, event)
 	})
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, []net.Listener{public}, func() {
 		go func() {
 			time.Sleep(50 * time.Millisecond)
 			close(release)

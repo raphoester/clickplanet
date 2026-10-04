@@ -14,11 +14,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
 )
 
-var flow = &signin.Flow{
-	Provider: "google", State: "state", Verifier: "verifier", Nonce: "nonce",
-	ExpiresAt: time.Date(2026, 9, 16, 12, 10, 0, 0, time.UTC),
-	Intent:    accounts.IntentLink, Account: accounts.AccountID{15: 7},
-}
+var flow = signin.FlowOf(
+	"google", "state", "verifier", "nonce", time.Date(2026, 9, 16, 12, 10, 0, 0, time.UTC), accounts.IntentLink, accounts.AccountID{15: 7},
+)
 
 func sealer(t *testing.T, seed byte) *aes_flow_sealer.Sealer {
 	t.Helper()
@@ -76,11 +74,9 @@ func TestAnEmptySeedIsRefused(t *testing.T) {
 	assert.Error(t, err)
 }
 
-var challenge = &signin.Challenge{
-	ID: "challenge-id", Address: "player@example.com", Code: "123456",
-	ExpiresAt: time.Date(2026, 9, 16, 12, 10, 0, 0, time.UTC),
-	Intent:    accounts.IntentLink, Account: accounts.AccountID{15: 7},
-}
+var challenge = signin.ChallengeOf(
+	"challenge-id", "player@example.com", "123456", time.Date(2026, 9, 16, 12, 10, 0, 0, time.UTC), accounts.IntentLink, accounts.AccountID{15: 7},
+)
 
 func TestASealedChallengeOpensAsItWas(t *testing.T) {
 	s := sealer(t, 1)

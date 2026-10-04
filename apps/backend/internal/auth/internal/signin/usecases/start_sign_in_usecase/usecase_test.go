@@ -47,9 +47,9 @@ func TestAStartedSignInSendsTheBrowserToTheProviderAndSealsTheFlowInItsCookie(t 
 	require.NoError(t, err)
 
 	assert.Equal(t, "https://google.example/authorize?state=secret-1", out.AuthorizationURL)
-	assert.Equal(t, &signin.Flow{
-		Provider: "google", State: "secret-1", Verifier: "secret-2", Nonce: "secret-3", ExpiresAt: now.Add(signin.FlowTTL),
-	}, openedFlow(t, sealer, out), "a sign-in holds no account: it goes wherever the identity is")
+	assert.Equal(t,
+		signin.FlowOf("google", "secret-1", "secret-2", "secret-3", now.Add(signin.FlowTTL), accounts.IntentSignIn, accounts.AccountID{}),
+		openedFlow(t, sealer, out), "a sign-in holds no account: it goes wherever the identity is")
 }
 
 func TestALinkSealsTheAccountItStartedOn(t *testing.T) {
@@ -59,8 +59,8 @@ func TestALinkSealsTheAccountItStartedOn(t *testing.T) {
 	require.NoError(t, err)
 
 	flow := openedFlow(t, sealer, out)
-	assert.Equal(t, accounts.IntentLink, flow.Intent)
-	assert.Equal(t, accounts.AccountID{15: 7}, flow.Account)
+	assert.Equal(t, accounts.IntentLink, flow.Intent())
+	assert.Equal(t, accounts.AccountID{15: 7}, flow.Account())
 }
 
 func TestALinkFromABrowserWithNoAccountStartsNothing(t *testing.T) {

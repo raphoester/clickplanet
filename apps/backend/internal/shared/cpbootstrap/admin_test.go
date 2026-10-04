@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -19,15 +18,24 @@ import (
 
 const adminProcedure = "/test.v1.AdminService/Do"
 
-func freeAddress(t *testing.T) string {
+func listen(t *testing.T) net.Listener {
 	t.Helper()
 
 	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	address := listener.Addr().String()
-	require.NoError(t, listener.Close())
+	t.Cleanup(func() { _ = listener.Close() })
 
-	return address
+	return listener
+}
+
+func waitUntilServed(t *testing.T, address string) {
+	t.Helper()
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+address+"/metrics", nil)
+	require.NoError(t, err)
+	res, err := http.DefaultClient.Do(req)
+	require.NoError(t, err, "the server never came up")
+	require.NoError(t, res.Body.Close())
 }
 
 func adminModule(result error) cpbootstrap.Module {
@@ -52,27 +60,26 @@ func call(ctx context.Context, address string) error {
 	return err //nolint:wrapcheck // the test reads the connect code.
 }
 
-func serveUntil(t *testing.T, server cpbootstrap.ServerConfig, probe func(), modules ...cpbootstrap.Module) {
+func serveUntil(
+	t *testing.T,
+	server cpbootstrap.ServerConfig,
+	listeners []net.Listener,
+	probe func(),
+	modules ...cpbootstrap.Module,
+) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
-		done <- cpbootstrap.Run(ctx, cpbootstrap.Options{
+		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
 			Server:  server,
 			Logger:  slog.New(slog.DiscardHandler),
 			Modules: modules,
-		})
+		}, listeners...)
 	}()
 
-	require.Eventually(t, func() bool {
-		conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", server.BindAddress)
-		if err != nil {
-			return false
-		}
-		_ = conn.Close()
-		return true
-	}, 5*time.Second, 10*time.Millisecond, "the server never came up")
+	waitUntilServed(t, server.BindAddress)
 
 	probe()
 
@@ -81,9 +88,10 @@ func serveUntil(t *testing.T, server cpbootstrap.ServerConfig, probe func(), mod
 }
 
 func TestAnAdminServiceIsServedOnTheAdminListenerAndNowhereElse(t *testing.T) {
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t), AdminBindAddress: freeAddress(t)}
+	public, admin := listen(t), listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), AdminBindAddress: admin.Addr().String()}
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, []net.Listener{public, admin}, func() {
 		require.NoError(t, call(t.Context(), server.AdminBindAddress))
 		assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(call(t.Context(), server.BindAddress)),
 			"an admin service on the public router is one proxy edit away from the internet")
@@ -91,9 +99,10 @@ func TestAnAdminServiceIsServedOnTheAdminListenerAndNowhereElse(t *testing.T) {
 }
 
 func TestAnAdminServiceGetsTheErrorNet(t *testing.T) {
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t), AdminBindAddress: freeAddress(t)}
+	public, admin := listen(t), listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), AdminBindAddress: admin.Addr().String()}
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, []net.Listener{public, admin}, func() {
 		err := call(t.Context(), server.AdminBindAddress)
 		assert.Equal(t, connect.CodeInternal, connect.CodeOf(err))
 		assert.NotContains(t, err.Error(), "disk on fire")
@@ -101,11 +110,11 @@ func TestAnAdminServiceGetsTheErrorNet(t *testing.T) {
 }
 
 func TestNoAdminAddressServesNoAdminListener(t *testing.T) {
-	admin := freeAddress(t)
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t)}
+	public := listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String()}
 
-	serveUntil(t, server, func() {
-		assert.Equal(t, connect.CodeUnavailable, connect.CodeOf(call(t.Context(), admin)))
+	serveUntil(t, server, []net.Listener{public}, func() {
+		assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(call(t.Context(), server.BindAddress)))
 	}, adminModule(nil))
 }
 
@@ -151,11 +160,9 @@ func TestOnlyAnExactOriginIsAccepted(t *testing.T) {
 }
 
 func TestATakenAdminAddressRefusesTheBoot(t *testing.T) {
-	taken, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = taken.Close() })
+	taken := listen(t)
 
-	err = cpbootstrap.Run(t.Context(), cpbootstrap.Options{
+	err := cpbootstrap.Run(t.Context(), cpbootstrap.Options{
 		Server:  cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0", AdminBindAddress: taken.Addr().String()},
 		Logger:  slog.New(slog.DiscardHandler),
 		Modules: []cpbootstrap.Module{adminModule(nil)},
