@@ -26,21 +26,13 @@ func markSeen(t *testing.T, store *inmemory_seen_storage.Storage, in mark_seen_u
 	return mark_seen_usecase.New(store, cptime.NewFixedClock(now)).Execute(t.Context(), in)
 }
 
-func seenUntil(t *testing.T, store *inmemory_seen_storage.Storage) time.Time {
-	t.Helper()
-
-	until, err := store.SeenUntil(t.Context(), ada)
-	require.NoError(t, err)
-	return until
-}
-
 func TestTheMarkIsKeptForTheAccount(t *testing.T) {
 	store := inmemory_seen_storage.New()
 
 	err := markSeen(t, store, mark_seen_usecase.In{Account: ada, At: now.Add(-time.Minute)})
 
 	require.NoError(t, err)
-	assert.Equal(t, now.Add(-time.Minute), seenUntil(t, store))
+	assert.Equal(t, now.Add(-time.Minute), store.Kept(ada))
 }
 
 func TestAMarkAheadOfTheServerIsKeptAsNow(t *testing.T) {
@@ -48,7 +40,7 @@ func TestAMarkAheadOfTheServerIsKeptAsNow(t *testing.T) {
 
 	require.NoError(t, markSeen(t, store, mark_seen_usecase.In{Account: ada, At: now.Add(time.Hour)}))
 
-	assert.Equal(t, now, seenUntil(t, store))
+	assert.Equal(t, now, store.Kept(ada))
 }
 
 func TestNoAccountIsRefusedAndNothingIsKept(t *testing.T) {
@@ -57,9 +49,7 @@ func TestNoAccountIsRefusedAndNothingIsKept(t *testing.T) {
 	err := markSeen(t, store, mark_seen_usecase.In{Account: messages.NoAccount, At: now})
 
 	require.ErrorIs(t, err, messages.ErrNoAccount)
-	until, err := store.SeenUntil(t.Context(), messages.NoAccount)
-	require.NoError(t, err)
-	assert.True(t, until.IsZero())
+	assert.True(t, store.Kept(messages.NoAccount).IsZero())
 }
 
 func TestNoTimeIsRefused(t *testing.T) {

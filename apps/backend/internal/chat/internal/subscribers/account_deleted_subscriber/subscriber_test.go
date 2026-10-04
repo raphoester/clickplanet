@@ -26,12 +26,8 @@ func TestADeletedAccountsSeenMarkIsForgotten(t *testing.T) {
 		&authv1.AccountDeleted{AccountId: ada.String()})
 
 	require.NoError(t, err)
-	until, err := store.SeenUntil(t.Context(), ada)
-	require.NoError(t, err)
-	assert.True(t, until.IsZero())
-	until, err = store.SeenUntil(t.Context(), bob)
-	require.NoError(t, err)
-	assert.Equal(t, at, until)
+	assert.True(t, store.Kept(ada).IsZero())
+	assert.Equal(t, at, store.Kept(bob))
 }
 
 func TestAnEventWithNoAccountIsRefused(t *testing.T) {

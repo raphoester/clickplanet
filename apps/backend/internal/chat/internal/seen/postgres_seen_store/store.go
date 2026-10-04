@@ -2,8 +2,6 @@ package postgres_seen_store
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 
@@ -23,18 +21,6 @@ type Store struct {
 }
 
 var _ seen.Storage = (*Store)(nil)
-
-func (s *Store) SeenUntil(ctx context.Context, account messages.AccountID) (time.Time, error) {
-	var until time.Time
-	err := s.db.QueryRowContext(ctx, `SELECT seen_until FROM seen WHERE account_id = $1`, uuid.UUID(account)).Scan(&until)
-	if errors.Is(err, sql.ErrNoRows) {
-		return time.Time{}, nil
-	}
-	if err != nil {
-		return time.Time{}, fmt.Errorf("failed to read what the account has seen: %w", err)
-	}
-	return until.UTC(), nil
-}
 
 func (s *Store) SaveSeen(ctx context.Context, account messages.AccountID, until time.Time) error {
 	if _, err := s.db.ExecContext(ctx, `

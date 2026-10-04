@@ -389,9 +389,9 @@ internal/chat/internal/
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
     usecases/announce_usecase/          keeps an announcement, then publishes it — Appender, Publisher
-  seen/                                 Until (the rule on a mark's time), ErrNoTime, the Storage port and its suite
-    postgres_seen_store/                Storage, over chat.seen
-    inmemory_seen_storage/              Storage in a map — behind the testing tag, tests only
+  seen/                                 Until (the rule on a mark's time), ErrNoTime, the Storage port: writes only
+    postgres_seen_store/                Storage, over chat.seen; what it keeps is tested through history_query
+    inmemory_seen_storage/              Storage in a map, and Kept for a test — behind the testing tag, tests only
     usecases/mark_seen_usecase/         keeps until when an account saw the chat — Saver
     usecases/forget_seen_usecase/       deletes an account's mark — Deleter
   feed/                                 Update: a message sent, a message's new reactions, or an announcement
@@ -758,7 +758,8 @@ while it was away: the badge counts it, and the lines light up as the chat opens
   would count as seen. `seen.Until` cuts a time ahead of the server's clock to now, and refuses no time at all
   (`ErrNoTime` → `InvalidArgument`).
 - **It only moves forward**: the upsert keeps the `GREATEST` of the two, so two tabs, or a late request, never
-  move it back.
+  move it back. **The store only writes**: nothing on the write side reads a mark back, so it has no read and no
+  contract suite, and `history_query`'s tests seed through it to pin what it keeps.
 - **`GetHistory` answers it** (`seen_until_unix_ms`, 0 for none): `history_query` reads `chat.seen` beside the
   window, in parallel with the messages and the announcements. **`MarkSeen` writes it**, through the `seen` store. No account is `Unauthenticated`.
   It has its own rate bucket, `chat.seenLimiter` (1 a second, 10 in hand), and the blocklist covers it.

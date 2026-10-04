@@ -30,14 +30,11 @@ func (s *Storage) FailWith(err error) {
 	s.err = err
 }
 
-func (s *Storage) SeenUntil(_ context.Context, account messages.AccountID) (time.Time, error) {
+func (s *Storage) Kept(account messages.AccountID) time.Time {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.err != nil {
-		return time.Time{}, s.err
-	}
-	return s.kept[account], nil
+	return s.kept[account]
 }
 
 func (s *Storage) SaveSeen(_ context.Context, account messages.AccountID, until time.Time) error {
