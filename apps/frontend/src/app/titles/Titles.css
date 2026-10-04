@@ -3,10 +3,6 @@
     50% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--gold) 0%, transparent); }
 }
 
-@keyframes title-spin {
-    to { transform: rotate(360deg); }
-}
-
 .title-emblem {
     display: block;
     flex-shrink: 0;
@@ -201,82 +197,6 @@
     color: var(--text-muted);
 }
 
-.title-unlocked {
-    text-align: center;
-}
-
-.title-unlocked .modal-scroll::after {
-    display: none;
-}
-
-.title-unlocked .modal-header h2 {
-    padding-left: 50px;
-    font-family: var(--font-text);
-    font-weight: 700;
-    font-size: var(--text-s);
-    color: var(--text-muted);
-    text-shadow: none;
-    text-align: center;
-}
-
-.title-unlocked-stage {
-    position: relative;
-    width: min(260px, 100%);
-    aspect-ratio: 1;
-    margin: 0 auto;
-}
-
-.title-rays {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background: repeating-conic-gradient(var(--gold) 0deg 9deg, transparent 9deg 18deg);
-    opacity: 0.35;
-    -webkit-mask-image: radial-gradient(circle, var(--ink) 30%, transparent 70%);
-    mask-image: radial-gradient(circle, var(--ink) 30%, transparent 70%);
-    animation: title-spin 24s linear infinite;
-}
-
-.title-unlocked-medal {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -44%);
-}
-
-.title-unlocked-name {
-    margin: var(--space-1) 0 0;
-    padding-top: 6px;
-    font-family: var(--font-display);
-    font-size: var(--display-xxl);
-    line-height: 1;
-    color: var(--gold);
-    text-shadow: var(--text-outline);
-    overflow-wrap: anywhere;
-}
-
-.title-unlocked-rank {
-    margin: var(--space-3) 0 0;
-    font-family: var(--font-text);
-    font-weight: 600;
-    font-size: var(--text-m);
-    color: var(--text-soft);
-}
-
-.title-unlocked-actions {
-    display: flex;
-    gap: var(--space-3);
-    width: 100%;
-}
-
-.title-unlocked-actions .button {
-    flex: 1;
-}
-
-.title-unlocked-actions .title-wear-button {
-    flex: 1.6;
-}
-
 .title-frame-bronze { --title-frame: var(--bronze); }
 .title-frame-silver { --title-frame: var(--silver); }
 .title-frame-gold { --title-frame: var(--gold); }
@@ -288,15 +208,8 @@
     box-shadow: var(--drop-l), inset 0 0 0 var(--outline-thin) var(--title-frame);
 }
 
-@media only screen and (max-width: 768px) {
-    .title-unlocked .modal-header h2 {
-        padding-left: 46px;
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
-    .title-pulse::before,
-    .title-rays {
+    .title-pulse::before {
         animation: none;
     }
 }

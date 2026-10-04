@@ -1,5 +1,6 @@
 import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {SoundName} from "../../domain/soundSettings.ts";
+import {TITLE_REVEAL} from "../../domain/titleReveal.ts";
 
 export type Synth = (ctx: AudioContext, at: number, options: SynthOptions) => void
 
@@ -301,6 +302,48 @@ const chat: Synth = (ctx, at, {volume}) => {
     tone(ctx, at, volume, {type: "sine", from: 1175, start: 0.07, length: 0.14, gain: 0.12})
 }
 
+const ROLL = 18
+
+const title: Synth = (ctx, at, {volume}) => {
+    const hit = TITLE_REVEAL.impact
+
+    const limiter = ctx.createDynamicsCompressor()
+    limiter.threshold.value = -10
+    limiter.ratio.value = 6
+    const level = ctx.createGain()
+    level.gain.value = volume
+    const room = ctx.createConvolver()
+    room.buffer = reverb(ctx)
+    const wet = ctx.createGain()
+    wet.gain.value = 0.3
+    limiter.connect(level).connect(ctx.destination)
+    level.connect(room).connect(wet).connect(ctx.destination)
+
+    filteredNoise(ctx, at, limiter, {start: 0, length: hit, attack: hit * 0.95, gain: 0.12, filter: "bandpass", from: 400, to: 5000, q: 1.2})
+    for (let i = 0; i < ROLL; i++) {
+        const start = 0.2 + (hit - 0.24) * (1 - (1 - i / ROLL) ** 1.6)
+        filteredNoise(ctx, at, limiter, {start, length: 0.05, attack: 0.002, gain: 0.05 + 0.25 * i / ROLL, filter: "bandpass", from: 2000, q: 0.8})
+    }
+
+    tone(ctx, at, 1, {type: "sine", from: 150, to: 40, start: hit, length: 0.9, gain: 0.7}, limiter)
+    filteredNoise(ctx, at, limiter, {start: hit, length: 1.8, attack: 0.002, gain: 0.3, filter: "highpass", from: 2500})
+    ;[262, 523, 659, 784].forEach((from) => {
+        tone(ctx, at, 1, {type: "square", from, start: hit, length: 0.14, gain: 0.05}, limiter)
+    })
+    ;[523, 659, 784, 1047].forEach((from) => {
+        tone(ctx, at, 1, {type: "triangle", from, start: hit + 0.16, length: 1.9, gain: 0.09}, limiter)
+        tone(ctx, at, 1, {type: "square", from, start: hit + 0.16, length: 1.2, gain: 0.02}, limiter)
+    })
+    ;[1568, 2093, 2637, 3136].forEach((from, i) => {
+        tone(ctx, at, 1, {type: "sine", from, start: hit + 0.2 + i * 0.06, length: 0.3, gain: 0.05}, limiter)
+    })
+
+    window.setTimeout(
+        () => [limiter, level, room, wet].forEach((node) => node.disconnect()),
+        (at + hit - ctx.currentTime + 6) * 1000,
+    )
+}
+
 export const SYNTHS: Record<SoundName, Synth> = {
-    click, refused, bonusSpawn, bonusCaught, spread, enclose, bomb, chat, quiz, quizRight, quizWrong,
+    click, refused, bonusSpawn, bonusCaught, spread, enclose, bomb, chat, quiz, quizRight, quizWrong, title,
 }
