@@ -10,23 +10,27 @@ const GUEST: Caller = {linked: false}
 
 let latest: MySeason | undefined
 
-function Harness({backend, caller, clicks}: {backend: StandingsBackend, caller: Caller, clicks: AcceptedClicks}) {
-    latest = useMySeason(backend, caller, clicks.listenForClicks)
+type HarnessProps = {backend: StandingsBackend, caller: Caller, clicks: AcceptedClicks, countryCode?: string}
+
+function Harness({backend, caller, clicks, countryCode = ""}: HarnessProps) {
+    latest = useMySeason(backend, caller, clicks.listenForClicks, countryCode)
     return null
 }
 
 function server(tiles = 10) {
-    const kept = {tiles}
+    const kept = {tiles, de: 3}
     return {
         kept,
         standings: vi.fn(async () => []),
-        mySeason: vi.fn(async (): Promise<MySeason> => ({countryCode: "fr", tiles: kept.tiles})),
+        mySeason: vi.fn(async (countryCode: string): Promise<MySeason> => countryCode === "de"
+            ? {countryCode: "de", tiles: kept.de}
+            : {countryCode: "fr", tiles: kept.tiles}),
     }
 }
 
-async function shown(backend: StandingsBackend, caller = GUEST) {
+async function shown(backend: StandingsBackend, caller = GUEST, countryCode = "") {
     const clicks = acceptedClicks()
-    const view = render(<Harness backend={backend} caller={caller} clicks={clicks}/>)
+    const view = render(<Harness backend={backend} caller={caller} clicks={clicks} countryCode={countryCode}/>)
     await act(async () => {})
     return {...view, clicks}
 }
@@ -46,6 +50,34 @@ describe("useMySeason", () => {
 
         expect(latest).toEqual({countryCode: "fr", tiles: 10})
         expect(backend.mySeason).toHaveBeenCalledTimes(1)
+        expect(backend.mySeason).toHaveBeenCalledWith("")
+    })
+
+    it("reads the caller's line on the board of the country shown, and again when that country changes", async () => {
+        const backend = server()
+        const {clicks, rerender} = await shown(backend, GUEST, "de")
+        expect(backend.mySeason).toHaveBeenLastCalledWith("de")
+        expect(latest).toEqual({countryCode: "de", tiles: 3})
+
+        let answer: (season: MySeason) => void = () => {}
+        backend.mySeason.mockImplementationOnce(() => new Promise((resolve) => answer = resolve))
+        rerender(<Harness backend={backend} caller={GUEST} clicks={clicks} countryCode="fr"/>)
+        await act(async () => {})
+
+        expect(backend.mySeason).toHaveBeenLastCalledWith("fr")
+        expect(latest).toBeUndefined()
+        await act(async () => answer({countryCode: "fr", tiles: 4}))
+        expect(latest).toEqual({countryCode: "fr", tiles: 4})
+    })
+
+    it("counts a take for the country shown into its line there, whatever the main flag", async () => {
+        const backend = server()
+        const {clicks} = await shown(backend, GUEST, "de")
+
+        await take(clicks, "de")
+        await take(clicks, "fr")
+
+        expect(latest).toEqual({countryCode: "de", tiles: 4})
     })
 
     it("counts each tile the caller takes for its main flag at once", async () => {

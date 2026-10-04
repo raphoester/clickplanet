@@ -109,10 +109,10 @@ const mainLines = `
 	LIMIT $4
 `
 
-const mainLinesOfCountry = `
+const linesOfCountry = `
 	SELECT account_id, country, tiles
 	FROM contributions
-	WHERE season = $1 AND main AND country = $5 AND (tiles < $2 OR (tiles = $2 AND account_id > $3))
+	WHERE season = $1 AND country = $5 AND (tiles < $2 OR (tiles = $2 AND account_id > $3))
 	ORDER BY tiles DESC, account_id
 	LIMIT $4
 `
@@ -120,7 +120,7 @@ const mainLinesOfCountry = `
 func (q *PostgresQuery) lines(ctx context.Context, season calendar.Number, country string, after line) ([]line, error) {
 	query, args := mainLines, []any{int64(season), int64(after.tiles), uuid.UUID(after.account), page} //nolint:gosec // a line's tiles fit in int64.
 	if country != "" {
-		query, args = mainLinesOfCountry, append(args, country)
+		query, args = linesOfCountry, append(args, country)
 	}
 
 	rows, err := q.db.QueryContext(ctx, query, args...)

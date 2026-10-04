@@ -92,46 +92,54 @@ describe("ConnectStandingsBackend.standings", () => {
 })
 
 describe("ConnectStandingsBackend.mySeason", () => {
-    it("reads the caller's main flag, tiles and ranks, in numbers, as its identity", async () => {
-        const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "fr", tiles: 340n, globalRank: 12, countryRank: 3}))
+    it("reads the caller's main flag, its tiles and the rank among all players, in numbers, as its identity", async () => {
+        const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "fr", tiles: 340n, globalRank: 12}))
 
-        expect(await backendWith({getMySeason}).mySeason()).toEqual({countryCode: "fr", tiles: 340, globalRank: 12, countryRank: 3})
+        expect(await backendWith({getMySeason}).mySeason("")).toEqual({countryCode: "fr", tiles: 340, rank: 12})
+        expect(getMySeason).toHaveBeenCalledWith({countryId: ""}, expect.anything())
         expect(headersOf(getMySeason).headers.get(SESSION_HEADER)).toBe("token-1")
     })
 
-    it("reads the title the caller wears", async () => {
-        const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "fr", tiles: 340n, globalRank: 12, countryRank: 3, wornTitle: warlordPb}))
+    it("reads the tiles taken for the country asked and the rank there, whatever the main flag", async () => {
+        const getMySeason = vi.fn(async () => new GetMySeasonResponse({
+            countryId: "bg", tiles: 74n, globalRank: 1, countryTiles: 3n, countryRank: 2,
+        }))
 
-        expect((await backendWith({getMySeason}).mySeason())?.wornTitle).toEqual(warlord)
+        expect(await backendWith({getMySeason}).mySeason("fr")).toEqual({countryCode: "fr", tiles: 3, rank: 2})
+        expect(getMySeason).toHaveBeenCalledWith({countryId: "fr"}, expect.anything())
+    })
+
+    it("reads the title the caller wears, on any board", async () => {
+        const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "fr", tiles: 340n, globalRank: 12, countryTiles: 3n, countryRank: 3, wornTitle: warlordPb}))
+
+        expect((await backendWith({getMySeason}).mySeason(""))?.wornTitle).toEqual(warlord)
+        expect((await backendWith({getMySeason}).mySeason("fr"))?.wornTitle).toEqual(warlord)
     })
 
     it("reads no flag and no rank where the server answers none", async () => {
         const getMySeason = vi.fn(async () => new GetMySeasonResponse())
 
-        expect(await backendWith({getMySeason}).mySeason()).toEqual({
-            countryCode: undefined,
-            tiles: 0,
-            globalRank: undefined,
-            countryRank: undefined,
-        })
+        expect(await backendWith({getMySeason}).mySeason("")).toEqual({countryCode: undefined, tiles: 0, rank: undefined})
+    })
+
+    it("reads no tiles and no rank in a country the caller took nothing for", async () => {
+        const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "fr", tiles: 5n, globalRank: 2}))
+
+        expect(await backendWith({getMySeason}).mySeason("de")).toEqual({countryCode: "de", tiles: 0, rank: undefined})
     })
 
     it("reads tiles without a rank for a guest", async () => {
-        const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "de", tiles: 7n}))
+        const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "de", tiles: 7n, countryTiles: 7n}))
 
-        expect(await backendWith({getMySeason}).mySeason()).toEqual({
-            countryCode: "de",
-            tiles: 7,
-            globalRank: undefined,
-            countryRank: undefined,
-        })
+        expect(await backendWith({getMySeason}).mySeason("")).toEqual({countryCode: "de", tiles: 7, rank: undefined})
+        expect(await backendWith({getMySeason}).mySeason("de")).toEqual({countryCode: "de", tiles: 7, rank: undefined})
     })
 
     it("asks nothing and never mints with no identity to be had", async () => {
         const getMySeason = vi.fn(async () => new GetMySeasonResponse())
         const session = holding(undefined)
 
-        expect(await backendWith({getMySeason}, session).mySeason()).toBeUndefined()
+        expect(await backendWith({getMySeason}, session).mySeason("")).toBeUndefined()
         expect(getMySeason).not.toHaveBeenCalled()
         expect(session.token).not.toHaveBeenCalled()
     })
@@ -139,16 +147,16 @@ describe("ConnectStandingsBackend.mySeason", () => {
     it("knows nothing when the server refuses the token, and keeps it", async () => {
         const session = holding("token-1")
 
-        expect(await backendWith({getMySeason: refusing(Code.Unauthenticated)}, session).mySeason()).toBeUndefined()
+        expect(await backendWith({getMySeason: refusing(Code.Unauthenticated)}, session).mySeason("")).toBeUndefined()
         expect(session.invalidate).not.toHaveBeenCalled()
         expect(session.token).not.toHaveBeenCalled()
     })
 
     it("knows nothing on a server without standings", async () => {
-        expect(await backendWith({getMySeason: refusing(Code.Unimplemented)}).mySeason()).toBeUndefined()
+        expect(await backendWith({getMySeason: refusing(Code.Unimplemented)}).mySeason("")).toBeUndefined()
     })
 
     it("passes on a refusal it does not know", async () => {
-        await expect(backendWith({getMySeason: refusing(Code.Internal)}).mySeason()).rejects.toThrow(ConnectError)
+        await expect(backendWith({getMySeason: refusing(Code.Internal)}).mySeason("")).rejects.toThrow(ConnectError)
     })
 })

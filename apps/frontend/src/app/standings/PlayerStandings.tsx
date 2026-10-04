@@ -24,14 +24,15 @@ export type PlayerStandingsProps = {
 
 export default function PlayerStandings(props: PlayerStandingsProps) {
     const standings = useStandings(props.backend, props.countryCode)
-    const mine = useMySeason(props.backend, props.caller, props.listenForClicks)
+    const mine = useMySeason(props.backend, props.caller, props.listenForClicks, props.countryCode)
     const name = props.caller.username
-    const own = ownLine(props.caller, mine, props.countryCode)
+    const own = ownLine(props.caller, mine)
     const board = standings && boardWith(standings, own)
     const listedRank = board?.listed.find((standing) => standing.name === name)?.rank
 
     return <>
-        <YourSeason mine={withRank(mine, props.countryCode, own && listedRank)}
+        <YourSeason mine={withRank(mine, own && listedRank)}
+                    rankedAmong={rankedAmong(props.countryCode)}
                     caller={props.caller}
                     onSignIn={props.onSignIn}/>
         {board && <StandingsTable label={props.label}
@@ -42,12 +43,11 @@ export default function PlayerStandings(props: PlayerStandingsProps) {
     </>
 }
 
-function ownLine(caller: Caller, mine: MySeason | undefined, countryCode: string): Standing | undefined {
-    const rank = countryCode === "" ? mine?.globalRank : mine?.countryCode === countryCode ? mine.countryRank : undefined
-    if (caller.username === undefined || mine?.countryCode === undefined || rank === undefined) return undefined
+function ownLine(caller: Caller, mine: MySeason | undefined): Standing | undefined {
+    if (caller.username === undefined || mine?.countryCode === undefined || mine.rank === undefined) return undefined
 
     return {
-        rank,
+        rank: mine.rank,
         name: caller.username,
         color: caller.color ?? NameColor.UNSPECIFIED,
         countryCode: mine.countryCode,
@@ -56,9 +56,12 @@ function ownLine(caller: Caller, mine: MySeason | undefined, countryCode: string
     }
 }
 
-function withRank(mine: MySeason | undefined, countryCode: string, rank: number | undefined): MySeason | undefined {
-    if (!mine || rank === undefined) return mine
-    return countryCode === "" ? {...mine, globalRank: rank} : {...mine, countryRank: rank}
+function rankedAmong(countryCode: string): string {
+    return countryCode === "" ? "Players" : Countries.get(countryCode)?.name ?? countryCode
+}
+
+function withRank(mine: MySeason | undefined, rank: number | undefined): MySeason | undefined {
+    return mine && rank !== undefined ? {...mine, rank} : mine
 }
 
 type StandingsTableProps = {

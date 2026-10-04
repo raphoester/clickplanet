@@ -23,14 +23,14 @@ export class ConnectStandingsBackend implements StandingsBackend {
         }
     }
 
-    public async mySeason(): Promise<MySeason | undefined> {
+    public async mySeason(countryCode: string): Promise<MySeason | undefined> {
         const token = await this.session.identity()
         if (!token) return undefined
 
         const headers = new Headers({[SESSION_HEADER]: token})
         try {
-            const res = await retrying(() => this.client.getMySeason({}, {headers}), "GetMySeason")
-            return mySeasonOf(res)
+            const res = await retrying(() => this.client.getMySeason({countryId: countryCode}, {headers}), "GetMySeason")
+            return mySeasonOf(res, countryCode)
         } catch (e) {
             if (absent(e) || (e instanceof ConnectError && e.code === Code.Unauthenticated)) return undefined
             throw e
@@ -53,12 +53,8 @@ function standingOf(standing: StandingPb): Standing {
     }
 }
 
-function mySeasonOf(res: GetMySeasonResponse): MySeason {
-    return {
-        countryCode: res.countryId || undefined,
-        tiles: Number(res.tiles),
-        globalRank: res.globalRank || undefined,
-        countryRank: res.countryRank || undefined,
-        wornTitle: titleOf(res.wornTitle),
-    }
+function mySeasonOf(res: GetMySeasonResponse, countryCode: string): MySeason {
+    const wornTitle = titleOf(res.wornTitle)
+    if (countryCode !== "") return {countryCode, tiles: Number(res.countryTiles), rank: res.countryRank || undefined, wornTitle}
+    return {countryCode: res.countryId || undefined, tiles: Number(res.tiles), rank: res.globalRank || undefined, wornTitle}
 }

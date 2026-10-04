@@ -777,19 +777,22 @@ is the player's own view.
 ### Season standings
 
 `backends/standings.ts` is the contract: `StandingsBackend`, `Standing` (a
-ranked player: rank, name, color, worn title, main flag, tiles) and `MySeason`
-(the caller's main flag, tiles, ranks and worn title). `standingsBackend.ts`
-implements it over `seasons.v1.SeasonService/GetStandings` and `GetMySeason`, and
+ranked player: rank, name, color, worn title, the flag its tiles are for, tiles)
+and `MySeason` (the caller's line on one board: that flag, its tiles, its rank
+and its worn title). `standingsBackend.ts` implements it over
+`seasons.v1.SeasonService/GetStandings` and `GetMySeason`, and
 `fakeStandingsBackend.ts` stands in for it in fake mode, counting the player's
 own clicks. `app/standings/` draws it.
 
 - **A player's season is the tiles it took this season for its main flag**, the
-  flag it took the most for. The server ranks only signed-in players (each has a
-  username; a guest has none), and ties share a rank (1, 2, 2, 4). `RankCoin` draws the rank, as on the countries'
-  board.
+  flag it took the most for: that is the Players board. **A country's board is
+  every player who took tiles for that country, by those tiles**, so a player is
+  on the board of each flag it took for, from its first take. The server ranks
+  only signed-in players (each has a username; a guest has none), and ties share
+  a rank (1, 2, 2, 4). `RankCoin` draws the rank, as on the countries' board.
 - **The board has three views** (`BoardViews`): Countries, the `Leaderboard` as
-  it was; Players; and the players whose main flag is the country played for,
-  named by its flag and name. `Viewer` holds the view, so a closed sheet or
+  it was; Players; and the players of the country played for, named by its flag
+  and name. `Viewer` holds the view, so a closed sheet or
   another menu tab keeps it. With no `StandingsBackend` wired the board has no
   views.
 - **The view is picked from the board's heading** (`HeadingSelect`, a gold
@@ -805,33 +808,40 @@ own clicks. `app/standings/` draws it.
 - **`GetMySeason` reads as the identity token** (`identity()`: a fresh token, or
   one resumed from the cookie, never a Turnstile mint), so a player back the next
   day sees its season at once. With none to be had it is not sent, and
-  `unauthenticated` reads as unknown and keeps the token.
-  `useMySeason` reads it when a players' view opens, when the account or the
-  username changes, 2s after the last of a run of accepted clicks, and at least
-  every 10s while they keep coming (`useReadsAfterClicks`).
+  `unauthenticated` reads as unknown and keeps the token. **It is asked for the
+  board on screen**: no country on Players, which reads the main flag, its tiles
+  and the global rank; the country on its board, which reads the tiles taken for
+  it and the rank there. `useMySeason` reads it when a players' view opens, when
+  the view's country changes (and shows nothing of the other board meanwhile),
+  when the account or the username changes, 2s after the last of a run of
+  accepted clicks, and at least every 10s while they keep coming
+  (`useReadsAfterClicks`).
 - **The caller's own numbers move on every take.** The globe already knows
   which click takes a tile (it paints it as the server will write it), and once
   the server accepts one it tells `acceptedClicks`, which tells its listeners
   with no render of `Viewer` per click. `useOwnTakes` counts them by flag, and
-  `liveSeason` adds the ones made since the read was sent to the main flag's
-  tiles; a player with no main flag yet gets the server's rule (the first flag,
-  until another has strictly more). A take for another flag adds nothing: only
-  the server knows whether it became the main one. A spread or an enclosure's
-  extra tiles, and the ranks, wait for the next read.
+  `liveSeason` adds the ones made since the read was sent to the line's flag:
+  the country shown on its board, the main flag on Players. A player with no
+  main flag yet gets the server's rule there (the first flag, until another has
+  strictly more). On Players a take for another flag adds nothing: only the
+  server knows whether it became the main one. A spread or an enclosure's extra
+  tiles, and the ranks, wait for the next read.
 - **The caller's row is drawn from that count** (`boardWith`): it climbs into
   the top 10 and pushes the last out, its rank counted among the rows it passes,
   and the rank in "Your season" follows it. The other rows move every 15s: a
   `TileUpdate` does not say who took the tile.
-- **The caller's own line.** "Your season" sits over the table: the tiles, and
-  with a username the rank among all players and in the main flag. A guest gets
-  a Sign in button beside its tiles, which opens `SignInPitchModal`. In the table
-  the caller's row is marked when it is in the top 10, and otherwise added under
-  it with its rank in that view: the global rank, or the country rank when the
-  country shown is its main flag. Its name and color come from the profile, its
-  title from `GetMySeason`: read again after clicks, it follows a rank-up, and
-  a title picked meanwhile shows at the next read.
-- **A name opens the player card**, as in the roster and the chat, with its
-  main flag and its title.
+- **The caller's own line.** "Your season" sits over the table and shows only
+  the board on screen: on Players the season's tiles and, with a username, the
+  rank among all players; on a country's board the tiles taken for that country
+  and the rank there, under its name. No tile names another country than the
+  one shown. A guest gets a Sign in button beside its tiles, which opens
+  `SignInPitchModal`. In the table the caller's row is the same line: marked
+  when it is in the top 10, and otherwise added under it with its rank there.
+  Its name and color come from the profile, its title from `GetMySeason`: read
+  again after clicks, it follows a rank-up, and a title picked meanwhile shows
+  at the next read.
+- **A name opens the player card**, as in the roster and the chat, with the
+  flag of its row and its title.
 - **The head's line is a background**, 7px above its bottom edge: the gap under
   it was the first row's top padding, and the caller's highlight took it in
   when it was first.

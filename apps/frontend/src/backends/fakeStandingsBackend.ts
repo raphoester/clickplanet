@@ -3,7 +3,7 @@ import {TileClicker} from "./backend.ts"
 import {NameColor, PlayerTitle} from "./player.ts"
 import {MySeason, Standing, StandingsBackend} from "./standings.ts"
 
-type FakePlayer = Omit<Standing, "rank">
+type FakePlayer = Pick<Standing, "name" | "color" | "wornTitle"> & {tiles: Record<string, number>}
 
 const conquest = (id: string, name: string, number: number): PlayerTitle =>
     ({id, name, rank: {trackId: "conquest", trackName: "Conquest", number, count: 5}})
@@ -15,20 +15,20 @@ const DEVOTED: PlayerTitle = {id: "devoted", name: "Devoted", rank: {trackId: "d
 const OG: PlayerTitle = {id: "og", name: "OG"}
 
 const PLAYERS: FakePlayer[] = [
-    {name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 1_840, wornTitle: WARLORD},
-    {name: "kiran_07", color: NameColor.UNSPECIFIED, countryCode: "in", tiles: 1_512},
-    {name: "Mateus", color: NameColor.TEAL, countryCode: "br", tiles: 1_512, wornTitle: OG},
-    {name: "zoe_nz", color: NameColor.VIOLET, countryCode: "nz", tiles: 1_207, wornTitle: DEVOTED},
-    {name: "Jean Moulin", color: NameColor.BLUE, countryCode: "fr", tiles: 990},
-    {name: "Ольга", color: NameColor.RED, countryCode: "ru", tiles: 864},
-    {name: "Kofi", color: NameColor.GREEN, countryCode: "gh", tiles: 731, wornTitle: RAIDER},
-    {name: "Lucía", color: NameColor.ORANGE, countryCode: "es", tiles: 655},
-    {name: "Hana", color: NameColor.CYAN, countryCode: "jp", tiles: 590},
-    {name: "Bastien", color: NameColor.YELLOW, countryCode: "fr", tiles: 402, wornTitle: SETTLER},
-    {name: "Mehmet", color: NameColor.MAGENTA, countryCode: "tr", tiles: 377},
-    {name: "Inès", color: NameColor.LIME, countryCode: "fr", tiles: 215, wornTitle: RAIDER},
-    {name: "Pierre_L", color: NameColor.INDIGO, countryCode: "fr", tiles: 96},
-    {name: "Noor", color: NameColor.UNSPECIFIED, countryCode: "ae", tiles: 44},
+    {name: "Ana", color: NameColor.PINK, tiles: {fr: 1_840, es: 210}, wornTitle: WARLORD},
+    {name: "kiran_07", color: NameColor.UNSPECIFIED, tiles: {in: 1_512}},
+    {name: "Mateus", color: NameColor.TEAL, tiles: {br: 1_512, fr: 75}, wornTitle: OG},
+    {name: "zoe_nz", color: NameColor.VIOLET, tiles: {nz: 1_207}, wornTitle: DEVOTED},
+    {name: "Jean Moulin", color: NameColor.BLUE, tiles: {fr: 990}},
+    {name: "Ольга", color: NameColor.RED, tiles: {ru: 864, fr: 120}},
+    {name: "Kofi", color: NameColor.GREEN, tiles: {gh: 731}, wornTitle: RAIDER},
+    {name: "Lucía", color: NameColor.ORANGE, tiles: {es: 655, fr: 31}},
+    {name: "Hana", color: NameColor.CYAN, tiles: {jp: 590}},
+    {name: "Bastien", color: NameColor.YELLOW, tiles: {fr: 402}, wornTitle: SETTLER},
+    {name: "Mehmet", color: NameColor.MAGENTA, tiles: {tr: 377}},
+    {name: "Inès", color: NameColor.LIME, tiles: {fr: 215}, wornTitle: RAIDER},
+    {name: "Pierre_L", color: NameColor.INDIGO, tiles: {fr: 96}},
+    {name: "Noor", color: NameColor.UNSPECIFIED, tiles: {ae: 44, in: 12}},
 ]
 
 export class FakeStandingsBackend implements StandingsBackend {
@@ -48,18 +48,26 @@ export class FakeStandingsBackend implements StandingsBackend {
 
     public async standings(countryCode: string): Promise<Standing[]> {
         const sorted = this.players
-            .filter((player) => countryCode === "" || player.countryCode === countryCode)
+            .map(({tiles, ...player}) => ({...player, ...lineOf(new Map(Object.entries(tiles)), countryCode)}))
+            .filter((line) => line.tiles > 0)
             .sort((a, b) => b.tiles - a.tiles)
         return sorted
-            .map((player) => ({...player, rank: sorted.findIndex((other) => other.tiles === player.tiles) + 1}))
+            .map((line) => ({...line, rank: sorted.findIndex((other) => other.tiles === line.tiles) + 1}))
             .slice(0, STANDINGS_SHOWN)
     }
 
-    public async mySeason(): Promise<MySeason | undefined> {
-        let main: {countryCode: string, tiles: number} | undefined
-        for (const [countryCode, tiles] of this.taken) {
-            if (!main || tiles > main.tiles) main = {countryCode, tiles}
-        }
-        return {countryCode: main?.countryCode, tiles: main?.tiles ?? 0}
+    public async mySeason(countryCode: string): Promise<MySeason | undefined> {
+        const line = lineOf(this.taken, countryCode)
+        return {countryCode: line.countryCode || undefined, tiles: line.tiles}
     }
+}
+
+function lineOf(tiles: ReadonlyMap<string, number>, countryCode: string): {countryCode: string, tiles: number} {
+    if (countryCode !== "") return {countryCode, tiles: tiles.get(countryCode) ?? 0}
+
+    let main = {countryCode: "", tiles: 0}
+    for (const [code, count] of tiles) {
+        if (count > main.tiles) main = {countryCode: code, tiles: count}
+    }
+    return main
 }

@@ -55,6 +55,7 @@ func NewModule(config Config) cpbootstrap.Module {
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
 	seasons := calendar.New(config.Calendar)
+	countries := cpcountries.New()
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
@@ -92,10 +93,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			get_season_usecase.New(seasons, clock),
 		),
 		GetStandingsHandler: get_standings_handler.New(standings_query.NewPostgresQuery(
-			db, standings_authors.New(player), seasons, clock, cpcountries.New(),
+			db, standings_authors.New(player), seasons, clock, countries,
 		)),
 		GetMySeasonHandler: get_my_season_handler.New(my_season_query.NewPostgresQuery(
-			db, my_season_authors.New(player), seasons, clock,
+			db, my_season_authors.New(player), seasons, clock, countries,
 		)),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "seasons")))

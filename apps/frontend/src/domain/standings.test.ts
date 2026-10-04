@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {NameColor} from "../backends/player.ts"
-import {Standing} from "../backends/standings.ts"
+import {MySeason, Standing} from "../backends/standings.ts"
 import {boardWith, liveSeason, NO_TAKES, STANDINGS_SHOWN, takenCount, takesSince, withTake} from "./standings.ts"
 
 const takes = (entries: Record<string, number>) => new Map(Object.entries(entries))
@@ -37,14 +37,18 @@ describe("takes", () => {
 })
 
 describe("liveSeason", () => {
-    const read = {countryCode: "fr", tiles: 40, globalRank: 12, countryRank: 3}
+    const read: MySeason = {countryCode: "fr", tiles: 40, rank: 12}
 
-    it("adds the tiles taken for the main flag since the read", () => {
+    it("adds the tiles taken since the read for the flag of the line", () => {
         expect(liveSeason(read, takes({fr: 2}))).toEqual({...read, tiles: 42})
     })
 
     it("adds nothing for another flag: only the server knows if it became the main one", () => {
         expect(liveSeason(read, takes({de: 50}))).toBe(read)
+    })
+
+    it("counts the takes for a country's board into it, though another flag is the main one", () => {
+        expect(liveSeason({countryCode: "fr", tiles: 0}, takes({fr: 3, bg: 70}))).toEqual({countryCode: "fr", tiles: 3})
     })
 
     it("gives a player with no tiles yet the flag of its first takes, as the server will", () => {
