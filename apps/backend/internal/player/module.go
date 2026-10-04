@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/random_code_generator"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/random_name_generator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
@@ -21,6 +22,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_profile_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_stats_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_account_usecase/renaming_name_account"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_accounts_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_accounts_usecase/audit_name_accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_message_usecase/publishing_record_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/record_take_usecase"
@@ -39,6 +44,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/name_accounts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/reconcile_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
@@ -53,6 +59,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/message_sent_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_account_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/stats_changed_subscriber"
@@ -134,6 +141,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	manyAuthors := get_authors_usecase.New(store, wardrobe, clock)
 
 	visits := inmemory_visit_storage.New(clock)
+	generatedNames := players.NewGeneratedNames(store, random_name_generator.Generator{})
 	props.Runners.Add(visits)
 
 	takes, err := cpbootstrap.Subscribe(props.Events, "player-stats", tileTakenBuffer,
@@ -186,6 +194,14 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.SignedIn: %w", err)
 	}
+	namings, err := cpbootstrap.Subscribe(props.Events, "player-names-sign-ins", signInBuffer,
+		log_subscriber.New(signed_in_account_subscriber.New(renaming_name_account.New(
+			name_account_usecase.New(generatedNames, store, clock), visits,
+		)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the names to auth.v1.SignedIn: %w", err)
+	}
 	signOuts, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-outs", signInBuffer,
 		log_subscriber.New(signed_out_subscriber.New(forgetVisit), props.Logger))
 	if err != nil {
@@ -201,7 +217,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(signOuts)
 	props.Runners.Add(gone)
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, posts, awards, deletions, forgottenTitles, forgottenChoices, signIns))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, posts, awards, deletions, forgottenTitles, forgottenChoices, signIns, namings))
 
 	verifier := rpc_session_verifier.New(props.Internal, props.Logger)
 
@@ -245,6 +261,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	adminService := playerv1controller.AdminService{
 		ReconcileTitlesHandler: reconcile_titles_handler.New(audit_reconcile_titles.New(
 			reconcile_titles_usecase.New(store, accounts, titleStore, catalog, clock), props.Logger,
+		)),
+		NameAccountsHandler: name_accounts_handler.New(audit_name_accounts.New(
+			name_accounts_usecase.New(store, accounts, generatedNames, clock), props.Logger,
 		)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

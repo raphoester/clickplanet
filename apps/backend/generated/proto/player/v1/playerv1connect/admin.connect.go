@@ -36,11 +36,15 @@ const (
 	// AdminServiceReconcileTitlesProcedure is the fully-qualified name of the AdminService's
 	// ReconcileTitles RPC.
 	AdminServiceReconcileTitlesProcedure = "/player.v1.AdminService/ReconcileTitles"
+	// AdminServiceNameAccountsProcedure is the fully-qualified name of the AdminService's NameAccounts
+	// RPC.
+	AdminServiceNameAccountsProcedure = "/player.v1.AdminService/NameAccounts"
 )
 
 // AdminServiceClient is a client for the player.v1.AdminService service.
 type AdminServiceClient interface {
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
+	NameAccounts(context.Context, *connect.Request[v1.NameAccountsRequest]) (*connect.Response[v1.NameAccountsResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the player.v1.AdminService service. By default, it
@@ -60,12 +64,19 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("ReconcileTitles")),
 			connect.WithClientOptions(opts...),
 		),
+		nameAccounts: connect.NewClient[v1.NameAccountsRequest, v1.NameAccountsResponse](
+			httpClient,
+			baseURL+AdminServiceNameAccountsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("NameAccounts")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
 	reconcileTitles *connect.Client[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse]
+	nameAccounts    *connect.Client[v1.NameAccountsRequest, v1.NameAccountsResponse]
 }
 
 // ReconcileTitles calls player.v1.AdminService.ReconcileTitles.
@@ -73,9 +84,15 @@ func (c *adminServiceClient) ReconcileTitles(ctx context.Context, req *connect.R
 	return c.reconcileTitles.CallUnary(ctx, req)
 }
 
+// NameAccounts calls player.v1.AdminService.NameAccounts.
+func (c *adminServiceClient) NameAccounts(ctx context.Context, req *connect.Request[v1.NameAccountsRequest]) (*connect.Response[v1.NameAccountsResponse], error) {
+	return c.nameAccounts.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the player.v1.AdminService service.
 type AdminServiceHandler interface {
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
+	NameAccounts(context.Context, *connect.Request[v1.NameAccountsRequest]) (*connect.Response[v1.NameAccountsResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -91,10 +108,18 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("ReconcileTitles")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceNameAccountsHandler := connect.NewUnaryHandler(
+		AdminServiceNameAccountsProcedure,
+		svc.NameAccounts,
+		connect.WithSchema(adminServiceMethods.ByName("NameAccounts")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReconcileTitlesProcedure:
 			adminServiceReconcileTitlesHandler.ServeHTTP(w, r)
+		case AdminServiceNameAccountsProcedure:
+			adminServiceNameAccountsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -106,4 +131,8 @@ type UnimplementedAdminServiceHandler struct{}
 
 func (UnimplementedAdminServiceHandler) ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.ReconcileTitles is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) NameAccounts(context.Context, *connect.Request[v1.NameAccountsRequest]) (*connect.Response[v1.NameAccountsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.NameAccounts is not implemented"))
 }
