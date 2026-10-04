@@ -74,7 +74,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	messageStore := postgres_message_store.New(db)
 	reactionStore := postgres_reaction_store.New(db)
 	announcementStore := postgres_announcement_store.New(db)
-	window := messages.Window{Size: storage.HistorySize, Retention: storage.Retention}
+	window := messages.NewWindow(storage.HistorySize, storage.Retention)
 	updates := inprocess_feed.New(storage.SubscriberBuffer, props.Logger)
 
 	prune := log_prune.New(
@@ -108,7 +108,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		SendMessageHandler: send_message_handler.New(publishing_send_message.New(send_message_usecase.New(
 			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service), props.Events)),
 		GetHistoryHandler: get_history_handler.New(history_query.NewPostgresQuery(
-			db, history_authors.New(props.Internal), cptime.SystemClock{}, window)),
+			db, history_authors.New(props.Internal), cptime.SystemClock{}, storage.HistorySize, storage.Retention)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(updates, props.Server.StreamHeartbeat)),
 		ReactHandler: react_handler.New(react_usecase.New(

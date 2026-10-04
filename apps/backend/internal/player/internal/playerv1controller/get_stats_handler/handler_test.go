@@ -1,8 +1,9 @@
 package get_stats_handler_test
 
 import (
+	"context"
+	"errors"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -11,25 +12,48 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func TestTheCallersStatsAreAnswered(t *testing.T) {
-	store := inmemory_player_store.New()
-	at := time.Date(2026, 9, 17, 10, 0, 0, 0, time.UTC)
-	ada, err := players.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
-	require.NoError(t, err)
-	require.NoError(t, store.RecordTake(t.Context(), ada, at))
-	require.NoError(t, store.RecordTake(t.Context(), ada, at))
+const ada = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
 
-	res, err := get_stats_handler.New(get_stats_usecase.New(store, cptime.NewFixedClock(at))).
-		GetStats(cpctx.AddAccountToContext(t.Context(), ada.String()), connect.NewRequest(&playerv1.GetStatsRequest{}))
+type stubQuery struct {
+	answer *playerv1.GetStatsResponse
+	err    error
+	asked  []players.AccountID
+}
+
+func (s *stubQuery) Stats(_ context.Context, account players.AccountID) (*playerv1.GetStatsResponse, error) {
+	s.asked = append(s.asked, account)
+	return s.answer, s.err
+}
+
+func TestTheCallersAnswerIsTheQuerys(t *testing.T) {
+	query := &stubQuery{answer: &playerv1.GetStatsResponse{Stats: &playerv1.Stats{TilesTaken: 42, StreakCurrent: 3}}}
+
+	res, err := get_stats_handler.New(query).GetStats(cpctx.AddAccountToContext(t.Context(), ada), connect.NewRequest(&playerv1.GetStatsRequest{}))
 
 	require.NoError(t, err)
-	assert.True(t, proto.Equal(&playerv1.Stats{TilesTaken: 2, StreakCurrent: 1, StreakBest: 1, StreakLastDay: "2026-09-17"},
-		res.Msg.GetStats()))
+	assert.True(t, proto.Equal(query.answer, res.Msg))
+	account, err := players.AccountIDOf(ada)
+	require.NoError(t, err)
+	assert.Equal(t, []players.AccountID{account}, query.asked)
+}
+
+func TestACallerWithNoAccountIsUnauthenticatedAndReadsNothing(t *testing.T) {
+	query := &stubQuery{}
+
+	_, err := get_stats_handler.New(query).GetStats(t.Context(), connect.NewRequest(&playerv1.GetStatsRequest{}))
+
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	assert.Empty(t, query.asked)
+}
+
+func TestAFailedReadIsTheErrorNets(t *testing.T) {
+	failure := errors.New("postgres is down")
+
+	_, err := get_stats_handler.New(&stubQuery{err: failure}).GetStats(cpctx.AddAccountToContext(t.Context(), ada), connect.NewRequest(&playerv1.GetStatsRequest{}))
+
+	assert.ErrorIs(t, err, failure)
 }

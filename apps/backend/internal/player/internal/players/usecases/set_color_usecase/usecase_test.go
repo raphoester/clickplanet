@@ -21,7 +21,7 @@ var (
 func store(t *testing.T) *inmemory_player_store.Store {
 	t.Helper()
 	store := inmemory_player_store.New()
-	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: time.Now()}))
+	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada_L", time.Now())))
 	return store
 }
 
@@ -32,7 +32,7 @@ func TestAPlayerWithAUsernameKeepsTheColorItChose(t *testing.T) {
 
 	profile, err := colors.Profile(t.Context(), ada)
 	require.NoError(t, err)
-	assert.Equal(t, players.Color(4), profile.Color)
+	assert.Equal(t, players.Color(4), profile.Color())
 }
 
 func TestAnAccountWithNoUsernameIsRefused(t *testing.T) {

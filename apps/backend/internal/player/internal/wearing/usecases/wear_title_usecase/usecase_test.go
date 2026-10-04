@@ -35,7 +35,8 @@ func TestWearingATitleAnswersTheTitleNowWorn(t *testing.T) {
 	worn, err := useCaseHolding(t, "og", "settler", "raider").Execute(t.Context(), ada, "og")
 
 	require.NoError(t, err)
-	assert.Equal(t, titles.Standing{Title: titles.OG{}}, worn)
+	og, _ := titles.NewCatalog().StandingOf("og")
+	assert.Equal(t, og, worn)
 }
 
 func TestATitleThatCannotBeWornIsRefused(t *testing.T) {

@@ -55,7 +55,7 @@ func (u *UseCase) Execute(ctx context.Context, account players.AccountID) (title
 		return nil, fmt.Errorf("failed to ask auth about the account: %w", err)
 	}
 
-	unheld, err := u.titles.Unheld(ctx, account, titles.Career{Stats: stats, Account: known})
+	unheld, err := u.titles.Unheld(ctx, account, titles.CareerOf(stats, known))
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the titles earned: %w", err)
 	}

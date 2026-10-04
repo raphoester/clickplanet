@@ -26,7 +26,7 @@ func getAuthor(t *testing.T, accountID string) (*connect.Response[playerv1.GetAu
 	store := inmemory_player_store.New()
 	ada, err := players.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
 	require.NoError(t, err)
-	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: time.Now()}))
+	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada_L", time.Now())))
 	require.NoError(t, store.SaveColor(t.Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_TEAL)))
 	require.NoError(t, store.RecordTake(t.Context(), ada, time.Now()))
 

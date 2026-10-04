@@ -28,7 +28,7 @@ func handler(t *testing.T) (set_color_handler.SetColorHandler, *inmemory_player_
 	store := inmemory_player_store.New()
 	account, err := players.AccountIDOf(named)
 	require.NoError(t, err)
-	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: account, Name: "Ada_L", UpdatedAt: time.Now()}))
+	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(account, "Ada_L", time.Now())))
 
 	return set_color_handler.New(set_color_usecase.New(store)), store
 }
@@ -54,7 +54,7 @@ func TestTheColorIsKeptAndAnswered(t *testing.T) {
 	require.NoError(t, err)
 	profile, err := store.Profile(t.Context(), account)
 	require.NoError(t, err)
-	assert.Equal(t, players.Color(playerv1.NameColor_NAME_COLOR_VIOLET), profile.Color)
+	assert.Equal(t, players.Color(playerv1.NameColor_NAME_COLOR_VIOLET), profile.Color())
 }
 
 func TestNoColorGoesBackToTheOneTheNameGives(t *testing.T) {

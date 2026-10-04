@@ -48,27 +48,6 @@ func (s *StoreContractSuite) TestTheLastTitleWornIsTheChoice() {
 	s.Equal(titles.ID("loyal"), s.choice(2))
 }
 
-func (s *StoreContractSuite) TestChoicesAreTheChoicesOfTheAccountsAskedThatChose() {
-	s.wear(1, "settler", contractAt)
-	s.wear(1, "og", contractAt.Add(time.Hour))
-	s.wear(2, "loyal", contractAt)
-	s.wear(3, "raider", contractAt)
-
-	choices, err := s.store.Choices(s.T().Context(), []players.AccountID{{15: 1}, {15: 2}, {15: 4}})
-
-	s.Require().NoError(err)
-	s.Equal(map[players.AccountID]titles.ID{{15: 1}: "og", {15: 2}: "loyal"}, choices)
-}
-
-func (s *StoreContractSuite) TestNoAccountsHaveNoChoices() {
-	s.wear(1, "settler", contractAt)
-
-	choices, err := s.store.Choices(s.T().Context(), []players.AccountID{})
-
-	s.Require().NoError(err)
-	s.Empty(choices)
-}
-
 func (s *StoreContractSuite) TestADeletedAccountHasNoChoiceAndTheOthersKeepTheirs() {
 	s.wear(1, "settler", contractAt)
 	s.wear(2, "og", contractAt)

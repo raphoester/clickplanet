@@ -31,22 +31,38 @@ func (h Holdings) Len() int {
 }
 
 type Reconciliation struct {
-	Grants      Holdings
-	Revocations Holdings
+	grants      Holdings
+	revocations Holdings
 }
+
+func (r Reconciliation) Grants() Holdings { return r.grants }
+
+func (r Reconciliation) Revocations() Holdings { return r.revocations }
 
 type Place struct {
-	Track     TrackID
-	TrackName string
-	Number    int
-	Count     int
+	track     TrackID
+	trackName string
+	number    int
+	count     int
 }
 
-func (p Place) Ranked() bool { return p.Count > 0 }
+func (p Place) Track() TrackID { return p.track }
+
+func (p Place) TrackName() string { return p.trackName }
+
+func (p Place) Number() int { return p.number }
+
+func (p Place) Count() int { return p.count }
+
+func (p Place) Ranked() bool { return p.count > 0 }
 
 type Standing struct {
-	Title Title
-	Place Place
+	title Title
+	place Place
 }
 
-func (s Standing) Empty() bool { return s.Title == nil }
+func (s Standing) Title() Title { return s.title }
+
+func (s Standing) Place() Place { return s.place }
+
+func (s Standing) Empty() bool { return s.title == nil }

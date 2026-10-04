@@ -24,9 +24,7 @@ func TestEachTakeIsCountedOnTheAccountsStats(t *testing.T) {
 
 	stats, err := store.Stats(t.Context(), players.AccountID{15: 1})
 	require.NoError(t, err)
-	assert.Equal(t, players.Stats{
-		Account: players.AccountID{15: 1}, TilesTaken: 2, StreakCurrent: 2, StreakBest: 2, StreakLastDay: players.DayOf(at).Following(),
-	}, stats)
+	assert.Equal(t, players.StatsOf(players.AccountID{15: 1}, 2, players.StreakOf(2, players.DayOf(at).Following()), 2, 0), stats)
 }
 
 func TestAStoreFailureIsAnError(t *testing.T) {

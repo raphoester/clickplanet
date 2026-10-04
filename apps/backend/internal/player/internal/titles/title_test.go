@@ -2,6 +2,7 @@ package titles_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -24,8 +25,62 @@ var (
 	tracks = titles.CatalogOf([]titles.Title{badge}, ladder, side)
 )
 
-func place(track titles.FakeTrack, number int) titles.Place {
-	return titles.Place{Track: track.Key, TrackName: track.Name(), Number: number, Count: len(track.Steps)}
+type standingView struct {
+	ID        titles.ID
+	Track     titles.TrackID
+	TrackName string
+	Number    int
+	Count     int
+}
+
+func alone(title titles.FakeTitle) standingView {
+	return standingView{ID: title.Key}
+}
+
+func ranked(title titles.FakeTitle, track titles.FakeTrack, number int) standingView {
+	return standingView{ID: title.Key, Track: track.Key, TrackName: track.Name(), Number: number, Count: len(track.Steps)}
+}
+
+func viewOf(standing titles.Standing) standingView {
+	place := standing.Place()
+	view := standingView{Track: place.Track(), TrackName: place.TrackName(), Number: place.Number(), Count: place.Count()}
+	if !standing.Empty() {
+		view.ID = standing.Title().ID()
+	}
+	return view
+}
+
+func viewsOf(standings []titles.Standing) []standingView {
+	views := make([]standingView, 0, len(standings))
+	for _, standing := range standings {
+		views = append(views, viewOf(standing))
+	}
+	return views
+}
+
+type stepView struct {
+	Standing  standingView
+	Threshold uint64
+	Earned    bool
+}
+
+type trackView struct {
+	ID       titles.TrackID
+	Name     string
+	Progress uint64
+	Steps    []stepView
+}
+
+func tracksOf(progress []titles.TrackProgress) []trackView {
+	views := make([]trackView, 0, len(progress))
+	for _, track := range progress {
+		steps := make([]stepView, 0, len(track.Steps()))
+		for _, step := range track.Steps() {
+			steps = append(steps, stepView{Standing: viewOf(step.Standing()), Threshold: step.Threshold(), Earned: step.Earned()})
+		}
+		views = append(views, trackView{ID: track.ID(), Name: track.Name(), Progress: track.Progress(), Steps: steps})
+	}
+	return views
 }
 
 func TestTheCatalogNamesTheTitlesStatsEarnInItsOrder(t *testing.T) {
@@ -36,7 +91,7 @@ func TestTheCatalogNamesTheTitlesStatsEarnInItsOrder(t *testing.T) {
 }
 
 func TestAGuestEarnsNothing(t *testing.T) {
-	guest := titles.Career{Stats: players.Stats{TilesTaken: 1_000_000, StreakBest: 1_000, MessagesSent: 1_000_000}}
+	guest := titles.CareerOf(players.StatsOf(players.AccountID{}, 1_000_000, players.StreakOf(0, players.Day{}), 1_000, 1_000_000), players.Account{})
 
 	assert.Empty(t, catalog.EarnedBy(guest))
 	assert.Empty(t, titles.NewCatalog().EarnedBy(guest))
@@ -44,10 +99,7 @@ func TestAGuestEarnsNothing(t *testing.T) {
 
 func TestTheReconciliationGrantsWhatIsEarnedAndRevokesWhatIsNot(t *testing.T) {
 	career := func(account byte, taken uint64, linked bool) titles.Career {
-		return titles.Career{
-			Stats:   players.Stats{Account: players.AccountID{15: account}, TilesTaken: taken},
-			Account: players.Account{Linked: linked},
-		}
+		return titles.CareerOf(players.StatsOf(players.AccountID{15: account}, taken, players.StreakOf(0, players.Day{}), 0, 0), players.AccountOf(linked, time.Time{}))
 	}
 
 	reconciliation := catalog.ReconciliationOf([]titles.Career{
@@ -61,20 +113,20 @@ func TestTheReconciliationGrantsWhatIsEarnedAndRevokesWhatIsNot(t *testing.T) {
 		{15: 3}: {"first"},
 	})
 
-	assert.Equal(t, titles.Holdings{{15: 1}: {"third"}}, reconciliation.Grants)
-	assert.Equal(t, titles.Holdings{{15: 2}: {"third", "retired"}, {15: 3}: {"first"}}, reconciliation.Revocations)
-	assert.Equal(t, 3, reconciliation.Revocations.Len())
+	assert.Equal(t, titles.Holdings{{15: 1}: {"third"}}, reconciliation.Grants())
+	assert.Equal(t, titles.Holdings{{15: 2}: {"third", "retired"}, {15: 3}: {"first"}}, reconciliation.Revocations())
+	assert.Equal(t, 3, reconciliation.Revocations().Len())
 }
 
 func TestATitleStandsAloneOrAtItsPlaceInItsTrack(t *testing.T) {
 	standing, ok := tracks.StandingOf("badge")
 	assert.True(t, ok)
-	assert.Equal(t, titles.Standing{Title: badge}, standing)
-	assert.False(t, standing.Place.Ranked())
+	assert.Equal(t, alone(badge), viewOf(standing))
+	assert.False(t, standing.Place().Ranked())
 
 	standing, ok = tracks.StandingOf("mid")
 	assert.True(t, ok)
-	assert.Equal(t, titles.Standing{Title: mid, Place: place(ladder, 2)}, standing)
+	assert.Equal(t, ranked(mid, ladder, 2), viewOf(standing))
 
 	_, ok = tracks.StandingOf("retired")
 	assert.False(t, ok)
@@ -83,27 +135,23 @@ func TestATitleStandsAloneOrAtItsPlaceInItsTrack(t *testing.T) {
 func TestShownIsEveryStandaloneTitleHeldAndTheHighestRankOfEachTrack(t *testing.T) {
 	shown := tracks.Shown(titles.IDs{"low", "mid", "badge", "other", "retired"})
 
-	assert.Equal(t, []titles.Standing{
-		{Title: badge},
-		{Title: mid, Place: place(ladder, 2)},
-		{Title: other, Place: place(side, 1)},
-	}, shown)
+	assert.Equal(t, []standingView{alone(badge), ranked(mid, ladder, 2), ranked(other, side, 1)}, viewsOf(shown))
 	assert.Empty(t, tracks.Shown(nil))
 }
 
 func TestProgressListsEachTracksRanksWhatIsHeldAndHowFarTheCareerIs(t *testing.T) {
 	progress := tracks.Progress(tiles(6), titles.IDs{"low", "mid"})
 
-	assert.Equal(t, []titles.TrackProgress{
-		{ID: "ladder", Name: "LADDER", Progress: 6, Steps: []titles.Step{
-			{Standing: titles.Standing{Title: low, Place: place(ladder, 1)}, Threshold: 2, Earned: true},
-			{Standing: titles.Standing{Title: mid, Place: place(ladder, 2)}, Threshold: 5, Earned: true},
-			{Standing: titles.Standing{Title: high, Place: place(ladder, 3)}, Threshold: 9, Earned: false},
+	assert.Equal(t, []trackView{
+		{ID: "ladder", Name: "LADDER", Progress: 6, Steps: []stepView{
+			{Standing: ranked(low, ladder, 1), Threshold: 2, Earned: true},
+			{Standing: ranked(mid, ladder, 2), Threshold: 5, Earned: true},
+			{Standing: ranked(high, ladder, 3), Threshold: 9, Earned: false},
 		}},
-		{ID: "side", Name: "SIDE", Progress: 6, Steps: []titles.Step{
-			{Standing: titles.Standing{Title: other, Place: place(side, 1)}, Threshold: 4, Earned: false},
+		{ID: "side", Name: "SIDE", Progress: 6, Steps: []stepView{
+			{Standing: ranked(other, side, 1), Threshold: 4, Earned: false},
 		}},
-	}, progress, "a rank is earned only once granted, not because the career has reached it")
+	}, tracksOf(progress), "a rank is earned only once granted, not because the career has reached it")
 }
 
 func TestWithoutLeavesOutTheHeldIDsAndKeepsTheOrder(t *testing.T) {

@@ -39,40 +39,38 @@ func setup(t *testing.T, author players.Author) (*dressing_wear_title.Dressing, 
 	wardrobe := wearing.NewWardrobe(inmemory_worn_title_store.New(), titles.NewBook(held, catalog), catalog)
 
 	visits := inmemory_visit_storage.New(clock)
-	visits.Record(presence.Visit{
-		Account: ada, Author: wearing.AuthorOf(author, standing("settler")), Tag: "aaaaaa", Country: "fr", At: now,
-	})
+	visits.Record(presence.NewVisit(ada, wearing.AuthorOf(author, standing("settler")), "aaaaaa", "fr", now))
 
 	return dressing_wear_title.New(wear_title_usecase.New(wardrobe, clock), visits), visits
 }
 
 func TestAWornTitleShowsOnTheRosterAtOnce(t *testing.T) {
-	dressing, visits := setup(t, players.Author{Name: "Ada"})
+	dressing, visits := setup(t, players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada", time.Time{}, false, 0), players.Streak{}))
 
 	worn, err := dressing.Execute(t.Context(), ada, "og")
 
 	require.NoError(t, err)
 	assert.Equal(t, standing("og"), worn)
 	require.Len(t, visits.Visits(), 1)
-	assert.Equal(t, standing("og"), visits.Visits()[0].Author.Worn)
+	assert.Equal(t, standing("og"), visits.Visits()[0].Author().Worn())
 }
 
 func TestARefusedTitleChangesNothingOnTheRoster(t *testing.T) {
-	dressing, visits := setup(t, players.Author{Name: "Ada"})
+	dressing, visits := setup(t, players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada", time.Time{}, false, 0), players.Streak{}))
 
 	_, err := dressing.Execute(t.Context(), ada, "warmaster")
 
 	require.ErrorIs(t, err, wearing.ErrNotWearable)
 	require.Len(t, visits.Visits(), 1)
-	assert.Equal(t, standing("settler"), visits.Visits()[0].Author.Worn)
+	assert.Equal(t, standing("settler"), visits.Visits()[0].Author().Worn())
 }
 
 func TestAGuestLineWearsNothing(t *testing.T) {
-	dressing, visits := setup(t, players.Author{Name: "guest_a1b2c3", Guest: true})
+	dressing, visits := setup(t, players.GuestAuthor("a1b2c3", players.Streak{}))
 
 	_, err := dressing.Execute(t.Context(), ada, "og")
 
 	require.NoError(t, err)
 	require.Len(t, visits.Visits(), 1)
-	assert.True(t, visits.Visits()[0].Author.Worn.Empty())
+	assert.True(t, visits.Visits()[0].Author().Worn().Empty())
 }

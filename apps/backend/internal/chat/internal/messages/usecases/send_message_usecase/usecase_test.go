@@ -70,22 +70,22 @@ func (s *testSuite) TestNominalCase() {
 	message, err := s.send(validIn())
 	s.Require().NoError(err)
 
-	s.NotEmpty(message.ID)
-	s.Equal("guest_0b1c2d", message.AuthorName, "a guest posts under the name the player module gives it")
-	s.Equal("fr", message.CountryID)
-	s.Equal("hello planet", message.Text)
-	s.Equal(s.clock.Now(), message.SentAt)
+	s.NotEmpty(message.ID())
+	s.Equal("guest_0b1c2d", message.Author().Name(), "a guest posts under the name the player module gives it")
+	s.Equal("fr", message.Country())
+	s.Equal("hello planet", message.Text())
+	s.Equal(s.clock.Now(), message.SentAt())
 	s.Equal([]messages.AccountID{guest}, s.authors.asked)
 
 	s.Require().Len(s.appender.records, 1)
-	kept := s.appender.records[0].Message
-	s.Equal(message.ID, kept.ID)
-	s.Equal(guest, kept.Account, "what is kept is who sent it")
-	s.Empty(kept.AuthorName, "and not a copy of what that account is called")
-	s.Equal("8f14e45f-ea23-4a1b-9c11-0b0d1a2b3c4d", s.appender.records[0].AuthorID)
-	s.Equal("curl/8", s.appender.records[0].UserAgent)
+	kept := s.appender.records[0].Message()
+	s.Equal(message.ID(), kept.ID())
+	s.Equal(guest, kept.Account(), "what is kept is who sent it")
+	s.Empty(kept.Author().Name(), "and not a copy of what that account is called")
+	s.Equal("8f14e45f-ea23-4a1b-9c11-0b0d1a2b3c4d", s.appender.records[0].AuthorID())
+	s.Equal("curl/8", s.appender.records[0].UserAgent())
 
-	s.Equal([]feed.Update{{Message: &message}}, s.publisher.updates, "the message goes out once it is kept")
+	s.Equal([]feed.Update{feed.MessageSent(message)}, s.publisher.updates, "the message goes out once it is kept")
 }
 
 func (s *testSuite) TestTheSenderIPIsRecordedButNeverReturned() {
@@ -93,10 +93,10 @@ func (s *testSuite) TestTheSenderIPIsRecordedButNeverReturned() {
 	s.Require().NoError(err)
 
 	s.Require().Len(s.appender.records, 1)
-	s.Equal("1.2.3.4", s.appender.records[0].IP)
+	s.Equal("1.2.3.4", s.appender.records[0].IP())
 
-	s.NotContains(message.AuthorName, "1.2.3.4")
-	s.NotContains(message.Text, "1.2.3.4")
+	s.NotContains(message.Author().Name(), "1.2.3.4")
+	s.NotContains(message.Text(), "1.2.3.4")
 }
 
 func (s *testSuite) TestTheMessageIsCleanedBeforeItIsStored() {
@@ -105,8 +105,8 @@ func (s *testSuite) TestTheMessageIsCleanedBeforeItIsStored() {
 
 	message, err := s.send(in)
 	s.Require().NoError(err)
-	s.Equal("hello planet", message.Text)
-	s.Equal("hello planet", s.appender.records[0].Message.Text)
+	s.Equal("hello planet", message.Text())
+	s.Equal("hello planet", s.appender.records[0].Message().Text())
 }
 
 func (s *testSuite) TestAnInvalidTextIsRefusedAndNotStored() {
@@ -143,9 +143,9 @@ func (s *testSuite) TestAPlayerWithAUsernamePostsUnderIt() {
 	message, err := s.send(in)
 
 	s.Require().NoError(err)
-	s.Equal("Ada_L", message.AuthorName)
-	s.Equal(ada, s.appender.records[0].Message.Account)
-	s.Empty(s.appender.records[0].Message.AuthorName, "the name is read back from the account, not kept")
+	s.Equal("Ada_L", message.Author().Name())
+	s.Equal(ada, s.appender.records[0].Message().Account())
+	s.Empty(s.appender.records[0].Message().Author().Name(), "the name is read back from the account, not kept")
 	s.Equal([]messages.AccountID{ada}, s.authors.asked)
 }
 
@@ -157,8 +157,8 @@ func (s *testSuite) TestAnAdminPostsAsOneAndIsStoredAsOne() {
 	message, err := s.send(in)
 
 	s.Require().NoError(err)
-	s.True(message.AuthorAdmin, "everyone watching is shown the crown at once")
-	s.False(s.appender.records[0].Message.AuthorAdmin,
+	s.True(message.Author().Admin(), "everyone watching is shown the crown at once")
+	s.False(s.appender.records[0].Message().Author().Admin(),
 		"a player that stops being an admin stops looking like one on what it already said")
 }
 
@@ -199,7 +199,7 @@ func (f *fakeAuthors) Author(_ context.Context, account messages.AccountID) (mes
 	if f.err != nil {
 		return messages.Author{}, f.err
 	}
-	return messages.Author{Name: f.names[account], Admin: f.admins[account]}, nil
+	return messages.AuthorOf(f.names[account], f.admins[account], 0, 0, messages.Title{}), nil
 }
 
 type fakePublisher struct {

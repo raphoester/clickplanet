@@ -22,7 +22,7 @@ var (
 	first   = titles.FakeTitle{Key: "first", Tiles: 1}
 	third   = titles.FakeTitle{Key: "third", Tiles: 3}
 	catalog = titles.CatalogOf([]titles.Title{first, third})
-	linked  = players.Account{Linked: true, CreatedAt: now}
+	linked  = players.AccountOf(true, now)
 )
 
 func account(i int) players.AccountID {
@@ -80,7 +80,7 @@ func TestEveryLinkedAccountGetsTheTitlesItsCareerEarnsAcrossPages(t *testing.T) 
 
 func TestAGuestEarnsNothingAndLosesWhatItHeld(t *testing.T) {
 	f := setUp()
-	f.player(t, 1, 3, players.Account{CreatedAt: now})
+	f.player(t, 1, 3, players.AccountOf(false, now))
 	f.player(t, 2, 3, players.Account{})
 	require.NoError(t, f.titles.Grant(t.Context(), titles.Holdings{account(1): {"first", "third"}}, now))
 
@@ -106,9 +106,9 @@ func TestATitleTheRulesNoLongerGiveIsRevoked(t *testing.T) {
 
 func TestTheLinkedAccountsMadeBeforeNovemberAreOG(t *testing.T) {
 	f := setUp()
-	f.player(t, 1, 1, players.Account{Linked: true, CreatedAt: time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)})
-	f.player(t, 2, 1, players.Account{Linked: true, CreatedAt: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)})
-	f.player(t, 3, 1, players.Account{CreatedAt: time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)})
+	f.player(t, 1, 1, players.AccountOf(true, time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)))
+	f.player(t, 2, 1, players.AccountOf(true, time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)))
+	f.player(t, 3, 1, players.AccountOf(false, time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)))
 
 	_, err := f.reconcile(t, f.titles, titles.CatalogOf([]titles.Title{titles.OG{}}))
 

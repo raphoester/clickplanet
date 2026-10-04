@@ -107,7 +107,7 @@ func (r *Reader) account(ctx context.Context, account players.AccountID) (*authv
 
 func accountOf(linked bool, createdAtUnixMs int64) players.Account {
 	if createdAtUnixMs == 0 {
-		return players.Account{Linked: linked}
+		return players.AccountOf(linked, time.Time{})
 	}
-	return players.Account{Linked: linked, CreatedAt: time.UnixMilli(createdAtUnixMs).UTC()}
+	return players.AccountOf(linked, time.UnixMilli(createdAtUnixMs).UTC())
 }

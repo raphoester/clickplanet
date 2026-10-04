@@ -29,7 +29,7 @@ func (s *Storage) Append(_ context.Context, announcement announcements.Announcem
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if slices.ContainsFunc(s.kept, func(kept announcements.Announcement) bool { return kept.ID == announcement.ID }) {
+	if slices.ContainsFunc(s.kept, func(kept announcements.Announcement) bool { return kept.ID() == announcement.ID() }) {
 		return errDuplicateID
 	}
 	s.kept = append(s.kept, announcement)
@@ -49,7 +49,7 @@ func (s *Storage) DeleteBefore(_ context.Context, cutoff time.Time) (int64, erro
 
 	before := len(s.kept)
 	s.kept = slices.DeleteFunc(s.kept, func(announcement announcements.Announcement) bool {
-		return announcement.At.Before(cutoff)
+		return announcement.At().Before(cutoff)
 	})
 	return int64(before - len(s.kept)), nil
 }

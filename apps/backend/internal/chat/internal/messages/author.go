@@ -23,28 +23,64 @@ func AccountIDOf(value string) AccountID {
 var ErrNoAccount = errors.New("only an account may post or react")
 
 type Author struct {
-	Name   string
-	Admin  bool
-	Color  int32
-	Streak uint32
-	Title  Title
+	name   string
+	admin  bool
+	color  int32
+	streak uint32
+	title  Title
 }
+
+func AuthorOf(name string, admin bool, color int32, streak uint32, title Title) Author {
+	return Author{name: name, admin: admin, color: color, streak: streak, title: title}
+}
+
+func (a Author) Name() string { return a.name }
+
+func (a Author) Admin() bool { return a.admin }
+
+func (a Author) Color() int32 { return a.color }
+
+func (a Author) Streak() uint32 { return a.streak }
+
+func (a Author) Title() Title { return a.title }
 
 type Title struct {
-	ID   string
-	Name string
-	Rank Rank
+	id   string
+	name string
+	rank Rank
 }
+
+func TitleOf(id string, name string, rank Rank) Title {
+	return Title{id: id, name: name, rank: rank}
+}
+
+func (t Title) ID() string { return t.id }
+
+func (t Title) Name() string { return t.name }
+
+func (t Title) Rank() Rank { return t.rank }
+
+func (t Title) Empty() bool { return t.id == "" }
 
 type Rank struct {
-	TrackID   string
-	TrackName string
-	Number    uint32
-	Count     uint32
+	trackID   string
+	trackName string
+	number    uint32
+	count     uint32
 }
 
-func (t Title) Empty() bool { return t.ID == "" }
+func RankOf(trackID string, trackName string, number uint32, count uint32) Rank {
+	return Rank{trackID: trackID, trackName: trackName, number: number, count: count}
+}
 
-func (r Rank) Empty() bool { return r.Count == 0 }
+func (r Rank) TrackID() string { return r.trackID }
+
+func (r Rank) TrackName() string { return r.trackName }
+
+func (r Rank) Number() uint32 { return r.number }
+
+func (r Rank) Count() uint32 { return r.count }
+
+func (r Rank) Empty() bool { return r.count == 0 }
 
 var ErrAuthorUnavailable = errors.New("the sender could not be identified")

@@ -43,22 +43,22 @@ func (s *Storage) Record(visit presence.Visit) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	held, known := s.visits[visit.Account]
+	held, known := s.visits[visit.Account()]
 	if known {
-		visit.Key = held.Key
+		visit = visit.Keyed(held.Key())
 	} else {
 		if len(s.visits) >= MaxVisits {
 			return
 		}
-		s.makeRoomOnTag(visit.Tag)
+		s.makeRoomOnTag(visit.Tag())
 		s.lastKey++
-		visit.Key = presence.Key(strconv.FormatUint(s.lastKey, 36))
+		visit = visit.Keyed(presence.Key(strconv.FormatUint(s.lastKey, 36)))
 	}
 
-	s.visits[visit.Account] = visit
+	s.visits[visit.Account()] = visit
 
 	if !known || !held.Fresh(s.clock.Now()) || presence.EntryOf(held) != presence.EntryOf(visit) {
-		s.publish(presence.Change{Entry: presence.EntryOf(visit)})
+		s.publish(presence.ChangeOf(presence.EntryOf(visit)))
 	}
 }
 
@@ -80,7 +80,7 @@ func (s *Storage) Move(from, to players.AccountID, author wearing.Author) {
 	s.visits[to] = moved
 
 	if presence.EntryOf(visit) != presence.EntryOf(moved) {
-		s.publish(presence.Change{Entry: presence.EntryOf(moved)})
+		s.publish(presence.ChangeOf(presence.EntryOf(moved)))
 	}
 }
 
@@ -93,12 +93,11 @@ func (s *Storage) Rename(account players.AccountID, username players.Name) {
 		return
 	}
 
-	named := players.Author{Name: players.DisplayNameOf(username, ""), Admin: visit.Author.Admin}
-	renamed := visit.For(account, wearing.AuthorOf(named, visit.Author.Worn))
+	renamed := visit.For(account, visit.Author().Renamed(username))
 	s.visits[account] = renamed
 
 	if presence.EntryOf(visit) != presence.EntryOf(renamed) {
-		s.publish(presence.Change{Entry: presence.EntryOf(renamed)})
+		s.publish(presence.ChangeOf(presence.EntryOf(renamed)))
 	}
 }
 
@@ -111,11 +110,11 @@ func (s *Storage) Wear(account players.AccountID, worn titles.Standing) {
 		return
 	}
 
-	dressed := visit.For(account, wearing.AuthorOf(visit.Author.Author, worn))
+	dressed := visit.For(account, visit.Author().Wearing(worn))
 	s.visits[account] = dressed
 
 	if presence.EntryOf(visit) != presence.EntryOf(dressed) {
-		s.publish(presence.Change{Entry: presence.EntryOf(dressed)})
+		s.publish(presence.ChangeOf(presence.EntryOf(dressed)))
 	}
 }
 
@@ -132,17 +131,17 @@ func (s *Storage) makeRoomOnTag(tag players.Tag) {
 		oldest presence.Visit
 	)
 	for _, held := range s.visits {
-		if held.Tag != tag {
+		if held.Tag() != tag {
 			continue
 		}
 		count++
-		if count == 1 || held.At.Before(oldest.At) {
+		if count == 1 || held.At().Before(oldest.At()) {
 			oldest = held
 		}
 	}
 
 	if count >= MaxVisitsPerTag {
-		s.drop(oldest.Account)
+		s.drop(oldest.Account())
 	}
 }
 
@@ -153,7 +152,7 @@ func (s *Storage) drop(account players.AccountID) {
 	}
 
 	delete(s.visits, account)
-	s.publish(presence.Change{Entry: presence.EntryOf(visit), Left: true})
+	s.publish(presence.DepartureOf(presence.EntryOf(visit)))
 }
 
 func (s *Storage) Visits() []presence.Visit {

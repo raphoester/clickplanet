@@ -60,16 +60,16 @@ func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, erro
 
 func row(record messages.Record) []any {
 	return []any{
-		string(record.Message.ID),
-		record.Message.SentAt.UTC(),
-		account(record.Message.Account),
-		record.Message.AuthorName,
-		record.Message.AuthorAdmin,
-		record.AuthorID,
-		record.Message.CountryID,
-		record.IP,
-		record.UserAgent,
-		record.Message.Text,
+		string(record.Message().ID()),
+		record.Message().SentAt().UTC(),
+		account(record.Message().Account()),
+		record.Message().Author().Name(),
+		record.Message().Author().Admin(),
+		record.AuthorID(),
+		record.Message().Country(),
+		record.IP(),
+		record.UserAgent(),
+		record.Message().Text(),
 	}
 }
 
