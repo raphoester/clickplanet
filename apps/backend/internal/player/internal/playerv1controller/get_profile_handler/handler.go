@@ -37,5 +37,8 @@ func (h GetProfileHandler) GetProfile(
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
 	}
 
-	return connect.NewResponse(&playerv1.GetProfileResponse{Profile: playermessage.Profile(profile)}), nil
+	return connect.NewResponse(&playerv1.GetProfileResponse{
+		Profile: playermessage.Profile(profile),
+		Color:   playermessage.Color(profile.Color),
+	}), nil
 }

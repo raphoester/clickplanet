@@ -28,8 +28,15 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
 		playerv1connect.PlayerServiceGetProfileProcedure,
 		playerv1connect.PlayerServiceSetNameProcedure,
+		playerv1connect.PlayerServiceSetColorProcedure,
 		playerv1connect.PlayerServiceGetStatsProcedure,
 		playerv1connect.PlayerServiceAnnounceProcedure,
 		playerv1connect.PlayerServiceLeaveProcedure,
+		playerv1connect.PlayerServiceGetTitlesProcedure,
+		playerv1connect.PlayerServiceWearTitleProcedure,
 	)
+}
+
+func NewStreamSessionReader(verifier cpconnect.SessionVerifier, clock cptime.Clock) connect.Interceptor {
+	return cpconnect.NewSessionReaderInterceptor(verifier, clock, playerv1connect.PlayerServiceListenForEventsProcedure)
 }

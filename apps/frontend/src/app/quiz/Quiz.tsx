@@ -31,7 +31,7 @@ function Banner({working, onOpen}: {working: boolean, onOpen: () => void}) {
     return <div className="quiz quiz--banner">
         <button
             type="button"
-            className="quiz-banner"
+            className="quiz-banner panel"
             onClick={onOpen}
             disabled={working}
             aria-label="Answer a question for a bonus"
@@ -75,7 +75,7 @@ function Question({question, onAnswer}: {question: QuizQuestion, onAnswer: (choi
     }, [question])
 
     return <div className="quiz quiz--asking" role="dialog" aria-label="Quiz">
-        <div className="quiz-card">
+        <div className="quiz-card panel">
             <div className="quiz-clock" aria-hidden="true">
                 <div className="quiz-clock-bar" ref={bar} style={{transform: `scaleX(${left})`}}/>
             </div>
@@ -87,7 +87,7 @@ function Question({question, onAnswer}: {question: QuizQuestion, onAnswer: (choi
                     <button
                         type="button"
                         key={`${index}-${choice}`}
-                        className="quiz-choice"
+                        className="button"
                         onClick={() => answer.current(index)}
                     >{choice}</button>)}
             </div>
@@ -100,7 +100,7 @@ function Result({question, outcome, chosen}: {question: QuizQuestion, outcome: Q
     const reward = outcome.reward && describeReward(outcome.reward)
 
     return <div className={`quiz quiz--result quiz--${outcome.correct ? "right" : "wrong"}`} role="status" aria-live="polite">
-        <div className="quiz-card">
+        <div className="quiz-card panel">
             <p className="quiz-verdict">
                 {outcome.correct ? "Correct" : chosen === undefined ? "Out of time" : "Not quite"}
             </p>

@@ -47,6 +47,15 @@ func (s *StoreContractSuite) signIn(account byte, provider string, subject strin
 	return identity, session
 }
 
+func (s *StoreContractSuite) signInWith(account byte, provider string, claim Claim, token string, at time.Time) {
+	_, err := s.store.Account(s.T().Context(), AccountID{15: account})
+	identity := NewIdentity(provider, claim, AccountID{15: account}, at)
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{
+		NewAccount: errors.Is(err, ErrAccountNotFound), Identity: identity,
+		Session: LinkedSession(identity.Account, TokenOf(token), contractLifetime, at),
+	}))
+}
+
 func (s *StoreContractSuite) stored(tokenHash TokenHash) *Session {
 	session, err := s.store.Session(s.T().Context(), tokenHash)
 	s.Require().NoError(err)
@@ -108,6 +117,30 @@ func (s *StoreContractSuite) TestAnUnknownAccountIsNotFound() {
 
 	s.Require().ErrorIs(err, ErrAccountNotFound)
 	s.Nil(account)
+}
+
+func (s *StoreContractSuite) TestAccountsAnswerTheKnownOnesWithTheirIdentitiesAndLeaveOutTheOthers() {
+	s.createGuest(1, "a-token")
+	identity := NewIdentity("google", contractClaim, AccountID{15: 2}, contractStart.Add(time.Hour))
+	s.Require().NoError(s.store.SaveSignIn(s.T().Context(), SignIn{
+		NewAccount: true, Identity: identity,
+		Session: LinkedSession(identity.Account, TokenOf("b-token"), contractLifetime, contractStart.Add(time.Hour)),
+	}))
+
+	found, err := s.store.Accounts(s.T().Context(), []AccountID{{15: 1}, {15: 2}, {15: 9}})
+
+	s.Require().NoError(err)
+	s.ElementsMatch([]*Account{
+		{ID: AccountID{15: 1}, CreatedAt: contractStart, Identities: []Identity{}},
+		{ID: AccountID{15: 2}, CreatedAt: contractStart.Add(time.Hour), Identities: []Identity{*identity}},
+	}, found)
+}
+
+func (s *StoreContractSuite) TestNoAccountsAskedIsNoAccounts() {
+	found, err := s.store.Accounts(s.T().Context(), nil)
+
+	s.Require().NoError(err)
+	s.Empty(found)
 }
 
 func (s *StoreContractSuite) TestAnUnknownIdentityIsNotFound() {
@@ -272,4 +305,34 @@ func (s *StoreContractSuite) TestThePruneStopsAtItsLimit() {
 	pruned, err = s.store.PruneGuests(s.T().Context(), contractStart.Add(time.Minute), 2)
 	s.Require().NoError(err)
 	s.Len(pruned, 1)
+}
+
+func (s *StoreContractSuite) TestAnAccountIsFoundByAVerifiedAddressOfAnyIdentityIgnoringCase() {
+	s.signInWith(1, "discord", Claim{Subject: "d", Email: "Player@Example.com", EmailVerified: true}, "token-1", contractStart)
+
+	found, err := s.store.AccountOfEmail(s.T().Context(), "player@example.COM")
+
+	s.Require().NoError(err)
+	s.Equal(AccountID{15: 1}, found.ID)
+	s.Equal([]string{"discord"}, found.Providers())
+}
+
+func (s *StoreContractSuite) TestAnUnverifiedOrUnknownAddressFindsNoAccount() {
+	s.signInWith(1, "discord", Claim{Subject: "d", Email: "player@example.com"}, "token-1", contractStart)
+
+	for _, address := range []string{"player@example.com", "nobody@example.com", ""} {
+		_, err := s.store.AccountOfEmail(s.T().Context(), address)
+
+		s.ErrorIs(err, ErrAccountNotFound, address)
+	}
+}
+
+func (s *StoreContractSuite) TestTheOldestLinkOwnsAnAddressTwoAccountsHold() {
+	s.signInWith(2, "google", Claim{Subject: "g", Email: "player@example.com", EmailVerified: true}, "token-2", contractStart.Add(time.Minute))
+	s.signInWith(1, "discord", Claim{Subject: "d", Email: "player@example.com", EmailVerified: true}, "token-1", contractStart)
+
+	found, err := s.store.AccountOfEmail(s.T().Context(), "player@example.com")
+
+	s.Require().NoError(err)
+	s.Equal(AccountID{15: 1}, found.ID)
 }

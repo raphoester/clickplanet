@@ -1,5 +1,6 @@
 import {createRoot} from 'react-dom/client'
 import {StrictMode} from "react"
+import './tokens.css'
 import './index.css'
 
 import {newClickServiceClient, PlanetBackend} from "./backends/planetBackend.ts"
@@ -9,6 +10,8 @@ import {ChatServiceBackend, newChatServiceClient} from "./backends/chatBackend.t
 import {FakeBackend} from "./backends/fakeBackend.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
+import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
+import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
 import {countryOfTile, loadBorders} from "./app/viewer/borderField.ts"
 import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
@@ -44,6 +47,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         tilePositions: () => loadPointGeometryData().then((data) => data.positions),
         grounds: () => loadBorders(BORDERS_URL).then((data) => (tile: number) => countryOfTile(data, tile)),
     })
+    const fakePresence = new FakePresenceBackend()
     Object.assign(window, {
         fakeBackend: fake,
         giveBomb: () => {
@@ -62,11 +66,14 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             globe.takeReward(fake.grantBonus(kind))
             return `${kind} in your inventory — switch it on from there`
         },
+        giveTitle: (id?: string) => {
+            fakePresence.earnTitle(id)
+            return "a title is unlocked"
+        },
     })
 
-    const fakePresence = new FakePresenceBackend()
-
     const fakeChat = new FakeChatBackend()
+    const fakeSeason = new FakeSeasonBackend(SEASON_ZERO)
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
 
     root.render(
@@ -84,6 +91,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     chatBackend={fakeChat}
                     presence={fakePresence}
                     playerInfo={fakePresence}
+                    season={fakeSeason}
                 />
             </SignInGate>
         </StrictMode>,
@@ -91,6 +99,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session)
+    const season = new ConnectSeasonBackend(newSeasonServiceClient(config), config.baseUrl)
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {
         navigate: (url) => window.location.assign(url),
@@ -113,6 +122,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     account={account}
                     presence={player}
                     playerInfo={player}
+                    season={season}
                 />
             </SignInGate>
         </StrictMode>,

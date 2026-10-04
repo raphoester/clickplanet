@@ -313,6 +313,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 spreadClicks: res.spreadClicks,
                 enclosures: res.enclosures,
                 homeSoil: res.homeSoil,
+                toll: res.tollSteps.map(({share, slowdown}) => ({share, slowdown})),
             }
             this.rules = rules
             this.bonusCallbacks.forEach(handlers => handlers.onRules(rules))
@@ -602,7 +603,7 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
     return {refill: held.refill, bomb: held.bomb, enclosures: held.enclosures, spreadClicksLeft: held.spreadClicksLeft}
 }
 
-const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, homeSoil: false}
+const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, homeSoil: false, toll: []}
 
 function rewardOf(
     kind: BonusKind,
@@ -708,5 +709,6 @@ export function updateOf(event: PlanetEvent): Update | undefined {
         tile: update.tileId,
         previousCountry: update.previousCountryId === "" ? undefined : update.previousCountryId,
         newCountry: update.countryId === "" ? undefined : update.countryId,
+        clicked: update.clicked,
     }
 }

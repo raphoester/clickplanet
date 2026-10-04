@@ -50,7 +50,7 @@ export function createBonusPointer(container: HTMLElement, variant?: "blast"): B
     badge.className = "bonus-pointer-badge"
     badge.append(variant === "blast"
         ? blastMarkSvg("bonus-pointer-mark")
-        : questionMarkSvg("bonus-pointer-mark", "#FFF6DF"))
+        : questionMarkSvg("bonus-pointer-mark", "var(--cream)"))
 
     root.append(arrow, badge)
     container.append(root)

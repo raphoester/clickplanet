@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
-import {PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
+import {NameColor, PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 import PlayerCard from "./PlayerCard.tsx"
 
 afterEach(() => {
@@ -9,8 +9,8 @@ afterEach(() => {
     vi.restoreAllMocks()
 })
 
-const ana: PlayerLine = {name: "Ana", countryCode: "fr", guest: false, admin: false}
-const bo: PlayerLine = {name: "guest_Bo", countryCode: "de", guest: true, admin: false}
+const ana: PlayerLine = {name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
+const bo: PlayerLine = {name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
 
 const backendAnswering = (answer: () => Promise<PlayerInfo | undefined>) =>
     ({playerInfo: vi.fn(answer)}) satisfies PlayerInfoBackend
@@ -20,7 +20,8 @@ const stat = (label: string) => screen.getByText(label).nextElementSibling?.text
 describe("PlayerCard", () => {
     it("shows who was clicked, and the player's stats once read", async () => {
         const backend = backendAnswering(async () => ({
-            name: "Ana", tilesTaken: 1234, streakCurrent: 1, streakBest: 7, createdAt: Date.UTC(2026, 8, 1, 12), admin: false,
+            name: "Ana", tilesTaken: 1234, streakCurrent: 1, streakBest: 7, createdAt: Date.UTC(2026, 8, 1, 12), admin: false, color: NameColor.UNSPECIFIED,
+            titles: [],
         }))
         render(<PlayerCard player={ana} backend={backend} onClose={() => {}}/>)
 
@@ -39,11 +40,62 @@ describe("PlayerCard", () => {
 
     it("leaves out a creation date the server does not know", async () => {
         render(<PlayerCard player={ana}
-                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false}))}
+                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: []}))}
                            onClose={() => {}}/>)
 
         await screen.findByText("Tiles taken")
         expect(screen.queryByText("Playing since")).toBeNull()
+    })
+
+    it("wears the worn title on a banner and in the card's frame, with a medal for each title shown", async () => {
+        const warlord = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
+        const devoted = {id: "devoted", name: "Devoted", rank: {trackId: "devotion", trackName: "Devotion", number: 2, count: 3}}
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({
+                               name: "Ana", tilesTaken: 12_000, streakCurrent: 0, streakBest: 30, admin: false, color: NameColor.UNSPECIFIED,
+                               titles: [{id: "og", name: "OG"}, warlord, devoted],
+                               wornTitle: warlord,
+                           }))}
+                           onClose={() => {}}/>)
+
+        const titles = await screen.findByRole("list", {name: "Titles"})
+        expect(within(titles).getAllByRole("listitem").map((item) => item.querySelector(".player-card-held-name")?.textContent))
+            .toEqual(["OG", "Warlord", "Devoted"])
+        expect(screen.getByText("Rank 3 of 5 · Conquest")).toBeDefined()
+        expect(document.querySelector(".player-card.title-frame-gold")).not.toBeNull()
+    })
+
+    it("stamps OG beside the name of a player who holds it", async () => {
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({
+                               name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED,
+                               titles: [{id: "og", name: "OG"}],
+                               wornTitle: {id: "og", name: "OG"},
+                           }))}
+                           onClose={() => {}}/>)
+
+        const dialog = screen.getByRole("dialog")
+        expect(await within(dialog).findByRole("img", {name: "OG"})).toBeDefined()
+        expect(document.querySelector(".player-card.title-frame-holo")).not.toBeNull()
+    })
+
+    it("draws no frame and no stamp for a player with no title", async () => {
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 3, streakCurrent: 1, streakBest: 1, admin: false, color: NameColor.UNSPECIFIED, titles: []}))}
+                           onClose={() => {}}/>)
+
+        await screen.findByText("Tiles taken")
+        expect(screen.queryByRole("img", {name: "OG"})).toBeNull()
+        expect(document.querySelector("[class*='title-frame-']")).toBeNull()
+    })
+
+    it("shows no list for a player with no title", async () => {
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 3, streakCurrent: 1, streakBest: 1, admin: false, color: NameColor.UNSPECIFIED, titles: []}))}
+                           onClose={() => {}}/>)
+
+        await screen.findByText("Tiles taken")
+        expect(screen.queryByRole("list", {name: "Titles"})).toBeNull()
     })
 
     it("asks nothing for a guest, and says it has no stats", () => {
@@ -77,7 +129,7 @@ describe("PlayerCard", () => {
         cleanup()
 
         render(<PlayerCard player={ana}
-                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: true}))}
+                           backend={backendAnswering(async () => ({name: "Ana", tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: true, color: NameColor.UNSPECIFIED, titles: []}))}
                            onClose={() => {}}/>)
         expect(screen.queryByRole("img", {name: "Admin"})).toBeNull()
         expect(await screen.findByRole("img", {name: "Admin"})).toBeDefined()

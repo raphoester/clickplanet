@@ -39,12 +39,16 @@ const (
 	// InternalServiceGetAccountProcedure is the fully-qualified name of the InternalService's
 	// GetAccount RPC.
 	InternalServiceGetAccountProcedure = "/auth.v1.InternalService/GetAccount"
+	// InternalServiceGetAccountsProcedure is the fully-qualified name of the InternalService's
+	// GetAccounts RPC.
+	InternalServiceGetAccountsProcedure = "/auth.v1.InternalService/GetAccounts"
 )
 
 // InternalServiceClient is a client for the auth.v1.InternalService service.
 type InternalServiceClient interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
 	GetAccount(context.Context, *connect.Request[v1.GetAccountRequest]) (*connect.Response[v1.GetAccountResponse], error)
+	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the auth.v1.InternalService service. By default,
@@ -70,6 +74,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(internalServiceMethods.ByName("GetAccount")),
 			connect.WithClientOptions(opts...),
 		),
+		getAccounts: connect.NewClient[v1.GetAccountsRequest, v1.GetAccountsResponse](
+			httpClient,
+			baseURL+InternalServiceGetAccountsProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetAccounts")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -77,6 +88,7 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type internalServiceClient struct {
 	getVerifyingKey *connect.Client[v1.GetVerifyingKeyRequest, v1.GetVerifyingKeyResponse]
 	getAccount      *connect.Client[v1.GetAccountRequest, v1.GetAccountResponse]
+	getAccounts     *connect.Client[v1.GetAccountsRequest, v1.GetAccountsResponse]
 }
 
 // GetVerifyingKey calls auth.v1.InternalService.GetVerifyingKey.
@@ -89,10 +101,16 @@ func (c *internalServiceClient) GetAccount(ctx context.Context, req *connect.Req
 	return c.getAccount.CallUnary(ctx, req)
 }
 
+// GetAccounts calls auth.v1.InternalService.GetAccounts.
+func (c *internalServiceClient) GetAccounts(ctx context.Context, req *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error) {
+	return c.getAccounts.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the auth.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
 	GetAccount(context.Context, *connect.Request[v1.GetAccountRequest]) (*connect.Response[v1.GetAccountResponse], error)
+	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -114,12 +132,21 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithSchema(internalServiceMethods.ByName("GetAccount")),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetAccountsHandler := connect.NewUnaryHandler(
+		InternalServiceGetAccountsProcedure,
+		svc.GetAccounts,
+		connect.WithSchema(internalServiceMethods.ByName("GetAccounts")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetVerifyingKeyProcedure:
 			internalServiceGetVerifyingKeyHandler.ServeHTTP(w, r)
 		case InternalServiceGetAccountProcedure:
 			internalServiceGetAccountHandler.ServeHTTP(w, r)
+		case InternalServiceGetAccountsProcedure:
+			internalServiceGetAccountsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -135,4 +162,8 @@ func (UnimplementedInternalServiceHandler) GetVerifyingKey(context.Context, *con
 
 func (UnimplementedInternalServiceHandler) GetAccount(context.Context, *connect.Request[v1.GetAccountRequest]) (*connect.Response[v1.GetAccountResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetAccount is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetAccounts is not implemented"))
 }

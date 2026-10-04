@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {act, cleanup, render, screen, waitFor} from "@testing-library/react"
+import {act, cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import ChatPanel from "./ChatPanel.tsx"
 import {CHAT_IDENTITY_STORAGE_KEY} from "./chatIdentity.ts"
+import {CHAT_SIZE_STORAGE_KEY} from "./chatSize.ts"
+import {WANTED_HEIGHT, WANTED_WIDTH} from "./useChatSize.ts"
 import {
     ChatAnnouncement,
     ChatBackend,
@@ -16,6 +18,7 @@ import {
     ReactionsChange,
 } from "../../backends/chat.ts"
 import {Countries} from "../../domain/countries.ts"
+import {NameColor} from "../../backends/player.ts"
 
 const france = Countries.get("fr")!
 
@@ -26,6 +29,8 @@ const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMess
     sentAt,
     authorName: "Ana",
     authorAdmin: false,
+    authorColor: NameColor.UNSPECIFIED,
+    authorStreak: 0,
     countryCode: "fr",
     text,
     reactions: [],
@@ -489,6 +494,28 @@ describe("ChatPanel", () => {
 
             expect(backend.sendMessage).not.toHaveBeenCalled()
         })
+
+        it("keeps a pasted message on one line", async () => {
+            const {backend} = stubBackend()
+            const {user} = setup(backend)
+            await screen.findByRole("textbox", {name: "Message"})
+
+            await user.click(messageBox())
+            await user.paste("first line\nsecond line")
+
+            expect(messageBox()).toHaveProperty("value", "first line second line")
+        })
+
+        it("sends on Shift+Enter rather than breaking the line", async () => {
+            const {backend} = stubBackend()
+            const {user} = setup(backend)
+            await screen.findByRole("textbox", {name: "Message"})
+
+            await user.type(messageBox(), "hello{Shift>}{Enter}{/Shift}")
+
+            await waitFor(() => expect(backend.sendMessage).toHaveBeenCalledTimes(1))
+            expect(messageBox()).toHaveProperty("value", "")
+        })
     })
 
     describe("when the chat cannot be loaded", () => {
@@ -630,5 +657,157 @@ describe("ChatPanel reactions", () => {
         await user.keyboard("{Escape}")
 
         expect(screen.queryByRole("group", {name: "Reactions"})).toBeNull()
+    })
+})
+
+describe("ChatPanel size", () => {
+    const wanted = () => ({
+        width: document.documentElement.style.getPropertyValue(WANTED_WIDTH),
+        height: document.documentElement.style.getPropertyValue(WANTED_HEIGHT),
+    })
+
+    beforeEach(() => window.localStorage.setItem(CHAT_SIZE_STORAGE_KEY, JSON.stringify({width: 520, height: 640})))
+
+    it("opens at the size the player left it", async () => {
+        const {backend} = stubBackend()
+        setup(backend)
+        await screen.findByRole("textbox", {name: "Message"})
+
+        expect(wanted()).toEqual({width: "520px", height: "640px"})
+    })
+
+    it("goes back to its first size on a double-click of an edge", async () => {
+        const {backend} = stubBackend()
+        const {container} = setup(backend)
+        await screen.findByRole("textbox", {name: "Message"})
+
+        fireEvent.doubleClick(container.querySelector(".chat-resize-corner")!)
+
+        expect(wanted()).toEqual({width: "", height: ""})
+        expect(window.localStorage.getItem(CHAT_SIZE_STORAGE_KEY)).toBeNull()
+    })
+
+    it("hands the page its size back once it is gone", async () => {
+        const {backend} = stubBackend()
+        const {unmount} = setup(backend)
+        await screen.findByRole("textbox", {name: "Message"})
+
+        unmount()
+
+        expect(wanted()).toEqual({width: "", height: ""})
+    })
+})
+
+describe("ChatPanel on a desktop", () => {
+    it("folds from its header and unfolds again", async () => {
+        const {backend} = stubBackend([message("a", "who took Brittany")])
+        const {user} = setup(backend)
+        expect(await screen.findByText("who took Brittany")).toBeDefined()
+
+        await user.click(screen.getByRole("button", {name: "Fold the chat"}))
+        expect(screen.queryByText("who took Brittany")).toBeNull()
+
+        await user.click(screen.getByRole("button", {name: /Chat/}))
+        expect(await screen.findByText("who took Brittany")).toBeDefined()
+    })
+})
+
+describe("ChatPanel's players", () => {
+    const players = [
+        {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+        {key: "k2", name: "guest_b0b0b0", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+    ]
+
+    it("shows who is online beside the chat, and goes back to it", async () => {
+        const {backend} = stubBackend([message("a", "who took Brittany")])
+        const user = userEvent.setup()
+        render(<ChatPanel backend={backend} country={france} players={players}/>)
+        await screen.findByText("who took Brittany")
+
+        await user.click(screen.getByRole("tab", {name: "2 players online"}))
+        expect(screen.getByText("ana")).toBeDefined()
+        expect(screen.queryByText("who took Brittany")).toBeNull()
+
+        await user.click(screen.getByRole("tab", {name: "Chat"}))
+        expect(await screen.findByText("who took Brittany")).toBeDefined()
+    })
+
+    it("counts one player in the singular", () => {
+        render(<ChatPanel backend={stubBackend().backend} country={france} players={players.slice(0, 1)}/>)
+        expect(screen.getByRole("tab", {name: "1 player online"})).toBeDefined()
+    })
+
+    it("says so when nobody is playing", async () => {
+        const user = userEvent.setup()
+        render(<ChatPanel backend={stubBackend().backend} country={france} players={[]}/>)
+
+        await user.click(screen.getByRole("tab", {name: "0 players online"}))
+        expect(screen.getByText("Nobody is playing right now.")).toBeDefined()
+    })
+
+    it("offers no list without a roster", () => {
+        render(<ChatPanel backend={stubBackend().backend} country={france}/>)
+        expect(screen.queryByRole("tab")).toBeNull()
+    })
+})
+
+describe("ChatPanel on a phone", () => {
+    const phone = (backend: ChatBackend, open: boolean, onOpenChange = vi.fn(), onUnread = vi.fn()) =>
+        render(<ChatPanel backend={backend} country={france} compact open={open} onOpenChange={onOpenChange} onUnread={onUnread}/>)
+
+    it("is a sheet while it is open, and closes on its ×", async () => {
+        const {backend} = stubBackend([message("a", "who took Brittany")])
+        const onOpenChange = vi.fn()
+        phone(backend, true, onOpenChange)
+
+        expect(await screen.findByText("who took Brittany")).toBeDefined()
+        fireEvent.click(screen.getByRole("button", {name: "Close"}))
+        expect(onOpenChange).toHaveBeenCalledWith(false)
+    })
+
+    it("shows nothing while it is closed and nobody spoke", async () => {
+        const {backend} = stubBackend([message("a", "seen already")])
+        const {container} = phone(backend, false)
+        await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
+
+        expect(container.innerHTML).toBe("")
+    })
+
+    it("counts what arrived while it was closed, for the tab", async () => {
+        const {backend, broadcast} = stubBackend([message("a", "seen already")])
+        const onUnread = vi.fn()
+        phone(backend, false, vi.fn(), onUnread)
+        await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
+
+        broadcast(message("b", "and one more", 1_700_000_200_000))
+
+        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(1))
+    })
+
+    it("peeks at a new message for a moment, and opens on it", async () => {
+        const {backend, broadcast} = stubBackend([message("a", "seen already")])
+        const onOpenChange = vi.fn()
+        phone(backend, false, onOpenChange)
+        await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
+
+        broadcast(message("b", "who took Brittany", 1_700_000_200_000))
+
+        const peek = await screen.findByRole("button", {name: "Open the chat: Ana, who took Brittany"})
+        fireEvent.click(peek)
+        expect(onOpenChange).toHaveBeenCalledWith(true)
+    })
+
+    it("lets the peek go after a few seconds", async () => {
+        vi.useFakeTimers({shouldAdvanceTime: true})
+        const {backend, broadcast} = stubBackend([message("a", "seen already")])
+        phone(backend, false)
+        await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
+
+        broadcast(message("b", "who took Brittany", 1_700_000_200_000))
+        await screen.findByRole("button", {name: /Open the chat/})
+
+        act(() => vi.advanceTimersByTime(4_000))
+        expect(screen.queryByRole("button", {name: /Open the chat/})).toBeNull()
+        vi.useRealTimers()
     })
 })

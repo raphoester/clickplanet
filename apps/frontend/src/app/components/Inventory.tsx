@@ -1,10 +1,7 @@
 import {useEffect, useState} from 'react'
 import {BonusRules, ChargeKind, Charges, Switches} from '../../domain/bonus.ts'
 import BonusIcon from './BonusIcon.tsx'
-import {ChevronIcon} from './icons.tsx'
 import './Inventory.css'
-
-export const INVENTORY_FOLDED_KEY = "clickplanet-inventory-folded"
 
 const FULL_NOTICE_MS = 2000
 
@@ -19,7 +16,6 @@ export type InventoryProps = {
 }
 
 export default function Inventory({charges, rules, switches, onToggle, bombArmed, onToggleBomb, onUseRefill}: InventoryProps) {
-    const [folded, setFolded] = useState(readFolded)
     const [full, setFull] = useState(false)
 
     useEffect(() => {
@@ -28,30 +24,10 @@ export default function Inventory({charges, rules, switches, onToggle, bombArmed
         return () => clearTimeout(timer)
     }, [full])
 
-    const fold = () => {
-        setFolded(!folded)
-        writeFolded(!folded)
-    }
-
-    const kindsHeld = [charges.refill, charges.bomb, charges.enclosures > 0, charges.spreadClicksLeft > 0]
-        .filter(Boolean).length
     const active = bombArmed || switches.spread || switches.enclose
 
-    const className = ["inventory", active && "inventory--active", folded && "inventory--folded"]
-        .filter(Boolean).join(" ")
-
-    return <section className={className} aria-label="Inventory">
-        <button type="button"
-                className="inventory-fold"
-                aria-expanded={!folded}
-                onClick={fold}>
-            <span className="inventory-fold-name">Inventory</span>
-            {folded && kindsHeld > 0 &&
-                <span className="inventory-held" aria-label={`${kindsHeld} kinds held`}>{kindsHeld}</span>}
-            <span className="inventory-chevron"><ChevronIcon size={16}/></span>
-        </button>
-
-        {!folded && <div className="inventory-slots">
+    return <section className={active ? "inventory inventory--active" : "inventory"} aria-label="Inventory">
+        <div className="inventory-slots">
             <Slot kind="refill"
                   name="Refill"
                   held={charges.refill}
@@ -83,7 +59,7 @@ export default function Inventory({charges, rules, switches, onToggle, bombArmed
                       ? "Switch enclose off"
                       : "Switch enclose on: close a shape of your tiles to take the tiles inside"}
                   onPress={onToggle && (() => onToggle("enclose"))}/>
-        </div>}
+        </div>
     </section>
 }
 
@@ -99,6 +75,7 @@ function Slot({kind, name, held, count, on, state, hint, onPress}: {
 }) {
     const className = [
         "inventory-slot",
+        "panel-box",
         `inventory-slot--${kind}`,
         !held && "inventory-slot--empty",
         on && "inventory-slot--on",
@@ -114,7 +91,7 @@ function Slot({kind, name, held, count, on, state, hint, onPress}: {
                    disabled={!held || !onPress}
                    onClick={onPress}>
         <span className="inventory-box"><BonusIcon kind={kind}/></span>
-        {state && <span className="inventory-state" aria-hidden="true">{state}</span>}
+        {state && <span className="chip inventory-state" aria-hidden="true">{state}</span>}
         {count && <span className="inventory-count" aria-hidden="true">{count}</span>}
         <span className="inventory-name" aria-hidden="true">{name}</span>
     </button>
@@ -122,20 +99,4 @@ function Slot({kind, name, held, count, on, state, hint, onPress}: {
 
 function countOf(held: number, most: number | undefined): string {
     return most ? `${held}/${most}` : String(held)
-}
-
-function readFolded(): boolean {
-    try {
-        return window.localStorage.getItem(INVENTORY_FOLDED_KEY) === "1"
-    } catch {
-        return false
-    }
-}
-
-function writeFolded(folded: boolean): void {
-    try {
-        window.localStorage.setItem(INVENTORY_FOLDED_KEY, folded ? "1" : "0")
-    } catch {
-        // storage unavailable
-    }
 }

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
@@ -119,6 +121,62 @@ func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accou
 	return found, nil
 }
 
+func (s *Store) Accounts(ctx context.Context, asked []accounts.AccountID) ([]*accounts.Account, error) {
+	if len(asked) == 0 {
+		return []*accounts.Account{}, nil
+	}
+
+	ids := make([]string, len(asked))
+	for i, account := range asked {
+		ids[i] = account.String()
+	}
+
+	rows, err := s.db.QueryContext(ctx, `SELECT id, created_at FROM accounts WHERE id = ANY($1::uuid[]) ORDER BY id`, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("failed to select the accounts: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	found := make([]*accounts.Account, 0, len(asked))
+	byID := make(map[accounts.AccountID]*accounts.Account, len(asked))
+	for rows.Next() {
+		var (
+			id        uuid.UUID
+			createdAt time.Time
+		)
+		if err := rows.Scan(&id, &createdAt); err != nil {
+			return nil, fmt.Errorf("failed to read an account: %w", err)
+		}
+		account := &accounts.Account{ID: accounts.AccountID(id), CreatedAt: createdAt.UTC(), Identities: []accounts.Identity{}}
+		found = append(found, account)
+		byID[account.ID] = account
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the accounts: %w", err)
+	}
+
+	identities, err := s.db.QueryContext(ctx, `
+		SELECT provider, subject, account_id, COALESCE(email, ''), email_verified, linked_at
+		FROM identities WHERE account_id = ANY($1::uuid[]) ORDER BY linked_at, provider
+	`, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("failed to select the accounts' identities: %w", err)
+	}
+	defer func() { _ = identities.Close() }()
+
+	for identities.Next() {
+		identity, err := scanIdentity(identities)
+		if err != nil {
+			return nil, err
+		}
+		byID[identity.Account].Identities = append(byID[identity.Account].Identities, *identity)
+	}
+	if err := identities.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the accounts' identities: %w", err)
+	}
+	return found, nil
+}
+
 func (s *Store) Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error) {
 	identity, err := scanIdentity(s.db.QueryRowContext(ctx, `
 		SELECT provider, subject, account_id, COALESCE(email, ''), email_verified, linked_at
@@ -128,6 +186,22 @@ func (s *Store) Identity(ctx context.Context, provider string, subject string) (
 		return nil, accounts.ErrIdentityNotFound
 	}
 	return identity, err
+}
+
+func (s *Store) AccountOfEmail(ctx context.Context, address string) (*accounts.Account, error) {
+	var account uuid.UUID
+	err := s.db.QueryRowContext(ctx, `
+		SELECT account_id FROM identities
+		WHERE email_verified AND lower(email) = lower($1)
+		ORDER BY linked_at, provider LIMIT 1
+	`, address).Scan(&account)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, accounts.ErrAccountNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to select the account of the address: %w", err)
+	}
+	return s.Account(ctx, accounts.AccountID(account))
 }
 
 func (s *Store) SaveSignIn(ctx context.Context, signIn accounts.SignIn) error {

@@ -121,6 +121,23 @@ func (s *StoreContractSuite) TestTakesOfOneAccountDoNotCountOnAnother() {
 	s.Equal(uint64(2), s.stats(2).TilesTaken)
 }
 
+func (s *StoreContractSuite) TestEachMessageIsCountedAndStartsNoStreak() {
+	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
+	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
+
+	s.Equal(Stats{Account: AccountID{15: 1}}.WithMessage().WithMessage(), s.stats(1))
+}
+
+func (s *StoreContractSuite) TestMessagesAndTakesAddUpOnOneAccount() {
+	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
+	s.recordTake(1, contractAt)
+	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
+	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 2}))
+
+	s.Equal(Stats{Account: AccountID{15: 1}}.WithMessage().WithTake(contractAt).WithMessage(), s.stats(1))
+	s.Equal(uint64(1), s.stats(2).MessagesSent)
+}
+
 func (s *StoreContractSuite) TestADeletedAccountLosesBothAndTheOthersKeepTheirs() {
 	for account := range byte(2) {
 		s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(account+1, []Name{"Ada", "Bob"}[account])))
@@ -190,6 +207,28 @@ func (s *StoreContractSuite) TestARenameFreesTheOldName() {
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Bob")))
 
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "ada")))
+}
+
+func (s *StoreContractSuite) TestStatsArePagedInAccountOrderAfterTheCursor() {
+	for _, account := range []byte{3, 1, 4, 2} {
+		s.recordTake(account, contractAt)
+	}
+
+	first, err := s.store.StatsAfter(s.T().Context(), AccountID{}, 3)
+	s.Require().NoError(err)
+	rest, err := s.store.StatsAfter(s.T().Context(), first[len(first)-1].Account, 3)
+	s.Require().NoError(err)
+
+	accountsOf := func(page []Stats) []AccountID {
+		accounts := make([]AccountID, 0, len(page))
+		for _, stats := range page {
+			accounts = append(accounts, stats.Account)
+		}
+		return accounts
+	}
+	s.Equal([]AccountID{{15: 1}, {15: 2}, {15: 3}}, accountsOf(first))
+	s.Equal([]AccountID{{15: 4}}, accountsOf(rest))
+	s.Equal(s.stats(4), rest[0])
 }
 
 func (s *StoreContractSuite) TestAnAccountNeverGivenACodeHasNone() {
@@ -329,4 +368,60 @@ func (s *StoreContractSuite) TestNoAccountsAskedIsNoAuthors() {
 
 	s.Require().NoError(err)
 	s.Empty(authors)
+}
+
+func (s *StoreContractSuite) TestAColorNeedsAProfile() {
+	err := s.store.SaveColor(s.T().Context(), AccountID{15: 1}, 3)
+
+	s.Require().ErrorIs(err, ErrNoProfile, "a guest has no name to color")
+}
+
+func (s *StoreContractSuite) TestAColorIsReadAndARenameKeepsIt() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveColor(s.T().Context(), AccountID{15: 1}, 3))
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada_L")), "a saved profile says nothing of color")
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(Color(3), profile.Color)
+	named, err := s.store.ProfileNamed(s.T().Context(), "ada_l")
+	s.Require().NoError(err)
+	s.Equal(Color(3), named.Color)
+}
+
+func (s *StoreContractSuite) TestAColorCanBeTakenBack() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveColor(s.T().Context(), AccountID{15: 1}, 3))
+	s.Require().NoError(s.store.SaveColor(s.T().Context(), AccountID{15: 1}, 0))
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(Color(0), profile.Color)
+}
+
+func (s *StoreContractSuite) TestAuthorsCarryTheColorAndTheStreakAsStored() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.SaveColor(s.T().Context(), AccountID{15: 1}, 3))
+	s.recordTake(1, contractAt)
+	s.recordTake(1, contractAt.Add(time.Hour))
+	s.Require().NoError(s.store.SaveGuestCode(s.T().Context(), AccountID{15: 2}, "91aa3d"))
+	s.recordTake(2, contractAt)
+
+	authors, err := s.store.Authors(s.T().Context(), []AccountID{{15: 1}, {15: 2}})
+
+	s.Require().NoError(err)
+	s.Equal(map[AccountID]Author{
+		{15: 1}: {Name: "Ada", Color: 3, Streak: Streak{Days: 2, LastDay: DayOf(contractAt.Add(time.Hour))}},
+		{15: 2}: {Name: ReservedPrefix + "91aa3d", Guest: true, Streak: Streak{Days: 1, LastDay: DayOf(contractAt)}},
+	}, authors, "the store does not know what day it is: the streak is read as of today above it")
+}
+
+func (s *StoreContractSuite) TestAnAuthorWhoOnlyPostedHasNoStreak() {
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
+	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
+
+	authors, err := s.store.Authors(s.T().Context(), []AccountID{{15: 1}})
+
+	s.Require().NoError(err)
+	s.Equal(map[AccountID]Author{{15: 1}: {Name: "Ada"}}, authors)
 }

@@ -42,10 +42,17 @@ type Claim struct {
 	EmailVerified bool
 }
 
+func (c Claim) VerifiedEmail() string {
+	if !c.EmailVerified {
+		return ""
+	}
+	return c.Email
+}
+
 func NewIdentity(provider string, claim Claim, account AccountID, now time.Time) *Identity {
 	identity := &Identity{Provider: provider, Subject: claim.Subject, Account: account, LinkedAt: now}
-	if claim.EmailVerified && claim.Email != "" {
-		identity.Email = claim.Email
+	if email := claim.VerifiedEmail(); email != "" {
+		identity.Email = email
 		identity.EmailVerified = true
 	}
 	return identity
@@ -65,15 +72,21 @@ const (
 	SignedIn Outcome = iota + 1
 	Linked
 	Created
+	Joined
 )
 
-func OutcomeOf(intent Intent, current *Account, known *Identity, provider string) (Outcome, error) {
+func OutcomeOf(intent Intent, current *Account, known *Identity, owner *Account, provider string) (Outcome, error) {
 	if intent == IntentLink {
-		return linkOutcomeOf(current, known, provider)
+		return linkOutcomeOf(current, known, owner, provider)
 	}
+	joinable := owner != nil && !owner.linkedTo(provider)
 	switch {
 	case known != nil:
 		return SignedIn, nil
+	case joinable && current != nil && current.ID == owner.ID:
+		return Linked, nil
+	case joinable:
+		return Joined, nil
 	case current == nil || current.linkedTo(provider):
 		return Created, nil
 	default:
@@ -81,13 +94,15 @@ func OutcomeOf(intent Intent, current *Account, known *Identity, provider string
 	}
 }
 
-func linkOutcomeOf(current *Account, known *Identity, provider string) (Outcome, error) {
+func linkOutcomeOf(current *Account, known *Identity, owner *Account, provider string) (Outcome, error) {
 	switch {
 	case current == nil:
 		return 0, ErrNoAccount
 	case known != nil && known.Account == current.ID:
 		return SignedIn, nil
 	case known != nil:
+		return 0, ErrIdentityLinkedElsewhere
+	case owner != nil && owner.ID != current.ID:
 		return 0, ErrIdentityLinkedElsewhere
 	case current.linkedTo(provider):
 		return 0, ErrProviderAlreadyLinked

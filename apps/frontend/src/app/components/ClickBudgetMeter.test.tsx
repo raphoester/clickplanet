@@ -122,24 +122,28 @@ describe("ClickBudgetMeter", () => {
 })
 
 describe("ClickBudgetMeter and the price", () => {
-    it("says why the refill is slow for a country that holds much of the map", () => {
-        render(<ClickBudgetMeter countryName="Bulgaria"
-                                 budget={reading({price: {slowdown: 8, share: 0.8, next: {share: 0.9, slowdown: 10}}})}/>)
+    const slowed = {slowdown: 4, share: 0.98}
 
-        expect(screen.getByText("Bulgaria holds 80% of the map")).toBeTruthy()
-        expect(screen.getByText("Refills 8× slower · 10× at 90%")).toBeTruthy()
+    it("says the refill is slower for a country that holds much of the map", () => {
+        render(<ClickBudgetMeter budget={reading({price: slowed})}/>)
+
+        expect(screen.getByRole("img", {name: "Refills 4× slower"}).textContent).toBe("4× slower")
     })
 
-    it("names the main flag when it is not the country selected", () => {
-        render(<ClickBudgetMeter countryName="Spain"
-                                 budget={reading({price: {country: "fr", slowdown: 4, share: 0.4}})}/>)
+    it("says it in short on a phone", () => {
+        render(<ClickBudgetMeter compact budget={reading({price: slowed})}/>)
 
-        expect(screen.getByText("Your main flag, France, holds 40% of the map")).toBeTruthy()
-        expect(screen.getByText("Refills 4× slower")).toBeTruthy()
+        expect(screen.getByRole("img", {name: "Refills 4× slower"}).textContent).toBe("4×")
+    })
+
+    it("keeps the slowdown out of the meter, which is a reading", () => {
+        render(<ClickBudgetMeter budget={reading({price: slowed})}/>)
+
+        expect(meter().querySelector(".click-budget-toll")).toBeNull()
     })
 
     it("says nothing about price at the plain rate", () => {
-        render(<ClickBudgetMeter countryName="Chad" budget={reading({price: {slowdown: 1, share: 0.01, next: {share: 0.1, slowdown: 2}}})}/>)
+        render(<ClickBudgetMeter budget={reading({price: {slowdown: 1, share: 0.01, next: {share: 0.1, slowdown: 2}}})}/>)
 
         expect(document.querySelector(".click-budget-toll")).toBeNull()
     })
@@ -187,6 +191,18 @@ describe("ClickBudgetMeter for a guest", () => {
         expect(screen.queryByRole("button")).toBeNull()
     })
 
+    it("leaves the offer to the clicks panel when the line already says the refill is slower", () => {
+        render(<ClickBudgetMeter budget={reading({linkedMultiplier: 2, price: {slowdown: 4, share: 0.98}})} onSignIn={vi.fn()}/>)
+
+        expect(screen.queryByRole("button", {name: /Sign in/})).toBeNull()
+    })
+
+    it("leaves the offer to the clicks panel on a phone", () => {
+        render(<ClickBudgetMeter compact budget={reading({linkedMultiplier: 2})} onSignIn={vi.fn()}/>)
+
+        expect(screen.queryByRole("button", {name: /Sign in/})).toBeNull()
+    })
+
     it("offers a guest who shares its bank one of its own", () => {
         render(<ClickBudgetMeter budget={reading({linkedMultiplier: 2, sharedWith: "guests"})} onSignIn={vi.fn()}/>)
 
@@ -203,10 +219,10 @@ describe("ClickBudgetMeter's shared bucket", () => {
 
     it("says who else spends from it", () => {
         const {rerender} = render(<ClickBudgetMeter budget={reading({sharedWith: "guests"})}/>)
-        expect(screen.getByText("Shared with the guests on your network")).toBeTruthy()
+        expect(screen.getByRole("img", {name: "Shared with the guests on your network"})).toBeTruthy()
 
         rerender(<ClickBudgetMeter budget={reading({sharedWith: "network"})}/>)
-        expect(screen.getByText("Shared with everyone on your network")).toBeTruthy()
+        expect(screen.getByRole("img", {name: "Shared with everyone on your network"})).toBeTruthy()
     })
 })
 
@@ -221,8 +237,9 @@ describe("ClickBudgetMeter's dock", () => {
         render(<ClickBudgetMeter budget={reading()}><p>held</p></ClickBudgetMeter>)
 
         const dock = document.querySelector(".click-budget-dock")!
-        expect(Array.from(dock.children).indexOf(meter()))
-            .toBeLessThan(Array.from(dock.children).indexOf(screen.getByText("held")))
+        const children = Array.from(dock.children)
+        expect(children.indexOf(document.querySelector(".click-budget-shell")!))
+            .toBeLessThan(children.indexOf(screen.getByText("held")))
     })
 
     it("still holds it against a server that reports no allowance", () => {
@@ -230,5 +247,36 @@ describe("ClickBudgetMeter's dock", () => {
 
         expect(screen.getByText("held")).toBeTruthy()
         expect(screen.queryByRole("meter")).toBeNull()
+    })
+})
+
+describe("ClickBudgetMeter and your clicks", () => {
+    it("opens them from the reading", () => {
+        const onToggleOpen = vi.fn()
+        render(<ClickBudgetMeter budget={reading()} onToggleOpen={onToggleOpen}/>)
+
+        const open = screen.getByRole("button", {name: "Your clicks"})
+        expect(open.getAttribute("aria-expanded")).toBe("false")
+        expect(meter().contains(open)).toBe(false)
+
+        fireEvent.click(open)
+        expect(onToggleOpen).toHaveBeenCalledTimes(1)
+    })
+
+    it("shows them over the dock on a desktop, and closes them on Escape", () => {
+        const onToggleOpen = vi.fn()
+        render(<ClickBudgetMeter budget={reading()} open onToggleOpen={onToggleOpen} popover={<p>steps</p>}/>)
+
+        expect(screen.getByText("steps")).toBeTruthy()
+        expect(screen.getByRole("button", {name: "Your clicks"}).getAttribute("aria-expanded")).toBe("true")
+
+        fireEvent.keyDown(document, {key: "Escape"})
+        expect(onToggleOpen).toHaveBeenCalledTimes(1)
+    })
+
+    it("leaves them to a sheet on a phone", () => {
+        render(<ClickBudgetMeter compact budget={reading()} open onToggleOpen={vi.fn()} popover={<p>steps</p>}/>)
+
+        expect(screen.queryByText("steps")).toBeNull()
     })
 })

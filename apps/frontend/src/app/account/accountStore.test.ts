@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
 import {AccountBackend, AuthError, AuthFailure, Me, Provider} from "../../backends/account.ts"
-import {PlayerBackend, PlayerError, PlayerFailure, Profile} from "../../backends/player.ts"
+import {ColoredProfile, NameColor, PlayerBackend, PlayerError, PlayerFailure, Profile, TitleDashboard} from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
 import {AccountStore} from "./accountStore.ts"
 
@@ -22,10 +22,13 @@ function fakeBackend(offered: Provider[] = ["google", "discord"], me: Me = {link
 
 type FakePlayer = {[K in keyof PlayerBackend]: ReturnType<typeof vi.fn>}
 
-function fakePlayer(name = ""): FakePlayer {
+function fakePlayer(name = "", color = NameColor.UNSPECIFIED): FakePlayer {
     return {
-        profile: vi.fn(async (): Promise<Profile> => ({accountId: "account-1", name})),
+        profile: vi.fn(async (): Promise<ColoredProfile> => ({accountId: "account-1", name, color})),
         setName: vi.fn(async (name: string): Promise<Profile> => ({accountId: "account-1", name})),
+        setColor: vi.fn(async (color: NameColor): Promise<NameColor> => color),
+        titles: vi.fn(async (): Promise<TitleDashboard> => ({wearable: [], tracks: []})),
+        wearTitle: vi.fn(async () => undefined),
     }
 }
 
@@ -341,7 +344,7 @@ describe("AccountStore", () => {
             await store.load()
 
             await vi.waitFor(() => expect(store.state()).toEqual({
-                kind: "ready", offered: ["google"], me: {linked: ["google"]}, username: "ana",
+                kind: "ready", offered: ["google"], me: {linked: ["google"]}, username: "ana", color: NameColor.UNSPECIFIED,
             }))
             expect(player.profile).toHaveBeenCalledTimes(1)
         })
@@ -455,7 +458,8 @@ describe("AccountStore", () => {
                 await store.setUsername("bo")
 
                 expect(store.state()).toEqual({
-                    kind: "ready", offered: ["google"], me: {linked: ["google"]}, username: "ana", nameFailure: "taken",
+                    kind: "ready", offered: ["google"], me: {linked: ["google"]}, username: "ana", color: NameColor.UNSPECIFIED,
+                    nameFailure: "taken",
                 })
             })
 
@@ -535,6 +539,79 @@ describe("AccountStore", () => {
 
                 expect(store.state()).toEqual({kind: "ready", offered: ["google"], me: {linked: []}})
             })
+        })
+    })
+
+    describe("the color", () => {
+        const linked = () => fakeBackend(["google"], {linked: ["google"]})
+
+        it("is read with the username", async () => {
+            const {store} = setup(linked(), fakePlayer("ana", NameColor.TEAL))
+
+            await store.load()
+
+            await vi.waitFor(() => expect(store.state()).toMatchObject({username: "ana", color: NameColor.TEAL}))
+        })
+
+        it("is busy while the server answers, then shows the color it stored", async () => {
+            const player = fakePlayer("ana")
+            const saved = held<NameColor>()
+            player.setColor.mockReturnValue(saved.promise)
+            const {store} = setup(linked(), player)
+            await store.load()
+            await vi.waitFor(() => expect(store.state()).toMatchObject({username: "ana"}))
+
+            const saving = store.setColor(NameColor.PINK)
+            expect(player.setColor).toHaveBeenCalledWith(NameColor.PINK)
+            expect(store.state()).toMatchObject({coloring: true})
+
+            saved.release(NameColor.PINK)
+            await saving
+
+            expect(store.state()).toEqual({
+                kind: "ready", offered: ["google"], me: {linked: ["google"]}, username: "ana", color: NameColor.PINK,
+            })
+        })
+
+        it("reports why it was refused and keeps the color it had", async () => {
+            const player = fakePlayer("ana", NameColor.TEAL)
+            player.setColor.mockImplementation(refusingName("unnamed"))
+            const {store} = setup(linked(), player)
+            await store.load()
+            await vi.waitFor(() => expect(store.state()).toMatchObject({color: NameColor.TEAL}))
+
+            await store.setColor(NameColor.PINK)
+
+            expect(store.state()).toMatchObject({color: NameColor.TEAL, colorFailure: "unnamed"})
+        })
+
+        it("is not asked for before a username is known", async () => {
+            const {store, player} = setup(linked(), fakePlayer(""))
+            await store.load()
+
+            await store.setColor(NameColor.PINK)
+
+            expect(player.setColor).not.toHaveBeenCalled()
+        })
+
+        it("is kept through a rename", async () => {
+            const {store} = setup(linked(), fakePlayer("ana", NameColor.TEAL))
+            await store.load()
+            await vi.waitFor(() => expect(store.state()).toMatchObject({color: NameColor.TEAL}))
+
+            await store.setUsername("bo")
+
+            expect(store.state()).toMatchObject({username: "bo", color: NameColor.TEAL})
+        })
+
+        it("is forgotten with the account", async () => {
+            const {store} = setup(linked(), fakePlayer("ana", NameColor.TEAL))
+            await store.load()
+            await vi.waitFor(() => expect(store.state()).toMatchObject({color: NameColor.TEAL}))
+
+            await store.signOut()
+
+            expect(store.state()).not.toHaveProperty("color", NameColor.TEAL)
         })
     })
 

@@ -33,8 +33,9 @@ import (
 const mapTiles = 262119
 
 type gameStack struct {
-	baseURL string
-	fakes   auth.FakeProviders
+	baseURL  string
+	adminURL string
+	fakes    auth.FakeProviders
 }
 
 func startGame(t *testing.T) gameStack {
@@ -42,7 +43,9 @@ func startGame(t *testing.T) gameStack {
 
 	postgres := cppg.StartTestServer(t)
 	secret, _ := cpsession.TestKeyPair()
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t), InternalBindAddress: freeAddress(t)}
+	server := cpbootstrap.ServerConfig{
+		BindAddress: freeAddress(t), InternalBindAddress: freeAddress(t), AdminBindAddress: freeAddress(t),
+	}
 
 	authConfig := auth.Config{
 		SignerConfig: cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: time.Hour},
@@ -92,7 +95,7 @@ func startGame(t *testing.T) gameStack {
 		return true
 	}, time.Minute, 50*time.Millisecond, "the server never came up")
 
-	return gameStack{baseURL: "http://" + server.BindAddress, fakes: fakes}
+	return gameStack{baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes}
 }
 
 type gamer struct {
@@ -176,6 +179,17 @@ func (p *gamer) setName(name string) (*playerv1.Profile, error) {
 		return nil, fmt.Errorf("SetName failed: %w", err)
 	}
 	return res.Msg.GetProfile(), nil
+}
+
+func (p *gamer) setColor(color playerv1.NameColor) error {
+	p.t.Helper()
+
+	req := connect.NewRequest(&playerv1.SetColorRequest{Color: color})
+	p.send(req.Header())
+	if _, err := p.players().SetColor(p.t.Context(), req); err != nil {
+		return fmt.Errorf("SetColor failed: %w", err)
+	}
+	return nil
 }
 
 func (p *gamer) click(tile uint32, country string) {
@@ -312,4 +326,89 @@ func TestADeletedAccountLosesItsStatsAndItsName(t *testing.T) {
 		return err == nil && res.Msg.GetProfile().GetName() == ""
 	}, 5*time.Second, 20*time.Millisecond)
 	assert.Zero(t, ada.stats().GetTilesTaken())
+}
+
+func TestAnOperatorReconcilesTheTitlesOnTheAdminListenerOnly(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+	_, err := ada.setName("Ada")
+	require.NoError(t, err)
+	ada.click(1, "fr")
+	guest := game.newPlayer(t)
+	guest.click(2, "fr")
+	require.Eventually(t, func() bool {
+		return ada.stats().GetTilesTaken() == 1 && guest.stats().GetTilesTaken() == 1
+	}, 5*time.Second, 20*time.Millisecond)
+
+	request := connect.NewRequest(&playerv1.ReconcileTitlesRequest{})
+	_, err = playerv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).ReconcileTitles(t.Context(), request)
+	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "the public router does not serve it")
+
+	admin := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL)
+	first, err := admin.ReconcileTitles(t.Context(), request)
+	require.NoError(t, err)
+	assert.Zero(t, first.Msg.GetRevoked(), "the worker granted the guest nothing, and the player only what it earns")
+
+	second, err := admin.ReconcileTitles(t.Context(), request)
+	require.NoError(t, err)
+	assert.Zero(t, second.Msg.GetGranted())
+	assert.Zero(t, second.Msg.GetRevoked())
+}
+
+func TestASignedInStreamHearsTheTitleItsTakesEarnAndTheTitleCanBeWorn(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	listen := connect.NewRequest(&playerv1.ListenForEventsRequest{})
+	ada.send(listen.Header())
+	stream, err := ada.players().ListenForEvents(ctx, listen)
+	require.NoError(t, err)
+	require.True(t, stream.Receive(), "the roster comes first")
+
+	earned := make(chan string, 16)
+	go func() {
+		for stream.Receive() {
+			if title := stream.Msg().GetTitleEarned(); title != nil {
+				earned <- title.GetTitle().GetId()
+			}
+		}
+	}()
+
+	for tile := range uint32(100) {
+		ada.click(tile+1, "fr")
+	}
+
+	require.Eventually(t, func() bool {
+		select {
+		case id := <-earned:
+			return id == "settler"
+		default:
+			return false
+		}
+	}, 10*time.Second, 20*time.Millisecond, "the hundredth take earns Settler, live")
+
+	get := connect.NewRequest(&playerv1.GetTitlesRequest{})
+	ada.send(get.Header())
+	dashboard, err := ada.players().GetTitles(t.Context(), get)
+	require.NoError(t, err)
+	conquest := dashboard.Msg.GetTracks()[0]
+	assert.Equal(t, "conquest", conquest.GetId())
+	assert.Equal(t, uint64(100), conquest.GetProgress())
+	assert.True(t, conquest.GetSteps()[0].GetEarned())
+
+	wear := connect.NewRequest(&playerv1.WearTitleRequest{TitleId: "settler"})
+	ada.send(wear.Header())
+	worn, err := ada.players().WearTitle(t.Context(), wear)
+	require.NoError(t, err)
+	assert.Equal(t, "settler", worn.Msg.GetWorn().GetId())
+	assert.Equal(t, uint32(1), worn.Msg.GetWorn().GetRank().GetNumber())
+
+	refused := connect.NewRequest(&playerv1.WearTitleRequest{TitleId: "warmaster"})
+	ada.send(refused.Header())
+	_, err = ada.players().WearTitle(t.Context(), refused)
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

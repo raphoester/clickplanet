@@ -280,3 +280,29 @@ func TestAuthWithoutADatabaseIsRefused(t *testing.T) {
 
 	require.ErrorContains(t, config.Validate(), "auth.database: [host port user dbName sslMode schema] is empty")
 }
+
+func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	require.Len(t, config.Seasons.Calendar.List, 1)
+	season := config.Seasons.Calendar.List[0]
+	assert.Zero(t, season.Number)
+	assert.True(t, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Equal(season.EndsAt))
+	assert.Equal(t, 2*time.Hour, season.Finale)
+}
+
+func TestSeasonsThatDoNotCountUpAreRefused(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+seasons:
+  list:
+    - number: 1
+      endsAt: 2026-10-31T23:00:00Z
+      finale: 2h
+`), 0o600))
+
+	var config Config
+	err := cpconfigs.Load(&config, cpconfigs.FromFile(path))
+	require.ErrorContains(t, err, "seasons: list[0].number is 1")
+}

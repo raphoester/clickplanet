@@ -1,4 +1,20 @@
+import {CSSProperties} from "react"
 import {OAuthProvider} from "../../backends/account.ts"
+
+const BRANDS: Record<OAuthProvider, CSSProperties> = {
+    google: {
+        "--provider-background": "#131314",
+        "--provider-hover": "#1F1F20",
+        "--provider-border": "#8E918F",
+        "--provider-text": "#E3E3E3",
+    } as CSSProperties,
+    discord: {
+        "--provider-background": "var(--discord)",
+        "--provider-hover": "color-mix(in srgb, var(--discord) 80%, var(--ink))",
+        "--provider-border": "var(--discord)",
+        "--provider-text": "var(--text)",
+    } as CSSProperties,
+}
 
 export type ProviderButtonProps = {
     provider: OAuthProvider
@@ -10,6 +26,7 @@ export type ProviderButtonProps = {
 export default function ProviderButton({provider, label, disabled, onClick}: ProviderButtonProps) {
     return <button type="button"
                    className={`provider-button provider-button-${provider}`}
+                   style={BRANDS[provider]}
                    disabled={disabled}
                    onClick={onClick}>
         {provider === "google" ? <GoogleLogo/> : <DiscordLogo/>}

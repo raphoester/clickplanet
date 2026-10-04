@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {cleanup, fireEvent, render, screen} from '@testing-library/react'
-import Inventory, {INVENTORY_FOLDED_KEY, InventoryProps} from './Inventory.tsx'
+import Inventory, {InventoryProps} from './Inventory.tsx'
 import {ALL_OFF, NO_CHARGES} from "../../domain/bonus.ts"
 
 afterEach(cleanup)
 beforeEach(() => window.localStorage.clear())
 
-const rules = {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: false}
+const rules = {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: false, toll: []}
 
 function inventory(props: Partial<InventoryProps> = {}) {
     return <Inventory charges={NO_CHARGES}
@@ -83,24 +83,11 @@ describe("Inventory", () => {
         expect(slot(/^Bomb/).disabled).toBe(true)
     })
 
-    it("folds from a header over the slots", () => {
+    it("has no fold: the four slots are always one row", () => {
         render(inventory())
 
         const section = screen.getByRole("region", {name: "Inventory"})
-        const header = screen.getByRole("button", {name: /Inventory/})
-        expect(section.firstElementChild).toBe(header)
-        expect(header.lastElementChild?.querySelector("svg")).toBeTruthy()
-    })
-
-    it("folds, and stays folded on the next load", () => {
-        render(inventory())
-
-        fireEvent.click(screen.getByRole("button", {name: /Inventory/}))
-        expect(screen.queryByRole("button", {name: /^Spread/})).toBeNull()
-        expect(window.localStorage.getItem(INVENTORY_FOLDED_KEY)).toBe("1")
-
-        cleanup()
-        render(inventory())
-        expect(screen.getByRole("button", {name: /Inventory/}).getAttribute("aria-expanded")).toBe("false")
+        expect(section.querySelectorAll("button")).toHaveLength(4)
+        expect(screen.queryByRole("button", {name: /Inventory/})).toBeNull()
     })
 })

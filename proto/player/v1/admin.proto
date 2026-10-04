@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package player.v1;
+
+// Unauthenticated: serve only on the loopback admin listener, never the public router.
+service AdminService {
+  rpc ReconcileTitles(ReconcileTitlesRequest) returns (ReconcileTitlesResponse);
+}
+
+message ReconcileTitlesRequest {}
+
+message ReconcileTitlesResponse {
+  uint32 granted = 1;
+  uint32 revoked = 2;
+}

@@ -27,7 +27,7 @@ export default function NativeLandNote({ground, lowered, onDone}: NativeLandNote
     }, [ground])
 
     return <div className={`native-land-note${lowered ? " native-land-note--lowered" : ""}`} role="status" aria-live="polite">
-        <div className="native-land-note-line">
+        <div className="native-land-note-line panel">
             <CountryFlag code={ground}/>
             <span><strong>{name}</strong>'s native land takes two clicks. One more to take it.</span>
         </div>

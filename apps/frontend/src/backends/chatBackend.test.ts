@@ -19,6 +19,7 @@ import {
     ChatRejectedError,
 } from "./chat.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
+import {NameColor} from "./player.ts"
 
 const outgoing = {authorId: "author-1", countryCode: "fr", text: "hello"}
 
@@ -45,6 +46,8 @@ const proto = () => new ChatMessagePb({
     sentAtUnixMs: BigInt(1_700_000_000_000),
     authorName: "Ana",
     authorAdmin: true,
+    authorColor: NameColor.TEAL,
+    authorStreak: 12,
     countryId: "fr",
     text: "hello",
     reactions: [new ReactionCount({reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]})],
@@ -67,6 +70,8 @@ describe("decodedMessage", () => {
             sentAt: 1_700_000_000_000,
             authorName: "Ana",
             authorAdmin: true,
+            authorColor: NameColor.TEAL,
+            authorStreak: 12,
             countryCode: "fr",
             text: "hello",
             reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]}],

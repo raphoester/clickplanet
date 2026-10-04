@@ -30,6 +30,7 @@ type Stats struct {
 	StreakCurrent uint32
 	StreakBest    uint32
 	StreakLastDay Day
+	MessagesSent  uint64
 }
 
 func (s Stats) WithTake(at time.Time) Stats {
@@ -53,10 +54,29 @@ func (s Stats) WithTake(at time.Time) Stats {
 	return s
 }
 
+func (s Stats) WithMessage() Stats {
+	s.MessagesSent++
+	return s
+}
+
+func (s Stats) Streak() Streak {
+	return Streak{Days: s.StreakCurrent, LastDay: s.StreakLastDay}
+}
+
 func (s Stats) AsOf(today Day) Stats {
-	if s.StreakLastDay.Empty() || s.StreakLastDay == today || s.StreakLastDay.Following() == today {
+	s.StreakCurrent = s.Streak().AsOf(today).Days
+	return s
+}
+
+type Streak struct {
+	Days    uint32
+	LastDay Day
+}
+
+func (s Streak) AsOf(today Day) Streak {
+	if s.LastDay.Empty() || s.LastDay == today || s.LastDay.Following() == today {
 		return s
 	}
-	s.StreakCurrent = 0
+	s.Days = 0
 	return s
 }

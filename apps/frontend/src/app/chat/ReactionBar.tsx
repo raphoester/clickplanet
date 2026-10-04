@@ -57,7 +57,7 @@ export default function ReactionBar({messageId, reactions, onReact, picking, set
                                                 onReact={onReact && (on => react(count.reaction, on))}/>)}
         </div>}
 
-        {open && <div className="chat-reaction-picker" role="group" aria-label="Reactions">
+        {open && <div className="panel chat-reaction-picker" role="group" aria-label="Reactions">
             {[...REACTION_IMAGES].map(([reaction, image]) => {
                 const mine = reactions.some(count => count.reaction === reaction && count.mine)
                 return <button type="button"
@@ -116,7 +116,7 @@ function ReactionChip({count, onReact}: ReactionChipProps) {
     return <>
         <button type="button"
                 ref={chip}
-                className={count.mine ? "chat-reaction chat-reaction-mine" : "chat-reaction"}
+                className={count.mine ? "chip chat-reaction chat-reaction-mine" : "chip chat-reaction"}
                 aria-pressed={count.mine}
                 aria-label={`${image.label}: ${count.count}`}
                 aria-describedby={at ? described : undefined}
@@ -158,11 +158,11 @@ type ReactionWhoProps = {
 function ReactionWho({id, at, count, label}: ReactionWhoProps) {
     const {names, more} = whoReacted(count)
 
-    // On the body: the panel's backdrop-filter would make position: fixed relative to it.
+    // On the body: the log scrolls and clips whatever is drawn inside it.
     return createPortal(
         <div id={id}
              role="tooltip"
-             className={at.above ? "chat-reaction-who chat-reaction-who-above" : "chat-reaction-who"}
+             className={at.above ? "panel chat-reaction-who chat-reaction-who-above" : "panel chat-reaction-who"}
              style={{left: `${at.left}px`, top: `${at.top}px`, maxWidth: `${WHO_MAX_WIDTH_PX}px`}}>
             <span className="chat-reaction-who-label">{label}</span>
             <ul className="chat-reaction-who-names">

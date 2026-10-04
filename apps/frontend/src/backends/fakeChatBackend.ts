@@ -18,6 +18,7 @@ import {
     ReactionCount,
     ReactionsChange,
 } from "./chat.ts";
+import {NameColor} from "./player.ts";
 import {v4 as UUIDv4} from 'uuid';
 
 const MESSAGES_PER_SECOND = 0.33
@@ -29,10 +30,10 @@ export type FakeChatBackendOptions = {
 }
 
 const CHATTERS = [
-    {name: "Ana", country: "fr", admin: true, text: "who keeps taking Brittany"},
-    {name: "guest_91aa3d", country: "de", admin: false, text: "we hold the north 💪"},
-    {name: "kiran_07", country: "in", admin: false, text: "gm everyone"},
-    {name: "guest_aa1290", country: "jp", admin: false, text: "the pacific is ours"},
+    {name: "Ana", country: "fr", admin: true, color: NameColor.PINK, streak: 12, text: "who keeps taking Brittany"},
+    {name: "guest_91aa3d", country: "de", admin: false, color: NameColor.UNSPECIFIED, streak: 0, text: "we hold the north 💪"},
+    {name: "kiran_07", country: "in", admin: false, color: NameColor.UNSPECIFIED, streak: 3, text: "gm everyone"},
+    {name: "guest_aa1290", country: "jp", admin: false, color: NameColor.UNSPECIFIED, streak: 0, text: "the pacific is ours"},
 ]
 
 export const OWN_GUEST_NAME = "guest_c0ffee"
@@ -68,6 +69,8 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 sentAt: Date.now() - (CHATTERS.length - index) * 60_000,
                 authorName: chatter.name,
                 authorAdmin: chatter.admin,
+                authorColor: chatter.color,
+                authorStreak: chatter.streak,
                 countryCode: chatter.country,
                 text: chatter.text,
                 reactions: [],
@@ -83,6 +86,8 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 sentAt: Date.now(),
                 authorName: chatter.name,
                 authorAdmin: chatter.admin,
+                authorColor: chatter.color,
+                authorStreak: chatter.streak,
                 countryCode: chatter.country,
                 text: `${chatter.text} (${this.nextChatter})`,
                 reactions: [],
@@ -114,6 +119,8 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             sentAt: Date.now(),
             authorName: OWN_GUEST_NAME,
             authorAdmin: false,
+            authorColor: NameColor.UNSPECIFIED,
+            authorStreak: 0,
             countryCode: message.countryCode,
             text,
             reactions: [],

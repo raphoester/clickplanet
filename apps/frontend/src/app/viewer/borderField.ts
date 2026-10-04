@@ -67,8 +67,6 @@ export class BorderField {
             this.rows[at + 4] = 0
             this.rows[at + 5] = 0
             this.rows[at + 6] = 0
-
-            this.rows[at + 13] = Math.max(data.frames[piece * 5 + 3], data.frames[piece * 5 + 4])
         }
 
         this.landmassData = new THREE.DataTexture(

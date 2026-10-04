@@ -1,0 +1,21 @@
+.streak-flame {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-self: center;
+    align-items: center;
+    gap: 1px;
+    font-family: var(--font-text);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--streak);
+    font-variant-numeric: tabular-nums;
+    text-shadow: var(--text-drop);
+    white-space: nowrap;
+}
+
+.streak-flame img {
+    display: block;
+    filter: drop-shadow(0 1px 0 var(--ink));
+    user-select: none;
+}

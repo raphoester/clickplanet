@@ -1,0 +1,105 @@
+:root {
+    --font-display: "Luckiest Guy", "Rubik", system-ui, sans-serif;
+    --font-text: "Rubik", system-ui, sans-serif;
+
+    --text-xs: 12px;
+    --text-s: 13px;
+    --text-m: 14px;
+    --text-l: 16px;
+    --display-s: 15px;
+    --display-m: 18px;
+    --display-l: 24px;
+    --display-xl: 30px;
+    --display-xxl: 46px;
+
+    --ink: #05070D;
+    --ground: #0B1226;
+    --ground-glow: #1D2D5C;
+    --panel: #18224A;
+    --panel-raised: #222F61;
+    --panel-sunk: #0B1226;
+    --sheen: #FFFFFF14;
+    --scrim: #05070DB3;
+
+    --text: #FFFFFF;
+    --text-soft: #C9D1F5;
+    --text-muted: #9DAAE0;
+    --text-faint: #7F89B0;
+
+    --action: #E5402B;
+    --action-light: #FF6B5B;
+    --secondary: #3A6BFF;
+    --secondary-light: #6B8FFF;
+    --gold: #FFC93C;
+    --gold-light: #FFE58A;
+    --gold-shade: #E09A12;
+    --gold-ink: #4A2C02;
+    --gain: #3BD16F;
+    --gain-ink: #0B3D25;
+    --loss: #FF6B5B;
+    --loss-ink: #4A0E07;
+    --streak: #FFB13F;
+    --cream: #FFF7E6;
+
+    --bronze: #D9884F;
+    --bronze-shade: #A55A28;
+    --bronze-ink: #3A1606;
+    --silver: #D5DCE6;
+    --silver-shade: #9AA6B6;
+    --silver-ink: #2B3340;
+    --platinum: #BFD3EA;
+    --prism-1: #8EF6FF;
+    --prism-2: #9C7BFF;
+    --prism-3: #FF7AD0;
+    --prism-4: #FFD36E;
+    --holo-1: #B6FFE9;
+    --holo-2: #8FB8FF;
+    --holo-3: #C79BFF;
+    --holo-4: #FFE59A;
+
+    --conquest: #E5402B;
+    --conquest-enamel: #18224A;
+    --chatter: #20C3A6;
+    --chatter-enamel: #0B2E2B;
+    --devotion: #FF813F;
+    --devotion-enamel: #3A1606;
+    --og: #9C7BFF;
+    --og-enamel: #2A1458;
+
+    --refill: #2F8CFF;
+    --refill-light: #7CC4FF;
+    --spread: #25B872;
+    --spread-light: #6FE3A8;
+    --bomb: #E0412F;
+    --bomb-light: #FF7A6B;
+    --enclose: #F2A91C;
+    --enclose-light: #FFC061;
+
+    --discord: #5865F2;
+
+    --author-saturation: 80%;
+    --author-name-lightness: 78%;
+    --author-balloon-lightness: 87%;
+    --author-ink-lightness: 15%;
+
+    --outline: 3px;
+    --outline-thin: 2px;
+    --radius-xs: 6px;
+    --radius-s: 8px;
+    --radius-m: 14px;
+    --radius-l: 20px;
+    --radius-pill: 999px;
+    --drop-xs: 0 2px 0 var(--ink);
+    --drop-s: 0 3px 0 var(--ink);
+    --drop-m: 0 4px 0 var(--ink);
+    --drop-l: 0 5px 0 var(--ink);
+    --text-drop: 0 2px 0 var(--ink);
+    --text-outline: 2px 2px 0 var(--ink), -2px 2px 0 var(--ink), 2px -2px 0 var(--ink), -2px -2px 0 var(--ink), 0 4px 0 var(--ink);
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+}

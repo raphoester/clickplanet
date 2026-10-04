@@ -185,6 +185,26 @@ func TestTheHistoryCarriesTheWindowOfNewestAnnouncements(t *testing.T) {
 	assert.Equal(t, []string{"hello"}, texts(history.Messages), "announcements do not take the messages' places")
 }
 
+func TestAnnouncementsBeginWhereAFullWindowOfMessagesDoes(t *testing.T) {
+	f := newFixture(t, "old", "middle", "new")
+	ago := map[announcements.AnnouncementID]time.Duration{old: 150, middle: 90}
+	for _, id := range []announcements.AnnouncementID{old, middle} {
+		require.NoError(t, f.announcements.Append(t.Context(), announcements.Announcement{
+			ID: id, Kind: announcements.KindBomb, At: now.Add(-ago[id] * time.Minute),
+		}))
+	}
+
+	history := f.read(t, ada)
+
+	ids := make([]announcements.AnnouncementID, 0, len(history.Announcements))
+	for _, announcement := range history.Announcements {
+		ids = append(ids, announcement.ID)
+	}
+	assert.Equal(t, []string{"middle", "new"}, texts(history.Messages))
+	assert.Equal(t, []announcements.AnnouncementID{middle}, ids,
+		"one from before the oldest message shown would sit on top of the chat, among messages left out")
+}
+
 func TestEachMessageIsNamedByWhoItsAccountIsNow(t *testing.T) {
 	f := newFixture(t, "hello")
 
@@ -202,6 +222,16 @@ func TestARenameShowsOnEverythingItsPlayerEverSaid(t *testing.T) {
 	for _, entry := range f.history(t, ada) {
 		assert.Equal(t, "Ada Lovelace", entry.Message.AuthorName, entry.Message.Text)
 		assert.True(t, entry.Message.AuthorAdmin, entry.Message.Text)
+	}
+}
+
+func TestANewColorAndTheStreakTodayShowOnEverythingItsPlayerEverSaid(t *testing.T) {
+	f := newFixture(t, "one", "two")
+	f.authors.named[ada] = messages.Author{Name: "Ada", Color: 7, Streak: 12}
+
+	for _, entry := range f.history(t, ada) {
+		assert.Equal(t, int32(7), entry.Message.AuthorColor, entry.Message.Text)
+		assert.Equal(t, uint32(12), entry.Message.AuthorStreak, entry.Message.Text)
 	}
 }
 

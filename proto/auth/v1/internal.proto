@@ -5,6 +5,10 @@ package auth.v1;
 service InternalService {
   rpc GetVerifyingKey(GetVerifyingKeyRequest) returns (GetVerifyingKeyResponse);
   rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
+
+  rpc GetAccounts(GetAccountsRequest) returns (GetAccountsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetVerifyingKeyRequest {}
@@ -20,4 +24,18 @@ message GetAccountRequest {
 message GetAccountResponse {
   bool linked = 1;
   int64 created_at_unix_ms = 2;
+}
+
+message GetAccountsRequest {
+  repeated string account_ids = 1;
+}
+
+message GetAccountsResponse {
+  repeated Account accounts = 1;
+}
+
+message Account {
+  string account_id = 1;
+  bool linked = 2;
+  int64 created_at_unix_ms = 3;
 }

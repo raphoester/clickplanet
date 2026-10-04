@@ -16,6 +16,7 @@ type IdentityStore interface {
 	accounts.SessionFinder
 	accounts.AccountFinder
 	Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error)
+	AccountOfEmail(ctx context.Context, address string) (*accounts.Account, error)
 	SaveSignIn(ctx context.Context, signIn accounts.SignIn) error
 }
 
@@ -88,8 +89,18 @@ func (a *Admitter) admit(
 		return nil, fmt.Errorf("failed to find the identity: %w", err)
 	}
 
+	var owner *accounts.Account
+	if address := claim.VerifiedEmail(); known == nil && address != "" {
+		owner, err = a.store.AccountOfEmail(ctx, address)
+		if errors.Is(err, accounts.ErrAccountNotFound) {
+			owner = nil
+		} else if err != nil {
+			return nil, fmt.Errorf("failed to find the account of the address: %w", err)
+		}
+	}
+
 	current := visitor.Account
-	outcome, err := accounts.OutcomeOf(intent, current, known, provider)
+	outcome, err := accounts.OutcomeOf(intent, current, known, owner, provider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to link %s: %w", provider, err)
 	}
@@ -100,6 +111,8 @@ func (a *Admitter) admit(
 		account = known.Account
 	case accounts.Linked:
 		account = current.ID
+	case accounts.Joined:
+		account = owner.ID
 	case accounts.Created:
 		if account, err = a.ids.NewID(); err != nil {
 			return nil, fmt.Errorf("failed to get an account id: %w", err)

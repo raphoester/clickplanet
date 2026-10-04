@@ -419,18 +419,17 @@ run. It needs the Workers Paid plan: 3,000 emails a month are included.
 
 2. Create an API token with **Email Sending: Edit** and nothing else. Not the
    Caddy token: that one edits DNS.
-3. Put the token and the account id in the Actions secrets. `backend.yaml`
-   already names both (`env://CLOUDFLARE_EMAIL_TOKEN`,
-   `env://CLOUDFLARE_ACCOUNT_ID`), so the next deploy writes them to
-   `.env.backend` with no other edit:
+3. Put the token in the Actions secrets. `backend.yaml` already names it
+   (`env://CLOUDFLARE_EMAIL_TOKEN`), so the next deploy writes it to
+   `.env.backend` with no other edit. The account id is not a secret and is
+   written in `backend.yaml` as it is:
 
    ```bash
-   read -rsp 'Cloudflare account id: ' s && echo && printf '%s' "$s" | gh secret set CLOUDFLARE_ACCOUNT_ID --repo raphoester/clickplanet && unset s
    read -rsp 'Email Sending token: ' s && echo && printf '%s' "$s" | gh secret set CLOUDFLARE_EMAIL_TOKEN --repo raphoester/clickplanet && unset s
    ```
 
-4. Set `auth.email.enabled: true` and deploy. An empty token or account id
-   refuses the boot.
+4. Set `auth.email.enabled: true` and deploy. An empty token refuses the
+   boot.
 
 ## 6. Watching for bots
 
@@ -920,8 +919,8 @@ The tile map, the ledger and the chat are kept in the `postgres` service, on the
 `pg_data` volume, and so are the antibot's bans and evidence. The API loads them
 at boot, writes what changed every second (bans and evidence every minute), and
 once more on a clean shutdown; each chat message is written before it is
-broadcast. It is not published on any port: only the backend
-reaches it. Each backend module keeps its tables in a schema of its own (`planet`
+broadcast. It is published on `127.0.0.1:5432` only: the backend and the box
+itself reach it, the internet does not. Each backend module keeps its tables in a schema of its own (`planet`
 for the tile map and the ledger, `antibot` for bans and evidence, `chat` for the
 messages) and migrates it at boot. The API refuses to start without postgres.
 
@@ -939,6 +938,15 @@ docker compose exec postgres psql -U clickplanet -c "select count(*) from planet
 ```
 
 A psql shell: `docker compose exec postgres psql -U clickplanet`.
+
+From the box itself, any client reaches it at `127.0.0.1:5432` with the
+`POSTGRES_PASSWORD` from `.env`. Write `127.0.0.1`, not `localhost`: only IPv4
+is published, and `localhost` can resolve to `::1` first. From your laptop,
+through an SSH tunnel:
+
+```bash
+ssh -N -L 5432:127.0.0.1:5432 deploy@YOUR_IP
+```
 
 ### Backups
 
@@ -967,7 +975,7 @@ rm -f ~/backups/tiles-*.tar.gz
 ## 10. Operator tools
 
 `httpServer.adminBindAddress` serves the backend's operator services
-(`planet.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
+(`planet.v1.AdminService`, `player.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
 not behind Caddy and have **no authentication**: loopback is their whole
 protection, so a non-loopback address refuses the boot. Reach them from the box
 with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
@@ -1004,6 +1012,25 @@ docker compose exec postgres psql -U clickplanet -c "create table planet.tiles_b
 To go back: stop the backend (its last flush runs on the way down), then
 `truncate planet.tiles; insert into planet.tiles select * from planet.tiles_before_reassign;` in psql,
 then start it.
+
+### Reconcile the players' titles
+
+Makes every player's titles what the rules give it, no more and no less. Run
+it **after a deploy that adds a title or changes a rule**: it grants what is
+now earned and revokes what no longer is. Between such deploys there is
+nothing to run, since titles are granted as players take tiles.
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/player.v1.AdminService/ReconcileTitles
+```
+
+- The answer is `{"granted":N,"revoked":M}`, in titles. `{}` means nothing changed.
+- **Guests hold no title**: only a signed-in account earns one, so a run
+  revokes any title a guest still holds.
+- **Running it twice is harmless**: the second run changes nothing. A title
+  kept keeps the date it was first earned. A failed run is simply run again.
+- It reads 500 players at a time and asks auth about each page at once.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin title reconciliation"`.
 
 ### Paint random tiles of a country with a flag
 

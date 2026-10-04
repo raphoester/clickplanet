@@ -1,4 +1,4 @@
-import {FormEvent, useState} from "react";
+import {FormEvent, KeyboardEvent, useLayoutEffect, useRef, useState} from "react";
 import {countRunes, MAX_TEXT_LENGTH} from "../../backends/chat.ts";
 import {ChatSendFailure} from "./useChat.ts";
 
@@ -21,6 +21,14 @@ const FAILURES: Record<ChatSendFailure, string> = {
 
 export default function ChatComposer(props: ChatComposerProps) {
     const [text, setText] = useState("")
+    const box = useRef<HTMLTextAreaElement>(null)
+
+    useLayoutEffect(() => {
+        const field = box.current
+        if (!field) return
+        field.style.height = "auto"
+        field.style.height = `${field.scrollHeight + field.offsetHeight - field.clientHeight}px`
+    }, [text])
 
     const submitMessage = async (event: FormEvent) => {
         event.preventDefault()
@@ -33,18 +41,29 @@ export default function ChatComposer(props: ChatComposerProps) {
         }
     }
 
+    // The server drops line breaks, so Enter always sends.
+    const sendOnEnter = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (event.key !== "Enter" || event.nativeEvent.isComposing) return
+        event.preventDefault()
+        event.currentTarget.form?.requestSubmit()
+    }
+
     const length = countRunes(text.trim())
 
     return <form className="chat-composer" onSubmit={submitMessage}>
         <div className="chat-composer-row">
-            <input className="chat-input"
-                   value={text}
-                   autoComplete="off"
-                   aria-label="Message"
-                   placeholder="Say something"
-                   onChange={e => setText(e.target.value)}/>
+            <textarea className="field chat-input"
+                      ref={box}
+                      rows={1}
+                      value={text}
+                      autoComplete="off"
+                      aria-label="Message"
+                      placeholder="Say something"
+                      enterKeyHint="send"
+                      onKeyDown={sendOnEnter}
+                      onChange={e => setText(e.target.value.replace(/[\r\n]+/g, " "))}/>
             <button type="submit"
-                    className="button button-mini chat-send"
+                    className="button button-mini button-action chat-send"
                     disabled={length === 0 || length > MAX_TEXT_LENGTH}>
                 Send
             </button>

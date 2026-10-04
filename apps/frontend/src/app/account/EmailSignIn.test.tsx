@@ -4,7 +4,7 @@ import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {useSyncExternalStore} from "react"
 import {AccountBackend, AuthError, Provider} from "../../backends/account.ts"
-import {PlayerBackend} from "../../backends/player.ts"
+import {NameColor, PlayerBackend} from "../../backends/player.ts"
 import {AccountStore} from "./accountStore.ts"
 import AccountPanel from "./AccountPanel.tsx"
 
@@ -23,8 +23,11 @@ async function guest(offered: Provider[] = ["google", "email"]) {
         deleteAccount: vi.fn(async () => undefined),
     } satisfies AccountBackend
     const player = {
-        profile: vi.fn(async () => ({accountId: "account-1", name: ""})),
+        profile: vi.fn(async () => ({accountId: "account-1", name: "", color: NameColor.UNSPECIFIED})),
         setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
+        setColor: vi.fn(async (color: NameColor) => color),
+        titles: vi.fn(async () => ({wearable: [], tracks: []})),
+        wearTitle: vi.fn(async () => undefined),
     } satisfies PlayerBackend
     const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate: vi.fn(), remember: vi.fn()})
     await store.load()

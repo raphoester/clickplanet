@@ -1,23 +1,10 @@
 .button-coffee {
-    padding: 18px;
     display: flex;
-    justify-content: center;
-    text-decoration: none;
-    color: white;
-    background-color: #FF813F;
-}
-
-.button-coffee:hover {
-    transition: 0.125s ease;
-    text-decoration: none;
-    color: white;
-    background-color: #FFA676;
 }
 
 @media only screen and (max-width: 768px) {
     .button-coffee {
-        width: fit-content;   
+        width: fit-content;
         margin: 0 auto;
-        padding-top: 14px; 
     }
 }

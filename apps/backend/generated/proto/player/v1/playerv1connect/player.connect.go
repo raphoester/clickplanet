@@ -38,6 +38,8 @@ const (
 	PlayerServiceGetProfileProcedure = "/player.v1.PlayerService/GetProfile"
 	// PlayerServiceSetNameProcedure is the fully-qualified name of the PlayerService's SetName RPC.
 	PlayerServiceSetNameProcedure = "/player.v1.PlayerService/SetName"
+	// PlayerServiceSetColorProcedure is the fully-qualified name of the PlayerService's SetColor RPC.
+	PlayerServiceSetColorProcedure = "/player.v1.PlayerService/SetColor"
 	// PlayerServiceGetStatsProcedure is the fully-qualified name of the PlayerService's GetStats RPC.
 	PlayerServiceGetStatsProcedure = "/player.v1.PlayerService/GetStats"
 	// PlayerServiceAnnounceProcedure is the fully-qualified name of the PlayerService's Announce RPC.
@@ -51,18 +53,25 @@ const (
 	PlayerServiceListenForEventsProcedure = "/player.v1.PlayerService/ListenForEvents"
 	// PlayerServiceGetPlayerProcedure is the fully-qualified name of the PlayerService's GetPlayer RPC.
 	PlayerServiceGetPlayerProcedure = "/player.v1.PlayerService/GetPlayer"
+	// PlayerServiceGetTitlesProcedure is the fully-qualified name of the PlayerService's GetTitles RPC.
+	PlayerServiceGetTitlesProcedure = "/player.v1.PlayerService/GetTitles"
+	// PlayerServiceWearTitleProcedure is the fully-qualified name of the PlayerService's WearTitle RPC.
+	PlayerServiceWearTitleProcedure = "/player.v1.PlayerService/WearTitle"
 )
 
 // PlayerServiceClient is a client for the player.v1.PlayerService service.
 type PlayerServiceClient interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
+	SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error)
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlayerEvent], error)
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
+	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
+	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
 }
 
 // NewPlayerServiceClient constructs a client for the player.v1.PlayerService service. By default,
@@ -86,6 +95,12 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+PlayerServiceSetNameProcedure,
 			connect.WithSchema(playerServiceMethods.ByName("SetName")),
+			connect.WithClientOptions(opts...),
+		),
+		setColor: connect.NewClient[v1.SetColorRequest, v1.SetColorResponse](
+			httpClient,
+			baseURL+PlayerServiceSetColorProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("SetColor")),
 			connect.WithClientOptions(opts...),
 		),
 		getStats: connect.NewClient[v1.GetStatsRequest, v1.GetStatsResponse](
@@ -126,6 +141,18 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getTitles: connect.NewClient[v1.GetTitlesRequest, v1.GetTitlesResponse](
+			httpClient,
+			baseURL+PlayerServiceGetTitlesProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("GetTitles")),
+			connect.WithClientOptions(opts...),
+		),
+		wearTitle: connect.NewClient[v1.WearTitleRequest, v1.WearTitleResponse](
+			httpClient,
+			baseURL+PlayerServiceWearTitleProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("WearTitle")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -133,12 +160,15 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 type playerServiceClient struct {
 	getProfile      *connect.Client[v1.GetProfileRequest, v1.GetProfileResponse]
 	setName         *connect.Client[v1.SetNameRequest, v1.SetNameResponse]
+	setColor        *connect.Client[v1.SetColorRequest, v1.SetColorResponse]
 	getStats        *connect.Client[v1.GetStatsRequest, v1.GetStatsResponse]
 	announce        *connect.Client[v1.AnnounceRequest, v1.AnnounceResponse]
 	leave           *connect.Client[v1.LeaveRequest, v1.LeaveResponse]
 	getRoster       *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.PlayerEvent]
 	getPlayer       *connect.Client[v1.GetPlayerRequest, v1.GetPlayerResponse]
+	getTitles       *connect.Client[v1.GetTitlesRequest, v1.GetTitlesResponse]
+	wearTitle       *connect.Client[v1.WearTitleRequest, v1.WearTitleResponse]
 }
 
 // GetProfile calls player.v1.PlayerService.GetProfile.
@@ -149,6 +179,11 @@ func (c *playerServiceClient) GetProfile(ctx context.Context, req *connect.Reque
 // SetName calls player.v1.PlayerService.SetName.
 func (c *playerServiceClient) SetName(ctx context.Context, req *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error) {
 	return c.setName.CallUnary(ctx, req)
+}
+
+// SetColor calls player.v1.PlayerService.SetColor.
+func (c *playerServiceClient) SetColor(ctx context.Context, req *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error) {
+	return c.setColor.CallUnary(ctx, req)
 }
 
 // GetStats calls player.v1.PlayerService.GetStats.
@@ -181,16 +216,29 @@ func (c *playerServiceClient) GetPlayer(ctx context.Context, req *connect.Reques
 	return c.getPlayer.CallUnary(ctx, req)
 }
 
+// GetTitles calls player.v1.PlayerService.GetTitles.
+func (c *playerServiceClient) GetTitles(ctx context.Context, req *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error) {
+	return c.getTitles.CallUnary(ctx, req)
+}
+
+// WearTitle calls player.v1.PlayerService.WearTitle.
+func (c *playerServiceClient) WearTitle(ctx context.Context, req *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error) {
+	return c.wearTitle.CallUnary(ctx, req)
+}
+
 // PlayerServiceHandler is an implementation of the player.v1.PlayerService service.
 type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
 	SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error)
+	SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error)
 	GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error)
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlayerEvent]) error
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
+	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
+	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
 }
 
 // NewPlayerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -210,6 +258,12 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		PlayerServiceSetNameProcedure,
 		svc.SetName,
 		connect.WithSchema(playerServiceMethods.ByName("SetName")),
+		connect.WithHandlerOptions(opts...),
+	)
+	playerServiceSetColorHandler := connect.NewUnaryHandler(
+		PlayerServiceSetColorProcedure,
+		svc.SetColor,
+		connect.WithSchema(playerServiceMethods.ByName("SetColor")),
 		connect.WithHandlerOptions(opts...),
 	)
 	playerServiceGetStatsHandler := connect.NewUnaryHandler(
@@ -250,12 +304,26 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	playerServiceGetTitlesHandler := connect.NewUnaryHandler(
+		PlayerServiceGetTitlesProcedure,
+		svc.GetTitles,
+		connect.WithSchema(playerServiceMethods.ByName("GetTitles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	playerServiceWearTitleHandler := connect.NewUnaryHandler(
+		PlayerServiceWearTitleProcedure,
+		svc.WearTitle,
+		connect.WithSchema(playerServiceMethods.ByName("WearTitle")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.PlayerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PlayerServiceGetProfileProcedure:
 			playerServiceGetProfileHandler.ServeHTTP(w, r)
 		case PlayerServiceSetNameProcedure:
 			playerServiceSetNameHandler.ServeHTTP(w, r)
+		case PlayerServiceSetColorProcedure:
+			playerServiceSetColorHandler.ServeHTTP(w, r)
 		case PlayerServiceGetStatsProcedure:
 			playerServiceGetStatsHandler.ServeHTTP(w, r)
 		case PlayerServiceAnnounceProcedure:
@@ -268,6 +336,10 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceListenForEventsHandler.ServeHTTP(w, r)
 		case PlayerServiceGetPlayerProcedure:
 			playerServiceGetPlayerHandler.ServeHTTP(w, r)
+		case PlayerServiceGetTitlesProcedure:
+			playerServiceGetTitlesHandler.ServeHTTP(w, r)
+		case PlayerServiceWearTitleProcedure:
+			playerServiceWearTitleHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -283,6 +355,10 @@ func (UnimplementedPlayerServiceHandler) GetProfile(context.Context, *connect.Re
 
 func (UnimplementedPlayerServiceHandler) SetName(context.Context, *connect.Request[v1.SetNameRequest]) (*connect.Response[v1.SetNameResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.SetName is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) SetColor(context.Context, *connect.Request[v1.SetColorRequest]) (*connect.Response[v1.SetColorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.SetColor is not implemented"))
 }
 
 func (UnimplementedPlayerServiceHandler) GetStats(context.Context, *connect.Request[v1.GetStatsRequest]) (*connect.Response[v1.GetStatsResponse], error) {
@@ -307,4 +383,12 @@ func (UnimplementedPlayerServiceHandler) ListenForEvents(context.Context, *conne
 
 func (UnimplementedPlayerServiceHandler) GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetPlayer is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetTitles is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.WearTitle is not implemented"))
 }

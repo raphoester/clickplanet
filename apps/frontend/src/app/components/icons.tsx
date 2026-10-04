@@ -72,6 +72,15 @@ export function DownloadIcon({size = 14}: IconProps) {
     </svg>
 }
 
+export function CalendarIcon({size = 14}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.2}>
+        <rect x="3.5" y="5" width="17" height="15.5" rx="2.6"/>
+        <path d="M3.5 10h17"/>
+        <path d="M8 3v4"/>
+        <path d="M16 3v4"/>
+    </svg>
+}
+
 export function SearchIcon({size = 20}: IconProps) {
     return <svg {...base(size)} strokeWidth={2} className="input-search-icon">
         <circle cx="11" cy="11" r="7"/>
@@ -151,5 +160,40 @@ export function AddReactionIcon({size = 16}: IconProps) {
         <path d="M8.5 14.5c.9 1.2 2.1 1.8 3.5 1.8s2.6-.6 3.5-1.8"/>
         <path d="M9 9.8h.01M15 9.8h.01"/>
         <path d="M18.5 2.5v6M15.5 5.5h6"/>
+    </svg>
+}
+
+export function TrophyIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <path d="M8 20.5h8M12 16.5v4"/>
+        <path d="M7 3.5h10v5a5 5 0 0 1-10 0z"/>
+        <path d="M17 5h2.5a2 2 0 0 1 0 4H17M7 5H4.5a2 2 0 0 0 0 4H7"/>
+    </svg>
+}
+
+export function ChatIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <path d="M4 5h16v11H10l-5 4v-4H4z"/>
+    </svg>
+}
+
+export function MoreIcon({size = 22}: IconProps) {
+    return <svg {...base(size)} fill="currentColor" strokeWidth={1}>
+        <circle cx="5" cy="12" r="1.8"/>
+        <circle cx="12" cy="12" r="1.8"/>
+        <circle cx="19" cy="12" r="1.8"/>
+    </svg>
+}
+
+export function ClockIcon({size = 18}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.4}>
+        <circle cx="12" cy="12" r="8.5"/>
+        <path d="M12 7.5V12l3 2"/>
+    </svg>
+}
+
+export function HourglassIcon({size = 12}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.6}>
+        <path d="M6 3h12M6 21h12M7 3v3l5 6-5 6v3M17 3v3l-5 6 5 6v3"/>
     </svg>
 }

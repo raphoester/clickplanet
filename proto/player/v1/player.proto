@@ -2,9 +2,12 @@ syntax = "proto3";
 
 package player.v1;
 
+import "player/v1/color.proto";
+
 service PlayerService {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
   rpc SetName(SetNameRequest) returns (SetNameResponse);
+  rpc SetColor(SetColorRequest) returns (SetColorResponse);
   rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
 
   rpc Announce(AnnounceRequest) returns (AnnounceResponse);
@@ -20,6 +23,10 @@ service PlayerService {
   rpc GetPlayer(GetPlayerRequest) returns (GetPlayerResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc GetTitles(GetTitlesRequest) returns (GetTitlesResponse);
+
+  rpc WearTitle(WearTitleRequest) returns (WearTitleResponse);
 }
 
 message Profile {
@@ -31,6 +38,7 @@ message GetProfileRequest {}
 
 message GetProfileResponse {
   Profile profile = 1;
+  NameColor color = 2;
 }
 
 message SetNameRequest {
@@ -39,6 +47,14 @@ message SetNameRequest {
 
 message SetNameResponse {
   Profile profile = 1;
+}
+
+message SetColorRequest {
+  NameColor color = 1;
+}
+
+message SetColorResponse {
+  NameColor color = 1;
 }
 
 message Stats {
@@ -80,6 +96,8 @@ message RosterEntry {
   bool guest = 4;
   bool admin = 5;
   string key = 6;
+  NameColor color = 7;
+  uint32 streak = 8;
 }
 
 message ListenForEventsRequest {}
@@ -90,6 +108,7 @@ message PlayerEvent {
     RosterEntry entry = 2;
     PlayerLeft left = 3;
     Heartbeat heartbeat = 4;
+    TitleEarned title_earned = 5;
   }
 }
 
@@ -116,4 +135,53 @@ message Player {
   Stats stats = 2;
   int64 created_at_unix_ms = 3;
   bool admin = 4;
+  NameColor color = 5;
+  repeated Title titles = 6;
+  Title worn_title = 7;
+}
+
+message Title {
+  string id = 1;
+  string name = 2;
+  Rank rank = 3;
+}
+
+message Rank {
+  string track_id = 1;
+  string track_name = 2;
+  uint32 number = 3;
+  uint32 count = 4;
+}
+
+message TitleEarned {
+  Title title = 1;
+}
+
+message GetTitlesRequest {}
+
+message GetTitlesResponse {
+  Title worn = 1;
+  repeated Title wearable = 2;
+  repeated Track tracks = 3;
+}
+
+message Track {
+  string id = 1;
+  string name = 2;
+  uint64 progress = 3;
+  repeated Step steps = 4;
+}
+
+message Step {
+  Title title = 1;
+  uint64 threshold = 2;
+  bool earned = 3;
+}
+
+message WearTitleRequest {
+  string title_id = 1;
+}
+
+message WearTitleResponse {
+  Title worn = 1;
 }

@@ -7,7 +7,7 @@ const batch = (bindings: Record<number, string>) => ({
 })
 
 const update = (tile: number, newCountry: string | undefined, previousCountry?: string): Update =>
-    ({tile, newCountry, previousCountry})
+    ({tile, newCountry, previousCountry, clicked: true})
 
 const counts = (store: TileOwnership) => Object.fromEntries(store.counts())
 

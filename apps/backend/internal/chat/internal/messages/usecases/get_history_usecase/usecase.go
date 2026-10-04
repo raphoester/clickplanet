@@ -67,14 +67,14 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) (History, error) {
-	since := u.window.Since(u.clock.Now())
+	now := u.clock.Now()
 
-	recent, err := u.messages.Recent(ctx, since, u.window.Size)
+	recent, err := u.messages.Recent(ctx, u.window.Since(now), u.window.Size)
 	if err != nil {
 		return History{}, fmt.Errorf("failed to read the chat history: %w", err)
 	}
 
-	announced, err := u.announcements.Recent(ctx, since, u.window.Size)
+	announced, err := u.announcements.Recent(ctx, u.window.Beginning(now, recent), u.window.Size)
 	if err != nil {
 		return History{}, fmt.Errorf("failed to read the chat announcements: %w", err)
 	}

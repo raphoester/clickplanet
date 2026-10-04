@@ -12,18 +12,27 @@ function useLatest<T>(value: T) {
     return ref
 }
 
+const escapes: {current: () => void}[] = []
+
+function onEscapeKey(event: KeyboardEvent) {
+    if (event.key !== "Escape") return
+    if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+    const innermost = escapes.at(-1)
+    if (!innermost) return
+    event.preventDefault()
+    innermost.current()
+}
+
 export function useEscape(onClose: () => void) {
     const latest = useLatest(onClose)
 
     useEffect(() => {
-        const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key !== "Escape") return
-            if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
-            event.preventDefault()
-            latest.current()
+        escapes.push(latest)
+        if (escapes.length === 1) document.addEventListener("keydown", onEscapeKey)
+        return () => {
+            escapes.splice(escapes.indexOf(latest), 1)
+            if (escapes.length === 0) document.removeEventListener("keydown", onEscapeKey)
         }
-        document.addEventListener("keydown", onKeyDown)
-        return () => document.removeEventListener("keydown", onKeyDown)
     }, [latest])
 }
 

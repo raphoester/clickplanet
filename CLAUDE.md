@@ -19,9 +19,12 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 - `proto/chat/v1/chat.proto` — the live chat (`ChatService`)
 - `proto/auth/v1/auth.proto` — who a caller is (`AuthService`): the mint that gates `Click`, the caller's account, sign-in with Google, Discord or an emailed code, sign-out and deletion
 - `proto/session/v1/session.proto` — the deprecated mint (`SessionService`), served by the same auth module until no client calls it
-- `proto/player/v1/player.proto` — a player's name and stats, and who is playing (`PlayerService`)
+- `proto/player/v1/player.proto` — a player's name, color, stats and titles, and who is playing (`PlayerService`); the colors themselves are `NameColor` in `color.proto`, which `chat.proto` imports too
+- `proto/seasons/v1/seasons.proto` — when the current season ends and its finale starts (`SeasonService`)
 
 Beside them, `internal.proto` is what one backend module asks another (`auth.v1`, `player.v1`), and `events.proto` is what one tells the others in process (`planet.v1.TileTaken`, `auth.v1.AccountDeleted`). Neither is on the public router; the frontend generates both without using them.
+
+`proto/buf.yaml` depends on `buf.build/googleapis/googleapis` (pinned in `buf.lock`) for `google.api.http` and `google.api.HttpBody`: an RPC with an `http` option is also served at that plain URL, which is how `GetFinaleCalendar` serves an `.ics`. Neither app adds a route by hand.
 
 Connect derives each service's route from its proto package, so a new context gets its own path with no prefix to allocate. Both `buf.gen.yaml` inputs point at the whole `proto` directory, so a new package is picked up by either generator with no config change.
 

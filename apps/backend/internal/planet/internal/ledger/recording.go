@@ -11,6 +11,7 @@ import (
 type Tiles interface {
 	Owner(tile uint32) (string, bool)
 	Set(ctx context.Context, tile uint32, value string) error
+	Click(ctx context.Context, tile uint32, value string) error
 }
 
 func NewRecording(tiles Tiles, takings Storage, clock cptime.Clock) Recording {
@@ -32,9 +33,17 @@ func (r Recording) Owner(tile uint32) (string, bool) {
 }
 
 func (r Recording) Set(ctx context.Context, tile uint32, value string) error {
+	return r.record(ctx, tile, value, r.tiles.Set)
+}
+
+func (r Recording) Click(ctx context.Context, tile uint32, value string) error {
+	return r.record(ctx, tile, value, r.tiles.Click)
+}
+
+func (r Recording) record(ctx context.Context, tile uint32, value string, write func(context.Context, uint32, string) error) error {
 	previous, _ := r.tiles.Owner(tile)
 
-	if err := r.tiles.Set(ctx, tile, value); err != nil {
+	if err := write(ctx, tile, value); err != nil {
 		return err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 	}
 

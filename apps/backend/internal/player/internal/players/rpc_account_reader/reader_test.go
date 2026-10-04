@@ -40,6 +40,22 @@ func (s stubAuth) GetAccount(
 	return connect.NewResponse(res), nil
 }
 
+func (s stubAuth) GetAccounts(
+	_ context.Context,
+	req *connect.Request[authv1.GetAccountsRequest],
+) (*connect.Response[authv1.GetAccountsResponse], error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	res := &authv1.GetAccountsResponse{}
+	for _, id := range req.Msg.GetAccountIds() {
+		if created, ok := s.created[id]; ok {
+			res.Accounts = append(res.Accounts, &authv1.Account{AccountId: id, Linked: s.linked[id], CreatedAtUnixMs: created.UnixMilli()})
+		}
+	}
+	return connect.NewResponse(res), nil
+}
+
 type dialer struct {
 	client connect.HTTPClient
 	url    string
@@ -107,4 +123,41 @@ func TestAnUnreachableAuthIsAnError(t *testing.T) {
 	_, err := rpc_account_reader.New(dialer{err: errors.New("no internal listener")}).Linked(t.Context(), ada)
 
 	assert.ErrorContains(t, err, "failed to reach the auth module")
+}
+
+func TestItSaysWhetherAnAccountIsLinkedAndWhenItWasMadeInOneCall(t *testing.T) {
+	createdAt := time.Date(2026, 9, 1, 8, 30, 0, 0, time.UTC)
+	accounts := reader(t, stubAuth{linked: map[string]bool{ada.String(): true}, created: map[string]time.Time{ada.String(): createdAt}})
+
+	account, err := accounts.Account(t.Context(), ada)
+	require.NoError(t, err)
+	assert.Equal(t, players.Account{Linked: true, CreatedAt: createdAt}, account)
+
+	account, err = accounts.Account(t.Context(), guest)
+	require.NoError(t, err)
+	assert.Equal(t, players.Account{}, account, "an account auth does not know is a guest with no date")
+}
+
+func TestItAsksAuthAboutAPageOfAccountsAtOnce(t *testing.T) {
+	createdAt := time.Date(2026, 9, 1, 8, 30, 0, 0, time.UTC)
+	accounts := reader(t, stubAuth{
+		linked:  map[string]bool{ada.String(): true},
+		created: map[string]time.Time{ada.String(): createdAt, guest.String(): createdAt},
+	})
+
+	found, err := accounts.Accounts(t.Context(), []players.AccountID{ada, guest, {15: 9}})
+
+	require.NoError(t, err)
+	assert.Equal(t, map[players.AccountID]players.Account{
+		ada:   {Linked: true, CreatedAt: createdAt},
+		guest: {CreatedAt: createdAt},
+	}, found, "an account auth does not know is left out")
+}
+
+func TestAPageAuthFailsToAnswerIsAnError(t *testing.T) {
+	accounts := reader(t, stubAuth{err: connect.NewError(connect.CodeUnavailable, errors.New("auth is down"))})
+
+	_, err := accounts.Accounts(t.Context(), []players.AccountID{ada})
+
+	assert.Error(t, err)
 }

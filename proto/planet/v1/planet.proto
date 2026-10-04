@@ -163,6 +163,14 @@ message GetBonusRulesResponse {
   uint32 enclosures = 4;
 
   bool home_soil = 5;
+
+  // Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower.
+  repeated TollStep toll_steps = 6;
+}
+
+message TollStep {
+  double share = 1;
+  double slowdown = 2;
 }
 
 enum BonusKind {
@@ -313,4 +321,7 @@ message TileUpdate {
   uint32 tile_id = 1;
   string country_id = 2;
   string previous_country_id = 3;
+
+  // Only the tile a click named: never a spread's neighbour, an enclosure's inside or a moderator's write.
+  bool clicked = 4;
 }

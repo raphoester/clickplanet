@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { NameColor } from "./color_pb.js";
 
 /**
  * @generated from message player.v1.Profile
@@ -89,6 +90,11 @@ export class GetProfileResponse extends Message<GetProfileResponse> {
    */
   profile?: Profile;
 
+  /**
+   * @generated from field: player.v1.NameColor color = 2;
+   */
+  color = NameColor.UNSPECIFIED;
+
   constructor(data?: PartialMessage<GetProfileResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -98,6 +104,7 @@ export class GetProfileResponse extends Message<GetProfileResponse> {
   static readonly typeName = "player.v1.GetProfileResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "profile", kind: "message", T: Profile },
+    { no: 2, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetProfileResponse {
@@ -188,6 +195,80 @@ export class SetNameResponse extends Message<SetNameResponse> {
 
   static equals(a: SetNameResponse | PlainMessage<SetNameResponse> | undefined, b: SetNameResponse | PlainMessage<SetNameResponse> | undefined): boolean {
     return proto3.util.equals(SetNameResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.SetColorRequest
+ */
+export class SetColorRequest extends Message<SetColorRequest> {
+  /**
+   * @generated from field: player.v1.NameColor color = 1;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<SetColorRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.SetColorRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetColorRequest {
+    return new SetColorRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetColorRequest {
+    return new SetColorRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetColorRequest {
+    return new SetColorRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetColorRequest | PlainMessage<SetColorRequest> | undefined, b: SetColorRequest | PlainMessage<SetColorRequest> | undefined): boolean {
+    return proto3.util.equals(SetColorRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.SetColorResponse
+ */
+export class SetColorResponse extends Message<SetColorResponse> {
+  /**
+   * @generated from field: player.v1.NameColor color = 1;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<SetColorResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.SetColorResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetColorResponse {
+    return new SetColorResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetColorResponse {
+    return new SetColorResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetColorResponse {
+    return new SetColorResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetColorResponse | PlainMessage<SetColorResponse> | undefined, b: SetColorResponse | PlainMessage<SetColorResponse> | undefined): boolean {
+    return proto3.util.equals(SetColorResponse, a, b);
   }
 }
 
@@ -541,6 +622,16 @@ export class RosterEntry extends Message<RosterEntry> {
    */
   key = "";
 
+  /**
+   * @generated from field: player.v1.NameColor color = 7;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 streak = 8;
+   */
+  streak = 0;
+
   constructor(data?: PartialMessage<RosterEntry>) {
     super();
     proto3.util.initPartial(data, this);
@@ -554,6 +645,8 @@ export class RosterEntry extends Message<RosterEntry> {
     { no: 4, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+    { no: 8, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RosterEntry {
@@ -635,6 +728,12 @@ export class PlayerEvent extends Message<PlayerEvent> {
      */
     value: Heartbeat;
     case: "heartbeat";
+  } | {
+    /**
+     * @generated from field: player.v1.TitleEarned title_earned = 5;
+     */
+    value: TitleEarned;
+    case: "titleEarned";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlayerEvent>) {
@@ -649,6 +748,7 @@ export class PlayerEvent extends Message<PlayerEvent> {
     { no: 2, name: "entry", kind: "message", T: RosterEntry, oneof: "event" },
     { no: 3, name: "left", kind: "message", T: PlayerLeft, oneof: "event" },
     { no: 4, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
+    { no: 5, name: "title_earned", kind: "message", T: TitleEarned, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayerEvent {
@@ -871,6 +971,21 @@ export class Player extends Message<Player> {
    */
   admin = false;
 
+  /**
+   * @generated from field: player.v1.NameColor color = 5;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  /**
+   * @generated from field: repeated player.v1.Title titles = 6;
+   */
+  titles: Title[] = [];
+
+  /**
+   * @generated from field: player.v1.Title worn_title = 7;
+   */
+  wornTitle?: Title;
+
   constructor(data?: PartialMessage<Player>) {
     super();
     proto3.util.initPartial(data, this);
@@ -883,6 +998,9 @@ export class Player extends Message<Player> {
     { no: 2, name: "stats", kind: "message", T: Stats },
     { no: 3, name: "created_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
     { no: 4, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+    { no: 6, name: "titles", kind: "message", T: Title, repeated: true },
+    { no: 7, name: "worn_title", kind: "message", T: Title },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Player {
@@ -899,6 +1017,405 @@ export class Player extends Message<Player> {
 
   static equals(a: Player | PlainMessage<Player> | undefined, b: Player | PlainMessage<Player> | undefined): boolean {
     return proto3.util.equals(Player, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.Title
+ */
+export class Title extends Message<Title> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * @generated from field: player.v1.Rank rank = 3;
+   */
+  rank?: Rank;
+
+  constructor(data?: PartialMessage<Title>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.Title";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "rank", kind: "message", T: Rank },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Title {
+    return new Title().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Title {
+    return new Title().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Title {
+    return new Title().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Title | PlainMessage<Title> | undefined, b: Title | PlainMessage<Title> | undefined): boolean {
+    return proto3.util.equals(Title, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.Rank
+ */
+export class Rank extends Message<Rank> {
+  /**
+   * @generated from field: string track_id = 1;
+   */
+  trackId = "";
+
+  /**
+   * @generated from field: string track_name = 2;
+   */
+  trackName = "";
+
+  /**
+   * @generated from field: uint32 number = 3;
+   */
+  number = 0;
+
+  /**
+   * @generated from field: uint32 count = 4;
+   */
+  count = 0;
+
+  constructor(data?: PartialMessage<Rank>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.Rank";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "track_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "track_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "count", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rank {
+    return new Rank().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Rank {
+    return new Rank().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Rank {
+    return new Rank().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Rank | PlainMessage<Rank> | undefined, b: Rank | PlainMessage<Rank> | undefined): boolean {
+    return proto3.util.equals(Rank, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.TitleEarned
+ */
+export class TitleEarned extends Message<TitleEarned> {
+  /**
+   * @generated from field: player.v1.Title title = 1;
+   */
+  title?: Title;
+
+  constructor(data?: PartialMessage<TitleEarned>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.TitleEarned";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "title", kind: "message", T: Title },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TitleEarned {
+    return new TitleEarned().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TitleEarned {
+    return new TitleEarned().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TitleEarned {
+    return new TitleEarned().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TitleEarned | PlainMessage<TitleEarned> | undefined, b: TitleEarned | PlainMessage<TitleEarned> | undefined): boolean {
+    return proto3.util.equals(TitleEarned, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.GetTitlesRequest
+ */
+export class GetTitlesRequest extends Message<GetTitlesRequest> {
+  constructor(data?: PartialMessage<GetTitlesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetTitlesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTitlesRequest {
+    return new GetTitlesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTitlesRequest {
+    return new GetTitlesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTitlesRequest {
+    return new GetTitlesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTitlesRequest | PlainMessage<GetTitlesRequest> | undefined, b: GetTitlesRequest | PlainMessage<GetTitlesRequest> | undefined): boolean {
+    return proto3.util.equals(GetTitlesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.GetTitlesResponse
+ */
+export class GetTitlesResponse extends Message<GetTitlesResponse> {
+  /**
+   * @generated from field: player.v1.Title worn = 1;
+   */
+  worn?: Title;
+
+  /**
+   * @generated from field: repeated player.v1.Title wearable = 2;
+   */
+  wearable: Title[] = [];
+
+  /**
+   * @generated from field: repeated player.v1.Track tracks = 3;
+   */
+  tracks: Track[] = [];
+
+  constructor(data?: PartialMessage<GetTitlesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetTitlesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "worn", kind: "message", T: Title },
+    { no: 2, name: "wearable", kind: "message", T: Title, repeated: true },
+    { no: 3, name: "tracks", kind: "message", T: Track, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTitlesResponse {
+    return new GetTitlesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTitlesResponse {
+    return new GetTitlesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTitlesResponse {
+    return new GetTitlesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTitlesResponse | PlainMessage<GetTitlesResponse> | undefined, b: GetTitlesResponse | PlainMessage<GetTitlesResponse> | undefined): boolean {
+    return proto3.util.equals(GetTitlesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.Track
+ */
+export class Track extends Message<Track> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * @generated from field: uint64 progress = 3;
+   */
+  progress = protoInt64.zero;
+
+  /**
+   * @generated from field: repeated player.v1.Step steps = 4;
+   */
+  steps: Step[] = [];
+
+  constructor(data?: PartialMessage<Track>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.Track";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "progress", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 4, name: "steps", kind: "message", T: Step, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Track {
+    return new Track().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Track {
+    return new Track().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Track {
+    return new Track().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Track | PlainMessage<Track> | undefined, b: Track | PlainMessage<Track> | undefined): boolean {
+    return proto3.util.equals(Track, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.Step
+ */
+export class Step extends Message<Step> {
+  /**
+   * @generated from field: player.v1.Title title = 1;
+   */
+  title?: Title;
+
+  /**
+   * @generated from field: uint64 threshold = 2;
+   */
+  threshold = protoInt64.zero;
+
+  /**
+   * @generated from field: bool earned = 3;
+   */
+  earned = false;
+
+  constructor(data?: PartialMessage<Step>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.Step";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "title", kind: "message", T: Title },
+    { no: 2, name: "threshold", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 3, name: "earned", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Step {
+    return new Step().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Step {
+    return new Step().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Step {
+    return new Step().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Step | PlainMessage<Step> | undefined, b: Step | PlainMessage<Step> | undefined): boolean {
+    return proto3.util.equals(Step, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.WearTitleRequest
+ */
+export class WearTitleRequest extends Message<WearTitleRequest> {
+  /**
+   * @generated from field: string title_id = 1;
+   */
+  titleId = "";
+
+  constructor(data?: PartialMessage<WearTitleRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.WearTitleRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "title_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WearTitleRequest {
+    return new WearTitleRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WearTitleRequest {
+    return new WearTitleRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WearTitleRequest {
+    return new WearTitleRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: WearTitleRequest | PlainMessage<WearTitleRequest> | undefined, b: WearTitleRequest | PlainMessage<WearTitleRequest> | undefined): boolean {
+    return proto3.util.equals(WearTitleRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.WearTitleResponse
+ */
+export class WearTitleResponse extends Message<WearTitleResponse> {
+  /**
+   * @generated from field: player.v1.Title worn = 1;
+   */
+  worn?: Title;
+
+  constructor(data?: PartialMessage<WearTitleResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.WearTitleResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "worn", kind: "message", T: Title },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WearTitleResponse {
+    return new WearTitleResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WearTitleResponse {
+    return new WearTitleResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WearTitleResponse {
+    return new WearTitleResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: WearTitleResponse | PlainMessage<WearTitleResponse> | undefined, b: WearTitleResponse | PlainMessage<WearTitleResponse> | undefined): boolean {
+    return proto3.util.equals(WearTitleResponse, a, b);
   }
 }
 

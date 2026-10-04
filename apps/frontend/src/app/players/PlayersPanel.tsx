@@ -5,31 +5,12 @@ import {rosterGroups} from "../../domain/roster.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
-import {UsersIcon} from "../components/icons.tsx"
+import StreakFlame from "../components/StreakFlame.tsx"
 import {truncate} from "../truncate.ts"
 import "./Players.css"
 import "./PlayerCard.css"
 
 const NAME_MAX_LENGTH = 16
-
-export type PlayersButtonProps = {
-    entries: readonly RosterEntry[]
-    onOpen: () => void
-    buttonRef?: React.Ref<HTMLButtonElement>
-}
-
-export function PlayersButton({entries, onOpen, buttonRef}: PlayersButtonProps) {
-    const label = entries.length === 1 ? "1 player online" : `${entries.length} players online`
-    return <button ref={buttonRef}
-                   type="button"
-                   className="button button-ghost menu-players"
-                   aria-label={label}
-                   title={label}
-                   onClick={onOpen}>
-        <UsersIcon size={24}/>
-        <span className="menu-players-count">{entries.length}</span>
-    </button>
-}
 
 export type PlayersPanelProps = {
     entries: readonly RosterEntry[]
@@ -64,7 +45,7 @@ function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
         <ul className="players-list">
             {entries.map((entry) => <li key={entry.key}
                                                className="players-entry"
-                                               style={authorStyle(entry.name)}>
+                                               style={authorStyle(entry)}>
                 <span className="players-entry-country"
                       role="img"
                       aria-label={countryName(entry.countryCode)}
@@ -82,6 +63,7 @@ function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
                         {truncate(entry.name, NAME_MAX_LENGTH)}
                     </span>}
                 {entry.admin && <AdminCrown/>}
+                <StreakFlame days={entry.streak}/>
             </li>)}
         </ul>
     </section>

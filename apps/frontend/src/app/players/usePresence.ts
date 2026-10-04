@@ -8,10 +8,10 @@ export function usePresence(backend: PresenceBackend | undefined, announcing: An
     const schedule = useRef<PresenceSchedule>()
     schedule.current ??= new PresenceSchedule(announcing)
 
-    const {countryCode, username} = announcing
+    const {countryCode, username, color} = announcing
     useEffect(() => {
-        schedule.current!.want({countryCode, username}, Date.now())
-    }, [countryCode, username])
+        schedule.current!.want({countryCode, username, color}, Date.now())
+    }, [countryCode, username, color])
 
     useEffect(() => {
         if (!backend) return

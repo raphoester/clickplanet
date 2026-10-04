@@ -78,6 +78,7 @@ const RULES: Omit<BonusRules, "homeSoil"> = {
     enclosureMaxTiles: ENCLOSE_MAX_TILES,
     spreadClicks: SPREAD_CLICKS,
     enclosures: ENCLOSURES,
+    toll: TOLL_STEPS,
 }
 
 export type FakeBackendOptions = {
@@ -274,7 +275,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         const spread = tilesWithin(positions, tile, SPREAD_REACH).filter(id => id !== tile)
         this.applyClick(tile, countryId)
-        spread.forEach(id => this.applyClick(id, countryId))
+        spread.forEach(id => this.applyClick(id, countryId, false))
         this.bonusCallbacks.forEach(handlers => handlers.onSpread({countryId, tile, spread}))
     }
 
@@ -287,7 +288,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         const wall = [0, 1, 2, 3, 4, 5].map(step => tileId + step).filter(id => id <= TILE_COUNT)
         const filled = [6, 7, 8].map(step => tileId + step).filter(id => id <= TILE_COUNT)
-        filled.forEach(id => this.applyClick(id, countryId))
+        filled.forEach(id => this.applyClick(id, countryId, false))
 
         this.hold({...this.charges, enclosures: this.charges.enclosures - 1})
 
@@ -342,7 +343,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return {slowdown, share}
     }
 
-    private applyClick(tileId: number, countryId: string) {
+    private applyClick(tileId: number, countryId: string, clicked = true) {
         const prev = this.tileBindings.get(tileId)
         const next = ownerAfter(outcomeOf(prev, this.groundOf(tileId), countryId), prev, countryId)
         if (next === undefined) this.tileBindings.delete(tileId)
@@ -353,6 +354,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             tile: tileId,
             previousCountry: prev,
             newCountry: next,
+            clicked,
         }))
     }
 

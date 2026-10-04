@@ -9,6 +9,7 @@ import {
     QuizOffered,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
+    GetBonusRulesResponse,
     GetMapResponse,
     GlobePoint,
     Heartbeat,
@@ -54,24 +55,28 @@ function failingSession(): SessionProvider {
     }
 }
 
-function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, boosted?: boolean}): PlanetEvent {
+function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, clicked?: boolean}): PlanetEvent {
     return new PlanetEvent({event: {case: "tileUpdate", value: new TileUpdate(fields)}})
 }
 
 describe("updateOf", () => {
     it("maps a tile update onto the shape the globe consumes", () => {
         expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", previousCountryId: "fr"})))
-            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp"})
+            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp", clicked: false})
     })
 
     it("reports an unowned previous tile as undefined rather than an empty code", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "fr"})))
-            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr"})
+            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr", clicked: false})
     })
 
     it("reports a tile given back to nobody as undefined, so nobody gets a leaderboard row", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "", previousCountryId: "ps"})))
-            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined})
+            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined, clicked: false})
+    })
+
+    it("says which update a click made, so the globe can animate it", () => {
+        expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", previousCountryId: "fr", clicked: true}))?.clicked).toBe(true)
     })
 
     it("drops a heartbeat", () => {
@@ -142,7 +147,7 @@ async function ruled(backend: PlanetBackend): Promise<void> {
 
 function bonusReads() {
     return {
-        getBonusRules: vi.fn().mockResolvedValue({blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3}),
+        getBonusRules: vi.fn().mockResolvedValue(new GetBonusRulesResponse({blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3})),
         getCharges: vi.fn().mockResolvedValue({charges: new ChargesHeld()}),
     }
 }
@@ -1019,9 +1024,11 @@ describe("the rules", () => {
         ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(),
             listenForEvents: noEvents(), ...fields}) as never
 
-    it("reads whether native land takes two clicks with the sizes of the charges", async () => {
-        const getBonusRules = vi.fn().mockResolvedValue(
-            {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: true})
+    it("reads whether native land takes two clicks, the toll and the sizes of the charges", async () => {
+        const getBonusRules = vi.fn().mockResolvedValue(new GetBonusRulesResponse({
+            blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: true,
+            tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
+        }))
         const backend = new PlanetBackend(clientWith({getBonusRules}), 1_000)
 
         const seen: BonusRules[] = []
@@ -1030,8 +1037,10 @@ describe("the rules", () => {
             onRules: (rules) => seen.push(rules),
         })
 
-        await vi.waitFor(() => expect(seen.at(-1)).toEqual(
-            {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: true}))
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({
+            blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: true,
+            toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
+        }))
         backend.close()
     })
 })

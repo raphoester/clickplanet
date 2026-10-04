@@ -7,7 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatmessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 )
 
@@ -43,4 +45,13 @@ func TestACountNobodyIsNamedOnCarriesNoReactors(t *testing.T) {
 	encoded := chatmessage.EncodeCounts([]reactions.Count{{Reaction: clown, Count: 1}})
 
 	assert.Empty(t, encoded[0].GetReactors(), "a reaction from before names were kept is only counted")
+}
+
+func TestAMessageCarriesItsAuthorsColorAndStreak(t *testing.T) {
+	encoded := chatmessage.Encode(messages.Message{
+		ID: "message-1", AuthorName: "Ada_L", AuthorColor: int32(playerv1.NameColor_NAME_COLOR_PINK), AuthorStreak: 12,
+	}, nil, 0)
+
+	assert.Equal(t, playerv1.NameColor_NAME_COLOR_PINK, encoded.GetAuthorColor())
+	assert.Equal(t, uint32(12), encoded.GetAuthorStreak())
 }

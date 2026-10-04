@@ -1,5 +1,6 @@
 import {describe, expect, it} from "vitest";
 import {ChatMessage, Reaction, ReactionCount} from "../backends/chat.ts";
+import {NameColor} from "../backends/player.ts";
 import {
     applyReactionsAnswer,
     applyReactionsChange,
@@ -11,7 +12,7 @@ import {
 
 function message(id: string, reactions: ChatMessage["reactions"] = []): ChatMessage {
     return {
-        id, sentAt: 0, authorName: "Ana", authorAdmin: false,
+        id, sentAt: 0, authorName: "Ana", authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0,
         countryCode: "fr", text: "hi", reactions, reactionsVersion: 1,
     }
 }
