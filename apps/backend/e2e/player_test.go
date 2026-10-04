@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/url"
 	"testing"
@@ -43,8 +42,11 @@ func startGame(t *testing.T) gameStack {
 
 	postgres := cppg.StartTestServer(t)
 	secret, _ := cpsession.TestKeyPair()
+	public, internal, admin := listen(t), listen(t), listen(t)
 	server := cpbootstrap.ServerConfig{
-		BindAddress: freeAddress(t), InternalBindAddress: freeAddress(t), AdminBindAddress: freeAddress(t),
+		BindAddress:         public.Addr().String(),
+		InternalBindAddress: internal.Addr().String(),
+		AdminBindAddress:    admin.Addr().String(),
 	}
 
 	authConfig := auth.Config{
@@ -72,28 +74,21 @@ func startGame(t *testing.T) gameStack {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
-		done <- cpbootstrap.Run(ctx, cpbootstrap.Options{
+		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
 			Server:         server,
 			Logger:         slog.New(slog.DiscardHandler),
 			StartupTimeout: time.Minute,
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
 			},
-		})
+		}, public, internal, admin)
 	}()
 	t.Cleanup(func() {
 		cancel()
 		assert.NoError(t, <-done)
 	})
 
-	require.Eventually(t, func() bool {
-		conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", server.BindAddress)
-		if err != nil {
-			return false
-		}
-		_ = conn.Close()
-		return true
-	}, time.Minute, 50*time.Millisecond, "the server never came up")
+	waitUntilServed(t, server.BindAddress)
 
 	return gameStack{baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes}
 }

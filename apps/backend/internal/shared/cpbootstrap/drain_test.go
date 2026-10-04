@@ -3,7 +3,6 @@ package cpbootstrap_test
 import (
 	"context"
 	"log/slog"
-	"net"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -124,7 +123,8 @@ type runningServer struct {
 func startServer(t *testing.T, module cpbootstrap.Module) runningServer {
 	t.Helper()
 
-	address := freeAddress(t)
+	public := listen(t)
+	address := public.Addr().String()
 	recorded := &errorRecorder{}
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -132,22 +132,15 @@ func startServer(t *testing.T, module cpbootstrap.Module) runningServer {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- cpbootstrap.Run(ctx, cpbootstrap.Options{
+		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
 			Server:          cpbootstrap.ServerConfig{BindAddress: address},
 			ShutdownTimeout: shutdownTimeout,
 			Logger:          slog.New(recorded),
 			Modules:         []cpbootstrap.Module{module},
-		})
+		}, public)
 	}()
 
-	require.Eventually(t, func() bool {
-		conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
-		if err != nil {
-			return false
-		}
-		_ = conn.Close()
-		return true
-	}, 5*time.Second, 10*time.Millisecond, "the server never came up")
+	waitUntilServed(t, address)
 
 	return runningServer{address: address, cancel: cancel, done: done, recorded: recorded}
 }

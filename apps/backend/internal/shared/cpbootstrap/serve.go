@@ -34,7 +34,7 @@ type loopbackServer struct {
 	listener net.Listener
 }
 
-func listenLoopback(options Options, name, key, address string, routes *rpcRoutes) (*loopbackServer, error) {
+func listenLoopback(options Options, listen listenFunc, name, key, address string, routes *rpcRoutes) (*loopbackServer, error) {
 	if address == "" {
 		if len(routes.paths) > 0 {
 			options.Logger.Info(name+" listener off, its services not served", slog.Int("services", len(routes.paths)))
@@ -46,7 +46,7 @@ func listenLoopback(options Options, name, key, address string, routes *rpcRoute
 		return nil, fmt.Errorf("httpServer.%s %q is not a loopback host:port", key, address)
 	}
 
-	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", address)
+	listener, err := listen(context.Background(), "tcp", address)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen on httpServer.%s %q: %w", key, address, err)
 	}
@@ -64,6 +64,7 @@ func listenLoopback(options Options, name, key, address string, routes *rpcRoute
 func serve(
 	ctx context.Context,
 	options Options,
+	public net.Listener,
 	router http.Handler,
 	loopbacks []*loopbackServer,
 	drain context.CancelFunc,
@@ -92,7 +93,7 @@ func serve(
 
 	serveErr := make(chan error, 1)
 	go func() {
-		err := server.ListenAndServe()
+		err := server.Serve(public)
 		if errors.Is(err, http.ErrServerClosed) {
 			err = nil
 		}
