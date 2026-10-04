@@ -67,9 +67,10 @@ func ask(ctx context.Context, address, procedure string) (string, error) {
 }
 
 func TestAModuleCallsAnotherOverTheInternalListener(t *testing.T) {
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t), InternalBindAddress: freeAddress(t)}
+	public, internal := listen(t), listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), InternalBindAddress: internal.Addr().String()}
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, []net.Listener{public, internal}, func() {
 		answer, err := ask(t.Context(), server.BindAddress, publicProcedure)
 		require.NoError(t, err)
 		assert.Equal(t, "from the callee", answer)
@@ -77,9 +78,10 @@ func TestAModuleCallsAnotherOverTheInternalListener(t *testing.T) {
 }
 
 func TestAnInternalServiceIsNotOnThePublicRouter(t *testing.T) {
-	server := cpbootstrap.ServerConfig{BindAddress: freeAddress(t), InternalBindAddress: freeAddress(t)}
+	public, internal := listen(t), listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), InternalBindAddress: internal.Addr().String()}
 
-	serveUntil(t, server, func() {
+	serveUntil(t, server, []net.Listener{public, internal}, func() {
 		_, err := ask(t.Context(), server.InternalBindAddress, internalProcedure)
 		require.NoError(t, err)
 
@@ -117,13 +119,10 @@ func TestOnlyALoopbackInternalAddressIsAccepted(t *testing.T) {
 }
 
 func TestATakenInternalAddressRefusesTheBoot(t *testing.T) {
-	taken := freeAddress(t)
-	blocker, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", taken)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = blocker.Close() })
+	taken := listen(t)
 
-	err = cpbootstrap.Run(t.Context(), cpbootstrap.Options{
-		Server:  cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0", InternalBindAddress: taken},
+	err := cpbootstrap.Run(t.Context(), cpbootstrap.Options{
+		Server:  cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0", InternalBindAddress: taken.Addr().String()},
 		Logger:  slog.New(slog.DiscardHandler),
 		Modules: []cpbootstrap.Module{calleeModule()},
 	})

@@ -154,7 +154,13 @@ const (
 	defaultShutdownTimeout = 5 * time.Second
 )
 
+type listenFunc func(ctx context.Context, network, address string) (net.Listener, error)
+
 func Run(ctx context.Context, options Options) error {
+	return run(ctx, options, (&net.ListenConfig{}).Listen)
+}
+
+func run(ctx context.Context, options Options, listen listenFunc) error {
 	options = options.withDefaults()
 
 	if !slices.ContainsFunc(options.Modules, func(m Module) bool { return m.Enabled }) {
@@ -190,21 +196,29 @@ func Run(ctx context.Context, options Options) error {
 	))
 	mountMetrics(router, metrics, options.Logger)
 
-	loopbacks, err := listenLoopbacks(options, adminRoutes, internalRoutes)
+	loopbacks, err := listenLoopbacks(options, listen, adminRoutes, internalRoutes)
 	if err != nil {
 		return err
 	}
 
-	return serve(ctx, options, router, loopbacks, drain, runners, closers)
+	public, err := listen(context.Background(), "tcp", options.Server.BindAddress)
+	if err != nil {
+		for _, loopback := range loopbacks {
+			_ = loopback.listener.Close()
+		}
+		return fmt.Errorf("failed to listen on httpServer.bindAddress %q: %w", options.Server.BindAddress, err)
+	}
+
+	return serve(ctx, options, public, router, loopbacks, drain, runners, closers)
 }
 
-func listenLoopbacks(options Options, adminRoutes, internalRoutes *rpcRoutes) ([]*loopbackServer, error) {
-	admin, err := listenLoopback(options, "admin", "adminBindAddress", options.Server.AdminBindAddress, adminRoutes)
+func listenLoopbacks(options Options, listen listenFunc, adminRoutes, internalRoutes *rpcRoutes) ([]*loopbackServer, error) {
+	admin, err := listenLoopback(options, listen, "admin", "adminBindAddress", options.Server.AdminBindAddress, adminRoutes)
 	if err != nil {
 		return nil, err
 	}
 
-	internal, err := listenLoopback(options, "internal", "internalBindAddress", options.Server.InternalBindAddress, internalRoutes)
+	internal, err := listenLoopback(options, listen, "internal", "internalBindAddress", options.Server.InternalBindAddress, internalRoutes)
 	if err != nil {
 		if admin != nil {
 			_ = admin.listener.Close()
