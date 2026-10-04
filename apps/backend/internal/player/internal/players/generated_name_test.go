@@ -42,23 +42,25 @@ func TestAssignLeavesAChosenNameAlone(t *testing.T) {
 func TestAssignDrawsAgainWhenTheNameIsTaken(t *testing.T) {
 	store := inmemory_player_store.New()
 	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: players.AccountID{15: 1}, Name: "bravefox42", UpdatedAt: namedAt}))
+	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: players.AccountID{15: 3}, Name: "SlyOtter17", UpdatedAt: namedAt}))
 
-	require.NoError(t, players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42", "SlyOtter17")).
+	require.NoError(t, players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42", "SlyOtter17", "IronOwl55")).
 		Assign(t.Context(), players.AccountID{15: 2}, namedAt))
 
 	profile, err := store.Profile(t.Context(), players.AccountID{15: 2})
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("SlyOtter17"), profile.Name)
+	assert.Equal(t, players.Name("IronOwl55"), profile.Name, "the third draw is the last one")
 }
 
-func TestAssignGivesUpOnAGeneratorThatRepeatsATakenName(t *testing.T) {
+func TestAssignDrawsThreeTimesAtMost(t *testing.T) {
 	store := inmemory_player_store.New()
 	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: players.AccountID{15: 1}, Name: "BraveFox42", UpdatedAt: namedAt}))
+	names := players.NewRepeatedNames("BraveFox42")
 
-	err := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42")).
-		Assign(t.Context(), players.AccountID{15: 2}, namedAt)
+	err := players.NewGeneratedNames(store, names).Assign(t.Context(), players.AccountID{15: 2}, namedAt)
 
 	require.ErrorIs(t, err, players.ErrNoFreeName)
+	assert.Equal(t, 3, names.Drawn())
 	_, err = store.Profile(t.Context(), players.AccountID{15: 2})
 	require.ErrorIs(t, err, players.ErrNoProfile)
 }

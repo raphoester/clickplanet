@@ -17,6 +17,8 @@ type ProfileCreator interface {
 
 var ErrNoFreeName = errors.New("every name drawn was taken")
 
+const maxNameDraws = 3
+
 type GeneratedNames struct {
 	store     ProfileCreator
 	generator NameGenerator
@@ -27,7 +29,7 @@ func NewGeneratedNames(store ProfileCreator, generator NameGenerator) GeneratedN
 }
 
 func (g GeneratedNames) Assign(ctx context.Context, account AccountID, at time.Time) error {
-	for range maxDraws {
+	for range maxNameDraws {
 		name, err := g.generator.NewName()
 		if err != nil {
 			return fmt.Errorf("failed to draw a name: %w", err)
