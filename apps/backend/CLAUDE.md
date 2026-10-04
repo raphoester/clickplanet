@@ -337,6 +337,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
+| `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port
@@ -2299,6 +2300,14 @@ Nothing lives in files any more: the container mounts no state volume.
 - **`audit_reassign` logs every call at Warn**, dry runs and failures included: it is the only record that those tiles did not change hands through play. It is a decorator for the reason `prom_click` is — handlers here do not log.
 
 Measured on a copy of production's map, before postgres: 22,040 tiles in 4.4s, all 22,040 updates delivered to an open stream, none dropped.
+
+#### `GrantCharges`
+
+`GrantCharges(account_id, refill, bomb, enclosures, spread_clicks)` runs `bonuses/usecases/grant_charges_usecase`, wrapped in `audit_grant_charges`: it gives one account any of the four charges, as a box would.
+
+- **The caps hold**: `Held.Granted` is the rule, so a refill and a bomb are one, enclosures stop at `bonus.enclose.held` and spread clicks at `bonus.spread.clicks`. The answer is what the account held `before` and `after`, so the operator sees what fit.
+- **An account id, never a scope**: a charge is an account's (`bonuses.ParseHolder`). A grant of nothing is `InvalidArgument` (`ErrNothingToGrant`). Planet does not know which accounts exist, so an id nobody holds gets a row nobody reads.
+- **Nothing pushes it**: the player sees it on the next `GetCharges`, at its next page load.
 
 #### `PaintRandomTiles`
 

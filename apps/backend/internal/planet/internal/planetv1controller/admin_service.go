@@ -4,6 +4,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/ban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
@@ -19,6 +20,7 @@ type AdminService struct {
 	revert_player_handler.RevertPlayerHandler
 	inspect_player_handler.InspectPlayerHandler
 	paint_random_tiles_handler.PaintRandomTilesHandler
+	grant_charges_handler.GrantChargesHandler
 }
 
 var _ planetv1connect.AdminServiceHandler = AdminService{}
