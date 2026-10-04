@@ -14,7 +14,6 @@ import (
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 )
 
 var (
@@ -187,46 +186,4 @@ func TestAReactionToNoMessageIsNotFound(t *testing.T) {
 	_, err := game.newPlayer(t).react("no-such-message", chatv1.Reaction_REACTION_SKULL, true)
 
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-}
-
-type credentials int
-
-const (
-	cookieOnly credentials = iota
-	tokenOnly
-)
-
-func (p *gamer) sendOnly(header http.Header, with credentials) {
-	header.Set("X-Real-IP", callerIP)
-	if with == cookieOnly {
-		header.Set("Cookie", p.cookie)
-		return
-	}
-	header.Set(cpconnect.SessionHeader, p.token)
-}
-
-func (p *gamer) historyWith(with credentials) *chatv1.GetHistoryResponse {
-	p.t.Helper()
-
-	req := connect.NewRequest(&chatv1.GetHistoryRequest{})
-	p.sendOnly(req.Header(), with)
-	res, err := chatv1connect.NewChatServiceClient(http.DefaultClient, p.stack.baseURL).GetHistory(p.t.Context(), req)
-	require.NoError(p.t, err)
-	return res.Msg
-}
-
-func TestTheCookieAloneNamesWhoReadsTheHistory(t *testing.T) {
-	game := startGame(t)
-	ada := game.newPlayer(t)
-	message, err := ada.post()
-	require.NoError(t, err)
-	_, err = ada.react(message.GetId(), chatv1.Reaction_REACTION_FIRE, true)
-	require.NoError(t, err)
-
-	reactions := ada.historyWith(cookieOnly).GetMessages()[0].GetReactions()
-
-	require.Len(t, reactions, 1)
-	assert.True(t, reactions[0].GetMine(), "a click token lasts an hour, the cookie months")
-	nobody := &gamer{t: t, stack: game}
-	assert.False(t, nobody.historyWith(cookieOnly).GetMessages()[0].GetReactions()[0].GetMine())
 }

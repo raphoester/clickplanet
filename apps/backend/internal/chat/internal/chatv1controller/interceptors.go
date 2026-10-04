@@ -51,8 +51,3 @@ func NewSessionInterceptor(verifier SenderSessionVerifier, clock cptime.Clock) c
 		chatv1connect.ChatServiceReactProcedure,
 	)
 }
-
-// Only what reading the chat needs: a post or a reaction still needs the click token, which proves the Turnstile check.
-func NewCookieReaderInterceptor(callers cpconnect.CookieCallers) connect.Interceptor {
-	return cpconnect.NewCookieReaderInterceptor(callers, chatv1connect.ChatServiceGetHistoryProcedure)
-}

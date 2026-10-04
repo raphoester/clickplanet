@@ -7,7 +7,6 @@ import {
     SESSION_STORAGE_KEY,
     SessionClient,
 } from "./turnstileSession.ts"
-import {newChatServiceClient} from "./chatBackend.ts"
 import {newClickServiceClient} from "./planetBackend.ts"
 import {SessionUnavailableError} from "./session.ts"
 
@@ -367,15 +366,6 @@ describe("the API transports", () => {
 
         expect(fetch).toHaveBeenCalledTimes(1)
         expect(String(fetch.mock.calls[0][0])).toBe("https://api.test/auth.v1.AuthService/CreateSession")
-        expect(fetch.mock.calls[0][1]?.credentials).toBe("include")
-    })
-
-    it("reads the chat with credentials, so the history knows its reader without a click token", async () => {
-        const fetch = recordingFetch()
-
-        await expect(newChatServiceClient({baseUrl: "https://api.test"}).getHistory({})).rejects.toThrow()
-
-        expect(fetch).toHaveBeenCalledTimes(1)
         expect(fetch.mock.calls[0][1]?.credentials).toBe("include")
     })
 

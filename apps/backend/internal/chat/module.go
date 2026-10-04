@@ -9,7 +9,6 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/postgres_announcement_store"
@@ -37,7 +36,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcallers"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -116,12 +114,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "chat")))
-	internal, internalURL, err := props.Internal.Dial()
-	if err != nil {
-		return fmt.Errorf("failed to reach the other modules: %w", err)
-	}
-	callers := cpcallers.NewLogged(cpcallers.New(authv1connect.NewInternalServiceClient(internal, internalURL)),
-		props.Logger.With(slog.String("module", "chat")))
 
 	err = props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return chatv1connect.NewChatServiceHandler(chatService, options...)
@@ -130,7 +122,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		chatv1controller.NewRateLimitInterceptor(messageLimiter),
 		chatv1controller.NewReactionRateLimitInterceptor(reactionLimiter),
 		chatv1controller.NewSessionInterceptor(verifier, cptime.SystemClock{}),
-		chatv1controller.NewCookieReaderInterceptor(callers),
 	)
 	if err != nil {
 		return err

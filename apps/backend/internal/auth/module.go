@@ -39,8 +39,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_account_handler/account_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler/accounts_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_caller_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_caller_handler/caller_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler/me_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_sign_in_options_handler"
@@ -225,7 +223,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 		GetVerifyingKeyHandler: get_verifying_key_handler.New(signer),
 		GetAccountHandler:      get_account_handler.New(account_query.NewPostgresQuery(db)),
 		GetAccountsHandler:     get_accounts_handler.New(accounts_query.NewPostgresQuery(db)),
-		GetCallerHandler:       get_caller_handler.New(caller_query.NewPostgresQuery(db, clock)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewInternalServiceHandler(internalService, options...)

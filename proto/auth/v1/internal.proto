@@ -9,17 +9,6 @@ service InternalService {
   rpc GetAccounts(GetAccountsRequest) returns (GetAccountsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-
-  // Not NO_SIDE_EFFECTS: a GET would put the session cookie in the URL.
-  rpc GetCaller(GetCallerRequest) returns (GetCallerResponse);
-}
-
-message GetCallerRequest {
-  string cookie = 1;
-}
-
-message GetCallerResponse {
-  string account_id = 1;
 }
 
 message GetVerifyingKeyRequest {}
