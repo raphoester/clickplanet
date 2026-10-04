@@ -1,4 +1,4 @@
-package rpc_session_verifier_test
+package cpsessionverifier_test
 
 import (
 	"context"
@@ -16,8 +16,8 @@ import (
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 )
 
 const ip = "203.0.113.7"
@@ -88,7 +88,7 @@ func (d dialer) Dial() (connect.HTTPClient, string, error) {
 	return d.client, d.url, d.err
 }
 
-func setUp(t *testing.T) (*rpc_session_verifier.Verifier, *stubAuth, *cpsession.Signer) {
+func setUp(t *testing.T) (*cpsessionverifier.Verifier, *stubAuth, *cpsession.Signer) {
 	t.Helper()
 
 	secret, public := cpsession.TestKeyPair()
@@ -102,7 +102,7 @@ func setUp(t *testing.T) (*rpc_session_verifier.Verifier, *stubAuth, *cpsession.
 	signer, err := cpsession.NewSigner(cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: time.Hour})
 	require.NoError(t, err)
 
-	return rpc_session_verifier.New(dialer{client: server.Client(), url: server.URL}, slog.New(slog.DiscardHandler)),
+	return cpsessionverifier.New(dialer{client: server.Client(), url: server.URL}, slog.New(slog.DiscardHandler)),
 		auth, signer
 }
 
@@ -173,7 +173,7 @@ func TestAKeyThisServerCannotUseIsAnError(t *testing.T) {
 }
 
 func TestAnUnreachableAuthIsAnErrorRatherThanAPanic(t *testing.T) {
-	verifier := rpc_session_verifier.New(
+	verifier := cpsessionverifier.New(
 		dialer{err: errors.New("no internal listener")}, slog.New(slog.DiscardHandler))
 
 	_, err := verifier.Verify(t.Context(), "whatever", ip, now)

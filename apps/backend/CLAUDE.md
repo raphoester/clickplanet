@@ -200,13 +200,13 @@ return []bootstrap.Module{
 
 | caller | asks | for | through |
 |---|---|---|---|
-| `planet`, `player`, `chat` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | each its own `rpc_session_verifier` |
+| `planet`, `player`, `chat` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | `shared/cpsessionverifier` |
 | `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` and each title award (`StatsChanged`) | `players/rpc_account_reader` |
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory` | `messages/rpc_player_authors` |
 
-A module cannot import another's interior, so `player`'s and `chat`'s `rpc_session_verifier` are copies of `planet`'s.
+A module cannot import another's interior, so the key client all three need is `shared/cpsessionverifier` rather than a copy in each.
 
 - **Each module's data stays in one place.** The caller holds an address, never the other module's config block, pool, objects or root package. The seed is read by `auth` and nothing else.
 - **`Dial` is the one place that knows the transport is loopback HTTP.** Moving to unix sockets changes the listener and `internalDialer`, and no module.
@@ -395,7 +395,6 @@ internal/chat/internal/
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/
     chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), shared by the handlers
     chatannouncement/                   Encode, shared by the history and the stream
-    rpc_session_verifier/               the key from auth.v1.InternalService, asked once (planet's, copied)
   subscribers/                          Timeout
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb payload
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
@@ -503,7 +502,7 @@ POST /session.v1.SessionService/CreateSession   [deprecated]
 
 POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → [cpbootstrap: error net], CacheInterceptor, VPNBlockInterceptor, SessionInterceptor
-      [rpc_session_verifier: the key from auth.v1.InternalService, asked once per boot
+      [cpsessionverifier: the key from auth.v1.InternalService, asked once per boot
        then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
   → antibot_attempt_click (times every try for the metronome; drops nothing)
@@ -520,7 +519,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
 ```
 POST /chat.v1.ChatService/SendMessage   [X-Session-Token: required, naming an account]
   → [cpbootstrap: error net], BlocklistInterceptor, RateLimitInterceptor, then SessionInterceptor (a reader: refuses nothing)
-      [rpc_session_verifier: the key from auth.v1.InternalService, asked once per boot]
+      [cpsessionverifier: the key from auth.v1.InternalService, asked once per boot]
   → ChatService → send_message_handler (the account off the context, or none)
   → messages/usecases/send_message_usecase: no account is ErrNoAccount (Unauthenticated), then
       who posts (log_authors → rpc_player_authors → player.v1.InternalService/GetAuthor): the account's
@@ -801,11 +800,11 @@ The answer to the one thing an address-based defence cannot do. The rate limiter
 
 **It is signed, not MACed, and that is the point.** An HMAC key verifies and mints with the same bytes, so every context that could check a click could also issue one. Ed25519 splits that: the seed is `auth.secret` and only the auth module is handed it. Verification costs tens of microseconds against a MAC's one, which is nothing at this traffic — production is thousands of clicks per five minutes — and buys a boundary the compiler holds.
 
-**`planet` asks for the key, it does not hold one.** `planetv1controller/rpc_session_verifier` calls `auth.v1.InternalService/GetVerifyingKey` over the internal listener **once**, on the first click after a boot, and keeps the answer: the key does not change while the process runs, so every click after that is one signature check and no I/O, exactly as it was when this module read a key of its own.
+**`planet` asks for the key, it does not hold one.** `shared/cpsessionverifier` calls `auth.v1.InternalService/GetVerifyingKey` over the internal listener **once**, on the first click after a boot, and keeps the answer: the key does not change while the process runs, so every click after that is one signature check and no I/O, exactly as it was when this module read a key of its own.
 
 It cannot ask at boot instead — `cpbootstrap` builds every module before it listens, so the internal listener is not up while `planet` is being built. By the time a click arrives the server is serving, so in practice it is never late. A failed fetch is not remembered, so the next click tries again; with `auth.enforce` false the click passes and is counted either way.
 
-**Callers that arrive while the key is fetched share one fetch, and each waits on its own context.** `cpconnect.SessionVerifier.Verify` takes the request's `ctx`. The first caller starts the fetch on `context.WithoutCancel(ctx)` with a 2s timeout, so it keeps the request's values but not its cancellation: a caller that hangs up stops waiting at once and fails nobody else. `cpsession.Verifier.Verify` stays without a context: it is a signature check in memory, with nothing to cancel. The cost of the laziness is that a misconfigured `auth` shows up on the first click rather than at boot.
+**Callers that arrive while the key is fetched share one fetch, and each waits on its own context.** `cpconnect.SessionVerifier.Verify` takes the request's `ctx`. The fetch is a `singleflight.DoChan`, so each caller selects on the result or its own `ctx.Done()`. The first caller starts the fetch on `context.WithoutCancel(ctx)` with a 2s timeout, so it keeps the request's values but not its cancellation: a caller that hangs up stops waiting at once and fails nobody else. `cpsession.Verifier.Verify` stays without a context: it is a signature check in memory, with nothing to cancel. The cost of the laziness is that a misconfigured `auth` shows up on the first click rather than at boot.
 
 **The first byte is a version.** Before it, the length *was* the discriminator, so every format change made every token in flight malformed at once. Now `planet` can accept two versions across a rollout instead, and key rotation is the same move: mint under the new version while both verify. Version 2 added the linked byte; a version 1 token (97 bytes) still verifies, as not linked, and its support can go once the last one has expired (1h after the deploy).
 
@@ -973,7 +972,6 @@ internal/player/internal/
     announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
     caller/                         the account on the context, or Unauthenticated
     playermessage/                  Profile, Stats, Player, Title and the title dashboard as player.v1 messages
-    rpc_session_verifier/           the key from auth.v1.InternalService, asked once (planet's, copied)
   subscribers/                      the edge for events, as the controller is for the wire
     tile_taken_subscriber/  message_sent_subscriber/  account_deleted_subscriber/  signed_in_subscriber/  signed_out_subscriber/
     stats_changed_subscriber/  signed_in_account_subscriber/
@@ -2330,7 +2328,7 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 
 ### Shared (`internal/shared/`)
 
-Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)), `cpcolls` (collections).
+Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)), `cpcolls` (collections).
 
 **Every package here is prefixed `cp`, and a new one must be.** A call site reads
 `cptime.SystemClock{}` or `cpctx.GetSourceIP(ctx)`, so the prefix says the
@@ -2362,6 +2360,8 @@ Two of these are here because both bounded contexts need them and neither should
 `cpsession` mints and verifies the click token — see [Sessions](#sessions-internalauth). It is here because **both** contexts read it: `auth` mints with its `Signer`, `planet` verifies with its `Verifier`, and neither may depend on the other. The two halves are separate types over separate config, so what each context can do with it is decided at compile time.
 
 The siteverify client it is fed by is **not** here. `turnstile` sat here on the same "both contexts need it" rule, but only one ever did, so it now lives at `session/internal/turnstile` where the compiler keeps it. **The bar is not that a package is shareable, it is that it would read the same in any other program and that two modules actually import it** — "shared" names the symptom, and a directory admitted on the weaker reading becomes a dumping ground. `cpsecrets` passes narrowly — chat is its only caller today, but it is twenty lines of `crypto/rand` with no domain in it at all.
+
+`cpsessionverifier` is the exception to that bar: it knows `auth.v1.InternalService`, so it would not read the same in another program. It is the `cpconnect.SessionVerifier` that `planet`, `player` and `chat` build, which takes the key from `auth` once — see [Sessions](#sessions-internalauth). It is here because the alternative was one copy in each module, and a fix to one copy missed the others.
 
 `cpcountries` is the ISO country list both the tile game and the chat validate against. `cpipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `cpratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 
