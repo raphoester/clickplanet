@@ -53,7 +53,7 @@ func (c *Challenges) Opened(cookieHeader string) (*Challenge, error) {
 }
 
 func (c *Challenges) Guess(challenge *Challenge, code string, now time.Time) error {
-	if allowed, _ := c.guesses.Take(challenge.ID); !allowed {
+	if allowed, _ := c.guesses.Take(challenge.id); !allowed {
 		return fmt.Errorf("%w: too many codes were wrong", ErrFlowInvalid)
 	}
 	return challenge.CodeError(code, now)

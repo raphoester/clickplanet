@@ -36,10 +36,10 @@ func (u *UseCase) Execute(ctx context.Context, cookieHeader string) (string, err
 		return "", fmt.Errorf("failed to find the caller: %w", err)
 	}
 
-	if err := u.store.DeleteSessions(ctx, session.Account); err != nil {
+	if err := u.store.DeleteSessions(ctx, session.Account()); err != nil {
 		return "", fmt.Errorf("failed to delete the account's sessions: %w", err)
 	}
 
-	u.events.Publish(&authv1.SignedOut{AccountId: session.Account.String()})
+	u.events.Publish(&authv1.SignedOut{AccountId: session.Account().String()})
 	return accounts.ExpiredSessionCookie(), nil
 }

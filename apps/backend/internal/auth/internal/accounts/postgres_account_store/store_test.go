@@ -41,10 +41,9 @@ var (
 
 func (s *testSuite) TestAnUnverifiedEmailIsStoredAsNull() {
 	ctx := s.T().Context()
-	identity := accounts.NewIdentity("discord", accounts.Claim{Subject: "discord-user", Email: "maybe@example.com"}, accounts.AccountID{15: 1}, start)
-	s.Require().NoError(s.store.SaveSignIn(ctx, accounts.SignIn{
-		NewAccount: true, Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("a-token"), lifetime, start),
-	}))
+	identity := accounts.NewIdentity("discord", accounts.ClaimOf("discord-user", "maybe@example.com", false), accounts.AccountID{15: 1}, start)
+	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("a-token"), lifetime, start)
+	s.Require().NoError(s.store.SaveSignIn(ctx, accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
 
 	var email sql.NullString
 	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT email FROM identities WHERE subject = $1`, "discord-user").Scan(&email))
@@ -70,6 +69,6 @@ func (s *testSuite) TestSavingMarksTheAccountSeen() {
 	s.Require().NoError(s.store.SaveSession(ctx, guest.Extended(later, lifetime)))
 
 	var lastSeen time.Time
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT last_seen_at FROM accounts WHERE id = $1`, uuid.UUID(guest.Account)).Scan(&lastSeen))
+	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT last_seen_at FROM accounts WHERE id = $1`, uuid.UUID(guest.Account())).Scan(&lastSeen))
 	s.Equal(later, lastSeen.UTC())
 }

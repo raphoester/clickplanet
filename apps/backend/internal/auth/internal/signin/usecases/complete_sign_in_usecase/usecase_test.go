@@ -26,7 +26,7 @@ import (
 var (
 	start    = time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
 	lifetime = accounts.Lifetime{}.WithDefaults()
-	claim    = accounts.Claim{Subject: "google-user", Email: "a@example.com", EmailVerified: true}
+	claim    = accounts.ClaimOf("google-user", "a@example.com", true)
 )
 
 type fixture struct {
@@ -100,41 +100,38 @@ func (f *fixture) finish(t *testing.T, intent accounts.Intent, sessionCookie str
 func (f *fixture) linkedAccount(t *testing.T, account byte, provider string, subject string, token string) {
 	t.Helper()
 
-	identity := accounts.NewIdentity(provider, accounts.Claim{Subject: subject}, accounts.AccountID{15: account}, start)
-	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
-		NewAccount: true, Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf(token), lifetime, start),
-	}))
+	identity := accounts.NewIdentity(provider, accounts.ClaimOf(subject, "", false), accounts.AccountID{15: account}, start)
+	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf(token), lifetime, start)
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
 }
 
 func TestAGoogleSignInJoinsTheAccountThatHoldsItsAddress(t *testing.T) {
 	f := setUp(t)
-	identity := accounts.NewIdentity(signin.Email, accounts.Claim{Subject: "a@example.com", Email: "a@example.com", EmailVerified: true}, accounts.AccountID{15: 9}, start)
-	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
-		NewAccount: true, Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("email-token"), lifetime, start),
-	}))
+	identity := accounts.NewIdentity(signin.Email, accounts.ClaimOf("a@example.com", "a@example.com", true), accounts.AccountID{15: 9}, start)
+	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("email-token"), lifetime, start)
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
 
 	out, err := f.complete(t, "")
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.AccountID{15: 9}, out.Account)
-	assert.Equal(t, accounts.Joined, out.Outcome)
+	assert.Equal(t, accounts.AccountID{15: 9}, out.Account())
+	assert.Equal(t, accounts.Joined, out.Outcome())
 	google, err := f.store.Identity(t.Context(), signin.Google, "google-user")
 	require.NoError(t, err)
-	assert.Equal(t, accounts.AccountID{15: 9}, google.Account)
+	assert.Equal(t, accounts.AccountID{15: 9}, google.Account())
 }
 
 func TestAnUnverifiedAddressJoinsNothing(t *testing.T) {
 	f := setUp(t)
-	identity := accounts.NewIdentity(signin.Email, accounts.Claim{Subject: "a@example.com", Email: "a@example.com", EmailVerified: true}, accounts.AccountID{15: 9}, start)
-	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
-		NewAccount: true, Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("email-token"), lifetime, start),
-	}))
+	identity := accounts.NewIdentity(signin.Email, accounts.ClaimOf("a@example.com", "a@example.com", true), accounts.AccountID{15: 9}, start)
+	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("email-token"), lifetime, start)
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
 
-	out, err := f.finish(t, accounts.IntentSignIn, "", accounts.Claim{Subject: "google-user", Email: "a@example.com"})
+	out, err := f.finish(t, accounts.IntentSignIn, "", accounts.ClaimOf("google-user", "a@example.com", false))
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.Created, out.Outcome)
-	assert.NotEqual(t, accounts.AccountID{15: 9}, out.Account)
+	assert.Equal(t, accounts.Created, out.Outcome())
+	assert.NotEqual(t, accounts.AccountID{15: 9}, out.Account())
 }
 
 func (f *fixture) assertPublished(t *testing.T, want ...proto.Message) {
@@ -162,19 +159,17 @@ func TestANewIdentityLinksToTheGuestAndReplacesItsSession(t *testing.T) {
 	out, err := f.complete(t, "cp_sid=guest-token")
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.AccountID{15: 7}, out.Account)
-	assert.Equal(t, accounts.Linked, out.Outcome)
-	assert.Equal(t, "token-1", cookieValue(t, out.SetCookie))
-	session, err := f.store.Session(t.Context(), accounts.TokenOf("token-1").Hash)
+	assert.Equal(t, accounts.AccountID{15: 7}, out.Account())
+	assert.Equal(t, accounts.Linked, out.Outcome())
+	assert.Equal(t, "token-1", cookieValue(t, out.SetCookie()))
+	session, err := f.store.Session(t.Context(), accounts.TokenOf("token-1").Hash())
 	require.NoError(t, err)
-	assert.Equal(t, start.Add(30*24*time.Hour), session.ExpiresAt, "a linked session lasts the linked lifetime")
-	_, err = f.store.Session(t.Context(), accounts.TokenOf("guest-token").Hash)
+	assert.Equal(t, start.Add(30*24*time.Hour), session.ExpiresAt(), "a linked session lasts the linked lifetime")
+	_, err = f.store.Session(t.Context(), accounts.TokenOf("guest-token").Hash())
 	require.ErrorIs(t, err, accounts.ErrSessionNotFound)
 	identity, err := f.store.Identity(t.Context(), signin.Google, "google-user")
 	require.NoError(t, err)
-	assert.Equal(t, &accounts.Identity{
-		Provider: "google", Subject: "google-user", Account: accounts.AccountID{15: 7}, Email: "a@example.com", EmailVerified: true, LinkedAt: start,
-	}, identity)
+	assert.Equal(t, accounts.IdentityOf("google", "google-user", accounts.AccountID{15: 7}, "a@example.com", true, start), identity)
 	f.assertPublished(t, &authv1.SignedIn{PreviousAccountId: accounts.AccountID{15: 7}.String(), AccountId: accounts.AccountID{15: 7}.String()})
 }
 
@@ -187,11 +182,11 @@ func TestAKnownIdentitySignsInToItsAccountAndLeavesTheGuestAsItWas(t *testing.T)
 	out, err := f.complete(t, "cp_sid=guest-token")
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.AccountID{15: 1}, out.Account)
-	assert.Equal(t, accounts.SignedIn, out.Outcome)
+	assert.Equal(t, accounts.AccountID{15: 1}, out.Account())
+	assert.Equal(t, accounts.SignedIn, out.Outcome())
 	guest, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
-	assert.False(t, guest.Linked(), "nothing is merged, and the guest gains no identity")
+	assert.Empty(t, guest.Providers(), "nothing is merged, and the guest gains no identity")
 	f.assertPublished(
 		t,
 		&authv1.SignedIn{AccountId: accounts.AccountID{15: 1}.String()},
@@ -205,9 +200,13 @@ func TestABrowserWithNoAccountGetsANewOne(t *testing.T) {
 	out, err := f.complete(t, "cp_sid=made-up")
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.AccountID{15: 1}, out.Account)
-	assert.Equal(t, accounts.Created, out.Outcome)
+	assert.Equal(t, accounts.AccountID{15: 1}, out.Account())
+	assert.Equal(t, accounts.Created, out.Outcome())
 	f.assertPublished(t, &authv1.SignedIn{AccountId: accounts.AccountID{15: 1}.String()})
+	made, err := f.store.Account(t.Context(), out.Account())
+	require.NoError(t, err)
+	identity := accounts.NewIdentity(signin.Google, claim, out.Account(), start)
+	assert.Equal(t, accounts.AccountOf(out.Account(), start, []accounts.Identity{*identity}), made, "the account is made, on the day of the sign-in")
 }
 
 func TestAnAccountHoldingTheProviderAlreadyIsNotGivenASecondUserOfIt(t *testing.T) {
@@ -217,22 +216,21 @@ func TestAnAccountHoldingTheProviderAlreadyIsNotGivenASecondUserOfIt(t *testing.
 	out, err := f.complete(t, "cp_sid=linked")
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.Created, out.Outcome)
-	assert.NotEqual(t, accounts.AccountID{15: 7}, out.Account)
+	assert.Equal(t, accounts.Created, out.Outcome())
+	assert.NotEqual(t, accounts.AccountID{15: 7}, out.Account())
 }
 
 func TestAGoogleSignInJoinsTheDiscordAccountWithItsVerifiedAddress(t *testing.T) {
 	f := setUp(t)
-	identity := accounts.NewIdentity("discord", accounts.Claim{Subject: "discord-user", Email: claim.Email, EmailVerified: true}, accounts.AccountID{15: 7}, start)
-	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
-		NewAccount: true, Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("discord"), lifetime, start),
-	}))
+	identity := accounts.NewIdentity("discord", accounts.ClaimOf("discord-user", claim.VerifiedEmail(), true), accounts.AccountID{15: 7}, start)
+	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("discord"), lifetime, start)
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
 
 	out, err := f.complete(t, "")
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.Joined, out.Outcome)
-	assert.Equal(t, accounts.AccountID{15: 7}, out.Account)
+	assert.Equal(t, accounts.Joined, out.Outcome())
+	assert.Equal(t, accounts.AccountID{15: 7}, out.Account())
 	joined, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"discord", "google"}, joined.Providers())
@@ -245,8 +243,8 @@ func TestLinkingANewIdentityLinksItToTheAccountTheBrowserIsOn(t *testing.T) {
 	out, err := f.link(t, "cp_sid=discord-token", claim)
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.AccountID{15: 7}, out.Account)
-	assert.Equal(t, accounts.Linked, out.Outcome)
+	assert.Equal(t, accounts.AccountID{15: 7}, out.Account())
+	assert.Equal(t, accounts.Linked, out.Outcome())
 	account, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"discord", "google"}, account.Providers())
@@ -254,30 +252,30 @@ func TestLinkingANewIdentityLinksItToTheAccountTheBrowserIsOn(t *testing.T) {
 
 func TestLinkingAnIdentityTheAccountAlreadyHasKeepsTheBrowserThere(t *testing.T) {
 	f := setUp(t)
-	f.linkedAccount(t, 7, signin.Google, claim.Subject, "google-token")
+	f.linkedAccount(t, 7, signin.Google, claim.Subject(), "google-token")
 
 	out, err := f.link(t, "cp_sid=google-token", claim)
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.AccountID{15: 7}, out.Account)
-	assert.Equal(t, accounts.SignedIn, out.Outcome)
+	assert.Equal(t, accounts.AccountID{15: 7}, out.Account())
+	assert.Equal(t, accounts.SignedIn, out.Outcome())
 }
 
 func TestLinkingAnIdentityAnotherAccountUsesIsRefusedAndWritesNothing(t *testing.T) {
 	f := setUp(t)
-	f.linkedAccount(t, 1, signin.Google, claim.Subject, "other-browser")
+	f.linkedAccount(t, 1, signin.Google, claim.Subject(), "other-browser")
 	f.linkedAccount(t, 7, signin.Discord, "discord-user", "discord-token")
 
 	out, err := f.link(t, "cp_sid=discord-token", claim)
 
 	require.ErrorIs(t, err, accounts.ErrIdentityLinkedElsewhere)
 	assert.Nil(t, out)
-	session, err := f.store.Session(t.Context(), accounts.TokenOf("discord-token").Hash)
+	session, err := f.store.Session(t.Context(), accounts.TokenOf("discord-token").Hash())
 	require.NoError(t, err, "the browser keeps its session")
-	assert.Equal(t, accounts.AccountID{15: 7}, session.Account)
-	identity, err := f.store.Identity(t.Context(), signin.Google, claim.Subject)
+	assert.Equal(t, accounts.AccountID{15: 7}, session.Account())
+	identity, err := f.store.Identity(t.Context(), signin.Google, claim.Subject())
 	require.NoError(t, err)
-	assert.Equal(t, accounts.AccountID{15: 1}, identity.Account)
+	assert.Equal(t, accounts.AccountID{15: 1}, identity.Account())
 	current, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"discord"}, current.Providers())
@@ -292,7 +290,7 @@ func TestLinkingASecondUserOfAProviderIsRefused(t *testing.T) {
 
 	require.ErrorIs(t, err, accounts.ErrProviderAlreadyLinked)
 	assert.Nil(t, out)
-	_, err = f.store.Identity(t.Context(), signin.Google, claim.Subject)
+	_, err = f.store.Identity(t.Context(), signin.Google, claim.Subject())
 	assert.ErrorIs(t, err, accounts.ErrIdentityNotFound)
 }
 

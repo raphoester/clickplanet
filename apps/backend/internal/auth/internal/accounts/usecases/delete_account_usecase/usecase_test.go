@@ -24,22 +24,22 @@ var (
 
 func TestTheCallersAccountIsDeletedWithEverythingItHolds(t *testing.T) {
 	store := inmemory_account_store.New()
-	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 1}, start)
-	session := accounts.LinkedSession(identity.Account, accounts.TokenOf("token-1"), lifetime, start)
-	require.NoError(t, store.SaveSignIn(t.Context(), accounts.SignIn{NewAccount: true, Identity: identity, Session: session}))
+	identity := accounts.NewIdentity("google", accounts.ClaimOf("user", "", false), accounts.AccountID{15: 1}, start)
+	session := accounts.LinkedSession(identity.Account(), accounts.TokenOf("token-1"), lifetime, start)
+	require.NoError(t, store.SaveSignIn(t.Context(), accounts.NewSignIn(session).WithNewAccount().WithIdentity(identity)))
 
 	events := cpbootstrap.NewRecordedEvents()
 
 	out, err := delete_account_usecase.New(store, events, cptime.NewFixedClock(start)).Execute(t.Context(), "cp_sid=token-1")
 
 	require.NoError(t, err)
-	assert.Equal(t, &delete_account_usecase.Out{Account: identity.Account, SetCookie: accounts.ExpiredSessionCookie()}, out)
-	_, err = store.Account(t.Context(), identity.Account)
+	assert.Equal(t, &delete_account_usecase.Out{Account: identity.Account(), SetCookie: accounts.ExpiredSessionCookie()}, out)
+	_, err = store.Account(t.Context(), identity.Account())
 	require.ErrorIs(t, err, accounts.ErrAccountNotFound)
 	_, err = store.Identity(t.Context(), "google", "user")
 	require.ErrorIs(t, err, accounts.ErrIdentityNotFound)
 	require.Len(t, events.Published(), 1)
-	assert.True(t, proto.Equal(&authv1.AccountDeleted{AccountId: identity.Account.String()}, events.Published()[0]))
+	assert.True(t, proto.Equal(&authv1.AccountDeleted{AccountId: identity.Account().String()}, events.Published()[0]))
 }
 
 func TestNoCookieDeletesNothing(t *testing.T) {

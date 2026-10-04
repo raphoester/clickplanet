@@ -18,7 +18,7 @@ import (
 var (
 	config = cloudflare_mailer.Config{AccountID: "the-account", APIToken: "the-token"}
 	sender = cloudflare_mailer.Sender{Address: "noreply@example.com", Name: "ClickPlanet"}
-	letter = signin.Letter{Subject: "the subject", Text: "the text", HTML: "<p>the html</p>"}
+	letter = signin.CodeLetter("123456")
 )
 
 const delivered = `{"success":true,"errors":[],"messages":[],"result":{"delivered":["player@example.com"],"permanent_bounces":[],"queued":[]}}`
@@ -60,9 +60,9 @@ func TestALetterIsPostedToTheAccountWithTheToken(t *testing.T) {
 	assert.Equal(t, map[string]any{
 		"to":      "player@example.com",
 		"from":    map[string]any{"address": "noreply@example.com", "name": "ClickPlanet"},
-		"subject": "the subject",
-		"text":    "the text",
-		"html":    "<p>the html</p>",
+		"subject": letter.Subject(),
+		"text":    letter.Text(),
+		"html":    letter.HTML(),
 	}, sent)
 }
 

@@ -102,18 +102,18 @@ func TestTheRightCodeMakesAnAccountForANewAddress(t *testing.T) {
 	out, err := f.complete(t, f.began(t, accounts.IntentSignIn, ""), "000001")
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.AccountID{15: 1}, out.Account)
-	assert.Equal(t, accounts.Created, out.Outcome)
+	assert.Equal(t, accounts.AccountID{15: 1}, out.Account())
+	assert.Equal(t, accounts.Created, out.Outcome())
 	identity, err := f.store.Identity(t.Context(), signin.Email, address)
 	require.NoError(t, err)
-	assert.Equal(t, out.Account, identity.Account)
-	assert.Equal(t, address, identity.Email)
-	assert.True(t, identity.EmailVerified)
-	session, err := f.store.Session(t.Context(), accounts.TokenOf(cookieValue(t, out.SetCookie)).Hash)
+	assert.Equal(t, out.Account(), identity.Account())
+	assert.Equal(t, address, identity.Email())
+	assert.True(t, identity.EmailVerified())
+	session, err := f.store.Session(t.Context(), accounts.TokenOf(cookieValue(t, out.SetCookie())).Hash())
 	require.NoError(t, err)
-	assert.True(t, session.Linked, "an email account clicks as fast as one signed in with a provider")
+	assert.True(t, session.Linked(), "an email account clicks as fast as one signed in with a provider")
 	require.Len(t, f.events.Published(), 1)
-	assert.True(t, proto.Equal(&authv1.SignedIn{AccountId: out.Account.String()}, f.events.Published()[0]))
+	assert.True(t, proto.Equal(&authv1.SignedIn{AccountId: out.Account().String()}, f.events.Published()[0]))
 }
 
 func TestTheRightCodeLinksTheAddressToTheGuest(t *testing.T) {
@@ -123,9 +123,9 @@ func TestTheRightCodeLinksTheAddressToTheGuest(t *testing.T) {
 	out, err := f.complete(t, f.began(t, accounts.IntentSignIn, "cp_sid=guest"), "000001")
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.AccountID{15: 7}, out.Account)
-	assert.Equal(t, accounts.Linked, out.Outcome)
-	_, err = f.store.Session(t.Context(), accounts.TokenOf("guest").Hash)
+	assert.Equal(t, accounts.AccountID{15: 7}, out.Account())
+	assert.Equal(t, accounts.Linked, out.Outcome())
+	_, err = f.store.Session(t.Context(), accounts.TokenOf("guest").Hash())
 	assert.ErrorIs(t, err, accounts.ErrSessionNotFound, "the guest's session is replaced")
 }
 
@@ -138,17 +138,16 @@ func TestAKnownAddressSignsInToItsAccount(t *testing.T) {
 	out, err := f.complete(t, f.began(t, accounts.IntentSignIn, "cp_sid=elsewhere"), "000002")
 	require.NoError(t, err)
 
-	assert.Equal(t, first.Account, out.Account)
-	assert.Equal(t, accounts.SignedIn, out.Outcome)
+	assert.Equal(t, first.Account(), out.Account())
+	assert.Equal(t, accounts.SignedIn, out.Outcome())
 }
 
 func (f *fixture) googleAccount(t *testing.T, account byte, email string) {
 	t.Helper()
 
-	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "google-user", Email: email, EmailVerified: true}, accounts.AccountID{15: account}, start)
-	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.SignIn{
-		NewAccount: true, Identity: identity, Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("google-token"), lifetime, start),
-	}))
+	identity := accounts.NewIdentity("google", accounts.ClaimOf("google-user", email, true), accounts.AccountID{15: account}, start)
+	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("google-token"), lifetime, start)
+	require.NoError(t, f.store.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
 }
 
 func TestAnAddressAGoogleAccountHoldsSignsInToThatAccount(t *testing.T) {
@@ -159,14 +158,14 @@ func TestAnAddressAGoogleAccountHoldsSignsInToThatAccount(t *testing.T) {
 	out, err := f.complete(t, f.began(t, accounts.IntentSignIn, "cp_sid=guest"), "000001")
 	require.NoError(t, err)
 
-	assert.Equal(t, accounts.AccountID{15: 9}, out.Account)
-	assert.Equal(t, accounts.Joined, out.Outcome)
+	assert.Equal(t, accounts.AccountID{15: 9}, out.Account())
+	assert.Equal(t, accounts.Joined, out.Outcome())
 	identity, err := f.store.Identity(t.Context(), signin.Email, address)
 	require.NoError(t, err)
-	assert.Equal(t, accounts.AccountID{15: 9}, identity.Account, "the next code finds the account directly")
+	assert.Equal(t, accounts.AccountID{15: 9}, identity.Account(), "the next code finds the account directly")
 	guest, err := f.store.Account(t.Context(), accounts.AccountID{15: 7})
 	require.NoError(t, err)
-	assert.False(t, guest.Linked(), "the guest the browser leaves is left as it was")
+	assert.Empty(t, guest.Providers(), "the guest the browser leaves is left as it was")
 }
 
 func TestLinkingAnAddressAGoogleAccountHoldsIsRefused(t *testing.T) {
@@ -229,7 +228,7 @@ func TestALinkOfAnAddressAnotherAccountUsesIsRefusedAndChangesNothing(t *testing
 	_, err = f.complete(t, f.began(t, accounts.IntentLink, "cp_sid=guest"), "000002")
 
 	require.ErrorIs(t, err, accounts.ErrIdentityLinkedElsewhere)
-	_, err = f.store.Session(t.Context(), accounts.TokenOf("guest").Hash)
+	_, err = f.store.Session(t.Context(), accounts.TokenOf("guest").Hash())
 	assert.NoError(t, err, "the browser keeps its session")
 }
 

@@ -23,12 +23,12 @@ var (
 
 func TestEverySessionOfTheAccountEndsAndNoOther(t *testing.T) {
 	store := inmemory_account_store.New()
-	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 1}, start)
-	laptop := accounts.LinkedSession(identity.Account, accounts.TokenOf("laptop"), lifetime, start)
-	phone := accounts.LinkedSession(identity.Account, accounts.TokenOf("phone"), lifetime, start)
+	identity := accounts.NewIdentity("google", accounts.ClaimOf("user", "", false), accounts.AccountID{15: 1}, start)
+	laptop := accounts.LinkedSession(identity.Account(), accounts.TokenOf("laptop"), lifetime, start)
+	phone := accounts.LinkedSession(identity.Account(), accounts.TokenOf("phone"), lifetime, start)
 	other := accounts.GuestSession(accounts.AccountID{15: 2}, accounts.TokenOf("other"), lifetime, start)
-	require.NoError(t, store.SaveSignIn(t.Context(), accounts.SignIn{NewAccount: true, Identity: identity, Session: laptop}))
-	require.NoError(t, store.SaveSignIn(t.Context(), accounts.SignIn{Session: phone}))
+	require.NoError(t, store.SaveSignIn(t.Context(), accounts.NewSignIn(laptop).WithNewAccount().WithIdentity(identity)))
+	require.NoError(t, store.SaveSignIn(t.Context(), accounts.NewSignIn(phone)))
 	require.NoError(t, store.CreateGuest(t.Context(), other))
 
 	events := cpbootstrap.NewRecordedEvents()
@@ -38,13 +38,13 @@ func TestEverySessionOfTheAccountEndsAndNoOther(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, accounts.ExpiredSessionCookie(), setCookie)
 	for _, gone := range []*accounts.Session{laptop, phone} {
-		_, err := store.Session(t.Context(), gone.TokenHash)
+		_, err := store.Session(t.Context(), gone.TokenHash())
 		require.ErrorIs(t, err, accounts.ErrSessionNotFound)
 	}
-	_, err = store.Session(t.Context(), other.TokenHash)
+	_, err = store.Session(t.Context(), other.TokenHash())
 	require.NoError(t, err)
 	require.Len(t, events.Published(), 1)
-	assert.True(t, proto.Equal(&authv1.SignedOut{AccountId: identity.Account.String()}, events.Published()[0]))
+	assert.True(t, proto.Equal(&authv1.SignedOut{AccountId: identity.Account().String()}, events.Published()[0]))
 }
 
 func TestNoLiveSessionIsNoAccount(t *testing.T) {
