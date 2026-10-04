@@ -8,19 +8,18 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/caller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
 )
 
-type UseCase interface {
-	Execute(ctx context.Context, account players.AccountID) (players.Profile, error)
+type Query interface {
+	Profile(ctx context.Context, account players.AccountID) (*playerv1.GetProfileResponse, error)
 }
 
-func New(useCase UseCase) GetProfileHandler {
-	return GetProfileHandler{useCase: useCase}
+func New(query Query) GetProfileHandler {
+	return GetProfileHandler{query: query}
 }
 
 type GetProfileHandler struct {
-	useCase UseCase
+	query Query
 }
 
 func (h GetProfileHandler) GetProfile(
@@ -32,13 +31,9 @@ func (h GetProfileHandler) GetProfile(
 		return nil, err //nolint:wrapcheck // already the connect error the caller reads.
 	}
 
-	profile, err := h.useCase.Execute(ctx, account)
+	profile, err := h.query.Profile(ctx, account)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
 	}
-
-	return connect.NewResponse(&playerv1.GetProfileResponse{
-		Profile: playermessage.Profile(profile),
-		Color:   playermessage.Color(profile.Color),
-	}), nil
+	return connect.NewResponse(profile), nil
 }

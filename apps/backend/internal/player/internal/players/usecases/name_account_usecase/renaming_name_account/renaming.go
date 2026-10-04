@@ -30,6 +30,6 @@ func (r *Renaming) Execute(ctx context.Context, account players.AccountID) (play
 	if err != nil {
 		return profile, err //nolint:wrapcheck // a decorator adds a rename, not a sentence.
 	}
-	r.visits.Rename(profile.Account, profile.Name)
+	r.visits.Rename(profile.Account(), profile.Name())
 	return profile, nil
 }

@@ -35,7 +35,7 @@ func TestTheNameIsKeptAsTyped(t *testing.T) {
 		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada_L"})
 
 	require.NoError(t, err)
-	want := players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: now}
+	want := players.NewProfile(ada, "Ada_L", now)
 	assert.Equal(t, want, profile)
 	stored, err := store.Profile(t.Context(), ada)
 	require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestTheNameIsKeptAsTyped(t *testing.T) {
 
 func TestAnInvalidNameChangesNothingAndAsksNobody(t *testing.T) {
 	store, accounts := setUp()
-	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: ada, Name: "Ada", UpdatedAt: now}))
+	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada", now)))
 
 	_, err := set_name_usecase.New(store, accounts, cptime.NewFixedClock(now.Add(time.Hour))).
 		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "guest_ada"})
@@ -53,7 +53,7 @@ func TestAnInvalidNameChangesNothingAndAsksNobody(t *testing.T) {
 	assert.Zero(t, accounts.Asked())
 	stored, err := store.Profile(t.Context(), ada)
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("Ada"), stored.Name)
+	assert.Equal(t, players.Name("Ada"), stored.Name())
 }
 
 func TestAGuestIsNotLinkedAndKeepsNoName(t *testing.T) {
@@ -88,7 +88,7 @@ func TestAPlayerSetsItsOwnNameAgainInAnotherCase(t *testing.T) {
 	profile, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "ADA"})
 
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("ADA"), profile.Name)
+	assert.Equal(t, players.Name("ADA"), profile.Name())
 }
 
 func TestAFailureToAskAuthIsNotAGuest(t *testing.T) {

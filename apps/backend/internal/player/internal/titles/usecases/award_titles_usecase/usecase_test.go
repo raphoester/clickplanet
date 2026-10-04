@@ -30,7 +30,7 @@ type fixture struct {
 
 func setUp() fixture {
 	f := fixture{stats: inmemory_player_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts()}
-	f.accounts.Create(ada, players.Account{Linked: true, CreatedAt: monday})
+	f.accounts.Create(ada, players.AccountOf(true, monday))
 	return f
 }
 
@@ -88,7 +88,7 @@ func TestTheTakeThatReachesATitleGrantsIt(t *testing.T) {
 
 func TestANewAccountMadeBeforeNovemberIsOGAtItsFirstTake(t *testing.T) {
 	f := setUp()
-	f.accounts.Create(ada, players.Account{Linked: true, CreatedAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)})
+	f.accounts.Create(ada, players.AccountOf(true, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)))
 	require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
 
 	require.NoError(t, f.award(t, titles.NewCatalog()))
@@ -98,7 +98,7 @@ func TestANewAccountMadeBeforeNovemberIsOGAtItsFirstTake(t *testing.T) {
 
 func TestAGuestsTakeGrantsNothing(t *testing.T) {
 	f := setUp()
-	f.accounts.Create(ada, players.Account{CreatedAt: time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)})
+	f.accounts.Create(ada, players.AccountOf(false, time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC)))
 	for range 3 {
 		require.NoError(t, f.stats.RecordTake(t.Context(), ada, monday))
 	}

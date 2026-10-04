@@ -50,13 +50,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("failed to name the player: %w", err)
 	}
 
-	u.visits.Record(presence.Visit{
-		Account: in.Account,
-		Author:  author,
-		Tag:     players.TagOf(u.tagSalt, in.IP),
-		Country: in.Country,
-		At:      u.clock.Now(),
-	})
+	u.visits.Record(presence.NewVisit(in.Account, author, players.TagOf(u.tagSalt, in.IP), in.Country, u.clock.Now()))
 
 	return nil
 }

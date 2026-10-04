@@ -8,38 +8,36 @@ import (
 	"connectrpc.com/connect"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_player_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
 )
 
 const maxAge = 10
 
-type UseCase interface {
-	Execute(ctx context.Context, name string) (get_player_usecase.Player, error)
+type Query interface {
+	Player(ctx context.Context, name string) (*playerv1.GetPlayerResponse, error)
 }
 
-func New(useCase UseCase) GetPlayerHandler {
-	return GetPlayerHandler{useCase: useCase}
+func New(query Query) GetPlayerHandler {
+	return GetPlayerHandler{query: query}
 }
 
 type GetPlayerHandler struct {
-	useCase UseCase
+	query Query
 }
 
 func (h GetPlayerHandler) GetPlayer(
 	ctx context.Context,
 	req *connect.Request[playerv1.GetPlayerRequest],
 ) (*connect.Response[playerv1.GetPlayerResponse], error) {
-	player, err := h.useCase.Execute(ctx, req.Msg.GetName())
+	player, err := h.query.Player(ctx, req.Msg.GetName())
 	switch {
-	case errors.Is(err, players.ErrNoProfile):
-		return nil, connect.NewError(connect.CodeNotFound, players.ErrNoProfile)
+	case errors.Is(err, player_query.ErrNoPlayer):
+		return nil, connect.NewError(connect.CodeNotFound, player_query.ErrNoPlayer)
 	case err != nil:
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
 	}
 
-	res := connect.NewResponse(&playerv1.GetPlayerResponse{Player: playermessage.Player(player.Player, player.Titles)})
+	res := connect.NewResponse(player)
 	res.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", maxAge))
 	return res, nil
 }

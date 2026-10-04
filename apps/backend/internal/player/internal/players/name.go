@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -118,12 +117,4 @@ func scriptOf(r rune) string {
 
 func (n Name) Folded() string {
 	return norm.NFKC.String(cases.Fold().String(norm.NFKD.String(string(n))))
-}
-
-type Profile struct {
-	Account   AccountID
-	Name      Name
-	UpdatedAt time.Time
-	Admin     bool
-	Color     Color
 }

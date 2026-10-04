@@ -70,6 +70,6 @@ func (u *UseCase) Execute(ctx context.Context) (int, error) {
 		if len(page) < pageSize {
 			return named, nil
 		}
-		after = page[len(page)-1].Account
+		after = page[len(page)-1].Account()
 	}
 }

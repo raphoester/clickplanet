@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -61,7 +62,7 @@ func (s *recordingSink) sent() []frame {
 
 func TestTheRosterComesFirstThenEachChange(t *testing.T) {
 	visits := inmemory_visit_storage.New(cptime.NewFixedClock(now))
-	visits.Record(presence.Visit{Account: players.AccountID{15: 1}, Author: wearing.Author{Author: players.Author{Name: "Ada_L"}}, Tag: "aaaaaa", Country: "fr", At: now})
+	visits.Record(presence.NewVisit(players.AccountID{15: 1}, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), titles.Standing{}), "aaaaaa", "fr", now))
 	sink := &recordingSink{}
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
@@ -75,10 +76,10 @@ func TestTheRosterComesFirstThenEachChange(t *testing.T) {
 	require.NoError(t, <-done)
 	frames := sink.sent()
 	require.Len(t, frames[0].roster, 1)
-	assert.Equal(t, "Ada_L", frames[0].roster[0].Name)
+	assert.Equal(t, "Ada_L", frames[0].roster[0].Name())
 	require.NotNil(t, frames[1].change)
-	assert.True(t, frames[1].change.Left)
-	assert.Equal(t, frames[0].roster[0].Key, frames[1].change.Entry.Key)
+	assert.True(t, frames[1].change.Left())
+	assert.Equal(t, frames[0].roster[0].Key(), frames[1].change.Entry().Key())
 }
 
 func TestAQuietRosterSendsHeartbeats(t *testing.T) {

@@ -6,37 +6,26 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 )
 
-type stubUseCase []presence.Entry
-
-func (s stubUseCase) Execute() []presence.Entry {
-	return s
+type stubQuery struct {
+	answer *playerv1.GetRosterResponse
 }
 
-func TestTheRosterIsMappedInItsOrderAndMayBeCached(t *testing.T) {
-	res, err := get_roster_handler.New(stubUseCase{
-		{Key: "k1", Name: "Ada_L", Country: "fr"},
-		{Name: "guest_0b1c2d", Country: "de", Guest: true},
-	}).GetRoster(t.Context(), connect.NewRequest(&playerv1.GetRosterRequest{}))
+func (s stubQuery) Roster() *playerv1.GetRosterResponse {
+	return s.answer
+}
+
+func TestTheRosterIsTheQuerysAndMayBeCached(t *testing.T) {
+	query := stubQuery{answer: &playerv1.GetRosterResponse{Entries: []*playerv1.RosterEntry{{Key: "k1", Name: "Ada_L", CountryId: "fr"}}}}
+
+	res, err := get_roster_handler.New(query).GetRoster(t.Context(), connect.NewRequest(&playerv1.GetRosterRequest{}))
 
 	require.NoError(t, err)
-	require.Len(t, res.Msg.GetEntries(), 2)
-	assert.Equal(t, []string{"k1", "Ada_L", "fr"},
-		[]string{res.Msg.GetEntries()[0].GetKey(), res.Msg.GetEntries()[0].GetName(), res.Msg.GetEntries()[0].GetCountryId()})
-	assert.False(t, res.Msg.GetEntries()[0].GetGuest())
-	assert.Equal(t, "guest_0b1c2d", res.Msg.GetEntries()[1].GetName())
-	assert.True(t, res.Msg.GetEntries()[1].GetGuest())
+	assert.True(t, proto.Equal(query.answer, res.Msg))
 	assert.Equal(t, "public, max-age=5", res.Header().Get("Cache-Control"))
-}
-
-func TestNobodyPlayingIsAnEmptyRoster(t *testing.T) {
-	res, err := get_roster_handler.New(stubUseCase{}).GetRoster(t.Context(), connect.NewRequest(&playerv1.GetRosterRequest{}))
-
-	require.NoError(t, err)
-	assert.Empty(t, res.Msg.GetEntries())
 }

@@ -43,14 +43,14 @@ func (s *Sink) SendRoster(roster []presence.Entry) error {
 }
 
 func (s *Sink) SendChange(change presence.Change) error {
-	if change.Left {
+	if change.Left() {
 		return s.send(&playerv1.PlayerEvent{
-			Event: &playerv1.PlayerEvent_Left{Left: &playerv1.PlayerLeft{Key: string(change.Entry.Key)}},
+			Event: &playerv1.PlayerEvent_Left{Left: &playerv1.PlayerLeft{Key: string(change.Entry().Key())}},
 		})
 	}
 
 	return s.send(&playerv1.PlayerEvent{
-		Event: &playerv1.PlayerEvent_Entry{Entry: playermessage.RosterEntry(change.Entry)},
+		Event: &playerv1.PlayerEvent_Entry{Entry: playermessage.RosterEntry(change.Entry())},
 	})
 }
 

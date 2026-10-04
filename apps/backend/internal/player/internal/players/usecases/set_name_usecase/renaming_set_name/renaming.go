@@ -32,6 +32,6 @@ func (r *Renaming) Execute(ctx context.Context, in set_name_usecase.In) (players
 		return profile, err //nolint:wrapcheck // a decorator adds a rename, not a sentence.
 	}
 
-	r.visits.Rename(profile.Account, profile.Name)
+	r.visits.Rename(profile.Account(), profile.Name())
 	return profile, nil
 }

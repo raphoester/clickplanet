@@ -7,20 +7,18 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
-type UseCase interface {
-	Execute(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]wearing.Author, error)
+type Query interface {
+	Authors(ctx context.Context, accounts []players.AccountID) (*playerv1.GetAuthorsResponse, error)
 }
 
-func New(useCase UseCase) GetAuthorsHandler {
-	return GetAuthorsHandler{useCase: useCase}
+func New(query Query) GetAuthorsHandler {
+	return GetAuthorsHandler{query: query}
 }
 
 type GetAuthorsHandler struct {
-	useCase UseCase
+	query Query
 }
 
 func (h GetAuthorsHandler) GetAuthors(
@@ -36,25 +34,12 @@ func (h GetAuthorsHandler) GetAuthors(
 		asked = append(asked, account)
 	}
 
-	found, err := h.useCase.Execute(ctx, asked)
+	authors, err := h.query.Authors(ctx, asked)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the error net answers it.
 	}
 
-	authors := make([]*playerv1.Author, 0, len(found))
-	for account, author := range found {
-		authors = append(authors, &playerv1.Author{
-			AccountId: account.String(),
-			Name:      author.Name,
-			Admin:     author.Admin,
-			Color:     playermessage.Color(author.Color),
-			Streak:    author.Streak.Days,
-			WornTitle: playermessage.Title(author.Worn),
-			Guest:     author.Guest,
-		})
-	}
-
-	res := connect.NewResponse(&playerv1.GetAuthorsResponse{Authors: authors})
+	res := connect.NewResponse(authors)
 	res.Header().Set("Cache-Control", "no-store")
 
 	return res, nil

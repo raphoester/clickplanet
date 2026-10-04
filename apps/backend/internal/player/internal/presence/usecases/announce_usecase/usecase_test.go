@@ -41,7 +41,7 @@ func setup(t *testing.T) fixture {
 
 	clock := cptime.NewFixedClock(now)
 	store := inmemory_player_store.New()
-	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: now}))
+	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada_L", now)))
 	visits := inmemory_visit_storage.New(clock)
 	held, worn := inmemory_title_store.New(), inmemory_worn_title_store.New()
 	wardrobe := wearing.NewWardrobe(worn, titles.NewBook(held, titles.NewCatalog()), titles.NewCatalog())
@@ -62,14 +62,10 @@ func TestAnAccountWithAUsernameIsRecordedUnderIt(t *testing.T) {
 	err := f.useCase.Execute(t.Context(), announce_usecase.In{Account: ada, Country: "fr", IP: "1.2.3.4"})
 
 	require.NoError(t, err)
-	assert.Equal(t, []presence.Visit{{
-		Account: ada,
-		Key:     "1",
-		Author:  wearing.Author{Author: players.Author{Name: "Ada_L"}},
-		Tag:     players.TagOf("pepper", "1.2.3.4"),
-		Country: "fr",
-		At:      now,
-	}}, f.visits.Visits())
+	author := wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), titles.Standing{})
+	assert.Equal(t, []presence.Visit{
+		presence.NewVisit(ada, author, players.TagOf("pepper", "1.2.3.4"), "fr", now).Keyed("1"),
+	}, f.visits.Visits())
 }
 
 func TestAnAdminIsRecordedAsOne(t *testing.T) {
@@ -80,7 +76,7 @@ func TestAnAdminIsRecordedAsOne(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.True(t, f.visits.Visits()[0].Author.Admin)
+	assert.True(t, f.visits.Visits()[0].Author().Admin())
 }
 
 func TestThePlayerIsRecordedWearingItsTitle(t *testing.T) {
@@ -92,7 +88,8 @@ func TestThePlayerIsRecordedWearingItsTitle(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, titles.Standing{Title: titles.OG{}}, f.visits.Visits()[0].Author.Worn)
+	og, _ := titles.NewCatalog().StandingOf("og")
+	assert.Equal(t, og, f.visits.Visits()[0].Author().Worn())
 }
 
 func TestAGuestIsRecordedUnderItsCodeWhateverItsAddress(t *testing.T) {
@@ -102,7 +99,7 @@ func TestAGuestIsRecordedUnderItsCodeWhateverItsAddress(t *testing.T) {
 	require.NoError(t, f.useCase.Execute(t.Context(), announce_usecase.In{Account: guest, Country: "de", IP: "5.6.7.8"}))
 
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, wearing.Author{Author: players.Author{Name: "guest_000001", Guest: true}}, f.visits.Visits()[0].Author,
+	assert.Equal(t, wearing.AuthorOf(players.GuestAuthor("000001", players.Streak{}), titles.Standing{}), f.visits.Visits()[0].Author(),
 		"a new network is not a new name")
 }
 
