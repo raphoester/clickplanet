@@ -23,7 +23,7 @@ const redirect = "https://clickplanet.lol/auth/callback"
 var (
 	now    = time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
 	client = signin.Client{ClientID: "the-client", ClientSecret: "the-secret"}
-	flow   = &signin.Flow{Provider: "google", State: "the-state", Verifier: "the-verifier", Nonce: "the-nonce"}
+	flow   = signin.FlowOf("google", "the-state", "the-verifier", "the-nonce", time.Time{}, accounts.IntentSignIn, accounts.AccountID{})
 )
 
 func idToken(t *testing.T, claims map[string]any) string {
@@ -77,7 +77,7 @@ func TestTheCodeIsTradedForTheUserInTheIDToken(t *testing.T) {
 	claim, err := provider.Exchange(t.Context(), "the-code", flow)
 
 	require.NoError(t, err)
-	assert.Equal(t, &accounts.Claim{Subject: "1234", Email: "a@example.com", EmailVerified: true}, claim)
+	assert.Equal(t, accounts.ClaimOf("1234", "a@example.com", true), *claim)
 	assert.Equal(t, url.Values{
 		"grant_type": {"authorization_code"}, "code": {"the-code"}, "client_id": {"the-client"},
 		"client_secret": {"the-secret"}, "redirect_uri": {redirect}, "code_verifier": {"the-verifier"},

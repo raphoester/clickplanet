@@ -19,6 +19,6 @@ func New(logger *slog.Logger) *Mailer {
 
 func (m *Mailer) Send(_ context.Context, to signin.Address, letter signin.Letter) error {
 	m.logger.Warn("a letter was logged, not sent", slog.String("to", string(to)),
-		slog.String("subject", letter.Subject), slog.String("text", letter.Text))
+		slog.String("subject", letter.Subject()), slog.String("text", letter.Text()))
 	return nil
 }

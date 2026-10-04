@@ -37,7 +37,7 @@ func (s *Store) Save(ctx context.Context, change reactions.Change) error {
 			ON CONFLICT (message_id, reaction, reactor) DO NOTHING
 			RETURNING message_id
 		)` + bumpVersion
-	if !change.On {
+	if !change.On() {
 		write = `
 		WITH changed AS (
 			DELETE FROM reactions WHERE message_id = $1 AND reaction = $2 AND reactor = $3
@@ -46,7 +46,7 @@ func (s *Store) Save(ctx context.Context, change reactions.Change) error {
 	}
 
 	if _, err := s.db.ExecContext(ctx, write,
-		string(change.MessageID), int32(change.Reaction), string(change.Reactor), change.At.UTC()); err != nil {
+		string(change.MessageID()), int32(change.Reaction()), string(change.Reactor()), change.At().UTC()); err != nil {
 		return fmt.Errorf("failed to save a reaction: %w", err)
 	}
 	return nil

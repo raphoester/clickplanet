@@ -21,9 +21,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/create_anonymous_session_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/create_session_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/delete_account_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/get_account_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/get_accounts_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/get_me_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase/log_prune_guests"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_everywhere_usecase"
@@ -39,8 +36,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/delete_account_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_account_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_account_handler/account_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler/accounts_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler/me_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_sign_in_options_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_everywhere_handler"
@@ -190,8 +190,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 				signer, config.Sessions, clock),
 			props.Logger,
 		),
-		GetMeHandler:            get_me_handler.New(get_me_usecase.New(store, clock)),
-		GetSignInOptionsHandler: get_sign_in_options_handler.New(signin.Offer{Providers: providers, Email: config.Email.Enabled}),
+		GetMeHandler:            get_me_handler.New(me_query.NewPostgresQuery(db, clock)),
+		GetSignInOptionsHandler: get_sign_in_options_handler.New(signin.NewOffer(providers, config.Email.Enabled)),
 		StartSignInHandler: start_sign_in_handler.New(
 			start_sign_in_usecase.New(providers, store, random_secret_generator.Generator{}, sealer, clock),
 		),
@@ -221,8 +221,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 
 	internalService := authv1controller.InternalService{
 		GetVerifyingKeyHandler: get_verifying_key_handler.New(signer),
-		GetAccountHandler:      get_account_handler.New(get_account_usecase.New(store)),
-		GetAccountsHandler:     get_accounts_handler.New(get_accounts_usecase.New(store)),
+		GetAccountHandler:      get_account_handler.New(account_query.NewPostgresQuery(db)),
+		GetAccountsHandler:     get_accounts_handler.New(accounts_query.NewPostgresQuery(db)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewInternalServiceHandler(internalService, options...)
@@ -246,7 +246,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 		slog.Bool("turnstile", config.Turnstile.Enabled),
 		slog.Duration("guestTTL", config.Sessions.GuestTTL),
 		slog.Duration("linkedTTL", config.Sessions.LinkedTTL),
-		slog.Any("signIn", signin.Offer{Providers: providers, Email: config.Email.Enabled}.Names()),
+		slog.Any("signIn", signin.NewOffer(providers, config.Email.Enabled).Names()),
 		slog.String("emailDelivery", config.Email.Delivery),
 		slog.Int("disposableDomains", blocklist.Size()),
 		slog.Duration("pruneIdleFor", config.Prune.IdleFor),

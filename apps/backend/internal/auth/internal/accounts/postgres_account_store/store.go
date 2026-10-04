@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -25,13 +24,16 @@ type Store struct {
 var _ accounts.Store = (*Store)(nil)
 
 func (s *Store) Session(ctx context.Context, tokenHash accounts.TokenHash) (*accounts.Session, error) {
-	session := accounts.Session{TokenHash: tokenHash}
-	var account uuid.UUID
+	var (
+		account               uuid.UUID
+		extendedAt, expiresAt time.Time
+		linked                bool
+	)
 	err := s.db.QueryRowContext(ctx, `
 		SELECT account_id, extended_at, expires_at,
 		       EXISTS (SELECT 1 FROM identities WHERE identities.account_id = sessions.account_id)
 		FROM sessions WHERE token_hash = $1
-	`, tokenHash).Scan(&account, &session.ExtendedAt, &session.ExpiresAt, &session.Linked)
+	`, tokenHash).Scan(&account, &extendedAt, &expiresAt, &linked)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, accounts.ErrSessionNotFound
 	}
@@ -39,15 +41,12 @@ func (s *Store) Session(ctx context.Context, tokenHash accounts.TokenHash) (*acc
 		return nil, fmt.Errorf("failed to select the session: %w", err)
 	}
 
-	session.Account = accounts.AccountID(account)
-	session.ExtendedAt = session.ExtendedAt.UTC()
-	session.ExpiresAt = session.ExpiresAt.UTC()
-	return &session, nil
+	return accounts.SessionOf(tokenHash, accounts.AccountID(account), linked, extendedAt.UTC(), expiresAt.UTC()), nil
 }
 
 func (s *Store) CreateGuest(ctx context.Context, session *accounts.Session) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
-		if err := insertAccount(ctx, tx, session.Account, session.ExtendedAt); err != nil {
+		if err := insertAccount(ctx, tx, session.Account(), session.ExtendedAt()); err != nil {
 			return err
 		}
 		return insertSession(ctx, tx, session)
@@ -58,7 +57,7 @@ func (s *Store) SaveSession(ctx context.Context, session *accounts.Session) erro
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		result, err := tx.ExecContext(ctx, `
 			UPDATE sessions SET extended_at = $2, expires_at = $3 WHERE token_hash = $1
-		`, session.TokenHash, session.ExtendedAt.UTC(), session.ExpiresAt.UTC())
+		`, session.TokenHash(), session.ExtendedAt().UTC(), session.ExpiresAt().UTC())
 		if err != nil {
 			return fmt.Errorf("failed to update the session: %w", err)
 		}
@@ -70,7 +69,7 @@ func (s *Store) SaveSession(ctx context.Context, session *accounts.Session) erro
 			return accounts.ErrSessionNotFound
 		}
 
-		return markSeen(ctx, tx, session.Account, session.ExtendedAt)
+		return markSeen(ctx, tx, session.Account(), session.ExtendedAt())
 	})
 }
 
@@ -107,74 +106,18 @@ func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accou
 	}
 	defer func() { _ = rows.Close() }()
 
-	found := &accounts.Account{ID: account, CreatedAt: createdAt.UTC(), Identities: []accounts.Identity{}}
+	identities := []accounts.Identity{}
 	for rows.Next() {
 		identity, err := scanIdentity(rows)
 		if err != nil {
 			return nil, err
 		}
-		found.Identities = append(found.Identities, *identity)
+		identities = append(identities, *identity)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read the account's identities: %w", err)
 	}
-	return found, nil
-}
-
-func (s *Store) Accounts(ctx context.Context, asked []accounts.AccountID) ([]*accounts.Account, error) {
-	if len(asked) == 0 {
-		return []*accounts.Account{}, nil
-	}
-
-	ids := make([]string, len(asked))
-	for i, account := range asked {
-		ids[i] = account.String()
-	}
-
-	rows, err := s.db.QueryContext(ctx, `SELECT id, created_at FROM accounts WHERE id = ANY($1::uuid[]) ORDER BY id`, pq.Array(ids))
-	if err != nil {
-		return nil, fmt.Errorf("failed to select the accounts: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	found := make([]*accounts.Account, 0, len(asked))
-	byID := make(map[accounts.AccountID]*accounts.Account, len(asked))
-	for rows.Next() {
-		var (
-			id        uuid.UUID
-			createdAt time.Time
-		)
-		if err := rows.Scan(&id, &createdAt); err != nil {
-			return nil, fmt.Errorf("failed to read an account: %w", err)
-		}
-		account := &accounts.Account{ID: accounts.AccountID(id), CreatedAt: createdAt.UTC(), Identities: []accounts.Identity{}}
-		found = append(found, account)
-		byID[account.ID] = account
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the accounts: %w", err)
-	}
-
-	identities, err := s.db.QueryContext(ctx, `
-		SELECT provider, subject, account_id, COALESCE(email, ''), email_verified, linked_at
-		FROM identities WHERE account_id = ANY($1::uuid[]) ORDER BY linked_at, provider
-	`, pq.Array(ids))
-	if err != nil {
-		return nil, fmt.Errorf("failed to select the accounts' identities: %w", err)
-	}
-	defer func() { _ = identities.Close() }()
-
-	for identities.Next() {
-		identity, err := scanIdentity(identities)
-		if err != nil {
-			return nil, err
-		}
-		byID[identity.Account].Identities = append(byID[identity.Account].Identities, *identity)
-	}
-	if err := identities.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the accounts' identities: %w", err)
-	}
-	return found, nil
+	return accounts.AccountOf(account, createdAt.UTC(), identities), nil
 }
 
 func (s *Store) Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error) {
@@ -205,27 +148,27 @@ func (s *Store) AccountOfEmail(ctx context.Context, address string) (*accounts.A
 }
 
 func (s *Store) SaveSignIn(ctx context.Context, signIn accounts.SignIn) error {
-	session := signIn.Session
+	session := signIn.Session()
 	return s.inTx(ctx, func(tx *sql.Tx) error {
-		if signIn.NewAccount {
-			if err := insertAccount(ctx, tx, session.Account, session.ExtendedAt); err != nil {
+		if signIn.NewAccount() {
+			if err := insertAccount(ctx, tx, session.Account(), session.ExtendedAt()); err != nil {
 				return err
 			}
 		}
-		if signIn.Identity != nil {
-			if err := insertIdentity(ctx, tx, signIn.Identity); err != nil {
+		if identity := signIn.Identity(); identity != nil {
+			if err := insertIdentity(ctx, tx, identity); err != nil {
 				return err
 			}
 		}
-		if signIn.Replaces != nil {
-			if _, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash = $1`, signIn.Replaces); err != nil {
+		if replaces := signIn.Replaces(); replaces != nil {
+			if _, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash = $1`, replaces); err != nil {
 				return fmt.Errorf("failed to delete the replaced session: %w", err)
 			}
 		}
 		if err := insertSession(ctx, tx, session); err != nil {
 			return err
 		}
-		return markSeen(ctx, tx, session.Account, session.ExtendedAt)
+		return markSeen(ctx, tx, session.Account(), session.ExtendedAt())
 	})
 }
 
@@ -277,7 +220,7 @@ func insertAccount(ctx context.Context, tx *sql.Tx, account accounts.AccountID, 
 func insertSession(ctx context.Context, tx *sql.Tx, session *accounts.Session) error {
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO sessions (token_hash, account_id, created_at, extended_at, expires_at) VALUES ($1, $2, $3, $3, $4)
-	`, session.TokenHash, uuid.UUID(session.Account), session.ExtendedAt.UTC(), session.ExpiresAt.UTC()); err != nil {
+	`, session.TokenHash(), uuid.UUID(session.Account()), session.ExtendedAt().UTC(), session.ExpiresAt().UTC()); err != nil {
 		return fmt.Errorf("failed to insert the session: %w", err)
 	}
 	return nil
@@ -285,14 +228,14 @@ func insertSession(ctx context.Context, tx *sql.Tx, session *accounts.Session) e
 
 func insertIdentity(ctx context.Context, tx *sql.Tx, identity *accounts.Identity) error {
 	var email sql.NullString
-	if identity.Email != "" {
-		email = sql.NullString{String: identity.Email, Valid: true}
+	if identity.Email() != "" {
+		email = sql.NullString{String: identity.Email(), Valid: true}
 	}
 
 	result, err := tx.ExecContext(ctx, `
 		INSERT INTO identities (provider, subject, account_id, email, email_verified, linked_at) VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (provider, subject) DO NOTHING
-	`, identity.Provider, identity.Subject, uuid.UUID(identity.Account), email, identity.EmailVerified, identity.LinkedAt.UTC())
+	`, identity.Provider(), identity.Subject(), uuid.UUID(identity.Account()), email, identity.EmailVerified(), identity.LinkedAt().UTC())
 	if err != nil {
 		return fmt.Errorf("failed to insert the identity: %w", err)
 	}
@@ -318,15 +261,16 @@ type scanner interface {
 }
 
 func scanIdentity(row scanner) (*accounts.Identity, error) {
-	var identity accounts.Identity
-	var account uuid.UUID
-	err := row.Scan(&identity.Provider, &identity.Subject, &account, &identity.Email, &identity.EmailVerified, &identity.LinkedAt)
-	if err != nil {
+	var (
+		provider, subject, email string
+		account                  uuid.UUID
+		emailVerified            bool
+		linkedAt                 time.Time
+	)
+	if err := row.Scan(&provider, &subject, &account, &email, &emailVerified, &linkedAt); err != nil {
 		return nil, fmt.Errorf("failed to scan the identity: %w", err)
 	}
-	identity.Account = accounts.AccountID(account)
-	identity.LinkedAt = identity.LinkedAt.UTC()
-	return &identity, nil
+	return accounts.IdentityOf(provider, subject, accounts.AccountID(account), email, emailVerified, linkedAt.UTC()), nil
 }
 
 func (s *Store) inTx(ctx context.Context, do func(tx *sql.Tx) error) error {

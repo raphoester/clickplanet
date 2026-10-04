@@ -11,7 +11,7 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 type Dialer interface {
@@ -32,9 +32,9 @@ var _ history_query.Authors = (*Authors)(nil)
 
 func (a *Authors) Authors(
 	ctx context.Context,
-	accounts []messages.AccountID,
-) (map[messages.AccountID]*playerv1.Author, error) {
-	found := make(map[messages.AccountID]*playerv1.Author, len(accounts))
+	accounts []cpsession.AccountID,
+) (map[cpsession.AccountID]*playerv1.Author, error) {
+	found := make(map[cpsession.AccountID]*playerv1.Author, len(accounts))
 	if len(accounts) == 0 {
 		return found, nil
 	}
@@ -63,7 +63,7 @@ func (a *Authors) Authors(
 		if err != nil {
 			return nil, fmt.Errorf("the player module answered for %q, which is not an account: %w", author.GetAccountId(), err)
 		}
-		found[messages.AccountID(id)] = author
+		found[cpsession.AccountID(id)] = author
 	}
 	return found, nil
 }

@@ -8,40 +8,31 @@ import (
 	"connectrpc.com/connect"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/authprovider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler/me_query"
 )
 
-type UseCase interface {
-	Execute(ctx context.Context, cookieHeader string) (*accounts.Account, error)
+type Query interface {
+	Me(ctx context.Context, cookieHeader string) (*authv1.GetMeResponse, error)
 }
 
-func New(useCase UseCase) GetMeHandler {
-	return GetMeHandler{useCase: useCase}
+func New(query Query) GetMeHandler {
+	return GetMeHandler{query: query}
 }
 
 type GetMeHandler struct {
-	useCase UseCase
+	query Query
 }
 
 func (h GetMeHandler) GetMe(
 	ctx context.Context,
 	req *connect.Request[authv1.GetMeRequest],
 ) (*connect.Response[authv1.GetMeResponse], error) {
-	account, err := h.useCase.Execute(ctx, req.Header().Get("Cookie"))
-	if errors.Is(err, accounts.ErrNoAccount) {
-		return nil, connect.NewError(connect.CodeUnauthenticated, accounts.ErrNoAccount)
+	me, err := h.query.Me(ctx, req.Header().Get("Cookie"))
+	if errors.Is(err, me_query.ErrNoAccount) {
+		return nil, connect.NewError(connect.CodeUnauthenticated, me_query.ErrNoAccount)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the account: %w", err)
-	}
-
-	me := &authv1.GetMeResponse{AccountId: account.ID.String(), Kind: authv1.AccountKind_ACCOUNT_KIND_GUEST}
-	if account.Linked() {
-		me.Kind = authv1.AccountKind_ACCOUNT_KIND_LINKED
-	}
-	for _, provider := range account.Providers() {
-		me.Providers = append(me.Providers, authprovider.ProtoOf(provider))
 	}
 
 	res := connect.NewResponse(me)

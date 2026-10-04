@@ -30,12 +30,7 @@ func (s *StorageContractSuite) SetupTest() {
 }
 
 func contractAnnouncement(name string, at time.Time) Announcement {
-	return Announcement{
-		ID:      contractID(name),
-		Kind:    KindBomb,
-		At:      at,
-		Payload: json.RawMessage(`{"country":"fr","ground":"de","tile":42,"cleared":3}`),
-	}
+	return NewAnnouncement(contractID(name), KindBomb, at, json.RawMessage(`{"country":"fr","ground":"de","tile":42,"cleared":3}`))
 }
 
 func (s *StorageContractSuite) append(names ...string) {

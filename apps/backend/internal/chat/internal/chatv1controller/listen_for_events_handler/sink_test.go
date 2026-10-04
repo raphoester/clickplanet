@@ -3,6 +3,7 @@ package listen_for_events_handler_test
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -33,7 +34,7 @@ func TestSinkFramesAMessage(t *testing.T) {
 	stream := &recorder{}
 
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Update: feed.Update{Message: &messages.Message{ID: "message-1", AuthorName: "Bob", Text: "hello"}},
+		Update: feed.MessageSent(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", "hello").Named(messages.AuthorOf("Bob", false, 0, 0, messages.Title{}))),
 	})
 
 	require.NoError(t, err)
@@ -51,11 +52,7 @@ func TestSinkFramesNewReactions(t *testing.T) {
 	stream := &recorder{}
 
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Update: feed.Update{Reactions: &reactions.Tally{
-			MessageID: "message-1",
-			Version:   4,
-			Counts:    []reactions.Count{{Reaction: reactions.Reaction(chatv1.Reaction_REACTION_SKULL), Count: 2}},
-		}},
+		Update: feed.ReactionsChanged(reactions.TallyFor("message-1", []reactions.Count{reactions.CountOf(reactions.Reaction(chatv1.Reaction_REACTION_SKULL), 2, false, nil, nil)}, 4)),
 	})
 
 	require.NoError(t, err)
@@ -76,9 +73,7 @@ func TestSinkFramesAnAnnouncement(t *testing.T) {
 	stream := &recorder{}
 
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Update: feed.Update{Announcement: &announcements.Announcement{
-			ID: announcements.AnnouncementID(uuid.MustParse(announcementID)), Kind: announcements.KindBomb, Payload: json.RawMessage(`{"country":"fr"}`),
-		}},
+		Update: feed.Announced(announcements.NewAnnouncement(announcements.AnnouncementID(uuid.MustParse(announcementID)), announcements.KindBomb, time.Time{}, json.RawMessage(`{"country":"fr"}`))),
 	})
 
 	require.NoError(t, err)

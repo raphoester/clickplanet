@@ -41,13 +41,7 @@ func (a *Authors) Author(ctx context.Context, account messages.AccountID) (messa
 		return messages.Author{}, fmt.Errorf("failed to ask the player module who posts: %w", err)
 	}
 
-	return messages.Author{
-		Name:   res.Msg.GetName(),
-		Admin:  res.Msg.GetAdmin(),
-		Color:  int32(res.Msg.GetColor()),
-		Streak: res.Msg.GetStreak(),
-		Title:  titleOf(res.Msg.GetWornTitle()),
-	}, nil
+	return messages.AuthorOf(res.Msg.GetName(), res.Msg.GetAdmin(), int32(res.Msg.GetColor()), res.Msg.GetStreak(), titleOf(res.Msg.GetWornTitle())), nil
 }
 
 func (a *Authors) Authors(
@@ -79,27 +73,13 @@ func (a *Authors) Authors(
 	}
 
 	for _, author := range res.Msg.GetAuthors() {
-		found[messages.AccountIDOf(author.GetAccountId())] = messages.Author{
-			Name:   author.GetName(),
-			Admin:  author.GetAdmin(),
-			Color:  int32(author.GetColor()),
-			Streak: author.GetStreak(),
-			Title:  titleOf(author.GetWornTitle()),
-		}
+		found[messages.AccountIDOf(author.GetAccountId())] = messages.AuthorOf(author.GetName(), author.GetAdmin(), int32(author.GetColor()), author.GetStreak(), titleOf(author.GetWornTitle()))
 	}
 	return found, nil
 }
 
 func titleOf(title *playerv1.Title) messages.Title {
 	rank := title.GetRank()
-	return messages.Title{
-		ID:   title.GetId(),
-		Name: title.GetName(),
-		Rank: messages.Rank{
-			TrackID:   rank.GetTrackId(),
-			TrackName: rank.GetTrackName(),
-			Number:    rank.GetNumber(),
-			Count:     rank.GetCount(),
-		},
-	}
+	return messages.TitleOf(title.GetId(), title.GetName(),
+		messages.RankOf(rank.GetTrackId(), rank.GetTrackName(), rank.GetNumber(), rank.GetCount()))
 }

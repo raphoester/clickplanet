@@ -11,10 +11,10 @@ import (
 
 func TestOverlongAuthorIDIsTruncated(t *testing.T) {
 	record := messages.NewRecord(messages.Message{}, strings.Repeat("a", 5000), "1.2.3.4", "")
-	assert.LessOrEqual(t, len(record.AuthorID), 64)
+	assert.LessOrEqual(t, len(record.AuthorID()), 64)
 }
 
 func TestOverlongUserAgentIsTruncated(t *testing.T) {
 	record := messages.NewRecord(messages.Message{}, "", "1.2.3.4", strings.Repeat("a", 5000))
-	assert.LessOrEqual(t, len(record.UserAgent), 256)
+	assert.LessOrEqual(t, len(record.UserAgent()), 256)
 }

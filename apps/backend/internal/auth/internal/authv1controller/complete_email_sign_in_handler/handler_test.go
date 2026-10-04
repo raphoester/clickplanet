@@ -41,7 +41,7 @@ func completeEmailSignIn(useCase *stubUseCase) (*connect.Response[authv1.Complet
 }
 
 func TestTheAccountAndOutcomeAreAnsweredWithTheSessionCookieAndTheChallengeCleared(t *testing.T) {
-	useCase := &stubUseCase{out: &complete_email_sign_in_usecase.Out{Account: accounts.AccountID{15: 1}, Outcome: accounts.Created, SetCookie: "cp_sid=token-1"}}
+	useCase := &stubUseCase{out: signin.AdmissionOf(accounts.AccountID{15: 1}, accounts.Created, "cp_sid=token-1")}
 
 	res, err := completeEmailSignIn(useCase)
 	require.NoError(t, err)

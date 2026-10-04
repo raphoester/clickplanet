@@ -21,7 +21,7 @@ func newFeed(buffer int) *inprocess_feed.Feed {
 }
 
 func sent(text string) feed.Update {
-	return feed.Update{Message: &messages.Message{ID: messages.MessageID(text), Text: text}}
+	return feed.MessageSent(messages.NewMessage(messages.MessageID(text), time.Time{}, messages.NoAccount, "", text))
 }
 
 func TestEverySubscriberHearsEveryUpdateInOrder(t *testing.T) {
@@ -31,7 +31,7 @@ func TestEverySubscriberHearsEveryUpdateInOrder(t *testing.T) {
 	second, err := updates.Subscribe(t.Context())
 	require.NoError(t, err)
 
-	tally := feed.Update{Reactions: &reactions.Tally{MessageID: "hello"}}
+	tally := feed.ReactionsChanged(reactions.TallyFor("hello", nil, 0))
 	updates.Publish(sent("hello"))
 	updates.Publish(tally)
 

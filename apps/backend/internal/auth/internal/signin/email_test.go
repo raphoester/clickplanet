@@ -59,10 +59,9 @@ func TestAnythingButOneBareAddressIsRefused(t *testing.T) {
 }
 
 func TestAChallengeDrawsItsIDAndCodeAndLastsTenMinutes(t *testing.T) {
-	assert.Equal(t, &signin.Challenge{
-		ID: "secret-1", Address: "player@example.com", Code: "000001", ExpiresAt: now.Add(10 * time.Minute),
-		Intent: accounts.IntentLink, Account: accounts.AccountID{15: 7},
-	}, challenge(t, accounts.IntentLink, accounts.AccountID{15: 7}))
+	assert.Equal(t,
+		signin.ChallengeOf("secret-1", "player@example.com", "000001", now.Add(10*time.Minute), accounts.IntentLink, accounts.AccountID{15: 7}),
+		challenge(t, accounts.IntentLink, accounts.AccountID{15: 7}))
 }
 
 func TestAChallengeWithoutEntropyIsNotStarted(t *testing.T) {
@@ -85,14 +84,14 @@ func TestOnlyTheCodeSentPassesWhileTheChallengeLives(t *testing.T) {
 func TestAnEmailLinkMustEndOnTheAccountItStartedOn(t *testing.T) {
 	c := challenge(t, accounts.IntentLink, accounts.AccountID{15: 7})
 
-	require.NoError(t, c.AccountError(&accounts.Account{ID: accounts.AccountID{15: 7}}))
-	assert.ErrorIs(t, c.AccountError(&accounts.Account{ID: accounts.AccountID{15: 8}}), signin.ErrFlowInvalid)
+	require.NoError(t, c.AccountError(accounts.AccountOf(accounts.AccountID{15: 7}, time.Time{}, nil)))
+	assert.ErrorIs(t, c.AccountError(accounts.AccountOf(accounts.AccountID{15: 8}, time.Time{}, nil)), signin.ErrFlowInvalid)
 	assert.ErrorIs(t, c.AccountError(nil), signin.ErrFlowInvalid)
 	require.NoError(t, challenge(t, accounts.IntentSignIn, accounts.AccountID{}).AccountError(nil))
 }
 
 func TestTheClaimIsTheAddressVerified(t *testing.T) {
-	assert.Equal(t, accounts.Claim{Subject: "player@example.com", Email: "player@example.com", EmailVerified: true},
+	assert.Equal(t, accounts.ClaimOf("player@example.com", "player@example.com", true),
 		challenge(t, accounts.IntentSignIn, accounts.AccountID{}).Claim())
 }
 
@@ -109,17 +108,17 @@ func TestTheChallengeCookieLivesAsLongAsTheChallenge(t *testing.T) {
 func TestTheLetterCarriesTheCodeInEveryPart(t *testing.T) {
 	letter := signin.CodeLetter("123456")
 
-	assert.Equal(t, "Your ClickPlanet code: 123456", letter.Subject)
-	assert.Contains(t, letter.Text, "123456")
-	assert.Contains(t, letter.HTML, "123456")
-	assert.Contains(t, letter.Text, "10 minutes")
+	assert.Equal(t, "Your ClickPlanet code: 123456", letter.Subject())
+	assert.Contains(t, letter.Text(), "123456")
+	assert.Contains(t, letter.HTML(), "123456")
+	assert.Contains(t, letter.Text(), "10 minutes")
 }
 
 func TestTheOfferListsTheProvidersThenEmail(t *testing.T) {
 	providers := signin.Providers{signin.Google: signin.NewFakeProvider(signin.Google), signin.Discord: signin.NewFakeProvider(signin.Discord)}
 
-	assert.Equal(t, []string{"discord", "google", "email"}, signin.Offer{Providers: providers, Email: true}.Names())
-	assert.Equal(t, []string{"discord", "google"}, signin.Offer{Providers: providers}.Names())
-	assert.Equal(t, []string{"email"}, signin.Offer{Providers: signin.Providers{}, Email: true}.Names())
-	assert.Empty(t, signin.Offer{Providers: signin.Providers{}}.Names())
+	assert.Equal(t, []string{"discord", "google", "email"}, signin.NewOffer(providers, true).Names())
+	assert.Equal(t, []string{"discord", "google"}, signin.NewOffer(providers, false).Names())
+	assert.Equal(t, []string{"email"}, signin.NewOffer(signin.Providers{}, true).Names())
+	assert.Empty(t, signin.NewOffer(signin.Providers{}, false).Names())
 }
