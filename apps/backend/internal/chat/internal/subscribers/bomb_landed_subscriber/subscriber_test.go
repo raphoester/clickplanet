@@ -33,9 +33,9 @@ func TestABombIsAnnouncedAtTheTimeItLanded(t *testing.T) {
 	require.NoError(t, err)
 	kept := store.Kept()
 	require.Len(t, kept, 1)
-	assert.Equal(t, announcements.KindBomb, kept[0].Kind)
-	assert.Equal(t, at, kept[0].At)
-	assert.JSONEq(t, `{"country":"fr","ground":"de","tile":42,"cleared":3}`, string(kept[0].Payload))
+	assert.Equal(t, announcements.KindBomb, kept[0].Kind())
+	assert.Equal(t, at, kept[0].At())
+	assert.JSONEq(t, `{"country":"fr","ground":"de","tile":42,"cleared":3}`, string(kept[0].Payload()))
 }
 
 func TestABombInTheSeaHasNoGroundAndNoTile(t *testing.T) {
@@ -46,7 +46,7 @@ func TestABombInTheSeaHasNoGroundAndNoTile(t *testing.T) {
 	require.NoError(t, err)
 	kept := store.Kept()
 	require.Len(t, kept, 1)
-	assert.JSONEq(t, `{"country":"fr","cleared":0}`, string(kept[0].Payload))
+	assert.JSONEq(t, `{"country":"fr","cleared":0}`, string(kept[0].Payload()))
 }
 
 func TestABombWithNoTimeIsRefused(t *testing.T) {

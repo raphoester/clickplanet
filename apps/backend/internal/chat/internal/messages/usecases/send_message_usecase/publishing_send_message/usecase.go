@@ -35,9 +35,9 @@ func (d *Decorator) Execute(ctx context.Context, in send_message_usecase.In) (me
 	}
 
 	d.events.Publish(&chatv1.MessageSent{
-		MessageId: string(message.ID),
-		AccountId: message.Account.String(),
-		SentAt:    timestamppb.New(message.SentAt),
+		MessageId: string(message.ID()),
+		AccountId: message.Account().String(),
+		SentAt:    timestamppb.New(message.SentAt()),
 	})
 	return message, nil
 }

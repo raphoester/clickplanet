@@ -36,17 +36,16 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) error {
-	announcement := announcements.Announcement{
-		ID:      announcements.AnnouncementID(uuid.New()),
-		Kind:    in.Kind,
-		At:      in.At,
-		Payload: in.Payload,
+	if !in.Kind.Known() {
+		return fmt.Errorf("%w: %q", announcements.ErrUnknownKind, in.Kind)
 	}
+
+	announcement := announcements.NewAnnouncement(announcements.AnnouncementID(uuid.New()), in.Kind, in.At, in.Payload)
 
 	if err := u.appender.Append(ctx, announcement); err != nil {
 		return fmt.Errorf("failed to store a %s announcement: %w", in.Kind, err)
 	}
 
-	u.publisher.Publish(feed.Update{Announcement: &announcement})
+	u.publisher.Publish(feed.Announced(announcement))
 	return nil
 }

@@ -38,18 +38,7 @@ func (s *testSuite) SetupTest() {
 var start = time.Date(2024, 1, 1, 12, 0, 0, 123_456_000, time.UTC)
 
 func record(text string, at time.Time) messages.Record {
-	return messages.Record{
-		Message: messages.Message{
-			ID:         messages.MessageID("id-" + text),
-			SentAt:     at,
-			AuthorName: "Bob",
-			CountryID:  "fr",
-			Text:       text,
-		},
-		AuthorID:  "some-uuid",
-		IP:        "203.0.113.7",
-		UserAgent: "test-agent",
-	}
+	return messages.NewRecord(messages.NewMessage(messages.MessageID("id-"+text), at, messages.NoAccount, "fr", text).Named(messages.AuthorOf("Bob", false, 0, 0, messages.Title{})), "some-uuid", "203.0.113.7", "test-agent")
 }
 
 func (s *testSuite) TestTheSenderIsStored() {
@@ -67,8 +56,8 @@ func (s *testSuite) TestTheBackfillPrefixesOnlyTheMessagesFromBeforeUsernames() 
 	usernames := time.Date(2026, 9, 17, 14, 31, 30, 0, time.UTC)
 
 	guest := record("guest", usernames.Add(-time.Minute))
-	player := record("player", usernames.Add(time.Minute))
-	player.Message.AuthorName = "Bob_the_player"
+	player := messages.NewRecord(record("player", usernames.Add(time.Minute)).Message().
+		Named(messages.AuthorOf("Bob_the_player", false, 0, 0, messages.Title{})), "some-uuid", "203.0.113.7", "test-agent")
 	s.Require().NoError(s.store.Append(ctx, guest))
 	s.Require().NoError(s.store.Append(ctx, player))
 

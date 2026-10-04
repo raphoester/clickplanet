@@ -2,6 +2,7 @@ package reactions_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -27,8 +28,8 @@ func TestReactionsCountEachReactionInTheOrderItFirstAppeared(t *testing.T) {
 	given := reactions.Reactions{}.With(clown, ada).With(laugh, bo).With(clown, bo)
 
 	assert.Equal(t, []reactions.Count{
-		{Reaction: clown, Count: 2, Mine: true, Reactors: gave(ada, bo)},
-		{Reaction: laugh, Count: 1, Mine: false, Reactors: gave(bo)},
+		reactions.CountOf(clown, 2, true, gave(ada, bo), nil),
+		reactions.CountOf(laugh, 1, false, gave(bo), nil),
 	}, given.Tally(ada))
 }
 
@@ -36,7 +37,7 @@ func TestAReactorGivesAReactionOnce(t *testing.T) {
 	given := reactions.Reactions{}.With(clown, ada).With(clown, ada)
 
 	assert.Equal(t, []reactions.Count{
-		{Reaction: clown, Count: 1, Mine: true, Reactors: gave(ada)},
+		reactions.CountOf(clown, 1, true, gave(ada), nil),
 	}, given.Tally(ada))
 }
 
@@ -44,8 +45,8 @@ func TestAReactionNobodyGivesAnyMoreLosesItsPlace(t *testing.T) {
 	given := reactions.Reactions{}.With(clown, ada).With(laugh, ada).Without(clown, ada).With(clown, bo)
 
 	assert.Equal(t, []reactions.Count{
-		{Reaction: laugh, Count: 1, Reactors: gave(ada)},
-		{Reaction: clown, Count: 1, Reactors: gave(bo)},
+		reactions.CountOf(laugh, 1, false, gave(ada), nil),
+		reactions.CountOf(clown, 1, false, gave(bo), nil),
 	}, given.Tally(reactions.NoReactor))
 }
 
@@ -64,17 +65,17 @@ func TestWithAndWithoutLeaveTheReceiverAsItWas(t *testing.T) {
 	_ = before.Without(clown, ada)
 
 	assert.Equal(t, []reactions.Count{
-		{Reaction: clown, Count: 1, Reactors: gave(ada)},
+		reactions.CountOf(clown, 1, false, gave(ada), nil),
 	}, before.Tally(reactions.NoReactor))
 }
 
 func TestNoReactorOwnsNothing(t *testing.T) {
-	assert.False(t, reactions.Reactions{}.With(clown, ada).Tally(reactions.NoReactor)[0].Mine)
+	assert.False(t, reactions.Reactions{}.With(clown, ada).Tally(reactions.NoReactor)[0].Mine())
 }
 
 func TestAppliedPutsOnAndTakesOff(t *testing.T) {
-	on := reactions.Reactions{}.Applied(reactions.Change{Reaction: skull, Reactor: ada, On: true})
-	off := on.Applied(reactions.Change{Reaction: skull, Reactor: ada, On: false})
+	on := reactions.Reactions{}.Applied(reactions.On("", skull, ada, time.Time{}))
+	off := on.Applied(reactions.Off("", skull, ada, time.Time{}))
 
 	assert.True(t, on.Given(skull, ada))
 	assert.False(t, off.Given(skull, ada))
@@ -106,12 +107,12 @@ func TestNamedShowsWhoEachAccountIsNow(t *testing.T) {
 	given := reactions.Reactions{}.With(clown, reactions.ReactorOf(one)).With(clown, reactions.ReactorOf(two))
 
 	named := reactions.Named(given.Tally(reactions.NoReactor), map[messages.AccountID]messages.Author{
-		one: {Name: "Ada"},
-		two: {Name: "Bo"},
+		one: messages.AuthorOf("Ada", false, 0, 0, messages.Title{}),
+		two: messages.AuthorOf("Bo", false, 0, 0, messages.Title{}),
 	})
 
-	assert.Equal(t, []string{"Ada", "Bo"}, named[0].Names, "oldest first")
-	assert.Equal(t, 2, named[0].Count)
+	assert.Equal(t, []string{"Ada", "Bo"}, named[0].Names(), "oldest first")
+	assert.Equal(t, 2, named[0].Total())
 }
 
 func TestNamedCountsWhoItCannotNameWithoutNamingThem(t *testing.T) {
@@ -122,11 +123,11 @@ func TestNamedCountsWhoItCannotNameWithoutNamingThem(t *testing.T) {
 		With(clown, bo)
 
 	named := reactions.Named(given.Tally(reactions.NoReactor), map[messages.AccountID]messages.Author{
-		two: {Name: "Bo"},
+		two: messages.AuthorOf("Bo", false, 0, 0, messages.Title{}),
 	})
 
-	assert.Equal(t, []string{"Bo"}, named[0].Names, "a deleted account, and a guest tag from before accounts")
-	assert.Equal(t, 3, named[0].Count, "the count still says how many gave it")
+	assert.Equal(t, []string{"Bo"}, named[0].Names(), "a deleted account, and a guest tag from before accounts")
+	assert.Equal(t, 3, named[0].Total(), "the count still says how many gave it")
 }
 
 func TestAccountsOfIsEveryoneUnderTheCountsOnce(t *testing.T) {

@@ -26,7 +26,7 @@ func (s *Store) Append(ctx context.Context, announcement announcements.Announcem
 		INSERT INTO announcements (id, kind, payload, announced_at)
 		VALUES ($1, $2, $3, $4)
 	`,
-		uuid.UUID(announcement.ID), string(announcement.Kind), string(announcement.Payload), announcement.At.UTC(),
+		uuid.UUID(announcement.ID()), string(announcement.Kind()), string(announcement.Payload()), announcement.At().UTC(),
 	); err != nil {
 		return fmt.Errorf("failed to insert an announcement: %w", err)
 	}

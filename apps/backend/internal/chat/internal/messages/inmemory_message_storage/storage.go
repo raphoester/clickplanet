@@ -42,7 +42,7 @@ func (s *Storage) Shown(_ context.Context, id messages.MessageID, since time.Tim
 	defer s.mu.Unlock()
 
 	return slices.ContainsFunc(s.recent(since, limit), func(message messages.Message) bool {
-		return message.ID == id
+		return message.ID() == id
 	}), nil
 }
 
@@ -52,7 +52,7 @@ func (s *Storage) DeleteBefore(_ context.Context, cutoff time.Time) (int64, erro
 
 	before := len(s.records)
 	s.records = slices.DeleteFunc(s.records, func(record messages.Record) bool {
-		return record.Message.SentAt.Before(cutoff)
+		return record.Message().SentAt().Before(cutoff)
 	})
 	return int64(before - len(s.records)), nil
 }
@@ -60,8 +60,8 @@ func (s *Storage) DeleteBefore(_ context.Context, cutoff time.Time) (int64, erro
 func (s *Storage) recent(since time.Time, limit int) []messages.Message {
 	var recent []messages.Message
 	for _, record := range s.records {
-		if !record.Message.SentAt.Before(since) {
-			recent = append(recent, record.Message)
+		if !record.Message().SentAt().Before(since) {
+			recent = append(recent, record.Message())
 		}
 	}
 	return recent[max(0, len(recent)-limit):]
