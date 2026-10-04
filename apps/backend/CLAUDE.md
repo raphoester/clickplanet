@@ -442,7 +442,8 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
 - **Independent parts run at once** (`errgroup`): the messages and their authors, and the announcements.
 - **The handler only maps**: the caller off the context, the query, the header. It declares the query as its port.
   What several queries share and that knows only the wire is in `playerv1controller/playerread` (`KeptColor`,
-  `Career`); `playermessage` encodes domain values, so only the commands and the adapters use it.
+  `Career`) and `authv1controller/authread` (`TokenHash`, `Now`, `LiveSession`: the session a cookie holds, for
+  `GetMe` and `GetCaller`); `playermessage` encodes domain values, so only the commands and the adapters use it.
 - **It reads the write side's tables**, so its tests seed through the real stores (`postgres_message_store`,
   `postgres_reaction_store`, `postgres_announcement_store`) and assert the proto it answers. A store's own contract
   suite covers only what the write side reads back.
