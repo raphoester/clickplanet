@@ -26,13 +26,7 @@ func (s *StorageContractSuite) SetupTest() {
 var contractAccount = AccountID{15: 1}
 
 func contractRecord(text string, at time.Time) Record {
-	return NewRecord(Message{
-		ID:        MessageID("id-" + text),
-		SentAt:    at,
-		Account:   contractAccount,
-		CountryID: "fr",
-		Text:      text,
-	}, "some-uuid", "203.0.113.7", "test-agent")
+	return NewRecord(NewMessage(MessageID("id-"+text), at, contractAccount, "fr", text), "some-uuid", "203.0.113.7", "test-agent")
 }
 
 func (s *StorageContractSuite) append(texts ...string) {

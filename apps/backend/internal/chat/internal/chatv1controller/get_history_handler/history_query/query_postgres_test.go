@@ -67,9 +67,14 @@ type testSuite struct {
 	authors       *fakeAuthors
 }
 
+const (
+	historySize      = 2
+	historyRetention = 24 * time.Hour
+)
+
 var (
 	now    = time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
-	window = messages.Window{Size: 2, Retention: 24 * time.Hour}
+	window = messages.NewWindow(historySize, historyRetention)
 
 	ada = messages.AccountID{15: 1}
 	bob = messages.AccountID{15: 2}
@@ -100,7 +105,7 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) query() *history_query.PostgresQuery {
-	return history_query.NewPostgresQuery(s.db, s.authors, cptime.NewFixedClock(now), window)
+	return history_query.NewPostgresQuery(s.db, s.authors, cptime.NewFixedClock(now), historySize, historyRetention)
 }
 
 func (s *testSuite) history(viewer messages.AccountID) *chatv1.GetHistoryResponse {
@@ -110,9 +115,7 @@ func (s *testSuite) history(viewer messages.AccountID) *chatv1.GetHistoryRespons
 }
 
 func (s *testSuite) sentAt(text string, account messages.AccountID, at time.Time) {
-	s.Require().NoError(s.messages.Append(s.T().Context(), messages.NewRecord(messages.Message{
-		ID: messages.MessageID(text), SentAt: at, Account: account, CountryID: "fr", Text: text,
-	}, "browser-1", "203.0.113.7", "test-agent")))
+	s.Require().NoError(s.messages.Append(s.T().Context(), messages.NewRecord(messages.NewMessage(messages.MessageID(text), at, account, "fr", text), "browser-1", "203.0.113.7", "test-agent")))
 }
 
 func (s *testSuite) sent(text string, ago time.Duration) {
@@ -120,15 +123,15 @@ func (s *testSuite) sent(text string, ago time.Duration) {
 }
 
 func (s *testSuite) reacted(text string, reaction reactions.Reaction, reactor reactions.Reactor, on bool, at time.Time) {
-	s.Require().NoError(s.reactions.Save(s.T().Context(), reactions.Change{
-		MessageID: messages.MessageID(text), Reaction: reaction, Reactor: reactor, On: on, At: at,
-	}))
+	change := reactions.Off(messages.MessageID(text), reaction, reactor, at)
+	if on {
+		change = reactions.On(messages.MessageID(text), reaction, reactor, at)
+	}
+	s.Require().NoError(s.reactions.Save(s.T().Context(), change))
 }
 
 func (s *testSuite) announced(id announcements.AnnouncementID, kind announcements.Kind, at time.Time) {
-	s.Require().NoError(s.announcements.Append(s.T().Context(), announcements.Announcement{
-		ID: id, Kind: kind, At: at, Payload: json.RawMessage(`{"country":"fr","ground":"de","tile":42,"cleared":3}`),
-	}))
+	s.Require().NoError(s.announcements.Append(s.T().Context(), announcements.NewAnnouncement(id, kind, at, json.RawMessage(`{"country":"fr","ground":"de","tile":42,"cleared":3}`))))
 }
 
 func texts(answer *chatv1.GetHistoryResponse) []string {
@@ -232,10 +235,7 @@ func (s *testSuite) TestADeletedAccountIsNoLongerNamed() {
 }
 
 func (s *testSuite) TestAMessageFromBeforeAccountsKeepsTheNameItCarries() {
-	s.Require().NoError(s.messages.Append(s.T().Context(), messages.NewRecord(messages.Message{
-		ID: "legacy", SentAt: now.Add(-time.Hour), CountryID: "fr", Text: "legacy",
-		AuthorName: "guest_Bob", AuthorAdmin: true,
-	}, "browser-1", "203.0.113.7", "test-agent")))
+	s.Require().NoError(s.messages.Append(s.T().Context(), messages.NewRecord(messages.NewMessage("legacy", now.Add(-time.Hour), messages.NoAccount, "fr", "legacy").Named(messages.AuthorOf("guest_Bob", true, 0, 0, messages.Title{})), "browser-1", "203.0.113.7", "test-agent")))
 
 	message := s.history(ada).GetMessages()[0]
 
@@ -415,6 +415,25 @@ func (s *testSuite) TestTheHistorySaysUntilWhenTheViewerSawTheChat() {
 
 	s.Equal(at.UnixMilli(), s.history(ada).GetSeenUntilUnixMs())
 	s.Zero(s.history(bob).GetSeenUntilUnixMs(), "an account with no mark has seen nothing")
+}
+
+func (s *testSuite) TestTheSeenMarkOnlyMovesForward() {
+	later := now.Add(-time.Minute)
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, later))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, later.Add(-time.Hour)))
+
+	s.Equal(later.UnixMilli(), s.history(ada).GetSeenUntilUnixMs())
+}
+
+func (s *testSuite) TestADeletedSeenMarkIsGoneAndOnlyThatOne() {
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, now))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), bob, now))
+
+	s.Require().NoError(s.seen.DeleteSeen(s.T().Context(), ada))
+	s.Require().NoError(s.seen.DeleteSeen(s.T().Context(), ada), "deleting no mark is no error")
+
+	s.Zero(s.history(ada).GetSeenUntilUnixMs())
+	s.Equal(now.UnixMilli(), s.history(bob).GetSeenUntilUnixMs())
 }
 
 func (s *testSuite) TestNoViewerHasSeenNothing() {

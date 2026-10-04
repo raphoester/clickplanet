@@ -30,8 +30,8 @@ func TestATakeIsCountedAtTheTimeItWasTaken(t *testing.T) {
 	require.NoError(t, err)
 	stats, err := store.Stats(t.Context(), id)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(1), stats.TilesTaken)
-	assert.Equal(t, players.DayOf(at), stats.StreakLastDay)
+	assert.Equal(t, uint64(1), stats.TilesTaken())
+	assert.Equal(t, players.DayOf(at), stats.Streak().LastDay())
 }
 
 func TestAnEventWithNoAccountOrNoTimeIsRefused(t *testing.T) {

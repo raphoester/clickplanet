@@ -37,7 +37,7 @@ func TestAGuestEarnsNothingAndNoStoreIsRead(t *testing.T) {
 	store := inmemory_title_store.New()
 	store.FailWith(errors.New("postgres is down"))
 
-	unheld, err := titles.NewBook(store, catalog).Unheld(t.Context(), ada, titles.Career{Stats: players.Stats{TilesTaken: 3}})
+	unheld, err := titles.NewBook(store, catalog).Unheld(t.Context(), ada, titles.CareerOf(players.StatsOf(players.AccountID{}, 3, players.StreakOf(0, players.Day{}), 0, 0), players.Account{}))
 
 	require.NoError(t, err)
 	assert.Empty(t, unheld)
@@ -57,28 +57,7 @@ func TestShownIsWhatTheCatalogShowsOfTheTitlesHeld(t *testing.T) {
 	shown, err := titles.NewBook(holding(t, "badge", "low", "mid"), tracks).Shown(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, []titles.Standing{{Title: badge}, {Title: mid, Place: place(ladder, 2)}}, shown)
-}
-
-func TestShownByIsWhatTheCatalogShowsOfEachAccountsTitles(t *testing.T) {
-	store := holding(t, "badge", "low", "mid")
-	bob := players.AccountID{15: 2}
-	require.NoError(t, store.Grant(t.Context(), titles.Holdings{bob: {"low"}}, at))
-
-	shown, err := titles.NewBook(store, tracks).ShownBy(t.Context(), []players.AccountID{ada, bob, {15: 3}})
-
-	require.NoError(t, err)
-	assert.Equal(t, map[players.AccountID][]titles.Standing{
-		ada: {{Title: badge}, {Title: mid, Place: place(ladder, 2)}},
-		bob: {{Title: low, Place: place(ladder, 1)}},
-	}, shown)
-}
-
-func TestProgressIsEachTrackMeasuredOnTheCareerAgainstTheTitlesHeld(t *testing.T) {
-	progress, err := titles.NewBook(holding(t, "badge", "low"), tracks).Progress(t.Context(), ada, tiles(3))
-
-	require.NoError(t, err)
-	assert.Equal(t, tracks.Progress(tiles(3), titles.IDs{"badge", "low"}), progress)
+	assert.Equal(t, []standingView{alone(badge), ranked(mid, ladder, 2)}, viewsOf(shown))
 }
 
 func TestAStoreFailureIsAnError(t *testing.T) {
@@ -87,10 +66,6 @@ func TestAStoreFailureIsAnError(t *testing.T) {
 	book := titles.NewBook(store, tracks)
 
 	_, err := book.Shown(t.Context(), ada)
-	require.Error(t, err)
-	_, err = book.ShownBy(t.Context(), []players.AccountID{ada})
-	require.Error(t, err)
-	_, err = book.Progress(t.Context(), ada, tiles(3))
 	require.Error(t, err)
 	_, err = book.Unheld(t.Context(), ada, tiles(3))
 	assert.Error(t, err)

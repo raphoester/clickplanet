@@ -34,5 +34,5 @@ func (u *UseCase) Execute(ctx context.Context, account players.AccountID, title 
 	if err != nil {
 		return titles.Standing{}, fmt.Errorf("failed to read the worn title: %w", err)
 	}
-	return showcase.Worn, nil
+	return showcase.Worn(), nil
 }

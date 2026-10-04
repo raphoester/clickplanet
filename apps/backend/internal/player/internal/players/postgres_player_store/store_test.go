@@ -49,7 +49,7 @@ func (s *testSuite) TestTheTableRefusesANameThatBreaksTheRule() {
 		"GUEST_ada",
 	} {
 		err := s.store.SaveProfile(s.T().Context(),
-			players.Profile{Account: players.AccountID{15: 1}, Name: players.Name(name), UpdatedAt: at})
+			players.NewProfile(players.AccountID{15: 1}, players.Name(name), at))
 
 		s.Require().Error(err, "%q", name)
 		s.NotErrorIs(err, players.ErrNameTaken, "%q", name)
@@ -62,7 +62,7 @@ func (s *testSuite) TestTheTableTakesTheNamesTheRuleTakes() {
 		s.Require().NoError(err)
 
 		s.Require().NoError(s.store.SaveProfile(s.T().Context(),
-			players.Profile{Account: players.AccountID{15: byte(i + 1)}, Name: name, UpdatedAt: at}), "%q", value)
+			players.NewProfile(players.AccountID{15: byte(i + 1)}, name, at)), "%q", value)
 	}
 }
 
@@ -88,5 +88,5 @@ func (s *testSuite) TestConcurrentFirstTakesAreAllCounted() {
 
 	stats, err := s.store.Stats(s.T().Context(), players.AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(uint64(20), stats.TilesTaken, "no take overwrites another, the first ones included")
+	s.Equal(uint64(20), stats.TilesTaken(), "no take overwrites another, the first ones included")
 }

@@ -39,12 +39,14 @@ func TestAnAnnouncementIsKeptThenPublished(t *testing.T) {
 	require.NoError(t, err)
 	kept := store.Kept()
 	require.Len(t, kept, 1)
-	assert.NotEmpty(t, kept[0].ID)
-	assert.Equal(t, announcements.KindBomb, kept[0].Kind)
-	assert.Equal(t, at, kept[0].At)
+	assert.NotEmpty(t, kept[0].ID())
+	assert.Equal(t, announcements.KindBomb, kept[0].Kind())
+	assert.Equal(t, at, kept[0].At())
 
 	require.Len(t, updates.updates, 1)
-	assert.Equal(t, kept[0], *updates.updates[0].Announcement)
+	published, announced := updates.updates[0].Announcement()
+	require.True(t, announced)
+	assert.Equal(t, kept[0], published)
 }
 
 func TestAnAnnouncementThatCannotBeKeptIsNotPublished(t *testing.T) {
@@ -54,5 +56,17 @@ func TestAnAnnouncementThatCannotBeKeptIsNotPublished(t *testing.T) {
 		announce_usecase.In{Kind: announcements.KindBomb, At: at, Payload: json.RawMessage(`{}`)})
 
 	require.Error(t, err)
+	assert.Empty(t, updates.updates)
+}
+
+func TestAnAnnouncementOfAKindNobodyKnowsIsRefusedAndNeitherKeptNorPublished(t *testing.T) {
+	store := inmemory_announcement_storage.New()
+	updates := &recordedFeed{}
+
+	err := announce_usecase.New(store, updates).Execute(t.Context(),
+		announce_usecase.In{Kind: "meteor", At: at, Payload: json.RawMessage(`{}`)})
+
+	require.ErrorIs(t, err, announcements.ErrUnknownKind)
+	assert.Empty(t, store.Kept())
 	assert.Empty(t, updates.updates)
 }

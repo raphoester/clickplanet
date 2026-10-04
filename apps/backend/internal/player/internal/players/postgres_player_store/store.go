@@ -39,31 +39,7 @@ func (s *Store) Profile(ctx context.Context, account players.AccountID) (players
 	if err != nil {
 		return players.Profile{}, fmt.Errorf("failed to read the profile: %w", err)
 	}
-	return players.Profile{
-		Account: account, Name: players.Name(name), UpdatedAt: updatedAt.UTC(), Admin: admin, Color: players.Color(color),
-	}, nil
-}
-
-func (s *Store) ProfileNamed(ctx context.Context, name players.Name) (players.Profile, error) {
-	var (
-		account   uuid.UUID
-		held      string
-		updatedAt time.Time
-		admin     bool
-		color     int32
-	)
-	err := s.db.QueryRowContext(ctx, `SELECT account_id, name, updated_at, admin, color FROM profiles WHERE name_folded = $1`, name.Folded()).
-		Scan(&account, &held, &updatedAt, &admin, &color)
-	if errors.Is(err, sql.ErrNoRows) {
-		return players.Profile{}, players.ErrNoProfile
-	}
-	if err != nil {
-		return players.Profile{}, fmt.Errorf("failed to read the profile by name: %w", err)
-	}
-	return players.Profile{
-		Account: players.AccountID(account), Name: players.Name(held), UpdatedAt: updatedAt.UTC(), Admin: admin,
-		Color: players.Color(color),
-	}, nil
+	return players.ProfileOf(account, players.Name(name), updatedAt.UTC(), admin, players.Color(color)), nil
 }
 
 const uniqueNameIndex = "profiles_name_key"
@@ -75,7 +51,7 @@ func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error 
 		INSERT INTO profiles (account_id, name, name_folded, updated_at) VALUES ($1, $2, $3, $4)
 		ON CONFLICT (account_id) DO UPDATE SET
 			name = excluded.name, name_folded = excluded.name_folded, updated_at = excluded.updated_at
-	`, uuid.UUID(profile.Account), string(profile.Name), profile.Name.Folded(), profile.UpdatedAt.UTC())
+	`, uuid.UUID(profile.Account()), string(profile.Name()), profile.Name().Folded(), profile.UpdatedAt().UTC())
 
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
@@ -91,7 +67,7 @@ func (s *Store) CreateProfile(ctx context.Context, profile players.Profile) erro
 	result, err := s.db.ExecContext(ctx, `
 		INSERT INTO profiles (account_id, name, name_folded, updated_at) VALUES ($1, $2, $3, $4)
 		ON CONFLICT (account_id) DO NOTHING
-	`, uuid.UUID(profile.Account), string(profile.Name), profile.Name.Folded(), profile.UpdatedAt.UTC())
+	`, uuid.UUID(profile.Account()), string(profile.Name()), profile.Name().Folded(), profile.UpdatedAt().UTC())
 
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
@@ -188,7 +164,8 @@ func (s *Store) record(ctx context.Context, account players.AccountID, change fu
 
 	current, err := statsOf(tx.QueryRowContext(ctx, `SELECT `+statsColumns+` FROM stats WHERE account_id = $1`, uuid.UUID(account)))
 	if errors.Is(err, players.ErrNoStats) {
-		current, err = players.Stats{Account: account}, nil
+		current = players.NewStats(account)
+		err = nil
 	}
 	if err != nil {
 		return err
@@ -204,9 +181,9 @@ func (s *Store) record(ctx context.Context, account players.AccountID, change fu
 			streak_best = excluded.streak_best,
 			streak_last_day = excluded.streak_last_day,
 			messages_sent = excluded.messages_sent
-	`, uuid.UUID(account), int64(next.TilesTaken), //nolint:gosec // one a tile taken: never past int64.
-		int64(next.StreakCurrent), int64(next.StreakBest), nullableDay(next.StreakLastDay),
-		int64(next.MessagesSent)); err != nil { //nolint:gosec // one a message sent: never past int64.
+	`, uuid.UUID(account), int64(next.TilesTaken()), //nolint:gosec // one a tile taken: never past int64.
+		int64(next.Streak().Days()), int64(next.StreakBest()), nullableDay(next.Streak().LastDay()),
+		int64(next.MessagesSent())); err != nil { //nolint:gosec // one a message sent: never past int64.
 		return fmt.Errorf("failed to save the stats: %w", err)
 	}
 
@@ -267,67 +244,6 @@ func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (e
 	return nil
 }
 
-func (s *Store) Authors(
-	ctx context.Context,
-	accounts []players.AccountID,
-) (map[players.AccountID]players.Author, error) {
-	authors := make(map[players.AccountID]players.Author, len(accounts))
-	if len(accounts) == 0 {
-		return authors, nil
-	}
-
-	ids := make([]string, len(accounts))
-	for i, account := range accounts {
-		ids[i] = account.String()
-	}
-
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT asked.account_id, COALESCE(p.name, ''), COALESCE(p.admin, false), COALESCE(p.color, 0), COALESCE(g.code, ''),
-			COALESCE(st.streak_current, 0), st.streak_last_day
-		FROM unnest($1::uuid[]) AS asked(account_id)
-		LEFT JOIN profiles p ON p.account_id = asked.account_id
-		LEFT JOIN guest_codes g ON g.account_id = asked.account_id
-		LEFT JOIN stats st ON st.account_id = asked.account_id
-	`, pq.Array(ids))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the authors: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var (
-			account uuid.UUID
-			name    string
-			admin   bool
-			color   int32
-			code    string
-			streak  int64
-			lastDay sql.NullTime
-		)
-		if err := rows.Scan(&account, &name, &admin, &color, &code, &streak, &lastDay); err != nil {
-			return nil, fmt.Errorf("failed to read an author: %w", err)
-		}
-		if name == "" && code == "" {
-			continue
-		}
-		author := players.Author{
-			Name:   players.DisplayNameOf(players.Name(name), players.GuestCode(code)),
-			Guest:  name == "",
-			Admin:  name != "" && admin,
-			Color:  players.Color(color),
-			Streak: players.Streak{Days: uint32(streak)}, //nolint:gosec // CHECK (streak_current >= 0), and one a day.
-		}
-		if lastDay.Valid {
-			author.Streak.LastDay = players.DayOf(lastDay.Time)
-		}
-		authors[players.AccountID(account)] = author
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the authors: %w", err)
-	}
-	return authors, nil
-}
-
 func (s *Store) Names(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]players.Name, error) {
 	names := make(map[players.AccountID]players.Name, len(accounts))
 	if len(accounts) == 0 {
@@ -379,17 +295,17 @@ func statsOf(row scanner) (players.Stats, error) {
 		return players.Stats{}, fmt.Errorf("failed to read the stats: %w", err)
 	}
 
-	stats := players.Stats{
-		Account:       players.AccountID(account),
-		TilesTaken:    uint64(tiles),    //nolint:gosec // CHECK (tiles_taken >= 0).
-		StreakCurrent: uint32(current),  //nolint:gosec // CHECK (streak_current >= 0), and one a day.
-		StreakBest:    uint32(best),     //nolint:gosec // as above.
-		MessagesSent:  uint64(messages), //nolint:gosec // CHECK (messages_sent >= 0).
-	}
+	var day players.Day
 	if lastDay.Valid {
-		stats.StreakLastDay = players.DayOf(lastDay.Time)
+		day = players.DayOf(lastDay.Time)
 	}
-	return stats, nil
+	return players.StatsOf(
+		players.AccountID(account),
+		uint64(tiles),                          //nolint:gosec // CHECK (tiles_taken >= 0).
+		players.StreakOf(uint32(current), day), //nolint:gosec // CHECK (streak_current >= 0), and one a day.
+		uint32(best),                           //nolint:gosec // as above.
+		uint64(messages),                       //nolint:gosec // CHECK (messages_sent >= 0).
+	), nil
 }
 
 func nullableDay(day players.Day) sql.NullString {

@@ -2,15 +2,18 @@ package listen_for_events_handler_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 )
 
 type recordingStream struct {
@@ -22,19 +25,22 @@ func (r *recordingStream) Send(event *playerv1.PlayerEvent) error {
 	return nil
 }
 
-var ada = presence.Entry{Key: "k1", Name: "Ada_L", Country: "fr"}
+var ada = presence.EntryOf(presence.NewVisit(
+	players.AccountID{15: 1},
+	wearing.AuthorOf(players.NamedAuthor(players.NewProfile(players.AccountID{15: 1}, "Ada_L", time.Time{}), players.Streak{}), titles.Standing{}),
+	"", "fr", time.Time{},
+).Keyed("k1"))
 
 func TestEachFrameIsItsCaseOfTheEnvelope(t *testing.T) {
 	stream := &recordingStream{}
 	sink := listen_for_events_handler.NewSink(stream)
 
 	require.NoError(t, sink.SendRoster([]presence.Entry{ada}))
-	require.NoError(t, sink.SendChange(presence.Change{Entry: ada}))
-	require.NoError(t, sink.SendChange(presence.Change{Entry: ada, Left: true}))
+	require.NoError(t, sink.SendChange(presence.ChangeOf(ada)))
+	require.NoError(t, sink.SendChange(presence.DepartureOf(ada)))
 	require.NoError(t, sink.SendHeartbeat())
-	require.NoError(t, sink.SendTitleEarned(titles.Standing{
-		Title: titles.Conqueror{}, Place: titles.Place{Track: "conquest", TrackName: "Conquest", Number: 4, Count: 5},
-	}))
+	conqueror, _ := titles.NewCatalog().StandingOf("conqueror")
+	require.NoError(t, sink.SendTitleEarned(conqueror))
 
 	entry := &playerv1.RosterEntry{Key: "k1", Name: "Ada_L", CountryId: "fr"}
 	want := []*playerv1.PlayerEvent{

@@ -11,15 +11,15 @@ import (
 
 func Encode(message messages.Message, counts []reactions.Count, version uint64) *chatv1.ChatMessage {
 	return &chatv1.ChatMessage{
-		Id:               string(message.ID),
-		SentAtUnixMs:     message.SentAt.UnixMilli(),
-		AuthorName:       message.AuthorName,
-		AuthorAdmin:      message.AuthorAdmin,
-		AuthorColor:      playerv1.NameColor(message.AuthorColor),
-		AuthorStreak:     message.AuthorStreak,
-		AuthorTitle:      encodedTitle(message.AuthorTitle),
-		CountryId:        message.CountryID,
-		Text:             message.Text,
+		Id:               string(message.ID()),
+		SentAtUnixMs:     message.SentAt().UnixMilli(),
+		AuthorName:       message.Author().Name(),
+		AuthorAdmin:      message.Author().Admin(),
+		AuthorColor:      playerv1.NameColor(message.Author().Color()),
+		AuthorStreak:     message.Author().Streak(),
+		AuthorTitle:      encodedTitle(message.Author().Title()),
+		CountryId:        message.Country(),
+		Text:             message.Text(),
 		Reactions:        EncodeCounts(counts),
 		ReactionsVersion: version,
 	}
@@ -30,13 +30,13 @@ func encodedTitle(title messages.Title) *playerv1.Title {
 		return nil
 	}
 
-	encoded := &playerv1.Title{Id: title.ID, Name: title.Name}
-	if !title.Rank.Empty() {
+	encoded := &playerv1.Title{Id: title.ID(), Name: title.Name()}
+	if rank := title.Rank(); !rank.Empty() {
 		encoded.Rank = &playerv1.Rank{
-			TrackId:   title.Rank.TrackID,
-			TrackName: title.Rank.TrackName,
-			Number:    title.Rank.Number,
-			Count:     title.Rank.Count,
+			TrackId:   rank.TrackID(),
+			TrackName: rank.TrackName(),
+			Number:    rank.Number(),
+			Count:     rank.Count(),
 		}
 	}
 	return encoded
@@ -48,10 +48,10 @@ func EncodeCounts(counts []reactions.Count) []*chatv1.ReactionCount {
 	encoded := make([]*chatv1.ReactionCount, 0, len(counts))
 	for _, count := range counts {
 		encoded = append(encoded, &chatv1.ReactionCount{
-			Reaction: chatv1.Reaction(count.Reaction),
-			Count:    uint32(count.Count), //nolint:gosec // a count of reactors, never negative.
-			Mine:     count.Mine,
-			Reactors: firstNamed(count.Names),
+			Reaction: chatv1.Reaction(count.Reaction()),
+			Count:    uint32(count.Total()), //nolint:gosec // a count of reactors, never negative.
+			Mine:     count.Mine(),
+			Reactors: firstNamed(count.Names()),
 		})
 	}
 	return encoded

@@ -3,6 +3,7 @@ package chatmessage_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -17,7 +18,7 @@ const clown = reactions.Reaction(2)
 
 func TestACountCarriesWhoGaveItOldestFirst(t *testing.T) {
 	encoded := chatmessage.EncodeCounts([]reactions.Count{
-		{Reaction: clown, Count: 2, Mine: true, Names: []string{"Ada", "Bo"}},
+		reactions.CountOf(clown, 2, true, nil, []string{"Ada", "Bo"}),
 	})
 
 	assert.Equal(t, []string{"Ada", "Bo"}, encoded[0].GetReactors())
@@ -33,7 +34,7 @@ func TestTheNamesAreCutAtTheCapAndTheCountIsNot(t *testing.T) {
 	}
 
 	encoded := chatmessage.EncodeCounts([]reactions.Count{
-		{Reaction: clown, Count: len(names), Mine: false, Names: names},
+		reactions.CountOf(clown, len(names), false, nil, names),
 	})
 
 	assert.Len(t, encoded[0].GetReactors(), chatmessage.NamedReactors)
@@ -42,28 +43,24 @@ func TestTheNamesAreCutAtTheCapAndTheCountIsNot(t *testing.T) {
 }
 
 func TestACountNobodyIsNamedOnCarriesNoReactors(t *testing.T) {
-	encoded := chatmessage.EncodeCounts([]reactions.Count{{Reaction: clown, Count: 1}})
+	encoded := chatmessage.EncodeCounts([]reactions.Count{reactions.CountOf(clown, 1, false, nil, nil)})
 
 	assert.Empty(t, encoded[0].GetReactors(), "a reaction from before names were kept is only counted")
 }
 
 func TestAMessageCarriesItsAuthorsColorAndStreak(t *testing.T) {
-	encoded := chatmessage.Encode(messages.Message{
-		ID: "message-1", AuthorName: "Ada_L", AuthorColor: int32(playerv1.NameColor_NAME_COLOR_PINK), AuthorStreak: 12,
-	}, nil, 0)
+	encoded := chatmessage.Encode(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", "").Named(messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_PINK), 12, messages.Title{})), nil, 0)
 
 	assert.Equal(t, playerv1.NameColor_NAME_COLOR_PINK, encoded.GetAuthorColor())
 	assert.Equal(t, uint32(12), encoded.GetAuthorStreak())
 }
 
 func TestAMessageCarriesTheTitleItsAuthorWears(t *testing.T) {
-	settler := messages.Title{
-		ID: "settler", Name: "Settler", Rank: messages.Rank{TrackID: "conquest", TrackName: "Conquest", Number: 1, Count: 5},
-	}
+	settler := messages.TitleOf("settler", "Settler", messages.RankOf("conquest", "Conquest", 1, 5))
 
-	ranked := chatmessage.Encode(messages.Message{ID: "message-1", AuthorTitle: settler}, nil, 0)
-	standalone := chatmessage.Encode(messages.Message{ID: "message-2", AuthorTitle: messages.Title{ID: "og", Name: "OG"}}, nil, 0)
-	bare := chatmessage.Encode(messages.Message{ID: "message-3"}, nil, 0)
+	ranked := chatmessage.Encode(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", "").Named(messages.AuthorOf("", false, 0, 0, settler)), nil, 0)
+	standalone := chatmessage.Encode(messages.NewMessage("message-2", time.Time{}, messages.NoAccount, "", "").Named(messages.AuthorOf("", false, 0, 0, messages.TitleOf("og", "OG", messages.Rank{}))), nil, 0)
+	bare := chatmessage.Encode(messages.NewMessage("message-3", time.Time{}, messages.NoAccount, "", ""), nil, 0)
 
 	assert.Equal(t, "settler", ranked.GetAuthorTitle().GetId())
 	assert.Equal(t, "conquest", ranked.GetAuthorTitle().GetRank().GetTrackId())
@@ -71,4 +68,15 @@ func TestAMessageCarriesTheTitleItsAuthorWears(t *testing.T) {
 	assert.Equal(t, "OG", standalone.GetAuthorTitle().GetName())
 	assert.Nil(t, standalone.GetAuthorTitle().GetRank())
 	assert.Nil(t, bare.GetAuthorTitle())
+}
+
+func TestOneNameOverTheCapIsCutToo(t *testing.T) {
+	names := make([]string, 0, chatmessage.NamedReactors+1)
+	for i := range cap(names) {
+		names = append(names, fmt.Sprintf("player%d", i))
+	}
+
+	encoded := chatmessage.EncodeCounts([]reactions.Count{reactions.CountOf(clown, len(names), false, nil, names)})
+
+	assert.Equal(t, names[:chatmessage.NamedReactors], encoded[0].GetReactors())
 }

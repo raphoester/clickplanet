@@ -13,15 +13,14 @@ import (
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Authors interface {
-	Authors(ctx context.Context, accounts []messages.AccountID) (map[messages.AccountID]*playerv1.Author, error)
+	Authors(ctx context.Context, accounts []cpsession.AccountID) (map[cpsession.AccountID]*playerv1.Author, error)
 }
 
 const (
@@ -29,24 +28,27 @@ const (
 	NamedReactors = 20
 )
 
+var kinds = cpcolls.NewSet("bomb")
+
 var (
 	ErrUnknownReaction = errors.New("a kept reaction the proto does not name")
 	ErrUnknownKind     = errors.New("a kept announcement of a kind nobody knows")
 )
 
-func NewPostgresQuery(db cppg.Querier, authors Authors, clock cptime.Clock, window messages.Window) *PostgresQuery {
-	return &PostgresQuery{db: db, authors: authors, clock: clock, window: window}
+func NewPostgresQuery(db cppg.Querier, authors Authors, clock cptime.Clock, size int, retention time.Duration) *PostgresQuery {
+	return &PostgresQuery{db: db, authors: authors, clock: clock, size: size, retention: retention}
 }
 
 type PostgresQuery struct {
-	db      cppg.Querier
-	authors Authors
-	clock   cptime.Clock
-	window  messages.Window
+	db        cppg.Querier
+	authors   Authors
+	clock     cptime.Clock
+	size      int
+	retention time.Duration
 }
 
-func (q *PostgresQuery) History(ctx context.Context, viewer messages.AccountID) (*chatv1.GetHistoryResponse, error) {
-	since := q.window.Since(q.clock.Now())
+func (q *PostgresQuery) History(ctx context.Context, viewer cpsession.AccountID) (*chatv1.GetHistoryResponse, error) {
+	since := q.clock.Now().Add(-q.retention)
 
 	var (
 		shown     []*chatv1.ChatMessage
@@ -82,8 +84,8 @@ const seenMark = `
 	WHERE account_id = $1
 `
 
-func (q *PostgresQuery) seenUntil(ctx context.Context, viewer messages.AccountID) (int64, error) {
-	if viewer == messages.NoAccount {
+func (q *PostgresQuery) seenUntil(ctx context.Context, viewer cpsession.AccountID) (int64, error) {
+	if viewer == cpsession.NoAccount {
 		return 0, nil
 	}
 
@@ -148,7 +150,7 @@ const shownMessages = `
 type row struct {
 	id      string
 	sentAt  int64
-	account messages.AccountID
+	account cpsession.AccountID
 	name    string
 	admin   bool
 	country string
@@ -167,7 +169,7 @@ type count struct {
 func (q *PostgresQuery) shown(
 	ctx context.Context,
 	since time.Time,
-	viewer messages.AccountID,
+	viewer cpsession.AccountID,
 ) ([]*chatv1.ChatMessage, error) {
 	rows, err := q.rows(ctx, since, viewer)
 	if err != nil {
@@ -186,8 +188,8 @@ func (q *PostgresQuery) shown(
 	return shown, nil
 }
 
-func (q *PostgresQuery) rows(ctx context.Context, since time.Time, viewer messages.AccountID) ([]row, error) {
-	result, err := q.db.QueryContext(ctx, shownMessages, since, q.window.Size, nullable(viewer))
+func (q *PostgresQuery) rows(ctx context.Context, since time.Time, viewer cpsession.AccountID) ([]row, error) {
+	result, err := q.db.QueryContext(ctx, shownMessages, since, q.size, nullable(viewer))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the chat history: %w", err)
 	}
@@ -207,7 +209,7 @@ func (q *PostgresQuery) rows(ctx context.Context, since time.Time, viewer messag
 			return nil, fmt.Errorf("failed to scan a message of the chat history: %w", err)
 		}
 		if account.Valid {
-			each.account = messages.AccountID(account.UUID)
+			each.account = cpsession.AccountID(account.UUID)
 		}
 		if each.counts, err = countsOf(counts); err != nil {
 			return nil, fmt.Errorf("failed to read the reactions to message %q: %w", each.id, err)
@@ -220,8 +222,8 @@ func (q *PostgresQuery) rows(ctx context.Context, since time.Time, viewer messag
 	return rows, nil
 }
 
-func nullable(account messages.AccountID) uuid.NullUUID {
-	return uuid.NullUUID{UUID: uuid.UUID(account), Valid: account != messages.NoAccount}
+func nullable(account cpsession.AccountID) uuid.NullUUID {
+	return uuid.NullUUID{UUID: uuid.UUID(account), Valid: account != cpsession.NoAccount}
 }
 
 func countsOf(encoded []byte) ([]count, error) {
@@ -237,11 +239,11 @@ func countsOf(encoded []byte) ([]count, error) {
 	return counts, nil
 }
 
-func everyone(rows []row) []messages.AccountID {
-	seen := cpcolls.NewSet[messages.AccountID]()
-	accounts := make([]messages.AccountID, 0, len(rows))
-	add := func(account messages.AccountID) {
-		if account == messages.NoAccount || seen.Contains(account) {
+func everyone(rows []row) []cpsession.AccountID {
+	seen := cpcolls.NewSet[cpsession.AccountID]()
+	accounts := make([]cpsession.AccountID, 0, len(rows))
+	add := func(account cpsession.AccountID) {
+		if account == cpsession.NoAccount || seen.Contains(account) {
 			return
 		}
 		seen.Add(account)
@@ -254,14 +256,14 @@ func everyone(rows []row) []messages.AccountID {
 	for _, row := range rows {
 		for _, each := range row.counts {
 			for _, account := range each.Accounts {
-				add(messages.AccountID(account))
+				add(cpsession.AccountID(account))
 			}
 		}
 	}
 	return accounts
 }
 
-func messageOf(row row, named map[messages.AccountID]*playerv1.Author) *chatv1.ChatMessage {
+func messageOf(row row, named map[cpsession.AccountID]*playerv1.Author) *chatv1.ChatMessage {
 	message := &chatv1.ChatMessage{
 		Id:               row.id,
 		SentAtUnixMs:     row.sentAt,
@@ -271,7 +273,7 @@ func messageOf(row row, named map[messages.AccountID]*playerv1.Author) *chatv1.C
 		ReactionsVersion: row.version,
 	}
 
-	if row.account == messages.NoAccount {
+	if row.account == cpsession.NoAccount {
 		message.AuthorName = row.name
 		message.AuthorAdmin = row.admin
 		return message
@@ -291,7 +293,7 @@ func messageOf(row row, named map[messages.AccountID]*playerv1.Author) *chatv1.C
 	return message
 }
 
-func reactionsOf(counts []count, named map[messages.AccountID]*playerv1.Author) []*chatv1.ReactionCount {
+func reactionsOf(counts []count, named map[cpsession.AccountID]*playerv1.Author) []*chatv1.ReactionCount {
 	encoded := make([]*chatv1.ReactionCount, 0, len(counts))
 	for _, each := range counts {
 		encoded = append(encoded, &chatv1.ReactionCount{
@@ -304,13 +306,13 @@ func reactionsOf(counts []count, named map[messages.AccountID]*playerv1.Author) 
 	return encoded
 }
 
-func namesOf(accounts []uuid.UUID, named map[messages.AccountID]*playerv1.Author) []string {
+func namesOf(accounts []uuid.UUID, named map[cpsession.AccountID]*playerv1.Author) []string {
 	names := make([]string, 0, min(len(accounts), NamedReactors))
 	for _, account := range accounts {
 		if len(names) == NamedReactors {
 			break
 		}
-		if author, known := named[messages.AccountID(account)]; known {
+		if author, known := named[cpsession.AccountID(account)]; known {
 			names = append(names, author.GetName())
 		}
 	}
@@ -342,7 +344,7 @@ const shownAnnouncements = `
 `
 
 func (q *PostgresQuery) announced(ctx context.Context, since time.Time) ([]*chatv1.Announcement, error) {
-	result, err := q.db.QueryContext(ctx, shownAnnouncements, since, q.window.Size)
+	result, err := q.db.QueryContext(ctx, shownAnnouncements, since, q.size)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the chat announcements: %w", err)
 	}
@@ -356,7 +358,7 @@ func (q *PostgresQuery) announced(ctx context.Context, since time.Time) ([]*chat
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan a chat announcement: %w", err)
 		}
-		if !announcements.Kind(announcement.GetKind()).Known() {
+		if !kinds.Contains(announcement.GetKind()) {
 			return nil, fmt.Errorf("%w: %q", ErrUnknownKind, announcement.GetKind())
 		}
 		announced = append(announced, announcement)

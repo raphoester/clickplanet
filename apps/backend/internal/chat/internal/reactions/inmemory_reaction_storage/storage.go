@@ -35,17 +35,17 @@ func (s *Storage) Save(_ context.Context, change reactions.Change) error {
 	defer s.mu.Unlock()
 
 	same := func(each reactions.Change) bool {
-		return each.MessageID == change.MessageID && each.Reaction == change.Reaction && each.Reactor == change.Reactor
+		return each.MessageID() == change.MessageID() && each.Reaction() == change.Reaction() && each.Reactor() == change.Reactor()
 	}
-	if slices.ContainsFunc(s.given, same) == change.On {
+	if slices.ContainsFunc(s.given, same) == change.On() {
 		return nil
 	}
-	if change.On {
+	if change.On() {
 		s.given = append(s.given, change)
 	} else {
 		s.given = slices.DeleteFunc(s.given, same)
 	}
-	s.versions[change.MessageID] = version{number: s.versions[change.MessageID].number + 1, changedAt: change.At}
+	s.versions[change.MessageID()] = version{number: s.versions[change.MessageID()].number + 1, changedAt: change.At()}
 	return nil
 }
 
@@ -58,8 +58,8 @@ func (s *Storage) Reactions(
 
 	given := make(map[messages.MessageID]reactions.Reactions)
 	for _, change := range s.given {
-		if slices.Contains(ids, change.MessageID) {
-			given[change.MessageID] = given[change.MessageID].Applied(change)
+		if slices.Contains(ids, change.MessageID()) {
+			given[change.MessageID()] = given[change.MessageID()].Applied(change)
 		}
 	}
 	for id, version := range s.versions {
@@ -75,7 +75,7 @@ func (s *Storage) DeleteBefore(_ context.Context, cutoff time.Time) (int64, erro
 	defer s.mu.Unlock()
 
 	before := len(s.given)
-	s.given = slices.DeleteFunc(s.given, func(change reactions.Change) bool { return change.At.Before(cutoff) })
+	s.given = slices.DeleteFunc(s.given, func(change reactions.Change) bool { return change.At().Before(cutoff) })
 	maps.DeleteFunc(s.versions, func(_ messages.MessageID, version version) bool {
 		return version.changedAt.Before(cutoff)
 	})

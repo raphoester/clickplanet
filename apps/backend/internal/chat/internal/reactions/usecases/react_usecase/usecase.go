@@ -71,7 +71,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 
-	shown, err := u.shown.Shown(ctx, in.MessageID, u.window.Since(u.clock.Now()), u.window.Size)
+	shown, err := u.shown.Shown(ctx, in.MessageID, u.window.Since(u.clock.Now()), u.window.Size())
 	if err != nil {
 		return Out{}, fmt.Errorf("failed to read the message: %w", err)
 	}
@@ -87,7 +87,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return u.answer(ctx, current, reactor)
 	}
 
-	change := reactions.Change{MessageID: in.MessageID, Reaction: in.Reaction, Reactor: reactor, On: in.On, At: u.clock.Now()}
+	change := reactions.Off(in.MessageID, in.Reaction, reactor, u.clock.Now())
+	if in.On {
+		change = reactions.On(in.MessageID, in.Reaction, reactor, u.clock.Now())
+	}
 	if err := u.board.Save(ctx, change); err != nil {
 		return Out{}, fmt.Errorf("failed to save the reaction: %w", err)
 	}
@@ -97,12 +100,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, err
 	}
 	tally := next.TallyOf(in.MessageID)
-	named, err := u.authors.Authors(ctx, reactions.AccountsOf(tally.Counts))
+	named, err := u.authors.Authors(ctx, reactions.AccountsOf(tally.Counts()))
 	if err != nil {
 		return Out{}, fmt.Errorf("failed to read who reacted: %w", err)
 	}
-	tally.Counts = reactions.Named(tally.Counts, named)
-	u.publisher.Publish(feed.Update{Reactions: &tally})
+	u.publisher.Publish(feed.ReactionsChanged(tally.Named(named)))
 
 	return Out{Counts: reactions.Named(next.Tally(reactor), named), Version: next.Version()}, nil
 }

@@ -18,10 +18,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/rpc_account_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_authors_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_player_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_profile_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_account_usecase/renaming_name_account"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_accounts_usecase"
@@ -37,11 +33,19 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler/profile_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler/roster_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_roster_handler/roster_query/inmemory_roster"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_stats_handler/stats_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_titles_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_titles_handler/titles_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/inprocess_title_catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/leave_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/name_accounts_handler"
@@ -52,7 +56,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/inmemory_visit_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/forget_visit_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/get_roster_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/presence/usecases/move_visit_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/account_deleted_subscriber"
@@ -69,7 +72,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/award_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/award_titles_usecase/notifying_award_titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/forget_titles_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/get_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/listen_for_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/reconcile_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/reconcile_titles_usecase/audit_reconcile_titles"
@@ -136,9 +138,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	titleFeed := inprocess_title_feed.New()
 	wornTitleStore := postgres_worn_title_store.New(db)
 	wardrobe := wearing.NewWardrobe(wornTitleStore, titleBook, catalog)
+	titleCards := inprocess_title_catalog.New(catalog)
 
 	authors := get_author_usecase.New(store, players.NewGuestCodes(store, random_code_generator.Generator{}), wardrobe, clock)
-	manyAuthors := get_authors_usecase.New(store, wardrobe, clock)
 
 	visits := inmemory_visit_storage.New(clock)
 	generatedNames := players.NewGeneratedNames(store, random_name_generator.Generator{})
@@ -222,23 +224,23 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 
 	playerService := playerv1controller.PlayerService{
-		GetProfileHandler: get_profile_handler.New(get_profile_usecase.New(store)),
+		GetProfileHandler: get_profile_handler.New(profile_query.NewPostgresQuery(db)),
 		SetNameHandler: set_name_handler.New(
 			renaming_set_name.New(set_name_usecase.New(store, accounts, clock), visits),
 		),
 		SetColorHandler: set_color_handler.New(set_color_usecase.New(store)),
-		GetStatsHandler: get_stats_handler.New(get_stats_usecase.New(store, clock)),
+		GetStatsHandler: get_stats_handler.New(stats_query.NewPostgresQuery(db, clock)),
 		AnnounceHandler: announce_handler.New(
 			announce_usecase.New(authors, visits, cpcountries.New(), clock, tagSalt),
 		),
 		LeaveHandler:     leave_handler.New(forgetVisit),
-		GetRosterHandler: get_roster_handler.New(get_roster_usecase.New(visits, clock)),
+		GetRosterHandler: get_roster_handler.New(roster_query.NewMemoryQuery(inmemory_roster.New(visits, clock))),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat),
 			listen_for_titles_usecase.New(titleFeed, catalog),
 		),
-		GetPlayerHandler: get_player_handler.New(get_player_usecase.New(store, store, wardrobe, accounts, clock)),
-		GetTitlesHandler: get_titles_handler.New(get_titles_usecase.New(store, titleBook, wardrobe, clock)),
+		GetPlayerHandler: get_player_handler.New(player_query.NewPostgresQuery(db, titleCards, accounts, clock)),
+		GetTitlesHandler: get_titles_handler.New(titles_query.NewPostgresQuery(db, titleCards, clock)),
 		WearTitleHandler: wear_title_handler.New(dressing_wear_title.New(wear_title_usecase.New(wardrobe, clock), visits)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -250,7 +252,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internalService := playerv1controller.InternalService{
 		GetAuthorHandler:  get_author_handler.New(authors),
-		GetAuthorsHandler: get_authors_handler.New(manyAuthors),
+		GetAuthorsHandler: get_authors_handler.New(authors_query.NewPostgresQuery(db, titleCards, clock)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewInternalServiceHandler(internalService, options...)

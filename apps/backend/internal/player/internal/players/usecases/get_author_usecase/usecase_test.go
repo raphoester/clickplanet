@@ -29,7 +29,7 @@ var today = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 func store(t *testing.T) *inmemory_player_store.Store {
 	t.Helper()
 	store := inmemory_player_store.New()
-	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: time.Now()}))
+	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada_L", time.Now())))
 	return store
 }
 
@@ -57,7 +57,7 @@ func TestAnAccountWithAUsernameIsAnsweredWithIt(t *testing.T) {
 	author, err := useCase(store(t)).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, wearing.Author{Author: players.Author{Name: "Ada_L"}}, author)
+	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), titles.Standing{}), author)
 }
 
 func TestAnAdminIsSaidToBeOne(t *testing.T) {
@@ -67,7 +67,7 @@ func TestAnAdminIsSaidToBeOne(t *testing.T) {
 	author, err := useCase(admins).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, wearing.Author{Author: players.Author{Name: "Ada_L", Admin: true}}, author)
+	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, true, 0), players.Streak{}), titles.Standing{}), author)
 }
 
 func TestAGuestIsGivenACodeOnceAndKeepsIt(t *testing.T) {
@@ -78,7 +78,7 @@ func TestAGuestIsGivenACodeOnceAndKeepsIt(t *testing.T) {
 	second, err := guests.Execute(t.Context(), guest)
 	require.NoError(t, err)
 
-	assert.Equal(t, wearing.Author{Author: players.Author{Name: "guest_000001", Guest: true}}, first)
+	assert.Equal(t, wearing.AuthorOf(players.GuestAuthor("000001", players.Streak{}), titles.Standing{}), first)
 	assert.Equal(t, first, second)
 }
 
@@ -98,12 +98,12 @@ func TestTheChosenColorIsAnswered(t *testing.T) {
 	author, err := useCase(colored).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, players.Color(7), author.Color)
+	assert.Equal(t, players.Color(7), author.Color())
 }
 
 func TestTheStreakIsReadAsOfToday(t *testing.T) {
 	takes := store(t)
-	require.NoError(t, takes.SaveProfile(t.Context(), players.Profile{Account: bob, Name: "Bob", UpdatedAt: time.Now()}))
+	require.NoError(t, takes.SaveProfile(t.Context(), players.NewProfile(bob, "Bob", time.Now())))
 	require.NoError(t, takes.RecordTake(t.Context(), ada, today.AddDate(0, 0, -2)))
 	require.NoError(t, takes.RecordTake(t.Context(), ada, today.AddDate(0, 0, -1)))
 	require.NoError(t, takes.RecordTake(t.Context(), bob, today.AddDate(0, 0, -3)))
@@ -114,8 +114,8 @@ func TestTheStreakIsReadAsOfToday(t *testing.T) {
 	lapsed, err := useCase(takes).Execute(t.Context(), bob)
 	require.NoError(t, err)
 
-	assert.Equal(t, uint32(2), alive.Streak.Days, "a take yesterday can still be extended today")
-	assert.Equal(t, uint32(0), lapsed.Streak.Days, "a whole day went by with no take")
+	assert.Equal(t, uint32(2), alive.Streak().Days(), "a take yesterday can still be extended today")
+	assert.Equal(t, uint32(0), lapsed.Streak().Days(), "a whole day went by with no take")
 }
 
 func TestAGuestShowsNoStreak(t *testing.T) {
@@ -126,8 +126,8 @@ func TestAGuestShowsNoStreak(t *testing.T) {
 	author, err := useCase(takes).Execute(t.Context(), guest)
 
 	require.NoError(t, err)
-	assert.True(t, author.Guest)
-	assert.Equal(t, players.Streak{}, author.Streak, "a flame is for a player that signed in and chose a name")
+	assert.True(t, author.Guest())
+	assert.Equal(t, players.Streak{}, author.Streak(), "a flame is for a player that signed in and chose a name")
 }
 
 func TestTheTitleWornIsAnswered(t *testing.T) {
@@ -139,7 +139,7 @@ func TestTheTitleWornIsAnswered(t *testing.T) {
 	author, err := dressed(store(t), held, worn).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, standing("og"), author.Worn)
+	assert.Equal(t, standing("og"), author.Worn())
 }
 
 func TestAGuestWearsNoTitleAndNoTitleIsRead(t *testing.T) {
@@ -149,7 +149,7 @@ func TestAGuestWearsNoTitleAndNoTitleIsRead(t *testing.T) {
 	author, err := dressed(store(t), held, inmemory_worn_title_store.New()).Execute(t.Context(), guest)
 
 	require.NoError(t, err)
-	assert.True(t, author.Worn.Empty())
+	assert.True(t, author.Worn().Empty())
 }
 
 func TestATitleStoreFailureIsAnError(t *testing.T) {

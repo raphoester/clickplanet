@@ -88,13 +88,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 		return messages.Message{}, fmt.Errorf("%w: %w", messages.ErrAuthorUnavailable, err)
 	}
 
-	message := messages.Message{
-		ID:        messages.MessageID(uuid.NewString()),
-		SentAt:    u.clock.Now(),
-		Account:   in.Account,
-		CountryID: in.CountryID,
-		Text:      text,
-	}
+	message := messages.NewMessage(messages.MessageID(uuid.NewString()), u.clock.Now(), in.Account, in.CountryID, text)
 
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
@@ -102,10 +96,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 		return messages.Message{}, fmt.Errorf("failed to store chat message: %w", err)
 	}
 
-	named := messages.Named(message, author)
-
-	published := named
-	u.publisher.Publish(feed.Update{Message: &published})
+	named := message.Named(author)
+	u.publisher.Publish(feed.MessageSent(named))
 
 	return named, nil
 }

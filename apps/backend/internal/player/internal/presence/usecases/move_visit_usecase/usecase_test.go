@@ -29,15 +29,13 @@ var (
 
 func keyless(visits []presence.Visit) []presence.Visit {
 	for i := range visits {
-		visits[i].Key = ""
+		visits[i] = visits[i].Keyed("")
 	}
 	return visits
 }
 
 func guestVisit() presence.Visit {
-	return presence.Visit{
-		Account: guest, Author: wearing.Author{Author: players.Author{Name: "guest_0b1c2d", Guest: true}}, Tag: "aaaaaa", Country: "fr", At: now,
-	}
+	return presence.NewVisit(guest, wearing.AuthorOf(players.GuestAuthor("0b1c2d", players.Streak{}), titles.Standing{}), "aaaaaa", "fr", now)
 }
 
 func useCase(store *inmemory_player_store.Store, visits *inmemory_visit_storage.Storage) *move_visit_usecase.UseCase {
@@ -49,14 +47,14 @@ func useCase(store *inmemory_player_store.Store, visits *inmemory_visit_storage.
 
 func TestSigningInToAKnownAccountShowsItsUsernameInPlaceOfTheGuest(t *testing.T) {
 	store := inmemory_player_store.New()
-	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: now}))
+	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada_L", now)))
 	visits := inmemory_visit_storage.New(cptime.NewFixedClock(now))
 	visits.Record(guestVisit())
 
 	err := useCase(store, visits).Execute(t.Context(), guest, ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, []presence.Visit{guestVisit().For(ada, wearing.Author{Author: players.Author{Name: "Ada_L"}})}, keyless(visits.Visits()))
+	assert.Equal(t, []presence.Visit{guestVisit().For(ada, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), titles.Standing{}))}, keyless(visits.Visits()))
 }
 
 func TestSigningInToANewAccountShowsItsOwnGuestCode(t *testing.T) {
@@ -67,7 +65,7 @@ func TestSigningInToANewAccountShowsItsOwnGuestCode(t *testing.T) {
 	err := useCase(store, visits).Execute(t.Context(), guest, ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, []presence.Visit{guestVisit().For(ada, wearing.Author{Author: players.Author{Name: "guest_000001", Guest: true}})},
+	assert.Equal(t, []presence.Visit{guestVisit().For(ada, wearing.AuthorOf(players.GuestAuthor("000001", players.Streak{}), titles.Standing{}))},
 		keyless(visits.Visits()), "the code of the account the browser is on now, not the one it left")
 }
 
@@ -97,7 +95,7 @@ func TestAStoreFailureIsAnErrorAndMovesNothing(t *testing.T) {
 
 func TestSigningInToAnAdminShowsItsCrown(t *testing.T) {
 	store := inmemory_player_store.New()
-	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: ada, Name: "Ada_L", UpdatedAt: now}))
+	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada_L", now)))
 	store.MakeAdmin(ada)
 	visits := inmemory_visit_storage.New(cptime.NewFixedClock(now))
 	visits.Record(guestVisit())
@@ -106,5 +104,5 @@ func TestSigningInToAnAdminShowsItsCrown(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, visits.Visits(), 1)
-	assert.True(t, visits.Visits()[0].Author.Admin)
+	assert.True(t, visits.Visits()[0].Author().Admin())
 }

@@ -68,7 +68,7 @@ var (
 	clown  = reactions.Reaction(2)
 	laugh  = reactions.Reaction(1)
 	now    = time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
-	window = messages.Window{Size: 1, Retention: 24 * time.Hour}
+	window = messages.NewWindow(1, 24*time.Hour)
 )
 
 type testSuite struct {
@@ -85,16 +85,14 @@ func (s *testSuite) SetupTest() {
 	s.board = inmemory_reaction_storage.New()
 	s.publisher = &fakePublisher{}
 	s.authors = &fakeAuthors{named: map[messages.AccountID]messages.Author{
-		ada: {Name: "Ada"},
-		bob: {Name: "Bob"},
+		ada: messages.AuthorOf("Ada", false, 0, 0, messages.Title{}),
+		bob: messages.AuthorOf("Bob", false, 0, 0, messages.Title{}),
 	}}
 	s.sent("hello")
 }
 
 func (s *testSuite) sent(id messages.MessageID) {
-	s.Require().NoError(s.messages.Append(context.Background(), messages.Record{
-		Message: messages.Message{ID: id, SentAt: now.Add(-time.Hour)},
-	}))
+	s.Require().NoError(s.messages.Append(context.Background(), messages.NewRecord(messages.NewMessage(id, now.Add(-time.Hour), messages.NoAccount, "", ""), "", "", "")))
 }
 
 func (s *testSuite) reactWith(board react_usecase.Board, in react_usecase.In) (react_usecase.Out, error) {
@@ -109,10 +107,9 @@ func (s *testSuite) react(account messages.AccountID, reaction reactions.Reactio
 }
 
 func (s *testSuite) TestAnAccountReactsAsItselfAndIsAnsweredWithItsOwn() {
-	s.Equal([]reactions.Count{{
-		Reaction: clown, Count: 1, Mine: true,
-		Reactors: []reactions.Reactor{reactions.ReactorOf(ada)}, Names: []string{"Ada"},
-	}}, s.react(ada, clown, true))
+	s.Equal([]reactions.Count{
+		reactions.CountOf(clown, 1, true, []reactions.Reactor{reactions.ReactorOf(ada)}, []string{"Ada"}),
+	}, s.react(ada, clown, true))
 
 	given, err := s.board.Reactions(context.Background(), []messages.MessageID{"hello"})
 	s.Require().NoError(err)
@@ -122,11 +119,9 @@ func (s *testSuite) TestAnAccountReactsAsItselfAndIsAnsweredWithItsOwn() {
 func (s *testSuite) TestTwoAccountsAreTwoReactors() {
 	s.react(ada, clown, true)
 
-	s.Equal([]reactions.Count{{
-		Reaction: clown, Count: 2, Mine: true,
-		Reactors: []reactions.Reactor{reactions.ReactorOf(ada), reactions.ReactorOf(bob)},
-		Names:    []string{"Ada", "Bob"},
-	}}, s.react(bob, clown, true))
+	s.Equal([]reactions.Count{
+		reactions.CountOf(clown, 2, true, []reactions.Reactor{reactions.ReactorOf(ada), reactions.ReactorOf(bob)}, []string{"Ada", "Bob"}),
+	}, s.react(bob, clown, true))
 }
 
 func (s *testSuite) TestNoAccountIsRefusedAndNothingIsSaved() {
@@ -145,16 +140,16 @@ func (s *testSuite) TestEveryChangeIsPublishedAsTheWholeTallyForNobodyVersioned(
 	bobGave := []reactions.Reactor{reactions.ReactorOf(bob)}
 
 	s.Equal([]feed.Update{
-		{Reactions: &reactions.Tally{MessageID: "hello", Version: 1, Counts: []reactions.Count{
-			{Reaction: clown, Count: 1, Reactors: adaGave, Names: []string{"Ada"}},
-		}}},
-		{Reactions: &reactions.Tally{MessageID: "hello", Version: 2, Counts: []reactions.Count{
-			{Reaction: clown, Count: 1, Reactors: adaGave, Names: []string{"Ada"}},
-			{Reaction: laugh, Count: 1, Reactors: bobGave, Names: []string{"Bob"}},
-		}}},
-		{Reactions: &reactions.Tally{MessageID: "hello", Version: 3, Counts: []reactions.Count{
-			{Reaction: laugh, Count: 1, Reactors: bobGave, Names: []string{"Bob"}},
-		}}},
+		feed.ReactionsChanged(reactions.TallyFor("hello", []reactions.Count{
+			reactions.CountOf(clown, 1, false, adaGave, []string{"Ada"}),
+		}, 1)),
+		feed.ReactionsChanged(reactions.TallyFor("hello", []reactions.Count{
+			reactions.CountOf(clown, 1, false, adaGave, []string{"Ada"}),
+			reactions.CountOf(laugh, 1, false, bobGave, []string{"Bob"}),
+		}, 2)),
+		feed.ReactionsChanged(reactions.TallyFor("hello", []reactions.Count{
+			reactions.CountOf(laugh, 1, false, bobGave, []string{"Bob"}),
+		}, 3)),
 	}, s.publisher.updates)
 }
 
@@ -164,20 +159,18 @@ func (s *testSuite) TestTheAnswerCarriesTheVersionItWasReadAt() {
 	out, err := s.reactWith(s.board, react_usecase.In{Account: ada, MessageID: "hello", Reaction: clown, On: true})
 
 	s.Require().NoError(err)
-	s.Equal(react_usecase.Out{Counts: []reactions.Count{{
-		Reaction: clown, Count: 1, Mine: true,
-		Reactors: []reactions.Reactor{reactions.ReactorOf(ada)}, Names: []string{"Ada"},
-	}}, Version: 1}, out, "a change that changes nothing answers what is there")
+	s.Equal(react_usecase.Out{Counts: []reactions.Count{
+		reactions.CountOf(clown, 1, true, []reactions.Reactor{reactions.ReactorOf(ada)}, []string{"Ada"}),
+	}, Version: 1}, out, "a change that changes nothing answers what is there")
 }
 
 func (s *testSuite) TestAChangeThatChangesNothingIsNeitherSavedNorPublished() {
 	s.react(ada, clown, true)
 	s.publisher.updates = nil
 
-	mine := []reactions.Count{{
-		Reaction: clown, Count: 1, Mine: true,
-		Reactors: []reactions.Reactor{reactions.ReactorOf(ada)}, Names: []string{"Ada"},
-	}}
+	mine := []reactions.Count{
+		reactions.CountOf(clown, 1, true, []reactions.Reactor{reactions.ReactorOf(ada)}, []string{"Ada"}),
+	}
 	s.Equal(mine, s.react(ada, clown, true))
 	s.Equal(mine, s.react(ada, laugh, false))
 	s.Empty(s.publisher.updates)
@@ -206,18 +199,18 @@ func (s *testSuite) TestEveryoneUnderAMessageIsNamedInOneAsk() {
 
 	counts := s.react(bob, clown, true)
 
-	s.Equal([]string{"Ada", "Bob"}, counts[0].Names, "oldest first")
+	s.Equal([]string{"Ada", "Bob"}, counts[0].Names(), "oldest first")
 	s.Equal(1, s.authors.asked, "the answer and the frame that goes out share it")
 }
 
 func (s *testSuite) TestARenameShowsUnderEveryReactionItsPlayerEverGave() {
 	s.react(ada, clown, true)
 	s.react(ada, laugh, true)
-	s.authors.named[ada] = messages.Author{Name: "Ada Lovelace"}
+	s.authors.named[ada] = messages.AuthorOf("Ada Lovelace", false, 0, 0, messages.Title{})
 
 	counts := s.react(bob, clown, true)
 
-	s.Equal([]string{"Ada Lovelace", "Bob"}, counts[0].Names)
+	s.Equal([]string{"Ada Lovelace", "Bob"}, counts[0].Names())
 }
 
 func (s *testSuite) TestADeletedAccountIsCountedWithoutBeingNamed() {
@@ -226,8 +219,8 @@ func (s *testSuite) TestADeletedAccountIsCountedWithoutBeingNamed() {
 
 	counts := s.react(bob, clown, true)
 
-	s.Equal(2, counts[0].Count)
-	s.Equal([]string{"Bob"}, counts[0].Names, "the count says how many, the names say who is still there")
+	s.Equal(2, counts[0].Total())
+	s.Equal([]string{"Bob"}, counts[0].Names(), "the count says how many, the names say who is still there")
 }
 
 func (s *testSuite) TestAReactionNobodyCanBeNamedUnderIsARefusal() {

@@ -1,10 +1,10 @@
 package messages
 
 type Record struct {
-	Message   Message
-	AuthorID  string
-	IP        string
-	UserAgent string
+	message   Message
+	authorID  string
+	ip        string
+	userAgent string
 }
 
 const (
@@ -14,12 +14,20 @@ const (
 
 func NewRecord(message Message, authorID string, ip string, userAgent string) Record {
 	return Record{
-		Message:   message,
-		AuthorID:  truncate(authorID, maxAuthorIDLength),
-		IP:        ip,
-		UserAgent: truncate(userAgent, maxUserAgentLength),
+		message:   message,
+		authorID:  truncate(authorID, maxAuthorIDLength),
+		ip:        ip,
+		userAgent: truncate(userAgent, maxUserAgentLength),
 	}
 }
+
+func (r Record) Message() Message { return r.message }
+
+func (r Record) AuthorID() string { return r.authorID }
+
+func (r Record) IP() string { return r.ip }
+
+func (r Record) UserAgent() string { return r.userAgent }
 
 func truncate(value string, maxBytes int) string {
 	if len(value) <= maxBytes {
