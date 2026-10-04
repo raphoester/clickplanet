@@ -10,6 +10,7 @@ const LABELS: Record<SwitchName, string> = {
     bomb: "Bomb explosion",
     chat: "Chat message",
     quiz: "Quiz",
+    title: "Title unlocked",
 }
 
 export type SoundSettingsPanelProps = {

@@ -8,6 +8,7 @@ import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from '.
 import {BombDrop, Bomber, BonusCatch, BonusListener} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 import {ClearNotes} from '../../domain/clearNotes.ts';
+import {AcceptedClick} from './acceptedClicks.ts';
 
 export type GlobeStatus =
     | {state: 'loading', territories?: number}
@@ -23,12 +24,14 @@ export type UseGlobeOptions = {
     bomber?: Bomber
     // Must keep its identity: a new one rebuilds the globe.
     playSound?: PlaySound
+    // Must keep its identity: a new one rebuilds the globe.
+    onClickAccepted?: (click: AcceptedClick) => void
     country: Country
     clickHue: number | undefined
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, country, clickHue} = options
+    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, onClickAccepted, country, clickHue} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -103,6 +106,7 @@ export function useGlobe(options: UseGlobeOptions) {
             onBombDropped: recordBomb,
             onArmedChange: setBombArmed,
             onNativeCleared: recordClear,
+            onClickAccepted,
             playSound,
             signal: abortController.signal,
         }).then((globe) => {
@@ -129,7 +133,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordClear])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, onClickAccepted, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordClear])
 
     useEffect(() => {
         initialCountry.current = country

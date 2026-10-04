@@ -55,6 +55,16 @@ func (p *gamer) mySeason() *seasonsv1.GetMySeasonResponse {
 	return res.Msg
 }
 
+func (p *gamer) worn() *playerv1.Title {
+	p.t.Helper()
+
+	req := connect.NewRequest(&playerv1.GetTitlesRequest{})
+	p.send(req.Header())
+	res, err := p.players().GetTitles(p.t.Context(), req)
+	require.NoError(p.t, err)
+	return res.Msg.GetWorn()
+}
+
 func (s gameStack) standings(t *testing.T, country string) []*seasonsv1.Standing {
 	t.Helper()
 
@@ -88,21 +98,29 @@ func TestPlayersWithAUsernameAreRankedByTheTilesTheyTakeForTheirMainFlag(t *test
 
 	require.Eventually(t, func() bool { return ada.mySeason().GetTiles() == 2 && cyd.mySeason().GetTiles() == 1 },
 		5*time.Second, 20*time.Millisecond)
-	assert.True(t, proto.Equal(&seasonsv1.GetMySeasonResponse{CountryId: "fr", Tiles: 2, GlobalRank: 1, CountryRank: 1},
-		ada.mySeason()), ada.mySeason())
-	assert.True(t, proto.Equal(&seasonsv1.GetMySeasonResponse{CountryId: "fr", Tiles: 1, GlobalRank: 2, CountryRank: 2},
-		cyd.mySeason()), cyd.mySeason())
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		mine := ada.mySeason()
+		assert.True(c, proto.Equal(&seasonsv1.GetMySeasonResponse{
+			CountryId: "fr", Tiles: 2, GlobalRank: 1, CountryRank: 1, WornTitle: ada.worn(),
+		}, mine), mine)
+		mine = cyd.mySeason()
+		assert.True(c, proto.Equal(&seasonsv1.GetMySeasonResponse{
+			CountryId: "fr", Tiles: 1, GlobalRank: 2, CountryRank: 2, WornTitle: cyd.worn(),
+		}, mine), mine)
+	}, 5*time.Second, 20*time.Millisecond, "a title the take earns is granted apart from the tally")
 
-	top := []*seasonsv1.Standing{
-		{Rank: 1, Name: "Ada", Color: playerv1.NameColor_NAME_COLOR_PINK, CountryId: "fr", Tiles: 2},
-		{Rank: 2, Name: "Cyd", CountryId: "fr", Tiles: 1},
-	}
 	for _, country := range []string{"", "fr"} {
-		standings := game.standings(t, country)
-		require.Len(t, standings, len(top), country)
-		for i := range top {
-			assert.True(t, proto.Equal(top[i], standings[i]), standings[i])
-		}
+		assert.EventuallyWithT(t, func(c *assert.CollectT) {
+			standings := game.standings(t, country)
+			top := []*seasonsv1.Standing{
+				{Rank: 1, Name: "Ada", Color: playerv1.NameColor_NAME_COLOR_PINK, CountryId: "fr", Tiles: 2, WornTitle: ada.worn()},
+				{Rank: 2, Name: "Cyd", CountryId: "fr", Tiles: 1, WornTitle: cyd.worn()},
+			}
+			require.Len(c, standings, len(top), country)
+			for i := range top {
+				assert.True(c, proto.Equal(top[i], standings[i]), standings[i])
+			}
+		}, 5*time.Second, 20*time.Millisecond, country)
 	}
 	assert.Empty(t, game.standings(t, "de"))
 }
@@ -136,8 +154,12 @@ func TestTheCallersSeasonReadsAsTheIdentityTheCookieResumes(t *testing.T) {
 
 	back := ada.resumed()
 
-	assert.True(t, proto.Equal(&seasonsv1.GetMySeasonResponse{CountryId: "fr", Tiles: 1, GlobalRank: 1, CountryRank: 1},
-		back.mySeason()), back.mySeason())
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		mine := back.mySeason()
+		assert.True(c, proto.Equal(&seasonsv1.GetMySeasonResponse{
+			CountryId: "fr", Tiles: 1, GlobalRank: 1, CountryRank: 1, WornTitle: ada.worn(),
+		}, mine), mine)
+	}, 5*time.Second, 20*time.Millisecond, "a title the take earns is granted apart from the tally")
 }
 
 func TestARebuildCountsTheStandingsAgainFromTheLogWithoutWhatWasReverted(t *testing.T) {

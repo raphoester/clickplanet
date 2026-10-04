@@ -25,13 +25,14 @@
     padding-bottom: 36px;
 }
 
+/* The gap under the line belongs to the head: on the first row it would widen the highlight. */
 .leaderboard-table-head {
     font-family: var(--font-text);
     font-weight: 600;
     font-size: var(--text-xs);
     color: var(--text-muted);
-    padding: var(--space-2) 0 6px 0;
-    border-bottom: var(--outline-thin) solid var(--ink);
+    padding: var(--space-2) 0 calc(6px + var(--outline-thin) + 7px) 0;
+    background: linear-gradient(var(--ink), var(--ink)) left bottom 7px / 100% var(--outline-thin) no-repeat;
 }
 
 .leaderboard-table {
@@ -50,10 +51,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     padding-block: 5px 3px;
-}
-
-.leaderboard-entry:first-child td {
-    padding-top: 12px;
 }
 
 .leaderboard-entry-country .country-flag {

@@ -11,6 +11,7 @@
     --display-l: 24px;
     --display-xl: 30px;
     --display-xxl: 46px;
+    --display-hero: 104px;
 
     --ink: #05070D;
     --ground: #0B1226;
@@ -95,6 +96,7 @@
     --drop-l: 0 5px 0 var(--ink);
     --text-drop: 0 2px 0 var(--ink);
     --text-outline: 2px 2px 0 var(--ink), -2px 2px 0 var(--ink), 2px -2px 0 var(--ink), -2px -2px 0 var(--ink), 0 4px 0 var(--ink);
+    --text-outline-l: 4px 4px 0 var(--ink), -4px 4px 0 var(--ink), 4px -4px 0 var(--ink), -4px -4px 0 var(--ink), 4px 0 0 var(--ink), -4px 0 0 var(--ink), 0 -4px 0 var(--ink), 0 9px 0 var(--ink);
 
     --space-1: 4px;
     --space-2: 8px;

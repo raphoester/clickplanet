@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
@@ -139,6 +140,22 @@ func (s *testSuite) TestPlayersWithAsManyTilesShareARank() {
 	s.player(4, "it", 3)
 
 	s.Equal([]string{"1 player_1 fr 5", "1 player_2 de 5", "3 player_4 it 3"}, lines(s.standings("")))
+}
+
+func (s *testSuite) TestEachStandingWearsTheTitleItsPlayerWears() {
+	warmaster := &playerv1.Title{
+		Id: "warmaster", Name: "Warmaster",
+		Rank: &playerv1.Rank{TrackId: "conquest", TrackName: "Conquest", Number: 5, Count: 5},
+	}
+	s.player(1, "fr", 5)
+	s.authors.named[account(1)].WornTitle = warmaster
+	s.player(2, "de", 3)
+
+	res := s.standings("")
+
+	s.Require().Len(res.GetStandings(), 2)
+	s.True(proto.Equal(warmaster, res.GetStandings()[0].GetWornTitle()), res.GetStandings()[0].GetWornTitle())
+	s.Nil(res.GetStandings()[1].GetWornTitle(), "a player who wears no title wears none here")
 }
 
 func (s *testSuite) TestTheTopOfACountryIsThePlayersWhoseMainFlagItIs() {

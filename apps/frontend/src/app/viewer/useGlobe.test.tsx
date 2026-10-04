@@ -17,6 +17,7 @@ const backends = () => ({
     tileClicker: {} as TileClicker,
     ownershipsGetter: {} as OwnershipsGetter,
     updatesListener: {} as UpdatesListener,
+    onClickAccepted: vi.fn(),
 })
 
 function fakeGlobe(): Globe & {
@@ -96,6 +97,16 @@ describe("useGlobe", () => {
 
         renderHook()
         await waitFor(() => expect(latest.status).toEqual({state: 'failed', message: "WebGL unavailable"}))
+    })
+
+    it("hands the globe the listener for the clicks the server accepts", async () => {
+        createGlobe.mockReturnValue(new Promise<Globe>(() => {}))
+        const deps = backends()
+
+        renderHook(FRANCE, deps)
+        createGlobe.mock.calls[0][0].onClickAccepted({country: "fr", took: true})
+
+        expect(deps.onClickAccepted).toHaveBeenCalledWith({country: "fr", took: true})
     })
 
     it("builds the globe with the country selected at mount", async () => {

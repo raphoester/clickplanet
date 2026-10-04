@@ -4,13 +4,13 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {AccountBackend, Provider} from "../../backends/account.ts"
-import {NameColor, PlayerBackend} from "../../backends/player.ts"
+import {NameColor, PlayerBackend, PlayerLine, PlayerTitle} from "../../backends/player.ts"
 import {MySeason, Standing, StandingsBackend} from "../../backends/standings.ts"
 import {Countries, Country} from "../../domain/countries.ts"
 import {hueOf} from "../../domain/authorColor.ts"
 import {AccountStore} from "../account/accountStore.ts"
 import SignInPitchModal from "../account/SignInPitchModal.tsx"
-import {ListenForClicks} from "../viewer/acceptedClicks.ts"
+import {AcceptedClicks, acceptedClicks} from "../viewer/acceptedClicks.ts"
 import BoardViews, {BoardView} from "./BoardViews.tsx"
 import {Caller} from "./useMySeason.ts"
 
@@ -20,21 +20,33 @@ const germany = Countries.get("de")!
 const standing = (rank: number, name: string, countryCode: string, tiles: number, color = NameColor.UNSPECIFIED): Standing =>
     ({rank, name, color, countryCode, tiles})
 
+const WARLORD: PlayerTitle = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
+const DEVOTED: PlayerTitle = {id: "devoted", name: "Devoted", rank: {trackId: "devotion", trackName: "Devotion", number: 2, count: 3}}
+
 const WORLD = [
-    standing(1, "Ana", "fr", 1840, NameColor.PINK),
+    {...standing(1, "Ana", "fr", 1840, NameColor.PINK), wornTitle: WARLORD},
     standing(2, "kiran_07", "in", 1512),
     standing(2, "Mateus", "br", 1512, NameColor.TEAL),
 ]
 const FRENCH = [standing(1, "Ana", "fr", 1840, NameColor.PINK), standing(2, "Bastien", "fr", 402)]
-
-const NO_CLICKS: ListenForClicks = () => () => {}
+const FULL = [
+    ...WORLD,
+    standing(4, "zoe_nz", "nz", 1207),
+    standing(5, "Jean Moulin", "fr", 990),
+    standing(6, "Ольга", "ru", 864),
+    standing(7, "Kofi", "gh", 731),
+    standing(8, "Lucía", "es", 655),
+    standing(9, "Hana", "jp", 590),
+    standing(10, "Pierre_L", "fr", 13),
+]
+const FULL_FRENCH = Array.from({length: 10}, (_, i) => standing(i + 1, `fr_${i + 1}`, "fr", 500 - i * 40))
 
 const GUEST: Caller = {linked: false}
 const ZED: Caller = {linked: true, username: "Zed", color: NameColor.GREEN}
 
-function backendOf(mine?: MySeason) {
+function backendOf(mine?: MySeason, world = WORLD, french = FRENCH) {
     return {
-        standings: vi.fn(async (countryCode: string) => countryCode === "" ? WORLD : countryCode === "fr" ? FRENCH : []),
+        standings: vi.fn(async (countryCode: string) => countryCode === "" ? world : countryCode === "fr" ? french : []),
         mySeason: vi.fn(async () => mine),
     } satisfies StandingsBackend
 }
@@ -44,15 +56,19 @@ type HarnessProps = {
     caller: Caller
     country?: Country
     view?: BoardView
+    clicks?: AcceptedClicks
     onSignIn?: () => void
+    onOpenPlayer?: (player: PlayerLine) => void
 }
 
-function Harness({backend, caller, country = france, view: first = "countries", onSignIn}: HarnessProps) {
+function Harness({backend, caller, country = france, view: first = "countries", clicks, onSignIn, onOpenPlayer}: HarnessProps) {
     const [view, setView] = useState<BoardView>(first)
+    const [own] = useState(acceptedClicks)
     return <BoardViews backend={backend}
                        caller={caller}
-                       listenForClicks={NO_CLICKS}
+                       listenForClicks={(clicks ?? own).listenForClicks}
                        onSignIn={onSignIn}
+                       onOpenPlayer={onOpenPlayer}
                        view={view}
                        onView={setView}
                        country={country}
@@ -135,6 +151,16 @@ describe("BoardViews", () => {
         expect(within(kiran).getByText("kiran_07").style.getPropertyValue("--author-chroma")).toBe("0")
     })
 
+    it("draws the title each player wears after its name, and none for a player who wears none", async () => {
+        await shown({backend: backendOf(), caller: GUEST, view: "players"})
+
+        const [ana, kiran] = rows()
+        const medal = within(ana).getByRole("img", {name: "Warlord"})
+        expect(medal.querySelector("svg")!.getAttribute("width")).toBe("18")
+        expect(within(ana).getByText("Ana").nextElementSibling).toBe(medal)
+        expect(kiran.querySelector(".title-badge")).toBeNull()
+    })
+
     it("gives the first three their coins and shares a rank between ties", async () => {
         await shown({backend: backendOf(), caller: GUEST, view: "players"})
 
@@ -159,20 +185,76 @@ describe("BoardViews", () => {
 
     it("puts the caller's own line under the top 10, at its rank on the whole map", async () => {
         const mine = {countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 7}
-        await shown({backend: backendOf(mine), caller: ZED, view: "players"})
+        await shown({backend: backendOf(mine, FULL), caller: ZED, view: "players"})
 
-        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "kiran_07", "1512"], ["2", "Mateus", "1512"], ["42", "Zed", "12"]])
-        const own = rows()[3]
+        expect(cells()).toHaveLength(11)
+        expect(cells().slice(-2)).toEqual([["10", "Pierre_L", "13"], ["42", "Zed", "12"]])
+        const own = rows()[10]
         expect(own.getAttribute("aria-current")).toBe("true")
         expect(within(own).getByRole("img", {name: "France"})).toBeDefined()
         expect(within(own).getByText("Zed").style.getPropertyValue("--author-hue")).toBe(String(hueOf(NameColor.GREEN)))
     })
 
+    it("puts the title the caller wears on its own line", async () => {
+        const mine = {countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 7, wornTitle: DEVOTED}
+        await shown({backend: backendOf(mine), caller: ZED, view: "players"})
+
+        expect(within(rows()[3]).getByRole("img", {name: "Devoted"})).toBeDefined()
+    })
+
     it("puts the caller's line under its country's top 10 at its rank there", async () => {
-        const mine = {countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 7}
+        const mine = {countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 17}
+        await shown({backend: backendOf(mine, WORLD, FULL_FRENCH), caller: ZED, view: "country"})
+
+        expect(cells()).toHaveLength(11)
+        expect(cells().at(-1)).toEqual(["17", "Zed", "12"])
+    })
+
+    it("lists a caller missing from a country list shorter than 10 in it", async () => {
+        const mine = {countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 3}
         await shown({backend: backendOf(mine), caller: ZED, view: "country"})
 
-        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Bastien", "402"], ["7", "Zed", "12"]])
+        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Bastien", "402"], ["3", "Zed", "12"]])
+    })
+
+    it("counts each tile the caller takes into its row and its season at once", async () => {
+        const clicks = acceptedClicks()
+        const mine = {countryCode: "br", tiles: 1512, globalRank: 2, countryRank: 1}
+        await shown({backend: backendOf(mine), caller: {linked: true, username: "Mateus", color: NameColor.TEAL}, view: "players", clicks})
+
+        await act(() => clicks.record({country: "br", took: true}))
+
+        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Mateus", "1513"], ["3", "kiran_07", "1512"]])
+        expect(stats()).toEqual([["Tiles", "1513"], ["Players", "#2"], ["Brazil", "#1"]])
+    })
+
+    it("lets the caller into the top 10 once it passes the last of it", async () => {
+        const clicks = acceptedClicks()
+        const mine = {countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 7}
+        await shown({backend: backendOf(mine, FULL), caller: ZED, view: "players", clicks})
+
+        await act(() => clicks.record({country: "fr", took: true}))
+        await act(() => clicks.record({country: "fr", took: true}))
+
+        expect(cells()).toHaveLength(10)
+        expect(cells().at(-1)).toEqual(["10", "Zed", "14"])
+        expect(stats()).toEqual([["Tiles", "14"], ["Players", "#10"], ["France", "#7"]])
+    })
+
+    it("opens a player's card from its name, with the title it wears", async () => {
+        const onOpenPlayer = vi.fn()
+        const {user} = await shown({backend: backendOf(), caller: GUEST, view: "players", onOpenPlayer})
+
+        await user.click(within(rows()[0]).getByRole("button", {name: "Ana"}))
+
+        expect(onOpenPlayer).toHaveBeenCalledWith({
+            name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.PINK, streak: 0, wornTitle: WARLORD,
+        })
+    })
+
+    it("draws the names as plain text with no card to open", async () => {
+        await shown({backend: backendOf(), caller: GUEST, view: "players"})
+        expect(within(rows()[0]).queryByRole("button")).toBeNull()
     })
 
     it("leaves the caller's line out of a country that is not its main flag", async () => {
@@ -196,7 +278,7 @@ describe("Your season", () => {
     })
 
     it("says a named player's tiles and its ranks on the map and in its main flag", async () => {
-        await shown({backend: backendOf({countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 7}), caller: ZED, country: germany, view: "players"})
+        await shown({backend: backendOf({countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 7}, FULL), caller: ZED, country: germany, view: "players"})
 
         expect(stats()).toEqual([["Tiles", "12"], ["Players", "#42"], ["France", "#7"]])
         expect(within(yours()!).queryByRole("button")).toBeNull()
