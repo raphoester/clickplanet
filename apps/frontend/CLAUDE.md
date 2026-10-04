@@ -754,9 +754,15 @@ is the player's own view.
   `GetProfile`) each time the panel opens; a failed read says so.
 - **The unlock moment is live.** The player stream carries `titleEarned` to a
   stream opened with this player's token. `useRoster` hands it to `Viewer`, which
-  queues them and shows `TitleUnlocked` over the game, one at a time: the medal,
-  rays, the name, the rank line, "Close" and "Wear it" (`AccountStore.wearTitle`;
-  left out when no account store is wired). The server sends only the highest
+  queues them and shows `TitleUnlocked` over the game, one at a time. It is not a
+  `Modal` but the whole screen: it goes dark, "New title!" slams in, the medal
+  spins in and lands with a flash, a shockwave and confetti, then the name and the
+  rank line. The `title` sound is a drum roll that lands on the same beat; both
+  read `TITLE_REVEAL` (`domain/titleReveal.ts`). **Nothing closes it before
+  `TITLE_REVEAL.ready`**, and a click beside it never does: a player spamming the
+  globe would otherwise dismiss it unseen. Then "Close" and "Wear it"
+  (`AccountStore.wearTitle`; left out when no account store is wired) appear, and
+  Escape works. The server sends only the highest
   rank per track of what one take earned, so a jump of two ranks is one overlay.
   A title earned while no tab is open is never announced; it is simply there next
   time.

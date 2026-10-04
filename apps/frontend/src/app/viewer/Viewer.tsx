@@ -283,6 +283,7 @@ export default function Viewer(props: ViewerProps) {
 
         {unlocked.length > 0 && <TitleUnlocked key={unlocked[0].id}
                                                title={unlocked[0]}
+                                               play={sound.play}
                                                onWear={props.account?.wearTitle}
                                                onClose={() => setUnlocked((queue) => queue.slice(1))}/>}
 

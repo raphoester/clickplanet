@@ -41,7 +41,8 @@ Two families, and each has one job.
 - **Sentence case, and no letter-spaced capitals.** Tracked uppercase labels in
   a condensed face are what made the old menus read as a generic dashboard.
 - **Sizes are tokens**: `--text-xs` to `--text-l` for Rubik, `--display-s` to
-  `--display-xxl` for Luckiest Guy. Nothing under 12px.
+  `--display-xxl` for Luckiest Guy, and `--display-hero` for the one line that
+  takes the whole screen (a title unlocked). Nothing under 12px.
 - **A text field is 16px or more**: Safari zooms the page in on a smaller one and
   never zooms back out.
 - **Luckiest Guy rides high in its box.** Anything centred beside it is aligned
@@ -92,7 +93,8 @@ system exists to stop.
   `--radius-s` chips, `--radius-pill` pills and round buttons, `--radius-xs` the
   corner a chat balloon points from.
 - **Display text on a panel stands on `--text-drop`**; the big lines (the logo,
-  a title name, an unlock) wear `--text-outline`.
+  a title name, an unlock) wear `--text-outline`, and a hero line wears
+  `--text-outline-l`.
 - **Spacing is in 4px steps**, `--space-1` to `--space-6`.
 
 ## Pieces
