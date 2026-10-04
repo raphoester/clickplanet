@@ -48,9 +48,6 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
         </div>
 
         {state.kind === "loading" && <p className="player-card-note" role="status">Loading…</p>}
-        {state.kind === "guest" && <p className="player-card-note">
-            Guests have no stats. Sign in and pick a username to get yours.
-        </p>}
         {state.kind === "missing" && <p className="player-card-note">No player holds this name now.</p>}
         {state.kind === "failed" && <p className="player-card-note">The stats could not be loaded.</p>}
         {info?.wornTitle && <TitleBanner title={info.wornTitle}/>}
