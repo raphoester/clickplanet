@@ -17,7 +17,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/postgres_contribution_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/rpc_player_names"
@@ -31,6 +30,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -90,10 +90,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		),
 		GetMySeasonHandler: get_my_season_handler.New(get_my_season_usecase.New(seasons, clock, board)),
 	}
+	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "seasons")))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return seasonsv1connect.NewSeasonServiceHandler(service, options...)
 	}, seasonsv1controller.NewCacheInterceptor(),
-		seasonsv1controller.NewSessionInterceptor(rpc_session_verifier.New(props.Internal, props.Logger), clock, props.Metrics),
+		seasonsv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
 	); err != nil {
 		return fmt.Errorf("failed to mount seasons.v1.SeasonService: %w", err)
 	}

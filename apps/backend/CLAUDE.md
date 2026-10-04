@@ -1069,7 +1069,6 @@ internal/seasons/internal/
     get_season_handler/
     get_standings_handler/  get_my_season_handler/
     caller/                       the account on the context, or Unauthenticated
-    rpc_session_verifier/         the key from auth.v1.InternalService, asked once (planet's, copied)
   subscribers/                    tile_taken_subscriber/  account_deleted_subscriber/  log_subscriber/
   migrations/
 ```
@@ -2385,7 +2384,7 @@ Two of these are here because both bounded contexts need them and neither should
 
 The siteverify client it is fed by is **not** here. `turnstile` sat here on the same "both contexts need it" rule, but only one ever did, so it now lives at `session/internal/turnstile` where the compiler keeps it. **The bar is not that a package is shareable, it is that it would read the same in any other program and that two modules actually import it** — "shared" names the symptom, and a directory admitted on the weaker reading becomes a dumping ground. `cpsecrets` passes narrowly — chat is its only caller today, but it is twenty lines of `crypto/rand` with no domain in it at all.
 
-`cpsessionverifier` is the exception to that bar: it knows `auth.v1.InternalService`, so it would not read the same in another program. It is the `cpconnect.SessionVerifier` that `planet`, `player` and `chat` build, which takes the key from `auth` once — see [Sessions](#sessions-internalauth). It is here because the alternative was one copy in each module, and a fix to one copy missed the others.
+`cpsessionverifier` is the exception to that bar: it knows `auth.v1.InternalService`, so it would not read the same in another program. It is the `cpconnect.SessionVerifier` that `planet`, `player`, `chat` and `seasons` build, which takes the key from `auth` once — see [Sessions](#sessions-internalauth). It is here because the alternative was one copy in each module, and a fix to one copy missed the others.
 
 `cpcountries` is the ISO country list both the tile game and the chat validate against. `cpipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `cpratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 
