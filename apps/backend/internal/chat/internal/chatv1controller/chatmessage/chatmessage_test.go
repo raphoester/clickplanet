@@ -69,3 +69,14 @@ func TestAMessageCarriesTheTitleItsAuthorWears(t *testing.T) {
 	assert.Nil(t, standalone.GetAuthorTitle().GetRank())
 	assert.Nil(t, bare.GetAuthorTitle())
 }
+
+func TestOneNameOverTheCapIsCutToo(t *testing.T) {
+	names := make([]string, 0, chatmessage.NamedReactors+1)
+	for i := range cap(names) {
+		names = append(names, fmt.Sprintf("player%d", i))
+	}
+
+	encoded := chatmessage.EncodeCounts([]reactions.Count{reactions.CountOf(clown, len(names), false, nil, names)})
+
+	assert.Equal(t, names[:chatmessage.NamedReactors], encoded[0].GetReactors())
+}

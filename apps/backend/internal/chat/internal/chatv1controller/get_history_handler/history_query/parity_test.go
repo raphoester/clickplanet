@@ -92,7 +92,8 @@ func (s *testSuite) TestAMessageIsInTheHistoryExactlyWhenItCanBeReactedTo() {
 
 func (s *testSuite) TestTheReactionsOfAMessageAreWhatReactAnswersForThem() {
 	gone := messages.AccountID{15: 9}
-	s.sent("hello", 2*time.Hour)
+	s.sent("hello", 3*time.Hour)
+	s.sent("crowd", 2*time.Hour)
 	s.sent("bare", time.Hour)
 	s.reacted("hello", clown, reactions.ReactorOf(bob), true, now.Add(-90*time.Minute))
 	s.reacted("hello", laugh, reactions.ReactorOf(ada), true, now.Add(-80*time.Minute))
@@ -101,18 +102,22 @@ func (s *testSuite) TestTheReactionsOfAMessageAreWhatReactAnswersForThem() {
 	s.reacted("hello", clown, "guest:91aa3d", true, now.Add(-50*time.Minute))
 	s.reacted("hello", laugh, reactions.ReactorOf(bob), true, now.Add(-40*time.Minute))
 	s.reacted("hello", laugh, reactions.ReactorOf(bob), false, now.Add(-30*time.Minute))
-	for i := range history_query.NamedReactors + 5 {
+	for i := range history_query.NamedReactors + 1 {
 		account := messages.AccountID{14: 1, 15: byte(i)}
 		s.authors.named[account] = &playerv1.Author{AccountId: account.String(), Name: fmt.Sprintf("Player%02d", i)}
-		s.reacted("hello", clown, reactions.ReactorOf(account), true, now.Add(time.Duration(i-30)*time.Minute))
+		s.reacted("crowd", clown, reactions.ReactorOf(account), true, now.Add(time.Duration(i-30)*time.Minute))
 	}
 
+	const size = 3
+	query := history_query.NewPostgresQuery(s.db, s.authors, cptime.NewFixedClock(now), size, historyRetention)
 	react := react_usecase.New(s.messages, s.reactions, silentFeed{}, commandAuthors{query: s.authors},
-		cptime.NewFixedClock(now), window)
+		cptime.NewFixedClock(now), messages.NewWindow(size, historyRetention))
 	untouched := reactions.Reaction(chatv1.Reaction_REACTION_EARTH)
 
 	for _, viewer := range []messages.AccountID{ada, bob, gone} {
-		history := s.history(viewer)
+		history, err := query.History(s.T().Context(), viewer)
+		s.Require().NoError(err)
+		s.Require().Len(history.GetMessages(), size)
 		for _, message := range history.GetMessages() {
 			out, err := react.Execute(s.T().Context(), react_usecase.In{
 				Account: viewer, MessageID: messages.MessageID(message.GetId()), Reaction: untouched, On: false,
