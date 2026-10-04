@@ -667,14 +667,14 @@ flame (`StreakFlame`) is the Noto fire of the reactions, `role="img"` named
 neither**: the server sends it no color and a streak of 0, so a signed-in player
 shows a flame only once it has a username.
 
-**A name wears its title too**, in the chat log and the roster: the medal of the
+**A name wears its title too**, in the chat log, the roster and the season board: the medal of the
 title its player wears, small, after the crown (`TitleBadge`, a `TitleEmblem`
 with `role="img"` named by the title). The server sends it with the name
-(`ChatMessage.authorTitle`, `RosterEntry.wornTitle`), read when shown, so a new
+(`ChatMessage.authorTitle`, `RosterEntry.wornTitle`, `Standing.wornTitle`), read when shown, so a new
 pick shows on the roster at once, on the next message, and on older ones once the
 chat is read again. A guest
 wears none. `backends/title.ts` holds `PlayerTitle` and `titleOf`, the one
-decoder of `player.v1.Title`, shared by the chat and the player backends.
+decoder of `player.v1.Title`, shared by the chat, the player and the standings backends.
 
 **An admin of the game wears a crown** (`AdminCrown`, gold, `role="img"` named
 "Admin") beside its name in the chat log, the roster and the card's title.
@@ -682,9 +682,10 @@ The server says so: `ChatMessage.authorAdmin`, `RosterEntry.admin` and
 `PlayerInfo.admin`. The card crowns from what was clicked, and from the read
 once it lands. In fake mode, Ana is the admin.
 
-**A name opens a player card**, in the roster and on a chat message
-(`app/players/PlayerCard.tsx`, a `Modal`). `Viewer` holds the one card open and
-hands `onOpenPlayer` to `Menu` → `PlayersPanel` and to `ChatPanel` → `ChatLog`;
+**A name opens a player card**, in the roster, on a chat message and on the
+season's board (`app/players/PlayerCard.tsx`, a `Modal`). `Viewer` holds the one
+card open and hands `onOpenPlayer` to `ChatPanel` → `ChatLog` and `PlayersPanel`,
+and to the board's `BoardStandings`;
 without a `PlayerInfoBackend` wired the names are plain text. The card shows the
 flag and the country, then, for a player with a username, what
 `player.v1.PlayerService/GetPlayer` answers: the title it wears and the titles
@@ -765,7 +766,9 @@ is the player's own view.
   (`stepLabel`), a bar filled up to the progress (`filledOf`), and in its header
   what is left to the next rank (`leftLabel`). The path scrolls sideways and opens
   centred on the next rank. `useTitles` reads `GetTitles` (the click token, as
-  `GetProfile`) each time the panel opens; a failed read says so.
+  `GetProfile`) each time the panel opens and after a run of clicks, at the pace
+  of `useMySeason`; a failed read says so. Tiles taken counts each take at once
+  (`useOwnTakes`): `GetPlayer` is cached 10s, so it is read only once.
 - **The unlock moment is live.** The player stream carries `titleEarned` to a
   stream opened with this player's token. `useRoster` hands it to `Viewer`, which
   queues them and shows `TitleUnlocked` over the game, one at a time. It is not a
@@ -780,49 +783,88 @@ is the player's own view.
   rank per track of what one take earned, so a jump of two ranks is one overlay.
   A title earned while no tab is open is never announced; it is simply there next
   time.
-- **The worn title follows the name** in the chat and the roster, as a small
-  medal (see [Who is playing](#who-is-playing)).
+- **The worn title follows the name** in the chat, the roster and the season
+  board, as a small medal (see [Who is playing](#who-is-playing)).
 - **UI copy is not documentation.** The card and the tab say nothing about the
   rules ("one per track", "others see the title you wear"): what is drawn is the rule.
 
 ### Season standings
 
 `backends/standings.ts` is the contract: `StandingsBackend`, `Standing` (a
-ranked player: rank, name, color, main flag, tiles) and `MySeason` (the caller's
-main flag, tiles and ranks). `standingsBackend.ts` implements it over
-`seasons.v1.SeasonService/GetStandings` and `GetMySeason`, and
+ranked player: rank, name, color, worn title, the flag its tiles are for, tiles)
+and `MySeason` (the caller's line on one board: that flag, its tiles, its rank
+and its worn title). `standingsBackend.ts` implements it over
+`seasons.v1.SeasonService/ListenForEvents` and `GetMySeason`, and
 `fakeStandingsBackend.ts` stands in for it in fake mode, counting the player's
-own clicks. `app/standings/` draws it.
+own clicks and moving the other players a few tiles every 1.5s. `app/standings/`
+draws it.
 
 - **A player's season is the tiles it took this season for its main flag**, the
-  flag it took the most for. The server ranks only signed-in players (each has a
-  username; a guest has none), and ties share a rank (1, 2, 2, 4). `RankCoin` draws the rank, as on the countries'
-  board.
+  flag it took the most for: that is the Players board. **A country's board is
+  every player who took tiles for that country, by those tiles**, so a player is
+  on the board of each flag it took for, from its first take. The server ranks
+  only signed-in players (each has a username; a guest has none), and ties share
+  a rank (1, 2, 2, 4). `RankCoin` draws the rank, as on the countries' board.
 - **The board has three views** (`BoardViews`): Countries, the `Leaderboard` as
-  it was; Players; and the players whose main flag is the country played for,
-  named by its flag and name. `Viewer` holds the view, so a closed sheet or
+  it was; Players; and the players of the country played for, named by its flag
+  and name. `Viewer` holds the view, so a closed sheet or
   another menu tab keeps it. With no `StandingsBackend` wired the board has no
   views.
 - **The view is picked from the board's heading** (`HeadingSelect`, a gold
   section title that opens a listbox), not from tabs: the board is already a
-  tab of the menu, and tabs in a tab read as one row of places.
-- **`GetStandings` is a public GET**, cached 15s on the server, and
-  `useStandings` reads it every 15s while a players' view is shown. A server
-  without it reads as nobody.
+  tab of the menu, and tabs in a tab read as one row of places. **The list is
+  `position: fixed` under its button**: absolute, it was clipped by the menu's
+  scrolling body and made a short board scroll. It follows the button every
+  frame (a sheet grows upward as the board loads), opens upward with no room
+  below, and closes when something that holds it scrolls.
+- **The board is streamed.** `useStandings` follows `ListenForEvents` for the
+  view shown (`country_id`, empty for every player) through `openStream`, with
+  no token and `NO_TIMEOUT`, and stops when the view changes or closes. The
+  server sends the view's whole top 10 when the stream opens and again each time
+  it changes, at most once a second; a `board` replaces what is shown, a
+  `heartbeat` is skipped. While the stream is down the last board stays, and a
+  reconnect starts with a whole board. A server without the stream is retried
+  with `openStream`'s backoff. `GetStandings` is no longer called.
 - **`GetMySeason` reads as the identity token** (`identity()`: a fresh token, or
   one resumed from the cookie, never a Turnstile mint), so a player back the next
   day sees its season at once. With none to be had it is not sent, and
-  `unauthenticated` reads as unknown and keeps the token.
-  `useMySeason` reads it when a players' view opens, when the account or the
-  username changes, and 3s after the last of a run of accepted clicks:
-  `acceptedClicks` wraps the `TileClicker` the globe uses and tells its listeners
-  once the server took a click, with no render of `Viewer` per click.
-- **The caller's own line.** "Your season" sits over the table: the tiles, and
-  with a username the rank among all players and in the main flag. A guest gets
-  a Sign in button beside its tiles, which opens `SignInPitchModal`. In the table
-  the caller's row is marked when it is in the top 10, and otherwise added under
-  it with its rank in that view: the global rank, or the country rank when the
-  country shown is its main flag. Its name and color come from the profile.
+  `unauthenticated` reads as unknown and keeps the token. **It is asked for the
+  board on screen**: no country on Players, which reads the main flag, its tiles
+  and the global rank; the country on its board, which reads the tiles taken for
+  it and the rank there. `useMySeason` reads it when a players' view opens, when
+  the view's country changes (and shows nothing of the other board meanwhile),
+  when the account or the username changes, 2s after the last of a run of
+  accepted clicks, and at least every 10s while they keep coming
+  (`useReadsAfterClicks`).
+- **The caller's own numbers move on every take.** The globe already knows
+  which click takes a tile (it paints it as the server will write it), and once
+  the server accepts one it tells `acceptedClicks`, which tells its listeners
+  with no render of `Viewer` per click. `useOwnTakes` counts them by flag, and
+  `liveSeason` adds the ones made since the read was sent to the line's flag:
+  the country shown on its board, the main flag on Players. A player with no
+  main flag yet gets the server's rule there (the first flag, until another has
+  strictly more). On Players a take for another flag adds nothing: only the
+  server knows whether it became the main one. A spread or an enclosure's extra
+  tiles, and the ranks, wait for the next read.
+- **The caller's row is drawn from that count** (`boardWith`): it climbs into
+  the top 10 and pushes the last out, its rank counted among the rows it passes,
+  and the rank in "Your season" follows it. The other rows move with the
+  stream: a `TileUpdate` does not say who took the tile.
+- **The caller's own line.** "Your season" sits over the table and shows only
+  the board on screen: on Players the season's tiles and, with a username, the
+  rank among all players; on a country's board the tiles taken for that country
+  and the rank there, under its name. No tile names another country than the
+  one shown. A guest gets a Sign in button beside its tiles, which opens
+  `SignInPitchModal`. In the table the caller's row is the same line: marked
+  when it is in the top 10, and otherwise added under it with its rank there.
+  Its name and color come from the profile, its title from `GetMySeason`: read
+  again after clicks, it follows a rank-up, and a title picked meanwhile shows
+  at the next read.
+- **A name opens the player card**, as in the roster and the chat, with the
+  flag of its row and its title.
+- **The head's line is a background**, 7px above its bottom edge: the gap under
+  it was the first row's top padding, and the caller's highlight took it in
+  when it was first.
 
 ### The season
 

@@ -51,6 +51,7 @@ import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {outcomeOf, ownerAfter} from "../../domain/homeSoil.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
+import {AcceptedClick} from "./acceptedClicks.ts";
 
 type Uniforms = BlastUniforms & {
     pointSize: THREE.IUniform
@@ -131,6 +132,7 @@ export type GlobeOptions = {
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
     onArmedChange: (armed: boolean) => void
     onNativeCleared?: (ground: string) => void
+    onClickAccepted?: (click: AcceptedClick) => void
     playSound?: PlaySound
     signal: AbortSignal
 }
@@ -173,6 +175,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onBombDropped,
         onArmedChange,
         onNativeCleared = () => {},
+        onClickAccepted = () => {},
         playSound = () => {},
         signal,
     } = options
@@ -548,7 +551,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             }
         }
 
-        tileClicker.clickTile(tile, country.code, switches).catch((e) => {
+        const clicked = country.code
+        tileClicker.clickTile(tile, clicked, switches).then(() => {
+            if (lifetime.signal.aborted) return
+            onClickAccepted({country: clicked, took: outcome === "taken"})
+        }, (e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
             if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onSessionUnavailable, onMapFrozen})) playSound("refused")

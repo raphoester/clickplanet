@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {ReactNode} from "react"
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {cleanup, render, screen, within} from "@testing-library/react"
+import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import Menu from "./Menu.tsx"
 import {Countries} from "../domain/countries.ts"
@@ -12,11 +12,16 @@ import {AccountStore} from "./account/accountStore.ts"
 import {DISCORD_INVITE} from "../links.ts"
 import {NameColor} from "../backends/player.ts"
 import {PlayerBackend, PlayerError, PlayerInfoBackend, PlayerTitle, TitleDashboard} from "../backends/player.ts"
+import {AcceptedClicks, acceptedClicks} from "./viewer/acceptedClicks.ts"
+import {SETTLE_MS} from "./viewer/useAcceptedClicks.ts"
 
 const france = Countries.get("fr")!
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+})
 
 function setup(leaderboard: LeaderboardEntry[] = [], country = france) {
     const setCountry = vi.fn()
@@ -128,7 +133,7 @@ describe("Menu", () => {
 
     describe("the players' standings", () => {
         const standings = {
-            backend: {standings: vi.fn(async () => []), mySeason: vi.fn(async () => undefined)},
+            backend: {listenForStandings: vi.fn(() => () => {}), mySeason: vi.fn(async () => undefined)},
             caller: {linked: false},
             listenForClicks: () => () => {},
             view: "countries" as const,
@@ -354,7 +359,7 @@ describe("Menu", () => {
             }],
         })
 
-        const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number, playerInfo?: PlayerInfoBackend) => {
+        const withAccount = (offered: Provider[], me: Me, username = "", linkedMultiplier?: number, playerInfo?: PlayerInfoBackend, clicks?: AcceptedClicks) => {
             const backend = {
                 signInOptions: vi.fn(async () => offered),
                 me: vi.fn(async () => me),
@@ -376,7 +381,8 @@ describe("Menu", () => {
             } satisfies PlayerBackend
             const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
-                                      account={store} linkedMultiplier={linkedMultiplier} playerInfo={playerInfo}/>)
+                                      account={store} linkedMultiplier={linkedMultiplier} playerInfo={playerInfo}
+                                      listenForClicks={clicks?.listenForClicks}/>)
             const user = userEvent.setup()
             const openSettings = async () => {
                 await user.click(await screen.findByRole("tab", {name: "You"}))
@@ -492,6 +498,38 @@ describe("Menu", () => {
 
             expect(await screen.findByText("14,212")).toBeDefined()
             expect(playerInfo.playerInfo).toHaveBeenCalledWith("ana")
+        })
+
+        it("counts the tiles a player takes into its stats at once, and reads its titles again once its clicks settle", async () => {
+            const playerInfo = {
+                playerInfo: vi.fn(async (name: string) => ({
+                    name, tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
+                    color: NameColor.UNSPECIFIED, titles: [],
+                })),
+            }
+            const clicks = acceptedClicks()
+            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, playerInfo, clicks)
+            player.titles.mockResolvedValue(dashboard(140))
+            await user.click(await screen.findByRole("tab", {name: "You"}))
+            expect(await screen.findByText("860 tiles to Raider")).toBeDefined()
+            expect(await screen.findByText("14,212")).toBeDefined()
+
+            vi.useFakeTimers()
+            player.titles.mockResolvedValue(dashboard(143))
+            act(() => {
+                clicks.record({country: "fr", took: true})
+                clicks.record({country: "de", took: true})
+                clicks.record({country: "fr", took: false})
+            })
+            expect(screen.getByText("14,214")).toBeDefined()
+            expect(player.titles).toHaveBeenCalledTimes(1)
+
+            await act(async () => vi.advanceTimersByTime(SETTLE_MS))
+            vi.useRealTimers()
+
+            expect(player.titles).toHaveBeenCalledTimes(2)
+            expect(await screen.findByText("857 tiles to Raider")).toBeDefined()
+            expect(playerInfo.playerInfo).toHaveBeenCalledTimes(1)
         })
 
         it("wears the title pressed, and shows it worn", async () => {

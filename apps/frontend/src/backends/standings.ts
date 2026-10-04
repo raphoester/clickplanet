@@ -1,4 +1,4 @@
-import {NameColor} from "./player.ts"
+import {NameColor, PlayerTitle} from "./player.ts"
 
 export type Standing = {
     rank: number
@@ -6,17 +6,18 @@ export type Standing = {
     color: NameColor
     countryCode: string
     tiles: number
+    wornTitle?: PlayerTitle
 }
 
 export type MySeason = {
     countryCode?: string
     tiles: number
-    globalRank?: number
-    countryRank?: number
+    rank?: number
+    wornTitle?: PlayerTitle
 }
 
 export interface StandingsBackend {
-    standings(countryCode: string): Promise<Standing[]>
+    listenForStandings(countryCode: string, onStandings: (standings: Standing[]) => void): () => void
 
-    mySeason(): Promise<MySeason | undefined>
+    mySeason(countryCode: string): Promise<MySeason | undefined>
 }

@@ -3,6 +3,7 @@ syntax = "proto3";
 package seasons.v1;
 
 import "player/v1/color.proto";
+import "player/v1/title.proto";
 
 service SeasonService {
   rpc GetSeason(GetSeasonRequest) returns (GetSeasonResponse) {
@@ -14,6 +15,8 @@ service SeasonService {
   }
 
   rpc GetMySeason(GetMySeasonRequest) returns (GetMySeasonResponse);
+
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream SeasonEvent);
 }
 
 message GetSeasonRequest {}
@@ -42,13 +45,36 @@ message Standing {
   player.v1.NameColor color = 3;
   string country_id = 4;
   uint64 tiles = 5;
+  player.v1.Title worn_title = 6;
 }
 
-message GetMySeasonRequest {}
+message GetMySeasonRequest {
+  string country_id = 1;
+}
 
 message GetMySeasonResponse {
   string country_id = 1;
   uint64 tiles = 2;
   uint32 global_rank = 3;
+  // country_tiles and country_rank are on the board of the request's country_id, not of the main flag.
   uint32 country_rank = 4;
+  player.v1.Title worn_title = 5;
+  uint64 country_tiles = 6;
 }
+
+message ListenForEventsRequest {
+  string country_id = 1;
+}
+
+message SeasonEvent {
+  oneof event {
+    Board board = 1;
+    Heartbeat heartbeat = 2;
+  }
+}
+
+message Board {
+  repeated Standing standings = 1;
+}
+
+message Heartbeat {}

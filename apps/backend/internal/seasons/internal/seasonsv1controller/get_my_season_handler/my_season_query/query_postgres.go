@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
@@ -20,37 +22,52 @@ type Authors interface {
 	Authors(ctx context.Context, accounts []standings.AccountID) (map[standings.AccountID]*playerv1.Author, error)
 }
 
+type CountryChecker interface {
+	CheckCountry(country string) bool
+}
+
+var ErrUnknownCountry = errors.New("not a country")
+
 const page = 500
 
-func NewPostgresQuery(db cppg.Querier, authors Authors, seasons calendar.Calendar, clock cptime.Clock) *PostgresQuery {
-	return &PostgresQuery{db: db, authors: authors, seasons: seasons, clock: clock}
+func NewPostgresQuery(
+	db cppg.Querier,
+	authors Authors,
+	seasons calendar.Calendar,
+	clock cptime.Clock,
+	countries CountryChecker,
+) *PostgresQuery {
+	return &PostgresQuery{db: db, authors: authors, seasons: seasons, clock: clock, countries: countries}
 }
 
 type PostgresQuery struct {
-	db      cppg.Querier
-	authors Authors
-	seasons calendar.Calendar
-	clock   cptime.Clock
+	db        cppg.Querier
+	authors   Authors
+	seasons   calendar.Calendar
+	clock     cptime.Clock
+	countries CountryChecker
 }
 
-func (q *PostgresQuery) MySeason(ctx context.Context, account standings.AccountID) (*seasonsv1.GetMySeasonResponse, error) {
+func (q *PostgresQuery) MySeason(
+	ctx context.Context,
+	account standings.AccountID,
+	country string,
+) (*seasonsv1.GetMySeasonResponse, error) {
+	if country != "" && !q.countries.CheckCountry(country) {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownCountry, country)
+	}
 	season, ok := q.seasons.Current(q.clock.Now())
 	if !ok {
 		return &seasonsv1.GetMySeasonResponse{}, nil
 	}
 
-	mine := &seasonsv1.GetMySeasonResponse{}
-	var tiles int64
-	err := q.db.QueryRowContext(ctx, `
-		SELECT country, tiles FROM contributions WHERE season = $1 AND account_id = $2 AND main
-	`, int64(season.Number), uuid.UUID(account)).Scan(&mine.CountryId, &tiles)
-	if errors.Is(err, sql.ErrNoRows) {
+	mine, err := q.tiles(ctx, season.Number, account, country)
+	if err != nil {
+		return nil, err
+	}
+	if mine.GetTiles() == 0 {
 		return mine, nil
 	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the caller's season: %w", err)
-	}
-	mine.Tiles = uint64(tiles) //nolint:gosec // CHECK (tiles > 0).
 
 	named, err := q.authors.Authors(ctx, []standings.AccountID{account})
 	if err != nil {
@@ -59,90 +76,130 @@ func (q *PostgresQuery) MySeason(ctx context.Context, account standings.AccountI
 	if !ranked(named, account) {
 		return mine, nil
 	}
+	mine.WornTitle = named[account].GetWornTitle()
 
-	mine.GlobalRank, mine.CountryRank = 1, 1
-	var after standings.AccountID
-	for {
-		above, err := q.above(ctx, season.Number, mine, after)
-		if err != nil {
-			return nil, err
-		}
-		if len(above) == 0 {
-			return mine, nil
-		}
-		if err := q.count(ctx, above, mine); err != nil {
-			return nil, err
-		}
-		if len(above) < page {
-			return mine, nil
-		}
-		after = above[len(above)-1].account
+	var global, inCountry uint32
+	group, ctx := errgroup.WithContext(ctx)
+	group.Go(func() (err error) {
+		global, err = q.rank(ctx, aboveOnTheMap, int64(season.Number), int64(mine.GetTiles())) //nolint:gosec // a line's tiles fit in int64.
+		return err
+	})
+	if mine.GetCountryTiles() > 0 {
+		group.Go(func() (err error) {
+			inCountry, err = q.rank(ctx, aboveInTheCountry, int64(season.Number), int64(mine.GetCountryTiles()), country) //nolint:gosec // a line's tiles fit in int64.
+			return err
+		})
 	}
+	if err := group.Wait(); err != nil {
+		return nil, err //nolint:wrapcheck // each part already names what failed.
+	}
+	mine.GlobalRank, mine.CountryRank = global, inCountry
+	return mine, nil
 }
 
-func (q *PostgresQuery) count(ctx context.Context, above []aboveLine, mine *seasonsv1.GetMySeasonResponse) error {
-	accounts := make([]standings.AccountID, len(above))
-	for i, other := range above {
-		accounts[i] = other.account
-	}
-	named, err := q.authors.Authors(ctx, accounts)
-	if err != nil {
-		return fmt.Errorf("failed to read who is above the caller: %w", err)
-	}
-	for _, other := range above {
-		if !ranked(named, other.account) {
-			continue
-		}
-		mine.GlobalRank++
-		if other.sameCountry {
-			mine.CountryRank++
-		}
-	}
-	return nil
-}
-
-type aboveLine struct {
-	account     standings.AccountID
-	sameCountry bool
-}
-
-const aboveMine = `
-	SELECT account_id, country = $3
+const tilesOfMine = `
+	SELECT country, tiles, COALESCE((
+		SELECT tiles FROM contributions WHERE season = $1 AND account_id = $2 AND country = $3
+	), 0)
 	FROM contributions
-	WHERE season = $1 AND main AND tiles > $2 AND account_id > $4
+	WHERE season = $1 AND account_id = $2 AND main
+`
+
+func (q *PostgresQuery) tiles(
+	ctx context.Context,
+	season calendar.Number,
+	account standings.AccountID,
+	country string,
+) (*seasonsv1.GetMySeasonResponse, error) {
+	var (
+		mine                  = &seasonsv1.GetMySeasonResponse{}
+		tiles, tilesOfCountry int64
+	)
+	err := q.db.QueryRowContext(ctx, tilesOfMine, int64(season), uuid.UUID(account), country).
+		Scan(&mine.CountryId, &tiles, &tilesOfCountry)
+	if errors.Is(err, sql.ErrNoRows) {
+		return mine, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the caller's season: %w", err)
+	}
+	mine.Tiles = uint64(tiles)                 //nolint:gosec // CHECK (tiles > 0).
+	mine.CountryTiles = uint64(tilesOfCountry) //nolint:gosec // CHECK (tiles > 0), or 0.
+	return mine, nil
+}
+
+const aboveOnTheMap = `
+	SELECT account_id
+	FROM contributions
+	WHERE season = $1 AND main AND tiles > $2 AND account_id > $3
+	ORDER BY account_id
+	LIMIT $4
+`
+
+const aboveInTheCountry = `
+	SELECT account_id
+	FROM contributions
+	WHERE season = $1 AND tiles > $2 AND country = $3 AND account_id > $4
 	ORDER BY account_id
 	LIMIT $5
 `
 
-func (q *PostgresQuery) above(
-	ctx context.Context,
-	season calendar.Number,
-	mine *seasonsv1.GetMySeasonResponse,
-	after standings.AccountID,
-) ([]aboveLine, error) {
-	rows, err := q.db.QueryContext(ctx, aboveMine,
-		int64(season), int64(mine.GetTiles()), mine.GetCountryId(), uuid.UUID(after), page) //nolint:gosec // a line's tiles fit in int64.
+func (q *PostgresQuery) rank(ctx context.Context, above string, args ...any) (uint32, error) {
+	rank := uint32(1)
+	var after standings.AccountID
+	for {
+		accounts, err := q.above(ctx, above, slices.Concat(args, []any{uuid.UUID(after), page}))
+		if err != nil {
+			return 0, err
+		}
+		ahead, err := q.ahead(ctx, accounts)
+		if err != nil {
+			return 0, err
+		}
+		rank += ahead
+		if len(accounts) < page {
+			return rank, nil
+		}
+		after = accounts[len(accounts)-1]
+	}
+}
+
+func (q *PostgresQuery) above(ctx context.Context, query string, args []any) ([]standings.AccountID, error) {
+	rows, err := q.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read who is above the caller: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	var above []aboveLine
+	var above []standings.AccountID
 	for rows.Next() {
-		var (
-			account uuid.UUID
-			each    aboveLine
-		)
-		if err := rows.Scan(&account, &each.sameCountry); err != nil {
+		var account uuid.UUID
+		if err := rows.Scan(&account); err != nil {
 			return nil, fmt.Errorf("failed to scan who is above the caller: %w", err)
 		}
-		each.account = standings.AccountID(account)
-		above = append(above, each)
+		above = append(above, standings.AccountID(account))
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read who is above the caller: %w", err)
 	}
 	return above, nil
+}
+
+func (q *PostgresQuery) ahead(ctx context.Context, accounts []standings.AccountID) (uint32, error) {
+	if len(accounts) == 0 {
+		return 0, nil
+	}
+	named, err := q.authors.Authors(ctx, accounts)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read who is above the caller: %w", err)
+	}
+	var count uint32
+	for _, account := range accounts {
+		if ranked(named, account) {
+			count++
+		}
+	}
+	return count, nil
 }
 
 func ranked(named map[standings.AccountID]*playerv1.Author, account standings.AccountID) bool {

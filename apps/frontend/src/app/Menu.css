@@ -54,7 +54,7 @@
 
 .menu-playing-name {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: var(--space-2);
     min-width: 0;
     padding-top: 3px;

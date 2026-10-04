@@ -31,9 +31,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler/standings_query"
 	standings_authors "github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler/standings_query/rpc_player_authors"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/inprocess_board_feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/inprocess_board_feed/log_board_reader"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/postgres_contribution_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/forget_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/forget_account_usecase/marking_forget_account"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/record_take_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/record_take_usecase/marking_record_take"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/tile_taken_subscriber"
@@ -64,6 +69,7 @@ func NewModule(config Config) cpbootstrap.Module {
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
 	seasons := calendar.New(config.Calendar)
+	countries := cpcountries.New()
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
@@ -82,31 +88,36 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	contributions := postgres_contribution_store.New(db)
+	standingsQuery := standings_query.NewPostgresQuery(db, standings_authors.New(player), seasons, clock, countries)
+	boards := inprocess_board_feed.New(log_board_reader.New(standingsQuery, props.Logger), clock)
 
 	takes, err := cpbootstrap.Subscribe(props.Events, "seasons-standings", tileTakenBuffer,
-		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(seasons, contributions)), props.Logger))
+		log_subscriber.New(tile_taken_subscriber.New(
+			marking_record_take.New(record_take_usecase.New(seasons, contributions), boards),
+		), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
 	deletions, err := cpbootstrap.Subscribe(props.Events, "seasons-standings-accounts", accountDeletedBuffer,
-		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(contributions)), props.Logger))
+		log_subscriber.New(account_deleted_subscriber.New(
+			marking_forget_account.New(forget_account_usecase.New(contributions), boards),
+		), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards))
 
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(
 			get_season_usecase.New(seasons, clock),
 		),
-		GetStandingsHandler: get_standings_handler.New(standings_query.NewPostgresQuery(
-			db, standings_authors.New(player), seasons, clock, cpcountries.New(),
-		)),
+		GetStandingsHandler: get_standings_handler.New(standingsQuery),
 		GetMySeasonHandler: get_my_season_handler.New(my_season_query.NewPostgresQuery(
-			db, my_season_authors.New(player), seasons, clock,
+			db, my_season_authors.New(player), seasons, clock, countries,
 		)),
+		ListenForEventsHandler: listen_for_events_handler.New(boards, countries, props.Server.StreamHeartbeat),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "seasons")))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

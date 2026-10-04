@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {
     BankFullError,
     Bomber,
@@ -105,7 +105,7 @@ export default function Viewer(props: ViewerProps) {
     const [clicksOpen, setClicksOpen] = useState(false)
     const [unread, setUnread] = useState(0)
     const [boardView, setBoardView] = useState<BoardView>("countries")
-    const accepted = useMemo(() => acceptedClicks(props.tileClicker), [props.tileClicker])
+    const [accepted] = useState(acceptedClicks)
     const toggleSheet = (name: SheetName) => setSheet((current) => current === name ? undefined : name)
     const closeSheet = () => setSheet(undefined)
 
@@ -140,12 +140,13 @@ export default function Viewer(props: ViewerProps) {
         dismissClear,
     } = useGlobe({
         container,
-        tileClicker: accepted.clicker,
+        tileClicker: props.tileClicker,
         ownershipsGetter: props.ownershipsGetter,
         updatesListener: props.updatesListener,
         bonusListener: props.bonusListener,
         bomber: props.bomber,
         playSound: sound.play,
+        onClickAccepted: accepted.record,
         country: countryState,
         clickHue: hueOf(color),
     })
@@ -179,6 +180,7 @@ export default function Viewer(props: ViewerProps) {
         caller: {username, color, linked},
         listenForClicks: accepted.listenForClicks,
         onSignIn: clickBudget?.linkedMultiplier ? openPitch : undefined,
+        onOpenPlayer,
         view: boardView,
         onView: setBoardView,
     }
@@ -193,7 +195,12 @@ export default function Viewer(props: ViewerProps) {
         anthem: <AnthemControls anthem={anthem} settings={sound.settings} onChange={sound.setSettings}/>,
         standings,
     }
-    const you = {account: props.account, linkedMultiplier: clickBudget?.linkedMultiplier, playerInfo: props.playerInfo}
+    const you = {
+        account: props.account,
+        linkedMultiplier: clickBudget?.linkedMultiplier,
+        playerInfo: props.playerInfo,
+        listenForClicks: accepted.listenForClicks,
+    }
     const more = {
         sound: {settings: sound.settings, onChange: sound.setSettings, preview: sound.preview},
         onTakePicture: () => {

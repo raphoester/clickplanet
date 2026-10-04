@@ -1,9 +1,9 @@
-import {useEffect, useState} from "react"
+import {useEffect, useRef, useState} from "react"
 import {NameColor} from "../../backends/player.ts"
 import {MySeason, StandingsBackend} from "../../backends/standings.ts"
+import {liveSeason, Takes, takesSince} from "../../domain/standings.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
-
-export const AFTER_CLICKS_MS = 3_000
+import {useOwnTakes, useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
 
 export type Caller = {
     username?: string
@@ -11,34 +11,40 @@ export type Caller = {
     linked: boolean
 }
 
-export function useMySeason(backend: StandingsBackend, caller: Caller, listenForClicks: ListenForClicks): MySeason | undefined {
-    const [season, setSeason] = useState<MySeason>()
-    const [read, setRead] = useState(0)
+type Read = {
+    countryCode: string
+    season: MySeason
+    before: Takes
+}
+
+export function useMySeason(
+    backend: StandingsBackend,
+    caller: Caller,
+    listenForClicks: ListenForClicks,
+    countryCode: string,
+): MySeason | undefined {
+    const takes = useOwnTakes(listenForClicks)
+    const reads = useReadsAfterClicks(listenForClicks)
+    const latest = useRef(takes)
+    const [read, setRead] = useState<Read>()
 
     useEffect(() => {
-        let timer: ReturnType<typeof setTimeout> | undefined
-        const stop = listenForClicks(() => {
-            clearTimeout(timer)
-            timer = setTimeout(() => setRead((n) => n + 1), AFTER_CLICKS_MS)
-        })
-        return () => {
-            stop()
-            clearTimeout(timer)
-        }
-    }, [listenForClicks])
+        latest.current = takes
+    }, [takes])
 
     useEffect(() => {
         let stale = false
-        backend.mySeason().then(
-            (mine) => {
-                if (!stale) setSeason(mine)
+        const before = latest.current
+        backend.mySeason(countryCode).then(
+            (season) => {
+                if (!stale) setRead(season && {countryCode, season, before})
             },
             (e) => console.error("Could not read your season", e),
         )
         return () => {
             stale = true
         }
-    }, [backend, caller.linked, caller.username, read])
+    }, [backend, caller.linked, caller.username, countryCode, reads])
 
-    return season
+    return read?.countryCode === countryCode ? liveSeason(read.season, takesSince(read.before, takes)) : undefined
 }

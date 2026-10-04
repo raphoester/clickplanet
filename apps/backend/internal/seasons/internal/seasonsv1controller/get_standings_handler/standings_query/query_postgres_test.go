@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
@@ -141,13 +142,41 @@ func (s *testSuite) TestPlayersWithAsManyTilesShareARank() {
 	s.Equal([]string{"1 player_1 fr 5", "1 player_2 de 5", "3 player_4 it 3"}, lines(s.standings("")))
 }
 
-func (s *testSuite) TestTheTopOfACountryIsThePlayersWhoseMainFlagItIs() {
+func (s *testSuite) TestEachStandingWearsTheTitleItsPlayerWears() {
+	warmaster := &playerv1.Title{
+		Id: "warmaster", Name: "Warmaster",
+		Rank: &playerv1.Rank{TrackId: "conquest", TrackName: "Conquest", Number: 5, Count: 5},
+	}
+	s.player(1, "fr", 5)
+	s.authors.named[account(1)].WornTitle = warmaster
+	s.player(2, "de", 3)
+
+	res := s.standings("")
+
+	s.Require().Len(res.GetStandings(), 2)
+	s.True(proto.Equal(warmaster, res.GetStandings()[0].GetWornTitle()), res.GetStandings()[0].GetWornTitle())
+	s.Nil(res.GetStandings()[1].GetWornTitle(), "a player who wears no title wears none here")
+}
+
+func (s *testSuite) TestTheTopOfACountryRanksEveryPlayerByTheTilesTakenForIt() {
 	s.player(1, "de", 9)
 	s.take(0, 1, "fr", 8)
 	s.player(2, "fr", 2)
 	s.player(3, "fr", 4)
+	s.guest(4, "fr", 5)
+	s.take(0, 3, "it", 1)
 
-	s.Equal([]string{"1 player_3 fr 4", "2 player_2 fr 2"}, lines(s.standings("fr")))
+	s.Equal([]string{"1 player_1 fr 8", "2 player_3 fr 4", "3 player_2 fr 2"}, lines(s.standings("fr")))
+	s.Equal([]string{"1 player_1 de 9"}, lines(s.standings("de")))
+	s.Equal([]string{"1 player_3 it 1"}, lines(s.standings("it")))
+}
+
+func (s *testSuite) TestTheTopOfTheWholeMapCountsOnlyTheMainFlag() {
+	s.player(1, "de", 9)
+	s.take(0, 1, "fr", 8)
+	s.player(2, "fr", 10)
+
+	s.Equal([]string{"1 player_2 fr 10", "2 player_1 de 9"}, lines(s.standings("")))
 }
 
 func (s *testSuite) TestAnAccountThePlayerModuleCannotNameIsNotRanked() {
@@ -197,6 +226,24 @@ func (s *testSuite) TestACountryThatIsNotOneIsRefusedAndReadsNothing() {
 
 	s.Require().ErrorIs(err, standings_query.ErrUnknownCountry)
 	s.Zero(s.authors.asked)
+}
+
+func (s *testSuite) TestABoardIsTheTopAndTheAccountOfEachLineInItsOrder() {
+	s.player(1, "fr", 5)
+	s.guest(2, "fr", 9)
+	s.player(3, "de", 7)
+
+	board, accounts, err := s.query().Board(s.T().Context(), "")
+
+	s.Require().NoError(err)
+	s.Equal(lines(s.standings("")), lines(&seasonsv1.GetStandingsResponse{Standings: board.GetStandings()}))
+	s.Equal([]standings.AccountID{account(3), account(1)}, accounts)
+}
+
+func (s *testSuite) TestABoardOfACountryThatIsNotOneIsRefused() {
+	_, _, err := s.query().Board(s.T().Context(), "zz")
+
+	s.Require().ErrorIs(err, standings_query.ErrUnknownCountry)
 }
 
 func (s *testSuite) TestAFailureToNameIsAnError() {
