@@ -1,6 +1,7 @@
 package planetv1controller
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -173,7 +174,7 @@ type accountVerifier struct{}
 
 const linkedPrefix = "linked "
 
-func (accountVerifier) Verify(token string, _ string, _ time.Time) (*cpsession.Claims, error) {
+func (accountVerifier) Verify(_ context.Context, token string, _ string, _ time.Time) (*cpsession.Claims, error) {
 	linked := strings.HasPrefix(token, linkedPrefix)
 	account, err := uuid.Parse(strings.TrimPrefix(token, linkedPrefix))
 	if err != nil {
