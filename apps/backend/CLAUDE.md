@@ -63,7 +63,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username. `player` also reads `planet`'s log of takes, to count its stats — see [The take feed and its projections](#the-take-feed-and-its-projections). When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken` and `BombLanded`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent`, and `player` publishes `StatsChanged`; `player` hears all of them but `TileTaken` and `BombLanded`, `seasons` hears `TileTaken` and `AccountDeleted`, `chat` hears `BombLanded` and `AccountDeleted`, and `planet` hears `AccountDeleted`.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username. `player` and `seasons` also read `planet`'s log of takes, to count the stats and the standings — see [The take feed and its projections](#the-take-feed-and-its-projections). When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `BombLanded`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent`, and `player` publishes `StatsChanged`; `player` hears all of them but `BombLanded`, `chat` hears `BombLanded` and `AccountDeleted`, and `seasons` and `planet` hear `AccountDeleted`.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -208,6 +208,7 @@ return []bootstrap.Module{
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason` | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `player` | `planet.v1.InternalService/GetFeedStart` | where its stats start counting the takes, once, when they never began | `takes/rpc_take_feed` |
 | `player` | `planet.v1.InternalService/ReadLog` | the log after the position its stats are counted to, 1000 entries at a time, until it is caught up, then every `player.takes.pollInterval` | `takes/rpc_take_feed` |
+| `seasons` | `planet.v1.InternalService/GetFeedStart`, `ReadLog` | the same, for the standings, every `seasons.takes.pollInterval` | `standings/rpc_take_feed` |
 
 A module cannot import another's interior, so the key client all four need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -247,7 +248,6 @@ The events today:
 
 | event | published by | when | heard by |
 |---|---|---|---|
-| `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile. A clear of native land is recorded and never published | `seasons`, for the standings |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats and their baseline, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
@@ -257,7 +257,7 @@ The events today:
 
 #### The take feed and its projections
 
-**`planet.ledger_takes` is the log of every take, and another module reads it rather than hears it.** `player` counts its stats from it, not from `TileTaken`: the bus lost a take on a full buffer or a crash and could replay none, and a count that cannot be computed again cannot follow a rule that changes. The map is not projected from the log: it stays the tile map in memory, flushed to `planet.tiles` (see [Durability](#durability)). This is not event sourcing.
+**`planet.ledger_takes` is the log of every take, and another module reads it rather than hears it.** `player` counts its stats from it and `seasons` its standings, where both once heard `planet.v1.TileTaken`: the bus lost a take on a full buffer or a crash and could replay none, and a count that cannot be computed again cannot follow a rule that changes. The map is not projected from the log: it stays the tile map in memory, flushed to `planet.tiles` (see [Durability](#durability)). This is not event sourcing.
 
 **The feed** is `planet.v1.InternalService`, on the internal listener:
 
@@ -269,13 +269,13 @@ The events today:
 - **`GetFeedStart()`** answers `ledger_feed.start`, which the same migration wrote once: the position the first take after it gets, as the boot's load computes it (after the last take kept, or the head when that is later). Every take before it was counted over the bus.
 - Both are queries (`read_log_handler/log_query`, `get_feed_start_handler/feed_start_query`); see [Reads are queries](#reads-are-queries).
 
-**A projection** is the stats today, in `internal/player/internal/takes/`:
+**A projection** is the stats, in `internal/player/internal/takes/`, or the season standings, in `internal/seasons/internal/standings/`. The stats are described here; the standings are the same loop (see [Seasons](#seasons-internalseasons)):
 
 - **It saves its position in the transaction that counts.** `postgres_take_store.Count` locks `player.stats_position`, refuses a batch read from another position (`takes.ErrMoved`), writes what the batch tallies, moves the position, and commits. A crash before the commit counts nothing and moves nothing, and the next read starts at the same take, so a take counts once. `TestACrashBetweenTheCountAndTheSaveOfThePositionCountsNothingAndTheRetryCountsOnce` breaks the position's write with a trigger after the stats are written.
 - **The loop**: `count_takes_usecase` reads where the stats are, reads up to 1000 entries from there (`rpc_take_feed`), and counts the takes among them. Its `Runner` goes again at once while there are entries, and waits `player.takes.pollInterval` (1s) when it is caught up or failed. `log_count_takes` logs a failure, and the start; `publishing_count_takes` publishes one `StatsChanged` per account a batch counted.
 - **The rule stays in Go**: `takes.Batch.Tallied` applies `players.Stats.WithTake` in position order to each take that counts (`Take.Countable`: an account, a tile, not reverted).
 - **The take columns of `player.stats` are the projection's alone.** Only `postgres_take_store` writes `tiles_taken` and `streak_*`, in its transaction; `RecordMessage` writes `messages_sent` alone. Neither can write over the other, and a rebuild never touches the messages.
-- **A copy per module, not `shared`.** What two modules would share is a loop of twenty lines. What makes it exactly once is each module's transaction over its own tables, and where a projection starts and how it rewinds differ: a baseline here, a season's first position for the standings. The feed client is one adapter per module, as `rpc_player_authors` is.
+- **A copy per module, not `shared`.** What the two modules share is a loop of twenty lines. What makes it exactly once is each module's transaction over its own tables, and where a projection starts and how it rewinds differ: the stats rewind to a baseline, the standings to the log's first take. The feed client is one adapter per module, as `rpc_player_authors` is.
 
 **The cutover neither loses a take nor counts one twice:**
 
@@ -291,8 +291,6 @@ The events today:
 - **A take marked reverted when it is read is not counted.** The live loop reads a take within a second or two, before anyone reverts it, so it counts it, and **a take reverted after it was counted stays counted until a rebuild**. A rebuild reads every take with its flag as it is now, so it counts fewer.
 - The stats read low while it catches up, 1000 entries a batch. A title the new count no longer earns stays until `ReconcileTitles`.
 - `auth.v1.AccountDeleted` deletes the account's baseline (`player-takes-accounts`, `forget_baseline_usecase`), and a rewind only updates stats rows that exist, so a rebuild never brings a deleted account back.
-
-**The season standings (#298) are the next to convert.** They still hear `TileTaken`; their rebuild can start from the season's first position, since the log holds every take since about 1 October.
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
@@ -1242,17 +1240,23 @@ internal/player/internal/
 
 ### Seasons (`internal/seasons/`)
 
-**When a season ends, when its finale starts, and who leads it.** Planet never imports, calls or hears it: a later slice will have seasons call a planet internal service, never the other way.
+**When a season ends, when its finale starts, and who leads it.** Planet never imports, calls or hears it: seasons reads planet's log over the internal listener, never the other way.
 
 ```
 internal/seasons/internal/
   calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current)
     usecases/get_season_usecase/  the calendar and the clock
-  standings/                      AccountID, Country, Take (Season), Tally (WithTake); the Store port (RecordTake,
-                                  DeleteAccount) and its contract suite
-    postgres_contribution_store/  the Store over seasons.contributions
+  standings/                      AccountID, Country, Take (Season), Tally (WithTake), Position, Entry (EntryOf, Countable),
+                                  Batch (BatchOf, Next, Takes); the Store port (Position, Begin, Count, Rewind, DeleteAccount)
+                                  and its contract suite
+    postgres_contribution_store/  the Store over seasons.contributions and seasons.standings_position
     inmemory_contribution_store/  the same port in a map, behind the testing tag
-    usecases/record_take_usecase/  forget_account_usecase/
+    rpc_take_feed/                planet.v1.InternalService/GetFeedStart and ReadLog, the takes kept, other kinds read past
+    usecases/count_takes_usecase/ one step of the loop: begin if never begun, read a batch, count it; Runner polls when caught up
+      count_takes_usecase/log_count_takes/   logs a failure and the start
+    usecases/rebuild_standings_usecase/  — every season forgotten and the position back to 0; AdminService/RebuildStandings
+      rebuild_standings_usecase/audit_rebuild_standings/   logs every rebuild at Warn
+    usecases/forget_account_usecase/
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
     get_standings_handler/standings_query/   PostgresQuery: GetStandingsResponse from SQL, named — Authors
@@ -1260,7 +1264,7 @@ internal/seasons/internal/
     get_my_season_handler/my_season_query/   PostgresQuery: GetMySeasonResponse from SQL, ranked — Authors
       rpc_player_authors/         the same adapter, for this query
     caller/                       the account on the context, or Unauthenticated
-  subscribers/                    tile_taken_subscriber/  account_deleted_subscriber/  log_subscriber/
+  subscribers/                    account_deleted_subscriber/  log_subscriber/
   migrations/
 ```
 
@@ -1272,15 +1276,17 @@ internal/seasons/internal/
 **A player's season score is the tiles it took this season for its main flag**, the flag it took the most tiles for, so a player cannot add up several flags.
 
 - **`standings.Tally` is the rule**: an account's tiles per flag in one season, and its main flag. `WithTake` adds one tile and makes the flag the main one when it has strictly more tiles than the main one; a tie keeps the flag that got there first. **The season of a take is the one whose interval holds `taken_at`** (`Take.Season`, over `Calendar.Current`); a take after the last season counts nothing. `tally_test.go` and `take_test.go` pin both.
-- **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event. A clear of native land, a shadow-banned click (it never reaches the ledger) and a revert publish nothing, so they change no score. Takes before this module had a database are not replayed: counting started the day it shipped.
-- **One transaction per take**, under `pg_advisory_xact_lock` on the account: read the account's rows for the season, apply `WithTake`, upsert the flag's row and move `main`. The rule stays in Go; the column only keeps what it said.
+- **Takes come from planet's log**, through the take feed, the loop the stats use (see [The take feed and its projections](#the-take-feed-and-its-projections)): one tile per take. A clear of native land, a take with no account and a take reverted before it was read count nothing; a shadow-banned click never reaches the ledger.
+- **One transaction per batch**, under the lock of `seasons.standings_position`: refuse a batch read from another position (`standings.ErrMoved`), read the rows of each season and account the batch touches, apply `WithTake` in position order, write those rows back, and move the position. A crash before the commit counts nothing. The rule stays in Go; the column only keeps what it said.
+- **The cutover**: with no position, the standings start at `GetFeedStart` and keep what the bus counted since they shipped, as the stats do. No baseline is needed, since they started after the log.
+- **A rebuild is `seasons.v1.AdminService/RebuildStandings`**, on the admin listener: it deletes every season's rows and puts the position back to 0, and the loop counts the whole log again. The log holds every take since about 1 October, so season 0 then counts its takes from before the standings shipped too, and none a revert forgot. When the log grows long, a rebuild can start at the current season's first position instead.
 - **Kept in `seasons.contributions`** (`season`, `account_id`, `country`, `tiles`, `main`; primary key `(season, account_id, country)`), with its own block, `seasons.database`, its own pool and migrations. `main` marks one row per account and season (a partial unique index), and two partial indexes on it serve the boards.
 - **`auth.v1.AccountDeleted`** (`seasons-standings-accounts`) deletes the account's rows in every season.
-- **The reads are queries** (see [Reads are queries](#reads-are-queries)): the write model is `Take`, `Tally` and a `Store` that only records and deletes. Each query reads `seasons.contributions` itself and asks `GetAuthors` through its own `rpc_player_authors`. The module dials the internal listener once, at build, and both adapters share that one `player.v1` client; with no internal listener the boot is refused.
+- **The reads are queries** (see [Reads are queries](#reads-are-queries)): the write model is `Take`, `Tally` and a `Store` that only counts, rewinds and deletes. Each query reads `seasons.contributions` itself and asks `GetAuthors` through its own `rpc_player_authors`. The module dials the internal listener once, at build, and both adapters share that one `player.v1` client; with no internal listener the boot is refused.
 - **Only a signed-in player is ranked**: every one has a username (see [Player](#player-internalplayer)), and a guest has none. SQL cannot tell them apart, so a query reads the main rows and Go skips what `GetAuthors` answers as a guest, or does not answer at all. A tie shares the rank (1, 1, 3).
 - **`GetStandings(country_id)`** (`standings_query`) is the current season's top 10 (`standings_query.Shown`), of every player or of the players whose main flag is `country_id`: rank, name, color, main flag and tiles. It needs no token, is a GET (`NO_SIDE_EFFECTS`) and answers `public, max-age=15`. The main rows come best first, then by account id, 200 at a time from a keyset on `(tiles, account_id)`, with one `GetAuthors` a page, until 10 are named. A country that is not one is `InvalidArgument` (`standings_query.ErrUnknownCountry`); no season is an empty answer.
 - **`GetMySeason()`** (`my_season_query`) is the caller's main flag, its tiles for it, and its rank among every player and among the players of that flag; 0 for a guest or an account with no take this season. It sits behind `seasonsv1controller.NewSessionInterceptor`, always enforcing, on the key `auth` hands over (`seasons_session_checks{verdict}`), and takes the identity token (`cpconnect.Identified`): it only reads. It counts the ranked players above the caller: SQL reads the main rows with more tiles, 500 at a time, with whether each shares the caller's flag, and costs one `GetAuthors` a page.
-- `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
+- `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store.RecordTake`, a helper behind the `testing` tag.
 
 
 A question-mark box flies past the planet every so often; whoever catches it
@@ -2491,7 +2497,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **The ledger follows the same pattern**, through `inmemory_ledger_storage.Persistence` and `ledger/postgres_ledger_store`, on the tile map's pool.
 
-- **Postgres keeps every take; memory keeps the last `ledger.retention`.** `ledger_takes` is the permanent log of every tile take, served to other modules by the take feed, so a projection (the stats today, the season standings next) can be computed again from history when a rule changes: see [The take feed and its projections](#the-take-feed-and-its-projections). Memory is the window the operator tools read.
+- **Postgres keeps every take; memory keeps the last `ledger.retention`.** `ledger_takes` is the permanent log of every tile take, served to other modules by the take feed, so a projection (the stats, the season standings) can be computed again from history when a rule changes: see [The take feed and its projections](#the-take-feed-and-its-projections). Memory is the window the operator tools read.
 - **Five tables.** `ledger_takes` is one row per take, keyed by its position, with the take's `account` (NULL for none, for every take made before accounts, and for a deleted account), its `scope` (NULL once the take is behind the head) and `reverted` (true once a revert forgot it). `ledger_head` is one row: the oldest position memory keeps, so positions carry on past a window the retention emptied. `ledger_forgotten` is a reverted scope's mark, and `ledger_forgotten_accounts` a reverted account's. `ledger_feed` is one row: where the take feed starts.
 - **Boot loads from the head**: the takes from `ledger_head` on, in position order, then the marks. So memory and the boot time stay bounded by the window, however long the table grows. **A failed load refuses the boot.** Measured at 1M takes on a laptop: 0.8s to load, 1.3s to copy in — so ~3s and ~5s at the 4M cap.
 - **A flush appends, it never rewrites a take.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, blanks the scope of the takes between the head postgres held and the new one (what the retention or the cap dropped from memory), moves the head, and upserts the marks set since. A mark sets `reverted` on the caller's takes before it, from the head postgres held on, before the scopes are blanked: a scope's mark finds its takes by scope. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written, in memory or in postgres. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
@@ -2510,7 +2516,7 @@ Nothing lives in files any more: the container mounts no state volume.
 
 **A second router, on a loopback listener.** `props.AdminRPC.Mount` is `props.RPC.Mount` for services an operator calls: same builder, same error net, but `cpbootstrap` serves them on `httpServer.adminBindAddress` instead of the public router — logging middleware only, no CORS. Empty serves no admin listener; anything but a loopback `host:port` refuses the boot, both in `ServerConfig.Validate` and again in `Run`, and a port already taken refuses it too. They have no authentication, so loopback is their whole protection, and they are off the router Caddy forwards to on purpose: one Caddyfile edit would otherwise let anybody repaint the map. In production they are reached with `docker compose exec backend wget`; see `deploy/vps/README.md`, "Operator tools".
 
-`planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, `NameAccounts` — see [Player](#player-internalplayer) — and `RebuildStats` — see [The take feed and its projections](#the-take-feed-and-its-projections). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+`planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, `NameAccounts` — see [Player](#player-internalplayer) — and `RebuildStats` — see [The take feed and its projections](#the-take-feed-and-its-projections); `seasons.v1.AdminService` (`proto/seasons/v1/admin.proto`) has `RebuildStandings` — see [Seasons](#seasons-internalseasons). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream and the clicks still arriving need the rest of the buffer.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
@@ -2540,8 +2546,8 @@ Measured on a copy of production's map, before postgres: 22,040 tiles in 4.4s, a
 
 For the patterns no watchdog catches but a person sees on the map. A player is an **account on a scope** (`cpipscope`: the address over IPv4, the /64 over IPv6), or a scope alone for takes made with no account. `BanPlayer`, `RevertPlayer` and `InspectPlayer` take a `scope` (any address) **or** an `account_id`, never both (`ledger.ParseCaller`; both, neither or a malformed id is `InvalidArgument`).
 
-- **`ledger` remembers every take**: tile, scope, account, country, previous owner and time, oldest first. `ledger.Recording` wraps the storage the click chain writes through — the rule, `spread_click` and the enclose annexer — so every tile a click takes is recorded, a no-op is not, and a click the shadow ban drops never reaches it. Recording appends through `publishing_ledger_storage`, which publishes `planet.v1.TileTaken` for each take with an account, after it is recorded. A take by somebody else is one more take, not a replacement: a bot painted over as fast as it paints is still in the ledger. Bombs and reassigns write nothing; they show as a change the ledger never saw.
-- **A clear of native land is recorded, as a take with no country** (`Taking.Cleared`). So a revert follows it: A pl→"", A ""→de goes back to `pl`, and a tile A only cleared goes back to `pl` while it is still empty — reverting a clearing bot gives the natives their ground. It is **never published**: it took no tile, so it is no `TileTaken` and no tile in anybody's stats. In `FindPlayers` it matches no flag; in `TopPlayers` it counts among the caller's `takes`, since it is what the caller did to the map, and holds no tile.
+- **`ledger` remembers every take**: tile, scope, account, country, previous owner and time, oldest first. `ledger.Recording` wraps the storage the click chain writes through — the rule, `spread_click` and the enclose annexer — so every tile a click takes is recorded, a no-op is not, and a click the shadow ban drops never reaches it. Other modules read what it recorded from postgres, through the take feed: see [The take feed and its projections](#the-take-feed-and-its-projections). A take by somebody else is one more take, not a replacement: a bot painted over as fast as it paints is still in the ledger. Bombs and reassigns write nothing; they show as a change the ledger never saw.
+- **A clear of native land is recorded, as a take with no country** (`Taking.Cleared`). So a revert follows it: A pl→"", A ""→de goes back to `pl`, and a tile A only cleared goes back to `pl` while it is still empty — reverting a clearing bot gives the natives their ground. It took no tile, so it is no tile in anybody's stats or standings: the feed carries it with an empty country, and the projections pass it. In `FindPlayers` it matches no flag; in `TopPlayers` it counts among the caller's `takes`, since it is what the caller did to the map, and holds no tile.
 - **The rules are in the `ledger` root, and its package doc states them**. A caller (`ledger.Caller`, a scope or an account) **holds** a tile when the tile's latest take is its own and the tile still wears that paint. A revert gives a held tile back to what it held before the caller's **current run** on it: its own latest takes, walking back while each took the tile from the paint of the one before. An account's run follows it across scopes. Another scope's take breaks the run (A il→ps, B ps→de, A de→ps goes back to `de`), and so does a change the ledger never saw (A il→ps, bomb, A ""→ps goes back to nobody). `Tally` gathers players for `FindPlayers` and `TopPlayers`, `Runs` computes the revert, `ByTakes` and `Top` rank and cut. The use cases only replay the ledger into these, filter through their ports, and call them. The tests for each interleaving are in `ledger_test.go`.
 - **Kept in memory and flushed to postgres** (`inmemory_ledger_storage`, behind `ledger.Storage`; see [Durability](#durability)). Postgres keeps every take for good, without its scope once memory has dropped it; the tools here read memory alone. In memory it is an append-only log of 20-byte records in 1.25 MiB chunks, scopes and accounts interned in one table per chunk and countries in another, so an old chunk takes its strings when it goes. A record is never changed once written, so `Replay` copies the chunk headers under the lock and reads without it: a `TopPlayers` over 4M takes takes ~1s and never blocks a click. `Forget(caller, position)` hides a reverted scope's or account's takes up to the replay it was computed from, so a take made mid-revert still counts.
 - **Memory is bounded twice; postgres is not.** `ledger.retention` (72h) drops takes from memory by age, each `ledger.sweepInterval`; `ledgerStorage.maxTakes` (4M) drops the oldest first when a busy stretch fills it, and logs "the ledger is full" once. Production is thousands of clicks per 5 minutes (`clicks_total`), and a spread click takes up to 7 tiles: 15 takes a second fill 4M in three days. Measured at 4M before the account: ~85 MiB heap. The account adds 4 bytes a take, about 15 MiB more at the cap (not measured).
@@ -2843,6 +2849,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `player.takes.pollInterval` — how long the stats wait to read the take feed again once they are caught up, or after a failure (1s)
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
 - `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
+- `seasons.takes.pollInterval` — how long the standings wait to read the take feed again once they are caught up, or after a failure (1s)
 - `seasons.database.*` — the standings, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
 
 ### Protobuf

@@ -55,7 +55,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/publishing_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/anonymize_takes_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase/audit_ban"
@@ -183,7 +182,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				props.Logger.Info("home soil enabled: native land takes two clicks")
 			}
 
-			writer := ledger.NewRecording(tilesStorage, publishing_ledger_storage.New(takings, props.Events), clock)
+			writer := ledger.NewRecording(tilesStorage, takings, clock)
 
 			registry := bonuses.New(config.Bonus, clock, charges)
 			props.Runners.Add(registry)

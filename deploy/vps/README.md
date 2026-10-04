@@ -975,7 +975,7 @@ rm -f ~/backups/tiles-*.tar.gz
 ## 10. Operator tools
 
 `httpServer.adminBindAddress` serves the backend's operator services
-(`planet.v1.AdminService`, `player.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
+(`planet.v1.AdminService`, `player.v1.AdminService`, `seasons.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
 not behind Caddy and have **no authentication**: loopback is their whole
 protection, so a non-loopback address refuses the boot. Reach them from the box
 with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
@@ -1062,6 +1062,29 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - `server returned error: HTTP/1.1 400` means the count never started: the
   backend has not read the log once yet.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin stats rebuild"`.
+
+### Rebuild the season standings from the log of takes
+
+The standings count planet's log of takes too, from their own saved position.
+A rebuild deletes every season's standings, then the count reads the whole log
+again. Run it **after a deploy that changes how a take counts toward a
+season**, or after reverting players whose takes should not count.
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/seasons.v1.AdminService/RebuildStandings
+```
+
+- The answer is `{}`: the count starts again at position 0, the log's first take.
+- **The first one counts more than before**: the log reaches back to about
+  1 October, before the standings shipped, so season 0 then counts those takes
+  too.
+- **It returns at once; the count catches up behind it**, 1000 takes a batch,
+  and the standings read low until then. Compare
+  `select position from seasons.standings_position` with
+  `select max(position) + 1 from planet.ledger_takes`.
+- A take reverted after it was counted stays counted until a rebuild, as for the stats.
+- `server returned error: HTTP/1.1 400` means the count never started.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin standings rebuild"`.
 
 ### Name the signed-in players who have no username
 

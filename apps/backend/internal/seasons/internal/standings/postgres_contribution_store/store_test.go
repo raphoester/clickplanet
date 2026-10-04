@@ -2,6 +2,7 @@ package postgres_contribution_store_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
@@ -71,4 +72,34 @@ func (s *testSuite) TestOneRowIsMainPerAccountAndSeason() {
 		`SELECT count(*) FILTER (WHERE main), count(*) FROM contributions`).Scan(&mains, &rows))
 	s.Equal(1, mains)
 	s.Equal(3, rows)
+}
+
+func (s *testSuite) TestACrashBetweenTheCountAndTheSaveOfThePositionCountsNothingAndTheRetryCountsOnce() {
+	store := postgres_contribution_store.New(s.db)
+	s.Require().NoError(store.Begin(s.T().Context(), 0))
+	_, err := s.db.ExecContext(s.T().Context(), `
+		CREATE FUNCTION crash() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'crash'; END $$;
+		CREATE TRIGGER crash BEFORE UPDATE ON standings_position FOR EACH ROW EXECUTE FUNCTION crash();
+	`)
+	s.Require().NoError(err)
+	heal := func() {
+		_, err := s.db.ExecContext(s.T().Context(), `DROP TRIGGER IF EXISTS crash ON standings_position; DROP FUNCTION IF EXISTS crash();`)
+		s.Require().NoError(err)
+	}
+	s.T().Cleanup(heal)
+	ada := standings.AccountID{15: 1}
+	at := time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC)
+	seasons := calendar.New(calendar.Config{List: []calendar.Entry{{Number: 0, EndsAt: at.Add(time.Hour), Finale: time.Minute}}})
+	batch, err := standings.BatchOf(0, 2, []standings.Entry{
+		standings.EntryOf(0, standings.Take{Account: ada, Country: "fr", At: at}, false),
+		standings.EntryOf(1, standings.Take{Account: ada, Country: "fr", At: at}, false),
+	})
+	s.Require().NoError(err)
+
+	s.Require().Error(store.Count(s.T().Context(), batch, seasons))
+	s.True(s.tallyOf(0, ada).Empty(), "the tiles written before the crash are gone with it")
+
+	heal()
+	s.Require().NoError(store.Count(s.T().Context(), batch, seasons))
+	s.Equal(map[standings.Country]uint64{"fr": 2}, s.tallyOf(0, ada).Tiles)
 }

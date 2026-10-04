@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package seasons.v1;
+
+// Unauthenticated: serve only on the loopback admin listener, never the public router.
+service AdminService {
+  rpc RebuildStandings(RebuildStandingsRequest) returns (RebuildStandingsResponse);
+}
+
+message RebuildStandingsRequest {}
+
+message RebuildStandingsResponse {
+  uint64 from_position = 1;
+}

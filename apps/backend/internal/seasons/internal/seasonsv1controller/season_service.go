@@ -5,6 +5,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/rebuild_standings_handler"
 )
 
 type SeasonService struct {
@@ -14,3 +15,9 @@ type SeasonService struct {
 }
 
 var _ seasonsv1connect.SeasonServiceHandler = SeasonService{}
+
+type AdminService struct {
+	rebuild_standings_handler.RebuildStandingsHandler
+}
+
+var _ seasonsv1connect.AdminServiceHandler = AdminService{}

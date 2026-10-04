@@ -188,6 +188,14 @@ func TestTheExampleConfigReachesThePlayerBlock(t *testing.T) {
 
 	assert.Equal(t, "player", config.Player.Database.Schema)
 	require.NoError(t, config.Player.Database.Validate())
+	assert.Equal(t, time.Second, config.Player.Takes.PollInterval)
+}
+
+func TestTheExampleConfigReachesTheStandingsPollInterval(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, time.Second, config.Seasons.Takes.PollInterval)
 }
 
 func TestThePlayerModuleWithNoDatabaseIsRefused(t *testing.T) {

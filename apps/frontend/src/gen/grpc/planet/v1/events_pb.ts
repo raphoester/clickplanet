@@ -7,61 +7,6 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
- * @generated from message planet.v1.TileTaken
- */
-export class TileTaken extends Message<TileTaken> {
-  /**
-   * @generated from field: string account_id = 1;
-   */
-  accountId = "";
-
-  /**
-   * @generated from field: uint32 tile_id = 2;
-   */
-  tileId = 0;
-
-  /**
-   * @generated from field: string country = 3;
-   */
-  country = "";
-
-  /**
-   * @generated from field: google.protobuf.Timestamp taken_at = 4;
-   */
-  takenAt?: Timestamp;
-
-  constructor(data?: PartialMessage<TileTaken>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.TileTaken";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "taken_at", kind: "message", T: Timestamp },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileTaken {
-    return new TileTaken().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TileTaken {
-    return new TileTaken().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TileTaken {
-    return new TileTaken().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: TileTaken | PlainMessage<TileTaken> | undefined, b: TileTaken | PlainMessage<TileTaken> | undefined): boolean {
-    return proto3.util.equals(TileTaken, a, b);
-  }
-}
-
-/**
  * @generated from message planet.v1.BombLanded
  */
 export class BombLanded extends Message<BombLanded> {

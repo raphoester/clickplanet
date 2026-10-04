@@ -18,6 +18,8 @@ type key struct {
 type Store struct {
 	mu       sync.Mutex
 	tallies  map[key]standings.Tally
+	started  bool
+	position standings.Position
 	failWith error
 }
 
@@ -32,6 +34,80 @@ func (s *Store) FailWith(err error) {
 	defer s.mu.Unlock()
 
 	s.failWith = err
+}
+
+func (s *Store) Heal() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.failWith = nil
+}
+
+func (s *Store) Position(context.Context) (standings.Position, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return 0, s.failWith
+	}
+	if !s.started {
+		return 0, standings.ErrNotStarted
+	}
+	return s.position, nil
+}
+
+func (s *Store) Begin(_ context.Context, start standings.Position) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return s.failWith
+	}
+	if s.started {
+		return standings.ErrStarted
+	}
+	s.started, s.position = true, start
+	return nil
+}
+
+func (s *Store) Count(_ context.Context, batch standings.Batch, seasons calendar.Calendar) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return s.failWith
+	}
+	if !s.started {
+		return standings.ErrNotStarted
+	}
+	if s.position != batch.From() {
+		return standings.ErrMoved
+	}
+	for _, take := range batch.Takes() {
+		season, ok := take.Season(seasons)
+		if !ok {
+			continue
+		}
+		at := key{season: season, account: take.Account}
+		s.tallies[at] = s.tallies[at].WithTake(take.Country)
+	}
+	s.position = batch.Next()
+	return nil
+}
+
+func (s *Store) Rewind(context.Context) (standings.Position, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return 0, s.failWith
+	}
+	if !s.started {
+		return 0, standings.ErrNotStarted
+	}
+	s.tallies = map[key]standings.Tally{}
+	s.position = 0
+	return 0, nil
 }
 
 func (s *Store) RecordTake(_ context.Context, season calendar.Number, take standings.Take) error {

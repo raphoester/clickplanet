@@ -77,6 +77,7 @@ func startGameOn(t *testing.T, postgres *cppg.TestServer) (gameStack, func()) {
 	playerConfig.Takes.PollInterval = 20 * time.Millisecond
 
 	seasonsConfig := currentSeason(t, postgres.ConfigFor("seasons"))
+	seasonsConfig.Takes.PollInterval = 20 * time.Millisecond
 
 	chatConfig := chat.Config{Database: postgres.ConfigFor("chat")}
 	chatConfig.RateLimiter.PerSecond = 100

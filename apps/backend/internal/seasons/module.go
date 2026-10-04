@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
 
@@ -22,12 +23,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler/standings_query"
 	standings_authors "github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler/standings_query/rpc_player_authors"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/rebuild_standings_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/postgres_contribution_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/rpc_take_feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/count_takes_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/count_takes_usecase/log_count_takes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/forget_account_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/record_take_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/rebuild_standings_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/rebuild_standings_usecase/audit_rebuild_standings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/log_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -37,10 +42,7 @@ import (
 
 const moduleName = "seasons"
 
-const (
-	tileTakenBuffer      = 8192
-	accountDeletedBuffer = 2048
-)
+const accountDeletedBuffer = 2048
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -58,9 +60,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the seasons module asks the player module who plays: %w", err)
+		return fmt.Errorf("the seasons module asks the player module who plays and reads planet's log: %w", err)
 	}
 	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
+	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
 
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
@@ -73,19 +76,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	contributions := postgres_contribution_store.New(db)
 
-	takes, err := cpbootstrap.Subscribe(props.Events, "seasons-standings", tileTakenBuffer,
-		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(seasons, contributions)), props.Logger))
-	if err != nil {
-		_ = db.Close()
-		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
-	}
+	counting := count_takes_usecase.NewRunner(config.Takes, log_count_takes.New(
+		count_takes_usecase.New(rpc_take_feed.New(planet), contributions, seasons), props.Logger))
 	deletions, err := cpbootstrap.Subscribe(props.Events, "seasons-standings-accounts", accountDeletedBuffer,
 		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(contributions)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, counting, deletions))
 
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(
@@ -107,6 +106,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount seasons.v1.SeasonService: %w", err)
 	}
 
+	adminService := seasonsv1controller.AdminService{
+		RebuildStandingsHandler: rebuild_standings_handler.New(audit_rebuild_standings.New(
+			rebuild_standings_usecase.New(contributions), props.Logger,
+		)),
+	}
+	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return seasonsv1connect.NewAdminServiceHandler(adminService, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount seasons.v1.AdminService: %w", err)
+	}
+
 	props.Logger.Info("seasons built", slog.Int("seasons", len(config.Calendar.List)), slog.String("schema", config.Database.Schema))
 
 	return nil
@@ -115,6 +125,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 type Config struct {
 	Calendar calendar.Config `koanf:",squash"`
 	Database cppg.Config
+	Takes    count_takes_usecase.Config
 }
 
 func (c Config) Validate() error {

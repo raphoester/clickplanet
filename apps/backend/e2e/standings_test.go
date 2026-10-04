@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1/seasonsv1connect"
@@ -136,4 +138,36 @@ func TestTheCallersSeasonReadsAsTheIdentityTheCookieResumes(t *testing.T) {
 
 	assert.True(t, proto.Equal(&seasonsv1.GetMySeasonResponse{CountryId: "fr", Tiles: 1, GlobalRank: 1, CountryRank: 1},
 		back.mySeason()), back.mySeason())
+}
+
+func TestARebuildCountsTheStandingsAgainFromTheLogWithoutWhatWasReverted(t *testing.T) {
+	game := startGame(t)
+	ada := game.namedPlayer(t, "google-ada", "Ada")
+	bob := game.namedPlayer(t, "google-bob", "Bob")
+	ada.click(1, "fr")
+	ada.click(2, "fr")
+	bob.click(3, "de")
+	require.Eventually(t, func() bool { return ada.mySeason().GetTiles() == 2 && bob.mySeason().GetTiles() == 1 },
+		5*time.Second, 20*time.Millisecond)
+
+	_, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).RevertPlayer(t.Context(),
+		connect.NewRequest(&planetv1.RevertPlayerRequest{AccountId: bob.account().String()}))
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		var reverted int
+		err := game.schema(t, "planet").QueryRowContext(t.Context(), `SELECT count(*) FROM ledger_takes WHERE reverted`).Scan(&reverted)
+		return err == nil && reverted == 1
+	}, 5*time.Second, 20*time.Millisecond)
+	assert.Equal(t, uint64(1), bob.mySeason().GetTiles(), "the live count keeps what it counted")
+
+	_, err = seasonsv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).
+		RebuildStandings(t.Context(), connect.NewRequest(&seasonsv1.RebuildStandingsRequest{}))
+	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "the public router does not serve it")
+	rebuilt, err := seasonsv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).
+		RebuildStandings(t.Context(), connect.NewRequest(&seasonsv1.RebuildStandingsRequest{}))
+	require.NoError(t, err)
+	assert.Zero(t, rebuilt.Msg.GetFromPosition())
+
+	require.Eventually(t, func() bool { return bob.mySeason().GetTiles() == 0 && ada.mySeason().GetTiles() == 2 },
+		5*time.Second, 20*time.Millisecond, "every take counted again but the one reverted")
 }

@@ -343,6 +343,8 @@ player:
     pool:
       maxOpenConns: 2
   tagSalt: ""
+  takes:
+    pollInterval: 1s
 
 seasons:
   list:
@@ -359,3 +361,5 @@ seasons:
     schema: seasons
     pool:
       maxOpenConns: 2
+  takes:
+    pollInterval: 1s
