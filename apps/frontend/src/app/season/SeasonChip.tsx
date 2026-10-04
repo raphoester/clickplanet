@@ -1,10 +1,11 @@
 import {useState} from "react"
 import {Season} from "../../backends/season.ts"
-import {finaleWindow, SeasonClock, seasonClock} from "../../domain/seasonClock.ts"
+import {SeasonClock, seasonClock} from "../../domain/seasonClock.ts"
 import {ChevronIcon, ClockIcon} from "../components/icons.tsx"
 import {useBottomEdge} from "../components/useBottomEdge.ts"
 import {useEscape} from "../components/useDialog.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
+import SeasonFacts from "./SeasonFacts.tsx"
 import {useNow} from "./useNow.ts"
 import "./Season.css"
 
@@ -23,7 +24,7 @@ export default function SeasonChip({season, compact, open, onToggle}: SeasonChip
     if (!clock) return null
 
     const label = clock.finale ? "Final Battle ends in" : `Season ${season.number} ends in`
-    const className = ["season-chip", compact ? "season-chip--compact" : "panel", clock.finale && "season-chip--live"]
+    const className = ["season-chip", compact ? "season-chip--compact" : "panel", clock.finale && "season-chip--live", !compact && open && "season-chip--open"]
         .filter(Boolean).join(" ")
 
     if (compact) {
@@ -40,21 +41,20 @@ export default function SeasonChip({season, compact, open, onToggle}: SeasonChip
     return <section ref={setChip} className={className} aria-label={clock.finale ? "Final Battle" : `Season ${season.number}`}>
         <button type="button"
                 className="season-chip-head"
-                aria-expanded={clock.finale ? undefined : open}
-                disabled={clock.finale}
+                aria-expanded={open}
                 onClick={onToggle}>
             <ClockIcon/>
             <span className="season-chip-label">{label}</span>
             <span className="season-chip-left" role="timer">{clock.left}</span>
-            {!clock.finale && <span className="season-chip-chevron"><ChevronIcon size={16}/></span>}
+            <span className="season-chip-chevron"><ChevronIcon size={16}/></span>
         </button>
-        {open && !clock.finale && <SeasonPopover season={season} onClose={onToggle}/>}
+        {open && <SeasonPopover season={season} finale={clock.finale} onClose={onToggle}/>}
     </section>
 }
 
-function SeasonPopover({season, onClose}: {season: Season, onClose: () => void}) {
+function SeasonPopover({season, finale, onClose}: {season: Season, finale: boolean, onClose: () => void}) {
     useEscape(onClose)
-    return <div className="season-chip-finale"><FinaleLine season={season}/></div>
+    return <div className="season-chip-body"><SeasonFacts season={season} finale={finale}/></div>
 }
 
 export function SeasonDetails({season}: {season: Season}) {
@@ -66,16 +66,8 @@ export function SeasonDetails({season}: {season: Season}) {
             <span className="menu-label">{clock.finale ? "Final Battle ends in" : "Ends in"}</span>
             <span className="season-chip-left" role="timer">{clock.left}</span>
         </div>
-        {!clock.finale && <div className="panel-box season-details-finale"><FinaleLine season={season}/></div>}
+        <div className="panel-box season-details-facts"><SeasonFacts season={season} finale={clock.finale}/></div>
     </>
-}
-
-function FinaleLine({season}: {season: Season}) {
-    const finale = finaleWindow(season)
-    return <p className="season-finale-when">
-        <span className="season-finale-name">Final Battle</span>
-        <span>{finale.day} · {finale.from}–{finale.to}</span>
-    </p>
 }
 
 function shortLeft(clock: SeasonClock): string {
