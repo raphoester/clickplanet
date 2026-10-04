@@ -49,10 +49,10 @@ func TestAssignDrawsAgainWhenTheNameIsTaken(t *testing.T) {
 
 	profile, err := store.Profile(t.Context(), players.AccountID{15: 2})
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("IronOwl55"), profile.Name, "the third draw is the last one")
+	assert.Equal(t, players.Name("IronOwl55"), profile.Name)
 }
 
-func TestAssignDrawsThreeTimesAtMost(t *testing.T) {
+func TestAssignDrawsTenTimesAtMost(t *testing.T) {
 	store := inmemory_player_store.New()
 	require.NoError(t, store.SaveProfile(t.Context(), players.Profile{Account: players.AccountID{15: 1}, Name: "BraveFox42", UpdatedAt: namedAt}))
 	names := players.NewRepeatedNames("BraveFox42")
@@ -60,7 +60,7 @@ func TestAssignDrawsThreeTimesAtMost(t *testing.T) {
 	err := players.NewGeneratedNames(store, names).Assign(t.Context(), players.AccountID{15: 2}, namedAt)
 
 	require.ErrorIs(t, err, players.ErrNoFreeName)
-	assert.Equal(t, 3, names.Drawn())
+	assert.Equal(t, 10, names.Drawn())
 	_, err = store.Profile(t.Context(), players.AccountID{15: 2})
 	require.ErrorIs(t, err, players.ErrNoProfile)
 }
