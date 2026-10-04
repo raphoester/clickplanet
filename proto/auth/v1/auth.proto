@@ -5,6 +5,9 @@ package auth.v1;
 service AuthService {
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
 
+  // No Turnstile: the token names the account the cookie holds, and proves no check.
+  rpc ResumeSession(ResumeSessionRequest) returns (ResumeSessionResponse);
+
   rpc GetMe(GetMeRequest) returns (GetMeResponse);
 
   rpc GetSignInOptions(GetSignInOptionsRequest) returns (GetSignInOptionsResponse);
@@ -30,6 +33,14 @@ message CreateSessionRequest {
 }
 
 message CreateSessionResponse {
+  string token = 1;
+
+  int64 expires_at_unix_ms = 2;
+}
+
+message ResumeSessionRequest {}
+
+message ResumeSessionResponse {
   string token = 1;
 
   int64 expires_at_unix_ms = 2;

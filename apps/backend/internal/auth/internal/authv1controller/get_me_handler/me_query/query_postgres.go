@@ -2,18 +2,22 @@ package me_query
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/authread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
+
+const cookieName = "cp_sid"
 
 var providers = map[string]authv1.Provider{
 	"google":  authv1.Provider_PROVIDER_GOOGLE,
@@ -42,21 +46,23 @@ const me = `
 	FROM sessions
 	JOIN accounts ON accounts.id = sessions.account_id
 	LEFT JOIN identities ON identities.account_id = accounts.id
-	WHERE ` + authread.LiveSession + `
+	WHERE sessions.token_hash = $1 AND sessions.expires_at > $2
 	GROUP BY accounts.id
 `
 
 func (q *PostgresQuery) Me(ctx context.Context, cookieHeader string) (*authv1.GetMeResponse, error) {
-	hash, found := authread.TokenHash(cookieHeader)
+	hash, found := tokenHash(cookieHeader)
 	if !found {
-		return nil, fmt.Errorf("%w: the browser sent no %s cookie", ErrNoAccount, authread.SessionCookie)
+		return nil, fmt.Errorf("%w: the browser sent no %s cookie", ErrNoAccount, cookieName)
 	}
 
 	var (
 		account uuid.UUID
 		names   []string
 	)
-	err := q.db.QueryRowContext(ctx, me, hash, authread.Now(q.clock)).Scan(&account, pq.Array(&names))
+	// Postgres keeps microseconds and rounds what it is sent: truncated, "now < expires_at" stays exact.
+	now := q.clock.Now().UTC().Truncate(time.Microsecond)
+	err := q.db.QueryRowContext(ctx, me, hash, now).Scan(&account, pq.Array(&names))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%w: no live session for this cookie", ErrNoAccount)
 	}
@@ -76,4 +82,19 @@ func (q *PostgresQuery) Me(ctx context.Context, cookieHeader string) (*authv1.Ge
 		answer.Kind = authv1.AccountKind_ACCOUNT_KIND_LINKED
 	}
 	return answer, nil
+}
+
+func tokenHash(cookieHeader string) ([]byte, bool) {
+	cookies, err := http.ParseCookie(cookieHeader)
+	if err != nil {
+		return nil, false
+	}
+
+	for _, cookie := range cookies {
+		if cookie.Name == cookieName && cookie.Value != "" {
+			sum := sha256.Sum256([]byte(cookie.Value))
+			return sum[:], true
+		}
+	}
+	return nil, false
 }

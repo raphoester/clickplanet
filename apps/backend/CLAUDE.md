@@ -63,7 +63,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Three do: `planet`, `player` and `chat` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, `chat` asks `player` who posts: the username, or the guest code, and `chat` asks `auth` whose cookie a history or a seen mark carries. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent`, and `player` publishes `StatsChanged`; `player` hears all six, and `chat` hears `AccountDeleted` too.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Three do: `planet`, `player` and `chat` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, and `chat` asks `player` who posts: the username, or the guest code. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent`, and `player` publishes `StatsChanged`; `player` hears all six, and `chat` hears `AccountDeleted` too.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -205,7 +205,6 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
-| `chat` | `auth.v1.InternalService/GetCaller` | whose `cp_sid` cookie a `GetHistory` or a `MarkSeen` carries, when no valid click token named the caller | `shared/cpcallers` |
 
 A module cannot import another's interior, so the key client all three need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -422,10 +421,10 @@ internal/chat/internal/
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
 (`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`) and auth
-(`GetMe`, `GetAccount`, `GetAccounts`, and the internal `GetCaller`) follow this so far. **A command may still
-answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
-`signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
-through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
+(`GetMe`, `GetAccount`, `GetAccounts`) follow this so far. **A command may still answer a small struct** (`SetName`,
+`WearTitle`, `React`, `GetAuthor`, which draws a guest code, `signin.Admission`); the rule is for what only reads.
+Auth's `GetSignInOptions` and `GetVerifyingKey` already read through ports of plain values (`Names()`,
+`PublicKey()`) and stay as they are.
 
 - **One package per read, under the handler that serves it**: `<controller>/<procedure>_handler/<read>_query/`. No
   `queries/` directory: a query has one caller, so it sits with it. `query_postgres.go` holds its one entry point,
@@ -449,8 +448,7 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
 - **Independent parts run at once** (`errgroup`): the messages and their authors, and the announcements.
 - **The handler only maps**: the caller off the context, the query, the header. It declares the query as its port.
   What several queries share and that knows only the wire is in `playerv1controller/playerread` (`KeptColor`,
-  `Career`) and `authv1controller/authread` (`TokenHash`, `Now`, `LiveSession`: the session a cookie holds, for
-  `GetMe` and `GetCaller`); `playermessage` encodes domain values, so only the commands and the adapters use it.
+  `Career`); `playermessage` encodes domain values, so only the commands and the adapters use it.
 - **It reads the write side's tables**, so its tests seed through the real stores (`postgres_message_store`,
   `postgres_reaction_store`, `postgres_announcement_store`) and assert the proto it answers. A store's own contract
   suite covers only what the write side reads back.
@@ -474,8 +472,7 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   history exactly when `React` may react to it; `React`'s answer against the history's reactions, cap of names
   included; `SendMessage`'s answer against the message the history reads back; every `announcements.Kinds` the
   chat announces read back. Auth: `GetMe` against `accounts.Caller` and `Store.Account` over cookies and clocks up to
-  a nanosecond either side of an expiry, the session's `Linked` included (`me_query/parity_test.go`); `GetCaller`
-  against `accounts.Caller` the same way (`caller_query/parity_test.go`); every provider
+  a nanosecond either side of an expiry, the session's `Linked` included (`me_query/parity_test.go`); every provider
   the proto names, saved under the name `authprovider` gives it, read back as itself; `GetAccounts` against
   `GetAccount` and against the linked flag the click token carries (`accounts_query/parity_test.go`). A rule a parity
   test does not cover is a rule that can drift.
@@ -754,7 +751,7 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 - **Only a message in the window can be reacted to** (`ErrUnknownMessage` → `NotFound`): nobody is shown any other. `postgres_message_store.Shown` asks the same question as the history, for one id.
 - **Saved, then read back, then published, with no lock.** Two reactions at once can publish their tallies in either order, so **each tally carries a version**: `chat.reaction_versions` holds one counter per message, bumped in the same statement as the change (a data-modifying CTE: no row changed, no bump), and read in the same statement as the reactions, so a tally and its version are one snapshot. The client keeps the highest version it has seen per message and drops a lower one. This holds across processes, which an in-memory lock would not. `reactions.Reactions` is a value: `With`/`Without` answer a copy.
 - **The stream sends all of a message's counts, not the difference** (`ReactionsChanged`), with their version, so a client that missed a frame is right on the next, and one that gets two out of order keeps the newer. It cannot know who reads it, so `mine` is always false there; the client keeps its own between calls.
-- **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it), or with no valid token the cookie (the cookie reader, see [Who is calling](#who-is-calling-the-click-token-or-the-cookie)): the account's reactions are marked, and a caller with neither has none.
+- **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it): the account's reactions are marked, and a caller with no token has none.
 - **A count says who gave it, not only how many** — as accounts, named when it is shown. `Count` carries the same two halves a `messages.Message` does: `Reactors` is what the store holds, and `Names` is who those accounts are to a reader, filled by `reactions.Named` on the way out. So a rename shows under every reaction its player ever gave, for the same reason it shows on every message.
   - **`reactions.AccountOf`** is `ReactorOf` backwards: `account:<uuid>` to an account, and `false` for a `guest:<tag>` row from before guests had accounts, which is nobody and can be named nothing.
   - **The history names everyone in one ask.** `history_query` gathers the senders *and* the people under their reactions, which its SQL reads as accounts, and calls `GetAuthors` once for the lot.
@@ -781,13 +778,14 @@ while it was away: the badge counts it, and the lines light up as the chat opens
 - **`GetHistory` answers it** (`seen_until_unix_ms`, 0 for none): `history_query` reads `chat.seen` beside the
   window, in parallel with the messages and the announcements. **`MarkSeen` writes it**, through the `seen` store. No account is `Unauthenticated`.
   It has its own rate bucket, `chat.seenLimiter` (1 a second, 10 in hand), and the blocklist covers it.
-- **Both take the cookie, not only the click token** (`chatv1controller.NewCookieReaderInterceptor` lists them;
-  see [Who is calling](#who-is-calling-the-click-token-or-the-cookie)). A click token lives an hour, so a player
-  back the next day holds none at load: exactly the visit the mark is for. A seen mark is a write, but only of the
-  caller's own state, so it needs no proof of a Turnstile check.
+- **Both take the identity token, not only the click token** (`cpconnect.Identified` in the chat's session reader;
+  see [The click token and the identity token](#the-click-token-and-the-identity-token)). A click token lives an
+  hour, so a player back the next day holds none at load: exactly the visit the mark is for. The identity token
+  the cookie resumes names it with no Turnstile check. A seen mark is a write, but only of the caller's own state,
+  so it needs no proof of a check.
 - **Forgotten with the account**: `account_deleted_subscriber` hears `auth.v1.AccountDeleted` and deletes the row.
   There is no prune: a row lives as long as its account, and auth's guest prune deletes the guests.
-- `TestTheCookieAloneKeepsWhenThePlayerLastSawTheChat` pins the cookie path over HTTP, and
+- `TestTheIdentityTokenKeepsWhenThePlayerLastSawTheChat` pins the identity path over HTTP, and
   `TestADeletedAccountLosesItsSeenMark` the deletion.
 
 **Chat has its own stream**, `ChatService.ListenForEvents` — see [The live streams](#the-live-streams). It replaced a `/ws/chat` websocket that had to be kept apart from the tile one because frames carried a bare protobuf message with no type tag: a second payload on either socket would have been indistinguishable from the first. The `oneof` envelope is exactly what removes that constraint.
@@ -882,6 +880,7 @@ Chat and sessions each have **their own limiter instance** with their own budget
 - `chat.reactionLimiter` — one reaction a second, ten in hand. A reaction is a short row and a small frame.
 - `chat.seenLimiter` — one seen mark a second, ten in hand. The client sends one at most every 2s anyway.
 - `auth.rateLimiter` — one mint every 30s, ten in hand, across both `CreateSession` paths. A mint costs a siteverify round trip to a third party, so an unthrottled `CreateSession` is a free way to spend this server's Turnstile quota.
+- `auth.resumeLimiter` — one `ResumeSession` a second, ten in hand. It costs one row read and no third party.
 
 ### VPN blocklist
 
@@ -914,7 +913,7 @@ The answer to the one thing an address-based defence cannot do. The rate limiter
 
 `Click` requires a token this server minted, in the `X-Session-Token` header. The only way to get one is `auth.v1.AuthService/CreateSession` (or the deprecated `session.v1.SessionService/CreateSession`), which verifies a **Cloudflare Turnstile** token against siteverify before minting. A script that reads the proto and POSTs `Click` no longer has a complete client: it has to solve Turnstile first.
 
-**The token is stateless.** `shared/cpsession` mints `base64url(version ‖ expiry ‖ random id ‖ account ‖ linked ‖ Ed25519(version ‖ expiry ‖ id ‖ account ‖ linked ‖ scope))` — 98 bytes, 131 characters. The account is 16 bytes, all zero (`uuid.Nil`) for a caller with none; `linked` is one byte, 1 when the account signed in with a provider. `Mint` takes a `cpsession.Holder` (`cpsession.Nobody` for no account), and `Verify` answers both in `Claims`. The linked byte is signed, so a guest cannot claim the linked allowance. Nothing is stored, swept or replicated; verification is one signature check. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
+**The token is stateless.** `shared/cpsession` mints `base64url(version ‖ expiry ‖ random id ‖ account ‖ linked ‖ attested ‖ Ed25519(version ‖ expiry ‖ id ‖ account ‖ linked ‖ attested ‖ scope))` — 99 bytes, 132 characters. The account is 16 bytes, all zero (`uuid.Nil`) for a caller with none; `linked` is one byte, 1 when the account signed in with a provider; `attested` is one byte, 1 when the token was minted after a Turnstile check (see [The click token and the identity token](#the-click-token-and-the-identity-token)). `Mint` takes a `cpsession.Holder` (`cpsession.Nobody` for no account; its zero value proves no check), and `Verify` answers all three in `Claims`. Both bytes are signed, so a guest cannot claim the linked allowance and a token that only names its holder cannot claim the check. Nothing is stored, swept or replicated; verification is one signature check. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
 
 **It is signed, not MACed, and that is the point.** An HMAC key verifies and mints with the same bytes, so every context that could check a click could also issue one. Ed25519 splits that: the seed is `auth.secret` and only the auth module is handed it. Verification costs tens of microseconds against a MAC's one, which is nothing at this traffic — production is thousands of clicks per five minutes — and buys a boundary the compiler holds.
 
@@ -924,7 +923,7 @@ It cannot ask at boot instead — `cpbootstrap` builds every module before it li
 
 **Callers that arrive while the key is fetched share one fetch, and each waits on its own context.** `cpconnect.SessionVerifier.Verify` takes the request's `ctx`. The fetch is a `singleflight.DoChan`, so each caller selects on the result or its own `ctx.Done()`. The first caller starts the fetch on `context.WithoutCancel(ctx)` with a 2s timeout, so it keeps the request's values but not its cancellation: a caller that hangs up stops waiting at once and fails nobody else. `cpsession.Verifier.Verify` stays without a context: it is a signature check in memory, with nothing to cancel. The cost of the laziness is that a misconfigured `auth` shows up on the first click rather than at boot.
 
-**The first byte is a version.** Before it, the length *was* the discriminator, so every format change made every token in flight malformed at once. Now `planet` can accept two versions across a rollout instead, and key rotation is the same move: mint under the new version while both verify. Version 2 added the linked byte; a version 1 token (97 bytes) still verifies, as not linked, and its support can go once the last one has expired (1h after the deploy).
+**The first byte is a version.** Before it, the length *was* the discriminator, so every format change made every token in flight malformed at once. Now `planet` can accept two versions across a rollout instead, and key rotation is the same move: mint under the new version while both verify. Version 2 added the linked byte; a version 1 token (97 bytes) still verifies, as not linked. Version 3 added the attested byte; a version 1 or 2 token (98 bytes) still verifies, as attested, since every mint before it followed a Turnstile check. The support for both can go once the last one has expired (1h after the deploy).
 
 **It is bound to the address that minted it**, so a token lifted off the wire is worth nothing anywhere else. The scope is signed over but never travels — the verifier rebuilds the message with the scope it observes — so the token leaks nothing. A player whose address changes mid-session — a phone moving from wifi to cellular — fails verification, and the client mints again and retries: self-healing, and invisible.
 
@@ -934,9 +933,20 @@ The signature is checked **before** the expiry, so a forger learns nothing about
 
 **Where it sits in the chain:** error mapping, VPN blocklist, **session**, throttle. Outside the limiter for the same reason the blocklist is — a click refused for its session must not also spend a token, or the retry that follows the mint would come back 429 and the web app would show the throttle dialog instead. `TestSessionCheckRunsBeforeTheThrottle` pins it.
 
-**Reads and the streams are untouched.** A visitor loads the planet, watches it live and reads the chat without ever minting anything; a session is only ever needed to paint. `GetMap` is a cacheable GET and a per-session header on it would defeat that cache.
+**Reads and the streams never need a token.** A visitor loads the planet, watches it live and reads the chat without ever minting anything; a click token is only ever needed to act. A read that wants to know its caller takes the identity token, which costs no Turnstile check. `GetMap` is a cacheable GET and a per-session header on it would defeat that cache.
 
-**Minting has its own throttle** (`auth.rateLimiter`, one every 30s with 10 in hand, shared by both `CreateSession` paths). A mint costs a siteverify round trip to a third party, so it cannot share the click budget: unthrottled, the endpoint is a free way to spend this server's siteverify quota.
+**Minting has its own throttle** (`auth.rateLimiter`, one every 30s with 10 in hand, shared by both `CreateSession` paths). A mint costs a siteverify round trip to a third party, so it cannot share the click budget: unthrottled, the endpoint is a free way to spend this server's siteverify quota. `ResumeSession` has a bucket of its own (`auth.resumeLimiter`, one a second with 10 in hand): it costs one row read and no third party, and every page load makes one.
+
+#### The click token and the identity token
+
+**A token says who its holder is, and whether it passed a Turnstile check: two things, and only the second has to be fresh.** Before version 3 the token carried both or nothing, and only a Turnstile check could renew it. It lives an hour and nothing mints at load, so a player back the next day held none, and every read that wanted to know its caller answered for nobody, though the `cp_sid` cookie still named the account for 90 days (30 signed in).
+
+- **`CreateSession` mints the click token**, after a Turnstile check: `attested` is set. Nothing else sets it.
+- **`ResumeSession` mints the identity token**, from the cookie alone, with no Turnstile: the same account and linked byte, `attested` clear. It reads the live session the cookie holds and extends it when due, through `accounts.Resumer`, the same object `CreateSession` resumes a session with; a cookie with no live session gets no token, and no guest is started: only a Turnstile check starts one (`accounts.Guests`). It is bound to the address and lives an hour, like the click token, so a client renews it silently.
+- **Each procedure says which it takes.** The session interceptors take `cpconnect.Attested(procedure)` or `cpconnect.Identified(procedure)`, never a bare name, so no procedure takes the weaker token by default. An identity token on an attested procedure is as good as none: the reader puts nobody on the context, and the enforcing interceptor answers `Unauthenticated`, which the client already answers by minting through Turnstile and retrying. The verdict is `unattested` in `click_session_checks` and `player_session_checks`.
+- **What acts is attested**: everything that writes what other players see, or spends or earns something — `Click`, `ClaimBonus`, `DropBomb`, `UseRefill`, `OpenQuiz`, `AnswerQuiz`, `SendMessage`, `React`, `SetName`, `SetColor`, `WearTitle`, `Announce`. **What reads, or writes only the caller's own state, is identified**: `GetBudget`, `GetCharges`, both `ListenForEvents`, `GetHistory`, `MarkSeen`, `GetProfile`, `GetStats`, `GetTitles`, `Leave`.
+- **So "an account on the context" still means "passed Turnstile" for every attested procedure**, and the use cases behind them did not change: a caller the interceptor did not name is refused with the error each already had (`messages.ErrNoAccount`, `ErrNoSession`).
+- **What it opens**: a browser that passed Turnstile once can read as its account for as long as its cookie lives, without passing it again. It cannot act. `TestTheCookieResumesATokenThatNamesThePlayerAndCannotAct` pins both halves over HTTP.
 
 **`auth/internal/attestation/turnstile` fails closed on everything.** A network error, a non-2xx, a body that is not JSON, a token for another action or another hostname are all refused exactly as a forged one is. Failing open would make the check decorative — an attacker who can reach the backend can also make siteverify unreachable from it. It validates `action` and `hostname` as well as `success`, because **the sitekey is public**: without those two checks a token minted by the same widget embedded on any other page would be accepted here.
 
@@ -2376,42 +2386,13 @@ rather than a fault of this server — on a public endpoint it is the common cas
 
 - `NewRateLimitInterceptor(limiter, refusal, procedures...)` — a `shared/cpratelimit` bucket keyed on `cpctx.RateLimitKey`, answering `CodeResourceExhausted` (429). It reports nothing about what is left: a context that shows a player their allowance throttles inside its own use case instead, where the reading is a return value. This is for the procedures where a refusal is the whole story — chat and sessions
 - `NewIPBlockInterceptor(blocklist, refusal, onBlocked, procedures...)` — a `cpipblock.Blocklist` lookup answering `CodePermissionDenied` (403), with an optional hook the click counter hangs on
-- `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `shared/cpsession` signature check answering `CodeUnauthenticated` (401), which puts the session id and the account (when the token names one) on the context and, with `enforce` false, counts without refusing
+- `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `shared/cpsession` signature check answering `CodeUnauthenticated` (401), which puts the session id and the account (when the token names one) on the context and, with `enforce` false, counts without refusing. Each procedure is `Attested(name)` or `Identified(name)`: see [The click token and the identity token](#the-click-token-and-the-identity-token)
 - `NewSessionReaderInterceptor(verifier, clock, procedures...)` — the same check where a token is optional: a valid one puts the same values on the context, and nothing is refused or counted. `GetBudget` and the chat's `SendMessage` use it
-- `NewCookieReaderInterceptor(callers, procedures...)` — after the session reader, the account the `cp_sid` cookie names, when no valid token named one. See [Who is calling](#who-is-calling-the-click-token-or-the-cookie)
 - `NewErrorInterceptor(logger, mapper)` — the net, applied by `cpbootstrap` rather than by any module (see [The error net](#the-error-net)). It is a full `connect.Interceptor` rather than a `UnaryInterceptorFunc`, so it covers the streaming handlers too; without that, a stream would be the one procedure whose raw error the caller sees. The `Mapper` is optional and nothing passes one any more.
 
 Each context keeps a thin named constructor over these — `planetv1controller.NewVPNBlockInterceptor`, `chatv1controller.NewRateLimitInterceptor`, `NewBlocklistInterceptor` and `NewSessionInterceptor` — which is where the procedure list, the refusal wording and the metric live. **A context names its own policy; neither reimplements the mechanism.**
 
 Both chains order them the same way: error mapping outermost, then the blocklist, then the limiter. **The blocklist has to sit outside the limiter** — a refused address must not also spend a token, or its next call would come back 429 and the client would report the wrong reason. `TestVPNBlockRunsBeforeTheThrottle` pins that for clicks.
-
-#### Who is calling: the click token, or the cookie
-
-**A handler reads the caller off the context (`cpctx.GetAccount`), and never works out who it is itself.** Two
-interceptors put it there, the session reader then the cookie reader, so a module that needs to know who calls
-mounts them and lists its procedures, and nothing else.
-
-- **The click token comes first.** It is checked in process, against the key `cpsessionverifier` took once, so it
-  costs no I/O. A valid one names the caller, and the cookie is not looked up.
-- **The cookie is the fallback.** A click token lives an hour and nothing mints at load, so a player back the next
-  day holds none; the `cp_sid` cookie lives 90 days for a guest and 30 signed in. It is an opaque token whose hash
-  only `auth` holds, so `shared/cpcallers` asks `auth.v1.InternalService/GetCaller` whose it is: one loopback call,
-  only for a call that takes the cookie and carries no valid token. Auth answers the live session's account, with
-  no extension and no Turnstile, from a query (`get_caller_handler/caller_query`, one `SELECT` on `sessions`): see
-  [Reads are queries](#reads-are-queries). No live session, or an auth that cannot answer (`cpcallers.Logged` logs it,
-  never the cookie), leaves the call with no account. `GetCaller` is a POST: a GET would put the cookie in a URL.
-- **A procedure takes the cookie only for reading.** The cookie says *who* the browser is; the click token also
-  says it *may act*: it was minted after a Turnstile check and is bound to the address. So a click, a post or a
-  reaction names its caller by the token alone, and only reads list themselves for the cookie reader. Today that
-  is the chat's `GetHistory`, which marks the caller's own reactions with it, and `MarkSeen`, which writes only
-  the caller's own seen mark.
-- The cookie names the account and when it was made (`cpctx.GetAccountCreated`, off the id), never whether it is
-  linked: that rides on the token alone.
-- `cpcallers` is in `shared` for the same reason `cpsessionverifier` is: one copy for every module that asks.
-  It takes the auth client the module builds once, from `props.Internal.Dial()`, in its DI sequence: a call
-  builds nothing. So the chat refuses to boot with no `httpServer.internalBindAddress`, which it could not post
-  without anyway.
-- `TestTheCookieAloneNamesWhoReadsTheHistory` pins it over HTTP.
 
 ### Durability
 
@@ -2523,7 +2504,7 @@ Two of these are here because both bounded contexts need them and neither should
 
 The siteverify client it is fed by is **not** here. `turnstile` sat here on the same "both contexts need it" rule, but only one ever did, so it now lives at `session/internal/turnstile` where the compiler keeps it. **The bar is not that a package is shareable, it is that it would read the same in any other program and that two modules actually import it** — "shared" names the symptom, and a directory admitted on the weaker reading becomes a dumping ground. `cpsecrets` passes narrowly — chat is its only caller today, but it is twenty lines of `crypto/rand` with no domain in it at all.
 
-`cpsessionverifier` is the exception to that bar: it knows `auth.v1.InternalService`, so it would not read the same in another program. It is the `cpconnect.SessionVerifier` that `planet`, `player` and `chat` build, which takes the key from `auth` once — see [Sessions](#sessions-internalauth). It is here because the alternative was one copy in each module, and a fix to one copy missed the others. `cpcallers`, the `cpconnect.CookieCallers` that asks `auth` whose cookie a call carries, is the second exception, for the same reason — see [Who is calling](#who-is-calling-the-click-token-or-the-cookie).
+`cpsessionverifier` is the exception to that bar: it knows `auth.v1.InternalService`, so it would not read the same in another program. It is the `cpconnect.SessionVerifier` that `planet`, `player` and `chat` build, which takes the key from `auth` once — see [Sessions](#sessions-internalauth). It is here because the alternative was one copy in each module, and a fix to one copy missed the others.
 
 `cpcountries` is the ISO country list both the tile game and the chat validate against. `cpipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `cpratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 
@@ -2749,6 +2730,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.secret` — the Ed25519 seed the tokens are signed with, 32 bytes as 64 hex characters (`openssl rand -hex 32`); **required once `auth.enabled` is true**, and an empty or malformed one refuses the boot rather than being invented. It is the only key in the file: `planet` asks `auth` for the verifying half over the internal listener
 - `auth.ttl` — how long a minted token is accepted (default 1h)
 - `auth.rateLimiter.*` — the per-IP throttle on both `CreateSession` paths together, same shape as `rateLimiter`
+- `auth.resumeLimiter.*` — the per-IP throttle on `ResumeSession`, same shape; its defaults suit it
 - `auth.turnstile.enabled` — off mints for anyone who asks, which is how a local backend runs without a widget
 - `auth.turnstile.secret` — the widget's secret half, from the environment
 - `auth.turnstile.hostnames` — the frontend origins siteverify must report; **empty refuses every token** rather than accepting any, and a production value must not include `localhost`

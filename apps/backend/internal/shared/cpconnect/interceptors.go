@@ -81,10 +81,40 @@ type SessionVerifier interface {
 type SessionVerdict string
 
 const (
-	SessionValid   SessionVerdict = "valid"
-	SessionMissing SessionVerdict = "missing"
-	SessionInvalid SessionVerdict = "invalid"
+	SessionValid      SessionVerdict = "valid"
+	SessionMissing    SessionVerdict = "missing"
+	SessionInvalid    SessionVerdict = "invalid"
+	SessionUnattested SessionVerdict = "unattested"
 )
+
+// A procedure that reads its caller says which token it takes, so none takes the weaker one by default.
+type Procedure struct {
+	name       string
+	identified bool
+}
+
+// Attested acts for its caller: only a token minted after a Turnstile check names it.
+func Attested(name string) Procedure {
+	return Procedure{name: name}
+}
+
+// Identified only reads, or writes nothing but its caller's own state: any token auth minted names it.
+func Identified(name string) Procedure {
+	return Procedure{name: name, identified: true}
+}
+
+func (p Procedure) takes(claims *cpsession.Claims) bool {
+	return p.identified || claims.Attested
+}
+
+func procedureOf(procedures []Procedure, name string) (Procedure, bool) {
+	for _, procedure := range procedures {
+		if procedure.name == name {
+			return procedure, true
+		}
+	}
+	return Procedure{}, false
+}
 
 func NewSessionInterceptor(
 	verifier SessionVerifier,
@@ -92,7 +122,7 @@ func NewSessionInterceptor(
 	refusal error,
 	enforce bool,
 	onVerdict func(SessionVerdict),
-	procedures ...string,
+	procedures ...Procedure,
 ) connect.Interceptor {
 	if clock == nil {
 		clock = cptime.SystemClock{}
@@ -106,7 +136,8 @@ func NewSessionInterceptor(
 
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			if !slices.Contains(procedures, req.Spec().Procedure) {
+			procedure, listed := procedureOf(procedures, req.Spec().Procedure)
+			if !listed {
 				return next(ctx, req)
 			}
 
@@ -128,6 +159,14 @@ func NewSessionInterceptor(
 				return next(ctx, req)
 			}
 
+			if !procedure.takes(claims) {
+				record(SessionUnattested)
+				if enforce {
+					return nil, connect.NewError(connect.CodeUnauthenticated, refusal)
+				}
+				return next(ctx, req)
+			}
+
 			record(SessionValid)
 
 			return next(withClaims(ctx, claims), req)
@@ -135,7 +174,7 @@ func NewSessionInterceptor(
 	})
 }
 
-func NewSessionReaderInterceptor(verifier SessionVerifier, clock cptime.Clock, procedures ...string) connect.Interceptor {
+func NewSessionReaderInterceptor(verifier SessionVerifier, clock cptime.Clock, procedures ...Procedure) connect.Interceptor {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
@@ -146,7 +185,7 @@ func NewSessionReaderInterceptor(verifier SessionVerifier, clock cptime.Clock, p
 type sessionReader struct {
 	verifier   SessionVerifier
 	clock      cptime.Clock
-	procedures []string
+	procedures []Procedure
 }
 
 func (r sessionReader) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
@@ -165,13 +204,14 @@ func (r sessionReader) WrapStreamingHandler(next connect.StreamingHandlerFunc) c
 	}
 }
 
-func (r sessionReader) context(ctx context.Context, procedure string, token string) context.Context {
-	if token == "" || !slices.Contains(r.procedures, procedure) {
+func (r sessionReader) context(ctx context.Context, name string, token string) context.Context {
+	procedure, listed := procedureOf(r.procedures, name)
+	if token == "" || !listed {
 		return ctx
 	}
 
 	claims, err := r.verifier.Verify(ctx, token, cpctx.GetSourceIP(ctx), r.clock.Now())
-	if err != nil {
+	if err != nil || !procedure.takes(claims) {
 		return ctx
 	}
 
@@ -193,53 +233,4 @@ func withClaims(ctx context.Context, claims *cpsession.Claims) context.Context {
 	}
 
 	return cpctx.AddLinkedToContext(ctx)
-}
-
-const CookieHeader = "Cookie"
-
-type CookieCallers interface {
-	Caller(ctx context.Context, cookie string) (cpsession.AccountID, error)
-}
-
-// After NewSessionReaderInterceptor: a valid click token names the caller, and the cookie is not looked up.
-func NewCookieReaderInterceptor(callers CookieCallers, procedures ...string) connect.Interceptor {
-	return cookieReader{callers: callers, procedures: procedures}
-}
-
-type cookieReader struct {
-	callers    CookieCallers
-	procedures []string
-}
-
-func (r cookieReader) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
-	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-		return next(r.context(ctx, req.Spec().Procedure, req.Header().Get(CookieHeader)), req)
-	}
-}
-
-func (r cookieReader) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
-	return next
-}
-
-func (r cookieReader) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
-	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
-		return next(r.context(ctx, conn.Spec().Procedure, conn.RequestHeader().Get(CookieHeader)), conn)
-	}
-}
-
-func (r cookieReader) context(ctx context.Context, procedure string, cookie string) context.Context {
-	if cookie == "" || cpctx.GetAccount(ctx) != "" || !slices.Contains(r.procedures, procedure) {
-		return ctx
-	}
-
-	account, err := r.callers.Caller(ctx, cookie)
-	if err != nil || account == cpsession.NoAccount {
-		return ctx
-	}
-
-	ctx = cpctx.AddAccountToContext(ctx, account.String())
-	if created, ok := account.CreatedAt(); ok {
-		ctx = cpctx.AddAccountCreatedToContext(ctx, created)
-	}
-	return ctx
 }

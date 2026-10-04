@@ -25,7 +25,7 @@ import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
 
 function fixedSession(token: string): SessionProvider {
-    return {token: async () => token, held: () => token, invalidate: () => {}}
+    return {token: async () => token, held: () => token, identity: async () => token, heldIdentity: () => token, invalidate: () => {}}
 }
 
 function rotatingSession(tokens: string[]) {
@@ -36,6 +36,12 @@ function rotatingSession(tokens: string[]) {
             return tokens[Math.min(index, tokens.length - 1)]
         },
         held() {
+            return tokens[Math.min(index, tokens.length - 1)]
+        },
+        async identity() {
+            return tokens[Math.min(index, tokens.length - 1)]
+        },
+        heldIdentity() {
             return tokens[Math.min(index, tokens.length - 1)]
         },
         invalidate() {
@@ -50,7 +56,7 @@ function failingSession(): SessionProvider {
         token: async () => {
             throw new SessionUnavailableError()
         },
-        held: () => undefined,
+        held: () => undefined, identity: async () => undefined, heldIdentity: () => undefined,
         invalidate: () => {},
     }
 }
@@ -941,10 +947,32 @@ describe("PlanetBackend event stream session", () => {
         backend.close()
     })
 
+    it("follows the identity the cookie resumes, reads the budget and charges with it, and never mints", async () => {
+        const listenForEvents = openForever()
+        const getBudget = vi.fn().mockResolvedValue({})
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld()})
+        const token = vi.fn(async () => "minted")
+        let resumed: string | undefined
+        const session: SessionProvider = {
+            token,
+            held: () => undefined,
+            identity: async () => resumed = "identity-1",
+            heldIdentity: () => resumed,
+            invalidate: () => {},
+        }
+        const backend = new PlanetBackend(clientWith({listenForEvents, getBudget, getCharges}), 1_000, session)
+
+        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents).at(-1)).toBe("identity-1"))
+        await vi.waitFor(() => expect((getCharges.mock.calls.at(-1)?.[1].headers as Headers).get(SESSION_HEADER)).toBe("identity-1"))
+        expect((getBudget.mock.calls[0][1].headers as Headers).get(SESSION_HEADER)).toBe("identity-1")
+        expect(token).not.toHaveBeenCalled()
+        backend.close()
+    })
+
     it("opens it with no token when none is held, and never mints one for it", async () => {
         const listenForEvents = openForever()
         const token = vi.fn(async () => "minted")
-        const session: SessionProvider = {token, held: () => undefined, invalidate: () => {}}
+        const session: SessionProvider = {token, held: () => undefined, identity: async () => undefined, heldIdentity: () => undefined, invalidate: () => {}}
         const backend = new PlanetBackend(clientWith({listenForEvents}), 1_000, session)
 
         await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null]))
@@ -960,7 +988,7 @@ describe("PlanetBackend event stream session", () => {
                 held = "session-1"
                 return held
             },
-            held: () => held,
+            held: () => held, identity: async () => held, heldIdentity: () => held,
             invalidate: () => {
                 held = undefined
             },
@@ -989,7 +1017,7 @@ describe("PlanetBackend event stream session", () => {
                 held = "session-1"
                 return held
             },
-            held: () => held,
+            held: () => held, identity: async () => held, heldIdentity: () => held,
             invalidate: () => {},
         }
         const backend = new PlanetBackend(clientWith({listenForEvents, click}), 1_000, session)
@@ -1169,7 +1197,7 @@ describe("the charges held", () => {
         let held: string | undefined
         const session: SessionProvider = {
             token: async () => held = "session-1",
-            held: () => held,
+            held: () => held, identity: async () => held, heldIdentity: () => held,
             invalidate: () => {},
         }
         const backend = new PlanetBackend(clientWith({getCharges}), 1_000, session)

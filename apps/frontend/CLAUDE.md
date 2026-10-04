@@ -493,12 +493,14 @@ is the list, and the backend refuses any other.
   cut, or somebody it could not name at all. It is drawn in a portal on the body, not beside the chip: the log
   both scrolls and clips. Anything that
   moves the chip — a scroll, a resize — closes it rather than making it follow.
-- **`mine` is only known from a call.** `GetHistory` sends the token already
-  held (`SessionProvider.held()`, never a mint) so the server can mark the
+- **`mine` is only known from a call.** `GetHistory` sends the reader's token
+  (`SessionProvider.identity()`, never a mint) so the server can mark the
   player's own; `React` answers the counts with `mine` set. The stream is
   nobody's, so `mergedReactions` keeps what the log already knew. A player
-  whose token is not held yet when the history loads is still named by its
-  cookie, which the chat client sends (see [Sessions](#sessions)).
+  whose click token is not held yet when the history loads is named by its
+  identity token instead (see [Sessions](#sessions)); one with neither sees its own reactions
+  unmarked; the server treats a second "on" as nothing, so a click still ends
+  right.
 - `React` goes out with the click token, minted when none is held, like a
   message: every caller reacts as its account, guests included.
 - **Each message keeps its reactions' version** (`reactionsVersion`). The
@@ -600,12 +602,14 @@ announcements, not the player's own messages. See the backend's CLAUDE.md
 - **The mark is the time of the newest line shown, never "now"**, which would
   count as seen a line that lands while the call is in flight.
 - **`useSeenMark` sends it at most every `SEEN_DELAY_MS` (2s)**, so a fast
-  scroll is one call, and at once on `pagehide`, over a keepalive client. It sends the held token and never mints:
-  the cookie names the account anyway. A refusal for want of an account is
-  silent: a page that never minted has nobody to keep a mark for.
-- **The chat client sends the `cp_sid` cookie** (see [Sessions](#sessions)): a
-  click token lives an hour, so on the next day's visit the cookie is the only
-  thing that says who is asking.
+  scroll is one call, and at once on `pagehide`, over a keepalive client.
+- **It is read and kept as the identity token** (`identity()` for the history,
+  `heldIdentity()` for the mark; see [Sessions](#sessions)): a click token lives
+  an hour, so on the next day's visit the identity the cookie resumes, with no
+  Turnstile check, is what says who is asking. The mark sends the token in hand
+  and never resumes or mints one, since it also goes out as the page closes. A
+  refusal for want of an account is silent: a page with no session has nobody
+  to keep a mark for.
 - In fake mode the mark starts 2.5 minutes back, so two of the opening lines
   count as missed.
 - jsdom lays nothing out, so every line counts as on screen in a test. The
@@ -826,15 +830,12 @@ backend and this build no longer calls it.
 the account the cookie names, and a token minted before that would name the old
 one for its hour. A generation counter keeps such a mint from being stored.
 
-**`newAuthServiceClient` and `newChatServiceClient` are the transports that send
-credentials.** Their `fetch` wrapper adds `credentials: "include"`; without it
-connect-web sends `same-origin`, and a cross-origin mint neither sends the
-cookie nor keeps the one it is given — every mint would start a new guest. The
-chat sends it so the server knows who reads the history, and who marks it seen,
-without a click token, which lives an hour (the backend's CLAUDE.md, "Who is
-calling"); its history is never cached anyway. The click and map clients stay
-without it: nothing there needs to know who is asking, and a read that carries
-a cookie is one no shared cache serves. Both halves are pinned in
+**`newAuthServiceClient` is the only transport that sends credentials.** Its
+`fetch` wrapper adds `credentials: "include"`; without it connect-web sends
+`same-origin`, and a cross-origin mint neither sends the cookie nor keeps the
+one it is given — every mint would start a new guest. The click, map and chat
+clients stay without it: who asks is in the token they carry, the identity
+token included, and a read that carries a cookie is one no shared cache serves. Both halves are pinned in
 `turnstileSession.test.ts`. A credentialed call needs the API to name the exact
 origin and send `Access-Control-Allow-Credentials: true` — Caddy does in
 production, and a local backend does from `httpServer.allowedOrigin`, which
@@ -850,7 +851,33 @@ rather than the player's, the stream followed the address, and presence listed
 nobody. An invalidation and a failed mint both drop what was kept, so a reload
 after a sign-out does not bring the old account's token back.
 
-**It keeps the click token and never the account.** The account is the `cp_sid`
+**Two tokens, one held at a time: the click token and the identity token.** The
+click token comes from `CreateSession`, after a Turnstile check, and is the only
+thing that may act. The identity token comes from `ResumeSession`, off the
+`cp_sid` cookie with no Turnstile check: it names the same account and proves
+no check, so the server takes it for reads alone (the backend's CLAUDE.md, "The
+click token and the identity token"). A click token names the reader too, so
+one token in hand serves both.
+
+- **`token()`** answers the click token, minting through Turnstile when what is
+  held is only an identity. **`held()`** never answers the identity token, so
+  nothing that acts can send it by mistake: a click, a post, a reaction, a
+  claim, an announce.
+- **`identity()`** answers any fresh token, and otherwise resumes one silently;
+  **`heldIdentity()`** is the same without the call. The reads use them: the
+  history, the budget, the charges, both streams, the roster. `PlanetBackend`
+  resumes at load (`followIdentity`), so a player back the next day is named
+  from the first frame, with no Turnstile check and no click.
+- **A cookie with no live session resumes nothing**: a first visit stays
+  anonymous until its first click, as before. A resume that fails is no
+  identity, logged, never an error a read would surface.
+- **A resume that lands after a click token was minted leaves the click token**:
+  it names the same account and proves more.
+- **Kept like the click token**, with `identity: true` beside it, so a reload
+  still knows a click must pass Turnstile. A kept token with no flag is a click
+  token, as every token an older build kept was.
+
+**It keeps the tokens and never the account.** The account is the `cp_sid`
 cookie, which is HttpOnly and out of this page's reach either way. A token
 lapses within the hour, is bound to the address that minted it, and a page that
 could read this could mint one of its own off that cookie. A token restored on

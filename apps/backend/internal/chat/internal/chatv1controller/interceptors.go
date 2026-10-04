@@ -52,17 +52,9 @@ type SenderSessionVerifier = cpconnect.SessionVerifier
 
 func NewSessionInterceptor(verifier SenderSessionVerifier, clock cptime.Clock) connect.Interceptor {
 	return cpconnect.NewSessionReaderInterceptor(verifier, clock,
-		chatv1connect.ChatServiceSendMessageProcedure,
-		chatv1connect.ChatServiceGetHistoryProcedure,
-		chatv1connect.ChatServiceReactProcedure,
-		chatv1connect.ChatServiceMarkSeenProcedure,
-	)
-}
-
-// Reading the chat, and marking it seen: a post or a reaction still needs the click token, which proves the Turnstile check.
-func NewCookieReaderInterceptor(callers cpconnect.CookieCallers) connect.Interceptor {
-	return cpconnect.NewCookieReaderInterceptor(callers,
-		chatv1connect.ChatServiceGetHistoryProcedure,
-		chatv1connect.ChatServiceMarkSeenProcedure,
+		cpconnect.Attested(chatv1connect.ChatServiceSendMessageProcedure),
+		cpconnect.Identified(chatv1connect.ChatServiceGetHistoryProcedure),
+		cpconnect.Attested(chatv1connect.ChatServiceReactProcedure),
+		cpconnect.Identified(chatv1connect.ChatServiceMarkSeenProcedure),
 	)
 }

@@ -176,15 +176,20 @@ func TestAValidTokenNamesTheSendersAccountAndABadOneIsAGuest(t *testing.T) {
 	signer, err := cpsession.NewSigner(cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: time.Hour})
 	require.NoError(t, err)
 	ada := cpsession.AccountID{15: 1}
-	token, err := signer.Mint("1.2.3.4", cpsession.Holder{Account: ada}, clock.Now())
+	token, err := signer.Mint("1.2.3.4", cpsession.Holder{Account: ada, Attested: true}, clock.Now())
+	require.NoError(t, err)
+	identity, err := signer.Mint("1.2.3.4", cpsession.Holder{Account: ada}, clock.Now())
 	require.NoError(t, err)
 
 	require.NoError(t, sendWithToken(server, "1.2.3.4", token.Value))
 	require.NoError(t, sendWithToken(server, "1.2.3.4", "forged"), "a bad token is a guest, never a refusal")
 	require.NoError(t, sendWithToken(server, "5.6.7.8", token.Value), "a token from another address is a guest")
 	require.NoError(t, sendOnce(server, "1.2.3.4"))
+	clock.Advance(time.Minute)
+	require.NoError(t, sendWithToken(server, "1.2.3.4", identity.Value), "a post needs the Turnstile check, not a name")
 
-	require.Equal(t, []messages.AccountID{ada, cpsession.NoAccount, cpsession.NoAccount, cpsession.NoAccount}, sender.accounts)
+	require.Equal(t, []messages.AccountID{ada, cpsession.NoAccount, cpsession.NoAccount, cpsession.NoAccount, cpsession.NoAccount},
+		sender.accounts)
 }
 
 type keyVerifier struct {

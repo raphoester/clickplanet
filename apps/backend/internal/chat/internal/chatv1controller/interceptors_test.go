@@ -3,6 +3,7 @@ package chatv1controller
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
@@ -12,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/require"
 )
 
@@ -182,35 +184,31 @@ func blocklistOf(t *testing.T, prefixes []string) SenderBlocklist {
 	return blocklist
 }
 
-type stubCallers struct {
-	asked []string
+type identityVerifier struct{}
+
+func (identityVerifier) Verify(context.Context, string, string, time.Time) (*cpsession.Claims, error) {
+	return &cpsession.Claims{ID: "a-mint", Account: cpsession.AccountID{15: 1}}, nil
 }
 
-func (s *stubCallers) Caller(_ context.Context, cookie string) (cpsession.AccountID, error) {
-	s.asked = append(s.asked, cookie)
-	return cpsession.AccountID{15: 1}, nil
-}
-
-func TestOnlyTheHistoryAndTheSeenMarkTakeTheCookie(t *testing.T) {
-	for procedure, takes := range map[string]bool{
+func TestAnIdentityTokenNamesTheReaderAndTheSeenMarkOnly(t *testing.T) {
+	for procedure, named := range map[string]bool{
 		chatv1connect.ChatServiceGetHistoryProcedure:  true,
 		chatv1connect.ChatServiceMarkSeenProcedure:    true,
 		chatv1connect.ChatServiceSendMessageProcedure: false,
 		chatv1connect.ChatServiceReactProcedure:       false,
 	} {
-		callers := &stubCallers{}
 		var account string
 		next := connect.UnaryFunc(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
 			account = cpctx.GetAccount(ctx)
 			return connect.NewResponse(&chatv1.GetHistoryResponse{}), nil
 		})
 		inner := connect.NewRequest(&chatv1.GetHistoryRequest{})
-		inner.Header().Set(cpconnect.CookieHeader, "cp_sid=token-1")
+		inner.Header().Set(cpconnect.SessionHeader, "an-identity-token")
 
-		_, err := NewCookieReaderInterceptor(callers).WrapUnary(next)(t.Context(),
+		_, err := NewSessionInterceptor(identityVerifier{}, cptime.SystemClock{}).WrapUnary(next)(t.Context(),
 			fakeRequest{AnyRequest: inner, spec: connect.Spec{Procedure: procedure}})
 
 		require.NoError(t, err)
-		require.Equal(t, takes, account != "", procedure)
+		require.Equal(t, named, account != "", procedure)
 	}
 }

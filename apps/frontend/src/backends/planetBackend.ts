@@ -80,9 +80,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     ) {
         void this.readBudget()
         void this.readRules()
-        void this.readCharges(this.session.held())
 
         this.stopListening = this.openEventStream()
+        void this.followIdentity()
 
         this.listenForUpdates((update) => {
             this.pendingUpdates.push(update)
@@ -160,7 +160,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const countryId = this.budgetCountry
 
         const headers = new Headers()
-        const token = this.session.held()
+        const token = await this.session.identity()
         if (token) headers.set(SESSION_HEADER, token)
 
         try {
@@ -237,7 +237,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private openEventStream(): () => void {
         return openStream(
             (signal) => {
-                const token = this.session.held()
+                const token = this.session.heldIdentity()
                 this.streamToken = token
 
                 const headers = new Headers()
@@ -294,6 +294,16 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         )
     }
 
+    // A returning player is named from load on, with no Turnstile check.
+    private async followIdentity(): Promise<void> {
+        const token = await this.session.identity()
+        if (token && token !== this.streamToken) {
+            this.followSession(token)
+            return
+        }
+        await this.readCharges(token)
+    }
+
     private followSession(token: string | undefined): void {
         if (!token || token === this.streamToken) return
 
@@ -329,7 +339,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
         try {
             const res = await retrying(() => this.client.getCharges({}, {headers}), "getCharges")
-            if (token !== this.streamToken && token !== this.session.held()) return
+            if (token !== this.streamToken && token !== this.session.heldIdentity()) return
             this.holdCharges(chargesOfMessage(res.charges))
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return

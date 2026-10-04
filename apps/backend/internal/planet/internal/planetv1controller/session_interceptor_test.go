@@ -26,17 +26,21 @@ import (
 
 type fakeVerifier struct {
 	valid map[string]cpsession.ID
+	named map[string]cpsession.ID
 	asked []string
 }
 
 func (v *fakeVerifier) Verify(_ context.Context, token string, _ string, _ time.Time) (*cpsession.Claims, error) {
 	v.asked = append(v.asked, token)
 
+	if id, ok := v.named[token]; ok {
+		return &cpsession.Claims{ID: id}, nil
+	}
 	id, ok := v.valid[token]
 	if !ok {
 		return nil, errors.New("no")
 	}
-	return &cpsession.Claims{ID: id}, nil
+	return &cpsession.Claims{ID: id, Attested: true}, nil
 }
 
 type sessionResult struct {
@@ -78,7 +82,10 @@ func checkSession(
 }
 
 func validVerifier() *fakeVerifier {
-	return &fakeVerifier{valid: map[string]cpsession.ID{"good-token": "abcd1234"}}
+	return &fakeVerifier{
+		valid: map[string]cpsession.ID{"good-token": "abcd1234"},
+		named: map[string]cpsession.ID{"identity-token": "ef567890"},
+	}
 }
 
 func TestSessionInterceptorWhenEnforcing(t *testing.T) {
@@ -108,6 +115,14 @@ func TestSessionInterceptorWhenEnforcing(t *testing.T) {
 		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(result.err))
 		require.False(t, result.ran)
 		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "invalid"), 1e-9)
+	})
+
+	t.Run("refuses a click whose token only names its holder, so the client passes Turnstile", func(t *testing.T) {
+		result := checkSession(t, validVerifier(), enforce, planetv1connect.ClickServiceClickProcedure, "identity-token")
+
+		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(result.err))
+		require.False(t, result.ran)
+		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "unattested"), 1e-9)
 	})
 
 	t.Run("refuses every procedure that grants or spends a charge", func(t *testing.T) {
@@ -160,6 +175,15 @@ func TestSessionInterceptorWhenObserving(t *testing.T) {
 		require.NoError(t, result.err)
 		require.True(t, result.ran)
 		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "invalid"), 1e-9)
+	})
+
+	t.Run("lets a click whose token only names its holder through as if it had none, and counts it", func(t *testing.T) {
+		result := checkSession(t, validVerifier(), enforce, planetv1connect.ClickServiceClickProcedure, "identity-token")
+
+		require.NoError(t, result.err)
+		require.True(t, result.ran)
+		require.Empty(t, result.sessionID)
+		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "unattested"), 1e-9)
 	})
 
 	t.Run("still reports the id of a session it did mint", func(t *testing.T) {
@@ -272,6 +296,7 @@ func TestAStreamOpenedWithATokenKnowsItsAccount(t *testing.T) {
 
 	account := accountNumber(1)
 	require.Equal(t, account.String(), listen(account.String()))
+	require.Equal(t, account.String(), listen(namedPrefix+account.String()), "watching the planet needs no Turnstile check")
 	require.Empty(t, listen(""))
 	require.Empty(t, listen("forged"))
 }

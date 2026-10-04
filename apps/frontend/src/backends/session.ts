@@ -3,6 +3,10 @@ export interface SessionProvider {
 
     held(): string | undefined
 
+    identity(): Promise<string | undefined>
+
+    heldIdentity(): string | undefined
+
     invalidate(): void
 }
 
@@ -21,6 +25,14 @@ export class NoSession implements SessionProvider {
     }
 
     public held(): string | undefined {
+        return undefined
+    }
+
+    public async identity(): Promise<string | undefined> {
+        return undefined
+    }
+
+    public heldIdentity(): string | undefined {
         return undefined
     }
 

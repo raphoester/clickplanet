@@ -7,7 +7,6 @@ import {
     SESSION_STORAGE_KEY,
     SessionClient,
 } from "./turnstileSession.ts"
-import {newChatServiceClient} from "./chatBackend.ts"
 import {newClickServiceClient} from "./planetBackend.ts"
 import {SessionUnavailableError} from "./session.ts"
 
@@ -21,8 +20,12 @@ function clock() {
 
 type CreateSession = (req: {attestationToken: string}) => Promise<{token: string, expiresAtUnixMs: bigint}>
 
-function fakeClient(createSession: CreateSession) {
-    return {createSession: vi.fn(createSession)} as never
+type ResumeSession = () => Promise<{token: string, expiresAtUnixMs: bigint}>
+
+const NO_RESUME: ResumeSession = async () => ({token: "", expiresAtUnixMs: BigInt(0)})
+
+function fakeClient(createSession: CreateSession, resumeSession: ResumeSession = NO_RESUME) {
+    return {createSession: vi.fn(createSession), resumeSession: vi.fn(resumeSession)} as never
 }
 
 function minting(token: string, ttlMs = HOUR_MS) {
@@ -303,9 +306,106 @@ function stubStorage(kept: Record<string, string> = {}) {
     return kept
 }
 
+describe("SessionClient's identity", () => {
+    const attestNever = () => vi.fn(async (): Promise<string> => {
+        throw new Error("no Turnstile check for a read")
+    })
+
+    it("resumes one from the cookie, with no Turnstile check, and never hands it to what acts", async () => {
+        const attest = attestNever()
+        const resumeSession = vi.fn(minting("identity-1"))
+        const client = new SessionClient(fakeClient(minting("click-1"), resumeSession), attest, {now: clock})
+
+        expect(await client.identity()).toBe("identity-1")
+
+        expect(client.heldIdentity()).toBe("identity-1")
+        expect(client.held()).toBeUndefined()
+        expect(attest).not.toHaveBeenCalled()
+    })
+
+    it("still mints through Turnstile for a click while it holds one, and names the reader with the click token after", async () => {
+        const attest = vi.fn(async () => "widget-token")
+        const createSession = vi.fn(minting("click-1"))
+        const client = new SessionClient(fakeClient(createSession, minting("identity-1")), attest, {now: clock})
+        await client.identity()
+
+        expect(await client.token()).toBe("click-1")
+
+        expect(attest).toHaveBeenCalledTimes(1)
+        expect(client.held()).toBe("click-1")
+        expect(await client.identity()).toBe("click-1")
+    })
+
+    it("resumes once for readers that ask at the same time", async () => {
+        const resumeSession = vi.fn(minting("identity-1"))
+        const client = new SessionClient(fakeClient(minting("click-1"), resumeSession), attestNever(), {now: clock})
+
+        const all = await Promise.all([client.identity(), client.identity(), client.identity()])
+
+        expect(all).toEqual(["identity-1", "identity-1", "identity-1"])
+        expect(resumeSession).toHaveBeenCalledTimes(1)
+    })
+
+    it("holds none when the cookie names nobody, and keeps nothing", async () => {
+        const store = fakeStore()
+        const client = new SessionClient(fakeClient(minting("click-1")), attestNever(), {now: clock, store})
+
+        expect(await client.identity()).toBeUndefined()
+
+        expect(client.heldIdentity()).toBeUndefined()
+        expect(store.write).not.toHaveBeenCalled()
+    })
+
+    it("does not let a resume that lands late replace a click token minted meanwhile", async () => {
+        let land: (value: {token: string, expiresAtUnixMs: bigint}) => void = () => {}
+        const resumeSession = () => new Promise<{token: string, expiresAtUnixMs: bigint}>(resolve => land = resolve)
+        const client = new SessionClient(fakeClient(minting("click-1"), resumeSession), async () => "widget-token", {now: clock})
+
+        const resumed = client.identity()
+        await client.token()
+        land({token: "identity-1", expiresAtUnixMs: BigInt(now + HOUR_MS)})
+        await resumed
+
+        expect(client.held()).toBe("click-1")
+        expect(client.heldIdentity()).toBe("click-1")
+    })
+
+    it("reads a resume that failed as no identity, not as an error", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const resumeSession = async (): Promise<never> => {
+            throw new ConnectError("down", Code.Unavailable)
+        }
+        const client = new SessionClient(fakeClient(minting("click-1"), resumeSession), attestNever(), {now: clock})
+
+        expect(await client.identity()).toBeUndefined()
+    })
+
+    it("keeps it for the next page load, marked as one, so a click there still passes Turnstile", async () => {
+        const store = fakeStore()
+        await new SessionClient(fakeClient(minting("click-1"), minting("identity-1")), attestNever(), {now: clock, store})
+            .identity()
+
+        expect(store.write).toHaveBeenCalledWith({value: "identity-1", expiresAt: now + HOUR_MS, identity: true})
+
+        const next = new SessionClient(fakeClient(minting("click-1")), async () => "widget-token", {now: clock, store})
+        expect(next.heldIdentity()).toBe("identity-1")
+        expect(next.held()).toBeUndefined()
+        expect(await next.token()).toBe("click-1")
+    })
+})
+
 describe("localTokenStore", () => {
     afterEach(() => {
         vi.unstubAllGlobals()
+    })
+
+    it("reads back an identity as one", () => {
+        stubStorage()
+        const store = localTokenStore()
+
+        store.write({value: "identity-1", expiresAt: 42, identity: true})
+
+        expect(store.read()).toEqual({value: "identity-1", expiresAt: 42, identity: true})
     })
 
     it("reads back what it wrote, and lets go of it", () => {
@@ -367,15 +467,6 @@ describe("the API transports", () => {
 
         expect(fetch).toHaveBeenCalledTimes(1)
         expect(String(fetch.mock.calls[0][0])).toBe("https://api.test/auth.v1.AuthService/CreateSession")
-        expect(fetch.mock.calls[0][1]?.credentials).toBe("include")
-    })
-
-    it("reads the chat with credentials, so the history knows its reader without a click token", async () => {
-        const fetch = recordingFetch()
-
-        await expect(newChatServiceClient({baseUrl: "https://api.test"}).getHistory({})).rejects.toThrow()
-
-        expect(fetch).toHaveBeenCalledTimes(1)
         expect(fetch.mock.calls[0][1]?.credentials).toBe("include")
     })
 

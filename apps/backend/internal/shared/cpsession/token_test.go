@@ -22,9 +22,10 @@ const ttl = time.Hour
 var now = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
 
 const (
-	expiryAt  = 1
-	accountAt = 17
-	linkedAt  = 33
+	expiryAt   = 1
+	accountAt  = 17
+	linkedAt   = 33
+	attestedAt = 34
 )
 
 func keys(t *testing.T) (cpsession.SignerConfig, string) {
@@ -181,6 +182,59 @@ func TestATokenMintedBeforeTheLinkedByteVerifiesAsNotLinked(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, account, claims.Account)
 	assert.False(t, claims.Linked)
+	assert.True(t, claims.Attested, "every mint before version 3 followed a Turnstile check")
+}
+
+func TestATokenSaysWhetherItWasMintedAfterATurnstileCheck(t *testing.T) {
+	signer, verifier := newPair(t)
+	account := cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"))
+
+	for _, attested := range []bool{true, false} {
+		token, err := signer.Mint("203.0.113.7", cpsession.Holder{Account: account, Attested: attested}, now)
+		require.NoError(t, err)
+
+		claims, err := verifier.Verify(token.Value, "203.0.113.7", now)
+		require.NoError(t, err)
+		assert.Equal(t, attested, claims.Attested)
+		assert.Equal(t, account, claims.Account)
+	}
+}
+
+func TestATokenThatOnlyNamesItsHolderCannotClaimTheCheck(t *testing.T) {
+	signer, verifier := newPair(t)
+
+	token, err := signer.Mint("203.0.113.7",
+		cpsession.Holder{Account: cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"))}, now)
+	require.NoError(t, err)
+
+	raw := decode(t, token.Value)
+	raw[attestedAt] = 1
+
+	_, err = verifier.Verify(encode(raw), "203.0.113.7", now)
+	assert.ErrorIs(t, err, cpsession.ErrBadSignature)
+}
+
+func TestATokenMintedBeforeTheAttestedByteVerifiesAsAttested(t *testing.T) {
+	_, verifier := newPair(t)
+	secret, _ := cpsession.TestKeyPair()
+	seed, err := hex.DecodeString(secret)
+	require.NoError(t, err)
+	account := cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"))
+
+	payload := make([]byte, 0, attestedAt)
+	payload = append(payload, 2)
+	payload = binary.BigEndian.AppendUint64(payload, uint64(now.Add(ttl).UnixMilli()))
+	payload = append(payload, 1, 2, 3, 4, 5, 6, 7, 8)
+	payload = append(payload, account[:]...)
+	payload = append(payload, 1)
+	signed := append(append([]byte{}, payload...), cpipscope.Of("203.0.113.7")...)
+	token := append(append([]byte{}, payload...), ed25519.Sign(ed25519.NewKeyFromSeed(seed), signed)...)
+
+	claims, err := verifier.Verify(encode(token), "203.0.113.7", now)
+	require.NoError(t, err)
+	assert.Equal(t, account, claims.Account)
+	assert.True(t, claims.Linked)
+	assert.True(t, claims.Attested, "every mint before version 3 followed a Turnstile check")
 }
 
 func TestASwappedAccountDoesNotVerify(t *testing.T) {

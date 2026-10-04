@@ -30,14 +30,12 @@ import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
 import {titleOf} from "./title.ts";
 
-// With the cookie: it names the account for longer than a click token lives.
 export function newChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
     return createPromiseClient(ChatService, createConnectTransport({
         baseUrl: config.baseUrl,
         useBinaryFormat: true,
         useHttpGet: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
-        fetch: (input, init) => globalThis.fetch(input, {...init, credentials: "include"}),
     }))
 }
 
@@ -45,7 +43,7 @@ export function newKeepaliveChatServiceClient(config: Config): PromiseClient<typ
     return createPromiseClient(ChatService, createConnectTransport({
         baseUrl: config.baseUrl,
         useBinaryFormat: true,
-        fetch: (input, init) => globalThis.fetch(input, {...init, credentials: "include", keepalive: true}),
+        fetch: (input, init) => globalThis.fetch(input, {...init, keepalive: true}),
     }))
 }
 
@@ -116,7 +114,9 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
     }
 
     public async getHistory(signal?: AbortSignal): Promise<ChatHistory> {
-        const headers = this.heldHeaders()
+        const headers = new Headers()
+        const identity = await this.session.identity()
+        if (identity) headers.set(SESSION_HEADER, identity)
 
         try {
             const res = await retrying(
@@ -136,19 +136,17 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         }
     }
 
+    // The token in hand and no resume: it also goes out as the page closes, with no time for a call first.
     public async markSeen(until: number): Promise<void> {
+        const headers = new Headers()
+        const identity = this.session.heldIdentity()
+        if (identity) headers.set(SESSION_HEADER, identity)
+
         try {
-            await this.keepalive.markSeen({seenUntilUnixMs: BigInt(Math.floor(until))}, {headers: this.heldHeaders()})
+            await this.keepalive.markSeen({seenUntilUnixMs: BigInt(Math.floor(until))}, {headers})
         } catch (e) {
             throw translate(e)
         }
-    }
-
-    private heldHeaders(): Headers {
-        const headers = new Headers()
-        const held = this.session.held()
-        if (held) headers.set(SESSION_HEADER, held)
-        return headers
     }
 
     public listenForMessages(

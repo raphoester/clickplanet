@@ -255,6 +255,80 @@ export class CreateSessionResponse extends Message<CreateSessionResponse> {
 }
 
 /**
+ * @generated from message auth.v1.ResumeSessionRequest
+ */
+export class ResumeSessionRequest extends Message<ResumeSessionRequest> {
+  constructor(data?: PartialMessage<ResumeSessionRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.ResumeSessionRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ResumeSessionRequest {
+    return new ResumeSessionRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ResumeSessionRequest {
+    return new ResumeSessionRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ResumeSessionRequest {
+    return new ResumeSessionRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ResumeSessionRequest | PlainMessage<ResumeSessionRequest> | undefined, b: ResumeSessionRequest | PlainMessage<ResumeSessionRequest> | undefined): boolean {
+    return proto3.util.equals(ResumeSessionRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.ResumeSessionResponse
+ */
+export class ResumeSessionResponse extends Message<ResumeSessionResponse> {
+  /**
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  /**
+   * @generated from field: int64 expires_at_unix_ms = 2;
+   */
+  expiresAtUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<ResumeSessionResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.ResumeSessionResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "expires_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ResumeSessionResponse {
+    return new ResumeSessionResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ResumeSessionResponse {
+    return new ResumeSessionResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ResumeSessionResponse {
+    return new ResumeSessionResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ResumeSessionResponse | PlainMessage<ResumeSessionResponse> | undefined, b: ResumeSessionResponse | PlainMessage<ResumeSessionResponse> | undefined): boolean {
+    return proto3.util.equals(ResumeSessionResponse, a, b);
+  }
+}
+
+/**
  * @generated from message auth.v1.GetMeRequest
  */
 export class GetMeRequest extends Message<GetMeRequest> {
