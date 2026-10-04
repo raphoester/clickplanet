@@ -155,10 +155,10 @@ app/       components
   message id, ordered on the time the server stamped, and capped at 200. It
   returns the array it was given when nothing was added, so an echo of something
   already shown costs no render. `unreadSince` counts what arrived after a given
-  id and `idsSince` names those messages, for the sound. `unseenAfter` counts
-  the messages and announcements after a time, for the badge, `idsAfter` names
-  the messages, for highlighting them once they are on screen, and `newestAt`
-  is the time of the newest line, the seen mark. `nameSentUnder` is
+  id and `idsSince` names those messages, for the sound and for highlighting
+  them once they are on screen. `unseenAfter` counts the messages and
+  announcements after a time, for the badge, and `newestAt` is the time of the
+  newest line. `nameSentUnder` is
   the name the server gave the latest message this client sent — the only way
   it learns a guest's name.
 - `authorColor.ts` — `NAME_COLORS`, the 12 a player with a username may pick
@@ -553,10 +553,9 @@ the eye without stealing it. Four things say it, each for a different glance:
 
 - **A message lights up as it comes into view.** `ChatPanel` holds the ids in
   `flashing` for `FLASH_MS`, matched to the `chat-message-glow` animation,
-  and `ChatLog` turns that into a class. What lights up is what `idsAfter`
-  reports after the seen mark, so the same rule covers one message arriving
-  into an open panel, a whole backlog the moment a folded one is unfolded, and
-  what was said since the last visit.
+  and `ChatLog` turns that into a class. What lights up is what `idsSince`
+  reports as unseen, so the same rule covers one message arriving into an open
+  panel and a whole backlog the moment a folded one is unfolded.
 - **Your own message never flashes.** `useChat` keeps the ids `sendMessage`
   returned in `mine` and `ChatPanel` filters them out — you know you sent it.
   This is the only reason `mine` exists.
@@ -581,15 +580,28 @@ announcements, not the player's own messages. See the backend's CLAUDE.md
 
 - **A time, not an id.** `GetHistory` answers `seenUntil`; `useChat` hands
   `ChatPanel` the time to count from (`seenAtLoad`), and `unseenAfter` counts
-  the lines after it. A history with no mark is a first visit: nothing counts,
-  and the newest line of the history is sent as the mark, so the next visit
-  has one even if the chat is never opened in this one.
-- **Seen means open, on the Chat tab, and the page visible** (`usePageVisible`).
-  A hidden tab left open overnight would otherwise mark everything seen.
+  the lines after it, open or not. A history with no mark is a first visit:
+  nothing counts, and the newest line of the history is sent as the mark, so
+  the next visit has one even if the chat is never opened in this one.
+- **Opening the chat marks nothing.** On a desktop it is open from the start,
+  and a phone's sheet used to open on the newest line: either way the player
+  was shown the bottom and nothing above it. So `ChatLog` opens on an **Unread
+  line** (`.chat-unseen`) above the first line after the mark, with a little of
+  what was read above it, and shows the "New messages" button while there is
+  more below. The line is placed once, as the log opens, and stays while the
+  player reads down from it; nothing missed, no line, and the log opens on the
+  newest as before.
+- **Seen is what was scrolled into view.** On every scroll, resize and new
+  line, `ChatLog` finds the newest line whose whole height has been on screen
+  (`data-at` on each line) and reports its time through `onSeen`. A line that
+  lands while the log is pinned to the bottom is on screen at once, so it is
+  seen at once. "New messages" goes to the newest line, and so marks
+  everything. Nothing is reported while the page is hidden (`watching`, from
+  `usePageVisible`): a tab left open overnight would mark everything seen.
 - **The mark is the time of the newest line shown, never "now"**, which would
   count as seen a line that lands while the call is in flight.
-- **`useSeenMark` sends it at most every `SEEN_DELAY_MS` (2s)**, and at once on
-  `pagehide`, over a keepalive client. It sends the held token and never mints:
+- **`useSeenMark` sends it at most every `SEEN_DELAY_MS` (2s)**, so a fast
+  scroll is one call, and at once on `pagehide`, over a keepalive client. It sends the held token and never mints:
   the cookie names the account anyway. A refusal for want of an account is
   silent: a page that never minted has nobody to keep a mark for.
 - **The chat client sends the `cp_sid` cookie** (`credentials: "include"`): a
@@ -598,6 +610,8 @@ announcements, not the player's own messages. See the backend's CLAUDE.md
   player's own reactions before the page has minted.
 - In fake mode the mark starts 2.5 minutes back, so two of the opening lines
   count as missed.
+- jsdom lays nothing out, so every line counts as on screen in a test. The
+  tests of the Unread line stub the layout: lines 50px tall in a log 150px tall.
 
 **The log is never yanked down under someone who scrolled up to read.** It
 auto-scrolls only while it is pinned to the bottom (`PINNED_SLACK_PX`);

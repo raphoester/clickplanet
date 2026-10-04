@@ -375,10 +375,9 @@ internal/chat/internal/
     log_authors/                        logs a caller, or a page of them, it could not name
     usecases/send_message_usecase/      names, cleans, appends, publishes — Appender, Publisher, CountryChecker, Authors
       publishing_send_message/          publishes chat.v1.MessageSent once a message is kept
-    usecases/get_history_usecase/       the window, each message named and with its reactions, the caller's marked
-                                        and the announcements in the same window
-                                                  — MessageReader, ReactionReader, AnnouncementReader, Authors
-      seen_get_history/                 adds when the caller last saw the chat — Reader
+    usecases/get_history_usecase/       the window, each message named and with its reactions, the caller's marked,
+                                        the announcements in the same window, and until when the caller saw it
+                                                  — MessageReader, ReactionReader, AnnouncementReader, Authors, SeenReader
     usecases/prune_usecase/             deletes past retention, from each table; Runner — Pruner
       log_prune/                        logs what a prune deleted
   reactions/                            Reaction, Reactor, AccountOf, Reactions, Count, Tally, Change, Named,
@@ -697,8 +696,8 @@ while it was away: the badge counts it, and the lines light up as the chat opens
   (`ErrNoTime` → `InvalidArgument`).
 - **It only moves forward**: the upsert keeps the `GREATEST` of the two, so two tabs, or a late request, never
   move it back.
-- **`GetHistory` answers it** (`seen_until_unix_ms`, 0 for none) through `seen_get_history`, a decorator,
-  because `get_history_usecase` already has five ports. **`MarkSeen` writes it.** No account is `Unauthenticated`.
+- **`GetHistory` answers it** (`seen_until_unix_ms`, 0 for none): `get_history_usecase` reads it beside the
+  window. **`MarkSeen` writes it.** No account is `Unauthenticated`.
   It has its own rate bucket, `chat.seenLimiter` (1 a second, 10 in hand), and the blocklist covers it.
 - **Read off the cookie, not only the click token.** A click token lives an hour, so a player back the next day
   holds none at load, and a history read with no token answers for nobody: exactly the visit the mark is for. So

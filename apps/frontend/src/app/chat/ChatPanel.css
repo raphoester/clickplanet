@@ -551,6 +551,27 @@
     color: var(--text-faint);
 }
 
+.chat-unseen {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-2) 0;
+    color: var(--action);
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.chat-unseen::before,
+.chat-unseen::after {
+    content: "";
+    flex: 1 1 auto;
+    height: var(--outline-thin);
+    background: currentColor;
+}
+
 .chat-jump {
     position: absolute;
     left: 50%;

@@ -5,7 +5,6 @@ import {
     CHAT_LOG_LIMIT,
     ChatLogEntry,
     GROUP_WINDOW_MS,
-    idsAfter,
     idsSince,
     interleave,
     nameSentUnder,
@@ -150,12 +149,6 @@ describe("unseenAfter", () => {
         const log = [message("a", 2), message("mine", 3)]
 
         expect(unseenAfter(log, [], 1, m => m.id === "mine")).toBe(1)
-    })
-})
-
-describe("idsAfter", () => {
-    it("names the messages after the mark", () => {
-        expect(idsAfter([message("a", 1), message("b", 2), message("c", 3)], 1)).toEqual(["b", "c"])
     })
 })
 

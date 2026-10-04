@@ -95,10 +95,6 @@ export function unseenAfter(
         + announcements.filter(announcement => announcement.announcedAt > seenUntil).length
 }
 
-export function idsAfter(log: readonly ChatMessage[], seenUntil: number): string[] {
-    return log.filter(message => message.sentAt > seenUntil).map(message => message.id)
-}
-
 export function nameSentUnder(log: readonly ChatMessage[], sent: ReadonlySet<string>): string | undefined {
     for (let i = log.length - 1; i >= 0; i--) {
         if (sent.has(log[i].id)) return log[i].authorName

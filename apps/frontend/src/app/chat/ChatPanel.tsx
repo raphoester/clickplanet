@@ -2,7 +2,7 @@ import {ReactNode, useCallback, useEffect, useId, useRef, useState} from "react"
 import {ChatBackend, ChatMessage, OutgoingMessage} from "../../backends/chat.ts";
 import {PlayerLine, RosterEntry} from "../../backends/player.ts";
 import {Country} from "../../domain/countries.ts";
-import {idsAfter, idsSince, newestAt, unseenAfter} from "../../domain/chatLog.ts";
+import {idsSince, unseenAfter} from "../../domain/chatLog.ts";
 import {ChevronIcon} from "../components/icons.tsx";
 import {opensFolded} from "../compact.ts";
 import {truncate} from "../truncate.ts";
@@ -57,7 +57,6 @@ export default function ChatPanel(props: ChatPanelProps) {
     const visible = usePageVisible()
     const seeing = isOpen && (view === "chat" || !players) && visible
 
-    const [unread, setUnread] = useState(0)
     const [toast, setToast] = useState<ChatMessage>()
     const [flashing, setFlashing] = useState<ReadonlySet<string>>(NOTHING)
     const bodyId = useId()
@@ -69,9 +68,12 @@ export default function ChatPanel(props: ChatPanelProps) {
         useChat({backend: props.backend, username})
     const identity = useChatIdentity()
     const markSeen = useSeenMark(props.backend, seenAtLoad?.kept ? seenAtLoad.until : 0)
+    const [seenLater, setSeenLater] = useState(0)
+    const seenUntil = seenAtLoad === undefined ? undefined : Math.max(seenAtLoad.until, seenLater)
 
-    const seenUntil = useRef<number | undefined>(undefined)
-    const toasted = useRef<string | undefined>(undefined)
+    const lastShown = useRef<string | undefined>(undefined)
+    const shownAnything = useRef(false)
+    const newestId = useRef<string | undefined>(undefined)
     const fading = useRef<number[]>([])
     const lastHeard = useRef<string | undefined>(undefined)
     const heardAnything = useRef(false)
@@ -90,37 +92,44 @@ export default function ChatPanel(props: ChatPanelProps) {
     useEffect(() => () => fading.current.forEach(clearTimeout), [])
 
     useEffect(() => {
-        if (!seenAtLoad) return
-        if (seenUntil.current === undefined) {
-            seenUntil.current = seenAtLoad.until
-            // So the next visit has a mark to count from, even if the chat is never opened in this one.
-            if (!seenAtLoad.kept) markSeen(seenAtLoad.until)
-        }
+        // So the next visit has a mark to count from, even if the chat is never opened in this one.
+        if (seenAtLoad && !seenAtLoad.kept) markSeen(seenAtLoad.until)
+    }, [seenAtLoad, markSeen])
 
-        if (!seeing) {
-            setUnread(unseenAfter(messages, announcements, seenUntil.current,
-                message => mine.has(message.id) || message.authorName === displayName))
-            return
-        }
+    const onSeen = useCallback((at: number) => {
+        setSeenLater(current => Math.max(current, at))
+        markSeen(at)
+    }, [markSeen])
 
-        flash(idsAfter(messages, seenUntil.current).filter(id => !mine.has(id)))
-        const newest = newestAt(messages, announcements)
-        if (newest !== undefined && newest > seenUntil.current) {
-            seenUntil.current = newest
-            markSeen(newest)
-        }
-        setUnread(0)
-        setToast(undefined)
-    }, [seenAtLoad, messages, announcements, seeing, mine, displayName, flash, markSeen])
+    const unread = seenUntil === undefined ? 0 : unseenAfter(messages, announcements, seenUntil,
+        message => mine.has(message.id) || message.authorName === displayName)
 
     useEffect(() => {
         const last = messages[messages.length - 1]
-        if (seeing || !last || seenUntil.current === undefined || last.sentAt <= seenUntil.current) return
-        if (last.id === toasted.current || mine.has(last.id) || last.authorName === displayName) return
 
-        toasted.current = last.id
+        if (!shownAnything.current) {
+            shownAnything.current = messages.length > 0
+            lastShown.current = last?.id
+            return
+        }
+        if (!seeing) return
+
+        flash(idsSince(messages, lastShown.current).filter(id => !mine.has(id)))
+        lastShown.current = last?.id
+    }, [messages, seeing, mine, flash])
+
+    useEffect(() => {
+        if (seeing) setToast(undefined)
+    }, [seeing])
+
+    useEffect(() => {
+        const last = messages[messages.length - 1]
+        if (seenUntil === undefined || !last || last.id === newestId.current) return
+        newestId.current = last.id
+
+        if (seeing || last.sentAt <= seenUntil || mine.has(last.id) || last.authorName === displayName) return
         setToast(last)
-    }, [seenAtLoad, messages, seeing, mine, displayName])
+    }, [seenUntil, messages, seeing, mine, displayName])
 
     useEffect(() => {
         if (!toast) return
@@ -187,6 +196,9 @@ export default function ChatPanel(props: ChatPanelProps) {
             <ChatLog messages={messages}
                      announcements={announcements}
                      loading={status === 'loading'}
+                     seenUntil={seenUntil}
+                     onSeen={onSeen}
+                     watching={visible}
                      flashing={flashing}
                      onOpenPlayer={props.onOpenPlayer}
                      onReact={(messageId, reaction, on) =>

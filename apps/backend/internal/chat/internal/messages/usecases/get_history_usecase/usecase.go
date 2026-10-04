@@ -28,6 +28,10 @@ type Authors interface {
 	Authors(ctx context.Context, accounts []messages.AccountID) (map[messages.AccountID]messages.Author, error)
 }
 
+type SeenReader interface {
+	SeenUntil(ctx context.Context, account messages.AccountID) (time.Time, error)
+}
+
 type Entry struct {
 	Message          messages.Message
 	Reactions        []reactions.Count
@@ -45,6 +49,7 @@ func New(
 	reactionReader ReactionReader,
 	announcementReader AnnouncementReader,
 	authors Authors,
+	seen SeenReader,
 	clock cptime.Clock,
 	window messages.Window,
 ) *UseCase {
@@ -53,6 +58,7 @@ func New(
 		reactions:     reactionReader,
 		announcements: announcementReader,
 		authors:       authors,
+		seen:          seen,
 		clock:         clock,
 		window:        window,
 	}
@@ -63,6 +69,7 @@ type UseCase struct {
 	reactions     ReactionReader
 	announcements AnnouncementReader
 	authors       Authors
+	seen          SeenReader
 	clock         cptime.Clock
 	window        messages.Window
 }
@@ -101,6 +108,11 @@ func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) (Hist
 		return History{}, fmt.Errorf("failed to read who the chat history is from: %w", err)
 	}
 
+	seenUntil, err := u.seenUntil(ctx, account)
+	if err != nil {
+		return History{}, err
+	}
+
 	history := make([]Entry, 0, len(recent))
 	for _, message := range recent {
 		history = append(history, Entry{
@@ -109,7 +121,19 @@ func (u *UseCase) Execute(ctx context.Context, account messages.AccountID) (Hist
 			ReactionsVersion: given[message.ID].Version(),
 		})
 	}
-	return History{Messages: history, Announcements: announced}, nil
+	return History{Messages: history, Announcements: announced, SeenUntil: seenUntil}, nil
+}
+
+func (u *UseCase) seenUntil(ctx context.Context, account messages.AccountID) (time.Time, error) {
+	if account == messages.NoAccount {
+		return time.Time{}, nil
+	}
+
+	until, err := u.seen.SeenUntil(ctx, account)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to read until when the caller saw the chat: %w", err)
+	}
+	return until, nil
 }
 
 func everyone(recent []messages.Message, tallies map[messages.MessageID][]reactions.Count) []messages.AccountID {

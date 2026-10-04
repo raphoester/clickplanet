@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/inmemory_reaction_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/inmemory_seen_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -63,6 +64,7 @@ type fixture struct {
 	reactions     *inmemory_reaction_storage.Storage
 	announcements *inmemory_announcement_storage.Storage
 	authors       *fakeAuthors
+	seen          *inmemory_seen_storage.Storage
 }
 
 func newFixture(t *testing.T, texts ...string) fixture {
@@ -72,6 +74,7 @@ func newFixture(t *testing.T, texts ...string) fixture {
 		messages:      inmemory_message_storage.New(),
 		reactions:     inmemory_reaction_storage.New(),
 		announcements: inmemory_announcement_storage.New(),
+		seen:          inmemory_seen_storage.New(),
 		authors: &fakeAuthors{named: map[messages.AccountID]messages.Author{
 			ada:   {Name: "Ada"},
 			other: {Name: "Bob", Admin: true},
@@ -95,7 +98,7 @@ func (f fixture) sent(t *testing.T, message messages.Message) {
 func (f fixture) read(t *testing.T, account messages.AccountID) get_history_usecase.History {
 	t.Helper()
 
-	useCase := get_history_usecase.New(f.messages, f.reactions, f.announcements, f.authors,
+	useCase := get_history_usecase.New(f.messages, f.reactions, f.announcements, f.authors, f.seen,
 		cptime.NewFixedClock(now), messages.Window{Size: 2, Retention: 24 * time.Hour})
 	history, err := useCase.Execute(t.Context(), account)
 	require.NoError(t, err)
@@ -281,9 +284,35 @@ func TestAHistoryNobodyCanBeNamedInIsARefusal(t *testing.T) {
 	f := newFixture(t, "hello")
 	f.authors.err = errors.New("the player module is down")
 
-	useCase := get_history_usecase.New(f.messages, f.reactions, f.announcements, f.authors,
+	useCase := get_history_usecase.New(f.messages, f.reactions, f.announcements, f.authors, f.seen,
 		cptime.NewFixedClock(now), messages.Window{Size: 2, Retention: 24 * time.Hour})
 	_, err := useCase.Execute(t.Context(), ada)
 
 	assert.Error(t, err, "a chat of anonymous messages is worse than none")
+}
+
+func TestTheHistorySaysUntilWhenTheCallerSawTheChat(t *testing.T) {
+	f := newFixture(t, "hello")
+	require.NoError(t, f.seen.SaveSeen(t.Context(), ada, now.Add(-time.Minute)))
+
+	assert.Equal(t, now.Add(-time.Minute), f.read(t, ada).SeenUntil)
+	assert.True(t, f.read(t, other).SeenUntil.IsZero(), "an account with no mark has seen nothing")
+}
+
+func TestACallerWithNoAccountIsNotAskedWhatItSaw(t *testing.T) {
+	f := newFixture(t, "hello")
+	f.seen.FailWith(errors.New("nobody should ask"))
+
+	assert.True(t, f.read(t, cpsession.NoAccount).SeenUntil.IsZero())
+}
+
+func TestAMarkThatCannotBeReadFailsTheHistory(t *testing.T) {
+	f := newFixture(t, "hello")
+	f.seen.FailWith(errors.New("postgres is down"))
+
+	useCase := get_history_usecase.New(f.messages, f.reactions, f.announcements, f.authors, f.seen,
+		cptime.NewFixedClock(now), messages.Window{Size: 2, Retention: 24 * time.Hour})
+	_, err := useCase.Execute(t.Context(), ada)
+
+	assert.ErrorContains(t, err, "postgres is down")
 }
