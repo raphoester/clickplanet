@@ -1032,6 +1032,20 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - It reads 500 players at a time and asks auth about each page at once.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin title reconciliation"`.
 
+### Name the signed-in players who have no username
+
+Gives a generated username to every signed-in account that took a tile or
+sent a message and has none. Run it **once after the deploy that brought
+generated names**: an account signing in since then is named at once.
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/player.v1.AdminService/NameAccounts
+```
+
+- The answer is `{"named":N}`. `{}` means nobody was named.
+- **Running it twice is harmless**: a name, chosen or given, is never replaced.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin account naming"`.
+
 ### Paint random tiles of a country with a flag
 
 Paints `count` tiles with `flagCountryId`, starting on `areaCountryId`'s ground.

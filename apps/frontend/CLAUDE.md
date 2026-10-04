@@ -953,7 +953,8 @@ and `CompleteSignIn` each spend one. `tooManyTries` says to wait a minute.
    `linkedElsewhere` tells them how to move the identity: sign in with it,
    delete that account, then link it here.
 
-**A signed-in player picks a unique username** in `AccountPanel`: 3 to 15
+**A signed-in player is given a username when it signs in** (the server draws
+one, see the backend's CLAUDE.md), **and may pick another** in `AccountPanel`: 3 to 15
 code points of letters of any script, digits, `_` and single spaces, not
 starting with `guest_` in any case, unique ignoring case (the server's rule is
 `players.NameOf`, see the backend's CLAUDE.md). `usernameOf` puts the draft in
@@ -1006,7 +1007,7 @@ typed (digits only), and `cancelCode` goes back to the address.
   `disposableEmail`. `tooManyCodes` is the address's budget or the network's.
 - **On success the account is read again** and the click token invalidated,
   exactly as after `CompleteSignIn`. An email account is linked: it clicks
-  faster and may pick a username.
+  faster and is given a username it may change.
 - To try it locally, run the backend with `auth.email.enabled` and
   `auth.email.delivery: log` (no Cloudflare account needed): the code is in the
   server log.

@@ -5,6 +5,8 @@ package player.v1;
 // Unauthenticated: serve only on the loopback admin listener, never the public router.
 service AdminService {
   rpc ReconcileTitles(ReconcileTitlesRequest) returns (ReconcileTitlesResponse);
+
+  rpc NameAccounts(NameAccountsRequest) returns (NameAccountsResponse);
 }
 
 message ReconcileTitlesRequest {}
@@ -12,4 +14,10 @@ message ReconcileTitlesRequest {}
 message ReconcileTitlesResponse {
   uint32 granted = 1;
   uint32 revoked = 2;
+}
+
+message NameAccountsRequest {}
+
+message NameAccountsResponse {
+  uint32 named = 1;
 }

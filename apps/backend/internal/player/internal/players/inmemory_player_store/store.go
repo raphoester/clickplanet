@@ -85,6 +85,25 @@ func (s *Store) SaveProfile(_ context.Context, profile players.Profile) error {
 	return nil
 }
 
+func (s *Store) CreateProfile(_ context.Context, profile players.Profile) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return s.failWith
+	}
+	if _, ok := s.profiles[profile.Account]; ok {
+		return players.ErrProfileExists
+	}
+	for _, held := range s.profiles {
+		if held.Name.Folded() == profile.Name.Folded() {
+			return players.ErrNameTaken
+		}
+	}
+	s.profiles[profile.Account] = profile
+	return nil
+}
+
 func (s *Store) SaveColor(_ context.Context, account players.AccountID, color players.Color) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
