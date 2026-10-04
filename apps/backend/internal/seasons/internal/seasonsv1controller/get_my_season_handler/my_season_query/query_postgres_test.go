@@ -128,6 +128,17 @@ func (s *testSuite) TestTheBestPlayerIsFirstEverywhere() {
 	s.Equal(uint32(1), s.mySeason(2).GetCountryRank())
 }
 
+func (s *testSuite) TestTheCallerWearsItsTitle() {
+	og := &playerv1.Title{Id: "og", Name: "OG"}
+	s.player(1, "fr", 5)
+	s.authors.named[account(1)].WornTitle = og
+
+	s.True(proto.Equal(
+		&seasonsv1.GetMySeasonResponse{CountryId: "fr", Tiles: 5, GlobalRank: 1, CountryRank: 1, WornTitle: og},
+		s.mySeason(1),
+	), s.mySeason(1))
+}
+
 func (s *testSuite) TestTheRanksCountPastAPage() {
 	for n := range 520 {
 		s.player(1000+n, "de", 2)
@@ -142,6 +153,7 @@ func (s *testSuite) TestTheRanksCountPastAPage() {
 
 func (s *testSuite) TestAGuestReadsItsTilesAndNoRank() {
 	s.guest(1, "fr", 4)
+	s.authors.named[account(1)].WornTitle = &playerv1.Title{Id: "og", Name: "OG"}
 	s.take(1, "de", 1)
 	s.player(2, "fr", 9)
 

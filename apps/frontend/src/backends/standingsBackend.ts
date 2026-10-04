@@ -3,6 +3,7 @@ import {SeasonService} from "../gen/grpc/seasons/v1/seasons_connect.ts"
 import {GetMySeasonResponse, Standing as StandingPb} from "../gen/grpc/seasons/v1/seasons_pb.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {MySeason, Standing, StandingsBackend} from "./standings.ts"
+import {titleOf} from "./title.ts"
 import {retrying} from "./transport.ts"
 
 export class ConnectStandingsBackend implements StandingsBackend {
@@ -48,6 +49,7 @@ function standingOf(standing: StandingPb): Standing {
         color: standing.color,
         countryCode: standing.countryId,
         tiles: Number(standing.tiles),
+        wornTitle: titleOf(standing.wornTitle),
     }
 }
 
@@ -57,5 +59,6 @@ function mySeasonOf(res: GetMySeasonResponse): MySeason {
         tiles: Number(res.tiles),
         globalRank: res.globalRank || undefined,
         countryRank: res.countryRank || undefined,
+        wornTitle: titleOf(res.wornTitle),
     }
 }
