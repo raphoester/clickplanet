@@ -112,6 +112,27 @@ func TestTheRemapGoesBack(t *testing.T) {
 	assert.ElementsMatch(t, keys(moved), ids, "the tiles that survived come back to their old ids")
 }
 
+const keepEveryTake = "20261004120000"
+
+func TestKeepingEveryTakeGoesBackWithoutTheTakesThatLostTheirScope(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	at := time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)
+	_, err := db.ExecContext(t.Context(),
+		`INSERT INTO ledger_takes (position, tile, scope, country, previous, taken_at)
+		 VALUES (0, 1, NULL, 'fr', '', $1), (1, 2, '203.0.113.7', 'fr', '', $1)`, at)
+	require.NoError(t, err)
+
+	down, err := fs.ReadFile(migrations.FS, keepEveryTake+"_keep_every_take.down.sql")
+	require.NoError(t, err)
+	_, err = db.ExecContext(t.Context(), string(down))
+	require.NoError(t, err)
+
+	assert.Equal(t, []int{2}, scan(t, db, `SELECT tile FROM ledger_takes`))
+	_, err = db.ExecContext(t.Context(),
+		`INSERT INTO ledger_takes (position, tile, scope, country, previous, taken_at) VALUES (2, 3, NULL, 'fr', '', $1)`, at)
+	assert.Error(t, err, "a scope is required again")
+}
+
 func keys(m map[int]int) []int {
 	out := make([]int, 0, len(m))
 	for k := range m {

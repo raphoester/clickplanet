@@ -36,8 +36,9 @@ export default function DeleteAccountModal(props: DeleteAccountModalProps) {
                 <li>your sign-in on all your devices.</li>
             </ul>
             <p>You cannot undo this. You can continue to play as a guest.</p>
-            <p>Chat messages and tiles are not linked to your account. They go away on the schedule in
-                the <a href="/privacy" target="_blank" rel="noopener noreferrer">privacy policy</a>.</p>
+            <p>The tiles you took stay, with no account. Chat messages are not linked to your account. They
+                go away on the schedule in the <a href="/privacy" target="_blank" rel="noopener noreferrer">privacy
+                    policy</a>.</p>
         </div>
     </Modal>
 }

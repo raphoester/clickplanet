@@ -2,6 +2,7 @@ package postgres_ledger_store_test
 
 import (
 	"context"
+	"database/sql"
 	"slices"
 	"testing"
 	"time"
@@ -35,6 +36,8 @@ func (s *testSuite) SetupTest() {
 }
 
 var start = time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
+
+const guest = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
 
 func stored(position ledger.Position, tile uint32, scope, country, previous string, at time.Time) inmemory_ledger_storage.Stored {
 	return inmemory_ledger_storage.Stored{
@@ -103,7 +106,61 @@ func (s *testSuite) TestASaveWhoseCommitWasLostIsWrittenAgainWithoutConflict() {
 	s.Equal([]inmemory_ledger_storage.Stored{take}, takes)
 }
 
-func (s *testSuite) TestTheHeadDeletesOlderTakesAndMarks() {
+type row struct {
+	position int64
+	tile     int64
+	scope    sql.NullString
+	account  sql.NullString
+	country  string
+	previous string
+	takenAt  time.Time
+}
+
+func (s *testSuite) rows() []row {
+	rows, err := s.db.QueryContext(context.Background(),
+		`SELECT position, tile, scope, account::text, country, previous, taken_at FROM ledger_takes ORDER BY position`)
+	s.Require().NoError(err)
+	defer func() { s.Require().NoError(rows.Close()) }()
+
+	var out []row
+	for rows.Next() {
+		var r row
+		s.Require().NoError(rows.Scan(&r.position, &r.tile, &r.scope, &r.account, &r.country, &r.previous, &r.takenAt))
+		r.takenAt = r.takenAt.UTC()
+		out = append(out, r)
+	}
+	s.Require().NoError(rows.Err())
+	return out
+}
+
+func null() sql.NullString { return sql.NullString{} }
+
+func text(value string) sql.NullString { return sql.NullString{String: value, Valid: true} }
+
+func (s *testSuite) TestTheHeadKeepsTheTakesItLeftBehindWithoutTheirScope() {
+	ctx := context.Background()
+	first := stored(0, 1, "1.2.3.4", "fr", "de", start)
+	first.Taking.Account = guest
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{},
+		first,
+		stored(1, 2, "2001:db8::/64", "ps", "", start.Add(time.Second)),
+	)))
+
+	s.Require().NoError(s.store.Save(ctx, changes(2, 1, map[ledger.Caller]ledger.Position{},
+		stored(2, 3, "1.2.3.4", "fr", "", start.Add(time.Minute)),
+	)))
+	s.Equal(text("2001:db8::/64"), s.rows()[1].scope, "a take from the head on keeps its scope")
+
+	s.Require().NoError(s.store.Save(ctx, changes(3, 2, map[ledger.Caller]ledger.Position{})))
+
+	s.Equal([]row{
+		{position: 0, tile: 1, scope: null(), account: text(guest), country: "fr", previous: "de", takenAt: start},
+		{position: 1, tile: 2, scope: null(), account: null(), country: "ps", previous: "", takenAt: start.Add(time.Second)},
+		{position: 2, tile: 3, scope: text("1.2.3.4"), account: null(), country: "fr", previous: "", takenAt: start.Add(time.Minute)},
+	}, s.rows())
+}
+
+func (s *testSuite) TestABootLoadsOnlyTheTakesAndMarksFromTheHead() {
 	ctx := context.Background()
 	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{{Scope: "old"}: 1, {Scope: "new"}: 3},
 		stored(0, 1, "old", "fr", "", start),
@@ -116,6 +173,31 @@ func (s *testSuite) TestTheHeadDeletesOlderTakesAndMarks() {
 	takes, marks := s.load()
 	s.Equal([]inmemory_ledger_storage.Stored{stored(2, 3, "new", "fr", "", start)}, takes)
 	s.Equal(inmemory_ledger_storage.Marks{Head: 2, Forgotten: map[ledger.Caller]ledger.Position{{Scope: "new"}: 3}}, marks)
+	s.Len(s.rows(), 3)
+}
+
+func (s *testSuite) TestAnAnonymizedAccountsTakesKeepTheirTileFlagAndTime() {
+	ctx := context.Background()
+	gone, err := ledger.AccountIDOf(guest)
+	s.Require().NoError(err)
+	const other = "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f"
+
+	takes := []inmemory_ledger_storage.Stored{
+		stored(0, 1, "1.2.3.4", "fr", "", start),
+		stored(1, 2, "1.2.3.4", "fr", "", start),
+		stored(2, 3, "1.2.3.4", "de", "fr", start.Add(time.Hour)),
+	}
+	takes[0].Taking.Account, takes[1].Taking.Account, takes[2].Taking.Account = guest, other, guest
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{}, takes...)))
+	s.Require().NoError(s.store.Save(ctx, changes(3, 1, map[ledger.Caller]ledger.Position{})))
+
+	s.Require().NoError(s.store.AnonymizeTakes(ctx, gone))
+
+	s.Equal([]row{
+		{position: 0, tile: 1, scope: null(), account: null(), country: "fr", previous: "", takenAt: start},
+		{position: 1, tile: 2, scope: text("1.2.3.4"), account: text(other), country: "fr", previous: "", takenAt: start},
+		{position: 2, tile: 3, scope: text("1.2.3.4"), account: null(), country: "de", previous: "fr", takenAt: start.Add(time.Hour)},
+	}, s.rows())
 }
 
 func (s *testSuite) TestAMarkOnlyMovesForward() {
@@ -157,7 +239,6 @@ func (s *testSuite) TestAFailedSaveWritesNothing() {
 
 func (s *testSuite) TestATakesAccountComesBackAndNoneIsNull() {
 	ctx := context.Background()
-	const guest = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
 	withAccount := stored(0, 1, "1.2.3.4", "fr", "", start)
 	withAccount.Taking.Account = guest
 	without := stored(1, 2, "1.2.3.4", "fr", "", start)
@@ -174,7 +255,6 @@ func (s *testSuite) TestATakesAccountComesBackAndNoneIsNull() {
 
 func (s *testSuite) TestAccountMarksAreKeptApartFromScopeMarks() {
 	ctx := context.Background()
-	const guest = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
 	marks := map[ledger.Caller]ledger.Position{{Scope: "bot"}: 2, {Account: guest}: 4}
 
 	s.Require().NoError(s.store.Save(ctx, changes(0, 0, marks)))

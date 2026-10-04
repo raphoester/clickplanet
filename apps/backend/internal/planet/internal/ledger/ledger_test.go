@@ -418,3 +418,14 @@ func TestParseCallerTakesAScopeOrAnAccount(t *testing.T) {
 	_, err = ledger.ParseCaller("", "guest")
 	require.ErrorIs(t, err, ledger.ErrInvalidAccount)
 }
+
+func TestAnAccountIDIsAUUIDThatIsNotNil(t *testing.T) {
+	account, err := ledger.AccountIDOf("0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10")
+	require.NoError(t, err)
+	assert.Equal(t, "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10", account.String())
+
+	for _, value := range []string{"", "not-an-id", "00000000-0000-0000-0000-000000000000"} {
+		_, err := ledger.AccountIDOf(value)
+		assert.ErrorIs(t, err, ledger.ErrInvalidAccount, value)
+	}
+}

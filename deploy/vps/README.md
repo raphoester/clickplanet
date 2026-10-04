@@ -1115,9 +1115,11 @@ Each player has:
 - `banned`/`bannedUntil`/`offence` when a ban is running
 
 **High `takes` and `tiles` near zero is a bot being painted over as fast as it
-paints.** The ledger keeps takes for 72h (`ledger.retention`) and survives a
-restart. It keeps at most 4M takes (`ledgerStorage.maxTakes`); a busier stretch
-drops the oldest first and logs `the ledger is full`.
+paints.** These tools read the takes of the last 72h (`ledger.retention`), held
+in memory, and they survive a restart. Memory holds at most 4M takes
+(`ledgerStorage.maxTakes`); a busier stretch drops the oldest first and logs
+`the ledger is full`. Postgres keeps every take for good in
+`planet.ledger_takes`, but drops its address once it leaves memory.
 
 Ban first, or the player repaints behind the revert. Leave out `duration` to
 take the ladder's step (24h, 7 days, 3 years); it counts as an offence either
