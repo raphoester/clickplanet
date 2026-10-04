@@ -11,7 +11,7 @@ import {
 import {AccountState, AccountStore} from "./accountStore.ts"
 import {colorMessageOf, messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
 import {factor} from "../../domain/clickPrice.ts"
-import {authorHue, NAME_COLORS} from "../../domain/authorColor.ts"
+import {NAME_COLORS} from "../../domain/authorColor.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import ProviderButton from "./ProviderButton.tsx"
 import EmailSignIn from "./EmailSignIn.tsx"
@@ -48,7 +48,7 @@ export default function AccountPanel(props: AccountPanelProps) {
 
     const name = props.state.username
     return <div className="account-tabbed">
-        {name && <p className="account-who" style={authorStyle({name, color: props.state.color ?? NameColor.UNSPECIFIED, guest: false})}>
+        {name && <p className="account-who" style={authorStyle({color: props.state.color, guest: false})}>
             {name}
         </p>}
         <div className="account-tabs" role="tablist" aria-label="Account">
@@ -169,15 +169,14 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
 
 function ColorPicker({name, state, store}: {name: string, state: Ready, store: AccountStore}) {
     const labelId = useId()
-    const chosen = state.color ?? NameColor.UNSPECIFIED
+    const chosen = state.color
     const blocked = state.busy !== undefined || state.naming === true
 
     const swatch = (color: NameColor, label: string, hue: number) => {
         const selected = color === chosen
-        const auto = color === NameColor.UNSPECIFIED
         return <button key={color}
                        type="button"
-                       className={auto ? "account-color-swatch account-color-swatch-auto" : "account-color-swatch"}
+                       className="account-color-swatch"
                        style={{"--author-hue": hue} as CSSProperties}
                        aria-label={label}
                        aria-pressed={selected}
@@ -185,23 +184,20 @@ function ColorPicker({name, state, store}: {name: string, state: Ready, store: A
                        disabled={blocked}
                        onClick={() => {
                            if (!selected) void store.setColor(color)
-                       }}>
-            {auto && <span aria-hidden="true">{[...name][0]?.toUpperCase()}</span>}
-        </button>
+                       }}/>
     }
 
     return <div className="account-color" aria-busy={state.coloring === true}>
         <div className="account-name-head">
             <span className="menu-label" id={labelId}>Name color</span>
-            <span className="menu-label account-color-preview" style={authorStyle({name, color: chosen, guest: false})}>
+            <span className="menu-label account-color-preview" style={authorStyle({color: chosen, guest: false})}>
                 {name}
             </span>
         </div>
         <div className="account-color-swatches" role="group" aria-labelledby={labelId}>
-            {swatch(NameColor.UNSPECIFIED, "From your name", authorHue(name))}
             {NAME_COLORS.map((choice) => swatch(choice.color, choice.label, choice.hue))}
         </div>
-        <p className="account-name-hint">Everyone sees it in the chat and the player list. Guests are grey.</p>
+        <p className="account-name-hint">Everyone sees it in the chat and the player list. Grey until you pick one.</p>
         {state.colorFailure && <p className="account-failure" role="alert">{colorMessageOf(state.colorFailure)}</p>}
     </div>
 }

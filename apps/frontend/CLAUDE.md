@@ -159,14 +159,16 @@ app/       components
   messages, for highlighting them once they are on screen. `nameSentUnder` is
   the name the server gave the latest message this client sent — the only way
   it learns a guest's name.
-- `authorColor.ts` — `authorHue`, the hue of a name, and `NAME_COLORS`, the 12
-  a player with a username may pick from (`player.v1.NameColor`, one hue each).
-  A picked color is its hue; no pick, or a color this build does not know,
-  hashes the name the log displays. **Only the hue is chosen**: the saturation
-  and the lightness are fixed in the CSS, so no pick and no hash can produce a
-  colour that is unreadable against the dark panel. `app/chat/authorStyle.ts`
-  turns a line into the style: a guest gets `--author-chroma: 0`, which every
-  rule multiplies its saturation by, so **guests are grey** whatever they hold.
+- `authorColor.ts` — `NAME_COLORS`, the 12 a player with a username may pick
+  from (`player.v1.NameColor`, one hue each), and `hueOf`, the hue of a pick.
+  No pick, or a color this build does not know, has no hue. **Only the hue is
+  chosen**: the saturation and the lightness are fixed in the CSS, so no pick
+  can produce a colour that is unreadable against the dark panel.
+  `app/chat/authorStyle.ts` turns a line into the style: a guest, or a name with
+  no hue, gets `--author-chroma: 0`, which every rule multiplies its saturation
+  by. So **guests are grey** whatever they hold, and **so is a player who has
+  not picked a color**: there is no color from the name, so the grey is a
+  reason to pick one.
 - `streak.ts` — `streakShown`: a flame is drawn from a streak of 3 days. Every
   player of today has 1, so a short run would mean nothing.
 - `shareCard.ts` — everything about a shared image that is decided before a
@@ -973,10 +975,10 @@ once. A sign-in reads it again; a sign-out or a delete forgets it, and a read or
 a save that lands after the account changed is dropped.
 
 **A player with a username picks its name color** in `AccountPanel`, under the
-username: 13 buttons in a `role="group"` named "Name color", "From your name"
-(the hashed hue, `NameColor.UNSPECIFIED`) and the 12 of `NAME_COLORS`, each
-`aria-pressed`. `AccountStore.setColor` sends `SetColor` and keeps the color the
-server answers; `GetProfile` answers it with the name, and `readProfile` reads
+username: the 12 of `NAME_COLORS` in a `role="group"` named "Name color", each
+`aria-pressed`, none pressed before the first pick. There is no way back to no
+color. `AccountStore.setColor` shows the pick at once, sends `SetColor` and
+keeps the color the server answers, or the old one on a refusal; `GetProfile` answers it with the name, and `readProfile` reads
 both. A color is refused without a username (`FailedPrecondition` → `unnamed`),
 which is why the picker only shows with one. `usePresence` announces again once
 the color held still for a second (`SETTLE_MS`), so the roster line follows.
@@ -1113,8 +1115,8 @@ mint a guest and insert a row into `auth.identities` for its account.
   click is a spark that keeps the planet alive, and otherwise 1.8 tiles wide, so
   pushed in it stays on its tile (`glintSize`). **A clear is the same glint
   shrinking as it fades** (`playOwnClear`), on a tile this player's click
-  cleared rather than took. **This player's glints are in its name's hue**
-  (`authorHue`, handed down through `Globe.setClickHue`); a player with no name
+  cleared rather than took. **This player's glints are in its color's hue**
+  (`hueOf`, handed down through `Globe.setClickHue`); a player with no color
   glints sky blue and clears in dust. Everyone else's are sky blue: a
   `TileUpdate` does not say who clicked. Not white, which vanished on the white
   of a flag. **A click out of view is not played** (`inView`): on the far side
@@ -2337,7 +2339,7 @@ themselves.
 Plain CSS files co-located with components. No CSS preprocessor or CSS-in-JS.
 
 `ChatPanel.css` is the one file with a custom property contract: each message
-and the folded peek carry `--author-hue` from `authorHue`, and the CSS builds
+and the folded peek carry `--author-hue` from `hueOf`, and the CSS builds
 the author's stripe, name colour and arrival glow out of it. Keep the hue in the
 TS and the rest in the CSS — that is what stops an author's colour from being
 computed in two places with two different saturations.
