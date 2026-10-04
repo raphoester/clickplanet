@@ -172,6 +172,18 @@ func (s *Store) RecordTake(_ context.Context, account players.AccountID, at time
 	return nil
 }
 
+func (s *Store) SaveTakes(counted players.Stats) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	account := counted.Account()
+	kept, ok := s.stats[account]
+	if !ok {
+		kept = players.NewStats(account)
+	}
+	s.stats[account] = players.StatsOf(account, counted.TilesTaken(), counted.Streak(), counted.StreakBest(), kept.MessagesSent())
+}
+
 func (s *Store) RecordMessage(_ context.Context, account players.AccountID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

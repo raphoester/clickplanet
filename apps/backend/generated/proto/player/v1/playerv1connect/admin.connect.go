@@ -39,12 +39,16 @@ const (
 	// AdminServiceNameAccountsProcedure is the fully-qualified name of the AdminService's NameAccounts
 	// RPC.
 	AdminServiceNameAccountsProcedure = "/player.v1.AdminService/NameAccounts"
+	// AdminServiceRebuildStatsProcedure is the fully-qualified name of the AdminService's RebuildStats
+	// RPC.
+	AdminServiceRebuildStatsProcedure = "/player.v1.AdminService/RebuildStats"
 )
 
 // AdminServiceClient is a client for the player.v1.AdminService service.
 type AdminServiceClient interface {
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
 	NameAccounts(context.Context, *connect.Request[v1.NameAccountsRequest]) (*connect.Response[v1.NameAccountsResponse], error)
+	RebuildStats(context.Context, *connect.Request[v1.RebuildStatsRequest]) (*connect.Response[v1.RebuildStatsResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the player.v1.AdminService service. By default, it
@@ -70,6 +74,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("NameAccounts")),
 			connect.WithClientOptions(opts...),
 		),
+		rebuildStats: connect.NewClient[v1.RebuildStatsRequest, v1.RebuildStatsResponse](
+			httpClient,
+			baseURL+AdminServiceRebuildStatsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("RebuildStats")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -77,6 +87,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 type adminServiceClient struct {
 	reconcileTitles *connect.Client[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse]
 	nameAccounts    *connect.Client[v1.NameAccountsRequest, v1.NameAccountsResponse]
+	rebuildStats    *connect.Client[v1.RebuildStatsRequest, v1.RebuildStatsResponse]
 }
 
 // ReconcileTitles calls player.v1.AdminService.ReconcileTitles.
@@ -89,10 +100,16 @@ func (c *adminServiceClient) NameAccounts(ctx context.Context, req *connect.Requ
 	return c.nameAccounts.CallUnary(ctx, req)
 }
 
+// RebuildStats calls player.v1.AdminService.RebuildStats.
+func (c *adminServiceClient) RebuildStats(ctx context.Context, req *connect.Request[v1.RebuildStatsRequest]) (*connect.Response[v1.RebuildStatsResponse], error) {
+	return c.rebuildStats.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the player.v1.AdminService service.
 type AdminServiceHandler interface {
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
 	NameAccounts(context.Context, *connect.Request[v1.NameAccountsRequest]) (*connect.Response[v1.NameAccountsResponse], error)
+	RebuildStats(context.Context, *connect.Request[v1.RebuildStatsRequest]) (*connect.Response[v1.RebuildStatsResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -114,12 +131,20 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("NameAccounts")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceRebuildStatsHandler := connect.NewUnaryHandler(
+		AdminServiceRebuildStatsProcedure,
+		svc.RebuildStats,
+		connect.WithSchema(adminServiceMethods.ByName("RebuildStats")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReconcileTitlesProcedure:
 			adminServiceReconcileTitlesHandler.ServeHTTP(w, r)
 		case AdminServiceNameAccountsProcedure:
 			adminServiceNameAccountsHandler.ServeHTTP(w, r)
+		case AdminServiceRebuildStatsProcedure:
+			adminServiceRebuildStatsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -135,4 +160,8 @@ func (UnimplementedAdminServiceHandler) ReconcileTitles(context.Context, *connec
 
 func (UnimplementedAdminServiceHandler) NameAccounts(context.Context, *connect.Request[v1.NameAccountsRequest]) (*connect.Response[v1.NameAccountsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.NameAccounts is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) RebuildStats(context.Context, *connect.Request[v1.RebuildStatsRequest]) (*connect.Response[v1.RebuildStatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.RebuildStats is not implemented"))
 }

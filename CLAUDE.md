@@ -22,7 +22,7 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 - `proto/player/v1/player.proto` — a player's name, color, stats and titles, and who is playing (`PlayerService`); the colors themselves are `NameColor` in `color.proto`, and a title is `Title` in `title.proto`, which `chat.proto` imports too
 - `proto/seasons/v1/seasons.proto` — when the current season ends and its finale starts (`SeasonService`)
 
-Beside them, `internal.proto` is what one backend module asks another (`auth.v1`, `player.v1`), and `events.proto` is what one tells the others in process (`planet.v1.TileTaken`, `auth.v1.AccountDeleted`). Neither is on the public router; the frontend generates both without using them.
+Beside them, `internal.proto` is what one backend module asks another (`auth.v1`, `player.v1`, and `planet.v1`, which serves its log of takes to the projections that count them), and `events.proto` is what one tells the others in process (`planet.v1.TileTaken`, `auth.v1.AccountDeleted`). Neither is on the public router; the frontend generates both without using them.
 
 Connect derives each service's route from its proto package, so a new context gets its own path with no prefix to allocate. Both `buf.gen.yaml` inputs point at the whole `proto` directory, so a new package is picked up by either generator with no config change.
 

@@ -189,6 +189,86 @@ func (x *NameAccountsResponse) GetNamed() uint32 {
 	return 0
 }
 
+type RebuildStatsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RebuildStatsRequest) Reset() {
+	*x = RebuildStatsRequest{}
+	mi := &file_player_v1_admin_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RebuildStatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RebuildStatsRequest) ProtoMessage() {}
+
+func (x *RebuildStatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_admin_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RebuildStatsRequest.ProtoReflect.Descriptor instead.
+func (*RebuildStatsRequest) Descriptor() ([]byte, []int) {
+	return file_player_v1_admin_proto_rawDescGZIP(), []int{4}
+}
+
+type RebuildStatsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FromPosition  uint64                 `protobuf:"varint,1,opt,name=from_position,json=fromPosition,proto3" json:"from_position,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RebuildStatsResponse) Reset() {
+	*x = RebuildStatsResponse{}
+	mi := &file_player_v1_admin_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RebuildStatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RebuildStatsResponse) ProtoMessage() {}
+
+func (x *RebuildStatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_admin_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RebuildStatsResponse.ProtoReflect.Descriptor instead.
+func (*RebuildStatsResponse) Descriptor() ([]byte, []int) {
+	return file_player_v1_admin_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *RebuildStatsResponse) GetFromPosition() uint64 {
+	if x != nil {
+		return x.FromPosition
+	}
+	return 0
+}
+
 var File_player_v1_admin_proto protoreflect.FileDescriptor
 
 const file_player_v1_admin_proto_rawDesc = "" +
@@ -200,10 +280,14 @@ const file_player_v1_admin_proto_rawDesc = "" +
 	"\arevoked\x18\x02 \x01(\rR\arevoked\"\x15\n" +
 	"\x13NameAccountsRequest\",\n" +
 	"\x14NameAccountsResponse\x12\x14\n" +
-	"\x05named\x18\x01 \x01(\rR\x05named2\xb9\x01\n" +
+	"\x05named\x18\x01 \x01(\rR\x05named\"\x15\n" +
+	"\x13RebuildStatsRequest\";\n" +
+	"\x14RebuildStatsResponse\x12#\n" +
+	"\rfrom_position\x18\x01 \x01(\x04R\ffromPosition2\x8a\x02\n" +
 	"\fAdminService\x12X\n" +
 	"\x0fReconcileTitles\x12!.player.v1.ReconcileTitlesRequest\x1a\".player.v1.ReconcileTitlesResponse\x12O\n" +
-	"\fNameAccounts\x12\x1e.player.v1.NameAccountsRequest\x1a\x1f.player.v1.NameAccountsResponseB\xb2\x01\n" +
+	"\fNameAccounts\x12\x1e.player.v1.NameAccountsRequest\x1a\x1f.player.v1.NameAccountsResponse\x12O\n" +
+	"\fRebuildStats\x12\x1e.player.v1.RebuildStatsRequest\x1a\x1f.player.v1.RebuildStatsResponseB\xb2\x01\n" +
 	"\rcom.player.v1B\n" +
 	"AdminProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +
 	"Player::V1b\x06proto3"
@@ -220,20 +304,24 @@ func file_player_v1_admin_proto_rawDescGZIP() []byte {
 	return file_player_v1_admin_proto_rawDescData
 }
 
-var file_player_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_player_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_player_v1_admin_proto_goTypes = []any{
 	(*ReconcileTitlesRequest)(nil),  // 0: player.v1.ReconcileTitlesRequest
 	(*ReconcileTitlesResponse)(nil), // 1: player.v1.ReconcileTitlesResponse
 	(*NameAccountsRequest)(nil),     // 2: player.v1.NameAccountsRequest
 	(*NameAccountsResponse)(nil),    // 3: player.v1.NameAccountsResponse
+	(*RebuildStatsRequest)(nil),     // 4: player.v1.RebuildStatsRequest
+	(*RebuildStatsResponse)(nil),    // 5: player.v1.RebuildStatsResponse
 }
 var file_player_v1_admin_proto_depIdxs = []int32{
 	0, // 0: player.v1.AdminService.ReconcileTitles:input_type -> player.v1.ReconcileTitlesRequest
 	2, // 1: player.v1.AdminService.NameAccounts:input_type -> player.v1.NameAccountsRequest
-	1, // 2: player.v1.AdminService.ReconcileTitles:output_type -> player.v1.ReconcileTitlesResponse
-	3, // 3: player.v1.AdminService.NameAccounts:output_type -> player.v1.NameAccountsResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	4, // 2: player.v1.AdminService.RebuildStats:input_type -> player.v1.RebuildStatsRequest
+	1, // 3: player.v1.AdminService.ReconcileTitles:output_type -> player.v1.ReconcileTitlesResponse
+	3, // 4: player.v1.AdminService.NameAccounts:output_type -> player.v1.NameAccountsResponse
+	5, // 5: player.v1.AdminService.RebuildStats:output_type -> player.v1.RebuildStatsResponse
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -250,7 +338,7 @@ func file_player_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_admin_proto_rawDesc), len(file_player_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

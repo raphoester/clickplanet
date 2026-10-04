@@ -1032,6 +1032,37 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - It reads 500 players at a time and asks auth about each page at once.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin title reconciliation"`.
 
+### Rebuild the players' stats from the log of takes
+
+The stats (tiles taken, the daily streak) count planet's log of takes, read
+from a saved position. A rebuild puts them back to a copy kept when the count
+started, then the count reads every take since again. Run it **after a deploy
+that changes how a take counts**, or after reverting players whose takes should
+not count.
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/player.v1.AdminService/RebuildStats
+```
+
+- The answer is `{"fromPosition":N}`, where the count starts again. `{}` is position 0.
+- **It returns at once; the count catches up behind it**, 1000 takes a batch.
+  The stats read low until then. Compare the two numbers to see how far it is:
+
+  ```bash
+  docker compose exec postgres psql -U clickplanet -c "select position from player.stats_position" -c "select max(position) + 1 from planet.ledger_takes"
+  ```
+
+- **A take reverted after it was counted stays counted until a rebuild.** The
+  count reads a take within a second or two, before anyone reverts it. A rebuild
+  reads every take with its flag as it is now, so it counts fewer.
+- **It starts from the copy, not from zero**: the stats count from 2026-09-17,
+  and the log only reaches back to about 1 October.
+- **Then reconcile the titles** (above): a title the new count no longer earns
+  stays until a reconciliation revokes it.
+- `server returned error: HTTP/1.1 400` means the count never started: the
+  backend has not read the log once yet.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin stats rebuild"`.
+
 ### Name the signed-in players who have no username
 
 Gives a generated username to every signed-in account that took a tile or

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,7 +42,13 @@ type gameStack struct {
 func startGame(t *testing.T) gameStack {
 	t.Helper()
 
-	postgres := cppg.StartTestServer(t)
+	game, _ := startGameOn(t, cppg.StartTestServer(t))
+	return game
+}
+
+func startGameOn(t *testing.T, postgres *cppg.TestServer) (gameStack, func()) {
+	t.Helper()
+
 	secret, _ := cpsession.TestKeyPair()
 	public, internal, admin := listen(t), listen(t), listen(t)
 	server := cpbootstrap.ServerConfig{
@@ -63,8 +70,10 @@ func startGame(t *testing.T) gameStack {
 	planetConfig.RateLimiter.PerSecond = 100
 	planetConfig.RateLimiter.Burst = 100
 	planetConfig.RateLimiter.ScopeMultiplier = 1
+	planetConfig.LedgerStorage.FlushInterval = 50 * time.Millisecond
 
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), TagSalt: "pepper"}
+	playerConfig.Takes.PollInterval = 20 * time.Millisecond
 
 	chatConfig := chat.Config{Database: postgres.ConfigFor("chat")}
 	chatConfig.RateLimiter.PerSecond = 100
@@ -84,16 +93,20 @@ func startGame(t *testing.T) gameStack {
 			},
 		}, public, internal, admin)
 	}()
-	t.Cleanup(func() {
-		cancel()
-		assert.NoError(t, <-done)
-	})
+	var once sync.Once
+	stop := func() {
+		once.Do(func() {
+			cancel()
+			assert.NoError(t, <-done)
+		})
+	}
+	t.Cleanup(stop)
 
 	waitUntilServed(t, server.BindAddress)
 
 	return gameStack{
 		baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes, postgres: postgres,
-	}
+	}, stop
 }
 
 type gamer struct {

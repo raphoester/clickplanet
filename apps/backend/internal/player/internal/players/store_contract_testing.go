@@ -11,8 +11,9 @@ import (
 type StoreContractSuite struct {
 	suite.Suite
 
-	NewStore  func() Store
-	MakeAdmin func(store Store, account AccountID)
+	NewStore   func() Store
+	MakeAdmin  func(store Store, account AccountID)
+	RecordTake func(store Store, account AccountID, at time.Time)
 
 	store Store
 }
@@ -28,7 +29,7 @@ func contractProfile(account byte, name Name) Profile {
 }
 
 func (s *StoreContractSuite) recordTake(account byte, at time.Time) {
-	s.Require().NoError(s.store.RecordTake(s.T().Context(), AccountID{15: account}, at))
+	s.RecordTake(s.store, AccountID{15: account}, at)
 }
 
 func (s *StoreContractSuite) stats(account byte) Stats {
@@ -109,25 +110,6 @@ func (s *StoreContractSuite) TestAnAdminIsReadAndARenameKeepsIt() {
 	s.Equal(Name("Ada_L"), profile.Name())
 }
 
-func (s *StoreContractSuite) TestEachTakeIsCountedByTheDomainsRule() {
-	s.recordTake(1, contractAt)
-	s.recordTake(1, contractAt.Add(time.Minute))
-	s.recordTake(1, contractAt.Add(time.Hour))
-
-	want := NewStats(AccountID{15: 1}).WithTake(contractAt).WithTake(contractAt.Add(time.Minute)).WithTake(contractAt.Add(time.Hour))
-	s.Equal(want, s.stats(1))
-	s.Equal(uint32(2), s.stats(1).Streak().Days(), "the third take is past UTC midnight")
-}
-
-func (s *StoreContractSuite) TestTakesOfOneAccountDoNotCountOnAnother() {
-	s.recordTake(1, contractAt)
-	s.recordTake(2, contractAt)
-	s.recordTake(2, contractAt)
-
-	s.Equal(uint64(1), s.stats(1).TilesTaken())
-	s.Equal(uint64(2), s.stats(2).TilesTaken())
-}
-
 func (s *StoreContractSuite) TestEachMessageIsCountedAndStartsNoStreak() {
 	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
 	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
@@ -135,7 +117,7 @@ func (s *StoreContractSuite) TestEachMessageIsCountedAndStartsNoStreak() {
 	s.Equal(NewStats(AccountID{15: 1}).WithMessage().WithMessage(), s.stats(1))
 }
 
-func (s *StoreContractSuite) TestMessagesAndTakesAddUpOnOneAccount() {
+func (s *StoreContractSuite) TestAMessageKeepsTheTakesCounted() {
 	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))
 	s.recordTake(1, contractAt)
 	s.Require().NoError(s.store.RecordMessage(s.T().Context(), AccountID{15: 1}))

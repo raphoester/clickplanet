@@ -139,15 +139,16 @@ func (s *Store) Stats(ctx context.Context, account players.AccountID) (players.S
 
 const statsLock = 0x706c6179
 
-func (s *Store) RecordTake(ctx context.Context, account players.AccountID, at time.Time) error {
-	return s.record(ctx, account, func(stats players.Stats) players.Stats { return stats.WithTake(at) })
-}
+const upsertStats = `INSERT INTO stats (` + statsColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (account_id) DO UPDATE SET `
+
+// The takes store writes the take columns in its own transaction: a message never writes them.
+const upsertMessages = upsertStats + `messages_sent = excluded.messages_sent`
 
 func (s *Store) RecordMessage(ctx context.Context, account players.AccountID) error {
-	return s.record(ctx, account, players.Stats.WithMessage)
+	return s.record(ctx, account, players.Stats.WithMessage, upsertMessages)
 }
 
-func (s *Store) record(ctx context.Context, account players.AccountID, change func(players.Stats) players.Stats) (err error) {
+func (s *Store) record(ctx context.Context, account players.AccountID, change func(players.Stats) players.Stats, upsert string) (err error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin changing the stats: %w", err)
@@ -172,16 +173,7 @@ func (s *Store) record(ctx context.Context, account players.AccountID, change fu
 	}
 
 	next := change(current)
-	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO stats (`+statsColumns+`)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		ON CONFLICT (account_id) DO UPDATE SET
-			tiles_taken = excluded.tiles_taken,
-			streak_current = excluded.streak_current,
-			streak_best = excluded.streak_best,
-			streak_last_day = excluded.streak_last_day,
-			messages_sent = excluded.messages_sent
-	`, uuid.UUID(account), int64(next.TilesTaken()), //nolint:gosec // one a tile taken: never past int64.
+	if _, err := tx.ExecContext(ctx, upsert, uuid.UUID(account), int64(next.TilesTaken()), //nolint:gosec // one a tile taken: never past int64.
 		int64(next.Streak().Days()), int64(next.StreakBest()), nullableDay(next.Streak().LastDay()),
 		int64(next.MessagesSent())); err != nil { //nolint:gosec // one a message sent: never past int64.
 		return fmt.Errorf("failed to save the stats: %w", err)

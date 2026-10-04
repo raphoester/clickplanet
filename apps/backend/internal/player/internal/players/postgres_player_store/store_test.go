@@ -34,6 +34,9 @@ func (s *testSuite) SetupSuite() {
 		_, err := s.db.ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(account))
 		s.Require().NoError(err)
 	}
+	s.RecordTake = func(_ players.Store, account players.AccountID, at time.Time) {
+		s.Require().NoError(s.store.RecordTake(s.T().Context(), account, at))
+	}
 }
 
 func (s *testSuite) SetupTest() {
@@ -66,21 +69,13 @@ func (s *testSuite) TestTheTableTakesTheNamesTheRuleTakes() {
 	}
 }
 
-func (s *testSuite) TestTheStreakDayIsStoredAsADate() {
-	s.Require().NoError(s.store.RecordTake(s.T().Context(), players.AccountID{15: 1}, at))
-
-	var day string
-	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT streak_last_day::text FROM stats`).Scan(&day))
-	s.Equal("2026-09-17", day)
-}
-
-func (s *testSuite) TestConcurrentFirstTakesAreAllCounted() {
+func (s *testSuite) TestConcurrentFirstMessagesAreAllCounted() {
 	start := make(chan struct{})
 	var wg sync.WaitGroup
 	for range 20 {
 		wg.Go(func() {
 			<-start
-			s.NoError(s.store.RecordTake(s.T().Context(), players.AccountID{15: 1}, at))
+			s.NoError(s.store.RecordMessage(s.T().Context(), players.AccountID{15: 1}))
 		})
 	}
 	close(start)
@@ -88,5 +83,5 @@ func (s *testSuite) TestConcurrentFirstTakesAreAllCounted() {
 
 	stats, err := s.store.Stats(s.T().Context(), players.AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(uint64(20), stats.TilesTaken(), "no take overwrites another, the first ones included")
+	s.Equal(uint64(20), stats.MessagesSent(), "no message overwrites another, the first ones included")
 }

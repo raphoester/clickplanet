@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { NameAccountsRequest, NameAccountsResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
+import { NameAccountsRequest, NameAccountsResponse, RebuildStatsRequest, RebuildStatsResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -30,6 +30,15 @@ export const AdminService = {
       name: "NameAccounts",
       I: NameAccountsRequest,
       O: NameAccountsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc player.v1.AdminService.RebuildStats
+     */
+    rebuildStats: {
+      name: "RebuildStats",
+      I: RebuildStatsRequest,
+      O: RebuildStatsResponse,
       kind: MethodKind.Unary,
     },
   }

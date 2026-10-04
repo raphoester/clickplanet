@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
  * @generated from message player.v1.ReconcileTitlesRequest
@@ -145,6 +145,74 @@ export class NameAccountsResponse extends Message<NameAccountsResponse> {
 
   static equals(a: NameAccountsResponse | PlainMessage<NameAccountsResponse> | undefined, b: NameAccountsResponse | PlainMessage<NameAccountsResponse> | undefined): boolean {
     return proto3.util.equals(NameAccountsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.RebuildStatsRequest
+ */
+export class RebuildStatsRequest extends Message<RebuildStatsRequest> {
+  constructor(data?: PartialMessage<RebuildStatsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.RebuildStatsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RebuildStatsRequest {
+    return new RebuildStatsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RebuildStatsRequest {
+    return new RebuildStatsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RebuildStatsRequest {
+    return new RebuildStatsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RebuildStatsRequest | PlainMessage<RebuildStatsRequest> | undefined, b: RebuildStatsRequest | PlainMessage<RebuildStatsRequest> | undefined): boolean {
+    return proto3.util.equals(RebuildStatsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.RebuildStatsResponse
+ */
+export class RebuildStatsResponse extends Message<RebuildStatsResponse> {
+  /**
+   * @generated from field: uint64 from_position = 1;
+   */
+  fromPosition = protoInt64.zero;
+
+  constructor(data?: PartialMessage<RebuildStatsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.RebuildStatsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "from_position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RebuildStatsResponse {
+    return new RebuildStatsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RebuildStatsResponse {
+    return new RebuildStatsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RebuildStatsResponse {
+    return new RebuildStatsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RebuildStatsResponse | PlainMessage<RebuildStatsResponse> | undefined, b: RebuildStatsResponse | PlainMessage<RebuildStatsResponse> | undefined): boolean {
+    return proto3.util.equals(RebuildStatsResponse, a, b);
   }
 }
 

@@ -7,6 +7,8 @@ service AdminService {
   rpc ReconcileTitles(ReconcileTitlesRequest) returns (ReconcileTitlesResponse);
 
   rpc NameAccounts(NameAccountsRequest) returns (NameAccountsResponse);
+
+  rpc RebuildStats(RebuildStatsRequest) returns (RebuildStatsResponse);
 }
 
 message ReconcileTitlesRequest {}
@@ -20,4 +22,10 @@ message NameAccountsRequest {}
 
 message NameAccountsResponse {
   uint32 named = 1;
+}
+
+message RebuildStatsRequest {}
+
+message RebuildStatsResponse {
+  uint64 from_position = 1;
 }
