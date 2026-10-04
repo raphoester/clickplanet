@@ -19,42 +19,50 @@ var (
 	ErrExpired      = errors.New("session token has expired")
 )
 
-const Version = 2
-
-const versionWithoutLinked = 1
+const Version = 3
 
 const (
-	versionLen = 1
-	expiryLen  = 8
-	idLen      = 8
-	accountLen = len(AccountID{})
-	linkedLen  = 1
+	versionWithoutLinked   = 1
+	versionWithoutAttested = 2
+)
 
-	expiryAt  = versionLen
-	idAt      = expiryAt + expiryLen
-	accountAt = idAt + idLen
-	linkedAt  = accountAt + accountLen
+const (
+	versionLen  = 1
+	expiryLen   = 8
+	idLen       = 8
+	accountLen  = len(AccountID{})
+	linkedLen   = 1
+	attestedLen = 1
 
-	payloadLen = versionLen + expiryLen + idLen + accountLen + linkedLen
+	expiryAt   = versionLen
+	idAt       = expiryAt + expiryLen
+	accountAt  = idAt + idLen
+	linkedAt   = accountAt + accountLen
+	attestedAt = linkedAt + linkedLen
+
+	payloadLen = versionLen + expiryLen + idLen + accountLen + linkedLen + attestedLen
 	tokenLen   = payloadLen + ed25519.SignatureSize
 
-	payloadWithoutLinkedLen = payloadLen - linkedLen
-	tokenWithoutLinkedLen   = payloadWithoutLinkedLen + ed25519.SignatureSize
+	tokenWithoutAttestedLen = tokenLen - attestedLen
+	tokenWithoutLinkedLen   = tokenWithoutAttestedLen - linkedLen
 )
 
 type ID string
 
+// Attested is the Turnstile check the token was minted after; without it, the token only names its holder.
 type Holder struct {
-	Account AccountID
-	Linked  bool
+	Account  AccountID
+	Linked   bool
+	Attested bool
 }
 
 var Nobody = Holder{Account: NoAccount}
 
 type Claims struct {
-	ID      ID
-	Account AccountID
-	Linked  bool
+	ID       ID
+	Account  AccountID
+	Linked   bool
+	Attested bool
 }
 
 type Token struct {
@@ -98,6 +106,9 @@ func (s *Signer) Mint(ip string, holder Holder, now time.Time) (*Token, error) {
 	if holder.Linked {
 		payload[linkedAt] = 1
 	}
+	if holder.Attested {
+		payload[attestedAt] = 1
+	}
 
 	token := make([]byte, 0, tokenLen)
 	token = append(token, payload...)
@@ -140,6 +151,8 @@ func (v *Verifier) Verify(value string, ip string, now time.Time) (*Claims, erro
 	length := tokenLen
 	switch raw[0] {
 	case Version:
+	case versionWithoutAttested:
+		length = tokenWithoutAttestedLen
 	case versionWithoutLinked:
 		length = tokenWithoutLinkedLen
 	default:
@@ -165,6 +178,8 @@ func (v *Verifier) Verify(value string, ip string, now time.Time) (*Claims, erro
 		ID:      ID(hex.EncodeToString(payload[idAt:accountAt])),
 		Account: AccountID(payload[accountAt:linkedAt]),
 		Linked:  len(payload) > linkedAt && payload[linkedAt] == 1,
+		// Before version 3, every mint followed a Turnstile check.
+		Attested: raw[0] != Version || payload[attestedAt] == 1,
 	}, nil
 }
 

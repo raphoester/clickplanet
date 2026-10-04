@@ -13,8 +13,14 @@ const refusing = (code: Code) => vi.fn(async () => {
     throw new ConnectError("no", code)
 })
 
-function holding(token: string | undefined): SessionProvider & {token: ReturnType<typeof vi.fn>} {
-    return {token: vi.fn(async () => "minted"), held: vi.fn(() => token), invalidate: vi.fn()}
+function holding(token: string | undefined): SessionProvider & {token: ReturnType<typeof vi.fn>, held: ReturnType<typeof vi.fn>} {
+    return {
+        token: vi.fn(async () => "minted"),
+        held: vi.fn(() => token),
+        identity: vi.fn(async () => token),
+        heldIdentity: vi.fn(() => token),
+        invalidate: vi.fn(),
+    }
 }
 
 const backendWith = (methods: Record<string, unknown>, session: SessionProvider = holding("token-1")) =>
@@ -64,7 +70,7 @@ describe("ConnectStandingsBackend.standings", () => {
 })
 
 describe("ConnectStandingsBackend.mySeason", () => {
-    it("reads the caller's main flag, tiles and ranks, in numbers, with the token held", async () => {
+    it("reads the caller's main flag, tiles and ranks, in numbers, as its identity", async () => {
         const getMySeason = vi.fn(async () => new GetMySeasonResponse({countryId: "fr", tiles: 340n, globalRank: 12, countryRank: 3}))
 
         expect(await backendWith({getMySeason}).mySeason()).toEqual({countryCode: "fr", tiles: 340, globalRank: 12, countryRank: 3})
@@ -93,7 +99,7 @@ describe("ConnectStandingsBackend.mySeason", () => {
         })
     })
 
-    it("asks nothing and never mints without a token held", async () => {
+    it("asks nothing and never mints with no identity to be had", async () => {
         const getMySeason = vi.fn(async () => new GetMySeasonResponse())
         const session = holding(undefined)
 

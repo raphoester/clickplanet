@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query"
 	history_authors "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mark_seen_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/react_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/inprocess_feed"
@@ -33,6 +34,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/postgres_seen_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/forget_seen_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/mark_seen_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -47,6 +52,8 @@ import (
 const moduleName = "chat"
 
 const bombLandedBuffer = 256
+
+const accountDeletedBuffer = 256
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -72,6 +79,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	messageStore := postgres_message_store.New(db)
 	reactionStore := postgres_reaction_store.New(db)
 	announcementStore := postgres_announcement_store.New(db)
+	seenStore := postgres_seen_store.New(db)
 	window := messages.NewWindow(storage.HistorySize, storage.Retention)
 	updates := inprocess_feed.New(storage.SubscriberBuffer, props.Logger)
 
@@ -86,14 +94,25 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to planet.v1.BombLanded: %w", err)
 	}
 
+	deletions, err := cpbootstrap.Subscribe(props.Events, "chat-seen", accountDeletedBuffer,
+		log_subscriber.New(account_deleted_subscriber.New(forget_seen_usecase.New(seenStore)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+	}
+
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune_usecase.NewRunner(storage.PruneInterval, prune), bombs))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
+		prune_usecase.NewRunner(storage.PruneInterval, prune), bombs, deletions))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)
 
 	reactionLimiter := cpratelimit.New("reaction-limiter", config.ReactionLimiter, cptime.SystemClock{})
 	props.Runners.Add(reactionLimiter)
+
+	seenLimiter := cpratelimit.New("seen-limiter", config.SeenLimiter, cptime.SystemClock{})
+	props.Runners.Add(seenLimiter)
 
 	blocklist, err := cpipblock.NewDenyList(config.BlockedIPs)
 	if err != nil {
@@ -111,6 +130,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			listen_for_events_usecase.New(updates, props.Server.StreamHeartbeat)),
 		ReactHandler: react_handler.New(react_usecase.New(
 			messageStore, reactionStore, updates, authors, cptime.SystemClock{}, window)),
+		MarkSeenHandler: mark_seen_handler.New(mark_seen_usecase.New(seenStore, cptime.SystemClock{})),
 	}
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "chat")))
@@ -121,6 +141,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		chatv1controller.NewBlocklistInterceptor(blocklist),
 		chatv1controller.NewRateLimitInterceptor(messageLimiter),
 		chatv1controller.NewReactionRateLimitInterceptor(reactionLimiter),
+		chatv1controller.NewSeenRateLimitInterceptor(seenLimiter),
 		chatv1controller.NewSessionInterceptor(verifier, cptime.SystemClock{}),
 	)
 	if err != nil {
@@ -141,6 +162,7 @@ type Config struct {
 
 	RateLimiter     cpratelimit.Config
 	ReactionLimiter cpratelimit.Config
+	SeenLimiter     cpratelimit.Config
 
 	BlockedIPs []string
 }

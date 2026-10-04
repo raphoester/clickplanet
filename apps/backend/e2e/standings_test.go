@@ -125,3 +125,15 @@ func TestTheCallersSeasonWithNoTokenIsUnauthenticated(t *testing.T) {
 
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }
+
+func TestTheCallersSeasonReadsAsTheIdentityTheCookieResumes(t *testing.T) {
+	game := startGame(t)
+	ada := game.namedPlayer(t, "google-ada", "Ada")
+	ada.click(1, "fr")
+	require.Eventually(t, func() bool { return ada.mySeason().GetTiles() == 1 }, 5*time.Second, 20*time.Millisecond)
+
+	back := ada.resumed()
+
+	assert.True(t, proto.Equal(&seasonsv1.GetMySeasonResponse{CountryId: "fr", Tiles: 1, GlobalRank: 1, CountryRank: 1},
+		back.mySeason()), back.mySeason())
+}

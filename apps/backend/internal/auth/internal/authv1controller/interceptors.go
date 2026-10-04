@@ -11,7 +11,15 @@ import (
 
 type MintLimiter = cpconnect.Limiter
 
-var ErrTooManySessions = errors.New("too many session attempts")
+var (
+	ErrTooManySessions = errors.New("too many session attempts")
+	ErrTooManyResumes  = errors.New("too many session resumes")
+)
+
+// Apart from the mint's: a resume costs no Turnstile check, and every page load makes one.
+func NewResumeRateLimitInterceptor(limiter MintLimiter) connect.Interceptor {
+	return cpconnect.NewRateLimitInterceptor(limiter, ErrTooManyResumes, authv1connect.AuthServiceResumeSessionProcedure)
+}
 
 func NewRateLimitInterceptor(limiter MintLimiter) connect.Interceptor {
 	return cpconnect.NewRateLimitInterceptor(

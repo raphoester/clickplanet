@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteEmailSignInRequest, CompleteEmailSignInResponse, CompleteSignInRequest, CompleteSignInResponse, CreateSessionRequest, CreateSessionResponse, DeleteAccountRequest, DeleteAccountResponse, GetMeRequest, GetMeResponse, GetSignInOptionsRequest, GetSignInOptionsResponse, SignOutEverywhereRequest, SignOutEverywhereResponse, SignOutRequest, SignOutResponse, StartEmailSignInRequest, StartEmailSignInResponse, StartSignInRequest, StartSignInResponse } from "./auth_pb.js";
+import { CompleteEmailSignInRequest, CompleteEmailSignInResponse, CompleteSignInRequest, CompleteSignInResponse, CreateSessionRequest, CreateSessionResponse, DeleteAccountRequest, DeleteAccountResponse, GetMeRequest, GetMeResponse, GetSignInOptionsRequest, GetSignInOptionsResponse, ResumeSessionRequest, ResumeSessionResponse, SignOutEverywhereRequest, SignOutEverywhereResponse, SignOutRequest, SignOutResponse, StartEmailSignInRequest, StartEmailSignInResponse, StartSignInRequest, StartSignInResponse } from "./auth_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -19,6 +19,17 @@ export const AuthService = {
       name: "CreateSession",
       I: CreateSessionRequest,
       O: CreateSessionResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * No Turnstile: the token names the account the cookie holds, and proves no check.
+     *
+     * @generated from rpc auth.v1.AuthService.ResumeSession
+     */
+    resumeSession: {
+      name: "ResumeSession",
+      I: ResumeSessionRequest,
+      O: ResumeSessionResponse,
       kind: MethodKind.Unary,
     },
     /**

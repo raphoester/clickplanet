@@ -23,6 +23,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/postgres_seen_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -62,6 +63,7 @@ type testSuite struct {
 	messages      *postgres_message_store.Store
 	reactions     *postgres_reaction_store.Store
 	announcements *postgres_announcement_store.Store
+	seen          *postgres_seen_store.Store
 	authors       *fakeAuthors
 }
 
@@ -91,6 +93,7 @@ func (s *testSuite) SetupSuite() {
 	s.messages = postgres_message_store.New(s.db)
 	s.reactions = postgres_reaction_store.New(s.db)
 	s.announcements = postgres_announcement_store.New(s.db)
+	s.seen = postgres_seen_store.New(s.db)
 }
 
 func (s *testSuite) SetupTest() {
@@ -404,4 +407,37 @@ func (s *testSuite) TestAHistoryNobodyCanBeNamedInIsARefusal() {
 
 func uuidOf(id announcements.AnnouncementID) string {
 	return uuid.UUID(id).String()
+}
+
+func (s *testSuite) TestTheHistorySaysUntilWhenTheViewerSawTheChat() {
+	at := now.Add(-time.Minute).Add(123 * time.Millisecond)
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, at))
+
+	s.Equal(at.UnixMilli(), s.history(ada).GetSeenUntilUnixMs())
+	s.Zero(s.history(bob).GetSeenUntilUnixMs(), "an account with no mark has seen nothing")
+}
+
+func (s *testSuite) TestTheSeenMarkOnlyMovesForward() {
+	later := now.Add(-time.Minute)
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, later))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, later.Add(-time.Hour)))
+
+	s.Equal(later.UnixMilli(), s.history(ada).GetSeenUntilUnixMs())
+}
+
+func (s *testSuite) TestADeletedSeenMarkIsGoneAndOnlyThatOne() {
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, now))
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), bob, now))
+
+	s.Require().NoError(s.seen.DeleteSeen(s.T().Context(), ada))
+	s.Require().NoError(s.seen.DeleteSeen(s.T().Context(), ada), "deleting no mark is no error")
+
+	s.Zero(s.history(ada).GetSeenUntilUnixMs())
+	s.Equal(now.UnixMilli(), s.history(bob).GetSeenUntilUnixMs())
+}
+
+func (s *testSuite) TestNoViewerHasSeenNothing() {
+	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, now))
+
+	s.Zero(s.history(messages.NoAccount).GetSeenUntilUnixMs())
 }

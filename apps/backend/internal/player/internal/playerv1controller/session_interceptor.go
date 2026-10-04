@@ -26,17 +26,18 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		ErrNoSession,
 		true,
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
-		playerv1connect.PlayerServiceGetProfileProcedure,
-		playerv1connect.PlayerServiceSetNameProcedure,
-		playerv1connect.PlayerServiceSetColorProcedure,
-		playerv1connect.PlayerServiceGetStatsProcedure,
-		playerv1connect.PlayerServiceAnnounceProcedure,
-		playerv1connect.PlayerServiceLeaveProcedure,
-		playerv1connect.PlayerServiceGetTitlesProcedure,
-		playerv1connect.PlayerServiceWearTitleProcedure,
+		cpconnect.Identified(playerv1connect.PlayerServiceGetProfileProcedure),
+		cpconnect.Attested(playerv1connect.PlayerServiceSetNameProcedure),
+		cpconnect.Attested(playerv1connect.PlayerServiceSetColorProcedure),
+		cpconnect.Identified(playerv1connect.PlayerServiceGetStatsProcedure),
+		cpconnect.Attested(playerv1connect.PlayerServiceAnnounceProcedure),
+		cpconnect.Identified(playerv1connect.PlayerServiceLeaveProcedure),
+		cpconnect.Identified(playerv1connect.PlayerServiceGetTitlesProcedure),
+		cpconnect.Attested(playerv1connect.PlayerServiceWearTitleProcedure),
 	)
 }
 
 func NewStreamSessionReader(verifier cpconnect.SessionVerifier, clock cptime.Clock) connect.Interceptor {
-	return cpconnect.NewSessionReaderInterceptor(verifier, clock, playerv1connect.PlayerServiceListenForEventsProcedure)
+	return cpconnect.NewSessionReaderInterceptor(verifier, clock,
+		cpconnect.Identified(playerv1connect.PlayerServiceListenForEventsProcedure))
 }

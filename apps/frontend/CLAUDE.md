@@ -155,8 +155,10 @@ app/       components
   message id, ordered on the time the server stamped, and capped at 200. It
   returns the array it was given when nothing was added, so an echo of something
   already shown costs no render. `unreadSince` counts what arrived after a given
-  id, for the badge on the folded panel, and `idsSince` names those same
-  messages, for highlighting them once they are on screen. `nameSentUnder` is
+  id and `idsSince` names those messages, for the sound and for highlighting
+  them once they are on screen. `unseenAfter` counts the messages and
+  announcements after a time, for the badge, and `newestAt` is the time of the
+  newest line. `nameSentUnder` is
   the name the server gave the latest message this client sent — the only way
   it learns a guest's name.
 - `authorColor.ts` — `NAME_COLORS`, the 12 a player with a username may pick
@@ -380,10 +382,10 @@ this is where each zone lives. `Viewer` composes them, and `useCompact`
 ### Live chat
 
 The client for the backend's second bounded context: `chat.ts` declares
-`ChatSender`, `ChatHistoryGetter`, `ChatListener` and `ChatReactor` (plus
-`ChatBackend`, the four together), `chatBackend.ts` implements them against
-`/chat.v1.ChatService/` alone — `SendMessage`, `GetHistory`, `React` and the
-`ListenForEvents` stream — and
+`ChatSender`, `ChatHistoryGetter`, `ChatListener`, `ChatReactor` and
+`ChatSeenMarker` (plus `ChatBackend`, the five together), `chatBackend.ts`
+implements them against `/chat.v1.ChatService/` alone — `SendMessage`,
+`GetHistory`, `React`, `MarkSeen` and the `ListenForEvents` stream — and
 `fakeChatBackend.ts` is the dev stand-in. On a desktop `ChatPanel` is the
 right-hand column, folded and unfolded from its own header. On a phone it is the
 Chat tab's sheet, and `Viewer` holds whether it is open (`open`,
@@ -491,11 +493,12 @@ is the list, and the backend refuses any other.
   cut, or somebody it could not name at all. It is drawn in a portal on the body, not beside the chip: the log
   both scrolls and clips. Anything that
   moves the chip — a scroll, a resize — closes it rather than making it follow.
-- **`mine` is only known from a call.** `GetHistory` sends the token already
-  held (`SessionProvider.held()`, never a mint) so the server can mark the
+- **`mine` is only known from a call.** `GetHistory` sends the reader's token
+  (`SessionProvider.identity()`, never a mint) so the server can mark the
   player's own; `React` answers the counts with `mine` set. The stream is
   nobody's, so `mergedReactions` keeps what the log already knew. A player
-  whose token is not held yet when the history loads sees its own reactions
+  whose click token is not held yet when the history loads is named by its
+  identity token instead (see [Sessions](#sessions)); one with neither sees its own reactions
   unmarked; the server treats a second "on" as nothing, so a click still ends
   right.
 - `React` goes out with the click token, minted when none is held, like a
@@ -513,8 +516,8 @@ is the list, and the backend refuses any other.
   Without one the reaction is counted and nobody new is named, until the
   answer lands.
 - A reaction is not a new message: `ChatLog` shows the "New messages" pill only
-  when the last message changes, and the unread count and the sound only count
-  messages.
+  when the last message changes, the unread count counts messages and
+  announcements, and the sound only messages.
 
 #### Announcements
 
@@ -531,8 +534,9 @@ is `bomb`, every bomb that went off.
   never disagree.
 - **Kept apart from the messages** (`useChat`'s `announcements`,
   `addAnnouncements`) and put in one list only to draw (`interleave`, by time).
-  So a burst of bombs never pushes a message out of the log, and the unread
-  count, the sound and the "New messages" pill count messages alone.
+  So a burst of bombs never pushes a message out of the log, and the sound and
+  the "New messages" pill count messages alone. The unread count counts
+  announcements too: a bomb while away is something missed.
   **Once the message log is full, `interleave` leaves out every announcement
   older than its oldest message**: the two logs are capped apart, so in a long
   session the older bombs piled up on top of the chat. The server does the same
@@ -567,6 +571,49 @@ the eye without stealing it. Four things say it, each for a different glance:
   balloon, for `TOAST_MS` (4s) after it lands, and a press opens the chat. It is
   a button named by the line it quotes, since it is the only thing on screen
   that opens the chat from it.
+
+#### What was missed since the last visit
+
+**The server keeps until when each account saw the chat**, so the badge on
+arrival counts what was said while the player was away: messages and
+announcements, not the player's own messages. See the backend's CLAUDE.md
+(Chat, Seen).
+
+- **A time, not an id.** `GetHistory` answers `seenUntil`; `useChat` hands
+  `ChatPanel` the time to count from (`seenAtLoad`), and `unseenAfter` counts
+  the lines after it, open or not. A history with no mark is a first visit:
+  nothing counts, and the newest line of the history is sent as the mark, so
+  the next visit has one even if the chat is never opened in this one.
+- **Opening the chat marks nothing.** On a desktop it is open from the start,
+  and a phone's sheet used to open on the newest line: either way the player
+  was shown the bottom and nothing above it. So `ChatLog` opens on an **Unread
+  line** (`.chat-unseen`) above the first line after the mark, with a little of
+  what was read above it, and shows the "New messages" button while there is
+  more below. The line is placed once, as the log opens, and stays while the
+  player reads down from it; nothing missed, no line, and the log opens on the
+  newest as before.
+- **Seen is what was scrolled into view.** On every scroll, resize and new
+  line, `ChatLog` finds the newest line whose whole height has been on screen
+  (`data-at` on each line) and reports its time through `onSeen`. A line that
+  lands while the log is pinned to the bottom is on screen at once, so it is
+  seen at once. "New messages" goes to the newest line, and so marks
+  everything. Nothing is reported while the page is hidden (`watching`, from
+  `usePageVisible`): a tab left open overnight would mark everything seen.
+- **The mark is the time of the newest line shown, never "now"**, which would
+  count as seen a line that lands while the call is in flight.
+- **`useSeenMark` sends it at most every `SEEN_DELAY_MS` (2s)**, so a fast
+  scroll is one call, and at once on `pagehide`, over a keepalive client.
+- **It is read and kept as the identity token** (`identity()` for the history,
+  `heldIdentity()` for the mark; see [Sessions](#sessions)): a click token lives
+  an hour, so on the next day's visit the identity the cookie resumes, with no
+  Turnstile check, is what says who is asking. The mark sends the token in hand
+  and never resumes or mints one, since it also goes out as the page closes. A
+  refusal for want of an account is silent: a page with no session has nobody
+  to keep a mark for.
+- In fake mode the mark starts 2.5 minutes back, so two of the opening lines
+  count as missed.
+- jsdom lays nothing out, so every line counts as on screen in a test. The
+  tests of the Unread line stub the layout: lines 50px tall in a log 150px tall.
 
 **The log is never yanked down under someone who scrolled up to read.** It
 auto-scrolls only while it is pinned to the bottom (`PINNED_SLACK_PX`);
@@ -739,9 +786,10 @@ own clicks. `app/standings/` draws it.
 - **`GetStandings` is a public GET**, cached 15s on the server, and
   `useStandings` reads it every 15s while a players' view is shown. A server
   without it reads as nobody.
-- **`GetMySeason` carries the token already held** (`held()`, never a mint).
-  With none held it is not sent, and `unauthenticated` reads as unknown and
-  keeps the token. A linked account holds one once its profile is read.
+- **`GetMySeason` reads as the identity token** (`identity()`: a fresh token, or
+  one resumed from the cookie, never a Turnstile mint), so a player back the next
+  day sees its season at once. With none to be had it is not sent, and
+  `unauthenticated` reads as unknown and keeps the token.
   `useMySeason` reads it when a players' view opens, when the account or the
   username changes, and 3s after the last of a run of accepted clicks:
   `acceptedClicks` wraps the `TileClicker` the globe uses and tells its listeners
@@ -822,8 +870,8 @@ one for its hour. A generation counter keeps such a mint from being stored.
 `fetch` wrapper adds `credentials: "include"`; without it connect-web sends
 `same-origin`, and a cross-origin mint neither sends the cookie nor keeps the
 one it is given — every mint would start a new guest. The click, map and chat
-clients stay without it: nothing there needs to know who is asking, and a read
-that carries a cookie is one no shared cache serves. Both halves are pinned in
+clients stay without it: who asks is in the token they carry, the identity
+token included, and a read that carries a cookie is one no shared cache serves. Both halves are pinned in
 `turnstileSession.test.ts`. A credentialed call needs the API to name the exact
 origin and send `Access-Control-Allow-Credentials: true` — Caddy does in
 production, and a local backend does from `httpServer.allowedOrigin`, which
@@ -839,7 +887,33 @@ rather than the player's, the stream followed the address, and presence listed
 nobody. An invalidation and a failed mint both drop what was kept, so a reload
 after a sign-out does not bring the old account's token back.
 
-**It keeps the click token and never the account.** The account is the `cp_sid`
+**Two tokens, one held at a time: the click token and the identity token.** The
+click token comes from `CreateSession`, after a Turnstile check, and is the only
+thing that may act. The identity token comes from `ResumeSession`, off the
+`cp_sid` cookie with no Turnstile check: it names the same account and proves
+no check, so the server takes it for reads alone (the backend's CLAUDE.md, "The
+click token and the identity token"). A click token names the reader too, so
+one token in hand serves both.
+
+- **`token()`** answers the click token, minting through Turnstile when what is
+  held is only an identity. **`held()`** never answers the identity token, so
+  nothing that acts can send it by mistake: a click, a post, a reaction, a
+  claim, an announce.
+- **`identity()`** answers any fresh token, and otherwise resumes one silently;
+  **`heldIdentity()`** is the same without the call. The reads use them: the
+  history, the budget, the charges, both streams, the roster. `PlanetBackend`
+  resumes at load (`followIdentity`), so a player back the next day is named
+  from the first frame, with no Turnstile check and no click.
+- **A cookie with no live session resumes nothing**: a first visit stays
+  anonymous until its first click, as before. A resume that fails is no
+  identity, logged, never an error a read would surface.
+- **A resume that lands after a click token was minted leaves the click token**:
+  it names the same account and proves more.
+- **Kept like the click token**, with `identity: true` beside it, so a reload
+  still knows a click must pass Turnstile. A kept token with no flag is a click
+  token, as every token an older build kept was.
+
+**It keeps the tokens and never the account.** The account is the `cp_sid`
 cookie, which is HttpOnly and out of this page's reach either way. A token
 lapses within the hour, is bound to the address that minted it, and a page that
 could read this could mint one of its own off that cookie. A token restored on

@@ -16,6 +16,7 @@ type SenderBlocklist = cpconnect.Blocklist
 var (
 	ErrTooManyMessages  = errors.New("too many messages")
 	ErrTooManyReactions = errors.New("too many reactions")
+	ErrTooManySeenMarks = errors.New("too many seen marks")
 	ErrSenderBlocked    = errors.New("message refused")
 )
 
@@ -31,6 +32,10 @@ func NewReactionRateLimitInterceptor(limiter MessageLimiter) connect.Interceptor
 	return cpconnect.NewRateLimitInterceptor(limiter, ErrTooManyReactions, chatv1connect.ChatServiceReactProcedure)
 }
 
+func NewSeenRateLimitInterceptor(limiter MessageLimiter) connect.Interceptor {
+	return cpconnect.NewRateLimitInterceptor(limiter, ErrTooManySeenMarks, chatv1connect.ChatServiceMarkSeenProcedure)
+}
+
 func NewBlocklistInterceptor(blocklist SenderBlocklist) connect.Interceptor {
 	return cpconnect.NewIPBlockInterceptor(
 		blocklist,
@@ -39,6 +44,7 @@ func NewBlocklistInterceptor(blocklist SenderBlocklist) connect.Interceptor {
 		chatv1connect.ChatServiceSendMessageProcedure,
 		chatv1connect.ChatServiceGetHistoryProcedure,
 		chatv1connect.ChatServiceReactProcedure,
+		chatv1connect.ChatServiceMarkSeenProcedure,
 	)
 }
 
@@ -46,8 +52,9 @@ type SenderSessionVerifier = cpconnect.SessionVerifier
 
 func NewSessionInterceptor(verifier SenderSessionVerifier, clock cptime.Clock) connect.Interceptor {
 	return cpconnect.NewSessionReaderInterceptor(verifier, clock,
-		chatv1connect.ChatServiceSendMessageProcedure,
-		chatv1connect.ChatServiceGetHistoryProcedure,
-		chatv1connect.ChatServiceReactProcedure,
+		cpconnect.Attested(chatv1connect.ChatServiceSendMessageProcedure),
+		cpconnect.Identified(chatv1connect.ChatServiceGetHistoryProcedure),
+		cpconnect.Attested(chatv1connect.ChatServiceReactProcedure),
+		cpconnect.Identified(chatv1connect.ChatServiceMarkSeenProcedure),
 	)
 }

@@ -63,7 +63,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent`, and `player` publishes `StatsChanged`; `player` hears all six, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet` hears `AccountDeleted`.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent`, and `player` publishes `StatsChanged`; `player` hears all six, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet` and `chat` hear `AccountDeleted` too.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -246,7 +246,7 @@ The events today:
 |---|---|---|---|
 | `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile. A clear of native land is recorded and never published | `player`, for the stats; `seasons`, for the standings |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
-| `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps |
+| `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
@@ -363,10 +363,10 @@ handler declares: they tell the guard what a caller reads, for the `scraper`.
 
 ### Inside the chat module: the same shape
 
-Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has four:
-`messages`, `reactions` (which imports `messages`), `announcements`, and `feed`, the live stream, which carries all
-three. `subscribers/` is its edge for events, as `chatv1controller/` is its edge for the wire. A read is a query
-under its handler: see [Reads are queries](#reads-are-queries).
+Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has five:
+`messages`, `reactions` (which imports `messages`), `announcements`, `seen` (which imports `messages`), and `feed`,
+the live stream, which carries the first three. `subscribers/` is its edge for events, as `chatv1controller/` is
+its edge for the wire. A read is a query under its handler: see [Reads are queries](#reads-are-queries).
 
 ```
 internal/chat/internal/
@@ -391,19 +391,26 @@ internal/chat/internal/
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
     usecases/announce_usecase/          keeps an announcement, then publishes it — Appender, Publisher
+  seen/                                 Until (the rule on a mark's time), ErrNoTime, the Storage port: writes only
+    postgres_seen_store/                Storage, over chat.seen; what it keeps is tested through history_query
+    inmemory_seen_storage/              Storage in a map, and Kept for a test — behind the testing tag, tests only
+    usecases/mark_seen_usecase/         keeps until when an account saw the chat — Saver
+    usecases/forget_seen_usecase/       deletes an account's mark — Deleter
   feed/                                 Update: a message sent, a message's new reactions, or an announcement
                                         (MessageSent, ReactionsChanged, Announced)
     inprocess_feed/                     the fanout to every open stream, in this process
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — UpdatesSubscriber
   chatv1controller/                     ChatService (a bag), the interceptors
-    send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/
-    get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, named — Authors
+    send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
+    get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, named, and until when
+                                        the viewer saw the chat — Authors
       rpc_player_authors/               Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
     chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), for the post,
                                         the reaction and the stream
     chatannouncement/                   Encode, for the stream
   subscribers/                          Timeout
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb payload
+    account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema
 ```
@@ -757,6 +764,33 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 - **Stored in `chat.reactions`**, their own table and their own store, one row per `(message_id, reaction, reactor)`, with `reacted_at`. **The reactor is already an account**, so there was never anything to migrate here: the table has held the right thing all along. A read replays the rows oldest first, so each reaction keeps the place it first appeared in, and so do the people under it. The prune deletes rows older than `chat.storage.retention`, like messages: the reactor is an account, so it is personal data. It deletes a version whose last change is that old too, which is only ever one whose message's reactions are all gone.
 - **Its own rate bucket**, `chat.reactionLimiter` (defaults: 1 a second, 10 in hand), and the blocklist covers `React` too.
 
+#### Seen
+
+**The chat keeps, per account, until when it was seen**, so a player who comes back is shown what was said
+while it was away: the badge counts it, and the lines light up as the chat opens.
+
+- **A time, not a message id.** `chat.seen` is one row per account, `seen_until`. Messages and announcements are
+  two tables with two kinds of id, and a message's id is the client's text and not unique; one time covers both,
+  and still means something once the prune deleted the line it was taken from.
+- **The client sends the time of the newest line it showed**, never "now": a message landing during the call
+  would count as seen. `seen.Until` cuts a time ahead of the server's clock to now, and refuses no time at all
+  (`ErrNoTime` → `InvalidArgument`).
+- **It only moves forward**: the upsert keeps the `GREATEST` of the two, so two tabs, or a late request, never
+  move it back. **The store only writes**: nothing on the write side reads a mark back, so it has no read and no
+  contract suite, and `history_query`'s tests seed through it to pin what it keeps.
+- **`GetHistory` answers it** (`seen_until_unix_ms`, 0 for none): `history_query` reads `chat.seen` beside the
+  window, in parallel with the messages and the announcements. **`MarkSeen` writes it**, through the `seen` store. No account is `Unauthenticated`.
+  It has its own rate bucket, `chat.seenLimiter` (1 a second, 10 in hand), and the blocklist covers it.
+- **Both take the identity token, not only the click token** (`cpconnect.Identified` in the chat's session reader;
+  see [The click token and the identity token](#the-click-token-and-the-identity-token)). A click token lives an
+  hour, so a player back the next day holds none at load: exactly the visit the mark is for. The identity token
+  the cookie resumes names it with no Turnstile check. A seen mark is a write, but only of the caller's own state,
+  so it needs no proof of a check.
+- **Forgotten with the account**: `account_deleted_subscriber` hears `auth.v1.AccountDeleted` and deletes the row.
+  There is no prune: a row lives as long as its account, and auth's guest prune deletes the guests.
+- `TestTheIdentityTokenKeepsWhenThePlayerLastSawTheChat` pins the identity path over HTTP, and
+  `TestADeletedAccountLosesItsSeenMark` the deletion.
+
 **Chat has its own stream**, `ChatService.ListenForEvents` — see [The live streams](#the-live-streams). It replaced a `/ws/chat` websocket that had to be kept apart from the tile one because frames carried a bare protobuf message with no type tag: a second payload on either socket would have been indistinguishable from the first. The `oneof` envelope is exactly what removes that constraint.
 
 **Sending is an RPC, not a read on the socket**: both publishers lean on `CloseRead` for instant disconnect detection, and the RPC path already has the middleware stack and the interceptors.
@@ -847,7 +881,9 @@ Chat and sessions each have **their own limiter instance** with their own budget
 
 - `chat.rateLimiter` — one message every 3s, five in hand. A message fans out to every connected client and lands in a log everyone will read.
 - `chat.reactionLimiter` — one reaction a second, ten in hand. A reaction is a short row and a small frame.
+- `chat.seenLimiter` — one seen mark a second, ten in hand. The client sends one at most every 2s anyway.
 - `auth.rateLimiter` — one mint every 30s, ten in hand, across both `CreateSession` paths. A mint costs a siteverify round trip to a third party, so an unthrottled `CreateSession` is a free way to spend this server's Turnstile quota.
+- `auth.resumeLimiter` — one `ResumeSession` a second, ten in hand. It costs one row read and no third party.
 
 ### VPN blocklist
 
@@ -880,7 +916,7 @@ The answer to the one thing an address-based defence cannot do. The rate limiter
 
 `Click` requires a token this server minted, in the `X-Session-Token` header. The only way to get one is `auth.v1.AuthService/CreateSession` (or the deprecated `session.v1.SessionService/CreateSession`), which verifies a **Cloudflare Turnstile** token against siteverify before minting. A script that reads the proto and POSTs `Click` no longer has a complete client: it has to solve Turnstile first.
 
-**The token is stateless.** `shared/cpsession` mints `base64url(version ‖ expiry ‖ random id ‖ account ‖ linked ‖ Ed25519(version ‖ expiry ‖ id ‖ account ‖ linked ‖ scope))` — 98 bytes, 131 characters. The account is 16 bytes, all zero (`uuid.Nil`) for a caller with none; `linked` is one byte, 1 when the account signed in with a provider. `Mint` takes a `cpsession.Holder` (`cpsession.Nobody` for no account), and `Verify` answers both in `Claims`. The linked byte is signed, so a guest cannot claim the linked allowance. Nothing is stored, swept or replicated; verification is one signature check. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
+**The token is stateless.** `shared/cpsession` mints `base64url(version ‖ expiry ‖ random id ‖ account ‖ linked ‖ attested ‖ Ed25519(version ‖ expiry ‖ id ‖ account ‖ linked ‖ attested ‖ scope))` — 99 bytes, 132 characters. The account is 16 bytes, all zero (`uuid.Nil`) for a caller with none; `linked` is one byte, 1 when the account signed in with a provider; `attested` is one byte, 1 when the token was minted after a Turnstile check (see [The click token and the identity token](#the-click-token-and-the-identity-token)). `Mint` takes a `cpsession.Holder` (`cpsession.Nobody` for no account; its zero value proves no check), and `Verify` answers all three in `Claims`. Both bytes are signed, so a guest cannot claim the linked allowance and a token that only names its holder cannot claim the check. Nothing is stored, swept or replicated; verification is one signature check. That is what keeps this compatible with a process that holds the whole game in memory and has no database to put a session table in.
 
 **It is signed, not MACed, and that is the point.** An HMAC key verifies and mints with the same bytes, so every context that could check a click could also issue one. Ed25519 splits that: the seed is `auth.secret` and only the auth module is handed it. Verification costs tens of microseconds against a MAC's one, which is nothing at this traffic — production is thousands of clicks per five minutes — and buys a boundary the compiler holds.
 
@@ -890,7 +926,7 @@ It cannot ask at boot instead — `cpbootstrap` builds every module before it li
 
 **Callers that arrive while the key is fetched share one fetch, and each waits on its own context.** `cpconnect.SessionVerifier.Verify` takes the request's `ctx`. The fetch is a `singleflight.DoChan`, so each caller selects on the result or its own `ctx.Done()`. The first caller starts the fetch on `context.WithoutCancel(ctx)` with a 2s timeout, so it keeps the request's values but not its cancellation: a caller that hangs up stops waiting at once and fails nobody else. `cpsession.Verifier.Verify` stays without a context: it is a signature check in memory, with nothing to cancel. The cost of the laziness is that a misconfigured `auth` shows up on the first click rather than at boot.
 
-**The first byte is a version.** Before it, the length *was* the discriminator, so every format change made every token in flight malformed at once. Now `planet` can accept two versions across a rollout instead, and key rotation is the same move: mint under the new version while both verify. Version 2 added the linked byte; a version 1 token (97 bytes) still verifies, as not linked, and its support can go once the last one has expired (1h after the deploy).
+**The first byte is a version.** Before it, the length *was* the discriminator, so every format change made every token in flight malformed at once. Now `planet` can accept two versions across a rollout instead, and key rotation is the same move: mint under the new version while both verify. Version 2 added the linked byte; a version 1 token (97 bytes) still verifies, as not linked. Version 3 added the attested byte; a version 1 or 2 token (98 bytes) still verifies, as attested, since every mint before it followed a Turnstile check. The support for both can go once the last one has expired (1h after the deploy).
 
 **It is bound to the address that minted it**, so a token lifted off the wire is worth nothing anywhere else. The scope is signed over but never travels — the verifier rebuilds the message with the scope it observes — so the token leaks nothing. A player whose address changes mid-session — a phone moving from wifi to cellular — fails verification, and the client mints again and retries: self-healing, and invisible.
 
@@ -900,9 +936,20 @@ The signature is checked **before** the expiry, so a forger learns nothing about
 
 **Where it sits in the chain:** error mapping, VPN blocklist, **session**, throttle. Outside the limiter for the same reason the blocklist is — a click refused for its session must not also spend a token, or the retry that follows the mint would come back 429 and the web app would show the throttle dialog instead. `TestSessionCheckRunsBeforeTheThrottle` pins it.
 
-**Reads and the streams are untouched.** A visitor loads the planet, watches it live and reads the chat without ever minting anything; a session is only ever needed to paint. `GetMap` is a cacheable GET and a per-session header on it would defeat that cache.
+**Reads and the streams never need a token.** A visitor loads the planet, watches it live and reads the chat without ever minting anything; a click token is only ever needed to act. A read that wants to know its caller takes the identity token, which costs no Turnstile check. `GetMap` is a cacheable GET and a per-session header on it would defeat that cache.
 
-**Minting has its own throttle** (`auth.rateLimiter`, one every 30s with 10 in hand, shared by both `CreateSession` paths). A mint costs a siteverify round trip to a third party, so it cannot share the click budget: unthrottled, the endpoint is a free way to spend this server's siteverify quota.
+**Minting has its own throttle** (`auth.rateLimiter`, one every 30s with 10 in hand, shared by both `CreateSession` paths). A mint costs a siteverify round trip to a third party, so it cannot share the click budget: unthrottled, the endpoint is a free way to spend this server's siteverify quota. `ResumeSession` has a bucket of its own (`auth.resumeLimiter`, one a second with 10 in hand): it costs one row read and no third party, and every page load makes one.
+
+#### The click token and the identity token
+
+**A token says who its holder is, and whether it passed a Turnstile check: two things, and only the second has to be fresh.** Before version 3 the token carried both or nothing, and only a Turnstile check could renew it. It lives an hour and nothing mints at load, so a player back the next day held none, and every read that wanted to know its caller answered for nobody, though the `cp_sid` cookie still named the account for 90 days (30 signed in).
+
+- **`CreateSession` mints the click token**, after a Turnstile check: `attested` is set. Nothing else sets it.
+- **`ResumeSession` mints the identity token**, from the cookie alone, with no Turnstile: the same account and linked byte, `attested` clear. It reads the live session the cookie holds and extends it when due, through `accounts.Resumer`, the same object `CreateSession` resumes a session with; a cookie with no live session gets no token, and no guest is started: only a Turnstile check starts one (`accounts.Guests`). It is bound to the address and lives an hour, like the click token, so a client renews it silently.
+- **Each procedure says which it takes.** The session interceptors take `cpconnect.Attested(procedure)` or `cpconnect.Identified(procedure)`, never a bare name, so no procedure takes the weaker token by default. An identity token on an attested procedure is as good as none: the reader puts nobody on the context, and the enforcing interceptor answers `Unauthenticated`, which the client already answers by minting through Turnstile and retrying. The verdict is `unattested` in `click_session_checks` and `player_session_checks`.
+- **What acts is attested**: everything that writes what other players see, or spends or earns something — `Click`, `ClaimBonus`, `DropBomb`, `UseRefill`, `OpenQuiz`, `AnswerQuiz`, `SendMessage`, `React`, `SetName`, `SetColor`, `WearTitle`, `Announce`. **What reads, or writes only the caller's own state, is identified**: `GetBudget`, `GetCharges`, both `ListenForEvents`, `GetHistory`, `MarkSeen`, `GetProfile`, `GetStats`, `GetTitles`, `Leave`, `GetMySeason`.
+- **So "an account on the context" still means "passed Turnstile" for every attested procedure**, and the use cases behind them did not change: a caller the interceptor did not name is refused with the error each already had (`messages.ErrNoAccount`, `ErrNoSession`).
+- **What it opens**: a browser that passed Turnstile once can read as its account for as long as its cookie lives, without passing it again. It cannot act. `TestTheCookieResumesATokenThatNamesThePlayerAndCannotAct` pins both halves over HTTP.
 
 **`auth/internal/attestation/turnstile` fails closed on everything.** A network error, a non-2xx, a body that is not JSON, a token for another action or another hostname are all refused exactly as a forged one is. Failing open would make the check decorative — an attacker who can reach the backend can also make siteverify unreachable from it. It validates `action` and `hostname` as well as `success`, because **the sitekey is public**: without those two checks a token minted by the same widget embedded on any other page would be accepted here.
 
@@ -1180,7 +1227,7 @@ internal/seasons/internal/
 - **The reads are queries** (see [Reads are queries](#reads-are-queries)): the write model is `Take`, `Tally` and a `Store` that only records and deletes. Each query reads `seasons.contributions` itself and asks `GetAuthors` through its own `rpc_player_authors`. The module dials the internal listener once, at build, and both adapters share that one `player.v1` client; with no internal listener the boot is refused.
 - **Only a signed-in player is ranked**: every one has a username (see [Player](#player-internalplayer)), and a guest has none. SQL cannot tell them apart, so a query reads the main rows and Go skips what `GetAuthors` answers as a guest, or does not answer at all. A tie shares the rank (1, 1, 3).
 - **`GetStandings(country_id)`** (`standings_query`) is the current season's top 10 (`standings_query.Shown`), of every player or of the players whose main flag is `country_id`: rank, name, color, main flag and tiles. It needs no token, is a GET (`NO_SIDE_EFFECTS`) and answers `public, max-age=15`. The main rows come best first, then by account id, 200 at a time from a keyset on `(tiles, account_id)`, with one `GetAuthors` a page, until 10 are named. A country that is not one is `InvalidArgument` (`standings_query.ErrUnknownCountry`); no season is an empty answer.
-- **`GetMySeason()`** (`my_season_query`) is the caller's main flag, its tiles for it, and its rank among every player and among the players of that flag; 0 for a guest or an account with no take this season. It sits behind `seasonsv1controller.NewSessionInterceptor`, always enforcing, on the key `auth` hands over (`seasons_session_checks{verdict}`). It counts the ranked players above the caller: SQL reads the main rows with more tiles, 500 at a time, with whether each shares the caller's flag, and costs one `GetAuthors` a page.
+- **`GetMySeason()`** (`my_season_query`) is the caller's main flag, its tiles for it, and its rank among every player and among the players of that flag; 0 for a guest or an account with no take this season. It sits behind `seasonsv1controller.NewSessionInterceptor`, always enforcing, on the key `auth` hands over (`seasons_session_checks{verdict}`), and takes the identity token (`cpconnect.Identified`): it only reads. It counts the ranked players above the caller: SQL reads the main rows with more tiles, 500 at a time, with whether each shares the caller's flag, and costs one `GetAuthors` a page.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
 
 
@@ -2367,7 +2414,7 @@ rather than a fault of this server — on a public endpoint it is the common cas
 
 - `NewRateLimitInterceptor(limiter, refusal, procedures...)` — a `shared/cpratelimit` bucket keyed on `cpctx.RateLimitKey`, answering `CodeResourceExhausted` (429). It reports nothing about what is left: a context that shows a player their allowance throttles inside its own use case instead, where the reading is a return value. This is for the procedures where a refusal is the whole story — chat and sessions
 - `NewIPBlockInterceptor(blocklist, refusal, onBlocked, procedures...)` — a `cpipblock.Blocklist` lookup answering `CodePermissionDenied` (403), with an optional hook the click counter hangs on
-- `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `shared/cpsession` signature check answering `CodeUnauthenticated` (401), which puts the session id and the account (when the token names one) on the context and, with `enforce` false, counts without refusing
+- `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `shared/cpsession` signature check answering `CodeUnauthenticated` (401), which puts the session id and the account (when the token names one) on the context and, with `enforce` false, counts without refusing. Each procedure is `Attested(name)` or `Identified(name)`: see [The click token and the identity token](#the-click-token-and-the-identity-token)
 - `NewSessionReaderInterceptor(verifier, clock, procedures...)` — the same check where a token is optional: a valid one puts the same values on the context, and nothing is refused or counted. `GetBudget` and the chat's `SendMessage` use it
 - `NewErrorInterceptor(logger, mapper)` — the net, applied by `cpbootstrap` rather than by any module (see [The error net](#the-error-net)). It is a full `connect.Interceptor` rather than a `UnaryInterceptorFunc`, so it covers the streaming handlers too; without that, a stream would be the one procedure whose raw error the caller sees. The `Mapper` is optional and nothing passes one any more.
 
@@ -2715,6 +2762,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.secret` — the Ed25519 seed the tokens are signed with, 32 bytes as 64 hex characters (`openssl rand -hex 32`); **required once `auth.enabled` is true**, and an empty or malformed one refuses the boot rather than being invented. It is the only key in the file: `planet` asks `auth` for the verifying half over the internal listener
 - `auth.ttl` — how long a minted token is accepted (default 1h)
 - `auth.rateLimiter.*` — the per-IP throttle on both `CreateSession` paths together, same shape as `rateLimiter`
+- `auth.resumeLimiter.*` — the per-IP throttle on `ResumeSession`, same shape; its defaults suit it
 - `auth.turnstile.enabled` — off mints for anyone who asks, which is how a local backend runs without a widget
 - `auth.turnstile.secret` — the widget's secret half, from the environment
 - `auth.turnstile.hostnames` — the frontend origins siteverify must report; **empty refuses every token** rather than accepting any, and a production value must not include `localhost`
@@ -2737,6 +2785,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `chat.service.maxTextLength` — the bound on a message in runes (280)
 - `chat.rateLimiter.*` — the per-IP `SendMessage` throttle, same shape as `rateLimiter`
 - `chat.reactionLimiter.*` — the per-IP `React` throttle, same shape; its defaults suit it
+- `chat.seenLimiter.*` — the per-IP `MarkSeen` throttle, same shape; its defaults suit it
 - `chat.blockedIPs` — prefixes refused every chat RPC, parsed by `shared/cpipblock` exactly as `vpnBlocklist.allow` is
 - `player.tagSalt` — salts the hash of an address the roster caps its visits with. It is never shown, so empty, which generates one at boot, costs nothing. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment

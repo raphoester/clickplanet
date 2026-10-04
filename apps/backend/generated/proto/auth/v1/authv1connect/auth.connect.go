@@ -36,6 +36,9 @@ const (
 	// AuthServiceCreateSessionProcedure is the fully-qualified name of the AuthService's CreateSession
 	// RPC.
 	AuthServiceCreateSessionProcedure = "/auth.v1.AuthService/CreateSession"
+	// AuthServiceResumeSessionProcedure is the fully-qualified name of the AuthService's ResumeSession
+	// RPC.
+	AuthServiceResumeSessionProcedure = "/auth.v1.AuthService/ResumeSession"
 	// AuthServiceGetMeProcedure is the fully-qualified name of the AuthService's GetMe RPC.
 	AuthServiceGetMeProcedure = "/auth.v1.AuthService/GetMe"
 	// AuthServiceGetSignInOptionsProcedure is the fully-qualified name of the AuthService's
@@ -65,6 +68,8 @@ const (
 // AuthServiceClient is a client for the auth.v1.AuthService service.
 type AuthServiceClient interface {
 	CreateSession(context.Context, *connect.Request[v1.CreateSessionRequest]) (*connect.Response[v1.CreateSessionResponse], error)
+	// No Turnstile: the token names the account the cookie holds, and proves no check.
+	ResumeSession(context.Context, *connect.Request[v1.ResumeSessionRequest]) (*connect.Response[v1.ResumeSessionResponse], error)
 	GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error)
 	GetSignInOptions(context.Context, *connect.Request[v1.GetSignInOptionsRequest]) (*connect.Response[v1.GetSignInOptionsResponse], error)
 	StartSignIn(context.Context, *connect.Request[v1.StartSignInRequest]) (*connect.Response[v1.StartSignInResponse], error)
@@ -92,6 +97,12 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+AuthServiceCreateSessionProcedure,
 			connect.WithSchema(authServiceMethods.ByName("CreateSession")),
+			connect.WithClientOptions(opts...),
+		),
+		resumeSession: connect.NewClient[v1.ResumeSessionRequest, v1.ResumeSessionResponse](
+			httpClient,
+			baseURL+AuthServiceResumeSessionProcedure,
+			connect.WithSchema(authServiceMethods.ByName("ResumeSession")),
 			connect.WithClientOptions(opts...),
 		),
 		getMe: connect.NewClient[v1.GetMeRequest, v1.GetMeResponse](
@@ -154,6 +165,7 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 // authServiceClient implements AuthServiceClient.
 type authServiceClient struct {
 	createSession       *connect.Client[v1.CreateSessionRequest, v1.CreateSessionResponse]
+	resumeSession       *connect.Client[v1.ResumeSessionRequest, v1.ResumeSessionResponse]
 	getMe               *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
 	getSignInOptions    *connect.Client[v1.GetSignInOptionsRequest, v1.GetSignInOptionsResponse]
 	startSignIn         *connect.Client[v1.StartSignInRequest, v1.StartSignInResponse]
@@ -168,6 +180,11 @@ type authServiceClient struct {
 // CreateSession calls auth.v1.AuthService.CreateSession.
 func (c *authServiceClient) CreateSession(ctx context.Context, req *connect.Request[v1.CreateSessionRequest]) (*connect.Response[v1.CreateSessionResponse], error) {
 	return c.createSession.CallUnary(ctx, req)
+}
+
+// ResumeSession calls auth.v1.AuthService.ResumeSession.
+func (c *authServiceClient) ResumeSession(ctx context.Context, req *connect.Request[v1.ResumeSessionRequest]) (*connect.Response[v1.ResumeSessionResponse], error) {
+	return c.resumeSession.CallUnary(ctx, req)
 }
 
 // GetMe calls auth.v1.AuthService.GetMe.
@@ -218,6 +235,8 @@ func (c *authServiceClient) DeleteAccount(ctx context.Context, req *connect.Requ
 // AuthServiceHandler is an implementation of the auth.v1.AuthService service.
 type AuthServiceHandler interface {
 	CreateSession(context.Context, *connect.Request[v1.CreateSessionRequest]) (*connect.Response[v1.CreateSessionResponse], error)
+	// No Turnstile: the token names the account the cookie holds, and proves no check.
+	ResumeSession(context.Context, *connect.Request[v1.ResumeSessionRequest]) (*connect.Response[v1.ResumeSessionResponse], error)
 	GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error)
 	GetSignInOptions(context.Context, *connect.Request[v1.GetSignInOptionsRequest]) (*connect.Response[v1.GetSignInOptionsResponse], error)
 	StartSignIn(context.Context, *connect.Request[v1.StartSignInRequest]) (*connect.Response[v1.StartSignInResponse], error)
@@ -241,6 +260,12 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		AuthServiceCreateSessionProcedure,
 		svc.CreateSession,
 		connect.WithSchema(authServiceMethods.ByName("CreateSession")),
+		connect.WithHandlerOptions(opts...),
+	)
+	authServiceResumeSessionHandler := connect.NewUnaryHandler(
+		AuthServiceResumeSessionProcedure,
+		svc.ResumeSession,
+		connect.WithSchema(authServiceMethods.ByName("ResumeSession")),
 		connect.WithHandlerOptions(opts...),
 	)
 	authServiceGetMeHandler := connect.NewUnaryHandler(
@@ -301,6 +326,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		switch r.URL.Path {
 		case AuthServiceCreateSessionProcedure:
 			authServiceCreateSessionHandler.ServeHTTP(w, r)
+		case AuthServiceResumeSessionProcedure:
+			authServiceResumeSessionHandler.ServeHTTP(w, r)
 		case AuthServiceGetMeProcedure:
 			authServiceGetMeHandler.ServeHTTP(w, r)
 		case AuthServiceGetSignInOptionsProcedure:
@@ -330,6 +357,10 @@ type UnimplementedAuthServiceHandler struct{}
 
 func (UnimplementedAuthServiceHandler) CreateSession(context.Context, *connect.Request[v1.CreateSessionRequest]) (*connect.Response[v1.CreateSessionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.CreateSession is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) ResumeSession(context.Context, *connect.Request[v1.ResumeSessionRequest]) (*connect.Response[v1.ResumeSessionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.ResumeSession is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error) {

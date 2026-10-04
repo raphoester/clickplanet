@@ -8,8 +8,10 @@ import {
     idsSince,
     interleave,
     nameSentUnder,
+    newestAt,
     startsGroup,
     unreadSince,
+    unseenAfter,
 } from "./chatLog.ts"
 import type {ChatAnnouncement, ChatMessage} from "../backends/chat.ts"
 import {NameColor} from "../backends/player.ts"
@@ -116,6 +118,37 @@ describe("idsSince", () => {
         for (const seen of [undefined, "a", "b", "c", "gone"]) {
             expect(idsSince(log, seen)).toHaveLength(unreadSince(log, seen))
         }
+    })
+})
+
+describe("newestAt", () => {
+    it("is the time of the newest line, message or announcement", () => {
+        expect(newestAt([message("a", 1), message("b", 5)], [bomb("x", 3)])).toBe(5)
+        expect(newestAt([message("a", 1)], [bomb("x", 3), bomb("y", 7)])).toBe(7)
+    })
+
+    it("is nothing for an empty log", () => {
+        expect(newestAt([], [])).toBeUndefined()
+    })
+})
+
+describe("unseenAfter", () => {
+    const nobodys = () => false
+
+    it("counts the messages and the announcements after the mark", () => {
+        const log = [message("a", 1), message("b", 2), message("c", 3)]
+
+        expect(unseenAfter(log, [bomb("x", 1), bomb("y", 4)], 1, nobodys)).toBe(3)
+    })
+
+    it("does not count a line at the mark itself", () => {
+        expect(unseenAfter([message("a", 2)], [bomb("x", 2)], 2, nobodys)).toBe(0)
+    })
+
+    it("does not count the player's own messages", () => {
+        const log = [message("a", 2), message("mine", 3)]
+
+        expect(unseenAfter(log, [], 1, m => m.id === "mine")).toBe(1)
     })
 })
 

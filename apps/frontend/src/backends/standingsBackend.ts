@@ -23,7 +23,7 @@ export class ConnectStandingsBackend implements StandingsBackend {
     }
 
     public async mySeason(): Promise<MySeason | undefined> {
-        const token = this.session.held()
+        const token = await this.session.identity()
         if (!token) return undefined
 
         const headers = new Headers({[SESSION_HEADER]: token})

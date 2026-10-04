@@ -41,6 +41,7 @@ export type BombAnnouncement = {
 export type ChatHistory = {
     messages: ChatMessage[]
     announcements: ChatAnnouncement[]
+    seenUntil?: number
 }
 
 export type ReactionCount = {
@@ -88,7 +89,11 @@ export interface ChatReactor {
     react(reaction: OutgoingReaction): Promise<ReactionsChange>
 }
 
-export type ChatBackend = ChatSender & ChatHistoryGetter & ChatListener & ChatReactor
+export interface ChatSeenMarker {
+    markSeen(until: number): Promise<void>
+}
+
+export type ChatBackend = ChatSender & ChatHistoryGetter & ChatListener & ChatReactor & ChatSeenMarker
 
 export class ChatRateLimitedError extends Error {
     constructor(options?: {cause?: unknown}) {

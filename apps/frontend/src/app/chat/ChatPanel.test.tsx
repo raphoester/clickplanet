@@ -37,13 +37,14 @@ const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMess
     reactionsVersion: 0,
 })
 
-function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncement[] = []) {
+function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncement[] = [], seenUntil?: number) {
     const listeners: ((message: ChatMessage) => void)[] = []
     const reactionListeners: ((change: ReactionsChange) => void)[] = []
     const announcementListeners: ((announcement: ChatAnnouncement) => void)[] = []
 
     const backend = {
-        getHistory: vi.fn().mockResolvedValue({messages: history, announcements}),
+        getHistory: vi.fn().mockResolvedValue({messages: history, announcements, seenUntil}),
+        markSeen: vi.fn().mockResolvedValue(undefined),
         listenForMessages: vi.fn((
             callback: (message: ChatMessage) => void,
             onReactions?: (change: ReactionsChange) => void,
@@ -587,6 +588,237 @@ describe("ChatPanel", () => {
 
             expect(await screen.findByLabelText("1 new message")).toBeDefined()
         })
+    })
+})
+
+describe("ChatPanel's seen mark", () => {
+    const T = 1_700_000_000_000
+    const bomb = (id: string, announcedAt: number): ChatAnnouncement =>
+        ({kind: "bomb", id, announcedAt, country: "de", cleared: 3})
+
+    afterEach(() => {
+        vi.useRealTimers()
+        vi.unstubAllGlobals()
+    })
+
+    describe("folded", () => {
+        beforeEach(() => vi.stubGlobal("matchMedia", () => ({matches: true})))
+
+        it("counts every line said since the last visit, bombs too", async () => {
+            const {backend} = stubBackend(
+                [message("a", "seen last time", T), message("b", "said while away", T + 2_000)],
+                [bomb("x", T + 1_000)],
+                T)
+            setup(backend)
+
+            expect(await screen.findByLabelText("2 new messages")).toBeDefined()
+        })
+
+        it("does not count what the player said itself on another visit", async () => {
+            const {backend} = stubBackend([message("a", "mine, from my phone", T + 1_000)], [], T)
+            setup(backend, "Ana")
+            await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
+
+            expect(screen.queryByLabelText(/new message/)).toBeNull()
+        })
+
+        it("counts nothing on a first visit, and keeps a mark for the next one", async () => {
+            vi.useFakeTimers({shouldAdvanceTime: true})
+            const {backend} = stubBackend([message("a", "before you came", T)])
+            setup(backend)
+            await act(async () => {
+            })
+
+            await act(async () => void vi.advanceTimersByTime(2_000))
+
+            expect(screen.queryByLabelText(/new message/)).toBeNull()
+            expect(backend.markSeen).toHaveBeenCalledWith(T)
+        })
+
+        it("marks nothing while it stays closed", async () => {
+            vi.useFakeTimers({shouldAdvanceTime: true})
+            const {backend, broadcast} = stubBackend([message("a", "seen last time", T)], [], T)
+            setup(backend)
+            await screen.findByLabelText("Live chat")
+
+            broadcast(message("b", "while closed", T + 1_000))
+            await screen.findByLabelText("1 new message")
+            await act(async () => void vi.advanceTimersByTime(5_000))
+
+            expect(backend.markSeen).not.toHaveBeenCalled()
+        })
+
+        it("puts what was missed since the last visit under an Unread line once it is opened", async () => {
+            const {backend} = stubBackend([message("a", "seen last time", T), message("b", "said while away", T + 1_000)], [], T)
+            const {user} = setup(backend)
+            await screen.findByLabelText("1 new message")
+
+            await user.click(screen.getByRole("button", {name: /Chat/}))
+
+            const unread = await screen.findByRole("separator")
+            expect(unread.textContent).toBe("Unread")
+            expect(item("said while away").previousElementSibling).toBe(unread)
+        })
+    })
+
+    it("marks what lands while it is open, a bomb too, once things settle", async () => {
+        vi.useFakeTimers({shouldAdvanceTime: true})
+        const {backend, broadcast, announce} = stubBackend([message("a", "seen last time", T)], [], T)
+        setup(backend)
+        await vi.waitFor(() => item("seen last time"))
+
+        broadcast(message("b", "one", T + 1_000))
+        announce(bomb("x", T + 2_000))
+        await vi.waitFor(() => item("one"))
+        expect(backend.markSeen).not.toHaveBeenCalled()
+
+        await act(async () => void vi.advanceTimersByTime(2_000))
+
+        expect(backend.markSeen).toHaveBeenCalledTimes(1)
+        expect(backend.markSeen).toHaveBeenCalledWith(T + 2_000)
+    })
+
+    it("keeps the mark at once when the page goes away", async () => {
+        const {backend, broadcast} = stubBackend([message("a", "seen last time", T)], [], T)
+        setup(backend)
+        await screen.findByText("seen last time")
+
+        broadcast(message("b", "just now", T + 1_000))
+        await screen.findByText("just now")
+        window.dispatchEvent(new Event("pagehide"))
+
+        expect(backend.markSeen).toHaveBeenCalledWith(T + 1_000)
+    })
+
+    it("does not count a hidden page as seeing, even open", async () => {
+        const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true)
+        try {
+            const {backend, broadcast} = stubBackend([message("a", "seen last time", T)], [], T)
+            const onUnread = vi.fn()
+            render(<ChatPanel backend={backend} country={france} onUnread={onUnread}/>)
+            await screen.findByText("seen last time")
+
+            broadcast(message("b", "while you were away", T + 1_000))
+
+            await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(1))
+            hidden.mockReturnValue(false)
+            act(() => void document.dispatchEvent(new Event("visibilitychange")))
+            await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(0))
+        } finally {
+            hidden.mockRestore()
+        }
+    })
+
+    it("tells a phone's tab what was missed since the last visit", async () => {
+        const {backend} = stubBackend([message("a", "said while away", T + 1_000)], [bomb("x", T + 2_000)], T)
+        const onUnread = vi.fn()
+        render(<ChatPanel backend={backend} country={france} compact open={false} onUnread={onUnread}/>)
+
+        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(2))
+    })
+})
+
+describe("ChatPanel's Unread line", () => {
+    const T = 1_700_000_000_000
+    const LINE_PX = 50
+    const VIEW_PX = 150
+
+    const box = (top: number, bottom: number) =>
+        ({top, bottom, left: 0, right: 0, width: 0, height: bottom - top, x: 0, y: top, toJSON: () => ({})}) as DOMRect
+
+    // jsdom lays nothing out: every line of the log is LINE_PX tall, in a log VIEW_PX tall.
+    function layOut() {
+        const lines = (log: Element) => [...log.querySelectorAll(".chat-messages > li")]
+        vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+            if (this.classList.contains("chat-log")) return box(0, VIEW_PX)
+            const log = this.closest(".chat-log")
+            const index = log ? lines(log).indexOf(this) : -1
+            if (!log || index < 0) return box(0, 0)
+            const top = index * LINE_PX - log.scrollTop
+            return box(top, top + LINE_PX)
+        })
+        vi.spyOn(Element.prototype, "scrollHeight", "get").mockImplementation(function (this: Element) {
+            return lines(this).length * LINE_PX
+        })
+        vi.spyOn(Element.prototype, "clientHeight", "get").mockImplementation(function (this: Element) {
+            return this.classList.contains("chat-log") ? VIEW_PX : 0
+        })
+    }
+
+    const backlog = () => stubBackend(
+        [0, 1, 2, 3, 4, 5].map(i => message(`m${i}`, `line ${i}`, T + i * 1_000)),
+        [],
+        T + 1_000)
+
+    const open = (backend: ChatBackend, onUnread = vi.fn()) => ({
+        onUnread,
+        user: userEvent.setup({advanceTimers: vi.advanceTimersByTime}),
+        ...render(<ChatPanel backend={backend} country={france} onUnread={onUnread}/>),
+    })
+
+    const log = () => document.querySelector(".chat-log")!
+
+    beforeEach(() => {
+        vi.useFakeTimers({shouldAdvanceTime: true})
+        layOut()
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
+        vi.restoreAllMocks()
+    })
+
+    it("opens on the first unread line, under an Unread line, and marks only what it shows", async () => {
+        const {backend} = backlog()
+        const {onUnread} = open(backend)
+
+        const unread = await screen.findByRole("separator")
+        expect(item("line 2").previousElementSibling).toBe(unread)
+        expect(log().scrollTop).toBeGreaterThan(0)
+        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(3))
+
+        await act(async () => void vi.advanceTimersByTime(2_000))
+        expect(backend.markSeen).toHaveBeenCalledTimes(1)
+        expect(backend.markSeen).toHaveBeenCalledWith(T + 2_000)
+    })
+
+    it("marks more as the player scrolls down, in one call however fast", async () => {
+        const {backend} = backlog()
+        const {onUnread} = open(backend)
+        await screen.findByRole("separator")
+
+        for (const top of [100, 150, 176]) {
+            log().scrollTop = top
+            fireEvent.scroll(log())
+        }
+
+        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(1))
+        await act(async () => void vi.advanceTimersByTime(2_000))
+        expect(backend.markSeen).toHaveBeenCalledTimes(1)
+        expect(backend.markSeen).toHaveBeenCalledWith(T + 4_000)
+    })
+
+    it("goes to the newest line from the button, and so marks everything", async () => {
+        const {backend} = backlog()
+        const {onUnread, user} = open(backend)
+        await screen.findByRole("separator")
+
+        await user.click(screen.getByRole("button", {name: "New messages"}))
+
+        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(0))
+        expect(screen.queryByRole("button", {name: "New messages"})).toBeNull()
+        await act(async () => void vi.advanceTimersByTime(2_000))
+        expect(backend.markSeen).toHaveBeenLastCalledWith(T + 5_000)
+    })
+
+    it("draws no Unread line when nothing was missed, and opens on the newest", async () => {
+        const {backend} = stubBackend([0, 1, 2, 3].map(i => message(`m${i}`, `line ${i}`, T + i * 1_000)), [], T + 3_000)
+        open(backend)
+        await screen.findByText("line 3")
+
+        expect(screen.queryByRole("separator")).toBeNull()
+        expect(log().scrollTop).toBe(4 * LINE_PX)
+        expect(screen.queryByRole("button", {name: "New messages"})).toBeNull()
     })
 })
 

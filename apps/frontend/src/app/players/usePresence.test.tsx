@@ -13,6 +13,7 @@ function Harness({backend, announcing}: {backend?: PresenceBackend, announcing: 
 function backendHolding(session: {current: string | undefined}) {
     return {
         heldSession: vi.fn(() => session.current),
+        heldIdentity: vi.fn(() => session.current),
         announce: vi.fn(async () => true),
         leave: vi.fn(),
         listenForRoster: vi.fn(() => () => {}),

@@ -26,6 +26,6 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		ErrNoSession,
 		true,
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
-		seasonsv1connect.SeasonServiceGetMySeasonProcedure,
+		cpconnect.Identified(seasonsv1connect.SeasonServiceGetMySeasonProcedure),
 	)
 }

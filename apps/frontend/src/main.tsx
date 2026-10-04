@@ -6,7 +6,7 @@ import './index.css'
 import {newClickServiceClient, PlanetBackend} from "./backends/planetBackend.ts"
 import {NoSession, SessionProvider} from "./backends/session.ts"
 import {localTokenStore, newAuthServiceClient, SessionClient, turnstileAttester} from "./backends/turnstileSession.ts"
-import {ChatServiceBackend, newChatServiceClient} from "./backends/chatBackend.ts"
+import {ChatServiceBackend, newChatServiceClient, newKeepaliveChatServiceClient} from "./backends/chatBackend.ts"
 import {FakeBackend} from "./backends/fakeBackend.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
@@ -103,7 +103,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     )
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
-    const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session)
+    const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session, newKeepaliveChatServiceClient(config))
     const season = new ConnectSeasonBackend(newSeasonServiceClient(config))
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
     const standings = new ConnectStandingsBackend(newSeasonServiceClient(config), session)

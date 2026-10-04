@@ -30,7 +30,7 @@ function sessionOf(...tokens: string[]): SessionProvider & {invalidate: ReturnTy
     let minted = 0
     return {
         token: vi.fn(async () => tokens[Math.min(minted, tokens.length - 1)]),
-        held: vi.fn(() => undefined),
+        held: vi.fn(() => undefined), identity: vi.fn(async () => undefined), heldIdentity: vi.fn(() => undefined),
         invalidate: vi.fn(() => {
             minted++
         }),
@@ -213,7 +213,7 @@ describe("ConnectPlayerBackend", () => {
             token: vi.fn(async () => {
                 throw new SessionUnavailableError()
             }),
-            held: vi.fn(() => undefined),
+            held: vi.fn(() => undefined), identity: vi.fn(async () => undefined), heldIdentity: vi.fn(() => undefined),
             invalidate: vi.fn(),
         }
         const setName = answering("ana")
@@ -248,7 +248,7 @@ describe("ConnectPlayerBackend presence", () => {
         let current = held
         return {
             token: vi.fn(async () => "minted"),
-            held: vi.fn(() => current),
+            held: vi.fn(() => current), identity: vi.fn(async () => current), heldIdentity: vi.fn(() => current),
             invalidate: vi.fn(() => {
                 current = undefined
             }),
@@ -363,7 +363,7 @@ describe("ConnectPlayerBackend live roster", () => {
     })
 
     it("opens the stream with the token it holds, and hands a title earned to its own callback", async () => {
-        const session = {token: vi.fn(async () => "minted"), held: vi.fn(() => "token-1"), invalidate: vi.fn()}
+        const session = {token: vi.fn(async () => "minted"), held: vi.fn(() => "token-1"), identity: vi.fn(async () => "token-1"), heldIdentity: vi.fn(() => "token-1"), invalidate: vi.fn()}
         const listenForEvents = vi.fn(async function* () {
             yield new PlayerEventPb({event: {case: "titleEarned", value: new TitleEarnedPb({title: settlerPb})}})
             await new Promise(() => {})

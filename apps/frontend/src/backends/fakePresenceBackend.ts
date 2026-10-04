@@ -78,6 +78,10 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         return "fake-session"
     }
 
+    public heldIdentity(): string | undefined {
+        return "fake-session"
+    }
+
     public async announce(presence: Presence): Promise<boolean> {
         this.own = {presence, at: this.now()}
         return true

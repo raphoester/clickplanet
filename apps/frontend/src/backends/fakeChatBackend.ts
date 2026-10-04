@@ -9,6 +9,7 @@ import {
     ChatRateLimitedError,
     ChatReactor,
     ChatRejectedError,
+    ChatSeenMarker,
     ChatSender,
     countRunes,
     MAX_TEXT_LENGTH,
@@ -27,7 +28,10 @@ const MESSAGE_BURST = 5
 export type FakeChatBackendOptions = {
     blocked?: boolean
     chatterIntervalMs?: number
+    seenUntil?: number
 }
+
+const SEEN_AGO_MS = 150_000
 
 const WARLORD: PlayerTitle = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
 
@@ -50,7 +54,7 @@ type Listener = {
     announcement?: (announcement: ChatAnnouncement) => void
 }
 
-export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor {
+export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor, ChatSeenMarker {
     private readonly messages: ChatMessage[] = []
     private readonly announcements: ChatAnnouncement[] = []
     private readonly reactions = new Map<string, Map<Reaction, Set<string>>>()
@@ -58,12 +62,14 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     private readonly listeners = new Map<string, Listener>()
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private readonly blocked: boolean
+    private seenUntil: number
     private tokens = MESSAGE_BURST
     private lastRefillMs = Date.now()
     private nextChatter = 0
 
     constructor(options: FakeChatBackendOptions = {}) {
         this.blocked = options.blocked ?? false
+        this.seenUntil = options.seenUntil ?? Date.now() - SEEN_AGO_MS
 
         CHATTERS.forEach((chatter, index) => {
             this.publish({
@@ -152,7 +158,12 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 reactionsVersion: this.versions.get(message.id) ?? 0,
             })),
             announcements: [...this.announcements],
+            seenUntil: this.seenUntil,
         }
+    }
+
+    public async markSeen(until: number): Promise<void> {
+        this.seenUntil = Math.max(this.seenUntil, Math.min(until, Date.now()))
     }
 
     public announceBomb(drop: {countryId: string, tile: number | undefined, cleared: readonly number[]}) {

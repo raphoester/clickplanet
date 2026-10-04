@@ -456,6 +456,11 @@ export class GetHistoryResponse extends Message<GetHistoryResponse> {
    */
   announcements: Announcement[] = [];
 
+  /**
+   * @generated from field: int64 seen_until_unix_ms = 3;
+   */
+  seenUntilUnixMs = protoInt64.zero;
+
   constructor(data?: PartialMessage<GetHistoryResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -466,6 +471,7 @@ export class GetHistoryResponse extends Message<GetHistoryResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "messages", kind: "message", T: ChatMessage, repeated: true },
     { no: 2, name: "announcements", kind: "message", T: Announcement, repeated: true },
+    { no: 3, name: "seen_until_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetHistoryResponse {
@@ -482,6 +488,74 @@ export class GetHistoryResponse extends Message<GetHistoryResponse> {
 
   static equals(a: GetHistoryResponse | PlainMessage<GetHistoryResponse> | undefined, b: GetHistoryResponse | PlainMessage<GetHistoryResponse> | undefined): boolean {
     return proto3.util.equals(GetHistoryResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.MarkSeenRequest
+ */
+export class MarkSeenRequest extends Message<MarkSeenRequest> {
+  /**
+   * @generated from field: int64 seen_until_unix_ms = 1;
+   */
+  seenUntilUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<MarkSeenRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.MarkSeenRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "seen_until_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MarkSeenRequest {
+    return new MarkSeenRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MarkSeenRequest {
+    return new MarkSeenRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MarkSeenRequest {
+    return new MarkSeenRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MarkSeenRequest | PlainMessage<MarkSeenRequest> | undefined, b: MarkSeenRequest | PlainMessage<MarkSeenRequest> | undefined): boolean {
+    return proto3.util.equals(MarkSeenRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.MarkSeenResponse
+ */
+export class MarkSeenResponse extends Message<MarkSeenResponse> {
+  constructor(data?: PartialMessage<MarkSeenResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.MarkSeenResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MarkSeenResponse {
+    return new MarkSeenResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MarkSeenResponse {
+    return new MarkSeenResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MarkSeenResponse {
+    return new MarkSeenResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MarkSeenResponse | PlainMessage<MarkSeenResponse> | undefined, b: MarkSeenResponse | PlainMessage<MarkSeenResponse> | undefined): boolean {
+    return proto3.util.equals(MarkSeenResponse, a, b);
   }
 }
 

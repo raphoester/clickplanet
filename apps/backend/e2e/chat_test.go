@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
@@ -186,4 +188,65 @@ func TestAReactionToNoMessageIsNotFound(t *testing.T) {
 	_, err := game.newPlayer(t).react("no-such-message", chatv1.Reaction_REACTION_SKULL, true)
 
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func (p *gamer) markSeen(at time.Time) error {
+	p.t.Helper()
+
+	req := connect.NewRequest(&chatv1.MarkSeenRequest{SeenUntilUnixMs: at.UnixMilli()})
+	p.send(req.Header())
+	_, err := chatv1connect.NewChatServiceClient(http.DefaultClient, p.stack.baseURL).MarkSeen(p.t.Context(), req)
+	if err != nil {
+		return fmt.Errorf("MarkSeen failed: %w", err)
+	}
+	return nil
+}
+
+func (p *gamer) seenUntil() int64 {
+	p.t.Helper()
+
+	req := connect.NewRequest(&chatv1.GetHistoryRequest{})
+	p.send(req.Header())
+	res, err := chatv1connect.NewChatServiceClient(http.DefaultClient, p.stack.baseURL).GetHistory(p.t.Context(), req)
+	require.NoError(p.t, err)
+	return res.Msg.GetSeenUntilUnixMs()
+}
+
+func TestTheIdentityTokenKeepsWhenThePlayerLastSawTheChat(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	reader := ada.resumed()
+	earlier := time.Now().Add(-time.Hour).Truncate(time.Millisecond)
+
+	require.Zero(t, reader.seenUntil(), "nothing seen yet")
+	require.NoError(t, reader.markSeen(earlier), "marking seen needs no Turnstile check")
+
+	assert.Equal(t, earlier.UnixMilli(), reader.seenUntil())
+	assert.Equal(t, earlier.UnixMilli(), ada.seenUntil(), "one account, whichever token names it")
+	assert.Zero(t, game.newPlayer(t).seenUntil(), "each account has its own mark")
+
+	require.NoError(t, reader.markSeen(earlier.Add(-time.Minute)))
+	assert.Equal(t, earlier.UnixMilli(), reader.seenUntil(), "a mark only moves forward")
+}
+
+func TestNoTokenHasSeenNothingAndCannotMarkIt(t *testing.T) {
+	game := startGame(t)
+	nobody := &gamer{t: t, stack: game}
+
+	assert.Zero(t, nobody.seenUntil())
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(nobody.markSeen(time.Now())))
+}
+
+func TestADeletedAccountLosesItsSeenMark(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	require.NoError(t, ada.markSeen(time.Now().Add(-time.Minute)))
+
+	deletion := connect.NewRequest(&authv1.DeleteAccountRequest{})
+	ada.send(deletion.Header())
+	_, err := authv1connect.NewAuthServiceClient(http.DefaultClient, game.baseURL).DeleteAccount(t.Context(), deletion)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool { return ada.seenUntil() == 0 }, 5*time.Second, 20*time.Millisecond,
+		"the token still names the deleted account, and chat forgot it")
 }

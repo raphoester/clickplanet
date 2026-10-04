@@ -29,7 +29,7 @@ async function guest(offered: Provider[] = ["google", "email"]) {
         titles: vi.fn(async () => ({wearable: [], tracks: []})),
         wearTitle: vi.fn(async () => undefined),
     } satisfies PlayerBackend
-    const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate: vi.fn(), remember: vi.fn()})
+    const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate: vi.fn(), remember: vi.fn()})
     await store.load()
 
     function Panel() {

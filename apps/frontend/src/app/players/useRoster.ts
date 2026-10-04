@@ -12,13 +12,13 @@ const UNAVAILABLE: RosterState = {kind: "unavailable"}
 
 export function useRoster(backend: PresenceBackend | undefined, onTitleEarned?: (title: PlayerTitle) => void): RosterState {
     const [state, setState] = useState<RosterState>(() => backend ? {kind: "loading"} : UNAVAILABLE)
-    const [session, setSession] = useState(() => backend?.heldSession())
+    const [session, setSession] = useState(() => backend?.heldIdentity())
     const titleEarned = useRef(onTitleEarned)
     titleEarned.current = onTitleEarned
 
     useEffect(() => {
         if (!backend) return
-        const check = () => setSession(backend.heldSession())
+        const check = () => setSession(backend.heldIdentity())
         const timer = window.setInterval(check, SETTLE_MS)
         return () => window.clearInterval(timer)
     }, [backend])

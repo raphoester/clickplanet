@@ -24,15 +24,15 @@ import {Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 
 const outgoing = {authorId: "author-1", countryCode: "fr", text: "hello"}
 
-const session = (): SessionProvider => ({token: vi.fn(async () => "token-1"), held: vi.fn(() => "token-1"), invalidate: vi.fn()})
+const session = (): SessionProvider => ({token: vi.fn(async () => "token-1"), held: vi.fn(() => "token-1"), identity: vi.fn(async () => "token-1"), heldIdentity: vi.fn(() => "token-1"), invalidate: vi.fn()})
 
-const unheld = (): SessionProvider => ({token: vi.fn(async () => "minted"), held: vi.fn(() => undefined), invalidate: vi.fn()})
+const unheld = (): SessionProvider => ({token: vi.fn(async () => "minted"), held: vi.fn(() => undefined), identity: vi.fn(async () => undefined), heldIdentity: vi.fn(() => undefined), invalidate: vi.fn()})
 
 const noMint = (): SessionProvider => ({
     token: vi.fn(async () => {
         throw new Error("no mint")
     }),
-    held: vi.fn(() => undefined),
+    held: vi.fn(() => undefined), identity: vi.fn(async () => undefined), heldIdentity: vi.fn(() => undefined),
     invalidate: vi.fn(),
 })
 
@@ -62,6 +62,8 @@ function clientThatFails(error: unknown): PromiseClient<typeof ChatService> {
         getHistory: () => Promise.reject(error),
     } as unknown as PromiseClient<typeof ChatService>
 }
+
+const unusedKeepalive = {} as PromiseClient<typeof ChatService>
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -116,7 +118,7 @@ describe("ChatServiceBackend.react", () => {
         const react = vi.fn().mockResolvedValue(answer)
         const client = {react} as unknown as PromiseClient<typeof ChatService>
 
-        const counts = await new ChatServiceBackend(client, session()).react(reaction)
+        const counts = await new ChatServiceBackend(client, session(), unusedKeepalive).react(reaction)
 
         expect(counts).toEqual({
             messageId: "message-1",
@@ -131,7 +133,7 @@ describe("ChatServiceBackend.react", () => {
         const react = vi.fn().mockResolvedValue(answer)
         const guest = unheld()
 
-        await new ChatServiceBackend({react} as unknown as PromiseClient<typeof ChatService>, guest).react(reaction)
+        await new ChatServiceBackend({react} as unknown as PromiseClient<typeof ChatService>, guest, unusedKeepalive).react(reaction)
 
         expect(guest.token).toHaveBeenCalled()
         expect(headersOf(react).get(SESSION_HEADER)).toBe("minted")
@@ -140,7 +142,7 @@ describe("ChatServiceBackend.react", () => {
     it("fails when no token can be had, and sends nothing", async () => {
         const react = vi.fn().mockResolvedValue(answer)
 
-        await expect(new ChatServiceBackend({react} as unknown as PromiseClient<typeof ChatService>, noMint()).react(reaction))
+        await expect(new ChatServiceBackend({react} as unknown as PromiseClient<typeof ChatService>, noMint(), unusedKeepalive).react(reaction))
             .rejects.toBeInstanceOf(ChatNoSessionError)
         expect(react).not.toHaveBeenCalled()
     })
@@ -150,7 +152,7 @@ describe("ChatServiceBackend.react", () => {
             react: () => Promise.reject(new ConnectError("gone", Code.NotFound)),
         } as unknown as PromiseClient<typeof ChatService>
 
-        await expect(new ChatServiceBackend(client, session()).react(reaction)).rejects.toBeInstanceOf(ChatMessageGoneError)
+        await expect(new ChatServiceBackend(client, session(), unusedKeepalive).react(reaction)).rejects.toBeInstanceOf(ChatMessageGoneError)
     })
 })
 
@@ -219,7 +221,7 @@ describe("ChatServiceBackend.sendMessage", () => {
             sendMessage: vi.fn().mockResolvedValue({message: proto()}),
         } as unknown as PromiseClient<typeof ChatService>
 
-        const sent = await new ChatServiceBackend(client, session()).sendMessage(outgoing)
+        const sent = await new ChatServiceBackend(client, session(), unusedKeepalive).sendMessage(outgoing)
 
         expect(sent.id).toBe("message-1")
         expect(sent.authorName).toBe("Ana")
@@ -233,7 +235,7 @@ describe("ChatServiceBackend.sendMessage", () => {
     it("sends the click token it holds", async () => {
         const sendMessage = vi.fn().mockResolvedValue({message: proto()})
 
-        await new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, session())
+        await new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, session(), unusedKeepalive)
             .sendMessage(outgoing)
 
         expect(headersOf(sendMessage).get(SESSION_HEADER)).toBe("token-1")
@@ -243,7 +245,7 @@ describe("ChatServiceBackend.sendMessage", () => {
         const sendMessage = vi.fn().mockResolvedValue({message: proto()})
         const guest = unheld()
 
-        await new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, guest)
+        await new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, guest, unusedKeepalive)
             .sendMessage(outgoing)
 
         expect(guest.token).toHaveBeenCalled()
@@ -253,7 +255,7 @@ describe("ChatServiceBackend.sendMessage", () => {
     it("fails when no token can be had, and sends nothing", async () => {
         const sendMessage = vi.fn().mockResolvedValue({message: proto()})
 
-        await expect(new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, noMint())
+        await expect(new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, noMint(), unusedKeepalive)
             .sendMessage(outgoing)).rejects.toBeInstanceOf(ChatNoSessionError)
         expect(sendMessage).not.toHaveBeenCalled()
     })
@@ -262,7 +264,7 @@ describe("ChatServiceBackend.sendMessage", () => {
         const sendMessage = refusedOnce().mockResolvedValue({message: proto()})
         const provider = session()
 
-        const sent = await new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, provider)
+        const sent = await new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, provider, unusedKeepalive)
             .sendMessage(outgoing)
 
         expect(sent.id).toBe("message-1")
@@ -273,7 +275,7 @@ describe("ChatServiceBackend.sendMessage", () => {
     it("reads a second refusal of the token as no session", async () => {
         const sendMessage = vi.fn().mockRejectedValue(new ConnectError("no token", Code.Unauthenticated))
 
-        await expect(new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, session())
+        await expect(new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, session(), unusedKeepalive)
             .sendMessage(outgoing)).rejects.toBeInstanceOf(ChatNoSessionError)
         expect(sendMessage).toHaveBeenCalledTimes(2)
     })
@@ -282,7 +284,7 @@ describe("ChatServiceBackend.sendMessage", () => {
         const sendMessage = vi.fn().mockRejectedValue(new ConnectError("down", Code.Unavailable))
         const client = {sendMessage} as unknown as PromiseClient<typeof ChatService>
 
-        await expect(new ChatServiceBackend(client, session()).sendMessage(outgoing)).rejects.toThrow()
+        await expect(new ChatServiceBackend(client, session(), unusedKeepalive).sendMessage(outgoing)).rejects.toThrow()
         expect(sendMessage).toHaveBeenCalledTimes(1)
     })
 
@@ -293,26 +295,43 @@ describe("ChatServiceBackend.sendMessage", () => {
     ]
 
     it.each(refusals)("translates $code into its own error", async ({code, error}) => {
-        const backend = new ChatServiceBackend(clientThatFails(new ConnectError("no", code)), session())
+        const backend = new ChatServiceBackend(clientThatFails(new ConnectError("no", code)), session(), unusedKeepalive)
 
         await expect(backend.sendMessage(outgoing)).rejects.toBeInstanceOf(error)
     })
 
     it("leaves any other fault alone", async () => {
         const fault = new ConnectError("boom", Code.Internal)
-        const backend = new ChatServiceBackend(clientThatFails(fault), session())
+        const backend = new ChatServiceBackend(clientThatFails(fault), session(), unusedKeepalive)
 
         await expect(backend.sendMessage(outgoing)).rejects.toBe(fault)
     })
 })
 
 describe("ChatServiceBackend.getHistory", () => {
+    it("reads as the identity the cookie resumes when no click token is held, and never mints", async () => {
+        const getHistory = vi.fn().mockResolvedValue({messages: [], announcements: []})
+        const client = {getHistory} as unknown as PromiseClient<typeof ChatService>
+        const provider: SessionProvider = {
+            token: vi.fn(async () => "minted"),
+            held: vi.fn(() => undefined),
+            identity: vi.fn(async () => "identity-1"),
+            heldIdentity: vi.fn(() => undefined),
+            invalidate: vi.fn(),
+        }
+
+        await new ChatServiceBackend(client, provider, unusedKeepalive).getHistory()
+
+        expect((getHistory.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("identity-1")
+        expect(provider.token).not.toHaveBeenCalled()
+    })
+
     it("sends the token it holds, and never mints one", async () => {
         const getHistory = vi.fn().mockResolvedValue({messages: [], announcements: []})
         const client = {getHistory} as unknown as PromiseClient<typeof ChatService>
         const provider = session()
 
-        await new ChatServiceBackend(client, provider).getHistory()
+        await new ChatServiceBackend(client, provider, unusedKeepalive).getHistory()
 
         expect((getHistory.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("token-1")
         expect(provider.token).not.toHaveBeenCalled()
@@ -323,7 +342,7 @@ describe("ChatServiceBackend.getHistory", () => {
             getHistory: vi.fn().mockResolvedValue({messages: [proto(), proto()], announcements: []}),
         } as unknown as PromiseClient<typeof ChatService>
 
-        expect((await new ChatServiceBackend(client, session()).getHistory()).messages).toHaveLength(2)
+        expect((await new ChatServiceBackend(client, session(), unusedKeepalive).getHistory()).messages).toHaveLength(2)
     })
 
     it("retries while the server cannot be reached", async () => {
@@ -333,7 +352,64 @@ describe("ChatServiceBackend.getHistory", () => {
             .mockResolvedValue({messages: [proto()], announcements: []})
         const client = {getHistory} as unknown as PromiseClient<typeof ChatService>
 
-        expect((await new ChatServiceBackend(client, session()).getHistory()).messages).toHaveLength(1)
+        expect((await new ChatServiceBackend(client, session(), unusedKeepalive).getHistory()).messages).toHaveLength(1)
         expect(getHistory).toHaveBeenCalledTimes(2)
+    })
+})
+
+describe("ChatServiceBackend's seen mark", () => {
+    it("reads when the player last saw the chat off the history", async () => {
+        const client = {
+            getHistory: vi.fn().mockResolvedValue({messages: [], announcements: [], seenUntilUnixMs: BigInt(1_700_000_000_123)}),
+        } as unknown as PromiseClient<typeof ChatService>
+
+        expect((await new ChatServiceBackend(client, session(), unusedKeepalive).getHistory()).seenUntil).toBe(1_700_000_000_123)
+    })
+
+    it("reads no mark as never seen", async () => {
+        const client = {
+            getHistory: vi.fn().mockResolvedValue({messages: [], announcements: [], seenUntilUnixMs: BigInt(0)}),
+        } as unknown as PromiseClient<typeof ChatService>
+
+        expect((await new ChatServiceBackend(client, session(), unusedKeepalive).getHistory()).seenUntil).toBeUndefined()
+    })
+
+    it("marks over the client that outlives the page, with the token it holds and never a mint", async () => {
+        const markSeen = vi.fn().mockResolvedValue({})
+        const keepalive = {markSeen} as unknown as PromiseClient<typeof ChatService>
+        const provider = session()
+
+        await new ChatServiceBackend({} as PromiseClient<typeof ChatService>, provider, keepalive).markSeen(1_700_000_000_123)
+
+        expect(markSeen.mock.calls[0][0]).toEqual({seenUntilUnixMs: BigInt(1_700_000_000_123)})
+        expect(headersOf(markSeen).get(SESSION_HEADER)).toBe("token-1")
+        expect(provider.token).not.toHaveBeenCalled()
+    })
+
+    it("marks with the identity it holds when no click token is, and resumes none for it", async () => {
+        const markSeen = vi.fn().mockResolvedValue({})
+        const keepalive = {markSeen} as unknown as PromiseClient<typeof ChatService>
+        const provider: SessionProvider = {
+            token: vi.fn(async () => "minted"),
+            held: vi.fn(() => undefined),
+            identity: vi.fn(async () => "resumed"),
+            heldIdentity: vi.fn(() => "identity-1"),
+            invalidate: vi.fn(),
+        }
+
+        await new ChatServiceBackend({} as PromiseClient<typeof ChatService>, provider, keepalive).markSeen(1)
+
+        expect(headersOf(markSeen).get(SESSION_HEADER)).toBe("identity-1")
+        expect(provider.identity).not.toHaveBeenCalled()
+        expect(provider.token).not.toHaveBeenCalled()
+    })
+
+    it("reads a refusal for want of an account as no session", async () => {
+        const keepalive = {
+            markSeen: vi.fn().mockRejectedValue(new ConnectError("nobody", Code.Unauthenticated)),
+        } as unknown as PromiseClient<typeof ChatService>
+
+        await expect(new ChatServiceBackend({} as PromiseClient<typeof ChatService>, unheld(), keepalive).markSeen(1))
+            .rejects.toBeInstanceOf(ChatNoSessionError)
     })
 })

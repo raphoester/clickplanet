@@ -10,7 +10,7 @@ import {
     OutgoingMessage,
     OutgoingReaction,
 } from '../../backends/chat.ts';
-import {addAnnouncements, addMessages, nameSentUnder} from '../../domain/chatLog.ts';
+import {addAnnouncements, addMessages, nameSentUnder, newestAt} from '../../domain/chatLog.ts';
 import {
     applyReactionsAnswer,
     applyReactionsChange,
@@ -21,6 +21,11 @@ import {
 export type ChatStatus = 'loading' | 'ready' | 'unavailable'
 
 export type ChatSendFailure = 'rate-limited' | 'blocked' | 'rejected' | 'no-session' | 'failed'
+
+export type SeenAtLoad = {
+    until: number
+    kept: boolean
+}
 
 export type UseChatOptions = {
     backend?: ChatBackend
@@ -35,6 +40,7 @@ export function useChat({backend, username}: UseChatOptions) {
     const [status, setStatus] = useState<ChatStatus>(backend ? 'loading' : 'unavailable')
     const [failure, setFailure] = useState<ChatSendFailure | undefined>(undefined)
     const [mine, setMine] = useState<ReadonlySet<string>>(NOTHING_SENT)
+    const [seenAtLoad, setSeenAtLoad] = useState<SeenAtLoad>()
 
     const displayName = username ?? nameSentUnder(messages, mine)
 
@@ -55,6 +61,7 @@ export function useChat({backend, username}: UseChatOptions) {
         setMessages([])
         setAnnouncements([])
         setMine(NOTHING_SENT)
+        setSeenAtLoad(undefined)
 
         const abort = new AbortController()
         const stopListening = backend.listenForMessages(
@@ -68,6 +75,9 @@ export function useChat({backend, username}: UseChatOptions) {
                 if (abort.signal.aborted) return
                 receive(history.messages)
                 setAnnouncements(current => addAnnouncements(current, history.announcements))
+                setSeenAtLoad(history.seenUntil !== undefined
+                    ? {until: history.seenUntil, kept: true}
+                    : {until: newestAt(history.messages, history.announcements) ?? 0, kept: false})
                 setStatus('ready')
             })
             .catch(e => {
@@ -116,7 +126,7 @@ export function useChat({backend, username}: UseChatOptions) {
         }
     }, [backend])
 
-    return {messages, announcements, mine, displayName, status, failure, send, react}
+    return {messages, announcements, mine, displayName, seenAtLoad, status, failure, send, react}
 }
 
 function failureOf(e: unknown): ChatSendFailure {
