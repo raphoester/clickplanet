@@ -207,6 +207,32 @@ func (p *gamer) sendOnly(header http.Header, with credentials) {
 	header.Set(cpconnect.SessionHeader, p.token)
 }
 
+func (p *gamer) historyWith(with credentials) *chatv1.GetHistoryResponse {
+	p.t.Helper()
+
+	req := connect.NewRequest(&chatv1.GetHistoryRequest{})
+	p.sendOnly(req.Header(), with)
+	res, err := chatv1connect.NewChatServiceClient(http.DefaultClient, p.stack.baseURL).GetHistory(p.t.Context(), req)
+	require.NoError(p.t, err)
+	return res.Msg
+}
+
+func TestTheCookieAloneNamesWhoReadsTheHistory(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	message, err := ada.post()
+	require.NoError(t, err)
+	_, err = ada.react(message.GetId(), chatv1.Reaction_REACTION_FIRE, true)
+	require.NoError(t, err)
+
+	reactions := ada.historyWith(cookieOnly).GetMessages()[0].GetReactions()
+
+	require.Len(t, reactions, 1)
+	assert.True(t, reactions[0].GetMine(), "a click token lasts an hour, the cookie months")
+	nobody := &gamer{t: t, stack: game}
+	assert.False(t, nobody.historyWith(cookieOnly).GetMessages()[0].GetReactions()[0].GetMine())
+}
+
 func (p *gamer) markSeen(at time.Time, with credentials) error {
 	p.t.Helper()
 
@@ -222,11 +248,7 @@ func (p *gamer) markSeen(at time.Time, with credentials) error {
 func (p *gamer) seenUntil(with credentials) int64 {
 	p.t.Helper()
 
-	req := connect.NewRequest(&chatv1.GetHistoryRequest{})
-	p.sendOnly(req.Header(), with)
-	res, err := chatv1connect.NewChatServiceClient(http.DefaultClient, p.stack.baseURL).GetHistory(p.t.Context(), req)
-	require.NoError(p.t, err)
-	return res.Msg.GetSeenUntilUnixMs()
+	return p.historyWith(with).GetSeenUntilUnixMs()
 }
 
 func TestTheCookieAloneKeepsWhenThePlayerLastSawTheChat(t *testing.T) {

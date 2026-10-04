@@ -205,7 +205,7 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory` | `messages/rpc_player_authors` |
-| `chat` | `auth.v1.InternalService/GetCaller` | whose `cp_sid` cookie a `GetHistory` or a `MarkSeen` carries, when no valid click token named the caller | `chatv1controller/rpc_auth_callers` |
+| `chat` | `auth.v1.InternalService/GetCaller` | whose `cp_sid` cookie a `GetHistory` or a `MarkSeen` carries, when no valid click token named the caller | `shared/cpcallers` |
 
 A module cannot import another's interior, so the key client all three need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -402,8 +402,6 @@ internal/chat/internal/
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
     chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), shared by the handlers
     chatannouncement/                   Encode, shared by the history and the stream
-    rpc_auth_callers/                   whose cookie it is, from auth.v1.InternalService/GetCaller
-    log_callers/                        logs a cookie auth could not answer for, never the cookie
   subscribers/                          Timeout
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb payload
     account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
@@ -673,7 +671,7 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 - **Only a message in the window can be reacted to** (`ErrUnknownMessage` → `NotFound`): nobody is shown any other. `postgres_message_store.Shown` asks the same question as the history, for one id.
 - **Saved, then read back, then published, with no lock.** Two reactions at once can publish their tallies in either order, so **each tally carries a version**: `chat.reaction_versions` holds one counter per message, bumped in the same statement as the change (a data-modifying CTE: no row changed, no bump), and read in the same statement as the reactions, so a tally and its version are one snapshot. The client keeps the highest version it has seen per message and drops a lower one. This holds across processes, which an in-memory lock would not. `reactions.Reactions` is a value: `With`/`Without` answer a copy.
 - **The stream sends all of a message's counts, not the difference** (`ReactionsChanged`), with their version, so a client that missed a frame is right on the next, and one that gets two out of order keeps the newer. It cannot know who reads it, so `mine` is always false there; the client keeps its own between calls.
-- **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it): the account's reactions are marked, and a caller with no token has none.
+- **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it), or with no valid token the cookie (the cookie reader, see [Who is calling](#who-is-calling-the-click-token-or-the-cookie)): the account's reactions are marked, and a caller with neither has none.
 - **A count says who gave it, not only how many** — as accounts, named when it is shown. `Count` carries the same two halves a `messages.Message` does: `Reactors` is what the store holds, and `Names` is who those accounts are to a reader, filled by `reactions.Named` on the way out. So a rename shows under every reaction its player ever gave, for the same reason it shows on every message.
   - **`reactions.AccountOf`** is `ReactorOf` backwards: `account:<uuid>` to an account, and `false` for a `guest:<tag>` row from before guests had accounts, which is nobody and can be named nothing.
   - **The history names everyone in one ask.** `get_history_usecase` gathers the senders *and* the people under their reactions (`messages.AccountsOf` plus `reactions.AccountsOf`) and calls `GetAuthors` once for the lot.
@@ -699,13 +697,10 @@ while it was away: the badge counts it, and the lines light up as the chat opens
 - **`GetHistory` answers it** (`seen_until_unix_ms`, 0 for none): `get_history_usecase` reads it beside the
   window. **`MarkSeen` writes it.** No account is `Unauthenticated`.
   It has its own rate bucket, `chat.seenLimiter` (1 a second, 10 in hand), and the blocklist covers it.
-- **Read off the cookie, not only the click token.** A click token lives an hour, so a player back the next day
-  holds none at load, and a history read with no token answers for nobody: exactly the visit the mark is for. So
-  `NewCookieReaderInterceptor`, after the session reader, asks `auth.v1.InternalService/GetCaller` whose `cp_sid`
-  it is, for those two RPCs, when no valid token named the caller. Auth answers the live session's account, with
-  no extension and no Turnstile. No live session, or an auth that cannot answer (`log_callers` logs it, never the
-  cookie), leaves the call with no account. `GetCaller` is a POST: a GET would put the cookie in a URL. The
-  history also marks the caller's own reactions off the cookie, so a page that has not minted yet sees them.
+- **Both take the cookie, not only the click token** (`chatv1controller.NewCookieReaderInterceptor` lists them;
+  see [Who is calling](#who-is-calling-the-click-token-or-the-cookie)). A click token lives an hour, so a player
+  back the next day holds none at load: exactly the visit the mark is for. A seen mark is a write, but only of the
+  caller's own state, so it needs no proof of a Turnstile check.
 - **Forgotten with the account**: `account_deleted_subscriber` hears `auth.v1.AccountDeleted` and deletes the row.
   There is no prune: a row lives as long as its account, and auth's guest prune deletes the guests.
 - `TestTheCookieAloneKeepsWhenThePlayerLastSawTheChat` pins the cookie path over HTTP, and
@@ -2292,11 +2287,36 @@ rather than a fault of this server — on a public endpoint it is the common cas
 - `NewIPBlockInterceptor(blocklist, refusal, onBlocked, procedures...)` — a `cpipblock.Blocklist` lookup answering `CodePermissionDenied` (403), with an optional hook the click counter hangs on
 - `NewSessionInterceptor(verifier, clock, refusal, enforce, onVerdict, procedures...)` — a `shared/cpsession` signature check answering `CodeUnauthenticated` (401), which puts the session id and the account (when the token names one) on the context and, with `enforce` false, counts without refusing
 - `NewSessionReaderInterceptor(verifier, clock, procedures...)` — the same check where a token is optional: a valid one puts the same values on the context, and nothing is refused or counted. `GetBudget` and the chat's `SendMessage` use it
+- `NewCookieReaderInterceptor(callers, procedures...)` — after the session reader, the account the `cp_sid` cookie names, when no valid token named one. See [Who is calling](#who-is-calling-the-click-token-or-the-cookie)
 - `NewErrorInterceptor(logger, mapper)` — the net, applied by `cpbootstrap` rather than by any module (see [The error net](#the-error-net)). It is a full `connect.Interceptor` rather than a `UnaryInterceptorFunc`, so it covers the streaming handlers too; without that, a stream would be the one procedure whose raw error the caller sees. The `Mapper` is optional and nothing passes one any more.
 
 Each context keeps a thin named constructor over these — `planetv1controller.NewVPNBlockInterceptor`, `chatv1controller.NewRateLimitInterceptor`, `NewBlocklistInterceptor` and `NewSessionInterceptor` — which is where the procedure list, the refusal wording and the metric live. **A context names its own policy; neither reimplements the mechanism.**
 
 Both chains order them the same way: error mapping outermost, then the blocklist, then the limiter. **The blocklist has to sit outside the limiter** — a refused address must not also spend a token, or its next call would come back 429 and the client would report the wrong reason. `TestVPNBlockRunsBeforeTheThrottle` pins that for clicks.
+
+#### Who is calling: the click token, or the cookie
+
+**A handler reads the caller off the context (`cpctx.GetAccount`), and never works out who it is itself.** Two
+interceptors put it there, the session reader then the cookie reader, so a module that needs to know who calls
+mounts them and lists its procedures, and nothing else.
+
+- **The click token comes first.** It is checked in process, against the key `cpsessionverifier` took once, so it
+  costs no I/O. A valid one names the caller, and the cookie is not looked up.
+- **The cookie is the fallback.** A click token lives an hour and nothing mints at load, so a player back the next
+  day holds none; the `cp_sid` cookie lives 90 days for a guest and 30 signed in. It is an opaque token whose hash
+  only `auth` holds, so `shared/cpcallers` asks `auth.v1.InternalService/GetCaller` whose it is: one loopback call,
+  only for a call that takes the cookie and carries no valid token. Auth answers the live session's account, with
+  no extension and no Turnstile. No live session, or an auth that cannot answer (`cpcallers.Logged` logs it,
+  never the cookie), leaves the call with no account. `GetCaller` is a POST: a GET would put the cookie in a URL.
+- **A procedure takes the cookie only for reading.** The cookie says *who* the browser is; the click token also
+  says it *may act*: it was minted after a Turnstile check and is bound to the address. So a click, a post or a
+  reaction names its caller by the token alone, and only reads list themselves for the cookie reader. Today that
+  is the chat's `GetHistory`, which marks the caller's own reactions with it, and `MarkSeen`, which writes only
+  the caller's own seen mark.
+- The cookie names the account and when it was made (`cpctx.GetAccountCreated`, off the id), never whether it is
+  linked: that rides on the token alone.
+- `cpcallers` is in `shared` for the same reason `cpsessionverifier` is: one copy for every module that asks.
+- `TestTheCookieAloneNamesWhoReadsTheHistory` pins it over HTTP.
 
 ### Durability
 
@@ -2408,7 +2428,7 @@ Two of these are here because both bounded contexts need them and neither should
 
 The siteverify client it is fed by is **not** here. `turnstile` sat here on the same "both contexts need it" rule, but only one ever did, so it now lives at `session/internal/turnstile` where the compiler keeps it. **The bar is not that a package is shareable, it is that it would read the same in any other program and that two modules actually import it** — "shared" names the symptom, and a directory admitted on the weaker reading becomes a dumping ground. `cpsecrets` passes narrowly — chat is its only caller today, but it is twenty lines of `crypto/rand` with no domain in it at all.
 
-`cpsessionverifier` is the exception to that bar: it knows `auth.v1.InternalService`, so it would not read the same in another program. It is the `cpconnect.SessionVerifier` that `planet`, `player` and `chat` build, which takes the key from `auth` once — see [Sessions](#sessions-internalauth). It is here because the alternative was one copy in each module, and a fix to one copy missed the others.
+`cpsessionverifier` is the exception to that bar: it knows `auth.v1.InternalService`, so it would not read the same in another program. It is the `cpconnect.SessionVerifier` that `planet`, `player` and `chat` build, which takes the key from `auth` once — see [Sessions](#sessions-internalauth). It is here because the alternative was one copy in each module, and a fix to one copy missed the others. `cpcallers`, the `cpconnect.CookieCallers` that asks `auth` whose cookie a call carries, is the second exception, for the same reason — see [Who is calling](#who-is-calling-the-click-token-or-the-cookie).
 
 `cpcountries` is the ISO country list both the tile game and the chat validate against. `cpipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `cpratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 

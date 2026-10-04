@@ -1,8 +1,10 @@
-package rpc_auth_callers_test
+package cpcallers_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,11 +15,11 @@ import (
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/rpc_auth_callers"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcallers"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-var ada = messages.AccountID{15: 1}
+var ada = cpsession.AccountID{15: 1}
 
 type stubAuth struct {
 	authv1connect.UnimplementedInternalServiceHandler
@@ -46,7 +48,7 @@ func (d dialer) Dial() (connect.HTTPClient, string, error) {
 	return d.client, d.url, d.err
 }
 
-func callers(t *testing.T, auth stubAuth) *rpc_auth_callers.Callers {
+func callers(t *testing.T, auth stubAuth) *cpcallers.Callers {
 	t.Helper()
 
 	mux := http.NewServeMux()
@@ -54,7 +56,7 @@ func callers(t *testing.T, auth stubAuth) *rpc_auth_callers.Callers {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	return rpc_auth_callers.New(dialer{client: server.Client(), url: server.URL})
+	return cpcallers.New(dialer{client: server.Client(), url: server.URL})
 }
 
 func TestItAnswersTheAccountTheCookieNames(t *testing.T) {
@@ -70,7 +72,7 @@ func TestACookieThatNamesNobodyIsNoAccount(t *testing.T) {
 	account, err := callers(t, stubAuth{}).Caller(t.Context(), "cp_sid=made-up")
 
 	require.NoError(t, err)
-	assert.Equal(t, messages.NoAccount, account)
+	assert.Equal(t, cpsession.NoAccount, account)
 }
 
 func TestAnAuthModuleThatFailsIsAnError(t *testing.T) {
@@ -82,7 +84,34 @@ func TestAnAuthModuleThatFailsIsAnError(t *testing.T) {
 }
 
 func TestAnUnreachableAuthModuleIsAnError(t *testing.T) {
-	_, err := rpc_auth_callers.New(dialer{err: errors.New("no internal listener")}).Caller(t.Context(), "cp_sid=token-1")
+	_, err := cpcallers.New(dialer{err: errors.New("no internal listener")}).Caller(t.Context(), "cp_sid=token-1")
 
 	assert.ErrorContains(t, err, "failed to reach the auth module")
+}
+
+func logged(inner *cpcallers.Callers) (*cpcallers.Logged, *bytes.Buffer) {
+	var out bytes.Buffer
+	return cpcallers.NewLogged(inner, slog.New(slog.NewTextHandler(&out, nil))), &out
+}
+
+func TestAFailureIsLoggedWithoutTheCookieAndPassedOn(t *testing.T) {
+	failing := callers(t, stubAuth{err: connect.NewError(connect.CodeInternal, errors.New("auth is stuck"))})
+	caller, out := logged(failing)
+
+	_, err := caller.Caller(t.Context(), "cp_sid=secret-token")
+
+	require.ErrorContains(t, err, "auth is stuck")
+	assert.Contains(t, out.String(), "level=ERROR")
+	assert.Contains(t, out.String(), "auth is stuck")
+	assert.NotContains(t, out.String(), "secret-token", "a cookie signs a browser in")
+}
+
+func TestAnAnswerIsPassedOnAndNotLogged(t *testing.T) {
+	caller, out := logged(callers(t, stubAuth{accounts: map[string]string{"cp_sid=token-1": ada.String()}}))
+
+	account, err := caller.Caller(t.Context(), "cp_sid=token-1")
+
+	require.NoError(t, err)
+	assert.Equal(t, ada, account)
+	assert.Empty(t, out.String())
 }
