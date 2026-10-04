@@ -12,6 +12,14 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/get_season_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/finale"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/finale/rpc_planet_rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/finale/usecases/converge_rules_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/finale/usecases/converge_rules_usecase/log_converge_rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/lead"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/lead/rpc_planet_shares"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/lead/usecases/watch_lead_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/lead/usecases/watch_lead_usecase/log_watch_lead"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -42,6 +50,15 @@ func build(config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount seasons.v1.SeasonService: %w", err)
 	}
 
+	seasons := calendar.New(config.Calendar)
+	clock := cptime.SystemClock{}
+
+	rules := log_converge_rules.New(converge_rules_usecase.New(
+		seasons, finale.NewRules(config.Finale), clock, rpc_planet_rules.New(props.Internal)), props.Logger)
+	watch := log_watch_lead.New(watch_lead_usecase.New(
+		seasons, config.Lead, clock, rpc_planet_shares.New(props.Internal), props.Events), props.Logger)
+	props.Runners.Add(converge_rules_usecase.NewRunner(config.Finale.WithDefaults().CheckEvery, rules, watch))
+
 	props.Logger.Info("seasons built", slog.Int("seasons", len(config.Calendar.List)))
 
 	return nil
@@ -49,10 +66,16 @@ func build(config Config, props cpbootstrap.Props) error {
 
 type Config struct {
 	Calendar calendar.Config `koanf:",squash"`
+
+	Finale finale.Config
+	Lead   lead.Config
 }
 
 func (c Config) Validate() error {
 	if err := c.Calendar.Validate(); err != nil {
+		return fmt.Errorf("seasons: %w", err)
+	}
+	if err := c.Finale.Validate(); err != nil {
 		return fmt.Errorf("seasons: %w", err)
 	}
 	return nil

@@ -40,7 +40,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/mark_seen_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/lead_changed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/season_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -52,7 +54,10 @@ import (
 
 const moduleName = "chat"
 
-const bombLandedBuffer = 256
+const (
+	bombLandedBuffer = 256
+	seasonBuffer     = 64
+)
 
 const accountDeletedBuffer = 256
 
@@ -108,9 +113,23 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
+	leads, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-leads", seasonBuffer,
+		log_subscriber.New(lead_changed_subscriber.New(announce_usecase.New(announcementStore, updates)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to seasons.v1.LeadChanged: %w", err)
+	}
+
+	wins, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-wins", seasonBuffer,
+		log_subscriber.New(season_ended_subscriber.New(announce_usecase.New(announcementStore, updates)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to seasons.v1.SeasonEnded: %w", err)
+	}
+
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		prune_usecase.NewRunner(storage.PruneInterval, prune), bombs, deletions))
+		prune_usecase.NewRunner(storage.PruneInterval, prune), bombs, deletions, leads, wins))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)

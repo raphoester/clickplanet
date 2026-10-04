@@ -15,11 +15,19 @@ type AnnouncementID uuid.UUID
 
 type Kind string
 
-const KindBomb Kind = "bomb"
+const (
+	KindBomb        Kind = "bomb"
+	KindLeadChanged Kind = "lead_changed"
+	KindSeasonWon   Kind = "season_won"
+)
 
-var ErrUnknownKind = errors.New("an announcement of a kind nobody knows")
+var (
+	ErrUnknownKind = errors.New("an announcement of a kind nobody knows")
 
-func Kinds() []Kind { return []Kind{KindBomb} }
+	ErrKept = errors.New("an announcement with this id is already kept")
+)
+
+func Kinds() []Kind { return []Kind{KindBomb, KindLeadChanged, KindSeasonWon} }
 
 func (k Kind) Known() bool { return slices.Contains(Kinds(), k) }
 
@@ -64,6 +72,52 @@ func (b Bomb) Payload() (json.RawMessage, error) {
 	payload, err := json.Marshal(bombPayload{Country: b.country, Ground: b.ground, Tile: b.tile, Cleared: b.cleared})
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode a bomb announcement: %w", err)
+	}
+	return payload, nil
+}
+
+type LeadChange struct {
+	season uint32
+	leader string
+	passed string
+}
+
+func LeadChangeOf(season uint32, leader string, passed string) LeadChange {
+	return LeadChange{season: season, leader: leader, passed: passed}
+}
+
+type leadChangePayload struct {
+	Season uint32 `json:"season"`
+	Leader string `json:"leader"`
+	Passed string `json:"passed"`
+}
+
+func (l LeadChange) Payload() (json.RawMessage, error) {
+	payload, err := json.Marshal(leadChangePayload{Season: l.season, Leader: l.leader, Passed: l.passed})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode a lead change announcement: %w", err)
+	}
+	return payload, nil
+}
+
+type Win struct {
+	season uint32
+	winner string
+}
+
+func WinOf(season uint32, winner string) Win {
+	return Win{season: season, winner: winner}
+}
+
+type winPayload struct {
+	Season uint32 `json:"season"`
+	Winner string `json:"winner"`
+}
+
+func (w Win) Payload() (json.RawMessage, error) {
+	payload, err := json.Marshal(winPayload{Season: w.season, Winner: w.winner})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode a season won announcement: %w", err)
 	}
 	return payload, nil
 }

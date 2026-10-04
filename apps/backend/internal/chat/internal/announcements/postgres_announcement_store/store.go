@@ -22,13 +22,23 @@ type Store struct {
 var _ announcements.Storage = (*Store)(nil)
 
 func (s *Store) Append(ctx context.Context, announcement announcements.Announcement) error {
-	if _, err := s.db.ExecContext(ctx, `
+	result, err := s.db.ExecContext(ctx, `
 		INSERT INTO announcements (id, kind, payload, announced_at)
 		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (id) DO NOTHING
 	`,
 		uuid.UUID(announcement.ID()), string(announcement.Kind()), string(announcement.Payload()), announcement.At().UTC(),
-	); err != nil {
+	)
+	if err != nil {
 		return fmt.Errorf("failed to insert an announcement: %w", err)
+	}
+
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to read whether an announcement was inserted: %w", err)
+	}
+	if inserted == 0 {
+		return announcements.ErrKept
 	}
 	return nil
 }

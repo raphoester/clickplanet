@@ -280,6 +280,24 @@ func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
 	assert.Zero(t, season.Number)
 	assert.True(t, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Equal(season.EndsAt))
 	assert.Equal(t, 2*time.Hour, season.Finale)
+
+	assert.InDelta(t, 3.0, config.Seasons.Finale.RefillMultiplier, 1e-9)
+	assert.Equal(t, 2*time.Minute, config.Seasons.Finale.BoxInterval)
+	assert.Equal(t, uint32(50), config.Seasons.Lead.Margin)
+	assert.Equal(t, 30*time.Second, config.Seasons.Lead.Hold)
+}
+
+func TestAFinaleThatSlowsTheGameIsRefused(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(`
+seasons:
+  finale:
+    refillMultiplier: 0.5
+`), 0o600))
+
+	var config Config
+	err := cpconfigs.Load(&config, cpconfigs.FromFile(path))
+	require.ErrorContains(t, err, "seasons: finale.refillMultiplier is 0.5")
 }
 
 func TestSeasonsThatDoNotCountUpAreRefused(t *testing.T) {

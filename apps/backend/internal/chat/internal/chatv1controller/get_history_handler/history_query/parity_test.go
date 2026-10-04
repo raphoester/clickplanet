@@ -172,8 +172,12 @@ func (s *testSuite) TestEveryKindTheChatAnnouncesIsReadBack() {
 		}))
 	}
 
+	everyKind, err := history_query.NewPostgresQuery(s.db, s.authors, cptime.NewFixedClock(now), len(kinds), historyRetention).
+		History(s.T().Context(), ada)
+	s.Require().NoError(err)
+
 	read := make([]announcements.Kind, 0, len(kinds))
-	for _, announcement := range s.history(ada).GetAnnouncements() {
+	for _, announcement := range everyKind.GetAnnouncements() {
 		read = append(read, announcements.Kind(announcement.GetKind()))
 	}
 	s.Equal(kinds, read, "a kind the chat writes and the history refuses would empty the history")

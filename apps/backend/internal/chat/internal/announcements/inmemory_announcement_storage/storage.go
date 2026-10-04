@@ -4,7 +4,6 @@ package inmemory_announcement_storage
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"sync"
 	"time"
@@ -23,14 +22,12 @@ type Storage struct {
 
 var _ announcements.Storage = (*Storage)(nil)
 
-var errDuplicateID = errors.New("an announcement with this id is already kept")
-
 func (s *Storage) Append(_ context.Context, announcement announcements.Announcement) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if slices.ContainsFunc(s.kept, func(kept announcements.Announcement) bool { return kept.ID() == announcement.ID() }) {
-		return errDuplicateID
+		return announcements.ErrKept
 	}
 	s.kept = append(s.kept, announcement)
 	return nil

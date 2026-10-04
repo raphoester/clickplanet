@@ -68,3 +68,13 @@ func (c Calendar) Current(now time.Time) (Season, bool) {
 
 	return Season{}, false
 }
+
+func (c Calendar) LastEnded(now time.Time) (Season, bool) {
+	for i := len(c.seasons) - 1; i >= 0; i-- {
+		if !c.seasons[i].EndsAt.After(now) {
+			return c.seasons[i], true
+		}
+	}
+
+	return Season{}, false
+}
