@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -25,8 +26,7 @@ type PostgresQuery struct {
 const stats = `
 	SELECT
 		COALESCE(stats.tiles_taken, 0),
-		CASE WHEN stats.streak_last_day IS NULL OR stats.streak_last_day IN ($2::date, $2::date - 1)
-			THEN COALESCE(stats.streak_current, 0) ELSE 0 END,
+		` + playerread.StreakNow + `,
 		COALESCE(stats.streak_best, 0),
 		COALESCE(to_char(stats.streak_last_day, 'YYYY-MM-DD'), '')
 	FROM (SELECT $1::uuid AS account_id) asked

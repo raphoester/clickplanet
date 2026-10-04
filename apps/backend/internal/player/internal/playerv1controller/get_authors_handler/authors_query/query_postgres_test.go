@@ -7,16 +7,20 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/get_author_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/inprocess_title_catalog"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/postgres_title_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/wearing/postgres_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -191,4 +195,53 @@ func (s *testSuite) TestAFailedReadIsAnError() {
 	_, err := s.query().Authors(ctx, []players.AccountID{ada})
 
 	s.Error(err)
+}
+
+func (s *testSuite) TestEachAuthorIsWhatGetAuthorAnswersForIt() {
+	cy, dan, eve := players.AccountID{15: 4}, players.AccountID{15: 5}, players.AccountID{15: 6}
+	s.named(cy, "Cyd")
+	s.named(dan, "Dan")
+	s.Require().NoError(s.players.SaveGuestCode(s.T().Context(), eve, "0d0e0f"))
+	_, err := s.db.ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
+	s.Require().NoError(err)
+	s.Require().NoError(s.players.SaveColor(s.T().Context(), ada, players.Color(playerv1.NameColor_NAME_COLOR_PINK)))
+	takes := map[players.AccountID][]time.Time{
+		ada:   {today.AddDate(0, 0, -1), today},
+		bob:   {today.AddDate(0, 0, -3), today.AddDate(0, 0, -2)},
+		guest: {today.AddDate(0, 0, -1), today},
+		dan:   {today.AddDate(0, 0, 1)},
+	}
+	for account, at := range takes {
+		for _, take := range at {
+			s.Require().NoError(s.players.RecordTake(s.T().Context(), account, take))
+		}
+	}
+	s.Require().NoError(s.players.RecordMessage(s.T().Context(), cy))
+	s.Require().NoError(s.titles.Grant(s.T().Context(), titles.Holdings{
+		ada: {"og", "settler"}, bob: {"settler", "raider", "loyal"}, guest: {"og"}, dan: {"retired", "og"},
+	}, today))
+	s.Require().NoError(s.worn.Wear(s.T().Context(), ada, "og", today))
+	s.Require().NoError(s.worn.Wear(s.T().Context(), bob, "settler", today))
+	s.Require().NoError(s.worn.Wear(s.T().Context(), guest, "og", today))
+
+	catalog := titles.NewCatalog()
+	single := get_author_usecase.New(s.players, players.NewGuestCodes(s.players, &players.SequentialCodes{}),
+		wearing.NewWardrobe(s.worn, titles.NewBook(s.titles, catalog), catalog), cptime.NewFixedClock(today))
+	everyone := []players.AccountID{ada, bob, guest, cy, dan, eve}
+	many := s.authors(everyone...)
+
+	s.Require().Len(many, len(everyone))
+	for _, account := range everyone {
+		one, err := single.Execute(s.T().Context(), account)
+		s.Require().NoError(err)
+
+		s.True(proto.Equal(&playerv1.Author{
+			AccountId: account.String(),
+			Name:      one.Name(),
+			Admin:     one.Admin(),
+			Color:     playermessage.Color(one.Color()),
+			Streak:    one.Streak().Days(),
+			WornTitle: playermessage.Title(one.Worn()),
+		}, many[account.String()]), "%s: GetAuthor and GetAuthors must name an account alike, got %v", one.Name(), many[account.String()])
+	}
 }

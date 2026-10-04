@@ -34,8 +34,7 @@ type PostgresQuery struct {
 const career = `
 	SELECT
 		COALESCE(stats.tiles_taken, 0),
-		CASE WHEN stats.streak_last_day IS NULL OR stats.streak_last_day IN ($2::date, $2::date - 1)
-			THEN COALESCE(stats.streak_current, 0) ELSE 0 END,
+		` + playerread.StreakNow + `,
 		COALESCE(stats.messages_sent, 0),
 		COALESCE(worn_titles.title, ''),
 		COALESCE(

@@ -49,8 +49,7 @@ const player = `
 		profiles.admin,
 		profiles.color,
 		COALESCE(stats.tiles_taken, 0),
-		CASE WHEN stats.streak_last_day IS NULL OR stats.streak_last_day IN ($2::date, $2::date - 1)
-			THEN COALESCE(stats.streak_current, 0) ELSE 0 END,
+		` + playerread.StreakNow + `,
 		COALESCE(stats.streak_best, 0),
 		COALESCE(to_char(stats.streak_last_day, 'YYYY-MM-DD'), ''),
 		COALESCE(worn_titles.title, ''),

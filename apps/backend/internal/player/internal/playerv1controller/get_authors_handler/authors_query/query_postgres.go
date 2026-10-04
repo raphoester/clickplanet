@@ -34,9 +34,7 @@ const authors = `
 		COALESCE(profiles.name, 'guest_' || guest_codes.code),
 		COALESCE(profiles.admin, false),
 		COALESCE(profiles.color, 0),
-		CASE WHEN profiles.account_id IS NULL THEN 0
-			WHEN stats.streak_last_day IS NULL OR stats.streak_last_day IN ($2::date, $2::date - 1)
-			THEN COALESCE(stats.streak_current, 0) ELSE 0 END,
+		CASE WHEN profiles.account_id IS NULL THEN 0 ELSE ` + playerread.StreakNow + ` END,
 		CASE WHEN profiles.account_id IS NULL THEN '' ELSE COALESCE(worn_titles.title, '') END,
 		CASE WHEN profiles.account_id IS NULL THEN '{}' ELSE COALESCE(
 			(SELECT array_agg(titles.title ORDER BY titles.earned_at, titles.title) FROM titles WHERE titles.account_id = asked.account_id),

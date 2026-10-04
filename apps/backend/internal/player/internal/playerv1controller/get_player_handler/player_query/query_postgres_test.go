@@ -208,3 +208,36 @@ func (s *testSuite) TestAnAuthFailureIsAnError() {
 	s.Require().ErrorIs(err, s.accounts.err)
 	s.NotErrorIs(err, player_query.ErrNoPlayer)
 }
+
+func (s *testSuite) TestANameIsFoundExactlyWhenTheDomainFoldsItToANameKept() {
+	kept := []players.Name{"Ada_L", "Straße", "Émile", "Ａｄａ", "Жанна", "東京タワー", "Ada L"}
+	for i, name := range kept[1:] {
+		s.named(players.AccountID{14: 2, 15: byte(i)}, name)
+	}
+	typed := []string{
+		"Ada_L", "ada_l", " ADA_L ", "STRASSE", "strasse", "Strasse", "straße", " Straße  ", "E\u0301MILE", "émile",
+		"EMILE", "ada", "ａｄａ", "ＡＤＡ", "жАННА", "ЖАННА", "東京タワー", " Ada L ", "ada l", "ada  l", "\u00a0Ada L",
+		"A\u200bda L", "Ada\u00adL", "Ada!", "", "   ", "guest_ada", "ＧＵＥＳＴ_ada", "Ada_L\u0301", "ada_ｌ", "ＡＤＡ_Ｌ",
+	}
+
+	for _, value := range typed {
+		var want players.Name
+		if name, err := players.NameOf(value); err == nil {
+			for _, k := range kept {
+				if k.Folded() == name.Folded() {
+					want = k
+				}
+			}
+		}
+
+		answer, err := s.query().Player(s.T().Context(), value)
+
+		if want == "" {
+			s.ErrorIs(err, player_query.ErrNoPlayer, "%q", value)
+			continue
+		}
+		if s.NoError(err, "%q", value) {
+			s.Equal(string(want), answer.GetPlayer().GetName(), "%q", value)
+		}
+	}
+}
