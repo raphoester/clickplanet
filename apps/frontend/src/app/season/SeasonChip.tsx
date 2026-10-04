@@ -24,7 +24,7 @@ export default function SeasonChip({season, compact, open, onToggle}: SeasonChip
     if (!clock) return null
 
     const label = clock.finale ? "Final Battle ends in" : `Season ${season.number} ends in`
-    const className = ["season-chip", compact ? "season-chip--compact" : "panel", clock.finale && "season-chip--live", !compact && open && "season-chip--open"]
+    const className = ["season-chip", compact ? "season-chip--compact" : "panel", clock.finale && "season-chip--live"]
         .filter(Boolean).join(" ")
 
     if (compact) {
