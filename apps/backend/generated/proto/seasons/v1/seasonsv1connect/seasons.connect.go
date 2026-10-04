@@ -35,11 +35,19 @@ const (
 const (
 	// SeasonServiceGetSeasonProcedure is the fully-qualified name of the SeasonService's GetSeason RPC.
 	SeasonServiceGetSeasonProcedure = "/seasons.v1.SeasonService/GetSeason"
+	// SeasonServiceGetStandingsProcedure is the fully-qualified name of the SeasonService's
+	// GetStandings RPC.
+	SeasonServiceGetStandingsProcedure = "/seasons.v1.SeasonService/GetStandings"
+	// SeasonServiceGetMySeasonProcedure is the fully-qualified name of the SeasonService's GetMySeason
+	// RPC.
+	SeasonServiceGetMySeasonProcedure = "/seasons.v1.SeasonService/GetMySeason"
 )
 
 // SeasonServiceClient is a client for the seasons.v1.SeasonService service.
 type SeasonServiceClient interface {
 	GetSeason(context.Context, *connect.Request[v1.GetSeasonRequest]) (*connect.Response[v1.GetSeasonResponse], error)
+	GetStandings(context.Context, *connect.Request[v1.GetStandingsRequest]) (*connect.Response[v1.GetStandingsResponse], error)
+	GetMySeason(context.Context, *connect.Request[v1.GetMySeasonRequest]) (*connect.Response[v1.GetMySeasonResponse], error)
 }
 
 // NewSeasonServiceClient constructs a client for the seasons.v1.SeasonService service. By default,
@@ -60,12 +68,27 @@ func NewSeasonServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getStandings: connect.NewClient[v1.GetStandingsRequest, v1.GetStandingsResponse](
+			httpClient,
+			baseURL+SeasonServiceGetStandingsProcedure,
+			connect.WithSchema(seasonServiceMethods.ByName("GetStandings")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getMySeason: connect.NewClient[v1.GetMySeasonRequest, v1.GetMySeasonResponse](
+			httpClient,
+			baseURL+SeasonServiceGetMySeasonProcedure,
+			connect.WithSchema(seasonServiceMethods.ByName("GetMySeason")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // seasonServiceClient implements SeasonServiceClient.
 type seasonServiceClient struct {
-	getSeason *connect.Client[v1.GetSeasonRequest, v1.GetSeasonResponse]
+	getSeason    *connect.Client[v1.GetSeasonRequest, v1.GetSeasonResponse]
+	getStandings *connect.Client[v1.GetStandingsRequest, v1.GetStandingsResponse]
+	getMySeason  *connect.Client[v1.GetMySeasonRequest, v1.GetMySeasonResponse]
 }
 
 // GetSeason calls seasons.v1.SeasonService.GetSeason.
@@ -73,9 +96,21 @@ func (c *seasonServiceClient) GetSeason(ctx context.Context, req *connect.Reques
 	return c.getSeason.CallUnary(ctx, req)
 }
 
+// GetStandings calls seasons.v1.SeasonService.GetStandings.
+func (c *seasonServiceClient) GetStandings(ctx context.Context, req *connect.Request[v1.GetStandingsRequest]) (*connect.Response[v1.GetStandingsResponse], error) {
+	return c.getStandings.CallUnary(ctx, req)
+}
+
+// GetMySeason calls seasons.v1.SeasonService.GetMySeason.
+func (c *seasonServiceClient) GetMySeason(ctx context.Context, req *connect.Request[v1.GetMySeasonRequest]) (*connect.Response[v1.GetMySeasonResponse], error) {
+	return c.getMySeason.CallUnary(ctx, req)
+}
+
 // SeasonServiceHandler is an implementation of the seasons.v1.SeasonService service.
 type SeasonServiceHandler interface {
 	GetSeason(context.Context, *connect.Request[v1.GetSeasonRequest]) (*connect.Response[v1.GetSeasonResponse], error)
+	GetStandings(context.Context, *connect.Request[v1.GetStandingsRequest]) (*connect.Response[v1.GetStandingsResponse], error)
+	GetMySeason(context.Context, *connect.Request[v1.GetMySeasonRequest]) (*connect.Response[v1.GetMySeasonResponse], error)
 }
 
 // NewSeasonServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -92,10 +127,27 @@ func NewSeasonServiceHandler(svc SeasonServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	seasonServiceGetStandingsHandler := connect.NewUnaryHandler(
+		SeasonServiceGetStandingsProcedure,
+		svc.GetStandings,
+		connect.WithSchema(seasonServiceMethods.ByName("GetStandings")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	seasonServiceGetMySeasonHandler := connect.NewUnaryHandler(
+		SeasonServiceGetMySeasonProcedure,
+		svc.GetMySeason,
+		connect.WithSchema(seasonServiceMethods.ByName("GetMySeason")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/seasons.v1.SeasonService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SeasonServiceGetSeasonProcedure:
 			seasonServiceGetSeasonHandler.ServeHTTP(w, r)
+		case SeasonServiceGetStandingsProcedure:
+			seasonServiceGetStandingsHandler.ServeHTTP(w, r)
+		case SeasonServiceGetMySeasonProcedure:
+			seasonServiceGetMySeasonHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -107,4 +159,12 @@ type UnimplementedSeasonServiceHandler struct{}
 
 func (UnimplementedSeasonServiceHandler) GetSeason(context.Context, *connect.Request[v1.GetSeasonRequest]) (*connect.Response[v1.GetSeasonResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("seasons.v1.SeasonService.GetSeason is not implemented"))
+}
+
+func (UnimplementedSeasonServiceHandler) GetStandings(context.Context, *connect.Request[v1.GetStandingsRequest]) (*connect.Response[v1.GetStandingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("seasons.v1.SeasonService.GetStandings is not implemented"))
+}
+
+func (UnimplementedSeasonServiceHandler) GetMySeason(context.Context, *connect.Request[v1.GetMySeasonRequest]) (*connect.Response[v1.GetMySeasonResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("seasons.v1.SeasonService.GetMySeason is not implemented"))
 }

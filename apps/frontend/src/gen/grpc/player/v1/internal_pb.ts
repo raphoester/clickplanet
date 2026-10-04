@@ -214,6 +214,11 @@ export class Author extends Message<Author> {
    */
   wornTitle?: Title;
 
+  /**
+   * @generated from field: bool guest = 7;
+   */
+  guest = false;
+
   constructor(data?: PartialMessage<Author>) {
     super();
     proto3.util.initPartial(data, this);
@@ -228,6 +233,7 @@ export class Author extends Message<Author> {
     { no: 4, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 5, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "worn_title", kind: "message", T: Title },
+    { no: 7, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Author {

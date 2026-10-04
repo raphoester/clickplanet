@@ -33,6 +33,7 @@ const authors = `
 		asked.account_id::text,
 		COALESCE(profiles.name, 'guest_' || guest_codes.code),
 		COALESCE(profiles.admin, false),
+		profiles.account_id IS NULL,
 		COALESCE(profiles.color, 0),
 		CASE WHEN profiles.account_id IS NULL THEN 0 ELSE ` + playerread.StreakNow + ` END,
 		CASE WHEN profiles.account_id IS NULL THEN '' ELSE COALESCE(worn_titles.title, '') END,
@@ -74,7 +75,7 @@ func (q *PostgresQuery) Authors(ctx context.Context, accounts []cpsession.Accoun
 			held   []string
 		)
 		if err := rows.Scan(
-			&author.AccountId, &author.Name, &author.Admin, &color, &author.Streak, &choice, pq.Array(&held),
+			&author.AccountId, &author.Name, &author.Admin, &author.Guest, &color, &author.Streak, &choice, pq.Array(&held),
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan an author: %w", err)
 		}

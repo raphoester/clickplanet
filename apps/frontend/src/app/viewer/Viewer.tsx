@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {
     BankFullError,
     Bomber,
@@ -51,6 +51,9 @@ import {useCompact} from "../compact.ts";
 import Sheet from "../hud/Sheet.tsx";
 import StatusBar from "../hud/StatusBar.tsx";
 import TabBar from "../hud/TabBar.tsx";
+import {StandingsBackend} from "../../backends/standings.ts";
+import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
+import {acceptedClicks} from "./acceptedClicks.ts";
 import "./Viewer.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
@@ -71,6 +74,7 @@ export type ViewerProps = {
     presence?: PresenceBackend
     playerInfo?: PlayerInfoBackend
     season?: SeasonBackend
+    standings?: StandingsBackend
 }
 
 export default function Viewer(props: ViewerProps) {
@@ -99,6 +103,8 @@ export default function Viewer(props: ViewerProps) {
     const [seasonOpen, setSeasonOpen] = useState(false)
     const [clicksOpen, setClicksOpen] = useState(false)
     const [unread, setUnread] = useState(0)
+    const [boardView, setBoardView] = useState<BoardView>("countries")
+    const accepted = useMemo(() => acceptedClicks(props.tileClicker), [props.tileClicker])
     const toggleSheet = (name: SheetName) => setSheet((current) => current === name ? undefined : name)
     const closeSheet = () => setSheet(undefined)
 
@@ -133,7 +139,7 @@ export default function Viewer(props: ViewerProps) {
         dismissClear,
     } = useGlobe({
         container,
-        tileClicker: props.tileClicker,
+        tileClicker: accepted.clicker,
         ownershipsGetter: props.ownershipsGetter,
         updatesListener: props.updatesListener,
         bonusListener: props.bonusListener,
@@ -167,6 +173,14 @@ export default function Viewer(props: ViewerProps) {
     const linked = account.kind === 'ready' && account.me.linked.length > 0
     const toll = rules?.toll ?? []
     const held = leaderboard.find((entry) => entry.country.code === countryState.code)?.tiles ?? 0
+    const standings: BoardStandings | undefined = props.standings && {
+        backend: props.standings,
+        caller: {username, color, linked},
+        listenForClicks: accepted.listenForClicks,
+        onSignIn: clickBudget?.linkedMultiplier ? openPitch : undefined,
+        view: boardView,
+        onView: setBoardView,
+    }
 
     const board = {
         country: countryState,
@@ -176,6 +190,7 @@ export default function Viewer(props: ViewerProps) {
         tilesCount,
         toll,
         anthem: <AnthemControls anthem={anthem} settings={sound.settings} onChange={sound.setSettings}/>,
+        standings,
     }
     const you = {account: props.account, linkedMultiplier: clickBudget?.linkedMultiplier, playerInfo: props.playerInfo}
     const more = {

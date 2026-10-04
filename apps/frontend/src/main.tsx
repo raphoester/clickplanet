@@ -12,6 +12,8 @@ import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
 import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
+import {FakeStandingsBackend} from "./backends/fakeStandingsBackend.ts"
+import {ConnectStandingsBackend} from "./backends/standingsBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
 import {countryOfTile, loadBorders} from "./app/viewer/borderField.ts"
 import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
@@ -74,6 +76,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 
     const fakeChat = new FakeChatBackend()
     const fakeSeason = new FakeSeasonBackend(SEASON_ZERO)
+    const fakeStandings = new FakeStandingsBackend()
+    const clicker = fakeStandings.counting(fake)
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
 
     root.render(
@@ -81,7 +85,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             <SignInGate callback={callback}>
                 <App
                     ownershipsGetter={fake}
-                    tileClicker={fake}
+                    tileClicker={clicker}
                     updatesListener={fake}
                     bonusListener={fake}
                     quizMaster={fake}
@@ -92,6 +96,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     presence={fakePresence}
                     playerInfo={fakePresence}
                     season={fakeSeason}
+                    standings={fakeStandings}
                 />
             </SignInGate>
         </StrictMode>,
@@ -101,6 +106,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session, newKeepaliveChatServiceClient(config))
     const season = new ConnectSeasonBackend(newSeasonServiceClient(config))
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
+    const standings = new ConnectStandingsBackend(newSeasonServiceClient(config), session)
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
@@ -123,6 +129,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     presence={player}
                     playerInfo={player}
                     season={season}
+                    standings={standings}
                 />
             </SignInGate>
         </StrictMode>,
