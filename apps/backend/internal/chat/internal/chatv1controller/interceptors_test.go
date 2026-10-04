@@ -2,11 +2,13 @@ package chatv1controller
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -178,4 +180,72 @@ func blocklistOf(t *testing.T, prefixes []string) SenderBlocklist {
 	require.NoError(t, err)
 
 	return blocklist
+}
+
+type stubCallers struct {
+	account messages.AccountID
+	err     error
+	asked   []string
+}
+
+func (s *stubCallers) Caller(_ context.Context, cookie string) (messages.AccountID, error) {
+	s.asked = append(s.asked, cookie)
+	return s.account, s.err
+}
+
+func callerOf(ctx context.Context, callers *stubCallers, procedure string, cookie string) string {
+	var account string
+	next := connect.UnaryFunc(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
+		account = cpctx.GetAccount(ctx)
+		return connect.NewResponse(&chatv1.GetHistoryResponse{}), nil
+	})
+
+	inner := connect.NewRequest(&chatv1.GetHistoryRequest{})
+	if cookie != "" {
+		inner.Header().Set("Cookie", cookie)
+	}
+	_, _ = NewCookieReaderInterceptor(callers).WrapUnary(next)(ctx, fakeRequest{AnyRequest: inner, spec: connect.Spec{Procedure: procedure}})
+
+	return account
+}
+
+func TestCookieReaderInterceptor(t *testing.T) {
+	ada := messages.AccountID{15: 1}
+
+	t.Run("names the caller the cookie names, for the history and the seen mark", func(t *testing.T) {
+		for _, procedure := range []string{chatv1connect.ChatServiceGetHistoryProcedure, chatv1connect.ChatServiceMarkSeenProcedure} {
+			callers := &stubCallers{account: ada}
+
+			require.Equal(t, ada.String(), callerOf(t.Context(), callers, procedure, "cp_sid=token-1"), procedure)
+			require.Equal(t, []string{"cp_sid=token-1"}, callers.asked)
+		}
+	})
+
+	t.Run("does not ask when a token already named the caller", func(t *testing.T) {
+		callers := &stubCallers{account: ada}
+		ctx := cpctx.AddAccountToContext(t.Context(), "from-the-token")
+
+		require.Equal(t, "from-the-token", callerOf(ctx, callers, chatv1connect.ChatServiceGetHistoryProcedure, "cp_sid=token-1"))
+		require.Empty(t, callers.asked)
+	})
+
+	t.Run("does not ask with no cookie", func(t *testing.T) {
+		callers := &stubCallers{account: ada}
+
+		require.Empty(t, callerOf(t.Context(), callers, chatv1connect.ChatServiceGetHistoryProcedure, ""))
+		require.Empty(t, callers.asked)
+	})
+
+	t.Run("does not ask for another procedure", func(t *testing.T) {
+		callers := &stubCallers{account: ada}
+
+		require.Empty(t, callerOf(t.Context(), callers, chatv1connect.ChatServiceSendMessageProcedure, "cp_sid=token-1"))
+		require.Empty(t, callers.asked)
+	})
+
+	t.Run("goes on with no account when auth names nobody or cannot answer", func(t *testing.T) {
+		for _, callers := range []*stubCallers{{account: messages.NoAccount}, {account: ada, err: errors.New("auth is down")}} {
+			require.Empty(t, callerOf(t.Context(), callers, chatv1connect.ChatServiceGetHistoryProcedure, "cp_sid=token-1"))
+		}
+	})
 }

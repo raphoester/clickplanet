@@ -10,6 +10,7 @@ import {
     ChatRateLimitedError,
     ChatReactor,
     ChatRejectedError,
+    ChatSeenMarker,
     ChatSender,
     OutgoingMessage,
     OutgoingReaction,
@@ -29,19 +30,30 @@ import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
 import {titleOf} from "./title.ts";
 
+// With the cookie: it names the account for longer than a click token lives, so the history knows what was missed.
 export function newChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
     return createPromiseClient(ChatService, createConnectTransport({
         baseUrl: config.baseUrl,
         useBinaryFormat: true,
         useHttpGet: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
+        fetch: (input, init) => globalThis.fetch(input, {...init, credentials: "include"}),
     }))
 }
 
-export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor {
+export function newKeepaliveChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
+    return createPromiseClient(ChatService, createConnectTransport({
+        baseUrl: config.baseUrl,
+        useBinaryFormat: true,
+        fetch: (input, init) => globalThis.fetch(input, {...init, credentials: "include", keepalive: true}),
+    }))
+}
+
+export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatListener, ChatReactor, ChatSeenMarker {
     constructor(
         private client: PromiseClient<typeof ChatService>,
         private readonly session: SessionProvider,
+        private readonly keepalive: PromiseClient<typeof ChatService>,
     ) {
     }
 
@@ -104,9 +116,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
     }
 
     public async getHistory(signal?: AbortSignal): Promise<ChatHistory> {
-        const headers = new Headers()
-        const held = this.session.held()
-        if (held) headers.set(SESSION_HEADER, held)
+        const headers = this.heldHeaders()
 
         try {
             const res = await retrying(
@@ -115,13 +125,30 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
                 signal,
             )
 
+            const seenUntil = Number(res.seenUntilUnixMs)
             return {
                 messages: res.messages.map(decodedMessage),
                 announcements: res.announcements.flatMap(announcement => decodedAnnouncement(announcement) ?? []),
+                seenUntil: seenUntil > 0 ? seenUntil : undefined,
             }
         } catch (e) {
             throw translate(e)
         }
+    }
+
+    public async markSeen(until: number): Promise<void> {
+        try {
+            await this.keepalive.markSeen({seenUntilUnixMs: BigInt(Math.floor(until))}, {headers: this.heldHeaders()})
+        } catch (e) {
+            throw translate(e)
+        }
+    }
+
+    private heldHeaders(): Headers {
+        const headers = new Headers()
+        const held = this.session.held()
+        if (held) headers.set(SESSION_HEADER, held)
+        return headers
     }
 
     public listenForMessages(

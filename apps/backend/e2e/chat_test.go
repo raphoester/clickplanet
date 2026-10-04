@@ -11,9 +11,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 )
 
 var guestName = regexp.MustCompile(`^guest_[0-9a-f]{6}$`)
@@ -183,4 +186,80 @@ func TestAReactionToNoMessageIsNotFound(t *testing.T) {
 	_, err := game.newPlayer(t).react("no-such-message", chatv1.Reaction_REACTION_SKULL, true)
 
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+type credentials int
+
+const (
+	cookieOnly credentials = iota
+	tokenOnly
+)
+
+func (p *gamer) sendOnly(header http.Header, with credentials) {
+	header.Set("X-Real-IP", callerIP)
+	if with == cookieOnly {
+		header.Set("Cookie", p.cookie)
+		return
+	}
+	header.Set(cpconnect.SessionHeader, p.token)
+}
+
+func (p *gamer) markSeen(at time.Time, with credentials) error {
+	p.t.Helper()
+
+	req := connect.NewRequest(&chatv1.MarkSeenRequest{SeenUntilUnixMs: at.UnixMilli()})
+	p.sendOnly(req.Header(), with)
+	_, err := chatv1connect.NewChatServiceClient(http.DefaultClient, p.stack.baseURL).MarkSeen(p.t.Context(), req)
+	if err != nil {
+		return fmt.Errorf("MarkSeen failed: %w", err)
+	}
+	return nil
+}
+
+func (p *gamer) seenUntil(with credentials) int64 {
+	p.t.Helper()
+
+	req := connect.NewRequest(&chatv1.GetHistoryRequest{})
+	p.sendOnly(req.Header(), with)
+	res, err := chatv1connect.NewChatServiceClient(http.DefaultClient, p.stack.baseURL).GetHistory(p.t.Context(), req)
+	require.NoError(p.t, err)
+	return res.Msg.GetSeenUntilUnixMs()
+}
+
+func TestTheCookieAloneKeepsWhenThePlayerLastSawTheChat(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	earlier := time.Now().Add(-time.Hour).Truncate(time.Millisecond)
+
+	require.Zero(t, ada.seenUntil(cookieOnly), "nothing seen yet")
+	require.NoError(t, ada.markSeen(earlier, cookieOnly))
+
+	assert.Equal(t, earlier.UnixMilli(), ada.seenUntil(cookieOnly), "the click token lasts an hour, the cookie months")
+	assert.Equal(t, earlier.UnixMilli(), ada.seenUntil(tokenOnly), "one account, either way in")
+	assert.Zero(t, game.newPlayer(t).seenUntil(cookieOnly), "each account has its own mark")
+
+	require.NoError(t, ada.markSeen(earlier.Add(-time.Minute), cookieOnly))
+	assert.Equal(t, earlier.UnixMilli(), ada.seenUntil(cookieOnly), "a mark only moves forward")
+}
+
+func TestNoCookieAndNoTokenHasSeenNothingAndCannotMarkIt(t *testing.T) {
+	game := startGame(t)
+	nobody := &gamer{t: t, stack: game}
+
+	assert.Zero(t, nobody.seenUntil(cookieOnly))
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(nobody.markSeen(time.Now(), cookieOnly)))
+}
+
+func TestADeletedAccountLosesItsSeenMark(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	require.NoError(t, ada.markSeen(time.Now().Add(-time.Minute), cookieOnly))
+
+	deletion := connect.NewRequest(&authv1.DeleteAccountRequest{})
+	ada.send(deletion.Header())
+	_, err := authv1connect.NewAuthServiceClient(http.DefaultClient, game.baseURL).DeleteAccount(t.Context(), deletion)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool { return ada.seenUntil(tokenOnly) == 0 }, 5*time.Second, 20*time.Millisecond,
+		"the token still names the deleted account, and chat forgot it")
 }

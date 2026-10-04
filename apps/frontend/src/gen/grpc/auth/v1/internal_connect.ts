@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
+import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetCallerRequest, GetCallerResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -39,6 +39,17 @@ export const InternalService = {
       O: GetAccountsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Not NO_SIDE_EFFECTS: a GET would put the session cookie in the URL.
+     *
+     * @generated from rpc auth.v1.InternalService.GetCaller
+     */
+    getCaller: {
+      name: "GetCaller",
+      I: GetCallerRequest,
+      O: GetCallerResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

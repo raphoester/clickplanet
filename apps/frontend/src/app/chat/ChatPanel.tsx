@@ -2,10 +2,11 @@ import {ReactNode, useCallback, useEffect, useId, useRef, useState} from "react"
 import {ChatBackend, ChatMessage, OutgoingMessage} from "../../backends/chat.ts";
 import {PlayerLine, RosterEntry} from "../../backends/player.ts";
 import {Country} from "../../domain/countries.ts";
-import {idsSince, unreadSince} from "../../domain/chatLog.ts";
+import {idsAfter, idsSince, newestAt, unseenAfter} from "../../domain/chatLog.ts";
 import {ChevronIcon} from "../components/icons.tsx";
 import {opensFolded} from "../compact.ts";
 import {truncate} from "../truncate.ts";
+import {usePageVisible} from "../usePageVisible.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 import Sheet from "../hud/Sheet.tsx";
 import PlayersPanel from "../players/PlayersPanel.tsx";
@@ -16,6 +17,7 @@ import ChatLog from "./ChatLog.tsx";
 import {useChat} from "./useChat.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
 import {useChatSize} from "./useChatSize.ts";
+import {useSeenMark} from "./useSeenMark.ts";
 import "./ChatPanel.css"
 
 export type ChatPanelProps = {
@@ -52,7 +54,8 @@ export default function ChatPanel(props: ChatPanelProps) {
     const setOpen = useCallback((open: boolean) => onOpenChange ? onOpenChange(open) : setOwnOpen(open), [onOpenChange])
     const [view, setView] = useState<View>("chat")
     const players = props.players
-    const seeing = isOpen && (view === "chat" || !players)
+    const visible = usePageVisible()
+    const seeing = isOpen && (view === "chat" || !players) && visible
 
     const [unread, setUnread] = useState(0)
     const [toast, setToast] = useState<ChatMessage>()
@@ -62,12 +65,13 @@ export default function ChatPanel(props: ChatPanelProps) {
     const {startResize, resetSize} = useChatSize(panel)
 
     const {username} = props
-    const {messages, announcements, mine, displayName, status, failure, send, react} =
+    const {messages, announcements, mine, displayName, seenAtLoad, status, failure, send, react} =
         useChat({backend: props.backend, username})
     const identity = useChatIdentity()
+    const markSeen = useSeenMark(props.backend, seenAtLoad?.kept ? seenAtLoad.until : 0)
 
-    const lastSeen = useRef<string | undefined>(undefined)
-    const seenAnything = useRef(false)
+    const seenUntil = useRef<number | undefined>(undefined)
+    const toasted = useRef<string | undefined>(undefined)
     const fading = useRef<number[]>([])
     const lastHeard = useRef<string | undefined>(undefined)
     const heardAnything = useRef(false)
@@ -86,27 +90,37 @@ export default function ChatPanel(props: ChatPanelProps) {
     useEffect(() => () => fading.current.forEach(clearTimeout), [])
 
     useEffect(() => {
-        const last = messages[messages.length - 1]
-
-        if (!seenAnything.current) {
-            seenAnything.current = messages.length > 0
-            lastSeen.current = last?.id
-            setUnread(0)
-            return
+        if (!seenAtLoad) return
+        if (seenUntil.current === undefined) {
+            seenUntil.current = seenAtLoad.until
+            // So the next visit has a mark to count from, even if the chat is never opened in this one.
+            if (!seenAtLoad.kept) markSeen(seenAtLoad.until)
         }
 
         if (!seeing) {
-            const missed = unreadSince(messages, lastSeen.current)
-            setUnread(missed)
-            if (missed > 0 && last && !mine.has(last.id) && last.authorName !== displayName) setToast(last)
+            setUnread(unseenAfter(messages, announcements, seenUntil.current,
+                message => mine.has(message.id) || message.authorName === displayName))
             return
         }
 
-        flash(idsSince(messages, lastSeen.current).filter(id => !mine.has(id)))
-        lastSeen.current = last?.id
+        flash(idsAfter(messages, seenUntil.current).filter(id => !mine.has(id)))
+        const newest = newestAt(messages, announcements)
+        if (newest !== undefined && newest > seenUntil.current) {
+            seenUntil.current = newest
+            markSeen(newest)
+        }
         setUnread(0)
         setToast(undefined)
-    }, [messages, seeing, mine, displayName, flash])
+    }, [seenAtLoad, messages, announcements, seeing, mine, displayName, flash, markSeen])
+
+    useEffect(() => {
+        const last = messages[messages.length - 1]
+        if (seeing || !last || seenUntil.current === undefined || last.sentAt <= seenUntil.current) return
+        if (last.id === toasted.current || mine.has(last.id) || last.authorName === displayName) return
+
+        toasted.current = last.id
+        setToast(last)
+    }, [seenAtLoad, messages, seeing, mine, displayName])
 
     useEffect(() => {
         if (!toast) return

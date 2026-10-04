@@ -79,6 +79,16 @@ func TestGetHistoryMapsTheAnnouncements(t *testing.T) {
 	assert.JSONEq(t, `{"country":"fr"}`, announcement.GetPayload())
 }
 
+func TestGetHistorySaysWhenTheCallerLastSawTheChat(t *testing.T) {
+	at := time.Date(2026, 10, 4, 12, 0, 0, 123_000_000, time.UTC)
+
+	assert.Equal(t, at.UnixMilli(), getHistory(t, stubUseCase{SeenUntil: at}).Msg.GetSeenUntilUnixMs())
+}
+
+func TestGetHistoryWithNoMarkSaysZero(t *testing.T) {
+	assert.Zero(t, getHistory(t, stubUseCase{}).Msg.GetSeenUntilUnixMs())
+}
+
 func TestGetHistoryIsNeverCached(t *testing.T) {
 	assert.Equal(t, "no-store", getHistory(t, stubUseCase{}).Header().Get("Cache-Control"))
 }

@@ -21,6 +21,94 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GetCallerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cookie        string                 `protobuf:"bytes,1,opt,name=cookie,proto3" json:"cookie,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCallerRequest) Reset() {
+	*x = GetCallerRequest{}
+	mi := &file_auth_v1_internal_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCallerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCallerRequest) ProtoMessage() {}
+
+func (x *GetCallerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_internal_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCallerRequest.ProtoReflect.Descriptor instead.
+func (*GetCallerRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *GetCallerRequest) GetCookie() string {
+	if x != nil {
+		return x.Cookie
+	}
+	return ""
+}
+
+type GetCallerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCallerResponse) Reset() {
+	*x = GetCallerResponse{}
+	mi := &file_auth_v1_internal_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCallerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCallerResponse) ProtoMessage() {}
+
+func (x *GetCallerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_internal_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCallerResponse.ProtoReflect.Descriptor instead.
+func (*GetCallerResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GetCallerResponse) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
 type GetVerifyingKeyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -29,7 +117,7 @@ type GetVerifyingKeyRequest struct {
 
 func (x *GetVerifyingKeyRequest) Reset() {
 	*x = GetVerifyingKeyRequest{}
-	mi := &file_auth_v1_internal_proto_msgTypes[0]
+	mi := &file_auth_v1_internal_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41,7 +129,7 @@ func (x *GetVerifyingKeyRequest) String() string {
 func (*GetVerifyingKeyRequest) ProtoMessage() {}
 
 func (x *GetVerifyingKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[0]
+	mi := &file_auth_v1_internal_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,7 +142,7 @@ func (x *GetVerifyingKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVerifyingKeyRequest.ProtoReflect.Descriptor instead.
 func (*GetVerifyingKeyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{0}
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{2}
 }
 
 type GetVerifyingKeyResponse struct {
@@ -66,7 +154,7 @@ type GetVerifyingKeyResponse struct {
 
 func (x *GetVerifyingKeyResponse) Reset() {
 	*x = GetVerifyingKeyResponse{}
-	mi := &file_auth_v1_internal_proto_msgTypes[1]
+	mi := &file_auth_v1_internal_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -78,7 +166,7 @@ func (x *GetVerifyingKeyResponse) String() string {
 func (*GetVerifyingKeyResponse) ProtoMessage() {}
 
 func (x *GetVerifyingKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[1]
+	mi := &file_auth_v1_internal_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -91,7 +179,7 @@ func (x *GetVerifyingKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVerifyingKeyResponse.ProtoReflect.Descriptor instead.
 func (*GetVerifyingKeyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{1}
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetVerifyingKeyResponse) GetPublicKey() string {
@@ -110,7 +198,7 @@ type GetAccountRequest struct {
 
 func (x *GetAccountRequest) Reset() {
 	*x = GetAccountRequest{}
-	mi := &file_auth_v1_internal_proto_msgTypes[2]
+	mi := &file_auth_v1_internal_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -122,7 +210,7 @@ func (x *GetAccountRequest) String() string {
 func (*GetAccountRequest) ProtoMessage() {}
 
 func (x *GetAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[2]
+	mi := &file_auth_v1_internal_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -135,7 +223,7 @@ func (x *GetAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAccountRequest.ProtoReflect.Descriptor instead.
 func (*GetAccountRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{2}
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetAccountRequest) GetAccountId() string {
@@ -155,7 +243,7 @@ type GetAccountResponse struct {
 
 func (x *GetAccountResponse) Reset() {
 	*x = GetAccountResponse{}
-	mi := &file_auth_v1_internal_proto_msgTypes[3]
+	mi := &file_auth_v1_internal_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -167,7 +255,7 @@ func (x *GetAccountResponse) String() string {
 func (*GetAccountResponse) ProtoMessage() {}
 
 func (x *GetAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[3]
+	mi := &file_auth_v1_internal_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -180,7 +268,7 @@ func (x *GetAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAccountResponse.ProtoReflect.Descriptor instead.
 func (*GetAccountResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{3}
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetAccountResponse) GetLinked() bool {
@@ -206,7 +294,7 @@ type GetAccountsRequest struct {
 
 func (x *GetAccountsRequest) Reset() {
 	*x = GetAccountsRequest{}
-	mi := &file_auth_v1_internal_proto_msgTypes[4]
+	mi := &file_auth_v1_internal_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -218,7 +306,7 @@ func (x *GetAccountsRequest) String() string {
 func (*GetAccountsRequest) ProtoMessage() {}
 
 func (x *GetAccountsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[4]
+	mi := &file_auth_v1_internal_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -231,7 +319,7 @@ func (x *GetAccountsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAccountsRequest.ProtoReflect.Descriptor instead.
 func (*GetAccountsRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{4}
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetAccountsRequest) GetAccountIds() []string {
@@ -250,7 +338,7 @@ type GetAccountsResponse struct {
 
 func (x *GetAccountsResponse) Reset() {
 	*x = GetAccountsResponse{}
-	mi := &file_auth_v1_internal_proto_msgTypes[5]
+	mi := &file_auth_v1_internal_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -262,7 +350,7 @@ func (x *GetAccountsResponse) String() string {
 func (*GetAccountsResponse) ProtoMessage() {}
 
 func (x *GetAccountsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[5]
+	mi := &file_auth_v1_internal_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -275,7 +363,7 @@ func (x *GetAccountsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAccountsResponse.ProtoReflect.Descriptor instead.
 func (*GetAccountsResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{5}
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetAccountsResponse) GetAccounts() []*Account {
@@ -296,7 +384,7 @@ type Account struct {
 
 func (x *Account) Reset() {
 	*x = Account{}
-	mi := &file_auth_v1_internal_proto_msgTypes[6]
+	mi := &file_auth_v1_internal_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -308,7 +396,7 @@ func (x *Account) String() string {
 func (*Account) ProtoMessage() {}
 
 func (x *Account) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_internal_proto_msgTypes[6]
+	mi := &file_auth_v1_internal_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -321,7 +409,7 @@ func (x *Account) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Account.ProtoReflect.Descriptor instead.
 func (*Account) Descriptor() ([]byte, []int) {
-	return file_auth_v1_internal_proto_rawDescGZIP(), []int{6}
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Account) GetAccountId() string {
@@ -349,7 +437,12 @@ var File_auth_v1_internal_proto protoreflect.FileDescriptor
 
 const file_auth_v1_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x16auth/v1/internal.proto\x12\aauth.v1\"\x18\n" +
+	"\x16auth/v1/internal.proto\x12\aauth.v1\"*\n" +
+	"\x10GetCallerRequest\x12\x16\n" +
+	"\x06cookie\x18\x01 \x01(\tR\x06cookie\"2\n" +
+	"\x11GetCallerResponse\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"\x18\n" +
 	"\x16GetVerifyingKeyRequest\"8\n" +
 	"\x17GetVerifyingKeyResponse\x12\x1d\n" +
 	"\n" +
@@ -369,12 +462,13 @@ const file_auth_v1_internal_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x16\n" +
 	"\x06linked\x18\x02 \x01(\bR\x06linked\x12+\n" +
-	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs2\xfd\x01\n" +
+	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs2\xc1\x02\n" +
 	"\x0fInternalService\x12T\n" +
 	"\x0fGetVerifyingKey\x12\x1f.auth.v1.GetVerifyingKeyRequest\x1a .auth.v1.GetVerifyingKeyResponse\x12E\n" +
 	"\n" +
 	"GetAccount\x12\x1a.auth.v1.GetAccountRequest\x1a\x1b.auth.v1.GetAccountResponse\x12M\n" +
-	"\vGetAccounts\x12\x1b.auth.v1.GetAccountsRequest\x1a\x1c.auth.v1.GetAccountsResponse\"\x03\x90\x02\x01B\xa7\x01\n" +
+	"\vGetAccounts\x12\x1b.auth.v1.GetAccountsRequest\x1a\x1c.auth.v1.GetAccountsResponse\"\x03\x90\x02\x01\x12B\n" +
+	"\tGetCaller\x12\x19.auth.v1.GetCallerRequest\x1a\x1a.auth.v1.GetCallerResponseB\xa7\x01\n" +
 	"\vcom.auth.v1B\rInternalProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
 
 var (
@@ -389,26 +483,30 @@ func file_auth_v1_internal_proto_rawDescGZIP() []byte {
 	return file_auth_v1_internal_proto_rawDescData
 }
 
-var file_auth_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_auth_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_auth_v1_internal_proto_goTypes = []any{
-	(*GetVerifyingKeyRequest)(nil),  // 0: auth.v1.GetVerifyingKeyRequest
-	(*GetVerifyingKeyResponse)(nil), // 1: auth.v1.GetVerifyingKeyResponse
-	(*GetAccountRequest)(nil),       // 2: auth.v1.GetAccountRequest
-	(*GetAccountResponse)(nil),      // 3: auth.v1.GetAccountResponse
-	(*GetAccountsRequest)(nil),      // 4: auth.v1.GetAccountsRequest
-	(*GetAccountsResponse)(nil),     // 5: auth.v1.GetAccountsResponse
-	(*Account)(nil),                 // 6: auth.v1.Account
+	(*GetCallerRequest)(nil),        // 0: auth.v1.GetCallerRequest
+	(*GetCallerResponse)(nil),       // 1: auth.v1.GetCallerResponse
+	(*GetVerifyingKeyRequest)(nil),  // 2: auth.v1.GetVerifyingKeyRequest
+	(*GetVerifyingKeyResponse)(nil), // 3: auth.v1.GetVerifyingKeyResponse
+	(*GetAccountRequest)(nil),       // 4: auth.v1.GetAccountRequest
+	(*GetAccountResponse)(nil),      // 5: auth.v1.GetAccountResponse
+	(*GetAccountsRequest)(nil),      // 6: auth.v1.GetAccountsRequest
+	(*GetAccountsResponse)(nil),     // 7: auth.v1.GetAccountsResponse
+	(*Account)(nil),                 // 8: auth.v1.Account
 }
 var file_auth_v1_internal_proto_depIdxs = []int32{
-	6, // 0: auth.v1.GetAccountsResponse.accounts:type_name -> auth.v1.Account
-	0, // 1: auth.v1.InternalService.GetVerifyingKey:input_type -> auth.v1.GetVerifyingKeyRequest
-	2, // 2: auth.v1.InternalService.GetAccount:input_type -> auth.v1.GetAccountRequest
-	4, // 3: auth.v1.InternalService.GetAccounts:input_type -> auth.v1.GetAccountsRequest
-	1, // 4: auth.v1.InternalService.GetVerifyingKey:output_type -> auth.v1.GetVerifyingKeyResponse
-	3, // 5: auth.v1.InternalService.GetAccount:output_type -> auth.v1.GetAccountResponse
-	5, // 6: auth.v1.InternalService.GetAccounts:output_type -> auth.v1.GetAccountsResponse
-	4, // [4:7] is the sub-list for method output_type
-	1, // [1:4] is the sub-list for method input_type
+	8, // 0: auth.v1.GetAccountsResponse.accounts:type_name -> auth.v1.Account
+	2, // 1: auth.v1.InternalService.GetVerifyingKey:input_type -> auth.v1.GetVerifyingKeyRequest
+	4, // 2: auth.v1.InternalService.GetAccount:input_type -> auth.v1.GetAccountRequest
+	6, // 3: auth.v1.InternalService.GetAccounts:input_type -> auth.v1.GetAccountsRequest
+	0, // 4: auth.v1.InternalService.GetCaller:input_type -> auth.v1.GetCallerRequest
+	3, // 5: auth.v1.InternalService.GetVerifyingKey:output_type -> auth.v1.GetVerifyingKeyResponse
+	5, // 6: auth.v1.InternalService.GetAccount:output_type -> auth.v1.GetAccountResponse
+	7, // 7: auth.v1.InternalService.GetAccounts:output_type -> auth.v1.GetAccountsResponse
+	1, // 8: auth.v1.InternalService.GetCaller:output_type -> auth.v1.GetCallerResponse
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -425,7 +523,7 @@ func file_auth_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_internal_proto_rawDesc), len(file_auth_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

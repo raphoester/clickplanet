@@ -23,6 +23,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/delete_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/get_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/get_accounts_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/get_caller_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/get_me_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase/log_prune_guests"
@@ -40,6 +41,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/delete_account_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_account_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_caller_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_sign_in_options_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
@@ -223,6 +225,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 		GetVerifyingKeyHandler: get_verifying_key_handler.New(signer),
 		GetAccountHandler:      get_account_handler.New(get_account_usecase.New(store)),
 		GetAccountsHandler:     get_accounts_handler.New(get_accounts_usecase.New(store)),
+		GetCallerHandler:       get_caller_handler.New(get_caller_usecase.New(store, clock)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewInternalServiceHandler(internalService, options...)

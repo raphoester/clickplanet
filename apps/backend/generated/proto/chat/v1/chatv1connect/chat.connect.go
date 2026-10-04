@@ -42,6 +42,8 @@ const (
 	ChatServiceListenForEventsProcedure = "/chat.v1.ChatService/ListenForEvents"
 	// ChatServiceReactProcedure is the fully-qualified name of the ChatService's React RPC.
 	ChatServiceReactProcedure = "/chat.v1.ChatService/React"
+	// ChatServiceMarkSeenProcedure is the fully-qualified name of the ChatService's MarkSeen RPC.
+	ChatServiceMarkSeenProcedure = "/chat.v1.ChatService/MarkSeen"
 )
 
 // ChatServiceClient is a client for the chat.v1.ChatService service.
@@ -50,6 +52,7 @@ type ChatServiceClient interface {
 	GetHistory(context.Context, *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.ChatEvent], error)
 	React(context.Context, *connect.Request[v1.ReactRequest]) (*connect.Response[v1.ReactResponse], error)
+	MarkSeen(context.Context, *connect.Request[v1.MarkSeenRequest]) (*connect.Response[v1.MarkSeenResponse], error)
 }
 
 // NewChatServiceClient constructs a client for the chat.v1.ChatService service. By default, it uses
@@ -88,6 +91,12 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceMethods.ByName("React")),
 			connect.WithClientOptions(opts...),
 		),
+		markSeen: connect.NewClient[v1.MarkSeenRequest, v1.MarkSeenResponse](
+			httpClient,
+			baseURL+ChatServiceMarkSeenProcedure,
+			connect.WithSchema(chatServiceMethods.ByName("MarkSeen")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -97,6 +106,7 @@ type chatServiceClient struct {
 	getHistory      *connect.Client[v1.GetHistoryRequest, v1.GetHistoryResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.ChatEvent]
 	react           *connect.Client[v1.ReactRequest, v1.ReactResponse]
+	markSeen        *connect.Client[v1.MarkSeenRequest, v1.MarkSeenResponse]
 }
 
 // SendMessage calls chat.v1.ChatService.SendMessage.
@@ -119,12 +129,18 @@ func (c *chatServiceClient) React(ctx context.Context, req *connect.Request[v1.R
 	return c.react.CallUnary(ctx, req)
 }
 
+// MarkSeen calls chat.v1.ChatService.MarkSeen.
+func (c *chatServiceClient) MarkSeen(ctx context.Context, req *connect.Request[v1.MarkSeenRequest]) (*connect.Response[v1.MarkSeenResponse], error) {
+	return c.markSeen.CallUnary(ctx, req)
+}
+
 // ChatServiceHandler is an implementation of the chat.v1.ChatService service.
 type ChatServiceHandler interface {
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	GetHistory(context.Context, *connect.Request[v1.GetHistoryRequest]) (*connect.Response[v1.GetHistoryResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.ChatEvent]) error
 	React(context.Context, *connect.Request[v1.ReactRequest]) (*connect.Response[v1.ReactResponse], error)
+	MarkSeen(context.Context, *connect.Request[v1.MarkSeenRequest]) (*connect.Response[v1.MarkSeenResponse], error)
 }
 
 // NewChatServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -159,6 +175,12 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceMethods.ByName("React")),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceMarkSeenHandler := connect.NewUnaryHandler(
+		ChatServiceMarkSeenProcedure,
+		svc.MarkSeen,
+		connect.WithSchema(chatServiceMethods.ByName("MarkSeen")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chat.v1.ChatService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ChatServiceSendMessageProcedure:
@@ -169,6 +191,8 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceListenForEventsHandler.ServeHTTP(w, r)
 		case ChatServiceReactProcedure:
 			chatServiceReactHandler.ServeHTTP(w, r)
+		case ChatServiceMarkSeenProcedure:
+			chatServiceMarkSeenHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -192,4 +216,8 @@ func (UnimplementedChatServiceHandler) ListenForEvents(context.Context, *connect
 
 func (UnimplementedChatServiceHandler) React(context.Context, *connect.Request[v1.ReactRequest]) (*connect.Response[v1.ReactResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.ChatService.React is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) MarkSeen(context.Context, *connect.Request[v1.MarkSeenRequest]) (*connect.Response[v1.MarkSeenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.ChatService.MarkSeen is not implemented"))
 }

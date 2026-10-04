@@ -37,13 +37,14 @@ const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMess
     reactionsVersion: 0,
 })
 
-function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncement[] = []) {
+function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncement[] = [], seenUntil?: number) {
     const listeners: ((message: ChatMessage) => void)[] = []
     const reactionListeners: ((change: ReactionsChange) => void)[] = []
     const announcementListeners: ((announcement: ChatAnnouncement) => void)[] = []
 
     const backend = {
-        getHistory: vi.fn().mockResolvedValue({messages: history, announcements}),
+        getHistory: vi.fn().mockResolvedValue({messages: history, announcements, seenUntil}),
+        markSeen: vi.fn().mockResolvedValue(undefined),
         listenForMessages: vi.fn((
             callback: (message: ChatMessage) => void,
             onReactions?: (change: ReactionsChange) => void,
@@ -587,6 +588,135 @@ describe("ChatPanel", () => {
 
             expect(await screen.findByLabelText("1 new message")).toBeDefined()
         })
+    })
+})
+
+describe("ChatPanel's seen mark", () => {
+    const T = 1_700_000_000_000
+    const bomb = (id: string, announcedAt: number): ChatAnnouncement =>
+        ({kind: "bomb", id, announcedAt, country: "de", cleared: 3})
+
+    afterEach(() => {
+        vi.useRealTimers()
+        vi.unstubAllGlobals()
+    })
+
+    describe("folded", () => {
+        beforeEach(() => vi.stubGlobal("matchMedia", () => ({matches: true})))
+
+        it("counts every line said since the last visit, bombs too", async () => {
+            const {backend} = stubBackend(
+                [message("a", "seen last time", T), message("b", "said while away", T + 2_000)],
+                [bomb("x", T + 1_000)],
+                T)
+            setup(backend)
+
+            expect(await screen.findByLabelText("2 new messages")).toBeDefined()
+        })
+
+        it("does not count what the player said itself on another visit", async () => {
+            const {backend} = stubBackend([message("a", "mine, from my phone", T + 1_000)], [], T)
+            setup(backend, "Ana")
+            await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
+
+            expect(screen.queryByLabelText(/new message/)).toBeNull()
+        })
+
+        it("counts nothing on a first visit, and keeps a mark for the next one", async () => {
+            vi.useFakeTimers({shouldAdvanceTime: true})
+            const {backend} = stubBackend([message("a", "before you came", T)])
+            setup(backend)
+            await act(async () => {
+            })
+
+            await act(async () => void vi.advanceTimersByTime(2_000))
+
+            expect(screen.queryByLabelText(/new message/)).toBeNull()
+            expect(backend.markSeen).toHaveBeenCalledWith(T)
+        })
+
+        it("marks nothing while it stays closed", async () => {
+            vi.useFakeTimers({shouldAdvanceTime: true})
+            const {backend, broadcast} = stubBackend([message("a", "seen last time", T)], [], T)
+            setup(backend)
+            await screen.findByLabelText("Live chat")
+
+            broadcast(message("b", "while closed", T + 1_000))
+            await screen.findByLabelText("1 new message")
+            await act(async () => void vi.advanceTimersByTime(5_000))
+
+            expect(backend.markSeen).not.toHaveBeenCalled()
+        })
+
+        it("highlights what was missed since the last visit once it is opened, then marks it seen", async () => {
+            vi.useFakeTimers({shouldAdvanceTime: true})
+            const {backend} = stubBackend([message("a", "seen last time", T), message("b", "said while away", T + 1_000)], [], T)
+            const {user} = setup(backend)
+            await screen.findByLabelText("1 new message")
+
+            await user.click(screen.getByRole("button", {name: /Chat/}))
+
+            await vi.waitFor(() => expect(item("said while away").className).toContain("chat-message-new"))
+            expect(item("seen last time").className).not.toContain("chat-message-new")
+            await act(async () => void vi.advanceTimersByTime(2_000))
+            expect(backend.markSeen).toHaveBeenLastCalledWith(T + 1_000)
+        })
+    })
+
+    it("marks what lands while it is open, a bomb too, once things settle", async () => {
+        vi.useFakeTimers({shouldAdvanceTime: true})
+        const {backend, broadcast, announce} = stubBackend([message("a", "seen last time", T)], [], T)
+        setup(backend)
+        await vi.waitFor(() => item("seen last time"))
+
+        broadcast(message("b", "one", T + 1_000))
+        announce(bomb("x", T + 2_000))
+        await vi.waitFor(() => item("one"))
+        expect(backend.markSeen).not.toHaveBeenCalled()
+
+        await act(async () => void vi.advanceTimersByTime(2_000))
+
+        expect(backend.markSeen).toHaveBeenCalledTimes(1)
+        expect(backend.markSeen).toHaveBeenCalledWith(T + 2_000)
+    })
+
+    it("keeps the mark at once when the page goes away", async () => {
+        const {backend, broadcast} = stubBackend([message("a", "seen last time", T)], [], T)
+        setup(backend)
+        await screen.findByText("seen last time")
+
+        broadcast(message("b", "just now", T + 1_000))
+        await screen.findByText("just now")
+        window.dispatchEvent(new Event("pagehide"))
+
+        expect(backend.markSeen).toHaveBeenCalledWith(T + 1_000)
+    })
+
+    it("does not count a hidden page as seeing, even open", async () => {
+        const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(true)
+        try {
+            const {backend, broadcast} = stubBackend([message("a", "seen last time", T)], [], T)
+            const onUnread = vi.fn()
+            render(<ChatPanel backend={backend} country={france} onUnread={onUnread}/>)
+            await screen.findByText("seen last time")
+
+            broadcast(message("b", "while you were away", T + 1_000))
+
+            await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(1))
+            hidden.mockReturnValue(false)
+            act(() => void document.dispatchEvent(new Event("visibilitychange")))
+            await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(0))
+        } finally {
+            hidden.mockRestore()
+        }
+    })
+
+    it("tells a phone's tab what was missed since the last visit", async () => {
+        const {backend} = stubBackend([message("a", "said while away", T + 1_000)], [bomb("x", T + 2_000)], T)
+        const onUnread = vi.fn()
+        render(<ChatPanel backend={backend} country={france} compact open={false} onUnread={onUnread}/>)
+
+        await waitFor(() => expect(onUnread).toHaveBeenLastCalledWith(2))
     })
 })
 

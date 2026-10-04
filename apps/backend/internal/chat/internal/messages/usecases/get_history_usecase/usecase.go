@@ -37,6 +37,7 @@ type Entry struct {
 type History struct {
 	Messages      []Entry
 	Announcements []announcements.Announcement
+	SeenUntil     time.Time
 }
 
 func New(
