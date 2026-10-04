@@ -24,15 +24,15 @@ import {Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 
 const outgoing = {authorId: "author-1", countryCode: "fr", text: "hello"}
 
-const session = (): SessionProvider => ({token: vi.fn(async () => "token-1"), held: vi.fn(() => "token-1"), invalidate: vi.fn()})
+const session = (): SessionProvider => ({token: vi.fn(async () => "token-1"), held: vi.fn(() => "token-1"), identity: vi.fn(async () => "token-1"), heldIdentity: vi.fn(() => "token-1"), invalidate: vi.fn()})
 
-const unheld = (): SessionProvider => ({token: vi.fn(async () => "minted"), held: vi.fn(() => undefined), invalidate: vi.fn()})
+const unheld = (): SessionProvider => ({token: vi.fn(async () => "minted"), held: vi.fn(() => undefined), identity: vi.fn(async () => undefined), heldIdentity: vi.fn(() => undefined), invalidate: vi.fn()})
 
 const noMint = (): SessionProvider => ({
     token: vi.fn(async () => {
         throw new Error("no mint")
     }),
-    held: vi.fn(() => undefined),
+    held: vi.fn(() => undefined), identity: vi.fn(async () => undefined), heldIdentity: vi.fn(() => undefined),
     invalidate: vi.fn(),
 })
 
@@ -307,6 +307,23 @@ describe("ChatServiceBackend.sendMessage", () => {
 })
 
 describe("ChatServiceBackend.getHistory", () => {
+    it("reads as the identity the cookie resumes when no click token is held, and never mints", async () => {
+        const getHistory = vi.fn().mockResolvedValue({messages: [], announcements: []})
+        const client = {getHistory} as unknown as PromiseClient<typeof ChatService>
+        const provider: SessionProvider = {
+            token: vi.fn(async () => "minted"),
+            held: vi.fn(() => undefined),
+            identity: vi.fn(async () => "identity-1"),
+            heldIdentity: vi.fn(() => undefined),
+            invalidate: vi.fn(),
+        }
+
+        await new ChatServiceBackend(client, provider).getHistory()
+
+        expect((getHistory.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("identity-1")
+        expect(provider.token).not.toHaveBeenCalled()
+    })
+
     it("sends the token it holds, and never mints one", async () => {
         const getHistory = vi.fn().mockResolvedValue({messages: [], announcements: []})
         const client = {getHistory} as unknown as PromiseClient<typeof ChatService>

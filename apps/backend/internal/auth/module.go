@@ -23,6 +23,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/delete_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/prune_guests_usecase/log_prune_guests"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/resume_session_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_everywhere_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/uuid_id_provider"
@@ -43,6 +44,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler/me_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_sign_in_options_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/resume_session_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_everywhere_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_email_sign_in_handler"
@@ -162,6 +164,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 	mintLimiter := cpratelimit.New("mint-limiter", config.RateLimiter, clock)
 	props.Runners.Add(mintLimiter)
 
+	resumeLimiter := cpratelimit.New("resume-limiter", config.ResumeLimiter, clock)
+	props.Runners.Add(resumeLimiter)
+
 	seed, err := hex.DecodeString(config.Secret)
 	if err != nil {
 		return fmt.Errorf("failed to read auth.secret: %w", err)
@@ -184,12 +189,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 	challenges := signin.NewChallenges(config.Email.Enabled, random_secret_generator.Generator{}, mail.codes, sealer, attemptLimiter)
 	post := signin.NewPost(blocklist, sendLimiter, mail.mailer)
 
+	resumer := accounts.NewResumer(store, config.Sessions)
+	guests := accounts.NewGuests(store, uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions)
+
 	authService := authv1controller.AuthService{
 		CreateSessionHandler: create_session_handler.New(
-			create_session_usecase.New(attester, store, uuid_id_provider.Provider{}, random_token_generator.Generator{},
-				signer, config.Sessions, clock),
+			create_session_usecase.New(attester, resumer, guests, signer, clock),
 			props.Logger,
 		),
+		ResumeSessionHandler:    resume_session_handler.New(resume_session_usecase.New(resumer, signer, clock)),
 		GetMeHandler:            get_me_handler.New(me_query.NewPostgresQuery(db, clock)),
 		GetSignInOptionsHandler: get_sign_in_options_handler.New(signin.NewOffer(providers, config.Email.Enabled)),
 		StartSignInHandler: start_sign_in_handler.New(
@@ -215,7 +223,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 		log_prune_guests.New(prune_guests_usecase.New(config.Prune, store, props.Events, clock), props.Logger)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewAuthServiceHandler(authService, options...)
-	}, authv1controller.NewRateLimitInterceptor(mintLimiter)); err != nil {
+	}, authv1controller.NewRateLimitInterceptor(mintLimiter),
+		authv1controller.NewResumeRateLimitInterceptor(resumeLimiter)); err != nil {
 		return fmt.Errorf("failed to mount auth.v1: %w", err)
 	}
 
@@ -272,6 +281,8 @@ type Config struct {
 	cpsession.SignerConfig `koanf:",squash"`
 
 	RateLimiter cpratelimit.Config
+
+	ResumeLimiter cpratelimit.Config
 
 	Turnstile turnstile.Config
 

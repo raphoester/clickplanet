@@ -282,6 +282,9 @@ auth:
     perSecond: 0.033
     burst: 10
     sweepInterval: 1m
+  resumeLimiter:
+    perSecond: 1
+    burst: 10
   turnstile:
     enabled: false
     secret: ""

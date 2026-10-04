@@ -38,7 +38,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (*cpsession.Token, error) 
 		return nil, fmt.Errorf("%w: %w", attestation.ErrAttestationFailed, err)
 	}
 
-	token, err := u.minter.Mint(in.IP, cpsession.Nobody, u.clock.Now())
+	token, err := u.minter.Mint(in.IP, cpsession.Holder{Account: cpsession.NoAccount, Attested: true}, u.clock.Now())
 	if err != nil {
 		return nil, fmt.Errorf("failed to mint the click token: %w", err)
 	}

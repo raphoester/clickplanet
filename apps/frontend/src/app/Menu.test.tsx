@@ -352,7 +352,7 @@ describe("Menu", () => {
                 titles: vi.fn(async (): Promise<TitleDashboard> => ({wearable: [], tracks: []})),
                 wearTitle: vi.fn(async (): Promise<PlayerTitle | undefined> => undefined),
             } satisfies PlayerBackend
-            const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
+            const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                                       account={store} linkedMultiplier={linkedMultiplier} playerInfo={playerInfo}/>)
             const user = userEvent.setup()

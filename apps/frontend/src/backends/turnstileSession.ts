@@ -17,9 +17,11 @@ export type Attester = () => Promise<string>
 
 const REFRESH_MARGIN_MS = 60_000
 
+// identity: from ResumeSession, which names the account and proves no Turnstile check. Absent, a click token.
 export type HeldSession = {
     value: string
     expiresAt: number
+    identity?: true
 }
 
 export type TokenStore = {
@@ -43,8 +45,9 @@ export type SessionClientOptions = {
 }
 
 export class SessionClient implements SessionProvider {
-    private current?: {value: string, expiresAt: number}
+    private current?: HeldSession
     private pending?: Promise<string>
+    private resuming?: Promise<string | undefined>
     private generation = 0
 
     private readonly refreshMarginMs: number
@@ -68,20 +71,60 @@ export class SessionClient implements SessionProvider {
         return this.held() ?? this.mint()
     }
 
+    // Never the identity token: what acts sends this, and the server refuses it one.
     public held(): string | undefined {
-        const current = this.current
-        if (current && this.now() < current.expiresAt - this.refreshMarginMs) {
-            return current.value
-        }
+        const current = this.fresh()
+        return current && !current.identity ? current.value : undefined
+    }
 
-        return undefined
+    public async identity(): Promise<string | undefined> {
+        return this.heldIdentity() ?? this.resume()
+    }
+
+    public heldIdentity(): string | undefined {
+        return this.fresh()?.value
     }
 
     public invalidate(): void {
         this.current = undefined
         this.pending = undefined
+        this.resuming = undefined
         this.generation++
         this.store.clear()
+    }
+
+    private fresh(): HeldSession | undefined {
+        const current = this.current
+        return current && this.now() < current.expiresAt - this.refreshMarginMs ? current : undefined
+    }
+
+    private resume(): Promise<string | undefined> {
+        if (this.resuming) return this.resuming
+
+        const resuming = this.resumeSession(this.generation).finally(() => {
+            if (this.resuming === resuming) this.resuming = undefined
+        })
+        this.resuming = resuming
+
+        return resuming
+    }
+
+    private async resumeSession(generation: number): Promise<string | undefined> {
+        try {
+            const res = await this.client.resumeSession({})
+            if (!res.token) return undefined
+
+            // A click token minted meanwhile names the same account and proves more: it stays.
+            if (generation === this.generation && !this.fresh()) {
+                this.current = {value: res.token, expiresAt: Number(res.expiresAtUnixMs), identity: true}
+                this.store.write(this.current)
+            }
+
+            return res.token
+        } catch (e) {
+            console.error("The session could not be resumed", e)
+            return undefined
+        }
     }
 
     private mint(): Promise<string> {
@@ -131,7 +174,9 @@ export function localTokenStore(): TokenStore {
                 const held = JSON.parse(kept) as Partial<HeldSession>
                 if (typeof held.value !== "string" || typeof held.expiresAt !== "number") return undefined
 
-                return {value: held.value, expiresAt: held.expiresAt}
+                return held.identity === true
+                    ? {value: held.value, expiresAt: held.expiresAt, identity: true}
+                    : {value: held.value, expiresAt: held.expiresAt}
             } catch {
                 return undefined
             }
