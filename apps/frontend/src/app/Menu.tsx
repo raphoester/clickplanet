@@ -20,6 +20,7 @@ import {PlayerInfoBackend} from "../backends/player.ts";
 import {youLabel} from "./youLabel.ts"
 import {DISCORD_INVITE} from "../links.ts"
 import BoardViews, {BoardStandings} from "./standings/BoardViews.tsx"
+import {ListenForClicks} from "./viewer/acceptedClicks.ts"
 import "./Menu.css"
 
 export type MenuTab = "board" | "you" | "more"
@@ -39,6 +40,7 @@ export type YouPlaceProps = {
     account?: AccountStore,
     linkedMultiplier?: number,
     playerInfo?: PlayerInfoBackend,
+    listenForClicks?: ListenForClicks,
 }
 
 export type MorePlaceProps = {
@@ -195,7 +197,7 @@ export function BoardPlace(props: BoardPlaceProps & {playing: boolean}) {
     </>
 }
 
-export function YouPlace({account: store, linkedMultiplier, playerInfo}: YouPlaceProps) {
+export function YouPlace({account: store, linkedMultiplier, playerInfo, listenForClicks}: YouPlaceProps) {
     const account = useAccount(store)
     const [confirmingDelete, setConfirmingDelete] = useState(false)
 
@@ -211,6 +213,7 @@ export function YouPlace({account: store, linkedMultiplier, playerInfo}: YouPlac
                       store={store}
                       linkedMultiplier={linkedMultiplier}
                       playerInfo={playerInfo}
+                      listenForClicks={listenForClicks}
                       onDelete={() => setConfirmingDelete(true)}/>
 
         {confirmingDelete && <DeleteAccountModal

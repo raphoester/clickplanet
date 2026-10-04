@@ -41,7 +41,14 @@
     padding-right: var(--space-2);
 }
 
-.standings-player .standings-flag {
+.standings-who {
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
+}
+
+.standings-flag {
+    flex: none;
     margin-right: 0.35em;
 }
 
@@ -50,6 +57,10 @@
 }
 
 .standings-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-family: var(--font-text);
     font-weight: 700;
     font-size: var(--text-l);

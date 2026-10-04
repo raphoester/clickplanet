@@ -1,4 +1,4 @@
-import {KeyboardEvent, ReactNode, useEffect, useId, useRef, useState} from "react"
+import {KeyboardEvent, ReactNode, useEffect, useId, useLayoutEffect, useRef, useState} from "react"
 import {ChevronIcon} from "./icons.tsx"
 import "./HeadingSelect.css"
 
@@ -7,6 +7,10 @@ export type HeadingChoice<T extends string> = {
     name: string
     label: ReactNode
 }
+
+const EDGE = 8
+
+type Place = {top: number, left: number}
 
 type HeadingSelectProps<T extends string> = {
     label: string
@@ -18,6 +22,7 @@ type HeadingSelectProps<T extends string> = {
 export default function HeadingSelect<T extends string>({label, choices, value, onChange}: HeadingSelectProps<T>) {
     const [open, setOpen] = useState(false)
     const [active, setActive] = useState(value)
+    const [place, setPlace] = useState<Place>()
     const id = useId()
     const root = useRef<HTMLDivElement>(null)
     const button = useRef<HTMLButtonElement>(null)
@@ -26,14 +31,36 @@ export default function HeadingSelect<T extends string>({label, choices, value, 
     const current = choices.find((choice) => choice.value === value) ?? choices[0]
     const activeIndex = Math.max(choices.findIndex((choice) => choice.value === active), 0)
 
+    useLayoutEffect(() => {
+        if (!open) return
+        let frame = 0
+        const follow = () => {
+            const next = placeOf(button.current, list.current)
+            setPlace((current) => next && (next.top !== current?.top || next.left !== current?.left) ? next : current)
+            frame = requestAnimationFrame(follow)
+        }
+        follow()
+        return () => cancelAnimationFrame(frame)
+    }, [open])
+
     useEffect(() => {
         if (!open) return
-        list.current?.focus()
+        list.current?.focus({preventScroll: true})
         const away = (event: PointerEvent) => {
             if (!root.current?.contains(event.target as Node)) setOpen(false)
         }
+        const moved = (event: Event) => {
+            if (event.target instanceof Node && event.target.contains(root.current)) setOpen(false)
+        }
+        const resized = () => setOpen(false)
         document.addEventListener("pointerdown", away)
-        return () => document.removeEventListener("pointerdown", away)
+        document.addEventListener("scroll", moved, true)
+        window.addEventListener("resize", resized)
+        return () => {
+            document.removeEventListener("pointerdown", away)
+            document.removeEventListener("scroll", moved, true)
+            window.removeEventListener("resize", resized)
+        }
     }, [open])
 
     const show = () => {
@@ -43,7 +70,7 @@ export default function HeadingSelect<T extends string>({label, choices, value, 
 
     const close = () => {
         setOpen(false)
-        button.current?.focus()
+        button.current?.focus({preventScroll: true})
     }
 
     const choose = (chosen: T) => {
@@ -108,6 +135,7 @@ export default function HeadingSelect<T extends string>({label, choices, value, 
                      aria-label={label}
                      aria-activedescendant={`${id}-${choices[activeIndex].value}`}
                      className="panel-box heading-select-list"
+                     style={place}
                      onKeyDown={onListKeyDown}>
             {choices.map((choice) => (
                 // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus
@@ -123,4 +151,12 @@ export default function HeadingSelect<T extends string>({label, choices, value, 
             ))}
         </div>}
     </div>
+}
+
+function placeOf(button: HTMLElement | null, list: HTMLElement | null): Place | undefined {
+    if (!button || !list) return undefined
+    const at = button.getBoundingClientRect()
+    const height = list.offsetHeight
+    const below = at.bottom + height <= window.innerHeight - EDGE || at.top - height < EDGE
+    return {top: below ? at.bottom : at.top - height, left: at.left}
 }

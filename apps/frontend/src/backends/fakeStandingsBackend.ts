@@ -1,8 +1,7 @@
+import {STANDINGS_SHOWN} from "../domain/standings.ts"
 import {TileClicker} from "./backend.ts"
 import {NameColor} from "./player.ts"
 import {MySeason, Standing, StandingsBackend} from "./standings.ts"
-
-const TOP = 10
 
 type FakePlayer = Omit<Standing, "rank">
 
@@ -44,7 +43,7 @@ export class FakeStandingsBackend implements StandingsBackend {
             .sort((a, b) => b.tiles - a.tiles)
         return sorted
             .map((player) => ({...player, rank: sorted.findIndex((other) => other.tiles === player.tiles) + 1}))
-            .slice(0, TOP)
+            .slice(0, STANDINGS_SHOWN)
     }
 
     public async mySeason(): Promise<MySeason | undefined> {

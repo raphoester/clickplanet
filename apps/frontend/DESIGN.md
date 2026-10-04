@@ -47,7 +47,9 @@ Two families, and each has one job.
   never zooms back out.
 - **Luckiest Guy rides high in its box.** Anything centred beside it is aligned
   on its capitals (`titleFont.ts`, `CountryFlag`), and a button in the display
-  face gets about 3px more padding on top than below.
+  face gets about 3px more padding on top than below. A flag is as tall as the
+  capitals, so it goes on the text's baseline: inline in the same line, or in a
+  flex row with `align-items: baseline`. Centred on the box, it sits 0.16em low.
 
 ## Color
 

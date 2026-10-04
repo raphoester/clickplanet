@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {useState} from "react"
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {cleanup, render, screen} from "@testing-library/react"
+import {act, cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import HeadingSelect, {HeadingChoice} from "./HeadingSelect.tsx"
 
@@ -34,7 +34,13 @@ const button = () => screen.getByRole("button", {name: /^Fruit: /})
 const list = () => screen.queryByRole("listbox", {name: "Fruit"})
 const active = () => document.getElementById(list()!.getAttribute("aria-activedescendant")!)!.textContent
 
-afterEach(cleanup)
+const at = (top: number, bottom: number, left: number) => vi.spyOn(button(), "getBoundingClientRect")
+    .mockReturnValue({top, bottom, left, right: left + 120, width: 120, height: bottom - top, x: left, y: top, toJSON: () => ({})})
+
+afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+})
 
 describe("HeadingSelect", () => {
     it("names the choice it shows, closed", () => {
@@ -115,6 +121,41 @@ describe("HeadingSelect", () => {
         await user.click(button())
         await user.click(button())
 
+        expect(list()).toBeNull()
+    })
+
+    it("opens under its button, over whatever is around it", async () => {
+        const {user} = shown()
+        at(100, 130, 40)
+
+        await user.click(button())
+
+        expect(list()!.style.top).toBe("130px")
+        expect(list()!.style.left).toBe("40px")
+    })
+
+    it("opens over its button when there is no room under it", async () => {
+        const {user} = shown()
+        at(window.innerHeight - 50, window.innerHeight - 20, 40)
+        vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(144)
+
+        await user.click(button())
+
+        expect(list()!.style.top).toBe(`${window.innerHeight - 50 - 144}px`)
+    })
+
+    it("closes when what holds it scrolls, and only then", async () => {
+        const {user} = shown()
+
+        await user.click(button())
+        act(() => {
+            screen.getByText("elsewhere").dispatchEvent(new Event("scroll"))
+        })
+        expect(list()).not.toBeNull()
+
+        act(() => {
+            document.dispatchEvent(new Event("scroll"))
+        })
         expect(list()).toBeNull()
     })
 })

@@ -19,10 +19,6 @@
     white-space: nowrap;
 }
 
-.heading-select-button .country-flag {
-    margin-right: 0;
-}
-
 .heading-select-button svg {
     flex: none;
     filter: drop-shadow(var(--text-drop));
@@ -34,9 +30,7 @@
 }
 
 .heading-select-list {
-    position: absolute;
-    top: 100%;
-    left: 0;
+    position: fixed;
     z-index: 2;
     min-width: 220px;
     padding: var(--space-1);
