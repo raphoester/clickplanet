@@ -1,0 +1,71 @@
+.your-season {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+}
+
+.your-season .stat-tiles {
+    flex: 1 1 auto;
+    min-width: 0;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+}
+
+.your-season .stat-tile dt {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.your-season-sign-in {
+    flex-shrink: 0;
+}
+
+.menu-body > .your-season + .standings-table,
+.menu-body > .your-season + .standings-empty {
+    margin-top: var(--space-2);
+}
+
+.standings-table {
+    flex-shrink: 0;
+}
+
+.standings-table .leaderboard-table-rank,
+.standings-table .leaderboard-entry-index {
+    padding-inline: var(--space-1);
+}
+
+.standings-table .leaderboard-table-number {
+    padding-right: var(--space-2);
+}
+
+.standings-player .standings-flag {
+    margin-right: 0.35em;
+}
+
+.standings-flag .country-flag {
+    margin-right: 0;
+}
+
+.standings-name {
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-l);
+    text-shadow: none;
+    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
+}
+
+.leaderboard-entry-player .standings-name {
+    color: var(--text);
+}
+
+.standings-gap td {
+    height: var(--space-3);
+    padding: 0;
+}
+
+.standings-empty {
+    margin: var(--space-2) var(--space-1);
+}

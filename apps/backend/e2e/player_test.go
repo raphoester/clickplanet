@@ -23,6 +23,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -66,6 +67,8 @@ func startGame(t *testing.T) gameStack {
 
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), TagSalt: "pepper"}
 
+	seasonsConfig := currentSeason(t, postgres.ConfigFor("seasons"))
+
 	chatConfig := chat.Config{Database: postgres.ConfigFor("chat")}
 	chatConfig.RateLimiter.PerSecond = 100
 	chatConfig.RateLimiter.Burst = 100
@@ -81,6 +84,7 @@ func startGame(t *testing.T) gameStack {
 			StartupTimeout: time.Minute,
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
+				seasons.NewModule(seasonsConfig),
 			},
 		}, public, internal, admin)
 	}()

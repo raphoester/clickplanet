@@ -322,6 +322,16 @@ seasons:
     - number: 0
       endsAt: 2026-10-31T23:00:00Z
       finale: 2h
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: seasons
+    pool:
+      maxOpenConns: 2
   finale:
     refillMultiplier: 3
     boxInterval: 2m

@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { NameColor } from "../../player/v1/color_pb.js";
 
 /**
  * @generated from message seasons.v1.GetSeasonRequest
@@ -120,6 +121,227 @@ export class Season extends Message<Season> {
 
   static equals(a: Season | PlainMessage<Season> | undefined, b: Season | PlainMessage<Season> | undefined): boolean {
     return proto3.util.equals(Season, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.GetStandingsRequest
+ */
+export class GetStandingsRequest extends Message<GetStandingsRequest> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<GetStandingsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.GetStandingsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetStandingsRequest {
+    return new GetStandingsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetStandingsRequest {
+    return new GetStandingsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetStandingsRequest {
+    return new GetStandingsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetStandingsRequest | PlainMessage<GetStandingsRequest> | undefined, b: GetStandingsRequest | PlainMessage<GetStandingsRequest> | undefined): boolean {
+    return proto3.util.equals(GetStandingsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.GetStandingsResponse
+ */
+export class GetStandingsResponse extends Message<GetStandingsResponse> {
+  /**
+   * @generated from field: repeated seasons.v1.Standing standings = 1;
+   */
+  standings: Standing[] = [];
+
+  constructor(data?: PartialMessage<GetStandingsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.GetStandingsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "standings", kind: "message", T: Standing, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetStandingsResponse {
+    return new GetStandingsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetStandingsResponse {
+    return new GetStandingsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetStandingsResponse {
+    return new GetStandingsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetStandingsResponse | PlainMessage<GetStandingsResponse> | undefined, b: GetStandingsResponse | PlainMessage<GetStandingsResponse> | undefined): boolean {
+    return proto3.util.equals(GetStandingsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.Standing
+ */
+export class Standing extends Message<Standing> {
+  /**
+   * @generated from field: uint32 rank = 1;
+   */
+  rank = 0;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * @generated from field: player.v1.NameColor color = 3;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  /**
+   * @generated from field: string country_id = 4;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint64 tiles = 5;
+   */
+  tiles = protoInt64.zero;
+
+  constructor(data?: PartialMessage<Standing>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.Standing";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+    { no: 4, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Standing {
+    return new Standing().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Standing {
+    return new Standing().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Standing {
+    return new Standing().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Standing | PlainMessage<Standing> | undefined, b: Standing | PlainMessage<Standing> | undefined): boolean {
+    return proto3.util.equals(Standing, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.GetMySeasonRequest
+ */
+export class GetMySeasonRequest extends Message<GetMySeasonRequest> {
+  constructor(data?: PartialMessage<GetMySeasonRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.GetMySeasonRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMySeasonRequest {
+    return new GetMySeasonRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMySeasonRequest {
+    return new GetMySeasonRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMySeasonRequest {
+    return new GetMySeasonRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMySeasonRequest | PlainMessage<GetMySeasonRequest> | undefined, b: GetMySeasonRequest | PlainMessage<GetMySeasonRequest> | undefined): boolean {
+    return proto3.util.equals(GetMySeasonRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.GetMySeasonResponse
+ */
+export class GetMySeasonResponse extends Message<GetMySeasonResponse> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint64 tiles = 2;
+   */
+  tiles = protoInt64.zero;
+
+  /**
+   * @generated from field: uint32 global_rank = 3;
+   */
+  globalRank = 0;
+
+  /**
+   * @generated from field: uint32 country_rank = 4;
+   */
+  countryRank = 0;
+
+  constructor(data?: PartialMessage<GetMySeasonResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.GetMySeasonResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 3, name: "global_rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "country_rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMySeasonResponse {
+    return new GetMySeasonResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMySeasonResponse {
+    return new GetMySeasonResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMySeasonResponse {
+    return new GetMySeasonResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMySeasonResponse | PlainMessage<GetMySeasonResponse> | undefined, b: GetMySeasonResponse | PlainMessage<GetMySeasonResponse> | undefined): boolean {
+    return proto3.util.equals(GetMySeasonResponse, a, b);
   }
 }
 

@@ -1,11 +1,11 @@
 export const SOUNDS = [
     "click", "refused", "bonusSpawn", "bonusCaught", "spread", "enclose", "bomb", "chat",
-    "quiz", "quizRight", "quizWrong",
+    "quiz", "quizRight", "quizWrong", "title",
 ] as const
 
 export type SoundName = typeof SOUNDS[number]
 
-export const SWITCHES = ["click", "refused", "bonusSpawn", "bonusCaught", "bomb", "chat", "quiz"] as const
+export const SWITCHES = ["click", "refused", "bonusSpawn", "bonusCaught", "bomb", "chat", "quiz", "title"] as const
 
 export type SwitchName = typeof SWITCHES[number]
 
@@ -32,7 +32,7 @@ export const SOUND_SETTINGS_STORAGE_KEY = "clickplanet-sound-settings"
 
 export const DEFAULT_SOUND_SETTINGS: SoundSettings = {
     enabled: true,
-    sounds: {click: true, refused: true, bonusSpawn: true, bonusCaught: true, bomb: true, chat: true, quiz: true},
+    sounds: {click: true, refused: true, bonusSpawn: true, bonusCaught: true, bomb: true, chat: true, quiz: true, title: true},
     anthem: {on: true, volume: 0.3},
 }
 

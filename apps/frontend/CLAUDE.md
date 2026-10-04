@@ -768,9 +768,15 @@ is the player's own view.
   `GetProfile`) each time the panel opens; a failed read says so.
 - **The unlock moment is live.** The player stream carries `titleEarned` to a
   stream opened with this player's token. `useRoster` hands it to `Viewer`, which
-  queues them and shows `TitleUnlocked` over the game, one at a time: the medal,
-  rays, the name, the rank line, "Close" and "Wear it" (`AccountStore.wearTitle`;
-  left out when no account store is wired). The server sends only the highest
+  queues them and shows `TitleUnlocked` over the game, one at a time. It is not a
+  `Modal` but the whole screen: it goes dark, "New title!" slams in, the medal
+  spins in and lands with a flash, a shockwave and confetti, then the name and the
+  rank line. The `title` sound is a drum roll that lands on the same beat; both
+  read `TITLE_REVEAL` (`domain/titleReveal.ts`). **Nothing closes it before
+  `TITLE_REVEAL.ready`**, and a click beside it never does: a player spamming the
+  globe would otherwise dismiss it unseen. Then "Close" and "Wear it"
+  (`AccountStore.wearTitle`; left out when no account store is wired) appear, and
+  Escape works. The server sends only the highest
   rank per track of what one take earned, so a jump of two ranks is one overlay.
   A title earned while no tab is open is never announced; it is simply there next
   time.
@@ -778,6 +784,45 @@ is the player's own view.
   medal (see [Who is playing](#who-is-playing)).
 - **UI copy is not documentation.** The card and the tab say nothing about the
   rules ("one per track", "others see the title you wear"): what is drawn is the rule.
+
+### Season standings
+
+`backends/standings.ts` is the contract: `StandingsBackend`, `Standing` (a
+ranked player: rank, name, color, main flag, tiles) and `MySeason` (the caller's
+main flag, tiles and ranks). `standingsBackend.ts` implements it over
+`seasons.v1.SeasonService/GetStandings` and `GetMySeason`, and
+`fakeStandingsBackend.ts` stands in for it in fake mode, counting the player's
+own clicks. `app/standings/` draws it.
+
+- **A player's season is the tiles it took this season for its main flag**, the
+  flag it took the most for. The server ranks only signed-in players (each has a
+  username; a guest has none), and ties share a rank (1, 2, 2, 4). `RankCoin` draws the rank, as on the countries'
+  board.
+- **The board has three views** (`BoardViews`): Countries, the `Leaderboard` as
+  it was; Players; and the players whose main flag is the country played for,
+  named by its flag and name. `Viewer` holds the view, so a closed sheet or
+  another menu tab keeps it. With no `StandingsBackend` wired the board has no
+  views.
+- **The view is picked from the board's heading** (`HeadingSelect`, a gold
+  section title that opens a listbox), not from tabs: the board is already a
+  tab of the menu, and tabs in a tab read as one row of places.
+- **`GetStandings` is a public GET**, cached 15s on the server, and
+  `useStandings` reads it every 15s while a players' view is shown. A server
+  without it reads as nobody.
+- **`GetMySeason` reads as the identity token** (`identity()`: a fresh token, or
+  one resumed from the cookie, never a Turnstile mint), so a player back the next
+  day sees its season at once. With none to be had it is not sent, and
+  `unauthenticated` reads as unknown and keeps the token.
+  `useMySeason` reads it when a players' view opens, when the account or the
+  username changes, and 3s after the last of a run of accepted clicks:
+  `acceptedClicks` wraps the `TileClicker` the globe uses and tells its listeners
+  once the server took a click, with no render of `Viewer` per click.
+- **The caller's own line.** "Your season" sits over the table: the tiles, and
+  with a username the rank among all players and in the main flag. A guest gets
+  a Sign in button beside its tiles, which opens `SignInPitchModal`. In the table
+  the caller's row is marked when it is in the top 10, and otherwise added under
+  it with its rank in that view: the global rank, or the country rank when the
+  country shown is its main flag. Its name and color come from the profile.
 
 ### The season
 

@@ -132,6 +132,8 @@ chat:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: chat}
 player:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: player}
+seasons:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: seasons}
 auth:
   enabled: true
   enforce: true
@@ -280,11 +282,17 @@ func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
 	assert.Zero(t, season.Number)
 	assert.True(t, time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC).Equal(season.EndsAt))
 	assert.Equal(t, 2*time.Hour, season.Finale)
+	assert.Equal(t, "seasons", config.Seasons.Database.Schema)
+	require.NoError(t, config.Seasons.Database.Validate())
 
 	assert.InDelta(t, 3.0, config.Seasons.Finale.RefillMultiplier, 1e-9)
 	assert.Equal(t, 2*time.Minute, config.Seasons.Finale.BoxInterval)
 	assert.Equal(t, uint32(50), config.Seasons.Lead.Margin)
 	assert.Equal(t, 30*time.Second, config.Seasons.Lead.Hold)
+}
+
+func TestTheSeasonsModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "seasons.database")
 }
 
 func TestAFinaleThatSlowsTheGameIsRefused(t *testing.T) {

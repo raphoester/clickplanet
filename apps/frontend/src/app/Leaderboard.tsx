@@ -8,6 +8,7 @@ import {slowdownAt, TollStep} from "../domain/toll.ts";
 import {truncate} from "./truncate.ts";
 import CountryFlag from "./components/CountryFlag.tsx";
 import {HourglassIcon} from "./components/icons.tsx";
+import RankCoin from "./components/RankCoin.tsx";
 
 type LeaderboardProps = {
     tilesCount: number,
@@ -55,7 +56,7 @@ export default function Leaderboard(props: LeaderboardProps) {
                     return <tr key={entry.country.code}
                                className={isPlayer ? "leaderboard-entry leaderboard-entry-player" : "leaderboard-entry"}
                                aria-current={isPlayer ? "true" : undefined}>
-                        <td className="leaderboard-entry-index">{rankBadge(index + 2, isPlayer)}</td>
+                        <td className="leaderboard-entry-index"><RankCoin rank={index + 2} you={isPlayer}/></td>
                         <td className="leaderboard-entry-country">
                             <CountryFlag code={entry.country.code}/>
                             {truncate(entry.country.name, NAME_MAX_LENGTH)}
@@ -120,12 +121,6 @@ function DeltaBadge({delta}: {delta?: TileDelta}) {
                  className="leaderboard-delta"
                  style={{animationDuration: `${DELTA_HOLD_MS}ms`}}
                  aria-hidden="true">{signed(delta.net)}</span>
-}
-
-function rankBadge(rank: number, isPlayer: boolean) {
-    if (isPlayer) return <span className="coin coin-you">{rank}</span>
-    if (rank <= 3) return <span className={`coin coin-${rank}`}>{rank}</span>
-    return <span className="leaderboard-rank">{rank}</span>
 }
 
 function share(tiles: number, tilesCount: number): string {

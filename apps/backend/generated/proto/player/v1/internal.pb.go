@@ -237,6 +237,7 @@ type Author struct {
 	Color         NameColor              `protobuf:"varint,4,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
 	Streak        uint32                 `protobuf:"varint,5,opt,name=streak,proto3" json:"streak,omitempty"`
 	WornTitle     *Title                 `protobuf:"bytes,6,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
+	Guest         bool                   `protobuf:"varint,7,opt,name=guest,proto3" json:"guest,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -313,6 +314,13 @@ func (x *Author) GetWornTitle() *Title {
 	return nil
 }
 
+func (x *Author) GetGuest() bool {
+	if x != nil {
+		return x.Guest
+	}
+	return false
+}
+
 var File_player_v1_internal_proto protoreflect.FileDescriptor
 
 const file_player_v1_internal_proto_rawDesc = "" +
@@ -332,7 +340,7 @@ const file_player_v1_internal_proto_rawDesc = "" +
 	"\vaccount_ids\x18\x01 \x03(\tR\n" +
 	"accountIds\"A\n" +
 	"\x12GetAuthorsResponse\x12+\n" +
-	"\aauthors\x18\x01 \x03(\v2\x11.player.v1.AuthorR\aauthors\"\xc6\x01\n" +
+	"\aauthors\x18\x01 \x03(\v2\x11.player.v1.AuthorR\aauthors\"\xdc\x01\n" +
 	"\x06Author\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x12\n" +
@@ -341,7 +349,8 @@ const file_player_v1_internal_proto_rawDesc = "" +
 	"\x05color\x18\x04 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12\x16\n" +
 	"\x06streak\x18\x05 \x01(\rR\x06streak\x12/\n" +
 	"\n" +
-	"worn_title\x18\x06 \x01(\v2\x10.player.v1.TitleR\twornTitle2\xa9\x01\n" +
+	"worn_title\x18\x06 \x01(\v2\x10.player.v1.TitleR\twornTitle\x12\x14\n" +
+	"\x05guest\x18\a \x01(\bR\x05guest2\xa9\x01\n" +
 	"\x0fInternalService\x12F\n" +
 	"\tGetAuthor\x12\x1b.player.v1.GetAuthorRequest\x1a\x1c.player.v1.GetAuthorResponse\x12N\n" +
 	"\n" +

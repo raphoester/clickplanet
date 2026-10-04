@@ -65,7 +65,7 @@ func startFinale(t *testing.T, startsIn, lasts time.Duration) finale {
 
 	startsAt := time.Now().Add(startsIn).Truncate(time.Millisecond)
 	endsAt := startsAt.Add(lasts)
-	seasonsConfig := seasons.Config{}
+	seasonsConfig := seasons.Config{Database: postgres.ConfigFor("seasons")}
 	seasonsConfig.Calendar.List = slices.Grow(seasonsConfig.Calendar.List, 1)[:1]
 	seasonsConfig.Calendar.List[0].EndsAt = endsAt
 	seasonsConfig.Calendar.List[0].Finale = lasts
