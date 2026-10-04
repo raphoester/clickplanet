@@ -37,8 +37,7 @@ func TestAnAnnouncementIsKeptThenPublished(t *testing.T) {
 		announce_usecase.In{Kind: announcements.KindBomb, At: at, Payload: payload})
 
 	require.NoError(t, err)
-	kept, err := store.Recent(t.Context(), time.Time{}, 10)
-	require.NoError(t, err)
+	kept := store.Kept()
 	require.Len(t, kept, 1)
 	assert.NotEmpty(t, kept[0].ID)
 	assert.Equal(t, announcements.KindBomb, kept[0].Kind)

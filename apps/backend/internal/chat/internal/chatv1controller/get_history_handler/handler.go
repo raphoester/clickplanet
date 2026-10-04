@@ -5,46 +5,32 @@ import (
 
 	"connectrpc.com/connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatannouncement"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-type UseCase interface {
-	Execute(ctx context.Context, account messages.AccountID) (get_history_usecase.History, error)
+type Query interface {
+	History(ctx context.Context, viewer messages.AccountID) (*chatv1.GetHistoryResponse, error)
 }
 
-func New(useCase UseCase) GetHistoryHandler {
-	return GetHistoryHandler{useCase: useCase}
+func New(query Query) GetHistoryHandler {
+	return GetHistoryHandler{query: query}
 }
 
 type GetHistoryHandler struct {
-	useCase UseCase
+	query Query
 }
 
 func (h GetHistoryHandler) GetHistory(
 	ctx context.Context,
 	_ *connect.Request[chatv1.GetHistoryRequest],
 ) (*connect.Response[chatv1.GetHistoryResponse], error) {
-	history, err := h.useCase.Execute(ctx, messages.AccountIDOf(cpctx.GetAccount(ctx)))
+	history, err := h.query.History(ctx, messages.AccountIDOf(cpctx.GetAccount(ctx)))
 	if err != nil {
 		return nil, err //nolint:wrapcheck // a storage failure is the error net's to answer.
 	}
 
-	response := &chatv1.GetHistoryResponse{
-		Messages:      make([]*chatv1.ChatMessage, 0, len(history.Messages)),
-		Announcements: make([]*chatv1.Announcement, 0, len(history.Announcements)),
-	}
-	for _, entry := range history.Messages {
-		response.Messages = append(response.Messages, chatmessage.Encode(entry.Message, entry.Reactions, entry.ReactionsVersion))
-	}
-	for _, announcement := range history.Announcements {
-		response.Announcements = append(response.Announcements, chatannouncement.Encode(announcement))
-	}
-
-	res := connect.NewResponse(response)
+	res := connect.NewResponse(history)
 	res.Header().Set("Cache-Control", "no-store")
 
 	return res, nil

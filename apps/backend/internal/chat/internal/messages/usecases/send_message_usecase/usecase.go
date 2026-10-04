@@ -102,7 +102,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 		return messages.Message{}, fmt.Errorf("failed to store chat message: %w", err)
 	}
 
-	named := messages.Named(message, map[messages.AccountID]messages.Author{in.Account: author})
+	named := messages.Named(message, author)
 
 	published := named
 	u.publisher.Publish(feed.Update{Message: &published})
