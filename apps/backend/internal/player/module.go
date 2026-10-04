@@ -46,7 +46,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/name_accounts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/reconcile_titles_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_session_verifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/wear_title_handler"
@@ -83,6 +82,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsecrets"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -219,7 +219,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, posts, awards, deletions, forgottenTitles, forgottenChoices, signIns, namings))
 
-	verifier := rpc_session_verifier.New(props.Internal, props.Logger)
+	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(get_profile_usecase.New(store)),

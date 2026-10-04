@@ -1,13 +1,14 @@
-package rpc_session_verifier
+package cpsessionverifier
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
+	"golang.org/x/sync/singleflight"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
@@ -24,16 +25,16 @@ type Verifier struct {
 	dial   Dialer
 	logger *slog.Logger
 
-	mu       sync.Mutex
-	verifier *cpsession.Verifier
+	fetches  singleflight.Group
+	verifier atomic.Pointer[cpsession.Verifier]
 }
 
 func New(dial Dialer, logger *slog.Logger) *Verifier {
 	return &Verifier{dial: dial, logger: logger}
 }
 
-func (v *Verifier) Verify(token string, ip string, now time.Time) (*cpsession.Claims, error) {
-	verifier, err := v.fetched()
+func (v *Verifier) Verify(ctx context.Context, token string, ip string, now time.Time) (*cpsession.Claims, error) {
+	verifier, err := v.fetched(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -41,21 +42,42 @@ func (v *Verifier) Verify(token string, ip string, now time.Time) (*cpsession.Cl
 	return verifier.Verify(token, ip, now)
 }
 
-// Fetched on first use: the internal listener is not up yet while modules are built.
-func (v *Verifier) fetched() (*cpsession.Verifier, error) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-
-	if v.verifier != nil {
-		return v.verifier, nil
+func (v *Verifier) fetched(ctx context.Context) (*cpsession.Verifier, error) {
+	if verifier := v.verifier.Load(); verifier != nil {
+		return verifier, nil
 	}
 
+	fetch := v.fetches.DoChan("key", func() (any, error) {
+		if verifier := v.verifier.Load(); verifier != nil {
+			return verifier, nil
+		}
+		// Without the caller's cancellation: one caller leaving must not fail the others waiting on this fetch.
+		verifier, err := v.key(context.WithoutCancel(ctx))
+		if err != nil {
+			return nil, err
+		}
+		v.verifier.Store(verifier)
+		return verifier, nil
+	})
+
+	select {
+	case result := <-fetch:
+		if result.Err != nil {
+			return nil, result.Err
+		}
+		return result.Val.(*cpsession.Verifier), nil
+	case <-ctx.Done():
+		return nil, fmt.Errorf("stopped waiting for the click token verifying key: %w", ctx.Err())
+	}
+}
+
+func (v *Verifier) key(ctx context.Context) (*cpsession.Verifier, error) {
 	client, baseURL, err := v.dial.Dial()
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach the auth module: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), fetchTimeout)
+	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
 	defer cancel()
 
 	res, err := authv1connect.NewInternalServiceClient(client, baseURL).
@@ -70,7 +92,6 @@ func (v *Verifier) fetched() (*cpsession.Verifier, error) {
 	}
 
 	v.logger.Info("took the click token verifying key from the auth module")
-	v.verifier = verifier
 
 	return verifier, nil
 }

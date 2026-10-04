@@ -84,7 +84,7 @@ func startChatServer(
 			cpconnect.NewErrorInterceptor(nil, nil),
 			NewBlocklistInterceptor(blocklist),
 			NewRateLimitInterceptor(limiter),
-			NewSessionInterceptor(verifier, clock),
+			NewSessionInterceptor(keyVerifier{verifier: verifier}, clock),
 		),
 	))
 
@@ -186,4 +186,12 @@ func TestAValidTokenNamesTheSendersAccountAndABadOneIsAGuest(t *testing.T) {
 	require.NoError(t, sendOnce(server, "1.2.3.4"))
 
 	require.Equal(t, []messages.AccountID{ada, cpsession.NoAccount, cpsession.NoAccount, cpsession.NoAccount}, sender.accounts)
+}
+
+type keyVerifier struct {
+	verifier *cpsession.Verifier
+}
+
+func (k keyVerifier) Verify(_ context.Context, token string, ip string, now time.Time) (*cpsession.Claims, error) {
+	return k.verifier.Verify(token, ip, now) //nolint:wrapcheck // the key's own verdict.
 }
