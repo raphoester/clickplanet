@@ -553,7 +553,7 @@ describe("AccountStore", () => {
             await vi.waitFor(() => expect(store.state()).toMatchObject({username: "ana", color: NameColor.TEAL}))
         })
 
-        it("is busy while the server answers, then shows the color it stored", async () => {
+        it("shows the pick while the server answers, then the color it stored", async () => {
             const player = fakePlayer("ana")
             const saved = held<NameColor>()
             player.setColor.mockReturnValue(saved.promise)
@@ -563,7 +563,7 @@ describe("AccountStore", () => {
 
             const saving = store.setColor(NameColor.PINK)
             expect(player.setColor).toHaveBeenCalledWith(NameColor.PINK)
-            expect(store.state()).toMatchObject({coloring: true})
+            expect(store.state()).toMatchObject({color: NameColor.PINK, coloring: true})
 
             saved.release(NameColor.PINK)
             await saving
