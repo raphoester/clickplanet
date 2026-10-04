@@ -5,15 +5,14 @@ import {
     PlayerEvent as PlayerEventPb,
     PlayerLeft as PlayerLeftPb,
     Profile as ProfilePb,
-    Rank as RankPb,
     Roster as RosterPb,
     RosterEntry as RosterEntryPb,
     Stats as StatsPb,
     Step as StepPb,
-    Title as TitlePb,
     TitleEarned as TitleEarnedPb,
     Track as TrackPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
+import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 import {isValidUsername, NameColor, PlayerError, PlayerTitle, RosterEvent, usernameOf} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
@@ -329,9 +328,11 @@ const failingWith = (error: ConnectError) => (): AsyncIterable<PlayerEventPb> =>
 
 describe("ConnectPlayerBackend live roster", () => {
     const entryPb = new RosterEntryPb({
-        key: "k1", name: "ana", countryId: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12,
+        key: "k1", name: "ana", countryId: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12, wornTitle: settlerPb,
     })
-    const ana = {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12}
+    const ana = {
+        key: "k1", name: "ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12, wornTitle: settler,
+    }
 
     afterEach(() => vi.useRealTimers())
 

@@ -3,6 +3,7 @@ syntax = "proto3";
 package player.v1;
 
 import "player/v1/color.proto";
+import "player/v1/title.proto";
 
 service PlayerService {
   rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
@@ -98,6 +99,7 @@ message RosterEntry {
   string key = 6;
   NameColor color = 7;
   uint32 streak = 8;
+  Title worn_title = 9;
 }
 
 message ListenForEventsRequest {}
@@ -138,19 +140,6 @@ message Player {
   NameColor color = 5;
   repeated Title titles = 6;
   Title worn_title = 7;
-}
-
-message Title {
-  string id = 1;
-  string name = 2;
-  Rank rank = 3;
-}
-
-message Rank {
-  string track_id = 1;
-  string track_name = 2;
-  uint32 number = 3;
-  uint32 count = 4;
 }
 
 message TitleEarned {

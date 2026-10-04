@@ -235,6 +235,15 @@ func TestANewColorAndTheStreakTodayShowOnEverythingItsPlayerEverSaid(t *testing.
 	}
 }
 
+func TestTheTitleWornNowShowsOnEverythingItsPlayerEverSaid(t *testing.T) {
+	f := newFixture(t, "one", "two")
+	f.authors.named[ada] = messages.Author{Name: "Ada", Title: messages.Title{ID: "og", Name: "OG"}}
+
+	for _, entry := range f.history(t, ada) {
+		assert.Equal(t, messages.Title{ID: "og", Name: "OG"}, entry.Message.AuthorTitle, entry.Message.Text)
+	}
+}
+
 func TestOneAccountIsAskedAboutOnceHoweverMuchItSaid(t *testing.T) {
 	f := newFixture(t, "one", "two")
 

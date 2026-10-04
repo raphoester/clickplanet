@@ -41,6 +41,22 @@ func (s *Store) Choice(_ context.Context, account players.AccountID) (titles.ID,
 	return s.chosen[account], nil
 }
 
+func (s *Store) Choices(_ context.Context, accounts []players.AccountID) (map[players.AccountID]titles.ID, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+	choices := map[players.AccountID]titles.ID{}
+	for _, account := range accounts {
+		if choice, chosen := s.chosen[account]; chosen {
+			choices[account] = choice
+		}
+	}
+	return choices, nil
+}
+
 func (s *Store) Wear(_ context.Context, account players.AccountID, title titles.ID, _ time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

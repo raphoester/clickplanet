@@ -6,7 +6,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type Enclosures interface {
@@ -26,7 +25,8 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
-	holder := bonuses.HolderOf(clicks.PayerOf(ctx))
+	payer := clicks.PayerOf(ctx)
+	holder := bonuses.HolderOf(payer)
 
 	if !in.Enclose || u.enclosures.Held(holder).Enclosures == 0 {
 		return u.implementation.Execute(ctx, in)
@@ -39,5 +39,5 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 
 	pockets := u.terrain.PocketsClosedBy(in.TileID, in.CountryID, u.enclosures.EnclosureMaxTiles())
 
-	return out, u.annexer.Annex(ctx, cpctx.RateLimitKey(ctx), holder, in, pockets)
+	return out, u.annexer.Annex(ctx, bonuses.EntrantOf(payer), holder, in, pockets)
 }

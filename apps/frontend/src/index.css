@@ -43,6 +43,7 @@ body {
     color: var(--text);
     background-color: var(--ground);
     position: fixed;
+    overscroll-behavior: none;
     -webkit-user-select: none;
     -ms-user-select: none;
     user-select: none;

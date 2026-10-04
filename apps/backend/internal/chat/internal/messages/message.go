@@ -18,6 +18,7 @@ type Message struct {
 	AuthorAdmin  bool
 	AuthorColor  int32
 	AuthorStreak uint32
+	AuthorTitle  Title
 	CountryID    string
 	Text         string
 }
@@ -41,6 +42,7 @@ func Named(message Message, authors map[AccountID]Author) Message {
 	message.AuthorAdmin = author.Admin
 	message.AuthorColor = author.Color
 	message.AuthorStreak = author.Streak
+	message.AuthorTitle = author.Title
 	return message
 }
 

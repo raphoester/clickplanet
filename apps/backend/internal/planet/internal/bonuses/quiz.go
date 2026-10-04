@@ -38,6 +38,7 @@ type Questions interface {
 }
 
 type pendingQuiz struct {
+	entrant   Entrant
 	scope     string
 	round     quizzes.Round
 	kind      Kind
@@ -60,14 +61,14 @@ func (r *Registry) Quizzing(config quizzes.Config, bank Questions) {
 
 func (r *Registry) quizzing() bool { return r.bank != nil && r.quizConfig.Enabled }
 
-func (r *Registry) OpenQuiz(token string, scope string) (Asked, bool) {
+func (r *Registry) OpenQuiz(token string, entrant Entrant) (Asked, bool) {
 	now := r.clock.Now()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	quiz, ok := r.quizOffers[token]
-	if !ok || quiz.scope != scope || !now.Before(quiz.expiresAt) {
+	if !ok || quiz.entrant != entrant || !now.Before(quiz.expiresAt) {
 		return Asked{}, false
 	}
 
@@ -83,14 +84,14 @@ func (r *Registry) OpenQuiz(token string, scope string) (Asked, bool) {
 	}, true
 }
 
-func (r *Registry) AnswerQuiz(token string, scope string, choice int) (Answered, bool) {
+func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answered, bool) {
 	now := r.clock.Now()
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	quiz, ok := r.quizOffers[token]
-	if !ok || quiz.scope != scope {
+	if !ok || quiz.entrant != entrant {
 		return Answered{}, false
 	}
 
@@ -100,7 +101,7 @@ func (r *Registry) AnswerQuiz(token string, scope string, choice int) (Answered,
 
 	delete(r.quizOffers, token)
 
-	entry, known := r.callers[scope]
+	entry, known := r.callers[entrant]
 	if known && entry.outstandingQuiz == token {
 		entry.outstandingQuiz = ""
 		entry.nextQuizAt = now.Add(r.quizWindow())
@@ -113,7 +114,7 @@ func (r *Registry) AnswerQuiz(token string, scope string, choice int) (Answered,
 	}
 
 	if r.report.QuizAnswered != nil {
-		r.report.QuizAnswered(scope, answered.Correct, now.Sub(quiz.offeredAt))
+		r.report.QuizAnswered(quiz.scope, answered.Correct, now.Sub(quiz.offeredAt))
 	}
 
 	if !answered.Correct {
@@ -135,7 +136,7 @@ func (r *Registry) sweepQuizzes(now time.Time) {
 
 	r.collectStaleQuizzes(now)
 
-	for scope, entry := range r.callers {
+	for entrant, entry := range r.callers {
 		if !r.quizDue(entry, now) {
 			continue
 		}
@@ -146,7 +147,7 @@ func (r *Registry) sweepQuizzes(now time.Time) {
 			continue
 		}
 
-		r.offerQuiz(scope, entry, now, r.drawKind(kinds))
+		r.offerQuiz(entrant, entry, now, r.drawKind(kinds))
 	}
 }
 
@@ -168,7 +169,7 @@ func (r *Registry) quizDue(entry *caller, now time.Time) bool {
 	return true
 }
 
-func (r *Registry) offerQuiz(scope string, entry *caller, now time.Time, kind Kind) {
+func (r *Registry) offerQuiz(entrant Entrant, entry *caller, now time.Time, kind Kind) {
 	token, err := newToken()
 	if err != nil {
 		return
@@ -178,7 +179,8 @@ func (r *Registry) offerQuiz(scope string, entry *caller, now time.Time, kind Ki
 	offer := QuizOffer{Token: token, ExpiresAt: now.Add(r.quizConfig.OfferTTL)}
 
 	r.quizOffers[token] = &pendingQuiz{
-		scope:     scope,
+		entrant:   entrant,
+		scope:     entry.scope,
 		round:     round,
 		kind:      kind,
 		offeredAt: now,
@@ -204,7 +206,7 @@ func (r *Registry) collectStaleQuizzes(now time.Time) {
 
 		delete(r.quizOffers, token)
 
-		entry, ok := r.callers[quiz.scope]
+		entry, ok := r.callers[quiz.entrant]
 		if !ok || entry.outstandingQuiz != token {
 			continue
 		}

@@ -18,7 +18,7 @@ import {
     ReactionCount,
     ReactionsChange,
 } from "./chat.ts";
-import {NameColor} from "./player.ts";
+import {NameColor, PlayerTitle} from "./player.ts";
 import {v4 as UUIDv4} from 'uuid';
 
 const MESSAGES_PER_SECOND = 0.33
@@ -29,10 +29,12 @@ export type FakeChatBackendOptions = {
     chatterIntervalMs?: number
 }
 
-const CHATTERS = [
-    {name: "Ana", country: "fr", admin: true, color: NameColor.PINK, streak: 12, text: "who keeps taking Brittany"},
+const WARLORD: PlayerTitle = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
+
+const CHATTERS: {name: string, country: string, admin: boolean, color: NameColor, streak: number, title?: PlayerTitle, text: string}[] = [
+    {name: "Ana", country: "fr", admin: true, color: NameColor.PINK, streak: 12, title: WARLORD, text: "who keeps taking Brittany"},
     {name: "guest_91aa3d", country: "de", admin: false, color: NameColor.UNSPECIFIED, streak: 0, text: "we hold the north 💪"},
-    {name: "kiran_07", country: "in", admin: false, color: NameColor.UNSPECIFIED, streak: 3, text: "gm everyone"},
+    {name: "kiran_07", country: "in", admin: false, color: NameColor.UNSPECIFIED, streak: 3, title: {id: "og", name: "OG"}, text: "gm everyone"},
     {name: "guest_aa1290", country: "jp", admin: false, color: NameColor.UNSPECIFIED, streak: 0, text: "the pacific is ours"},
 ]
 
@@ -71,6 +73,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 authorAdmin: chatter.admin,
                 authorColor: chatter.color,
                 authorStreak: chatter.streak,
+                authorTitle: chatter.title,
                 countryCode: chatter.country,
                 text: chatter.text,
                 reactions: [],
@@ -88,6 +91,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
                 authorAdmin: chatter.admin,
                 authorColor: chatter.color,
                 authorStreak: chatter.streak,
+                authorTitle: chatter.title,
                 countryCode: chatter.country,
                 text: `${chatter.text} (${this.nextChatter})`,
                 reactions: [],

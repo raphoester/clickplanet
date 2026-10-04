@@ -27,6 +27,7 @@ import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrp
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
+import {titleOf} from "./title.ts";
 
 export function newChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
     return createPromiseClient(ChatService, createConnectTransport({
@@ -176,6 +177,7 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         authorAdmin: message.authorAdmin,
         authorColor: message.authorColor,
         authorStreak: message.authorStreak,
+        authorTitle: titleOf(message.authorTitle),
         countryCode: message.countryId,
         text: message.text,
         reactions: message.reactions.map(decodedCount),

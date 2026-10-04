@@ -6,6 +6,7 @@ import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import StreakFlame from "../components/StreakFlame.tsx"
+import TitleBadge from "../titles/TitleBadge.tsx"
 import {truncate} from "../truncate.ts"
 import "./Players.css"
 import "./PlayerCard.css"
@@ -63,6 +64,7 @@ function PlayersGroup({title, entries, onOpenPlayer}: PlayersGroupProps) {
                         {truncate(entry.name, NAME_MAX_LENGTH)}
                     </span>}
                 {entry.admin && <AdminCrown/>}
+                <TitleBadge title={entry.wornTitle} size={18}/>
                 <StreakFlame days={entry.streak}/>
             </li>)}
         </ul>
