@@ -1,4 +1,4 @@
-package history_test
+package history_query_test
 
 import (
 	"context"
@@ -17,10 +17,10 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/postgres_announcement_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/postgres_message_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/queries/history"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -96,8 +96,8 @@ func (s *testSuite) SetupTest() {
 	}}
 }
 
-func (s *testSuite) query() *history.PostgresQuery {
-	return history.NewPostgresQuery(s.db, s.authors, cptime.NewFixedClock(now), window)
+func (s *testSuite) query() *history_query.PostgresQuery {
+	return history_query.NewPostgresQuery(s.db, s.authors, cptime.NewFixedClock(now), window)
 }
 
 func (s *testSuite) history(viewer messages.AccountID) *chatv1.GetHistoryResponse {
@@ -220,7 +220,7 @@ func (s *testSuite) TestADeletedAccountIsNoLongerNamed() {
 
 	message := s.history(ada).GetMessages()[0]
 
-	s.Equal(history.DeletedName, message.GetAuthorName(), "showing the old name would undo the deletion")
+	s.Equal(history_query.DeletedName, message.GetAuthorName(), "showing the old name would undo the deletion")
 	s.False(message.GetAuthorAdmin())
 	s.Equal(playerv1.NameColor_NAME_COLOR_UNSPECIFIED, message.GetAuthorColor())
 	s.Zero(message.GetAuthorStreak())
@@ -321,7 +321,7 @@ func (s *testSuite) TestSomebodyNobodyCanNameIsCountedWithoutBeingNamed() {
 
 func (s *testSuite) TestACountNamesOnlyItsFirstReactors() {
 	s.sent("hello", time.Hour)
-	reactors := history.NamedReactors + 5
+	reactors := history_query.NamedReactors + 5
 	names := make([]string, 0, reactors)
 	for i := range reactors {
 		account := messages.AccountID{14: 1, 15: byte(i)}
@@ -334,7 +334,7 @@ func (s *testSuite) TestACountNamesOnlyItsFirstReactors() {
 	count := s.history(ada).GetMessages()[0].GetReactions()[0]
 
 	s.Equal(uint32(reactors), count.GetCount()) //nolint:gosec // a small test count.
-	s.Equal(names[:history.NamedReactors], count.GetReactors())
+	s.Equal(names[:history_query.NamedReactors], count.GetReactors())
 }
 
 func (s *testSuite) TestTheHistoryCarriesTheNewestAnnouncementsOldestFirst() {
@@ -382,7 +382,7 @@ func (s *testSuite) TestAReactionTheProtoDoesNotNameIsAnError() {
 
 	_, err := s.query().History(s.T().Context(), ada)
 
-	s.ErrorIs(err, history.ErrUnknownReaction)
+	s.ErrorIs(err, history_query.ErrUnknownReaction)
 }
 
 func (s *testSuite) TestAnAnnouncementOfAKindNobodyKnowsIsAnError() {
@@ -390,7 +390,7 @@ func (s *testSuite) TestAnAnnouncementOfAKindNobodyKnowsIsAnError() {
 
 	_, err := s.query().History(s.T().Context(), ada)
 
-	s.ErrorIs(err, history.ErrUnknownKind)
+	s.ErrorIs(err, history_query.ErrUnknownKind)
 }
 
 func (s *testSuite) TestAHistoryNobodyCanBeNamedInIsARefusal() {

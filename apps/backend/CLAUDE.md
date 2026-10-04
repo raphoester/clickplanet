@@ -204,7 +204,7 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` and each title award (`StatsChanged`) | `players/rpc_account_reader` |
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
-| `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `queries/history/rpc_player_authors`, `messages/rpc_player_authors` |
+| `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
 
 A module cannot import another's interior, so the key client all three need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -362,8 +362,8 @@ handler declares: they tell the guard what a caller reads, for the `scraper`.
 
 Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has four:
 `messages`, `reactions` (which imports `messages`), `announcements`, and `feed`, the live stream, which carries all
-three. `subscribers/` is its edge for events, as `chatv1controller/` is its edge for the wire. `queries/` is its read
-side: see [Reads are queries](#reads-are-queries).
+three. `subscribers/` is its edge for events, as `chatv1controller/` is its edge for the wire. A read is a query
+under its handler: see [Reads are queries](#reads-are-queries).
 
 ```
 internal/chat/internal/
@@ -388,13 +388,13 @@ internal/chat/internal/
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
     usecases/announce_usecase/          keeps an announcement, then publishes it — Appender, Publisher
-  queries/history/                      PostgresQuery: GetHistoryResponse straight from SQL, named — Authors
-    rpc_player_authors/                 Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
   feed/                                 Update: a message sent, a message's new reactions, or an announcement
     inprocess_feed/                     the fanout to every open stream, in this process
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — UpdatesSubscriber
   chatv1controller/                     ChatService (a bag), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/
+    get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, named — Authors
+      rpc_player_authors/               Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
     chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), for the post,
                                         the reaction and the stream
     chatannouncement/                   Encode, for the stream
@@ -412,18 +412,19 @@ internal/chat/internal/
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own, and only
-chat follows this so far (`chat/internal/queries/history`, behind `GetHistory`).
+chat follows this so far (`get_history_handler/history_query`, behind `GetHistory`).
 
-- **One package per read**, `<module>/internal/queries/<read>/`, and `query_postgres.go` holds its one entry point,
+- **One package per read, under the handler that serves it**: `<controller>/<procedure>_handler/<read>_query/`. No
+  `queries/` directory: a query has one caller, so it sits with it. `query_postgres.go` holds its one entry point,
   `PostgresQuery`. Its method is a builder, named for what it answers (`History`).
 - **SQL answers the wire's message.** The query projects straight into the proto response: ordering, windows,
   counts, `COALESCE`, `json_agg` and lateral joins in SQL; Go only decodes, checks and stitches in what SQL cannot
   reach.
 - **Strict at the boundary.** A stored value the wire cannot carry is an error, never a default:
-  `history.ErrUnknownReaction`, `history.ErrUnknownKind`. A rollback past a new reaction or kind therefore refuses
+  `history_query.ErrUnknownReaction`, `history_query.ErrUnknownKind`. A rollback past a new reaction or kind therefore refuses
   the history until those rows leave the window.
-- **What SQL cannot read is a port in the wire's terms.** `history.Authors` answers `*player.v1.Author`, and its
-  adapter is a subpackage (`queries/history/rpc_player_authors`). The query asks it once and stitches the answer on.
+- **What SQL cannot read is a port in the wire's terms.** `history_query.Authors` answers `*player.v1.Author`, and its
+  adapter is a subpackage (`history_query/rpc_player_authors`). The query asks it once and stitches the answer on.
 - **Independent parts run at once** (`errgroup`): the messages and their authors, and the announcements.
 - **The handler only maps**: the caller off the context, the query, the header. It declares the query as its port.
 - **It reads the write side's tables**, so its tests seed through the real stores (`postgres_message_store`,
@@ -629,10 +630,10 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 **A message is kept as an account, not as a copy of a name.** `chat.messages.account_id` is who sent it; the name, the crown, the color, the streak and the title worn are read from the player module when the message is *shown*, never stored beside it. That is what makes a rename show on everything its player ever said, and a deleted account stop being named at all — a frozen copy could do neither, and the copy outliving the account it named was a small privacy hole of its own.
 
-- **The history names a whole window in one ask.** `queries/history` collects the distinct accounts of the rows it read and asks `player.v1.InternalService/GetAuthors` once, however many messages each of them sent. An account that says fifty things costs one lookup, not fifty. **A history nobody could be named in is refused** rather than shown anonymous.
+- **The history names a whole window in one ask.** `history_query` collects the distinct accounts of the rows it read and asks `player.v1.InternalService/GetAuthors` once, however many messages each of them sent. An account that says fifty things costs one lookup, not fifty. **A history nobody could be named in is refused** rather than shown anonymous.
 - **`SendMessage` still asks `GetAuthor` for one**, because what it publishes has to go out named: everyone already watching is shown who is talking without a second read. That call is also the one that gives a guest its code, which is why the read path uses `GetAuthors` instead — it draws no code, so showing the chat never writes.
-- **An account that can no longer be named was deleted**, and reads as `history.DeletedName` (`[deleted]`). No username can look like it: `SetName` refuses punctuation. What the account said stays, so a thread keeps its shape.
-- **A message with no `account_id` is from before this**, and keeps the `name` and `author_admin` its row carries. Those two columns exist for that alone. **TODO** (see `postgres_message_store.row`): once `chat.storage.retention` has passed since this shipped, every remaining row has an account, and the columns and `queries/history`'s fallback to them can go.
+- **An account that can no longer be named was deleted**, and reads as `history_query.DeletedName` (`[deleted]`). No username can look like it: `SetName` refuses punctuation. What the account said stays, so a thread keeps its shape.
+- **A message with no `account_id` is from before this**, and keeps the `name` and `author_admin` its row carries. Those two columns exist for that alone. **TODO** (see `postgres_message_store.row`): once `chat.storage.retention` has passed since this shipped, every remaining row has an account, and the columns and `history_query`'s fallback to them can go.
 
 The client also sends a UUID it persists locally, kept in the log and **trusted for nothing**. **The sender's address is never public.** It is kept in `chat.messages.ip` for moderation. The salted hash of it that used to go beside every name (`author_tag`) is gone from the wire and the table (migration `20260918210000_drop_tag`): it changed whenever a player changed network, and it told anybody which names shared one.
 
@@ -677,7 +678,7 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 - **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
   `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
   lists in one by time. **Once the messages fill the window, none is older than the oldest of them**
-  (the `beginning` CTE in `queries/history`): the two caps are apart, so 200 bombs reached days past 200 messages, and all of
+  (the `beginning` CTE in `history_query`): the two caps are apart, so 200 bombs reached days past 200 messages, and all of
   them sat in a pile on top of the chat.
 - **Not personal data**, but the prune deletes them past `retention` with the messages they sit between.
 
@@ -693,10 +694,10 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 - **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it): the account's reactions are marked, and a caller with no token has none.
 - **A count says who gave it, not only how many** — as accounts, named when it is shown. `Count` carries the same two halves a `messages.Message` does: `Reactors` is what the store holds, and `Names` is who those accounts are to a reader, filled by `reactions.Named` on the way out. So a rename shows under every reaction its player ever gave, for the same reason it shows on every message.
   - **`reactions.AccountOf`** is `ReactorOf` backwards: `account:<uuid>` to an account, and `false` for a `guest:<tag>` row from before guests had accounts, which is nobody and can be named nothing.
-  - **The history names everyone in one ask.** `queries/history` gathers the senders *and* the people under their reactions, which its SQL reads as accounts, and calls `GetAuthors` once for the lot.
+  - **The history names everyone in one ask.** `history_query` gathers the senders *and* the people under their reactions, which its SQL reads as accounts, and calls `GetAuthors` once for the lot.
   - **`React` asks once too**, after the write, and uses that one answer for both the caller's response and the `ReactionsChanged` frame — a reader of the stream has no way to ask for itself. A change that changes nothing pays the same ask, since it answers the same list.
-  - **Somebody nobody can name is counted without being named**: a deleted account, or one of those guest tags. `Count` still says how many gave it, and a list of reactions is not the place to announce that somebody is gone — which is why this does not use `history.DeletedName`.
-  - The edge sends the first 20 names per count (`chatmessage.NamedReactors` for a reaction and the stream, `history.NamedReactors` for the history) and lets `count` say the rest, so a message everybody piles onto does not carry a name per reader per message.
+  - **Somebody nobody can name is counted without being named**: a deleted account, or one of those guest tags. `Count` still says how many gave it, and a list of reactions is not the place to announce that somebody is gone — which is why this does not use `history_query.DeletedName`.
+  - The edge sends the first 20 names per count (`chatmessage.NamedReactors` for a reaction and the stream, `history_query.NamedReactors` for the history) and lets `count` say the rest, so a message everybody piles onto does not carry a name per reader per message.
 - **Stored in `chat.reactions`**, their own table and their own store, one row per `(message_id, reaction, reactor)`, with `reacted_at`. **The reactor is already an account**, so there was never anything to migrate here: the table has held the right thing all along. A read replays the rows oldest first, so each reaction keeps the place it first appeared in, and so do the people under it. The prune deletes rows older than `chat.storage.retention`, like messages: the reactor is an account, so it is personal data. It deletes a version whose last change is that old too, which is only ever one whose message's reactions are all gone.
 - **Its own rate bucket**, `chat.reactionLimiter` (defaults: 1 a second, 10 in hand), and the blocklist covers `React` too.
 

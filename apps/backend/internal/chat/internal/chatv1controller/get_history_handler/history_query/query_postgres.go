@@ -1,4 +1,4 @@
-package history
+package history_query
 
 import (
 	"context"

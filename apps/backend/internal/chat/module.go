@@ -15,6 +15,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query"
+	history_authors "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/react_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
@@ -29,8 +31,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/publishing_send_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/queries/history"
-	history_authors "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/queries/history/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
@@ -105,7 +105,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(publishing_send_message.New(send_message_usecase.New(
 			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service), props.Events)),
-		GetHistoryHandler: get_history_handler.New(history.NewPostgresQuery(
+		GetHistoryHandler: get_history_handler.New(history_query.NewPostgresQuery(
 			db, history_authors.New(props.Internal), cptime.SystemClock{}, window)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(updates, props.Server.StreamHeartbeat)),

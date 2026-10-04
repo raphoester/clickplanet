@@ -14,8 +14,8 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/queries/history/rpc_player_authors"
 )
 
 type stubPlayer struct {

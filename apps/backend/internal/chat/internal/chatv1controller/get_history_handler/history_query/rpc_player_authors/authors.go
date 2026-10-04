@@ -10,8 +10,8 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/queries/history"
 )
 
 type Dialer interface {
@@ -28,7 +28,7 @@ type Authors struct {
 	dial Dialer
 }
 
-var _ history.Authors = (*Authors)(nil)
+var _ history_query.Authors = (*Authors)(nil)
 
 func (a *Authors) Authors(
 	ctx context.Context,
