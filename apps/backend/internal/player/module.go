@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
@@ -110,6 +111,12 @@ func NewModule(config Config) cpbootstrap.Module {
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
 
+	internal, baseURL, err := props.Internal.Dial()
+	if err != nil {
+		return fmt.Errorf("the player module asks auth about accounts: %w", err)
+	}
+	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
+
 	tagSalt := config.TagSalt
 	if tagSalt == "" {
 		salt, err := cpsecrets.RandomHex()
@@ -131,7 +138,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	store := postgres_player_store.New(db)
 
-	accounts := rpc_account_reader.New(props.Internal)
+	accounts := rpc_account_reader.New(auth)
 	titleStore := postgres_title_store.New(db)
 	catalog := titles.NewCatalog()
 	titleBook := titles.NewBook(titleStore, catalog)
