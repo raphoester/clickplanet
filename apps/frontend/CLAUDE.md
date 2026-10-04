@@ -725,8 +725,8 @@ main flag, tiles and ranks). `standingsBackend.ts` implements it over
 own clicks. `app/standings/` draws it.
 
 - **A player's season is the tiles it took this season for its main flag**, the
-  flag it took the most for. The server ranks only accounts with a username, and
-  ties share a rank (1, 2, 2, 4). `RankCoin` draws the rank, as on the countries'
+  flag it took the most for. The server ranks only signed-in players (each has a
+  username; a guest has none), and ties share a rank (1, 2, 2, 4). `RankCoin` draws the rank, as on the countries'
   board.
 - **The board has three views** (`BoardViews`): Countries, the `Leaderboard` as
   it was; Players; and the players whose main flag is the country played for,
