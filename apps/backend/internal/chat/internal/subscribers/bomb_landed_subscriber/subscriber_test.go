@@ -31,8 +31,7 @@ func TestABombIsAnnouncedAtTheTimeItLanded(t *testing.T) {
 	})
 
 	require.NoError(t, err)
-	kept, err := store.Recent(t.Context(), time.Time{}, 10)
-	require.NoError(t, err)
+	kept := store.Kept()
 	require.Len(t, kept, 1)
 	assert.Equal(t, announcements.KindBomb, kept[0].Kind)
 	assert.Equal(t, at, kept[0].At)
@@ -45,8 +44,7 @@ func TestABombInTheSeaHasNoGroundAndNoTile(t *testing.T) {
 	err := subscriber(store).Handle(t.Context(), &planetv1.BombLanded{Country: "fr", LandedAt: timestamppb.New(at)})
 
 	require.NoError(t, err)
-	kept, err := store.Recent(t.Context(), time.Time{}, 10)
-	require.NoError(t, err)
+	kept := store.Kept()
 	require.Len(t, kept, 1)
 	assert.JSONEq(t, `{"country":"fr","cleared":0}`, string(kept[0].Payload))
 }
@@ -56,7 +54,6 @@ func TestABombWithNoTimeIsRefused(t *testing.T) {
 
 	require.Error(t, subscriber(store).Handle(t.Context(), &planetv1.BombLanded{Country: "fr"}))
 
-	kept, err := store.Recent(t.Context(), time.Time{}, 10)
-	require.NoError(t, err)
+	kept := store.Kept()
 	assert.Empty(t, kept)
 }

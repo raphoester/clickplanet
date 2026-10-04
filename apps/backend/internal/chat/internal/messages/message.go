@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"time"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 type MessageID string
@@ -23,21 +21,7 @@ type Message struct {
 	Text         string
 }
 
-const DeletedName = "[deleted]"
-
-func Named(message Message, authors map[AccountID]Author) Message {
-	if message.Account == NoAccount {
-		return message
-	}
-
-	author, known := authors[message.Account]
-	if !known {
-		return Message{
-			ID: message.ID, SentAt: message.SentAt, Account: message.Account,
-			AuthorName: DeletedName, CountryID: message.CountryID, Text: message.Text,
-		}
-	}
-
+func Named(message Message, author Author) Message {
 	message.AuthorName = author.Name
 	message.AuthorAdmin = author.Admin
 	message.AuthorColor = author.Color
@@ -46,24 +30,10 @@ func Named(message Message, authors map[AccountID]Author) Message {
 	return message
 }
 
-func AccountsOf(list []Message) []AccountID {
-	seen := cpcolls.NewSetWithCapacity[AccountID](len(list))
-	accounts := make([]AccountID, 0, len(list))
-	for _, message := range list {
-		if message.Account == NoAccount || seen.Contains(message.Account) {
-			continue
-		}
-		seen.Add(message.Account)
-		accounts = append(accounts, message.Account)
-	}
-	return accounts
-}
-
 var ErrInvalidMessage = errors.New("invalid chat message")
 
 type Storage interface {
 	Append(ctx context.Context, record Record) error
-	Recent(ctx context.Context, since time.Time, limit int) ([]Message, error)
 	Shown(ctx context.Context, id MessageID, since time.Time, limit int) (bool, error)
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
 }
@@ -75,11 +45,4 @@ type Window struct {
 
 func (w Window) Since(now time.Time) time.Time {
 	return now.Add(-w.Retention)
-}
-
-func (w Window) Beginning(now time.Time, shown []Message) time.Time {
-	if len(shown) == 0 || len(shown) < w.Size {
-		return w.Since(now)
-	}
-	return shown[0].SentAt
 }

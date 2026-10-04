@@ -3,7 +3,6 @@ package postgres_message_store
 import (
 	"context"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,47 +29,6 @@ func (s *Store) Append(ctx context.Context, record messages.Record) error {
 		return fmt.Errorf("failed to insert a message: %w", err)
 	}
 	return nil
-}
-
-func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]messages.Message, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, sent_at, account_id, name, author_admin, country, text
-		FROM messages
-		WHERE sent_at >= $1
-		ORDER BY seq DESC
-		LIMIT $2
-	`, since, limit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read messages: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var recent []messages.Message
-	for rows.Next() {
-		var (
-			message messages.Message
-			id      string
-			account uuid.NullUUID
-		)
-		if err := rows.Scan(
-			&id, &message.SentAt, &account, &message.AuthorName, &message.AuthorAdmin,
-			&message.CountryID, &message.Text,
-		); err != nil {
-			return nil, fmt.Errorf("failed to scan a message: %w", err)
-		}
-		message.ID = messages.MessageID(id)
-		if account.Valid {
-			message.Account = messages.AccountID(account.UUID)
-		}
-		message.SentAt = message.SentAt.UTC()
-		recent = append(recent, message)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read messages: %w", err)
-	}
-
-	slices.Reverse(recent)
-	return recent, nil
 }
 
 func (s *Store) Shown(ctx context.Context, id messages.MessageID, since time.Time, limit int) (bool, error) {

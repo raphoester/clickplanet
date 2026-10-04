@@ -24,12 +24,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/log_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/postgres_message_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/rpc_player_authors"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase/log_prune"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/publishing_send_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/queries/history"
+	history_authors "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/queries/history/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
@@ -104,8 +105,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(publishing_send_message.New(send_message_usecase.New(
 			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service), props.Events)),
-		GetHistoryHandler: get_history_handler.New(get_history_usecase.New(
-			messageStore, reactionStore, announcementStore, authors, cptime.SystemClock{}, window)),
+		GetHistoryHandler: get_history_handler.New(history.NewPostgresQuery(
+			db, history_authors.New(props.Internal), cptime.SystemClock{}, window)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(updates, props.Server.StreamHeartbeat)),
 		ReactHandler: react_handler.New(react_usecase.New(
