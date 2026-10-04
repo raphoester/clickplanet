@@ -56,16 +56,6 @@ func (s stubAuth) GetAccounts(
 	return connect.NewResponse(res), nil
 }
 
-type dialer struct {
-	client connect.HTTPClient
-	url    string
-	err    error
-}
-
-func (d dialer) Dial() (connect.HTTPClient, string, error) {
-	return d.client, d.url, d.err
-}
-
 var (
 	ada   = players.AccountID{15: 1}
 	guest = players.AccountID{15: 2}
@@ -79,7 +69,7 @@ func reader(t *testing.T, auth stubAuth) *rpc_account_reader.Reader {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	return rpc_account_reader.New(dialer{client: server.Client(), url: server.URL})
+	return rpc_account_reader.New(authv1connect.NewInternalServiceClient(server.Client(), server.URL))
 }
 
 func TestItAnswersWhatAuthSays(t *testing.T) {
@@ -117,12 +107,6 @@ func TestAnAuthThatFailsIsAnErrorAndNotAGuest(t *testing.T) {
 		CreatedAt(t.Context(), ada)
 
 	assert.ErrorContains(t, err, "failed to ask auth")
-}
-
-func TestAnUnreachableAuthIsAnError(t *testing.T) {
-	_, err := rpc_account_reader.New(dialer{err: errors.New("no internal listener")}).Linked(t.Context(), ada)
-
-	assert.ErrorContains(t, err, "failed to reach the auth module")
 }
 
 func TestItSaysWhetherAnAccountIsLinkedAndWhenItWasMadeInOneCall(t *testing.T) {

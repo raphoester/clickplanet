@@ -196,7 +196,7 @@ return []bootstrap.Module{
 
 #### Calling another module
 
-**Over Connect, on a loopback listener, never in the caller's stack trace.** A module that other modules call mounts an internal service with `props.InternalRPC.Mount`; `cpbootstrap` serves it on `httpServer.internalBindAddress` alone, which must be loopback. The caller builds a generated client over `props.Internal.Dial()`.
+**Over Connect, on a loopback listener, never in the caller's stack trace.** A module that other modules call mounts an internal service with `props.InternalRPC.Mount`; `cpbootstrap` serves it on `httpServer.internalBindAddress` alone, which must be loopback. The caller dials once, in its `module.go`, builds the generated client over `props.Internal.Dial()`, and hands that one client to every adapter that needs it. An adapter takes a narrow port of the procedures it calls (`rpc_account_reader.Auth`, `rpc_player_authors.Player`), never the dialer, so no call builds a client.
 
 | caller | asks | for | through |
 |---|---|---|---|
@@ -210,7 +210,7 @@ A module cannot import another's interior, so the key client all three need is `
 
 - **Each module's data stays in one place.** The caller holds an address, never the other module's config block, pool, objects or root package. The seed is read by `auth` and nothing else.
 - **`Dial` is the one place that knows the transport is loopback HTTP.** Moving to unix sockets changes the listener and `internalDialer`, and no module.
-- **`Dial` fails with no internal listener**, and the caller reports it. An internal service with no listener is not served, and logged, like an admin one.
+- **`Dial` fails with no internal listener**, and a module that calls another refuses the boot. `cpsessionverifier` is the exception: it dials when it first fetches the key, once per process. An internal service with no listener is not served, and logged, like an admin one.
 - **The error net and the drain wrap internal services too.**
 - **What travels is a public key**, which is the point: a holder can check a token and cannot mint one, so the hop carries nothing worth stealing. Under the HMAC this replaced there was no such thing to send.
 - `TestAModuleCallsAnotherOverTheInternalListener` pins the path, `TestAnInternalServiceIsNotOnThePublicRouter` pins that Caddy cannot reach it.

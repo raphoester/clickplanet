@@ -8,22 +8,25 @@ import (
 	"connectrpc.com/connect"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
-type Dialer interface {
-	Dial() (connect.HTTPClient, string, error)
+type Auth interface {
+	GetAccount(ctx context.Context, req *connect.Request[authv1.GetAccountRequest]) (*connect.Response[authv1.GetAccountResponse], error)
+	GetAccounts(
+		ctx context.Context,
+		req *connect.Request[authv1.GetAccountsRequest],
+	) (*connect.Response[authv1.GetAccountsResponse], error)
 }
 
 const askTimeout = 2 * time.Second
 
 type Reader struct {
-	dial Dialer
+	auth Auth
 }
 
-func New(dial Dialer) *Reader {
-	return &Reader{dial: dial}
+func New(auth Auth) *Reader {
+	return &Reader{auth: auth}
 }
 
 func (r *Reader) Linked(ctx context.Context, account players.AccountID) (bool, error) {
@@ -59,11 +62,6 @@ func (r *Reader) Accounts(ctx context.Context, accounts []players.AccountID) (ma
 		return found, nil
 	}
 
-	client, baseURL, err := r.dial.Dial()
-	if err != nil {
-		return nil, fmt.Errorf("failed to reach the auth module: %w", err)
-	}
-
 	ids := make([]string, len(accounts))
 	for i, account := range accounts {
 		ids[i] = account.String()
@@ -72,8 +70,7 @@ func (r *Reader) Accounts(ctx context.Context, accounts []players.AccountID) (ma
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	res, err := authv1connect.NewInternalServiceClient(client, baseURL).
-		GetAccounts(ctx, connect.NewRequest(&authv1.GetAccountsRequest{AccountIds: ids}))
+	res, err := r.auth.GetAccounts(ctx, connect.NewRequest(&authv1.GetAccountsRequest{AccountIds: ids}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to call auth.v1.InternalService/GetAccounts: %w", err)
 	}
@@ -89,16 +86,10 @@ func (r *Reader) Accounts(ctx context.Context, accounts []players.AccountID) (ma
 }
 
 func (r *Reader) account(ctx context.Context, account players.AccountID) (*authv1.GetAccountResponse, error) {
-	client, baseURL, err := r.dial.Dial()
-	if err != nil {
-		return nil, fmt.Errorf("failed to reach the auth module: %w", err)
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	res, err := authv1connect.NewInternalServiceClient(client, baseURL).
-		GetAccount(ctx, connect.NewRequest(&authv1.GetAccountRequest{AccountId: account.String()}))
+	res, err := r.auth.GetAccount(ctx, connect.NewRequest(&authv1.GetAccountRequest{AccountId: account.String()}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to call auth.v1.InternalService/GetAccount: %w", err)
 	}

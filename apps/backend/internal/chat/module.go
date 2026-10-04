@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/postgres_announcement_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
@@ -59,6 +60,12 @@ func NewModule(config Config) cpbootstrap.Module {
 }
 
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
+	internal, baseURL, err := props.Internal.Dial()
+	if err != nil {
+		return fmt.Errorf("the chat asks the player module who posts: %w", err)
+	}
+	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
+
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
 		return fmt.Errorf("failed to connect the chat to postgres: %w", err)
@@ -100,13 +107,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
 
-	authors := log_authors.New(rpc_player_authors.New(props.Internal), props.Logger)
+	authors := log_authors.New(rpc_player_authors.New(player), props.Logger)
 
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(publishing_send_message.New(send_message_usecase.New(
 			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service), props.Events)),
 		GetHistoryHandler: get_history_handler.New(history_query.NewPostgresQuery(
-			db, history_authors.New(props.Internal), cptime.SystemClock{}, storage.HistorySize, storage.Retention)),
+			db, history_authors.New(player), cptime.SystemClock{}, storage.HistorySize, storage.Retention)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(updates, props.Server.StreamHeartbeat)),
 		ReactHandler: react_handler.New(react_usecase.New(

@@ -60,16 +60,6 @@ func (s stubPlayer) GetAuthors(
 	return connect.NewResponse(&playerv1.GetAuthorsResponse{Authors: found}), nil
 }
 
-type dialer struct {
-	client connect.HTTPClient
-	url    string
-	err    error
-}
-
-func (d dialer) Dial() (connect.HTTPClient, string, error) {
-	return d.client, d.url, d.err
-}
-
 var ada = messages.AccountID{15: 1}
 
 func authors(t *testing.T, player stubPlayer) *rpc_player_authors.Authors {
@@ -80,7 +70,7 @@ func authors(t *testing.T, player stubPlayer) *rpc_player_authors.Authors {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	return rpc_player_authors.New(dialer{client: server.Client(), url: server.URL})
+	return rpc_player_authors.New(playerv1connect.NewInternalServiceClient(server.Client(), server.URL))
 }
 
 func TestItAnswersTheName(t *testing.T) {
@@ -144,10 +134,4 @@ func TestAPlayerModuleThatFailsIsAnError(t *testing.T) {
 	_, err := authors(t, player).Author(t.Context(), ada)
 
 	assert.ErrorContains(t, err, "failed to ask the player module")
-}
-
-func TestAnUnreachablePlayerModuleIsAnError(t *testing.T) {
-	_, err := rpc_player_authors.New(dialer{err: errors.New("no internal listener")}).Author(t.Context(), ada)
-
-	assert.ErrorContains(t, err, "failed to reach the player module")
 }

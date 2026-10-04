@@ -8,34 +8,32 @@ import (
 	"connectrpc.com/connect"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 )
 
-type Dialer interface {
-	Dial() (connect.HTTPClient, string, error)
+type Player interface {
+	GetAuthor(ctx context.Context, req *connect.Request[playerv1.GetAuthorRequest]) (*connect.Response[playerv1.GetAuthorResponse], error)
+	GetAuthors(
+		ctx context.Context,
+		req *connect.Request[playerv1.GetAuthorsRequest],
+	) (*connect.Response[playerv1.GetAuthorsResponse], error)
 }
 
 const askTimeout = time.Second
 
 type Authors struct {
-	dial Dialer
+	player Player
 }
 
-func New(dial Dialer) *Authors {
-	return &Authors{dial: dial}
+func New(player Player) *Authors {
+	return &Authors{player: player}
 }
 
 func (a *Authors) Author(ctx context.Context, account messages.AccountID) (messages.Author, error) {
-	client, baseURL, err := a.dial.Dial()
-	if err != nil {
-		return messages.Author{}, fmt.Errorf("failed to reach the player module: %w", err)
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	res, err := playerv1connect.NewInternalServiceClient(client, baseURL).GetAuthor(ctx,
+	res, err := a.player.GetAuthor(ctx,
 		connect.NewRequest(&playerv1.GetAuthorRequest{AccountId: account.String()}))
 	if err != nil {
 		return messages.Author{}, fmt.Errorf("failed to ask the player module who posts: %w", err)
@@ -53,11 +51,6 @@ func (a *Authors) Authors(
 		return found, nil
 	}
 
-	client, baseURL, err := a.dial.Dial()
-	if err != nil {
-		return nil, fmt.Errorf("failed to reach the player module: %w", err)
-	}
-
 	ids := make([]string, 0, len(accounts))
 	for _, account := range accounts {
 		ids = append(ids, account.String())
@@ -66,7 +59,7 @@ func (a *Authors) Authors(
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	res, err := playerv1connect.NewInternalServiceClient(client, baseURL).GetAuthors(ctx,
+	res, err := a.player.GetAuthors(ctx,
 		connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: ids}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to ask the player module who these accounts are: %w", err)
