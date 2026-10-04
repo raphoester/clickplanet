@@ -7,7 +7,7 @@ import {AccountBackend, Provider} from "../../backends/account.ts"
 import {NameColor, PlayerBackend} from "../../backends/player.ts"
 import {MySeason, Standing, StandingsBackend} from "../../backends/standings.ts"
 import {Countries, Country} from "../../domain/countries.ts"
-import {authorHue} from "../../domain/authorColor.ts"
+import {hueOf} from "../../domain/authorColor.ts"
 import {AccountStore} from "../account/accountStore.ts"
 import SignInPitchModal from "../account/SignInPitchModal.tsx"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
@@ -116,14 +116,14 @@ describe("BoardViews", () => {
         expect(screen.getByText("Nobody yet.")).toBeDefined()
     })
 
-    it("draws each player's main flag and its name in its color", async () => {
+    it("draws each player's main flag and its name in its color, grey with none", async () => {
         await shown({backend: backendOf(), caller: GUEST, view: "players"})
 
         const [ana, kiran] = rows()
         expect(within(ana).getByRole("img", {name: "France"}).querySelectorAll(".country-flag")).toHaveLength(1)
         expect(within(kiran).getByRole("img", {name: "India"})).toBeDefined()
-        expect(within(ana).getByText("Ana").style.getPropertyValue("--author-hue")).toBe(String(authorHue("Ana", NameColor.PINK)))
-        expect(within(kiran).getByText("kiran_07").style.getPropertyValue("--author-hue")).toBe(String(authorHue("kiran_07")))
+        expect(within(ana).getByText("Ana").style.getPropertyValue("--author-hue")).toBe(String(hueOf(NameColor.PINK)))
+        expect(within(kiran).getByText("kiran_07").style.getPropertyValue("--author-chroma")).toBe("0")
     })
 
     it("gives the first three their coins and shares a rank between ties", async () => {
@@ -156,7 +156,7 @@ describe("BoardViews", () => {
         const own = rows()[3]
         expect(own.getAttribute("aria-current")).toBe("true")
         expect(within(own).getByRole("img", {name: "France"})).toBeDefined()
-        expect(within(own).getByText("Zed").style.getPropertyValue("--author-hue")).toBe(String(authorHue("Zed", NameColor.GREEN)))
+        expect(within(own).getByText("Zed").style.getPropertyValue("--author-hue")).toBe(String(hueOf(NameColor.GREEN)))
     })
 
     it("puts the caller's line under its country's top 10 at its rank there", async () => {

@@ -90,7 +90,7 @@ function StandingRow({standing, you}: {standing: Standing, you: boolean}) {
                 <CountryFlag code={country.code}/>
             </span>}
             <span className="standings-name"
-                  style={authorStyle({name: standing.name, color: standing.color, guest: false})}
+                  style={authorStyle({color: standing.color, guest: false})}
                   title={standing.name}>
                 {standing.name}
             </span>
