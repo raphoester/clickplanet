@@ -336,6 +336,7 @@ func (x *Standing) GetWornTitle() *v1.Title {
 
 type GetMySeasonRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -370,13 +371,22 @@ func (*GetMySeasonRequest) Descriptor() ([]byte, []int) {
 	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{6}
 }
 
+func (x *GetMySeasonRequest) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
 type GetMySeasonResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Tiles         uint64                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
-	GlobalRank    uint32                 `protobuf:"varint,3,opt,name=global_rank,json=globalRank,proto3" json:"global_rank,omitempty"`
-	CountryRank   uint32                 `protobuf:"varint,4,opt,name=country_rank,json=countryRank,proto3" json:"country_rank,omitempty"`
-	WornTitle     *v1.Title              `protobuf:"bytes,5,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	CountryId  string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Tiles      uint64                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	GlobalRank uint32                 `protobuf:"varint,3,opt,name=global_rank,json=globalRank,proto3" json:"global_rank,omitempty"`
+	// country_tiles and country_rank are on the board of the request's country_id, not of the main flag.
+	CountryRank   uint32    `protobuf:"varint,4,opt,name=country_rank,json=countryRank,proto3" json:"country_rank,omitempty"`
+	WornTitle     *v1.Title `protobuf:"bytes,5,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
+	CountryTiles  uint64    `protobuf:"varint,6,opt,name=country_tiles,json=countryTiles,proto3" json:"country_tiles,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -446,6 +456,13 @@ func (x *GetMySeasonResponse) GetWornTitle() *v1.Title {
 	return nil
 }
 
+func (x *GetMySeasonResponse) GetCountryTiles() uint64 {
+	if x != nil {
+		return x.CountryTiles
+	}
+	return 0
+}
+
 var File_seasons_v1_seasons_proto protoreflect.FileDescriptor
 
 const file_seasons_v1_seasons_proto_rawDesc = "" +
@@ -472,8 +489,10 @@ const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"country_id\x18\x04 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x05tiles\x18\x05 \x01(\x04R\x05tiles\x12/\n" +
 	"\n" +
-	"worn_title\x18\x06 \x01(\v2\x10.player.v1.TitleR\twornTitle\"\x14\n" +
-	"\x12GetMySeasonRequest\"\xbf\x01\n" +
+	"worn_title\x18\x06 \x01(\v2\x10.player.v1.TitleR\twornTitle\"3\n" +
+	"\x12GetMySeasonRequest\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\"\xe4\x01\n" +
 	"\x13GetMySeasonResponse\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
@@ -482,7 +501,8 @@ const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"globalRank\x12!\n" +
 	"\fcountry_rank\x18\x04 \x01(\rR\vcountryRank\x12/\n" +
 	"\n" +
-	"worn_title\x18\x05 \x01(\v2\x10.player.v1.TitleR\twornTitle2\x86\x02\n" +
+	"worn_title\x18\x05 \x01(\v2\x10.player.v1.TitleR\twornTitle\x12#\n" +
+	"\rcountry_tiles\x18\x06 \x01(\x04R\fcountryTiles2\x86\x02\n" +
 	"\rSeasonService\x12M\n" +
 	"\tGetSeason\x12\x1c.seasons.v1.GetSeasonRequest\x1a\x1d.seasons.v1.GetSeasonResponse\"\x03\x90\x02\x01\x12V\n" +
 	"\fGetStandings\x12\x1f.seasons.v1.GetStandingsRequest\x1a .seasons.v1.GetStandingsResponse\"\x03\x90\x02\x01\x12N\n" +

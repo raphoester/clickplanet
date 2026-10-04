@@ -158,13 +158,25 @@ func (s *testSuite) TestEachStandingWearsTheTitleItsPlayerWears() {
 	s.Nil(res.GetStandings()[1].GetWornTitle(), "a player who wears no title wears none here")
 }
 
-func (s *testSuite) TestTheTopOfACountryIsThePlayersWhoseMainFlagItIs() {
+func (s *testSuite) TestTheTopOfACountryRanksEveryPlayerByTheTilesTakenForIt() {
 	s.player(1, "de", 9)
 	s.take(0, 1, "fr", 8)
 	s.player(2, "fr", 2)
 	s.player(3, "fr", 4)
+	s.guest(4, "fr", 5)
+	s.take(0, 3, "it", 1)
 
-	s.Equal([]string{"1 player_3 fr 4", "2 player_2 fr 2"}, lines(s.standings("fr")))
+	s.Equal([]string{"1 player_1 fr 8", "2 player_3 fr 4", "3 player_2 fr 2"}, lines(s.standings("fr")))
+	s.Equal([]string{"1 player_1 de 9"}, lines(s.standings("de")))
+	s.Equal([]string{"1 player_3 it 1"}, lines(s.standings("it")))
+}
+
+func (s *testSuite) TestTheTopOfTheWholeMapCountsOnlyTheMainFlag() {
+	s.player(1, "de", 9)
+	s.take(0, 1, "fr", 8)
+	s.player(2, "fr", 10)
+
+	s.Equal([]string{"1 player_2 fr 10", "2 player_1 de 9"}, lines(s.standings("")))
 }
 
 func (s *testSuite) TestAnAccountThePlayerModuleCannotNameIsNotRanked() {

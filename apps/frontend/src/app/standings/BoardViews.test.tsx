@@ -44,10 +44,15 @@ const FULL_FRENCH = Array.from({length: 10}, (_, i) => standing(i + 1, `fr_${i +
 const GUEST: Caller = {linked: false}
 const ZED: Caller = {linked: true, username: "Zed", color: NameColor.GREEN}
 
-function backendOf(mine?: MySeason, world = WORLD, french = FRENCH) {
+type Mine = (countryCode: string) => MySeason
+
+const season = (main: MySeason, countries: Record<string, MySeason> = {}): Mine => (countryCode) =>
+    countryCode === "" ? main : countries[countryCode] ?? {countryCode, tiles: 0}
+
+function backendOf(mine?: Mine, world = WORLD, french = FRENCH) {
     return {
         standings: vi.fn(async (countryCode: string) => countryCode === "" ? world : countryCode === "fr" ? french : []),
-        mySeason: vi.fn(async () => mine),
+        mySeason: vi.fn(async (countryCode: string) => mine?.(countryCode)),
     } satisfies StandingsBackend
 }
 
@@ -168,7 +173,7 @@ describe("BoardViews", () => {
     })
 
     it("marks the caller's own row when it is in the top 10, and adds no line under it", async () => {
-        const mine = {countryCode: "br", tiles: 1512, globalRank: 2, countryRank: 1}
+        const mine = season({countryCode: "br", tiles: 1512, rank: 2})
         await shown({backend: backendOf(mine), caller: {linked: true, username: "Mateus", color: NameColor.TEAL}, view: "players"})
 
         const marked = rows().filter((row) => row.getAttribute("aria-current") === "true")
@@ -179,12 +184,12 @@ describe("BoardViews", () => {
     })
 
     it("marks nothing for a guest", async () => {
-        await shown({backend: backendOf({countryCode: "fr", tiles: 3}), caller: GUEST, view: "players"})
+        await shown({backend: backendOf(season({countryCode: "fr", tiles: 3})), caller: GUEST, view: "players"})
         expect(rows().filter((row) => row.getAttribute("aria-current") === "true")).toEqual([])
     })
 
     it("puts the caller's own line under the top 10, at its rank on the whole map", async () => {
-        const mine = {countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 7}
+        const mine = season({countryCode: "fr", tiles: 12, rank: 42}, {fr: {countryCode: "fr", tiles: 12, rank: 7}})
         await shown({backend: backendOf(mine, FULL), caller: ZED, view: "players"})
 
         expect(cells()).toHaveLength(11)
@@ -196,14 +201,14 @@ describe("BoardViews", () => {
     })
 
     it("puts the title the caller wears on its own line", async () => {
-        const mine = {countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 7, wornTitle: DEVOTED}
+        const mine = season({countryCode: "fr", tiles: 12, rank: 42, wornTitle: DEVOTED})
         await shown({backend: backendOf(mine), caller: ZED, view: "players"})
 
         expect(within(rows()[3]).getByRole("img", {name: "Devoted"})).toBeDefined()
     })
 
     it("puts the caller's line under its country's top 10 at its rank there", async () => {
-        const mine = {countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 17}
+        const mine = season({countryCode: "fr", tiles: 12, rank: 42}, {fr: {countryCode: "fr", tiles: 12, rank: 17}})
         await shown({backend: backendOf(mine, WORLD, FULL_FRENCH), caller: ZED, view: "country"})
 
         expect(cells()).toHaveLength(11)
@@ -211,26 +216,59 @@ describe("BoardViews", () => {
     })
 
     it("lists a caller missing from a country list shorter than 10 in it", async () => {
-        const mine = {countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 3}
+        const mine = season({countryCode: "fr", tiles: 12, rank: 42}, {fr: {countryCode: "fr", tiles: 12, rank: 3}})
         await shown({backend: backendOf(mine), caller: ZED, view: "country"})
 
         expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Bastien", "402"], ["3", "Zed", "12"]])
     })
 
+    it("lists the caller on the board of a country it took tiles for, though another flag is its main one", async () => {
+        const mine = season({countryCode: "bg", tiles: 74, rank: 1}, {fr: {countryCode: "fr", tiles: 3, rank: 3}})
+        await shown({backend: backendOf(mine), caller: ZED, view: "country"})
+
+        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Bastien", "402"], ["3", "Zed", "3"]])
+        expect(within(rows()[2]).getByRole("img", {name: "France"})).toBeDefined()
+        expect(screen.queryByRole("img", {name: "Bulgaria"})).toBeNull()
+    })
+
+    it("asks for the caller's line on the board shown, and again when another is picked", async () => {
+        const backend = backendOf(season({countryCode: "fr", tiles: 12, rank: 42}))
+        const {user} = await shown({backend, caller: ZED, view: "players"})
+        expect(backend.mySeason).toHaveBeenLastCalledWith("")
+
+        await pick(user, "Players", "France")
+
+        expect(backend.mySeason).toHaveBeenLastCalledWith("fr")
+    })
+
     it("counts each tile the caller takes into its row and its season at once", async () => {
         const clicks = acceptedClicks()
-        const mine = {countryCode: "br", tiles: 1512, globalRank: 2, countryRank: 1}
+        const mine = season({countryCode: "br", tiles: 1512, rank: 2})
         await shown({backend: backendOf(mine), caller: {linked: true, username: "Mateus", color: NameColor.TEAL}, view: "players", clicks})
 
         await act(() => clicks.record({country: "br", took: true}))
 
         expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Mateus", "1513"], ["3", "kiran_07", "1512"]])
-        expect(stats()).toEqual([["Tiles", "1513"], ["Players", "#2"], ["Brazil", "#1"]])
+        expect(stats()).toEqual([["Tiles", "1513"], ["Players", "#2"]])
+    })
+
+    it("counts each tile the caller takes for the country shown into its row there, and no other", async () => {
+        const clicks = acceptedClicks()
+        const mine = season({countryCode: "bg", tiles: 74, rank: 1}, {fr: {countryCode: "fr", tiles: 400, rank: 3}})
+        await shown({backend: backendOf(mine), caller: ZED, view: "country", clicks})
+
+        await act(() => clicks.record({country: "fr", took: true}))
+        await act(() => clicks.record({country: "fr", took: true}))
+        await act(() => clicks.record({country: "fr", took: true}))
+        await act(() => clicks.record({country: "bg", took: true}))
+
+        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Zed", "403"], ["3", "Bastien", "402"]])
+        expect(stats()).toEqual([["Tiles", "403"], ["France", "#2"]])
     })
 
     it("lets the caller into the top 10 once it passes the last of it", async () => {
         const clicks = acceptedClicks()
-        const mine = {countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 7}
+        const mine = season({countryCode: "fr", tiles: 12, rank: 42})
         await shown({backend: backendOf(mine, FULL), caller: ZED, view: "players", clicks})
 
         await act(() => clicks.record({country: "fr", took: true}))
@@ -238,7 +276,7 @@ describe("BoardViews", () => {
 
         expect(cells()).toHaveLength(10)
         expect(cells().at(-1)).toEqual(["10", "Zed", "14"])
-        expect(stats()).toEqual([["Tiles", "14"], ["Players", "#10"], ["France", "#7"]])
+        expect(stats()).toEqual([["Tiles", "14"], ["Players", "#10"]])
     })
 
     it("opens a player's card from its name, with the title it wears", async () => {
@@ -257,8 +295,8 @@ describe("BoardViews", () => {
         expect(within(rows()[0]).queryByRole("button")).toBeNull()
     })
 
-    it("leaves the caller's line out of a country that is not its main flag", async () => {
-        const mine = {countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 7}
+    it("leaves the caller's line out of a country it took nothing for", async () => {
+        const mine = season({countryCode: "fr", tiles: 12, rank: 42}, {fr: {countryCode: "fr", tiles: 12, rank: 7}})
         await shown({backend: backendOf(mine), caller: ZED, country: germany, view: "country"})
 
         expect(screen.getByText("Nobody yet.")).toBeDefined()
@@ -266,32 +304,45 @@ describe("BoardViews", () => {
     })
 
     it("leaves the caller's line out while it has no rank", async () => {
-        await shown({backend: backendOf({tiles: 0}), caller: ZED, view: "players"})
+        await shown({backend: backendOf(season({tiles: 0})), caller: ZED, view: "players"})
         expect(cells()).toHaveLength(3)
     })
 })
 
 describe("Your season", () => {
     it("is not on the countries' board", async () => {
-        await shown({backend: backendOf({countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 7}), caller: ZED})
+        await shown({backend: backendOf(season({countryCode: "fr", tiles: 12, rank: 42})), caller: ZED})
         expect(yours()).toBeNull()
     })
 
-    it("says a named player's tiles and its ranks on the map and in its main flag", async () => {
-        await shown({backend: backendOf({countryCode: "fr", tiles: 12, globalRank: 42, countryRank: 7}, FULL), caller: ZED, country: germany, view: "players"})
+    it("says a named player's season tiles and its rank among all players", async () => {
+        const mine = season({countryCode: "fr", tiles: 12, rank: 42}, {de: {countryCode: "de", tiles: 2, rank: 7}})
+        await shown({backend: backendOf(mine, FULL), caller: ZED, country: germany, view: "players"})
 
-        expect(stats()).toEqual([["Tiles", "12"], ["Players", "#42"], ["France", "#7"]])
+        expect(stats()).toEqual([["Tiles", "12"], ["Players", "#42"]])
         expect(within(yours()!).queryByRole("button")).toBeNull()
     })
 
+    it("says only the tiles a named player took for the country shown, and its rank there", async () => {
+        const mine = season({countryCode: "bg", tiles: 74, rank: 1}, {fr: {countryCode: "fr", tiles: 12, rank: 7}})
+        await shown({backend: backendOf(mine, WORLD, FULL_FRENCH), caller: ZED, view: "country"})
+
+        expect(stats()).toEqual([["Tiles", "12"], ["France", "#7"]])
+        expect(yours()!.textContent).not.toContain("Bulgaria")
+    })
+
     it("shows a dash for a rank a named player does not hold yet", async () => {
-        await shown({backend: backendOf({tiles: 0}), caller: ZED, view: "players"})
+        await shown({backend: backendOf(season({tiles: 0})), caller: ZED, view: "players"})
         expect(stats()).toEqual([["Tiles", "0"], ["Players", "—"]])
+
+        cleanup()
+        await shown({backend: backendOf(season({countryCode: "bg", tiles: 74, rank: 1})), caller: ZED, view: "country"})
+        expect(stats()).toEqual([["Tiles", "0"], ["France", "—"]])
     })
 
     it("gives a guest its tiles and a Sign in button, and no rank", async () => {
         const onSignIn = vi.fn()
-        const {user} = await shown({backend: backendOf({countryCode: "fr", tiles: 9}), caller: GUEST, view: "players", onSignIn})
+        const {user} = await shown({backend: backendOf(season({countryCode: "fr", tiles: 9})), caller: GUEST, view: "players", onSignIn})
 
         expect(stats()).toEqual([["Tiles", "9"]])
         await user.click(within(yours()!).getByRole("button", {name: "Sign in"}))
@@ -318,7 +369,7 @@ describe("Your season", () => {
         function WithPitch() {
             const [open, setOpen] = useState(false)
             return <>
-                <Harness backend={backendOf({countryCode: "fr", tiles: 9})} caller={GUEST} view="players" onSignIn={() => setOpen(true)}/>
+                <Harness backend={backendOf(season({countryCode: "fr", tiles: 9}))} caller={GUEST} view="players" onSignIn={() => setOpen(true)}/>
                 {open && state.kind === "ready" && <SignInPitchModal state={state} store={store} multiplier={2} onClose={() => setOpen(false)}/>}
             </>
         }

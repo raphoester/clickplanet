@@ -12,13 +12,12 @@ export type Standing = {
 export type MySeason = {
     countryCode?: string
     tiles: number
-    globalRank?: number
-    countryRank?: number
+    rank?: number
     wornTitle?: PlayerTitle
 }
 
 export interface StandingsBackend {
     standings(countryCode: string): Promise<Standing[]>
 
-    mySeason(): Promise<MySeason | undefined>
+    mySeason(countryCode: string): Promise<MySeason | undefined>
 }

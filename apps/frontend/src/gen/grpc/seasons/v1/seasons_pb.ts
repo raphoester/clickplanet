@@ -270,6 +270,11 @@ export class Standing extends Message<Standing> {
  * @generated from message seasons.v1.GetMySeasonRequest
  */
 export class GetMySeasonRequest extends Message<GetMySeasonRequest> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
   constructor(data?: PartialMessage<GetMySeasonRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -278,6 +283,7 @@ export class GetMySeasonRequest extends Message<GetMySeasonRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "seasons.v1.GetMySeasonRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMySeasonRequest {
@@ -317,6 +323,8 @@ export class GetMySeasonResponse extends Message<GetMySeasonResponse> {
   globalRank = 0;
 
   /**
+   * country_tiles and country_rank are on the board of the request's country_id, not of the main flag.
+   *
    * @generated from field: uint32 country_rank = 4;
    */
   countryRank = 0;
@@ -325,6 +333,11 @@ export class GetMySeasonResponse extends Message<GetMySeasonResponse> {
    * @generated from field: player.v1.Title worn_title = 5;
    */
   wornTitle?: Title;
+
+  /**
+   * @generated from field: uint64 country_tiles = 6;
+   */
+  countryTiles = protoInt64.zero;
 
   constructor(data?: PartialMessage<GetMySeasonResponse>) {
     super();
@@ -339,6 +352,7 @@ export class GetMySeasonResponse extends Message<GetMySeasonResponse> {
     { no: 3, name: "global_rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "country_rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "worn_title", kind: "message", T: Title },
+    { no: 6, name: "country_tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMySeasonResponse {

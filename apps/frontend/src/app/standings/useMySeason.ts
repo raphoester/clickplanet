@@ -12,11 +12,17 @@ export type Caller = {
 }
 
 type Read = {
+    countryCode: string
     season: MySeason
     before: Takes
 }
 
-export function useMySeason(backend: StandingsBackend, caller: Caller, listenForClicks: ListenForClicks): MySeason | undefined {
+export function useMySeason(
+    backend: StandingsBackend,
+    caller: Caller,
+    listenForClicks: ListenForClicks,
+    countryCode: string,
+): MySeason | undefined {
     const takes = useOwnTakes(listenForClicks)
     const reads = useReadsAfterClicks(listenForClicks)
     const latest = useRef(takes)
@@ -29,16 +35,16 @@ export function useMySeason(backend: StandingsBackend, caller: Caller, listenFor
     useEffect(() => {
         let stale = false
         const before = latest.current
-        backend.mySeason().then(
+        backend.mySeason(countryCode).then(
             (season) => {
-                if (!stale) setRead(season && {season, before})
+                if (!stale) setRead(season && {countryCode, season, before})
             },
             (e) => console.error("Could not read your season", e),
         )
         return () => {
             stale = true
         }
-    }, [backend, caller.linked, caller.username, reads])
+    }, [backend, caller.linked, caller.username, countryCode, reads])
 
-    return read && liveSeason(read.season, takesSince(read.before, takes))
+    return read?.countryCode === countryCode ? liveSeason(read.season, takesSince(read.before, takes)) : undefined
 }
