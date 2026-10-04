@@ -23,8 +23,7 @@ func TestADeletedAccountLeavesTheStandings(t *testing.T) {
 		&authv1.AccountDeleted{AccountId: account.String()})
 
 	require.NoError(t, err)
-	_, err = store.Line(t.Context(), 0, account)
-	assert.ErrorIs(t, err, standings.ErrNoLine)
+	assert.True(t, store.Tally(0, account).Empty())
 }
 
 func TestAnEventWithNoAccountIsRefused(t *testing.T) {

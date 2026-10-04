@@ -25,10 +25,7 @@ func AccountIDOf(value string) (AccountID, error) {
 
 type Country string
 
-var (
-	ErrNoCountry      = errors.New("the take has no country")
-	ErrUnknownCountry = errors.New("not a country")
-)
+var ErrNoCountry = errors.New("the take has no country")
 
 type Take struct {
 	Account AccountID

@@ -44,32 +44,3 @@ func TestATakeLeavesTheTallyItWasAddedToAsItWas(t *testing.T) {
 
 	assert.Equal(t, uint64(1), before.Tiles["fr"])
 }
-
-func TestTheLineIsTheMainFlagAndItsTilesOnly(t *testing.T) {
-	account := standings.AccountID{15: 1}
-
-	line := tallyOf("fr", "de", "de", "it").LineOf(account)
-
-	assert.Equal(t, standings.Line{Account: account, Country: "de", Tiles: 2}, line)
-}
-
-func TestMoreTilesComeFirstThenTheLowerAccount(t *testing.T) {
-	low := standings.Line{Account: standings.AccountID{15: 1}, Tiles: 2}
-	high := standings.Line{Account: standings.AccountID{15: 2}, Tiles: 2}
-	best := standings.Line{Account: standings.AccountID{15: 3}, Tiles: 3}
-
-	assert.True(t, best.Above(low))
-	assert.True(t, low.Above(high))
-	assert.False(t, high.Above(low))
-	assert.False(t, low.Above(low))
-}
-
-func TestTheStartComesBeforeEveryLineAndALineBeforeTheOnesBelowIt(t *testing.T) {
-	first := standings.Line{Account: standings.AccountID{15: 1}, Tiles: 5}
-	next := standings.Line{Account: standings.AccountID{15: 2}, Tiles: 5}
-
-	assert.True(t, standings.Start.Before(first))
-	assert.True(t, first.Cursor().Before(next))
-	assert.False(t, first.Cursor().Before(first))
-	assert.False(t, next.Cursor().Before(first))
-}

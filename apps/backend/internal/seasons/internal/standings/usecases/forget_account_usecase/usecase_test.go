@@ -26,10 +26,8 @@ func TestAForgottenAccountLeavesTheStandingsAndTheOthersStay(t *testing.T) {
 
 	require.NoError(t, forget_account_usecase.New(store).Execute(t.Context(), ada))
 
-	_, err := store.Line(t.Context(), 0, ada)
-	require.ErrorIs(t, err, standings.ErrNoLine)
-	_, err = store.Line(t.Context(), 0, bob)
-	assert.NoError(t, err)
+	assert.True(t, store.Tally(0, ada).Empty())
+	assert.False(t, store.Tally(0, bob).Empty())
 }
 
 func TestAFailureToForgetIsAnError(t *testing.T) {

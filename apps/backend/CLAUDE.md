@@ -205,7 +205,7 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
-| `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason` | `standings/rpc_player_names` |
+| `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason` | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 
 A module cannot import another's interior, so the key client all four need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -412,8 +412,9 @@ internal/chat/internal/
 ### Reads are queries
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
-a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own, and only
-chat follows this so far (`get_history_handler/history_query`, behind `GetHistory`).
+a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
+(`get_history_handler/history_query`, behind `GetHistory`) and seasons (`get_standings_handler/standings_query` and
+`get_my_season_handler/my_season_query`) follow this.
 
 - **One package per read, under the handler that serves it**: `<controller>/<procedure>_handler/<read>_query/`. No
   `queries/` directory: a query has one caller, so it sits with it. `query_postgres.go` holds its one entry point,
@@ -1087,15 +1088,17 @@ internal/player/internal/
 internal/seasons/internal/
   calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current)
     usecases/get_season_usecase/  the calendar and the clock
-  standings/                      AccountID, Country, Take (Season), Tally (WithTake), Line, Cursor, Player, Standing,
-                                  Place, Board (Top, Place); the Store port and its contract suite, FakePlayers
+  standings/                      AccountID, Country, Take (Season), Tally (WithTake); the Store port (RecordTake,
+                                  DeleteAccount) and its contract suite
     postgres_contribution_store/  the Store over seasons.contributions
     inmemory_contribution_store/  the same port in a map, behind the testing tag
-    rpc_player_names/             who a page of accounts is, from player.v1.InternalService/GetAuthors
-    usecases/record_take_usecase/  forget_account_usecase/  get_standings_usecase/  get_my_season_usecase/
+    usecases/record_take_usecase/  forget_account_usecase/
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
-    get_standings_handler/  get_my_season_handler/
+    get_standings_handler/standings_query/   PostgresQuery: GetStandingsResponse from SQL, named — Authors
+      rpc_player_authors/         Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
+    get_my_season_handler/my_season_query/   PostgresQuery: GetMySeasonResponse from SQL, ranked — Authors
+      rpc_player_authors/         the same adapter, for this query
     caller/                       the account on the context, or Unauthenticated
   subscribers/                    tile_taken_subscriber/  account_deleted_subscriber/  log_subscriber/
   migrations/
@@ -1113,10 +1116,11 @@ internal/seasons/internal/
 - **One transaction per take**, under `pg_advisory_xact_lock` on the account: read the account's rows for the season, apply `WithTake`, upsert the flag's row and move `main`. The rule stays in Go; the column only keeps what it said.
 - **Kept in `seasons.contributions`** (`season`, `account_id`, `country`, `tiles`, `main`; primary key `(season, account_id, country)`), with its own block, `seasons.database`, its own pool and migrations. `main` marks one row per account and season (a partial unique index), and two partial indexes on it serve the boards.
 - **`auth.v1.AccountDeleted`** (`seasons-standings-accounts`) deletes the account's rows in every season.
-- **Only a signed-in player is ranked**: every one has a username (see [Player](#player-internalplayer)), and a guest has none. `standings.Board` reads lines (an account's main flag and its tiles) best first, then by account id, 200 at a time from a keyset `Cursor`, and asks `GetAuthors` about each page (`rpc_player_names`). A guest, or an account the player module cannot name, is skipped. A tie shares the rank (1, 1, 3).
-- **`GetStandings(country_id)`** is the current season's top 10 (`standings.Shown`), of every player or of the players whose main flag is `country_id`: rank, name, color, main flag and tiles. It needs no token, is a GET (`NO_SIDE_EFFECTS`) and answers `public, max-age=15`. A country that is not one is `InvalidArgument`; no season is an empty answer.
-- **`GetMySeason()`** is the caller's main flag, its tiles for it, and its rank among every player and among the players of that flag; 0 for a guest or an account with no take this season. It sits behind `seasonsv1controller.NewSessionInterceptor`, always enforcing, on the key `auth` hands over (`seasons_session_checks{verdict}`). It counts the ranked players above the caller, so it costs one `GetAuthors` per 200 accounts above.
-- `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. The use cases are tested over the in-memory one and `standings.FakePlayers`.
+- **The reads are queries** (see [Reads are queries](#reads-are-queries)): the write model is `Take`, `Tally` and a `Store` that only records and deletes. Each query reads `seasons.contributions` itself and asks `GetAuthors` through its own `rpc_player_authors`.
+- **Only a signed-in player is ranked**: every one has a username (see [Player](#player-internalplayer)), and a guest has none. SQL cannot tell them apart, so a query reads the main rows and Go skips what `GetAuthors` answers as a guest, or does not answer at all. A tie shares the rank (1, 1, 3).
+- **`GetStandings(country_id)`** (`standings_query`) is the current season's top 10 (`standings_query.Shown`), of every player or of the players whose main flag is `country_id`: rank, name, color, main flag and tiles. It needs no token, is a GET (`NO_SIDE_EFFECTS`) and answers `public, max-age=15`. The main rows come best first, then by account id, 200 at a time from a keyset on `(tiles, account_id)`, with one `GetAuthors` a page, until 10 are named. A country that is not one is `InvalidArgument` (`standings_query.ErrUnknownCountry`); no season is an empty answer.
+- **`GetMySeason()`** (`my_season_query`) is the caller's main flag, its tiles for it, and its rank among every player and among the players of that flag; 0 for a guest or an account with no take this season. It sits behind `seasonsv1controller.NewSessionInterceptor`, always enforcing, on the key `auth` hands over (`seasons_session_checks{verdict}`). It counts the ranked players above the caller: SQL reads the main rows with more tiles, 500 at a time, with whether each shares the caller's flag, and costs one `GetAuthors` a page.
+- `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
 
 
 A question-mark box flies past the planet every so often; whoever catches it

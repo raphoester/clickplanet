@@ -36,9 +36,7 @@ func TestATakeCountsForItsFlagAtTheTimeItWasTaken(t *testing.T) {
 	require.NoError(t, err)
 	id, err := standings.AccountIDOf(account)
 	require.NoError(t, err)
-	line, err := store.Line(t.Context(), 0, id)
-	require.NoError(t, err)
-	assert.Equal(t, standings.Line{Account: id, Country: "fr", Tiles: 1}, line)
+	assert.Equal(t, standings.Tally{Main: "fr", Tiles: map[standings.Country]uint64{"fr": 1}}, store.Tally(0, id))
 }
 
 func TestAnEventWithNoAccountNoCountryOrNoTimeIsRefused(t *testing.T) {

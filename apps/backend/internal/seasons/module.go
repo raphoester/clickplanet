@@ -15,14 +15,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query"
+	my_season_authors "github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler/standings_query"
+	standings_authors "github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler/standings_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/postgres_contribution_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/rpc_player_names"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/forget_account_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/get_my_season_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/get_standings_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/record_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/log_subscriber"
@@ -65,7 +65,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	contributions := postgres_contribution_store.New(db)
-	board := standings.NewBoard(contributions, rpc_player_names.New(props.Internal))
 
 	takes, err := cpbootstrap.Subscribe(props.Events, "seasons-standings", tileTakenBuffer,
 		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(seasons, contributions)), props.Logger))
@@ -85,10 +84,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetSeasonHandler: get_season_handler.New(
 			get_season_usecase.New(seasons, clock),
 		),
-		GetStandingsHandler: get_standings_handler.New(
-			get_standings_usecase.New(seasons, clock, cpcountries.New(), board),
-		),
-		GetMySeasonHandler: get_my_season_handler.New(get_my_season_usecase.New(seasons, clock, board)),
+		GetStandingsHandler: get_standings_handler.New(standings_query.NewPostgresQuery(
+			db, standings_authors.New(props.Internal), seasons, clock, cpcountries.New(),
+		)),
+		GetMySeasonHandler: get_my_season_handler.New(my_season_query.NewPostgresQuery(
+			db, my_season_authors.New(props.Internal), seasons, clock,
+		)),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "seasons")))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

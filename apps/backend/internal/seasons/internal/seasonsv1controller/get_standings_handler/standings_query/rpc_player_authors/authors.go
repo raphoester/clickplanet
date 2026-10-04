@@ -1,4 +1,4 @@
-package rpc_player_names
+package rpc_player_authors
 
 import (
 	"context"
@@ -6,9 +6,11 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler/standings_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings"
 )
 
@@ -18,30 +20,33 @@ type Dialer interface {
 
 const askTimeout = time.Second
 
-type Players struct {
+func New(dial Dialer) *Authors {
+	return &Authors{dial: dial}
+}
+
+type Authors struct {
 	dial Dialer
 }
 
-var _ standings.Players = (*Players)(nil)
+var _ standings_query.Authors = (*Authors)(nil)
 
-func New(dial Dialer) *Players {
-	return &Players{dial: dial}
-}
-
-func (p *Players) Players(ctx context.Context, accounts []standings.AccountID) (map[standings.AccountID]standings.Player, error) {
-	found := make(map[standings.AccountID]standings.Player, len(accounts))
+func (a *Authors) Authors(
+	ctx context.Context,
+	accounts []standings.AccountID,
+) (map[standings.AccountID]*playerv1.Author, error) {
+	found := make(map[standings.AccountID]*playerv1.Author, len(accounts))
 	if len(accounts) == 0 {
 		return found, nil
 	}
 
-	client, baseURL, err := p.dial.Dial()
+	client, baseURL, err := a.dial.Dial()
 	if err != nil {
 		return nil, fmt.Errorf("failed to reach the player module: %w", err)
 	}
 
-	ids := make([]string, len(accounts))
-	for i, account := range accounts {
-		ids[i] = account.String()
+	ids := make([]string, 0, len(accounts))
+	for _, account := range accounts {
+		ids = append(ids, account.String())
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
@@ -54,15 +59,11 @@ func (p *Players) Players(ctx context.Context, accounts []standings.AccountID) (
 	}
 
 	for _, author := range res.Msg.GetAuthors() {
-		account, err := standings.AccountIDOf(author.GetAccountId())
+		id, err := uuid.Parse(author.GetAccountId())
 		if err != nil {
-			return nil, fmt.Errorf("the player module answered for no account: %w", err)
+			return nil, fmt.Errorf("the player module answered for %q, which is not an account: %w", author.GetAccountId(), err)
 		}
-		found[account] = standings.Player{
-			Name:  author.GetName(),
-			Color: standings.Color(author.GetColor()),
-			Guest: author.GetGuest(),
-		}
+		found[standings.AccountID(id)] = author
 	}
 	return found, nil
 }

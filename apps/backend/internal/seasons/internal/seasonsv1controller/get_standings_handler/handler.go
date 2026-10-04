@@ -6,44 +6,32 @@ import (
 
 	"connectrpc.com/connect"
 
-	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler/standings_query"
 )
 
-type UseCase interface {
-	Execute(ctx context.Context, country standings.Country) ([]standings.Standing, error)
+type Query interface {
+	Standings(ctx context.Context, country string) (*seasonsv1.GetStandingsResponse, error)
 }
 
-func New(useCase UseCase) GetStandingsHandler {
-	return GetStandingsHandler{useCase: useCase}
+func New(query Query) GetStandingsHandler {
+	return GetStandingsHandler{query: query}
 }
 
 type GetStandingsHandler struct {
-	useCase UseCase
+	query Query
 }
 
 func (h GetStandingsHandler) GetStandings(
 	ctx context.Context,
 	req *connect.Request[seasonsv1.GetStandingsRequest],
 ) (*connect.Response[seasonsv1.GetStandingsResponse], error) {
-	top, err := h.useCase.Execute(ctx, standings.Country(req.Msg.GetCountryId()))
-	if errors.Is(err, standings.ErrUnknownCountry) {
+	standings, err := h.query.Standings(ctx, req.Msg.GetCountryId())
+	if errors.Is(err, standings_query.ErrUnknownCountry) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if err != nil {
-		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
+		return nil, err //nolint:wrapcheck // a storage failure is the error net's to answer.
 	}
-
-	lines := make([]*seasonsv1.Standing, len(top))
-	for i, standing := range top {
-		lines[i] = &seasonsv1.Standing{
-			Rank:      standing.Rank,
-			Name:      standing.Player.Name,
-			Color:     playerv1.NameColor(standing.Player.Color),
-			CountryId: string(standing.Line.Country),
-			Tiles:     standing.Line.Tiles,
-		}
-	}
-	return connect.NewResponse(&seasonsv1.GetStandingsResponse{Standings: lines}), nil
+	return connect.NewResponse(standings), nil
 }
