@@ -123,7 +123,7 @@
 
 .account-color-swatches {
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: var(--space-2) 6px;
     justify-items: center;
     padding: var(--space-1) 0;
@@ -139,10 +139,6 @@
     background: hsl(var(--author-hue, 0) var(--author-saturation) var(--author-name-lightness));
     box-shadow: var(--drop-xs);
     cursor: pointer;
-}
-
-.account-color-swatch-auto {
-    border-style: dashed;
 }
 
 .account-color-swatch[aria-pressed="true"] {

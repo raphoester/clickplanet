@@ -323,20 +323,20 @@ describe("ChatPanel", () => {
             expect(item("mine").className).not.toContain("chat-message-new")
         })
 
-        it("gives every author their own colour, and the same one every time", async () => {
+        it("paints every message in the colour its author chose", async () => {
             const {backend} = stubBackend([
-                {...message("a", "first"), authorName: "Ana"},
-                {...message("b", "second", 1_700_000_100_000), authorName: "Bo"},
-                {...message("c", "third", 1_700_000_200_000), authorName: "Ana"},
+                {...message("a", "first"), authorName: "Ana", authorColor: NameColor.TEAL},
+                {...message("b", "second", 1_700_000_100_000), authorName: "Bo", authorColor: NameColor.PINK},
+                {...message("c", "third", 1_700_000_200_000), authorName: "Ana", authorColor: NameColor.TEAL},
             ])
             setup(backend)
             await screen.findByText("first")
 
             const hue = (text: string) => item(text).style.getPropertyValue("--author-hue")
 
-            expect(hue("first")).not.toBe("")
-            expect(hue("third")).toBe(hue("first"))
-            expect(hue("second")).not.toBe(hue("first"))
+            expect(hue("first")).toBe("165")
+            expect(hue("second")).toBe("330")
+            expect(hue("third")).toBe("165")
         })
     })
 
