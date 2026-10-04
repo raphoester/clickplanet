@@ -1064,6 +1064,24 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - It is not undone by anything. Copy the table first, as for a reassign.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin random paint"`.
 
+### Give a player charges
+
+Gives one account a refill, a bomb, enclosures or spread clicks, as a box
+would. Send any of them together:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10","refill":true,"bomb":true,"enclosures":3,"spreadClicks":8}' http://127.0.0.1:8081/planet.v1.AdminService/GrantCharges
+```
+
+- The account id of a username is in postgres:
+  `docker compose exec postgres psql -U clickplanet -c "SELECT account_id FROM player.profiles WHERE name = 'TheUsername'"`
+- **The caps hold**: one refill, one bomb, 3 enclosures and 8 spread clicks at
+  most. `before` and `after` in the answer say what the account holds, so you see
+  what fit.
+- The player sees it when the page loads again.
+- A bad account id or a grant of nothing shows as `server returned error: HTTP/1.1 400`.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin charge grant"`.
+
 ### Find, ban and revert one player
 
 For a pattern you see on the map and no watchdog catches. A player is a

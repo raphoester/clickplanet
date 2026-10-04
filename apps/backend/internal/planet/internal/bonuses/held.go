@@ -1,7 +1,18 @@
 package bonuses
 
 import (
+	"errors"
+	"fmt"
+
+	"github.com/google/uuid"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+)
+
+var (
+	ErrInvalidHolder  = errors.New("not an account id")
+	ErrNothingToGrant = errors.New("a grant names no charge")
+	ErrNegativeGrant  = errors.New("a grant cannot take charges away")
 )
 
 type Holder string
@@ -10,6 +21,15 @@ const NoHolder Holder = ""
 
 func HolderOf(payer clicks.Payer) Holder {
 	return Holder(payer.Account)
+}
+
+func ParseHolder(account string) (Holder, error) {
+	id, err := uuid.Parse(account)
+	if err != nil || id == uuid.Nil {
+		return NoHolder, fmt.Errorf("%w: %q", ErrInvalidHolder, account)
+	}
+
+	return Holder(id.String()), nil
 }
 
 type Held struct {
@@ -70,6 +90,17 @@ func oneIf(held bool) int {
 
 func (h Held) Empty() bool {
 	return h == (Held{})
+}
+
+func (h Held) GrantError() error {
+	switch {
+	case h.Enclosures < 0 || h.SpreadClicks < 0:
+		return fmt.Errorf("%w: %+v", ErrNegativeGrant, h)
+	case h.Empty():
+		return ErrNothingToGrant
+	}
+
+	return nil
 }
 
 func (h Held) Granted(kind Kind, amount int, config ChargesConfig) Held {

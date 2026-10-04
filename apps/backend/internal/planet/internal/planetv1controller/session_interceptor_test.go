@@ -29,7 +29,7 @@ type fakeVerifier struct {
 	asked []string
 }
 
-func (v *fakeVerifier) Verify(token string, _ string, _ time.Time) (*cpsession.Claims, error) {
+func (v *fakeVerifier) Verify(_ context.Context, token string, _ string, _ time.Time) (*cpsession.Claims, error) {
 	v.asked = append(v.asked, token)
 
 	id, ok := v.valid[token]
