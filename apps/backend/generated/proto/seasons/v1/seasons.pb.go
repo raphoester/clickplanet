@@ -7,6 +7,7 @@
 package seasonsv1
 
 import (
+	v1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -161,21 +162,311 @@ func (x *Season) GetEndsAtUnixMs() int64 {
 	return 0
 }
 
+type GetStandingsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStandingsRequest) Reset() {
+	*x = GetStandingsRequest{}
+	mi := &file_seasons_v1_seasons_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStandingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStandingsRequest) ProtoMessage() {}
+
+func (x *GetStandingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_seasons_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStandingsRequest.ProtoReflect.Descriptor instead.
+func (*GetStandingsRequest) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetStandingsRequest) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+type GetStandingsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Standings     []*Standing            `protobuf:"bytes,1,rep,name=standings,proto3" json:"standings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStandingsResponse) Reset() {
+	*x = GetStandingsResponse{}
+	mi := &file_seasons_v1_seasons_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStandingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStandingsResponse) ProtoMessage() {}
+
+func (x *GetStandingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_seasons_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStandingsResponse.ProtoReflect.Descriptor instead.
+func (*GetStandingsResponse) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetStandingsResponse) GetStandings() []*Standing {
+	if x != nil {
+		return x.Standings
+	}
+	return nil
+}
+
+type Standing struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Rank          uint32                 `protobuf:"varint,1,opt,name=rank,proto3" json:"rank,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Color         v1.NameColor           `protobuf:"varint,3,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
+	CountryId     string                 `protobuf:"bytes,4,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Tiles         uint64                 `protobuf:"varint,5,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Standing) Reset() {
+	*x = Standing{}
+	mi := &file_seasons_v1_seasons_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Standing) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Standing) ProtoMessage() {}
+
+func (x *Standing) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_seasons_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Standing.ProtoReflect.Descriptor instead.
+func (*Standing) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Standing) GetRank() uint32 {
+	if x != nil {
+		return x.Rank
+	}
+	return 0
+}
+
+func (x *Standing) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Standing) GetColor() v1.NameColor {
+	if x != nil {
+		return x.Color
+	}
+	return v1.NameColor(0)
+}
+
+func (x *Standing) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *Standing) GetTiles() uint64 {
+	if x != nil {
+		return x.Tiles
+	}
+	return 0
+}
+
+type GetMySeasonRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMySeasonRequest) Reset() {
+	*x = GetMySeasonRequest{}
+	mi := &file_seasons_v1_seasons_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMySeasonRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMySeasonRequest) ProtoMessage() {}
+
+func (x *GetMySeasonRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_seasons_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMySeasonRequest.ProtoReflect.Descriptor instead.
+func (*GetMySeasonRequest) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{6}
+}
+
+type GetMySeasonResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Tiles         uint64                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	GlobalRank    uint32                 `protobuf:"varint,3,opt,name=global_rank,json=globalRank,proto3" json:"global_rank,omitempty"`
+	CountryRank   uint32                 `protobuf:"varint,4,opt,name=country_rank,json=countryRank,proto3" json:"country_rank,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMySeasonResponse) Reset() {
+	*x = GetMySeasonResponse{}
+	mi := &file_seasons_v1_seasons_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMySeasonResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMySeasonResponse) ProtoMessage() {}
+
+func (x *GetMySeasonResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_seasons_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMySeasonResponse.ProtoReflect.Descriptor instead.
+func (*GetMySeasonResponse) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetMySeasonResponse) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *GetMySeasonResponse) GetTiles() uint64 {
+	if x != nil {
+		return x.Tiles
+	}
+	return 0
+}
+
+func (x *GetMySeasonResponse) GetGlobalRank() uint32 {
+	if x != nil {
+		return x.GlobalRank
+	}
+	return 0
+}
+
+func (x *GetMySeasonResponse) GetCountryRank() uint32 {
+	if x != nil {
+		return x.CountryRank
+	}
+	return 0
+}
+
 var File_seasons_v1_seasons_proto protoreflect.FileDescriptor
 
 const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"\n" +
 	"\x18seasons/v1/seasons.proto\x12\n" +
-	"seasons.v1\"\x12\n" +
+	"seasons.v1\x1a\x15player/v1/color.proto\"\x12\n" +
 	"\x10GetSeasonRequest\"?\n" +
 	"\x11GetSeasonResponse\x12*\n" +
 	"\x06season\x18\x01 \x01(\v2\x12.seasons.v1.SeasonR\x06season\"\x7f\n" +
 	"\x06Season\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\rR\x06number\x126\n" +
 	"\x18finale_starts_at_unix_ms\x18\x02 \x01(\x03R\x14finaleStartsAtUnixMs\x12%\n" +
-	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs2^\n" +
+	"\x0fends_at_unix_ms\x18\x03 \x01(\x03R\fendsAtUnixMs\"4\n" +
+	"\x13GetStandingsRequest\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\"J\n" +
+	"\x14GetStandingsResponse\x122\n" +
+	"\tstandings\x18\x01 \x03(\v2\x14.seasons.v1.StandingR\tstandings\"\x93\x01\n" +
+	"\bStanding\x12\x12\n" +
+	"\x04rank\x18\x01 \x01(\rR\x04rank\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12*\n" +
+	"\x05color\x18\x03 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x04 \x01(\tR\tcountryId\x12\x14\n" +
+	"\x05tiles\x18\x05 \x01(\x04R\x05tiles\"\x14\n" +
+	"\x12GetMySeasonRequest\"\x8e\x01\n" +
+	"\x13GetMySeasonResponse\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
+	"\x05tiles\x18\x02 \x01(\x04R\x05tiles\x12\x1f\n" +
+	"\vglobal_rank\x18\x03 \x01(\rR\n" +
+	"globalRank\x12!\n" +
+	"\fcountry_rank\x18\x04 \x01(\rR\vcountryRank2\x86\x02\n" +
 	"\rSeasonService\x12M\n" +
-	"\tGetSeason\x12\x1c.seasons.v1.GetSeasonRequest\x1a\x1d.seasons.v1.GetSeasonResponse\"\x03\x90\x02\x01B\xbb\x01\n" +
+	"\tGetSeason\x12\x1c.seasons.v1.GetSeasonRequest\x1a\x1d.seasons.v1.GetSeasonResponse\"\x03\x90\x02\x01\x12V\n" +
+	"\fGetStandings\x12\x1f.seasons.v1.GetStandingsRequest\x1a .seasons.v1.GetStandingsResponse\"\x03\x90\x02\x01\x12N\n" +
+	"\vGetMySeason\x12\x1e.seasons.v1.GetMySeasonRequest\x1a\x1f.seasons.v1.GetMySeasonResponseB\xbb\x01\n" +
 	"\x0ecom.seasons.v1B\fSeasonsProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1;seasonsv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Seasons.V1\xca\x02\n" +
 	"Seasons\\V1\xe2\x02\x16Seasons\\V1\\GPBMetadata\xea\x02\vSeasons::V1b\x06proto3"
@@ -192,21 +483,33 @@ func file_seasons_v1_seasons_proto_rawDescGZIP() []byte {
 	return file_seasons_v1_seasons_proto_rawDescData
 }
 
-var file_seasons_v1_seasons_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_seasons_v1_seasons_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_seasons_v1_seasons_proto_goTypes = []any{
-	(*GetSeasonRequest)(nil),  // 0: seasons.v1.GetSeasonRequest
-	(*GetSeasonResponse)(nil), // 1: seasons.v1.GetSeasonResponse
-	(*Season)(nil),            // 2: seasons.v1.Season
+	(*GetSeasonRequest)(nil),     // 0: seasons.v1.GetSeasonRequest
+	(*GetSeasonResponse)(nil),    // 1: seasons.v1.GetSeasonResponse
+	(*Season)(nil),               // 2: seasons.v1.Season
+	(*GetStandingsRequest)(nil),  // 3: seasons.v1.GetStandingsRequest
+	(*GetStandingsResponse)(nil), // 4: seasons.v1.GetStandingsResponse
+	(*Standing)(nil),             // 5: seasons.v1.Standing
+	(*GetMySeasonRequest)(nil),   // 6: seasons.v1.GetMySeasonRequest
+	(*GetMySeasonResponse)(nil),  // 7: seasons.v1.GetMySeasonResponse
+	(v1.NameColor)(0),            // 8: player.v1.NameColor
 }
 var file_seasons_v1_seasons_proto_depIdxs = []int32{
 	2, // 0: seasons.v1.GetSeasonResponse.season:type_name -> seasons.v1.Season
-	0, // 1: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
-	1, // 2: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	5, // 1: seasons.v1.GetStandingsResponse.standings:type_name -> seasons.v1.Standing
+	8, // 2: seasons.v1.Standing.color:type_name -> player.v1.NameColor
+	0, // 3: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
+	3, // 4: seasons.v1.SeasonService.GetStandings:input_type -> seasons.v1.GetStandingsRequest
+	6, // 5: seasons.v1.SeasonService.GetMySeason:input_type -> seasons.v1.GetMySeasonRequest
+	1, // 6: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
+	4, // 7: seasons.v1.SeasonService.GetStandings:output_type -> seasons.v1.GetStandingsResponse
+	7, // 8: seasons.v1.SeasonService.GetMySeason:output_type -> seasons.v1.GetMySeasonResponse
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_seasons_v1_seasons_proto_init() }
@@ -220,7 +523,7 @@ func file_seasons_v1_seasons_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seasons_v1_seasons_proto_rawDesc), len(file_seasons_v1_seasons_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

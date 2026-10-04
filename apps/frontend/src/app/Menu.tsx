@@ -19,6 +19,7 @@ import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerInfoBackend} from "../backends/player.ts";
 import {youLabel} from "./youLabel.ts"
 import {DISCORD_INVITE} from "../links.ts"
+import BoardViews, {BoardStandings} from "./standings/BoardViews.tsx"
 import "./Menu.css"
 
 export type MenuTab = "board" | "you" | "more"
@@ -31,6 +32,7 @@ export type BoardPlaceProps = {
     tilesCount: number,
     toll?: readonly TollStep[],
     anthem?: ReactNode,
+    standings?: BoardStandings,
 }
 
 export type YouPlaceProps = {
@@ -175,17 +177,21 @@ export function BoardPlace(props: BoardPlaceProps & {playing: boolean}) {
         </MenuPanel>
     }
 
+    const countries = <Leaderboard data={props.leaderboard}
+                                   deltas={props.tileDeltas ?? NO_TILE_DELTAS}
+                                   tilesCount={props.tilesCount}
+                                   highlight={props.country}
+                                   toll={props.toll}
+                                   anthem={props.anthem}/>
+
     return <>
         {props.playing && <PlayingFor country={props.country}
                                       rank={rankOf(props.leaderboard, props.country)}
                                       changeRef={picker.opener}
                                       onChange={picker.open}/>}
-        <Leaderboard data={props.leaderboard}
-                     deltas={props.tileDeltas ?? NO_TILE_DELTAS}
-                     tilesCount={props.tilesCount}
-                     highlight={props.country}
-                     toll={props.toll}
-                     anthem={props.anthem}/>
+        {props.standings
+            ? <BoardViews {...props.standings} country={props.country} countries={countries}/>
+            : countries}
     </>
 }
 

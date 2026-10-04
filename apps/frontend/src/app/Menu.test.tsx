@@ -126,6 +126,28 @@ describe("Menu", () => {
         })
     })
 
+    describe("the players' standings", () => {
+        const standings = {
+            backend: {standings: vi.fn(async () => []), mySeason: vi.fn(async () => undefined)},
+            caller: {linked: false},
+            listenForClicks: () => () => {},
+            view: "countries" as const,
+            onView: vi.fn(),
+        }
+
+        it("are offered beside the countries once wired, and the countries stay as they were", () => {
+            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000} standings={standings}/>)
+
+            expect(screen.getByRole("button", {name: "Leaderboard: Countries"})).toBeDefined()
+            expect(screen.getByRole("region", {name: "First: France"})).toBeDefined()
+        })
+
+        it("are not offered when none are wired", () => {
+            setup([entry("fr", 500)])
+            expect(screen.queryByRole("button", {name: /^Leaderboard/})).toBeNull()
+        })
+    })
+
     describe("the country picker", () => {
         it("opens on the Change button, not on the country name", async () => {
             const {user} = setup()

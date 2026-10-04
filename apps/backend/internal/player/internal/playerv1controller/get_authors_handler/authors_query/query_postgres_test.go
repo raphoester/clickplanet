@@ -97,6 +97,13 @@ func (s *testSuite) TestAUsernameWinsOverTheGuestCodeItNoLongerGoesBy() {
 	s.Equal(map[string]string{ada.String(): "Ada"}, names(s.authors(ada)))
 }
 
+func (s *testSuite) TestAGuestIsToldApartFromAUsername() {
+	authors := s.authors(ada, guest)
+
+	s.False(authors[ada.String()].GetGuest())
+	s.True(authors[guest.String()].GetGuest())
+}
+
 func (s *testSuite) TestAnAdminCarriesItsMark() {
 	_, err := s.db.ExecContext(s.T().Context(), `UPDATE profiles SET admin = true WHERE account_id = $1`, uuid.UUID(ada))
 	s.Require().NoError(err)
@@ -242,6 +249,7 @@ func (s *testSuite) TestEachAuthorIsWhatGetAuthorAnswersForIt() {
 			Color:     playermessage.Color(one.Color()),
 			Streak:    one.Streak().Days(),
 			WornTitle: playermessage.Title(one.Worn()),
+			Guest:     one.Guest(),
 		}, many[account.String()]), "%s: GetAuthor and GetAuthors must name an account alike, got %v", one.Name(), many[account.String()])
 	}
 }
