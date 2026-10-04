@@ -6,6 +6,9 @@ import TitleEmblem from "../titles/TitleEmblem.tsx"
 import TrackPath from "../titles/TrackPath.tsx"
 import {PlayerStats} from "../players/PlayerCard.tsx"
 import {usePlayerInfo} from "../players/usePlayerInfo.ts"
+import {takenCount} from "../../domain/standings.ts"
+import {ListenForClicks} from "../viewer/acceptedClicks.ts"
+import {useOwnTakes, useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
 import {AccountStore} from "./accountStore.ts"
 
 type Titles =
@@ -13,9 +16,10 @@ type Titles =
     | {kind: "failed"}
     | {kind: "ready", dashboard: TitleDashboard}
 
-function useTitles(store: AccountStore, me: Me): [Titles, () => void] {
+function useTitles(store: AccountStore, me: Me, listenForClicks: ListenForClicks | undefined): [Titles, () => void] {
     const [titles, setTitles] = useState<Titles>({kind: "loading"})
     const [read, setRead] = useState(0)
+    const reads = useReadsAfterClicks(listenForClicks)
 
     useEffect(() => {
         let stale = false
@@ -31,7 +35,7 @@ function useTitles(store: AccountStore, me: Me): [Titles, () => void] {
         return () => {
             stale = true
         }
-    }, [store, me, read])
+    }, [store, me, read, reads])
 
     return [titles, () => setRead((n) => n + 1)]
 }
@@ -40,10 +44,11 @@ export type ProgressTabProps = {
     store: AccountStore
     me: Me
     stats?: {backend: PlayerInfoBackend, name: string}
+    listenForClicks?: ListenForClicks
 }
 
-export default function ProgressTab({store, me, stats}: ProgressTabProps) {
-    const [titles, reread] = useTitles(store, me)
+export default function ProgressTab({store, me, stats, listenForClicks}: ProgressTabProps) {
+    const [titles, reread] = useTitles(store, me, listenForClicks)
     const [wearing, setWearing] = useState<string>()
     const labelId = useId()
 
@@ -61,7 +66,7 @@ export default function ProgressTab({store, me, stats}: ProgressTabProps) {
     return <div className="account-progress">
         {worn && <TitleBanner title={worn} compact/>}
 
-        {stats && <OwnStats {...stats}/>}
+        {stats && <OwnStats {...stats} listenForClicks={listenForClicks}/>}
 
         {wearable.length > 0 && <div className="account-wear">
             <span className="menu-label" id={labelId}>Wear a title</span>
@@ -88,7 +93,15 @@ export default function ProgressTab({store, me, stats}: ProgressTabProps) {
     </div>
 }
 
-function OwnStats({backend, name}: {backend: PlayerInfoBackend, name: string}) {
+type OwnStatsProps = {
+    backend: PlayerInfoBackend
+    name: string
+    listenForClicks?: ListenForClicks
+}
+
+function OwnStats({backend, name, listenForClicks}: OwnStatsProps) {
     const state = usePlayerInfo(backend, {name, countryCode: "", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0})
-    return state.kind === "ready" ? <PlayerStats info={state.info}/> : null
+    const takes = useOwnTakes(listenForClicks)
+    if (state.kind !== "ready") return null
+    return <PlayerStats info={{...state.info, tilesTaken: state.info.tilesTaken + takenCount(takes)}}/>
 }

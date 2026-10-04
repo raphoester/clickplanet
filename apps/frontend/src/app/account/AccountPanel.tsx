@@ -16,6 +16,7 @@ import {authorStyle} from "../chat/authorStyle.ts"
 import ProviderButton from "./ProviderButton.tsx"
 import EmailSignIn from "./EmailSignIn.tsx"
 import ProgressTab from "./ProgressTab.tsx"
+import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -26,6 +27,7 @@ export type AccountPanelProps = {
     onDelete: () => void
     linkedMultiplier?: number
     playerInfo?: PlayerInfoBackend
+    listenForClicks?: ListenForClicks
 }
 
 type Tab = "progress" | "settings"
@@ -59,7 +61,8 @@ export default function AccountPanel(props: AccountPanelProps) {
             {tab === "progress"
                 ? <ProgressTab store={props.store}
                                me={props.state.me}
-                               stats={props.playerInfo && name ? {backend: props.playerInfo, name} : undefined}/>
+                               stats={props.playerInfo && name ? {backend: props.playerInfo, name} : undefined}
+                               listenForClicks={props.listenForClicks}/>
                 : <AccountSettings {...props}/>}
         </div>
     </div>

@@ -1,6 +1,7 @@
 import {MySeason, Standing, StandingsBackend} from "../../backends/standings.ts"
-import {NameColor} from "../../backends/player.ts"
+import {NameColor, PlayerLine} from "../../backends/player.ts"
 import {Countries} from "../../domain/countries.ts"
+import {boardWith} from "../../domain/standings.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import RankCoin from "../components/RankCoin.tsx"
@@ -17,20 +18,26 @@ export type PlayerStandingsProps = {
     caller: Caller
     listenForClicks: ListenForClicks
     onSignIn?: () => void
+    onOpenPlayer?: (player: PlayerLine) => void
 }
 
 export default function PlayerStandings(props: PlayerStandingsProps) {
     const standings = useStandings(props.backend, props.countryCode)
     const mine = useMySeason(props.backend, props.caller, props.listenForClicks)
     const name = props.caller.username
-    const listed = standings?.some((standing) => standing.name === name) ?? false
+    const own = ownLine(props.caller, mine, props.countryCode)
+    const board = standings && boardWith(standings, own)
+    const listedRank = board?.listed.find((standing) => standing.name === name)?.rank
 
     return <>
-        <YourSeason mine={mine} caller={props.caller} onSignIn={props.onSignIn}/>
-        {standings && <StandingsTable label={props.label}
-                                      standings={standings}
-                                      name={name}
-                                      own={listed ? undefined : ownLine(props.caller, mine, props.countryCode)}/>}
+        <YourSeason mine={withRank(mine, props.countryCode, own && listedRank)}
+                    caller={props.caller}
+                    onSignIn={props.onSignIn}/>
+        {board && <StandingsTable label={props.label}
+                                  standings={board.listed}
+                                  name={name}
+                                  own={board.below}
+                                  onOpenPlayer={props.onOpenPlayer}/>}
     </>
 }
 
@@ -47,14 +54,20 @@ function ownLine(caller: Caller, mine: MySeason | undefined, countryCode: string
     }
 }
 
+function withRank(mine: MySeason | undefined, countryCode: string, rank: number | undefined): MySeason | undefined {
+    if (!mine || rank === undefined) return mine
+    return countryCode === "" ? {...mine, globalRank: rank} : {...mine, countryRank: rank}
+}
+
 type StandingsTableProps = {
     label: string
     standings: readonly Standing[]
     name?: string
     own?: Standing
+    onOpenPlayer?: (player: PlayerLine) => void
 }
 
-function StandingsTable({label, standings, name, own}: StandingsTableProps) {
+function StandingsTable({label, standings, name, own, onOpenPlayer}: StandingsTableProps) {
     if (standings.length === 0 && !own) return <p className="standings-empty">Nobody yet.</p>
 
     return <table className="leaderboard-table standings-table" aria-label={label}>
@@ -68,33 +81,60 @@ function StandingsTable({label, standings, name, own}: StandingsTableProps) {
         <tbody>
         {standings.map((standing) => <StandingRow key={standing.name}
                                                   standing={standing}
-                                                  you={name !== undefined && standing.name === name}/>)}
+                                                  you={name !== undefined && standing.name === name}
+                                                  onOpenPlayer={onOpenPlayer}/>)}
         {own && <>
             <tr className="standings-gap" aria-hidden="true">
                 <td colSpan={3}/>
             </tr>
-            <StandingRow standing={own} you/>
+            <StandingRow standing={own} you onOpenPlayer={onOpenPlayer}/>
         </>}
         </tbody>
     </table>
 }
 
-function StandingRow({standing, you}: {standing: Standing, you: boolean}) {
+type StandingRowProps = {
+    standing: Standing
+    you: boolean
+    onOpenPlayer?: (player: PlayerLine) => void
+}
+
+function StandingRow({standing, you, onOpenPlayer}: StandingRowProps) {
     const country = Countries.get(standing.countryCode)
+    const style = authorStyle({color: standing.color, guest: false})
 
     return <tr className={you ? "leaderboard-entry leaderboard-entry-player" : "leaderboard-entry"}
                aria-current={you ? "true" : undefined}>
         <td className="leaderboard-entry-index"><RankCoin rank={standing.rank} you={you}/></td>
         <td className="standings-player">
-            {country && <span className="standings-flag" role="img" aria-label={country.name} title={country.name}>
-                <CountryFlag code={country.code}/>
-            </span>}
-            <span className="standings-name"
-                  style={authorStyle({color: standing.color, guest: false})}
-                  title={standing.name}>
-                {standing.name}
+            <span className="standings-who">
+                {country && <span className="standings-flag" role="img" aria-label={country.name} title={country.name}>
+                    <CountryFlag code={country.code}/>
+                </span>}
+                {onOpenPlayer
+                    ? <button type="button"
+                              className="standings-name player-name-button"
+                              style={style}
+                              title={standing.name}
+                              onClick={() => onOpenPlayer(playerOf(standing))}>
+                        {standing.name}
+                    </button>
+                    : <span className="standings-name" style={style} title={standing.name}>
+                        {standing.name}
+                    </span>}
             </span>
         </td>
         <td className="leaderboard-table-number">{standing.tiles}</td>
     </tr>
+}
+
+function playerOf(standing: Standing): PlayerLine {
+    return {
+        name: standing.name,
+        countryCode: standing.countryCode,
+        guest: false,
+        admin: false,
+        color: standing.color,
+        streak: 0,
+    }
 }
