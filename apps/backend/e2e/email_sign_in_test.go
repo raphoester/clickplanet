@@ -27,7 +27,7 @@ func (b *browser) askCode(mailer *auth.FakeMailer, email string, intent authv1.S
 
 	sent := mailer.Sent()
 	require.NotEmpty(b.t, sent)
-	return sixDigits.FindString(sent[len(sent)-1].Letter.Subject)
+	return sixDigits.FindString(sent[len(sent)-1].Letter.Subject())
 }
 
 func (b *browser) typeCode(code string) (*authv1.CompleteEmailSignInResponse, error) {
@@ -125,7 +125,7 @@ func TestEmailSignInIsAbsentWhileItIsOff(t *testing.T) {
 func TestAnEmailCodeForAGoogleAddressSignsInToTheGoogleAccount(t *testing.T) {
 	stack, fakes := startSignIn(t)
 	google := stack.browser(t).signIn(authv1.Provider_PROVIDER_GOOGLE, fakes.Google, "code-1",
-		auth.Claim{Subject: "google-1", Email: "player@example.com", EmailVerified: true})
+		auth.ClaimOf("google-1", "player@example.com", true))
 
 	player := stack.browser(t)
 	player.mint()

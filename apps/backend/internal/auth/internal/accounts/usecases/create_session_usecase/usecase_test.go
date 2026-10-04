@@ -89,9 +89,9 @@ func TestANewCallerIsGivenAGuestSignedIntoItsToken(t *testing.T) {
 
 	assert.Equal(t, accounts.AccountID{15: 1}, f.accountIn(t, out))
 	assert.Equal(t, "token-1", cookieOf(t, out.SetCookie).Value)
-	stored, err := f.sessions.Session(t.Context(), accounts.TokenOf("token-1").Hash)
+	stored, err := f.sessions.Session(t.Context(), accounts.TokenOf("token-1").Hash())
 	require.NoError(t, err)
-	assert.Equal(t, accounts.AccountID{15: 1}, stored.Account)
+	assert.Equal(t, accounts.AccountID{15: 1}, stored.Account())
 }
 
 func TestAReturningCallerKeepsItsAccountAndItsCookie(t *testing.T) {
@@ -117,9 +117,9 @@ func TestADayLaterTheSessionIsExtendedAndTheCookieRenewed(t *testing.T) {
 	renewed := cookieOf(t, out.SetCookie)
 	assert.Equal(t, "token-1", renewed.Value)
 	assert.Equal(t, start.Add(25*time.Hour).Add(90*24*time.Hour), renewed.Expires)
-	stored, err := f.sessions.Session(t.Context(), accounts.TokenOf("token-1").Hash)
+	stored, err := f.sessions.Session(t.Context(), accounts.TokenOf("token-1").Hash())
 	require.NoError(t, err)
-	assert.Equal(t, start.Add(25*time.Hour), stored.ExtendedAt)
+	assert.Equal(t, start.Add(25*time.Hour), stored.ExtendedAt())
 }
 
 func TestAnExpiredOrUnknownCookieStartsANewGuest(t *testing.T) {
@@ -148,7 +148,7 @@ func TestARefusedAttestationCreatesNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, attestation.ErrAttestationFailed)
 	assert.Nil(t, out)
-	_, err = f.sessions.Session(t.Context(), accounts.TokenOf("token-1").Hash)
+	_, err = f.sessions.Session(t.Context(), accounts.TokenOf("token-1").Hash())
 	assert.ErrorIs(t, err, accounts.ErrSessionNotFound, "a caller that proved nothing never gets an account")
 }
 
@@ -176,26 +176,22 @@ func TestAStoreFailureFailsTheMint(t *testing.T) {
 
 func TestALinkedSessionIsExtendedByTheLinkedLifetime(t *testing.T) {
 	f := setUp(t)
-	identity := accounts.NewIdentity("google", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 9}, start)
-	require.NoError(t, f.sessions.SaveSignIn(t.Context(), accounts.SignIn{
-		NewAccount: true, Identity: identity,
-		Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("linked"), accounts.Lifetime{}.WithDefaults(), start),
-	}))
+	identity := accounts.NewIdentity("google", accounts.ClaimOf("user", "", false), accounts.AccountID{15: 9}, start)
+	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("linked"), accounts.Lifetime{}.WithDefaults(), start)
+	require.NoError(t, f.sessions.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
 
 	f.clock.Advance(25 * time.Hour)
 	out := f.create(t, f.useCase(open_attester.New()), "cp_sid=linked")
 
-	assert.Equal(t, identity.Account, f.accountIn(t, out))
+	assert.Equal(t, identity.Account(), f.accountIn(t, out))
 	assert.Equal(t, start.Add(25*time.Hour).Add(30*24*time.Hour), cookieOf(t, out.SetCookie).Expires)
 }
 
 func TestTheTokenSaysWhetherTheAccountSignedInWithAProvider(t *testing.T) {
 	f := setUp(t)
-	identity := accounts.NewIdentity("discord", accounts.Claim{Subject: "user"}, accounts.AccountID{15: 9}, start)
-	require.NoError(t, f.sessions.SaveSignIn(t.Context(), accounts.SignIn{
-		NewAccount: true, Identity: identity,
-		Session: accounts.LinkedSession(identity.Account, accounts.TokenOf("linked"), accounts.Lifetime{}.WithDefaults(), start),
-	}))
+	identity := accounts.NewIdentity("discord", accounts.ClaimOf("user", "", false), accounts.AccountID{15: 9}, start)
+	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("linked"), accounts.Lifetime{}.WithDefaults(), start)
+	require.NoError(t, f.sessions.SaveSignIn(t.Context(), accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
 	useCase := f.useCase(open_attester.New())
 
 	for name, tc := range map[string]struct {

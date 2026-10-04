@@ -28,10 +28,10 @@ func TestSigningOutDeletesTheSessionAndClearsTheCookie(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, accounts.ExpiredSessionCookie(), setCookie)
-	_, err = store.Session(t.Context(), guest.TokenHash)
+	_, err = store.Session(t.Context(), guest.TokenHash())
 	require.ErrorIs(t, err, accounts.ErrSessionNotFound)
 	require.Len(t, events.Published(), 1)
-	assert.True(t, proto.Equal(&authv1.SignedOut{AccountId: guest.Account.String()}, events.Published()[0]))
+	assert.True(t, proto.Equal(&authv1.SignedOut{AccountId: guest.Account().String()}, events.Published()[0]))
 }
 
 func TestABrowserWithNoSessionIsSignedOutAlready(t *testing.T) {

@@ -9,16 +9,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 )
 
-type UseCase interface {
-	Execute(ctx context.Context, accounts []accounts.AccountID) ([]*accounts.Account, error)
+type Query interface {
+	Accounts(ctx context.Context, accounts []accounts.AccountID) (*authv1.GetAccountsResponse, error)
 }
 
-func New(useCase UseCase) GetAccountsHandler {
-	return GetAccountsHandler{useCase: useCase}
+func New(query Query) GetAccountsHandler {
+	return GetAccountsHandler{query: query}
 }
 
 type GetAccountsHandler struct {
-	useCase UseCase
+	query Query
 }
 
 func (h GetAccountsHandler) GetAccounts(
@@ -34,16 +34,9 @@ func (h GetAccountsHandler) GetAccounts(
 		asked = append(asked, account)
 	}
 
-	found, err := h.useCase.Execute(ctx, asked)
+	found, err := h.query.Accounts(ctx, asked)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the error net answers it.
 	}
-
-	res := &authv1.GetAccountsResponse{Accounts: make([]*authv1.Account, 0, len(found))}
-	for _, account := range found {
-		res.Accounts = append(res.Accounts, &authv1.Account{
-			AccountId: account.ID.String(), Linked: account.Linked(), CreatedAtUnixMs: account.CreatedAt.UnixMilli(),
-		})
-	}
-	return connect.NewResponse(res), nil
+	return connect.NewResponse(found), nil
 }

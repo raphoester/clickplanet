@@ -146,7 +146,7 @@ func (p *gamer) signIn(subject string, intent authv1.SignInIntent, outcome authv
 	authorization, err := url.Parse(started.Msg.GetAuthorizationUrl())
 	require.NoError(p.t, err)
 
-	p.stack.fakes.Google.Grant(subject, auth.Claim{Subject: subject})
+	p.stack.fakes.Google.Grant(subject, auth.ClaimOf(subject, "", false))
 	complete := connect.NewRequest(&authv1.CompleteSignInRequest{Code: subject, State: authorization.Query().Get("state")})
 	p.send(complete.Header())
 	complete.Header().Set("Cookie", p.cookie+"; "+flow.Name+"="+flow.Value)

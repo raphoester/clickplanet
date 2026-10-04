@@ -6,19 +6,23 @@ import (
 )
 
 type Account struct {
-	ID         AccountID
-	CreatedAt  time.Time
-	Identities []Identity
+	id         AccountID
+	createdAt  time.Time
+	identities []Identity
 }
 
-func (a *Account) Linked() bool {
-	return len(a.Identities) > 0
+func AccountOf(id AccountID, createdAt time.Time, identities []Identity) *Account {
+	return &Account{id: id, createdAt: createdAt, identities: identities}
+}
+
+func (a *Account) ID() AccountID {
+	return a.id
 }
 
 func (a *Account) Providers() []string {
-	providers := make([]string, 0, len(a.Identities))
-	for _, identity := range a.Identities {
-		providers = append(providers, identity.Provider)
+	providers := make([]string, 0, len(a.identities))
+	for _, identity := range a.identities {
+		providers = append(providers, identity.provider)
 	}
 	return providers
 }
@@ -28,34 +32,72 @@ func (a *Account) linkedTo(provider string) bool {
 }
 
 type Identity struct {
-	Provider      string
-	Subject       string
-	Account       AccountID
-	Email         string
-	EmailVerified bool
-	LinkedAt      time.Time
-}
-
-type Claim struct {
-	Subject       string
-	Email         string
-	EmailVerified bool
-}
-
-func (c Claim) VerifiedEmail() string {
-	if !c.EmailVerified {
-		return ""
-	}
-	return c.Email
+	provider      string
+	subject       string
+	account       AccountID
+	email         string
+	emailVerified bool
+	linkedAt      time.Time
 }
 
 func NewIdentity(provider string, claim Claim, account AccountID, now time.Time) *Identity {
-	identity := &Identity{Provider: provider, Subject: claim.Subject, Account: account, LinkedAt: now}
+	identity := &Identity{provider: provider, subject: claim.subject, account: account, linkedAt: now}
 	if email := claim.VerifiedEmail(); email != "" {
-		identity.Email = email
-		identity.EmailVerified = true
+		identity.email = email
+		identity.emailVerified = true
 	}
 	return identity
+}
+
+func IdentityOf(provider string, subject string, account AccountID, email string, emailVerified bool, linkedAt time.Time) *Identity {
+	return &Identity{
+		provider: provider, subject: subject, account: account, email: email, emailVerified: emailVerified, linkedAt: linkedAt,
+	}
+}
+
+func (i *Identity) Provider() string {
+	return i.provider
+}
+
+func (i *Identity) Subject() string {
+	return i.subject
+}
+
+func (i *Identity) Account() AccountID {
+	return i.account
+}
+
+func (i *Identity) Email() string {
+	return i.email
+}
+
+func (i *Identity) EmailVerified() bool {
+	return i.emailVerified
+}
+
+func (i *Identity) LinkedAt() time.Time {
+	return i.linkedAt
+}
+
+type Claim struct {
+	subject       string
+	email         string
+	emailVerified bool
+}
+
+func ClaimOf(subject string, email string, emailVerified bool) Claim {
+	return Claim{subject: subject, email: email, emailVerified: emailVerified}
+}
+
+func (c Claim) Subject() string {
+	return c.subject
+}
+
+func (c Claim) VerifiedEmail() string {
+	if !c.emailVerified {
+		return ""
+	}
+	return c.email
 }
 
 type Intent int
@@ -83,7 +125,7 @@ func OutcomeOf(intent Intent, current *Account, known *Identity, owner *Account,
 	switch {
 	case known != nil:
 		return SignedIn, nil
-	case joinable && current != nil && current.ID == owner.ID:
+	case joinable && current != nil && current.id == owner.id:
 		return Linked, nil
 	case joinable:
 		return Joined, nil
@@ -98,11 +140,11 @@ func linkOutcomeOf(current *Account, known *Identity, owner *Account, provider s
 	switch {
 	case current == nil:
 		return 0, ErrNoAccount
-	case known != nil && known.Account == current.ID:
+	case known != nil && known.account == current.id:
 		return SignedIn, nil
 	case known != nil:
 		return 0, ErrIdentityLinkedElsewhere
-	case owner != nil && owner.ID != current.ID:
+	case owner != nil && owner.id != current.id:
 		return 0, ErrIdentityLinkedElsewhere
 	case current.linkedTo(provider):
 		return 0, ErrProviderAlreadyLinked
@@ -112,8 +154,43 @@ func linkOutcomeOf(current *Account, known *Identity, owner *Account, provider s
 }
 
 type SignIn struct {
-	NewAccount bool
-	Identity   *Identity
-	Session    *Session
-	Replaces   TokenHash
+	newAccount bool
+	identity   *Identity
+	session    *Session
+	replaces   TokenHash
+}
+
+func NewSignIn(session *Session) SignIn {
+	return SignIn{session: session}
+}
+
+func (s SignIn) WithNewAccount() SignIn {
+	s.newAccount = true
+	return s
+}
+
+func (s SignIn) WithIdentity(identity *Identity) SignIn {
+	s.identity = identity
+	return s
+}
+
+func (s SignIn) WithReplaced(replaces TokenHash) SignIn {
+	s.replaces = replaces
+	return s
+}
+
+func (s SignIn) NewAccount() bool {
+	return s.newAccount
+}
+
+func (s SignIn) Identity() *Identity {
+	return s.identity
+}
+
+func (s SignIn) Session() *Session {
+	return s.session
+}
+
+func (s SignIn) Replaces() TokenHash {
+	return s.replaces
 }

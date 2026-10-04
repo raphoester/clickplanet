@@ -49,8 +49,8 @@ func (p *Provider) AuthorizationURL(flow *signin.Flow) string {
 		"redirect_uri":          {p.redirectURL},
 		"response_type":         {"code"},
 		"scope":                 {"openid email"},
-		"state":                 {flow.State},
-		"nonce":                 {flow.Nonce},
+		"state":                 {flow.State()},
+		"nonce":                 {flow.Nonce()},
 		"code_challenge":        {flow.Challenge()},
 		"code_challenge_method": {"S256"},
 		"prompt":                {"select_account"},
@@ -90,7 +90,7 @@ func (p *Provider) Exchange(ctx context.Context, code string, flow *signin.Flow)
 		"client_id":     {p.client.ClientID},
 		"client_secret": {p.client.ClientSecret},
 		"redirect_uri":  {p.redirectURL},
-		"code_verifier": {flow.Verifier},
+		"code_verifier": {flow.Verifier()},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("google: %w", err)
@@ -100,7 +100,8 @@ func (p *Provider) Exchange(ctx context.Context, code string, flow *signin.Flow)
 	if err != nil {
 		return nil, fmt.Errorf("%w: google: %w", signin.ErrProviderRefused, err)
 	}
-	return &accounts.Claim{Subject: claims.Subject, Email: claims.Email, EmailVerified: claims.EmailVerified}, nil
+	claim := accounts.ClaimOf(claims.Subject, claims.Email, claims.EmailVerified)
+	return &claim, nil
 }
 
 // Signature unchecked: safe only for a token fetched from Google's token endpoint over TLS.
@@ -126,7 +127,7 @@ func (p *Provider) claimsOf(raw string, flow *signin.Flow) (*idToken, error) {
 		return nil, fmt.Errorf("the ID token is for %v", []string(claims.Audience))
 	case !p.clock.Now().Before(time.Unix(claims.ExpiresAt, 0)):
 		return nil, fmt.Errorf("the ID token expired at %d", claims.ExpiresAt)
-	case claims.Nonce != flow.Nonce:
+	case claims.Nonce != flow.Nonce():
 		return nil, fmt.Errorf("the ID token is for another sign-in")
 	case claims.Subject == "":
 		return nil, fmt.Errorf("the ID token names no user")

@@ -9,68 +9,61 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler/me_query"
 )
 
-type stubUseCase struct {
-	account *accounts.Account
-	err     error
-	asked   []string
+type stubQuery struct {
+	me    *authv1.GetMeResponse
+	err   error
+	asked []string
 }
 
-func (s *stubUseCase) Execute(_ context.Context, cookieHeader string) (*accounts.Account, error) {
+func (s *stubQuery) Me(_ context.Context, cookieHeader string) (*authv1.GetMeResponse, error) {
 	s.asked = append(s.asked, cookieHeader)
-	return s.account, s.err
+	return s.me, s.err
 }
 
-func getMe(useCase *stubUseCase) (*connect.Response[authv1.GetMeResponse], error) {
+func getMe(query *stubQuery) (*connect.Response[authv1.GetMeResponse], error) {
 	req := connect.NewRequest(&authv1.GetMeRequest{})
 	req.Header().Set("Cookie", "cp_sid=abc")
 
-	res, err := get_me_handler.New(useCase).GetMe(context.Background(), req)
+	res, err := get_me_handler.New(query).GetMe(context.Background(), req)
 	if err != nil {
 		return nil, fmt.Errorf("GetMe failed: %w", err)
 	}
 	return res, nil
 }
 
-func TestGetMeAnswersAGuestOfTheCookieAndIsNeverCached(t *testing.T) {
-	useCase := &stubUseCase{account: &accounts.Account{ID: accounts.AccountID{15: 1}}}
+func TestGetMeAnswersWhatTheQueryReadForTheCookieAndIsNeverCached(t *testing.T) {
+	me := &authv1.GetMeResponse{
+		AccountId: "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11", Kind: authv1.AccountKind_ACCOUNT_KIND_LINKED,
+		Providers: []authv1.Provider{authv1.Provider_PROVIDER_DISCORD, authv1.Provider_PROVIDER_GOOGLE},
+	}
+	query := &stubQuery{me: me}
 
-	res, err := getMe(useCase)
+	res, err := getMe(query)
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"cp_sid=abc"}, useCase.asked)
-	assert.Equal(t, accounts.AccountID{15: 1}.String(), res.Msg.GetAccountId())
-	assert.Equal(t, authv1.AccountKind_ACCOUNT_KIND_GUEST, res.Msg.GetKind())
-	assert.Empty(t, res.Msg.GetProviders())
+	assert.Equal(t, []string{"cp_sid=abc"}, query.asked)
+	assert.True(t, proto.Equal(me, res.Msg), "got %v", res.Msg)
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
 }
 
-func TestGetMeAnswersALinkedAccountWithItsProvidersInOrder(t *testing.T) {
-	useCase := &stubUseCase{account: &accounts.Account{ID: accounts.AccountID{15: 1}, Identities: []accounts.Identity{
-		{Provider: "discord"}, {Provider: "google"},
-	}}}
-
-	res, err := getMe(useCase)
-	require.NoError(t, err)
-
-	assert.Equal(t, authv1.AccountKind_ACCOUNT_KIND_LINKED, res.Msg.GetKind())
-	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_DISCORD, authv1.Provider_PROVIDER_GOOGLE}, res.Msg.GetProviders())
-}
-
 func TestNoAccountIsUnauthenticated(t *testing.T) {
-	_, err := getMe(&stubUseCase{err: accounts.ErrNoAccount})
+	_, err := getMe(&stubQuery{err: fmt.Errorf("%w: no cookie", me_query.ErrNoAccount)})
 
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }
 
 func TestAFailureIsNotUnauthenticated(t *testing.T) {
-	_, err := getMe(&stubUseCase{err: errors.New("postgres is down")})
+	for _, err := range []error{errors.New("postgres is down"), me_query.ErrUnknownProvider} {
+		_, err := getMe(&stubQuery{err: err})
 
-	require.Error(t, err)
-	assert.NotEqual(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+		require.Error(t, err)
+		assert.NotEqual(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	}
 }
