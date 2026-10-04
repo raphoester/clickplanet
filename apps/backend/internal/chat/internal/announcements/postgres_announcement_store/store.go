@@ -3,7 +3,6 @@ package postgres_announcement_store
 import (
 	"context"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,44 +31,6 @@ func (s *Store) Append(ctx context.Context, announcement announcements.Announcem
 		return fmt.Errorf("failed to insert an announcement: %w", err)
 	}
 	return nil
-}
-
-func (s *Store) Recent(ctx context.Context, since time.Time, limit int) ([]announcements.Announcement, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, kind, payload, announced_at
-		FROM announcements
-		WHERE announced_at >= $1
-		ORDER BY announced_at DESC, id DESC
-		LIMIT $2
-	`, since, limit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read announcements: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	var recent []announcements.Announcement
-	for rows.Next() {
-		var (
-			announcement announcements.Announcement
-			id           uuid.UUID
-			kind         string
-			payload      []byte
-		)
-		if err := rows.Scan(&id, &kind, &payload, &announcement.At); err != nil {
-			return nil, fmt.Errorf("failed to scan an announcement: %w", err)
-		}
-		announcement.ID = announcements.AnnouncementID(id)
-		announcement.Kind = announcements.Kind(kind)
-		announcement.Payload = payload
-		announcement.At = announcement.At.UTC()
-		recent = append(recent, announcement)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read announcements: %w", err)
-	}
-
-	slices.Reverse(recent)
-	return recent, nil
 }
 
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {

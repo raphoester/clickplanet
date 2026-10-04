@@ -51,19 +51,27 @@ describe("SeasonChip", () => {
         rerender(<SeasonChip season={season} compact={false} open onToggle={onToggle}/>)
         expect(screen.getByRole("button", {name: /Season 0 ends in/}).getAttribute("aria-expanded")).toBe("true")
         expect(finaleLine()).not.toBeNull()
+        expect(screen.getByText("Points are counted when the season ends.")).toBeDefined()
 
         fireEvent.keyDown(document, {key: "Escape"})
         expect(onToggle).toHaveBeenCalledTimes(2)
     })
 
-    it("names the finale while it runs, with nothing to open", () => {
+    it("names the finale while it runs, and opens on what it gives", () => {
         vi.useFakeTimers({now: endsAt - HOUR - 12 * MINUTE})
-        render(<SeasonChip season={season} compact={false} open onToggle={vi.fn()}/>)
+        const onToggle = vi.fn()
+        const {rerender} = render(<SeasonChip season={season} compact={false} open={false} onToggle={onToggle}/>)
 
         expect(screen.getByRole("region", {name: "Final Battle"})).toBeDefined()
         expect(screen.getByText("Final Battle ends in")).toBeDefined()
         expect(screen.getByRole("timer").textContent).toBe("1h 12m 00s")
-        expect(screen.getByRole("button")).toHaveProperty("disabled", true)
+
+        fireEvent.click(screen.getByRole("button", {name: /Final Battle ends in/}))
+        expect(onToggle).toHaveBeenCalledTimes(1)
+
+        rerender(<SeasonChip season={season} compact={false} open onToggle={onToggle}/>)
+        expect(screen.getByText("Power-ups for all")).toBeDefined()
+        expect(screen.getByText("Points are counted when the battle ends.")).toBeDefined()
         expect(finaleLine()).toBeNull()
     })
 
@@ -108,5 +116,14 @@ describe("SeasonDetails", () => {
 
         expect(screen.getByRole("timer").textContent).toBe("27d 00h 00m 00s")
         expect(finaleLine()).not.toBeNull()
+    })
+
+    it("says what the finale gives while it runs", () => {
+        vi.useFakeTimers({now: endsAt - HOUR})
+        render(<SeasonDetails season={season}/>)
+
+        expect(screen.getByText("Final Battle ends in")).toBeDefined()
+        expect(screen.getByText("Power-ups for all")).toBeDefined()
+        expect(finaleLine()).toBeNull()
     })
 })

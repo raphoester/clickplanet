@@ -17,7 +17,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/get_history_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
@@ -42,8 +41,8 @@ func (s *stubSender) Execute(_ context.Context, in send_message_usecase.In) (mes
 
 type emptyHistory struct{}
 
-func (emptyHistory) Execute(context.Context, messages.AccountID) (get_history_usecase.History, error) {
-	return get_history_usecase.History{}, nil
+func (emptyHistory) History(context.Context, messages.AccountID) (*chatv1.GetHistoryResponse, error) {
+	return &chatv1.GetHistoryResponse{}, nil
 }
 
 type stubSubscriber struct {

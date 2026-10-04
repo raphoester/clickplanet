@@ -87,12 +87,16 @@ func (s *testSuite) runMigration(name string) {
 }
 
 func (s *testSuite) names() []string {
-	recent, err := s.store.Recent(context.Background(), start, 10)
+	rows, err := s.db.QueryContext(context.Background(), `SELECT name FROM messages ORDER BY seq`)
 	s.Require().NoError(err)
+	defer func() { _ = rows.Close() }()
 
-	names := make([]string, 0, len(recent))
-	for _, message := range recent {
-		names = append(names, message.AuthorName)
+	var names []string
+	for rows.Next() {
+		var name string
+		s.Require().NoError(rows.Scan(&name))
+		names = append(names, name)
 	}
+	s.Require().NoError(rows.Err())
 	return names
 }

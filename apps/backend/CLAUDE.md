@@ -204,7 +204,7 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` and each title award (`StatsChanged`) | `players/rpc_account_reader` |
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
-| `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory` | `messages/rpc_player_authors` |
+| `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
 | `chat` | `auth.v1.InternalService/GetCaller` | whose `cp_sid` cookie a `GetHistory` or a `MarkSeen` carries, when no valid click token named the caller | `shared/cpcallers` |
 
 A module cannot import another's interior, so the key client all three need is `shared/cpsessionverifier` rather than a copy in each.
@@ -363,22 +363,20 @@ handler declares: they tell the guard what a caller reads, for the `scraper`.
 
 Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has five:
 `messages`, `reactions` (which imports `messages`), `announcements`, `seen` (which imports `messages`), and `feed`,
-the live stream, which carries the first three. `subscribers/` is its edge for events, as `chatv1controller/` is its edge for the wire.
+the live stream, which carries the first three. `subscribers/` is its edge for events, as `chatv1controller/` is
+its edge for the wire. A read is a query under its handler: see [Reads are queries](#reads-are-queries).
 
 ```
 internal/chat/internal/
   messages/                             Message, MessageID, Record, Limits, AccountID, Author, ErrNoAccount, Window,
-                                        Named and AccountsOf, the Storage port and its StorageContractSuite
+                                        Named, the Storage port and its StorageContractSuite
     postgres_message_store/             Storage, over chat.messages
     inmemory_message_storage/           Storage in a slice — behind the testing tag, tests only
     rpc_player_authors/                 who an account is, from player.v1.InternalService/GetAuthor(s): one on
-                                        each post, the whole window on each history
+                                        each post, the people under a message on each reaction
     log_authors/                        logs a caller, or a page of them, it could not name
     usecases/send_message_usecase/      names, cleans, appends, publishes — Appender, Publisher, CountryChecker, Authors
       publishing_send_message/          publishes chat.v1.MessageSent once a message is kept
-    usecases/get_history_usecase/       the window, each message named and with its reactions, the caller's marked,
-                                        the announcements in the same window, and until when the caller saw it
-                                                  — MessageReader, ReactionReader, AnnouncementReader, Authors, SeenReader
     usecases/prune_usecase/             deletes past retention, from each table; Runner — Pruner
       log_prune/                        logs what a prune deleted
   reactions/                            Reaction, Reactor, AccountOf, Reactions, Count, Tally, Change, Named,
@@ -386,7 +384,8 @@ internal/chat/internal/
     postgres_reaction_store/            Storage, over chat.reactions
     inmemory_reaction_storage/          Storage in a slice — behind the testing tag, tests only
     usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher, Authors
-  announcements/                        Announcement, AnnouncementID, Kind, Bomb (a payload), the Storage port and its suite
+  announcements/                        Announcement, AnnouncementID, Kind (Known), Bomb (a payload), the Storage port
+                                        and its suite
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
     usecases/announce_usecase/          keeps an announcement, then publishes it — Appender, Publisher
@@ -400,8 +399,12 @@ internal/chat/internal/
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — UpdatesSubscriber
   chatv1controller/                     ChatService (a bag), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
-    chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), shared by the handlers
-    chatannouncement/                   Encode, shared by the history and the stream
+    get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, named, and until when
+                                        the viewer saw the chat — Authors
+      rpc_player_authors/               Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
+    chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), for the post,
+                                        the reaction and the stream
+    chatannouncement/                   Encode, for the stream
   subscribers/                          Timeout
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb payload
     account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
@@ -412,6 +415,31 @@ internal/chat/internal/
 - **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters), `AccountIDOf` (the context's account, or `cpsession.NoAccount`) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
 - **`send_message_usecase.Config` stays under `chat.Config.Service`**, so the `chat.service.*` keys do not change.
 - **`chatv1controller`'s root tests are about the chain** (error net, blocklist, throttle). Each handler package tests its own mapping.
+
+### Reads are queries
+
+**A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
+a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own, and only
+chat follows this so far (`get_history_handler/history_query`, behind `GetHistory`).
+
+- **One package per read, under the handler that serves it**: `<controller>/<procedure>_handler/<read>_query/`. No
+  `queries/` directory: a query has one caller, so it sits with it. `query_postgres.go` holds its one entry point,
+  `PostgresQuery`. Its method is a builder, named for what it answers (`History`).
+- **SQL answers the wire's message.** The query projects straight into the proto response: ordering, windows,
+  counts, `COALESCE`, `json_agg` and lateral joins in SQL; Go only decodes, checks and stitches in what SQL cannot
+  reach.
+- **Strict at the boundary.** A stored value the wire cannot carry is an error, never a default:
+  `history_query.ErrUnknownReaction`, `history_query.ErrUnknownKind`. A rollback past a new reaction or kind therefore refuses
+  the history until those rows leave the window.
+- **What SQL cannot read is a port in the wire's terms.** `history_query.Authors` answers `*player.v1.Author`, and its
+  adapter is a subpackage (`history_query/rpc_player_authors`). The query asks it once and stitches the answer on.
+- **Independent parts run at once** (`errgroup`): the messages and their authors, and the announcements.
+- **The handler only maps**: the caller off the context, the query, the header. It declares the query as its port.
+- **It reads the write side's tables**, so its tests seed through the real stores (`postgres_message_store`,
+  `postgres_reaction_store`, `postgres_announcement_store`) and assert the proto it answers. A store's own contract
+  suite covers only what the write side reads back.
+- **It may use the domain's vocabulary** (`messages.Window`, `messages.AccountID`, `announcements.Kind`), never a
+  use case or an aggregate. A rule both sides need, like the window, stays in the domain.
 
 ### Adapters
 
@@ -610,10 +638,10 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 
 **A message is kept as an account, not as a copy of a name.** `chat.messages.account_id` is who sent it; the name, the crown, the color, the streak and the title worn are read from the player module when the message is *shown*, never stored beside it. That is what makes a rename show on everything its player ever said, and a deleted account stop being named at all — a frozen copy could do neither, and the copy outliving the account it named was a small privacy hole of its own.
 
-- **The history names a whole window in one ask.** `get_history_usecase` collects the distinct accounts (`messages.AccountsOf`) and asks `player.v1.InternalService/GetAuthors` once, however many messages each of them sent; `messages.Named` stitches the answer back on. An account that says fifty things costs one lookup, not fifty. **A history nobody could be named in is refused** rather than shown anonymous.
+- **The history names a whole window in one ask.** `history_query` collects the distinct accounts of the rows it read and asks `player.v1.InternalService/GetAuthors` once, however many messages each of them sent. An account that says fifty things costs one lookup, not fifty. **A history nobody could be named in is refused** rather than shown anonymous.
 - **`SendMessage` still asks `GetAuthor` for one**, because what it publishes has to go out named: everyone already watching is shown who is talking without a second read. That call is also the one that gives a guest its code, which is why the read path uses `GetAuthors` instead — it draws no code, so showing the chat never writes.
-- **An account that can no longer be named was deleted**, and reads as `messages.DeletedName` (`[deleted]`). No username can look like it: `SetName` refuses punctuation. What the account said stays, so a thread keeps its shape.
-- **A message with no `account_id` is from before this**, and keeps the `name` and `author_admin` its row carries. Those two columns exist for that alone. **TODO** (see `postgres_message_store.row`): once `chat.storage.retention` has passed since this shipped, every remaining row has an account, and the columns and `messages.Named`'s fallback can go.
+- **An account that can no longer be named was deleted**, and reads as `history_query.DeletedName` (`[deleted]`). No username can look like it: `SetName` refuses punctuation. What the account said stays, so a thread keeps its shape.
+- **A message with no `account_id` is from before this**, and keeps the `name` and `author_admin` its row carries. Those two columns exist for that alone. **TODO** (see `postgres_message_store.row`): once `chat.storage.retention` has passed since this shipped, every remaining row has an account, and the columns and `history_query`'s fallback to them can go.
 
 The client also sends a UUID it persists locally, kept in the log and **trusted for nothing**. **The sender's address is never public.** It is kept in `chat.messages.ip` for moderation. The salted hash of it that used to go beside every name (`author_tag`) is gone from the wire and the table (migration `20260918210000_drop_tag`): it changed whenever a player changed network, and it told anybody which names shared one.
 
@@ -658,7 +686,7 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 - **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
   `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
   lists in one by time. **Once the messages fill the window, none is older than the oldest of them**
-  (`messages.Window.Beginning`): the two caps are apart, so 200 bombs reached days past 200 messages, and all of
+  (the `beginning` CTE in `history_query`): the two caps are apart, so 200 bombs reached days past 200 messages, and all of
   them sat in a pile on top of the chat.
 - **Not personal data**, but the prune deletes them past `retention` with the messages they sit between.
 
@@ -674,10 +702,10 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
 - **`GetHistory` marks the caller's own.** It reads the optional token (the session reader covers it), or with no valid token the cookie (the cookie reader, see [Who is calling](#who-is-calling-the-click-token-or-the-cookie)): the account's reactions are marked, and a caller with neither has none.
 - **A count says who gave it, not only how many** — as accounts, named when it is shown. `Count` carries the same two halves a `messages.Message` does: `Reactors` is what the store holds, and `Names` is who those accounts are to a reader, filled by `reactions.Named` on the way out. So a rename shows under every reaction its player ever gave, for the same reason it shows on every message.
   - **`reactions.AccountOf`** is `ReactorOf` backwards: `account:<uuid>` to an account, and `false` for a `guest:<tag>` row from before guests had accounts, which is nobody and can be named nothing.
-  - **The history names everyone in one ask.** `get_history_usecase` gathers the senders *and* the people under their reactions (`messages.AccountsOf` plus `reactions.AccountsOf`) and calls `GetAuthors` once for the lot.
+  - **The history names everyone in one ask.** `history_query` gathers the senders *and* the people under their reactions, which its SQL reads as accounts, and calls `GetAuthors` once for the lot.
   - **`React` asks once too**, after the write, and uses that one answer for both the caller's response and the `ReactionsChanged` frame — a reader of the stream has no way to ask for itself. A change that changes nothing pays the same ask, since it answers the same list.
-  - **Somebody nobody can name is counted without being named**: a deleted account, or one of those guest tags. `Count` still says how many gave it, and a list of reactions is not the place to announce that somebody is gone — which is why this does not use `messages.DeletedName`.
-  - The edge sends the first `chatmessage.NamedReactors` (20) names per count and lets `count` say the rest, so a message everybody piles onto does not carry a name per reader per message.
+  - **Somebody nobody can name is counted without being named**: a deleted account, or one of those guest tags. `Count` still says how many gave it, and a list of reactions is not the place to announce that somebody is gone — which is why this does not use `history_query.DeletedName`.
+  - The edge sends the first 20 names per count (`chatmessage.NamedReactors` for a reaction and the stream, `history_query.NamedReactors` for the history) and lets `count` say the rest, so a message everybody piles onto does not carry a name per reader per message.
 - **Stored in `chat.reactions`**, their own table and their own store, one row per `(message_id, reaction, reactor)`, with `reacted_at`. **The reactor is already an account**, so there was never anything to migrate here: the table has held the right thing all along. A read replays the rows oldest first, so each reaction keeps the place it first appeared in, and so do the people under it. The prune deletes rows older than `chat.storage.retention`, like messages: the reactor is an account, so it is personal data. It deletes a version whose last change is that old too, which is only ever one whose message's reactions are all gone.
 - **Its own rate bucket**, `chat.reactionLimiter` (defaults: 1 a second, 10 in hand), and the blocklist covers `React` too.
 
@@ -694,8 +722,8 @@ while it was away: the badge counts it, and the lines light up as the chat opens
   (`ErrNoTime` → `InvalidArgument`).
 - **It only moves forward**: the upsert keeps the `GREATEST` of the two, so two tabs, or a late request, never
   move it back.
-- **`GetHistory` answers it** (`seen_until_unix_ms`, 0 for none): `get_history_usecase` reads it beside the
-  window. **`MarkSeen` writes it.** No account is `Unauthenticated`.
+- **`GetHistory` answers it** (`seen_until_unix_ms`, 0 for none): `history_query` reads `chat.seen` beside the
+  window, in parallel with the messages and the announcements. **`MarkSeen` writes it**, through the `seen` store. No account is `Unauthenticated`.
   It has its own rate bucket, `chat.seenLimiter` (1 a second, 10 in hand), and the blocklist covers it.
 - **Both take the cookie, not only the click token** (`chatv1controller.NewCookieReaderInterceptor` lists them;
   see [Who is calling](#who-is-calling-the-click-token-or-the-cookie)). A click token lives an hour, so a player
@@ -1063,7 +1091,7 @@ internal/player/internal/
 
   An account with no username has no profile row, so it cannot be one: pick the name first.
 - **`GetPlayer(name)` is what anybody may know about a player with a username**: the name as typed, its color, the stats as of today, and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **It never answers the account id.** The name is found ignoring case (`Store.ProfileNamed`, on the unique index on `name_folded`). A name no account holds is `NotFound` (`ErrNoProfile`), and so is one no account may hold, a guest's included, which reads nothing. A guest has no username, so it has no answer here: the client shows its name and flag only. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which now also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
-- **A title is an object, not a row of thresholds.** **Titles are a concept of their own** (`titles/`), beside `players` and `presence`, with their own `Store` port, contract suite and adapters. `titles` imports `players` (an account, its `Stats`), never the other way, so `players.Player` knows nothing of titles: `get_player_usecase.Player` puts the two together, as chat's `get_history_usecase.History` does. Each title is its own type implementing `titles.Title`: `ID()` (what the store keeps), `Name()` (what the card shows) and `EarnedBy(career)`, which is free to hold any rule. A `titles.Career` is the account's `Stats` and its `players.Account`: whether it is `Linked` and its `CreatedAt`, as auth says (a guest with no date when auth does not know it). **A guest earns no title**: `Catalog.EarnedBy` answers nothing for a career whose account is not linked, whatever the titles say, so neither the worker nor the reconciliation writes a row for one. A guest has no username, so nobody could see its titles anyway; once it signs in, its next take earns them on its whole career, OG included. `catalog_test.go` pins each threshold, and that each id is unique and fits the table's `CHECK`. A rule that needs more than a `Career` holds widens `Career`, and whoever builds one.
+- **A title is an object, not a row of thresholds.** **Titles are a concept of their own** (`titles/`), beside `players` and `presence`, with their own `Store` port, contract suite and adapters. `titles` imports `players` (an account, its `Stats`), never the other way, so `players.Player` knows nothing of titles: `get_player_usecase.Player` puts the two together, as chat's history query puts a message and its author together. Each title is its own type implementing `titles.Title`: `ID()` (what the store keeps), `Name()` (what the card shows) and `EarnedBy(career)`, which is free to hold any rule. A `titles.Career` is the account's `Stats` and its `players.Account`: whether it is `Linked` and its `CreatedAt`, as auth says (a guest with no date when auth does not know it). **A guest earns no title**: `Catalog.EarnedBy` answers nothing for a career whose account is not linked, whatever the titles say, so neither the worker nor the reconciliation writes a row for one. A guest has no username, so nobody could see its titles anyway; once it signs in, its next take earns them on its whole career, OG included. `catalog_test.go` pins each threshold, and that each id is unique and fits the table's `CHECK`. A rule that needs more than a `Career` holds widens `Career`, and whoever builds one.
   - **Most titles are ranks on a track.** A `titles.Track` is an id, a name, its ranks in order, and `Progress(career)`, the number its ranks are measured on; a `titles.Rank` is a title with a `Threshold()`. `Conquest` is `Settler`, `Raider`, `Warlord`, `Conqueror` and `Warmaster` (100, 1,000, 10,000, 100,000 and 1,000,000 tiles taken; its progress is the tiles taken). `Devotion` is `Loyal`, `Devoted` and `Unbroken` (a best streak of 7, 30 and 100 days, so a broken streak keeps its rank; its progress is the streak now). `Chatter` is `Talker`, `Chatterbox`, `Socialite` and `Icon` (100, 1,000, 10,000 and 100,000 messages sent; its progress is the messages sent). `OG` stands alone: an account made before 2026-11-01 UTC (a zero date is not). `titles.NewCatalog()` is the standalone titles and the tracks, in the order they are shown. **A new rank is a type added to its track**, a new track a type listed in the catalog: no migration, no proto change. `Conquest`'s names are army words, and a rank past `Warmaster` keeps to them (`Grand Warmaster`, then `Supreme Warmaster`); `Chatter`'s are social words. The client draws a medal per id and the initial for an id it does not know, so a new title shows before the client has its art.
   - **Only the highest rank of each track is shown.** `Catalog.Shown(held)` is the standalone titles held, then the highest rank held of each track, each as a `Standing`: the title and its `Place` (track, rank number, how many ranks). A lower rank stays held, so a stricter rule or a reconciliation never has to give one back.
   - **Titles are kept** in `player.titles` (`account_id`, `title`, `earned_at`), one row per title held. `titles.Book` (the store and the catalog) is what the use cases call: `Unheld` is what the career earns and the account does not hold, and reads nothing when the career earns nothing (a guest); `Grant` keeps them; `Shown` is what the catalog shows of the titles held; `Progress` is each track's progress (`Catalog.Progress`: every rank, its threshold and whether it is held).

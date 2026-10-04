@@ -30,11 +30,11 @@ func (s *Storage) Append(_ context.Context, record messages.Record) error {
 	return nil
 }
 
-func (s *Storage) Recent(_ context.Context, since time.Time, limit int) ([]messages.Message, error) {
+func (s *Storage) Kept() []messages.Message {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.recent(since, limit), nil
+	return s.recent(time.Time{}, len(s.records))
 }
 
 func (s *Storage) Shown(_ context.Context, id messages.MessageID, since time.Time, limit int) (bool, error) {

@@ -46,9 +46,7 @@ func TestAPruneDeletesMessagesReactionsAndAnnouncementsPastRetention(t *testing.
 
 	require.NoError(t, err)
 	assert.Equal(t, int64(3), deleted)
-	recent, err := sent.Recent(t.Context(), time.Time{}, 10)
-	require.NoError(t, err)
-	assert.Len(t, recent, 1)
+	assert.Len(t, sent.Kept(), 1)
 }
 
 func TestAFailedPruneSaysSo(t *testing.T) {

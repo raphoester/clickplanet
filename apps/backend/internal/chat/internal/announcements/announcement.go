@@ -15,6 +15,8 @@ type Kind string
 
 const KindBomb Kind = "bomb"
 
+func (k Kind) Known() bool { return k == KindBomb }
+
 type Announcement struct {
 	ID      AnnouncementID
 	Kind    Kind
@@ -39,6 +41,5 @@ func (b Bomb) Payload() (json.RawMessage, error) {
 
 type Storage interface {
 	Append(ctx context.Context, announcement Announcement) error
-	Recent(ctx context.Context, since time.Time, limit int) ([]Announcement, error)
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
 }
