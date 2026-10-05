@@ -9,21 +9,52 @@ export type SeasonClock = {
     left: string
 }
 
+export type Countdown = {
+    days: number
+    hours: number
+    minutes: number
+    seconds: number
+}
+
+export type FinaleClock = {
+    live: boolean
+    left: string
+    countdown: Countdown
+}
+
 export function seasonClock(season: Season, now: number): SeasonClock | undefined {
     if (now >= season.endsAt) return undefined
 
-    return {finale: now >= season.finaleStartsAt, left: timeLeft(Math.ceil((season.endsAt - now) / 1000))}
+    return {finale: now >= season.finaleStartsAt, left: timeLeft(countdownTo(season.endsAt, now))}
 }
 
-function timeLeft(seconds: number): string {
-    const minutesAndSeconds = `${twoDigits(seconds % HOUR / MINUTE)}m ${twoDigits(seconds % MINUTE)}s`
-    if (seconds >= DAY) return `${Math.floor(seconds / DAY)}d ${twoDigits(seconds % DAY / HOUR)}h ${minutesAndSeconds}`
-    if (seconds >= HOUR) return `${Math.floor(seconds / HOUR)}h ${minutesAndSeconds}`
+export function finaleClock(season: Season, now: number): FinaleClock | undefined {
+    if (now >= season.endsAt) return undefined
+
+    const live = now >= season.finaleStartsAt
+    const countdown = countdownTo(live ? season.endsAt : season.finaleStartsAt, now)
+    return {live, left: timeLeft(countdown), countdown}
+}
+
+function countdownTo(at: number, now: number): Countdown {
+    const seconds = Math.ceil((at - now) / 1000)
+    return {
+        days: Math.floor(seconds / DAY),
+        hours: Math.floor(seconds % DAY / HOUR),
+        minutes: Math.floor(seconds % HOUR / MINUTE),
+        seconds: seconds % MINUTE,
+    }
+}
+
+function timeLeft({days, hours, minutes, seconds}: Countdown): string {
+    const minutesAndSeconds = `${twoDigits(minutes)}m ${twoDigits(seconds)}s`
+    if (days > 0) return `${days}d ${twoDigits(hours)}h ${minutesAndSeconds}`
+    if (hours > 0) return `${hours}h ${minutesAndSeconds}`
     return minutesAndSeconds
 }
 
-function twoDigits(n: number): string {
-    return String(Math.floor(n)).padStart(2, "0")
+export function twoDigits(n: number): string {
+    return String(n).padStart(2, "0")
 }
 
 export type FinaleWindow = {

@@ -12,6 +12,7 @@ import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
 import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
+import {API_BASE_URL} from "./backends/transport.ts"
 import {FakeStandingsBackend} from "./backends/fakeStandingsBackend.ts"
 import {ConnectStandingsBackend} from "./backends/standingsBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
@@ -31,7 +32,7 @@ const callback = callbackOf(new URL(window.location.href))
 if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 
 const config = {
-    baseUrl: import.meta.env.VITE_API_BASE_URL ?? "https://api.clickplanet.lol",
+    baseUrl: API_BASE_URL,
     timeoutMs: 2000,
 }
 

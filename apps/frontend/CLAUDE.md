@@ -73,7 +73,7 @@ Two pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
 
 | Path | File | What |
 |---|---|---|
-| `/` | `index.html` | The home page. Plain HTML, no bundle. |
+| `/` | `index.html` | The home page. Plain HTML, and one small module for the Final Battle. |
 | `/play` | `play.html` | The game. |
 | `/auth/callback` | `auth/callback.html` | The game again, for the sign-in callback. |
 | `/privacy`, `/terms` | `privacy.html`, `terms.html` | Plain pages, no bundle. |
@@ -107,7 +107,8 @@ is unchanged. Paths under `/play/` have no file and get the home page: the game
 has no routes of its own.
 
 **The bundle is named `play-*.js`** now, not `index-*.js`, and it is linked from
-`/play`, not from `/`.
+`/play`, not from `/`. The home page links `home-*.js` (`src/home.ts`), which
+shares the season client's chunk with the game.
 
 ## Architecture
 
@@ -885,6 +886,16 @@ titles. During the finale the first row is the power-ups instead of the date.
 counted at the end, a trophy for the winning country, a title for every
 signed-in player and one more for the winning country's. Guests get no title, so
 the row says "signed-in".
+
+**The home page counts down to the Final Battle.** `src/home.ts` reads the
+season with the same client, and `app/home/finale.ts` fills the pill in the hero
+and the `#final-battle` section, both `hidden` until a season is known and again
+once it is over. `finaleClock` counts to the battle's start, then to the season's
+end, when both go live and glow. The page's text stays in `index.html`; the
+module only writes the numbers and toggles `finale-live`. **It imports no CSS**:
+a stylesheet shared with `play.html` becomes its own file, linked before
+`play-*.css`, and moves the game's cascade. The art's styles are copied into the
+page's `<style>`, as `.panel` and `.button` are.
 
 **The desktop chip writes its bottom edge on `:root` as `--status-bottom`**
 (`useBottomEdge`), and on a phone the status bar does: the quiz, the bomb news

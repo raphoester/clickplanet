@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {finaleWindow, seasonClock} from "./seasonClock.ts"
+import {finaleClock, finaleWindow, seasonClock} from "./seasonClock.ts"
 
 const SECOND = 1000
 const MINUTE = 60 * SECOND
@@ -44,6 +44,32 @@ describe("seasonClock", () => {
     it("is gone once the season is over", () => {
         expect(left(0)).toBeUndefined()
         expect(left(-SECOND)).toBeUndefined()
+    })
+})
+
+describe("finaleClock", () => {
+    const finaleStartsAt = season.finaleStartsAt
+
+    it("counts down to the start of the Final Battle, unit by unit", () => {
+        expect(finaleClock(season, finaleStartsAt - (25 * DAY + 3 * HOUR + 7 * MINUTE + 9 * SECOND))).toEqual({
+            live: false,
+            left: "25d 03h 07m 09s",
+            countdown: {days: 25, hours: 3, minutes: 7, seconds: 9},
+        })
+        expect(finaleClock(season, finaleStartsAt - 300)?.countdown).toEqual({days: 0, hours: 0, minutes: 0, seconds: 1})
+    })
+
+    it("counts down to the end of the season once the Final Battle runs", () => {
+        expect(finaleClock(season, finaleStartsAt)).toEqual({
+            live: true,
+            left: "2h 00m 00s",
+            countdown: {days: 0, hours: 2, minutes: 0, seconds: 0},
+        })
+        expect(finaleClock(season, endsAt - (12 * MINUTE + 5 * SECOND))?.left).toBe("12m 05s")
+    })
+
+    it("is gone once the season is over", () => {
+        expect(finaleClock(season, endsAt)).toBeUndefined()
     })
 })
 
