@@ -253,7 +253,7 @@ The events today:
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
 | `player.v1.StatsChanged{account_id}` | `player`, `record_take_usecase/publishing_record_take` and `record_message_usecase/publishing_record_message` | after each take or message is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
-| `seasons.v1.LeadChanged{season, leader, passed, changed_at}` | `seasons`, `watch_lead_usecase` | a country took the lead during a finale and held it (see [The Final Assault](#the-final-assault)) | `chat`, which announces it |
+| `seasons.v1.LeadChanged{season, leader, passed, changed_at}` | `seasons`, `watch_lead_usecase` | a country took the lead during a finale and held it (see [The Final Battle](#the-final-battle)) | `chat`, which announces it |
 | `seasons.v1.SeasonEnded{season, winner, ended_at}` | `seasons`, `watch_lead_usecase` | once a season has ended and its map is frozen, with the country holding the most tiles; nothing when nobody holds one | `chat`, which announces it |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
@@ -304,7 +304,7 @@ internal/planet/internal/
   Its root also holds the rules a bonus plays by: `Terrain` and `Pocket` (what an
   enclose closes) and `BombRules` (where a bomb lands and what it clears).
 - **`tempo/`** and **`gifts/`** — the rules a finale switches on, in planet's own
-  words, and who already had its gift. See [The Final Assault](#the-final-assault).
+  words, and who already had its gift. See [The Final Battle](#the-final-battle).
 
 **A concept's root is its domain.** The use cases under `usecases/` load, call
 the root, and persist; a rule that could be unit-tested without a port belongs
@@ -1211,7 +1211,7 @@ internal/player/internal/
 
 ### Seasons (`internal/seasons/`)
 
-**When a season ends, when its finale starts, and who leads it.** Planet never imports, calls or hears it: seasons calls planet's internal service, never the other way. See [The Final Assault](#the-final-assault).
+**When a season ends, when its finale starts, and who leads it.** Planet never imports, calls or hears it: seasons calls planet's internal service, never the other way. See [The Final Battle](#the-final-battle).
 
 ```
 internal/seasons/internal/
@@ -1270,7 +1270,7 @@ internal/seasons/internal/
 - **`GetMySeason(country_id)`** (`my_season_query`) is the caller's main flag, its tiles for it and its rank among every player, and its tiles for `country_id` and its rank on that country's board (`country_tiles`, `country_rank`), and the title it wears, from the `GetAuthors` that tells it is not a guest. A rank is 0 and there is no title for a guest, and every number is 0 for an account with no take this season; the country's are 0 with no `country_id`, or no take for it. A country that is not one is `InvalidArgument` (`my_season_query.ErrUnknownCountry`). It sits behind `seasonsv1controller.NewSessionInterceptor`, always enforcing, on the key `auth` hands over (`seasons_session_checks{verdict}`), and takes the identity token (`cpconnect.Identified`): it only reads. It counts the ranked players above the caller: SQL reads the main rows with more tiles than the caller's main flag, and the country's rows with more than the caller's for it, each 500 at a time and both at once, and costs one `GetAuthors` a page.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
 
-### The Final Assault
+### The Final Battle
 
 **From a season's `finale_starts_at` to its `ends_at`, the game runs faster; at `ends_at` the map freezes.**
 Season 0's is Saturday 31 October 2026, 21:00 to 23:00 UTC. The country holding the most tiles at that
@@ -2555,7 +2555,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **Size.** 1M takes are 83 MB of table and 31 MB of indexes (the primary key and the account). Production made ~116,000 takes in 72h at the start of October 2026, ~40,000 a day: ~15M rows and ~1.7 GB a year. Each take is written twice, once by the `COPY` and once when its scope is blanked, and autovacuum reuses the space. No partitioning yet.
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges, deletions)` runs them together and closes the pool after the last flushes, and after the subscriber drained its buffer.
 
-**The gifts follow it**, in `planet.gifts` (`tag`, `account`, `given_at`), one row per account per finale, written as it is given rather than flushed. See [The Final Assault](#the-final-assault).
+**The gifts follow it**, in `planet.gifts` (`tag`, `account`, `given_at`), one row per account per finale, written as it is given rather than flushed. See [The Final Battle](#the-final-battle).
 
 **The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread).
 
