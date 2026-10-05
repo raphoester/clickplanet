@@ -2463,6 +2463,18 @@ the Caddyfile. Change one, change the page and its date.
 what we ask Google for, why, that nobody else gets it, and the Limited Use
 sentence. A new Google scope changes that section.
 
+**Cloudflare Web Analytics counts the page views**, with no cookie. Each of the
+four pages ends with the beacon tag, its token written once in
+`src/webAnalytics.ts` and fed to the pages as `%WEB_ANALYTICS_TOKEN%`, like the
+Discord invite. The token is public. **`/auth/callback` has no beacon**: its URL
+holds the one-time code, and its referrer is Google or Discord, which would read
+as visitors sent from there. `gameRoutes` strips the tag from the copy and fails
+the build if one is left. `"spa": false`, because the pages are real pages and
+the home page's section links are not views. The site is a manual one (no
+`auto_install`), so nothing is injected at the edge. No page sends a
+Content-Security-Policy; one that is added must allow
+`static.cloudflareinsights.com` (script) and `cloudflareinsights.com` (connect).
+
 **`index.html` is the home page** and says what the game is in plain HTML — see
 [Pages and routes](#pages-and-routes). It is a full landing page (header,
 hero, how it works, the board and the map, phone, Discord, and a footer that
