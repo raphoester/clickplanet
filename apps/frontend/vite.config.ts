@@ -2,6 +2,7 @@ import {defineConfig, Plugin} from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import glsl from 'vite-plugin-glsl'
 import {DISCORD_INVITE} from './src/links.ts'
+import {WEB_ANALYTICS_TOKEN, withoutAnalytics} from './src/webAnalytics.ts'
 
 function gameRoutes(): Plugin {
     const GAME = "play.html"
@@ -20,8 +21,10 @@ function gameRoutes(): Plugin {
         },
         generateBundle(_options, bundle) {
             const game = bundle[GAME]
-            if (game?.type !== "asset") this.error(`${GAME} is missing from the bundle`)
-            this.emitFile({type: "asset", fileName: CALLBACK, source: game.source})
+            if (game?.type !== "asset" || typeof game.source !== "string") this.error(`${GAME} is missing from the bundle`)
+            const callback = withoutAnalytics(game.source)
+            if (callback.includes("cloudflareinsights")) this.error(`${CALLBACK} still loads the analytics beacon`)
+            this.emitFile({type: "asset", fileName: CALLBACK, source: callback})
         },
     }
 }
@@ -31,6 +34,7 @@ export default defineConfig({
     base: "/",
     define: {
         "import.meta.env.DISCORD_INVITE": JSON.stringify(DISCORD_INVITE),
+        "import.meta.env.WEB_ANALYTICS_TOKEN": JSON.stringify(WEB_ANALYTICS_TOKEN),
     },
     build: {
         rollupOptions: {
