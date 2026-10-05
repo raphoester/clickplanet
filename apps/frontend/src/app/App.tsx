@@ -8,6 +8,7 @@ export default function App(props: AppProps) {
         <DonationModal/>
 
         <Viewer
+            sharedCountry={props.sharedCountry}
             tileClicker={props.tileClicker}
             ownershipsGetter={props.ownershipsGetter}
             updatesListener={props.updatesListener}

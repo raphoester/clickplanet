@@ -1,10 +1,9 @@
-import {Country} from "./countries.ts";
+import {Countries, Country} from "./countries.ts";
 import {LeaderboardEntry} from "./leaderboard.ts";
 
 export const SHARE_ORIGIN = "https://clickplanet.lol"
 
-// The link-preview Worker reads this parameter: rename both together.
-export const SHARE_COUNTRY_PARAM = "c"
+export const SHARE_FLAG_PARAM = "f"
 
 export type ShareStats = {
     country: Country
@@ -22,7 +21,18 @@ export function shareStats(leaderboard: readonly LeaderboardEntry[], country: Co
 }
 
 export function shareUrl(code: string): string {
-    return `${SHARE_ORIGIN}/?${SHARE_COUNTRY_PARAM}=${encodeURIComponent(code)}`
+    return `${SHARE_ORIGIN}/?${SHARE_FLAG_PARAM}=${encodeURIComponent(code)}`
+}
+
+export function sharedCountry(url: URL): Country | undefined {
+    const code = url.searchParams.get(SHARE_FLAG_PARAM)
+    return code ? Countries.get(code.trim().toLowerCase()) : undefined
+}
+
+export function withoutSharedFlag(url: URL): URL {
+    const stripped = new URL(url)
+    stripped.searchParams.delete(SHARE_FLAG_PARAM)
+    return stripped
 }
 
 export function shareLabel(code: string): string {

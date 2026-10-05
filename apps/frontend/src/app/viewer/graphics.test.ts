@@ -4,7 +4,7 @@ import {graphicsOf, PLAIN} from "./graphics.ts"
 describe("graphicsOf", () => {
     it("turns nothing on when the URL asks for nothing", () => {
         expect(graphicsOf("")).toEqual(PLAIN)
-        expect(graphicsOf("?c=fr")).toEqual(PLAIN)
+        expect(graphicsOf("?f=fr")).toEqual(PLAIN)
     })
 
     it("turns on each part its word names, and no other", () => {
@@ -25,7 +25,7 @@ describe("graphicsOf", () => {
     })
 
     it("reads the switch beside the rest of the query", () => {
-        expect(graphicsOf("?c=fr&gfx=halo")).toEqual({...PLAIN, halo: true})
+        expect(graphicsOf("?f=fr&gfx=halo")).toEqual({...PLAIN, halo: true})
     })
 
     it("turns nothing on for a word it does not know", () => {

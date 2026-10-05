@@ -93,10 +93,14 @@ those links on it**; they are what the verification reads.
 `/play` with `location.replace`, before anything is painted. The game writes
 that key on its first render, so a browser that opened the game once never
 sees the home page again. `location.search` and `location.hash` go along, so
-an old link such as `/?c=de` still reaches the game with its query. Crawlers
+a share link such as `/?f=de` still reaches the game with its query. Crawlers
 have no storage and read the home page. `homePage.test.ts` pins the key in the
 script to the constant. **`/#home` does not redirect**: it is the "Home page"
 link at the bottom of the About modal.
+
+**A first visit keeps the query too.** `home.ts` copies `location.search` onto
+every Play link (`app/home/playLinks.ts`), so a newcomer who opened a share link
+reaches the game with its flag rather than with their time zone's.
 
 **The game is a real file at each path**, not a fallback. The Workers fallback
 is `index.html`, the home page, so a `/auth/callback` that relied on it would
@@ -175,7 +179,7 @@ app/       components
 - `streak.ts` — `streakShown`: a flame is drawn from a streak of 3 days. Every
   player of today has 1, so a short run would mean nothing.
 - `shareCard.ts` — everything about a shared image that is decided before a
-  pixel is drawn: the `?c=<code>` link, the text that rides with it, the line
+  pixel is drawn: the `?f=<code>` link, the text that rides with it, the line
   under the flag, and the size the card comes out at. See [Sharing the
   globe](#sharing-the-globe).
 - `homeSoil.ts` — `outcomeOf` and `ownerAfter`, the server's home-soil rule
@@ -1434,7 +1438,7 @@ at a time, for the page load (`graphicsOf` in `graphics.ts`, read once in
 | `all` | all of the above: #254 as it shipped |
 
 Words add up (`?gfx=ratio,tiles`), and sit beside the rest of the query
-(`?c=fr&gfx=halo`). A word it does not know turns nothing on.
+(`?f=fr&gfx=halo`). A word it does not know turns nothing on.
 
 **Off is the code from before #254, not the new code multiplied by zero.** The
 light is compiled out with `#ifdef LIT` (three's `defines`, which leaves out a
@@ -2207,6 +2211,13 @@ reads the same on a phone in portrait as on a wide desktop.
 **The card carries the mark across the top** — the same logo and wordmark the
 menu header flies — with the link at the other end of that line, and the
 player's badge at the bottom.
+
+**The link switches whoever opens it to its flag.** `main.tsx` reads `?f=`
+with `sharedCountry`, before the first render, and the game starts on that
+country over the one in storage, then stores it as if it had been picked. An
+unknown code is ignored. The parameter is then taken out of the address bar,
+as the sign-in code is: left there, a reload would undo a flag the player has
+switched since.
 
 **The link is drawn into the image**, not only attached to it: a picture is what
 survives being reposted. It is drawn in the text face (`--font-text`, Rubik)

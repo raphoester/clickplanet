@@ -7,10 +7,12 @@ import {
     fitInBox,
     shareFileName,
     shareLabel,
+    sharedCountry,
     shareStats,
     shareText,
     shareUrl,
     statsLine,
+    withoutSharedFlag,
 } from "./shareCard.ts"
 import {Countries} from "./countries.ts"
 import {LeaderboardEntry} from "./leaderboard.ts"
@@ -21,15 +23,38 @@ const entry = (code: string, tiles: number): LeaderboardEntry => ({country: Coun
 
 describe("the share link", () => {
     it("points at the country the player is holding, by the code the atlas uses", () => {
-        expect(shareUrl("fr")).toBe("https://clickplanet.lol/?c=fr")
+        expect(shareUrl("fr")).toBe("https://clickplanet.lol/?f=fr")
     })
 
     it("drops the scheme where it is drawn into the image for a person to read", () => {
-        expect(shareLabel("jp")).toBe("clickplanet.lol/?c=jp")
+        expect(shareLabel("jp")).toBe("clickplanet.lol/?f=jp")
     })
 
     it("names the file after the country, so a folder of them is readable", () => {
         expect(shareFileName("fr")).toBe("clickplanet-fr.png")
+    })
+})
+
+describe("opening a share link", () => {
+    const page = (path: string) => new URL(path, "https://clickplanet.lol")
+
+    it("reads back the country the link was made for", () => {
+        expect(sharedCountry(new URL(shareUrl("jp")))).toEqual(japan)
+    })
+
+    it("reads a code retyped in capitals or with spaces", () => {
+        expect(sharedCountry(page("/play?f=%20JP%20"))).toEqual(japan)
+    })
+
+    it("reads no country from a link without one, or with one it does not know", () => {
+        for (const path of ["/play", "/play?f=", "/play?f=zz", "/play?c=fr"]) {
+            expect(sharedCountry(page(path)), path).toBeUndefined()
+        }
+    })
+
+    it("drops the flag from the address and keeps the rest of it", () => {
+        expect(withoutSharedFlag(page("/play?f=fr&gfx=halo#top")).href).toBe("https://clickplanet.lol/play?gfx=halo#top")
+        expect(withoutSharedFlag(page("/play?f=fr")).href).toBe("https://clickplanet.lol/play")
     })
 })
 
@@ -50,12 +75,12 @@ describe("what the card says", () => {
 describe("the text that rides with the image", () => {
     it("carries the standing and the link", () => {
         expect(shareText({country: france, rank: 2, tiles: 9001}))
-            .toBe("France is #2 on ClickPlanet with 9,001 tiles. Come and take them. https://clickplanet.lol/?c=fr")
+            .toBe("France is #2 on ClickPlanet with 9,001 tiles. Come and take them. https://clickplanet.lol/?f=fr")
     })
 
     it("invites rather than reports when there is no rank to quote", () => {
         expect(shareText({country: japan, rank: null, tiles: 0}))
-            .toBe("Japan holds nothing on ClickPlanet yet. Come and claim it. https://clickplanet.lol/?c=jp")
+            .toBe("Japan holds nothing on ClickPlanet yet. Come and claim it. https://clickplanet.lol/?f=jp")
     })
 })
 
