@@ -11,9 +11,9 @@ function readStoredCountry(): string | null {
     }
 }
 
-export const useCountryStorage = () => {
+export const useCountryStorage = (shared?: Country) => {
     const [countryState, setCountry] = useState<Country>(
-        () => resolveCountry(readStoredCountry(), currentTimeZone()),
+        () => shared ?? resolveCountry(readStoredCountry(), currentTimeZone()),
     )
 
     useEffect(() => {

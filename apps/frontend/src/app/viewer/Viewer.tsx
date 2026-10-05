@@ -27,6 +27,7 @@ import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
 import {shareStats} from "../../domain/shareCard.ts";
+import {Country} from "../../domain/countries.ts";
 import {ClickBudgetSource, now as budgetNow, tokensAt} from "../../backends/clickBudget.ts";
 import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
@@ -61,6 +62,7 @@ const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 type SheetName = "board" | "chat" | "you" | "more" | "season" | "clicks"
 
 export type ViewerProps = {
+    sharedCountry?: Country
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
@@ -79,7 +81,7 @@ export type ViewerProps = {
 
 export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
-    const {countryState, handleSetCountry} = useCountryStorage()
+    const {countryState, handleSetCountry} = useCountryStorage(props.sharedCountry)
     const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
     const sound = useSound()
     const account = useAccount(props.account)
