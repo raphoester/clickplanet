@@ -17,7 +17,7 @@ const account = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
 func storage() *inmemory_charge_storage.Storage {
 	return inmemory_charge_storage.New(
 		inmemory_charge_storage.Config{},
-		bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3, EnclosureMaxTiles: 25},
+		bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3, EnclosureMaxTiles: 25, Shields: 12},
 		inmemory_charge_storage.NewMemoryPersistence(),
 		slog.New(slog.DiscardHandler),
 	)
@@ -28,13 +28,13 @@ func TestEveryKindCanBeGranted(t *testing.T) {
 
 	out, err := grant_charges_usecase.New(charges).Execute(t.Context(), grant_charges_usecase.In{
 		Account: account,
-		Grant:   bonuses.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5},
+		Grant:   bonuses.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5, Shields: 7},
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, bonuses.Holder(account), out.Holder)
 	assert.True(t, out.Before.Empty())
-	assert.Equal(t, bonuses.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5}, out.After)
+	assert.Equal(t, bonuses.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5, Shields: 7}, out.After)
 	assert.Equal(t, out.After, charges.Held(account))
 	for _, kind := range bonuses.Kinds {
 		assert.Positive(t, out.After.Count(kind), kind)

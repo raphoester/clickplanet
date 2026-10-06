@@ -137,8 +137,8 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 }
 
 func (w *Watchdog) Committed(click detect.Click) {
-	// A no-op is not a take: recording it would let a caller frame the next honest clicker.
-	if click.NoOp || click.Scope == "" {
+	// A no-op or a shielded click is not a take: recording it would let a caller frame the next honest clicker.
+	if click.NoOp || click.Shielded || click.Scope == "" {
 		return
 	}
 

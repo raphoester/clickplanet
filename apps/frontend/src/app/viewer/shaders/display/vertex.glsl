@@ -27,9 +27,11 @@ varying float vScorch;
 attribute float hover;
 attribute vec4 regionVector;
 attribute float landmassIndex;
+attribute float shield;
 
 varying float vHover;
 flat out vec4 vRegionVector;
+flat out float vShield;
 
 #ifdef LIT
 flat out float vShade;
@@ -74,6 +76,7 @@ void main() {
 
     vHover = hover;
     vRegionVector = regionVector;
+    vShield = shield;
 
 #ifdef LIT
     vec3 normal = normalize(normalMatrix * ground);

@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 type stubUseCase struct {
@@ -77,4 +78,15 @@ func TestEveryKindTheServerGrantsHasAWireName(t *testing.T) {
 		assert.NotEqualf(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, claim_bonus_handler.EncodeKind(kind),
 			"%s would reach the client as a box it cannot draw", kind)
 	}
+}
+
+func TestEveryKindHasItsOwnNameOnTheWire(t *testing.T) {
+	named := cpcolls.NewSet[planetv1.BonusKind]()
+	for _, kind := range bonuses.Kinds {
+		encoded := claim_bonus_handler.EncodeKind(kind)
+		assert.NotEqual(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, encoded, kind)
+		named.Add(encoded)
+	}
+
+	assert.Equal(t, len(bonuses.Kinds), named.Len())
 }

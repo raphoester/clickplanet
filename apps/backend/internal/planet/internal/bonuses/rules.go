@@ -6,4 +6,7 @@ type Rules struct {
 	EnclosureMaxTiles int
 	SpreadClicks      int
 	Enclosures        int
+
+	Shields     int
+	TileShields int
 }

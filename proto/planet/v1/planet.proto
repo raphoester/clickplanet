@@ -34,6 +34,8 @@ service ClickService {
   rpc OpenQuiz(OpenQuizRequest) returns (OpenQuizResponse);
 
   rpc AnswerQuiz(AnswerQuizRequest) returns (AnswerQuizResponse);
+
+  rpc PlaceShield(PlaceShieldRequest) returns (PlaceShieldResponse);
 }
 
 message ClickBudget {
@@ -105,6 +107,14 @@ message GetMapResponse {
   repeated string codes = 2;
 
   bytes tiles = 3;
+
+  repeated TileShields shields = 4;
+}
+
+message TileShields {
+  uint32 tile_id = 1;
+
+  uint32 shields = 2;
 }
 
 message ListenForEventsRequest {}
@@ -136,6 +146,8 @@ message ChargesHeld {
   uint32 enclosures = 2;
 
   uint32 spread_clicks_left = 3;
+
+  uint32 shields = 5;
 }
 
 message GetChargesRequest {}
@@ -160,6 +172,10 @@ message GetBonusRulesResponse {
 
   // Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower.
   repeated TollStep toll_steps = 6;
+
+  uint32 shields = 7;
+
+  uint32 tile_shields = 8;
 }
 
 message TollStep {
@@ -177,6 +193,8 @@ enum BonusKind {
   BONUS_KIND_BOMB = 3;
 
   BONUS_KIND_ENCLOSE_CLICKS = 4;
+
+  BONUS_KIND_SHIELDS = 6;
 }
 
 message BonusOffered {
@@ -287,6 +305,9 @@ message BombDropped {
   repeated uint32 cleared_tile_ids = 4;
 
   GlobePoint point = 5;
+
+  // Each lost one shield and kept its flag.
+  repeated uint32 struck_tile_ids = 6;
 }
 
 message TilesEnclosed {
@@ -309,6 +330,16 @@ message TilesSpread {
   repeated uint32 spread_tile_ids = 3;
 }
 
+message PlaceShieldRequest {
+  uint32 tile_id = 1;
+
+  string country_id = 2;
+}
+
+message PlaceShieldResponse {
+  ChargesHeld charges = 1;
+}
+
 message Heartbeat {}
 
 message TileUpdate {
@@ -318,4 +349,7 @@ message TileUpdate {
 
   // Only the tile a click named: never a spread's neighbour, an enclosure's inside or a moderator's write.
   bool clicked = 4;
+
+  // The tile's shields after the update: 0 on every change of owner.
+  uint32 shields = 5;
 }

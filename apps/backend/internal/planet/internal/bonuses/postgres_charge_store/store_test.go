@@ -51,7 +51,7 @@ func (s *testSuite) TestAnEmptyStoreLoadsNothing() {
 func (s *testSuite) TestSaveThenLoadEveryHand() {
 	hands := map[bonuses.Holder]bonuses.Held{
 		alice: {Refill: true, Bomb: true, SpreadClicks: 5},
-		bob:   {Enclosures: 2},
+		bob:   {Enclosures: 2, Shields: 12},
 	}
 
 	s.Require().NoError(s.store.Save(context.Background(), hands))

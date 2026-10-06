@@ -31,9 +31,10 @@ func (s *testSuite) SetupTest() {
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}),
 		slog.New(slog.DiscardHandler),
 	)
+
 	tileChecker := clicks.NewBoard(maxIndex)
 	countryChecker := cpcountries.New()
-	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker)
+	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker, clicks.NewShielding(s.storage))
 }
 
 func (s *testSuite) execute(tileID uint32, countryID string) error {
@@ -80,17 +81,63 @@ func (s *testSuite) TestTileOnLimit() {
 	s.NoError(s.execute(250_000, "fr"))
 }
 
-func (s *testSuite) TestAClickReachesTheFeedAsAClickedUpdate() {
-	s.Require().NoError(s.execute(153, "pl"))
+func (s *testSuite) click(tileID uint32, countryID string) click_usecase.Out {
+	out, err := s.useCase.Execute(context.Background(), click_usecase.In{TileID: tileID, CountryID: countryID})
+	s.Require().NoError(err)
+	return out
+}
+
+func (s *testSuite) owner(tile uint32) string {
+	owner, _ := s.storage.Owner(tile)
+	return owner
+}
+
+func (s *testSuite) shield(tile uint32, country string, shields int) {
+	for range shields {
+		s.Require().NoError(s.storage.Shield(context.Background(), tile, country, 10))
+	}
+}
+
+func (s *testSuite) TestEachForeignClickOnAShieldedTileTakesOneShield() {
+	s.click(150, "pl")
+	s.shield(150, "pl", 2)
+
+	s.Equal(clicks.Shielded, s.click(150, "de").Outcome)
+	s.Equal(clicks.Shielded, s.click(150, "fr").Outcome)
+	s.Equal("pl", s.owner(150), "a shielded tile keeps its flag")
+
+	s.Equal(clicks.Taken, s.click(150, "de").Outcome)
+	s.Equal("de", s.owner(150), "with no shield left the next click takes it")
+}
+
+func (s *testSuite) TestItsOwnFlagClickingAShieldedTileChangesNothing() {
+	s.click(152, "pl")
+	s.shield(152, "pl", 1)
+
+	s.Equal(clicks.Unchanged, s.click(152, "pl").Outcome)
+	s.Equal(1, s.storage.Shields(152))
+}
+
+func (s *testSuite) TestAnUnshieldedTileIsTakenInOneClick() {
+	s.click(300, "pl")
+	s.Equal(clicks.Taken, s.click(300, "de").Outcome)
+	s.Equal("de", s.owner(300))
+}
+
+func (s *testSuite) TestAShieldedClickPublishesTheShieldsLeftAndNoNewOwner() {
+	s.click(153, "pl")
+	s.shield(153, "pl", 1)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	feed, err := s.storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
-	s.Require().NoError(s.execute(153, "de"))
+	s.click(153, "de")
 
 	change := <-feed
 	s.Require().NotNil(change.Update)
-	s.Equal(clicks.TileUpdate{Tile: 153, Value: "de", Previous: "pl", Clicked: true}, *change.Update)
+	s.Equal(clicks.TileUpdate{Tile: 153, Value: "pl", Previous: "pl"}, *change.Update)
+	s.Empty(feed)
 }

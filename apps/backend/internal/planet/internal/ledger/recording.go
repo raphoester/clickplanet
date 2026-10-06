@@ -28,6 +28,10 @@ type Recording struct {
 	clock   cptime.Clock
 }
 
+func (r Recording) Owner(tile uint32) (string, bool) {
+	return r.tiles.Owner(tile)
+}
+
 func (r Recording) Set(ctx context.Context, tile uint32, value string) error {
 	return r.record(ctx, tile, value, r.tiles.Set)
 }

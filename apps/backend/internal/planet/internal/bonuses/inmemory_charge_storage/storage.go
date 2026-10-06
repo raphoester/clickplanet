@@ -94,6 +94,10 @@ func (s *Storage) Enclosures() int {
 	return s.rules.Enclosures
 }
 
+func (s *Storage) Shields() int {
+	return s.rules.Shields
+}
+
 func (s *Storage) Grant(holder bonuses.Holder, kind bonuses.Kind, amount int) {
 	if holder == bonuses.NoHolder {
 		return
@@ -126,6 +130,10 @@ func (s *Storage) SpendEnclose(holder bonuses.Holder) bool {
 
 func (s *Storage) SpendSpreadClick(holder bonuses.Holder) bool {
 	return s.spend(holder, bonuses.Held.AfterSpreadClick)
+}
+
+func (s *Storage) SpendShield(holder bonuses.Holder) bool {
+	return s.spend(holder, bonuses.Held.AfterShield)
 }
 
 func (s *Storage) spend(holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) bool {

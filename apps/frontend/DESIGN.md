@@ -69,7 +69,7 @@ system exists to stop.
 | `--gold` | Reward and progress: panel headers, title names, progress fills, first place |
 | `--gain`, `--loss` | Tiles won and lost, nowhere else |
 | `--streak` | The streak flame |
-| `--refill`, `--spread`, `--bomb`, `--enclose` (and `-light`) | A bonus kind: its box, its slot, its reward line |
+| `--refill`, `--spread`, `--bomb`, `--enclose`, `--shield` (and `-light`) | A bonus kind: its box, its slot, its reward line |
 | `--bronze` … `--holo-4`, `--conquest` … `--og-enamel` | Medals only (below) |
 
 - **A name's color is only a hue.** `hueOf` reads it off the pick; the saturation
@@ -138,7 +138,7 @@ feature goes in one of them; there is no fifth panel and no new fold.
 |---|---|---|
 | **Status** | Who you play for, its rank, the season's clock: chips that are read at a glance | Phone: the top bar. Desktop: the menu's head, the season at the top centre |
 | **Moments** | Something that just happened: the quiz, a bomb, a caught box. One at a time, then gone | Under the status zone |
-| **Play** | What every click needs: the clicks left, the slowdown, the four bonuses | One bar, at the bottom |
+| **Play** | What every click needs: the clicks left, the slowdown, the five bonuses | One bar, at the bottom |
 | **Places** | Everything read or set: the board, the chat, the account, the settings, More. One open at a time | Phone: tabs at the bottom, each a sheet. Desktop: the menu's tabs on the left, the chat on the right |
 
 - **Ask in this order.** A moment? Moments. Needed on every click? Play, and that

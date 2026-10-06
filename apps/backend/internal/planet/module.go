@@ -28,6 +28,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase/audit_grant_charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/open_quiz_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase/antibot_place_shield"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
@@ -82,6 +84,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/place_shield_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
@@ -174,6 +177,8 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			pricer := clicks.NewToll(config.Toll, tilesStorage)
 
+			shielding := clicks.NewShielding(tilesStorage)
+
 			writer := ledger.NewRecording(tilesStorage, publishing_ledger_storage.New(takings, props.Events), clock)
 
 			registry := bonuses.New(config.Bonus, clock, charges)
@@ -194,12 +199,12 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 
-			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
-			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, registry)
+			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries, shielding)
+			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, shielding, registry)
 
 			clickUseCase = enclose_click.New(clickUseCase, charges,
 				bonuses.NewTerrain(geography, tilesStorage),
-				enclose_click.NewAnnexer(writer, charges, prom_enclose.New(registry, props.Metrics)))
+				enclose_click.NewAnnexer(writer, shielding, charges, prom_enclose.New(registry, props.Metrics)))
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
@@ -213,7 +218,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			props.Runners.Add(guard)
 
-			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, clock, props.Metrics)
+			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, shielding, clock, props.Metrics)
 
 			clickUseCase = bonus_click.New(clickUseCase, registry)
 
@@ -316,6 +321,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				EnclosureMaxTiles: charges.EnclosureMaxTiles(),
 				SpreadClicks:      charges.SpreadClicks(),
 				Enclosures:        charges.Enclosures(),
+				Shields:           charges.Shields(),
+				TileShields:       config.Bonus.ShieldsPerTile(),
 			}
 
 			service := planetv1controller.ClickService{
@@ -333,6 +340,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetBonusRulesHandler: get_bonus_rules_handler.New(rules, pricer),
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
+				PlaceShieldHandler: place_shield_handler.New(antibot_place_shield.New(
+					place_shield_usecase.New(charges, tilesStorage, countries, config.Bonus.ShieldsPerTile()), guard)),
 			}
 
 			return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

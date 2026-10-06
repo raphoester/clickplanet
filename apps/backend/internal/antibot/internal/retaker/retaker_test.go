@@ -17,12 +17,14 @@ type harness struct {
 	clock     *cptime.FixedClock
 	owner     map[uint32]string
 	reactions []time.Duration
+	shields   map[uint32]int
 }
 
 func newHarness(config retaker.Config) *harness {
 	h := &harness{
-		clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)),
-		owner: map[uint32]string{},
+		clock:   cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)),
+		owner:   map[uint32]string{},
+		shields: map[uint32]int{},
 	}
 
 	h.watchdog = retaker.New(config, h.clock, func(d time.Duration) {
@@ -44,19 +46,23 @@ func (h *harness) deliver(scope string, tile uint32, country string, accepted bo
 	held := h.owner[tile]
 
 	c := detect.Click{
-		Scope:   scope,
-		Tile:    tile,
-		Country: country,
-		At:      h.clock.Now(),
-		Held:    held,
-		NoOp:    held == country,
+		Scope:    scope,
+		Tile:     tile,
+		Country:  country,
+		At:       h.clock.Now(),
+		Held:     held,
+		NoOp:     held == country,
+		Shielded: held != country && h.shields[tile] > 0,
 	}
 
 	verdict, _ := h.watchdog.Watch(c)
 
 	if accepted {
 		h.watchdog.Committed(c)
-		if !c.NoOp {
+		switch {
+		case c.Shielded:
+			h.shields[tile]--
+		case !c.NoOp:
 			h.owner[tile] = country
 		}
 	}
@@ -291,4 +297,24 @@ func TestRoamIsOffWithoutMinTiles(t *testing.T) {
 	h := newHarness(config)
 
 	assert.Equal(t, detect.Clear, h.war("bot", 6000, recaptureBot(40)))
+}
+
+func TestAStrikeOnAShieldIsNothingToReactTo(t *testing.T) {
+	h := newHarness(retaker.Config{})
+	h.owner[7], h.shields[7] = "BG", 2
+
+	h.click("attacker", 7, "FR")
+	require.Equal(t, "BG", h.owner[7], "a shield took the click")
+
+	h.clock.Advance(800 * time.Millisecond)
+	h.click("third", 7, "DE")
+	assert.Empty(t, h.reactions, "nobody took the tile, so nothing was reacted to")
+
+	h.clock.Advance(time.Second)
+	h.click("third", 7, "DE")
+	require.Equal(t, "DE", h.owner[7])
+
+	h.clock.Advance(700 * time.Millisecond)
+	h.click("attacker", 7, "FR")
+	assert.Equal(t, ms(700), h.reactions, "the take after the last shield fell is reacted to")
 }

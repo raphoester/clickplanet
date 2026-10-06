@@ -286,8 +286,9 @@ internal/planet/internal/
 
 - **`clicks/`** — what a click is worth, what the map looks like, and what
   changes when somebody takes a tile. Its root holds the rules that need no
-  port: `Board` (which tile ids exist), `Toll` (what a click costs), `Pacing`
-  (how an operator's bulk change is spread out), `Geography` and `Borders`.
+  port: `Board` (which tile ids exist), `Toll` (what a click costs), `Outcome` and
+  `Shielding` (what a click does to a tile and its shields), `Pacing` (how an
+  operator's bulk change is spread out), `Geography` and `Borders`.
 - **`ledger/`** — every take of every tile, oldest first. Its root holds `Taking`, `Player`, `Tally`, `Runs`,
   the `Storage` port, `Recording` (the tile writer that records) and `Retention`. `FindPlayers`, `TopPlayers`, `BanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
@@ -322,7 +323,7 @@ because it serves every concept over one Connect service. It only maps.
 
 | package | what it does | what it needs |
 |---|---|---|
-| `clicks/usecases/click_usecase` | validates the country and the tile, then writes | `TilesChecker`, `TileStorage`, `CountryChecker` |
+| `clicks/usecases/click_usecase` | validates the country and the tile, then writes what the shielding says the click leaves | `TilesChecker`, `TileStorage`, `CountryChecker`, `Rule` |
 | `clicks/usecases/get_map_usecase` | a range of the map as one dense batch | `MaxIndexReader`, `DenseMapReader` |
 | `clicks/usecases/map_density_usecase` | how many tiles there are | `MaxIndexReader` |
 | `clicks/usecases/get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader` |
@@ -340,6 +341,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
+| `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port
@@ -550,7 +552,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 `inmemory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
 **Secondary (output):**
-- `clicks/inmemory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process, and flushes the tiles that changed through its `Persistence` port.
+- `clicks/inmemory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table, and a `[]uint8` of each tile's shields beside it (3 bytes per tile — ~3 MB for a 1M-tile map). Fans updates out in process, and flushes the tiles that changed through its `Persistence` port.
 - `clicks/postgres_tile_store/` — that port, over the `planet.tiles` table. See [Durability](#durability).
 - `ledger/inmemory_ledger_storage/` — the ledger, in memory, flushed through its own `Persistence` port.
 - `ledger/postgres_ledger_store/` — that port, over `planet.ledger_takes`, `ledger_head` and `ledger_forgotten`, and `AnonymizeTakes` for a deleted account.
@@ -599,7 +601,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
   → antibot_click   (judges; a flagged caller is answered OK and dropped)
   → prom_click      (counts)
-  → clicks/usecases/click_usecase (validates tile ID + country)
+  → clicks/usecases/click_usecase (validates tile ID + country, asks clicks.Shielding: take, strike a shield, or nothing)
   → ledger.Recording.Click() → MemoryTileStorage.Click() [writes the flag; fans the update out in process, marked `clicked`]
   → every subscriber: one per open ListenForEvents stream
 ```
@@ -632,6 +634,59 @@ POST /chat.v1.ChatService/React   [X-Session-Token: required, naming an account]
   → who everyone under the message is, one ask (rpc_player_authors.Authors), for the answer and the frame alike
   → inprocess_feed.Publish() the whole tally, versioned and named
 ```
+
+### Shields
+
+**A shield is a charge a player places on a tile its flag holds, and each one
+takes one foreign click.** A tile holds up to `bonus.shield.perTile` (10). While
+any stand, a click for another flag strikes one and the tile keeps its flag; with
+none left, the next click takes it.
+
+**One click is one token, always.** A strike is an accepted click: it spends from
+both buckets, sets the pace, counts in `clicks_total{status="ok"}` and is reported
+to the jury.
+
+- **A tile's shields are part of the tile**, kept by `inmemory_tile_storage` in a
+  `[]uint8` beside the owners, under the same lock. **Every change of owner sets them
+  to 0** — a click, a spread, an enclose, a bomb, `ReassignCountry`, `RevertPlayer`,
+  `PaintRandomTiles` — so no shield ever stands on a tile for a flag that lost it,
+  and no write path has to know about them. `Strike(tile, owner)` and
+  `Shield(tile, country, most)` check the owner under that lock, so a strike or a
+  placement racing a capture finds the new owner.
+- **The rule is `clicks.OutcomeOf(owner, flag, shields)`**, pure and tested in the
+  `clicks` root: `Unchanged` when the tile wears the flag, `Shielded` when a shield
+  stands, `Taken` otherwise. `clicks.Shielding` is the rule over the storage: `Outcome`
+  foresees it and spends nothing (`antibot_click`), and `Strike` spends the shield
+  (`click_usecase`, `spread_click`, the enclose annexer). A strike that lost the race
+  for the last shield is a take. `clicks.ShieldError` is what a placement is
+  refused for (`ErrNotYourTile`, `ErrTileFull`), read by the use case before it spends
+  and by the storage under its lock.
+- **A shielded click writes no owner**: `OwnerAfter` is the owner, so the write is a
+  no-op and records no take. The strike publishes the tile's new count instead: a
+  `TileUpdate` whose `Value` is its `Previous`, with `Shields` set.
+- **Every `TileUpdate` carries the tile's shields after it** (0 on any change of
+  owner), and every `GetMap` batch the shielded tiles in its range
+  (`DenseBatch.Shields`, `GetMapResponse.shields`). So they ride the one channel
+  the map does, in its order, and a client needs no read of its own.
+- **Placing one is `PlaceShield(tile, country)`** (`bonuses/usecases/place_shield_usecase`).
+  A tile not wearing the flag (`ErrNotYourTile`) and a full one (`ErrTileFull`) are
+  `FailedPrecondition` and spend nothing; no shield held is `NotFound`; an unknown
+  country or tile is `InvalidArgument`. A placement the tile refuses after the
+  charge was spent (it changed hands in between) gives the shield back. It is
+  session-gated like `DropBomb` and not throttled. `antibot_place_shield` makes a
+  banned caller's a `Dud`: the shield is spent, nothing is placed, and it is
+  answered OK. The answer is the charges left.
+- **Kept with the tile**: `planet.tiles.shields`, written by the flush that writes
+  the owner.
+- **`click_usecase.Out.Outcome`** says what the rule did, for the decorators inside
+  the shadow ban: `enclose_click` closes a shape only with `Taken`, and `prom_click`
+  counts `clicks_shielded_total{country_id}` by the flag clicked. **It never reaches
+  the wire**: a dropped click answers the zero `Out`, which reads `Unchanged`. The
+  client predicts it from the shields it holds.
+
+What a spread, an enclose, a bomb and the antibot do with a shielded tile is in their
+own sections: [spread](#what-a-spread-does-to-a-click), [enclose](#what-an-enclose-does-to-a-click),
+[bomb](#what-a-bomb-does), [antibot](#the-parts-that-are-easy-to-get-wrong).
 
 ### Chat (`internal/chat/`)
 
@@ -897,7 +952,7 @@ The signature is checked **before** the expiry, so a forger learns nothing about
 - **`CreateSession` mints the click token**, after a Turnstile check: `attested` is set. Nothing else sets it.
 - **`ResumeSession` mints the identity token**, from the cookie alone, with no Turnstile: the same account and linked byte, `attested` clear. It reads the live session the cookie holds and extends it when due, through `accounts.Resumer`, the same object `CreateSession` resumes a session with; a cookie with no live session gets no token, and no guest is started: only a Turnstile check starts one (`accounts.Guests`). It is bound to the address and lives an hour, like the click token, so a client renews it silently.
 - **Each procedure says which it takes.** The session interceptors take `cpconnect.Attested(procedure)` or `cpconnect.Identified(procedure)`, never a bare name, so no procedure takes the weaker token by default. An identity token on an attested procedure is as good as none: the reader puts nobody on the context, and the enforcing interceptor answers `Unauthenticated`, which the client already answers by minting through Turnstile and retrying. The verdict is `unattested` in `click_session_checks` and `player_session_checks`.
-- **What acts is attested**: everything that writes what other players see, or spends or earns something — `Click`, `ClaimBonus`, `DropBomb`, `UseRefill`, `OpenQuiz`, `AnswerQuiz`, `SendMessage`, `React`, `SetName`, `SetColor`, `WearTitle`, `Announce`. **What reads, or writes only the caller's own state, is identified**: `GetBudget`, `GetCharges`, both `ListenForEvents`, `GetHistory`, `MarkSeen`, `GetProfile`, `GetStats`, `GetTitles`, `Leave`, `GetMySeason`.
+- **What acts is attested**: everything that writes what other players see, or spends or earns something — `Click`, `ClaimBonus`, `DropBomb`, `UseRefill`, `OpenQuiz`, `AnswerQuiz`, `PlaceShield`, `SendMessage`, `React`, `SetName`, `SetColor`, `WearTitle`, `Announce`. **What reads, or writes only the caller's own state, is identified**: `GetBudget`, `GetCharges`, both `ListenForEvents`, `GetHistory`, `MarkSeen`, `GetProfile`, `GetStats`, `GetTitles`, `Leave`, `GetMySeason`.
 - **So "an account on the context" still means "passed Turnstile" for every attested procedure**, and the use cases behind them did not change: a caller the interceptor did not name is refused with the error each already had (`messages.ErrNoAccount`, `ErrNoSession`).
 - **What it opens**: a browser that passed Turnstile once can read as its account for as long as its cookie lives, without passing it again. It cannot act. `TestTheCookieResumesATokenThatNamesThePlayerAndCannotAct` pins both halves over HTTP.
 
@@ -1104,7 +1159,7 @@ internal/player/internal/
   - **Caps, against a script minting accounts** (`inmemory_visit_storage`): at most 10 accounts per tag, where a new account pushes out the tag's oldest visit, and 10,000 in all, where a new account is not recorded. The mint throttle already bounds how fast one address makes accounts.
   - An unknown country is `InvalidArgument`; a failed profile read is the error net's `internal`, and nothing is recorded.
   - **A sign-in, a new name, a sign-out and a deletion change the roster at once, with no announce.** The client drops its click token on each of these, and a new one waits for a click, so waiting for its next announce left a guest line on the roster, or two lines, for up to 90s. So: `auth.v1.SignedIn` moves the browser's visit to the account it is on now, under that account's name (its username, or its own guest code), over any visit the account held (`move_visit_usecase`, `Storage.Move`; one account before and after changes nothing, and reads nothing). `SetName` renames the caller's visit once the name is kept (`renaming_set_name`, `Storage.Rename`). `auth.v1.SignedOut` and `auth.v1.AccountDeleted` take the account off (`forget_visit_usecase`, `Storage.Forget`); another device still signed in announces again within 30s. An account with no visit is left off by all of them: its browser never announced.
-- **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today: a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. The rule is `Stats.AsOf` for the commands and the same `CASE` in each query's SQL; `stats_test.go` and the queries' tests pin it across UTC midnight.
+- **Stats come from `planet.v1.TileTaken`**, one event per tile, so a spread of seven is seven tiles. A strike on a shield takes no tile and is never published. **The streak day is UTC**: a take on the day after `streak_last_day` extends the streak, a take on the same day changes nothing, a gap starts it again at 1, and a late event older than the last day counts a tile and leaves the streak alone (`Stats.WithTake`). `GetStats` reads it as of today: a streak whose last day is before yesterday reads 0, and `streak_best` keeps it. The rule is `Stats.AsOf` for the commands and the same `CASE` in each query's SQL; `stats_test.go` and the queries' tests pin it across UTC midnight.
 - **Messages sent come from `chat.v1.MessageSent`**, one event per message kept (`Stats.WithMessage`, `stats.messages_sent`, migration `20261003140000_messages_sent`). Every message counts: the chat's own rate limit is the only bound. A message is no take, so it neither starts nor extends a streak, and a row made by a message alone has no `streak_last_day` (the migration made it nullable). It is not on the wire as a stat: the `Chatter` track's progress is where a player sees it. Counting started with that migration; messages sent before it are not replayed.
 - **An admin of the game is `player.profiles.admin`**, false by default. **The game never sets it**: an operator flips it in the database (below), and `SaveProfile` never writes it, so a rename keeps it. It only means something beside a username: `GetAuthor` and `GetAuthors` answer `admin` for the chat, which shows the crown on a message whose account is an admin **now** — it is read when the message is shown, not stamped on it, so a player that stops being an admin stops looking like one on what it already said; `presence.RosterOf` sets `Admin` on a roster entry only when it is not a guest; `GetPlayer` answers it too. The frontend draws a crown on all three. An announce reads the profile, so a new admin shows on the roster within 30s, and in the chat the moment anybody reloads it.
 
@@ -1176,7 +1231,7 @@ internal/seasons/internal/
 **A player's season score is the tiles it took this season for its main flag**, the flag it took the most tiles for, so a player cannot add up several flags. **A country's board is every player who took tiles for that country, ranked by those tiles**, so a player is on the board of each flag it took for, and a change of flag shows at the first take rather than when the main flag moves.
 
 - **`standings.Tally` is the rule**: an account's tiles per flag in one season, and its main flag. `WithTake` adds one tile and makes the flag the main one when it has strictly more tiles than the main one; a tie keeps the flag that got there first. **The season of a take is the one whose interval holds `taken_at`** (`Take.Season`, over `Calendar.Current`); a take after the last season counts nothing. `tally_test.go` and `take_test.go` pin both.
-- **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event. A shadow-banned click (it never reaches the ledger) and a revert publish nothing, so they change no score. Takes before this module had a database are not replayed: counting started the day it shipped.
+- **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event. A strike on a shield, a shadow-banned click (it never reaches the ledger) and a revert publish nothing, so they change no score. Takes before this module had a database are not replayed: counting started the day it shipped.
 - **One transaction per take**, under `pg_advisory_xact_lock` on the account: read the account's rows for the season, apply `WithTake`, upsert the flag's row and move `main`. The rule stays in Go; the column only keeps what it said.
 - **Kept in `seasons.contributions`** (`season`, `account_id`, `country`, `tiles`, `main`; primary key `(season, account_id, country)`), with its own block, `seasons.database`, its own pool and migrations. `main` marks one row per account and season (a partial unique index). A partial index on it serves the whole map's board, and `contributions_country_board` (`season, country, tiles DESC, account_id`, every row) serves a country's.
 - **`auth.v1.AccountDeleted`** (`seasons-standings-accounts`) deletes the account's rows in every season.
@@ -1193,9 +1248,9 @@ internal/seasons/internal/
 
 
 A question-mark box flies past the planet every so often; whoever catches it
-gets one of four bonuses. Each box draws its kind from `bonus.kinds`, a weight
+gets one of five bonuses. Each box draws its kind from `bonus.kinds`, a weight
 per kind — a kind's chance is its weight over the sum of the weights, so the
-strong ones can be made rare (production runs 5 : 2 : 1 : 2):
+strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 3):
 
 - **`refill`** — a charge: fills the caller's click bank to full, when the
   caller chooses. Up to one bank, 60 clicks. See [What a refill does to the bucket](#what-a-refill-does-to-the-bucket).
@@ -1210,9 +1265,12 @@ strong ones can be made rare (production runs 5 : 2 : 1 : 2):
   a click that closes a shape of the caller's own tiles also takes the tiles
   inside it, at most `bonus.enclose.maxTiles` (25), and spends one.
   See [What an enclose does to a click](#what-an-enclose-does-to-a-click).
+- **`shields`** — 1 to `bonus.shield.maxPerBox` (3) shields added to a stack
+  of at most `bonus.shield.held` (12). Each is placed on a tile the player's flag
+  holds and takes one foreign click there. See [Shields](#shields).
 
 Every kind is a **charge**, worth about one bank, rather than a timer — see
-[Charges](#charges-refill-bomb-enclose-spread). There used to be a `triple_clicks`
+[Charges](#charges-refill-bomb-enclose-spread-shields). There used to be a `triple_clicks`
 that multiplied the refill for two minutes. With a bank of 60 it was worth "some
 clicks, maybe": nothing on a full bank, and a different amount for every
 country's pace. The refill is the same good, clicks, with the moment chosen by
@@ -1413,7 +1471,7 @@ seconds, and the caller they are started for has to be the caller that answers.
 runs it on**, at 6m-11m with `maxChargesPerHour: 6` on top of the boxes' 12 —
 `deploy/vps/backend.yaml` says why each number is what it is.
 
-#### Charges (refill, bomb, enclose, spread)
+#### Charges (refill, bomb, enclose, spread, shields)
 
 A timer rewarded speed rather than planning: with a bank of clicks, a 10s spread
 let a player dump the whole bank at seven tiles a click, more than a bomb, and a
@@ -1429,14 +1487,15 @@ its own.
   is offered nothing. Every client mints a guest account, so this leaves
   out only a caller with no token at all.
 - **The rules are a value, `bonuses.Held`**: a refill and a bomb (held or not), a
-  stack of enclosures and a pool of spread clicks. `Granted`, `AfterRefill`,
-  `AfterBomb`, `AfterEnclose` and `AfterSpreadClick` build a new `Held` and change
+  stack of enclosures, a pool of spread clicks and a stack of shields. `Granted`,
+  `AfterRefill`, `AfterBomb`, `AfterEnclose`, `AfterSpreadClick` and `AfterShield`
+  build a new `Held` and change
   nothing; the storage swaps it in. `Count(kind)` is how many of a kind are held,
   and `Full(config)` the kinds another box would add nothing to.
 - **How much fits.** A refill and a bomb are one: a second replaces the first,
   which is what stops a stockpile of bombs being dropped all at once. Enclosures
-  stack to `bonus.enclose.held` (3) and spread clicks pool to `bonus.spread.clicks`
-  (8). A box draws its amount evenly from 1 to `maxPerBox` (`Registry.amountOf`,
+  stack to `bonus.enclose.held` (3), spread clicks pool to `bonus.spread.clicks`
+  (8) and shields stack to `bonus.shield.held` (12). A box draws its amount evenly from 1 to `maxPerBox` (`Registry.amountOf`,
   `crypto/rand`) and the grant caps it at the size. The claim answers
   `ClaimBonusResponse.amount` as **what was kept**, `Count` after less `Count`
   before, so a player is never told of clicks that did not fit.
@@ -1461,18 +1520,20 @@ its own.
   `Held` in memory, so a click reads and spends under one lock with no round trip,
   and writes the ones that changed through its `Persistence` every
   `chargeStorage.flushInterval` (1s): `bonuses/postgres_charge_store`, one row per
-  account in `planet.charges` (`refill`, `bomb`, `enclosures`, `spread_clicks`). An
+  account in `planet.charges` (`refill`, `bomb`, `enclosures`, `spread_clicks`,
+  `shields`). An
   empty hand is a deleted row. Like the tile map: boot loads it and a failed load
   refuses the boot, shutdown flushes once more, and a hard kill loses at most the
   last second. A deleted account's row stays until something removes it. The rest
   of the bonus state (schedules, offers, the hourly caps) is still memory only, so
   a restart gives everyone a fresh schedule.
 - **Each spend is atomic**: the storage's `SpendRefill`, `SpendBomb`,
-  `SpendEnclose` and `SpendSpreadClick` check and take under one lock, so two tabs
+  `SpendEnclose`, `SpendSpreadClick` and `SpendShield` check and take under one lock, so two tabs
   racing for the last one get one.
 - **Nothing pushes them.** They are not live news: `GetCharges` answers what the
   caller holds, read by the client at load and when its account changes, and
-  `ClaimBonusResponse.charges` answers the claim. After that the client follows
+  `ClaimBonusResponse.charges` answers the claim, `PlaceShieldResponse.charges` a
+  shield placed. After that the client follows
   its own calls: a drop spends the bomb, an accepted click sent with spread on a
   spread click, its own `tiles_enclosed` an enclosure. A charge spent in another
   tab shows until the next read. **`Click` answers nothing about them on purpose**:
@@ -1481,8 +1542,9 @@ its own.
   encodes the message both procedures answer.
 - **How big a charge is, is a rule, not state.** `GetBonusRules` answers the
   blast radius, the enclose's `maxTiles`, the spread pool's size and the
-  enclosure stack's size (`bonuses.Rules`, built in `module.go`), and every step
-  of the toll (`toll_steps`, from `clicks.Toll.Steps`), so the client can show the
+  enclosure stack's size (`bonuses.Rules`, built in `module.go`), how many
+  shields a player holds and a tile takes (`shields`, `tile_shields`), and
+  every step of the toll (`toll_steps`, from `clicks.Toll.Steps`), so the client can show the
   whole table and the slowdown of a country it does not play for. It is
   `NO_SIDE_EFFECTS`, a GET the cache interceptor marks for 5 minutes, and the
   client reads it once per page load. A page open across a deploy that changes
@@ -1515,6 +1577,12 @@ tile already held is a no-op. One click is at most 7 updates. **A lone island
 takes itself and nothing else**: `Neighbours` is empty there, and the bonus does
 not pretend otherwise.
 
+**Each neighbour meets its shields, exactly as a click on it would**: a shielded
+neighbour loses one and keeps its flag. A bonus is never a way around the rule.
+The spread click is spent either way, since the click was accepted.
+`tiles_spread` still lists every neighbour touched; the tile updates say which
+were taken and which lost a shield.
+
 **Then it tells the planet, with `tiles_spread`**, as an enclose does with
 `tiles_enclosed`: the tile clicked and the neighbours it took, after they are set,
 so every client can animate why seven tiles flipped. `Registry.PublishSpread`
@@ -1546,6 +1614,12 @@ from the map; the same radius goes to clients, so the ring they draw is the clea
 hexagon, which showed in production as a hexagonal crater inside a round ring —
 and a walk over neighbours stops at water, so an island just offshore survived a
 bomb that visibly covered it. A circle has neither problem.
+
+**A bomb hits a shielded tile like a click.** `inmemory_tile_storage.Clear` takes
+one shield from each shielded tile in the blast, whoever's it is, and clears the
+rest, under one lock: a shielded tile keeps its flag, is not in `cleared_tile_ids`,
+and is listed in `struck_tile_ids` (`Blast.Struck`), so a client takes one shield
+off it at impact. See [Shields](#shields).
 
 `drop_bomb_usecase` checks the country and the target **before** taking the bomb, so a
 malformed request does not cost one. The drop does not move the schedule: the next
@@ -1596,8 +1670,12 @@ tells closed from open — there is no second rule.
   so the flood finds open ground and no shape is spent.
 - **Only a click that takes a tile closes a shape.** A click on a tile the caller
   already held changes nothing, so it closes nothing: a shape finished before the
-  bonus stays as it is. The owner is read before the rule writes, since afterwards
-  the map no longer says whether the click took the tile.
+  bonus stays as it is. A click a shield took is no wall either, since the tile
+  is still the other flag's. The rule answers `Out.Outcome`, so this is read after
+  the write, not guessed before it.
+- **Each tile inside meets its shields**: a shielded tile loses one and is not
+  taken. A bonus is never a way around the rule. `tiles_enclosed` still lists it
+  among the filled tiles; no tile update says it was taken.
 - **An enclosure is one shape**, spent through `Charges.SpendEnclose` only by a
   click sent with enclose on that closed a pocket, so a click that closes nothing
   (too big, open to the coast, no inside) keeps it. With enclose off, closing a
@@ -1990,6 +2068,11 @@ Production reads `Suspect` since 2026-09-14 (`minShare` 0.6, `minClicks` 40 over
 `certainShare` stays unset for the tile war. A bot that only answers attacks
 clicks a few times a minute, so the old 60 takes in 5m never judged it at all.
 
+**A strike on a shield is neither a loss nor a retake** (`Click.Shielded`): the
+tile did not change hands. `TestAStrikeOnAShieldIsNeverARetake` and
+`TestAStrikeLosesNothing` pin both halves; a tile that falls once its shields are
+gone is one loss, at the take.
+
 **`catcher`: every box, and fast.** A box is addressed to one caller and flies
 a slow orbit that is rarely in view, so a person has to zoom out to orbit height
 and often drag the globe round to click it, and some boxes go by unseen. A script
@@ -2201,6 +2284,14 @@ it. `Committed` is then called only for a click the handler accepted. Without
 that split, a griefer spams a tile with deliberately invalid clicks and the next
 honest player to click it looks like it is reacting to something.
 
+**A click a shield takes is `Shielded`, and neither a no-op nor a take.**
+`antibot_click` asks `clicks.Shielding.Outcome` with the owner it just read, which
+spends nothing, so `NoOp` and `Shielded` come from the same outcome the rule will
+then strike. It is a click: the `retaker` times it as a reaction, and the
+`defender` counts it among the clicker's clicks. It is not a take: the `retaker`
+records no take on the tile, and the `defender` records no loss for `Held` and never
+reads it as a retake.
+
 Note that `sequencer` and `metronome` ignore all of it: a bot sweeping ids walks
 over tiles it already owns and over ids the handler refuses, and both are part of
 the walk.
@@ -2348,7 +2439,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **The map lives in memory; postgres is where it is kept.** A click never waits on the database.
 
-- **Boot loads it.** `inmemory_tile_storage.Load` reads every row of `planet.tiles` — one per owned tile, `(id, country)`; an unowned tile has no row. 180k rows load in about 60ms. **A failed load refuses the boot**: an empty map that then flushes would be every player's territory gone. A row past `gameMap.maxIndex` is skipped and logged.
+- **Boot loads it.** `inmemory_tile_storage.Load` reads every row of `planet.tiles` — one per owned tile, `(id, country, shields)`; an unowned tile has no row. 180k rows load in about 60ms. **A failed load refuses the boot**: an empty map that then flushes would be every player's territory gone. A row past `gameMap.maxIndex` is skipped and logged.
 - **A flush writes what changed.** Every write under the tiles lock sets the tile's bit in a `dirty` bitmap (one bit per tile, ~32 KB). Every `tilesStorage.flushInterval` (1s), `Flush` takes the bits, reads each tile's owner **as it is now**, and hands them to `postgres_tile_store.Save`: one transaction, an upsert for owned tiles and a delete for freed ones, in chunks of 10k. A tile clicked five times between flushes is written once. A failed save puts the bits back; the next tick retries. Each flush has a 10s timeout, so a stuck connection cannot stall the loop.
 - **Shutdown flushes once more**, from `Run`. That is also why the tile map's pool is closed by its runner rather than registered on `props.Closers`: closers run before the runners stop, so the last flush would find the pool already closed.
 - **What a hard kill loses** (`SIGKILL`, OOM, power loss) is bounded by `flushInterval`. The state is still per-process, so **this is single-instance only**: two API replicas would each hold their own divergent map.
@@ -2370,7 +2461,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **Size.** 1M takes are 83 MB of table and 31 MB of indexes (the primary key and the account). Production made ~116,000 takes in 72h at the start of October 2026, ~40,000 a day: ~15M rows and ~1.7 GB a year. Each take is written twice, once by the `COPY` and once when its scope is blanked, and autovacuum reuses the space. No partitioning yet.
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges, deletions)` runs them together and closes the pool after the last flushes, and after the subscriber drained its buffer.
 
-**The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread).
+**The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread-shields).
 
 The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](#seasons-internalseasons).
 
@@ -2391,9 +2482,9 @@ Measured on a copy of production's map, before postgres: 22,040 tiles in 4.4s, a
 
 #### `GrantCharges`
 
-`GrantCharges(account_id, refill, bomb, enclosures, spread_clicks)` runs `bonuses/usecases/grant_charges_usecase`, wrapped in `audit_grant_charges`: it gives one account any of the four charges, as a box would.
+`GrantCharges(account_id, refill, bomb, enclosures, spread_clicks, shields)` runs `bonuses/usecases/grant_charges_usecase`, wrapped in `audit_grant_charges`: it gives one account any of the five charges, as a box would.
 
-- **The caps hold**: `Held.Granted` is the rule, so a refill and a bomb are one, enclosures stop at `bonus.enclose.held` and spread clicks at `bonus.spread.clicks`. The answer is what the account held `before` and `after`, so the operator sees what fit.
+- **The caps hold**: `Held.Granted` is the rule, so a refill and a bomb are one, enclosures stop at `bonus.enclose.held`, spread clicks at `bonus.spread.clicks` and shields at `bonus.shield.held`. The answer is what the account held `before` and `after`, so the operator sees what fit.
 - **An account id, never a scope**: a charge is an account's (`bonuses.ParseHolder`). A grant of nothing is `InvalidArgument` (`ErrNothingToGrant`). Planet does not know which accounts exist, so an id nobody holds gets a row nobody reads.
 - **Nothing pushes it**: the player sees it on the next `GetCharges`, at its next page load.
 
@@ -2652,9 +2743,10 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](#vpn-blocklist)); disabled parses nothing and allocates nothing
 - `bonus.interval` — how often a box is put in front of somebody; a ceiling, since nothing is offered while nobody is watching
 - `bonus.offerTTL` — how long the token stays good; **must outlast the flight the client draws**, or a box caught on its last frame is refused
-- `bonus.kinds` — a weight per kind (`refill`, `spread_clicks`, `bomb`, `enclose_clicks`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
+- `bonus.kinds` — a weight per kind (`refill`, `spread_clicks`, `bomb`, `enclose_clicks`, `shields`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
 - `bonus.spread.clicks`, `bonus.spread.maxPerBox` — the most spread clicks held (8, about 56 tiles, a bomb's worth), and the most one box adds (4; it draws 1 to that). A count, not a time: a timed spread let a full bank of clicks be dumped inside it
 - `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
+- `bonus.shield.held`, `bonus.shield.maxPerBox`, `bonus.shield.perTile` — the most shields held (12), the most one box adds (3; it draws 1 to that), and the most one tile holds (10)
 - `chargeStorage.flushInterval` — how often the charges that changed are written to postgres (default 1s); also flushed on shutdown
 - `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
 - `antiBot.enabled` — off registers nothing and measures nothing

@@ -13,10 +13,24 @@ export type InventoryProps = {
     bombArmed: boolean
     onToggleBomb?: () => void
     onUseRefill?: () => boolean
+    onToggleShield?: () => void
+    shieldFull?: number
 }
 
-export default function Inventory({charges, rules, switches, onToggle, bombArmed, onToggleBomb, onUseRefill}: InventoryProps) {
+export default function Inventory({
+    charges,
+    rules,
+    switches,
+    onToggle,
+    bombArmed,
+    onToggleBomb,
+    onUseRefill,
+    onToggleShield,
+    shieldFull = 0,
+}: InventoryProps) {
     const [full, setFull] = useState(false)
+    const [fullSeen, setFullSeen] = useState(shieldFull)
+    const tileFull = shieldFull !== fullSeen
 
     useEffect(() => {
         if (!full) return
@@ -24,7 +38,13 @@ export default function Inventory({charges, rules, switches, onToggle, bombArmed
         return () => clearTimeout(timer)
     }, [full])
 
-    const active = bombArmed || switches.spread || switches.enclose
+    useEffect(() => {
+        if (!tileFull) return
+        const timer = setTimeout(() => setFullSeen(shieldFull), FULL_NOTICE_MS)
+        return () => clearTimeout(timer)
+    }, [tileFull, shieldFull])
+
+    const active = bombArmed || switches.spread || switches.enclose || switches.shield
 
     return <section className={active ? "inventory inventory--active" : "inventory"} aria-label="Inventory">
         <div className="inventory-slots">
@@ -59,6 +79,14 @@ export default function Inventory({charges, rules, switches, onToggle, bombArmed
                       ? "Switch enclose off"
                       : "Switch enclose on: close a shape of your tiles to take the tiles inside"}
                   onPress={onToggle && (() => onToggle("enclose"))}/>
+            <Slot kind="shields"
+                  name="Shield"
+                  held={charges.shields > 0}
+                  count={countOf(charges.shields, rules?.shields)}
+                  on={switches.shield}
+                  state={tileFull ? "Full" : switches.shield ? "On" : undefined}
+                  hint={tileFull ? "That tile is full" : switches.shield ? "Switch shield off" : "Switch shield on"}
+                  onPress={onToggleShield}/>
         </div>
     </section>
 }
