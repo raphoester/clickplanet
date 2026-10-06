@@ -86,23 +86,23 @@ describe("coarseHandover", () => {
 describe("the handover from the painted flag to the tiles", () => {
     it("undoes the widening exactly when the flag stops being painted", () => {
         everyView((zoom, height) => {
-            const widened = displayPointSize(zoom, height) > tilePointSize(zoom, height) + 1e-9
-            expect(widened, `zoom ${zoom} at ${height}px`).toBe(flagPaint(zoom, height) > 0)
+            const widened = displayPointSize(zoom, height, "flags") > tilePointSize(zoom, height) + 1e-9
+            expect(widened, `zoom ${zoom} at ${height}px`).toBe(flagPaint(zoom, height, "flags") > 0)
         })
     })
 
     it("covers the ground whenever the flag alone is on screen", () => {
         everyView((zoom, height) => {
-            if (flagPaint(zoom, height) < 1) return
+            if (flagPaint(zoom, height, "flags") < 1) return
             const spacing = 1.98 * zoom * (height / 1000)
-            expect(displayPointSize(zoom, height) / spacing, `zoom ${zoom} at ${height}px`)
+            expect(displayPointSize(zoom, height, "flags") / spacing, `zoom ${zoom} at ${height}px`)
                 .toBeGreaterThanOrEqual(1.155)
         })
     })
 
     it("never draws a disc smaller than the tile it stands for", () => {
         everyView((zoom, height) => {
-            expect(displayPointSize(zoom, height), `zoom ${zoom} at ${height}px`)
+            expect(displayPointSize(zoom, height, "flags"), `zoom ${zoom} at ${height}px`)
                 .toBeGreaterThanOrEqual(tilePointSize(zoom, height))
         })
     })
@@ -110,17 +110,39 @@ describe("the handover from the painted flag to the tiles", () => {
     it("hands over while a tile is still too small to read a flag in", () => {
         everyView((zoom, height) => {
             const tile = tilePointSize(zoom, height)
-            if (tile < 5) expect(flagPaint(zoom, height), `zoom ${zoom}`).toBe(1)
-            if (tile >= 8) expect(flagPaint(zoom, height), `zoom ${zoom}`).toBe(0)
+            if (tile < 5) expect(flagPaint(zoom, height, "flags"), `zoom ${zoom}`).toBe(1)
+            if (tile >= 8) expect(flagPaint(zoom, height, "flags"), `zoom ${zoom}`).toBe(0)
         })
     })
 
     it("only ever fades one way as you zoom in", () => {
         for (const height of VIEWPORTS) {
             for (let i = 1; i < ZOOMS.length; i++) {
-                expect(flagPaint(ZOOMS[i], height), `${ZOOMS[i]} at ${height}px`)
-                    .toBeLessThanOrEqual(flagPaint(ZOOMS[i - 1], height))
+                expect(flagPaint(ZOOMS[i], height, "flags"), `${ZOOMS[i]} at ${height}px`)
+                    .toBeLessThanOrEqual(flagPaint(ZOOMS[i - 1], height, "flags"))
             }
         }
+    })
+})
+
+describe("the map that shows every tile", () => {
+    it("never paints a flag over the tiles", () => {
+        everyView((zoom, height) => {
+            expect(flagPaint(zoom, height, "tiles"), `zoom ${zoom} at ${height}px`).toBe(0)
+        })
+    })
+
+    it("draws each tile at its own size, at every zoom", () => {
+        everyView((zoom, height) => {
+            expect(displayPointSize(zoom, height, "tiles"), `zoom ${zoom} at ${height}px`)
+                .toBe(tilePointSize(zoom, height))
+        })
+    })
+
+    it("is the same picture as the flags once they have handed over", () => {
+        everyView((zoom, height) => {
+            if (flagPaint(zoom, height, "flags") > 0) return
+            expect(displayPointSize(zoom, height, "tiles")).toBe(displayPointSize(zoom, height, "flags"))
+        })
     })
 })

@@ -13,29 +13,29 @@ afterEach(() => {
 })
 
 describe("TabBar", () => {
-    it("offers the board, the chat, the account and More, in that order", () => {
-        render(<TabBar onOpen={vi.fn()} chat unread={0} you="player"/>)
-        expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Chat", "You", "More"])
+    it("offers the board, the chat, the account, the settings and More, in that order", () => {
+        render(<TabBar onOpen={vi.fn()} chat unread={0} you="player" settings/>)
+        expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Chat", "You", "Settings", "More"])
     })
 
     it("names the account Sign in for a guest", () => {
-        render(<TabBar onOpen={vi.fn()} chat unread={0} you="guest"/>)
+        render(<TabBar onOpen={vi.fn()} chat unread={0} you="guest" settings/>)
         expect(screen.getByRole("button", {name: "Sign in"})).toBeDefined()
     })
 
     it("leaves out what is not wired", () => {
-        render(<TabBar onOpen={vi.fn()} chat={false} unread={0}/>)
+        render(<TabBar onOpen={vi.fn()} chat={false} unread={0} settings={false}/>)
         expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "More"])
     })
 
     it("counts what the chat missed", () => {
-        render(<TabBar onOpen={vi.fn()} chat unread={3}/>)
+        render(<TabBar onOpen={vi.fn()} chat unread={3} settings/>)
         expect(screen.getByRole("button", {name: "Chat, 3 new messages"}).textContent).toBe("Chat3")
     })
 
     it("says which sheet is open, and opens the one pressed", () => {
         const onOpen = vi.fn()
-        render(<TabBar open="board" onOpen={onOpen} chat unread={0}/>)
+        render(<TabBar open="board" onOpen={onOpen} chat unread={0} settings/>)
 
         expect(screen.getByRole("button", {name: "Board"}).getAttribute("aria-expanded")).toBe("true")
         expect(screen.getByRole("button", {name: "More"}).getAttribute("aria-expanded")).toBe("false")
@@ -66,9 +66,9 @@ describe("Sheet", () => {
     it("steps back out of a panel inside it on Escape, rather than closing", () => {
         const onClose = vi.fn()
         const onBack = vi.fn()
-        const {rerender} = render(<Sheet title="More" onClose={onClose}><p>tiles</p></Sheet>)
-        rerender(<Sheet title="More" onClose={onClose}>
-            <MenuPanel title="Sound" onClose={onBack}><p>switches</p></MenuPanel>
+        const {rerender} = render(<Sheet title="Leaderboard" onClose={onClose}><p>rows</p></Sheet>)
+        rerender(<Sheet title="Leaderboard" onClose={onClose}>
+            <MenuPanel title="Change country" onClose={onBack}><p>countries</p></MenuPanel>
         </Sheet>)
 
         fireEvent.keyDown(document, {key: "Escape"})

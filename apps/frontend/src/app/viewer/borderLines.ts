@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import {flagPaint} from "./pointSize.ts"
+import {MapView} from "../../domain/displaySettings.ts"
 import {disposeMaterial} from "./scene.ts"
 
 import vertexShader from "./shaders/borderLine/vertex.glsl"
@@ -126,7 +127,7 @@ export function halfWidthOf(pixelRatio: number): number {
 
 export type BorderLines = {
     object: THREE.Object3D
-    update(zoom: number, width: number, height: number, pixelRatio: number): void
+    update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView): void
     dispose(): void
 }
 
@@ -180,14 +181,14 @@ export function createBorderLines(data: BorderLineData): BorderLines {
 
     return {
         object,
-        update(zoom: number, width: number, height: number, pixelRatio: number) {
+        update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView) {
             for (const pass of passes) {
                 const {uniforms} = pass.material as THREE.ShaderMaterial
                 uniforms.halfViewport.value.set(width / 2, height / 2)
                 uniforms.halfWidth.value = halfWidthOf(pixelRatio)
             }
 
-            const paint = flagPaint(zoom, height / pixelRatio)
+            const paint = flagPaint(zoom, height / pixelRatio, view)
             ;(over.material as THREE.ShaderMaterial).uniforms.ink.value = paint
             over.visible = paint > 0
             under.visible = paint < 1

@@ -79,22 +79,6 @@ export function SearchIcon({size = 20}: IconProps) {
     </svg>
 }
 
-export function SpeakerIcon({size = 22}: IconProps) {
-    return <svg {...base(size)} strokeWidth={2}>
-        <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/>
-        <path d="M15.5 9a4 4 0 0 1 0 6"/>
-        <path d="M18.3 6.5a7.5 7.5 0 0 1 0 11"/>
-    </svg>
-}
-
-export function SpeakerOffIcon({size = 22}: IconProps) {
-    return <svg {...base(size)} strokeWidth={2}>
-        <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/>
-        <path d="M16 9.5l5 5"/>
-        <path d="M21 9.5l-5 5"/>
-    </svg>
-}
-
 export function HomeIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
         <path d="M3.5 11 12 4l8.5 7"/>
@@ -171,6 +155,17 @@ export function TrophyIcon({size = 22}: IconProps) {
 export function ChatIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
         <path d="M4 5h16v11H10l-5 4v-4H4z"/>
+    </svg>
+}
+
+export function SettingsIcon({size = 22}: IconProps) {
+    return <svg {...base(size)}>
+        <path d="M4 7h8"/>
+        <path d="M18 7h2"/>
+        <circle cx="15" cy="7" r="2.6"/>
+        <path d="M4 17h2"/>
+        <path d="M12 17h8"/>
+        <circle cx="9" cy="17" r="2.6"/>
     </svg>
 }
 

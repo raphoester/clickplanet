@@ -1,5 +1,5 @@
-import {useId} from "react";
 import {SoundSettings, SWITCHES, SwitchName} from "../../domain/soundSettings.ts";
+import Switch from "../components/Switch.tsx";
 import "./SoundSettingsPanel.css"
 
 const LABELS: Record<SwitchName, string> = {
@@ -32,16 +32,18 @@ export default function SoundSettingsPanel({settings, onChange, preview}: SoundS
 
     const setAnthem = (anthem: SoundSettings["anthem"]) => onChange({...settings, anthem})
 
+    const listClass = settings.enabled ? "switch-list panel-box" : "switch-list panel-box sound-settings-list--off"
+
     return <div className="sound-settings">
         <Switch label="Sound" checked={settings.enabled} onChange={setEnabled} main/>
 
-        <div className={settings.enabled ? "sound-settings-list panel-box" : "sound-settings-list panel-box sound-settings-list--off"}>
+        <div className={listClass}>
             <Switch label="Leader's national anthem"
                     checked={settings.anthem.on}
                     disabled={!settings.enabled}
                     onChange={(on) => setAnthem({...settings.anthem, on})}/>
             <label className="sound-volume">
-                <span className="sound-switch-label">Anthem volume</span>
+                <span>Anthem volume</span>
                 <input type="range"
                        className="sound-volume-input"
                        min={0} max={1} step={0.05}
@@ -51,7 +53,7 @@ export default function SoundSettingsPanel({settings, onChange, preview}: SoundS
             </label>
         </div>
 
-        <ul className={settings.enabled ? "sound-settings-list panel-box" : "sound-settings-list panel-box sound-settings-list--off"}>
+        <ul className={listClass}>
             {SWITCHES.map((name) => <li key={name}>
                 <Switch label={LABELS[name]}
                         checked={settings.sounds[name]}
@@ -60,26 +62,4 @@ export default function SoundSettingsPanel({settings, onChange, preview}: SoundS
             </li>)}
         </ul>
     </div>
-}
-
-type SwitchProps = {
-    label: string
-    checked: boolean
-    disabled?: boolean
-    main?: boolean
-    onChange: (checked: boolean) => void
-}
-
-function Switch({label, checked, disabled, main, onChange}: SwitchProps) {
-    const id = useId()
-    return <label className={main ? "sound-switch sound-switch--main panel-box" : "sound-switch"} htmlFor={id}>
-        <span className="sound-switch-label">{label}</span>
-        <input id={id}
-               type="checkbox"
-               role="switch"
-               className="sound-switch-input"
-               checked={checked}
-               disabled={disabled}
-               onChange={(event) => onChange(event.target.checked)}/>
-    </label>
 }

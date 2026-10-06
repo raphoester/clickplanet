@@ -10,8 +10,8 @@ import MenuPanel from "./components/MenuPanel.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
 import Modal from "./components/Modal.tsx";
 import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
-import {CameraIcon, DiscordIcon, HomeIcon, InfoIcon, SpeakerIcon, SpeakerOffIcon, SwapIcon} from "./components/icons.tsx";
-import SoundSettingsPanel, {SoundSettingsPanelProps} from "./sound/SoundSettingsPanel.tsx";
+import {CameraIcon, DiscordIcon, HomeIcon, InfoIcon, SwapIcon} from "./components/icons.tsx";
+import SettingsPlace, {SettingsPlaceProps} from "./settings/SettingsPlace.tsx";
 import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
 import AccountPanel from "./account/AccountPanel.tsx";
@@ -23,7 +23,7 @@ import BoardViews, {BoardStandings} from "./standings/BoardViews.tsx"
 import {ListenForClicks} from "./viewer/acceptedClicks.ts"
 import "./Menu.css"
 
-export type MenuTab = "board" | "you" | "more"
+export type MenuTab = "board" | "you" | "settings" | "more"
 
 export type BoardPlaceProps = {
     country: Country,
@@ -44,12 +44,11 @@ export type YouPlaceProps = {
 }
 
 export type MorePlaceProps = {
-    sound?: SoundSettingsPanelProps,
     onTakePicture?: () => void,
     taking?: boolean,
 }
 
-export type MenuProps = BoardPlaceProps & YouPlaceProps & MorePlaceProps & {
+export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & MorePlaceProps & {
     tab?: MenuTab,
     onTab?: (tab: MenuTab) => void,
 }
@@ -65,6 +64,7 @@ export default function Menu(props: MenuProps) {
     const tabs: {id: MenuTab, label: string}[] = [
         {id: "board", label: "Board"},
         ...account.kind === "ready" ? [{id: "you" as const, label: youLabel(account.me.linked.length > 0)}] : [],
+        ...props.display || props.sound ? [{id: "settings" as const, label: "Settings"}] : [],
         {id: "more", label: "More"},
     ]
     const shown = tabs.some((t) => t.id === tab) ? tab : "board"
@@ -110,6 +110,7 @@ export default function Menu(props: MenuProps) {
                      aria-labelledby={`${tabsId}-${shown}`}>
                     {shown === "board" && <BoardPlace {...props} playing={false}/>}
                     {shown === "you" && <YouPlace {...props}/>}
+                    {shown === "settings" && <SettingsPlace {...props}/>}
                     {shown === "more" && <MorePlace {...props}/>}
                 </div>
             </>}
@@ -224,23 +225,8 @@ export function YouPlace({account: store, linkedMultiplier, playerInfo, listenFo
     </>
 }
 
-export function MorePlace({sound, onTakePicture, taking}: MorePlaceProps) {
-    const [soundOpen, setSoundOpen] = useState(false)
+export function MorePlace({onTakePicture, taking}: MorePlaceProps) {
     const [aboutOpen, setAboutOpen] = useState(false)
-    const soundButton = useRef<HTMLButtonElement>(null)
-    const cameFromSound = useRef(false)
-
-    useEffect(() => {
-        if (soundOpen || !cameFromSound.current) return
-        cameFromSound.current = false
-        soundButton.current?.focus()
-    }, [soundOpen])
-
-    if (soundOpen && sound) {
-        return <MenuPanel title="Sound" onClose={() => setSoundOpen(false)}>
-            <SoundSettingsPanel {...sound}/>
-        </MenuPanel>
-    }
 
     return <>
         <div className="menu-tiles">
@@ -251,16 +237,6 @@ export function MorePlace({sound, onTakePicture, taking}: MorePlaceProps) {
                                       onClick={onTakePicture}>
                 <CameraIcon size={22}/>
                 <span>Take a picture</span>
-            </button>}
-            {sound && <button ref={soundButton}
-                              type="button"
-                              className="panel-box menu-tile"
-                              onClick={() => {
-                                  cameFromSound.current = true
-                                  setSoundOpen(true)
-                              }}>
-                {sound.settings.enabled ? <SpeakerIcon size={22}/> : <SpeakerOffIcon size={22}/>}
-                <span>Sound</span>
             </button>}
             <button type="button"
                     className="panel-box menu-tile"

@@ -55,7 +55,7 @@ export default function AccountPanel(props: AccountPanelProps) {
         </p>}
         <div className="account-tabs" role="tablist" aria-label="Account">
             {tabButton("progress", "Progress")}
-            {tabButton("settings", "Settings")}
+            {tabButton("settings", "Account")}
         </div>
         <div role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-${tab}`}>
             {tab === "progress"

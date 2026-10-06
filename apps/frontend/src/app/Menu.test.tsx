@@ -7,6 +7,7 @@ import Menu from "./Menu.tsx"
 import {Countries} from "../domain/countries.ts"
 import type {LeaderboardEntry} from "../domain/leaderboard.ts"
 import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
+import {DEFAULT_DISPLAY_SETTINGS} from "../domain/displaySettings.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
 import {DISCORD_INVITE} from "../links.ts"
@@ -305,42 +306,75 @@ describe("Menu", () => {
         })
     })
 
-    describe("the sound settings", () => {
-        const withSound = () => {
-            const onChange = vi.fn()
+    describe("the settings", () => {
+        const withSettings = (display = DEFAULT_DISPLAY_SETTINGS) => {
+            const onSound = vi.fn()
+            const onDisplay = vi.fn()
             const preview = vi.fn()
             const view = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
-                                      sound={{settings: DEFAULT_SOUND_SETTINGS, onChange, preview}}/>)
-            return {...view, onChange, preview, user: userEvent.setup()}
+                                      sound={{settings: DEFAULT_SOUND_SETTINGS, onChange: onSound, preview}}
+                                      display={{settings: display, onChange: onDisplay}}/>)
+            return {...view, onSound, onDisplay, preview, user: userEvent.setup()}
         }
 
-        it("offers no sound button without sound settings", async () => {
-            const {user} = setup()
+        const toggle = (name: string) => screen.getByRole("switch", {name}) as HTMLInputElement
+
+        it("has its own tab, between the account and More", () => {
+            withSettings()
+            expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "Settings", "More"])
+        })
+
+        it("offers no settings tab without anything to set", () => {
+            setup()
+            expect(screen.queryByRole("tab", {name: "Settings"})).toBeNull()
+        })
+
+        it("leaves the sound out of More", async () => {
+            const {user} = withSettings()
             await user.click(tab("More"))
             expect(screen.queryByRole("button", {name: "Sound"})).toBeNull()
+            expect(screen.queryByRole("switch")).toBeNull()
         })
 
         it("switches a sound off without playing it", async () => {
-            const {user, onChange, preview} = withSound()
-            await user.click(tab("More"))
-            await user.click(button("Sound"))
+            const {user, onSound, preview} = withSettings()
+            await user.click(tab("Settings"))
 
-            await user.click(screen.getByRole("switch", {name: "Chat message"}))
+            await user.click(toggle("Chat message"))
 
-            expect(onChange).toHaveBeenCalledWith({
+            expect(onSound).toHaveBeenCalledWith({
                 ...DEFAULT_SOUND_SETTINGS,
                 sounds: {...DEFAULT_SOUND_SETTINGS.sounds, chat: false},
             })
             expect(preview).not.toHaveBeenCalled()
         })
 
-        it("goes back to the button that opened it", async () => {
-            const {user} = withSound()
-            await user.click(tab("More"))
-            await user.click(button("Sound"))
-            await user.click(button("Back"))
+        it("says what the display is set to", async () => {
+            const {user} = withSettings({mapView: "tiles", rendering: "sharp"})
+            await user.click(tab("Settings"))
 
-            expect(document.activeElement).toBe(button("Sound"))
+            expect(toggle("Big country flags").checked).toBe(false)
+            expect(toggle("HD graphics").checked).toBe(true)
+        })
+
+        it("turns the big flags off to show every tile, and back on", async () => {
+            const {user, onDisplay} = withSettings()
+            await user.click(tab("Settings"))
+            await user.click(toggle("Big country flags"))
+            expect(onDisplay).toHaveBeenLastCalledWith({...DEFAULT_DISPLAY_SETTINGS, mapView: "tiles"})
+
+            cleanup()
+            const again = withSettings({...DEFAULT_DISPLAY_SETTINGS, mapView: "tiles"})
+            await again.user.click(tab("Settings"))
+            await again.user.click(toggle("Big country flags"))
+            expect(again.onDisplay).toHaveBeenLastCalledWith({...DEFAULT_DISPLAY_SETTINGS, mapView: "flags"})
+        })
+
+        it("turns the HD graphics off, keeping the map view", async () => {
+            const {user, onDisplay} = withSettings({mapView: "tiles", rendering: "sharp"})
+            await user.click(tab("Settings"))
+            await user.click(toggle("HD graphics"))
+            expect(onDisplay).toHaveBeenCalledWith({mapView: "tiles", rendering: "plain"})
         })
     })
 
@@ -386,7 +420,7 @@ describe("Menu", () => {
             const user = userEvent.setup()
             const openSettings = async () => {
                 await user.click(await screen.findByRole("tab", {name: "You"}))
-                await user.click(screen.getByRole("tab", {name: "Settings"}))
+                await user.click(screen.getByRole("tab", {name: "Account"}))
             }
             return {...view, backend, player, navigate, user, openSettings}
         }
