@@ -29,6 +29,7 @@ type stack struct {
 	forgetEvidence bool
 
 	owner   map[uint32]string
+	shields map[uint32]int
 	reports []antibot.Report
 	rises   []string
 	errors  []error
@@ -38,6 +39,7 @@ func newStack(options ...func(*antibot.Config)) *stack {
 	s := &stack{
 		clock:       cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
 		owner:       map[uint32]string{},
+		shields:     map[uint32]int{},
 		bans:        shadowban.NewMemoryPersistence(),
 		accountBans: shadowban.NewMemoryPersistence(),
 		evidence:    evidence.NewMemoryPersistence(),
@@ -176,13 +178,14 @@ func (s *stack) clickAs(scope, account string, tile uint32, country string) bool
 	held := s.owner[tile]
 
 	click := antibot.Click{
-		Scope:   scope,
-		Account: account,
-		Tile:    tile,
-		Country: country,
-		At:      s.clock.Now(),
-		Held:    held,
-		NoOp:    held == country,
+		Scope:    scope,
+		Account:  account,
+		Tile:     tile,
+		Country:  country,
+		At:       s.clock.Now(),
+		Held:     held,
+		NoOp:     held == country,
+		Shielded: held != country && s.shields[tile] > 0,
 	}
 
 	s.guard.Attempted(click)
@@ -190,7 +193,10 @@ func (s *stack) clickAs(scope, account string, tile uint32, country string) bool
 	drop := s.guard.Inspect(click)
 	if !drop {
 		s.guard.Committed(click)
-		if !click.NoOp {
+		switch {
+		case click.Shielded:
+			s.shields[tile]--
+		case !click.NoOp:
 			s.owner[tile] = country
 		}
 	}
@@ -389,6 +395,71 @@ func TestATileWarBansNeither(t *testing.T) {
 	}
 
 	assert.Empty(t, s.reports)
+}
+
+func productionRetakes(config *antibot.Config) {
+	config.Defender.Enabled = true
+	config.Defender.Detector.RetakeWindow = 2 * time.Minute
+	config.Defender.Detector.MinClicks = 40
+	config.Defender.Detector.MinShare = 0.6
+	config.Defender.Detector.CertainClicks = 200
+	config.Defender.Detector.TrackWindow = 10 * time.Minute
+
+	config.Retaker.Detector.MinTiles = 15
+	config.Retaker.Detector.RoamMedian = 600 * time.Millisecond
+	config.Retaker.Detector.CertainTiles = 30
+	config.Retaker.Detector.TrackWindow = 15 * time.Minute
+}
+
+func (s *stack) polishTile(random *rand.Rand) uint32 {
+	tile := uint32(120000 + random.IntN(20000))
+	s.owner[tile] = "PL"
+	return tile
+}
+
+func TestAPlayerAnsweringRaidsIsNotBanned(t *testing.T) {
+	s := newStack(productionRetakes)
+
+	//nolint:gosec // seeded test PRNG
+	random := rand.New(rand.NewPCG(11, 12))
+
+	for range 300 {
+		tile := s.polishTile(random)
+
+		s.clock.Advance(time.Duration(2000+random.IntN(6000)) * time.Millisecond)
+		s.click("raider", tile, "DE")
+		require.Equal(t, "DE", s.owner[tile])
+
+		s.clock.Advance(time.Duration(1500+random.IntN(4500)) * time.Millisecond)
+		require.False(t, s.click("pole", tile, "PL"), "a player winning its tiles back must never be dropped")
+	}
+
+	assert.Contains(t, s.rises, "defender suspect", "the defender sees the retakes")
+	assert.Empty(t, s.verdicts("pole"), "nothing else about it reads as a machine")
+}
+
+func TestARecaptureLoopIsCaught(t *testing.T) {
+	s := newStack(productionRetakes)
+
+	//nolint:gosec // seeded test PRNG
+	random := rand.New(rand.NewPCG(13, 14))
+
+	var dropped bool
+	for range 120 {
+		tile := s.polishTile(random)
+
+		s.clock.Advance(time.Duration(2000+random.IntN(6000)) * time.Millisecond)
+		s.click("raider", tile, "DE")
+
+		s.clock.Advance(time.Duration(250+random.IntN(200)) * time.Millisecond)
+		if s.click("loop", tile, "PL") {
+			dropped = true
+			break
+		}
+	}
+
+	require.True(t, dropped)
+	assert.Equal(t, detect.Certain, s.verdicts("loop")["retaker"])
 }
 
 func TestTheReflexBotIsStillCaught(t *testing.T) {

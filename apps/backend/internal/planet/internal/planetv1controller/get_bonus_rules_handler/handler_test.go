@@ -18,13 +18,16 @@ type toll []clicks.TollStep
 func (t toll) Steps() []clicks.TollStep { return t }
 
 func TestTheRulesAreAnsweredAsTheyWereGiven(t *testing.T) {
-	res, err := get_bonus_rules_handler.New(bonuses.Rules{BlastRadius: 0.016, EnclosureMaxTiles: 25, SpreadClicks: 8}, toll{}).
+	rules := bonuses.Rules{BlastRadius: 0.016, EnclosureMaxTiles: 25, SpreadClicks: 8, Shields: 12, TileShields: 10}
+	res, err := get_bonus_rules_handler.New(rules, toll{}).
 		GetBonusRules(t.Context(), connect.NewRequest(&planetv1.GetBonusRulesRequest{}))
 	require.NoError(t, err)
 
 	assert.InDelta(t, 0.016, res.Msg.GetBlastRadius(), 1e-9)
 	assert.Equal(t, uint32(25), res.Msg.GetEnclosureMaxTiles())
 	assert.Equal(t, uint32(8), res.Msg.GetSpreadClicks())
+	assert.Equal(t, uint32(12), res.Msg.GetShields())
+	assert.Equal(t, uint32(10), res.Msg.GetTileShields())
 	assert.Empty(t, res.Msg.GetTollSteps())
 }
 

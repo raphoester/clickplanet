@@ -25,7 +25,7 @@ type Store struct {
 var _ inmemory_charge_storage.Persistence = (*Store)(nil)
 
 func (s *Store) Load(ctx context.Context, visit func(bonuses.Holder, bonuses.Held)) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT account::text, refill, bomb, enclosures, spread_clicks FROM charges`)
+	rows, err := s.db.QueryContext(ctx, `SELECT account::text, refill, bomb, enclosures, spread_clicks, shields FROM charges`)
 	if err != nil {
 		return fmt.Errorf("failed to read the charges: %w", err)
 	}
@@ -36,7 +36,7 @@ func (s *Store) Load(ctx context.Context, visit func(bonuses.Holder, bonuses.Hel
 			account string
 			held    bonuses.Held
 		)
-		if err := rows.Scan(&account, &held.Refill, &held.Bomb, &held.Enclosures, &held.SpreadClicks); err != nil {
+		if err := rows.Scan(&account, &held.Refill, &held.Bomb, &held.Enclosures, &held.SpreadClicks, &held.Shields); err != nil {
 			return fmt.Errorf("failed to scan a hand: %w", err)
 		}
 		visit(bonuses.Holder(account), held)
@@ -55,6 +55,7 @@ func (s *Store) Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Held)
 		accounts                 []string
 		refills, bombs           []bool
 		enclosures, spreadClicks []int64
+		shields                  []int64
 	)
 	for _, holder := range slices.Sorted(maps.Keys(hands)) {
 		held := hands[holder]
@@ -67,6 +68,7 @@ func (s *Store) Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Held)
 		bombs = append(bombs, held.Bomb)
 		enclosures = append(enclosures, int64(held.Enclosures))
 		spreadClicks = append(spreadClicks, int64(held.SpreadClicks))
+		shields = append(shields, int64(held.Shields))
 	}
 
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
@@ -83,14 +85,16 @@ func (s *Store) Save(ctx context.Context, hands map[bonuses.Holder]bonuses.Held)
 
 	if len(accounts) > 0 {
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO charges (account, refill, bomb, enclosures, spread_clicks)
-			SELECT * FROM unnest($1::uuid[], $2::boolean[], $3::boolean[], $4::integer[], $5::integer[])
+			INSERT INTO charges (account, refill, bomb, enclosures, spread_clicks, shields)
+			SELECT * FROM unnest($1::uuid[], $2::boolean[], $3::boolean[], $4::integer[], $5::integer[], $6::integer[])
 			ON CONFLICT (account) DO UPDATE SET
 				refill = EXCLUDED.refill,
 				bomb = EXCLUDED.bomb,
 				enclosures = EXCLUDED.enclosures,
-				spread_clicks = EXCLUDED.spread_clicks
-		`, pq.Array(accounts), pq.Array(refills), pq.Array(bombs), pq.Array(enclosures), pq.Array(spreadClicks)); err != nil {
+				spread_clicks = EXCLUDED.spread_clicks,
+				shields = EXCLUDED.shields
+		`, pq.Array(accounts), pq.Array(refills), pq.Array(bombs), pq.Array(enclosures), pq.Array(spreadClicks),
+			pq.Array(shields)); err != nil {
 			return fmt.Errorf("failed to write the hands: %w", err)
 		}
 	}

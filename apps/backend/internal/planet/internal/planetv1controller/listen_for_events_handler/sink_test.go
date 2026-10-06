@@ -55,6 +55,18 @@ func TestSinkSaysWhichUpdateIsAClick(t *testing.T) {
 	assert.True(t, stream.sent[0].GetTileUpdate().GetClicked())
 }
 
+func TestSinkSaysHowManyShieldsAreLeft(t *testing.T) {
+	stream := &recorder{}
+
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Update: clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "fr", Shields: 9},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, stream.sent, 1)
+	assert.Equal(t, uint32(9), stream.sent[0].GetTileUpdate().GetShields())
+}
+
 func TestSinkFramesAHeartbeat(t *testing.T) {
 	stream := &recorder{}
 
@@ -113,6 +125,7 @@ func TestASinkFramesABlastWithEveryTileItCleared(t *testing.T) {
 			Tile: 7, CountryID: "fr", Radius: 0.03,
 			Point:   clicks.Vec3{X: 0, Y: 0, Z: 1},
 			Cleared: []uint32{6, 7, 8},
+			Struck:  []uint32{9},
 		},
 	}))
 
@@ -122,6 +135,7 @@ func TestASinkFramesABlastWithEveryTileItCleared(t *testing.T) {
 	assert.Equal(t, "fr", dropped.GetCountryId())
 	assert.InDelta(t, 0.03, dropped.GetRadius(), 1e-9)
 	assert.Equal(t, []uint32{6, 7, 8}, dropped.GetClearedTileIds())
+	assert.Equal(t, []uint32{9}, dropped.GetStruckTileIds())
 	assert.InDelta(t, 1, dropped.GetPoint().GetZ(), 1e-9)
 }
 

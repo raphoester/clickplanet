@@ -88,6 +88,7 @@ func bombDroppedEvent(blast *clicks.Blast) *planetv1.PlanetEvent {
 				CountryId:      blast.CountryID,
 				Radius:         blast.Radius,
 				ClearedTileIds: blast.Cleared,
+				StruckTileIds:  blast.Struck,
 				Point:          &planetv1.GlobePoint{X: blast.Point.X, Y: blast.Point.Y, Z: blast.Point.Z},
 			},
 		},
@@ -126,6 +127,7 @@ func toProto(update clicks.TileUpdate) *planetv1.TileUpdate {
 		CountryId:         update.Value,
 		PreviousCountryId: update.Previous,
 		Clicked:           update.Clicked,
+		Shields:           uint32(update.Shields), //nolint:gosec // a byte in the tile storage.
 	}
 }
 

@@ -189,6 +189,40 @@ describe("setHover", () => {
     })
 })
 
+describe("setShields", () => {
+    it("writes each tile's shields where the shader reads them, and nothing else", () => {
+        const f = field()
+
+        f.setShields([{tile: 3, shields: 4, was: 0}, {tile: 5, shields: 10, was: 9}])
+        f.setShields([{tile: 3, shields: 0, was: 4}])
+
+        const values = Array.from(attr(f, "shield").array as Float32Array)
+        expect(values.slice(0, 6)).toEqual([0, 0, 0, 0, 10, 0])
+        expect(values.slice(6).every(v => v === 0)).toBe(true)
+    })
+
+    it("patches only the tiles that moved", () => {
+        const f = field()
+        const shield = attr(f, "shield")
+        shield.clearUpdateRanges()
+
+        f.setShields([{tile: 3, shields: 1, was: 0}, {tile: 9, shields: 2, was: 0}])
+
+        expect(shield.updateRanges).toEqual([{start: 2, count: 1}, {start: 8, count: 1}])
+    })
+
+    it("patches one span for a load too big to list tile by tile", () => {
+        const f = field()
+        const shield = attr(f, "shield")
+        shield.clearUpdateRanges()
+
+        const many = Array.from({length: 100}, () => ({tile: 4, shields: 2, was: 1}))
+        f.setShields([...many, {tile: 20, shields: 3, was: 0}])
+
+        expect(shield.updateRanges).toEqual([{start: 3, count: 17}])
+    })
+})
+
 describe("geometry", () => {
     it("gives the picking points one colour per tile, starting at id 1", () => {
         const f = field()

@@ -59,6 +59,9 @@ const (
 	ClickServiceOpenQuizProcedure = "/planet.v1.ClickService/OpenQuiz"
 	// ClickServiceAnswerQuizProcedure is the fully-qualified name of the ClickService's AnswerQuiz RPC.
 	ClickServiceAnswerQuizProcedure = "/planet.v1.ClickService/AnswerQuiz"
+	// ClickServicePlaceShieldProcedure is the fully-qualified name of the ClickService's PlaceShield
+	// RPC.
+	ClickServicePlaceShieldProcedure = "/planet.v1.ClickService/PlaceShield"
 )
 
 // ClickServiceClient is a client for the planet.v1.ClickService service.
@@ -77,6 +80,7 @@ type ClickServiceClient interface {
 	GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error)
 	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
 	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
+	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
 }
 
 // NewClickServiceClient constructs a client for the planet.v1.ClickService service. By default, it
@@ -165,6 +169,12 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clickServiceMethods.ByName("AnswerQuiz")),
 			connect.WithClientOptions(opts...),
 		),
+		placeShield: connect.NewClient[v1.PlaceShieldRequest, v1.PlaceShieldResponse](
+			httpClient,
+			baseURL+ClickServicePlaceShieldProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("PlaceShield")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -182,6 +192,7 @@ type clickServiceClient struct {
 	getBonusRules   *connect.Client[v1.GetBonusRulesRequest, v1.GetBonusRulesResponse]
 	openQuiz        *connect.Client[v1.OpenQuizRequest, v1.OpenQuizResponse]
 	answerQuiz      *connect.Client[v1.AnswerQuizRequest, v1.AnswerQuizResponse]
+	placeShield     *connect.Client[v1.PlaceShieldRequest, v1.PlaceShieldResponse]
 }
 
 // Click calls planet.v1.ClickService.Click.
@@ -244,6 +255,11 @@ func (c *clickServiceClient) AnswerQuiz(ctx context.Context, req *connect.Reques
 	return c.answerQuiz.CallUnary(ctx, req)
 }
 
+// PlaceShield calls planet.v1.ClickService.PlaceShield.
+func (c *clickServiceClient) PlaceShield(ctx context.Context, req *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error) {
+	return c.placeShield.CallUnary(ctx, req)
+}
+
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
@@ -260,6 +276,7 @@ type ClickServiceHandler interface {
 	GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error)
 	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
 	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
+	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
 }
 
 // NewClickServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -344,6 +361,12 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(clickServiceMethods.ByName("AnswerQuiz")),
 		connect.WithHandlerOptions(opts...),
 	)
+	clickServicePlaceShieldHandler := connect.NewUnaryHandler(
+		ClickServicePlaceShieldProcedure,
+		svc.PlaceShield,
+		connect.WithSchema(clickServiceMethods.ByName("PlaceShield")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.ClickService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClickServiceClickProcedure:
@@ -370,6 +393,8 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceOpenQuizHandler.ServeHTTP(w, r)
 		case ClickServiceAnswerQuizProcedure:
 			clickServiceAnswerQuizHandler.ServeHTTP(w, r)
+		case ClickServicePlaceShieldProcedure:
+			clickServicePlaceShieldHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -425,4 +450,8 @@ func (UnimplementedClickServiceHandler) OpenQuiz(context.Context, *connect.Reque
 
 func (UnimplementedClickServiceHandler) AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.AnswerQuiz is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.PlaceShield is not implemented"))
 }

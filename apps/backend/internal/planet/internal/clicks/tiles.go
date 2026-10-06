@@ -5,6 +5,8 @@ type TileUpdate struct {
 	Value    string
 	Previous string
 	Clicked  bool
+
+	Shields int
 }
 
 type Blast struct {
@@ -15,6 +17,8 @@ type Blast struct {
 	Cleared   []uint32
 	// Owners[i] is the flag Cleared[i] wore before the blast: Clear fills it.
 	Owners []string
+
+	Struck []uint32
 }
 
 type Change struct {
@@ -27,6 +31,13 @@ type DenseBatch struct {
 	Start uint32
 	Codes []string
 	Tiles []byte
+
+	Shields []TileShields
+}
+
+type TileShields struct {
+	Tile    uint32
+	Shields int
 }
 
 type Restoration struct {

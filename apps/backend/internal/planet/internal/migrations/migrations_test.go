@@ -133,7 +133,7 @@ func TestKeepingEveryTakeGoesBackWithoutTheTakesThatLostTheirScope(t *testing.T)
 	assert.Error(t, err, "a scope is required again")
 }
 
-const ledgerEvents = "20261006120000"
+const ledgerEvents = "20261006130000"
 
 func TestEveryTakeKeptBeforeTheEventsIsATake(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, ledgerEvents))

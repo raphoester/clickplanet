@@ -51,6 +51,8 @@ func EncodeKind(kind bonuses.Kind) planetv1.BonusKind {
 		return planetv1.BonusKind_BONUS_KIND_BOMB
 	case bonuses.KindEncloseClicks:
 		return planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS
+	case bonuses.KindShields:
+		return planetv1.BonusKind_BONUS_KIND_SHIELDS
 	}
 
 	return planetv1.BonusKind_BONUS_KIND_UNSPECIFIED

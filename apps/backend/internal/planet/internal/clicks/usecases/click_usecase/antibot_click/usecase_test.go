@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -52,6 +53,19 @@ func (c *fakeClick) Execute(context.Context, click_usecase.In) (click_usecase.Ou
 	return click_usecase.Out{}, c.err
 }
 
+type fakeShields map[uint32]int
+
+func (g fakeShields) Shields(tile uint32) int { return g[tile] }
+
+func (g fakeShields) Strike(_ context.Context, tile uint32, _ string) bool {
+	if g[tile] == 0 {
+		return false
+	}
+	g[tile]--
+
+	return true
+}
+
 func execute(
 	t *testing.T,
 	ctx context.Context,
@@ -61,9 +75,22 @@ func execute(
 ) error {
 	t.Helper()
 
+	return executeOn(t, ctx, guard, owner, fakeShields{}, inner)
+}
+
+func executeOn(
+	t *testing.T,
+	ctx context.Context,
+	guard antibot_click.ClickGuard,
+	owner antibot_click.TileOwner,
+	held fakeShields,
+	inner *fakeClick,
+) error {
+	t.Helper()
+
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	useCase := antibot_click.New(inner, guard, owner, clock, prometheus.NewRegistry())
+	useCase := antibot_click.New(inner, guard, owner, clicks.NewShielding(held), clock, prometheus.NewRegistry())
 
 	_, executeErr := useCase.Execute(ctx, click_usecase.In{TileID: 42, CountryID: "PS"})
 
@@ -143,5 +170,29 @@ func TestAntiBotClick(t *testing.T) {
 		require.NoError(t, execute(t, t.Context(), guard, fakeOwner{42: "PS"}, &fakeClick{}))
 		require.Len(t, guard.seen, 1)
 		assert.True(t, guard.seen[0].NoOp, "it changes nothing and publishes nothing")
+		assert.False(t, guard.seen[0].Shielded)
+	})
+
+	t.Run("marks a click a shield will take, before the write and without striking it", func(t *testing.T) {
+		guard := &fakeGuard{}
+		held := fakeShields{42: 2}
+
+		require.NoError(t, executeOn(t, t.Context(), guard, fakeOwner{42: "FR"}, held, &fakeClick{}))
+		require.Len(t, guard.seen, 1)
+		assert.Equal(t, "FR", guard.seen[0].Held)
+		assert.False(t, guard.seen[0].NoOp, "the click strikes a shield")
+		assert.True(t, guard.seen[0].Shielded, "and FR keeps the tile")
+		require.Len(t, guard.committed, 1)
+		assert.True(t, guard.committed[0].Shielded)
+		assert.Equal(t, 2, held[42], "foreseeing the click is not the click")
+	})
+
+	t.Run("a shielded tile clicked by its own flag is a no-op", func(t *testing.T) {
+		guard := &fakeGuard{}
+
+		require.NoError(t, executeOn(t, t.Context(), guard, fakeOwner{42: "PS"}, fakeShields{42: 2}, &fakeClick{}))
+		require.Len(t, guard.seen, 1)
+		assert.True(t, guard.seen[0].NoOp)
+		assert.False(t, guard.seen[0].Shielded)
 	})
 }

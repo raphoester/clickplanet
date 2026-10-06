@@ -11,5 +11,6 @@ func Encode(held bonuses.Held) *planetv1.ChargesHeld {
 		Bomb:             held.Bomb,
 		Enclosures:       uint32(held.Enclosures),
 		SpreadClicksLeft: uint32(held.SpreadClicks),
+		Shields:          uint32(held.Shields),
 	}
 }

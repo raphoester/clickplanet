@@ -23,8 +23,10 @@ import {
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
+    ShieldRefusedError,
     OwnershipsGetter,
     RateLimitedError,
+    Shielder,
     TileClicker,
     Update,
     UpdatesListener,
@@ -49,6 +51,7 @@ import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
 import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
+import {ShieldChange, outcomeOf, placementOf, TileShields} from "../../domain/shields.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 import {AcceptedClick} from "./acceptedClicks.ts";
 
@@ -61,6 +64,7 @@ type Uniforms = BlastUniforms & {
     pixelsPerRadian: THREE.IUniform<number>
     pixelRatio: THREE.IUniform<number>
     flagPaint: THREE.IUniform
+    shieldMost: THREE.IUniform<number>
 }
 
 const SHAKE_SECONDS = 0.5
@@ -76,6 +80,8 @@ const DISTANT_BOMB_VOLUME = 0.45
 const OWN_DROP_WINDOW_SECONDS = 5
 
 const OWN_CLICK_WINDOW_SECONDS = 3
+
+const SHIELD_MOST_UNTIL_READ = 10
 
 const TILES_PER_BATCH = 10_000
 
@@ -132,6 +138,8 @@ export type GlobeOptions = {
     bomber?: Bomber
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
     onArmedChange: (armed: boolean) => void
+    shielder?: Shielder
+    onShieldFull?: () => void
     onClickAccepted?: (click: AcceptedClick) => void
     playSound?: PlaySound
     signal: AbortSignal
@@ -177,6 +185,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber,
         onBombDropped,
         onArmedChange,
+        shielder,
+        onShieldFull = () => {},
         onClickAccepted = () => {},
         playSound = () => {},
         signal,
@@ -207,6 +217,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         pixelsPerRadian: {value: 1},
         pixelRatio: {value: renderer.getPixelRatio()},
         flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height, mapView)},
+        shieldMost: {value: SHIELD_MOST_UNTIL_READ},
         ...blastUniforms(prefersReducedMotion()),
     };
 
@@ -221,6 +232,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const picker = new GpuPicker(renderer, field.pickingPoints);
     const ownership = new TileOwnership(field.size);
+    const shielded = new TileShields(field.size);
 
     let country: Country = initialCountry;
 
@@ -244,6 +256,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let offered: BonusOffer | undefined
 
     const ownClicks = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
+    const ownHits = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
+    const ownPlacements = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
 
     let dirty = true
     const invalidate = () => {
@@ -265,6 +279,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         territories.apply(changes)
         updateLeaderboard(rankCountries(ownership.counts()), live)
         invalidate()
+    }
+
+    const showShields = (changes: ShieldChange[]) => {
+        if (changes.length === 0) return
+        field.setShields(changes)
+        invalidate()
+    }
+
+    const playShields = (changes: ShieldChange[]) => {
+        const seconds = performance.now() / 1000
+        for (const {tile, shields, was} of changes) {
+            if (shields < was && !ownHits.has(tile, country.code, seconds)) plainClicks.playHit(tile, camera)
+            if (shields > was && !ownPlacements.has(tile, country.code, seconds)) plainClicks.playShielded(tile, camera)
+        }
     }
 
     const blasts = createBlasts(uniforms, uniforms.pixelsPerRadian, uniforms.pixelRatio)
@@ -349,6 +377,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onCharges: (held) => takeCharges(held),
         onRules: (read) => {
             rules = read
+            if (read.tileShields > 0) uniforms.shieldMost.value = read.tileShields
+            invalidate()
             onRules(read)
         },
     })
@@ -366,14 +396,23 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         })
     }
 
-    let pendingClears: {at: number, tiles: Set<number>}[] = []
+    let pendingClears: {at: number, tiles: Set<number>, struck: Set<number>}[] = []
+
+    const land = (cleared: number[], struck: number[]) => {
+        applyChanges(ownership.applyClears(cleared))
+        showShields(shielded.applyClears(cleared))
+
+        const strikes = shielded.applyStrikes(struck)
+        showShields(strikes)
+        playShields(strikes)
+    }
 
     const flushClears = (upTo: number) => {
         if (pendingClears.length === 0) return false
         const due = pendingClears.filter((clear) => clear.at <= upTo)
         if (due.length === 0) return false
         pendingClears = pendingClears.filter((clear) => clear.at > upTo)
-        applyChanges(ownership.applyClears(due.flatMap((clear) => [...clear.tiles])))
+        land(due.flatMap((clear) => [...clear.tiles]), due.flatMap((clear) => [...clear.struck]))
         return true
     }
 
@@ -386,9 +425,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         blasts.start(centre, drop.radius, seconds, drop.tile === undefined)
 
         if (document.hidden) {
-            applyChanges(ownership.applyClears(drop.cleared))
-        } else if (drop.cleared.length > 0) {
-            pendingClears.push({at: seconds + IMPACT_DELAY, tiles: new Set(drop.cleared)})
+            land(drop.cleared, drop.struck)
+        } else if (drop.cleared.length > 0 || drop.struck.length > 0) {
+            pendingClears.push({at: seconds + IMPACT_DELAY, tiles: new Set(drop.cleared), struck: new Set(drop.struck)})
         }
 
         const own = ownDropAt !== undefined && drop.countryId === country.code && seconds - ownDropAt < OWN_DROP_WINDOW_SECONDS
@@ -399,6 +438,18 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         playSound("bomb", {volume: own ? 1 : DISTANT_BOMB_VOLUME, onWater: drop.tile === undefined})
         onBombDropped(drop, drop.tile === undefined ? undefined : countryOfTile(borders, drop.tile))
     })
+
+    const placeShield = (tile: number) => {
+        if (!shielder) return
+        ownPlacements.record(tile, country.code, performance.now() / 1000)
+        plainClicks.playShielded(tile, camera)
+        playSound("click")
+
+        shielder.placeShield(tile, country.code).catch((e) => {
+            if (lifetime.signal.aborted || e instanceof ShieldRefusedError) return
+            reportClaimFailure(e, {onSessionUnavailable})
+        })
+    }
 
     const driveBlasts = (seconds: number) => {
         let drawing = blasts.update(seconds, camera)
@@ -536,18 +587,41 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
-        const took = ownership.ownerOf(tile) !== country.code
+        const owner = ownership.ownerOf(tile)
+        const shields = shielded.shieldsOf(tile)
 
-        const {changes, claim} = ownership.applyOptimistic(tile, country.code)
+        if (switches.shield && shielder) {
+            const placement = placementOf(owner, country.code, shields, rules?.tileShields)
+            if (placement === "full") {
+                onShieldFull()
+                return
+            }
+            if (placement === "place") {
+                placeShield(tile)
+                return
+            }
+        }
+
+        const outcome = outcomeOf(owner, country.code, shields)
+        const {changes, claim} = outcome === "shielded"
+            ? {changes: [], claim: undefined}
+            : ownership.applyOptimistic(tile, country.code)
         applyChanges(changes)
         playSound("click")
-        ownClicks.record(tile, country.code, performance.now() / 1000)
-        plainClicks.playOwnClick(tile, camera)
+
+        const seconds = performance.now() / 1000
+        ownClicks.record(tile, country.code, seconds)
+        if (outcome === "shielded") {
+            ownHits.record(tile, country.code, seconds)
+            plainClicks.playHit(tile, camera)
+        } else {
+            plainClicks.playOwnClick(tile, camera)
+        }
 
         const clicked = country.code
         tileClicker.clickTile(tile, clicked, switches).then(() => {
             if (lifetime.signal.aborted) return
-            onClickAccepted({country: clicked, took})
+            onClickAccepted({country: clicked, took: outcome === "taken"})
         }, (e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
@@ -570,13 +644,21 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const cleanUpdatesListener = updatesListener.listenForUpdatesBatch((updates: Update[]) => {
         for (const clear of pendingClears) {
-            for (const update of updates) clear.tiles.delete(update.tile)
+            for (const update of updates) {
+                clear.tiles.delete(update.tile)
+                clear.struck.delete(update.tile)
+            }
         }
         applyChanges(ownership.applyUpdates(updates))
 
+        const moved = shielded.applyUpdates(updates)
+        showShields(moved)
+        playShields(moved)
+
         const seconds = performance.now() / 1000
-        for (const {tile, clicked} of updates) {
-            if (clicked && !ownClicks.has(tile, country.code, seconds)) plainClicks.playClick(tile, camera)
+        for (const {tile, clicked, previousCountry, newCountry} of updates) {
+            if (!clicked || previousCountry === newCountry || ownClicks.has(tile, country.code, seconds)) continue
+            plainClicks.playClick(tile, camera)
         }
     })
 
@@ -681,6 +763,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             field.size,
             (ownerships) => {
                 applyChanges(ownership.applyBatch(ownerships), false)
+                showShields(shielded.applyBatch(ownerships.shields))
                 onLoadProgress(Math.min(1, ++fetched / batches))
             },
             lifetime.signal,

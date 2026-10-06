@@ -6,7 +6,7 @@ import {MapView, Rendering} from '../../domain/displaySettings.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from '../../domain/bonus.ts';
-import {BombDrop, Bomber, BonusCatch, BonusListener} from '../../backends/backend.ts';
+import {BombDrop, Bomber, BonusCatch, BonusListener, Shielder} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 import {AcceptedClick} from './acceptedClicks.ts';
 
@@ -22,6 +22,7 @@ export type UseGlobeOptions = {
     updatesListener: UpdatesListener
     bonusListener?: BonusListener
     bomber?: Bomber
+    shielder?: Shielder
     // Must keep its identity: a new one rebuilds the globe.
     playSound?: PlaySound
     // Must keep its identity: a new one rebuilds the globe.
@@ -34,7 +35,7 @@ export type UseGlobeOptions = {
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, onClickAccepted, country, clickHue, mapView, rendering} = options
+    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -42,6 +43,8 @@ export function useGlobe(options: UseGlobeOptions) {
     const {leaderboard, tileDeltas, recordLeaderboard, publishLeaderboard} = useLeaderboardFeed()
 
     const [refusals, setRefusals] = useState(0)
+
+    const [shieldFull, setShieldFull] = useState(0)
 
     const [vpnBlocked, setVPNBlocked] = useState(false)
 
@@ -103,6 +106,8 @@ export function useGlobe(options: UseGlobeOptions) {
             bomber,
             onBombDropped: recordBomb,
             onArmedChange: setBombArmed,
+            shielder,
+            onShieldFull: () => setShieldFull(n => n + 1),
             onClickAccepted,
             playSound,
             signal: abortController.signal,
@@ -131,7 +136,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb])
 
     useEffect(() => {
         initialCountry.current = country
@@ -178,6 +183,7 @@ export function useGlobe(options: UseGlobeOptions) {
         toggleBomb,
         switches,
         toggleSwitch,
+        shieldFull,
         lastCatch,
         lastBomb,
         dismissBomb,

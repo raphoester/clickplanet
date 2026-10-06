@@ -33,6 +33,12 @@
     --bonus-box: var(--enclose);
 }
 
+.bonus-award--shields,
+.inventory-slot--shields {
+    --bonus-accent: var(--shield-light);
+    --bonus-box: var(--shield);
+}
+
 .bonus-award-card {
     display: flex;
     flex-direction: column;

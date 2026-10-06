@@ -7,6 +7,7 @@ import {
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
+    ShieldRefusedError,
     GlobePoint,
     Enclosure,
     Ownerships,
@@ -14,6 +15,7 @@ import {
     QuizMaster,
     RateLimitedError,
     Refiller,
+    Shielder,
     TileClicker,
     Update,
     UpdatesListener,
@@ -44,11 +46,15 @@ const SPREAD_CLICKS = 8
 const SPREAD_PER_BOX = 4
 const ENCLOSURES = 3
 const ENCLOSURES_PER_BOX = 3
+const SHIELDS = 12
+const SHIELDS_PER_BOX = 3
+const TILE_SHIELDS = 10
 const BONUS_KINDS: BonusReward["kind"][] = [
     "refill", "refill", "refill", "refill", "refill",
     "spreadClicks", "spreadClicks",
     "bomb",
     "encloseClicks", "encloseClicks",
+    "shields", "shields",
 ]
 
 const BOMB_RADIUS = 0.032
@@ -77,6 +83,8 @@ const RULES: BonusRules = {
     enclosureMaxTiles: ENCLOSE_MAX_TILES,
     spreadClicks: SPREAD_CLICKS,
     enclosures: ENCLOSURES,
+    shields: SHIELDS,
+    tileShields: TILE_SHIELDS,
     toll: TOLL_STEPS,
 }
 
@@ -86,7 +94,7 @@ export type FakeBackendOptions = {
     tilePositions?: () => Promise<Float32Array>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder {
     private tileBindings: Map<number, string> = new Map()
     private tileCounts: Map<string, number> = new Map()
     private budgetCountry = ""
@@ -97,6 +105,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private bonusCallbacks: Map<string, BonusHandlers> = new Map()
     private bombCallbacks: Map<string, (drop: BombDrop) => void> = new Map()
     private quizCallbacks: Map<string, (offer: QuizOffer) => void> = new Map()
+    private shields: Map<number, number> = new Map()
 
     private charges: Charges = NO_CHARGES
     private positions: Promise<Float32Array> | undefined
@@ -128,12 +137,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.pendingUpdates.push(update)
         })
 
-        this.timers.push(setInterval(() => {
-            if (this.pendingUpdates.length === 0) return
-            const updates = this.pendingUpdates
-            this.pendingUpdates = []
-            this.updateBatchCallbacks.forEach(callback => callback(updates))
-        }, batchUpdateDurationMs))
+        this.timers.push(setInterval(() => this.flushUpdates(), batchUpdateDurationMs))
 
         const offerable = this.tilePositions ? BONUS_KINDS : BONUS_KINDS.filter((kind) => kind !== "bomb")
 
@@ -180,6 +184,13 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }, 1000 / BOT_CLICKS_PER_SECOND))
     }
 
+    private flushUpdates() {
+        if (this.pendingUpdates.length === 0) return
+        const updates = this.pendingUpdates
+        this.pendingUpdates = []
+        this.updateBatchCallbacks.forEach(callback => callback(updates))
+    }
+
     public close() {
         this.timers.forEach(clearInterval)
         this.timers.length = 0
@@ -220,6 +231,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 return this.charges.enclosures >= ENCLOSURES
             case "spreadClicks":
                 return this.charges.spreadClicksLeft >= SPREAD_CLICKS
+            case "shields":
+                return this.charges.shields >= SHIELDS
         }
     }
 
@@ -246,6 +259,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 const spreadClicksLeft = Math.min(held.spreadClicksLeft + drawUpTo(SPREAD_PER_BOX), SPREAD_CLICKS)
                 this.hold({...held, spreadClicksLeft})
                 return {reward: rewardOfKind(kind, spreadClicksLeft - held.spreadClicksLeft), charges: this.charges}
+            }
+            case "shields": {
+                const shields = Math.min(held.shields + drawUpTo(SHIELDS_PER_BOX), SHIELDS)
+                this.hold({...held, shields})
+                return {reward: rewardOfKind(kind, shields - held.shields), charges: this.charges}
             }
         }
     }
@@ -337,7 +355,16 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     private applyClick(tileId: number, countryId: string, clicked = true) {
         const prev = this.tileBindings.get(tileId)
+        if (prev === countryId) return
+
+        const shields = this.shields.get(tileId) ?? 0
+        if (prev !== undefined && shields > 0) {
+            this.shield(tileId, prev, shields - 1, clicked)
+            return
+        }
+
         this.tileBindings.set(tileId, countryId)
+        this.shields.delete(tileId)
         this.count(prev, -1)
         this.count(countryId, 1)
         this.updateListeners.forEach(l => l({
@@ -345,7 +372,40 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             previousCountry: prev,
             newCountry: countryId,
             clicked,
+            shields: 0,
         }))
+    }
+
+    private shield(tile: number, owner: string, shields: number, clicked: boolean) {
+        if (shields > 0) this.shields.set(tile, shields)
+        else this.shields.delete(tile)
+
+        this.updateListeners.forEach(l => l({tile, previousCountry: owner, newCountry: owner, clicked, shields}))
+    }
+
+    private strike(tile: number): boolean {
+        const shields = this.shields.get(tile) ?? 0
+        if (shields === 0) return false
+
+        if (shields > 1) this.shields.set(tile, shields - 1)
+        else this.shields.delete(tile)
+        return true
+    }
+
+    public async placeShield(tileId: number, countryId: string): Promise<void> {
+        if (this.sessionUnavailable) throw new SessionUnavailableError()
+        if (this.charges.shields === 0) throw new BonusLostError()
+        if (!this.botShield(tileId, countryId)) throw new ShieldRefusedError()
+
+        this.hold({...this.charges, shields: this.charges.shields - 1})
+    }
+
+    public botShield(tile: number, countryId: string): boolean {
+        const shields = this.shields.get(tile) ?? 0
+        if (this.tileBindings.get(tile) !== countryId || shields >= TILE_SHIELDS) return false
+
+        this.shield(tile, countryId, shields + 1, false)
+        return true
     }
 
     private count(countryId: string | undefined, by: number) {
@@ -475,10 +535,19 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const {tile, arc, point} = nearestTile(positions, target)
         const onLand = tile !== undefined && arc <= SEA_REACH
 
-        const cleared = onLand ? tilesWithin(positions, tile, BOMB_RADIUS).filter((id) => {
-            this.count(this.tileBindings.get(id), -1)
-            return this.tileBindings.delete(id)
-        }) : []
+        const cleared: number[] = []
+        const struck: number[] = []
+        for (const id of onLand ? tilesWithin(positions, tile, BOMB_RADIUS) : []) {
+            const owner = this.tileBindings.get(id)
+            if (owner === undefined) continue
+            if (this.strike(id)) {
+                struck.push(id)
+                continue
+            }
+            this.count(owner, -1)
+            this.tileBindings.delete(id)
+            cleared.push(id)
+        }
 
         const drop: BombDrop = {
             tile: onLand ? tile : undefined,
@@ -486,7 +555,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             countryId,
             radius: BOMB_RADIUS,
             cleared,
+            struck,
         }
+        this.flushUpdates()
         this.bombCallbacks.forEach((callback) => callback(drop))
     }
 
@@ -525,12 +596,15 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             signal?.throwIfAborted()
 
             const bindings = new Map<number, string>()
+            const shields = new Map<number, number>()
             const end = Math.min(start + batchSize, maxIndex + 1)
             for (let tile = start; tile < end; tile++) {
                 const owner = this.tileBindings.get(tile)
                 if (owner) bindings.set(tile, owner)
+                const held = this.shields.get(tile)
+                if (held) shields.set(tile, held)
             }
-            callback({bindings})
+            callback({bindings, shields})
         }
     }
 }
@@ -549,5 +623,7 @@ function rewardOfKind(kind: BonusReward["kind"], amount = 1): BonusReward {
             return {kind, clicks: amount}
         case "refill":
             return {kind}
+        case "shields":
+            return {kind, shields: amount}
     }
 }

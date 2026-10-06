@@ -35,15 +35,20 @@ The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
 
+Every tile starts French in the fake, and it keeps shields on its tiles as the
+server does: in its map batches, its tile updates and its bombs' struck tiles.
+
 In fake mode the console has a few commands: `giveBomb()` puts a bomb in the
 inventory as if a box holding one had just been caught, `giveBonus("refill")` does
 the same for any other bonus (the fake holds charges as the server does: a refill
-and a bomb at most, a pool of 8 spread clicks and a stack of 3 enclosures, a box
-adding 1 to 4 and 1 to 3 of them, spread and enclose spent only while switched on,
+and a bomb at most, a pool of 8 spread clicks, a stack of 3 enclosures and 12
+shields, a box adding 1 to 4, 1 to 3 and 1 to 3 of them, spread and enclose
+spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
 banner up at once, `giveTitle("warlord")` plays the unlock of any title (the fake
-wires no account, so the overlay offers Close only), and `fakeBackend.botBomb(tile, "fr")` and `fakeBackend.botSpread(tile, "fr")`
-play somebody else's bomb or spread click. `fakeBackend.shareClicks("guests")` (or
+wires no account, so the overlay offers Close only), and `fakeBackend.botBomb(tile, "fr")`,
+`fakeBackend.botSpread(tile, "fr")` and `fakeBackend.botShield(tile, "fr")` play
+somebody else's bomb, spread click or shield. `fakeBackend.shareClicks("guests")` (or
 `"network"`) reads the bucket as shared, and `fakeBackend.shareClicks()` as the
 player's own again.
 
@@ -178,6 +183,9 @@ app/       components
   pixel is drawn: the `?f=<code>` link, the text that rides with it, the line
   under the flag, and the size the card comes out at. See [Sharing the
   globe](#sharing-the-globe).
+- `shields.ts` — `TileShields`, how many shields stand on each tile, and
+  `outcomeOf` and `placementOf`, what this player's click does to a tile. See
+  [Shields](#shields).
 - `clickOrDrag.ts` — `ClickOrDrag`, whether a press was a click or a drag of
   the globe. The browser sends `click` after a drag too, so turning the globe
   claimed the tile under the cursor on release. A press that moves more than
@@ -823,7 +831,8 @@ draws it.
   accepted clicks, and at least every 10s while they keep coming
   (`useReadsAfterClicks`).
 - **The caller's own numbers move on every take.** The globe already knows
-  which click takes a tile (one on a tile its flag does not hold), and once
+  which click takes a tile (one on a tile its flag does not hold and no shield
+  stands on), and once
   the server accepts one it tells `acceptedClicks`, which tells its listeners
   with no render of `Viewer` per click. `useOwnTakes` counts them by flag, and
   `liveSeason` adds the ones made since the read was sent to the line's flag:
@@ -1229,8 +1238,8 @@ mint a guest and insert a row into `auth.identities` for its account.
 - `useLeaderboardFeed.ts` — the one place React hears about the board, and
   **it samples rather than follows**. See [Sampling the
   leaderboard](#sampling-the-leaderboard).
-- `tileField.ts` — owns both point clouds and the two attributes that change at
-  runtime (`regionVector`, `hover`). Mutates them in place and reports only the
+- `tileField.ts` — owns both point clouds and the three attributes that change at
+  runtime (`regionVector`, `hover`, `shield`). Mutates them in place and reports only the
   changed ranges. Do not replace these attributes: doing so makes the renderer
   rebuild the whole GPU buffer instead of patching it.
 - `gpuPicking.ts` — `GpuPicker`. Persistent 1×1 render target and scene;
@@ -1297,12 +1306,15 @@ mint a guest and insert a row into `auth.identities` for its account.
   could not be seen, and a full-strength ring of at least 44px with a dark edge
   looked like a bonus. **It is never under `MIN_GLINT_PX`**, so from orbit a
   click is a spark that keeps the planet alive, and otherwise 1.8 tiles wide, so
-  pushed in it stays on its tile (`glintSize`). **This player's glints are in
-  its color's hue** (`hueOf`, handed down through `Globe.setClickHue`); a player
-  with no color glints sky blue. Everyone else's are sky blue: a `TileUpdate`
-  does not say who clicked. Not white, which vanished on the white of a flag.
-  **A click out of view is not played** (`inView`): on the far side or off the
-  screen it would cost frames and show nothing.
+  pushed in it stays on its tile (`glintSize`). **A hit on a shield is the
+  same glint, red and shrinking as it fades** (`playHit`), and a shield placed
+  is steel and grows (`playShielded`). **This player's glints are in its
+  color's hue** (`hueOf`, handed down through `Globe.setClickHue`); a player
+  with no color glints sky blue. Everyone else's are sky blue: a
+  `TileUpdate` does not say who clicked. Not white, which vanished on the white
+  of a flag. **A click out of view is not played** (`inView`): on the far side
+  or off the screen it would cost frames and show nothing. With less motion a
+  hit and a placement fade without changing size.
 - `earth.ts` — the opaque sphere under the tiles, in the globe's light with
   `?gfx=earth`. See [The light](#the-light).
 - `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe are on:
@@ -1742,7 +1754,8 @@ and are shared; how thick a line is drawn between them is this app's.
    before the map is complete: an empty map with an empty board is not a game.
    A fetch that fails after its retries fails the whole globe, and an abandoned
    one disposes it. On ready, `publishLeaderboard` shows the full board at once
-   rather than up to a sample later.
+   rather than up to a sample later. Each batch brings its tiles' shields
+   too (see [Shields](#shields)).
 3. Live updates arrive over the `ListenForEvents` stream, batched every 100 ms, into the same
    store.
 4. Whatever the store reports as changed is painted, and the leaderboard is
@@ -1907,6 +1920,9 @@ ever takes back what that click itself painted.**
 going back to unowned, which `TileField` writes as a zero-sized atlas region —
 what the fragment shader already draws as an unclaimed tile.
 
+**A click predicted to be shielded paints nothing**, so it has no claim to
+take back.
+
 Rolling back on *any* failure, including a transport fault, is deliberate: if
 the click did land and only the response was lost, the stream's echo repaints
 it, and if the echo arrives first the rollback is already a no-op.
@@ -1915,10 +1931,11 @@ it, and if the echo arrives first the rollback is already a no-op.
 
 A bonus box holds a **charge**, which has no clock and is never used on its own:
 a refill (the click bank, filled when the player presses it), a bomb (one drop), a
-stack of enclosures (one shape each, `maxTiles` at most) and a pool of spread
-clicks. The server keeps them per account, in postgres: a refill and a bomb at
-most, up to 3 enclosures and up to 8 spread clicks. A box adds a random 1 to 3
-enclosures or 1 to 4 spread clicks, capped at the size; the reward it announces
+stack of enclosures (one shape each, `maxTiles` at most), a pool of spread
+clicks and a pool of shields. The server keeps them per account, in postgres:
+a refill and a bomb at most, up to 3 enclosures, up to 8 spread clicks and up to
+12 shields. A box adds a random 1 to 3 enclosures, 1 to 4 spread clicks or 1
+to 3 shields, capped at the size; the reward it announces
 is what was kept (`+2 spread clicks`), which is what the server answers in
 `ClaimBonusResponse.amount`.
 
@@ -1926,31 +1943,34 @@ is what was kept (`+2 spread clicks`), which is what the server answers in
 It reads `GetCharges` at load, with the token in hand and never a fresh one, and
 again when a click goes out under a new token (`followSession`): the charges are
 the account's. `ClaimBonusResponse.charges` replaces them on a claim, and
-`UseRefillResponse.charges` on a refill, which also brings the full budget. Otherwise
+`UseRefillResponse.charges` on a refill, which also brings the full budget, and
+`PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread
 click off, this player's own `tilesEnclosed` takes an enclosure off, and a drop
 takes the bomb off at once and gives it back only if the call never reached the
-server. The click answer says nothing about charges, on purpose (see the backend's
+server; a shield is taken off the same way. The click answer says nothing about charges, on purpose (see the backend's
 CLAUDE.md). A charge spent in another tab stays on screen until the next read. It
 reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` hands it to the
 inventory.
 
 **The sizes are rules, read once**: `GetBonusRules` (a cached GET) answers the
-blast radius, the enclose's `maxTiles`, the spread pool's size and the enclosure
-stack's size as `BonusRules`, through `onRules`. A page open across a change of
-rules shows the old sizes until it is reloaded.
+blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
+stack's size, the shields' pool size and how many can stand on one tile
+(`tileShields`) as `BonusRules`, through `onRules`. A page open across a change of rules shows the old sizes
+until it is reloaded.
 
 ### Off by default, one at a time
 
-**Nothing is used until the player says so.** Spread and enclose are switches
-(`Switches`), off at load and never turned on by the client. Every click carries
+**Nothing is used until the player says so.** Spread, enclose and shield are
+switches (`Switches`), off at load and never turned on by the client. Every click carries
 them: `TileClicker.clickTile(tile, country, switches)` sends
 `ClickRequest.spread` and `enclose`, and the server spends a charge only when its
-switch is on. A switch goes off by itself when its pool runs out
+switch is on. Shield is not sent: it changes what a click on the player's own tile
+does (see [Shields](#shields)). A switch goes off by itself when its pool runs out
 (`switchesHeld`), so it never says a click does something it will not.
 
-**One bonus at a time**, the bomb included: `switched` turns the other switch off
-when one goes on, aiming the bomb switches both off, and switching one on puts the
+**One bonus at a time**, the bomb included: `switched` turns the other switches off
+when one goes on, aiming the bomb switches them all off, and switching one on puts the
 bomb away. `globe.ts` holds the one copy (`setSwitch`, `onSwitchesChange`). The
 server refuses a click with both switches on (`INVALID_ARGUMENT`), before it
 writes or spends anything.
@@ -1971,9 +1991,11 @@ word over the icon says what the slot is doing (`On`, `Aim`, `Full`).
   server refuses it too, `FailedPrecondition`, read as `BankFullError`, and spends
   nothing.
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).
-- **Spread** and **Enclose** switch (`Globe.setSwitch`), `aria-pressed`.
+- **Spread**, **Enclose** and **Shield** switch (`Globe.setSwitch`),
+  `aria-pressed`. Shield says "Full" for two seconds when a click meets a tile
+  that holds all the shields it can (`shieldFull`, a count like `refusals`).
 
-**It does not fold**: four slots are one row, labelled from 1280px and icons
+**It does not fold**: five slots are one row, labelled from 1280px and icons
 with their counts below that (the name stays in `aria-label`). A fold on a row
 this small hid the one thing that says the next click does more than paint.
 The dock glows while something is on or aimed.
@@ -2134,6 +2156,50 @@ and the colours stay. A blast off screen gets a red edge pointer with a drawn bu
 (`blastMark.ts`) — the same component as the bonus box's, which carries a drawn
 question mark (`questionMark.ts`). Neither is a character: a glyph is a
 different picture on every platform.
+
+## Shields
+
+A shield is a charge (`Charges.shields`) placed on a tile the player's flag
+holds, up to `BonusRules.tileShields` on one tile. **A tile's shields are
+part of the tile**, as its owner is, and every screen shows them. The server
+decides what a click does; this client predicts its own. The pieces: `Shielder`
+in `backends/backend.ts`, `domain/shields.ts` the count per tile and the rule,
+`tileField.ts` and the display shaders the drawing.
+
+- **The count comes with the tile.** Each map batch lists its shielded tiles
+  (`GetMapResponse.shields`, read into `Ownerships.shields`), and every
+  `TileUpdate` says the tile's count after it. `TileShields` keeps one number
+  per tile and, like `TileOwnership`, lets a live update win over a batch that
+  was already in flight.
+- **The server zeroes the count on every change of owner**, so an update that
+  changes the owner carries 0, and nothing here ties a count to a flag. **An
+  update whose country is its previous country changes the shields alone**: a
+  strike or a placement. It moves no tile on the board and plays no click
+  glint.
+- **A bomb strikes the shielded tiles in its blast** (`BombDrop.struck`): each
+  loses one shield and keeps its flag, and is not in `cleared`. The strikes
+  wait for the impact with the clear, and a tile update that arrives meanwhile
+  wins its tile, as it does for the clear.
+- **Shield is a switch.** While it is on, a click on a tile the flag holds sends
+  `PlaceShield` (session-gated, not throttled) instead of a click, and spends
+  no click. A tile already at its most sends nothing and the slot says "Full".
+  Any other tile gets an ordinary click.
+- **A click on another flag's shielded tile is shielded** (`outcomeOf`): it costs
+  a click and takes nothing, so the globe paints no flag and plays the hit; the
+  update brings the count. A take is predicted only on a tile with none, so a
+  paint never has a count to drop. When a prediction is wrong, the update that
+  follows carries the flag the server kept, and replaces the paint as any update
+  does.
+- **Spread and enclose follow the same rule on the server**; their updates bring
+  the counts.
+- **It is drawn in the tile shader**: one more per-tile attribute (`shield`)
+  and a uniform (`shieldMost`). From 14px across, a steel ring cut into one
+  segment per shield the tile can hold, the held ones lit; under that a plain
+  ring, and from orbit a steel tint that deepens with the count. Nothing is
+  allocated per tile and nothing animates, so a shield costs no frame.
+- **A count that drops glints red, one that rises glints steel**
+  (`clickGlints.ts`). This player's own hit and placement play at once, and their
+  echo is skipped (`ownHits`, `ownPlacements`).
 
 ## Sharing the globe
 
