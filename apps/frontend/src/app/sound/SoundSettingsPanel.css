@@ -2,33 +2,10 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding-bottom: var(--space-5);
-}
-
-.sound-settings-list {
-    display: flex;
-    flex-direction: column;
-    margin: 0;
-    padding: var(--space-1) 0;
-    list-style: none;
 }
 
 .sound-settings-list--off {
     opacity: 0.45;
-}
-
-.sound-switch {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    min-height: 44px;
-    padding: 0 var(--space-3);
-    font-family: var(--font-text);
-    font-weight: 500;
-    font-size: var(--text-m);
-    color: var(--text);
-    cursor: pointer;
 }
 
 .sound-volume {
@@ -53,71 +30,4 @@
 
 .sound-volume-input:disabled {
     cursor: default;
-}
-
-.sound-switch--main {
-    font-family: var(--font-display);
-    font-weight: normal;
-    font-size: var(--display-m);
-    text-shadow: var(--text-drop);
-}
-
-.sound-switch--main .sound-switch-label {
-    padding-top: 3px;
-}
-
-.sound-settings-list li + li .sound-switch {
-    border-top: var(--outline-thin) solid var(--panel);
-}
-
-.sound-switch:has(.sound-switch-input:disabled) {
-    cursor: default;
-}
-
-.sound-switch-input {
-    appearance: none;
-    position: relative;
-    flex-shrink: 0;
-    width: 46px;
-    height: 28px;
-    margin: 0;
-    border: var(--outline-thin) solid var(--ink);
-    border-radius: var(--radius-pill);
-    background: var(--panel-sunk);
-    box-shadow: var(--drop-xs);
-    cursor: inherit;
-    transition: background 0.15s ease;
-}
-
-.sound-switch-input::after {
-    content: "";
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 20px;
-    height: 20px;
-    border: var(--outline-thin) solid var(--ink);
-    border-radius: 50%;
-    background: var(--text);
-    transition: transform 0.15s ease;
-}
-
-.sound-switch-input:checked {
-    background: var(--gold);
-}
-
-.sound-switch-input:checked::after {
-    transform: translateX(18px);
-}
-
-.sound-switch-input:focus-visible {
-    outline: var(--outline-thin) solid var(--text);
-    outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .sound-switch-input,
-    .sound-switch-input::after {
-        transition: none;
-    }
 }

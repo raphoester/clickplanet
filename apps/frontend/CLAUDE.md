@@ -363,13 +363,16 @@ this is where each zone lives. `Viewer` composes them, and `useCompact`
 | **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end | `Menu`'s header and "playing for", `SeasonChip` at the top centre |
 | **Moments** | under the status bar (`--status-bottom`) | under the season chip |
 | **Play** | the dock (`ClickBudgetMeter` + `Inventory`) above the tab bar, the chat's peek above it | the dock at the bottom centre |
-| **Places** | `hud/TabBar` (Board, Chat, Sign in / You, More), each a `hud/Sheet` | `Menu`'s tabs (Board, You, More) on the left, the chat on the right |
+| **Places** | `hud/TabBar` (Board, Chat, Sign in / You, Settings, More), each a `hud/Sheet` | `Menu`'s tabs (Board, You, Settings, More) on the left, the chat on the right |
 
 - **One sheet at a time on a phone.** `Viewer` holds which (`sheet`): the four
   tabs, and the season and "Your clicks", which the status bar and the dock open.
   A tab pressed again closes it. The sheets are the same places the desktop
-  shows: `BoardPlace`, `YouPlace` and `MorePlace` in `Menu.tsx`, `SeasonDetails`,
-  `ClicksPanel`, and the chat's own sheet.
+  shows: `BoardPlace`, `YouPlace` and `MorePlace` in `Menu.tsx`, `SettingsPlace`,
+  `SeasonDetails`, `ClicksPanel`, and the chat's own sheet.
+- **Settings is every switch the player keeps**: the display (`useDisplaySettings`,
+  `domain/displaySettings.ts`, in `clickplanet-display-settings`) and the sound.
+  More is for things to do, not things to set.
 - **A sheet sits above the tab bar** and is as tall as what it holds, up to the
   room under the status bar; the chat's is that tall always, for its log to
   scroll. It covers the dock: a sheet is for reading, the dock for playing.
@@ -1174,7 +1177,7 @@ which is why the picker only shows with one. `usePresence` announces again once
 the color held still for a second (`SETTLE_MS`), so the roster line follows.
 
 **A signed-in account's panel has two tabs**: Progress, open first (see
-[Titles](#titles)), and Settings, which holds the username, the color, linking
+[Titles](#titles)), and Account, which holds the username, the color, linking
 and signing out. A guest has no tabs: its panel is the sign-in buttons alone,
 and it reads no titles.
 
@@ -1314,8 +1317,8 @@ mint a guest and insert a row into `auth.identities` for its account.
   clear fades without shrinking.
 - `earth.ts` — the opaque sphere under the tiles, in the globe's light with
   `?gfx=earth`. See [The light](#the-light).
-- `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe the URL
-  turns on. See [`?gfx=`](#gfx-the-sharper-lit-globe-off-unless-asked-for).
+- `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe are on:
+  the HD graphics setting, unless the URL names them. See [HD graphics](#hd-graphics-the-sharper-lit-globe-and-gfx).
 - `shaders/` — GLSL for the display, picking, earth, star, enclosure and glint passes.
   `light.glsl` is not a pass but the light they share, pulled in with
   `#include ../light.glsl;` (vite-plugin-glsl's own include, not three's).
@@ -1413,7 +1416,7 @@ pixel-for-pixel identical. It is worth a few percent of those two passes and no
 more — the vertex shader still runs for every point and still reads every
 attribute, and only its body is skipped.
 
-### `?gfx=`: the sharper, lit globe, off unless asked for
+### HD graphics: the sharper, lit globe, and `?gfx=`
 
 The two sections below — the screen's pixel ratio and the light — shipped on in
 #254 and turned the globe **almost white, flickering as it turned**, for players
@@ -1423,9 +1426,15 @@ on a Mac (Metal), on SwiftShader, or on a Windows laptop with the same GPU
 (Iris Xe, ratio 1.25) in either a dev or a production build. So the cause can
 only be found on the screens that have it.
 
-**Every part is in the build and off by default**; the URL turns them on, one
-at a time, for the page load (`graphicsOf` in `graphics.ts`, read once in
-`createGlobe`):
+**A player turns them on as "HD graphics" in Settings**, off by default
+(`Rendering`, `"plain"` or `"sharp"`, in the display settings): turned on for
+everyone, a player who gets the white globe would have to find the switch. **Changing it rebuilds the globe**:
+`antialias` is fixed when the WebGL context is made, so `rendering` is in
+`useGlobe`'s dependencies and the map loads again.
+
+**The URL still wins over the setting**, part by part, for the bisection below
+(`graphicsOf` in `graphics.ts`, read once in `createGlobe`). With `gfx` in the
+query only the parts it names are on, so `?gfx=` alone is the plain globe:
 
 | `?gfx=` | Turns on |
 |---|---|
@@ -1450,19 +1459,18 @@ arithmetic, which is a multiplication by 1.
 **To use it**, send a player who has the bug the links, one per part, and ask
 which come out white: `https://clickplanet.lol/play?gfx=all` first, which must
 show the bug, then `ratio`, `aa`, `earth`, `tiles`, `halo`. Ask for
-`chrome://gpu` too: it names the driver. **Once the culprit is fixed, turn the
-rest on for everyone and take the switches out** — this is a bisection, not a
-settings page.
+`chrome://gpu` too: it names the driver. **Once the culprit is fixed, take the
+URL switches out**; the setting stays.
 
 ### CSS pixels in, drawing-buffer pixels out
 
-**`?gfx=ratio` draws the canvas at the screen's pixel ratio, capped at 2**
-(`pixelRatio()` in `scene.ts`); without it the ratio is 1, as it always was. At
+**HD graphics draws the canvas at the screen's pixel ratio, capped at 2**
+(`pixelRatio()` in `scene.ts`, `?gfx=ratio` alone); without it the ratio is 1. At
 1, on a phone or a laptop the browser stretches every frame over twice its
 pixels and the whole globe is soft. Past 2 is more than twice the work again for
 a difference nobody sees at arm's length.
 
-**Antialiasing is off unless `?gfx=aa`.** #254 turned it on below a ratio of 2,
+**Antialiasing comes with HD graphics** (`?gfx=aa` alone). #254 turned it on below a ratio of 2,
 and it was the first suspect for the white globe on Intel; turning it off
 (#255) did not fix that, so it is one of the switches rather than a verdict.
 
@@ -1483,7 +1491,7 @@ the frame no sharper, but every size still agrees with every other.
 
 ### The light
 
-**Only with `?gfx=light`, or one of its three parts** — see [`?gfx=`](#gfx-the-sharper-lit-globe-off-unless-asked-for).
+**Only with HD graphics, or `?gfx=light` or one of its three parts** — see [HD graphics](#hd-graphics-the-sharper-lit-globe-and-gfx).
 Without it the earth is three's standard material under an ambient light, the
 tiles are unlit, and the globe reads as a flat blue disc.
 
@@ -1586,6 +1594,15 @@ painted they must cover the ground (circles on this hex lattice cover it at
 Running them on separate schedules left a band where the flag was painted
 through a lattice with holes in it. `pointSize.test.ts` pins that too, and those
 tests fail if the two are split again.
+
+**A player can turn the painted flags off** — "Big country flags" in
+Settings (`MapView` in the display settings). Players draw pictures with the
+tiles, and the painted flag hides them. With it off
+(`MapView` `"tiles"`), the handover in `pointSize.ts` is held at 1 at every zoom, so the
+globe is drawn as it was before #52: each tile its own flag at its own size,
+and the outline always under the tiles. Zoomed out that is the mud described
+above, and that is the price of seeing every tile. The switch reaches the
+running globe through `Globe.setMapView`, so it never rebuilds it.
 
 `npm run flagFit` decides the rest: a flag that is only bands can be pulled to
 the country's own shape and still say what it is, while one carrying a device is
@@ -2238,9 +2255,9 @@ this correction has to be twice the rise**, because centring applies to the
 margin box; getting that wrong left the camera icon exactly half-corrected.
 
 **The capture is the drawing buffer**, at a ratio of 1, or at the screen's
-capped at 2 with `?gfx=ratio` (see [CSS pixels in, drawing-buffer pixels
+capped at 2 with HD graphics (see [CSS pixels in, drawing-buffer pixels
 out](#css-pixels-in-drawing-buffer-pixels-out)): a phone captures around 390×844,
-or 780×1688 with the switch, and a ratio-1 desktop its CSS size. `cardSize` lifts a small one to a
+or 780×1688 with HD graphics, and a ratio-1 desktop its CSS size. `cardSize` lifts a small one to a
 short edge of 720 — the globe softens a little and the flag and the counts stay
 crisp, which is the half anyone reads — and caps the long edge at 2400 so a
 share sheet will still take the file.
@@ -2307,8 +2324,8 @@ from oscillators and noise with the Web Audio API at the moment it plays, in
   the one player. **`play` never changes identity** and reads the settings
   through a ref: `useGlobe` rebuilds the globe when an option changes, and a
   toggle must not do that.
-- `SoundSettingsPanel.tsx` — the switches, behind the speaker button in the
-  menu. Turning a sound on previews it.
+- `SoundSettingsPanel.tsx` — the switches, in the Settings place
+  (`settings/SettingsPlace.tsx`). Turning a sound on previews it.
 
 **Audio is locked until a gesture.** The `AudioContext` is only created by the
 first `pointerdown`/`keydown` on the window, so a bonus box or a chat message

@@ -1,0 +1,88 @@
+.switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-height: 44px;
+    padding: 0 var(--space-3);
+    font-family: var(--font-text);
+    font-weight: 500;
+    font-size: var(--text-m);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.switch--main {
+    font-family: var(--font-display);
+    font-weight: normal;
+    font-size: var(--display-m);
+    text-shadow: var(--text-drop);
+}
+
+.switch--main .switch-label {
+    padding-top: 3px;
+}
+
+.switch:has(.switch-input:disabled) {
+    cursor: default;
+}
+
+.switch-input {
+    appearance: none;
+    position: relative;
+    flex-shrink: 0;
+    width: 46px;
+    height: 28px;
+    margin: 0;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--panel-sunk);
+    box-shadow: var(--drop-xs);
+    cursor: inherit;
+    transition: background 0.15s ease;
+}
+
+.switch-input::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: 50%;
+    background: var(--text);
+    transition: transform 0.15s ease;
+}
+
+.switch-input:checked {
+    background: var(--gold);
+}
+
+.switch-input:checked::after {
+    transform: translateX(18px);
+}
+
+.switch-input:focus-visible {
+    outline: var(--outline-thin) solid var(--text);
+    outline-offset: 2px;
+}
+
+.switch-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: var(--space-1) 0;
+    list-style: none;
+}
+
+.switch-list > li + li .switch {
+    border-top: var(--outline-thin) solid var(--panel);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .switch-input,
+    .switch-input::after {
+        transition: none;
+    }
+}

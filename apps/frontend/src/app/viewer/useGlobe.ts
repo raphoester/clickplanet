@@ -2,6 +2,7 @@ import {useCallback, useEffect, useRef, useState} from 'react';
 import {createGlobe, Globe} from './globe.ts';
 import {CapturedFrame} from './capture.ts';
 import {Country} from '../../domain/countries.ts';
+import {MapView, Rendering} from '../../domain/displaySettings.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from '../../domain/bonus.ts';
@@ -28,10 +29,13 @@ export type UseGlobeOptions = {
     onClickAccepted?: (click: AcceptedClick) => void
     country: Country
     clickHue: number | undefined
+    mapView: MapView
+    // A change rebuilds the globe: antialiasing is fixed when the context is made.
+    rendering: Rendering
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, onClickAccepted, country, clickHue} = options
+    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, onClickAccepted, country, clickHue, mapView, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -73,6 +77,7 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const initialCountry = useRef(country)
     const latestClickHue = useRef(clickHue)
+    const latestMapView = useRef(mapView)
 
     useEffect(() => {
         const element = container.current
@@ -89,6 +94,8 @@ export function useGlobe(options: UseGlobeOptions) {
             updatesListener,
             container: element,
             country: initialCountry.current,
+            mapView: latestMapView.current,
+            rendering,
             onLeaderboardChange: recordLeaderboard,
             onLoadProgress: (territories) => {
                 if (!cancelled) setStatus({state: 'loading', territories})
@@ -117,6 +124,7 @@ export function useGlobe(options: UseGlobeOptions) {
 
             globeRef.current = globe
             globe.setClickHue(latestClickHue.current)
+            globe.setMapView(latestMapView.current)
             if (import.meta.env.DEV) Object.assign(window, {clickplanetGlobe: globe})
             setTilesCount(globe.tilesCount)
             publishLeaderboard()
@@ -133,7 +141,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, onClickAccepted, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordClear])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordClear])
 
     useEffect(() => {
         initialCountry.current = country
@@ -144,6 +152,11 @@ export function useGlobe(options: UseGlobeOptions) {
         latestClickHue.current = clickHue
         globeRef.current?.setClickHue(clickHue)
     }, [clickHue])
+
+    useEffect(() => {
+        latestMapView.current = mapView
+        globeRef.current?.setMapView(mapView)
+    }, [mapView])
 
     const capture = useCallback((): Promise<CapturedFrame> => {
         const globe = globeRef.current

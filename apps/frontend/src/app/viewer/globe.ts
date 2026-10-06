@@ -14,6 +14,7 @@ import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
 import {displayPointSize, flagPaint, tilePointSize} from "./pointSize.ts";
 import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
+import {MapView, Rendering} from "../../domain/displaySettings.ts";
 import {
     BombDrop,
     Bomber,
@@ -116,6 +117,8 @@ export type GlobeOptions = {
     updatesListener: UpdatesListener
     container: HTMLElement
     country: Country
+    mapView: MapView
+    rendering: Rendering
     onLeaderboardChange: (entries: LeaderboardEntry[], live: boolean) => void
     onLoadProgress: (share: number) => void
     onRateLimited: () => void
@@ -139,6 +142,7 @@ export type GlobeOptions = {
 export type Globe = {
     readonly tilesCount: number
     setCountry(country: Country): void
+    setMapView(view: MapView): void
     takeReward(claimed: ClaimedBonus): void
     setArmed(armed: boolean): void
     setSwitch(name: keyof Switches, on: boolean): void
@@ -159,6 +163,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         updatesListener,
         container: eventTarget,
         country: initialCountry,
+        mapView: initialMapView,
+        rendering,
         onLeaderboardChange: updateLeaderboard,
         onLoadProgress,
         onRateLimited,
@@ -191,17 +197,19 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     let loaded = false
 
-    const graphics = graphicsOf(window.location.search);
+    const graphics = graphicsOf(window.location.search, rendering);
     const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget, graphics);
+    let mapView: MapView = initialMapView
+
     const uniforms: Uniforms = {
-        pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()},
+        pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height, mapView) * renderer.getPixelRatio()},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
         landmassData: {value: null},
         landmassCount: {value: 1},
         pixelsPerRadian: {value: 1},
         pixelRatio: {value: renderer.getPixelRatio()},
-        flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height)},
+        flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height, mapView)},
         ...blastUniforms(prefersReducedMotion()),
     };
 
@@ -593,14 +601,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return waiting
     }
 
-    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, () => {
+    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, () => mapView, () => {
         const was = dirty
         dirty = false
         return was
     }, (seconds) => {
         const boxed = driveBonusBox(seconds)
         const blasting = driveBlasts(seconds)
-        outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio())
+        outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio(), mapView)
 
         if (pendingPointer === undefined) return boxed || blasting
         const {x, y} = pendingPointer
@@ -623,6 +631,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         tilesCount: field.size,
         setCountry: (newCountry: Country) => {
             country = newCountry
+        },
+        setMapView: (view: MapView) => {
+            if (view === mapView) return
+            mapView = view
+            invalidate()
         },
         takeReward,
         setArmed: (on: boolean) => on ? arm() : disarm(),
@@ -701,6 +714,7 @@ function startAnimation(
     camera: THREE.OrthographicCamera,
     uniforms: Uniforms,
     pickingUniforms: {pointSize: THREE.IUniform},
+    mapView: () => MapView,
     takeChange: () => boolean,
     beforeRender: (seconds: number) => boolean,
     afterRender: () => void,
@@ -745,11 +759,11 @@ function startAnimation(
 
         const {y: height} = renderer.getSize(viewport);
         const ratio = renderer.getPixelRatio();
-        uniforms.pointSize.value = displayPointSize(camera.zoom, height) * ratio;
+        uniforms.pointSize.value = displayPointSize(camera.zoom, height, mapView()) * ratio;
         pickingUniforms.pointSize.value = tilePointSize(camera.zoom, height) * ratio;
         uniforms.pixelRatio.value = ratio;
 
-        uniforms.flagPaint.value = flagPaint(camera.zoom, height);
+        uniforms.flagPaint.value = flagPaint(camera.zoom, height, mapView());
         uniforms.pixelsPerRadian.value = (renderer.domElement.height / 2) * camera.zoom;
 
         const moving = beforeRender(time / 1000);
