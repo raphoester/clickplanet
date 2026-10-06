@@ -26,7 +26,11 @@ type run struct {
 	before  string
 }
 
-func (r *Runs) See(taking Taking) {
+func (r *Runs) See(event Event) {
+	event.Replay(r.see)
+}
+
+func (r *Runs) see(taking Taking) {
 	current, ours := r.runs[taking.Tile]
 
 	if !r.caller.Made(taking) {

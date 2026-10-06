@@ -17,7 +17,7 @@ type Examiner interface {
 }
 
 type Ledger interface {
-	Replay(see func(ledger.Taking)) ledger.Position
+	Replay(see func(ledger.Event)) ledger.Position
 }
 
 type In struct {
@@ -46,10 +46,12 @@ func (u *UseCase) Execute(_ context.Context, in In) (antibot.Examination, error)
 
 	scope := caller.Scope
 	if caller.Account != "" {
-		u.ledger.Replay(func(taking ledger.Taking) {
-			if caller.Made(taking) {
-				scope = taking.Scope
-			}
+		u.ledger.Replay(func(event ledger.Event) {
+			event.Replay(func(taking ledger.Taking) {
+				if caller.Made(taking) {
+					scope = taking.Scope
+				}
+			})
 		})
 	}
 

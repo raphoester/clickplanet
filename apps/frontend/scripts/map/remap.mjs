@@ -66,13 +66,13 @@ DELETE FROM tiles;
 INSERT INTO tiles (id, country) SELECT id, country FROM tiles_remapped;
 
 DELETE FROM ledger_events e
-WHERE e.kind = 'take' AND NOT EXISTS (
+WHERE e.payload IS NULL AND NOT EXISTS (
     SELECT 1 FROM tile_remap r WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span
 );
 
 UPDATE ledger_events e
 SET tile = 0, previous = ''
-WHERE e.kind = 'bomb' AND NOT EXISTS (
+WHERE e.payload IS NOT NULL AND NOT EXISTS (
     SELECT 1 FROM tile_remap r WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span
 );
 
@@ -92,6 +92,6 @@ SET payload = jsonb_set(e.payload, '{cleared}', COALESCE((
         GROUP BY c.key
     ) kept
 ), '{}'::jsonb))
-WHERE e.kind = 'bomb';
+WHERE e.payload ? 'cleared';
 `
 }

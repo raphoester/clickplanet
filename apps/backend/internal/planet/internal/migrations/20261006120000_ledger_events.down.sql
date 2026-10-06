@@ -1,6 +1,5 @@
 DELETE FROM ledger_events WHERE kind <> 'take';
 
-ALTER TABLE ledger_events DROP CONSTRAINT ledger_events_payload_check;
 ALTER TABLE ledger_events DROP COLUMN payload;
 ALTER TABLE ledger_events DROP COLUMN kind;
 

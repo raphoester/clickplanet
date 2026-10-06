@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"slices"
 	"testing"
 	"time"
 
@@ -26,8 +25,8 @@ type owners map[uint32]string
 func (o owners) Owner(tile uint32) (string, bool) { return o[tile], true }
 
 type board struct {
-	owners  owners
-	takings []ledger.Taking
+	owners owners
+	events []ledger.Event
 }
 
 func newBoard(initial owners) *board {
@@ -35,14 +34,14 @@ func newBoard(initial owners) *board {
 }
 
 func (b *board) take(tile uint32, scope, country string) {
-	b.takings = append(b.takings, ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: b.owners[tile]})
+	b.events = append(b.events, ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: b.owners[tile]})
 	b.owners[tile] = country
 }
 
 func (b *board) restorations(scope string) []clicks.Restoration {
 	runs := ledger.NewRuns(ledger.Caller{Scope: scope})
-	for _, taking := range b.takings {
-		runs.See(taking)
+	for _, event := range b.events {
+		runs.See(event)
 	}
 	return runs.Restorations(b.owners)
 }
@@ -110,7 +109,7 @@ func (b *board) bomb(scope string, tiles ...uint32) {
 		blast.Owners = append(blast.Owners, b.owners[tile])
 		b.owners[tile] = ""
 	}
-	b.takings = append(b.takings, ledger.Bombing{Scope: scope, Blast: blast}.Takings()...)
+	b.events = append(b.events, ledger.Bombing{Scope: scope, Blast: blast})
 }
 
 func TestARevertGivesTheBombedTilesBackToTheirOwners(t *testing.T) {
@@ -148,21 +147,68 @@ func TestABombBreaksTheRunOfTheScopeItHit(t *testing.T) {
 	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "ps", To: ""}}, b.restorations("A"))
 }
 
-func TestABombingIsOneClearPerTileItHitAndItsLandingIsTheTileItHit(t *testing.T) {
+func changes(event ledger.Event) []ledger.Taking {
+	var takings []ledger.Taking
+	event.Replay(func(taking ledger.Taking) { takings = append(takings, taking) })
+	return takings
+}
+
+func TestABombingReplaysAsOneClearPerTileItHit(t *testing.T) {
 	bombing := ledger.Bombing{Scope: "A", Account: "guest", At: start, Blast: clicks.Blast{
 		Tile: 8, CountryID: "fr", Cleared: []uint32{7, 8}, Owners: []string{"il", "de"},
 	}}
 
 	assert.Equal(t, []ledger.Taking{
-		{Tile: 7, Scope: "A", Account: "guest", Previous: "il", At: start, Bombed: true},
-		{Tile: 8, Scope: "A", Account: "guest", Previous: "de", At: start, Bombed: true},
-	}, bombing.Takings())
-	assert.Equal(t, ledger.Taking{Tile: 8, Scope: "A", Account: "guest", Previous: "de", At: start, Bombed: true},
-		bombing.Landing())
+		{Tile: 7, Scope: "A", Account: "guest", Previous: "il", At: start},
+		{Tile: 8, Scope: "A", Account: "guest", Previous: "de", At: start},
+	}, changes(bombing))
+	assert.Empty(t, changes(ledger.Bombing{Scope: "A", At: start, Blast: clicks.Blast{CountryID: "fr"}}), "a bomb in the sea")
+}
 
-	sea := ledger.Bombing{Scope: "A", At: start, Blast: clicks.Blast{CountryID: "fr"}}
-	assert.Empty(t, sea.Takings())
-	assert.Equal(t, ledger.Taking{Scope: "A", At: start, Bombed: true}, sea.Landing())
+func TestATakingReplaysAsItself(t *testing.T) {
+	taking := ledger.Taking{Tile: 7, Scope: "A", Country: "fr", Previous: "il", At: start}
+
+	assert.Equal(t, []ledger.Taking{taking}, changes(taking))
+}
+
+func TestABombingIsWrittenDownOnTheTileItHit(t *testing.T) {
+	entry, err := ledger.Bombing{Scope: "A", Account: "guest", At: start, Blast: clicks.Blast{
+		Tile: 8, CountryID: "fr", Point: clicks.Vec3{X: 0.6, Z: 0.8}, Radius: 0.032,
+		Cleared: []uint32{7, 8, 9}, Owners: []string{"il", "de", "il"},
+	}}.Entry()
+	require.NoError(t, err)
+
+	payload := entry.Payload
+	entry.Payload = nil
+	assert.Equal(t, ledger.Entry{Kind: "bomb", Tile: 8, Scope: "A", Account: "guest", Previous: "de", At: start}, entry,
+		"the tile it hit was emptied")
+	assert.JSONEq(t, `{"flag": "fr", "point": [0.6, 0, 0.8], "radius": 0.032, "cleared": {"de": [8], "il": [7, 9]}}`,
+		string(payload))
+}
+
+func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
+	for _, event := range []ledger.Event{
+		ledger.Taking{Tile: 7, Scope: "A", Account: "guest", Country: "fr", Previous: "il", At: start},
+		ledger.Taking{Tile: 7, Scope: "A", Previous: "pl", At: start},
+		ledger.Bombing{Scope: "A", Account: "guest", At: start, Blast: clicks.Blast{
+			Tile: 8, CountryID: "fr", Point: clicks.Vec3{X: 0.6, Z: 0.8}, Radius: 0.032,
+			Cleared: []uint32{7, 8, 9}, Owners: []string{"il", "de", "il"},
+		}},
+		ledger.Bombing{Scope: "A", At: start, Blast: clicks.Blast{CountryID: "fr", Point: clicks.Vec3{Y: 1}, Radius: 0.032}},
+	} {
+		entry, err := event.Entry()
+		require.NoError(t, err)
+
+		read, err := ledger.EventOf(entry)
+		require.NoError(t, err)
+		assert.Equal(t, event, read)
+	}
+}
+
+func TestAnEntryOfAKindTheLedgerDoesNotKnowReadsBackAsNothing(t *testing.T) {
+	_, err := ledger.EventOf(ledger.Entry{Kind: "quake", Tile: 1})
+
+	require.ErrorIs(t, err, ledger.ErrUnknownKind)
 }
 
 func TestARunThatEndsWhereItStartedGivesNothingBack(t *testing.T) {
@@ -203,8 +249,8 @@ func TestRunsCountEveryTileTheScopeTookHeldOrNot(t *testing.T) {
 	b.take(1, "A", "fr")
 
 	runs := ledger.NewRuns(ledger.Caller{Scope: "A"})
-	for _, taking := range b.takings {
-		runs.See(taking)
+	for _, event := range b.events {
+		runs.See(event)
 	}
 
 	assert.Equal(t, 2, runs.Touched())
@@ -250,24 +296,33 @@ func TestAClearCountsAsATakeAndHoldsNoTile(t *testing.T) {
 	}, players, "the empty tile is nobody's, and the tile taken after the clear is the raider's")
 }
 
-func TestABombIsNoTakeAndEndsTheHoldsOfTheTilesItHit(t *testing.T) {
-	takings := slices.Concat(
-		[]ledger.Taking{
-			{Tile: 1, Scope: "player", Country: "ps", At: start},
-			{Tile: 2, Scope: "player", Country: "ps", At: start},
-		},
+func TestABombIsOneTakeThatHoldsNothingAndEndsTheHoldsOfTheTilesItHit(t *testing.T) {
+	tally := ledger.NewTally(every)
+	for _, event := range []ledger.Event{
+		ledger.Taking{Tile: 1, Scope: "player", Country: "ps", At: start},
+		ledger.Taking{Tile: 2, Scope: "player", Country: "ps", At: start},
 		ledger.Bombing{Scope: "bomber", At: start.Add(time.Second), Blast: clicks.Blast{
-			Cleared: []uint32{1}, Owners: []string{"ps"},
-		}}.Takings(),
-		[]ledger.Taking{{Tile: 1, Scope: "other", Country: "ps", At: start.Add(2 * time.Second)}},
-	)
-
-	players := tally(takings, owners{1: "ps", 2: "ps"}, every)
+			Cleared: []uint32{1, 2}, Owners: []string{"ps", "ps"},
+		}},
+		ledger.Taking{Tile: 1, Scope: "other", Country: "ps", At: start.Add(2 * time.Second)},
+	} {
+		tally.See(event)
+	}
 
 	assert.Equal(t, []ledger.Player{
 		{Scope: "other", Tiles: 1, Takes: 1, FirstAt: start.Add(2 * time.Second), LastAt: start.Add(2 * time.Second)},
-		{Scope: "player", Tiles: 1, Takes: 2, FirstAt: start, LastAt: start},
-	}, players, "the bomber is no player, and the tile it hit is not the player's any more")
+		{Scope: "bomber", Takes: 1, FirstAt: start.Add(time.Second), LastAt: start.Add(time.Second)},
+		{Scope: "player", Takes: 2, FirstAt: start, LastAt: start},
+	}, tally.Players(owners{1: "ps", 2: ""}), "a bomb is one act, and the tiles it hit are nobody's")
+}
+
+func TestABombTakesNoTileForAnyFlag(t *testing.T) {
+	tally := ledger.NewTally(func(taking ledger.Taking) bool { return taking.Country == "ps" })
+	tally.See(ledger.Taking{Tile: 1, Scope: "player", Country: "ps", At: start})
+	tally.See(ledger.Bombing{Scope: "bomber", At: start, Blast: clicks.Blast{Cleared: []uint32{1}, Owners: []string{"ps"}}})
+
+	assert.Equal(t, []ledger.Player{{Scope: "player", Takes: 1, FirstAt: start, LastAt: start}},
+		tally.Players(owners{1: ""}))
 }
 
 func TestAPlayerPaintedOverEverywhereStillShows(t *testing.T) {
@@ -350,7 +405,7 @@ func TestAServingPlayerCarriesTheSentence(t *testing.T) {
 
 func replay(storage ledger.Storage) []ledger.Taking {
 	var takings []ledger.Taking
-	storage.Replay(func(taking ledger.Taking) { takings = append(takings, taking) })
+	storage.Replay(func(event ledger.Event) { takings = append(takings, changes(event)...) })
 	return takings
 }
 
@@ -415,8 +470,8 @@ func TestRecordingNotesABombWithTheFlagEachTileWore(t *testing.T) {
 	assert.Equal(t, []uint32{1, 2}, blast.Cleared)
 	assert.Equal(t, map[uint32]string{1: "", 2: ""}, tiles.owners)
 	assert.Equal(t, []ledger.Taking{
-		{Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Previous: "de", At: start, Bombed: true},
-		{Tile: 2, Scope: "1.2.3.4", Account: "a-guest", Previous: "il", At: start, Bombed: true},
+		{Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Previous: "de", At: start},
+		{Tile: 2, Scope: "1.2.3.4", Account: "a-guest", Previous: "il", At: start},
 	}, replay(takings))
 }
 
@@ -428,7 +483,7 @@ func TestRecordingNotesABombInTheSeaThatClearedNothing(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Empty(t, replay(takings), "a splash takes and clears no tile")
-	assert.Equal(t, ledger.Position(1), takings.Replay(func(ledger.Taking) {}), "but it is an event of its own")
+	assert.Equal(t, ledger.Position(1), takings.Replay(func(ledger.Event) {}), "but it is an event of its own")
 }
 
 func TestRecordingNotesNothingForAFailedClear(t *testing.T) {
@@ -439,7 +494,7 @@ func TestRecordingNotesNothingForAFailedClear(t *testing.T) {
 		Clear(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), clicks.Blast{Cleared: []uint32{1}})
 	require.ErrorIs(t, err, tiles.err)
 
-	assert.Equal(t, ledger.Position(0), takings.Replay(func(ledger.Taking) {}))
+	assert.Equal(t, ledger.Position(0), takings.Replay(func(ledger.Event) {}))
 }
 
 func TestRecordingNotesAClickAsItNotesASet(t *testing.T) {
@@ -522,7 +577,7 @@ func TestEachAccountOnOneScopeIsAPlayerOfItsOwn(t *testing.T) {
 
 func TestARevertOfAnAccountFollowsItAcrossScopes(t *testing.T) {
 	b := newBoard(owners{7: "il", 8: "il"})
-	b.takings = append(b.takings,
+	b.events = append(b.events,
 		ledger.Taking{Tile: 7, Scope: "campus", Account: "guest", Country: "ps", Previous: "il"},
 		ledger.Taking{Tile: 7, Scope: "home", Account: "guest", Country: "fr", Previous: "ps"},
 		ledger.Taking{Tile: 8, Scope: "home", Account: "other", Country: "ps", Previous: "il"},
@@ -530,8 +585,8 @@ func TestARevertOfAnAccountFollowsItAcrossScopes(t *testing.T) {
 	b.owners[7], b.owners[8] = "fr", "ps"
 
 	runs := ledger.NewRuns(ledger.Caller{Account: "guest"})
-	for _, taking := range b.takings {
-		runs.See(taking)
+	for _, event := range b.events {
+		runs.See(event)
 	}
 
 	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "fr", To: "il"}}, runs.Restorations(b.owners))

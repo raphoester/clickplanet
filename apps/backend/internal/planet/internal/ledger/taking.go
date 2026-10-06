@@ -24,7 +24,24 @@ type Taking struct {
 	Country  string
 	Previous string
 	At       time.Time
-	Bombed   bool
+}
+
+const kindTake = "take"
+
+func (t Taking) Replay(see func(Taking)) {
+	see(t)
+}
+
+func (t Taking) Entry() (Entry, error) {
+	return Entry{
+		Kind: kindTake, Tile: t.Tile, Scope: t.Scope, Account: t.Account, Country: t.Country, Previous: t.Previous, At: t.At,
+	}, nil
+}
+
+func takingOf(entry Entry) (Event, error) {
+	return Taking{
+		Tile: entry.Tile, Scope: entry.Scope, Account: entry.Account, Country: entry.Country, Previous: entry.Previous, At: entry.At,
+	}, nil
 }
 
 type Position uint64

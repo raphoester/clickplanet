@@ -23,17 +23,19 @@ type Storage struct {
 
 var _ ledger.Storage = Storage{}
 
-func (s Storage) Append(taking ledger.Taking) {
-	s.Storage.Append(taking)
+func (s Storage) Append(event ledger.Event) {
+	s.Storage.Append(event)
 
-	if taking.Account == "" || taking.Cleared() {
-		return
-	}
+	event.Replay(func(taking ledger.Taking) {
+		if taking.Account == "" || taking.Cleared() {
+			return
+		}
 
-	s.events.Publish(&planetv1.TileTaken{
-		AccountId: taking.Account,
-		TileId:    taking.Tile,
-		Country:   taking.Country,
-		TakenAt:   timestamppb.New(taking.At),
+		s.events.Publish(&planetv1.TileTaken{
+			AccountId: taking.Account,
+			TileId:    taking.Tile,
+			Country:   taking.Country,
+			TakenAt:   timestamppb.New(taking.At),
+		})
 	})
 }

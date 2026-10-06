@@ -42,10 +42,12 @@ func (m *stubMap) Restore(_ context.Context, restorations []clicks.Restoration) 
 
 func takenBy(book *inmemory_ledger_storage.Storage, scope string) int {
 	n := 0
-	book.Replay(func(taking ledger.Taking) {
-		if taking.Scope == scope {
-			n++
-		}
+	book.Replay(func(event ledger.Event) {
+		event.Replay(func(taking ledger.Taking) {
+			if taking.Scope == scope {
+				n++
+			}
+		})
 	})
 	return n
 }
@@ -179,7 +181,7 @@ func TestAnAccountIsRevertedWhateverScopeItTookFrom(t *testing.T) {
 func TestItGivesTheBombersBlastBackToTheTilesStillEmpty(t *testing.T) {
 	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 	tiles := &stubMap{owners: map[uint32]string{1: "", 2: "", 3: "fr"}}
-	book.AppendBombing(ledger.Bombing{Scope: "9.9.9.9", Blast: clicks.Blast{
+	book.Append(ledger.Bombing{Scope: "9.9.9.9", Blast: clicks.Blast{
 		Tile: 2, CountryID: "de", Cleared: []uint32{1, 2, 3}, Owners: []string{"il", "il", "ps"},
 	}})
 	book.Append(ledger.Taking{Tile: 3, Scope: "1.1.1.1", Country: "fr"})

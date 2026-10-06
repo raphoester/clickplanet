@@ -4,11 +4,9 @@ import (
 	"log/slog"
 	"maps"
 	"math"
-	"slices"
 	"sync"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
@@ -77,6 +75,7 @@ type record struct {
 	account  uint32
 	country  uint16
 	previous uint16
+	kind     uint8
 }
 
 type chunk struct {
@@ -84,15 +83,17 @@ type chunk struct {
 	records   []record
 	callers   []string
 	countries []string
-	bombs     []bomb
+	kinds     []string
+	payloads  []payload
 
 	callerIDs  map[string]uint32
 	countryIDs map[string]uint16
+	kindIDs    map[string]uint8
 }
 
-type bomb struct {
+type payload struct {
 	position ledger.Position
-	blast    clicks.Blast
+	bytes    []byte
 }
 
 func newChunk(first ledger.Position) *chunk {
@@ -101,6 +102,7 @@ func newChunk(first ledger.Position) *chunk {
 		records:    make([]record, 0, chunkSize),
 		callerIDs:  make(map[string]uint32),
 		countryIDs: make(map[string]uint16),
+		kindIDs:    make(map[string]uint8),
 	}
 }
 
@@ -119,6 +121,21 @@ func (c *chunk) internCountry(value string) (uint16, bool) {
 	return id, true
 }
 
+func (c *chunk) internKind(value string) (uint8, bool) {
+	if id, ok := c.kindIDs[value]; ok {
+		return id, true
+	}
+	if len(c.kinds) > math.MaxUint8 {
+		return 0, false
+	}
+
+	id := uint8(len(c.kinds))
+	c.kindIDs[value] = id
+	c.kinds = append(c.kinds, value)
+
+	return id, true
+}
+
 func (c *chunk) internCaller(value string) uint32 {
 	id, ok := c.callerIDs[value]
 	if !ok {
@@ -130,50 +147,44 @@ func (c *chunk) internCaller(value string) uint32 {
 	return id
 }
 
-func (s *Storage) Append(taking ledger.Taking) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.appendLocked(taking)
-}
-
-func (s *Storage) AppendBombing(bombing ledger.Bombing) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.appendBombingLocked(bombing)
-}
-
-func (s *Storage) appendBombingLocked(bombing ledger.Bombing) {
-	position := s.next
-	s.appendLocked(bombing.Landing())
-
-	blast := bombing.Blast
-	blast.Cleared, blast.Owners = slices.Clone(blast.Cleared), slices.Clone(blast.Owners)
-
-	open := s.chunks[len(s.chunks)-1]
-	open.bombs = append(open.bombs, bomb{position: position, blast: blast})
-}
-
-func (s *Storage) appendLocked(taking ledger.Taking) {
-	open := s.openChunkLocked()
-
-	country, fits := open.internCountry(taking.Country)
-	previous, fitsToo := open.internCountry(taking.Previous)
-	if !fits || !fitsToo {
-		s.sealLocked(open)
-		open = s.openChunkLocked()
-		country, _ = open.internCountry(taking.Country)
-		previous, _ = open.internCountry(taking.Previous)
+func (s *Storage) Append(event ledger.Event) {
+	entry, err := event.Entry()
+	if err != nil {
+		s.logger.Error("the ledger cannot write an event down, so it is not kept", slog.Any("error", err))
+		return
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.appendLocked(entry)
+}
+
+func (s *Storage) appendLocked(entry ledger.Entry) {
+	open := s.openChunkLocked()
+
+	country, fits := open.internCountry(entry.Country)
+	previous, fitsToo := open.internCountry(entry.Previous)
+	kind, fitsAlso := open.internKind(entry.Kind)
+	if !fits || !fitsToo || !fitsAlso {
+		s.sealLocked(open)
+		open = s.openChunkLocked()
+		country, _ = open.internCountry(entry.Country)
+		previous, _ = open.internCountry(entry.Previous)
+		kind, _ = open.internKind(entry.Kind)
+	}
+
+	if entry.Payload != nil {
+		open.payloads = append(open.payloads, payload{position: s.next, bytes: entry.Payload})
+	}
 	open.records = append(open.records, record{
-		at:       seconds(taking.At),
-		tile:     taking.Tile,
-		scope:    open.internCaller(taking.Scope),
-		account:  open.internCaller(taking.Account),
+		at:       seconds(entry.At),
+		tile:     entry.Tile,
+		scope:    open.internCaller(entry.Scope),
+		account:  open.internCaller(entry.Account),
 		country:  country,
 		previous: previous,
+		kind:     kind,
 	})
 	s.next++
 
@@ -204,6 +215,7 @@ func (s *Storage) openChunkLocked() *chunk {
 func (s *Storage) sealLocked(c *chunk) {
 	c.callerIDs = nil
 	c.countryIDs = nil
+	c.kindIDs = nil
 }
 
 func (s *Storage) liveLocked() int {
@@ -286,7 +298,8 @@ type view struct {
 	records   []record
 	callers   []string
 	countries []string
-	bombs     []bomb
+	kinds     []string
+	payloads  []payload
 }
 
 func (s *Storage) viewsLocked(from ledger.Position) []view {
@@ -304,9 +317,9 @@ func (s *Storage) viewsLocked(from ledger.Position) []view {
 		}
 
 		first := c.first + ledger.Position(start) //nolint:gosec // at most chunkSize.
-		bombs := c.bombs[:len(c.bombs):len(c.bombs)]
-		for len(bombs) > 0 && bombs[0].position < first {
-			bombs = bombs[1:]
+		payloads := c.payloads[:len(c.payloads):len(c.payloads)]
+		for len(payloads) > 0 && payloads[0].position < first {
+			payloads = payloads[1:]
 		}
 
 		views = append(views, view{
@@ -314,14 +327,15 @@ func (s *Storage) viewsLocked(from ledger.Position) []view {
 			records:   c.records[start:len(c.records):len(c.records)],
 			callers:   c.callers[:len(c.callers):len(c.callers)],
 			countries: c.countries[:len(c.countries):len(c.countries)],
-			bombs:     bombs,
+			kinds:     c.kinds[:len(c.kinds):len(c.kinds)],
+			payloads:  payloads,
 		})
 	}
 
 	return views
 }
 
-func (s *Storage) Replay(see func(ledger.Taking)) ledger.Position {
+func (s *Storage) Replay(see func(ledger.Event)) ledger.Position {
 	s.mu.Lock()
 	views := s.viewsLocked(0)
 	end := s.next
@@ -329,53 +343,45 @@ func (s *Storage) Replay(see func(ledger.Taking)) ledger.Position {
 	s.mu.Unlock()
 
 	for _, v := range views {
-		bombs := v.bombs
+		payloads := v.payloads
 		for i := range v.records {
-			var entry Stored
-			entry, bombs = v.stored(i, bombs)
-			if forgottenAt(forgotten, entry.row(), entry.Position) {
+			var stored Stored
+			stored, payloads = v.stored(i, payloads)
+			if forgottenAt(forgotten, stored.Entry, stored.Position) {
 				continue
 			}
-			if entry.Bombing == nil {
-				see(entry.Taking)
+
+			event, err := ledger.EventOf(stored.Entry)
+			if err != nil {
+				s.logger.Error("an event of the ledger does not read back, so it is not replayed",
+					slog.Uint64("position", uint64(stored.Position)), slog.Any("error", err))
 				continue
 			}
-			for _, taking := range entry.Bombing.Takings() {
-				see(taking)
-			}
+			see(event)
 		}
 	}
 
 	return end
 }
 
-func forgottenAt(forgotten map[ledger.Caller]ledger.Position, taking ledger.Taking, position ledger.Position) bool {
-	if before, ok := forgotten[ledger.Caller{Scope: taking.Scope}]; ok && position < before {
+func forgottenAt(forgotten map[ledger.Caller]ledger.Position, entry ledger.Entry, position ledger.Position) bool {
+	if before, ok := forgotten[ledger.Caller{Scope: entry.Scope}]; ok && position < before {
 		return true
 	}
-	if taking.Account == "" {
+	if entry.Account == "" {
 		return false
 	}
-	before, ok := forgotten[ledger.Caller{Account: taking.Account}]
+	before, ok := forgotten[ledger.Caller{Account: entry.Account}]
 
 	return ok && position < before
 }
 
-func (v view) stored(i int, bombs []bomb) (Stored, []bomb) {
+func (v view) stored(i int, payloads []payload) (Stored, []payload) {
+	r := v.records[i]
 	position := v.first + ledger.Position(i) //nolint:gosec // i < chunkSize.
-	taking := v.taking(v.records[i])
 
-	if len(bombs) == 0 || bombs[0].position != position {
-		return Stored{Position: position, Taking: taking}, bombs
-	}
-
-	return Stored{Position: position, Bombing: &ledger.Bombing{
-		Scope: taking.Scope, Account: taking.Account, At: taking.At, Blast: bombs[0].blast,
-	}}, bombs[1:]
-}
-
-func (v view) taking(r record) ledger.Taking {
-	return ledger.Taking{
+	entry := ledger.Entry{
+		Kind:     v.kinds[r.kind],
 		Tile:     r.tile,
 		Scope:    v.callers[r.scope],
 		Account:  v.callers[r.account],
@@ -383,6 +389,11 @@ func (v view) taking(r record) ledger.Taking {
 		Previous: v.countries[r.previous],
 		At:       time.Unix(int64(r.at), 0).UTC(),
 	}
+	if len(payloads) > 0 && payloads[0].position == position {
+		entry.Payload, payloads = payloads[0].bytes, payloads[1:]
+	}
+
+	return Stored{Position: position, Entry: entry}, payloads
 }
 
 func seconds(at time.Time) uint32 {

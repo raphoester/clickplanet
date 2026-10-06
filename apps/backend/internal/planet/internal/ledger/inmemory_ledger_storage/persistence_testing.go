@@ -54,12 +54,13 @@ func (m *MemoryPersistence) Save(_ context.Context, changes Changes) error {
 	maps.DeleteFunc(m.events, func(position ledger.Position, _ Stored) bool {
 		return position >= changes.From
 	})
-	for entry := range changes.Events {
-		m.events[entry.Position] = entry
+	for stored := range changes.Entries {
+		m.events[stored.Position] = stored
 	}
-	for position, entry := range m.events {
+	for position, stored := range m.events {
 		if position < changes.Marks.Head {
-			m.events[position] = edited(entry, func(scope, _ *string) { *scope = "" })
+			stored.Entry.Scope = ""
+			m.events[position] = stored
 		}
 	}
 
@@ -76,26 +77,13 @@ func (m *MemoryPersistence) AnonymizeTakes(_ context.Context, account ledger.Acc
 	if m.failing != nil {
 		return m.failing
 	}
-	for position, entry := range m.events {
-		m.events[position] = edited(entry, func(_, owner *string) {
-			if *owner == account.String() {
-				*owner = ""
-			}
-		})
+	for position, stored := range m.events {
+		if stored.Entry.Account == account.String() {
+			stored.Entry.Account = ""
+			m.events[position] = stored
+		}
 	}
 	return nil
-}
-
-func edited(entry Stored, edit func(scope, account *string)) Stored {
-	if entry.Bombing == nil {
-		edit(&entry.Taking.Scope, &entry.Taking.Account)
-		return entry
-	}
-
-	bombing := *entry.Bombing
-	edit(&bombing.Scope, &bombing.Account)
-	entry.Bombing = &bombing
-	return entry
 }
 
 func (m *MemoryPersistence) Stored() []Stored {

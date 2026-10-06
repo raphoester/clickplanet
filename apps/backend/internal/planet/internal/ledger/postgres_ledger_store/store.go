@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -17,8 +16,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
-
-var ErrUnknownKind = errors.New("an event of a kind this ledger does not know")
 
 func New(db cppg.QuerierBeginner) *Store {
 	return &Store{db: db}
@@ -110,23 +107,16 @@ func (s *Store) loadEvents(ctx context.Context, head int64, visit func(inmemory_
 	for rows.Next() {
 		var (
 			position int64
-			kind     string
-			take     ledger.Taking
+			entry    ledger.Entry
 			account  sql.NullString
-			at       time.Time
-			payload  []byte
 		)
-		if err := rows.Scan(&position, &kind, &take.Tile, &take.Scope, &account, &take.Country, &take.Previous, &at, &payload); err != nil {
+		if err := rows.Scan(&position, &entry.Kind, &entry.Tile, &entry.Scope, &account,
+			&entry.Country, &entry.Previous, &entry.At, &entry.Payload); err != nil {
 			return fmt.Errorf("failed to scan an event: %w", err)
 		}
-		take.Account = account.String
-		take.At = at.UTC()
-
-		entry, err := storedOf(ledger.Position(position), kind, take, payload) //nolint:gosec // CHECK (position >= 0).
-		if err != nil {
-			return err
-		}
-		visit(entry)
+		entry.Account = account.String
+		entry.At = entry.At.UTC()
+		visit(inmemory_ledger_storage.Stored{Position: ledger.Position(position), Entry: entry}) //nolint:gosec // CHECK (position >= 0).
 	}
 
 	if err := rows.Err(); err != nil {
@@ -134,23 +124,6 @@ func (s *Store) loadEvents(ctx context.Context, head int64, visit func(inmemory_
 	}
 
 	return nil
-}
-
-func storedOf(position ledger.Position, kind string, take ledger.Taking, payload []byte) (inmemory_ledger_storage.Stored, error) {
-	switch kind {
-	case kindTake:
-		return inmemory_ledger_storage.Stored{Position: position, Taking: take}, nil
-	case kindBomb:
-		blast, err := blastOf(take.Tile, payload)
-		if err != nil {
-			return inmemory_ledger_storage.Stored{}, err
-		}
-		return inmemory_ledger_storage.Stored{Position: position, Bombing: &ledger.Bombing{
-			Scope: take.Scope, Account: take.Account, At: take.At, Blast: blast,
-		}}, nil
-	}
-
-	return inmemory_ledger_storage.Stored{}, fmt.Errorf("%w: %q at %d", ErrUnknownKind, kind, position)
 }
 
 func (s *Store) Save(ctx context.Context, changes inmemory_ledger_storage.Changes) error {
@@ -222,26 +195,18 @@ func copyEvents(ctx context.Context, tx *sql.Tx, changes inmemory_ledger_storage
 	}
 	defer func() { _ = stmt.Close() }()
 
-	for entry := range changes.Events {
-		kind, row, payload := kindTake, entry.Taking, any(nil)
-		if entry.Bombing != nil {
-			encoded, err := payloadOf(entry.Bombing.Blast)
-			if err != nil {
-				return err
-			}
-			kind, row, payload = kindBomb, entry.Bombing.Landing(), encoded
-		}
-
+	for stored := range changes.Entries {
+		entry := stored.Entry
 		if _, err := stmt.ExecContext(ctx,
-			int64(entry.Position), //nolint:gosec // a position fits a bigint.
-			kind,
-			int64(row.Tile),
-			row.Scope,
-			nullIfEmpty(row.Account),
-			row.Country,
-			row.Previous,
-			row.At,
-			payload,
+			int64(stored.Position), //nolint:gosec // a position fits a bigint.
+			entry.Kind,
+			int64(entry.Tile),
+			entry.Scope,
+			nullIfEmpty(entry.Account),
+			entry.Country,
+			entry.Previous,
+			entry.At,
+			jsonOrNull(entry.Payload),
 		); err != nil {
 			return fmt.Errorf("failed to copy an event: %w", err)
 		}
@@ -301,6 +266,13 @@ func saveForgotten(ctx context.Context, tx *sql.Tx, marks inmemory_ledger_storag
 
 func compareCallers(a, b ledger.Caller) int {
 	return cmp.Or(cmp.Compare(a.Scope, b.Scope), cmp.Compare(a.Account, b.Account))
+}
+
+func jsonOrNull(payload []byte) any {
+	if payload == nil {
+		return nil
+	}
+	return string(payload)
 }
 
 func nullIfEmpty(value string) any {

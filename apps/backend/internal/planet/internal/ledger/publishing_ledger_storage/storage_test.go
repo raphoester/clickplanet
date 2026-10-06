@@ -35,7 +35,9 @@ func TestATakeWithAnAccountIsRecordedThenPublished(t *testing.T) {
 	storage.Append(ledger.Taking{Tile: 42, Scope: "203.0.113.7", Account: account, Country: "fr", Previous: "de", At: start})
 
 	var recorded []ledger.Taking
-	inner.Replay(func(taking ledger.Taking) { recorded = append(recorded, taking) })
+	inner.Replay(func(event ledger.Event) {
+		event.Replay(func(taking ledger.Taking) { recorded = append(recorded, taking) })
+	})
 	require.Len(t, recorded, 1)
 
 	published := events.Published()
@@ -51,7 +53,7 @@ func TestATakeWithNoAccountIsRecordedAndNotPublished(t *testing.T) {
 	storage.Append(ledger.Taking{Tile: 42, Scope: "203.0.113.7", Country: "fr", At: start})
 
 	takes := 0
-	inner.Replay(func(ledger.Taking) { takes++ })
+	inner.Replay(func(ledger.Event) { takes++ })
 	assert.Equal(t, 1, takes)
 	assert.Empty(t, events.Published())
 }
@@ -62,7 +64,9 @@ func TestAClearIsRecordedAndNotPublished(t *testing.T) {
 	storage.Append(ledger.Taking{Tile: 42, Scope: "203.0.113.7", Account: account, Country: "", Previous: "pl", At: start})
 
 	var recorded []ledger.Taking
-	inner.Replay(func(taking ledger.Taking) { recorded = append(recorded, taking) })
+	inner.Replay(func(event ledger.Event) {
+		event.Replay(func(taking ledger.Taking) { recorded = append(recorded, taking) })
+	})
 	require.Len(t, recorded, 1, "the revert follows a clear")
 	assert.True(t, recorded[0].Cleared())
 	assert.Empty(t, events.Published(), "a clear took no tile, so it is no tile in the stats")
@@ -71,12 +75,14 @@ func TestAClearIsRecordedAndNotPublished(t *testing.T) {
 func TestABombingIsRecordedAndNotPublished(t *testing.T) {
 	storage, inner, events := setUp()
 
-	storage.AppendBombing(ledger.Bombing{Scope: "203.0.113.7", Account: account, At: start, Blast: clicks.Blast{
+	storage.Append(ledger.Bombing{Scope: "203.0.113.7", Account: account, At: start, Blast: clicks.Blast{
 		Tile: 42, CountryID: "fr", Cleared: []uint32{42}, Owners: []string{"de"},
 	}})
 
 	var recorded []ledger.Taking
-	inner.Replay(func(taking ledger.Taking) { recorded = append(recorded, taking) })
+	inner.Replay(func(event ledger.Event) {
+		event.Replay(func(taking ledger.Taking) { recorded = append(recorded, taking) })
+	})
 	assert.Len(t, recorded, 1)
 	assert.Empty(t, events.Published(), "a bomb takes no tile")
 }

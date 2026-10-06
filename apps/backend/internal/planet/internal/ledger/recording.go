@@ -49,7 +49,7 @@ func (r Recording) Clear(ctx context.Context, blast clicks.Blast) (clicks.Blast,
 	}
 
 	if scope := cpipscope.Of(cpctx.GetSourceIP(ctx)); scope != "" {
-		r.takings.AppendBombing(Bombing{Scope: scope, Account: cpctx.GetAccount(ctx), At: r.clock.Now(), Blast: cleared})
+		r.takings.Append(Bombing{Scope: scope, Account: cpctx.GetAccount(ctx), At: r.clock.Now(), Blast: cleared})
 	}
 
 	return cleared, nil

@@ -150,14 +150,10 @@ func TestEveryTakeKeptBeforeTheEventsIsATake(t *testing.T) {
 
 	insert := `INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, payload)
 		VALUES ($1, $2, 3, '203.0.113.7', '', '', $3, $4)`
-	_, err = db.ExecContext(t.Context(), insert, 2, "bomb", at, nil)
-	require.Error(t, err, "a bomb carries its blast")
-	_, err = db.ExecContext(t.Context(), insert, 3, "take", at, `{}`)
-	require.Error(t, err, "a take carries nothing")
-	_, err = db.ExecContext(t.Context(), insert, 4, "quake", at, nil)
-	require.Error(t, err, "a kind the table does not know")
-	_, err = db.ExecContext(t.Context(), insert, 5, "bomb", at, `{"cleared": {}}`)
-	require.NoError(t, err)
+	_, err = db.ExecContext(t.Context(), insert, 2, "", at, nil)
+	require.Error(t, err, "an event has a kind")
+	_, err = db.ExecContext(t.Context(), insert, 3, "bomb", at, `{"cleared": {}}`)
+	require.NoError(t, err, "which the table leaves to the ledger")
 }
 
 func TestTheEventsGoBackToTakesWithoutTheBombs(t *testing.T) {

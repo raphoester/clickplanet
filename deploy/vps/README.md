@@ -1110,7 +1110,7 @@ Each player has:
 - `tiles`: tiles it still holds — its take is the tile's latest and the paint is
   still there
 - `takes`: every take it made, held or painted over since; a tile taken twice
-  counts twice
+  counts twice, and a bomb counts once
 - `tilesPerMinute` and `takesPerMinute`: each over `activeFor`, 0 for a single take
 - `banned`/`bannedUntil`/`offence` when a ban is running
 
