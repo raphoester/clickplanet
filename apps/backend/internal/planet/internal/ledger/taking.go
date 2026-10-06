@@ -63,10 +63,6 @@ func ParseCaller(scope, account string) (Caller, error) {
 	return Caller{Scope: parsed}, nil
 }
 
-func (t Taking) Cleared() bool {
-	return t.Country == ""
-}
-
 func (c Caller) Made(taking Taking) bool {
 	if c.Account != "" {
 		return taking.Account == c.Account

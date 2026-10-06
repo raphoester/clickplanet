@@ -18,12 +18,7 @@ type Neighbours interface {
 }
 
 type TileStorage interface {
-	Owner(tile uint32) (string, bool)
 	Set(ctx context.Context, tile uint32, value string) error
-}
-
-type Rule interface {
-	Outcome(tile uint32, owner, flag string) clicks.Outcome
 }
 
 type Publisher interface {
@@ -35,7 +30,6 @@ func New(
 	spreads Spreads,
 	neighbours Neighbours,
 	storage TileStorage,
-	rule Rule,
 	publisher Publisher,
 ) *UseCase {
 	return &UseCase{
@@ -43,7 +37,6 @@ func New(
 		spreads:        spreads,
 		neighbours:     neighbours,
 		storage:        storage,
-		rule:           rule,
 		publisher:      publisher,
 	}
 }
@@ -53,7 +46,6 @@ type UseCase struct {
 	spreads        Spreads
 	neighbours     Neighbours
 	storage        TileStorage
-	rule           Rule
 	publisher      Publisher
 }
 
@@ -65,10 +57,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 
 	neighbours := u.neighbours.Neighbours(in.TileID)
 	for _, neighbour := range neighbours {
-		owner, _ := u.storage.Owner(neighbour)
-		after := u.rule.Outcome(neighbour, owner, in.CountryID).OwnerAfter(owner, in.CountryID)
-
-		if err := u.storage.Set(ctx, neighbour, after); err != nil {
+		if err := u.storage.Set(ctx, neighbour, in.CountryID); err != nil {
 			return out, fmt.Errorf("failed to spread onto tile %d: %w", neighbour, err)
 		}
 	}

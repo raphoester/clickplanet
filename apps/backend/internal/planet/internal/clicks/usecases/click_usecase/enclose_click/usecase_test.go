@@ -11,7 +11,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -51,14 +50,9 @@ func (t tiles) Set(_ context.Context, tile uint32, value string) error {
 	return nil
 }
 
-type ground map[uint32]string
-
-func (g ground) CountryOf(tile uint32) string { return g[tile] }
-
 type rule struct {
-	tiles    tiles
-	homeSoil clicks.HomeSoil
-	err      error
+	tiles tiles
+	err   error
 }
 
 func (r rule) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
@@ -66,10 +60,7 @@ func (r rule) Execute(ctx context.Context, in click_usecase.In) (click_usecase.O
 		return click_usecase.Out{}, r.err
 	}
 
-	owner, _ := r.tiles.Owner(in.TileID)
-	outcome := r.homeSoil.Outcome(in.TileID, owner, in.CountryID)
-
-	return click_usecase.Out{Outcome: outcome}, r.tiles.Set(ctx, in.TileID, outcome.OwnerAfter(owner, in.CountryID))
+	return click_usecase.Out{}, r.tiles.Set(ctx, in.TileID, in.CountryID)
 }
 
 type recorder struct{ published []bonuses.Enclosed }
@@ -89,7 +80,6 @@ func played(t *testing.T) context.Context {
 type fixture struct {
 	grid      honeycomb
 	tiles     tiles
-	ground    ground
 	charges   *inmemory_charge_storage.Storage
 	published *recorder
 	useCase   *enclose_click.UseCase
@@ -97,9 +87,8 @@ type fixture struct {
 
 func setup(charged bool, err error) fixture {
 	f := fixture{
-		grid:   honeycomb{size: 12},
-		tiles:  tiles{},
-		ground: ground{},
+		grid:  honeycomb{size: 12},
+		tiles: tiles{},
 		charges: inmemory_charge_storage.New(inmemory_charge_storage.Config{},
 			bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3, EnclosureMaxTiles: 10},
 			inmemory_charge_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler)),
@@ -109,9 +98,8 @@ func setup(charged bool, err error) fixture {
 		f.charges.Grant(caller, bonuses.KindEncloseClicks, 1)
 	}
 
-	homeSoil := clicks.NewHomeSoil(clicks.HomeSoilConfig{Enabled: true}, f.ground)
-	f.useCase = enclose_click.New(rule{tiles: f.tiles, homeSoil: homeSoil, err: err}, f.charges,
-		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, homeSoil, f.charges, f.published))
+	f.useCase = enclose_click.New(rule{tiles: f.tiles, err: err}, f.charges,
+		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, f.charges, f.published))
 
 	return f
 }
@@ -166,42 +154,6 @@ func TestAShapeTakesUnownedTilesAndEveryoneElsesAlike(t *testing.T) {
 	assert.Equal(t, "fr", f.tiles[inner[1]])
 	require.Len(t, f.published.published, 1)
 	assert.Equal(t, inner, f.published.published[0].Filled)
-}
-
-func TestANativeTileInsideAShapeIsClearedNotTaken(t *testing.T) {
-	f := setup(true, nil)
-	inner := []uint32{f.grid.id(5, 5), f.grid.id(6, 5)}
-	f.own("de", inner...)
-	f.ground[inner[0]] = "de"
-	closing := f.grid.id(4, 5)
-	wall := append(f.grid.ring(5, 5), f.grid.ring(6, 5)...)
-	for _, tile := range wall {
-		if tile != inner[0] && tile != inner[1] && tile != closing {
-			f.own("fr", tile)
-		}
-	}
-
-	f.click(t, closing)
-
-	assert.Empty(t, f.tiles[inner[0]], "a bonus is never a way around the rule")
-	assert.Equal(t, "fr", f.tiles[inner[1]])
-	require.Len(t, f.published.published, 1)
-	assert.Zero(t, f.charges.Held(caller).Enclosures)
-}
-
-func TestAClickThatOnlyClearsANativeTileClosesNothing(t *testing.T) {
-	f := setup(true, nil)
-	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
-	f.own("fr", ring[1:]...)
-	f.own("de", ring[0])
-	f.ground[ring[0]] = "de"
-
-	f.click(t, ring[0])
-
-	assert.Empty(t, f.tiles[ring[0]])
-	assert.Empty(t, f.tiles[centre], "the tile inside was not taken")
-	assert.Empty(t, f.published.published)
-	assert.Equal(t, 1, f.charges.Held(caller).Enclosures, "a click that closes nothing keeps the charge")
 }
 
 func TestATriangleHasNoInsideAndCostsNothing(t *testing.T) {

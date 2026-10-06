@@ -12,7 +12,6 @@ import {
     UpdatesListener,
 } from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
-import NativeLandNote from "../components/NativeLandNote.tsx";
 import Quiz from "../quiz/Quiz.tsx";
 import {useQuiz} from "../quiz/useQuiz.ts";
 import {ChatBackend} from "../../backends/chat.ts";
@@ -28,11 +27,14 @@ import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
 import {shareStats} from "../../domain/shareCard.ts";
+import {Country} from "../../domain/countries.ts";
 import {ClickBudgetSource, now as budgetNow, tokensAt} from "../../backends/clickBudget.ts";
 import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
 import {GlobeStatus, useGlobe} from './useGlobe.ts';
 import {useSound} from '../sound/useSound.ts';
+import {useDisplaySettings} from './useDisplaySettings.ts';
+import SettingsPlace from "../settings/SettingsPlace.tsx";
 import AnthemControls from "../anthem/AnthemControls.tsx";
 import {useAnthem} from "../anthem/useAnthem.ts";
 import {AccountStore} from "../account/accountStore.ts";
@@ -59,9 +61,10 @@ import "./Viewer.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 
-type SheetName = "board" | "chat" | "you" | "more" | "season" | "clicks"
+type SheetName = "board" | "chat" | "you" | "settings" | "more" | "season" | "clicks"
 
 export type ViewerProps = {
+    sharedCountry?: Country
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
@@ -80,9 +83,10 @@ export type ViewerProps = {
 
 export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
-    const {countryState, handleSetCountry} = useCountryStorage()
+    const {countryState, handleSetCountry} = useCountryStorage(props.sharedCountry)
     const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
     const sound = useSound()
+    const display = useDisplaySettings()
     const account = useAccount(props.account)
     const username = account.kind === 'ready' ? account.username : undefined
     const color = account.kind === 'ready' ? account.color : undefined
@@ -136,8 +140,6 @@ export default function Viewer(props: ViewerProps) {
         toggleSwitch,
         lastBomb,
         dismissBomb,
-        lastClear,
-        dismissClear,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
@@ -149,6 +151,8 @@ export default function Viewer(props: ViewerProps) {
         onClickAccepted: accepted.record,
         country: countryState,
         clickHue: hueOf(color),
+        mapView: display.settings.mapView,
+        rendering: display.settings.rendering,
     })
 
     const refiller = props.refiller
@@ -201,8 +205,11 @@ export default function Viewer(props: ViewerProps) {
         playerInfo: props.playerInfo,
         listenForClicks: accepted.listenForClicks,
     }
-    const more = {
+    const settings = {
+        display: {settings: display.settings, onChange: display.setSettings},
         sound: {settings: sound.settings, onChange: sound.setSettings, preview: sound.preview},
+    }
+    const more = {
         onTakePicture: () => {
             closeSheet()
             take()
@@ -222,7 +229,7 @@ export default function Viewer(props: ViewerProps) {
 
         {!ready && <StatusCard status={status}/>}
 
-        {ready && !compact && <Menu {...board} {...you} {...more} tab={menuTab} onTab={setMenuTab}/>}
+        {ready && !compact && <Menu {...board} {...you} {...settings} {...more} tab={menuTab} onTab={setMenuTab}/>}
 
         {ready && !compact && season && <SeasonChip season={season}
                                                     compact={false}
@@ -274,6 +281,9 @@ export default function Viewer(props: ViewerProps) {
             {sheet === "you" && account.kind === 'ready' && <Sheet title={youLabel(linked)} onClose={closeSheet}>
                 <YouPlace {...you}/>
             </Sheet>}
+            {sheet === "settings" && <Sheet title="Settings" onClose={closeSheet}>
+                <SettingsPlace {...settings}/>
+            </Sheet>}
             {sheet === "more" && <Sheet title="More" onClose={closeSheet}>
                 <MorePlace {...more}/>
             </Sheet>}
@@ -286,7 +296,8 @@ export default function Viewer(props: ViewerProps) {
                     onOpen={toggleSheet}
                     chat={props.chatBackend !== undefined}
                     unread={unread}
-                    you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}/>
+                    you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
+                    settings/>
         </>}
 
         {shot && <SharePreview shot={shot}
@@ -318,13 +329,6 @@ export default function Viewer(props: ViewerProps) {
             land={lastBomb.land}
             lowered={quiz.state.phase !== 'idle'}
             onDone={dismissBomb}
-        />}
-
-        {lastClear && <NativeLandNote
-            key={lastClear.id}
-            ground={lastClear.ground}
-            lowered={quiz.state.phase !== 'idle'}
-            onDone={dismissClear}
         />}
 
         <Quiz state={quiz.state} onOpen={quiz.open} onAnswer={quiz.answer}/>

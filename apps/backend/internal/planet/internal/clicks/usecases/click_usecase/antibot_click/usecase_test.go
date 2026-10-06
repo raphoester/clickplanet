@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
@@ -54,10 +53,6 @@ func (c *fakeClick) Execute(context.Context, click_usecase.In) (click_usecase.Ou
 	return click_usecase.Out{}, c.err
 }
 
-type fakeGround map[uint32]string
-
-func (g fakeGround) CountryOf(tile uint32) string { return g[tile] }
-
 func execute(
 	t *testing.T,
 	ctx context.Context,
@@ -67,20 +62,7 @@ func execute(
 ) error {
 	t.Helper()
 
-	return executeOn(t, ctx, guard, owner, fakeGround{}, inner)
-}
-
-func executeOn(
-	t *testing.T,
-	ctx context.Context,
-	guard antibot_click.ClickGuard,
-	owner antibot_click.TileOwner,
-	ground fakeGround,
-	inner *fakeClick,
-) error {
-	t.Helper()
-
-	return executeUnder(t, ctx, guard, owner, ground, inner, tempo.NewSwitches())
+	return executeUnder(t, ctx, guard, owner, inner, tempo.NewSwitches())
 }
 
 func executeUnder(
@@ -88,16 +70,14 @@ func executeUnder(
 	ctx context.Context,
 	guard antibot_click.ClickGuard,
 	owner antibot_click.TileOwner,
-	ground fakeGround,
 	inner *fakeClick,
 	switches *tempo.Switches,
 ) error {
 	t.Helper()
 
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
-	homeSoil := clicks.NewHomeSoil(clicks.HomeSoilConfig{Enabled: true}, ground)
 
-	useCase := antibot_click.New(inner, guard, owner, homeSoil, switches, clock, prometheus.NewRegistry())
+	useCase := antibot_click.New(inner, guard, owner, switches, clock, prometheus.NewRegistry())
 
 	_, executeErr := useCase.Execute(ctx, click_usecase.In{TileID: 42, CountryID: "PS"})
 
@@ -112,7 +92,7 @@ func TestAntiBotClick(t *testing.T) {
 		require.NoError(t, err)
 		switches.Set(rules)
 
-		require.NoError(t, executeUnder(t, t.Context(), guard, fakeOwner{}, fakeGround{}, &fakeClick{}, switches))
+		require.NoError(t, executeUnder(t, t.Context(), guard, fakeOwner{}, &fakeClick{}, switches))
 		require.Len(t, guard.seen, 1)
 		assert.InDelta(t, 3.0, guard.seen[0].Pace, 1e-9)
 	})
@@ -189,36 +169,5 @@ func TestAntiBotClick(t *testing.T) {
 		require.NoError(t, execute(t, t.Context(), guard, fakeOwner{42: "PS"}, &fakeClick{}))
 		require.Len(t, guard.seen, 1)
 		assert.True(t, guard.seen[0].NoOp, "it changes nothing and publishes nothing")
-		assert.False(t, guard.seen[0].Cleared)
-	})
-
-	t.Run("marks a click that clears a native tile, before the write", func(t *testing.T) {
-		guard := &fakeGuard{}
-
-		require.NoError(t, executeOn(t, t.Context(), guard, fakeOwner{42: "FR"}, fakeGround{42: "FR"}, &fakeClick{}))
-		require.Len(t, guard.seen, 1)
-		assert.Equal(t, "FR", guard.seen[0].Held, "FR loses the tile")
-		assert.False(t, guard.seen[0].NoOp, "a clear changes the map")
-		assert.True(t, guard.seen[0].Cleared, "and wins nothing back for PS")
-		require.Len(t, guard.committed, 1)
-		assert.True(t, guard.committed[0].Cleared)
-	})
-
-	t.Run("a native clicking its own ground is a no-op, not a clear", func(t *testing.T) {
-		guard := &fakeGuard{}
-
-		require.NoError(t, executeOn(t, t.Context(), guard, fakeOwner{42: "PS"}, fakeGround{42: "PS"}, &fakeClick{}))
-		require.Len(t, guard.seen, 1)
-		assert.True(t, guard.seen[0].NoOp)
-		assert.False(t, guard.seen[0].Cleared)
-	})
-
-	t.Run("an empty tile on home ground is taken, not cleared", func(t *testing.T) {
-		guard := &fakeGuard{}
-
-		require.NoError(t, executeOn(t, t.Context(), guard, fakeOwner{42: ""}, fakeGround{42: "FR"}, &fakeClick{}))
-		require.Len(t, guard.seen, 1)
-		assert.False(t, guard.seen[0].NoOp)
-		assert.False(t, guard.seen[0].Cleared)
 	})
 }

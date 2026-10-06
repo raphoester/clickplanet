@@ -35,10 +35,6 @@ The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
 
-The fake plays native land as the server does, off the real borders blob: every
-tile starts French, so on France's own ground another flag's first click clears
-the tile.
-
 In fake mode the console has a few commands: `giveBomb()` puts a bomb in the
 inventory as if a box holding one had just been caught, `giveBonus("refill")` does
 the same for any other bonus (the fake holds charges as the server does: a refill
@@ -76,7 +72,7 @@ Two pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
 
 | Path | File | What |
 |---|---|---|
-| `/` | `index.html` | The home page. Plain HTML, no bundle. |
+| `/` | `index.html` | The home page. Plain HTML, and one small module for the Final Battle. |
 | `/play` | `play.html` | The game. |
 | `/auth/callback` | `auth/callback.html` | The game again, for the sign-in callback. |
 | `/privacy`, `/terms` | `privacy.html`, `terms.html` | Plain pages, no bundle. |
@@ -96,10 +92,14 @@ those links on it**; they are what the verification reads.
 `/play` with `location.replace`, before anything is painted. The game writes
 that key on its first render, so a browser that opened the game once never
 sees the home page again. `location.search` and `location.hash` go along, so
-an old link such as `/?c=de` still reaches the game with its query. Crawlers
+a share link such as `/?f=de` still reaches the game with its query. Crawlers
 have no storage and read the home page. `homePage.test.ts` pins the key in the
 script to the constant. **`/#home` does not redirect**: it is the "Home page"
 link at the bottom of the About modal.
+
+**A first visit keeps the query too.** `home.ts` copies `location.search` onto
+every Play link (`app/home/playLinks.ts`), so a newcomer who opened a share link
+reaches the game with its flag rather than with their time zone's.
 
 **The game is a real file at each path**, not a fallback. The Workers fallback
 is `index.html`, the home page, so a `/auth/callback` that relied on it would
@@ -110,7 +110,8 @@ is unchanged. Paths under `/play/` have no file and get the home page: the game
 has no routes of its own.
 
 **The bundle is named `play-*.js`** now, not `index-*.js`, and it is linked from
-`/play`, not from `/`.
+`/play`, not from `/`. The home page links `home-*.js` (`src/home.ts`), which
+shares the season client's chunk with the game.
 
 ## Architecture
 
@@ -177,13 +178,9 @@ app/       components
 - `streak.ts` — `streakShown`: a flame is drawn from a streak of 3 days. Every
   player of today has 1, so a short run would mean nothing.
 - `shareCard.ts` — everything about a shared image that is decided before a
-  pixel is drawn: the `?c=<code>` link, the text that rides with it, the line
+  pixel is drawn: the `?f=<code>` link, the text that rides with it, the line
   under the flag, and the size the card comes out at. See [Sharing the
   globe](#sharing-the-globe).
-- `homeSoil.ts` — `outcomeOf` and `ownerAfter`, the server's home-soil rule
-  copied so a click is painted as the server will write it. See [Native land
-  takes two clicks](#native-land-takes-two-clicks). `clearNotes.ts` counts how
-  often the line explaining a clear has been shown.
 - `clickOrDrag.ts` — `ClickOrDrag`, whether a press was a click or a drag of
   the globe. The browser sends `click` after a drag too, so turning the globe
   claimed the tile under the cursor on release. A press that moves more than
@@ -365,13 +362,16 @@ this is where each zone lives. `Viewer` composes them, and `useCompact`
 | **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end | `Menu`'s header and "playing for", `SeasonChip` at the top centre |
 | **Moments** | under the status bar (`--status-bottom`) | under the season chip |
 | **Play** | the dock (`ClickBudgetMeter` + `Inventory`) above the tab bar, the chat's peek above it | the dock at the bottom centre |
-| **Places** | `hud/TabBar` (Board, Chat, Sign in / You, More), each a `hud/Sheet` | `Menu`'s tabs (Board, You, More) on the left, the chat on the right |
+| **Places** | `hud/TabBar` (Board, Chat, Sign in / You, Settings, More), each a `hud/Sheet` | `Menu`'s tabs (Board, You, Settings, More) on the left, the chat on the right |
 
 - **One sheet at a time on a phone.** `Viewer` holds which (`sheet`): the four
   tabs, and the season and "Your clicks", which the status bar and the dock open.
   A tab pressed again closes it. The sheets are the same places the desktop
-  shows: `BoardPlace`, `YouPlace` and `MorePlace` in `Menu.tsx`, `SeasonDetails`,
-  `ClicksPanel`, and the chat's own sheet.
+  shows: `BoardPlace`, `YouPlace` and `MorePlace` in `Menu.tsx`, `SettingsPlace`,
+  `SeasonDetails`, `ClicksPanel`, and the chat's own sheet.
+- **Settings is every switch the player keeps**: the display (`useDisplaySettings`,
+  `domain/displaySettings.ts`, in `clickplanet-display-settings`) and the sound.
+  More is for things to do, not things to set.
 - **A sheet sits above the tab bar** and is as tall as what it holds, up to the
   room under the status bar; the chat's is that tall always, for its log to
   scroll. It covers the dock: a sheet is for reading, the dock for playing.
@@ -837,7 +837,7 @@ draws it.
   accepted clicks, and at least every 10s while they keep coming
   (`useReadsAfterClicks`).
 - **The caller's own numbers move on every take.** The globe already knows
-  which click takes a tile (it paints it as the server will write it), and once
+  which click takes a tile (one on a tile its flag does not hold), and once
   the server accepts one it tells `acceptedClicks`, which tells its listeners
   with no render of `Viewer` per click. `useOwnTakes` counts them by flag, and
   `liveSeason` adds the ones made since the read was sent to the line's flag:
@@ -900,10 +900,19 @@ counted at the end, a trophy for the winning country, a title for every
 signed-in player and one more for the winning country's. Guests get no title, so
 the row says "signed-in".
 
+**The home page counts down to the Final Battle.** `src/home.ts` reads the
+season with the same client, and `app/home/finale.ts` fills the pill in the hero
+and the `#final-battle` section, both `hidden` until a season is known and again
+once it is over. `finaleClock` counts to the battle's start, then to the season's
+end, when both go live and glow. The page's text stays in `index.html`; the
+module only writes the numbers and toggles `finale-live`. **It imports no CSS**:
+a stylesheet shared with `play.html` becomes its own file, linked before
+`play-*.css`, and moves the game's cascade. The art's styles are copied into the
+page's `<style>`, as `.panel` and `.button` are.
+
 **The desktop chip writes its bottom edge on `:root` as `--status-bottom`**
-(`useBottomEdge`), and on a phone the status bar does: the quiz, the bomb news
-and the native-land note sit under it. With neither, the property is unset and
-they sit at the top.
+(`useBottomEdge`), and on a phone the status bar does: the quiz and the bomb
+news sit under it. With neither, the property is unset and they sit at the top.
 
 ### Sessions
 
@@ -1173,7 +1182,7 @@ which is why the picker only shows with one. `usePresence` announces again once
 the color held still for a second (`SETTLE_MS`), so the roster line follows.
 
 **A signed-in account's panel has two tabs**: Progress, open first (see
-[Titles](#titles)), and Settings, which holds the username, the color, linking
+[Titles](#titles)), and Account, which holds the username, the color, linking
 and signing out. A guest has no tabs: its panel is the sign-in buttons alone,
 and it reads no titles.
 
@@ -1302,19 +1311,16 @@ mint a guest and insert a row into `auth.identities` for its account.
   could not be seen, and a full-strength ring of at least 44px with a dark edge
   looked like a bonus. **It is never under `MIN_GLINT_PX`**, so from orbit a
   click is a spark that keeps the planet alive, and otherwise 1.8 tiles wide, so
-  pushed in it stays on its tile (`glintSize`). **A clear is the same glint
-  shrinking as it fades** (`playOwnClear`), on a tile this player's click
-  cleared rather than took. **This player's glints are in its color's hue**
-  (`hueOf`, handed down through `Globe.setClickHue`); a player with no color
-  glints sky blue and clears in dust. Everyone else's are sky blue: a
-  `TileUpdate` does not say who clicked. Not white, which vanished on the white
-  of a flag. **A click out of view is not played** (`inView`): on the far side
-  or off the screen it would cost frames and show nothing. With less motion a
-  clear fades without shrinking.
+  pushed in it stays on its tile (`glintSize`). **This player's glints are in
+  its color's hue** (`hueOf`, handed down through `Globe.setClickHue`); a player
+  with no color glints sky blue. Everyone else's are sky blue: a `TileUpdate`
+  does not say who clicked. Not white, which vanished on the white of a flag.
+  **A click out of view is not played** (`inView`): on the far side or off the
+  screen it would cost frames and show nothing.
 - `earth.ts` — the opaque sphere under the tiles, in the globe's light with
   `?gfx=earth`. See [The light](#the-light).
-- `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe the URL
-  turns on. See [`?gfx=`](#gfx-the-sharper-lit-globe-off-unless-asked-for).
+- `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe are on:
+  the HD graphics setting, unless the URL names them. See [HD graphics](#hd-graphics-the-sharper-lit-globe-and-gfx).
 - `shaders/` — GLSL for the display, picking, earth, star, enclosure and glint passes.
   `light.glsl` is not a pass but the light they share, pulled in with
   `#include ../light.glsl;` (vite-plugin-glsl's own include, not three's).
@@ -1412,7 +1418,7 @@ pixel-for-pixel identical. It is worth a few percent of those two passes and no
 more — the vertex shader still runs for every point and still reads every
 attribute, and only its body is skipped.
 
-### `?gfx=`: the sharper, lit globe, off unless asked for
+### HD graphics: the sharper, lit globe, and `?gfx=`
 
 The two sections below — the screen's pixel ratio and the light — shipped on in
 #254 and turned the globe **almost white, flickering as it turned**, for players
@@ -1422,9 +1428,15 @@ on a Mac (Metal), on SwiftShader, or on a Windows laptop with the same GPU
 (Iris Xe, ratio 1.25) in either a dev or a production build. So the cause can
 only be found on the screens that have it.
 
-**Every part is in the build and off by default**; the URL turns them on, one
-at a time, for the page load (`graphicsOf` in `graphics.ts`, read once in
-`createGlobe`):
+**A player turns them on as "HD graphics" in Settings**, off by default
+(`Rendering`, `"plain"` or `"sharp"`, in the display settings): turned on for
+everyone, a player who gets the white globe would have to find the switch. **Changing it rebuilds the globe**:
+`antialias` is fixed when the WebGL context is made, so `rendering` is in
+`useGlobe`'s dependencies and the map loads again.
+
+**The URL still wins over the setting**, part by part, for the bisection below
+(`graphicsOf` in `graphics.ts`, read once in `createGlobe`). With `gfx` in the
+query only the parts it names are on, so `?gfx=` alone is the plain globe:
 
 | `?gfx=` | Turns on |
 |---|---|
@@ -1437,7 +1449,7 @@ at a time, for the page load (`graphicsOf` in `graphics.ts`, read once in
 | `all` | all of the above: #254 as it shipped |
 
 Words add up (`?gfx=ratio,tiles`), and sit beside the rest of the query
-(`?c=fr&gfx=halo`). A word it does not know turns nothing on.
+(`?f=fr&gfx=halo`). A word it does not know turns nothing on.
 
 **Off is the code from before #254, not the new code multiplied by zero.** The
 light is compiled out with `#ifdef LIT` (three's `defines`, which leaves out a
@@ -1449,19 +1461,18 @@ arithmetic, which is a multiplication by 1.
 **To use it**, send a player who has the bug the links, one per part, and ask
 which come out white: `https://clickplanet.lol/play?gfx=all` first, which must
 show the bug, then `ratio`, `aa`, `earth`, `tiles`, `halo`. Ask for
-`chrome://gpu` too: it names the driver. **Once the culprit is fixed, turn the
-rest on for everyone and take the switches out** — this is a bisection, not a
-settings page.
+`chrome://gpu` too: it names the driver. **Once the culprit is fixed, take the
+URL switches out**; the setting stays.
 
 ### CSS pixels in, drawing-buffer pixels out
 
-**`?gfx=ratio` draws the canvas at the screen's pixel ratio, capped at 2**
-(`pixelRatio()` in `scene.ts`); without it the ratio is 1, as it always was. At
+**HD graphics draws the canvas at the screen's pixel ratio, capped at 2**
+(`pixelRatio()` in `scene.ts`, `?gfx=ratio` alone); without it the ratio is 1. At
 1, on a phone or a laptop the browser stretches every frame over twice its
 pixels and the whole globe is soft. Past 2 is more than twice the work again for
 a difference nobody sees at arm's length.
 
-**Antialiasing is off unless `?gfx=aa`.** #254 turned it on below a ratio of 2,
+**Antialiasing comes with HD graphics** (`?gfx=aa` alone). #254 turned it on below a ratio of 2,
 and it was the first suspect for the white globe on Intel; turning it off
 (#255) did not fix that, so it is one of the switches rather than a verdict.
 
@@ -1482,7 +1493,7 @@ the frame no sharper, but every size still agrees with every other.
 
 ### The light
 
-**Only with `?gfx=light`, or one of its three parts** — see [`?gfx=`](#gfx-the-sharper-lit-globe-off-unless-asked-for).
+**Only with HD graphics, or `?gfx=light` or one of its three parts** — see [HD graphics](#hd-graphics-the-sharper-lit-globe-and-gfx).
 Without it the earth is three's standard material under an ambient light, the
 tiles are unlit, and the globe reads as a flat blue disc.
 
@@ -1585,6 +1596,15 @@ painted they must cover the ground (circles on this hex lattice cover it at
 Running them on separate schedules left a band where the flag was painted
 through a lattice with holes in it. `pointSize.test.ts` pins that too, and those
 tests fail if the two are split again.
+
+**A player can turn the painted flags off** — "Big country flags" in
+Settings (`MapView` in the display settings). Players draw pictures with the
+tiles, and the painted flag hides them. With it off
+(`MapView` `"tiles"`), the handover in `pointSize.ts` is held at 1 at every zoom, so the
+globe is drawn as it was before #52: each tile its own flag at its own size,
+and the outline always under the tiles. Zoomed out that is the mud described
+above, and that is the price of seeing every tile. The switch reaches the
+running globe through `Globe.setMapView`, so it never rebuilds it.
 
 `npm run flagFit` decides the rest: a flag that is only bands can be pulled to
 the country's own shape and still say what it is, while one carrying a device is
@@ -1902,10 +1922,6 @@ ever takes back what that click itself painted.**
 going back to unowned, which `TileField` writes as a zero-sized atlas region —
 what the fragment shader already draws as an unclaimed tile.
 
-**A click predicted to clear paints `undefined`**, and its claim remembers that
-like any other paint: a refused clear gives the natives their flag back, and a
-refused take behind a clear still in flight falls back to the empty tile.
-
 Rolling back on *any* failure, including a transport fault, is deliberate: if
 the click did land and only the response was lost, the stream's echo repaints
 it, and if the echo arrives first the rollback is already a no-op.
@@ -1914,7 +1930,7 @@ it, and if the echo arrives first the rollback is already a no-op.
 back. The first `MapFrozenError`, from a click or a drop, calls
 `TileOwnership.freeze()` (`onMapFrozen`), and for the rest of the page's life
 `applyOptimistic` paints nothing and hands back no claim. With no claim the
-globe plays no click sound, no glint and no native-land note: the click still
+globe plays no click sound and no glint: the click still
 goes out, and the refusal's sound is its only answer. A click the server accepts
 after all is painted by its echo, as any other player's is.
 
@@ -1950,9 +1966,8 @@ again: the bomb shows in the inventory and the meter shows the full bank.
 
 **The sizes are rules, read once**: `GetBonusRules` (a cached GET) answers the
 blast radius, the enclose's `maxTiles`, the spread pool's size and the enclosure
-stack's size as `BonusRules`, through `onRules`, and whether native land takes
-two clicks (`homeSoil`). A page open across a change of rules shows the old sizes
-until it is reloaded.
+stack's size as `BonusRules`, through `onRules`. A page open across a change of
+rules shows the old sizes until it is reloaded.
 
 ### Off by default, one at a time
 
@@ -1992,32 +2007,6 @@ word over the icon says what the slot is doing (`On`, `Aim`, `Full`).
 with their counts below that (the name stays in `aria-label`). A fold on a row
 this small hid the one thing that says the next click does more than paint.
 The dock glows while something is on or aimed.
-
-## Native land takes two clicks
-
-On a country's own ground, a tile wearing that country's flag is **cleared** by
-the first click for any other flag, not taken; the next click on the empty tile
-takes it, and its natives take it back in one. Every click still costs one. The
-server decides (see the backend's CLAUDE.md, "Native land takes two clicks"), and
-says whether the rule is on in `BonusRules.homeSoil`.
-
-- **The click is painted as the server will write it.** `globe.ts` reads the
-  tile's ground off the borders blob it already loads (`countryOfTile`), asks
-  `domain/homeSoil.ts`, and paints `ownerAfter`: a clear as an empty tile, never
-  the flag. `homeSoil.test.ts` holds the same cases as the server's
-  `home_soil_test.go`. Before the rules are read, or with no bonus feed, a click
-  is painted as a take and the server's echo corrects it.
-- **A clear says so twice.** A tile going blank under a newcomer's click reads as
-  a click that went wrong, so its glint shrinks as it fades (`clickGlints.ts`,
-  every time), and `NativeLandNote` says "Poland's native land takes two clicks.
-  One more to take it." under the bomb line — only the first three times in a
-  browser (`domain/clearNotes.ts`, in `clickplanet-home-soil-notes`, counted in
-  memory when storage throws). It gives the quiz the band the way the bomb line does.
-- **Spread and enclose follow the rule on every tile they touch**, on the server.
-  Nothing here predicts them: their tiles arrive over the stream as ever, a cleared
-  one as an update with no country.
-- **Only the clicker sees the clear's glint.** Everybody else sees the tile go empty, as a
-  `TileUpdate` with no country: the stream does not say why.
 
 ## Quizzes
 
@@ -2227,6 +2216,13 @@ reads the same on a phone in portrait as on a wide desktop.
 menu header flies — with the link at the other end of that line, and the
 player's badge at the bottom.
 
+**The link switches whoever opens it to its flag.** `main.tsx` reads `?f=`
+with `sharedCountry`, before the first render, and the game starts on that
+country over the one in storage, then stores it as if it had been picked. An
+unknown code is ignored. The parameter is then taken out of the address bar,
+as the sign-in code is: left there, a reload would undo a flag the player has
+switched since.
+
 **The link is drawn into the image**, not only attached to it: a picture is what
 survives being reposted. It is drawn in the text face (`--font-text`, Rubik)
 rather than the title face, which has no lowercase — a query parameter reading `?C=PS` is a link that
@@ -2246,9 +2242,9 @@ this correction has to be twice the rise**, because centring applies to the
 margin box; getting that wrong left the camera icon exactly half-corrected.
 
 **The capture is the drawing buffer**, at a ratio of 1, or at the screen's
-capped at 2 with `?gfx=ratio` (see [CSS pixels in, drawing-buffer pixels
+capped at 2 with HD graphics (see [CSS pixels in, drawing-buffer pixels
 out](#css-pixels-in-drawing-buffer-pixels-out)): a phone captures around 390×844,
-or 780×1688 with the switch, and a ratio-1 desktop its CSS size. `cardSize` lifts a small one to a
+or 780×1688 with HD graphics, and a ratio-1 desktop its CSS size. `cardSize` lifts a small one to a
 short edge of 720 — the globe softens a little and the flag and the counts stay
 crisp, which is the half anyone reads — and caps the long edge at 2400 so a
 share sheet will still take the file.
@@ -2315,8 +2311,8 @@ from oscillators and noise with the Web Audio API at the moment it plays, in
   the one player. **`play` never changes identity** and reads the settings
   through a ref: `useGlobe` rebuilds the globe when an option changes, and a
   toggle must not do that.
-- `SoundSettingsPanel.tsx` — the switches, behind the speaker button in the
-  menu. Turning a sound on previews it.
+- `SoundSettingsPanel.tsx` — the switches, in the Settings place
+  (`settings/SettingsPlace.tsx`). Turning a sound on previews it.
 
 **Audio is locked until a gesture.** The `AudioContext` is only created by the
 first `pointerdown`/`keydown` on the window, so a bonus box or a chat message
@@ -2481,6 +2477,18 @@ the Caddyfile. Change one, change the page and its date.
 **Its "Google user data" section is what Google's brand verification reads**:
 what we ask Google for, why, that nobody else gets it, and the Limited Use
 sentence. A new Google scope changes that section.
+
+**Cloudflare Web Analytics counts the page views**, with no cookie. Each of the
+four pages ends with the beacon tag, its token written once in
+`src/webAnalytics.ts` and fed to the pages as `%WEB_ANALYTICS_TOKEN%`, like the
+Discord invite. The token is public. **`/auth/callback` has no beacon**: its URL
+holds the one-time code, and its referrer is Google or Discord, which would read
+as visitors sent from there. `gameRoutes` strips the tag from the copy and fails
+the build if one is left. `"spa": false`, because the pages are real pages and
+the home page's section links are not views. The site is a manual one (no
+`auto_install`), so nothing is injected at the edge. No page sends a
+Content-Security-Policy; one that is added must allow
+`static.cloudflareinsights.com` (script) and `cloudflareinsights.com` (connect).
 
 **`index.html` is the home page** and says what the game is in plain HTML — see
 [Pages and routes](#pages-and-routes). It is a full landing page (header,

@@ -12,11 +12,10 @@ import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
 import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
+import {API_BASE_URL} from "./backends/transport.ts"
 import {FakeStandingsBackend} from "./backends/fakeStandingsBackend.ts"
 import {ConnectStandingsBackend} from "./backends/standingsBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
-import {countryOfTile, loadBorders} from "./app/viewer/borderField.ts"
-import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
 import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
@@ -25,13 +24,18 @@ import {AccountStore} from "./app/account/accountStore.ts"
 import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
 import SignInGate from "./app/account/SignInGate.tsx"
 import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
+import {SHARE_FLAG_PARAM, sharedCountry, withoutSharedFlag} from "./domain/shareCard.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
 const callback = callbackOf(new URL(window.location.href))
 if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 
+const page = new URL(window.location.href)
+const shared = sharedCountry(page)
+if (page.searchParams.has(SHARE_FLAG_PARAM)) window.history.replaceState(null, "", withoutSharedFlag(page))
+
 const config = {
-    baseUrl: import.meta.env.VITE_API_BASE_URL ?? "https://api.clickplanet.lol",
+    baseUrl: API_BASE_URL,
     timeoutMs: 2000,
 }
 
@@ -47,7 +51,6 @@ const root = createRoot(document.getElementById('root')!)
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fake = new FakeBackend(100, {
         tilePositions: () => loadPointGeometryData().then((data) => data.positions),
-        grounds: () => loadBorders(BORDERS_URL).then((data) => (tile: number) => countryOfTile(data, tile)),
     })
     const fakePresence = new FakePresenceBackend()
     const fakeChat = new FakeChatBackend()
@@ -92,6 +95,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         <StrictMode>
             <SignInGate callback={callback}>
                 <App
+                    sharedCountry={shared}
                     ownershipsGetter={fake}
                     tileClicker={clicker}
                     updatesListener={fake}
@@ -124,6 +128,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         <StrictMode>
             <SignInGate callback={callback} account={account}>
                 <App
+                    sharedCountry={shared}
                     ownershipsGetter={backend}
                     tileClicker={backend}
                     updatesListener={backend}

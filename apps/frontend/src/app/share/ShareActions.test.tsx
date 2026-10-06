@@ -15,7 +15,7 @@ const offered = vi.mocked(deliveriesOffered)
 const deliver = vi.mocked(deliverShare)
 
 const file = new File([new Uint8Array([1])], "clickplanet-fr.png", {type: "image/png"})
-const TEXT = "France is #2 on ClickPlanet. https://clickplanet.lol/?c=fr"
+const TEXT = "France is #2 on ClickPlanet. https://clickplanet.lol/?f=fr"
 const button = (name: string) => screen.getByRole("button", {name})
 
 function setup(deliveries: ReturnType<typeof deliveriesOffered> = ["copy", "download"]) {

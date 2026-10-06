@@ -16,7 +16,7 @@ export type OptimisticPaint = {
 }
 
 type Pending = {
-    readonly inFlight: Map<number, string | undefined>
+    readonly inFlight: Map<number, string>
     country: string | undefined
     claimedLive: boolean
 }
@@ -89,7 +89,7 @@ export class TileOwnership {
         return changes
     }
 
-    public applyOptimistic(tile: number, country: string | undefined): OptimisticPaint {
+    public applyOptimistic(tile: number, country: string): OptimisticPaint {
         if (this.frozen || !this.inRange(tile)) return {changes: [], claim: undefined}
 
         const token = ++this.lastToken
@@ -115,7 +115,8 @@ export class TileOwnership {
         const pending = this.pending.get(claim.tile)
         if (!pending || !pending.inFlight.delete(claim.token)) return []
 
-        if (pending.inFlight.size > 0) return this.change(claim.tile, last(pending.inFlight.values()))
+        const newest = last(pending.inFlight.values())
+        if (newest !== undefined) return this.change(claim.tile, newest)
 
         this.pending.delete(claim.tile)
         this.claimedLive[claim.tile] = pending.claimedLive ? 1 : 0

@@ -1,8 +1,8 @@
 import {ReactNode} from "react"
-import {ChatIcon, MoreIcon, TrophyIcon, UserIcon} from "../components/icons.tsx"
+import {ChatIcon, MoreIcon, SettingsIcon, TrophyIcon, UserIcon} from "../components/icons.tsx"
 import "./TabBar.css"
 
-export type Tab = "board" | "chat" | "you" | "more"
+export type Tab = "board" | "chat" | "you" | "settings" | "more"
 
 const UNREAD_CAP = 99
 
@@ -12,9 +12,10 @@ export type TabBarProps = {
     chat: boolean
     unread: number
     you?: "guest" | "player"
+    settings: boolean
 }
 
-export default function TabBar({open, onOpen, chat, unread, you}: TabBarProps) {
+export default function TabBar({open, onOpen, chat, unread, you, settings}: TabBarProps) {
     const tab = (id: Tab, label: string, icon: ReactNode, extra?: ReactNode, name?: string) =>
         <button type="button"
                 className={open === id ? "tab-bar-tab tab-bar-tab--open" : "tab-bar-tab"}
@@ -35,6 +36,7 @@ export default function TabBar({open, onOpen, chat, unread, you}: TabBarProps) {
             unread === 0 ? undefined : unread === 1 ? "Chat, 1 new message" : `Chat, ${unread} new messages`)}
         {you && tab("you", you === "guest" ? "Sign in" : "You", <UserIcon/>,
             you === "guest" && <span className="tab-bar-dot" aria-hidden="true"/>)}
+        {settings && tab("settings", "Settings", <SettingsIcon/>)}
         {tab("more", "More", <MoreIcon/>)}
     </nav>
 }

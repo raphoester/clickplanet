@@ -13,38 +13,25 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 )
 
-type homeSoil bool
-
-func (h homeSoil) Enabled() bool { return bool(h) }
-
 type toll []clicks.TollStep
 
 func (t toll) Steps() []clicks.TollStep { return t }
 
 func TestTheRulesAreAnsweredAsTheyWereGiven(t *testing.T) {
-	res, err := get_bonus_rules_handler.New(bonuses.Rules{BlastRadius: 0.016, EnclosureMaxTiles: 25, SpreadClicks: 8}, homeSoil(false), toll{}).
+	res, err := get_bonus_rules_handler.New(bonuses.Rules{BlastRadius: 0.016, EnclosureMaxTiles: 25, SpreadClicks: 8}, toll{}).
 		GetBonusRules(t.Context(), connect.NewRequest(&planetv1.GetBonusRulesRequest{}))
 	require.NoError(t, err)
 
 	assert.InDelta(t, 0.016, res.Msg.GetBlastRadius(), 1e-9)
 	assert.Equal(t, uint32(25), res.Msg.GetEnclosureMaxTiles())
 	assert.Equal(t, uint32(8), res.Msg.GetSpreadClicks())
-	assert.False(t, res.Msg.GetHomeSoil())
 	assert.Empty(t, res.Msg.GetTollSteps())
-}
-
-func TestTheClientIsToldNativeLandTakesTwoClicks(t *testing.T) {
-	res, err := get_bonus_rules_handler.New(bonuses.Rules{}, homeSoil(true), toll{}).
-		GetBonusRules(t.Context(), connect.NewRequest(&planetv1.GetBonusRulesRequest{}))
-	require.NoError(t, err)
-
-	assert.True(t, res.Msg.GetHomeSoil())
 }
 
 func TestTheClientIsToldEveryTollStepInOrder(t *testing.T) {
 	steps := toll{{Share: 0.1, Slowdown: 1.5}, {Share: 0.2, Slowdown: 2.5}, {Share: 0.3, Slowdown: 4}}
 
-	res, err := get_bonus_rules_handler.New(bonuses.Rules{}, homeSoil(false), steps).
+	res, err := get_bonus_rules_handler.New(bonuses.Rules{}, steps).
 		GetBonusRules(t.Context(), connect.NewRequest(&planetv1.GetBonusRulesRequest{}))
 	require.NoError(t, err)
 

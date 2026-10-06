@@ -161,7 +161,8 @@ message GetBonusRulesResponse {
 
   uint32 enclosures = 4;
 
-  bool home_soil = 5;
+  reserved 5;
+  reserved "home_soil";
 
   // Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower.
   repeated TollStep toll_steps = 6;

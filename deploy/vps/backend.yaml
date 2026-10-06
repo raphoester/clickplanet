@@ -43,9 +43,6 @@ toll:
     - {share: 0.20, slowdown: 2.5}
     - {share: 0.30, slowdown: 4}
 
-homeSoil:
-  enabled: true
-
 vpnBlocklist:
   enabled: true
   includeDatacenters: true

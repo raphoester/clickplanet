@@ -3,7 +3,7 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {deliveriesOffered, deliverShare} from "./deliverShare.ts"
 
 const image = () => new File([new Uint8Array([1, 2, 3])], "clickplanet-fr.png", {type: "image/png"})
-const TEXT = "France is #2 on ClickPlanet. https://clickplanet.lol/?c=fr"
+const TEXT = "France is #2 on ClickPlanet. https://clickplanet.lol/?f=fr"
 
 type Navigatorish = {
     share?: unknown
