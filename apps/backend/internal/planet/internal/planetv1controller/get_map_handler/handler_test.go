@@ -50,7 +50,7 @@ func TestGetMapMapsTheBatch(t *testing.T) {
 		Codes: []string{"", "fr"},
 		Tiles: []byte{0x01, 0x00, 0x00, 0x00},
 
-		Defenders: []clicks.TileDefenders{{Tile: 7, Defenders: 4}},
+		Shields: []clicks.TileShields{{Tile: 7, Shields: 4}},
 	}}
 
 	res, err := getMap(t, useCase, &planetv1.GetMapRequest{})
@@ -59,9 +59,9 @@ func TestGetMapMapsTheBatch(t *testing.T) {
 	assert.Equal(t, uint32(7), res.Msg.GetStartTileId())
 	assert.Equal(t, []string{"", "fr"}, res.Msg.GetCodes())
 	assert.Equal(t, []byte{0x01, 0x00, 0x00, 0x00}, res.Msg.GetTiles())
-	require.Len(t, res.Msg.GetDefenders(), 1)
-	assert.Equal(t, uint32(7), res.Msg.GetDefenders()[0].GetTileId())
-	assert.Equal(t, uint32(4), res.Msg.GetDefenders()[0].GetDefenders())
+	require.Len(t, res.Msg.GetShields(), 1)
+	assert.Equal(t, uint32(7), res.Msg.GetShields()[0].GetTileId())
+	assert.Equal(t, uint32(4), res.Msg.GetShields()[0].GetShields())
 }
 
 func TestGetMapMapsTheErrors(t *testing.T) {

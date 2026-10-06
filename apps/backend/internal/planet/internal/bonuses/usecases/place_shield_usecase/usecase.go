@@ -1,4 +1,4 @@
-package place_defender_usecase
+package place_shield_usecase
 
 import (
 	"context"
@@ -9,18 +9,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-var ErrNoDefender = errors.New("no defender to place")
+var ErrNoShield = errors.New("no shield to place")
 
-type Defenders interface {
-	SpendDefender(holder bonuses.Holder) bool
+type Shields interface {
+	SpendShield(holder bonuses.Holder) bool
 	Grant(holder bonuses.Holder, kind bonuses.Kind, amount int)
 	Held(holder bonuses.Holder) bonuses.Held
 }
 
 type Tiles interface {
 	Owner(tile uint32) (string, bool)
-	Defenders(tile uint32) int
-	Reinforce(ctx context.Context, tile uint32, country string, most int) error
+	Shields(tile uint32) int
+	Shield(ctx context.Context, tile uint32, country string, most int) error
 }
 
 type CountryChecker interface {
@@ -34,12 +34,12 @@ type In struct {
 	Dud bool
 }
 
-func New(defenders Defenders, tiles Tiles, countries CountryChecker, perTile int) *UseCase {
-	return &UseCase{defenders: defenders, tiles: tiles, countries: countries, perTile: perTile}
+func New(shields Shields, tiles Tiles, countries CountryChecker, perTile int) *UseCase {
+	return &UseCase{shields: shields, tiles: tiles, countries: countries, perTile: perTile}
 }
 
 type UseCase struct {
-	defenders Defenders
+	shields   Shields
 	tiles     Tiles
 	countries CountryChecker
 	perTile   int
@@ -55,21 +55,21 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 		return bonuses.Held{}, fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, in.TileID)
 	}
 
-	if err := clicks.ReinforceError(owner, in.CountryID, u.tiles.Defenders(in.TileID), u.perTile); err != nil {
+	if err := clicks.ShieldError(owner, in.CountryID, u.tiles.Shields(in.TileID), u.perTile); err != nil {
 		return bonuses.Held{}, fmt.Errorf("tile %d: %w", in.TileID, err)
 	}
 
 	holder := bonuses.HolderOf(clicks.PayerOf(ctx))
-	if !u.defenders.SpendDefender(holder) {
-		return bonuses.Held{}, ErrNoDefender
+	if !u.shields.SpendShield(holder) {
+		return bonuses.Held{}, ErrNoShield
 	}
 
 	if !in.Dud {
-		if err := u.tiles.Reinforce(ctx, in.TileID, in.CountryID, u.perTile); err != nil {
-			u.defenders.Grant(holder, bonuses.KindDefenders, 1)
-			return bonuses.Held{}, fmt.Errorf("failed to place the defender: %w", err)
+		if err := u.tiles.Shield(ctx, in.TileID, in.CountryID, u.perTile); err != nil {
+			u.shields.Grant(holder, bonuses.KindShields, 1)
+			return bonuses.Held{}, fmt.Errorf("failed to place the shield: %w", err)
 		}
 	}
 
-	return u.defenders.Held(holder), nil
+	return u.shields.Held(holder), nil
 }

@@ -32,12 +32,12 @@ describe("describeReward", () => {
         expect(describeReward({kind: "encloseClicks", shapes: 1, maxTiles: 25}).title).toBe("+1 enclosure")
     })
 
-    it("says how many defenders a box added, and nothing more", () => {
-        const {title, detail} = describeReward({kind: "defenders", defenders: 3})
+    it("says how many shields a box added, and nothing more", () => {
+        const {title, detail} = describeReward({kind: "shields", shields: 3})
 
-        expect(title).toBe("+3 defenders")
+        expect(title).toBe("+3 shields")
         expect(detail).toBeUndefined()
-        expect(describeReward({kind: "defenders", defenders: 1}).title).toBe("+1 defender")
+        expect(describeReward({kind: "shields", shields: 1}).title).toBe("+1 shield")
     })
 
     it("gives every kind a title of its own", () => {
@@ -46,7 +46,7 @@ describe("describeReward", () => {
             {kind: "spreadClicks", clicks: 1},
             {kind: "bomb", radius: 0.06},
             {kind: "encloseClicks", shapes: 1, maxTiles: 25},
-            {kind: "defenders", defenders: 1},
+            {kind: "shields", shields: 1},
         ]
 
         expect(new Set(rewards.map(reward => describeReward(reward).title)).size).toBe(rewards.length)
@@ -56,24 +56,24 @@ describe("describeReward", () => {
 describe("switchesHeld", () => {
     const spread = {...ALL_OFF, spread: true}
     const enclose = {...ALL_OFF, enclose: true}
-    const defend = {...ALL_OFF, defend: true}
+    const shield = {...ALL_OFF, shield: true}
 
     it("keeps a switch on while its pool holds something", () => {
-        const held = {...NO_CHARGES, enclosures: 1, spreadClicksLeft: 4, defenders: 2}
+        const held = {...NO_CHARGES, enclosures: 1, spreadClicksLeft: 4, shields: 2}
 
         expect(switchesHeld(spread, held)).toBe(spread)
         expect(switchesHeld(enclose, held)).toBe(enclose)
-        expect(switchesHeld(defend, held)).toBe(defend)
+        expect(switchesHeld(shield, held)).toBe(shield)
     })
 
     it("turns a switch off once its pool is empty", () => {
-        expect(switchesHeld(spread, {...NO_CHARGES, enclosures: 2, defenders: 2})).toEqual(ALL_OFF)
-        expect(switchesHeld(enclose, {...NO_CHARGES, spreadClicksLeft: 2, defenders: 2})).toEqual(ALL_OFF)
-        expect(switchesHeld(defend, {...NO_CHARGES, spreadClicksLeft: 2, enclosures: 2})).toEqual(ALL_OFF)
+        expect(switchesHeld(spread, {...NO_CHARGES, enclosures: 2, shields: 2})).toEqual(ALL_OFF)
+        expect(switchesHeld(enclose, {...NO_CHARGES, spreadClicksLeft: 2, shields: 2})).toEqual(ALL_OFF)
+        expect(switchesHeld(shield, {...NO_CHARGES, spreadClicksLeft: 2, enclosures: 2})).toEqual(ALL_OFF)
     })
 
     it("never turns a switch on", () => {
-        expect(switchesHeld(ALL_OFF, {...NO_CHARGES, enclosures: 3, spreadClicksLeft: 8, defenders: 12})).toBe(ALL_OFF)
+        expect(switchesHeld(ALL_OFF, {...NO_CHARGES, enclosures: 3, spreadClicksLeft: 8, shields: 12})).toBe(ALL_OFF)
     })
 })
 
@@ -81,14 +81,14 @@ describe("switched", () => {
     it("turns the others off: one bonus per click", () => {
         expect(switched(spread(), "enclose", true)).toEqual({...ALL_OFF, enclose: true})
         expect(switched({...ALL_OFF, enclose: true}, "spread", true)).toEqual(spread())
-        expect(switched(spread(), "defend", true)).toEqual({...ALL_OFF, defend: true})
-        expect(switched({...ALL_OFF, defend: true}, "enclose", true)).toEqual({...ALL_OFF, enclose: true})
+        expect(switched(spread(), "shield", true)).toEqual({...ALL_OFF, shield: true})
+        expect(switched({...ALL_OFF, shield: true}, "enclose", true)).toEqual({...ALL_OFF, enclose: true})
     })
 
     it("turns one off and leaves the others alone", () => {
         expect(switched(spread(), "enclose", false)).toEqual(spread())
         expect(switched(spread(), "spread", false)).toEqual(ALL_OFF)
-        expect(switched({...ALL_OFF, defend: true}, "defend", false)).toEqual(ALL_OFF)
+        expect(switched({...ALL_OFF, shield: true}, "shield", false)).toEqual(ALL_OFF)
     })
 })
 

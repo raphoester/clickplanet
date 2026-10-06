@@ -352,44 +352,44 @@ func (s *TileStorageContractSuite) TestRestorePublishesOneOrdinaryUpdatePerTile(
 	s.Equal(&TileUpdate{Tile: 7, Value: "il", Previous: "ps"}, s.next(ctx, listener).Update)
 }
 
-func (s *TileStorageContractSuite) defend(tile uint32, country string, defenders int) {
-	for range defenders {
-		s.Require().NoError(s.storage.Reinforce(context.Background(), tile, country, 10))
+func (s *TileStorageContractSuite) shield(tile uint32, country string, shields int) {
+	for range shields {
+		s.Require().NoError(s.storage.Shield(context.Background(), tile, country, 10))
 	}
 }
 
-func (s *TileStorageContractSuite) TestReinforcePublishesTheDefendersStanding() {
+func (s *TileStorageContractSuite) TestShieldPublishesTheShieldsStanding() {
 	s.Require().NoError(s.storage.Set(context.Background(), 7, "fr"))
 	listener, ctx := s.subscribe(2 * time.Second)
 
-	s.Require().NoError(s.storage.Reinforce(ctx, 7, "fr", 10))
-	s.Require().NoError(s.storage.Reinforce(ctx, 7, "fr", 10))
+	s.Require().NoError(s.storage.Shield(ctx, 7, "fr", 10))
+	s.Require().NoError(s.storage.Shield(ctx, 7, "fr", 10))
 
-	s.Equal(&TileUpdate{Tile: 7, Value: "fr", Previous: "fr", Defenders: 1}, s.next(ctx, listener).Update)
-	s.Equal(&TileUpdate{Tile: 7, Value: "fr", Previous: "fr", Defenders: 2}, s.next(ctx, listener).Update)
-	s.Equal(2, s.storage.Defenders(7))
+	s.Equal(&TileUpdate{Tile: 7, Value: "fr", Previous: "fr", Shields: 1}, s.next(ctx, listener).Update)
+	s.Equal(&TileUpdate{Tile: 7, Value: "fr", Previous: "fr", Shields: 2}, s.next(ctx, listener).Update)
+	s.Equal(2, s.storage.Shields(7))
 }
 
-func (s *TileStorageContractSuite) TestReinforceRefusesATileOfAnotherFlagAndAFullOne() {
+func (s *TileStorageContractSuite) TestShieldRefusesATileOfAnotherFlagAndAFullOne() {
 	ctx := context.Background()
 	s.Require().NoError(s.storage.Set(ctx, 7, "fr"))
 
-	s.Require().ErrorIs(s.storage.Reinforce(ctx, 7, "de", 10), ErrNotYourTile)
-	s.Require().ErrorIs(s.storage.Reinforce(ctx, 8, "fr", 10), ErrNotYourTile, "an empty tile wears no flag")
-	s.Require().NoError(s.storage.Reinforce(ctx, 7, "fr", 1))
-	s.Require().ErrorIs(s.storage.Reinforce(ctx, 7, "fr", 1), ErrTileFull)
-	s.Require().ErrorIs(s.storage.Reinforce(ctx, contractMaxIndex+1, "fr", 1), ErrTileOutOfRange)
+	s.Require().ErrorIs(s.storage.Shield(ctx, 7, "de", 10), ErrNotYourTile)
+	s.Require().ErrorIs(s.storage.Shield(ctx, 8, "fr", 10), ErrNotYourTile, "an empty tile wears no flag")
+	s.Require().NoError(s.storage.Shield(ctx, 7, "fr", 1))
+	s.Require().ErrorIs(s.storage.Shield(ctx, 7, "fr", 1), ErrTileFull)
+	s.Require().ErrorIs(s.storage.Shield(ctx, contractMaxIndex+1, "fr", 1), ErrTileOutOfRange)
 
-	s.Equal(1, s.storage.Defenders(7))
+	s.Equal(1, s.storage.Shields(7))
 }
 
-func (s *TileStorageContractSuite) TestAStrikeTakesOneDefenderAndPublishesWhatIsLeft() {
+func (s *TileStorageContractSuite) TestAStrikeTakesOneShieldAndPublishesWhatIsLeft() {
 	s.Require().NoError(s.storage.Set(context.Background(), 7, "fr"))
-	s.defend(7, "fr", 1)
+	s.shield(7, "fr", 1)
 	listener, ctx := s.subscribe(2 * time.Second)
 
 	s.True(s.storage.Strike(ctx, 7, "fr"))
-	s.False(s.storage.Strike(ctx, 7, "fr"), "no defender is left to strike")
+	s.False(s.storage.Strike(ctx, 7, "fr"), "no shield is left to strike")
 
 	s.Equal(&TileUpdate{Tile: 7, Value: "fr", Previous: "fr"}, s.next(ctx, listener).Update)
 	s.Empty(listener)
@@ -398,17 +398,17 @@ func (s *TileStorageContractSuite) TestAStrikeTakesOneDefenderAndPublishesWhatIs
 func (s *TileStorageContractSuite) TestAStrikeAgainstAnOwnerTheTileNoLongerHasTakesNothing() {
 	ctx := context.Background()
 	s.Require().NoError(s.storage.Set(ctx, 7, "fr"))
-	s.defend(7, "fr", 2)
+	s.shield(7, "fr", 2)
 
 	s.False(s.storage.Strike(ctx, 7, "de"))
-	s.Equal(2, s.storage.Defenders(7))
+	s.Equal(2, s.storage.Shields(7))
 }
 
-func (s *TileStorageContractSuite) TestEveryChangeOfOwnerSendsTheDefendersHome() {
+func (s *TileStorageContractSuite) TestEveryChangeOfOwnerSendsTheShieldsHome() {
 	ctx := context.Background()
 	for tile := uint32(1); tile <= 4; tile++ {
 		s.Require().NoError(s.storage.Set(ctx, tile, "fr"))
-		s.defend(tile, "fr", 3)
+		s.shield(tile, "fr", 3)
 	}
 
 	s.Require().NoError(s.storage.Click(ctx, 1, "de"))
@@ -418,18 +418,18 @@ func (s *TileStorageContractSuite) TestEveryChangeOfOwnerSendsTheDefendersHome()
 	s.Require().NoError(err)
 	s.Require().NoError(s.storage.Set(ctx, 4, "fr"))
 
-	s.Zero(s.storage.Defenders(1))
-	s.Zero(s.storage.Defenders(2))
-	s.Zero(s.storage.Defenders(3))
-	s.Equal(3, s.storage.Defenders(4), "a write that changes no owner keeps them")
+	s.Zero(s.storage.Shields(1))
+	s.Zero(s.storage.Shields(2))
+	s.Zero(s.storage.Shields(3))
+	s.Equal(3, s.storage.Shields(4), "a write that changes no owner keeps them")
 }
 
-func (s *TileStorageContractSuite) TestABlastStrikesTheDefendedTilesAndClearsTheRest() {
+func (s *TileStorageContractSuite) TestABlastStrikesTheShieldedTilesAndClearsTheRest() {
 	ctx := context.Background()
 	for tile := uint32(10); tile <= 12; tile++ {
 		s.Require().NoError(s.storage.Set(ctx, tile, "fr"))
 	}
-	s.defend(11, "fr", 2)
+	s.shield(11, "fr", 2)
 
 	blast, err := s.storage.Clear(ctx, Blast{Cleared: []uint32{10, 11, 12}})
 	s.Require().NoError(err)
@@ -437,19 +437,19 @@ func (s *TileStorageContractSuite) TestABlastStrikesTheDefendedTilesAndClearsThe
 	s.Equal([]uint32{10, 12}, blast.Cleared)
 	s.Equal([]uint32{11}, blast.Struck)
 	s.Equal(map[uint32]string{11: "fr"}, s.owners(10, 12))
-	s.Equal(1, s.storage.Defenders(11))
+	s.Equal(1, s.storage.Shields(11))
 }
 
-func (s *TileStorageContractSuite) TestAStateBatchCarriesTheDefendedTilesInRange() {
+func (s *TileStorageContractSuite) TestAStateBatchCarriesTheShieldedTilesInRange() {
 	ctx := context.Background()
 	for _, tile := range []uint32{5, 20, 30} {
 		s.Require().NoError(s.storage.Set(ctx, tile, "fr"))
 	}
-	s.defend(5, "fr", 1)
-	s.defend(20, "fr", 3)
+	s.shield(5, "fr", 1)
+	s.shield(20, "fr", 3)
 
 	batch, err := s.storage.StateBatchDense(10, 40)
 	s.Require().NoError(err)
 
-	s.Equal([]TileDefenders{{Tile: 20, Defenders: 3}}, batch.Defenders)
+	s.Equal([]TileShields{{Tile: 20, Shields: 3}}, batch.Shields)
 }

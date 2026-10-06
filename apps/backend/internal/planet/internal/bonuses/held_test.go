@@ -9,7 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-var chargeRules = ChargesConfig{SpreadClicks: 8, Enclosures: 3, EnclosureMaxTiles: 25, Defenders: 12}
+var chargeRules = ChargesConfig{SpreadClicks: 8, Enclosures: 3, EnclosureMaxTiles: 25, Shields: 12}
 
 func TestAHolderIsTheAccount(t *testing.T) {
 	assert.Equal(t, Holder("acc-1"), HolderOf(clicks.Payer{Scope: "1.2.3.4", Account: "acc-1"}))
@@ -80,18 +80,18 @@ func TestTheSpreadPoolIsSpentOneClickAtATime(t *testing.T) {
 	assert.True(t, held.Empty())
 }
 
-func TestDefendersStackUpToTheirSize(t *testing.T) {
-	held := Held{Defenders: 10}.Granted(KindDefenders, 3, chargeRules)
+func TestShieldsStackUpToTheirSize(t *testing.T) {
+	held := Held{Shields: 10}.Granted(KindShields, 3, chargeRules)
 
-	assert.Equal(t, 12, held.Defenders, "twelve at most, however many the box gave")
+	assert.Equal(t, 12, held.Shields, "twelve at most, however many the box gave")
 }
 
-func TestEachDefenderIsPlacedOnce(t *testing.T) {
-	held := Held{Defenders: 2}
+func TestEachShieldIsPlacedOnce(t *testing.T) {
+	held := Held{Shields: 2}
 
-	held, first := held.AfterDefender()
-	held, second := held.AfterDefender()
-	_, third := held.AfterDefender()
+	held, first := held.AfterShield()
+	held, second := held.AfterShield()
+	_, third := held.AfterShield()
 
 	assert.True(t, first && second)
 	assert.False(t, third)
@@ -116,14 +116,14 @@ func TestAHeldIsAValue(t *testing.T) {
 
 func TestFullNamesTheKindsAnotherBoxWouldAddNothingTo(t *testing.T) {
 	assert.Empty(t, Held{SpreadClicks: 7, Enclosures: 2}.Full(chargeRules), "a pool or a stack with room takes another box")
-	assert.ElementsMatch(t, []Kind{KindRefill, KindBomb, KindEncloseClicks, KindSpreadClicks, KindDefenders},
-		Held{Refill: true, Bomb: true, Enclosures: 3, SpreadClicks: 8, Defenders: 12}.Full(chargeRules))
+	assert.ElementsMatch(t, []Kind{KindRefill, KindBomb, KindEncloseClicks, KindSpreadClicks, KindShields},
+		Held{Refill: true, Bomb: true, Enclosures: 3, SpreadClicks: 8, Shields: 12}.Full(chargeRules))
 }
 
 func TestCountIsHowManyOfAKindAreHeld(t *testing.T) {
-	held := Held{Bomb: true, Enclosures: 2, SpreadClicks: 5, Defenders: 7}
+	held := Held{Bomb: true, Enclosures: 2, SpreadClicks: 5, Shields: 7}
 
-	assert.Equal(t, 7, held.Count(KindDefenders))
+	assert.Equal(t, 7, held.Count(KindShields))
 	assert.Equal(t, 0, held.Count(KindRefill))
 	assert.Equal(t, 1, held.Count(KindBomb))
 	assert.Equal(t, 2, held.Count(KindEncloseClicks))
@@ -147,7 +147,7 @@ func TestOnlyAnAccountIDIsAHolder(t *testing.T) {
 func TestAGrantNamesAtLeastOneCharge(t *testing.T) {
 	require.ErrorIs(t, Held{}.GrantError(), ErrNothingToGrant)
 
-	for _, grant := range []Held{{Refill: true}, {Bomb: true}, {Enclosures: 1}, {SpreadClicks: 1}, {Defenders: 1}} {
+	for _, grant := range []Held{{Refill: true}, {Bomb: true}, {Enclosures: 1}, {SpreadClicks: 1}, {Shields: 1}} {
 		assert.NoError(t, grant.GrantError(), grant)
 	}
 }
@@ -155,5 +155,5 @@ func TestAGrantNamesAtLeastOneCharge(t *testing.T) {
 func TestAGrantTakesNothingAway(t *testing.T) {
 	require.ErrorIs(t, Held{Bomb: true, Enclosures: -1}.GrantError(), ErrNegativeGrant)
 	require.ErrorIs(t, Held{SpreadClicks: -1}.GrantError(), ErrNegativeGrant)
-	require.ErrorIs(t, Held{Defenders: -1}.GrantError(), ErrNegativeGrant)
+	require.ErrorIs(t, Held{Shields: -1}.GrantError(), ErrNegativeGrant)
 }

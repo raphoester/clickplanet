@@ -56,11 +56,11 @@ func (r *recordingStorage) Set(_ context.Context, tile uint32, value string) err
 	return nil
 }
 
-type stubDefenders map[uint32]int
+type stubShields map[uint32]int
 
-func (s stubDefenders) Defenders(tile uint32) int { return s[tile] }
+func (s stubShields) Shields(tile uint32) int { return s[tile] }
 
-func (s stubDefenders) Strike(_ context.Context, tile uint32, _ string) bool {
+func (s stubShields) Strike(_ context.Context, tile uint32, _ string) bool {
 	if s[tile] == 0 {
 		return false
 	}
@@ -97,21 +97,21 @@ func setupWithPublisher(spreading bool, err error) (*spread_click.UseCase, *reco
 }
 
 func setupWithClicks(clicksLeft int, err error) (*spread_click.UseCase, *recordingStorage, *recordingPublisher, stubSpreads) {
-	useCase, storage, publisher, spreads, _ := setupDefended(clicksLeft, err, stubDefenders{})
+	useCase, storage, publisher, spreads, _ := setupShielded(clicksLeft, err, stubShields{})
 
 	return useCase, storage, publisher, spreads
 }
 
-func setupDefended(
+func setupShielded(
 	clicksLeft int,
 	err error,
-	held stubDefenders,
-) (*spread_click.UseCase, *recordingStorage, *recordingPublisher, stubSpreads, stubDefenders) {
+	held stubShields,
+) (*spread_click.UseCase, *recordingStorage, *recordingPublisher, stubSpreads, stubShields) {
 	storage := &recordingStorage{tiles: map[uint32]string{}}
 	spreads := stubSpreads{left: map[bonuses.Holder]int{caller: clicksLeft}}
 	publisher := &recordingPublisher{}
 	useCase := spread_click.New(stubClick{storage: storage, err: err}, spreads, honeycomb, storage,
-		clicks.NewDefence(held), publisher)
+		clicks.NewShielding(held), publisher)
 
 	return useCase, storage, publisher, spreads, held
 }
@@ -127,8 +127,8 @@ func TestASpreadingClickTakesTheTileAndEveryTileTouchingIt(t *testing.T) {
 	}, storage.tiles)
 }
 
-func TestASpreadStrikesTheDefendedTilesItTouchesAndTakesTheRest(t *testing.T) {
-	useCase, storage, _, _, held := setupDefended(8, nil, stubDefenders{90: 2, 91: 1})
+func TestASpreadStrikesTheShieldedTilesItTouchesAndTakesTheRest(t *testing.T) {
+	useCase, storage, _, _, held := setupShielded(8, nil, stubShields{90: 2, 91: 1})
 	storage.tiles[90], storage.tiles[91], storage.tiles[99] = "pl", "pl", "de"
 
 	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
@@ -137,7 +137,7 @@ func TestASpreadStrikesTheDefendedTilesItTouchesAndTakesTheRest(t *testing.T) {
 	assert.Equal(t, map[uint32]string{
 		100: "fr", 90: "pl", 91: "pl", 99: "fr", 101: "fr", 109: "fr", 110: "fr",
 	}, storage.tiles, "a bonus is never a way around the rule")
-	assert.Equal(t, stubDefenders{90: 1, 91: 0}, held, "each defended tile loses one defender")
+	assert.Equal(t, stubShields{90: 1, 91: 0}, held, "each shielded tile loses one shield")
 }
 
 func TestWithoutTheBonusAClickTakesOneTile(t *testing.T) {
@@ -177,7 +177,7 @@ func TestTheSpreadSpentIsTheAccounts(t *testing.T) {
 	account := bonuses.HolderOf(clicks.Payer{Account: "a-guest"})
 	spreads := stubSpreads{left: map[bonuses.Holder]int{account: 8}}
 	useCase := spread_click.New(stubClick{storage: storage}, spreads, honeycomb, storage,
-		clicks.NewDefence(stubDefenders{}), &recordingPublisher{})
+		clicks.NewShielding(stubShields{}), &recordingPublisher{})
 
 	_, err := useCase.Execute(cpctx.AddAccountToContext(t.Context(), "a-guest"), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)

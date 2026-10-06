@@ -30,7 +30,7 @@ describe("glintLook", () => {
         expect(GLINT_SECONDS).toBeLessThan(1)
         expect(glintLook(GLINT_SECONDS, "click")).toBeUndefined()
         expect(glintLook(GLINT_SECONDS, "hit")).toBeUndefined()
-        expect(glintLook(GLINT_SECONDS, "reinforced")).toBeUndefined()
+        expect(glintLook(GLINT_SECONDS, "shielded")).toBeUndefined()
     })
 
     it("fades a take where it stands", () => {
@@ -51,9 +51,9 @@ describe("glintLook", () => {
         expect(late.opacity).toBeLessThan(early.opacity)
     })
 
-    it("grows a reinforcement as it fades", () => {
-        const early = glintLook(0.1, "reinforced")!
-        const late = glintLook(0.6, "reinforced")!
+    it("grows a placement as it fades", () => {
+        const early = glintLook(0.1, "shielded")!
+        const late = glintLook(0.6, "shielded")!
 
         expect(late.scale).toBeGreaterThan(early.scale)
         expect(late.opacity).toBeLessThan(early.opacity)
@@ -134,13 +134,13 @@ describe("createClickGlints", () => {
         glints.dispose()
     })
 
-    it("tells a hit and a reinforcement from a click, and from each other, by colour", () => {
+    it("tells a hit and a placement from a click, and from each other, by colour", () => {
         const glints = createClickGlints(facing)
         const camera = lookingAtFront()
 
         glints.playClick(1, camera)
         glints.playHit(1, camera)
-        glints.playReinforced(1, camera)
+        glints.playShielded(1, camera)
 
         const colours = glints.object.children.map(colourOf)
         expect(new Set(colours.map((colour) => colour.getHexString())).size).toBe(3)
@@ -148,12 +148,12 @@ describe("createClickGlints", () => {
         glints.dispose()
     })
 
-    it("plays no hit and no reinforcement nobody can see", () => {
+    it("plays no hit and no placement nobody can see", () => {
         const glints = createClickGlints(new Float32Array([0, 0, -1]))
         const camera = lookingAtFront()
 
         glints.playHit(1, camera)
-        glints.playReinforced(1, camera)
+        glints.playShielded(1, camera)
 
         expect(glints.object.children).toHaveLength(0)
         glints.dispose()

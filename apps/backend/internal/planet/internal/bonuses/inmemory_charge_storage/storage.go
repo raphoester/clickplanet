@@ -94,8 +94,8 @@ func (s *Storage) Enclosures() int {
 	return s.rules.Enclosures
 }
 
-func (s *Storage) Defenders() int {
-	return s.rules.Defenders
+func (s *Storage) Shields() int {
+	return s.rules.Shields
 }
 
 func (s *Storage) Grant(holder bonuses.Holder, kind bonuses.Kind, amount int) {
@@ -132,8 +132,8 @@ func (s *Storage) SpendSpreadClick(holder bonuses.Holder) bool {
 	return s.spend(holder, bonuses.Held.AfterSpreadClick)
 }
 
-func (s *Storage) SpendDefender(holder bonuses.Holder) bool {
-	return s.spend(holder, bonuses.Held.AfterDefender)
+func (s *Storage) SpendShield(holder bonuses.Holder) bool {
+	return s.spend(holder, bonuses.Held.AfterShield)
 }
 
 func (s *Storage) spend(holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) bool {

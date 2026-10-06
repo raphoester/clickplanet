@@ -6,7 +6,7 @@ uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
 uniform float flagPaint;
 uniform float pixelRatio;
-uniform float garrisonMost;
+uniform float shieldMost;
 
 flat in vec4 vRegionVector;
 flat in vec2 vFlagUV;
@@ -14,7 +14,7 @@ flat in vec4 vFlagStep;
 flat in vec4 vFlagRegion;
 flat in float vFlagShare;
 flat in float vSpriteSize;
-flat in float vGarrison;
+flat in float vShield;
 #ifdef LIT
 flat in float vShade;
 flat in float vHaze;
@@ -28,8 +28,8 @@ const float KEYLINE_WIDTH = 1.5;
 const float KEYLINE_FEATHER = 0.5;
 const float KEYLINE_MOST = 0.03;
 
-const vec3 GARRISON = vec3(0.74, 0.6, 1.0);
-const vec3 GARRISON_EMPTY = vec3(0.03, 0.02, 0.08);
+const vec3 SHIELD = vec3(0.74, 0.6, 1.0);
+const vec3 SHIELD_EMPTY = vec3(0.03, 0.02, 0.08);
 const float TURN = 6.2831853;
 
 vec2 atlasUVof(vec4 region, vec2 uv) {
@@ -56,22 +56,22 @@ vec4 ownColour() {
     return colour;
 }
 
-vec4 garrisoned(vec4 colour, vec2 coordinates) {
-    float strength = clamp(vGarrison / max(garrisonMost, 1.0), 0.0, 1.0);
+vec4 shielded(vec4 colour, vec2 coordinates) {
+    float strength = clamp(vShield / max(shieldMost, 1.0), 0.0, 1.0);
     float px = vSpriteSize / pixelRatio;
 
     float tiny = 1.0 - smoothstep(4.0, 10.0, px);
-    vec3 shielded = mix(colour.rgb, GARRISON, mix(0.06 + 0.12 * strength, 0.55 + 0.35 * strength, tiny));
+    vec3 shielded = mix(colour.rgb, SHIELD, mix(0.06 + 0.12 * strength, 0.55 + 0.35 * strength, tiny));
 
     float inner = 1.0 - mix(0.2, 0.3, strength);
     float band = smoothstep(inner - 0.06, inner + 0.02, length(coordinates) * 2.0);
 
     float readable = smoothstep(14.0, 24.0, px);
-    float slot = fract(atan(coordinates.x, -coordinates.y) / TURN) * garrisonMost;
-    float filled = step(floor(slot) + 0.5, vGarrison);
+    float slot = fract(atan(coordinates.x, -coordinates.y) / TURN) * shieldMost;
+    float filled = step(floor(slot) + 0.5, vShield);
     float gap = smoothstep(0.04, 0.12, min(fract(slot), 1.0 - fract(slot)));
 
-    vec3 ring = mix(GARRISON, GARRISON_EMPTY, (1.0 - filled) * readable);
+    vec3 ring = mix(SHIELD, SHIELD_EMPTY, (1.0 - filled) * readable);
     float cover = band * mix(0.7 + 0.3 * strength, mix(0.5, 1.0, filled) * gap, readable);
 
     return vec4(mix(shielded, ring, cover), max(colour.a, 0.85));
@@ -114,7 +114,7 @@ void main() {
     colour.rgb = lit(colour.rgb, vShade, vHaze);
 #endif
 
-    if (vGarrison > 0.5) colour = garrisoned(colour, coordinates);
+    if (vShield > 0.5) colour = shielded(colour, coordinates);
 
     vec3 ember = mix(vec3(0.07, 0.02, 0.01), vec3(1.0, 0.32, 0.04), vScorch * vScorch);
     colour = mix(colour, vec4(ember, 0.95), vScorch * 0.9);

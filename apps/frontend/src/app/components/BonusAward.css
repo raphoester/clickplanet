@@ -33,10 +33,10 @@
     --bonus-box: var(--enclose);
 }
 
-.bonus-award--defenders,
-.inventory-slot--defenders {
-    --bonus-accent: var(--defend-light);
-    --bonus-box: var(--defend);
+.bonus-award--shields,
+.inventory-slot--shields {
+    --bonus-accent: var(--shield-light);
+    --bonus-box: var(--shield);
 }
 
 .bonus-award-card {

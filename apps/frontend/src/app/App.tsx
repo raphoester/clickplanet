@@ -17,7 +17,7 @@ export default function App(props: AppProps) {
             quizMaster={props.quizMaster}
             bomber={props.bomber}
             refiller={props.refiller}
-            reinforcer={props.reinforcer}
+            shielder={props.shielder}
             chatBackend={props.chatBackend}
             account={props.account}
             presence={props.presence}

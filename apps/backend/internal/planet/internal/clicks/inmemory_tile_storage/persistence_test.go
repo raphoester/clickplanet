@@ -61,25 +61,25 @@ func (s *testSuite) TestFlushWritesEachChangedTileOnceAsItIsNow() {
 	s.Equal(map[uint32]string{1: "us", 70: "fr"}, persistence.Stored())
 }
 
-func (s *testSuite) TestDefendersAreKeptWithTheirTileAndGoneWithItsFlag() {
+func (s *testSuite) TestShieldsAreKeptWithTheirTileAndGoneWithItsFlag() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
 
 	s.Require().NoError(storage.Set(ctx, 1, "fr"))
 	s.Require().NoError(storage.Set(ctx, 2, "fr"))
-	s.Require().NoError(storage.Reinforce(ctx, 1, "fr", 10))
-	s.Require().NoError(storage.Reinforce(ctx, 1, "fr", 10))
-	s.Require().NoError(storage.Reinforce(ctx, 2, "fr", 10))
+	s.Require().NoError(storage.Shield(ctx, 1, "fr", 10))
+	s.Require().NoError(storage.Shield(ctx, 1, "fr", 10))
+	s.Require().NoError(storage.Shield(ctx, 2, "fr", 10))
 	s.Require().NoError(storage.Set(ctx, 2, "de"))
 	s.Require().NoError(storage.Flush(ctx))
 
-	s.Equal(map[uint32]int{1: 2}, persistence.StoredDefenders(), "a tile that changed hands lost its defenders")
+	s.Equal(map[uint32]int{1: 2}, persistence.StoredShields(), "a tile that changed hands lost its shields")
 
 	restarted := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
 	s.Require().NoError(restarted.Load(ctx))
-	s.Equal(2, restarted.Defenders(1))
-	s.Zero(restarted.Defenders(2))
+	s.Equal(2, restarted.Shields(1))
+	s.Zero(restarted.Shields(2))
 }
 
 func (s *testSuite) TestFlushWithNothingChangedWritesNothing() {

@@ -23,8 +23,8 @@ type Store struct {
 
 var _ inmemory_tile_storage.Persistence = (*Store)(nil)
 
-func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string, defenders int)) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, country, defenders FROM tiles`)
+func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string, shields int)) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, country, shields FROM tiles`)
 	if err != nil {
 		return fmt.Errorf("failed to read tiles: %w", err)
 	}
@@ -32,14 +32,14 @@ func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string, 
 
 	for rows.Next() {
 		var (
-			tile      uint32
-			owner     string
-			defenders int
+			tile    uint32
+			owner   string
+			shields int
 		)
-		if err := rows.Scan(&tile, &owner, &defenders); err != nil {
+		if err := rows.Scan(&tile, &owner, &shields); err != nil {
 			return fmt.Errorf("failed to scan a tile: %w", err)
 		}
-		visit(tile, owner, defenders)
+		visit(tile, owner, shields)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -53,7 +53,7 @@ func (s *Store) Save(ctx context.Context, tiles []inmemory_tile_storage.Tile) er
 	var (
 		taken, freed []int64
 		takenBy      []string
-		defenders    []int64
+		shields      []int64
 	)
 	for _, tile := range tiles {
 		if tile.Owner == "" {
@@ -62,7 +62,7 @@ func (s *Store) Save(ctx context.Context, tiles []inmemory_tile_storage.Tile) er
 		}
 		taken = append(taken, int64(tile.ID))
 		takenBy = append(takenBy, tile.Owner)
-		defenders = append(defenders, int64(tile.Defenders))
+		shields = append(shields, int64(tile.Shields))
 	}
 
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
@@ -74,10 +74,10 @@ func (s *Store) Save(ctx context.Context, tiles []inmemory_tile_storage.Tile) er
 	for start := 0; start < len(taken); start += chunkSize {
 		end := min(start+chunkSize, len(taken))
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO tiles (id, country, defenders)
+			INSERT INTO tiles (id, country, shields)
 			SELECT * FROM unnest($1::integer[], $2::text[], $3::smallint[])
-			ON CONFLICT (id) DO UPDATE SET country = EXCLUDED.country, defenders = EXCLUDED.defenders
-		`, pq.Array(taken[start:end]), pq.Array(takenBy[start:end]), pq.Array(defenders[start:end])); err != nil {
+			ON CONFLICT (id) DO UPDATE SET country = EXCLUDED.country, shields = EXCLUDED.shields
+		`, pq.Array(taken[start:end]), pq.Array(takenBy[start:end]), pq.Array(shields[start:end])); err != nil {
 			return fmt.Errorf("failed to upsert tiles: %w", err)
 		}
 	}

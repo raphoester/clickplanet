@@ -23,10 +23,10 @@ import {
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
-    DefenderRefusedError,
+    ShieldRefusedError,
     OwnershipsGetter,
     RateLimitedError,
-    Reinforcer,
+    Shielder,
     TileClicker,
     Update,
     UpdatesListener,
@@ -51,7 +51,7 @@ import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
 import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
-import {GarrisonChange, outcomeOf, placementOf, TileGarrisons} from "../../domain/garrisons.ts";
+import {ShieldChange, outcomeOf, placementOf, TileShields} from "../../domain/shields.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 import {AcceptedClick} from "./acceptedClicks.ts";
 
@@ -64,7 +64,7 @@ type Uniforms = BlastUniforms & {
     pixelsPerRadian: THREE.IUniform<number>
     pixelRatio: THREE.IUniform<number>
     flagPaint: THREE.IUniform
-    garrisonMost: THREE.IUniform<number>
+    shieldMost: THREE.IUniform<number>
 }
 
 const SHAKE_SECONDS = 0.5
@@ -81,7 +81,7 @@ const OWN_DROP_WINDOW_SECONDS = 5
 
 const OWN_CLICK_WINDOW_SECONDS = 3
 
-const GARRISON_MOST_UNTIL_READ = 10
+const SHIELD_MOST_UNTIL_READ = 10
 
 const TILES_PER_BATCH = 10_000
 
@@ -138,8 +138,8 @@ export type GlobeOptions = {
     bomber?: Bomber
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
     onArmedChange: (armed: boolean) => void
-    reinforcer?: Reinforcer
-    onGarrisonFull?: () => void
+    shielder?: Shielder
+    onShieldFull?: () => void
     onClickAccepted?: (click: AcceptedClick) => void
     playSound?: PlaySound
     signal: AbortSignal
@@ -185,8 +185,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber,
         onBombDropped,
         onArmedChange,
-        reinforcer,
-        onGarrisonFull = () => {},
+        shielder,
+        onShieldFull = () => {},
         onClickAccepted = () => {},
         playSound = () => {},
         signal,
@@ -217,7 +217,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         pixelsPerRadian: {value: 1},
         pixelRatio: {value: renderer.getPixelRatio()},
         flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height, mapView)},
-        garrisonMost: {value: GARRISON_MOST_UNTIL_READ},
+        shieldMost: {value: SHIELD_MOST_UNTIL_READ},
         ...blastUniforms(prefersReducedMotion()),
     };
 
@@ -232,7 +232,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const picker = new GpuPicker(renderer, field.pickingPoints);
     const ownership = new TileOwnership(field.size);
-    const defended = new TileGarrisons(field.size);
+    const shielded = new TileShields(field.size);
 
     let country: Country = initialCountry;
 
@@ -281,17 +281,17 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
-    const showGarrisons = (changes: GarrisonChange[]) => {
+    const showShields = (changes: ShieldChange[]) => {
         if (changes.length === 0) return
-        field.setGarrisons(changes)
+        field.setShields(changes)
         invalidate()
     }
 
-    const playGarrisons = (changes: GarrisonChange[]) => {
+    const playShields = (changes: ShieldChange[]) => {
         const seconds = performance.now() / 1000
-        for (const {tile, defenders, was} of changes) {
-            if (defenders < was && !ownHits.has(tile, country.code, seconds)) plainClicks.playHit(tile, camera)
-            if (defenders > was && !ownPlacements.has(tile, country.code, seconds)) plainClicks.playReinforced(tile, camera)
+        for (const {tile, shields, was} of changes) {
+            if (shields < was && !ownHits.has(tile, country.code, seconds)) plainClicks.playHit(tile, camera)
+            if (shields > was && !ownPlacements.has(tile, country.code, seconds)) plainClicks.playShielded(tile, camera)
         }
     }
 
@@ -377,7 +377,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onCharges: (held) => takeCharges(held),
         onRules: (read) => {
             rules = read
-            if (read.tileDefenders > 0) uniforms.garrisonMost.value = read.tileDefenders
+            if (read.tileShields > 0) uniforms.shieldMost.value = read.tileShields
             invalidate()
             onRules(read)
         },
@@ -400,11 +400,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const land = (cleared: number[], struck: number[]) => {
         applyChanges(ownership.applyClears(cleared))
-        showGarrisons(defended.applyClears(cleared))
+        showShields(shielded.applyClears(cleared))
 
-        const strikes = defended.applyStrikes(struck)
-        showGarrisons(strikes)
-        playGarrisons(strikes)
+        const strikes = shielded.applyStrikes(struck)
+        showShields(strikes)
+        playShields(strikes)
     }
 
     const flushClears = (upTo: number) => {
@@ -439,14 +439,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onBombDropped(drop, drop.tile === undefined ? undefined : countryOfTile(borders, drop.tile))
     })
 
-    const placeDefender = (tile: number) => {
-        if (!reinforcer) return
+    const placeShield = (tile: number) => {
+        if (!shielder) return
         ownPlacements.record(tile, country.code, performance.now() / 1000)
-        plainClicks.playReinforced(tile, camera)
+        plainClicks.playShielded(tile, camera)
         playSound("click")
 
-        reinforcer.placeDefender(tile, country.code).catch((e) => {
-            if (lifetime.signal.aborted || e instanceof DefenderRefusedError) return
+        shielder.placeShield(tile, country.code).catch((e) => {
+            if (lifetime.signal.aborted || e instanceof ShieldRefusedError) return
             reportClaimFailure(e, {onSessionUnavailable})
         })
     }
@@ -588,22 +588,22 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
 
         const owner = ownership.ownerOf(tile)
-        const defenders = defended.defendersOf(tile)
+        const shields = shielded.shieldsOf(tile)
 
-        if (switches.defend && reinforcer) {
-            const placement = placementOf(owner, country.code, defenders, rules?.tileDefenders)
+        if (switches.shield && shielder) {
+            const placement = placementOf(owner, country.code, shields, rules?.tileShields)
             if (placement === "full") {
-                onGarrisonFull()
+                onShieldFull()
                 return
             }
             if (placement === "place") {
-                placeDefender(tile)
+                placeShield(tile)
                 return
             }
         }
 
-        const outcome = outcomeOf(owner, country.code, defenders)
-        const {changes, claim} = outcome === "defended"
+        const outcome = outcomeOf(owner, country.code, shields)
+        const {changes, claim} = outcome === "shielded"
             ? {changes: [], claim: undefined}
             : ownership.applyOptimistic(tile, country.code)
         applyChanges(changes)
@@ -611,7 +611,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const seconds = performance.now() / 1000
         ownClicks.record(tile, country.code, seconds)
-        if (outcome === "defended") {
+        if (outcome === "shielded") {
             ownHits.record(tile, country.code, seconds)
             plainClicks.playHit(tile, camera)
         } else {
@@ -651,9 +651,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
         applyChanges(ownership.applyUpdates(updates))
 
-        const moved = defended.applyUpdates(updates)
-        showGarrisons(moved)
-        playGarrisons(moved)
+        const moved = shielded.applyUpdates(updates)
+        showShields(moved)
+        playShields(moved)
 
         const seconds = performance.now() / 1000
         for (const {tile, clicked, previousCountry, newCountry} of updates) {
@@ -763,7 +763,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             field.size,
             (ownerships) => {
                 applyChanges(ownership.applyBatch(ownerships), false)
-                showGarrisons(defended.applyBatch(ownerships.defenders))
+                showShields(shielded.applyBatch(ownerships.shields))
                 onLoadProgress(Math.min(1, ++fetched / batches))
             },
             lifetime.signal,

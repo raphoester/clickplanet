@@ -198,7 +198,7 @@ bonus:
     spread_clicks: 3
     enclose_clicks: 2
     bomb: 1
-    defenders: 3
+    shields: 3
 
   offerTTL: 15s
 
@@ -214,7 +214,7 @@ bonus:
     held: 3
     maxPerBox: 3
 
-  defender:
+  shield:
     held: 12
     maxPerBox: 3
     perTile: 10

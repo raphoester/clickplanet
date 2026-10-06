@@ -110,7 +110,7 @@ describe("BonusAward", () => {
             {kind: "spreadClicks", clicks: 8},
             {kind: "bomb", radius: 0.1},
             {kind: "encloseClicks", shapes: 2, maxTiles: 25},
-            {kind: "defenders", defenders: 3},
+            {kind: "shields", shields: 3},
         ] as const
 
         const looks = rewards.map(reward => {

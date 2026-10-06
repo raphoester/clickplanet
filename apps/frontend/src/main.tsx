@@ -95,7 +95,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     quizMaster={fake}
                     bomber={fake}
                     refiller={fake}
-                    reinforcer={fake}
+                    shielder={fake}
                     clickBudgetSource={fake}
                     chatBackend={fakeChat}
                     presence={fakePresence}
@@ -129,7 +129,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     quizMaster={backend}
                     bomber={backend}
                     refiller={backend}
-                    reinforcer={backend}
+                    shielder={backend}
                     clickBudgetSource={backend}
                     chatBackend={chatBackend}
                     account={account}

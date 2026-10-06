@@ -7,7 +7,7 @@ import {
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
-    DefenderRefusedError,
+    ShieldRefusedError,
     GlobePoint,
     Enclosure,
     Ownerships,
@@ -15,7 +15,7 @@ import {
     QuizMaster,
     RateLimitedError,
     Refiller,
-    Reinforcer,
+    Shielder,
     TileClicker,
     Update,
     UpdatesListener,
@@ -46,15 +46,15 @@ const SPREAD_CLICKS = 8
 const SPREAD_PER_BOX = 4
 const ENCLOSURES = 3
 const ENCLOSURES_PER_BOX = 3
-const DEFENDERS = 12
-const DEFENDERS_PER_BOX = 3
-const TILE_DEFENDERS = 10
+const SHIELDS = 12
+const SHIELDS_PER_BOX = 3
+const TILE_SHIELDS = 10
 const BONUS_KINDS: BonusReward["kind"][] = [
     "refill", "refill", "refill", "refill", "refill",
     "spreadClicks", "spreadClicks",
     "bomb",
     "encloseClicks", "encloseClicks",
-    "defenders", "defenders",
+    "shields", "shields",
 ]
 
 const BOMB_RADIUS = 0.032
@@ -83,8 +83,8 @@ const RULES: BonusRules = {
     enclosureMaxTiles: ENCLOSE_MAX_TILES,
     spreadClicks: SPREAD_CLICKS,
     enclosures: ENCLOSURES,
-    defenders: DEFENDERS,
-    tileDefenders: TILE_DEFENDERS,
+    shields: SHIELDS,
+    tileShields: TILE_SHIELDS,
     toll: TOLL_STEPS,
 }
 
@@ -94,7 +94,7 @@ export type FakeBackendOptions = {
     tilePositions?: () => Promise<Float32Array>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Reinforcer {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder {
     private tileBindings: Map<number, string> = new Map()
     private tileCounts: Map<string, number> = new Map()
     private budgetCountry = ""
@@ -105,7 +105,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private bonusCallbacks: Map<string, BonusHandlers> = new Map()
     private bombCallbacks: Map<string, (drop: BombDrop) => void> = new Map()
     private quizCallbacks: Map<string, (offer: QuizOffer) => void> = new Map()
-    private defenders: Map<number, number> = new Map()
+    private shields: Map<number, number> = new Map()
 
     private charges: Charges = NO_CHARGES
     private positions: Promise<Float32Array> | undefined
@@ -231,8 +231,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 return this.charges.enclosures >= ENCLOSURES
             case "spreadClicks":
                 return this.charges.spreadClicksLeft >= SPREAD_CLICKS
-            case "defenders":
-                return this.charges.defenders >= DEFENDERS
+            case "shields":
+                return this.charges.shields >= SHIELDS
         }
     }
 
@@ -260,10 +260,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 this.hold({...held, spreadClicksLeft})
                 return {reward: rewardOfKind(kind, spreadClicksLeft - held.spreadClicksLeft), charges: this.charges}
             }
-            case "defenders": {
-                const defenders = Math.min(held.defenders + drawUpTo(DEFENDERS_PER_BOX), DEFENDERS)
-                this.hold({...held, defenders})
-                return {reward: rewardOfKind(kind, defenders - held.defenders), charges: this.charges}
+            case "shields": {
+                const shields = Math.min(held.shields + drawUpTo(SHIELDS_PER_BOX), SHIELDS)
+                this.hold({...held, shields})
+                return {reward: rewardOfKind(kind, shields - held.shields), charges: this.charges}
             }
         }
     }
@@ -357,14 +357,14 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const prev = this.tileBindings.get(tileId)
         if (prev === countryId) return
 
-        const defenders = this.defenders.get(tileId) ?? 0
-        if (prev !== undefined && defenders > 0) {
-            this.defend(tileId, prev, defenders - 1, clicked)
+        const shields = this.shields.get(tileId) ?? 0
+        if (prev !== undefined && shields > 0) {
+            this.shield(tileId, prev, shields - 1, clicked)
             return
         }
 
         this.tileBindings.set(tileId, countryId)
-        this.defenders.delete(tileId)
+        this.shields.delete(tileId)
         this.count(prev, -1)
         this.count(countryId, 1)
         this.updateListeners.forEach(l => l({
@@ -372,39 +372,39 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             previousCountry: prev,
             newCountry: countryId,
             clicked,
-            defenders: 0,
+            shields: 0,
         }))
     }
 
-    private defend(tile: number, owner: string, defenders: number, clicked: boolean) {
-        if (defenders > 0) this.defenders.set(tile, defenders)
-        else this.defenders.delete(tile)
+    private shield(tile: number, owner: string, shields: number, clicked: boolean) {
+        if (shields > 0) this.shields.set(tile, shields)
+        else this.shields.delete(tile)
 
-        this.updateListeners.forEach(l => l({tile, previousCountry: owner, newCountry: owner, clicked, defenders}))
+        this.updateListeners.forEach(l => l({tile, previousCountry: owner, newCountry: owner, clicked, shields}))
     }
 
     private strike(tile: number): boolean {
-        const defenders = this.defenders.get(tile) ?? 0
-        if (defenders === 0) return false
+        const shields = this.shields.get(tile) ?? 0
+        if (shields === 0) return false
 
-        if (defenders > 1) this.defenders.set(tile, defenders - 1)
-        else this.defenders.delete(tile)
+        if (shields > 1) this.shields.set(tile, shields - 1)
+        else this.shields.delete(tile)
         return true
     }
 
-    public async placeDefender(tileId: number, countryId: string): Promise<void> {
+    public async placeShield(tileId: number, countryId: string): Promise<void> {
         if (this.sessionUnavailable) throw new SessionUnavailableError()
-        if (this.charges.defenders === 0) throw new BonusLostError()
-        if (!this.botDefend(tileId, countryId)) throw new DefenderRefusedError()
+        if (this.charges.shields === 0) throw new BonusLostError()
+        if (!this.botShield(tileId, countryId)) throw new ShieldRefusedError()
 
-        this.hold({...this.charges, defenders: this.charges.defenders - 1})
+        this.hold({...this.charges, shields: this.charges.shields - 1})
     }
 
-    public botDefend(tile: number, countryId: string): boolean {
-        const defenders = this.defenders.get(tile) ?? 0
-        if (this.tileBindings.get(tile) !== countryId || defenders >= TILE_DEFENDERS) return false
+    public botShield(tile: number, countryId: string): boolean {
+        const shields = this.shields.get(tile) ?? 0
+        if (this.tileBindings.get(tile) !== countryId || shields >= TILE_SHIELDS) return false
 
-        this.defend(tile, countryId, defenders + 1, false)
+        this.shield(tile, countryId, shields + 1, false)
         return true
     }
 
@@ -596,15 +596,15 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             signal?.throwIfAborted()
 
             const bindings = new Map<number, string>()
-            const defenders = new Map<number, number>()
+            const shields = new Map<number, number>()
             const end = Math.min(start + batchSize, maxIndex + 1)
             for (let tile = start; tile < end; tile++) {
                 const owner = this.tileBindings.get(tile)
                 if (owner) bindings.set(tile, owner)
-                const held = this.defenders.get(tile)
-                if (held) defenders.set(tile, held)
+                const held = this.shields.get(tile)
+                if (held) shields.set(tile, held)
             }
-            callback({bindings, defenders})
+            callback({bindings, shields})
         }
     }
 }
@@ -623,7 +623,7 @@ function rewardOfKind(kind: BonusReward["kind"], amount = 1): BonusReward {
             return {kind, clicks: amount}
         case "refill":
             return {kind}
-        case "defenders":
-            return {kind, defenders: amount}
+        case "shields":
+            return {kind, shields: amount}
     }
 }

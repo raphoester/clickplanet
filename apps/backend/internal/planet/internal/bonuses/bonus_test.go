@@ -373,7 +373,7 @@ func TestAnEmptyKindsTakesTheDefaultWeights(t *testing.T) {
 		KindSpreadClicks:  3,
 		KindEncloseClicks: 2,
 		KindBomb:          1,
-		KindDefenders:     3,
+		KindShields:       3,
 	}, registry.config.Kinds)
 }
 

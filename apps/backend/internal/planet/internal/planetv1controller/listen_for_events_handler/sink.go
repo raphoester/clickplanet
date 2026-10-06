@@ -127,7 +127,7 @@ func toProto(update clicks.TileUpdate) *planetv1.TileUpdate {
 		CountryId:         update.Value,
 		PreviousCountryId: update.Previous,
 		Clicked:           update.Clicked,
-		Defenders:         uint32(update.Defenders), //nolint:gosec // a byte in the tile storage.
+		Shields:           uint32(update.Shields), //nolint:gosec // a byte in the tile storage.
 	}
 }
 

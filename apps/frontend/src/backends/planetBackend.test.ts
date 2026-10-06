@@ -4,7 +4,7 @@ import {
     bindingsOf,
     bombOf,
     catchOf,
-    defendersOf,
+    shieldsOf,
     enclosureOf,
     offerOf,
     PlanetBackend,
@@ -28,11 +28,11 @@ import {
     PlanetEvent,
     SharedWith,
     TilesEnclosed,
-    TileDefenders,
+    TileShields,
     TilesSpread,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {BankFullError, BonusLostError, DefenderRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
+import {BankFullError, BonusLostError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
@@ -74,32 +74,32 @@ function failingSession(): SessionProvider {
     }
 }
 
-function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, clicked?: boolean, defenders?: number}): PlanetEvent {
+function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, clicked?: boolean, shields?: number}): PlanetEvent {
     return new PlanetEvent({event: {case: "tileUpdate", value: new TileUpdate(fields)}})
 }
 
 describe("updateOf", () => {
     it("maps a tile update onto the shape the globe consumes", () => {
         expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", previousCountryId: "fr"})))
-            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp", clicked: false, defenders: 0})
+            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp", clicked: false, shields: 0})
     })
 
     it("reports an unowned previous tile as undefined rather than an empty code", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "fr"})))
-            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr", clicked: false, defenders: 0})
+            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr", clicked: false, shields: 0})
     })
 
     it("reports a tile given back to nobody as undefined, so nobody gets a leaderboard row", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "", previousCountryId: "ps"})))
-            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined, clicked: false, defenders: 0})
+            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined, clicked: false, shields: 0})
     })
 
     it("says which update a click made, so the globe can animate it", () => {
         expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", previousCountryId: "fr", clicked: true}))?.clicked).toBe(true)
     })
 
-    it("says how many defenders stand on the tile after the update", () => {
-        expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "fr", previousCountryId: "fr", defenders: 3}))?.defenders).toBe(3)
+    it("says how many shields stand on the tile after the update", () => {
+        expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "fr", previousCountryId: "fr", shields: 3}))?.shields).toBe(3)
     })
 
     it("drops a heartbeat", () => {
@@ -182,18 +182,18 @@ function getMapMock(impl?: (req: GetMapRequestFields) => Promise<GetMapResponse>
     return vi.fn<(req: GetMapRequestFields) => Promise<GetMapResponse>>(impl)
 }
 
-describe("defendersOf", () => {
-    it("reads the defenders of the batch's defended tiles", () => {
+describe("shieldsOf", () => {
+    it("reads the shields of the batch's shielded tiles", () => {
         const res = new GetMapResponse({
             startTileId: 1,
-            defenders: [new TileDefenders({tileId: 2, defenders: 4}), new TileDefenders({tileId: 9, defenders: 10})],
+            shields: [new TileShields({tileId: 2, shields: 4}), new TileShields({tileId: 9, shields: 10})],
         })
 
-        expect(defendersOf(res)).toEqual(new Map([[2, 4], [9, 10]]))
+        expect(shieldsOf(res)).toEqual(new Map([[2, 4], [9, 10]]))
     })
 
-    it("reads none from a batch with no defenders", () => {
-        expect(defendersOf(mapResponse(1, ["", "fr"], [1]))).toEqual(new Map())
+    it("reads none from a batch with no shields", () => {
+        expect(shieldsOf(mapResponse(1, ["", "fr"], [1]))).toEqual(new Map())
     })
 })
 
@@ -209,15 +209,15 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
         return seen
     }
 
-    it("hands each batch its defenders beside its owners", async () => {
+    it("hands each batch its shields beside its owners", async () => {
         const getMap = getMapMock(async () => new GetMapResponse({
             startTileId: 1, codes: ["", "fr"], tiles: tileBytes([1, 1]),
-            defenders: [new TileDefenders({tileId: 2, defenders: 3})],
+            shields: [new TileShields({tileId: 2, shields: 3})],
         }))
         const backend = backendWith(getMap)
 
         const seen: Map<number, number>[] = []
-        await backend.getCurrentOwnershipsByBatch(2, 2, o => seen.push(o.defenders))
+        await backend.getCurrentOwnershipsByBatch(2, 2, o => seen.push(o.shields))
 
         expect(seen).toEqual([new Map([[2, 3]])])
         backend.close()
@@ -573,16 +573,16 @@ describe("PlanetBackend click budget", () => {
 
         await expect(backend.claimBonus("t", "fr")).resolves.toEqual({
             reward: {kind: "encloseClicks", shapes: 2, maxTiles: 25},
-            charges: {refill: false, bomb: false, enclosures: 3, spreadClicksLeft: 3, defenders: 0},
+            charges: {refill: false, bomb: false, enclosures: 3, spreadClicksLeft: 3, shields: 0},
         })
         backend.close()
     })
 
-    it("reads a defenders claim as the defenders the box added", async () => {
+    it("reads a shields claim as the shields the box added", async () => {
         const claimBonus = vi.fn().mockResolvedValue({
-            kind: BonusKind.DEFENDERS,
+            kind: BonusKind.SHIELDS,
             amount: 3,
-            charges: new ChargesHeld({defenders: 7}),
+            charges: new ChargesHeld({shields: 7}),
         })
         const client = {...budgetClient(vi.fn()) as object, claimBonus} as never
         const backend = new PlanetBackend(client, 1_000)
@@ -590,8 +590,8 @@ describe("PlanetBackend click budget", () => {
 
         const claimed = await backend.claimBonus("t", "fr")
 
-        expect(claimed.reward).toEqual({kind: "defenders", defenders: 3})
-        expect(claimed.charges.defenders).toBe(7)
+        expect(claimed.reward).toEqual({kind: "shields", shields: 3})
+        expect(claimed.charges.shields).toBe(7)
         backend.close()
     })
 
@@ -783,8 +783,8 @@ describe("offerOf", () => {
         expect(offerOf(offered({kind: BonusKind.ENCLOSE_CLICKS}))?.reward.kind).toBe("encloseClicks")
     })
 
-    it("reads a defenders box as one", () => {
-        expect(offerOf(offered({kind: BonusKind.DEFENDERS}))?.reward.kind).toBe("defenders")
+    it("reads a shields box as one", () => {
+        expect(offerOf(offered({kind: BonusKind.SHIELDS}))?.reward.kind).toBe("shields")
     })
 
     it("reads a spread box as one", () => {
@@ -925,7 +925,7 @@ describe("bombOf", () => {
         },
     })
 
-    it("reads a blast on land, with every tile it cleared and every defended tile it struck", () => {
+    it("reads a blast on land, with every tile it cleared and every shielded tile it struck", () => {
         expect(bombOf(dropped())).toEqual({
             tile: 7,
             point: {x: 0, y: 1, z: 0},
@@ -994,7 +994,7 @@ describe("PlanetBackend bombs", () => {
     })
 })
 
-describe("PlanetBackend defenders", () => {
+describe("PlanetBackend shields", () => {
     const clientWith = (fields: Record<string, unknown>) =>
         ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), ...fields}) as never
 
@@ -1007,73 +1007,73 @@ describe("PlanetBackend defenders", () => {
         return seen
     }
 
-    it("places a defender with the session token, and holds the charges the server answers", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({defenders: 5})})
-        const placeDefender = vi.fn().mockResolvedValue({charges: new ChargesHeld({defenders: 4})})
-        const backend = new PlanetBackend(clientWith({getCharges, placeDefender}), 1_000, fixedSession("session-1"))
+    it("places a shield with the session token, and holds the charges the server answers", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 5})})
+        const placeShield = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 4})})
+        const backend = new PlanetBackend(clientWith({getCharges, placeShield}), 1_000, fixedSession("session-1"))
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.defenders).toBe(5))
+        await vi.waitFor(() => expect(seen.at(-1)?.shields).toBe(5))
 
-        await backend.placeDefender(7, "fr")
+        await backend.placeShield(7, "fr")
 
-        expect(placeDefender).toHaveBeenCalledWith({tileId: 7, countryId: "fr"}, expect.anything())
-        expect((placeDefender.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
-        expect(seen.at(-1)?.defenders).toBe(4)
+        expect(placeShield).toHaveBeenCalledWith({tileId: 7, countryId: "fr"}, expect.anything())
+        expect((placeShield.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
+        expect(seen.at(-1)?.shields).toBe(4)
         backend.close()
     })
 
-    it("takes the defender off at once, and gives it back when the server refused the tile", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({defenders: 5})})
-        const placeDefender = vi.fn().mockRejectedValue(new ConnectError("full", Code.FailedPrecondition))
-        const backend = new PlanetBackend(clientWith({getCharges, placeDefender}), 1_000)
+    it("takes the shield off at once, and gives it back when the server refused the tile", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 5})})
+        const placeShield = vi.fn().mockRejectedValue(new ConnectError("full", Code.FailedPrecondition))
+        const backend = new PlanetBackend(clientWith({getCharges, placeShield}), 1_000)
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.defenders).toBe(5))
+        await vi.waitFor(() => expect(seen.at(-1)?.shields).toBe(5))
 
-        const placing = backend.placeDefender(7, "fr")
-        expect(seen.at(-1)?.defenders).toBe(4)
-        await expect(placing).rejects.toBeInstanceOf(DefenderRefusedError)
+        const placing = backend.placeShield(7, "fr")
+        expect(seen.at(-1)?.shields).toBe(4)
+        await expect(placing).rejects.toBeInstanceOf(ShieldRefusedError)
 
-        expect(seen.at(-1)?.defenders).toBe(5)
+        expect(seen.at(-1)?.shields).toBe(5)
         backend.close()
     })
 
-    it("gives the defender back when the call never reached the server", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({defenders: 2})})
-        const placeDefender = vi.fn().mockRejectedValue(new ConnectError("down", Code.Internal))
-        const backend = new PlanetBackend(clientWith({getCharges, placeDefender}), 1_000)
+    it("gives the shield back when the call never reached the server", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 2})})
+        const placeShield = vi.fn().mockRejectedValue(new ConnectError("down", Code.Internal))
+        const backend = new PlanetBackend(clientWith({getCharges, placeShield}), 1_000)
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.defenders).toBe(2))
+        await vi.waitFor(() => expect(seen.at(-1)?.shields).toBe(2))
 
-        await expect(backend.placeDefender(7, "fr")).rejects.toBeDefined()
+        await expect(backend.placeShield(7, "fr")).rejects.toBeDefined()
 
-        expect(seen.at(-1)?.defenders).toBe(2)
+        expect(seen.at(-1)?.shields).toBe(2)
         backend.close()
     })
 
-    it("holds none when the server had no defender to place", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({defenders: 2})})
-        const placeDefender = vi.fn().mockRejectedValue(new ConnectError("none", Code.NotFound))
-        const backend = new PlanetBackend(clientWith({getCharges, placeDefender}), 1_000)
+    it("holds none when the server had no shield to place", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 2})})
+        const placeShield = vi.fn().mockRejectedValue(new ConnectError("none", Code.NotFound))
+        const backend = new PlanetBackend(clientWith({getCharges, placeShield}), 1_000)
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.defenders).toBe(2))
+        await vi.waitFor(() => expect(seen.at(-1)?.shields).toBe(2))
 
-        await expect(backend.placeDefender(7, "fr")).rejects.toBeInstanceOf(BonusLostError)
+        await expect(backend.placeShield(7, "fr")).rejects.toBeInstanceOf(BonusLostError)
 
-        expect(seen.at(-1)?.defenders).toBe(0)
+        expect(seen.at(-1)?.shields).toBe(0)
         backend.close()
     })
 
     it("mints a new session and places once more when the server refuses the token", async () => {
-        const placeDefender = vi.fn()
+        const placeShield = vi.fn()
             .mockRejectedValueOnce(new ConnectError("expired", Code.Unauthenticated))
             .mockResolvedValueOnce({charges: new ChargesHeld()})
         const session = rotatingSession(["stale", "fresh"])
-        const backend = new PlanetBackend(clientWith({placeDefender}), 1_000, session)
+        const backend = new PlanetBackend(clientWith({placeShield}), 1_000, session)
 
-        await backend.placeDefender(7, "fr")
+        await backend.placeShield(7, "fr")
 
         expect(session.invalidated).toBe(1)
-        expect(placeDefender.mock.calls.map(([, options]) => (options as {headers: Headers}).headers.get(SESSION_HEADER)))
+        expect(placeShield.mock.calls.map(([, options]) => (options as {headers: Headers}).headers.get(SESSION_HEADER)))
             .toEqual(["stale", "fresh"])
         backend.close()
     })
@@ -1208,7 +1208,7 @@ describe("the rules", () => {
 
     it("reads the toll and the sizes of the charges", async () => {
         const getBonusRules = vi.fn().mockResolvedValue(new GetBonusRulesResponse({
-            blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, defenders: 12, tileDefenders: 10,
+            blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
         }))
         const backend = new PlanetBackend(clientWith({getBonusRules}), 1_000)
@@ -1220,7 +1220,7 @@ describe("the rules", () => {
         })
 
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({
-            blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, defenders: 12, tileDefenders: 10,
+            blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
         }))
         backend.close()
@@ -1242,11 +1242,11 @@ describe("the charges held", () => {
     }
 
     it("reads them once at load, and hands them to whoever listens", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bomb: true, spreadClicksLeft: 2, defenders: 5})})
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bomb: true, spreadClicksLeft: 2, shields: 5})})
         const backend = new PlanetBackend(clientWith({getCharges}), 1_000)
 
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 2, defenders: 5}))
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 2, shields: 5}))
 
         expect(getCharges).toHaveBeenCalledTimes(1)
         backend.close()
@@ -1265,8 +1265,8 @@ describe("the charges held", () => {
         await backend.clickTile(1, "fr")
         expect(seen.at(-1)?.spreadClicksLeft).toBe(2)
 
-        await backend.clickTile(2, "fr", {spread: true, enclose: false, defend: false})
-        await expect(backend.clickTile(3, "fr", {spread: true, enclose: false, defend: false})).rejects.toBeInstanceOf(RateLimitedError)
+        await backend.clickTile(2, "fr", {spread: true, enclose: false, shield: false})
+        await expect(backend.clickTile(3, "fr", {spread: true, enclose: false, shield: false})).rejects.toBeInstanceOf(RateLimitedError)
 
         expect(seen.at(-1)?.spreadClicksLeft).toBe(1)
         backend.close()
@@ -1276,7 +1276,7 @@ describe("the charges held", () => {
         const click = vi.fn().mockResolvedValue({})
         const backend = new PlanetBackend(clientWith({click}), 1_000)
 
-        await backend.clickTile(7, "fr", {spread: true, enclose: true, defend: false})
+        await backend.clickTile(7, "fr", {spread: true, enclose: true, shield: false})
         await backend.clickTile(8, "fr")
 
         expect(click.mock.calls.map(([req]) => req)).toEqual([

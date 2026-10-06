@@ -4,11 +4,11 @@ import type {Update} from "../backends/backend.ts"
 
 const batch = (bindings: Record<number, string>) => ({
     bindings: new Map(Object.entries(bindings).map(([k, v]) => [Number(k), v])),
-    defenders: new Map<number, number>(),
+    shields: new Map<number, number>(),
 })
 
 const update = (tile: number, newCountry: string | undefined, previousCountry?: string): Update =>
-    ({tile, newCountry, previousCountry, clicked: true, defenders: 0})
+    ({tile, newCountry, previousCountry, clicked: true, shields: 0})
 
 const counts = (store: TileOwnership) => Object.fromEntries(store.counts())
 

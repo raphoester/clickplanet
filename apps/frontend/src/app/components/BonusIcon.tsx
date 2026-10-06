@@ -52,7 +52,7 @@ const DRAWINGS: Record<BonusReward["kind"], React.ReactNode> = {
                  points="24,18 25.5,22.5 30,24 25.5,25.5 24,30 22.5,25.5 18,24 22.5,22.5"/>
     </>,
 
-    defenders: <>
+    shields: <>
         <path className="bonus-icon-ink" d="M24 5 L39 10 V22 C39 32 32 39 24 43 C16 39 9 32 9 22 V10 Z"/>
         <path className="bonus-icon-ink bonus-icon-ink--soft" d="M24 11 L33 14 V22 C33 28 29 33 24 36 Z"/>
         <polygon className="bonus-icon-spark"

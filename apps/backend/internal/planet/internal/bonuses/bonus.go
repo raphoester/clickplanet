@@ -24,10 +24,10 @@ const (
 	KindBomb          Kind = "bomb"
 	KindEncloseClicks Kind = "enclose_clicks"
 
-	KindDefenders Kind = "defenders"
+	KindShields Kind = "shields"
 )
 
-var Kinds = []Kind{KindRefill, KindSpreadClicks, KindBomb, KindEncloseClicks, KindDefenders}
+var Kinds = []Kind{KindRefill, KindSpreadClicks, KindBomb, KindEncloseClicks, KindShields}
 
 type Offer struct {
 	Token string
@@ -572,8 +572,8 @@ func (r *Registry) amountOf(kind Kind) int {
 		most = r.config.Spread.MaxPerBox
 	case KindEncloseClicks:
 		most = r.config.Enclose.MaxPerBox
-	case KindDefenders:
-		most = r.config.Defender.MaxPerBox
+	case KindShields:
+		most = r.config.Shield.MaxPerBox
 	case KindRefill, KindBomb:
 	}
 

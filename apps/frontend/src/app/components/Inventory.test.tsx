@@ -7,7 +7,7 @@ import {ALL_OFF, NO_CHARGES} from "../../domain/bonus.ts"
 afterEach(cleanup)
 beforeEach(() => window.localStorage.clear())
 
-const rules = {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, defenders: 12, tileDefenders: 10, toll: []}
+const rules = {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: []}
 
 function inventory(props: Partial<InventoryProps> = {}) {
     return <Inventory charges={NO_CHARGES}
@@ -17,7 +17,7 @@ function inventory(props: Partial<InventoryProps> = {}) {
                       bombArmed={false}
                       onToggleBomb={() => {}}
                       onUseRefill={() => true}
-                      onToggleDefend={() => {}}
+                      onToggleShield={() => {}}
                       {...props}/>
 }
 
@@ -27,15 +27,15 @@ describe("Inventory", () => {
     it("shows every slot, and none can be pressed while nothing is held", () => {
         render(inventory())
 
-        for (const name of [/^Refill/, /^Bomb/, /^Spread/, /^Enclose/, /^Defender/]) expect(slot(name).disabled).toBe(true)
+        for (const name of [/^Refill/, /^Bomb/, /^Spread/, /^Enclose/, /^Shield/]) expect(slot(name).disabled).toBe(true)
     })
 
     it("counts the pools against how many can be held", () => {
-        render(inventory({charges: {...NO_CHARGES, spreadClicksLeft: 5, enclosures: 2, defenders: 7}}))
+        render(inventory({charges: {...NO_CHARGES, spreadClicksLeft: 5, enclosures: 2, shields: 7}}))
 
         expect(slot(/^Spread, 5\/8/)).toBeTruthy()
         expect(slot(/^Enclose, 2\/3/)).toBeTruthy()
-        expect(slot(/^Defender, 7\/12/)).toBeTruthy()
+        expect(slot(/^Shield, 7\/12/)).toBeTruthy()
     })
 
     it("switches spread and enclose, and says which are on", () => {
@@ -54,37 +54,37 @@ describe("Inventory", () => {
         expect(slot(/^Enclose/).getAttribute("aria-pressed")).toBe("false")
     })
 
-    it("switches the defender, and says when it is on", () => {
+    it("switches the shield, and says when it is on", () => {
         const toggle = vi.fn()
-        const charges = {...NO_CHARGES, defenders: 5}
-        const {rerender} = render(inventory({charges, onToggleDefend: toggle}))
+        const charges = {...NO_CHARGES, shields: 5}
+        const {rerender} = render(inventory({charges, onToggleShield: toggle}))
 
-        expect(slot(/^Defender/).getAttribute("aria-pressed")).toBe("false")
-        fireEvent.click(slot(/^Defender/))
+        expect(slot(/^Shield/).getAttribute("aria-pressed")).toBe("false")
+        fireEvent.click(slot(/^Shield/))
         expect(toggle).toHaveBeenCalledTimes(1)
 
-        rerender(inventory({charges, onToggleDefend: toggle, switches: {...ALL_OFF, defend: true}}))
-        expect(slot(/^Defender, 5\/12, On/).getAttribute("aria-pressed")).toBe("true")
+        rerender(inventory({charges, onToggleShield: toggle, switches: {...ALL_OFF, shield: true}}))
+        expect(slot(/^Shield, 5\/12, On/).getAttribute("aria-pressed")).toBe("true")
     })
 
-    it("says Full for a while each time a defender meets a full tile", () => {
+    it("says Full for a while each time a shield meets a full tile", () => {
         vi.useFakeTimers()
         try {
-            const charges = {...NO_CHARGES, defenders: 5}
-            const switches = {...ALL_OFF, defend: true}
-            const {rerender} = render(inventory({charges, switches, garrisonFull: 0}))
-            expect(slot(/^Defender, 5\/12, On/)).toBeTruthy()
+            const charges = {...NO_CHARGES, shields: 5}
+            const switches = {...ALL_OFF, shield: true}
+            const {rerender} = render(inventory({charges, switches, shieldFull: 0}))
+            expect(slot(/^Shield, 5\/12, On/)).toBeTruthy()
 
-            rerender(inventory({charges, switches, garrisonFull: 1}))
-            expect(slot(/^Defender, 5\/12, Full/)).toBeTruthy()
+            rerender(inventory({charges, switches, shieldFull: 1}))
+            expect(slot(/^Shield, 5\/12, Full/)).toBeTruthy()
 
             act(() => void vi.advanceTimersByTime(1500))
-            rerender(inventory({charges, switches, garrisonFull: 2}))
+            rerender(inventory({charges, switches, shieldFull: 2}))
             act(() => void vi.advanceTimersByTime(1500))
-            expect(slot(/^Defender, 5\/12, Full/)).toBeTruthy()
+            expect(slot(/^Shield, 5\/12, Full/)).toBeTruthy()
 
             act(() => void vi.advanceTimersByTime(1000))
-            expect(slot(/^Defender, 5\/12, On/)).toBeTruthy()
+            expect(slot(/^Shield, 5\/12, On/)).toBeTruthy()
         } finally {
             vi.useRealTimers()
         }
@@ -116,15 +116,15 @@ describe("Inventory", () => {
 
     it("only shows what it cannot use", () => {
         render(inventory({
-            charges: {...NO_CHARGES, refill: true, bomb: true, defenders: 3},
+            charges: {...NO_CHARGES, refill: true, bomb: true, shields: 3},
             onUseRefill: undefined,
             onToggleBomb: undefined,
-            onToggleDefend: undefined,
+            onToggleShield: undefined,
         }))
 
         expect(slot(/^Refill/).disabled).toBe(true)
         expect(slot(/^Bomb/).disabled).toBe(true)
-        expect(slot(/^Defender/).disabled).toBe(true)
+        expect(slot(/^Shield/).disabled).toBe(true)
     })
 
     it("has no fold: the five slots are always one row", () => {

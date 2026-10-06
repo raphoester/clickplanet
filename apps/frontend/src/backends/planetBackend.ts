@@ -9,14 +9,14 @@ import {
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
-    DefenderRefusedError,
+    ShieldRefusedError,
     Enclosure,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
     RateLimitedError,
     Refiller,
-    Reinforcer,
+    Shielder,
     SpreadClick,
     TileClicker,
     Update,
@@ -52,7 +52,7 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Reinforcer {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -232,7 +232,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 signal,
             )
 
-            callback({bindings: bindingsOf(res), defenders: defendersOf(res)})
+            callback({bindings: bindingsOf(res), shields: shieldsOf(res)})
         }
     }
 
@@ -324,8 +324,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 enclosureMaxTiles: res.enclosureMaxTiles,
                 spreadClicks: res.spreadClicks,
                 enclosures: res.enclosures,
-                defenders: res.defenders,
-                tileDefenders: res.tileDefenders,
+                shields: res.shields,
+                tileShields: res.tileShields,
                 toll: res.tollSteps.map(({share, slowdown}) => ({share, slowdown})),
             }
             this.rules = rules
@@ -547,13 +547,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.holdCharges(chargesOfMessage(res.charges))
     }
 
-    public async placeDefender(tileId: number, countryId: string): Promise<void> {
-        this.holdCharges({...this.charges, defenders: Math.max(0, this.charges.defenders - 1)})
+    public async placeShield(tileId: number, countryId: string): Promise<void> {
+        this.holdCharges({...this.charges, shields: Math.max(0, this.charges.shields - 1)})
 
         try {
             await this.placeRetried(tileId, countryId)
         } catch (e) {
-            this.holdCharges({...this.charges, defenders: e instanceof BonusLostError ? 0 : this.charges.defenders + 1})
+            this.holdCharges({...this.charges, shields: e instanceof BonusLostError ? 0 : this.charges.shields + 1})
             throw e
         }
     }
@@ -562,14 +562,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         try {
             await this.place(tileId, countryId)
         } catch (e) {
-            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asDefenderError(e)
+            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asShieldError(e)
 
             this.session.invalidate()
 
             try {
                 await this.place(tileId, countryId)
             } catch (retried) {
-                throw asDefenderError(retried)
+                throw asShieldError(retried)
             }
         }
     }
@@ -580,7 +580,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const headers = new Headers()
         if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
 
-        const res = await this.client.placeDefender({tileId, countryId}, {headers})
+        const res = await this.client.placeShield({tileId, countryId}, {headers})
         this.followSession(sessionToken)
         this.holdCharges(chargesOfMessage(res.charges))
     }
@@ -656,11 +656,11 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
         bomb: held.bomb,
         enclosures: held.enclosures,
         spreadClicksLeft: held.spreadClicksLeft,
-        defenders: held.defenders,
+        shields: held.shields,
     }
 }
 
-const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, defenders: 0, tileDefenders: 0, toll: []}
+const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, shields: 0, tileShields: 0, toll: []}
 
 function rewardOf(
     kind: BonusKind,
@@ -676,8 +676,8 @@ function rewardOf(
             return {kind: "bomb", radius: blastRadius}
         case BonusKind.ENCLOSE_CLICKS:
             return {kind: "encloseClicks", shapes: amount, maxTiles}
-        case BonusKind.DEFENDERS:
-            return {kind: "defenders", defenders: amount}
+        case BonusKind.SHIELDS:
+            return {kind: "shields", shields: amount}
         default:
             return undefined
     }
@@ -708,8 +708,8 @@ export function asBonusError(e: unknown): unknown {
     return e
 }
 
-export function asDefenderError(e: unknown): unknown {
-    if (e instanceof ConnectError && e.code === Code.FailedPrecondition) return new DefenderRefusedError({cause: e})
+export function asShieldError(e: unknown): unknown {
+    if (e instanceof ConnectError && e.code === Code.FailedPrecondition) return new ShieldRefusedError({cause: e})
 
     return asBonusError(e)
 }
@@ -766,8 +766,8 @@ export function bindingsOf(res: GetMapResponse): Map<number, string> {
     return bindings
 }
 
-export function defendersOf(res: GetMapResponse): Map<number, number> {
-    return new Map(res.defenders.map(({tileId, defenders}) => [tileId, defenders]))
+export function shieldsOf(res: GetMapResponse): Map<number, number> {
+    return new Map(res.shields.map(({tileId, shields}) => [tileId, shields]))
 }
 
 export function updateOf(event: PlanetEvent): Update | undefined {
@@ -779,6 +779,6 @@ export function updateOf(event: PlanetEvent): Update | undefined {
         previousCountry: update.previousCountryId === "" ? undefined : update.previousCountryId,
         newCountry: update.countryId === "" ? undefined : update.countryId,
         clicked: update.clicked,
-        defenders: update.defenders,
+        shields: update.shields,
     }
 }

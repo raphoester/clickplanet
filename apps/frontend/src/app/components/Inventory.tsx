@@ -13,8 +13,8 @@ export type InventoryProps = {
     bombArmed: boolean
     onToggleBomb?: () => void
     onUseRefill?: () => boolean
-    onToggleDefend?: () => void
-    garrisonFull?: number
+    onToggleShield?: () => void
+    shieldFull?: number
 }
 
 export default function Inventory({
@@ -25,12 +25,12 @@ export default function Inventory({
     bombArmed,
     onToggleBomb,
     onUseRefill,
-    onToggleDefend,
-    garrisonFull = 0,
+    onToggleShield,
+    shieldFull = 0,
 }: InventoryProps) {
     const [full, setFull] = useState(false)
-    const [fullSeen, setFullSeen] = useState(garrisonFull)
-    const tileFull = garrisonFull !== fullSeen
+    const [fullSeen, setFullSeen] = useState(shieldFull)
+    const tileFull = shieldFull !== fullSeen
 
     useEffect(() => {
         if (!full) return
@@ -40,11 +40,11 @@ export default function Inventory({
 
     useEffect(() => {
         if (!tileFull) return
-        const timer = setTimeout(() => setFullSeen(garrisonFull), FULL_NOTICE_MS)
+        const timer = setTimeout(() => setFullSeen(shieldFull), FULL_NOTICE_MS)
         return () => clearTimeout(timer)
-    }, [tileFull, garrisonFull])
+    }, [tileFull, shieldFull])
 
-    const active = bombArmed || switches.spread || switches.enclose || switches.defend
+    const active = bombArmed || switches.spread || switches.enclose || switches.shield
 
     return <section className={active ? "inventory inventory--active" : "inventory"} aria-label="Inventory">
         <div className="inventory-slots">
@@ -79,14 +79,14 @@ export default function Inventory({
                       ? "Switch enclose off"
                       : "Switch enclose on: close a shape of your tiles to take the tiles inside"}
                   onPress={onToggle && (() => onToggle("enclose"))}/>
-            <Slot kind="defenders"
-                  name="Defender"
-                  held={charges.defenders > 0}
-                  count={countOf(charges.defenders, rules?.defenders)}
-                  on={switches.defend}
-                  state={tileFull ? "Full" : switches.defend ? "On" : undefined}
-                  hint={tileFull ? "That tile is full" : switches.defend ? "Switch defender off" : "Switch defender on"}
-                  onPress={onToggleDefend}/>
+            <Slot kind="shields"
+                  name="Shield"
+                  held={charges.shields > 0}
+                  count={countOf(charges.shields, rules?.shields)}
+                  on={switches.shield}
+                  state={tileFull ? "Full" : switches.shield ? "On" : undefined}
+                  hint={tileFull ? "That tile is full" : switches.shield ? "Switch shield off" : "Switch shield on"}
+                  onPress={onToggleShield}/>
         </div>
     </section>
 }

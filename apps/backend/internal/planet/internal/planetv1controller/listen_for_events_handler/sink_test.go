@@ -55,16 +55,16 @@ func TestSinkSaysWhichUpdateIsAClick(t *testing.T) {
 	assert.True(t, stream.sent[0].GetTileUpdate().GetClicked())
 }
 
-func TestSinkSaysHowManyDefendersAreLeft(t *testing.T) {
+func TestSinkSaysHowManyShieldsAreLeft(t *testing.T) {
 	stream := &recorder{}
 
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Update: clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "fr", Defenders: 9},
+		Update: clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "fr", Shields: 9},
 	})
 
 	require.NoError(t, err)
 	require.Len(t, stream.sent, 1)
-	assert.Equal(t, uint32(9), stream.sent[0].GetTileUpdate().GetDefenders())
+	assert.Equal(t, uint32(9), stream.sent[0].GetTileUpdate().GetShields())
 }
 
 func TestSinkFramesAHeartbeat(t *testing.T) {

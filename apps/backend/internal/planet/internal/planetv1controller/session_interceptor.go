@@ -39,7 +39,7 @@ func NewSessionInterceptor(
 		cpconnect.Attested(planetv1connect.ClickServiceUseRefillProcedure),
 		cpconnect.Attested(planetv1connect.ClickServiceOpenQuizProcedure),
 		cpconnect.Attested(planetv1connect.ClickServiceAnswerQuizProcedure),
-		cpconnect.Attested(planetv1connect.ClickServicePlaceDefenderProcedure),
+		cpconnect.Attested(planetv1connect.ClickServicePlaceShieldProcedure),
 	)
 }
 

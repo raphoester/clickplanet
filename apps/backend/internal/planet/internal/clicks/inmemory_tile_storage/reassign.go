@@ -51,7 +51,7 @@ func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, lim
 		}
 
 		s.tiles[tile] = toID
-		s.defenders[tile] = 0
+		s.shields[tile] = 0
 		s.markDirtyLocked(uint32(tile)) //nolint:gosec // tile <= maxIndex, which is a uint32.
 		s.counts[fromID]--
 		if toID != unownedCode {
@@ -99,7 +99,7 @@ func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) 
 			s.counts[toID]++
 		}
 		s.tiles[restoration.Tile] = toID
-		s.defenders[restoration.Tile] = 0
+		s.shields[restoration.Tile] = 0
 		s.markDirtyLocked(restoration.Tile)
 
 		updates = append(updates, clicks.TileUpdate{

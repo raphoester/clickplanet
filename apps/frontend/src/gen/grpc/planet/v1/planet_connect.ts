@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceDefenderRequest, PlaceDefenderResponse, PlanetEvent, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
+import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetMapRequest, GetMapResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -128,12 +128,12 @@ export const ClickService = {
       kind: MethodKind.Unary,
     },
     /**
-     * @generated from rpc planet.v1.ClickService.PlaceDefender
+     * @generated from rpc planet.v1.ClickService.PlaceShield
      */
-    placeDefender: {
-      name: "PlaceDefender",
-      I: PlaceDefenderRequest,
-      O: PlaceDefenderResponse,
+    placeShield: {
+      name: "PlaceShield",
+      I: PlaceShieldRequest,
+      O: PlaceShieldResponse,
       kind: MethodKind.Unary,
     },
   }

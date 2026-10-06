@@ -28,18 +28,18 @@ type stack struct {
 	evidence       *evidence.MemoryPersistence
 	forgetEvidence bool
 
-	owner     map[uint32]string
-	defenders map[uint32]int
-	reports   []antibot.Report
-	rises     []string
-	errors    []error
+	owner   map[uint32]string
+	shields map[uint32]int
+	reports []antibot.Report
+	rises   []string
+	errors  []error
 }
 
 func newStack(options ...func(*antibot.Config)) *stack {
 	s := &stack{
 		clock:       cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
 		owner:       map[uint32]string{},
-		defenders:   map[uint32]int{},
+		shields:     map[uint32]int{},
 		bans:        shadowban.NewMemoryPersistence(),
 		accountBans: shadowban.NewMemoryPersistence(),
 		evidence:    evidence.NewMemoryPersistence(),
@@ -185,7 +185,7 @@ func (s *stack) clickAs(scope, account string, tile uint32, country string) bool
 		At:       s.clock.Now(),
 		Held:     held,
 		NoOp:     held == country,
-		Defended: held != country && s.defenders[tile] > 0,
+		Shielded: held != country && s.shields[tile] > 0,
 	}
 
 	s.guard.Attempted(click)
@@ -194,8 +194,8 @@ func (s *stack) clickAs(scope, account string, tile uint32, country string) bool
 	if !drop {
 		s.guard.Committed(click)
 		switch {
-		case click.Defended:
-			s.defenders[tile]--
+		case click.Shielded:
+			s.shields[tile]--
 		case !click.NoOp:
 			s.owner[tile] = country
 		}

@@ -32,7 +32,7 @@ message GrantChargesRequest {
   uint32 enclosures = 4;
   uint32 spread_clicks = 5;
 
-  uint32 defenders = 6;
+  uint32 shields = 6;
 }
 
 message GrantChargesResponse {

@@ -10,14 +10,14 @@ import (
 )
 
 type Persistence interface {
-	Load(ctx context.Context, visit func(tile uint32, owner string, defenders int)) error
+	Load(ctx context.Context, visit func(tile uint32, owner string, shields int)) error
 	Save(ctx context.Context, tiles []Tile) error
 }
 
 type Tile struct {
-	ID        uint32
-	Owner     string
-	Defenders int
+	ID      uint32
+	Owner   string
+	Shields int
 }
 
 const flushTimeout = 10 * time.Second
@@ -30,7 +30,7 @@ func (s *Storage) Load(ctx context.Context) error {
 		owned, outside int
 		internErr      error
 	)
-	err := s.persistence.Load(ctx, func(tile uint32, owner string, defenders int) {
+	err := s.persistence.Load(ctx, func(tile uint32, owner string, shields int) {
 		if tile > s.maxIndex {
 			outside++
 			return
@@ -41,7 +41,7 @@ func (s *Storage) Load(ctx context.Context) error {
 			return
 		}
 		s.tiles[tile] = id
-		s.defenders[tile] = uint8(min(max(defenders, 0), math.MaxUint8)) //nolint:gosec // clamped to a byte.
+		s.shields[tile] = uint8(min(max(shields, 0), math.MaxUint8)) //nolint:gosec // clamped to a byte.
 		s.counts[id]++
 		owned++
 	})
@@ -119,7 +119,7 @@ func (s *Storage) takeDirty() []Tile {
 		for word != 0 {
 			tile := uint32(w*64 + bits.TrailingZeros64(word)) //nolint:gosec // tile <= maxIndex, which is a uint32.
 			word &= word - 1
-			tiles = append(tiles, Tile{ID: tile, Owner: s.codes[s.tiles[tile]], Defenders: int(s.defenders[tile])})
+			tiles = append(tiles, Tile{ID: tile, Owner: s.codes[s.tiles[tile]], Shields: int(s.shields[tile])})
 		}
 	}
 

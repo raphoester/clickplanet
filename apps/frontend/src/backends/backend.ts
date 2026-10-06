@@ -7,7 +7,7 @@ export interface TileClicker {
 
 export type Ownerships = {
     bindings: Map<number, string>
-    defenders: Map<number, number>
+    shields: Map<number, number>
 }
 
 export interface OwnershipsGetter {
@@ -24,7 +24,7 @@ export type Update = {
     previousCountry: string | undefined,
     newCountry: string | undefined,
     clicked: boolean,
-    defenders: number,
+    shields: number,
 }
 
 export interface UpdatesListener {
@@ -119,14 +119,14 @@ export interface Refiller {
     useRefill(countryId: string): Promise<void>
 }
 
-export interface Reinforcer {
-    placeDefender(tileId: number, countryId: string): Promise<void>
+export interface Shielder {
+    placeShield(tileId: number, countryId: string): Promise<void>
 }
 
-export class DefenderRefusedError extends Error {
+export class ShieldRefusedError extends Error {
     constructor(options?: ErrorOptions) {
-        super("the tile is not this player's, or holds all the defenders it can", options)
-        this.name = "DefenderRefusedError"
+        super("the tile is not this player's, or holds all the shields it can", options)
+        this.name = "ShieldRefusedError"
     }
 }
 

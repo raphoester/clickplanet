@@ -51,11 +51,11 @@ func (t tiles) Set(_ context.Context, tile uint32, value string) error {
 	return nil
 }
 
-type defenders map[uint32]int
+type shields map[uint32]int
 
-func (d defenders) Defenders(tile uint32) int { return d[tile] }
+func (d shields) Shields(tile uint32) int { return d[tile] }
 
-func (d defenders) Strike(_ context.Context, tile uint32, _ string) bool {
+func (d shields) Strike(_ context.Context, tile uint32, _ string) bool {
 	if d[tile] == 0 {
 		return false
 	}
@@ -65,9 +65,9 @@ func (d defenders) Strike(_ context.Context, tile uint32, _ string) bool {
 }
 
 type rule struct {
-	tiles   tiles
-	defence clicks.Defence
-	err     error
+	tiles     tiles
+	shielding clicks.Shielding
+	err       error
 }
 
 func (r rule) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
@@ -76,7 +76,7 @@ func (r rule) Execute(ctx context.Context, in click_usecase.In) (click_usecase.O
 	}
 
 	owner, _ := r.tiles.Owner(in.TileID)
-	outcome := r.defence.Strike(ctx, in.TileID, owner, in.CountryID)
+	outcome := r.shielding.Strike(ctx, in.TileID, owner, in.CountryID)
 
 	return click_usecase.Out{Outcome: outcome}, r.tiles.Set(ctx, in.TileID, outcome.OwnerAfter(owner, in.CountryID))
 }
@@ -98,7 +98,7 @@ func played(t *testing.T) context.Context {
 type fixture struct {
 	grid      honeycomb
 	tiles     tiles
-	defenders defenders
+	shields   shields
 	charges   *inmemory_charge_storage.Storage
 	published *recorder
 	useCase   *enclose_click.UseCase
@@ -106,9 +106,9 @@ type fixture struct {
 
 func setup(charged bool, err error) fixture {
 	f := fixture{
-		grid:      honeycomb{size: 12},
-		tiles:     tiles{},
-		defenders: defenders{},
+		grid:    honeycomb{size: 12},
+		tiles:   tiles{},
+		shields: shields{},
 		charges: inmemory_charge_storage.New(inmemory_charge_storage.Config{},
 			bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3, EnclosureMaxTiles: 10},
 			inmemory_charge_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler)),
@@ -118,9 +118,9 @@ func setup(charged bool, err error) fixture {
 		f.charges.Grant(caller, bonuses.KindEncloseClicks, 1)
 	}
 
-	defence := clicks.NewDefence(f.defenders)
-	f.useCase = enclose_click.New(rule{tiles: f.tiles, defence: defence, err: err}, f.charges,
-		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, defence, f.charges, f.published))
+	shielding := clicks.NewShielding(f.shields)
+	f.useCase = enclose_click.New(rule{tiles: f.tiles, shielding: shielding, err: err}, f.charges,
+		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, shielding, f.charges, f.published))
 
 	return f
 }
@@ -177,11 +177,11 @@ func TestAShapeTakesUnownedTilesAndEveryoneElsesAlike(t *testing.T) {
 	assert.Equal(t, inner, f.published.published[0].Filled)
 }
 
-func TestADefendedTileInsideAShapeLosesADefenderAndIsNotTaken(t *testing.T) {
+func TestAShieldedTileInsideAShapeLosesAShieldAndIsNotTaken(t *testing.T) {
 	f := setup(true, nil)
 	inner := []uint32{f.grid.id(5, 5), f.grid.id(6, 5)}
 	f.own("de", inner...)
-	f.defenders[inner[0]] = 2
+	f.shields[inner[0]] = 2
 	closing := f.grid.id(4, 5)
 	wall := append(f.grid.ring(5, 5), f.grid.ring(6, 5)...)
 	for _, tile := range wall {
@@ -193,18 +193,18 @@ func TestADefendedTileInsideAShapeLosesADefenderAndIsNotTaken(t *testing.T) {
 	f.click(t, closing)
 
 	assert.Equal(t, "de", f.tiles[inner[0]], "a bonus is never a way around the rule")
-	assert.Equal(t, 1, f.defenders[inner[0]])
+	assert.Equal(t, 1, f.shields[inner[0]])
 	assert.Equal(t, "fr", f.tiles[inner[1]])
 	require.Len(t, f.published.published, 1)
 	assert.Zero(t, f.charges.Held(caller).Enclosures)
 }
 
-func TestAClickADefenderTookClosesNothing(t *testing.T) {
+func TestAClickAShieldTookClosesNothing(t *testing.T) {
 	f := setup(true, nil)
 	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
 	f.own("fr", ring[1:]...)
 	f.own("de", ring[0])
-	f.defenders[ring[0]] = 1
+	f.shields[ring[0]] = 1
 
 	f.click(t, ring[0])
 

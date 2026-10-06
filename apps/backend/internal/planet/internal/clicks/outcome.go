@@ -7,26 +7,26 @@ const (
 
 	Taken
 
-	Defended
+	Shielded
 )
 
 func (o Outcome) String() string {
 	switch o {
 	case Taken:
 		return "taken"
-	case Defended:
-		return "defended"
+	case Shielded:
+		return "shielded"
 	default:
 		return "unchanged"
 	}
 }
 
-func OutcomeOf(owner, flag string, defenders int) Outcome {
+func OutcomeOf(owner, flag string, shields int) Outcome {
 	switch {
 	case owner == flag:
 		return Unchanged
-	case defenders > 0:
-		return Defended
+	case shields > 0:
+		return Shielded
 	default:
 		return Taken
 	}

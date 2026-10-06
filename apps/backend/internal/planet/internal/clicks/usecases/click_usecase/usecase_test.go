@@ -34,7 +34,7 @@ func (s *testSuite) SetupTest() {
 
 	tileChecker := clicks.NewBoard(maxIndex)
 	countryChecker := cpcountries.New()
-	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker, clicks.NewDefence(s.storage))
+	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker, clicks.NewShielding(s.storage))
 }
 
 func (s *testSuite) execute(tileID uint32, countryID string) error {
@@ -92,41 +92,41 @@ func (s *testSuite) owner(tile uint32) string {
 	return owner
 }
 
-func (s *testSuite) defend(tile uint32, country string, defenders int) {
-	for range defenders {
-		s.Require().NoError(s.storage.Reinforce(context.Background(), tile, country, 10))
+func (s *testSuite) shield(tile uint32, country string, shields int) {
+	for range shields {
+		s.Require().NoError(s.storage.Shield(context.Background(), tile, country, 10))
 	}
 }
 
-func (s *testSuite) TestEachForeignClickOnADefendedTileTakesOneDefender() {
+func (s *testSuite) TestEachForeignClickOnAShieldedTileTakesOneShield() {
 	s.click(150, "pl")
-	s.defend(150, "pl", 2)
+	s.shield(150, "pl", 2)
 
-	s.Equal(clicks.Defended, s.click(150, "de").Outcome)
-	s.Equal(clicks.Defended, s.click(150, "fr").Outcome)
-	s.Equal("pl", s.owner(150), "a defended tile keeps its flag")
+	s.Equal(clicks.Shielded, s.click(150, "de").Outcome)
+	s.Equal(clicks.Shielded, s.click(150, "fr").Outcome)
+	s.Equal("pl", s.owner(150), "a shielded tile keeps its flag")
 
 	s.Equal(clicks.Taken, s.click(150, "de").Outcome)
-	s.Equal("de", s.owner(150), "with no defender left the next click takes it")
+	s.Equal("de", s.owner(150), "with no shield left the next click takes it")
 }
 
-func (s *testSuite) TestItsOwnFlagClickingADefendedTileChangesNothing() {
+func (s *testSuite) TestItsOwnFlagClickingAShieldedTileChangesNothing() {
 	s.click(152, "pl")
-	s.defend(152, "pl", 1)
+	s.shield(152, "pl", 1)
 
 	s.Equal(clicks.Unchanged, s.click(152, "pl").Outcome)
-	s.Equal(1, s.storage.Defenders(152))
+	s.Equal(1, s.storage.Shields(152))
 }
 
-func (s *testSuite) TestAnUndefendedTileIsTakenInOneClick() {
+func (s *testSuite) TestAnUnshieldedTileIsTakenInOneClick() {
 	s.click(300, "pl")
 	s.Equal(clicks.Taken, s.click(300, "de").Outcome)
 	s.Equal("de", s.owner(300))
 }
 
-func (s *testSuite) TestADefendedClickPublishesTheDefendersLeftAndNoNewOwner() {
+func (s *testSuite) TestAShieldedClickPublishesTheShieldsLeftAndNoNewOwner() {
 	s.click(153, "pl")
-	s.defend(153, "pl", 1)
+	s.shield(153, "pl", 1)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

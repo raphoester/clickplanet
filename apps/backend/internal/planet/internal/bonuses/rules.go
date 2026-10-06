@@ -7,6 +7,6 @@ type Rules struct {
 	SpreadClicks      int
 	Enclosures        int
 
-	Defenders     int
-	TileDefenders int
+	Shields     int
+	TileShields int
 }

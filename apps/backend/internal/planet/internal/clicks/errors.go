@@ -14,5 +14,5 @@ var (
 	ErrThrottled = errors.New("too many clicks")
 
 	ErrNotYourTile = errors.New("the tile does not wear the flag")
-	ErrTileFull    = errors.New("the tile holds as many defenders as it can")
+	ErrTileFull    = errors.New("the tile holds as many shields as it can")
 )

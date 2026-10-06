@@ -19,10 +19,10 @@ type Config struct {
 
 	OfferTTL time.Duration
 
-	Spread   SpreadConfig
-	Bomb     BombConfig
-	Enclose  EncloseConfig
-	Defender DefenderConfig
+	Spread  SpreadConfig
+	Bomb    BombConfig
+	Enclose EncloseConfig
+	Shield  ShieldConfig
 
 	Quiz quizzes.Config
 
@@ -50,7 +50,7 @@ type EncloseConfig struct {
 	MaxPerBox int
 }
 
-type DefenderConfig struct {
+type ShieldConfig struct {
 	Held      int
 	MaxPerBox int
 	PerTile   int
@@ -72,9 +72,9 @@ const (
 	defaultEnclosePerBox   = 3
 	defaultBombRings       = 4
 	defaultEncloseMaxTiles = 25
-	defaultDefendersHeld   = 12
-	defaultDefendersPerBox = 3
-	defaultDefendersOnTile = 10
+	defaultShieldsHeld     = 12
+	defaultShieldsPerBox   = 3
+	defaultShieldsOnTile   = 10
 )
 
 func (c Config) withDefaults() Config {
@@ -109,7 +109,7 @@ func (c Config) withDefaults() Config {
 	c.Spread = c.Spread.withDefaults()
 	c.Bomb = c.Bomb.withDefaults()
 	c.Enclose = c.Enclose.withDefaults()
-	c.Defender = c.Defender.withDefaults()
+	c.Shield = c.Shield.withDefaults()
 
 	return c
 }
@@ -120,7 +120,7 @@ func defaultKinds() map[Kind]float64 {
 		KindSpreadClicks:  3,
 		KindEncloseClicks: 2,
 		KindBomb:          1,
-		KindDefenders:     3,
+		KindShields:       3,
 	}
 }
 
@@ -157,15 +157,15 @@ func (c EncloseConfig) withDefaults() EncloseConfig {
 	return c
 }
 
-func (c DefenderConfig) withDefaults() DefenderConfig {
+func (c ShieldConfig) withDefaults() ShieldConfig {
 	if c.Held <= 0 {
-		c.Held = defaultDefendersHeld
+		c.Held = defaultShieldsHeld
 	}
 	if c.MaxPerBox <= 0 {
-		c.MaxPerBox = defaultDefendersPerBox
+		c.MaxPerBox = defaultShieldsPerBox
 	}
 	if c.PerTile <= 0 {
-		c.PerTile = defaultDefendersOnTile
+		c.PerTile = defaultShieldsOnTile
 	}
 
 	return c
@@ -198,10 +198,10 @@ func (c Config) ChargesConfig() ChargesConfig {
 		SpreadClicks:      c.Spread.Clicks,
 		Enclosures:        c.Enclose.Held,
 		EnclosureMaxTiles: c.Enclose.MaxTiles,
-		Defenders:         c.Defender.Held,
+		Shields:           c.Shield.Held,
 	}
 }
 
-func (c Config) DefendersPerTile() int {
-	return c.Defender.withDefaults().PerTile
+func (c Config) ShieldsPerTile() int {
+	return c.Shield.withDefaults().PerTile
 }

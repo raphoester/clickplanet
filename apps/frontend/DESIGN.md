@@ -69,7 +69,7 @@ system exists to stop.
 | `--gold` | Reward and progress: panel headers, title names, progress fills, first place |
 | `--gain`, `--loss` | Tiles won and lost, nowhere else |
 | `--streak` | The streak flame |
-| `--refill`, `--spread`, `--bomb`, `--enclose`, `--defend` (and `-light`) | A bonus kind: its box, its slot, its reward line |
+| `--refill`, `--spread`, `--bomb`, `--enclose`, `--shield` (and `-light`) | A bonus kind: its box, its slot, its reward line |
 | `--bronze` … `--holo-4`, `--conquest` … `--og-enamel` | Medals only (below) |
 
 - **A name's color is only a hue.** `hueOf` reads it off the pick; the saturation

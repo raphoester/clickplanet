@@ -101,17 +101,17 @@ func (s *testSuite) TestAFailedSaveWritesNothing() {
 	s.Equal(map[uint32]string{20_000: "fr"}, s.load())
 }
 
-func (s *testSuite) TestDefendersAreKeptWithTheirTile() {
+func (s *testSuite) TestShieldsAreKeptWithTheirTile() {
 	ctx := context.Background()
 	s.Require().NoError(s.store.Save(ctx, []inmemory_tile_storage.Tile{
-		{ID: 1, Owner: "fr", Defenders: 3},
+		{ID: 1, Owner: "fr", Shields: 3},
 		{ID: 2, Owner: "fr"},
 	}))
-	s.Require().NoError(s.store.Save(ctx, []inmemory_tile_storage.Tile{{ID: 1, Owner: "fr", Defenders: 2}}))
+	s.Require().NoError(s.store.Save(ctx, []inmemory_tile_storage.Tile{{ID: 1, Owner: "fr", Shields: 2}}))
 
-	defenders := map[uint32]int{}
+	shields := map[uint32]int{}
 	s.Require().NoError(s.store.Load(ctx, func(tile uint32, _ string, held int) {
-		defenders[tile] = held
+		shields[tile] = held
 	}))
-	s.Equal(map[uint32]int{1: 2, 2: 0}, defenders)
+	s.Equal(map[uint32]int{1: 2, 2: 0}, shields)
 }

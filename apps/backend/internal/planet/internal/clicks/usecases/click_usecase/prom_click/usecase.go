@@ -24,16 +24,16 @@ func New(
 		"status",
 	})
 
-	defended := factory.NewCounterVec(prometheus.CounterOpts{
-		Name: "clicks_defended_total",
-		Help: "Clicks that struck a defender rather than taking the tile, by the flag clicked",
+	shielded := factory.NewCounterVec(prometheus.CounterOpts{
+		Name: "clicks_shielded_total",
+		Help: "Clicks that struck a shield rather than taking the tile, by the flag clicked",
 	}, []string{
 		"country_id",
 	})
 
 	return &UseCase{
 		counter:        counter,
-		defended:       defended,
+		shielded:       shielded,
 		implementation: implementation,
 	}
 }
@@ -41,7 +41,7 @@ func New(
 type UseCase struct {
 	implementation click_usecase.IUseCase
 	counter        *prometheus.CounterVec
-	defended       *prometheus.CounterVec
+	shielded       *prometheus.CounterVec
 }
 
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
@@ -54,8 +54,8 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 
 	u.counter.WithLabelValues(in.CountryID, status).Inc()
 
-	if err == nil && out.Outcome == clicks.Defended {
-		u.defended.WithLabelValues(in.CountryID).Inc()
+	if err == nil && out.Outcome == clicks.Shielded {
+		u.shielded.WithLabelValues(in.CountryID).Inc()
 	}
 
 	return out, err

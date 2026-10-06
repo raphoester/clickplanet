@@ -13,19 +13,19 @@ import (
 )
 
 type harness struct {
-	watchdog  *defender.Watchdog
-	clock     *cptime.FixedClock
-	owner     map[uint32]string
-	defenders map[uint32]int
-	next      uint32
+	watchdog *defender.Watchdog
+	clock    *cptime.FixedClock
+	owner    map[uint32]string
+	shields  map[uint32]int
+	next     uint32
 }
 
 func newHarness(config defender.Config) *harness {
 	h := &harness{
-		clock:     cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC)),
-		owner:     map[uint32]string{},
-		defenders: map[uint32]int{},
-		next:      1000,
+		clock:   cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC)),
+		owner:   map[uint32]string{},
+		shields: map[uint32]int{},
+		next:    1000,
 	}
 	h.watchdog = defender.New(config, h.clock, nil)
 	return h
@@ -35,7 +35,7 @@ func (h *harness) deliver(scope string, tile uint32, country string, accepted bo
 	held := h.owner[tile]
 	c := detect.Click{
 		Scope: scope, Tile: tile, Country: country, At: h.clock.Now(),
-		Held: held, NoOp: held == country, Defended: held != country && h.defenders[tile] > 0,
+		Held: held, NoOp: held == country, Shielded: held != country && h.shields[tile] > 0,
 	}
 
 	verdict, _ := h.watchdog.Watch(c)
@@ -43,8 +43,8 @@ func (h *harness) deliver(scope string, tile uint32, country string, accepted bo
 	if accepted {
 		h.watchdog.Committed(c)
 		switch {
-		case c.Defended:
-			h.defenders[tile]--
+		case c.Shielded:
+			h.shields[tile]--
 		case !c.NoOp:
 			h.owner[tile] = country
 		}
@@ -210,25 +210,25 @@ func TestARefusedClickTakesNothingFromAnyone(t *testing.T) {
 	assert.Equal(t, detect.Clear, verdict, "the tile never left BG")
 }
 
-func (h *harness) defended(defenders int) uint32 {
+func (h *harness) shielded(shields int) uint32 {
 	tile := h.fresh()
 	h.owner[tile] = "BG"
-	h.defenders[tile] = defenders
+	h.shields[tile] = shields
 	return tile
 }
 
-func TestATileIsLostWhenItFallsNotWhenItsDefendersAreStruck(t *testing.T) {
+func TestATileIsLostWhenItFallsNotWhenItsShieldsAreStruck(t *testing.T) {
 	h := newHarness(config())
 
 	var verdict detect.Verdict
 	for range 3 {
 		tiles := make([]uint32, 0, 30)
 		for range 30 {
-			tile := h.defended(1)
+			tile := h.shielded(1)
 			h.click("attacker", tile, "FR")
 			h.clock.Advance(time.Second)
 			h.click("attacker", tile, "FR")
-			require.Equal(t, "FR", h.owner[tile], "the second click takes the tile its defender no longer holds")
+			require.Equal(t, "FR", h.owner[tile], "the second click takes the tile its shield no longer holds")
 			tiles = append(tiles, tile)
 		}
 		for _, tile := range tiles {
@@ -247,7 +247,7 @@ func TestAStrikeLosesNothing(t *testing.T) {
 	for range 3 {
 		tiles := make([]uint32, 0, 30)
 		for range 30 {
-			tile := h.defended(5)
+			tile := h.shielded(5)
 			h.click("attacker", tile, "FR")
 			h.owner[tile] = ""
 			tiles = append(tiles, tile)
@@ -261,7 +261,7 @@ func TestAStrikeLosesNothing(t *testing.T) {
 	assert.Equal(t, detect.Clear, verdict, "BG lost nothing to the attacker, so taking its bombed tiles back is no retake")
 }
 
-func TestAStrikeOnADefenderIsNeverARetake(t *testing.T) {
+func TestAStrikeOnAShieldIsNeverARetake(t *testing.T) {
 	loose := config()
 	loose.MinShare = 0.4
 	h := newHarness(loose)
@@ -271,7 +271,7 @@ func TestAStrikeOnADefenderIsNeverARetake(t *testing.T) {
 		tile := h.fresh()
 		h.owner[tile] = "FR"
 		h.click("bulgarian", tile, "BG")
-		h.defenders[tile] = 10
+		h.shields[tile] = 10
 
 		h.clock.Advance(time.Second)
 		h.click("french", tile, "FR")

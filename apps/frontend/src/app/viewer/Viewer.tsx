@@ -7,7 +7,7 @@ import {
     OwnershipsGetter,
     QuizMaster,
     Refiller,
-    Reinforcer,
+    Shielder,
     TileClicker,
     UpdatesListener,
 } from "../../backends/backend.ts";
@@ -73,7 +73,7 @@ export type ViewerProps = {
     quizMaster?: QuizMaster
     bomber?: Bomber
     refiller?: Refiller
-    reinforcer?: Reinforcer
+    shielder?: Shielder
     chatBackend?: ChatBackend
     account?: AccountStore
     presence?: PresenceBackend
@@ -139,7 +139,7 @@ export default function Viewer(props: ViewerProps) {
         toggleBomb,
         switches,
         toggleSwitch,
-        garrisonFull,
+        shieldFull,
         lastBomb,
         dismissBomb,
     } = useGlobe({
@@ -149,7 +149,7 @@ export default function Viewer(props: ViewerProps) {
         updatesListener: props.updatesListener,
         bonusListener: props.bonusListener,
         bomber: props.bomber,
-        reinforcer: props.reinforcer,
+        shielder: props.shielder,
         playSound: sound.play,
         onClickAccepted: accepted.record,
         country: countryState,
@@ -262,8 +262,8 @@ export default function Viewer(props: ViewerProps) {
                                                bombArmed={bombArmed}
                                                onToggleBomb={props.bomber ? toggleBomb : undefined}
                                                onUseRefill={spendRefill}
-                                               onToggleDefend={props.reinforcer ? () => toggleSwitch("defend") : undefined}
-                                               garrisonFull={garrisonFull}/>}
+                                               onToggleShield={props.shielder ? () => toggleSwitch("shield") : undefined}
+                                               shieldFull={shieldFull}/>}
         </ClickBudgetMeter>}
 
         {ready && <ChatPanel

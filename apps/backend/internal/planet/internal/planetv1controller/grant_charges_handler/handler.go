@@ -35,7 +35,7 @@ func (h GrantChargesHandler) GrantCharges(
 			Bomb:         req.Msg.GetBomb(),
 			Enclosures:   int(req.Msg.GetEnclosures()),
 			SpreadClicks: int(req.Msg.GetSpreadClicks()),
-			Defenders:    int(req.Msg.GetDefenders()),
+			Shields:      int(req.Msg.GetShields()),
 		},
 	})
 

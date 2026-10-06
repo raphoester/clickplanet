@@ -20,7 +20,7 @@ type Click struct {
 	Held string
 	NoOp bool
 
-	Defended bool
+	Shielded bool
 }
 
 type Verdict uint8

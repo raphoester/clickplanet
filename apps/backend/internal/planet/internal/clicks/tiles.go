@@ -6,7 +6,7 @@ type TileUpdate struct {
 	Previous string
 	Clicked  bool
 
-	Defenders int
+	Shields int
 }
 
 type Blast struct {
@@ -30,12 +30,12 @@ type DenseBatch struct {
 	Codes []string
 	Tiles []byte
 
-	Defenders []TileDefenders
+	Shields []TileShields
 }
 
-type TileDefenders struct {
-	Tile      uint32
-	Defenders int
+type TileShields struct {
+	Tile    uint32
+	Shields int
 }
 
 type Restoration struct {

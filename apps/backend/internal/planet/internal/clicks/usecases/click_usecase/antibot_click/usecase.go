@@ -84,7 +84,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		outcome := u.rule.Outcome(observed.Tile, held, observed.Country)
 		observed.Held = held
 		observed.NoOp = outcome == clicks.Unchanged
-		observed.Defended = outcome == clicks.Defended
+		observed.Shielded = outcome == clicks.Shielded
 	}
 
 	if u.guard.Inspect(observed) {

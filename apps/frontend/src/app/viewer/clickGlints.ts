@@ -20,9 +20,9 @@ const SKY = new THREE.Color(0.35, 0.75, 1.0)
 
 const HIT = new THREE.Color(1.0, 0.42, 0.25)
 
-const REINFORCED = new THREE.Color(0.74, 0.6, 1.0)
+const SHIELDED = new THREE.Color(0.74, 0.6, 1.0)
 
-export type GlintKind = "click" | "hit" | "reinforced"
+export type GlintKind = "click" | "hit" | "shielded"
 
 export type GlintLook = {
     opacity: number
@@ -38,7 +38,7 @@ export function glintLook(age: number, kind: GlintKind): GlintLook | undefined {
     switch (kind) {
         case "hit":
             return {opacity: PEAK * rise * left, white: WHITE * left, scale: 0.2 + 0.8 * left}
-        case "reinforced":
+        case "shielded":
             return {opacity: PEAK * rise * left, white: WHITE * left, scale: 1.4 - 0.8 * left}
         case "click":
             return {opacity: PEAK * rise * left * left, white: WHITE * left * left, scale: 1}
@@ -67,7 +67,7 @@ export type ClickGlints = {
     playOwnClick(tile: number, camera: THREE.Camera): void
     playClick(tile: number, camera: THREE.Camera): void
     playHit(tile: number, camera: THREE.Camera): void
-    playReinforced(tile: number, camera: THREE.Camera): void
+    playShielded(tile: number, camera: THREE.Camera): void
     update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number): boolean
     dispose(): void
 }
@@ -168,7 +168,7 @@ export function createClickGlints(positions: ArrayLike<number>): ClickGlints {
         playOwnClick: (tile, camera) => playInView(tile, camera, ownColour ?? SKY),
         playClick: (tile, camera) => playInView(tile, camera, SKY),
         playHit: (tile, camera) => playInView(tile, camera, HIT, "hit"),
-        playReinforced: (tile, camera) => playInView(tile, camera, REINFORCED, "reinforced"),
+        playShielded: (tile, camera) => playInView(tile, camera, SHIELDED, "shielded"),
         update,
         dispose: () => {
             for (const glint of playing) stop(glint)

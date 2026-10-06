@@ -81,7 +81,7 @@ const (
 	BonusKind_BONUS_KIND_SPREAD_CLICKS  BonusKind = 2
 	BonusKind_BONUS_KIND_BOMB           BonusKind = 3
 	BonusKind_BONUS_KIND_ENCLOSE_CLICKS BonusKind = 4
-	BonusKind_BONUS_KIND_DEFENDERS      BonusKind = 6
+	BonusKind_BONUS_KIND_SHIELDS        BonusKind = 6
 )
 
 // Enum value maps for BonusKind.
@@ -92,7 +92,7 @@ var (
 		2: "BONUS_KIND_SPREAD_CLICKS",
 		3: "BONUS_KIND_BOMB",
 		4: "BONUS_KIND_ENCLOSE_CLICKS",
-		6: "BONUS_KIND_DEFENDERS",
+		6: "BONUS_KIND_SHIELDS",
 	}
 	BonusKind_value = map[string]int32{
 		"BONUS_KIND_UNSPECIFIED":    0,
@@ -100,7 +100,7 @@ var (
 		"BONUS_KIND_SPREAD_CLICKS":  2,
 		"BONUS_KIND_BOMB":           3,
 		"BONUS_KIND_ENCLOSE_CLICKS": 4,
-		"BONUS_KIND_DEFENDERS":      6,
+		"BONUS_KIND_SHIELDS":        6,
 	}
 )
 
@@ -576,7 +576,7 @@ type GetMapResponse struct {
 	StartTileId   uint32                 `protobuf:"varint,1,opt,name=start_tile_id,json=startTileId,proto3" json:"start_tile_id,omitempty"`
 	Codes         []string               `protobuf:"bytes,2,rep,name=codes,proto3" json:"codes,omitempty"`
 	Tiles         []byte                 `protobuf:"bytes,3,opt,name=tiles,proto3" json:"tiles,omitempty"`
-	Defenders     []*TileDefenders       `protobuf:"bytes,4,rep,name=defenders,proto3" json:"defenders,omitempty"`
+	Shields       []*TileShields         `protobuf:"bytes,4,rep,name=shields,proto3" json:"shields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -632,35 +632,35 @@ func (x *GetMapResponse) GetTiles() []byte {
 	return nil
 }
 
-func (x *GetMapResponse) GetDefenders() []*TileDefenders {
+func (x *GetMapResponse) GetShields() []*TileShields {
 	if x != nil {
-		return x.Defenders
+		return x.Shields
 	}
 	return nil
 }
 
-type TileDefenders struct {
+type TileShields struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TileId        uint32                 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
-	Defenders     uint32                 `protobuf:"varint,2,opt,name=defenders,proto3" json:"defenders,omitempty"`
+	Shields       uint32                 `protobuf:"varint,2,opt,name=shields,proto3" json:"shields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *TileDefenders) Reset() {
-	*x = TileDefenders{}
+func (x *TileShields) Reset() {
+	*x = TileShields{}
 	mi := &file_planet_v1_planet_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *TileDefenders) String() string {
+func (x *TileShields) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*TileDefenders) ProtoMessage() {}
+func (*TileShields) ProtoMessage() {}
 
-func (x *TileDefenders) ProtoReflect() protoreflect.Message {
+func (x *TileShields) ProtoReflect() protoreflect.Message {
 	mi := &file_planet_v1_planet_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -672,21 +672,21 @@ func (x *TileDefenders) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use TileDefenders.ProtoReflect.Descriptor instead.
-func (*TileDefenders) Descriptor() ([]byte, []int) {
+// Deprecated: Use TileShields.ProtoReflect.Descriptor instead.
+func (*TileShields) Descriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *TileDefenders) GetTileId() uint32 {
+func (x *TileShields) GetTileId() uint32 {
 	if x != nil {
 		return x.TileId
 	}
 	return 0
 }
 
-func (x *TileDefenders) GetDefenders() uint32 {
+func (x *TileShields) GetShields() uint32 {
 	if x != nil {
-		return x.Defenders
+		return x.Shields
 	}
 	return 0
 }
@@ -911,7 +911,7 @@ type ChargesHeld struct {
 	Bomb             bool                   `protobuf:"varint,1,opt,name=bomb,proto3" json:"bomb,omitempty"`
 	Enclosures       uint32                 `protobuf:"varint,2,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
 	SpreadClicksLeft uint32                 `protobuf:"varint,3,opt,name=spread_clicks_left,json=spreadClicksLeft,proto3" json:"spread_clicks_left,omitempty"`
-	Defenders        uint32                 `protobuf:"varint,5,opt,name=defenders,proto3" json:"defenders,omitempty"`
+	Shields          uint32                 `protobuf:"varint,5,opt,name=shields,proto3" json:"shields,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -974,9 +974,9 @@ func (x *ChargesHeld) GetSpreadClicksLeft() uint32 {
 	return 0
 }
 
-func (x *ChargesHeld) GetDefenders() uint32 {
+func (x *ChargesHeld) GetShields() uint32 {
 	if x != nil {
-		return x.Defenders
+		return x.Shields
 	}
 	return 0
 }
@@ -1105,8 +1105,8 @@ type GetBonusRulesResponse struct {
 	Enclosures        uint32                 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
 	// Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower.
 	TollSteps     []*TollStep `protobuf:"bytes,6,rep,name=toll_steps,json=tollSteps,proto3" json:"toll_steps,omitempty"`
-	Defenders     uint32      `protobuf:"varint,7,opt,name=defenders,proto3" json:"defenders,omitempty"`
-	TileDefenders uint32      `protobuf:"varint,8,opt,name=tile_defenders,json=tileDefenders,proto3" json:"tile_defenders,omitempty"`
+	Shields       uint32      `protobuf:"varint,7,opt,name=shields,proto3" json:"shields,omitempty"`
+	TileShields   uint32      `protobuf:"varint,8,opt,name=tile_shields,json=tileShields,proto3" json:"tile_shields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1176,16 +1176,16 @@ func (x *GetBonusRulesResponse) GetTollSteps() []*TollStep {
 	return nil
 }
 
-func (x *GetBonusRulesResponse) GetDefenders() uint32 {
+func (x *GetBonusRulesResponse) GetShields() uint32 {
 	if x != nil {
-		return x.Defenders
+		return x.Shields
 	}
 	return 0
 }
 
-func (x *GetBonusRulesResponse) GetTileDefenders() uint32 {
+func (x *GetBonusRulesResponse) GetTileShields() uint32 {
 	if x != nil {
-		return x.TileDefenders
+		return x.TileShields
 	}
 	return 0
 }
@@ -2033,7 +2033,7 @@ type BombDropped struct {
 	Radius         float64                `protobuf:"fixed64,3,opt,name=radius,proto3" json:"radius,omitempty"`
 	ClearedTileIds []uint32               `protobuf:"varint,4,rep,packed,name=cleared_tile_ids,json=clearedTileIds,proto3" json:"cleared_tile_ids,omitempty"`
 	Point          *GlobePoint            `protobuf:"bytes,5,opt,name=point,proto3" json:"point,omitempty"`
-	// Each lost one defender and kept its flag.
+	// Each lost one shield and kept its flag.
 	StruckTileIds []uint32 `protobuf:"varint,6,rep,packed,name=struck_tile_ids,json=struckTileIds,proto3" json:"struck_tile_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2247,7 +2247,7 @@ func (x *TilesSpread) GetSpreadTileIds() []uint32 {
 	return nil
 }
 
-type PlaceDefenderRequest struct {
+type PlaceShieldRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TileId        uint32                 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
 	CountryId     string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
@@ -2255,20 +2255,20 @@ type PlaceDefenderRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PlaceDefenderRequest) Reset() {
-	*x = PlaceDefenderRequest{}
+func (x *PlaceShieldRequest) Reset() {
+	*x = PlaceShieldRequest{}
 	mi := &file_planet_v1_planet_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PlaceDefenderRequest) String() string {
+func (x *PlaceShieldRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PlaceDefenderRequest) ProtoMessage() {}
+func (*PlaceShieldRequest) ProtoMessage() {}
 
-func (x *PlaceDefenderRequest) ProtoReflect() protoreflect.Message {
+func (x *PlaceShieldRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_planet_v1_planet_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2280,46 +2280,46 @@ func (x *PlaceDefenderRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PlaceDefenderRequest.ProtoReflect.Descriptor instead.
-func (*PlaceDefenderRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use PlaceShieldRequest.ProtoReflect.Descriptor instead.
+func (*PlaceShieldRequest) Descriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{35}
 }
 
-func (x *PlaceDefenderRequest) GetTileId() uint32 {
+func (x *PlaceShieldRequest) GetTileId() uint32 {
 	if x != nil {
 		return x.TileId
 	}
 	return 0
 }
 
-func (x *PlaceDefenderRequest) GetCountryId() string {
+func (x *PlaceShieldRequest) GetCountryId() string {
 	if x != nil {
 		return x.CountryId
 	}
 	return ""
 }
 
-type PlaceDefenderResponse struct {
+type PlaceShieldResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Charges       *ChargesHeld           `protobuf:"bytes,1,opt,name=charges,proto3" json:"charges,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *PlaceDefenderResponse) Reset() {
-	*x = PlaceDefenderResponse{}
+func (x *PlaceShieldResponse) Reset() {
+	*x = PlaceShieldResponse{}
 	mi := &file_planet_v1_planet_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PlaceDefenderResponse) String() string {
+func (x *PlaceShieldResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PlaceDefenderResponse) ProtoMessage() {}
+func (*PlaceShieldResponse) ProtoMessage() {}
 
-func (x *PlaceDefenderResponse) ProtoReflect() protoreflect.Message {
+func (x *PlaceShieldResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_planet_v1_planet_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2331,12 +2331,12 @@ func (x *PlaceDefenderResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PlaceDefenderResponse.ProtoReflect.Descriptor instead.
-func (*PlaceDefenderResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use PlaceShieldResponse.ProtoReflect.Descriptor instead.
+func (*PlaceShieldResponse) Descriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{36}
 }
 
-func (x *PlaceDefenderResponse) GetCharges() *ChargesHeld {
+func (x *PlaceShieldResponse) GetCharges() *ChargesHeld {
 	if x != nil {
 		return x.Charges
 	}
@@ -2386,8 +2386,8 @@ type TileUpdate struct {
 	PreviousCountryId string                 `protobuf:"bytes,3,opt,name=previous_country_id,json=previousCountryId,proto3" json:"previous_country_id,omitempty"`
 	// Only the tile a click named: never a spread's neighbour, an enclosure's inside or a moderator's write.
 	Clicked bool `protobuf:"varint,4,opt,name=clicked,proto3" json:"clicked,omitempty"`
-	// The tile's defenders after the update: 0 on every change of owner.
-	Defenders     uint32 `protobuf:"varint,5,opt,name=defenders,proto3" json:"defenders,omitempty"`
+	// The tile's shields after the update: 0 on every change of owner.
+	Shields       uint32 `protobuf:"varint,5,opt,name=shields,proto3" json:"shields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2450,9 +2450,9 @@ func (x *TileUpdate) GetClicked() bool {
 	return false
 }
 
-func (x *TileUpdate) GetDefenders() uint32 {
+func (x *TileUpdate) GetShields() uint32 {
 	if x != nil {
-		return x.Defenders
+		return x.Shields
 	}
 	return 0
 }
@@ -2493,15 +2493,15 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\adensity\x18\x01 \x01(\rR\adensity\"S\n" +
 	"\rGetMapRequest\x12\"\n" +
 	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x1e\n" +
-	"\vend_tile_id\x18\x02 \x01(\rR\tendTileId\"\x98\x01\n" +
+	"\vend_tile_id\x18\x02 \x01(\rR\tendTileId\"\x92\x01\n" +
 	"\x0eGetMapResponse\x12\"\n" +
 	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x14\n" +
 	"\x05codes\x18\x02 \x03(\tR\x05codes\x12\x14\n" +
-	"\x05tiles\x18\x03 \x01(\fR\x05tiles\x126\n" +
-	"\tdefenders\x18\x04 \x03(\v2\x18.planet.v1.TileDefendersR\tdefenders\"F\n" +
-	"\rTileDefenders\x12\x17\n" +
-	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1c\n" +
-	"\tdefenders\x18\x02 \x01(\rR\tdefenders\"\x18\n" +
+	"\x05tiles\x18\x03 \x01(\fR\x05tiles\x120\n" +
+	"\ashields\x18\x04 \x03(\v2\x16.planet.v1.TileShieldsR\ashields\"@\n" +
+	"\vTileShields\x12\x17\n" +
+	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x18\n" +
+	"\ashields\x18\x02 \x01(\rR\ashields\"\x18\n" +
 	"\x16ListenForEventsRequest\"\xfa\x03\n" +
 	"\vPlanetEvent\x128\n" +
 	"\vtile_update\x18\x01 \x01(\v2\x15.planet.v1.TileUpdateH\x00R\n" +
@@ -2514,19 +2514,19 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x0etiles_enclosed\x18\x06 \x01(\v2\x18.planet.v1.TilesEnclosedH\x00R\rtilesEnclosed\x12;\n" +
 	"\ftiles_spread\x18\a \x01(\v2\x16.planet.v1.TilesSpreadH\x00R\vtilesSpread\x12;\n" +
 	"\fquiz_offered\x18\b \x01(\v2\x16.planet.v1.QuizOfferedH\x00R\vquizOfferedB\a\n" +
-	"\x05event\"\xa5\x01\n" +
+	"\x05event\"\xa1\x01\n" +
 	"\vChargesHeld\x12\x16\n" +
 	"\x06refill\x18\x04 \x01(\bR\x06refill\x12\x12\n" +
 	"\x04bomb\x18\x01 \x01(\bR\x04bomb\x12\x1e\n" +
 	"\n" +
 	"enclosures\x18\x02 \x01(\rR\n" +
 	"enclosures\x12,\n" +
-	"\x12spread_clicks_left\x18\x03 \x01(\rR\x10spreadClicksLeft\x12\x1c\n" +
-	"\tdefenders\x18\x05 \x01(\rR\tdefenders\"\x13\n" +
+	"\x12spread_clicks_left\x18\x03 \x01(\rR\x10spreadClicksLeft\x12\x18\n" +
+	"\ashields\x18\x05 \x01(\rR\ashields\"\x13\n" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x16\n" +
-	"\x14GetBonusRulesRequest\"\xb9\x02\n" +
+	"\x14GetBonusRulesRequest\"\xb1\x02\n" +
 	"\x15GetBonusRulesResponse\x12!\n" +
 	"\fblast_radius\x18\x01 \x01(\x01R\vblastRadius\x12.\n" +
 	"\x13enclosure_max_tiles\x18\x02 \x01(\rR\x11enclosureMaxTiles\x12#\n" +
@@ -2535,9 +2535,9 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"enclosures\x18\x04 \x01(\rR\n" +
 	"enclosures\x122\n" +
 	"\n" +
-	"toll_steps\x18\x06 \x03(\v2\x13.planet.v1.TollStepR\ttollSteps\x12\x1c\n" +
-	"\tdefenders\x18\a \x01(\rR\tdefenders\x12%\n" +
-	"\x0etile_defenders\x18\b \x01(\rR\rtileDefendersJ\x04\b\x05\x10\x06R\thome_soil\"<\n" +
+	"toll_steps\x18\x06 \x03(\v2\x13.planet.v1.TollStepR\ttollSteps\x12\x18\n" +
+	"\ashields\x18\a \x01(\rR\ashields\x12!\n" +
+	"\ftile_shields\x18\b \x01(\rR\vtileShieldsJ\x04\b\x05\x10\x06R\thome_soil\"<\n" +
 	"\bTollStep\x12\x14\n" +
 	"\x05share\x18\x01 \x01(\x01R\x05share\x12\x1a\n" +
 	"\bslowdown\x18\x02 \x01(\x01R\bslowdown\"\x8f\x01\n" +
@@ -2616,35 +2616,35 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x17\n" +
 	"\atile_id\x18\x02 \x01(\rR\x06tileId\x12&\n" +
-	"\x0fspread_tile_ids\x18\x03 \x03(\rR\rspreadTileIds\"N\n" +
-	"\x14PlaceDefenderRequest\x12\x17\n" +
+	"\x0fspread_tile_ids\x18\x03 \x03(\rR\rspreadTileIds\"L\n" +
+	"\x12PlaceShieldRequest\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
-	"country_id\x18\x02 \x01(\tR\tcountryId\"I\n" +
-	"\x15PlaceDefenderResponse\x120\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\"G\n" +
+	"\x13PlaceShieldResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\v\n" +
-	"\tHeartbeat\"\xac\x01\n" +
+	"\tHeartbeat\"\xa8\x01\n" +
 	"\n" +
 	"TileUpdate\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12.\n" +
 	"\x13previous_country_id\x18\x03 \x01(\tR\x11previousCountryId\x12\x18\n" +
-	"\aclicked\x18\x04 \x01(\bR\aclicked\x12\x1c\n" +
-	"\tdefenders\x18\x05 \x01(\rR\tdefenders*r\n" +
+	"\aclicked\x18\x04 \x01(\bR\aclicked\x12\x18\n" +
+	"\ashields\x18\x05 \x01(\rR\ashields*r\n" +
 	"\n" +
 	"SharedWith\x12\x1b\n" +
 	"\x17SHARED_WITH_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12SHARED_WITH_NOBODY\x10\x01\x12\x16\n" +
 	"\x12SHARED_WITH_GUESTS\x10\x02\x12\x17\n" +
-	"\x13SHARED_WITH_NETWORK\x10\x03*\xaa\x01\n" +
+	"\x13SHARED_WITH_NETWORK\x10\x03*\xa8\x01\n" +
 	"\tBonusKind\x12\x1a\n" +
 	"\x16BONUS_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11BONUS_KIND_REFILL\x10\x05\x12\x1c\n" +
 	"\x18BONUS_KIND_SPREAD_CLICKS\x10\x02\x12\x13\n" +
 	"\x0fBONUS_KIND_BOMB\x10\x03\x12\x1d\n" +
-	"\x19BONUS_KIND_ENCLOSE_CLICKS\x10\x04\x12\x18\n" +
-	"\x14BONUS_KIND_DEFENDERS\x10\x062\xd6\a\n" +
+	"\x19BONUS_KIND_ENCLOSE_CLICKS\x10\x04\x12\x16\n" +
+	"\x12BONUS_KIND_SHIELDS\x10\x062\xd0\a\n" +
 	"\fClickService\x12:\n" +
 	"\x05Click\x12\x17.planet.v1.ClickRequest\x1a\x18.planet.v1.ClickResponse\x12F\n" +
 	"\tGetBudget\x12\x1b.planet.v1.GetBudgetRequest\x1a\x1c.planet.v1.GetBudgetResponse\x12N\n" +
@@ -2661,8 +2661,8 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\rGetBonusRules\x12\x1f.planet.v1.GetBonusRulesRequest\x1a .planet.v1.GetBonusRulesResponse\"\x03\x90\x02\x01\x12C\n" +
 	"\bOpenQuiz\x12\x1a.planet.v1.OpenQuizRequest\x1a\x1b.planet.v1.OpenQuizResponse\x12I\n" +
 	"\n" +
-	"AnswerQuiz\x12\x1c.planet.v1.AnswerQuizRequest\x1a\x1d.planet.v1.AnswerQuizResponse\x12R\n" +
-	"\rPlaceDefender\x12\x1f.planet.v1.PlaceDefenderRequest\x1a .planet.v1.PlaceDefenderResponseB\xb3\x01\n" +
+	"AnswerQuiz\x12\x1c.planet.v1.AnswerQuizRequest\x1a\x1d.planet.v1.AnswerQuizResponse\x12L\n" +
+	"\vPlaceShield\x12\x1d.planet.v1.PlaceShieldRequest\x1a\x1e.planet.v1.PlaceShieldResponseB\xb3\x01\n" +
 	"\rcom.planet.v1B\vPlanetProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -2692,7 +2692,7 @@ var file_planet_v1_planet_proto_goTypes = []any{
 	(*MapDensityResponse)(nil),     // 8: planet.v1.MapDensityResponse
 	(*GetMapRequest)(nil),          // 9: planet.v1.GetMapRequest
 	(*GetMapResponse)(nil),         // 10: planet.v1.GetMapResponse
-	(*TileDefenders)(nil),          // 11: planet.v1.TileDefenders
+	(*TileShields)(nil),            // 11: planet.v1.TileShields
 	(*ListenForEventsRequest)(nil), // 12: planet.v1.ListenForEventsRequest
 	(*PlanetEvent)(nil),            // 13: planet.v1.PlanetEvent
 	(*ChargesHeld)(nil),            // 14: planet.v1.ChargesHeld
@@ -2718,8 +2718,8 @@ var file_planet_v1_planet_proto_goTypes = []any{
 	(*BombDropped)(nil),            // 34: planet.v1.BombDropped
 	(*TilesEnclosed)(nil),          // 35: planet.v1.TilesEnclosed
 	(*TilesSpread)(nil),            // 36: planet.v1.TilesSpread
-	(*PlaceDefenderRequest)(nil),   // 37: planet.v1.PlaceDefenderRequest
-	(*PlaceDefenderResponse)(nil),  // 38: planet.v1.PlaceDefenderResponse
+	(*PlaceShieldRequest)(nil),     // 37: planet.v1.PlaceShieldRequest
+	(*PlaceShieldResponse)(nil),    // 38: planet.v1.PlaceShieldResponse
 	(*Heartbeat)(nil),              // 39: planet.v1.Heartbeat
 	(*TileUpdate)(nil),             // 40: planet.v1.TileUpdate
 }
@@ -2727,7 +2727,7 @@ var file_planet_v1_planet_proto_depIdxs = []int32{
 	0,  // 0: planet.v1.ClickBudget.shared_with:type_name -> planet.v1.SharedWith
 	2,  // 1: planet.v1.ClickResponse.budget:type_name -> planet.v1.ClickBudget
 	2,  // 2: planet.v1.GetBudgetResponse.budget:type_name -> planet.v1.ClickBudget
-	11, // 3: planet.v1.GetMapResponse.defenders:type_name -> planet.v1.TileDefenders
+	11, // 3: planet.v1.GetMapResponse.shields:type_name -> planet.v1.TileShields
 	40, // 4: planet.v1.PlanetEvent.tile_update:type_name -> planet.v1.TileUpdate
 	39, // 5: planet.v1.PlanetEvent.heartbeat:type_name -> planet.v1.Heartbeat
 	20, // 6: planet.v1.PlanetEvent.bonus_offered:type_name -> planet.v1.BonusOffered
@@ -2748,7 +2748,7 @@ var file_planet_v1_planet_proto_depIdxs = []int32{
 	14, // 21: planet.v1.UseRefillResponse.charges:type_name -> planet.v1.ChargesHeld
 	31, // 22: planet.v1.DropBombRequest.target:type_name -> planet.v1.GlobePoint
 	31, // 23: planet.v1.BombDropped.point:type_name -> planet.v1.GlobePoint
-	14, // 24: planet.v1.PlaceDefenderResponse.charges:type_name -> planet.v1.ChargesHeld
+	14, // 24: planet.v1.PlaceShieldResponse.charges:type_name -> planet.v1.ChargesHeld
 	3,  // 25: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
 	5,  // 26: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
 	7,  // 27: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
@@ -2761,7 +2761,7 @@ var file_planet_v1_planet_proto_depIdxs = []int32{
 	17, // 34: planet.v1.ClickService.GetBonusRules:input_type -> planet.v1.GetBonusRulesRequest
 	25, // 35: planet.v1.ClickService.OpenQuiz:input_type -> planet.v1.OpenQuizRequest
 	27, // 36: planet.v1.ClickService.AnswerQuiz:input_type -> planet.v1.AnswerQuizRequest
-	37, // 37: planet.v1.ClickService.PlaceDefender:input_type -> planet.v1.PlaceDefenderRequest
+	37, // 37: planet.v1.ClickService.PlaceShield:input_type -> planet.v1.PlaceShieldRequest
 	4,  // 38: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
 	6,  // 39: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
 	8,  // 40: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
@@ -2774,7 +2774,7 @@ var file_planet_v1_planet_proto_depIdxs = []int32{
 	18, // 47: planet.v1.ClickService.GetBonusRules:output_type -> planet.v1.GetBonusRulesResponse
 	26, // 48: planet.v1.ClickService.OpenQuiz:output_type -> planet.v1.OpenQuizResponse
 	28, // 49: planet.v1.ClickService.AnswerQuiz:output_type -> planet.v1.AnswerQuizResponse
-	38, // 50: planet.v1.ClickService.PlaceDefender:output_type -> planet.v1.PlaceDefenderResponse
+	38, // 50: planet.v1.ClickService.PlaceShield:output_type -> planet.v1.PlaceShieldResponse
 	38, // [38:51] is the sub-list for method output_type
 	25, // [25:38] is the sub-list for method input_type
 	25, // [25:25] is the sub-list for extension type_name
