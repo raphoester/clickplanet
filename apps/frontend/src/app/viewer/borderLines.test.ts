@@ -105,9 +105,9 @@ describe("outlineSegments", () => {
         const share = nearest(SAMPLES) / SPACING
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            if (flagPaint(zoom, 900) > 0) continue
+            if (flagPaint(zoom, 900, "flags") > 0) continue
             const clearance = share * tileSpacing(zoom, 900) - WIDTH / 2
-            expect(clearance, `zoom ${zoom}`).toBeGreaterThan(displayPointSize(zoom, 900) / 2)
+            expect(clearance, `zoom ${zoom}`).toBeGreaterThan(displayPointSize(zoom, 900, "flags") / 2)
         }
     })
 
@@ -151,9 +151,9 @@ describe("the handover", () => {
         const {lines, over, under, inkOf} = outline()
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            lines.update(zoom, 1600, 900, 1)
+            lines.update(zoom, 1600, 900, 1, "flags")
 
-            const painted = flagPaint(zoom, 900)
+            const painted = flagPaint(zoom, 900, "flags")
             expect(inkOf(over), `over at zoom ${zoom}`).toBe(painted)
             expect(inkOf(under) + inkOf(over), `ink at zoom ${zoom}`).toBeGreaterThanOrEqual(1)
         }
@@ -165,11 +165,22 @@ describe("the handover", () => {
     it("draws nothing it cannot see", () => {
         const {lines, over, under} = outline()
 
-        lines.update(MIN_ZOOM, 1600, 900, 1)
+        lines.update(MIN_ZOOM, 1600, 900, 1, "flags")
         expect([over.visible, under.visible]).toEqual([true, false])
 
-        lines.update(MAX_ZOOM, 1600, 900, 1)
+        lines.update(MAX_ZOOM, 1600, 900, 1, "flags")
         expect([over.visible, under.visible]).toEqual([false, true])
+
+        lines.dispose()
+    })
+
+    it("keeps the outline under the tiles at every zoom when no flag is painted", () => {
+        const {lines, over, under} = outline()
+
+        for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
+            lines.update(zoom, 1600, 900, 1, "tiles")
+            expect([over.visible, under.visible], `zoom ${zoom}`).toEqual([false, true])
+        }
 
         lines.dispose()
     })
@@ -183,7 +194,7 @@ describe("the handover", () => {
 
     it("measures the line in the drawing buffer's own pixels", () => {
         const {lines, over, under} = outline()
-        lines.update(1, 1600, 900, 1)
+        lines.update(1, 1600, 900, 1, "flags")
 
         for (const pass of [over, under]) {
             const halfViewport = (pass.material as THREE.ShaderMaterial).uniforms.halfViewport.value as THREE.Vector2
@@ -197,8 +208,8 @@ describe("the handover", () => {
         const {lines, over, under, inkOf} = outline()
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            lines.update(zoom, 3200, 1800, 2)
-            expect(inkOf(over), `over at zoom ${zoom}`).toBe(flagPaint(zoom, 900))
+            lines.update(zoom, 3200, 1800, 2, "flags")
+            expect(inkOf(over), `over at zoom ${zoom}`).toBe(flagPaint(zoom, 900, "flags"))
         }
 
         for (const pass of [over, under]) {

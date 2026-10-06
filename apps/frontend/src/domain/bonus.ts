@@ -50,7 +50,6 @@ export type BonusRules = {
     enclosureMaxTiles: number
     spreadClicks: number
     enclosures: number
-    homeSoil: boolean
     toll: readonly TollStep[]
 }
 

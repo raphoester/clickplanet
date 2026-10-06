@@ -32,8 +32,10 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		return u.implementation.Execute(ctx, in)
 	}
 
+	alreadyHeld := u.terrain.Holds(in.TileID, in.CountryID)
+
 	out, err := u.implementation.Execute(ctx, in)
-	if err != nil || out.Outcome != clicks.Taken {
+	if err != nil || alreadyHeld {
 		return out, err
 	}
 

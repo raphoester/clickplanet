@@ -1052,9 +1052,9 @@ describe("the rules", () => {
         ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(),
             listenForEvents: noEvents(), ...fields}) as never
 
-    it("reads whether native land takes two clicks, the toll and the sizes of the charges", async () => {
+    it("reads the toll and the sizes of the charges", async () => {
         const getBonusRules = vi.fn().mockResolvedValue(new GetBonusRulesResponse({
-            blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: true,
+            blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3,
             tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
         }))
         const backend = new PlanetBackend(clientWith({getBonusRules}), 1_000)
@@ -1066,7 +1066,7 @@ describe("the rules", () => {
         })
 
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({
-            blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: true,
+            blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}],
         }))
         backend.close()

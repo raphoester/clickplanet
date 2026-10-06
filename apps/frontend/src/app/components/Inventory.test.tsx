@@ -7,7 +7,7 @@ import {ALL_OFF, NO_CHARGES} from "../../domain/bonus.ts"
 afterEach(cleanup)
 beforeEach(() => window.localStorage.clear())
 
-const rules = {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, homeSoil: false, toll: []}
+const rules = {blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, toll: []}
 
 function inventory(props: Partial<InventoryProps> = {}) {
     return <Inventory charges={NO_CHARGES}
