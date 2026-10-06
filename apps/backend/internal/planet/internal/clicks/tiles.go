@@ -19,6 +19,8 @@ type Blast struct {
 	Owners []string
 
 	Struck []uint32
+	// Left[i] is the shields Struck[i] kept: Clear fills it.
+	Left []int
 }
 
 type Change struct {

@@ -39,6 +39,20 @@ export function remap(before, after) {
     return {runs, kept: survived.size, removed, added: after.length - survived.size}
 }
 
+const PAYLOAD_TILE_LISTS = ["cleared", "taken", "struck"]
+
+function payloadTilesSQL(key) {
+    const tile = "(o.value->>'tile')::integer"
+    return `UPDATE ledger_events e
+SET payload = jsonb_set(e.payload, '{${key}}', COALESCE((
+    SELECT jsonb_agg(jsonb_set(o.value, '{tile}', to_jsonb(r.to_id + (${tile} - r.from_id))) ORDER BY o.ordinality)
+    FROM jsonb_array_elements(e.payload->'${key}') WITH ORDINALITY o
+    JOIN tile_remap r ON ${tile} >= r.from_id AND ${tile} < r.from_id + r.span
+), '[]'::jsonb))
+WHERE e.payload ? '${key}';
+`
+}
+
 export function remapSQL({runs, kept, removed, added, before, after, from, to}, {down = false} = {}) {
     const walked = down
         ? runs.map(({from: f, to: t, span}) => ({from: t, to: f, span}))
@@ -81,17 +95,5 @@ SET tile = r.to_id + (e.tile - r.from_id)
 FROM tile_remap r
 WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span;
 
-UPDATE ledger_events e
-SET payload = jsonb_set(e.payload, '{cleared}', COALESCE((
-    SELECT jsonb_object_agg(kept.owner, kept.tiles)
-    FROM (
-        SELECT c.key AS owner, jsonb_agg(r.to_id + (t.tile - r.from_id) ORDER BY t.tile) AS tiles
-        FROM jsonb_each(e.payload->'cleared') c
-        CROSS JOIN LATERAL (SELECT value::integer AS tile FROM jsonb_array_elements_text(c.value)) t
-        JOIN tile_remap r ON t.tile >= r.from_id AND t.tile < r.from_id + r.span
-        GROUP BY c.key
-    ) kept
-), '{}'::jsonb))
-WHERE e.payload ? 'cleared';
-`
+${PAYLOAD_TILE_LISTS.map(payloadTilesSQL).join("\n")}`
 }

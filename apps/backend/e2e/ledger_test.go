@@ -127,7 +127,7 @@ func TestABombIsOneEventInTheLedgerWithTheFlagEachTileItClearedWore(t *testing.T
 	)
 	require.Eventually(t, func() bool {
 		err := planet.QueryRowContext(t.Context(), `
-			SELECT tile, country, previous, payload->>'flag', payload->'cleared'->>'fr'
+			SELECT tile, country, previous, payload->>'flag', payload->>'cleared'
 			FROM ledger_events WHERE kind = 'bomb'`).Scan(&tile, &country, &previous, &flag, &ours)
 		return err == nil
 	}, 5*time.Second, 20*time.Millisecond)
@@ -136,5 +136,55 @@ func TestABombIsOneEventInTheLedgerWithTheFlagEachTileItClearedWore(t *testing.T
 	assert.Empty(t, country, "and left it empty")
 	assert.Equal(t, "fr", previous)
 	assert.Equal(t, "de", flag)
-	assert.Equal(t, "[1]", ours, "the only tile it cleared was the one fr held")
+	assert.JSONEq(t, `[{"tile": 1, "owner": "fr"}]`, ours, "the only tile it cleared was the one fr held")
+}
+
+type keptEvent struct {
+	kind, country, previous string
+	tile                    int
+	payload                 sql.NullString
+}
+
+func TestAShieldAndTheClickItStoppedAreEventsInTheLedger(t *testing.T) {
+	game := startGame(t)
+	ada, bob := game.newPlayer(t), game.newPlayer(t)
+	ada.click(1, "fr")
+
+	grant := connect.NewRequest(&planetv1.GrantChargesRequest{AccountId: ada.account(), Shields: 1})
+	_, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).GrantCharges(t.Context(), grant)
+	require.NoError(t, err)
+
+	place := connect.NewRequest(&planetv1.PlaceShieldRequest{TileId: 1, CountryId: "fr"})
+	ada.send(place.Header())
+	_, err = planetv1connect.NewClickServiceClient(http.DefaultClient, game.baseURL).PlaceShield(t.Context(), place)
+	require.NoError(t, err)
+
+	bob.click(1, "de")
+
+	planet := game.schema(t, "planet")
+	var events []keptEvent
+	require.Eventually(t, func() bool {
+		rows, err := planet.QueryContext(t.Context(),
+			`SELECT kind, tile, country, previous, payload::text FROM ledger_events ORDER BY position`)
+		if err != nil {
+			return false
+		}
+		defer func() { _ = rows.Close() }()
+
+		events = nil
+		for rows.Next() {
+			var event keptEvent
+			if rows.Scan(&event.kind, &event.tile, &event.country, &event.previous, &event.payload) != nil {
+				return false
+			}
+			events = append(events, event)
+		}
+		return rows.Err() == nil && len(events) == 3
+	}, 5*time.Second, 20*time.Millisecond)
+
+	assert.Equal(t, []keptEvent{
+		{kind: "take", tile: 1, country: "fr"},
+		{kind: "shield", tile: 1, country: "fr", previous: "fr", payload: sql.NullString{String: `{"shields": 1}`, Valid: true}},
+		{kind: "strike", tile: 1, country: "de", previous: "fr", payload: sql.NullString{String: `{"shields": 0}`, Valid: true}},
+	}, events, "the strike took the last shield and no tile")
 }

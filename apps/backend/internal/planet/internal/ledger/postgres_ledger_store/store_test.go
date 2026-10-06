@@ -292,15 +292,15 @@ func (s *testSuite) TestAnEntryOfAnyKindComesBackWithItsPayload() {
 func (s *testSuite) TestAPayloadIsKeptAsJSONBesideTheTileItIsAbout() {
 	ctx := context.Background()
 	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{},
-		withPayload(0, "bomb", `{"cleared": {"il": [7]}}`))))
+		withPayload(0, "bomb", `{"cleared": [{"tile": 7, "owner": "il"}]}`))))
 
 	s.Equal([]row{{position: 0, tile: 7, scope: text("1.2.3.4"), account: null(), country: "", previous: "il", takenAt: start}},
 		s.rows())
 
 	var kind, payload string
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT kind, payload->'cleared'->>'il' FROM ledger_events`).Scan(&kind, &payload))
+	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT kind, payload->'cleared'->0->>'owner' FROM ledger_events`).Scan(&kind, &payload))
 	s.Equal("bomb", kind)
-	s.Equal("[7]", payload)
+	s.Equal("il", payload)
 }
 
 func (s *testSuite) TestATakeIsARowOfItsKindWithNoPayload() {
@@ -328,7 +328,7 @@ func (s *testSuite) TestABombingReadsBackAsTheBombingItWas() {
 	ctx := context.Background()
 	bombing := ledger.Bombing{Scope: "1.2.3.4", Account: guest, At: start, Blast: clicks.Blast{
 		Tile: 7, CountryID: "de", Point: clicks.Vec3{X: 0.6, Z: 0.8}, Radius: 0.032,
-		Cleared: []uint32{3, 7, 9}, Owners: []string{"fr", "il", "fr"},
+		Cleared: []uint32{3, 7, 9}, Owners: []string{"fr", "il", "fr"}, Struck: []uint32{8}, Left: []int{0},
 	}}
 	entry, err := bombing.Entry()
 	s.Require().NoError(err)

@@ -930,7 +930,7 @@ to the Actions secrets before the first deploy.
 Without it, `docker compose up` refuses to start. Never change it: postgres reads it only when `pg_data` is empty, so a
 new value locks the API out of the existing data.
 
-How many tiles, takes and bombs it holds:
+How many tiles it holds, and how many of each act the ledger keeps (take, strike, spread, enclose, bomb, shield):
 
 ```bash
 docker compose exec postgres psql -U clickplanet -c "select count(*) from planet.tiles"
@@ -1109,8 +1109,10 @@ Each player has:
   is a row of its own; a row with no `accountId` is the takes made with no account
 - `tiles`: tiles it still holds — its take is the tile's latest and the paint is
   still there
-- `takes`: every take it made, held or painted over since; a tile taken twice
-  counts twice, and a bomb counts once
+- `takes`: every act that took or cleared a tile, held or painted over since; a
+  tile taken twice counts twice, a bomb counts once, and a click with a spread or
+  an enclose counts twice (the click, then the bonus). A click a shield stopped
+  and a shield placed count nothing
 - `tilesPerMinute` and `takesPerMinute`: each over `activeFor`, 0 for a single take
 - `banned`/`bannedUntil`/`offence` when a ban is running
 
@@ -1118,7 +1120,7 @@ Each player has:
 paints.** These tools read the takes of the last 72h (`ledger.retention`), held
 in memory, and they survive a restart. Memory holds at most 4M takes
 (`ledgerStorage.maxTakes`); a busier stretch drops the oldest first and logs
-`the ledger is full`. Postgres keeps every take and every bomb for good in
+`the ledger is full`. Postgres keeps every act for good in
 `planet.ledger_events`, but drops its address once it leaves memory.
 
 Ban first, or the player repaints behind the revert. Leave out `duration` to
@@ -1155,7 +1157,9 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
   player's paint, not further: player il→ps, other ps→de, player de→ps gives
   `de`.
 - Its bombs are undone too: each tile a bomb of the player cleared goes back to
-  the flag it wore, while it is still empty. They count in `touched`.
+  the flag it wore, while it is still empty. They count in `touched`. So are the
+  tiles its spreads and enclosures took. Its shields and the shields it struck
+  are not put back.
 - Paced like the reassign, each tile an ordinary update on the live stream.
 - A second run answers zeros: a reverted player has nothing left to revert.
 - Every ban and revert is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin ban\|admin player revert"`.

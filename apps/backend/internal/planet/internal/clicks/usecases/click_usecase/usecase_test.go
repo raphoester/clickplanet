@@ -34,7 +34,7 @@ func (s *testSuite) SetupTest() {
 
 	tileChecker := clicks.NewBoard(maxIndex)
 	countryChecker := cpcountries.New()
-	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker, clicks.NewShielding(s.storage))
+	s.useCase = click_usecase.New(tileChecker, clicks.NewClaiming(s.storage), countryChecker)
 }
 
 func (s *testSuite) execute(tileID uint32, countryID string) error {

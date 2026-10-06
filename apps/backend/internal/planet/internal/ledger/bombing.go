@@ -1,10 +1,8 @@
 package ledger
 
 import (
-	"cmp"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -20,10 +18,11 @@ type Bombing struct {
 }
 
 type bombPayload struct {
-	Flag    string              `json:"flag"`
-	Point   [3]float64          `json:"point"`
-	Radius  float64             `json:"radius"`
-	Cleared map[string][]uint32 `json:"cleared"`
+	Flag    string       `json:"flag"`
+	Point   [3]float64   `json:"point"`
+	Radius  float64      `json:"radius"`
+	Cleared []changeJSON `json:"cleared,omitempty"`
+	Struck  []strikeJSON `json:"struck,omitempty"`
 }
 
 func (b Bombing) Replay(see func(Taking)) {
@@ -34,18 +33,20 @@ func (b Bombing) Replay(see func(Taking)) {
 
 func (b Bombing) Entry() (Entry, error) {
 	payload := bombPayload{
-		Flag:    b.Blast.CountryID,
-		Point:   [3]float64{b.Blast.Point.X, b.Blast.Point.Y, b.Blast.Point.Z},
-		Radius:  b.Blast.Radius,
-		Cleared: make(map[string][]uint32),
+		Flag:   b.Blast.CountryID,
+		Point:  [3]float64{b.Blast.Point.X, b.Blast.Point.Y, b.Blast.Point.Z},
+		Radius: b.Blast.Radius,
 	}
 
 	entry := Entry{Kind: kindBomb, Tile: b.Blast.Tile, Scope: b.Scope, Account: b.Account, At: b.At}
 	for i, tile := range b.Blast.Cleared {
-		payload.Cleared[b.Blast.Owners[i]] = append(payload.Cleared[b.Blast.Owners[i]], tile)
+		payload.Cleared = append(payload.Cleared, changeJSON{Tile: tile, Owner: b.Blast.Owners[i]})
 		if tile == b.Blast.Tile {
 			entry.Previous = b.Blast.Owners[i]
 		}
+	}
+	for i, tile := range b.Blast.Struck {
+		payload.Struck = append(payload.Struck, strikeJSON{Tile: tile, Shields: b.Blast.Left[i]})
 	}
 
 	encoded, err := json.Marshal(payload)
@@ -63,27 +64,19 @@ func bombingOf(entry Entry) (Event, error) {
 		return nil, fmt.Errorf("failed to read the bomb at tile %d: %w", entry.Tile, err)
 	}
 
-	type clearing struct {
-		tile  uint32
-		owner string
-	}
-	var clearings []clearing
-	for owner, tiles := range payload.Cleared {
-		for _, tile := range tiles {
-			clearings = append(clearings, clearing{tile: tile, owner: owner})
-		}
-	}
-	slices.SortFunc(clearings, func(a, b clearing) int { return cmp.Compare(a.tile, b.tile) })
-
 	blast := clicks.Blast{
 		Tile:      entry.Tile,
 		CountryID: payload.Flag,
 		Point:     clicks.Vec3{X: payload.Point[0], Y: payload.Point[1], Z: payload.Point[2]},
 		Radius:    payload.Radius,
 	}
-	for _, c := range clearings {
-		blast.Cleared = append(blast.Cleared, c.tile)
-		blast.Owners = append(blast.Owners, c.owner)
+	for _, cleared := range payload.Cleared {
+		blast.Cleared = append(blast.Cleared, cleared.Tile)
+		blast.Owners = append(blast.Owners, cleared.Owner)
+	}
+	for _, struck := range payload.Struck {
+		blast.Struck = append(blast.Struck, struck.Tile)
+		blast.Left = append(blast.Left, struck.Shields)
 	}
 
 	return Bombing{Scope: entry.Scope, Account: entry.Account, At: entry.At, Blast: blast}, nil

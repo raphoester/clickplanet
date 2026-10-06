@@ -152,7 +152,7 @@ func TestEveryTakeKeptBeforeTheEventsIsATake(t *testing.T) {
 		VALUES ($1, $2, 3, '203.0.113.7', '', '', $3, $4)`
 	_, err = db.ExecContext(t.Context(), insert, 2, "", at, nil)
 	require.Error(t, err, "an event has a kind")
-	_, err = db.ExecContext(t.Context(), insert, 3, "bomb", at, `{"cleared": {}}`)
+	_, err = db.ExecContext(t.Context(), insert, 3, "bomb", at, `{"cleared": []}`)
 	require.NoError(t, err, "which the table leaves to the ledger")
 }
 

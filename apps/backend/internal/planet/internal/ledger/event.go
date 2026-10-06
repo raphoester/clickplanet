@@ -25,8 +25,12 @@ type Entry struct {
 }
 
 var kinds = map[string]func(Entry) (Event, error){
-	kindTake: takingOf,
-	kindBomb: bombingOf,
+	kindTake:    takingOf,
+	kindStrike:  strikingOf,
+	kindSpread:  spreadingOf,
+	kindEnclose: enclosingOf,
+	kindBomb:    bombingOf,
+	kindShield:  shieldingOf,
 }
 
 func EventOf(entry Entry) (Event, error) {

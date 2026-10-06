@@ -17,13 +17,8 @@ type Neighbours interface {
 	Neighbours(id uint32) []uint32
 }
 
-type TileStorage interface {
-	Owner(tile uint32) (string, bool)
-	Set(ctx context.Context, tile uint32, value string) error
-}
-
-type Rule interface {
-	Strike(ctx context.Context, tile uint32, owner, flag string) clicks.Outcome
+type Spreader interface {
+	Spread(ctx context.Context, tile uint32, flag string, neighbours []uint32) error
 }
 
 type Publisher interface {
@@ -34,16 +29,14 @@ func New(
 	implementation click_usecase.IUseCase,
 	spreads Spreads,
 	neighbours Neighbours,
-	storage TileStorage,
-	rule Rule,
+	spreader Spreader,
 	publisher Publisher,
 ) *UseCase {
 	return &UseCase{
 		implementation: implementation,
 		spreads:        spreads,
 		neighbours:     neighbours,
-		storage:        storage,
-		rule:           rule,
+		spreader:       spreader,
 		publisher:      publisher,
 	}
 }
@@ -52,8 +45,7 @@ type UseCase struct {
 	implementation click_usecase.IUseCase
 	spreads        Spreads
 	neighbours     Neighbours
-	storage        TileStorage
-	rule           Rule
+	spreader       Spreader
 	publisher      Publisher
 }
 
@@ -64,13 +56,8 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	}
 
 	neighbours := u.neighbours.Neighbours(in.TileID)
-	for _, neighbour := range neighbours {
-		owner, _ := u.storage.Owner(neighbour)
-		after := u.rule.Strike(ctx, neighbour, owner, in.CountryID).OwnerAfter(owner, in.CountryID)
-
-		if err := u.storage.Set(ctx, neighbour, after); err != nil {
-			return out, fmt.Errorf("failed to spread onto tile %d: %w", neighbour, err)
-		}
+	if err := u.spreader.Spread(ctx, in.TileID, in.CountryID, neighbours); err != nil {
+		return out, fmt.Errorf("failed to spread from tile %d: %w", in.TileID, err)
 	}
 
 	// The neighbours are copied: Neighbours hands back the map's own table.

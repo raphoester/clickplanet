@@ -287,10 +287,11 @@ internal/planet/internal/
 - **`clicks/`** — what a click is worth, what the map looks like, and what
   changes when somebody takes a tile. Its root holds the rules that need no
   port: `Board` (which tile ids exist), `Toll` (what a click costs), `Outcome` and
-  `Shielding` (what a click does to a tile and its shields), `Pacing` (how an
+  `Shielding` (what a click does to a tile and its shields), `Claiming` (a player's
+  click written: the strike, then the owner it leaves, as an `Impact`), `Pacing` (how an
   operator's bulk change is spread out), `Geography` and `Borders`.
-- **`ledger/`** — every take and every bomb, oldest first. Its root holds `Event` and its kinds (`Taking`, `Bombing`), `Entry`, `Player`, `Tally`, `Runs`,
-  the `Storage` port, `Recording` (the tile writer that records) and `Retention`. `FindPlayers`, `TopPlayers`, `BanPlayer` and
+- **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Player`, `Tally`, `Runs`,
+  the `Storage` port, `Recording` (the tile writer that records each act) and `Retention`. `FindPlayers`, `TopPlayers`, `BanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
 - **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
   Its root also holds the rules a bonus plays by: `Terrain` and `Pocket` (what an
@@ -323,7 +324,7 @@ because it serves every concept over one Connect service. It only maps.
 
 | package | what it does | what it needs |
 |---|---|---|
-| `clicks/usecases/click_usecase` | validates the country and the tile, then writes what the shielding says the click leaves | `TilesChecker`, `TileStorage`, `CountryChecker`, `Rule` |
+| `clicks/usecases/click_usecase` | validates the country and the tile, then clicks it and answers what the click did | `TilesChecker`, `Tiles`, `CountryChecker` |
 | `clicks/usecases/get_map_usecase` | a range of the map as one dense batch | `MaxIndexReader`, `DenseMapReader` |
 | `clicks/usecases/map_density_usecase` | how many tiles there are | `MaxIndexReader` |
 | `clicks/usecases/get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader` |
@@ -601,8 +602,10 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
   → antibot_click   (judges; a flagged caller is answered OK and dropped)
   → prom_click      (counts)
-  → clicks/usecases/click_usecase (validates tile ID + country, asks clicks.Shielding: take, strike a shield, or nothing)
-  → ledger.Recording.Click() → MemoryTileStorage.Click() [writes the flag; fans the update out in process, marked `clicked`]
+  → clicks/usecases/click_usecase (validates tile ID + country)
+  → ledger.Recording.Click() [records a take or a strike]
+  → clicks.Claiming.Click() (asks clicks.Shielding: take, strike a shield, or nothing)
+  → MemoryTileStorage.Click() [writes the flag; fans the update out in process, marked `clicked`]
   → every subscriber: one per open ListenForEvents stream
 ```
 
@@ -656,9 +659,13 @@ to the jury.
 - **The rule is `clicks.OutcomeOf(owner, flag, shields)`**, pure and tested in the
   `clicks` root: `Unchanged` when the tile wears the flag, `Shielded` when a shield
   stands, `Taken` otherwise. `clicks.Shielding` is the rule over the storage: `Outcome`
-  foresees it and spends nothing (`antibot_click`), and `Strike` spends the shield
-  (`click_usecase`, `spread_click`, the enclose annexer). A strike that lost the race
-  for the last shield is a take. `clicks.ShieldError` is what a placement is
+  foresees it and spends nothing (`antibot_click`), and `Strike` spends the shield.
+  A strike that lost the race for the last shield is a take.
+- **`clicks.Claiming` is the one way a player's click reaches a tile**: it strikes,
+  writes the owner the outcome leaves, and answers a `clicks.Impact` (the tile, its
+  owner before, the outcome and the shields standing after). `ledger.Recording` calls
+  it for the tile clicked, each neighbour of a spread and each tile of an enclosure,
+  and records what it answered. `clicks.ShieldError` is what a placement is
   refused for (`ErrNotYourTile`, `ErrTileFull`), read by the use case before it spends
   and by the storage under its lock.
 - **A shielded click writes no owner**: `OwnerAfter` is the owner, so the write is a
@@ -1572,8 +1579,9 @@ the rule**, inside the count, the shadow ban and the throttle:
 - the neighbours are not reported to the antibot jury — only the clicked tile is
   a click the caller made
 
-Each neighbour is an ordinary `Set`, so it publishes its own `TileUpdate` and a
-tile already held is a no-op. One click is at most 7 updates. **A lone island
+`spread_click` hands the neighbours to `ledger.Recording.Spread`, which claims each
+one as an ordinary `Set`, so it publishes its own `TileUpdate` and a tile already
+held is a no-op. The ledger keeps the spread as one event. One click is at most 7 updates. **A lone island
 takes itself and nothing else**: `Neighbours` is empty there, and the bonus does
 not pretend otherwise.
 
@@ -1645,7 +1653,7 @@ by `publishing_drop_bomb`, inside the count, and the chat announces it — see
 [Announcements](#announcements).
 **And the ledger keeps it**: the drop clears through `ledger.Recording`, so every
 bomb that went off is one event in `planet.ledger_events`, with the flag each tile
-it cleared wore — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
+it cleared wore and the shields each tile it struck kept — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-revertplayer-inspectplayer).
 **The shadow ban applies**: `antibot_drop_bomb` marks a banned caller's drop as a
 `Dud`, which spends the bomb, clears nothing and publishes nothing, and is answered
 OK — a bomb left in hand would tell the caller it was refused. It sits outside the
@@ -1696,8 +1704,9 @@ rule write, and hands the pockets to the annexer.
 
 It sits beside `spread_click`, against the rule and inside everything else, so
 it is one click to the throttle and to `prom_click`, a shadow-banned click never
-reaches it, and the tiles it takes are not reported to the antibot jury. Each
-tile taken is an ordinary `Set`. The search holds no lock across the map, so a
+reaches it, and the tiles it takes are not reported to the antibot jury. The
+annexer hands the inside to `ledger.Recording.Enclose`, which claims each tile as
+an ordinary `Set` and keeps the enclosure as one event. The search holds no lock across the map, so a
 tile can change under it; the worst that does is fill a pocket that opened a
 moment ago.
 
@@ -2455,8 +2464,14 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **The ledger follows the same pattern**, through `inmemory_ledger_storage.Persistence` and `ledger/postgres_ledger_store`, on the tile map's pool.
 
-- **Postgres keeps every event; memory keeps the last `ledger.retention`.** `ledger_events` is the permanent log of every take and every bomb, so a projection (season scores, stats, titles) can be computed again from history when a rule changes. Memory is the window the operator tools read.
-- **Four tables.** `ledger_events` is one row per event, keyed by its position, with its `kind`, the `account` (NULL for none, for every take made before accounts, and for a deleted account) and the `scope` (NULL once the event is behind the head). **A row is a `ledger.Entry`, and the store reads no kind**: the kinds are the ledger's catalog, so a new kind needs no migration. A `take` row is one tile changing hands, and has no `payload`. A `bomb` row is one blast: `tile`, `previous` and `country` say what happened to the tile it landed on (emptied, tile 0 in the sea), and `payload` is the rest, `{flag, point, radius, cleared}`, where `cleared` maps each flag to the tiles it lost. Migration `20261006130000_ledger_events` renamed `ledger_takes` and made every row before it a `take`; its down deletes the bombs. `ledger_head` is one row: the oldest position memory keeps, so positions carry on past a window the retention emptied. `ledger_forgotten` is a reverted scope's mark, and `ledger_forgotten_accounts` a reverted account's.
+- **Postgres keeps every event; memory keeps the last `ledger.retention`.** `ledger_events` is the permanent log of every act of a player on the map, so a projection (season scores, stats, titles) can be computed again from history when a rule changes. Memory is the window the operator tools read.
+- **Four tables.** `ledger_events` is one row per event, keyed by its position, with its `kind`, the `account` (NULL for none, for every take made before accounts, and for a deleted account) and the `scope` (NULL once the event is behind the head). **A row is a `ledger.Entry`, and the store reads no kind**: the kinds are the ledger's catalog, so a new kind needs no migration. `country` is the flag the player acted for, `tile` the tile it aimed at, and `previous` that tile's owner. A `take` row is a click that took a tile, and has no `payload`. Every other kind has one:
+  - `strike`: a click a shield stopped; `{shields}` is what the tile kept.
+  - `spread` and `enclose`: the bonus used on a click, on the tile clicked; `{taken, struck}` lists the tiles it took and the tiles a shield kept. The click itself is a row of its own.
+  - `bomb`: one blast; `country` is empty, `previous` the owner of the tile it emptied (tile 0 in the sea), and `{flag, point, radius, cleared, struck}` the rest.
+  - `shield`: a shield placed; `{shields}` is what the tile holds now.
+
+  Each tile a payload lists is `{tile, owner}`, and `shields` too when a shield kept it, so a remap of the map moves every tile id in it. A refill, a box and a quiz change no tile, and are not kept. Migration `20261006130000_ledger_events` renamed `ledger_takes` and made every row before it a `take`; its down deletes the bombs. `ledger_head` is one row: the oldest position memory keeps, so positions carry on past a window the retention emptied. `ledger_forgotten` is a reverted scope's mark, and `ledger_forgotten_accounts` a reverted account's.
 - **Boot loads from the head**: the takes from `ledger_head` on, in position order, then the marks. So memory and the boot time stay bounded by the window, however long the table grows. **A failed load refuses the boot.** Measured at 1M takes on a laptop: 0.8s to load, 1.3s to copy in — so ~3s and ~5s at the 4M cap.
 - **A flush appends, it never rewrites a take.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, blanks the scope of the takes between the head postgres held and the new one (what the retention or the cap dropped from memory), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written, in memory or in postgres. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
 - **The address does not outlive the retention.** A scope is personal data, so every row behind the head has none and every row from it on has one: the boot never loads a row with no scope. Blanking runs at ~100k rows a second on a laptop, so a cut of `ledger.retention` that drops a million takes at once passes the 10s flush timeout, and so does every retry; at today's volume the whole window is ~120k.
@@ -2504,11 +2519,12 @@ Measured on a copy of production's map, before postgres: 22,040 tiles in 4.4s, a
 
 For the patterns no watchdog catches but a person sees on the map. A player is an **account on a scope** (`cpipscope`: the address over IPv4, the /64 over IPv6), or a scope alone for takes made with no account. `BanPlayer`, `RevertPlayer` and `InspectPlayer` take a `scope` (any address) **or** an `account_id`, never both (`ledger.ParseCaller`; both, neither or a malformed id is `InvalidArgument`).
 
-- **`ledger` remembers every take**: tile, scope, account, country, previous owner and time, oldest first. `ledger.Recording` wraps the storage the click chain writes through — the rule, `spread_click` and the enclose annexer — so every tile a click takes is recorded, a no-op is not, and a click the shadow ban drops never reaches it. Recording appends through `publishing_ledger_storage`, which publishes `planet.v1.TileTaken` for each take with an account, after it is recorded. A take by somebody else is one more take, not a replacement: a bot painted over as fast as it paints is still in the ledger. Reassigns, paints and reverts write nothing; they show as a change the ledger never saw.
+- **`ledger` remembers every act of a player on the map**: who, when, the flag, the tile, and what it did to each tile, oldest first. `ledger.Recording` is the tile writer the click chain, `drop_bomb_usecase` and `place_shield_usecase` write through, with one method per act (`Click`, `Spread`, `Enclose`, `Clear`, `Shield`), so each act is one event, a click that changed nothing is none, and a click or a bomb the shadow ban drops never reaches it. Recording appends through `publishing_ledger_storage`, which publishes `planet.v1.TileTaken` for each take with an account, after it is recorded. A take by somebody else is one more take, not a replacement: a bot painted over as fast as it paints is still in the ledger. Reassigns, paints and reverts write nothing; they show as a change the ledger never saw.
 - **The ledger is a log of `ledger.Event`s, and nothing outside a kind's own file asks which kind it holds.** An event does two things: `Replay(see)` hands over each tile it changed, as a `Taking`, and `Entry()` writes it down. `ledger.EventOf(entry)` reads one back through `kinds`, the catalog, which is the only list of kinds. So the storage, the store, `Runs`, `Tally` and the publisher see events and changes, never a kind, and **a new kind is a type and one line in `kinds`**. A take replays as itself.
+- **The kinds**: a click that took a tile is a `Taking`, and one a shield stopped a `Striking`, which replays nothing. A spread or an enclosure is one event beside the click's (`Spreading`, `Enclosing`): the `clicks.Impact` of each tile it took or struck, sorted by tile, replayed as a take of each tile it took. A shield placed is a `Shielding`, and replays nothing. **`Tally` counts acts**: a click with a spread that took a neighbour is two takes in `TopPlayers`, and a strike or a shield is none. `TileTaken` is still one per tile taken, so the stats and the seasons count tiles as before.
 - **A bomb is one event** (`ledger.Bombing`): who dropped it, when, and the blast as the map cleared it. `drop_bomb_usecase` clears through `Recording.Clear`, and the map's `Clear` reports the flag each tile wore under its own lock (`clicks.Blast.Owners`). A dud never reaches it; a bomb in the sea is kept too, and clears nothing. It replays as a take with no country on each tile it cleared, by the bomber. **So a revert undoes a bomb**: a bomber's run on each tile it cleared goes back to the flag it wore, while the tile is still empty, and a bomb breaks the run of whoever it hit. **`Tally` counts takes by event**: a bomb is one take for the bomber in `TopPlayers` and holds nothing, it ends the hold of each tile it hit, and it matches no flag in `FindPlayers`. It is never published, since every tile it changed is a clear: `BombLanded` already says it.
 - **The rules are in the `ledger` root, and its package doc states them**. A caller (`ledger.Caller`, a scope or an account) **holds** a tile when the tile's latest take is its own and the tile still wears that paint. A revert gives a held tile back to what it held before the caller's **current run** on it: its own latest takes, walking back while each took the tile from the paint of the one before. An account's run follows it across scopes. Another scope's take breaks the run (A il→ps, B ps→de, A de→ps goes back to `de`), and so does a change the ledger never saw (A il→ps, a revert of A to nobody, A ""→ps goes back to nobody). `Tally` gathers players for `FindPlayers` and `TopPlayers`, `Runs` computes the revert, `ByTakes` and `Top` rank and cut. The use cases only replay the ledger into these, filter through their ports, and call them. The tests for each interleaving are in `ledger_test.go`.
-- **Kept in memory and flushed to postgres** (`inmemory_ledger_storage`, behind `ledger.Storage`; see [Durability](#durability)). Postgres keeps every event for good, without its scope once memory has dropped it; the tools here read memory alone. In memory it is an append-only log of 24-byte records in 1.5 MiB chunks, one per entry, scopes and accounts interned in one table per chunk and countries and kinds in others, so an old chunk takes its strings when it goes. An entry's payload sits beside its record in the chunk, in position order, and only a bomb has one. `Replay` reads each entry back through `EventOf`; `Load` refuses the boot on one that does not read back (`ErrUnknownKind`), so a rollback past a new kind is refused, not skipped. A record is never changed once written, so `Replay` copies the chunk headers under the lock and reads without it: a `TopPlayers` over 4M takes takes ~1s and never blocks a click. `Forget(caller, position)` hides a reverted scope's or account's takes up to the replay it was computed from, so a take made mid-revert still counts.
+- **Kept in memory and flushed to postgres** (`inmemory_ledger_storage`, behind `ledger.Storage`; see [Durability](#durability)). Postgres keeps every event for good, without its scope once memory has dropped it; the tools here read memory alone. In memory it is an append-only log of 24-byte records in 1.5 MiB chunks, one per entry, scopes and accounts interned in one table per chunk and countries and kinds in others, so an old chunk takes its strings when it goes. An entry's payload sits beside its record in the chunk, in position order, and a take has none. `Replay` reads each entry back through `EventOf`; `Load` refuses the boot on one that does not read back (`ErrUnknownKind`), so a rollback past a new kind is refused, not skipped. A record is never changed once written, so `Replay` copies the chunk headers under the lock and reads without it: a `TopPlayers` over 4M takes takes ~1s and never blocks a click. `Forget(caller, position)` hides a reverted scope's or account's takes up to the replay it was computed from, so a take made mid-revert still counts.
 - **Memory is bounded twice; postgres is not.** `ledger.retention` (72h) drops takes from memory by age, each `ledger.sweepInterval`; `ledgerStorage.maxTakes` (4M) drops the oldest first when a busy stretch fills it, and logs "the ledger is full" once. Production is thousands of clicks per 5 minutes (`clicks_total`), and a spread click takes up to 7 tiles: 15 takes a second fill 4M in three days. Measured at 4M before the account: ~85 MiB heap. The account and the kind add 4 bytes each a take, about 30 MiB more at the cap (not measured).
 - **`FindPlayers(flag, area, limit)`** lists every player that took a tile for `flag` on `area`'s ground (empty is the whole map), latest take first, with any running ban on its scope or its account — whichever ends last. Each account on a scope is its own row, with `account_id`. The ground comes from `clicks.Borders`, built by `embedded_geodesic_map.Loader.LoadBorders` from the borders blob the frontend paints flags from — see [Map geography](#map-geography). A blob for another map refuses the boot.
 - **`TopPlayers(limit)`** is the same over every flag and the whole map, **most takes first, then most tiles held**, then latest take. Takes lead because they are what a painted-over bot cannot hide. Every player, in both answers, carries `tiles` (held) and `takes` (every take, a tile taken twice counting twice), `active_for` (last take minus first take), and `tiles_per_minute` and `takes_per_minute` over that. A player with `takes` high and `tiles` near zero is painting and being painted over.

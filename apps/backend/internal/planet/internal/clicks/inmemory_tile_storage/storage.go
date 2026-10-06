@@ -100,6 +100,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 	cleared := make([]uint32, 0, len(blast.Cleared))
 	owners := make([]string, 0, len(blast.Cleared))
 	var struck []uint32
+	var left []int
 
 	s.tilesMu.Lock()
 	for _, tile := range blast.Cleared {
@@ -111,6 +112,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 			s.shields[tile]--
 			s.markDirtyLocked(tile)
 			struck = append(struck, tile)
+			left = append(left, int(s.shields[tile]))
 			continue
 		}
 		if s.tiles[tile] != unownedCode {
@@ -126,6 +128,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 	blast.Cleared = cleared
 	blast.Owners = owners
 	blast.Struck = struck
+	blast.Left = left
 	s.publish(clicks.Change{Blast: &blast})
 
 	return blast, nil

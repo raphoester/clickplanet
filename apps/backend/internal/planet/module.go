@@ -179,7 +179,8 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			shielding := clicks.NewShielding(tilesStorage)
 
-			writer := ledger.NewRecording(tilesStorage, publishing_ledger_storage.New(takings, props.Events), clock)
+			writer := ledger.NewRecording(tilesStorage, clicks.NewClaiming(tilesStorage),
+				publishing_ledger_storage.New(takings, props.Events), clock)
 
 			registry := bonuses.New(config.Bonus, clock, charges)
 			props.Runners.Add(registry)
@@ -199,12 +200,12 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 
-			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries, shielding)
-			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, shielding, registry)
+			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
+			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, registry)
 
 			clickUseCase = enclose_click.New(clickUseCase, charges,
 				bonuses.NewTerrain(geography, tilesStorage),
-				enclose_click.NewAnnexer(writer, shielding, charges, prom_enclose.New(registry, props.Metrics)))
+				enclose_click.NewAnnexer(writer, charges, prom_enclose.New(registry, props.Metrics)))
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
@@ -341,7 +342,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(antibot_place_shield.New(
-					place_shield_usecase.New(charges, tilesStorage, countries, config.Bonus.ShieldsPerTile()), guard)),
+					place_shield_usecase.New(charges, writer, countries, config.Bonus.ShieldsPerTile()), guard)),
 			}
 
 			return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

@@ -437,6 +437,7 @@ func (s *TileStorageContractSuite) TestABlastStrikesTheShieldedTilesAndClearsThe
 
 	s.Equal([]uint32{10, 12}, blast.Cleared)
 	s.Equal([]uint32{11}, blast.Struck)
+	s.Equal([]int{1}, blast.Left, "with the shields each one kept")
 	s.Equal(map[uint32]string{11: "fr"}, s.owners(10, 12))
 	s.Equal(1, s.storage.Shields(11))
 }
