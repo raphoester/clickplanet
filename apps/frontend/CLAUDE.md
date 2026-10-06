@@ -1308,7 +1308,7 @@ mint a guest and insert a row into `auth.identities` for its account.
   click is a spark that keeps the planet alive, and otherwise 1.8 tiles wide, so
   pushed in it stays on its tile (`glintSize`). **A hit on a shield is the
   same glint, red and shrinking as it fades** (`playHit`), and a shield placed
-  is violet and grows (`playShielded`). **This player's glints are in its
+  is steel and grows (`playShielded`). **This player's glints are in its
   color's hue** (`hueOf`, handed down through `Globe.setClickHue`); a player
   with no color glints sky blue. Everyone else's are sky blue: a
   `TileUpdate` does not say who clicked. Not white, which vanished on the white
@@ -2193,11 +2193,11 @@ in `backends/backend.ts`, `domain/shields.ts` the count per tile and the rule,
 - **Spread and enclose follow the same rule on the server**; their updates bring
   the counts.
 - **It is drawn in the tile shader**: one more per-tile attribute (`shield`)
-  and a uniform (`shieldMost`). From 14px across, a violet ring cut into one
+  and a uniform (`shieldMost`). From 14px across, a steel ring cut into one
   segment per shield the tile can hold, the held ones lit; under that a plain
-  ring, and from orbit a violet tint that deepens with the count. Nothing is
+  ring, and from orbit a steel tint that deepens with the count. Nothing is
   allocated per tile and nothing animates, so a shield costs no frame.
-- **A count that drops glints red, one that rises glints violet**
+- **A count that drops glints red, one that rises glints steel**
   (`clickGlints.ts`). This player's own hit and placement play at once, and their
   echo is skipped (`ownHits`, `ownPlacements`).
 

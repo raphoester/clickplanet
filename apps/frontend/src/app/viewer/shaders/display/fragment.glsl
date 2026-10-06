@@ -28,8 +28,8 @@ const float KEYLINE_WIDTH = 1.5;
 const float KEYLINE_FEATHER = 0.5;
 const float KEYLINE_MOST = 0.03;
 
-const vec3 SHIELD = vec3(0.74, 0.6, 1.0);
-const vec3 SHIELD_EMPTY = vec3(0.03, 0.02, 0.08);
+const vec3 SHIELD = vec3(0.84, 0.87, 0.91);
+const vec3 SHIELD_EMPTY = vec3(0.05, 0.06, 0.08);
 const float TURN = 6.2831853;
 
 vec2 atlasUVof(vec4 region, vec2 uv) {

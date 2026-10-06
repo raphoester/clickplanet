@@ -20,7 +20,7 @@ const SKY = new THREE.Color(0.35, 0.75, 1.0)
 
 const HIT = new THREE.Color(1.0, 0.42, 0.25)
 
-const SHIELDED = new THREE.Color(0.74, 0.6, 1.0)
+const SHIELDED = new THREE.Color(0.84, 0.87, 0.91)
 
 export type GlintKind = "click" | "hit" | "shielded"
 
