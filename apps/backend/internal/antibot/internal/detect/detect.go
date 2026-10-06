@@ -19,8 +19,6 @@ type Click struct {
 
 	Held string
 	NoOp bool
-
-	Cleared bool
 }
 
 type Verdict uint8

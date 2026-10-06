@@ -26,7 +26,7 @@ var _ ledger.Storage = Storage{}
 func (s Storage) Append(taking ledger.Taking) {
 	s.Storage.Append(taking)
 
-	if taking.Account == "" || taking.Cleared() {
+	if taking.Account == "" {
 		return
 	}
 

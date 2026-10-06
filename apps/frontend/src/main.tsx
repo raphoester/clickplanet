@@ -16,8 +16,6 @@ import {API_BASE_URL} from "./backends/transport.ts"
 import {FakeStandingsBackend} from "./backends/fakeStandingsBackend.ts"
 import {ConnectStandingsBackend} from "./backends/standingsBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
-import {countryOfTile, loadBorders} from "./app/viewer/borderField.ts"
-import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
 import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
@@ -53,7 +51,6 @@ const root = createRoot(document.getElementById('root')!)
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fake = new FakeBackend(100, {
         tilePositions: () => loadPointGeometryData().then((data) => data.positions),
-        grounds: () => loadBorders(BORDERS_URL).then((data) => (tile: number) => countryOfTile(data, tile)),
     })
     const fakePresence = new FakePresenceBackend()
     Object.assign(window, {

@@ -49,7 +49,6 @@ import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
 import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
-import {outcomeOf, ownerAfter} from "../../domain/homeSoil.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 import {AcceptedClick} from "./acceptedClicks.ts";
 
@@ -133,7 +132,6 @@ export type GlobeOptions = {
     bomber?: Bomber
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
     onArmedChange: (armed: boolean) => void
-    onNativeCleared?: (ground: string) => void
     onClickAccepted?: (click: AcceptedClick) => void
     playSound?: PlaySound
     signal: AbortSignal
@@ -179,7 +177,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber,
         onBombDropped,
         onArmedChange,
-        onNativeCleared = () => {},
         onClickAccepted = () => {},
         playSound = () => {},
         signal,
@@ -539,26 +536,18 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
-        const owner = ownership.ownerOf(tile)
-        const ground = rules?.homeSoil ? countryOfTile(borders, tile) : undefined
-        const outcome = outcomeOf(owner, ground, country.code)
+        const took = ownership.ownerOf(tile) !== country.code
 
-        const {changes, claim} = ownership.applyOptimistic(tile, ownerAfter(outcome, owner, country.code))
+        const {changes, claim} = ownership.applyOptimistic(tile, country.code)
         applyChanges(changes)
         playSound("click")
         ownClicks.record(tile, country.code, performance.now() / 1000)
-
-        if (outcome === "cleared" && ground !== undefined) {
-            plainClicks.playOwnClear(tile)
-            onNativeCleared(ground)
-        } else {
-            plainClicks.playOwnClick(tile, camera)
-        }
+        plainClicks.playOwnClick(tile, camera)
 
         const clicked = country.code
         tileClicker.clickTile(tile, clicked, switches).then(() => {
             if (lifetime.signal.aborted) return
-            onClickAccepted({country: clicked, took: outcome === "taken"})
+            onClickAccepted({country: clicked, took})
         }, (e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))

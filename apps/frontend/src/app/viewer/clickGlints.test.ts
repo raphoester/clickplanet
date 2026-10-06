@@ -26,39 +26,24 @@ const colourOf = (object: THREE.Object3D) =>
 
 describe("glintLook", () => {
     it("lights at once and is gone well inside a second", () => {
-        expect(glintLook(0.06, false)!.opacity).toBeCloseTo(PEAK)
+        expect(glintLook(0.06)!.opacity).toBeCloseTo(PEAK)
         expect(GLINT_SECONDS).toBeLessThan(1)
-        expect(glintLook(GLINT_SECONDS, false)).toBeUndefined()
-        expect(glintLook(GLINT_SECONDS, true)).toBeUndefined()
+        expect(glintLook(GLINT_SECONDS)).toBeUndefined()
     })
 
-    it("fades a take where it stands", () => {
-        const early = glintLook(0.1, false)!
-        const late = glintLook(0.6, false)!
-
-        expect(late.opacity).toBeLessThan(early.opacity)
-        expect(early.scale).toBe(1)
-        expect(late.scale).toBe(1)
-    })
-
-    it("shrinks a clear as it fades", () => {
-        const early = glintLook(0.1, true)!
-        const late = glintLook(0.6, true)!
-
-        expect(late.scale).toBeLessThan(early.scale)
-        expect(late.scale).toBeGreaterThan(0)
-        expect(late.opacity).toBeLessThan(early.opacity)
+    it("fades where it stands", () => {
+        expect(glintLook(0.6)!.opacity).toBeLessThan(glintLook(0.1)!.opacity)
     })
 })
 
 describe("glintSize", () => {
     it("never goes under its floor, so a click is seen from orbit", () => {
-        expect(glintSize(1.5, 1, 1)).toBe(MIN_GLINT_PX)
-        expect(glintSize(3, 2, 1)).toBe(MIN_GLINT_PX * 2)
+        expect(glintSize(1.5, 1)).toBe(MIN_GLINT_PX)
+        expect(glintSize(3, 2)).toBe(MIN_GLINT_PX * 2)
     })
 
     it("sits on its tile up close", () => {
-        expect(glintSize(60, 1, 1)).toBeCloseTo(60 * TILES_WIDE)
+        expect(glintSize(60, 1)).toBeCloseTo(60 * TILES_WIDE)
     })
 })
 
@@ -116,26 +101,11 @@ describe("createClickGlints", () => {
 
         glints.setOwnHue(270)
         glints.playOwnClick(1, camera)
-        glints.playOwnClear(1)
         glints.playClick(1, camera)
 
-        const [click, clear, theirs] = glints.object.children.map(colourOf)
+        const [click, theirs] = glints.object.children.map(colourOf)
         expect(click.getHSL({h: 0, s: 0, l: 0}).h * 360).toBeCloseTo(270)
-        expect(clear.equals(click)).toBe(true)
         expect(theirs.equals(click)).toBe(false)
-
-        glints.dispose()
-    })
-
-    it("tells a clear from a click by colour for a player with no hue", () => {
-        const glints = createClickGlints(facing)
-        const camera = lookingAtFront()
-
-        glints.playOwnClick(1, camera)
-        glints.playOwnClear(1)
-
-        const [click, clear] = glints.object.children.map(colourOf)
-        expect(clear.equals(click)).toBe(false)
 
         glints.dispose()
     })

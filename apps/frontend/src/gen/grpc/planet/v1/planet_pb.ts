@@ -789,11 +789,6 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
   enclosures = 0;
 
   /**
-   * @generated from field: bool home_soil = 5;
-   */
-  homeSoil = false;
-
-  /**
    * Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower.
    *
    * @generated from field: repeated planet.v1.TollStep toll_steps = 6;
@@ -812,7 +807,6 @@ export class GetBonusRulesResponse extends Message<GetBonusRulesResponse> {
     { no: 2, name: "enclosure_max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "spread_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 5, name: "home_soil", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 6, name: "toll_steps", kind: "message", T: TollStep, repeated: true },
   ]);
 

@@ -108,7 +108,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 
 	if !click.NoOp {
 		previous, ok := w.losses[click.Tile]
-		retake := ok && !click.Cleared &&
+		retake := ok &&
 			previous.country == click.Country &&
 			previous.to != click.Scope &&
 			click.At.Sub(previous.at) <= w.config.RetakeWindow

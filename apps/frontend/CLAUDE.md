@@ -35,10 +35,6 @@ The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
 
-The fake plays native land as the server does, off the real borders blob: every
-tile starts French, so on France's own ground another flag's first click clears
-the tile.
-
 In fake mode the console has a few commands: `giveBomb()` puts a bomb in the
 inventory as if a box holding one had just been caught, `giveBonus("refill")` does
 the same for any other bonus (the fake holds charges as the server does: a refill
@@ -182,10 +178,6 @@ app/       components
   pixel is drawn: the `?f=<code>` link, the text that rides with it, the line
   under the flag, and the size the card comes out at. See [Sharing the
   globe](#sharing-the-globe).
-- `homeSoil.ts` — `outcomeOf` and `ownerAfter`, the server's home-soil rule
-  copied so a click is painted as the server will write it. See [Native land
-  takes two clicks](#native-land-takes-two-clicks). `clearNotes.ts` counts how
-  often the line explaining a clear has been shown.
 - `clickOrDrag.ts` — `ClickOrDrag`, whether a press was a click or a drag of
   the globe. The browser sends `click` after a drag too, so turning the globe
   claimed the tile under the cursor on release. A press that moves more than
@@ -831,7 +823,7 @@ draws it.
   accepted clicks, and at least every 10s while they keep coming
   (`useReadsAfterClicks`).
 - **The caller's own numbers move on every take.** The globe already knows
-  which click takes a tile (it paints it as the server will write it), and once
+  which click takes a tile (one on a tile its flag does not hold), and once
   the server accepts one it tells `acceptedClicks`, which tells its listeners
   with no render of `Viewer` per click. `useOwnTakes` counts them by flag, and
   `liveSeason` adds the ones made since the read was sent to the line's flag:
@@ -905,9 +897,8 @@ a stylesheet shared with `play.html` becomes its own file, linked before
 page's `<style>`, as `.panel` and `.button` are.
 
 **The desktop chip writes its bottom edge on `:root` as `--status-bottom`**
-(`useBottomEdge`), and on a phone the status bar does: the quiz, the bomb news
-and the native-land note sit under it. With neither, the property is unset and
-they sit at the top.
+(`useBottomEdge`), and on a phone the status bar does: the quiz and the bomb
+news sit under it. With neither, the property is unset and they sit at the top.
 
 ### Sessions
 
@@ -1306,15 +1297,12 @@ mint a guest and insert a row into `auth.identities` for its account.
   could not be seen, and a full-strength ring of at least 44px with a dark edge
   looked like a bonus. **It is never under `MIN_GLINT_PX`**, so from orbit a
   click is a spark that keeps the planet alive, and otherwise 1.8 tiles wide, so
-  pushed in it stays on its tile (`glintSize`). **A clear is the same glint
-  shrinking as it fades** (`playOwnClear`), on a tile this player's click
-  cleared rather than took. **This player's glints are in its color's hue**
-  (`hueOf`, handed down through `Globe.setClickHue`); a player with no color
-  glints sky blue and clears in dust. Everyone else's are sky blue: a
-  `TileUpdate` does not say who clicked. Not white, which vanished on the white
-  of a flag. **A click out of view is not played** (`inView`): on the far side
-  or off the screen it would cost frames and show nothing. With less motion a
-  clear fades without shrinking.
+  pushed in it stays on its tile (`glintSize`). **This player's glints are in
+  its color's hue** (`hueOf`, handed down through `Globe.setClickHue`); a player
+  with no color glints sky blue. Everyone else's are sky blue: a `TileUpdate`
+  does not say who clicked. Not white, which vanished on the white of a flag.
+  **A click out of view is not played** (`inView`): on the far side or off the
+  screen it would cost frames and show nothing.
 - `earth.ts` — the opaque sphere under the tiles, in the globe's light with
   `?gfx=earth`. See [The light](#the-light).
 - `graphics.ts` — `graphicsOf`, which parts of the sharper, lit globe are on:
@@ -1919,10 +1907,6 @@ ever takes back what that click itself painted.**
 going back to unowned, which `TileField` writes as a zero-sized atlas region —
 what the fragment shader already draws as an unclaimed tile.
 
-**A click predicted to clear paints `undefined`**, and its claim remembers that
-like any other paint: a refused clear gives the natives their flag back, and a
-refused take behind a clear still in flight falls back to the empty tile.
-
 Rolling back on *any* failure, including a transport fault, is deliberate: if
 the click did land and only the response was lost, the stream's echo repaints
 it, and if the echo arrives first the rollback is already a no-op.
@@ -1953,9 +1937,8 @@ inventory.
 
 **The sizes are rules, read once**: `GetBonusRules` (a cached GET) answers the
 blast radius, the enclose's `maxTiles`, the spread pool's size and the enclosure
-stack's size as `BonusRules`, through `onRules`, and whether native land takes
-two clicks (`homeSoil`). A page open across a change of rules shows the old sizes
-until it is reloaded.
+stack's size as `BonusRules`, through `onRules`. A page open across a change of
+rules shows the old sizes until it is reloaded.
 
 ### Off by default, one at a time
 
@@ -1994,32 +1977,6 @@ word over the icon says what the slot is doing (`On`, `Aim`, `Full`).
 with their counts below that (the name stays in `aria-label`). A fold on a row
 this small hid the one thing that says the next click does more than paint.
 The dock glows while something is on or aimed.
-
-## Native land takes two clicks
-
-On a country's own ground, a tile wearing that country's flag is **cleared** by
-the first click for any other flag, not taken; the next click on the empty tile
-takes it, and its natives take it back in one. Every click still costs one. The
-server decides (see the backend's CLAUDE.md, "Native land takes two clicks"), and
-says whether the rule is on in `BonusRules.homeSoil`.
-
-- **The click is painted as the server will write it.** `globe.ts` reads the
-  tile's ground off the borders blob it already loads (`countryOfTile`), asks
-  `domain/homeSoil.ts`, and paints `ownerAfter`: a clear as an empty tile, never
-  the flag. `homeSoil.test.ts` holds the same cases as the server's
-  `home_soil_test.go`. Before the rules are read, or with no bonus feed, a click
-  is painted as a take and the server's echo corrects it.
-- **A clear says so twice.** A tile going blank under a newcomer's click reads as
-  a click that went wrong, so its glint shrinks as it fades (`clickGlints.ts`,
-  every time), and `NativeLandNote` says "Poland's native land takes two clicks.
-  One more to take it." under the bomb line — only the first three times in a
-  browser (`domain/clearNotes.ts`, in `clickplanet-home-soil-notes`, counted in
-  memory when storage throws). It gives the quiz the band the way the bomb line does.
-- **Spread and enclose follow the rule on every tile they touch**, on the server.
-  Nothing here predicts them: their tiles arrive over the stream as ever, a cleared
-  one as an update with no country.
-- **Only the clicker sees the clear's glint.** Everybody else sees the tile go empty, as a
-  `TileUpdate` with no country: the stream does not say why.
 
 ## Quizzes
 

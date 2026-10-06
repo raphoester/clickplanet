@@ -64,11 +64,6 @@ func (t *Tally) See(taking Taking) {
 		player.LastAt = taking.At
 	}
 
-	if taking.Cleared() {
-		delete(t.tiles, taking.Tile)
-		return
-	}
-
 	t.tiles[taking.Tile] = hold{player: index, country: taking.Country}
 }
 

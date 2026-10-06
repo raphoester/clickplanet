@@ -21,7 +21,6 @@ type Config struct {
 	TilesStorage inmemory_tile_storage.Config
 	RateLimiter  clicks.ThrottleConfig
 	Toll         clicks.TollConfig
-	HomeSoil     clicks.HomeSoilConfig
 	VPNBlocklist cpipblock.Config
 	AntiBot      antibot.Config
 	Bonus        bonuses.Config
