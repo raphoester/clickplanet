@@ -6,6 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -23,6 +24,10 @@ type TileOwner interface {
 	Owner(tile uint32) (string, bool)
 }
 
+type Rule interface {
+	Outcome(tile uint32, owner, flag string) clicks.Outcome
+}
+
 type Tempo interface {
 	Rules() tempo.Rules
 }
@@ -31,6 +36,7 @@ func New(
 	implementation click_usecase.IUseCase,
 	guard ClickGuard,
 	owner TileOwner,
+	rule Rule,
 	tempo Tempo,
 	clock cptime.Clock,
 	registerer prometheus.Registerer,
@@ -55,6 +61,7 @@ func New(
 		implementation: implementation,
 		guard:          guard,
 		owner:          owner,
+		rule:           rule,
 		tempo:          tempo,
 		clock:          clock,
 		dropped:        dropped,
@@ -65,6 +72,7 @@ type UseCase struct {
 	implementation click_usecase.IUseCase
 	guard          ClickGuard
 	owner          TileOwner
+	rule           Rule
 	tempo          Tempo
 	clock          cptime.Clock
 	dropped        prometheus.Counter
@@ -82,8 +90,10 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	}
 
 	if held, known := u.owner.Owner(observed.Tile); known {
+		outcome := u.rule.Outcome(observed.Tile, held, observed.Country)
 		observed.Held = held
-		observed.NoOp = held == observed.Country
+		observed.NoOp = outcome == clicks.Unchanged
+		observed.Shielded = outcome == clicks.Shielded
 	}
 
 	if u.guard.Inspect(observed) {

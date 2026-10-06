@@ -46,6 +46,10 @@ export class TileOwnership {
         this.frozen = true
     }
 
+    public isFrozen(): boolean {
+        return this.frozen
+    }
+
     public applyBatch(ownerships: Ownerships): OwnerChange[] {
         const changes: OwnerChange[] = []
         ownerships.bindings.forEach((country, tile) => {

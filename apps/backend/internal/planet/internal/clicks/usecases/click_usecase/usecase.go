@@ -12,11 +12,16 @@ type TilesChecker interface {
 }
 
 type TileStorage interface {
+	Owner(tile uint32) (string, bool)
 	Click(ctx context.Context, tile uint32, value string) error
 }
 
 type CountryChecker interface {
 	CheckCountry(country string) bool
+}
+
+type Rule interface {
+	Strike(ctx context.Context, tile uint32, owner, flag string) clicks.Outcome
 }
 
 type In struct {
@@ -33,6 +38,9 @@ type Out struct {
 	Limited bool
 
 	Gift bool
+
+	// Never on the wire: a dropped click answers the zero Out, so it would expose a ban.
+	Outcome clicks.Outcome
 }
 
 type IUseCase interface {
@@ -43,11 +51,13 @@ func New(
 	tilesChecker TilesChecker,
 	tileStorage TileStorage,
 	countryChecker CountryChecker,
+	rule Rule,
 ) *UseCase {
 	return &UseCase{
 		tilesChecker:   tilesChecker,
 		tileStorage:    tileStorage,
 		countryChecker: countryChecker,
+		rule:           rule,
 	}
 }
 
@@ -55,6 +65,7 @@ type UseCase struct {
 	tilesChecker   TilesChecker
 	tileStorage    TileStorage
 	countryChecker CountryChecker
+	rule           Rule
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
@@ -70,9 +81,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, in.TileID)
 	}
 
-	if err := u.tileStorage.Click(ctx, in.TileID, in.CountryID); err != nil {
+	owner, _ := u.tileStorage.Owner(in.TileID)
+	outcome := u.rule.Strike(ctx, in.TileID, owner, in.CountryID)
+
+	if err := u.tileStorage.Click(ctx, in.TileID, outcome.OwnerAfter(owner, in.CountryID)); err != nil {
 		return Out{}, fmt.Errorf("failed to set tile: %w", err)
 	}
 
-	return Out{}, nil
+	return Out{Outcome: outcome}, nil
 }

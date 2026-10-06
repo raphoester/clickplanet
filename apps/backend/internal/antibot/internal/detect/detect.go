@@ -20,6 +20,8 @@ type Click struct {
 	Held string
 	NoOp bool
 
+	Shielded bool
+
 	// How many times its plain pace the caller's bank refills at; 0 is the plain pace.
 	Pace float64
 }

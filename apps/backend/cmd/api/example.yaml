@@ -65,6 +65,7 @@ bonus:
     spread_clicks: 3
     enclose_clicks: 2
     bomb: 1
+    shields: 3
 
   # Must outlast the box's flight on the client, or a late catch is refused.
   offerTTL: 15s
@@ -80,6 +81,11 @@ bonus:
     maxTiles: 25
     held: 3
     maxPerBox: 3
+
+  shield:
+    held: 12
+    maxPerBox: 3
+    perTile: 10
 
   activeWithin: 2m
 

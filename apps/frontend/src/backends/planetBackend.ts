@@ -9,6 +9,7 @@ import {
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
+    ShieldRefusedError,
     Enclosure,
     MapFrozenError,
     Ownerships,
@@ -16,6 +17,7 @@ import {
     QuizMaster,
     RateLimitedError,
     Refiller,
+    Shielder,
     SpreadClick,
     TileClicker,
     Update,
@@ -52,7 +54,7 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -236,7 +238,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 signal,
             )
 
-            callback({bindings: bindingsOf(res)})
+            callback({bindings: bindingsOf(res), shields: shieldsOf(res)})
         }
     }
 
@@ -328,6 +330,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 enclosureMaxTiles: res.enclosureMaxTiles,
                 spreadClicks: res.spreadClicks,
                 enclosures: res.enclosures,
+                shields: res.shields,
+                tileShields: res.tileShields,
                 toll: res.tollSteps.map(({share, slowdown}) => ({share, slowdown})),
             }
             this.rules = rules
@@ -549,6 +553,44 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.holdCharges(chargesOfMessage(res.charges))
     }
 
+    public async placeShield(tileId: number, countryId: string): Promise<void> {
+        this.holdCharges({...this.charges, shields: Math.max(0, this.charges.shields - 1)})
+
+        try {
+            await this.placeRetried(tileId, countryId)
+        } catch (e) {
+            this.holdCharges({...this.charges, shields: e instanceof BonusLostError ? 0 : this.charges.shields + 1})
+            throw e
+        }
+    }
+
+    private async placeRetried(tileId: number, countryId: string): Promise<void> {
+        try {
+            await this.place(tileId, countryId)
+        } catch (e) {
+            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asShieldError(e)
+
+            this.session.invalidate()
+
+            try {
+                await this.place(tileId, countryId)
+            } catch (retried) {
+                throw asShieldError(retried)
+            }
+        }
+    }
+
+    private async place(tileId: number, countryId: string): Promise<void> {
+        const sessionToken = await this.session.token()
+
+        const headers = new Headers()
+        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
+
+        const res = await this.client.placeShield({tileId, countryId}, {headers})
+        this.followSession(sessionToken)
+        this.holdCharges(chargesOfMessage(res.charges))
+    }
+
     public listenForUpdatesBatch(
         callback: (updates: Update[]) => void,
     ): () => void {
@@ -615,10 +657,16 @@ export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
 export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
     if (!held) return NO_CHARGES
 
-    return {refill: held.refill, bomb: held.bomb, enclosures: held.enclosures, spreadClicksLeft: held.spreadClicksLeft}
+    return {
+        refill: held.refill,
+        bomb: held.bomb,
+        enclosures: held.enclosures,
+        spreadClicksLeft: held.spreadClicksLeft,
+        shields: held.shields,
+    }
 }
 
-const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, toll: []}
+const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, shields: 0, tileShields: 0, toll: []}
 
 function rewardOf(
     kind: BonusKind,
@@ -634,6 +682,8 @@ function rewardOf(
             return {kind: "bomb", radius: blastRadius}
         case BonusKind.ENCLOSE_CLICKS:
             return {kind: "encloseClicks", shapes: amount, maxTiles}
+        case BonusKind.SHIELDS:
+            return {kind: "shields", shields: amount}
         default:
             return undefined
     }
@@ -649,6 +699,7 @@ export function bombOf(event: PlanetEvent): BombDrop | undefined {
         countryId: dropped.countryId,
         radius: dropped.radius,
         cleared: dropped.clearedTileIds,
+        struck: dropped.struckTileIds,
     }
 }
 
@@ -662,6 +713,12 @@ export function asBonusError(e: unknown): unknown {
     }
 
     return e
+}
+
+export function asShieldError(e: unknown): unknown {
+    if (e instanceof ConnectError && e.code === Code.FailedPrecondition && !frozen(e)) return new ShieldRefusedError({cause: e})
+
+    return asBonusError(e)
 }
 
 export function asRefillError(e: unknown): unknown {
@@ -721,6 +778,10 @@ export function bindingsOf(res: GetMapResponse): Map<number, string> {
     return bindings
 }
 
+export function shieldsOf(res: GetMapResponse): Map<number, number> {
+    return new Map(res.shields.map(({tileId, shields}) => [tileId, shields]))
+}
+
 export function updateOf(event: PlanetEvent): Update | undefined {
     if (event.event.case !== "tileUpdate") return undefined
 
@@ -730,5 +791,6 @@ export function updateOf(event: PlanetEvent): Update | undefined {
         previousCountry: update.previousCountryId === "" ? undefined : update.previousCountryId,
         newCountry: update.countryId === "" ? undefined : update.countryId,
         clicked: update.clicked,
+        shields: update.shields,
     }
 }

@@ -7,6 +7,7 @@ export interface TileClicker {
 
 export type Ownerships = {
     bindings: Map<number, string>
+    shields: Map<number, number>
 }
 
 export interface OwnershipsGetter {
@@ -22,7 +23,8 @@ export type Update = {
     tile: number,
     previousCountry: string | undefined,
     newCountry: string | undefined,
-    clicked: boolean
+    clicked: boolean,
+    shields: number,
 }
 
 export interface UpdatesListener {
@@ -103,6 +105,8 @@ export type BombDrop = {
     radius: number
 
     cleared: number[]
+
+    struck: number[]
 }
 
 export interface Bomber {
@@ -113,6 +117,17 @@ export interface Bomber {
 
 export interface Refiller {
     useRefill(countryId: string): Promise<void>
+}
+
+export interface Shielder {
+    placeShield(tileId: number, countryId: string): Promise<void>
+}
+
+export class ShieldRefusedError extends Error {
+    constructor(options?: ErrorOptions) {
+        super("the tile is not this player's, or holds all the shields it can", options)
+        this.name = "ShieldRefusedError"
+    }
 }
 
 export class BankFullError extends Error {

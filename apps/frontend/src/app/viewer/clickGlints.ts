@@ -18,22 +18,35 @@ export const MIN_GLINT_PX = 9
 
 const SKY = new THREE.Color(0.35, 0.75, 1.0)
 
+const HIT = new THREE.Color(1.0, 0.42, 0.25)
+
+const SHIELDED = new THREE.Color(0.84, 0.87, 0.91)
+
+export type GlintKind = "click" | "hit" | "shielded"
+
 export type GlintLook = {
     opacity: number
     white: number
+    scale: number
 }
 
-export function glintLook(age: number): GlintLook | undefined {
+export function glintLook(age: number, kind: GlintKind): GlintLook | undefined {
     if (age < 0 || age >= GLINT_SECONDS) return undefined
 
     const rise = smoothstep(0, ATTACK_SECONDS, age)
     const left = 1 - Math.max(0, age - ATTACK_SECONDS) / (GLINT_SECONDS - ATTACK_SECONDS)
-
-    return {opacity: PEAK * rise * left * left, white: WHITE * left * left}
+    switch (kind) {
+        case "hit":
+            return {opacity: PEAK * rise * left, white: WHITE * left, scale: 0.2 + 0.8 * left}
+        case "shielded":
+            return {opacity: PEAK * rise * left, white: WHITE * left, scale: 1.4 - 0.8 * left}
+        case "click":
+            return {opacity: PEAK * rise * left * left, white: WHITE * left * left, scale: 1}
+    }
 }
 
-export function glintSize(tilePx: number, pixelRatio: number): number {
-    return Math.max(tilePx * TILES_WIDE, MIN_GLINT_PX * pixelRatio)
+export function glintSize(tilePx: number, pixelRatio: number, scale: number): number {
+    return Math.max(tilePx * TILES_WIDE, MIN_GLINT_PX * pixelRatio) * scale
 }
 
 export function inView(point: THREE.Vector3, camera: THREE.Camera): boolean {
@@ -53,6 +66,8 @@ export type ClickGlints = {
     setOwnHue(hue: number | undefined): void
     playOwnClick(tile: number, camera: THREE.Camera): void
     playClick(tile: number, camera: THREE.Camera): void
+    playHit(tile: number, camera: THREE.Camera): void
+    playShielded(tile: number, camera: THREE.Camera): void
     update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number): boolean
     dispose(): void
 }
@@ -60,6 +75,7 @@ export type ClickGlints = {
 type Playing = {
     points: THREE.Points
     material: THREE.ShaderMaterial
+    kind: GlintKind
     startedAt: number | undefined
 }
 
@@ -72,6 +88,7 @@ export function createClickGlints(positions: ArrayLike<number>): ClickGlints {
 
     let playing: Playing[] = []
     let ownColour: THREE.Color | undefined
+    const calm = prefersLessMotion()
 
     const centreOf = (tile: number) => new THREE.Vector3(
         positions[(tile - 1) * 3], positions[(tile - 1) * 3 + 1], positions[(tile - 1) * 3 + 2]).normalize()
@@ -81,7 +98,7 @@ export function createClickGlints(positions: ArrayLike<number>): ClickGlints {
         glint.material.dispose()
     }
 
-    const play = (centre: THREE.Vector3, colour: THREE.Color) => {
+    const play = (centre: THREE.Vector3, colour: THREE.Color, kind: GlintKind) => {
         if (typeof document !== "undefined" && document.visibilityState === "hidden") return
 
         const material = new THREE.ShaderMaterial({
@@ -104,7 +121,7 @@ export function createClickGlints(positions: ArrayLike<number>): ClickGlints {
         points.renderOrder = 1
         group.add(points)
 
-        playing.push({points, material, startedAt: undefined})
+        playing.push({points, material, kind: calm ? "click" : kind, startedAt: undefined})
 
         while (playing.length > MAX_PLAYING) {
             const oldest = playing.shift()
@@ -112,9 +129,9 @@ export function createClickGlints(positions: ArrayLike<number>): ClickGlints {
         }
     }
 
-    const playInView = (tile: number, camera: THREE.Camera, colour: THREE.Color) => {
+    const playInView = (tile: number, camera: THREE.Camera, colour: THREE.Color, kind: GlintKind = "click") => {
         const centre = centreOf(tile)
-        if (inView(centre, camera)) play(centre, colour)
+        if (inView(centre, camera)) play(centre, colour, kind)
     }
 
     const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number) => {
@@ -125,14 +142,14 @@ export function createClickGlints(positions: ArrayLike<number>): ClickGlints {
 
         playing = playing.filter((glint) => {
             glint.startedAt ??= seconds
-            const look = glintLook(seconds - glint.startedAt)
+            const look = glintLook(seconds - glint.startedAt, glint.kind)
             if (!look) {
                 stop(glint)
                 return false
             }
 
             const {uniforms} = glint.material
-            uniforms.size.value = glintSize(tilePx, pixelRatio)
+            uniforms.size.value = glintSize(tilePx, pixelRatio, look.scale)
             uniforms.unitsPerPixel.value = unitsPerPixel
             uniforms.opacity.value = look.opacity
             uniforms.white.value = look.white
@@ -150,6 +167,8 @@ export function createClickGlints(positions: ArrayLike<number>): ClickGlints {
         },
         playOwnClick: (tile, camera) => playInView(tile, camera, ownColour ?? SKY),
         playClick: (tile, camera) => playInView(tile, camera, SKY),
+        playHit: (tile, camera) => playInView(tile, camera, HIT, "hit"),
+        playShielded: (tile, camera) => playInView(tile, camera, SHIELDED, "shielded"),
         update,
         dispose: () => {
             for (const glint of playing) stop(glint)
@@ -157,4 +176,10 @@ export function createClickGlints(positions: ArrayLike<number>): ClickGlints {
             spot.dispose()
         },
     }
+}
+
+function prefersLessMotion(): boolean {
+    return typeof window !== "undefined"
+        && typeof window.matchMedia === "function"
+        && window.matchMedia("(prefers-reduced-motion: reduce)").matches
 }

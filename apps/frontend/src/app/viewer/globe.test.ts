@@ -132,7 +132,7 @@ describe("a refused click, from the paint to the rollback", () => {
         const {ownership, applyChanges, regionOf, tiles} = wiring()
         const jp = regions.get("jp")!
 
-        applyChanges(ownership.applyUpdates([{tile: 3, previousCountry: undefined, newCountry: "jp", clicked: true}]))
+        applyChanges(ownership.applyUpdates([{tile: 3, previousCountry: undefined, newCountry: "jp", clicked: true, shields: 0}]))
 
         const {changes, claim} = ownership.applyOptimistic(3, "fr")
         applyChanges(changes)
@@ -148,7 +148,7 @@ describe("a refused click, from the paint to the rollback", () => {
 
         const {changes, claim} = ownership.applyOptimistic(3, "fr")
         applyChanges(changes)
-        applyChanges(ownership.applyUpdates([{tile: 3, previousCountry: undefined, newCountry: "fr", clicked: true}]))
+        applyChanges(ownership.applyUpdates([{tile: 3, previousCountry: undefined, newCountry: "fr", clicked: true, shields: 0}]))
 
         applyChanges(ownership.rollback(claim))
 

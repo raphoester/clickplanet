@@ -22,6 +22,7 @@ type Config struct {
 	Spread  SpreadConfig
 	Bomb    BombConfig
 	Enclose EncloseConfig
+	Shield  ShieldConfig
 
 	Quiz quizzes.Config
 
@@ -49,6 +50,12 @@ type EncloseConfig struct {
 	MaxPerBox int
 }
 
+type ShieldConfig struct {
+	Held      int
+	MaxPerBox int
+	PerTile   int
+}
+
 const (
 	defaultMinInterval       = 4 * time.Minute
 	defaultMaxInterval       = 8 * time.Minute
@@ -65,6 +72,9 @@ const (
 	defaultEnclosePerBox   = 3
 	defaultBombRings       = 4
 	defaultEncloseMaxTiles = 25
+	defaultShieldsHeld     = 12
+	defaultShieldsPerBox   = 3
+	defaultShieldsOnTile   = 10
 )
 
 func (c Config) withDefaults() Config {
@@ -99,6 +109,7 @@ func (c Config) withDefaults() Config {
 	c.Spread = c.Spread.withDefaults()
 	c.Bomb = c.Bomb.withDefaults()
 	c.Enclose = c.Enclose.withDefaults()
+	c.Shield = c.Shield.withDefaults()
 
 	return c
 }
@@ -109,6 +120,7 @@ func defaultKinds() map[Kind]float64 {
 		KindSpreadClicks:  3,
 		KindEncloseClicks: 2,
 		KindBomb:          1,
+		KindShields:       3,
 	}
 }
 
@@ -145,6 +157,20 @@ func (c EncloseConfig) withDefaults() EncloseConfig {
 	return c
 }
 
+func (c ShieldConfig) withDefaults() ShieldConfig {
+	if c.Held <= 0 {
+		c.Held = defaultShieldsHeld
+	}
+	if c.MaxPerBox <= 0 {
+		c.MaxPerBox = defaultShieldsPerBox
+	}
+	if c.PerTile <= 0 {
+		c.PerTile = defaultShieldsOnTile
+	}
+
+	return c
+}
+
 func (c Config) Validate() error {
 	total := 0.0
 
@@ -168,5 +194,14 @@ func (c Config) Validate() error {
 func (c Config) ChargesConfig() ChargesConfig {
 	c = c.withDefaults()
 
-	return ChargesConfig{SpreadClicks: c.Spread.Clicks, Enclosures: c.Enclose.Held, EnclosureMaxTiles: c.Enclose.MaxTiles}
+	return ChargesConfig{
+		SpreadClicks:      c.Spread.Clicks,
+		Enclosures:        c.Enclose.Held,
+		EnclosureMaxTiles: c.Enclose.MaxTiles,
+		Shields:           c.Shield.Held,
+	}
+}
+
+func (c Config) ShieldsPerTile() int {
+	return c.Shield.withDefaults().PerTile
 }
