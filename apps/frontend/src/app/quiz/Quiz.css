@@ -193,6 +193,7 @@
 .quiz-reward--spreadClicks { --bonus-accent: var(--spread-light); --bonus-box: var(--spread); }
 .quiz-reward--bomb { --bonus-accent: var(--bomb-light); --bonus-box: var(--bomb); }
 .quiz-reward--encloseClicks { --bonus-accent: var(--enclose-light); --bonus-box: var(--enclose); }
+.quiz-reward--defenders { --bonus-accent: var(--defend-light); --bonus-box: var(--defend); }
 
 @keyframes quiz-arrive {
     from {

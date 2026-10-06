@@ -33,6 +33,12 @@
     --bonus-box: var(--enclose);
 }
 
+.bonus-award--defenders,
+.inventory-slot--defenders {
+    --bonus-accent: var(--defend-light);
+    --bonus-box: var(--defend);
+}
+
 .bonus-award-card {
     display: flex;
     flex-direction: column;

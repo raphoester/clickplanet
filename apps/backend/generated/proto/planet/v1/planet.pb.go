@@ -81,6 +81,7 @@ const (
 	BonusKind_BONUS_KIND_SPREAD_CLICKS  BonusKind = 2
 	BonusKind_BONUS_KIND_BOMB           BonusKind = 3
 	BonusKind_BONUS_KIND_ENCLOSE_CLICKS BonusKind = 4
+	BonusKind_BONUS_KIND_DEFENDERS      BonusKind = 6
 )
 
 // Enum value maps for BonusKind.
@@ -91,6 +92,7 @@ var (
 		2: "BONUS_KIND_SPREAD_CLICKS",
 		3: "BONUS_KIND_BOMB",
 		4: "BONUS_KIND_ENCLOSE_CLICKS",
+		6: "BONUS_KIND_DEFENDERS",
 	}
 	BonusKind_value = map[string]int32{
 		"BONUS_KIND_UNSPECIFIED":    0,
@@ -98,6 +100,7 @@ var (
 		"BONUS_KIND_SPREAD_CLICKS":  2,
 		"BONUS_KIND_BOMB":           3,
 		"BONUS_KIND_ENCLOSE_CLICKS": 4,
+		"BONUS_KIND_DEFENDERS":      6,
 	}
 )
 
@@ -676,6 +679,7 @@ type PlanetEvent struct {
 	//	*PlanetEvent_TilesEnclosed
 	//	*PlanetEvent_TilesSpread
 	//	*PlanetEvent_QuizOffered
+	//	*PlanetEvent_Garrison
 	Event         isPlanetEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -790,6 +794,15 @@ func (x *PlanetEvent) GetQuizOffered() *QuizOffered {
 	return nil
 }
 
+func (x *PlanetEvent) GetGarrison() *Garrison {
+	if x != nil {
+		if x, ok := x.Event.(*PlanetEvent_Garrison); ok {
+			return x.Garrison
+		}
+	}
+	return nil
+}
+
 type isPlanetEvent_Event interface {
 	isPlanetEvent_Event()
 }
@@ -826,6 +839,10 @@ type PlanetEvent_QuizOffered struct {
 	QuizOffered *QuizOffered `protobuf:"bytes,8,opt,name=quiz_offered,json=quizOffered,proto3,oneof"`
 }
 
+type PlanetEvent_Garrison struct {
+	Garrison *Garrison `protobuf:"bytes,9,opt,name=garrison,proto3,oneof"`
+}
+
 func (*PlanetEvent_TileUpdate) isPlanetEvent_Event() {}
 
 func (*PlanetEvent_Heartbeat) isPlanetEvent_Event() {}
@@ -842,12 +859,15 @@ func (*PlanetEvent_TilesSpread) isPlanetEvent_Event() {}
 
 func (*PlanetEvent_QuizOffered) isPlanetEvent_Event() {}
 
+func (*PlanetEvent_Garrison) isPlanetEvent_Event() {}
+
 type ChargesHeld struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Refill           bool                   `protobuf:"varint,4,opt,name=refill,proto3" json:"refill,omitempty"`
 	Bomb             bool                   `protobuf:"varint,1,opt,name=bomb,proto3" json:"bomb,omitempty"`
 	Enclosures       uint32                 `protobuf:"varint,2,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
 	SpreadClicksLeft uint32                 `protobuf:"varint,3,opt,name=spread_clicks_left,json=spreadClicksLeft,proto3" json:"spread_clicks_left,omitempty"`
+	Defenders        uint32                 `protobuf:"varint,5,opt,name=defenders,proto3" json:"defenders,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -906,6 +926,13 @@ func (x *ChargesHeld) GetEnclosures() uint32 {
 func (x *ChargesHeld) GetSpreadClicksLeft() uint32 {
 	if x != nil {
 		return x.SpreadClicksLeft
+	}
+	return 0
+}
+
+func (x *ChargesHeld) GetDefenders() uint32 {
+	if x != nil {
+		return x.Defenders
 	}
 	return 0
 }
@@ -1034,6 +1061,8 @@ type GetBonusRulesResponse struct {
 	Enclosures        uint32                 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
 	// Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower.
 	TollSteps     []*TollStep `protobuf:"bytes,6,rep,name=toll_steps,json=tollSteps,proto3" json:"toll_steps,omitempty"`
+	Defenders     uint32      `protobuf:"varint,7,opt,name=defenders,proto3" json:"defenders,omitempty"`
+	TileDefenders uint32      `protobuf:"varint,8,opt,name=tile_defenders,json=tileDefenders,proto3" json:"tile_defenders,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1101,6 +1130,20 @@ func (x *GetBonusRulesResponse) GetTollSteps() []*TollStep {
 		return x.TollSteps
 	}
 	return nil
+}
+
+func (x *GetBonusRulesResponse) GetDefenders() uint32 {
+	if x != nil {
+		return x.Defenders
+	}
+	return 0
+}
+
+func (x *GetBonusRulesResponse) GetTileDefenders() uint32 {
+	if x != nil {
+		return x.TileDefenders
+	}
+	return 0
 }
 
 type TollStep struct {
@@ -2151,6 +2194,243 @@ func (x *TilesSpread) GetSpreadTileIds() []uint32 {
 	return nil
 }
 
+type PlaceDefenderRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TileId        uint32                 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	CountryId     string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlaceDefenderRequest) Reset() {
+	*x = PlaceDefenderRequest{}
+	mi := &file_planet_v1_planet_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlaceDefenderRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlaceDefenderRequest) ProtoMessage() {}
+
+func (x *PlaceDefenderRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlaceDefenderRequest.ProtoReflect.Descriptor instead.
+func (*PlaceDefenderRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *PlaceDefenderRequest) GetTileId() uint32 {
+	if x != nil {
+		return x.TileId
+	}
+	return 0
+}
+
+func (x *PlaceDefenderRequest) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+type PlaceDefenderResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Charges       *ChargesHeld           `protobuf:"bytes,1,opt,name=charges,proto3" json:"charges,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlaceDefenderResponse) Reset() {
+	*x = PlaceDefenderResponse{}
+	mi := &file_planet_v1_planet_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlaceDefenderResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlaceDefenderResponse) ProtoMessage() {}
+
+func (x *PlaceDefenderResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlaceDefenderResponse.ProtoReflect.Descriptor instead.
+func (*PlaceDefenderResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *PlaceDefenderResponse) GetCharges() *ChargesHeld {
+	if x != nil {
+		return x.Charges
+	}
+	return nil
+}
+
+type GetGarrisonsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetGarrisonsRequest) Reset() {
+	*x = GetGarrisonsRequest{}
+	mi := &file_planet_v1_planet_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGarrisonsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGarrisonsRequest) ProtoMessage() {}
+
+func (x *GetGarrisonsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGarrisonsRequest.ProtoReflect.Descriptor instead.
+func (*GetGarrisonsRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{36}
+}
+
+type GetGarrisonsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Garrisons     []*Garrison            `protobuf:"bytes,1,rep,name=garrisons,proto3" json:"garrisons,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetGarrisonsResponse) Reset() {
+	*x = GetGarrisonsResponse{}
+	mi := &file_planet_v1_planet_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetGarrisonsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetGarrisonsResponse) ProtoMessage() {}
+
+func (x *GetGarrisonsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetGarrisonsResponse.ProtoReflect.Descriptor instead.
+func (*GetGarrisonsResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *GetGarrisonsResponse) GetGarrisons() []*Garrison {
+	if x != nil {
+		return x.Garrisons
+	}
+	return nil
+}
+
+// defenders 0 on the stream: the tile has none left.
+type Garrison struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TileId        uint32                 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	CountryId     string                 `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Defenders     uint32                 `protobuf:"varint,3,opt,name=defenders,proto3" json:"defenders,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Garrison) Reset() {
+	*x = Garrison{}
+	mi := &file_planet_v1_planet_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Garrison) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Garrison) ProtoMessage() {}
+
+func (x *Garrison) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_planet_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Garrison.ProtoReflect.Descriptor instead.
+func (*Garrison) Descriptor() ([]byte, []int) {
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *Garrison) GetTileId() uint32 {
+	if x != nil {
+		return x.TileId
+	}
+	return 0
+}
+
+func (x *Garrison) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *Garrison) GetDefenders() uint32 {
+	if x != nil {
+		return x.Defenders
+	}
+	return 0
+}
+
 type Heartbeat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2159,7 +2439,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_planet_v1_planet_proto_msgTypes[34]
+	mi := &file_planet_v1_planet_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2171,7 +2451,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[34]
+	mi := &file_planet_v1_planet_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2184,7 +2464,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{34}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{39}
 }
 
 type TileUpdate struct {
@@ -2200,7 +2480,7 @@ type TileUpdate struct {
 
 func (x *TileUpdate) Reset() {
 	*x = TileUpdate{}
-	mi := &file_planet_v1_planet_proto_msgTypes[35]
+	mi := &file_planet_v1_planet_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2212,7 +2492,7 @@ func (x *TileUpdate) String() string {
 func (*TileUpdate) ProtoMessage() {}
 
 func (x *TileUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_planet_proto_msgTypes[35]
+	mi := &file_planet_v1_planet_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2225,7 +2505,7 @@ func (x *TileUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TileUpdate.ProtoReflect.Descriptor instead.
 func (*TileUpdate) Descriptor() ([]byte, []int) {
-	return file_planet_v1_planet_proto_rawDescGZIP(), []int{35}
+	return file_planet_v1_planet_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *TileUpdate) GetTileId() uint32 {
@@ -2297,7 +2577,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x14\n" +
 	"\x05codes\x18\x02 \x03(\tR\x05codes\x12\x14\n" +
 	"\x05tiles\x18\x03 \x01(\fR\x05tiles\"\x18\n" +
-	"\x16ListenForEventsRequest\"\xfa\x03\n" +
+	"\x16ListenForEventsRequest\"\xad\x04\n" +
 	"\vPlanetEvent\x128\n" +
 	"\vtile_update\x18\x01 \x01(\v2\x15.planet.v1.TileUpdateH\x00R\n" +
 	"tileUpdate\x124\n" +
@@ -2308,19 +2588,21 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\fbomb_dropped\x18\x05 \x01(\v2\x16.planet.v1.BombDroppedH\x00R\vbombDropped\x12A\n" +
 	"\x0etiles_enclosed\x18\x06 \x01(\v2\x18.planet.v1.TilesEnclosedH\x00R\rtilesEnclosed\x12;\n" +
 	"\ftiles_spread\x18\a \x01(\v2\x16.planet.v1.TilesSpreadH\x00R\vtilesSpread\x12;\n" +
-	"\fquiz_offered\x18\b \x01(\v2\x16.planet.v1.QuizOfferedH\x00R\vquizOfferedB\a\n" +
-	"\x05event\"\x87\x01\n" +
+	"\fquiz_offered\x18\b \x01(\v2\x16.planet.v1.QuizOfferedH\x00R\vquizOffered\x121\n" +
+	"\bgarrison\x18\t \x01(\v2\x13.planet.v1.GarrisonH\x00R\bgarrisonB\a\n" +
+	"\x05event\"\xa5\x01\n" +
 	"\vChargesHeld\x12\x16\n" +
 	"\x06refill\x18\x04 \x01(\bR\x06refill\x12\x12\n" +
 	"\x04bomb\x18\x01 \x01(\bR\x04bomb\x12\x1e\n" +
 	"\n" +
 	"enclosures\x18\x02 \x01(\rR\n" +
 	"enclosures\x12,\n" +
-	"\x12spread_clicks_left\x18\x03 \x01(\rR\x10spreadClicksLeft\"\x13\n" +
+	"\x12spread_clicks_left\x18\x03 \x01(\rR\x10spreadClicksLeft\x12\x1c\n" +
+	"\tdefenders\x18\x05 \x01(\rR\tdefenders\"\x13\n" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x16\n" +
-	"\x14GetBonusRulesRequest\"\xf4\x01\n" +
+	"\x14GetBonusRulesRequest\"\xb9\x02\n" +
 	"\x15GetBonusRulesResponse\x12!\n" +
 	"\fblast_radius\x18\x01 \x01(\x01R\vblastRadius\x12.\n" +
 	"\x13enclosure_max_tiles\x18\x02 \x01(\rR\x11enclosureMaxTiles\x12#\n" +
@@ -2329,7 +2611,9 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"enclosures\x18\x04 \x01(\rR\n" +
 	"enclosures\x122\n" +
 	"\n" +
-	"toll_steps\x18\x06 \x03(\v2\x13.planet.v1.TollStepR\ttollStepsJ\x04\b\x05\x10\x06R\thome_soil\"<\n" +
+	"toll_steps\x18\x06 \x03(\v2\x13.planet.v1.TollStepR\ttollSteps\x12\x1c\n" +
+	"\tdefenders\x18\a \x01(\rR\tdefenders\x12%\n" +
+	"\x0etile_defenders\x18\b \x01(\rR\rtileDefendersJ\x04\b\x05\x10\x06R\thome_soil\"<\n" +
 	"\bTollStep\x12\x14\n" +
 	"\x05share\x18\x01 \x01(\x01R\x05share\x12\x1a\n" +
 	"\bslowdown\x18\x02 \x01(\x01R\bslowdown\"\x8f\x01\n" +
@@ -2407,7 +2691,21 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x17\n" +
 	"\atile_id\x18\x02 \x01(\rR\x06tileId\x12&\n" +
-	"\x0fspread_tile_ids\x18\x03 \x03(\rR\rspreadTileIds\"\v\n" +
+	"\x0fspread_tile_ids\x18\x03 \x03(\rR\rspreadTileIds\"N\n" +
+	"\x14PlaceDefenderRequest\x12\x17\n" +
+	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\"I\n" +
+	"\x15PlaceDefenderResponse\x120\n" +
+	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x15\n" +
+	"\x13GetGarrisonsRequest\"I\n" +
+	"\x14GetGarrisonsResponse\x121\n" +
+	"\tgarrisons\x18\x01 \x03(\v2\x13.planet.v1.GarrisonR\tgarrisons\"`\n" +
+	"\bGarrison\x12\x17\n" +
+	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x02 \x01(\tR\tcountryId\x12\x1c\n" +
+	"\tdefenders\x18\x03 \x01(\rR\tdefenders\"\v\n" +
 	"\tHeartbeat\"\x8e\x01\n" +
 	"\n" +
 	"TileUpdate\x12\x17\n" +
@@ -2421,13 +2719,14 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x17SHARED_WITH_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12SHARED_WITH_NOBODY\x10\x01\x12\x16\n" +
 	"\x12SHARED_WITH_GUESTS\x10\x02\x12\x17\n" +
-	"\x13SHARED_WITH_NETWORK\x10\x03*\x90\x01\n" +
+	"\x13SHARED_WITH_NETWORK\x10\x03*\xaa\x01\n" +
 	"\tBonusKind\x12\x1a\n" +
 	"\x16BONUS_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11BONUS_KIND_REFILL\x10\x05\x12\x1c\n" +
 	"\x18BONUS_KIND_SPREAD_CLICKS\x10\x02\x12\x13\n" +
 	"\x0fBONUS_KIND_BOMB\x10\x03\x12\x1d\n" +
-	"\x19BONUS_KIND_ENCLOSE_CLICKS\x10\x042\x82\a\n" +
+	"\x19BONUS_KIND_ENCLOSE_CLICKS\x10\x04\x12\x18\n" +
+	"\x14BONUS_KIND_DEFENDERS\x10\x062\xac\b\n" +
 	"\fClickService\x12:\n" +
 	"\x05Click\x12\x17.planet.v1.ClickRequest\x1a\x18.planet.v1.ClickResponse\x12F\n" +
 	"\tGetBudget\x12\x1b.planet.v1.GetBudgetRequest\x1a\x1c.planet.v1.GetBudgetResponse\x12N\n" +
@@ -2444,7 +2743,9 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\rGetBonusRules\x12\x1f.planet.v1.GetBonusRulesRequest\x1a .planet.v1.GetBonusRulesResponse\"\x03\x90\x02\x01\x12C\n" +
 	"\bOpenQuiz\x12\x1a.planet.v1.OpenQuizRequest\x1a\x1b.planet.v1.OpenQuizResponse\x12I\n" +
 	"\n" +
-	"AnswerQuiz\x12\x1c.planet.v1.AnswerQuizRequest\x1a\x1d.planet.v1.AnswerQuizResponseB\xb3\x01\n" +
+	"AnswerQuiz\x12\x1c.planet.v1.AnswerQuizRequest\x1a\x1d.planet.v1.AnswerQuizResponse\x12R\n" +
+	"\rPlaceDefender\x12\x1f.planet.v1.PlaceDefenderRequest\x1a .planet.v1.PlaceDefenderResponse\x12T\n" +
+	"\fGetGarrisons\x12\x1e.planet.v1.GetGarrisonsRequest\x1a\x1f.planet.v1.GetGarrisonsResponse\"\x03\x90\x02\x01B\xb3\x01\n" +
 	"\rcom.planet.v1B\vPlanetProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -2461,7 +2762,7 @@ func file_planet_v1_planet_proto_rawDescGZIP() []byte {
 }
 
 var file_planet_v1_planet_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_planet_v1_planet_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_planet_v1_planet_proto_goTypes = []any{
 	(SharedWith)(0),                // 0: planet.v1.SharedWith
 	(BonusKind)(0),                 // 1: planet.v1.BonusKind
@@ -2499,62 +2800,74 @@ var file_planet_v1_planet_proto_goTypes = []any{
 	(*BombDropped)(nil),            // 33: planet.v1.BombDropped
 	(*TilesEnclosed)(nil),          // 34: planet.v1.TilesEnclosed
 	(*TilesSpread)(nil),            // 35: planet.v1.TilesSpread
-	(*Heartbeat)(nil),              // 36: planet.v1.Heartbeat
-	(*TileUpdate)(nil),             // 37: planet.v1.TileUpdate
+	(*PlaceDefenderRequest)(nil),   // 36: planet.v1.PlaceDefenderRequest
+	(*PlaceDefenderResponse)(nil),  // 37: planet.v1.PlaceDefenderResponse
+	(*GetGarrisonsRequest)(nil),    // 38: planet.v1.GetGarrisonsRequest
+	(*GetGarrisonsResponse)(nil),   // 39: planet.v1.GetGarrisonsResponse
+	(*Garrison)(nil),               // 40: planet.v1.Garrison
+	(*Heartbeat)(nil),              // 41: planet.v1.Heartbeat
+	(*TileUpdate)(nil),             // 42: planet.v1.TileUpdate
 }
 var file_planet_v1_planet_proto_depIdxs = []int32{
 	0,  // 0: planet.v1.ClickBudget.shared_with:type_name -> planet.v1.SharedWith
 	2,  // 1: planet.v1.ClickResponse.budget:type_name -> planet.v1.ClickBudget
 	2,  // 2: planet.v1.GetBudgetResponse.budget:type_name -> planet.v1.ClickBudget
-	37, // 3: planet.v1.PlanetEvent.tile_update:type_name -> planet.v1.TileUpdate
-	36, // 4: planet.v1.PlanetEvent.heartbeat:type_name -> planet.v1.Heartbeat
+	42, // 3: planet.v1.PlanetEvent.tile_update:type_name -> planet.v1.TileUpdate
+	41, // 4: planet.v1.PlanetEvent.heartbeat:type_name -> planet.v1.Heartbeat
 	19, // 5: planet.v1.PlanetEvent.bonus_offered:type_name -> planet.v1.BonusOffered
 	20, // 6: planet.v1.PlanetEvent.bonus_taken:type_name -> planet.v1.BonusTaken
 	33, // 7: planet.v1.PlanetEvent.bomb_dropped:type_name -> planet.v1.BombDropped
 	34, // 8: planet.v1.PlanetEvent.tiles_enclosed:type_name -> planet.v1.TilesEnclosed
 	35, // 9: planet.v1.PlanetEvent.tiles_spread:type_name -> planet.v1.TilesSpread
 	23, // 10: planet.v1.PlanetEvent.quiz_offered:type_name -> planet.v1.QuizOffered
-	13, // 11: planet.v1.GetChargesResponse.charges:type_name -> planet.v1.ChargesHeld
-	18, // 12: planet.v1.GetBonusRulesResponse.toll_steps:type_name -> planet.v1.TollStep
-	1,  // 13: planet.v1.BonusOffered.kind:type_name -> planet.v1.BonusKind
-	1,  // 14: planet.v1.BonusTaken.kind:type_name -> planet.v1.BonusKind
-	1,  // 15: planet.v1.ClaimBonusResponse.kind:type_name -> planet.v1.BonusKind
-	13, // 16: planet.v1.ClaimBonusResponse.charges:type_name -> planet.v1.ChargesHeld
-	1,  // 17: planet.v1.AnswerQuizResponse.kind:type_name -> planet.v1.BonusKind
-	13, // 18: planet.v1.AnswerQuizResponse.charges:type_name -> planet.v1.ChargesHeld
-	2,  // 19: planet.v1.UseRefillResponse.budget:type_name -> planet.v1.ClickBudget
-	13, // 20: planet.v1.UseRefillResponse.charges:type_name -> planet.v1.ChargesHeld
-	30, // 21: planet.v1.DropBombRequest.target:type_name -> planet.v1.GlobePoint
-	30, // 22: planet.v1.BombDropped.point:type_name -> planet.v1.GlobePoint
-	3,  // 23: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
-	5,  // 24: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
-	7,  // 25: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
-	9,  // 26: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
-	11, // 27: planet.v1.ClickService.ListenForEvents:input_type -> planet.v1.ListenForEventsRequest
-	21, // 28: planet.v1.ClickService.ClaimBonus:input_type -> planet.v1.ClaimBonusRequest
-	31, // 29: planet.v1.ClickService.DropBomb:input_type -> planet.v1.DropBombRequest
-	28, // 30: planet.v1.ClickService.UseRefill:input_type -> planet.v1.UseRefillRequest
-	14, // 31: planet.v1.ClickService.GetCharges:input_type -> planet.v1.GetChargesRequest
-	16, // 32: planet.v1.ClickService.GetBonusRules:input_type -> planet.v1.GetBonusRulesRequest
-	24, // 33: planet.v1.ClickService.OpenQuiz:input_type -> planet.v1.OpenQuizRequest
-	26, // 34: planet.v1.ClickService.AnswerQuiz:input_type -> planet.v1.AnswerQuizRequest
-	4,  // 35: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
-	6,  // 36: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
-	8,  // 37: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
-	10, // 38: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
-	12, // 39: planet.v1.ClickService.ListenForEvents:output_type -> planet.v1.PlanetEvent
-	22, // 40: planet.v1.ClickService.ClaimBonus:output_type -> planet.v1.ClaimBonusResponse
-	32, // 41: planet.v1.ClickService.DropBomb:output_type -> planet.v1.DropBombResponse
-	29, // 42: planet.v1.ClickService.UseRefill:output_type -> planet.v1.UseRefillResponse
-	15, // 43: planet.v1.ClickService.GetCharges:output_type -> planet.v1.GetChargesResponse
-	17, // 44: planet.v1.ClickService.GetBonusRules:output_type -> planet.v1.GetBonusRulesResponse
-	25, // 45: planet.v1.ClickService.OpenQuiz:output_type -> planet.v1.OpenQuizResponse
-	27, // 46: planet.v1.ClickService.AnswerQuiz:output_type -> planet.v1.AnswerQuizResponse
-	35, // [35:47] is the sub-list for method output_type
-	23, // [23:35] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	40, // 11: planet.v1.PlanetEvent.garrison:type_name -> planet.v1.Garrison
+	13, // 12: planet.v1.GetChargesResponse.charges:type_name -> planet.v1.ChargesHeld
+	18, // 13: planet.v1.GetBonusRulesResponse.toll_steps:type_name -> planet.v1.TollStep
+	1,  // 14: planet.v1.BonusOffered.kind:type_name -> planet.v1.BonusKind
+	1,  // 15: planet.v1.BonusTaken.kind:type_name -> planet.v1.BonusKind
+	1,  // 16: planet.v1.ClaimBonusResponse.kind:type_name -> planet.v1.BonusKind
+	13, // 17: planet.v1.ClaimBonusResponse.charges:type_name -> planet.v1.ChargesHeld
+	1,  // 18: planet.v1.AnswerQuizResponse.kind:type_name -> planet.v1.BonusKind
+	13, // 19: planet.v1.AnswerQuizResponse.charges:type_name -> planet.v1.ChargesHeld
+	2,  // 20: planet.v1.UseRefillResponse.budget:type_name -> planet.v1.ClickBudget
+	13, // 21: planet.v1.UseRefillResponse.charges:type_name -> planet.v1.ChargesHeld
+	30, // 22: planet.v1.DropBombRequest.target:type_name -> planet.v1.GlobePoint
+	30, // 23: planet.v1.BombDropped.point:type_name -> planet.v1.GlobePoint
+	13, // 24: planet.v1.PlaceDefenderResponse.charges:type_name -> planet.v1.ChargesHeld
+	40, // 25: planet.v1.GetGarrisonsResponse.garrisons:type_name -> planet.v1.Garrison
+	3,  // 26: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
+	5,  // 27: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
+	7,  // 28: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
+	9,  // 29: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
+	11, // 30: planet.v1.ClickService.ListenForEvents:input_type -> planet.v1.ListenForEventsRequest
+	21, // 31: planet.v1.ClickService.ClaimBonus:input_type -> planet.v1.ClaimBonusRequest
+	31, // 32: planet.v1.ClickService.DropBomb:input_type -> planet.v1.DropBombRequest
+	28, // 33: planet.v1.ClickService.UseRefill:input_type -> planet.v1.UseRefillRequest
+	14, // 34: planet.v1.ClickService.GetCharges:input_type -> planet.v1.GetChargesRequest
+	16, // 35: planet.v1.ClickService.GetBonusRules:input_type -> planet.v1.GetBonusRulesRequest
+	24, // 36: planet.v1.ClickService.OpenQuiz:input_type -> planet.v1.OpenQuizRequest
+	26, // 37: planet.v1.ClickService.AnswerQuiz:input_type -> planet.v1.AnswerQuizRequest
+	36, // 38: planet.v1.ClickService.PlaceDefender:input_type -> planet.v1.PlaceDefenderRequest
+	38, // 39: planet.v1.ClickService.GetGarrisons:input_type -> planet.v1.GetGarrisonsRequest
+	4,  // 40: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
+	6,  // 41: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
+	8,  // 42: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
+	10, // 43: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
+	12, // 44: planet.v1.ClickService.ListenForEvents:output_type -> planet.v1.PlanetEvent
+	22, // 45: planet.v1.ClickService.ClaimBonus:output_type -> planet.v1.ClaimBonusResponse
+	32, // 46: planet.v1.ClickService.DropBomb:output_type -> planet.v1.DropBombResponse
+	29, // 47: planet.v1.ClickService.UseRefill:output_type -> planet.v1.UseRefillResponse
+	15, // 48: planet.v1.ClickService.GetCharges:output_type -> planet.v1.GetChargesResponse
+	17, // 49: planet.v1.ClickService.GetBonusRules:output_type -> planet.v1.GetBonusRulesResponse
+	25, // 50: planet.v1.ClickService.OpenQuiz:output_type -> planet.v1.OpenQuizResponse
+	27, // 51: planet.v1.ClickService.AnswerQuiz:output_type -> planet.v1.AnswerQuizResponse
+	37, // 52: planet.v1.ClickService.PlaceDefender:output_type -> planet.v1.PlaceDefenderResponse
+	39, // 53: planet.v1.ClickService.GetGarrisons:output_type -> planet.v1.GetGarrisonsResponse
+	40, // [40:54] is the sub-list for method output_type
+	26, // [26:40] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_planet_proto_init() }
@@ -2571,6 +2884,7 @@ func file_planet_v1_planet_proto_init() {
 		(*PlanetEvent_TilesEnclosed)(nil),
 		(*PlanetEvent_TilesSpread)(nil),
 		(*PlanetEvent_QuizOffered)(nil),
+		(*PlanetEvent_Garrison)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -2578,7 +2892,7 @@ func file_planet_v1_planet_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_planet_proto_rawDesc), len(file_planet_v1_planet_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   36,
+			NumMessages:   41,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

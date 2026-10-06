@@ -104,6 +104,11 @@ export class TileOwnership {
         return {changes, claim: {tile, token}}
     }
 
+    public settle(tile: number, country: string): OwnerChange[] {
+        if (!this.pending.has(tile) || this.owners[tile] === country) return []
+        return this.applyUpdates([{tile, previousCountry: undefined, newCountry: country, clicked: false}])
+    }
+
     public rollback(claim: OptimisticClaim | undefined): OwnerChange[] {
         if (!claim) return []
 

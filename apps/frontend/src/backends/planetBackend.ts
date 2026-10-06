@@ -9,7 +9,9 @@ import {
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
+    DefenderRefusedError,
     Enclosure,
+    Garrisons,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
@@ -22,11 +24,13 @@ import {
     VPNBlockedError,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
+import {Garrison} from "../domain/garrisons.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
 import {
     BonusKind,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
+    Garrison as GarrisonMessage,
     GetMapResponse,
     PlanetEvent,
     SharedWith,
@@ -50,13 +54,14 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Garrisons {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
     private readonly bonusCallbacks = new Map<string, BonusHandlers>()
     private readonly quizCallbacks = new Map<string, (offer: QuizOffer) => void>()
     private readonly bombCallbacks = new Map<string, (drop: BombDrop) => void>()
+    private readonly garrisonCallbacks = new Map<string, (garrison: Garrison) => void>()
     private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private stopListening: () => void
@@ -106,6 +111,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.bonusCallbacks.clear()
         this.quizCallbacks.clear()
         this.bombCallbacks.clear()
+        this.garrisonCallbacks.clear()
         this.budgetCallbacks.clear()
         this.pendingUpdates = []
     }
@@ -278,6 +284,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     return
                 }
 
+                const garrison = garrisonOf(event)
+                if (garrison) {
+                    // Earlier tile updates go first, or the garrison is checked against a stale owner.
+                    this.flushUpdates()
+                    this.garrisonCallbacks.forEach(callback => callback(garrison))
+                    return
+                }
+
                 const enclosure = enclosureOf(event)
                 if (enclosure) {
                     if (enclosure.yours && this.charges.enclosures > 0) {
@@ -322,6 +336,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 enclosureMaxTiles: res.enclosureMaxTiles,
                 spreadClicks: res.spreadClicks,
                 enclosures: res.enclosures,
+                defenders: res.defenders,
+                tileDefenders: res.tileDefenders,
                 toll: res.tollSteps.map(({share, slowdown}) => ({share, slowdown})),
             }
             this.rules = rules
@@ -543,6 +559,61 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.holdCharges(chargesOfMessage(res.charges))
     }
 
+    public async getGarrisons(signal?: AbortSignal): Promise<Garrison[]> {
+        try {
+            const res = await retrying(() => this.client.getGarrisons({}, {signal}), "getGarrisons", signal)
+            return res.garrisons.map(garrisonOfMessage)
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.Unimplemented) return []
+            throw e
+        }
+    }
+
+    public listenForGarrisons(onChanged: (garrison: Garrison) => void): () => void {
+        const id = generateUUID()
+        this.garrisonCallbacks.set(id, onChanged)
+
+        return () => this.garrisonCallbacks.delete(id)
+    }
+
+    public async placeDefender(tileId: number, countryId: string): Promise<void> {
+        this.holdCharges({...this.charges, defenders: Math.max(0, this.charges.defenders - 1)})
+
+        try {
+            await this.placeRetried(tileId, countryId)
+        } catch (e) {
+            this.holdCharges({...this.charges, defenders: e instanceof BonusLostError ? 0 : this.charges.defenders + 1})
+            throw e
+        }
+    }
+
+    private async placeRetried(tileId: number, countryId: string): Promise<void> {
+        try {
+            await this.place(tileId, countryId)
+        } catch (e) {
+            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asDefenderError(e)
+
+            this.session.invalidate()
+
+            try {
+                await this.place(tileId, countryId)
+            } catch (retried) {
+                throw asDefenderError(retried)
+            }
+        }
+    }
+
+    private async place(tileId: number, countryId: string): Promise<void> {
+        const sessionToken = await this.session.token()
+
+        const headers = new Headers()
+        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
+
+        const res = await this.client.placeDefender({tileId, countryId}, {headers})
+        this.followSession(sessionToken)
+        this.holdCharges(chargesOfMessage(res.charges))
+    }
+
     public listenForUpdatesBatch(
         callback: (updates: Update[]) => void,
     ): () => void {
@@ -609,10 +680,26 @@ export function spreadOf(event: PlanetEvent): SpreadClick | undefined {
 export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
     if (!held) return NO_CHARGES
 
-    return {refill: held.refill, bomb: held.bomb, enclosures: held.enclosures, spreadClicksLeft: held.spreadClicksLeft}
+    return {
+        refill: held.refill,
+        bomb: held.bomb,
+        enclosures: held.enclosures,
+        spreadClicksLeft: held.spreadClicksLeft,
+        defenders: held.defenders,
+    }
 }
 
-const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, toll: []}
+export function garrisonOf(event: PlanetEvent): Garrison | undefined {
+    if (event.event.case !== "garrison") return undefined
+
+    return garrisonOfMessage(event.event.value)
+}
+
+function garrisonOfMessage({tileId, countryId, defenders}: GarrisonMessage): Garrison {
+    return {tile: tileId, country: countryId, defenders}
+}
+
+const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, defenders: 0, tileDefenders: 0, toll: []}
 
 function rewardOf(
     kind: BonusKind,
@@ -628,6 +715,8 @@ function rewardOf(
             return {kind: "bomb", radius: blastRadius}
         case BonusKind.ENCLOSE_CLICKS:
             return {kind: "encloseClicks", shapes: amount, maxTiles}
+        case BonusKind.DEFENDERS:
+            return {kind: "defenders", defenders: amount}
         default:
             return undefined
     }
@@ -655,6 +744,12 @@ export function asBonusError(e: unknown): unknown {
     }
 
     return e
+}
+
+export function asDefenderError(e: unknown): unknown {
+    if (e instanceof ConnectError && e.code === Code.FailedPrecondition) return new DefenderRefusedError({cause: e})
+
+    return asBonusError(e)
 }
 
 export function asRefillError(e: unknown): unknown {

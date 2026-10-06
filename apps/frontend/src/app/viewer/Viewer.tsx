@@ -4,6 +4,7 @@ import {
     Bomber,
     BonusListener,
     BonusLostError,
+    Garrisons,
     OwnershipsGetter,
     QuizMaster,
     Refiller,
@@ -72,6 +73,7 @@ export type ViewerProps = {
     quizMaster?: QuizMaster
     bomber?: Bomber
     refiller?: Refiller
+    garrisons?: Garrisons
     chatBackend?: ChatBackend
     account?: AccountStore
     presence?: PresenceBackend
@@ -137,6 +139,7 @@ export default function Viewer(props: ViewerProps) {
         toggleBomb,
         switches,
         toggleSwitch,
+        garrisonFull,
         lastBomb,
         dismissBomb,
     } = useGlobe({
@@ -146,6 +149,7 @@ export default function Viewer(props: ViewerProps) {
         updatesListener: props.updatesListener,
         bonusListener: props.bonusListener,
         bomber: props.bomber,
+        garrisons: props.garrisons,
         playSound: sound.play,
         onClickAccepted: accepted.record,
         country: countryState,
@@ -257,7 +261,9 @@ export default function Viewer(props: ViewerProps) {
                                                onToggle={toggleSwitch}
                                                bombArmed={bombArmed}
                                                onToggleBomb={props.bomber ? toggleBomb : undefined}
-                                               onUseRefill={spendRefill}/>}
+                                               onUseRefill={spendRefill}
+                                               onToggleDefend={props.garrisons ? () => toggleSwitch("defend") : undefined}
+                                               garrisonFull={garrisonFull}/>}
         </ClickBudgetMeter>}
 
         {ready && <ChatPanel

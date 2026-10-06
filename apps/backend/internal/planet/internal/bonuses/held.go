@@ -39,12 +39,15 @@ type Held struct {
 	Enclosures int
 
 	SpreadClicks int
+
+	Defenders int
 }
 
 type ChargesConfig struct {
 	SpreadClicks      int
 	Enclosures        int
 	EnclosureMaxTiles int
+	Defenders         int
 }
 
 func (h Held) Full(config ChargesConfig) []Kind {
@@ -61,6 +64,9 @@ func (h Held) Full(config ChargesConfig) []Kind {
 	if h.SpreadClicks >= config.SpreadClicks {
 		kinds = append(kinds, KindSpreadClicks)
 	}
+	if h.Defenders >= config.Defenders {
+		kinds = append(kinds, KindDefenders)
+	}
 
 	return kinds
 }
@@ -75,6 +81,8 @@ func (h Held) Count(kind Kind) int {
 		return h.Enclosures
 	case KindSpreadClicks:
 		return h.SpreadClicks
+	case KindDefenders:
+		return h.Defenders
 	}
 
 	return 0
@@ -94,7 +102,7 @@ func (h Held) Empty() bool {
 
 func (h Held) GrantError() error {
 	switch {
-	case h.Enclosures < 0 || h.SpreadClicks < 0:
+	case h.Enclosures < 0 || h.SpreadClicks < 0 || h.Defenders < 0:
 		return fmt.Errorf("%w: %+v", ErrNegativeGrant, h)
 	case h.Empty():
 		return ErrNothingToGrant
@@ -113,6 +121,8 @@ func (h Held) Granted(kind Kind, amount int, config ChargesConfig) Held {
 		h.Enclosures = min(h.Enclosures+amount, config.Enclosures)
 	case KindSpreadClicks:
 		h.SpreadClicks = min(h.SpreadClicks+amount, config.SpreadClicks)
+	case KindDefenders:
+		h.Defenders = min(h.Defenders+amount, config.Defenders)
 	}
 
 	return h
@@ -146,6 +156,15 @@ func (h Held) AfterSpreadClick() (Held, bool) {
 		return h, false
 	}
 	h.SpreadClicks--
+
+	return h, true
+}
+
+func (h Held) AfterDefender() (Held, bool) {
+	if h.Defenders <= 0 {
+		return h, false
+	}
+	h.Defenders--
 
 	return h, true
 }

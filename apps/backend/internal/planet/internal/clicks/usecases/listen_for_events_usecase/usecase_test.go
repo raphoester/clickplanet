@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
@@ -29,6 +30,18 @@ type silentFeed struct{}
 
 func (silentFeed) Attend(bonuses.Entrant) (<-chan bonuses.Event, func()) {
 	return nil, func() {}
+}
+
+type quietGarrisons struct{}
+
+func (quietGarrisons) Subscribe(context.Context) (<-chan garrisons.Garrison, error) {
+	return make(chan garrisons.Garrison), nil
+}
+
+type stubGarrisons chan garrisons.Garrison
+
+func (s stubGarrisons) Subscribe(context.Context) (<-chan garrisons.Garrison, error) {
+	return s, nil
 }
 
 type recorder struct {
@@ -75,7 +88,7 @@ func TestAStreamListensForTheBoxesOfTheEntrantThatOpenedIt(t *testing.T) {
 	feed := &attendedFeed{}
 
 	for _, ctx := range []context.Context{linked, guest} {
-		require.NoError(t, listen_for_events_usecase.New(stubSubscriber{}, time.Hour, feed).Execute(ctx, &recorder{}))
+		require.NoError(t, listen_for_events_usecase.New(stubSubscriber{}, time.Hour, feed, quietGarrisons{}).Execute(ctx, &recorder{}))
 	}
 
 	assert.Equal(t, []bonuses.Entrant{"account:a-player", "1.2.3.4"}, feed.entrants)
@@ -84,7 +97,7 @@ func TestAStreamListensForTheBoxesOfTheEntrantThatOpenedIt(t *testing.T) {
 func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
 	cause := errors.New("disk on fire")
 
-	err := listen_for_events_usecase.New(stubSubscriber{err: cause}, time.Hour, silentFeed{}).
+	err := listen_for_events_usecase.New(stubSubscriber{err: cause}, time.Hour, silentFeed{}, quietGarrisons{}).
 		Execute(t.Context(), &recorder{})
 
 	require.ErrorIs(t, err, cause)
@@ -99,7 +112,7 @@ func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).Execute(ctx, sink)
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, quietGarrisons{}).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -108,6 +121,28 @@ func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 
 	require.Equal(t, []listen_for_events_usecase.Event{
 		{Update: clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}},
+	}, sink.seen())
+}
+
+func TestAGarrisonIsCarriedToTheSink(t *testing.T) {
+	defences := make(stubGarrisons, 1)
+	defences <- garrisons.Garrison{Tile: 42, Country: "fr", Defenders: 3}
+
+	sink := &recorder{fed: make(chan struct{})}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, silentFeed{},
+			defences).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events_usecase.Event{
+		{Garrison: &garrisons.Garrison{Tile: 42, Country: "fr", Defenders: 3}},
 	}, sink.seen())
 }
 
@@ -121,7 +156,7 @@ func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).Execute(ctx, sink)
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, quietGarrisons{}).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -138,7 +173,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{updates: make(chan clicks.Change)}, time.Millisecond, silentFeed{}).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Millisecond, silentFeed{}, quietGarrisons{}).Execute(ctx, sink)
 	}()
 
 	for range 3 {
@@ -156,7 +191,7 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 	updates := make(chan clicks.Change)
 	close(updates)
 
-	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).
+	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, quietGarrisons{}).
 		Execute(t.Context(), &recorder{})
 
 	require.NoError(t, err, "the map going away is not the caller's error")
@@ -166,7 +201,7 @@ func TestAFailedSendEndsTheFeed(t *testing.T) {
 	updates := make(chan clicks.Change, 1)
 	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 1}}
 
-	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).
+	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}, quietGarrisons{}).
 		Execute(t.Context(), &recorder{err: assert.AnError})
 
 	require.ErrorIs(t, err, assert.AnError)

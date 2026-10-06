@@ -39,7 +39,7 @@ export default function BonusAward({reward, onDone}: BonusAwardProps) {
         <div className="bonus-award-card panel">
             <span className="bonus-award-box" aria-hidden="true"><BonusIcon kind={reward.kind}/></span>
             <strong className="bonus-award-title">{title}</strong>
-            <span className="bonus-award-detail">{detail}</span>
+            {detail && <span className="bonus-award-detail">{detail}</span>}
         </div>
     </div>
 }

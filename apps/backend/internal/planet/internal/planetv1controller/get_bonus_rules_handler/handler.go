@@ -32,6 +32,8 @@ func (h GetBonusRulesHandler) GetBonusRules(
 		SpreadClicks:      uint32(h.rules.SpreadClicks),
 		Enclosures:        uint32(h.rules.Enclosures),
 		TollSteps:         tollStepsOf(h.toll.Steps()),
+		Defenders:         uint32(h.rules.Defenders),
+		TileDefenders:     uint32(h.rules.TileDefenders),
 	}), nil
 }
 

@@ -216,6 +216,35 @@ describe("optimistic clicks", () => {
     })
 })
 
+describe("settle", () => {
+    it("gives way to the flag the server kept on a tile this client is painting", () => {
+        const store = new TileOwnership(10)
+        store.applyBatch(batch({1: "jp"}))
+        const {claim} = store.applyOptimistic(1, "fr")
+
+        expect(store.settle(1, "jp")).toEqual([{tile: 1, country: "jp"}])
+        expect(store.ownerOf(1)).toBe("jp")
+        expect(counts(store)).toEqual({jp: 1})
+        expect(store.rollback(claim)).toEqual([])
+    })
+
+    it("leaves a tile alone that this client is not painting", () => {
+        const store = new TileOwnership(10)
+        store.applyBatch(batch({1: "fr"}))
+
+        expect(store.settle(1, "jp")).toEqual([])
+        expect(store.ownerOf(1)).toBe("fr")
+    })
+
+    it("changes nothing when the paint already wears that flag", () => {
+        const store = new TileOwnership(10)
+        store.applyBatch(batch({1: "fr"}))
+        store.applyOptimistic(1, "fr")
+
+        expect(store.settle(1, "fr")).toEqual([])
+    })
+})
+
 describe("a refusal arriving after the tile has moved on", () => {
     it("leaves the tile alone once the server has echoed the click", () => {
         const store = new TileOwnership(10)

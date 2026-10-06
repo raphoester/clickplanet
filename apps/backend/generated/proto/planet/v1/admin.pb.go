@@ -30,6 +30,7 @@ type GrantChargesRequest struct {
 	Bomb          bool                   `protobuf:"varint,3,opt,name=bomb,proto3" json:"bomb,omitempty"`
 	Enclosures    uint32                 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
 	SpreadClicks  uint32                 `protobuf:"varint,5,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
+	Defenders     uint32                 `protobuf:"varint,6,opt,name=defenders,proto3" json:"defenders,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -95,6 +96,13 @@ func (x *GrantChargesRequest) GetEnclosures() uint32 {
 func (x *GrantChargesRequest) GetSpreadClicks() uint32 {
 	if x != nil {
 		return x.SpreadClicks
+	}
+	return 0
+}
+
+func (x *GrantChargesRequest) GetDefenders() uint32 {
+	if x != nil {
+		return x.Defenders
 	}
 	return 0
 }
@@ -1347,7 +1355,7 @@ var File_planet_v1_admin_proto protoreflect.FileDescriptor
 
 const file_planet_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x15planet/v1/admin.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\xa5\x01\n" +
+	"\x15planet/v1/admin.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\xc3\x01\n" +
 	"\x13GrantChargesRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x16\n" +
@@ -1356,7 +1364,8 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"enclosures\x18\x04 \x01(\rR\n" +
 	"enclosures\x12#\n" +
-	"\rspread_clicks\x18\x05 \x01(\rR\fspreadClicks\"\x93\x01\n" +
+	"\rspread_clicks\x18\x05 \x01(\rR\fspreadClicks\x12\x1c\n" +
+	"\tdefenders\x18\x06 \x01(\rR\tdefenders\"\x93\x01\n" +
 	"\x14GrantChargesResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12.\n" +

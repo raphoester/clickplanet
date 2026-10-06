@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type {OwnerChange} from "../../domain/tileOwnership.ts";
+import type {GarrisonChange} from "../../domain/garrisons.ts";
 import {regions} from "./atlas.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
 import {disposeMaterial} from "./scene.ts";
@@ -25,6 +26,7 @@ export class TileField {
     private readonly regionVector: THREE.BufferAttribute
     private readonly landmass: THREE.BufferAttribute
     private readonly hover: THREE.BufferAttribute
+    private readonly garrison: THREE.BufferAttribute
     private hovered: number | undefined
 
     constructor(
@@ -41,12 +43,14 @@ export class TileField {
         this.regionVector = new THREE.BufferAttribute(new Float32Array(size * REGION_STRIDE), REGION_STRIDE)
         this.landmass = new THREE.BufferAttribute(new Float32Array(size), 1)
         this.hover = new THREE.BufferAttribute(new Float32Array(size), 1)
+        this.garrison = new THREE.BufferAttribute(new Float32Array(size), 1)
 
         const displayGeometry = new THREE.BufferGeometry()
         displayGeometry.setAttribute('position', position)
         displayGeometry.setAttribute('regionVector', this.regionVector)
         displayGeometry.setAttribute('landmassIndex', this.landmass)
         displayGeometry.setAttribute('hover', this.hover)
+        displayGeometry.setAttribute('garrison', this.garrison)
 
         const pickingGeometry = new THREE.BufferGeometry()
         pickingGeometry.setAttribute('position', position)
@@ -100,6 +104,32 @@ export class TileField {
             this.regionVector.addUpdateRange(lowest, highest - lowest)
         }
         this.regionVector.needsUpdate = true
+    }
+
+    setGarrisons(changes: readonly GarrisonChange[]) {
+        if (changes.length === 0) return
+
+        const values = this.garrison.array as Float32Array
+        const individual = changes.length <= MAX_INDIVIDUAL_RANGES
+        let lowest = Infinity
+        let highest = -Infinity
+
+        for (const {tile, defenders} of changes) {
+            const index = tile - 1
+            values[index] = defenders
+
+            if (individual) {
+                this.garrison.addUpdateRange(index, 1)
+            } else {
+                lowest = Math.min(lowest, index)
+                highest = Math.max(highest, index + 1)
+            }
+        }
+
+        if (!individual && highest > lowest) {
+            this.garrison.addUpdateRange(lowest, highest - lowest)
+        }
+        this.garrison.needsUpdate = true
     }
 
     setLandmasses(assignment: Uint16Array) {

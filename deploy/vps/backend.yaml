@@ -25,6 +25,9 @@ ledger:
 chargeStorage:
   flushInterval: 1s
 
+garrisonStorage:
+  flushInterval: 1s
+
 ledgerStorage:
   flushInterval: 1s
   maxTakes: 4000000
@@ -198,6 +201,7 @@ bonus:
     spread_clicks: 3
     enclose_clicks: 2
     bomb: 1
+    defenders: 3
 
   offerTTL: 15s
 
@@ -212,6 +216,11 @@ bonus:
     maxTiles: 25
     held: 3
     maxPerBox: 3
+
+  defender:
+    held: 12
+    maxPerBox: 3
+    perTile: 10
 
   activeWithin: 2m
 

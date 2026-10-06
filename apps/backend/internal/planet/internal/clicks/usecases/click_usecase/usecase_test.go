@@ -8,6 +8,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons/inmemory_garrison_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/stretchr/testify/suite"
 )
@@ -19,8 +21,9 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	storage *inmemory_tile_storage.Storage
-	useCase *click_usecase.UseCase
+	storage   *inmemory_tile_storage.Storage
+	garrisons *inmemory_garrison_storage.Storage
+	useCase   *click_usecase.UseCase
 }
 
 func (s *testSuite) SetupTest() {
@@ -31,9 +34,12 @@ func (s *testSuite) SetupTest() {
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}),
 		slog.New(slog.DiscardHandler),
 	)
+	s.garrisons = inmemory_garrison_storage.New(inmemory_garrison_storage.Config{}, 10,
+		inmemory_garrison_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
+
 	tileChecker := clicks.NewBoard(maxIndex)
 	countryChecker := cpcountries.New()
-	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker)
+	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker, garrisons.NewDefence(s.garrisons))
 }
 
 func (s *testSuite) execute(tileID uint32, countryID string) error {
@@ -80,17 +86,55 @@ func (s *testSuite) TestTileOnLimit() {
 	s.NoError(s.execute(250_000, "fr"))
 }
 
-func (s *testSuite) TestAClickReachesTheFeedAsAClickedUpdate() {
-	s.Require().NoError(s.execute(153, "pl"))
+func (s *testSuite) click(tileID uint32, countryID string) click_usecase.Out {
+	out, err := s.useCase.Execute(context.Background(), click_usecase.In{TileID: tileID, CountryID: countryID})
+	s.Require().NoError(err)
+	return out
+}
+
+func (s *testSuite) owner(tile uint32) string {
+	owner, _ := s.storage.Owner(tile)
+	return owner
+}
+
+func (s *testSuite) TestEachForeignClickOnADefendedTileTakesOneDefender() {
+	s.click(150, "pl")
+	s.garrisons.Reinforce(150, "pl")
+	s.garrisons.Reinforce(150, "pl")
+
+	s.Equal(clicks.Defended, s.click(150, "de").Outcome)
+	s.Equal(clicks.Defended, s.click(150, "fr").Outcome)
+	s.Equal("pl", s.owner(150), "a defended tile keeps its flag")
+
+	s.Equal(clicks.Taken, s.click(150, "de").Outcome)
+	s.Equal("de", s.owner(150), "with no defender left the next click takes it")
+}
+
+func (s *testSuite) TestItsOwnFlagClickingADefendedTileChangesNothing() {
+	s.click(152, "pl")
+	s.garrisons.Reinforce(152, "pl")
+
+	s.Equal(clicks.Unchanged, s.click(152, "pl").Outcome)
+	s.Equal(1, s.garrisons.Defenders(152, "pl"))
+}
+
+func (s *testSuite) TestAnUndefendedTileIsTakenInOneClick() {
+	s.click(300, "pl")
+	s.Equal(clicks.Taken, s.click(300, "de").Outcome)
+	s.Equal("de", s.owner(300))
+}
+
+func (s *testSuite) TestADefendedClickPublishesNoTileUpdate() {
+	s.click(153, "pl")
+	s.garrisons.Reinforce(153, "pl")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	feed, err := s.storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
-	s.Require().NoError(s.execute(153, "de"))
+	s.click(153, "de")
 
-	change := <-feed
-	s.Require().NotNil(change.Update)
-	s.Equal(clicks.TileUpdate{Tile: 153, Value: "de", Previous: "pl", Clicked: true}, *change.Update)
+	s.Empty(feed, "the tile did not change hands")
 }

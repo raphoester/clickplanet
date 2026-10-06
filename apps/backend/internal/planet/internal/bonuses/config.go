@@ -19,9 +19,10 @@ type Config struct {
 
 	OfferTTL time.Duration
 
-	Spread  SpreadConfig
-	Bomb    BombConfig
-	Enclose EncloseConfig
+	Spread   SpreadConfig
+	Bomb     BombConfig
+	Enclose  EncloseConfig
+	Defender DefenderConfig
 
 	Quiz quizzes.Config
 
@@ -49,6 +50,12 @@ type EncloseConfig struct {
 	MaxPerBox int
 }
 
+type DefenderConfig struct {
+	Held      int
+	MaxPerBox int
+	PerTile   int
+}
+
 const (
 	defaultMinInterval       = 4 * time.Minute
 	defaultMaxInterval       = 8 * time.Minute
@@ -65,6 +72,9 @@ const (
 	defaultEnclosePerBox   = 3
 	defaultBombRings       = 4
 	defaultEncloseMaxTiles = 25
+	defaultDefendersHeld   = 12
+	defaultDefendersPerBox = 3
+	defaultDefendersOnTile = 10
 )
 
 func (c Config) withDefaults() Config {
@@ -99,6 +109,7 @@ func (c Config) withDefaults() Config {
 	c.Spread = c.Spread.withDefaults()
 	c.Bomb = c.Bomb.withDefaults()
 	c.Enclose = c.Enclose.withDefaults()
+	c.Defender = c.Defender.withDefaults()
 
 	return c
 }
@@ -109,6 +120,7 @@ func defaultKinds() map[Kind]float64 {
 		KindSpreadClicks:  3,
 		KindEncloseClicks: 2,
 		KindBomb:          1,
+		KindDefenders:     3,
 	}
 }
 
@@ -145,6 +157,20 @@ func (c EncloseConfig) withDefaults() EncloseConfig {
 	return c
 }
 
+func (c DefenderConfig) withDefaults() DefenderConfig {
+	if c.Held <= 0 {
+		c.Held = defaultDefendersHeld
+	}
+	if c.MaxPerBox <= 0 {
+		c.MaxPerBox = defaultDefendersPerBox
+	}
+	if c.PerTile <= 0 {
+		c.PerTile = defaultDefendersOnTile
+	}
+
+	return c
+}
+
 func (c Config) Validate() error {
 	total := 0.0
 
@@ -168,5 +194,14 @@ func (c Config) Validate() error {
 func (c Config) ChargesConfig() ChargesConfig {
 	c = c.withDefaults()
 
-	return ChargesConfig{SpreadClicks: c.Spread.Clicks, Enclosures: c.Enclose.Held, EnclosureMaxTiles: c.Enclose.MaxTiles}
+	return ChargesConfig{
+		SpreadClicks:      c.Spread.Clicks,
+		Enclosures:        c.Enclose.Held,
+		EnclosureMaxTiles: c.Enclose.MaxTiles,
+		Defenders:         c.Defender.Held,
+	}
+}
+
+func (c Config) DefendersPerTile() int {
+	return c.Defender.withDefaults().PerTile
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 )
 
@@ -53,6 +54,24 @@ func TestSinkSaysWhichUpdateIsAClick(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, stream.sent, 1)
 	assert.True(t, stream.sent[0].GetTileUpdate().GetClicked())
+}
+
+func TestSinkFramesAGarrison(t *testing.T) {
+	stream := &recorder{}
+
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Garrison: &garrisons.Garrison{Tile: 42, Country: "fr", Defenders: 9},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, stream.sent, 1)
+
+	garrison := stream.sent[0].GetGarrison()
+	require.NotNil(t, garrison, "a garrison travels as the garrison case")
+	assert.Nil(t, stream.sent[0].GetTileUpdate())
+	assert.Equal(t, uint32(42), garrison.GetTileId())
+	assert.Equal(t, "fr", garrison.GetCountryId())
+	assert.Equal(t, uint32(9), garrison.GetDefenders())
 }
 
 func TestSinkFramesAHeartbeat(t *testing.T) {

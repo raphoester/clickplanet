@@ -7,8 +7,10 @@ import {
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
+    DefenderRefusedError,
     GlobePoint,
     Enclosure,
+    Garrisons,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
@@ -26,6 +28,7 @@ import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 import {nearestTile, tilesWithin} from "../domain/blast.ts";
+import {Garrison} from "../domain/garrisons.ts";
 
 const TILE_COUNT = 257_000
 
@@ -44,11 +47,15 @@ const SPREAD_CLICKS = 8
 const SPREAD_PER_BOX = 4
 const ENCLOSURES = 3
 const ENCLOSURES_PER_BOX = 3
+const DEFENDERS = 12
+const DEFENDERS_PER_BOX = 3
+const TILE_DEFENDERS = 10
 const BONUS_KINDS: BonusReward["kind"][] = [
     "refill", "refill", "refill", "refill", "refill",
     "spreadClicks", "spreadClicks",
     "bomb",
     "encloseClicks", "encloseClicks",
+    "defenders", "defenders",
 ]
 
 const BOMB_RADIUS = 0.032
@@ -77,6 +84,8 @@ const RULES: BonusRules = {
     enclosureMaxTiles: ENCLOSE_MAX_TILES,
     spreadClicks: SPREAD_CLICKS,
     enclosures: ENCLOSURES,
+    defenders: DEFENDERS,
+    tileDefenders: TILE_DEFENDERS,
     toll: TOLL_STEPS,
 }
 
@@ -86,7 +95,7 @@ export type FakeBackendOptions = {
     tilePositions?: () => Promise<Float32Array>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Garrisons {
     private tileBindings: Map<number, string> = new Map()
     private tileCounts: Map<string, number> = new Map()
     private budgetCountry = ""
@@ -97,6 +106,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private bonusCallbacks: Map<string, BonusHandlers> = new Map()
     private bombCallbacks: Map<string, (drop: BombDrop) => void> = new Map()
     private quizCallbacks: Map<string, (offer: QuizOffer) => void> = new Map()
+    private garrisonCallbacks: Map<string, (garrison: Garrison) => void> = new Map()
+    private garrisons: Map<number, number> = new Map()
 
     private charges: Charges = NO_CHARGES
     private positions: Promise<Float32Array> | undefined
@@ -128,12 +139,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.pendingUpdates.push(update)
         })
 
-        this.timers.push(setInterval(() => {
-            if (this.pendingUpdates.length === 0) return
-            const updates = this.pendingUpdates
-            this.pendingUpdates = []
-            this.updateBatchCallbacks.forEach(callback => callback(updates))
-        }, batchUpdateDurationMs))
+        this.timers.push(setInterval(() => this.flushUpdates(), batchUpdateDurationMs))
 
         const offerable = this.tilePositions ? BONUS_KINDS : BONUS_KINDS.filter((kind) => kind !== "bomb")
 
@@ -180,6 +186,13 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }, 1000 / BOT_CLICKS_PER_SECOND))
     }
 
+    private flushUpdates() {
+        if (this.pendingUpdates.length === 0) return
+        const updates = this.pendingUpdates
+        this.pendingUpdates = []
+        this.updateBatchCallbacks.forEach(callback => callback(updates))
+    }
+
     public close() {
         this.timers.forEach(clearInterval)
         this.timers.length = 0
@@ -187,6 +200,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.updateBatchCallbacks.clear()
         this.budgetCallbacks.clear()
         this.bombCallbacks.clear()
+        this.garrisonCallbacks.clear()
     }
 
     public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF) {
@@ -220,6 +234,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 return this.charges.enclosures >= ENCLOSURES
             case "spreadClicks":
                 return this.charges.spreadClicksLeft >= SPREAD_CLICKS
+            case "defenders":
+                return this.charges.defenders >= DEFENDERS
         }
     }
 
@@ -246,6 +262,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 const spreadClicksLeft = Math.min(held.spreadClicksLeft + drawUpTo(SPREAD_PER_BOX), SPREAD_CLICKS)
                 this.hold({...held, spreadClicksLeft})
                 return {reward: rewardOfKind(kind, spreadClicksLeft - held.spreadClicksLeft), charges: this.charges}
+            }
+            case "defenders": {
+                const defenders = Math.min(held.defenders + drawUpTo(DEFENDERS_PER_BOX), DEFENDERS)
+                this.hold({...held, defenders})
+                return {reward: rewardOfKind(kind, defenders - held.defenders), charges: this.charges}
             }
         }
     }
@@ -337,6 +358,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     private applyClick(tileId: number, countryId: string, clicked = true) {
         const prev = this.tileBindings.get(tileId)
+        if (prev === countryId) return
+        if (prev !== undefined && this.hit(tileId, prev)) return
+
         this.tileBindings.set(tileId, countryId)
         this.count(prev, -1)
         this.count(countryId, 1)
@@ -346,6 +370,48 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             newCountry: countryId,
             clicked,
         }))
+    }
+
+    private hit(tileId: number, owner: string): boolean {
+        const defenders = this.garrisons.get(tileId) ?? 0
+        if (defenders === 0) return false
+
+        this.garrison(tileId, owner, defenders - 1)
+        return true
+    }
+
+    private garrison(tile: number, country: string, defenders: number) {
+        if (defenders > 0) this.garrisons.set(tile, defenders)
+        else this.garrisons.delete(tile)
+
+        this.flushUpdates()
+        this.garrisonCallbacks.forEach(callback => callback({tile, country, defenders}))
+    }
+
+    public async getGarrisons(): Promise<Garrison[]> {
+        return [...this.garrisons].map(([tile, defenders]) => ({tile, country: this.tileBindings.get(tile) ?? "", defenders}))
+    }
+
+    public listenForGarrisons(onChanged: (garrison: Garrison) => void): () => void {
+        const identifier = UUIDv4()
+        this.garrisonCallbacks.set(identifier, onChanged)
+        return () => this.garrisonCallbacks.delete(identifier)
+    }
+
+    public async placeDefender(tileId: number, countryId: string): Promise<void> {
+        if (this.sessionUnavailable) throw new SessionUnavailableError()
+        if (this.charges.defenders === 0) throw new BonusLostError()
+        if (!this.botDefend(tileId, countryId)) throw new DefenderRefusedError()
+
+        this.hold({...this.charges, defenders: this.charges.defenders - 1})
+    }
+
+    public botDefend(tile: number, countryId: string): boolean {
+        const defenders = this.garrisons.get(tile) ?? 0
+        if (this.tileBindings.get(tile) !== countryId || defenders >= TILE_DEFENDERS) return false
+
+        this.garrison(tile, countryId, defenders + 1)
+        return true
     }
 
     private count(countryId: string | undefined, by: number) {
@@ -476,7 +542,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const onLand = tile !== undefined && arc <= SEA_REACH
 
         const cleared = onLand ? tilesWithin(positions, tile, BOMB_RADIUS).filter((id) => {
-            this.count(this.tileBindings.get(id), -1)
+            const owner = this.tileBindings.get(id)
+            if (owner === undefined || this.hit(id, owner)) return false
+            this.count(owner, -1)
             return this.tileBindings.delete(id)
         }) : []
 
@@ -549,5 +617,7 @@ function rewardOfKind(kind: BonusReward["kind"], amount = 1): BonusReward {
             return {kind, clicks: amount}
         case "refill":
             return {kind}
+        case "defenders":
+            return {kind, defenders: amount}
     }
 }

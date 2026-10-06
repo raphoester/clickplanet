@@ -34,6 +34,12 @@ service ClickService {
   rpc OpenQuiz(OpenQuizRequest) returns (OpenQuizResponse);
 
   rpc AnswerQuiz(AnswerQuizRequest) returns (AnswerQuizResponse);
+
+  rpc PlaceDefender(PlaceDefenderRequest) returns (PlaceDefenderResponse);
+
+  rpc GetGarrisons(GetGarrisonsRequest) returns (GetGarrisonsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message ClickBudget {
@@ -125,6 +131,8 @@ message PlanetEvent {
     TilesSpread tiles_spread = 7;
 
     QuizOffered quiz_offered = 8;
+
+    Garrison garrison = 9;
   }
 }
 
@@ -136,6 +144,8 @@ message ChargesHeld {
   uint32 enclosures = 2;
 
   uint32 spread_clicks_left = 3;
+
+  uint32 defenders = 5;
 }
 
 message GetChargesRequest {}
@@ -160,6 +170,10 @@ message GetBonusRulesResponse {
 
   // Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower.
   repeated TollStep toll_steps = 6;
+
+  uint32 defenders = 7;
+
+  uint32 tile_defenders = 8;
 }
 
 message TollStep {
@@ -177,6 +191,8 @@ enum BonusKind {
   BONUS_KIND_BOMB = 3;
 
   BONUS_KIND_ENCLOSE_CLICKS = 4;
+
+  BONUS_KIND_DEFENDERS = 6;
 }
 
 message BonusOffered {
@@ -307,6 +323,31 @@ message TilesSpread {
   uint32 tile_id = 2;
 
   repeated uint32 spread_tile_ids = 3;
+}
+
+message PlaceDefenderRequest {
+  uint32 tile_id = 1;
+
+  string country_id = 2;
+}
+
+message PlaceDefenderResponse {
+  ChargesHeld charges = 1;
+}
+
+message GetGarrisonsRequest {}
+
+message GetGarrisonsResponse {
+  repeated Garrison garrisons = 1;
+}
+
+// defenders 0 on the stream: the tile has none left.
+message Garrison {
+  uint32 tile_id = 1;
+
+  string country_id = 2;
+
+  uint32 defenders = 3;
 }
 
 message Heartbeat {}

@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
@@ -50,9 +51,23 @@ func (t tiles) Set(_ context.Context, tile uint32, value string) error {
 	return nil
 }
 
+type defenders map[uint32]int
+
+func (d defenders) Defenders(tile uint32, _ string) int { return d[tile] }
+
+func (d defenders) Strike(tile uint32, _ string) bool {
+	if d[tile] == 0 {
+		return false
+	}
+	d[tile]--
+
+	return true
+}
+
 type rule struct {
-	tiles tiles
-	err   error
+	tiles   tiles
+	defence garrisons.Defence
+	err     error
 }
 
 func (r rule) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
@@ -60,7 +75,10 @@ func (r rule) Execute(ctx context.Context, in click_usecase.In) (click_usecase.O
 		return click_usecase.Out{}, r.err
 	}
 
-	return click_usecase.Out{}, r.tiles.Set(ctx, in.TileID, in.CountryID)
+	owner, _ := r.tiles.Owner(in.TileID)
+	outcome := r.defence.Strike(in.TileID, owner, in.CountryID)
+
+	return click_usecase.Out{Outcome: outcome}, r.tiles.Set(ctx, in.TileID, outcome.OwnerAfter(owner, in.CountryID))
 }
 
 type recorder struct{ published []bonuses.Enclosed }
@@ -80,6 +98,7 @@ func played(t *testing.T) context.Context {
 type fixture struct {
 	grid      honeycomb
 	tiles     tiles
+	defenders defenders
 	charges   *inmemory_charge_storage.Storage
 	published *recorder
 	useCase   *enclose_click.UseCase
@@ -87,8 +106,9 @@ type fixture struct {
 
 func setup(charged bool, err error) fixture {
 	f := fixture{
-		grid:  honeycomb{size: 12},
-		tiles: tiles{},
+		grid:      honeycomb{size: 12},
+		tiles:     tiles{},
+		defenders: defenders{},
 		charges: inmemory_charge_storage.New(inmemory_charge_storage.Config{},
 			bonuses.ChargesConfig{SpreadClicks: 8, Enclosures: 3, EnclosureMaxTiles: 10},
 			inmemory_charge_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler)),
@@ -98,8 +118,9 @@ func setup(charged bool, err error) fixture {
 		f.charges.Grant(caller, bonuses.KindEncloseClicks, 1)
 	}
 
-	f.useCase = enclose_click.New(rule{tiles: f.tiles, err: err}, f.charges,
-		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, f.charges, f.published))
+	defence := garrisons.NewDefence(f.defenders)
+	f.useCase = enclose_click.New(rule{tiles: f.tiles, defence: defence, err: err}, f.charges,
+		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, defence, f.charges, f.published))
 
 	return f
 }
@@ -154,6 +175,43 @@ func TestAShapeTakesUnownedTilesAndEveryoneElsesAlike(t *testing.T) {
 	assert.Equal(t, "fr", f.tiles[inner[1]])
 	require.Len(t, f.published.published, 1)
 	assert.Equal(t, inner, f.published.published[0].Filled)
+}
+
+func TestADefendedTileInsideAShapeLosesADefenderAndIsNotTaken(t *testing.T) {
+	f := setup(true, nil)
+	inner := []uint32{f.grid.id(5, 5), f.grid.id(6, 5)}
+	f.own("de", inner...)
+	f.defenders[inner[0]] = 2
+	closing := f.grid.id(4, 5)
+	wall := append(f.grid.ring(5, 5), f.grid.ring(6, 5)...)
+	for _, tile := range wall {
+		if tile != inner[0] && tile != inner[1] && tile != closing {
+			f.own("fr", tile)
+		}
+	}
+
+	f.click(t, closing)
+
+	assert.Equal(t, "de", f.tiles[inner[0]], "a bonus is never a way around the rule")
+	assert.Equal(t, 1, f.defenders[inner[0]])
+	assert.Equal(t, "fr", f.tiles[inner[1]])
+	require.Len(t, f.published.published, 1)
+	assert.Zero(t, f.charges.Held(caller).Enclosures)
+}
+
+func TestAClickADefenderTookClosesNothing(t *testing.T) {
+	f := setup(true, nil)
+	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
+	f.own("fr", ring[1:]...)
+	f.own("de", ring[0])
+	f.defenders[ring[0]] = 1
+
+	f.click(t, ring[0])
+
+	assert.Equal(t, "de", f.tiles[ring[0]])
+	assert.Empty(t, f.tiles[centre], "the tile inside was not taken")
+	assert.Empty(t, f.published.published)
+	assert.Equal(t, 1, f.charges.Held(caller).Enclosures, "a click that closes nothing keeps the charge")
 }
 
 func TestATriangleHasNoInsideAndCostsNothing(t *testing.T) {

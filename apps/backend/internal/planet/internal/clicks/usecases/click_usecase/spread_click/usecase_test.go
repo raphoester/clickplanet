@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
@@ -47,9 +48,26 @@ func (s stubNeighbours) Neighbours(id uint32) []uint32 { return s[id] }
 
 type recordingStorage struct{ tiles map[uint32]string }
 
+func (r *recordingStorage) Owner(tile uint32) (string, bool) {
+	return r.tiles[tile], true
+}
+
 func (r *recordingStorage) Set(_ context.Context, tile uint32, value string) error {
 	r.tiles[tile] = value
 	return nil
+}
+
+type stubGarrisons map[uint32]int
+
+func (s stubGarrisons) Defenders(tile uint32, _ string) int { return s[tile] }
+
+func (s stubGarrisons) Strike(tile uint32, _ string) bool {
+	if s[tile] == 0 {
+		return false
+	}
+	s[tile]--
+
+	return true
 }
 
 type recordingPublisher struct{ spreads []bonuses.Spread }
@@ -80,11 +98,23 @@ func setupWithPublisher(spreading bool, err error) (*spread_click.UseCase, *reco
 }
 
 func setupWithClicks(clicksLeft int, err error) (*spread_click.UseCase, *recordingStorage, *recordingPublisher, stubSpreads) {
+	useCase, storage, publisher, spreads, _ := setupDefended(clicksLeft, err, stubGarrisons{})
+
+	return useCase, storage, publisher, spreads
+}
+
+func setupDefended(
+	clicksLeft int,
+	err error,
+	held stubGarrisons,
+) (*spread_click.UseCase, *recordingStorage, *recordingPublisher, stubSpreads, stubGarrisons) {
 	storage := &recordingStorage{tiles: map[uint32]string{}}
 	spreads := stubSpreads{left: map[bonuses.Holder]int{caller: clicksLeft}}
 	publisher := &recordingPublisher{}
+	useCase := spread_click.New(stubClick{storage: storage, err: err}, spreads, honeycomb, storage,
+		garrisons.NewDefence(held), publisher)
 
-	return spread_click.New(stubClick{storage: storage, err: err}, spreads, honeycomb, storage, publisher), storage, publisher, spreads
+	return useCase, storage, publisher, spreads, held
 }
 
 func TestASpreadingClickTakesTheTileAndEveryTileTouchingIt(t *testing.T) {
@@ -96,6 +126,19 @@ func TestASpreadingClickTakesTheTileAndEveryTileTouchingIt(t *testing.T) {
 	assert.Equal(t, map[uint32]string{
 		100: "fr", 90: "fr", 91: "fr", 99: "fr", 101: "fr", 109: "fr", 110: "fr",
 	}, storage.tiles)
+}
+
+func TestASpreadStrikesTheDefendedTilesItTouchesAndTakesTheRest(t *testing.T) {
+	useCase, storage, _, _, held := setupDefended(8, nil, stubGarrisons{90: 2, 91: 1})
+	storage.tiles[90], storage.tiles[91], storage.tiles[99] = "pl", "pl", "de"
+
+	_, err := useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+	require.NoError(t, err)
+
+	assert.Equal(t, map[uint32]string{
+		100: "fr", 90: "pl", 91: "pl", 99: "fr", 101: "fr", 109: "fr", 110: "fr",
+	}, storage.tiles, "a bonus is never a way around the rule")
+	assert.Equal(t, stubGarrisons{90: 1, 91: 0}, held, "each defended tile loses one defender")
 }
 
 func TestWithoutTheBonusAClickTakesOneTile(t *testing.T) {
@@ -134,7 +177,8 @@ func TestTheSpreadSpentIsTheAccounts(t *testing.T) {
 	storage := &recordingStorage{tiles: map[uint32]string{}}
 	account := bonuses.HolderOf(clicks.Payer{Account: "a-guest"})
 	spreads := stubSpreads{left: map[bonuses.Holder]int{account: 8}}
-	useCase := spread_click.New(stubClick{storage: storage}, spreads, honeycomb, storage, &recordingPublisher{})
+	useCase := spread_click.New(stubClick{storage: storage}, spreads, honeycomb, storage,
+		garrisons.NewDefence(stubGarrisons{}), &recordingPublisher{})
 
 	_, err := useCase.Execute(cpctx.AddAccountToContext(t.Context(), "a-guest"), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)

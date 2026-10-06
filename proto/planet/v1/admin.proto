@@ -31,6 +31,8 @@ message GrantChargesRequest {
   bool bomb = 3;
   uint32 enclosures = 4;
   uint32 spread_clicks = 5;
+
+  uint32 defenders = 6;
 }
 
 message GrantChargesResponse {

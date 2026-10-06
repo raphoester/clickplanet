@@ -1,4 +1,5 @@
 import {BonusReward, BonusRules, Charges, Switches} from "../domain/bonus.ts"
+import {Garrison} from "../domain/garrisons.ts"
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts"
 
 export interface TileClicker {
@@ -113,6 +114,21 @@ export interface Bomber {
 
 export interface Refiller {
     useRefill(countryId: string): Promise<void>
+}
+
+export interface Garrisons {
+    getGarrisons(signal?: AbortSignal): Promise<Garrison[]>
+
+    listenForGarrisons(onChanged: (garrison: Garrison) => void): () => void
+
+    placeDefender(tileId: number, countryId: string): Promise<void>
+}
+
+export class DefenderRefusedError extends Error {
+    constructor(options?: ErrorOptions) {
+        super("the tile is not this player's, or holds all the defenders it can", options)
+        this.name = "DefenderRefusedError"
+    }
 }
 
 export class BankFullError extends Error {

@@ -114,7 +114,7 @@ function Result({question, outcome, chosen}: {question: QuizQuestion, outcome: Q
                         {outcome.reward && <BonusIcon kind={outcome.reward.kind}/>}
                     </span>
                     <strong>{reward.title}</strong>
-                    <span className="quiz-reward-detail">{reward.detail}</span>
+                    {reward.detail && <span className="quiz-reward-detail">{reward.detail}</span>}
                 </p>
                 : outcome.correct && <p className="quiz-answer">Your inventory is already full</p>}
         </div>
