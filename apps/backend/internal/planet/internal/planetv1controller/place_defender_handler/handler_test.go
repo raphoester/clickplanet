@@ -11,8 +11,8 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_defender_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons/usecases/place_defender_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/place_defender_handler"
 )
 
@@ -53,8 +53,8 @@ func TestEachRefusalHasItsCode(t *testing.T) {
 	for err, code := range map[error]connect.Code{
 		clicks.ErrUnknownCountry:             connect.CodeInvalidArgument,
 		clicks.ErrTileOutOfRange:             connect.CodeInvalidArgument,
-		place_defender_usecase.ErrNotYours:   connect.CodeFailedPrecondition,
-		place_defender_usecase.ErrFull:       connect.CodeFailedPrecondition,
+		clicks.ErrNotYourTile:                connect.CodeFailedPrecondition,
+		clicks.ErrTileFull:                   connect.CodeFailedPrecondition,
 		place_defender_usecase.ErrNoDefender: connect.CodeNotFound,
 	} {
 		_, refused := place(t, &stubUseCase{err: err})

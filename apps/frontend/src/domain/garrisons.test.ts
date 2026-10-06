@@ -1,18 +1,11 @@
 import {describe, expect, it} from "vitest"
 import {outcomeOf, placementOf, TileGarrisons} from "./garrisons.ts"
-import {TileOwnership} from "./tileOwnership.ts"
+import type {Update} from "../backends/backend.ts"
 
-const held = (owners: Record<number, string>) => {
-    const ownership = new TileOwnership(10)
-    ownership.applyBatch({bindings: new Map(Object.entries(owners).map(([tile, country]) => [Number(tile), country]))})
-    return ownership
-}
+const update = (tile: number, defenders: number, newCountry = "fr", previousCountry = newCountry): Update =>
+    ({tile, newCountry, previousCountry, clicked: false, defenders})
 
-const loaded = (ownership: TileOwnership) => {
-    const garrisons = new TileGarrisons((tile) => ownership.ownerOf(tile))
-    garrisons.applyLoaded([])
-    return garrisons
-}
+const counts = (garrisons: TileGarrisons, tiles: number[]) => tiles.map((tile) => garrisons.defendersOf(tile))
 
 describe("outcomeOf", () => {
     it("changes nothing on a tile the flag already holds, defended or not", () => {
@@ -20,7 +13,7 @@ describe("outcomeOf", () => {
         expect(outcomeOf("fr", "fr", 4)).toBe("unchanged")
     })
 
-    it("is defended by a garrison standing on another flag's tile, rather than taken", () => {
+    it("is defended by the defenders standing on another flag's tile, rather than taken", () => {
         expect(outcomeOf("jp", "fr", 1)).toBe("defended")
     })
 
@@ -51,99 +44,75 @@ describe("placementOf", () => {
 })
 
 describe("TileGarrisons", () => {
-    it("keeps the count each garrison sends, and reports how it moved", () => {
-        const garrisons = loaded(held({1: "fr"}))
-
-        expect(garrisons.apply({tile: 1, country: "fr", defenders: 3})).toEqual([{tile: 1, defenders: 3, was: 0}])
-        expect(garrisons.apply({tile: 1, country: "fr", defenders: 2})).toEqual([{tile: 1, defenders: 2, was: 3}])
-        expect(garrisons.defendersOf(1)).toBe(2)
+    it("starts every tile with none", () => {
+        expect(counts(new TileGarrisons(4), [1, 2, 3, 4])).toEqual([0, 0, 0, 0])
     })
 
-    it("removes a garrison with no defender left", () => {
-        const garrisons = loaded(held({1: "fr"}))
-        garrisons.apply({tile: 1, country: "fr", defenders: 1})
+    it("takes the count each update says the tile has now, and reports how it moved", () => {
+        const garrisons = new TileGarrisons(10)
 
-        expect(garrisons.apply({tile: 1, country: "fr", defenders: 0})).toEqual([{tile: 1, defenders: 0, was: 1}])
-        expect(garrisons.defendersOf(1)).toBe(0)
-    })
-
-    it("reports nothing when the count did not move", () => {
-        const garrisons = loaded(held({1: "fr"}))
-        garrisons.apply({tile: 1, country: "fr", defenders: 2})
-
-        expect(garrisons.apply({tile: 1, country: "fr", defenders: 2})).toEqual([])
-        expect(garrisons.apply({tile: 2, country: "fr", defenders: 0})).toEqual([])
-    })
-
-    it("ignores a garrison for a flag the tile does not wear", () => {
-        const garrisons = loaded(held({1: "fr"}))
-
-        expect(garrisons.apply({tile: 1, country: "jp", defenders: 3})).toEqual([])
-        expect(garrisons.apply({tile: 2, country: "jp", defenders: 3})).toEqual([])
-        expect(garrisons.defendersOf(1)).toBe(0)
-    })
-
-    it("drops a garrison when its tile changes hands, and keeps it when the flag stays", () => {
-        const garrisons = loaded(held({1: "fr", 2: "fr", 3: "fr"}))
-        garrisons.apply({tile: 1, country: "fr", defenders: 4})
-        garrisons.apply({tile: 2, country: "fr", defenders: 2})
-        garrisons.apply({tile: 3, country: "fr", defenders: 1})
-
-        expect(garrisons.followOwners([
-            {tile: 1, country: "jp"},
-            {tile: 2, country: undefined},
-            {tile: 3, country: "fr"},
-            {tile: 4, country: "jp"},
-        ])).toEqual([
-            {tile: 1, defenders: 0, was: 4},
-            {tile: 2, defenders: 0, was: 2},
+        expect(garrisons.applyUpdates([update(1, 3), update(2, 1)])).toEqual([
+            {tile: 1, defenders: 3, was: 0},
+            {tile: 2, defenders: 1, was: 0},
         ])
-        expect([1, 2, 3].map((tile) => garrisons.defendersOf(tile))).toEqual([0, 0, 1])
+        expect(garrisons.applyUpdates([update(1, 2), update(2, 0, "jp", "fr")])).toEqual([
+            {tile: 1, defenders: 2, was: 3},
+            {tile: 2, defenders: 0, was: 1},
+        ])
+        expect(counts(garrisons, [1, 2])).toEqual([2, 0])
     })
 
-    it("does not bring a dropped garrison back when its flag retakes the tile", () => {
-        const ownership = held({1: "fr"})
-        const garrisons = loaded(ownership)
-        garrisons.apply({tile: 1, country: "fr", defenders: 4})
+    it("reports nothing for an update that leaves the count where it was", () => {
+        const garrisons = new TileGarrisons(10)
+        garrisons.applyUpdates([update(1, 2)])
 
-        garrisons.followOwners(ownership.applyUpdates([{tile: 1, previousCountry: "fr", newCountry: "jp", clicked: true}]))
-        garrisons.followOwners(ownership.applyUpdates([{tile: 1, previousCountry: "jp", newCountry: "fr", clicked: true}]))
-
-        expect(garrisons.defendersOf(1)).toBe(0)
+        expect(garrisons.applyUpdates([update(1, 2), update(3, 0)])).toEqual([])
     })
 
-    describe("while the map loads", () => {
-        it("holds what the stream says until the map and the read are in, then lets it win", () => {
-            const ownership = new TileOwnership(10)
-            const garrisons = new TileGarrisons((tile) => ownership.ownerOf(tile))
+    it("seeds the counts a map batch lists", () => {
+        const garrisons = new TileGarrisons(10)
 
-            expect(garrisons.apply({tile: 1, country: "fr", defenders: 5})).toEqual([])
-            expect(garrisons.defendersOf(1)).toBe(0)
+        expect(garrisons.applyBatch(new Map([[4, 7], [9, 1]]))).toEqual([
+            {tile: 4, defenders: 7, was: 0},
+            {tile: 9, defenders: 1, was: 0},
+        ])
+        expect(counts(garrisons, [4, 5, 9])).toEqual([7, 0, 1])
+    })
 
-            ownership.applyBatch({bindings: new Map([[1, "fr"], [2, "jp"]])})
-            expect(garrisons.applyLoaded([
-                {tile: 1, country: "fr", defenders: 3},
-                {tile: 2, country: "jp", defenders: 7},
-            ])).toEqual([
-                {tile: 1, defenders: 3, was: 0},
-                {tile: 2, defenders: 7, was: 0},
-                {tile: 1, defenders: 5, was: 3},
-            ])
-            expect(garrisons.defendersOf(1)).toBe(5)
-            expect(garrisons.defendersOf(2)).toBe(7)
-        })
+    it("lets a live update win over a batch that was already in flight", () => {
+        const garrisons = new TileGarrisons(10)
+        garrisons.applyUpdates([update(4, 2)])
+        garrisons.applyUpdates([update(5, 0, "jp", "fr")])
 
-        it("leaves out a garrison read for a flag the loaded tile no longer wears", () => {
-            const garrisons = new TileGarrisons((tile) => ({1: "jp"} as Record<number, string>)[tile])
+        expect(garrisons.applyBatch(new Map([[4, 7], [5, 3], [6, 1]]))).toEqual([{tile: 6, defenders: 1, was: 0}])
+        expect(counts(garrisons, [4, 5, 6])).toEqual([2, 0, 1])
+    })
 
-            expect(garrisons.applyLoaded([{tile: 1, country: "fr", defenders: 3}])).toEqual([])
-            expect(garrisons.defendersOf(1)).toBe(0)
-        })
+    it("empties a cleared tile, and keeps the batch off it", () => {
+        const garrisons = new TileGarrisons(10)
+        garrisons.applyBatch(new Map([[2, 3]]))
 
-        it("applies the stream at once after the load", () => {
-            const garrisons = loaded(held({1: "fr"}))
+        expect(garrisons.applyClears([2, 3])).toEqual([{tile: 2, defenders: 0, was: 3}])
+        expect(garrisons.applyBatch(new Map([[2, 5]]))).toEqual([])
+    })
 
-            expect(garrisons.apply({tile: 1, country: "fr", defenders: 1})).toEqual([{tile: 1, defenders: 1, was: 0}])
-        })
+    it("takes one defender off each struck tile, never under none", () => {
+        const garrisons = new TileGarrisons(10)
+        garrisons.applyUpdates([update(1, 3), update(2, 1)])
+
+        expect(garrisons.applyStrikes([1, 2, 3])).toEqual([
+            {tile: 1, defenders: 2, was: 3},
+            {tile: 2, defenders: 0, was: 1},
+        ])
+        expect(counts(garrisons, [1, 2, 3])).toEqual([2, 0, 0])
+    })
+
+    it("ignores tiles outside the map", () => {
+        const garrisons = new TileGarrisons(4)
+
+        expect(garrisons.applyUpdates([update(0, 2), update(5, 2)])).toEqual([])
+        expect(garrisons.applyBatch(new Map([[9, 1]]))).toEqual([])
+        expect(garrisons.applyStrikes([-1])).toEqual([])
+        expect(garrisons.defendersOf(5)).toBe(0)
     })
 })

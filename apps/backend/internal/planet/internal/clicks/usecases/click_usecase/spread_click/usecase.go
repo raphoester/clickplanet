@@ -23,7 +23,7 @@ type TileStorage interface {
 }
 
 type Rule interface {
-	Strike(tile uint32, owner, flag string) clicks.Outcome
+	Strike(ctx context.Context, tile uint32, owner, flag string) clicks.Outcome
 }
 
 type Publisher interface {
@@ -66,7 +66,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	neighbours := u.neighbours.Neighbours(in.TileID)
 	for _, neighbour := range neighbours {
 		owner, _ := u.storage.Owner(neighbour)
-		after := u.rule.Strike(neighbour, owner, in.CountryID).OwnerAfter(owner, in.CountryID)
+		after := u.rule.Strike(ctx, neighbour, owner, in.CountryID).OwnerAfter(owner, in.CountryID)
 
 		if err := u.storage.Set(ctx, neighbour, after); err != nil {
 			return out, fmt.Errorf("failed to spread onto tile %d: %w", neighbour, err)

@@ -5,6 +5,8 @@ type TileUpdate struct {
 	Value    string
 	Previous string
 	Clicked  bool
+
+	Defenders int
 }
 
 type Blast struct {
@@ -13,6 +15,8 @@ type Blast struct {
 	Point     Vec3
 	Radius    float64
 	Cleared   []uint32
+
+	Struck []uint32
 }
 
 type Change struct {
@@ -25,6 +29,13 @@ type DenseBatch struct {
 	Start uint32
 	Codes []string
 	Tiles []byte
+
+	Defenders []TileDefenders
+}
+
+type TileDefenders struct {
+	Tile      uint32
+	Defenders int
 }
 
 type Restoration struct {

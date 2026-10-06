@@ -18,7 +18,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
@@ -83,7 +82,7 @@ func clickServerWith(
 			MapDensityHandler: map_density_handler.New(map_density_usecase.New(stubChecker{})),
 			GetMapHandler:     get_map_handler.New(get_map_usecase.New(stubChecker{}, stubMapReader{})),
 			ListenForEventsHandler: listen_for_events_handler.New(
-				listen_for_events_usecase.New(stubSubscriber{}, listen_for_events_usecase.DefaultHeartbeat, noBoxes{}, noGarrisons{})),
+				listen_for_events_usecase.New(stubSubscriber{}, listen_for_events_usecase.DefaultHeartbeat, noBoxes{})),
 		},
 		options...,
 	))
@@ -177,12 +176,6 @@ func budgetDetail(t *testing.T, err error) *planetv1.ClickBudget {
 
 func errorNet() connect.Interceptor {
 	return cpconnect.NewErrorInterceptor(nil, nil)
-}
-
-type noGarrisons struct{}
-
-func (noGarrisons) Subscribe(context.Context) (<-chan garrisons.Garrison, error) {
-	return make(chan garrisons.Garrison), nil
 }
 
 type noBoxes struct{}

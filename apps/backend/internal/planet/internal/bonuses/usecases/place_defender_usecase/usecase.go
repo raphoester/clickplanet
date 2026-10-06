@@ -9,24 +9,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-var (
-	ErrNoDefender = errors.New("no defender to place")
-	ErrNotYours   = errors.New("the tile does not wear the flag")
-	ErrFull       = errors.New("the tile holds as many defenders as it can")
-)
+var ErrNoDefender = errors.New("no defender to place")
 
 type Defenders interface {
 	SpendDefender(holder bonuses.Holder) bool
+	Grant(holder bonuses.Holder, kind bonuses.Kind, amount int)
 	Held(holder bonuses.Holder) bonuses.Held
 }
 
-type Owners interface {
+type Tiles interface {
 	Owner(tile uint32) (string, bool)
-}
-
-type Garrisons interface {
-	Full(tile uint32, country string) bool
-	Reinforce(tile uint32, country string)
+	Defenders(tile uint32) int
+	Reinforce(ctx context.Context, tile uint32, country string, most int) error
 }
 
 type CountryChecker interface {
@@ -40,15 +34,15 @@ type In struct {
 	Dud bool
 }
 
-func New(defenders Defenders, owners Owners, garrisons Garrisons, countries CountryChecker) *UseCase {
-	return &UseCase{defenders: defenders, owners: owners, garrisons: garrisons, countries: countries}
+func New(defenders Defenders, tiles Tiles, countries CountryChecker, perTile int) *UseCase {
+	return &UseCase{defenders: defenders, tiles: tiles, countries: countries, perTile: perTile}
 }
 
 type UseCase struct {
 	defenders Defenders
-	owners    Owners
-	garrisons Garrisons
+	tiles     Tiles
 	countries CountryChecker
+	perTile   int
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
@@ -56,17 +50,13 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 		return bonuses.Held{}, fmt.Errorf("%w: %q", clicks.ErrUnknownCountry, in.CountryID)
 	}
 
-	owner, ok := u.owners.Owner(in.TileID)
+	owner, ok := u.tiles.Owner(in.TileID)
 	if !ok {
 		return bonuses.Held{}, fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, in.TileID)
 	}
 
-	if owner != in.CountryID {
-		return bonuses.Held{}, ErrNotYours
-	}
-
-	if u.garrisons.Full(in.TileID, in.CountryID) {
-		return bonuses.Held{}, ErrFull
+	if err := clicks.ReinforceError(owner, in.CountryID, u.tiles.Defenders(in.TileID), u.perTile); err != nil {
+		return bonuses.Held{}, fmt.Errorf("tile %d: %w", in.TileID, err)
 	}
 
 	holder := bonuses.HolderOf(clicks.PayerOf(ctx))
@@ -75,7 +65,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 	}
 
 	if !in.Dud {
-		u.garrisons.Reinforce(in.TileID, in.CountryID)
+		if err := u.tiles.Reinforce(ctx, in.TileID, in.CountryID, u.perTile); err != nil {
+			u.defenders.Grant(holder, bonuses.KindDefenders, 1)
+			return bonuses.Held{}, fmt.Errorf("failed to place the defender: %w", err)
+		}
 	}
 
 	return u.defenders.Held(holder), nil

@@ -8,8 +8,8 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_defender_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons/usecases/place_defender_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 )
 
@@ -39,7 +39,7 @@ func (h PlaceDefenderHandler) PlaceDefender(
 		return connect.NewResponse(&planetv1.PlaceDefenderResponse{Charges: chargesheld.Encode(held)}), nil
 	case errors.Is(err, clicks.ErrUnknownCountry), errors.Is(err, clicks.ErrTileOutOfRange):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	case errors.Is(err, place_defender_usecase.ErrNotYours), errors.Is(err, place_defender_usecase.ErrFull):
+	case errors.Is(err, clicks.ErrNotYourTile), errors.Is(err, clicks.ErrTileFull):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, place_defender_usecase.ErrNoDefender):
 		return nil, connect.NewError(connect.CodeNotFound, err)

@@ -33,9 +33,18 @@ func (h GetMapHandler) GetMap(
 		return nil, toConnect(err)
 	}
 
+	defenders := make([]*planetv1.TileDefenders, len(batch.Defenders))
+	for i, tile := range batch.Defenders {
+		defenders[i] = &planetv1.TileDefenders{
+			TileId:    tile.Tile,
+			Defenders: uint32(tile.Defenders), //nolint:gosec // a byte in the tile storage.
+		}
+	}
+
 	return connect.NewResponse(&planetv1.GetMapResponse{
 		StartTileId: batch.Start,
 		Codes:       batch.Codes,
 		Tiles:       batch.Tiles,
+		Defenders:   defenders,
 	}), nil
 }

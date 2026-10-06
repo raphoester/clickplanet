@@ -26,5 +26,15 @@ func (s *Storage) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, 
 	codes := make([]string, len(s.codes))
 	copy(codes, s.codes)
 
-	return clicks.DenseBatch{Start: start, Codes: codes, Tiles: tiles}, nil
+	var defenders []clicks.TileDefenders
+	for tile := start; ; tile++ {
+		if s.defenders[tile] > 0 {
+			defenders = append(defenders, clicks.TileDefenders{Tile: tile, Defenders: int(s.defenders[tile])})
+		}
+		if tile == end {
+			break
+		}
+	}
+
+	return clicks.DenseBatch{Start: start, Codes: codes, Tiles: tiles, Defenders: defenders}, nil
 }

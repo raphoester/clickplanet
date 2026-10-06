@@ -4,13 +4,20 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"math/bits"
 	"time"
 )
 
 type Persistence interface {
-	Load(ctx context.Context, visit func(tile uint32, owner string)) error
-	Save(ctx context.Context, tiles []uint32, owners []string) error
+	Load(ctx context.Context, visit func(tile uint32, owner string, defenders int)) error
+	Save(ctx context.Context, tiles []Tile) error
+}
+
+type Tile struct {
+	ID        uint32
+	Owner     string
+	Defenders int
 }
 
 const flushTimeout = 10 * time.Second
@@ -23,7 +30,7 @@ func (s *Storage) Load(ctx context.Context) error {
 		owned, outside int
 		internErr      error
 	)
-	err := s.persistence.Load(ctx, func(tile uint32, owner string) {
+	err := s.persistence.Load(ctx, func(tile uint32, owner string, defenders int) {
 		if tile > s.maxIndex {
 			outside++
 			return
@@ -34,6 +41,7 @@ func (s *Storage) Load(ctx context.Context) error {
 			return
 		}
 		s.tiles[tile] = id
+		s.defenders[tile] = uint8(min(max(defenders, 0), math.MaxUint8)) //nolint:gosec // clamped to a byte.
 		s.counts[id]++
 		owned++
 	})
@@ -80,15 +88,15 @@ func (s *Storage) flushOrLog(ctx context.Context) {
 }
 
 func (s *Storage) Flush(ctx context.Context) error {
-	tiles, owners := s.takeDirty()
+	tiles := s.takeDirty()
 	if len(tiles) == 0 {
 		return nil
 	}
 
-	if err := s.persistence.Save(ctx, tiles, owners); err != nil {
+	if err := s.persistence.Save(ctx, tiles); err != nil {
 		s.tilesMu.Lock()
 		for _, tile := range tiles {
-			s.markDirtyLocked(tile)
+			s.markDirtyLocked(tile.ID)
 		}
 		s.tilesMu.Unlock()
 
@@ -98,14 +106,11 @@ func (s *Storage) Flush(ctx context.Context) error {
 	return nil
 }
 
-func (s *Storage) takeDirty() ([]uint32, []string) {
+func (s *Storage) takeDirty() []Tile {
 	s.tilesMu.Lock()
 	defer s.tilesMu.Unlock()
 
-	var (
-		tiles  []uint32
-		owners []string
-	)
+	var tiles []Tile
 	for w, word := range s.dirty {
 		if word == 0 {
 			continue
@@ -114,12 +119,11 @@ func (s *Storage) takeDirty() ([]uint32, []string) {
 		for word != 0 {
 			tile := uint32(w*64 + bits.TrailingZeros64(word)) //nolint:gosec // tile <= maxIndex, which is a uint32.
 			word &= word - 1
-			tiles = append(tiles, tile)
-			owners = append(owners, s.codes[s.tiles[tile]])
+			tiles = append(tiles, Tile{ID: tile, Owner: s.codes[s.tiles[tile]], Defenders: int(s.defenders[tile])})
 		}
 	}
 
-	return tiles, owners
+	return tiles
 }
 
 func (s *Storage) markDirtyLocked(tile uint32) {

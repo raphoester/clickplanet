@@ -21,7 +21,7 @@ type CountryChecker interface {
 }
 
 type Rule interface {
-	Strike(tile uint32, owner, flag string) clicks.Outcome
+	Strike(ctx context.Context, tile uint32, owner, flag string) clicks.Outcome
 }
 
 type In struct {
@@ -80,7 +80,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	owner, _ := u.tileStorage.Owner(in.TileID)
-	outcome := u.rule.Strike(in.TileID, owner, in.CountryID)
+	outcome := u.rule.Strike(ctx, in.TileID, owner, in.CountryID)
 
 	if err := u.tileStorage.Click(ctx, in.TileID, outcome.OwnerAfter(owner, in.CountryID)); err != nil {
 		return Out{}, fmt.Errorf("failed to set tile: %w", err)

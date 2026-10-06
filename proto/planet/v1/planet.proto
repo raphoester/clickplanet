@@ -36,10 +36,6 @@ service ClickService {
   rpc AnswerQuiz(AnswerQuizRequest) returns (AnswerQuizResponse);
 
   rpc PlaceDefender(PlaceDefenderRequest) returns (PlaceDefenderResponse);
-
-  rpc GetGarrisons(GetGarrisonsRequest) returns (GetGarrisonsResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
-  }
 }
 
 message ClickBudget {
@@ -111,6 +107,14 @@ message GetMapResponse {
   repeated string codes = 2;
 
   bytes tiles = 3;
+
+  repeated TileDefenders defenders = 4;
+}
+
+message TileDefenders {
+  uint32 tile_id = 1;
+
+  uint32 defenders = 2;
 }
 
 message ListenForEventsRequest {}
@@ -131,8 +135,6 @@ message PlanetEvent {
     TilesSpread tiles_spread = 7;
 
     QuizOffered quiz_offered = 8;
-
-    Garrison garrison = 9;
   }
 }
 
@@ -303,6 +305,9 @@ message BombDropped {
   repeated uint32 cleared_tile_ids = 4;
 
   GlobePoint point = 5;
+
+  // Each lost one defender and kept its flag.
+  repeated uint32 struck_tile_ids = 6;
 }
 
 message TilesEnclosed {
@@ -335,21 +340,6 @@ message PlaceDefenderResponse {
   ChargesHeld charges = 1;
 }
 
-message GetGarrisonsRequest {}
-
-message GetGarrisonsResponse {
-  repeated Garrison garrisons = 1;
-}
-
-// defenders 0 on the stream: the tile has none left.
-message Garrison {
-  uint32 tile_id = 1;
-
-  string country_id = 2;
-
-  uint32 defenders = 3;
-}
-
 message Heartbeat {}
 
 message TileUpdate {
@@ -359,4 +349,7 @@ message TileUpdate {
 
   // Only the tile a click named: never a spread's neighbour, an enclosure's inside or a moderator's write.
   bool clicked = 4;
+
+  // The tile's defenders after the update: 0 on every change of owner.
+  uint32 defenders = 5;
 }

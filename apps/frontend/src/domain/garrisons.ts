@@ -1,10 +1,4 @@
-import type {OwnerChange} from "./tileOwnership.ts"
-
-export type Garrison = {
-    tile: number
-    country: string
-    defenders: number
-}
+import type {Update} from "../backends/backend.ts"
 
 export type GarrisonChange = {
     tile: number
@@ -27,49 +21,60 @@ export function placementOf(owner: string | undefined, flag: string, defenders: 
 }
 
 export class TileGarrisons {
-    private readonly held = new Map<number, {country: string, defenders: number}>()
-    private early: Garrison[] | undefined = []
+    private readonly counts: Uint16Array
+    private readonly live: Uint8Array
 
-    constructor(private readonly ownerOf: (tile: number) => string | undefined) {
+    constructor(public readonly size: number) {
+        this.counts = new Uint16Array(size + 1)
+        this.live = new Uint8Array(size + 1)
     }
 
     public defendersOf(tile: number): number {
-        return this.held.get(tile)?.defenders ?? 0
+        return this.inRange(tile) ? this.counts[tile] : 0
     }
 
-    public applyLoaded(garrisons: readonly Garrison[]): GarrisonChange[] {
-        const early = this.early ?? []
-        this.early = undefined
-        return [...garrisons, ...early].flatMap((garrison) => this.set(garrison))
+    public applyBatch(defenders: ReadonlyMap<number, number>): GarrisonChange[] {
+        const changes: GarrisonChange[] = []
+        defenders.forEach((count, tile) => {
+            if (!this.inRange(tile) || this.live[tile]) return
+            this.set(tile, count, changes)
+        })
+        return changes
     }
 
-    public apply(garrison: Garrison): GarrisonChange[] {
-        if (this.early) {
-            this.early.push(garrison)
-            return []
-        }
-        return this.set(garrison)
+    public applyUpdates(updates: readonly Update[]): GarrisonChange[] {
+        const changes: GarrisonChange[] = []
+        for (const {tile, defenders} of updates) this.setLive(tile, defenders, changes)
+        return changes
     }
 
-    public followOwners(changes: readonly OwnerChange[]): GarrisonChange[] {
-        const dropped: GarrisonChange[] = []
-        for (const {tile, country} of changes) {
-            const garrison = this.held.get(tile)
-            if (!garrison || garrison.country === country) continue
-            this.held.delete(tile)
-            dropped.push({tile, defenders: 0, was: garrison.defenders})
-        }
-        return dropped
+    public applyClears(tiles: readonly number[]): GarrisonChange[] {
+        const changes: GarrisonChange[] = []
+        for (const tile of tiles) this.setLive(tile, 0, changes)
+        return changes
     }
 
-    private set({tile, country, defenders}: Garrison): GarrisonChange[] {
-        if (this.ownerOf(tile) !== country) return []
+    public applyStrikes(tiles: readonly number[]): GarrisonChange[] {
+        const changes: GarrisonChange[] = []
+        for (const tile of tiles) this.setLive(tile, this.defendersOf(tile) - 1, changes)
+        return changes
+    }
 
-        const was = this.defendersOf(tile)
-        if (defenders === was) return []
+    private setLive(tile: number, defenders: number, changes: GarrisonChange[]) {
+        if (!this.inRange(tile)) return
+        this.live[tile] = 1
+        this.set(tile, defenders, changes)
+    }
 
-        if (defenders > 0) this.held.set(tile, {country, defenders})
-        else this.held.delete(tile)
-        return [{tile, defenders, was}]
+    private set(tile: number, defenders: number, changes: GarrisonChange[]) {
+        const was = this.counts[tile]
+        const count = Math.max(0, defenders)
+        if (count === was) return
+        this.counts[tile] = count
+        changes.push({tile, defenders: count, was})
+    }
+
+    private inRange(tile: number): boolean {
+        return Number.isInteger(tile) && tile >= 1 && tile <= this.size
     }
 }

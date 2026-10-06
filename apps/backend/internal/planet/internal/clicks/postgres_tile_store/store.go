@@ -7,6 +7,7 @@ import (
 
 	"github.com/lib/pq"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -20,8 +21,10 @@ type Store struct {
 	db cppg.QuerierBeginner
 }
 
-func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string)) error {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, country FROM tiles`)
+var _ inmemory_tile_storage.Persistence = (*Store)(nil)
+
+func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string, defenders int)) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, country, defenders FROM tiles`)
 	if err != nil {
 		return fmt.Errorf("failed to read tiles: %w", err)
 	}
@@ -29,13 +32,14 @@ func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string))
 
 	for rows.Next() {
 		var (
-			tile  uint32
-			owner string
+			tile      uint32
+			owner     string
+			defenders int
 		)
-		if err := rows.Scan(&tile, &owner); err != nil {
+		if err := rows.Scan(&tile, &owner, &defenders); err != nil {
 			return fmt.Errorf("failed to scan a tile: %w", err)
 		}
-		visit(tile, owner)
+		visit(tile, owner, defenders)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -45,22 +49,20 @@ func (s *Store) Load(ctx context.Context, visit func(tile uint32, owner string))
 	return nil
 }
 
-func (s *Store) Save(ctx context.Context, tiles []uint32, owners []string) error {
-	if len(tiles) != len(owners) {
-		return fmt.Errorf("saving %d tiles with %d owners", len(tiles), len(owners))
-	}
-
+func (s *Store) Save(ctx context.Context, tiles []inmemory_tile_storage.Tile) error {
 	var (
 		taken, freed []int64
 		takenBy      []string
+		defenders    []int64
 	)
-	for i, tile := range tiles {
-		if owners[i] == "" {
-			freed = append(freed, int64(tile))
+	for _, tile := range tiles {
+		if tile.Owner == "" {
+			freed = append(freed, int64(tile.ID))
 			continue
 		}
-		taken = append(taken, int64(tile))
-		takenBy = append(takenBy, owners[i])
+		taken = append(taken, int64(tile.ID))
+		takenBy = append(takenBy, tile.Owner)
+		defenders = append(defenders, int64(tile.Defenders))
 	}
 
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
@@ -72,10 +74,10 @@ func (s *Store) Save(ctx context.Context, tiles []uint32, owners []string) error
 	for start := 0; start < len(taken); start += chunkSize {
 		end := min(start+chunkSize, len(taken))
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO tiles (id, country)
-			SELECT * FROM unnest($1::integer[], $2::text[])
-			ON CONFLICT (id) DO UPDATE SET country = EXCLUDED.country
-		`, pq.Array(taken[start:end]), pq.Array(takenBy[start:end])); err != nil {
+			INSERT INTO tiles (id, country, defenders)
+			SELECT * FROM unnest($1::integer[], $2::text[], $3::smallint[])
+			ON CONFLICT (id) DO UPDATE SET country = EXCLUDED.country, defenders = EXCLUDED.defenders
+		`, pq.Array(taken[start:end]), pq.Array(takenBy[start:end]), pq.Array(defenders[start:end])); err != nil {
 			return fmt.Errorf("failed to upsert tiles: %w", err)
 		}
 	}

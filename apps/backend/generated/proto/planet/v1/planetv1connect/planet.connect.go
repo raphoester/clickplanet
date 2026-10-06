@@ -62,9 +62,6 @@ const (
 	// ClickServicePlaceDefenderProcedure is the fully-qualified name of the ClickService's
 	// PlaceDefender RPC.
 	ClickServicePlaceDefenderProcedure = "/planet.v1.ClickService/PlaceDefender"
-	// ClickServiceGetGarrisonsProcedure is the fully-qualified name of the ClickService's GetGarrisons
-	// RPC.
-	ClickServiceGetGarrisonsProcedure = "/planet.v1.ClickService/GetGarrisons"
 )
 
 // ClickServiceClient is a client for the planet.v1.ClickService service.
@@ -84,7 +81,6 @@ type ClickServiceClient interface {
 	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
 	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
 	PlaceDefender(context.Context, *connect.Request[v1.PlaceDefenderRequest]) (*connect.Response[v1.PlaceDefenderResponse], error)
-	GetGarrisons(context.Context, *connect.Request[v1.GetGarrisonsRequest]) (*connect.Response[v1.GetGarrisonsResponse], error)
 }
 
 // NewClickServiceClient constructs a client for the planet.v1.ClickService service. By default, it
@@ -179,13 +175,6 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clickServiceMethods.ByName("PlaceDefender")),
 			connect.WithClientOptions(opts...),
 		),
-		getGarrisons: connect.NewClient[v1.GetGarrisonsRequest, v1.GetGarrisonsResponse](
-			httpClient,
-			baseURL+ClickServiceGetGarrisonsProcedure,
-			connect.WithSchema(clickServiceMethods.ByName("GetGarrisons")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
@@ -204,7 +193,6 @@ type clickServiceClient struct {
 	openQuiz        *connect.Client[v1.OpenQuizRequest, v1.OpenQuizResponse]
 	answerQuiz      *connect.Client[v1.AnswerQuizRequest, v1.AnswerQuizResponse]
 	placeDefender   *connect.Client[v1.PlaceDefenderRequest, v1.PlaceDefenderResponse]
-	getGarrisons    *connect.Client[v1.GetGarrisonsRequest, v1.GetGarrisonsResponse]
 }
 
 // Click calls planet.v1.ClickService.Click.
@@ -272,11 +260,6 @@ func (c *clickServiceClient) PlaceDefender(ctx context.Context, req *connect.Req
 	return c.placeDefender.CallUnary(ctx, req)
 }
 
-// GetGarrisons calls planet.v1.ClickService.GetGarrisons.
-func (c *clickServiceClient) GetGarrisons(ctx context.Context, req *connect.Request[v1.GetGarrisonsRequest]) (*connect.Response[v1.GetGarrisonsResponse], error) {
-	return c.getGarrisons.CallUnary(ctx, req)
-}
-
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
@@ -294,7 +277,6 @@ type ClickServiceHandler interface {
 	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
 	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
 	PlaceDefender(context.Context, *connect.Request[v1.PlaceDefenderRequest]) (*connect.Response[v1.PlaceDefenderResponse], error)
-	GetGarrisons(context.Context, *connect.Request[v1.GetGarrisonsRequest]) (*connect.Response[v1.GetGarrisonsResponse], error)
 }
 
 // NewClickServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -385,13 +367,6 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(clickServiceMethods.ByName("PlaceDefender")),
 		connect.WithHandlerOptions(opts...),
 	)
-	clickServiceGetGarrisonsHandler := connect.NewUnaryHandler(
-		ClickServiceGetGarrisonsProcedure,
-		svc.GetGarrisons,
-		connect.WithSchema(clickServiceMethods.ByName("GetGarrisons")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/planet.v1.ClickService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClickServiceClickProcedure:
@@ -420,8 +395,6 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceAnswerQuizHandler.ServeHTTP(w, r)
 		case ClickServicePlaceDefenderProcedure:
 			clickServicePlaceDefenderHandler.ServeHTTP(w, r)
-		case ClickServiceGetGarrisonsProcedure:
-			clickServiceGetGarrisonsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -481,8 +454,4 @@ func (UnimplementedClickServiceHandler) AnswerQuiz(context.Context, *connect.Req
 
 func (UnimplementedClickServiceHandler) PlaceDefender(context.Context, *connect.Request[v1.PlaceDefenderRequest]) (*connect.Response[v1.PlaceDefenderResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.PlaceDefender is not implemented"))
-}
-
-func (UnimplementedClickServiceHandler) GetGarrisons(context.Context, *connect.Request[v1.GetGarrisonsRequest]) (*connect.Response[v1.GetGarrisonsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetGarrisons is not implemented"))
 }

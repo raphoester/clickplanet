@@ -316,5 +316,5 @@ func TestAStrikeOnADefenderIsNothingToReactTo(t *testing.T) {
 
 	h.clock.Advance(700 * time.Millisecond)
 	h.click("attacker", 7, "FR")
-	assert.Equal(t, ms(700), h.reactions, "the take that felled the garrison is reacted to")
+	assert.Equal(t, ms(700), h.reactions, "the take after the last defender fell is reacted to")
 }

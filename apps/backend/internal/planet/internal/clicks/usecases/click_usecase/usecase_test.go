@@ -8,8 +8,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons/inmemory_garrison_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/stretchr/testify/suite"
 )
@@ -21,9 +19,8 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	storage   *inmemory_tile_storage.Storage
-	garrisons *inmemory_garrison_storage.Storage
-	useCase   *click_usecase.UseCase
+	storage *inmemory_tile_storage.Storage
+	useCase *click_usecase.UseCase
 }
 
 func (s *testSuite) SetupTest() {
@@ -34,12 +31,10 @@ func (s *testSuite) SetupTest() {
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}),
 		slog.New(slog.DiscardHandler),
 	)
-	s.garrisons = inmemory_garrison_storage.New(inmemory_garrison_storage.Config{}, 10,
-		inmemory_garrison_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 
 	tileChecker := clicks.NewBoard(maxIndex)
 	countryChecker := cpcountries.New()
-	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker, garrisons.NewDefence(s.garrisons))
+	s.useCase = click_usecase.New(tileChecker, s.storage, countryChecker, clicks.NewDefence(s.storage))
 }
 
 func (s *testSuite) execute(tileID uint32, countryID string) error {
@@ -97,10 +92,15 @@ func (s *testSuite) owner(tile uint32) string {
 	return owner
 }
 
+func (s *testSuite) defend(tile uint32, country string, defenders int) {
+	for range defenders {
+		s.Require().NoError(s.storage.Reinforce(context.Background(), tile, country, 10))
+	}
+}
+
 func (s *testSuite) TestEachForeignClickOnADefendedTileTakesOneDefender() {
 	s.click(150, "pl")
-	s.garrisons.Reinforce(150, "pl")
-	s.garrisons.Reinforce(150, "pl")
+	s.defend(150, "pl", 2)
 
 	s.Equal(clicks.Defended, s.click(150, "de").Outcome)
 	s.Equal(clicks.Defended, s.click(150, "fr").Outcome)
@@ -112,10 +112,10 @@ func (s *testSuite) TestEachForeignClickOnADefendedTileTakesOneDefender() {
 
 func (s *testSuite) TestItsOwnFlagClickingADefendedTileChangesNothing() {
 	s.click(152, "pl")
-	s.garrisons.Reinforce(152, "pl")
+	s.defend(152, "pl", 1)
 
 	s.Equal(clicks.Unchanged, s.click(152, "pl").Outcome)
-	s.Equal(1, s.garrisons.Defenders(152, "pl"))
+	s.Equal(1, s.storage.Defenders(152))
 }
 
 func (s *testSuite) TestAnUndefendedTileIsTakenInOneClick() {
@@ -124,9 +124,9 @@ func (s *testSuite) TestAnUndefendedTileIsTakenInOneClick() {
 	s.Equal("de", s.owner(300))
 }
 
-func (s *testSuite) TestADefendedClickPublishesNoTileUpdate() {
+func (s *testSuite) TestADefendedClickPublishesTheDefendersLeftAndNoNewOwner() {
 	s.click(153, "pl")
-	s.garrisons.Reinforce(153, "pl")
+	s.defend(153, "pl", 1)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -136,5 +136,8 @@ func (s *testSuite) TestADefendedClickPublishesNoTileUpdate() {
 
 	s.click(153, "de")
 
-	s.Empty(feed, "the tile did not change hands")
+	change := <-feed
+	s.Require().NotNil(change.Update)
+	s.Equal(clicks.TileUpdate{Tile: 153, Value: "pl", Previous: "pl"}, *change.Update)
+	s.Empty(feed)
 }

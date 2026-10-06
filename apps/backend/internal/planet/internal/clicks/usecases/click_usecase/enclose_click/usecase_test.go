@@ -11,9 +11,9 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
@@ -53,9 +53,9 @@ func (t tiles) Set(_ context.Context, tile uint32, value string) error {
 
 type defenders map[uint32]int
 
-func (d defenders) Defenders(tile uint32, _ string) int { return d[tile] }
+func (d defenders) Defenders(tile uint32) int { return d[tile] }
 
-func (d defenders) Strike(tile uint32, _ string) bool {
+func (d defenders) Strike(_ context.Context, tile uint32, _ string) bool {
 	if d[tile] == 0 {
 		return false
 	}
@@ -66,7 +66,7 @@ func (d defenders) Strike(tile uint32, _ string) bool {
 
 type rule struct {
 	tiles   tiles
-	defence garrisons.Defence
+	defence clicks.Defence
 	err     error
 }
 
@@ -76,7 +76,7 @@ func (r rule) Execute(ctx context.Context, in click_usecase.In) (click_usecase.O
 	}
 
 	owner, _ := r.tiles.Owner(in.TileID)
-	outcome := r.defence.Strike(in.TileID, owner, in.CountryID)
+	outcome := r.defence.Strike(ctx, in.TileID, owner, in.CountryID)
 
 	return click_usecase.Out{Outcome: outcome}, r.tiles.Set(ctx, in.TileID, outcome.OwnerAfter(owner, in.CountryID))
 }
@@ -118,7 +118,7 @@ func setup(charged bool, err error) fixture {
 		f.charges.Grant(caller, bonuses.KindEncloseClicks, 1)
 	}
 
-	defence := garrisons.NewDefence(f.defenders)
+	defence := clicks.NewDefence(f.defenders)
 	f.useCase = enclose_click.New(rule{tiles: f.tiles, defence: defence, err: err}, f.charges,
 		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, defence, f.charges, f.published))
 

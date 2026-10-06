@@ -1,5 +1,4 @@
 import {BonusReward, BonusRules, Charges, Switches} from "../domain/bonus.ts"
-import {Garrison} from "../domain/garrisons.ts"
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts"
 
 export interface TileClicker {
@@ -8,6 +7,7 @@ export interface TileClicker {
 
 export type Ownerships = {
     bindings: Map<number, string>
+    defenders: Map<number, number>
 }
 
 export interface OwnershipsGetter {
@@ -23,7 +23,8 @@ export type Update = {
     tile: number,
     previousCountry: string | undefined,
     newCountry: string | undefined,
-    clicked: boolean
+    clicked: boolean,
+    defenders: number,
 }
 
 export interface UpdatesListener {
@@ -104,6 +105,8 @@ export type BombDrop = {
     radius: number
 
     cleared: number[]
+
+    struck: number[]
 }
 
 export interface Bomber {
@@ -116,11 +119,7 @@ export interface Refiller {
     useRefill(countryId: string): Promise<void>
 }
 
-export interface Garrisons {
-    getGarrisons(signal?: AbortSignal): Promise<Garrison[]>
-
-    listenForGarrisons(onChanged: (garrison: Garrison) => void): () => void
-
+export interface Reinforcer {
     placeDefender(tileId: number, countryId: string): Promise<void>
 }
 

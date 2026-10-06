@@ -4,10 +4,10 @@ import {
     Bomber,
     BonusListener,
     BonusLostError,
-    Garrisons,
     OwnershipsGetter,
     QuizMaster,
     Refiller,
+    Reinforcer,
     TileClicker,
     UpdatesListener,
 } from "../../backends/backend.ts";
@@ -73,7 +73,7 @@ export type ViewerProps = {
     quizMaster?: QuizMaster
     bomber?: Bomber
     refiller?: Refiller
-    garrisons?: Garrisons
+    reinforcer?: Reinforcer
     chatBackend?: ChatBackend
     account?: AccountStore
     presence?: PresenceBackend
@@ -149,7 +149,7 @@ export default function Viewer(props: ViewerProps) {
         updatesListener: props.updatesListener,
         bonusListener: props.bonusListener,
         bomber: props.bomber,
-        garrisons: props.garrisons,
+        reinforcer: props.reinforcer,
         playSound: sound.play,
         onClickAccepted: accepted.record,
         country: countryState,
@@ -262,7 +262,7 @@ export default function Viewer(props: ViewerProps) {
                                                bombArmed={bombArmed}
                                                onToggleBomb={props.bomber ? toggleBomb : undefined}
                                                onUseRefill={spendRefill}
-                                               onToggleDefend={props.garrisons ? () => toggleSwitch("defend") : undefined}
+                                               onToggleDefend={props.reinforcer ? () => toggleSwitch("defend") : undefined}
                                                garrisonFull={garrisonFull}/>}
         </ClickBudgetMeter>}
 

@@ -24,9 +24,9 @@ import {
     BonusOffer,
     ClaimedBonus,
     DefenderRefusedError,
-    Garrisons,
     OwnershipsGetter,
     RateLimitedError,
+    Reinforcer,
     TileClicker,
     Update,
     UpdatesListener,
@@ -51,7 +51,7 @@ import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
 import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
-import {Garrison, GarrisonChange, outcomeOf, placementOf, TileGarrisons} from "../../domain/garrisons.ts";
+import {GarrisonChange, outcomeOf, placementOf, TileGarrisons} from "../../domain/garrisons.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 import {AcceptedClick} from "./acceptedClicks.ts";
 
@@ -138,7 +138,7 @@ export type GlobeOptions = {
     bomber?: Bomber
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
     onArmedChange: (armed: boolean) => void
-    garrisons?: Garrisons
+    reinforcer?: Reinforcer
     onGarrisonFull?: () => void
     onClickAccepted?: (click: AcceptedClick) => void
     playSound?: PlaySound
@@ -185,7 +185,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber,
         onBombDropped,
         onArmedChange,
-        garrisons,
+        reinforcer,
         onGarrisonFull = () => {},
         onClickAccepted = () => {},
         playSound = () => {},
@@ -232,7 +232,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const picker = new GpuPicker(renderer, field.pickingPoints);
     const ownership = new TileOwnership(field.size);
-    const defended = new TileGarrisons((tile) => ownership.ownerOf(tile));
+    const defended = new TileGarrisons(field.size);
 
     let country: Country = initialCountry;
 
@@ -276,7 +276,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const applyChanges = (changes: OwnerChange[], live = true) => {
         if (changes.length === 0) return
         field.setOwners(changes)
-        field.setGarrisons(defended.followOwners(changes))
         territories.apply(changes)
         updateLeaderboard(rankCountries(ownership.counts()), live)
         invalidate()
@@ -286,6 +285,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (changes.length === 0) return
         field.setGarrisons(changes)
         invalidate()
+    }
+
+    const playGarrisons = (changes: GarrisonChange[]) => {
+        const seconds = performance.now() / 1000
+        for (const {tile, defenders, was} of changes) {
+            if (defenders < was && !ownHits.has(tile, country.code, seconds)) plainClicks.playHit(tile, camera)
+            if (defenders > was && !ownPlacements.has(tile, country.code, seconds)) plainClicks.playReinforced(tile, camera)
+        }
     }
 
     const blasts = createBlasts(uniforms, uniforms.pixelsPerRadian, uniforms.pixelRatio)
@@ -389,14 +396,23 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         })
     }
 
-    let pendingClears: {at: number, tiles: Set<number>}[] = []
+    let pendingClears: {at: number, tiles: Set<number>, struck: Set<number>}[] = []
+
+    const land = (cleared: number[], struck: number[]) => {
+        applyChanges(ownership.applyClears(cleared))
+        showGarrisons(defended.applyClears(cleared))
+
+        const strikes = defended.applyStrikes(struck)
+        showGarrisons(strikes)
+        playGarrisons(strikes)
+    }
 
     const flushClears = (upTo: number) => {
         if (pendingClears.length === 0) return false
         const due = pendingClears.filter((clear) => clear.at <= upTo)
         if (due.length === 0) return false
         pendingClears = pendingClears.filter((clear) => clear.at > upTo)
-        applyChanges(ownership.applyClears(due.flatMap((clear) => [...clear.tiles])))
+        land(due.flatMap((clear) => [...clear.tiles]), due.flatMap((clear) => [...clear.struck]))
         return true
     }
 
@@ -409,9 +425,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         blasts.start(centre, drop.radius, seconds, drop.tile === undefined)
 
         if (document.hidden) {
-            applyChanges(ownership.applyClears(drop.cleared))
-        } else if (drop.cleared.length > 0) {
-            pendingClears.push({at: seconds + IMPACT_DELAY, tiles: new Set(drop.cleared)})
+            land(drop.cleared, drop.struck)
+        } else if (drop.cleared.length > 0 || drop.struck.length > 0) {
+            pendingClears.push({at: seconds + IMPACT_DELAY, tiles: new Set(drop.cleared), struck: new Set(drop.struck)})
         }
 
         const own = ownDropAt !== undefined && drop.countryId === country.code && seconds - ownDropAt < OWN_DROP_WINDOW_SECONDS
@@ -423,28 +439,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onBombDropped(drop, drop.tile === undefined ? undefined : countryOfTile(borders, drop.tile))
     })
 
-    const takeGarrison = (garrison: Garrison) => {
-        applyChanges(ownership.settle(garrison.tile, garrison.country))
-
-        const changes = defended.apply(garrison)
-        showGarrisons(changes)
-
-        const seconds = performance.now() / 1000
-        for (const {tile, defenders, was} of changes) {
-            if (defenders < was && !ownHits.has(tile, country.code, seconds)) plainClicks.playHit(tile, camera)
-            if (defenders > was && !ownPlacements.has(tile, country.code, seconds)) plainClicks.playReinforced(tile, camera)
-        }
-    }
-
-    const stopGarrisons = garrisons?.listenForGarrisons(takeGarrison)
-
     const placeDefender = (tile: number) => {
-        if (!garrisons) return
+        if (!reinforcer) return
         ownPlacements.record(tile, country.code, performance.now() / 1000)
         plainClicks.playReinforced(tile, camera)
         playSound("click")
 
-        garrisons.placeDefender(tile, country.code).catch((e) => {
+        reinforcer.placeDefender(tile, country.code).catch((e) => {
             if (lifetime.signal.aborted || e instanceof DefenderRefusedError) return
             reportClaimFailure(e, {onSessionUnavailable})
         })
@@ -589,7 +590,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const owner = ownership.ownerOf(tile)
         const defenders = defended.defendersOf(tile)
 
-        if (switches.defend && garrisons) {
+        if (switches.defend && reinforcer) {
             const placement = placementOf(owner, country.code, defenders, rules?.tileDefenders)
             if (placement === "full") {
                 onGarrisonFull()
@@ -643,13 +644,21 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const cleanUpdatesListener = updatesListener.listenForUpdatesBatch((updates: Update[]) => {
         for (const clear of pendingClears) {
-            for (const update of updates) clear.tiles.delete(update.tile)
+            for (const update of updates) {
+                clear.tiles.delete(update.tile)
+                clear.struck.delete(update.tile)
+            }
         }
         applyChanges(ownership.applyUpdates(updates))
 
+        const moved = defended.applyUpdates(updates)
+        showGarrisons(moved)
+        playGarrisons(moved)
+
         const seconds = performance.now() / 1000
-        for (const {tile, clicked} of updates) {
-            if (clicked && !ownClicks.has(tile, country.code, seconds)) plainClicks.playClick(tile, camera)
+        for (const {tile, clicked, previousCountry, newCountry} of updates) {
+            if (!clicked || previousCountry === newCountry || ownClicks.has(tile, country.code, seconds)) continue
+            plainClicks.playClick(tile, camera)
         }
     })
 
@@ -726,7 +735,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             cleanUpdatesListener()
             stopBonuses?.()
             stopBombs?.()
-            stopGarrisons?.()
 
             picker.dispose()
             bonusPointer.dispose()
@@ -749,18 +757,17 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const stopFollowingLoad = new AbortController()
     signal.addEventListener("abort", () => lifetime.abort(), {signal: stopFollowingLoad.signal})
     onLoadProgress(0)
-    const standing = readGarrisons(garrisons, lifetime.signal)
     try {
         await ownershipsGetter.getCurrentOwnershipsByBatch(
             TILES_PER_BATCH,
             field.size,
             (ownerships) => {
                 applyChanges(ownership.applyBatch(ownerships), false)
+                showGarrisons(defended.applyBatch(ownerships.defenders))
                 onLoadProgress(Math.min(1, ++fetched / batches))
             },
             lifetime.signal,
         )
-        showGarrisons(defended.applyLoaded(await standing))
         lifetime.signal.throwIfAborted()
     } catch (e) {
         globe.dispose()
@@ -850,16 +857,6 @@ function startAnimation(
             starfield.dispose();
         },
     };
-}
-
-async function readGarrisons(garrisons: Garrisons | undefined, signal: AbortSignal): Promise<Garrison[]> {
-    if (!garrisons) return []
-    try {
-        return await garrisons.getGarrisons(signal)
-    } catch (e) {
-        if (!signal.aborted) console.error("could not read the garrisons", e)
-        return []
-    }
 }
 
 function prefersReducedMotion(): boolean {

@@ -15,7 +15,7 @@ type TileStorage interface {
 }
 
 type Rule interface {
-	Strike(tile uint32, owner, flag string) clicks.Outcome
+	Strike(ctx context.Context, tile uint32, owner, flag string) clicks.Outcome
 }
 
 type Spender interface {
@@ -55,7 +55,7 @@ func (a Annexer) Annex(ctx context.Context, entrant bonuses.Entrant, holder bonu
 func (a Annexer) take(ctx context.Context, pocket bonuses.Pocket, country string) error {
 	for _, tile := range pocket.Inside() {
 		owner, _ := a.storage.Owner(tile)
-		after := a.rule.Strike(tile, owner, country).OwnerAfter(owner, country)
+		after := a.rule.Strike(ctx, tile, owner, country).OwnerAfter(owner, country)
 
 		if err := a.storage.Set(ctx, tile, after); err != nil {
 			return fmt.Errorf("failed to take enclosed tile %d: %w", tile, err)

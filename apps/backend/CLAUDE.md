@@ -280,28 +280,21 @@ internal/planet/internal/
     inmemory_charge_storage/
     postgres_charge_store/
     usecases/
-  garrisons/                      the defenders standing on tiles
-    inmemory_garrison_storage/
-    postgres_garrison_store/
-    usecases/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
   subscribers/                    the edge for events: auth.v1.AccountDeleted → anonymize_takes_usecase
 ```
 
 - **`clicks/`** — what a click is worth, what the map looks like, and what
   changes when somebody takes a tile. Its root holds the rules that need no
-  port: `Board` (which tile ids exist), `Toll` (what a click costs), `Outcome`
-  (what a click does to a tile), `Pacing` (how an operator's bulk change is spread
-  out), `Geography` and `Borders`.
+  port: `Board` (which tile ids exist), `Toll` (what a click costs), `Outcome` and
+  `Defence` (what a click does to a tile and its defenders), `Pacing` (how an
+  operator's bulk change is spread out), `Geography` and `Borders`.
 - **`ledger/`** — every take of every tile, oldest first. Its root holds `Taking`, `Player`, `Tally`, `Runs`,
   the `Storage` port, `Recording` (the tile writer that records) and `Retention`. `FindPlayers`, `TopPlayers`, `BanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
 - **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
   Its root also holds the rules a bonus plays by: `Terrain` and `Pocket` (what an
   enclose closes) and `BombRules` (where a bomb lands and what it clears).
-- **`garrisons/`** — the defenders a flag keeps on a tile. Its root holds `Garrison`,
-  `Defence` (what a click does to one) and `Shelter` (what a bomb does to one). See
-  [Defenders](#defenders-garrisons).
 
 **A concept's root is its domain.** The use cases under `usecases/` load, call
 the root, and persist; a rule that could be unit-tested without a port belongs
@@ -348,8 +341,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
-| `garrisons/usecases/place_defender_usecase` | spends a defender on a tile of the caller's flag | `Defenders`, `Owners`, `Garrisons`, `CountryChecker` |
-| `garrisons/usecases/get_garrisons_usecase` | every garrison standing for its tile's owner | `Garrisons`, `Owners` |
+| `bonuses/usecases/place_defender_usecase` | spends a defender on a tile of the caller's flag | `Defenders`, `Tiles`, `CountryChecker` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port
@@ -560,14 +552,12 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 `inmemory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
 **Secondary (output):**
-- `clicks/inmemory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table (2 bytes per tile — ~2 MB for a 1M-tile map). Fans updates out in process, and flushes the tiles that changed through its `Persistence` port.
+- `clicks/inmemory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table, and a `[]uint8` of each tile's defenders beside it (3 bytes per tile — ~3 MB for a 1M-tile map). Fans updates out in process, and flushes the tiles that changed through its `Persistence` port.
 - `clicks/postgres_tile_store/` — that port, over the `planet.tiles` table. See [Durability](#durability).
 - `ledger/inmemory_ledger_storage/` — the ledger, in memory, flushed through its own `Persistence` port.
 - `ledger/postgres_ledger_store/` — that port, over `planet.ledger_takes`, `ledger_head` and `ledger_forgotten`, and `AnonymizeTakes` for a deleted account.
 - `bonuses/inmemory_charge_storage/` — the charges each account holds, in memory, flushed through its own `Persistence` port.
 - `bonuses/postgres_charge_store/` — that port, over `planet.charges`.
-- `garrisons/inmemory_garrison_storage/` — the garrisons, in memory, flushed through its own `Persistence` port, and fanned out to every open stream.
-- `garrisons/postgres_garrison_store/` — that port, over `planet.garrisons`.
 - `clicks.Board` (not an adapter) — validates tile IDs
 - country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](#the-composite-layer)
 
@@ -611,7 +601,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
   → antibot_click   (judges; a flagged caller is answered OK and dropped)
   → prom_click      (counts)
-  → clicks/usecases/click_usecase (validates tile ID + country, asks garrisons.Defence: take, strike a defender, or nothing)
+  → clicks/usecases/click_usecase (validates tile ID + country, asks clicks.Defence: take, strike a defender, or nothing)
   → ledger.Recording.Click() → MemoryTileStorage.Click() [writes the flag; fans the update out in process, marked `clicked`]
   → every subscriber: one per open ListenForEvents stream
 ```
@@ -645,7 +635,7 @@ POST /chat.v1.ChatService/React   [X-Session-Token: required, naming an account]
   → inprocess_feed.Publish() the whole tally, versioned and named
 ```
 
-### Defenders (`garrisons`)
+### Defenders
 
 **A defender is a charge a player places on a tile its flag holds, and each one
 takes one foreign click.** A tile holds up to `bonus.defender.perTile` (10). While
@@ -656,46 +646,43 @@ none left, the next click takes it.
 both buckets, sets the pace, counts in `clicks_total{status="ok"}` and is reported
 to the jury.
 
-- **`garrisons` is a concept of its own**, beside `clicks`, `ledger` and `bonuses`,
-  with its own storage. A `Garrison` is the defenders one flag keeps on one tile
-  (`Tile`, `Country`, `Defenders`). It imports `clicks` and `bonuses`, never the other way.
-- **A garrison stands only for its flag** (`Garrison.Standing(owner)`). A tile that
-  changes hands any way but a click — a bomb, `ReassignCountry`, `RevertPlayer`,
-  `PaintRandomTiles`, a reinforce racing a take — leaves its garrison behind, and it
-  defends nobody: `Standing` is 0 for any other owner, and the next strike over it
-  deletes it. So no write path has to know garrisons exist. `Reinforced` for a new
-  flag starts a garrison of its own.
+- **A tile's defenders are part of the tile**, kept by `inmemory_tile_storage` in a
+  `[]uint8` beside the owners, under the same lock. **Every change of owner sets them
+  to 0** — a click, a spread, an enclose, a bomb, `ReassignCountry`, `RevertPlayer`,
+  `PaintRandomTiles` — so no defender ever stands on a tile for a flag that lost it,
+  and no write path has to know about them. `Strike(tile, owner)` and
+  `Reinforce(tile, country, most)` check the owner under that lock, so a strike or a
+  placement racing a capture finds the new owner.
 - **The rule is `clicks.OutcomeOf(owner, flag, defenders)`**, pure and tested in the
   `clicks` root: `Unchanged` when the tile wears the flag, `Defended` when a defender
-  stands, `Taken` otherwise. `garrisons.Defence` is the rule over the storage:
-  `Outcome` foresees it and spends nothing (`antibot_click`), and `Strike` spends the
-  defender (`click_usecase`, `spread_click`, the enclose annexer). A strike that lost
-  the race for the last defender is a take.
-- **A defended click writes nothing to the map**: `OwnerAfter` is the owner, so the
-  write is a no-op, publishes no `TileUpdate` and records no take. The storage
-  publishes the garrison's new count instead.
-- **Placing one is `PlaceDefender(tile, country)`** (`place_defender_usecase`). A tile
-  not wearing the flag (`ErrNotYours`) and a full one (`ErrFull`) are
+  stands, `Taken` otherwise. `clicks.Defence` is the rule over the storage: `Outcome`
+  foresees it and spends nothing (`antibot_click`), and `Strike` spends the defender
+  (`click_usecase`, `spread_click`, the enclose annexer). A strike that lost the race
+  for the last defender is a take. `clicks.ReinforceError` is what a placement is
+  refused for (`ErrNotYourTile`, `ErrTileFull`), read by the use case before it spends
+  and by the storage under its lock.
+- **A defended click writes no owner**: `OwnerAfter` is the owner, so the write is a
+  no-op and records no take. The strike publishes the tile's new count instead: a
+  `TileUpdate` whose `Value` is its `Previous`, with `Defenders` set.
+- **Every `TileUpdate` carries the tile's defenders after it** (0 on any change of
+  owner), and every `GetMap` batch the defended tiles in its range
+  (`DenseBatch.Defenders`, `GetMapResponse.defenders`). So they ride the one channel
+  the map does, in its order, and a client needs no read of its own.
+- **Placing one is `PlaceDefender(tile, country)`** (`bonuses/usecases/place_defender_usecase`).
+  A tile not wearing the flag (`ErrNotYourTile`) and a full one (`ErrTileFull`) are
   `FailedPrecondition` and spend nothing; no defender held is `NotFound`; an unknown
-  country or tile is `InvalidArgument`. It is session-gated like `DropBomb` and not
-  throttled. `antibot_place_defender` makes a banned caller's a `Dud`: the defender is
-  spent, nothing is placed, and it is answered OK. The answer is the charges left.
-- **Everybody sees them.** `GetGarrisons` (`NO_SIDE_EFFECTS`, cached 5s like the map)
-  answers every garrison standing for its tile's owner, and `PlanetEvent.garrison`
-  carries each change of count, absolute, 0 when the last one falls. The storage fans
-  changes out on its own channel, merged into the stream beside the tiles' and the
-  bonuses'. Order against a tile update does not matter: the client applies the
-  same `Standing` rule.
-- **Kept like the charges**: `inmemory_garrison_storage` holds every garrison in a map
-  under one lock, so a strike reads and spends with no round trip, and writes what
-  changed every `garrisonStorage.flushInterval` (1s) to `planet.garrisons`
-  (`postgres_garrison_store`), one row per tile; a garrison with none left is a
-  deleted row. Boot loads it, a failed load refuses the boot, shutdown flushes once more.
+  country or tile is `InvalidArgument`. A placement the tile refuses after the
+  charge was spent (it changed hands in between) gives the defender back. It is
+  session-gated like `DropBomb` and not throttled. `antibot_place_defender` makes a
+  banned caller's a `Dud`: the defender is spent, nothing is placed, and it is
+  answered OK. The answer is the charges left.
+- **Kept with the tile**: `planet.tiles.defenders`, written by the flush that writes
+  the owner.
 - **`click_usecase.Out.Outcome`** says what the rule did, for the decorators inside
   the shadow ban: `enclose_click` closes a shape only with `Taken`, and `prom_click`
   counts `clicks_defended_total{country_id}` by the flag clicked. **It never reaches
   the wire**: a dropped click answers the zero `Out`, which reads `Unchanged`. The
-  client predicts it from the garrisons it holds.
+  client predicts it from the defenders it holds.
 
 What a spread, an enclose, a bomb and the antibot do with a defended tile is in their
 own sections: [spread](#what-a-spread-does-to-a-click), [enclose](#what-an-enclose-does-to-a-click),
@@ -1280,7 +1267,7 @@ strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 3):
   See [What an enclose does to a click](#what-an-enclose-does-to-a-click).
 - **`defenders`** — 1 to `bonus.defender.maxPerBox` (3) defenders added to a stack
   of at most `bonus.defender.held` (12). Each is placed on a tile the player's flag
-  holds and takes one foreign click there. See [Defenders](#defenders-garrisons).
+  holds and takes one foreign click there. See [Defenders](#defenders).
 
 Every kind is a **charge**, worth about one bank, rather than a timer — see
 [Charges](#charges-refill-bomb-enclose-spread-defenders). There used to be a `triple_clicks`
@@ -1593,8 +1580,8 @@ not pretend otherwise.
 **Each neighbour meets its defenders, exactly as a click on it would**: a defended
 neighbour loses one and keeps its flag. A bonus is never a way around the rule.
 The spread click is spent either way, since the click was accepted.
-`tiles_spread` still lists every neighbour touched; the tile updates and the
-garrison events say which were taken.
+`tiles_spread` still lists every neighbour touched; the tile updates say which
+were taken and which lost a defender.
 
 **Then it tells the planet, with `tiles_spread`**, as an enclose does with
 `tiles_enclosed`: the tile clicked and the neighbours it took, after they are set,
@@ -1628,10 +1615,11 @@ hexagon, which showed in production as a hexagonal crater inside a round ring �
 and a walk over neighbours stops at water, so an island just offshore survived a
 bomb that visibly covered it. A circle has neither problem.
 
-**A bomb hits a garrison like a click.** The clearer `drop_bomb_usecase` is handed
-is `garrisons.Shelter`, which takes one defender from each garrison in the blast,
-whoever's it is, and hands the rest to `Clear`: a defended tile keeps its flag and
-is not in `cleared_tile_ids`. See [Defenders](#defenders-garrisons).
+**A bomb hits a defended tile like a click.** `inmemory_tile_storage.Clear` takes
+one defender from each defended tile in the blast, whoever's it is, and clears the
+rest, under one lock: a defended tile keeps its flag, is not in `cleared_tile_ids`,
+and is listed in `struck_tile_ids` (`Blast.Struck`), so a client takes one defender
+off it at impact. See [Defenders](#defenders).
 
 `drop_bomb_usecase` checks the country and the target **before** taking the bomb, so a
 malformed request does not cost one. The drop does not move the schedule: the next
@@ -2297,7 +2285,7 @@ that split, a griefer spams a tile with deliberately invalid clicks and the next
 honest player to click it looks like it is reacting to something.
 
 **A click a defender takes is `Defended`, and neither a no-op nor a take.**
-`antibot_click` asks `garrisons.Defence.Outcome` with the owner it just read, which
+`antibot_click` asks `clicks.Defence.Outcome` with the owner it just read, which
 spends nothing, so `NoOp` and `Defended` come from the same outcome the rule will
 then strike. It is a click: the `retaker` times it as a reaction, and the
 `defender` counts it among the clicker's clicks. It is not a take: the `retaker`
@@ -2451,7 +2439,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **The map lives in memory; postgres is where it is kept.** A click never waits on the database.
 
-- **Boot loads it.** `inmemory_tile_storage.Load` reads every row of `planet.tiles` — one per owned tile, `(id, country)`; an unowned tile has no row. 180k rows load in about 60ms. **A failed load refuses the boot**: an empty map that then flushes would be every player's territory gone. A row past `gameMap.maxIndex` is skipped and logged.
+- **Boot loads it.** `inmemory_tile_storage.Load` reads every row of `planet.tiles` — one per owned tile, `(id, country, defenders)`; an unowned tile has no row. 180k rows load in about 60ms. **A failed load refuses the boot**: an empty map that then flushes would be every player's territory gone. A row past `gameMap.maxIndex` is skipped and logged.
 - **A flush writes what changed.** Every write under the tiles lock sets the tile's bit in a `dirty` bitmap (one bit per tile, ~32 KB). Every `tilesStorage.flushInterval` (1s), `Flush` takes the bits, reads each tile's owner **as it is now**, and hands them to `postgres_tile_store.Save`: one transaction, an upsert for owned tiles and a delete for freed ones, in chunks of 10k. A tile clicked five times between flushes is written once. A failed save puts the bits back; the next tick retries. Each flush has a 10s timeout, so a stuck connection cannot stall the loop.
 - **Shutdown flushes once more**, from `Run`. That is also why the tile map's pool is closed by its runner rather than registered on `props.Closers`: closers run before the runners stop, so the last flush would find the pool already closed.
 - **What a hard kill loses** (`SIGKILL`, OOM, power loss) is bounded by `flushInterval`. The state is still per-process, so **this is single-instance only**: two API replicas would each hold their own divergent map.
@@ -2471,9 +2459,9 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **The address does not outlive the retention.** A scope is personal data, so every row behind the head has none and every row from it on has one: the boot never loads a row with no scope. Blanking runs at ~100k rows a second on a laptop, so a cut of `ledger.retention` that drops a million takes at once passes the 10s flush timeout, and so does every retry; at today's volume the whole window is ~120k.
 - **A deleted account stops being named.** `planet` hears `auth.v1.AccountDeleted` (`planet-ledger-accounts`, `subscribers/account_deleted_subscriber`, `anonymize_takes_usecase`): it flushes the ledger, then sets `account` to NULL on every row of that account, on the partial index `ledger_takes_account`. The flush comes first, or a take still in memory would be written after the update with the account on it. The takes keep their tile, flag and time. **What still names it**: memory, until the take ages out (72h at most); a revert mark, until the head passes it; a take made after the delete on a click token minted before it (an hour at most), as for the player's stats; and every take of an event the bus dropped (full buffer, crash). The subscriber's timeout is a minute, not 5s: the update grows with the account's history.
 - **Size.** 1M takes are 83 MB of table and 31 MB of indexes (the primary key and the account). Production made ~116,000 takes in 72h at the start of October 2026, ~40,000 a day: ~15M rows and ~1.7 GB a year. Each take is written twice, once by the `COPY` and once when its scope is blanked, and autovacuum reuses the space. No partitioning yet.
-- **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges, garrisonStorage, deletions)` runs them together and closes the pool after the last flushes, and after the subscriber drained its buffer.
+- **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges, deletions)` runs them together and closes the pool after the last flushes, and after the subscriber drained its buffer.
 
-**The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread-defenders). **So do the garrisons**, through `inmemory_garrison_storage.Persistence` and `garrisons/postgres_garrison_store`: one row per defended tile in `planet.garrisons`. See [Defenders](#defenders-garrisons).
+**The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread-defenders).
 
 The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](#seasons-internalseasons).
 
@@ -2760,7 +2748,6 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
 - `bonus.defender.held`, `bonus.defender.maxPerBox`, `bonus.defender.perTile` — the most defenders held (12), the most one box adds (3; it draws 1 to that), and the most one tile holds (10)
 - `chargeStorage.flushInterval` — how often the charges that changed are written to postgres (default 1s); also flushed on shutdown
-- `garrisonStorage.flushInterval` — how often the garrisons that changed are written to postgres (default 1s); also flushed on shutdown
 - `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in

@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -53,11 +53,11 @@ func (c *fakeClick) Execute(context.Context, click_usecase.In) (click_usecase.Ou
 	return click_usecase.Out{}, c.err
 }
 
-type fakeGarrisons map[uint32]int
+type fakeDefenders map[uint32]int
 
-func (g fakeGarrisons) Defenders(tile uint32, _ string) int { return g[tile] }
+func (g fakeDefenders) Defenders(tile uint32) int { return g[tile] }
 
-func (g fakeGarrisons) Strike(tile uint32, _ string) bool {
+func (g fakeDefenders) Strike(_ context.Context, tile uint32, _ string) bool {
 	if g[tile] == 0 {
 		return false
 	}
@@ -75,7 +75,7 @@ func execute(
 ) error {
 	t.Helper()
 
-	return executeOn(t, ctx, guard, owner, fakeGarrisons{}, inner)
+	return executeOn(t, ctx, guard, owner, fakeDefenders{}, inner)
 }
 
 func executeOn(
@@ -83,14 +83,14 @@ func executeOn(
 	ctx context.Context,
 	guard antibot_click.ClickGuard,
 	owner antibot_click.TileOwner,
-	held fakeGarrisons,
+	held fakeDefenders,
 	inner *fakeClick,
 ) error {
 	t.Helper()
 
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	useCase := antibot_click.New(inner, guard, owner, garrisons.NewDefence(held), clock, prometheus.NewRegistry())
+	useCase := antibot_click.New(inner, guard, owner, clicks.NewDefence(held), clock, prometheus.NewRegistry())
 
 	_, executeErr := useCase.Execute(ctx, click_usecase.In{TileID: 42, CountryID: "PS"})
 
@@ -175,7 +175,7 @@ func TestAntiBotClick(t *testing.T) {
 
 	t.Run("marks a click a defender will take, before the write and without striking it", func(t *testing.T) {
 		guard := &fakeGuard{}
-		held := fakeGarrisons{42: 2}
+		held := fakeDefenders{42: 2}
 
 		require.NoError(t, executeOn(t, t.Context(), guard, fakeOwner{42: "FR"}, held, &fakeClick{}))
 		require.Len(t, guard.seen, 1)
@@ -190,7 +190,7 @@ func TestAntiBotClick(t *testing.T) {
 	t.Run("a defended tile clicked by its own flag is a no-op", func(t *testing.T) {
 		guard := &fakeGuard{}
 
-		require.NoError(t, executeOn(t, t.Context(), guard, fakeOwner{42: "PS"}, fakeGarrisons{42: 2}, &fakeClick{}))
+		require.NoError(t, executeOn(t, t.Context(), guard, fakeOwner{42: "PS"}, fakeDefenders{42: 2}, &fakeClick{}))
 		require.Len(t, guard.seen, 1)
 		assert.True(t, guard.seen[0].NoOp)
 		assert.False(t, guard.seen[0].Defended)

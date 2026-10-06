@@ -6,7 +6,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/garrisonmessage"
 )
 
 type EventStream interface {
@@ -39,10 +38,6 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		return s.stream.Send(tilesEnclosedEvent(event.Enclosed))
 	case event.Spread != nil:
 		return s.stream.Send(tilesSpreadEvent(event.Spread))
-	case event.Garrison != nil:
-		return s.stream.Send(&planetv1.PlanetEvent{
-			Event: &planetv1.PlanetEvent_Garrison{Garrison: garrisonmessage.Encode(*event.Garrison)},
-		})
 	default:
 		return s.stream.Send(tileUpdateEvent(event.Update))
 	}
@@ -93,6 +88,7 @@ func bombDroppedEvent(blast *clicks.Blast) *planetv1.PlanetEvent {
 				CountryId:      blast.CountryID,
 				Radius:         blast.Radius,
 				ClearedTileIds: blast.Cleared,
+				StruckTileIds:  blast.Struck,
 				Point:          &planetv1.GlobePoint{X: blast.Point.X, Y: blast.Point.Y, Z: blast.Point.Z},
 			},
 		},
@@ -131,6 +127,7 @@ func toProto(update clicks.TileUpdate) *planetv1.TileUpdate {
 		CountryId:         update.Value,
 		PreviousCountryId: update.Previous,
 		Clicked:           update.Clicked,
+		Defenders:         uint32(update.Defenders), //nolint:gosec // a byte in the tile storage.
 	}
 }
 

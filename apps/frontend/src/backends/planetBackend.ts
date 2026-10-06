@@ -11,12 +11,12 @@ import {
     ClaimedBonus,
     DefenderRefusedError,
     Enclosure,
-    Garrisons,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
     RateLimitedError,
     Refiller,
+    Reinforcer,
     SpreadClick,
     TileClicker,
     Update,
@@ -24,13 +24,11 @@ import {
     VPNBlockedError,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
-import {Garrison} from "../domain/garrisons.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
 import {
     BonusKind,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
-    Garrison as GarrisonMessage,
     GetMapResponse,
     PlanetEvent,
     SharedWith,
@@ -54,14 +52,13 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Garrisons {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Reinforcer {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
     private readonly bonusCallbacks = new Map<string, BonusHandlers>()
     private readonly quizCallbacks = new Map<string, (offer: QuizOffer) => void>()
     private readonly bombCallbacks = new Map<string, (drop: BombDrop) => void>()
-    private readonly garrisonCallbacks = new Map<string, (garrison: Garrison) => void>()
     private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private stopListening: () => void
@@ -111,7 +108,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.bonusCallbacks.clear()
         this.quizCallbacks.clear()
         this.bombCallbacks.clear()
-        this.garrisonCallbacks.clear()
         this.budgetCallbacks.clear()
         this.pendingUpdates = []
     }
@@ -236,7 +232,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 signal,
             )
 
-            callback({bindings: bindingsOf(res)})
+            callback({bindings: bindingsOf(res), defenders: defendersOf(res)})
         }
     }
 
@@ -281,14 +277,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     // Earlier tile updates go first, or they repaint over the crater.
                     this.flushUpdates()
                     this.bombCallbacks.forEach(callback => callback(drop))
-                    return
-                }
-
-                const garrison = garrisonOf(event)
-                if (garrison) {
-                    // Earlier tile updates go first, or the garrison is checked against a stale owner.
-                    this.flushUpdates()
-                    this.garrisonCallbacks.forEach(callback => callback(garrison))
                     return
                 }
 
@@ -559,23 +547,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.holdCharges(chargesOfMessage(res.charges))
     }
 
-    public async getGarrisons(signal?: AbortSignal): Promise<Garrison[]> {
-        try {
-            const res = await retrying(() => this.client.getGarrisons({}, {signal}), "getGarrisons", signal)
-            return res.garrisons.map(garrisonOfMessage)
-        } catch (e) {
-            if (e instanceof ConnectError && e.code === Code.Unimplemented) return []
-            throw e
-        }
-    }
-
-    public listenForGarrisons(onChanged: (garrison: Garrison) => void): () => void {
-        const id = generateUUID()
-        this.garrisonCallbacks.set(id, onChanged)
-
-        return () => this.garrisonCallbacks.delete(id)
-    }
-
     public async placeDefender(tileId: number, countryId: string): Promise<void> {
         this.holdCharges({...this.charges, defenders: Math.max(0, this.charges.defenders - 1)})
 
@@ -689,16 +660,6 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
     }
 }
 
-export function garrisonOf(event: PlanetEvent): Garrison | undefined {
-    if (event.event.case !== "garrison") return undefined
-
-    return garrisonOfMessage(event.event.value)
-}
-
-function garrisonOfMessage({tileId, countryId, defenders}: GarrisonMessage): Garrison {
-    return {tile: tileId, country: countryId, defenders}
-}
-
 const NO_RULES: BonusRules = {blastRadius: 0, enclosureMaxTiles: 0, spreadClicks: 0, enclosures: 0, defenders: 0, tileDefenders: 0, toll: []}
 
 function rewardOf(
@@ -732,6 +693,7 @@ export function bombOf(event: PlanetEvent): BombDrop | undefined {
         countryId: dropped.countryId,
         radius: dropped.radius,
         cleared: dropped.clearedTileIds,
+        struck: dropped.struckTileIds,
     }
 }
 
@@ -804,6 +766,10 @@ export function bindingsOf(res: GetMapResponse): Map<number, string> {
     return bindings
 }
 
+export function defendersOf(res: GetMapResponse): Map<number, number> {
+    return new Map(res.defenders.map(({tileId, defenders}) => [tileId, defenders]))
+}
+
 export function updateOf(event: PlanetEvent): Update | undefined {
     if (event.event.case !== "tileUpdate") return undefined
 
@@ -813,5 +779,6 @@ export function updateOf(event: PlanetEvent): Update | undefined {
         previousCountry: update.previousCountryId === "" ? undefined : update.previousCountryId,
         newCountry: update.countryId === "" ? undefined : update.countryId,
         clicked: update.clicked,
+        defenders: update.defenders,
     }
 }

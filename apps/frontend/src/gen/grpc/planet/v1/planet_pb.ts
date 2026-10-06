@@ -463,6 +463,11 @@ export class GetMapResponse extends Message<GetMapResponse> {
    */
   tiles = new Uint8Array(0);
 
+  /**
+   * @generated from field: repeated planet.v1.TileDefenders defenders = 4;
+   */
+  defenders: TileDefenders[] = [];
+
   constructor(data?: PartialMessage<GetMapResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -474,6 +479,7 @@ export class GetMapResponse extends Message<GetMapResponse> {
     { no: 1, name: "start_tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "codes", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 3, name: "tiles", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
+    { no: 4, name: "defenders", kind: "message", T: TileDefenders, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMapResponse {
@@ -490,6 +496,49 @@ export class GetMapResponse extends Message<GetMapResponse> {
 
   static equals(a: GetMapResponse | PlainMessage<GetMapResponse> | undefined, b: GetMapResponse | PlainMessage<GetMapResponse> | undefined): boolean {
     return proto3.util.equals(GetMapResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.TileDefenders
+ */
+export class TileDefenders extends Message<TileDefenders> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: uint32 defenders = 2;
+   */
+  defenders = 0;
+
+  constructor(data?: PartialMessage<TileDefenders>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.TileDefenders";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "defenders", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileDefenders {
+    return new TileDefenders().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TileDefenders {
+    return new TileDefenders().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TileDefenders {
+    return new TileDefenders().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TileDefenders | PlainMessage<TileDefenders> | undefined, b: TileDefenders | PlainMessage<TileDefenders> | undefined): boolean {
+    return proto3.util.equals(TileDefenders, a, b);
   }
 }
 
@@ -579,12 +628,6 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: QuizOffered;
     case: "quizOffered";
-  } | {
-    /**
-     * @generated from field: planet.v1.Garrison garrison = 9;
-     */
-    value: Garrison;
-    case: "garrison";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -603,7 +646,6 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 6, name: "tiles_enclosed", kind: "message", T: TilesEnclosed, oneof: "event" },
     { no: 7, name: "tiles_spread", kind: "message", T: TilesSpread, oneof: "event" },
     { no: 8, name: "quiz_offered", kind: "message", T: QuizOffered, oneof: "event" },
-    { no: 9, name: "garrison", kind: "message", T: Garrison, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -1574,6 +1616,13 @@ export class BombDropped extends Message<BombDropped> {
    */
   point?: GlobePoint;
 
+  /**
+   * Each lost one defender and kept its flag.
+   *
+   * @generated from field: repeated uint32 struck_tile_ids = 6;
+   */
+  struckTileIds: number[] = [];
+
   constructor(data?: PartialMessage<BombDropped>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1587,6 +1636,7 @@ export class BombDropped extends Message<BombDropped> {
     { no: 3, name: "radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 4, name: "cleared_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
     { no: 5, name: "point", kind: "message", T: GlobePoint },
+    { no: 6, name: "struck_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BombDropped {
@@ -1797,125 +1847,6 @@ export class PlaceDefenderResponse extends Message<PlaceDefenderResponse> {
 }
 
 /**
- * @generated from message planet.v1.GetGarrisonsRequest
- */
-export class GetGarrisonsRequest extends Message<GetGarrisonsRequest> {
-  constructor(data?: PartialMessage<GetGarrisonsRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.GetGarrisonsRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetGarrisonsRequest {
-    return new GetGarrisonsRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetGarrisonsRequest {
-    return new GetGarrisonsRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetGarrisonsRequest {
-    return new GetGarrisonsRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: GetGarrisonsRequest | PlainMessage<GetGarrisonsRequest> | undefined, b: GetGarrisonsRequest | PlainMessage<GetGarrisonsRequest> | undefined): boolean {
-    return proto3.util.equals(GetGarrisonsRequest, a, b);
-  }
-}
-
-/**
- * @generated from message planet.v1.GetGarrisonsResponse
- */
-export class GetGarrisonsResponse extends Message<GetGarrisonsResponse> {
-  /**
-   * @generated from field: repeated planet.v1.Garrison garrisons = 1;
-   */
-  garrisons: Garrison[] = [];
-
-  constructor(data?: PartialMessage<GetGarrisonsResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.GetGarrisonsResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "garrisons", kind: "message", T: Garrison, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetGarrisonsResponse {
-    return new GetGarrisonsResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetGarrisonsResponse {
-    return new GetGarrisonsResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetGarrisonsResponse {
-    return new GetGarrisonsResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: GetGarrisonsResponse | PlainMessage<GetGarrisonsResponse> | undefined, b: GetGarrisonsResponse | PlainMessage<GetGarrisonsResponse> | undefined): boolean {
-    return proto3.util.equals(GetGarrisonsResponse, a, b);
-  }
-}
-
-/**
- * defenders 0 on the stream: the tile has none left.
- *
- * @generated from message planet.v1.Garrison
- */
-export class Garrison extends Message<Garrison> {
-  /**
-   * @generated from field: uint32 tile_id = 1;
-   */
-  tileId = 0;
-
-  /**
-   * @generated from field: string country_id = 2;
-   */
-  countryId = "";
-
-  /**
-   * @generated from field: uint32 defenders = 3;
-   */
-  defenders = 0;
-
-  constructor(data?: PartialMessage<Garrison>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.Garrison";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "defenders", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Garrison {
-    return new Garrison().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Garrison {
-    return new Garrison().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Garrison {
-    return new Garrison().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: Garrison | PlainMessage<Garrison> | undefined, b: Garrison | PlainMessage<Garrison> | undefined): boolean {
-    return proto3.util.equals(Garrison, a, b);
-  }
-}
-
-/**
  * @generated from message planet.v1.Heartbeat
  */
 export class Heartbeat extends Message<Heartbeat> {
@@ -1972,6 +1903,13 @@ export class TileUpdate extends Message<TileUpdate> {
    */
   clicked = false;
 
+  /**
+   * The tile's defenders after the update: 0 on every change of owner.
+   *
+   * @generated from field: uint32 defenders = 5;
+   */
+  defenders = 0;
+
   constructor(data?: PartialMessage<TileUpdate>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1984,6 +1922,7 @@ export class TileUpdate extends Message<TileUpdate> {
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "previous_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "clicked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "defenders", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileUpdate {

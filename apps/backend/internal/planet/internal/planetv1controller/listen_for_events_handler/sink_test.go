@@ -11,7 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 )
 
@@ -56,22 +55,16 @@ func TestSinkSaysWhichUpdateIsAClick(t *testing.T) {
 	assert.True(t, stream.sent[0].GetTileUpdate().GetClicked())
 }
 
-func TestSinkFramesAGarrison(t *testing.T) {
+func TestSinkSaysHowManyDefendersAreLeft(t *testing.T) {
 	stream := &recorder{}
 
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Garrison: &garrisons.Garrison{Tile: 42, Country: "fr", Defenders: 9},
+		Update: clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "fr", Defenders: 9},
 	})
 
 	require.NoError(t, err)
 	require.Len(t, stream.sent, 1)
-
-	garrison := stream.sent[0].GetGarrison()
-	require.NotNil(t, garrison, "a garrison travels as the garrison case")
-	assert.Nil(t, stream.sent[0].GetTileUpdate())
-	assert.Equal(t, uint32(42), garrison.GetTileId())
-	assert.Equal(t, "fr", garrison.GetCountryId())
-	assert.Equal(t, uint32(9), garrison.GetDefenders())
+	assert.Equal(t, uint32(9), stream.sent[0].GetTileUpdate().GetDefenders())
 }
 
 func TestSinkFramesAHeartbeat(t *testing.T) {
@@ -132,6 +125,7 @@ func TestASinkFramesABlastWithEveryTileItCleared(t *testing.T) {
 			Tile: 7, CountryID: "fr", Radius: 0.03,
 			Point:   clicks.Vec3{X: 0, Y: 0, Z: 1},
 			Cleared: []uint32{6, 7, 8},
+			Struck:  []uint32{9},
 		},
 	}))
 
@@ -141,6 +135,7 @@ func TestASinkFramesABlastWithEveryTileItCleared(t *testing.T) {
 	assert.Equal(t, "fr", dropped.GetCountryId())
 	assert.InDelta(t, 0.03, dropped.GetRadius(), 1e-9)
 	assert.Equal(t, []uint32{6, 7, 8}, dropped.GetClearedTileIds())
+	assert.Equal(t, []uint32{9}, dropped.GetStruckTileIds())
 	assert.InDelta(t, 1, dropped.GetPoint().GetZ(), 1e-9)
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons/inmemory_garrison_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -27,8 +26,6 @@ type Config struct {
 	Bonus        bonuses.Config
 
 	ChargeStorage inmemory_charge_storage.Config
-
-	GarrisonStorage inmemory_garrison_storage.Config
 
 	Ledger        ledger.Config
 	LedgerStorage inmemory_ledger_storage.Config

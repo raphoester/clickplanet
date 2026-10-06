@@ -35,8 +35,8 @@ The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
 
-Every tile starts French in the fake, and its clicks hit a garrison as the
-server's do.
+Every tile starts French in the fake, and it keeps defenders on its tiles as the
+server does: in its map batches, its tile updates and its bombs' struck tiles.
 
 In fake mode the console has a few commands: `giveBomb()` puts a bomb in the
 inventory as if a box holding one had just been caught, `giveBonus("refill")` does
@@ -183,7 +183,7 @@ app/       components
   pixel is drawn: the `?f=<code>` link, the text that rides with it, the line
   under the flag, and the size the card comes out at. See [Sharing the
   globe](#sharing-the-globe).
-- `garrisons.ts` — `TileGarrisons`, the defenders standing on each tile, and
+- `garrisons.ts` — `TileGarrisons`, how many defenders stand on each tile, and
   `outcomeOf` and `placementOf`, what this player's click does to a tile. See
   [Defenders](#defenders).
 - `clickOrDrag.ts` — `ClickOrDrag`, whether a press was a click or a drag of
@@ -1754,8 +1754,8 @@ and are shared; how thick a line is drawn between them is this app's.
    before the map is complete: an empty map with an empty board is not a game.
    A fetch that fails after its retries fails the whole globe, and an abandoned
    one disposes it. On ready, `publishLeaderboard` shows the full board at once
-   rather than up to a sample later. The garrisons are read beside the batches
-   and applied after the last one (see [Defenders](#defenders)).
+   rather than up to a sample later. Each batch brings its tiles' defenders
+   too (see [Defenders](#defenders)).
 3. Live updates arrive over the `ListenForEvents` stream, batched every 100 ms, into the same
    store.
 4. Whatever the store reports as changed is painted, and the leaderboard is
@@ -1920,7 +1920,7 @@ ever takes back what that click itself painted.**
 going back to unowned, which `TileField` writes as a zero-sized atlas region —
 what the fragment shader already draws as an unclaimed tile.
 
-**A click predicted to hit a garrison paints nothing**, so it has no claim to
+**A click predicted to be defended paints nothing**, so it has no claim to
 take back.
 
 Rolling back on *any* failure, including a transport fault, is deliberate: if
@@ -2160,37 +2160,38 @@ different picture on every platform.
 ## Defenders
 
 A defender is a charge (`Charges.defenders`) placed on a tile the player's flag
-holds, up to `BonusRules.tileDefenders` on one tile. The defenders on a tile are
-its **garrison**, and every screen shows them. The server decides what a click
-does; this client predicts its own. The pieces: `backends/backend.ts` declares
-`Garrisons`, `domain/garrisons.ts` the rule, `tileField.ts` and the display
-shaders the drawing.
+holds, up to `BonusRules.tileDefenders` on one tile. **A tile's defenders are
+part of the tile**, as its owner is, and every screen shows them. The server
+decides what a click does; this client predicts its own. The pieces: `Reinforcer`
+in `backends/backend.ts`, `domain/garrisons.ts` the count per tile and the rule,
+`tileField.ts` and the display shaders the drawing.
 
-**A garrison counts only while its country holds the tile**, on both sides.
-`TileGarrisons` keeps one count per tile. A `garrison` event is the tile's count
-now, and is ignored when its country is not the tile's owner here; `0` removes
-it. Every owner change that goes through `applyChanges` (an update, a bomb's
-clear, a rollback, a paint) drops the garrison of a tile that changed hands
-(`followOwners`), so a flag that takes its tile back does not get its old
-garrison back.
-
-- **It is read once, beside the map** (`getGarrisons`, a cached GET) and applied
-  after the last batch. The stream's garrisons that come before that are held and
-  applied after the read, so they win over it.
-- **`PlanetBackend` flushes the pending tile updates before a garrison**, as
-  before a blast: the owner it is checked against must be the one the server had.
+- **The count comes with the tile.** Each map batch lists its defended tiles
+  (`GetMapResponse.defenders`, read into `Ownerships.defenders`), and every
+  `TileUpdate` says the tile's count after it. `TileGarrisons` keeps one number
+  per tile and, like `TileOwnership`, lets a live update win over a batch that
+  was already in flight.
+- **The server zeroes the count on every change of owner**, so an update that
+  changes the owner carries 0, and nothing here ties a count to a flag. **An
+  update whose country is its previous country changes the defenders alone**: a
+  strike or a reinforcement. It moves no tile on the board and plays no click
+  glint.
+- **A bomb strikes the defended tiles in its blast** (`BombDrop.struck`): each
+  loses one defender and keeps its flag, and is not in `cleared`. The strikes
+  wait for the impact with the clear, and a tile update that arrives meanwhile
+  wins its tile, as it does for the clear.
 - **Defend is a switch.** While it is on, a click on a tile the flag holds sends
   `PlaceDefender` (session-gated, not throttled) instead of a click, and spends
   no click. A tile already at its most sends nothing and the slot says "Full".
   Any other tile gets an ordinary click.
-- **A click on another flag's defended tile is a hit** (`outcomeOf`): it costs a
-  click and takes nothing, so the globe paints no flag and plays the hit; the
-  stream brings the count. If a garrison event for another flag arrives on a tile
-  this player is still painting, the paint gives way (`TileOwnership.settle`):
-  the server kept the tile, so the click was a hit this client did not see coming.
-- **Spread, enclose and bombs follow the rule on the server.** Nothing here
-  predicts them: their updates and garrisons arrive over the stream, and a bomb's
-  `cleared` holds only the undefended tiles.
+- **A click on another flag's defended tile is defended** (`outcomeOf`): it costs
+  a click and takes nothing, so the globe paints no flag and plays the hit; the
+  update brings the count. A take is predicted only on a tile with none, so a
+  paint never has a count to drop. When a prediction is wrong, the update that
+  follows carries the flag the server kept, and replaces the paint as any update
+  does.
+- **Spread and enclose follow the same rule on the server**; their updates bring
+  the counts.
 - **It is drawn in the tile shader**: one more per-tile attribute (`garrison`)
   and a uniform (`garrisonMost`). From 14px across, a violet ring cut into one
   segment per defender the tile can hold, the held ones lit; under that a plain

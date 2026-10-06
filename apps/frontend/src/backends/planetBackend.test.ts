@@ -4,8 +4,8 @@ import {
     bindingsOf,
     bombOf,
     catchOf,
+    defendersOf,
     enclosureOf,
-    garrisonOf,
     offerOf,
     PlanetBackend,
     quizOf,
@@ -21,15 +21,14 @@ import {
     QuizOffered,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
-    Garrison,
     GetBonusRulesResponse,
-    GetGarrisonsResponse,
     GetMapResponse,
     GlobePoint,
     Heartbeat,
     PlanetEvent,
     SharedWith,
     TilesEnclosed,
+    TileDefenders,
     TilesSpread,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
@@ -75,28 +74,32 @@ function failingSession(): SessionProvider {
     }
 }
 
-function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, clicked?: boolean}): PlanetEvent {
+function tileUpdateEvent(fields: {tileId: number, countryId: string, previousCountryId?: string, clicked?: boolean, defenders?: number}): PlanetEvent {
     return new PlanetEvent({event: {case: "tileUpdate", value: new TileUpdate(fields)}})
 }
 
 describe("updateOf", () => {
     it("maps a tile update onto the shape the globe consumes", () => {
         expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", previousCountryId: "fr"})))
-            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp", clicked: false})
+            .toEqual({tile: 7, previousCountry: "fr", newCountry: "jp", clicked: false, defenders: 0})
     })
 
     it("reports an unowned previous tile as undefined rather than an empty code", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "fr"})))
-            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr", clicked: false})
+            .toEqual({tile: 1, previousCountry: undefined, newCountry: "fr", clicked: false, defenders: 0})
     })
 
     it("reports a tile given back to nobody as undefined, so nobody gets a leaderboard row", () => {
         expect(updateOf(tileUpdateEvent({tileId: 1, countryId: "", previousCountryId: "ps"})))
-            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined, clicked: false})
+            .toEqual({tile: 1, previousCountry: "ps", newCountry: undefined, clicked: false, defenders: 0})
     })
 
     it("says which update a click made, so the globe can animate it", () => {
         expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "jp", previousCountryId: "fr", clicked: true}))?.clicked).toBe(true)
+    })
+
+    it("says how many defenders stand on the tile after the update", () => {
+        expect(updateOf(tileUpdateEvent({tileId: 7, countryId: "fr", previousCountryId: "fr", defenders: 3}))?.defenders).toBe(3)
     })
 
     it("drops a heartbeat", () => {
@@ -179,6 +182,21 @@ function getMapMock(impl?: (req: GetMapRequestFields) => Promise<GetMapResponse>
     return vi.fn<(req: GetMapRequestFields) => Promise<GetMapResponse>>(impl)
 }
 
+describe("defendersOf", () => {
+    it("reads the defenders of the batch's defended tiles", () => {
+        const res = new GetMapResponse({
+            startTileId: 1,
+            defenders: [new TileDefenders({tileId: 2, defenders: 4}), new TileDefenders({tileId: 9, defenders: 10})],
+        })
+
+        expect(defendersOf(res)).toEqual(new Map([[2, 4], [9, 10]]))
+    })
+
+    it("reads none from a batch with no defenders", () => {
+        expect(defendersOf(mapResponse(1, ["", "fr"], [1]))).toEqual(new Map())
+    })
+})
+
 describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
     const backendWith = (getMap: GetMapMock) => {
         const client = {click: vi.fn(), getMap, getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents()} as never
@@ -190,6 +208,20 @@ describe("PlanetBackend.getCurrentOwnershipsByBatch", () => {
         await backend.getCurrentOwnershipsByBatch(2, 4, o => seen.push(o.bindings), signal)
         return seen
     }
+
+    it("hands each batch its defenders beside its owners", async () => {
+        const getMap = getMapMock(async () => new GetMapResponse({
+            startTileId: 1, codes: ["", "fr"], tiles: tileBytes([1, 1]),
+            defenders: [new TileDefenders({tileId: 2, defenders: 3})],
+        }))
+        const backend = backendWith(getMap)
+
+        const seen: Map<number, number>[] = []
+        await backend.getCurrentOwnershipsByBatch(2, 2, o => seen.push(o.defenders))
+
+        expect(seen).toEqual([new Map([[2, 3]])])
+        backend.close()
+    })
 
     it("walks the range one chunk at a time", async () => {
         const getMap = getMapMock(async () => mapResponse(1, ["", "fr"], [1, 0]))
@@ -878,7 +910,7 @@ describe("updateOf with the bonus cases on the stream", () => {
 })
 
 describe("bombOf", () => {
-    const dropped = (fields: Partial<{tileId: number, clearedTileIds: number[]}> = {}) => new PlanetEvent({
+    const dropped = (fields: Partial<{tileId: number, clearedTileIds: number[], struckTileIds: number[]}> = {}) => new PlanetEvent({
         event: {
             case: "bombDropped",
             value: new BombDropped({
@@ -886,19 +918,21 @@ describe("bombOf", () => {
                 countryId: "fr",
                 radius: 0.03,
                 clearedTileIds: [6, 7, 8],
+                struckTileIds: [5],
                 point: new GlobePoint({x: 0, y: 1, z: 0}),
                 ...fields,
             }),
         },
     })
 
-    it("reads a blast on land, with every tile it cleared", () => {
+    it("reads a blast on land, with every tile it cleared and every defended tile it struck", () => {
         expect(bombOf(dropped())).toEqual({
             tile: 7,
             point: {x: 0, y: 1, z: 0},
             countryId: "fr",
             radius: 0.03,
             cleared: [6, 7, 8],
+            struck: [5],
         })
     })
 
@@ -960,26 +994,7 @@ describe("PlanetBackend bombs", () => {
     })
 })
 
-describe("garrisonOf", () => {
-    const garrisoned = (defenders: number) => new PlanetEvent({
-        event: {case: "garrison", value: new Garrison({tileId: 7, countryId: "fr", defenders})},
-    })
-
-    it("reads the tile, its flag and how many defenders stand on it now", () => {
-        expect(garrisonOf(garrisoned(4))).toEqual({tile: 7, country: "fr", defenders: 4})
-    })
-
-    it("reads a tile with none left as zero", () => {
-        expect(garrisonOf(garrisoned(0))).toEqual({tile: 7, country: "fr", defenders: 0})
-    })
-
-    it("drops everything that is not a garrison, and a garrison is not a tile update", () => {
-        expect(garrisonOf(tileUpdateEvent({tileId: 7, countryId: "fr"}))).toBeUndefined()
-        expect(updateOf(garrisoned(4))).toBeUndefined()
-    })
-})
-
-describe("PlanetBackend garrisons", () => {
+describe("PlanetBackend defenders", () => {
     const clientWith = (fields: Record<string, unknown>) =>
         ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), ...fields}) as never
 
@@ -991,46 +1006,6 @@ describe("PlanetBackend garrisons", () => {
         })
         return seen
     }
-
-    it("reads every garrison standing", async () => {
-        const getGarrisons = vi.fn().mockResolvedValue(new GetGarrisonsResponse({
-            garrisons: [new Garrison({tileId: 3, countryId: "fr", defenders: 2}), new Garrison({tileId: 9, countryId: "jp", defenders: 10})],
-        }))
-        const backend = new PlanetBackend(clientWith({getGarrisons}), 1_000)
-
-        await expect(backend.getGarrisons()).resolves.toEqual([
-            {tile: 3, country: "fr", defenders: 2},
-            {tile: 9, country: "jp", defenders: 10},
-        ])
-        backend.close()
-    })
-
-    it("reads none from a server too old to know the call", async () => {
-        const getGarrisons = vi.fn().mockRejectedValue(new ConnectError("no", Code.Unimplemented))
-        const backend = new PlanetBackend(clientWith({getGarrisons}), 1_000)
-
-        await expect(backend.getGarrisons()).resolves.toEqual([])
-        backend.close()
-    })
-
-    it("hands over the tile updates that came before a garrison, before the garrison", async () => {
-        const events = [
-            tileUpdateEvent({tileId: 7, countryId: "jp"}),
-            new PlanetEvent({event: {case: "garrison", value: new Garrison({tileId: 7, countryId: "jp", defenders: 1})}}),
-        ]
-        const listenForEvents = vi.fn(async function* () {
-            yield* events
-            await new Promise(() => {})
-        })
-        const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000)
-
-        const order: string[] = []
-        backend.listenForUpdatesBatch(() => order.push("updates"))
-        backend.listenForGarrisons((garrison) => order.push(`garrison ${garrison.defenders}`))
-
-        await vi.waitFor(() => expect(order).toEqual(["updates", "garrison 1"]))
-        backend.close()
-    })
 
     it("places a defender with the session token, and holds the charges the server answers", async () => {
         const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({defenders: 5})})

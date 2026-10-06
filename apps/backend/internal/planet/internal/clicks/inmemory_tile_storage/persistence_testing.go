@@ -10,25 +10,28 @@ import (
 )
 
 type MemoryPersistence struct {
-	mu      sync.Mutex
-	rows    map[uint32]string
-	saves   []Save
-	failing error
-}
-
-type Save struct {
-	Tiles  []uint32
-	Owners []string
+	mu        sync.Mutex
+	rows      map[uint32]string
+	defenders map[uint32]int
+	saves     [][]Tile
+	failing   error
 }
 
 func NewMemoryPersistence(rows map[uint32]string) *MemoryPersistence {
 	held := make(map[uint32]string, len(rows))
 	maps.Copy(held, rows)
 
-	return &MemoryPersistence{rows: held}
+	return &MemoryPersistence{rows: held, defenders: map[uint32]int{}}
 }
 
-func (m *MemoryPersistence) Load(_ context.Context, visit func(tile uint32, owner string)) error {
+func (m *MemoryPersistence) Defend(tile uint32, defenders int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.defenders[tile] = defenders
+}
+
+func (m *MemoryPersistence) Load(_ context.Context, visit func(tile uint32, owner string, defenders int)) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -36,25 +39,31 @@ func (m *MemoryPersistence) Load(_ context.Context, visit func(tile uint32, owne
 		return m.failing
 	}
 	for tile, owner := range m.rows {
-		visit(tile, owner)
+		visit(tile, owner, m.defenders[tile])
 	}
 	return nil
 }
 
-func (m *MemoryPersistence) Save(_ context.Context, tiles []uint32, owners []string) error {
+func (m *MemoryPersistence) Save(_ context.Context, tiles []Tile) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.failing != nil {
 		return m.failing
 	}
-	m.saves = append(m.saves, Save{Tiles: slices.Clone(tiles), Owners: slices.Clone(owners)})
-	for i, tile := range tiles {
-		if owners[i] == "" {
-			delete(m.rows, tile)
+	m.saves = append(m.saves, slices.Clone(tiles))
+	for _, tile := range tiles {
+		if tile.Owner == "" {
+			delete(m.rows, tile.ID)
+			delete(m.defenders, tile.ID)
 			continue
 		}
-		m.rows[tile] = owners[i]
+		m.rows[tile.ID] = tile.Owner
+		if tile.Defenders == 0 {
+			delete(m.defenders, tile.ID)
+		} else {
+			m.defenders[tile.ID] = tile.Defenders
+		}
 	}
 	return nil
 }
@@ -66,7 +75,14 @@ func (m *MemoryPersistence) Stored() map[uint32]string {
 	return maps.Clone(m.rows)
 }
 
-func (m *MemoryPersistence) Saves() []Save {
+func (m *MemoryPersistence) StoredDefenders() map[uint32]int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return maps.Clone(m.defenders)
+}
+
+func (m *MemoryPersistence) Saves() [][]Tile {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

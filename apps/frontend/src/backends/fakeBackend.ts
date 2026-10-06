@@ -10,12 +10,12 @@ import {
     DefenderRefusedError,
     GlobePoint,
     Enclosure,
-    Garrisons,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
     RateLimitedError,
     Refiller,
+    Reinforcer,
     TileClicker,
     Update,
     UpdatesListener,
@@ -28,7 +28,6 @@ import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 import {nearestTile, tilesWithin} from "../domain/blast.ts";
-import {Garrison} from "../domain/garrisons.ts";
 
 const TILE_COUNT = 257_000
 
@@ -95,7 +94,7 @@ export type FakeBackendOptions = {
     tilePositions?: () => Promise<Float32Array>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Garrisons {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Reinforcer {
     private tileBindings: Map<number, string> = new Map()
     private tileCounts: Map<string, number> = new Map()
     private budgetCountry = ""
@@ -106,8 +105,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private bonusCallbacks: Map<string, BonusHandlers> = new Map()
     private bombCallbacks: Map<string, (drop: BombDrop) => void> = new Map()
     private quizCallbacks: Map<string, (offer: QuizOffer) => void> = new Map()
-    private garrisonCallbacks: Map<string, (garrison: Garrison) => void> = new Map()
-    private garrisons: Map<number, number> = new Map()
+    private defenders: Map<number, number> = new Map()
 
     private charges: Charges = NO_CHARGES
     private positions: Promise<Float32Array> | undefined
@@ -200,7 +198,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.updateBatchCallbacks.clear()
         this.budgetCallbacks.clear()
         this.bombCallbacks.clear()
-        this.garrisonCallbacks.clear()
     }
 
     public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF) {
@@ -359,9 +356,15 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private applyClick(tileId: number, countryId: string, clicked = true) {
         const prev = this.tileBindings.get(tileId)
         if (prev === countryId) return
-        if (prev !== undefined && this.hit(tileId, prev)) return
+
+        const defenders = this.defenders.get(tileId) ?? 0
+        if (prev !== undefined && defenders > 0) {
+            this.defend(tileId, prev, defenders - 1, clicked)
+            return
+        }
 
         this.tileBindings.set(tileId, countryId)
+        this.defenders.delete(tileId)
         this.count(prev, -1)
         this.count(countryId, 1)
         this.updateListeners.forEach(l => l({
@@ -369,33 +372,24 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             previousCountry: prev,
             newCountry: countryId,
             clicked,
+            defenders: 0,
         }))
     }
 
-    private hit(tileId: number, owner: string): boolean {
-        const defenders = this.garrisons.get(tileId) ?? 0
+    private defend(tile: number, owner: string, defenders: number, clicked: boolean) {
+        if (defenders > 0) this.defenders.set(tile, defenders)
+        else this.defenders.delete(tile)
+
+        this.updateListeners.forEach(l => l({tile, previousCountry: owner, newCountry: owner, clicked, defenders}))
+    }
+
+    private strike(tile: number): boolean {
+        const defenders = this.defenders.get(tile) ?? 0
         if (defenders === 0) return false
 
-        this.garrison(tileId, owner, defenders - 1)
+        if (defenders > 1) this.defenders.set(tile, defenders - 1)
+        else this.defenders.delete(tile)
         return true
-    }
-
-    private garrison(tile: number, country: string, defenders: number) {
-        if (defenders > 0) this.garrisons.set(tile, defenders)
-        else this.garrisons.delete(tile)
-
-        this.flushUpdates()
-        this.garrisonCallbacks.forEach(callback => callback({tile, country, defenders}))
-    }
-
-    public async getGarrisons(): Promise<Garrison[]> {
-        return [...this.garrisons].map(([tile, defenders]) => ({tile, country: this.tileBindings.get(tile) ?? "", defenders}))
-    }
-
-    public listenForGarrisons(onChanged: (garrison: Garrison) => void): () => void {
-        const identifier = UUIDv4()
-        this.garrisonCallbacks.set(identifier, onChanged)
-        return () => this.garrisonCallbacks.delete(identifier)
     }
 
     public async placeDefender(tileId: number, countryId: string): Promise<void> {
@@ -407,10 +401,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public botDefend(tile: number, countryId: string): boolean {
-        const defenders = this.garrisons.get(tile) ?? 0
+        const defenders = this.defenders.get(tile) ?? 0
         if (this.tileBindings.get(tile) !== countryId || defenders >= TILE_DEFENDERS) return false
 
-        this.garrison(tile, countryId, defenders + 1)
+        this.defend(tile, countryId, defenders + 1, false)
         return true
     }
 
@@ -541,12 +535,19 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const {tile, arc, point} = nearestTile(positions, target)
         const onLand = tile !== undefined && arc <= SEA_REACH
 
-        const cleared = onLand ? tilesWithin(positions, tile, BOMB_RADIUS).filter((id) => {
+        const cleared: number[] = []
+        const struck: number[] = []
+        for (const id of onLand ? tilesWithin(positions, tile, BOMB_RADIUS) : []) {
             const owner = this.tileBindings.get(id)
-            if (owner === undefined || this.hit(id, owner)) return false
+            if (owner === undefined) continue
+            if (this.strike(id)) {
+                struck.push(id)
+                continue
+            }
             this.count(owner, -1)
-            return this.tileBindings.delete(id)
-        }) : []
+            this.tileBindings.delete(id)
+            cleared.push(id)
+        }
 
         const drop: BombDrop = {
             tile: onLand ? tile : undefined,
@@ -554,7 +555,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             countryId,
             radius: BOMB_RADIUS,
             cleared,
+            struck,
         }
+        this.flushUpdates()
         this.bombCallbacks.forEach((callback) => callback(drop))
     }
 
@@ -593,12 +596,15 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             signal?.throwIfAborted()
 
             const bindings = new Map<number, string>()
+            const defenders = new Map<number, number>()
             const end = Math.min(start + batchSize, maxIndex + 1)
             for (let tile = start; tile < end; tile++) {
                 const owner = this.tileBindings.get(tile)
                 if (owner) bindings.set(tile, owner)
+                const held = this.defenders.get(tile)
+                if (held) defenders.set(tile, held)
             }
-            callback({bindings})
+            callback({bindings, defenders})
         }
     }
 }

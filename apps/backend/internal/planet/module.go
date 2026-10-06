@@ -28,6 +28,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase/audit_grant_charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/open_quiz_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_defender_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_defender_usecase/antibot_place_defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
@@ -52,12 +54,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase/audit_paint_random"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons/inmemory_garrison_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons/postgres_garrison_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons/usecases/get_garrisons_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons/usecases/place_defender_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/garrisons/usecases/place_defender_usecase/antibot_place_defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -81,7 +77,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_garrisons_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
@@ -172,15 +167,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the charges: %w", err)
 			}
 
-			garrisonStorage := inmemory_garrison_storage.New(config.GarrisonStorage, config.Bonus.DefendersPerTile(),
-				postgres_garrison_store.New(db), props.Logger)
-			if err := garrisonStorage.Load(ctx); err != nil {
-				_ = db.Close()
-				return fmt.Errorf("failed to load the garrisons: %w", err)
-			}
-
 			// Not a closer: closers run before the runners' last flush.
-			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges, garrisonStorage, deletions))
+			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges, deletions))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter.Config, clock)
@@ -189,7 +177,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			pricer := clicks.NewToll(config.Toll, tilesStorage)
 
-			defence := garrisons.NewDefence(garrisonStorage)
+			defence := clicks.NewDefence(tilesStorage)
 
 			writer := ledger.NewRecording(tilesStorage, publishing_ledger_storage.New(takings, props.Events), clock)
 
@@ -322,8 +310,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			dropped := prom_drop_bomb.New(
 				publishing_drop_bomb.New(
-					drop_bomb_usecase.New(charges, geography,
-						garrisons.NewShelter(tilesStorage, tilesStorage, garrisonStorage), countries, bombRules),
+					drop_bomb_usecase.New(charges, geography, tilesStorage, countries, bombRules),
 					borders, props.Events, clock),
 				props.Metrics)
 
@@ -335,7 +322,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				SpreadClicks:      charges.SpreadClicks(),
 				Enclosures:        charges.Enclosures(),
 				Defenders:         charges.Defenders(),
-				TileDefenders:     garrisonStorage.PerTile(),
+				TileDefenders:     config.Bonus.DefendersPerTile(),
 			}
 
 			service := planetv1controller.ClickService{
@@ -345,8 +332,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetMapHandler: get_map_handler.New(
 					antibot_get_map.New(get_map_usecase.New(tilesChecker, tilesStorage), guard, tilesChecker)),
 				ListenForEventsHandler: listen_for_events_handler.New(antibot_listen_for_events.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry, garrisonStorage),
-					guard)),
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry), guard)),
 				ClaimBonusHandler:    claim_bonus_handler.New(claimBonus),
 				DropBombHandler:      drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
@@ -355,8 +341,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceDefenderHandler: place_defender_handler.New(antibot_place_defender.New(
-					place_defender_usecase.New(charges, tilesStorage, garrisonStorage, countries), guard)),
-				GetGarrisonsHandler: get_garrisons_handler.New(get_garrisons_usecase.New(garrisonStorage, tilesStorage)),
+					place_defender_usecase.New(charges, tilesStorage, countries, config.Bonus.DefendersPerTile()), guard)),
 			}
 
 			return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
