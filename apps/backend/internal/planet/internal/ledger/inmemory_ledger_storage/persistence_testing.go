@@ -13,7 +13,7 @@ import (
 
 type MemoryPersistence struct {
 	mu        sync.Mutex
-	takes     map[ledger.Position]ledger.Taking
+	events    map[ledger.Position]Stored
 	head      ledger.Position
 	forgotten map[ledger.Caller]ledger.Position
 	saves     int
@@ -22,7 +22,7 @@ type MemoryPersistence struct {
 
 func NewMemoryPersistence() *MemoryPersistence {
 	return &MemoryPersistence{
-		takes:     map[ledger.Position]ledger.Taking{},
+		events:    map[ledger.Position]Stored{},
 		forgotten: map[ledger.Caller]ledger.Position{},
 	}
 }
@@ -34,9 +34,9 @@ func (m *MemoryPersistence) Load(_ context.Context, visit func(Stored)) (Marks, 
 	if m.failing != nil {
 		return Marks{}, m.failing
 	}
-	for _, position := range slices.Sorted(maps.Keys(m.takes)) {
+	for _, position := range slices.Sorted(maps.Keys(m.events)) {
 		if position >= m.head {
-			visit(Stored{Position: position, Taking: m.takes[position]})
+			visit(m.events[position])
 		}
 	}
 	return Marks{Head: m.head, Forgotten: maps.Clone(m.forgotten)}, nil
@@ -51,16 +51,15 @@ func (m *MemoryPersistence) Save(_ context.Context, changes Changes) error {
 	}
 	m.saves++
 
-	maps.DeleteFunc(m.takes, func(position ledger.Position, _ ledger.Taking) bool {
+	maps.DeleteFunc(m.events, func(position ledger.Position, _ Stored) bool {
 		return position >= changes.From
 	})
-	for take := range changes.Takes {
-		m.takes[take.Position] = take.Taking
+	for entry := range changes.Events {
+		m.events[entry.Position] = entry
 	}
-	for position, taking := range m.takes {
+	for position, entry := range m.events {
 		if position < changes.Marks.Head {
-			taking.Scope = ""
-			m.takes[position] = taking
+			m.events[position] = edited(entry, func(scope, _ *string) { *scope = "" })
 		}
 	}
 
@@ -77,22 +76,35 @@ func (m *MemoryPersistence) AnonymizeTakes(_ context.Context, account ledger.Acc
 	if m.failing != nil {
 		return m.failing
 	}
-	for position, taking := range m.takes {
-		if taking.Account == account.String() {
-			taking.Account = ""
-			m.takes[position] = taking
-		}
+	for position, entry := range m.events {
+		m.events[position] = edited(entry, func(_, owner *string) {
+			if *owner == account.String() {
+				*owner = ""
+			}
+		})
 	}
 	return nil
+}
+
+func edited(entry Stored, edit func(scope, account *string)) Stored {
+	if entry.Bombing == nil {
+		edit(&entry.Taking.Scope, &entry.Taking.Account)
+		return entry
+	}
+
+	bombing := *entry.Bombing
+	edit(&bombing.Scope, &bombing.Account)
+	entry.Bombing = &bombing
+	return entry
 }
 
 func (m *MemoryPersistence) Stored() []Stored {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	stored := make([]Stored, 0, len(m.takes))
-	for _, position := range slices.Sorted(maps.Keys(m.takes)) {
-		stored = append(stored, Stored{Position: position, Taking: m.takes[position]})
+	stored := make([]Stored, 0, len(m.events))
+	for _, position := range slices.Sorted(maps.Keys(m.events)) {
+		stored = append(stored, m.events[position])
 	}
 	return stored
 }

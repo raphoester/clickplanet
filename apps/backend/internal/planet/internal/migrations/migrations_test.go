@@ -91,7 +91,7 @@ func TestTheRemapMovesTheLedgerAndForgetsTakesOnTilesThatWent(t *testing.T) {
 
 	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
 
-	tiles := scan(t, db, `SELECT tile FROM ledger_takes ORDER BY tile`)
+	tiles := scan(t, db, `SELECT tile FROM ledger_events ORDER BY tile`)
 	assert.ElementsMatch(t, values(moved), tiles,
 		"a take on a tile the new map does not have is deleted, not left pointing at other ground")
 }
@@ -101,7 +101,7 @@ func TestTheRemapGoesBack(t *testing.T) {
 	db := server.OpenSchema(t, "planet", before(t, remapTiles))
 	seed(t, db)
 
-	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+	require.NoError(t, db.Migrate(t.Context(), before(t, ledgerEvents)))
 
 	down, err := fs.ReadFile(migrations.FS, remapTiles+"_remap_tiles.down.sql")
 	require.NoError(t, err)
@@ -115,7 +115,7 @@ func TestTheRemapGoesBack(t *testing.T) {
 const keepEveryTake = "20261004120000"
 
 func TestKeepingEveryTakeGoesBackWithoutTheTakesThatLostTheirScope(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, ledgerEvents))
 	at := time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)
 	_, err := db.ExecContext(t.Context(),
 		`INSERT INTO ledger_takes (position, tile, scope, country, previous, taken_at)
@@ -131,6 +131,49 @@ func TestKeepingEveryTakeGoesBackWithoutTheTakesThatLostTheirScope(t *testing.T)
 	_, err = db.ExecContext(t.Context(),
 		`INSERT INTO ledger_takes (position, tile, scope, country, previous, taken_at) VALUES (2, 3, NULL, 'fr', '', $1)`, at)
 	assert.Error(t, err, "a scope is required again")
+}
+
+const ledgerEvents = "20261006120000"
+
+func TestEveryTakeKeptBeforeTheEventsIsATake(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, ledgerEvents))
+	at := time.Date(2026, 10, 6, 12, 0, 0, 0, time.UTC)
+	_, err := db.ExecContext(t.Context(),
+		`INSERT INTO ledger_takes (position, tile, scope, country, previous, taken_at)
+		 VALUES (0, 1, NULL, 'fr', '', $1), (1, 2, '203.0.113.7', 'fr', 'de', $1)`, at)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	assert.Equal(t, []int{2}, scan(t, db,
+		`SELECT count(*) FROM ledger_events WHERE kind = 'take' AND payload IS NULL`))
+
+	insert := `INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, payload)
+		VALUES ($1, $2, 3, '203.0.113.7', '', '', $3, $4)`
+	_, err = db.ExecContext(t.Context(), insert, 2, "bomb", at, nil)
+	require.Error(t, err, "a bomb carries its blast")
+	_, err = db.ExecContext(t.Context(), insert, 3, "take", at, `{}`)
+	require.Error(t, err, "a take carries nothing")
+	_, err = db.ExecContext(t.Context(), insert, 4, "quake", at, nil)
+	require.Error(t, err, "a kind the table does not know")
+	_, err = db.ExecContext(t.Context(), insert, 5, "bomb", at, `{"cleared": {}}`)
+	require.NoError(t, err)
+}
+
+func TestTheEventsGoBackToTakesWithoutTheBombs(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	at := time.Date(2026, 10, 6, 12, 0, 0, 0, time.UTC)
+	_, err := db.ExecContext(t.Context(),
+		`INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, payload)
+		 VALUES (0, 'take', 1, '203.0.113.7', 'fr', '', $1, NULL), (1, 'bomb', 1, '203.0.113.7', '', 'fr', $1, '{}')`, at)
+	require.NoError(t, err)
+
+	down, err := fs.ReadFile(migrations.FS, ledgerEvents+"_ledger_events.down.sql")
+	require.NoError(t, err)
+	_, err = db.ExecContext(t.Context(), string(down))
+	require.NoError(t, err)
+
+	assert.Equal(t, []int{0}, scan(t, db, `SELECT position FROM ledger_takes`))
 }
 
 func keys(m map[int]int) []int {

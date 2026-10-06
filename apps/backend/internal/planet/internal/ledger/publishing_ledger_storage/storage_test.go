@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/publishing_ledger_storage"
@@ -65,4 +66,17 @@ func TestAClearIsRecordedAndNotPublished(t *testing.T) {
 	require.Len(t, recorded, 1, "the revert follows a clear")
 	assert.True(t, recorded[0].Cleared())
 	assert.Empty(t, events.Published(), "a clear took no tile, so it is no tile in the stats")
+}
+
+func TestABombingIsRecordedAndNotPublished(t *testing.T) {
+	storage, inner, events := setUp()
+
+	storage.AppendBombing(ledger.Bombing{Scope: "203.0.113.7", Account: account, At: start, Blast: clicks.Blast{
+		Tile: 42, CountryID: "fr", Cleared: []uint32{42}, Owners: []string{"de"},
+	}})
+
+	var recorded []ledger.Taking
+	inner.Replay(func(taking ledger.Taking) { recorded = append(recorded, taking) })
+	assert.Len(t, recorded, 1)
+	assert.Empty(t, events.Published(), "a bomb takes no tile")
 }

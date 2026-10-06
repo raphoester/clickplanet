@@ -96,6 +96,7 @@ func (s *Storage) put(update clicks.TileUpdate) error {
 
 func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, error) {
 	cleared := make([]uint32, 0, len(blast.Cleared))
+	owners := make([]string, 0, len(blast.Cleared))
 
 	s.tilesMu.Lock()
 	for _, tile := range blast.Cleared {
@@ -104,6 +105,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 			return clicks.Blast{}, fmt.Errorf("tile %d out of range (max %d)", tile, s.maxIndex)
 		}
 		if s.tiles[tile] != unownedCode {
+			owners = append(owners, s.codes[s.tiles[tile]])
 			s.counts[s.tiles[tile]]--
 			s.tiles[tile] = unownedCode
 			s.markDirtyLocked(tile)
@@ -113,6 +115,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 	s.tilesMu.Unlock()
 
 	blast.Cleared = cleared
+	blast.Owners = owners
 	s.publish(clicks.Change{Blast: &blast})
 
 	return blast, nil

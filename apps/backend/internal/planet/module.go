@@ -310,7 +310,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			dropped := prom_drop_bomb.New(
 				publishing_drop_bomb.New(
-					drop_bomb_usecase.New(charges, geography, tilesStorage, countries, bombRules),
+					drop_bomb_usecase.New(charges, geography, writer, countries, bombRules),
 					borders, props.Events, clock),
 				props.Metrics)
 

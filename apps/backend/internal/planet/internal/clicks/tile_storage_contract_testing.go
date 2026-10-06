@@ -167,6 +167,7 @@ func (s *TileStorageContractSuite) TestClearEmptiesTheTilesAndPublishesOneBlast(
 	blast, err := s.storage.Clear(ctx, Blast{Tile: 11, CountryID: "de", Cleared: []uint32{10, 11, 12}})
 	s.Require().NoError(err)
 	s.Equal([]uint32{10, 12}, blast.Cleared, "only tiles that were held are reported")
+	s.Equal([]string{"fr", "jp"}, blast.Owners, "with the flag each one wore")
 
 	change := s.next(ctx, listener)
 	s.Require().NotNil(change.Blast)

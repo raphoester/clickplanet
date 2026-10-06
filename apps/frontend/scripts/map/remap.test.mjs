@@ -62,7 +62,13 @@ describe("remapSQL", () => {
     })
 
     it("deletes the ledger's takes on tiles the new map does not have", () => {
-        expect(remapSQL(plan)).toContain("DELETE FROM ledger_takes")
+        expect(remapSQL(plan)).toContain("DELETE FROM ledger_events e\nWHERE e.kind = 'take'")
+    })
+
+    it("keeps every bomb, and moves the tiles it cleared", () => {
+        const sql = remapSQL(plan)
+        expect(sql).toContain("SET tile = 0, previous = ''\nWHERE e.kind = 'bomb'")
+        expect(sql).toContain("jsonb_set(e.payload, '{cleared}'")
     })
 
     it("walks the runs the other way going down", () => {

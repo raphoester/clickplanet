@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 )
@@ -190,4 +191,51 @@ func TestRunFlushesOnItsInterval(t *testing.T) {
 	storage.Append(take(7, "a", "fr", "", start))
 
 	assert.Eventually(t, func() bool { return len(persistence.Stored()) == 1 }, 5*time.Second, 10*time.Millisecond)
+}
+
+func TestFlushWritesABombingAsOneEvent(t *testing.T) {
+	persistence := inmemory_ledger_storage.NewMemoryPersistence()
+	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
+
+	hit := bombing("bomber", start, []uint32{1, 2}, "fr", "il")
+	storage.Append(take(1, "a", "fr", "", start))
+	storage.AppendBombing(hit)
+	require.NoError(t, storage.Flush(t.Context()))
+
+	assert.Equal(t, []inmemory_ledger_storage.Stored{
+		{Position: 0, Taking: take(1, "a", "fr", "", start)},
+		{Position: 1, Bombing: &hit},
+	}, persistence.Stored())
+}
+
+func TestABombingSurvivesARestart(t *testing.T) {
+	persistence := inmemory_ledger_storage.NewMemoryPersistence()
+
+	before := loaded(t, inmemory_ledger_storage.Config{}, persistence)
+	before.AppendBombing(bombing("bomber", start, []uint32{1, 2}, "fr", "il"))
+	before.Append(take(1, "a", "fr", "", start.Add(time.Second)))
+	before.AppendBombing(bombing("bomber", start.Add(2*time.Second), nil))
+	require.NoError(t, before.Flush(t.Context()))
+
+	after := loaded(t, inmemory_ledger_storage.Config{}, persistence)
+	assert.Equal(t, replay(before), replay(after))
+	assert.Equal(t, ledger.Position(3), after.Replay(func(ledger.Taking) {}))
+	assert.Equal(t, inmemory_ledger_storage.Stored{
+		Position: 2, Bombing: &ledger.Bombing{Scope: "bomber", At: start.Add(2 * time.Second), Blast: clicks.Blast{CountryID: "de"}},
+	}, persistence.Stored()[2], "a bomb in the sea is kept too")
+}
+
+func TestFlushKeepsABombingTheRetentionDroppedWithoutItsScope(t *testing.T) {
+	persistence := inmemory_ledger_storage.NewMemoryPersistence()
+	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
+
+	storage.AppendBombing(bombing("bomber", start, []uint32{1}, "fr"))
+	storage.Append(take(2, "a", "fr", "", start.Add(time.Hour)))
+	require.NoError(t, storage.Flush(t.Context()))
+
+	storage.ForgetBefore(start.Add(time.Minute))
+	require.NoError(t, storage.Flush(t.Context()))
+
+	gone := bombing("", start, []uint32{1}, "fr")
+	assert.Equal(t, inmemory_ledger_storage.Stored{Position: 0, Bombing: &gone}, persistence.Stored()[0])
 }

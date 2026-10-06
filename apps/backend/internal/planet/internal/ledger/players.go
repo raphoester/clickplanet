@@ -39,7 +39,7 @@ type hold struct {
 }
 
 func (t *Tally) See(taking Taking) {
-	if !t.counts(taking) {
+	if taking.Bombed || !t.counts(taking) {
 		delete(t.tiles, taking.Tile)
 		return
 	}

@@ -18,9 +18,18 @@ type Persistence interface {
 	Save(ctx context.Context, changes Changes) error
 }
 
+// A take, or a bombing when Bombing is set.
 type Stored struct {
 	Position ledger.Position
 	Taking   ledger.Taking
+	Bombing  *ledger.Bombing
+}
+
+func (s Stored) row() ledger.Taking {
+	if s.Bombing != nil {
+		return s.Bombing.Landing()
+	}
+	return s.Taking
 }
 
 type Marks struct {
@@ -29,9 +38,9 @@ type Marks struct {
 }
 
 type Changes struct {
-	From  ledger.Position
-	Takes iter.Seq[Stored]
-	Marks Marks
+	From   ledger.Position
+	Events iter.Seq[Stored]
+	Marks  Marks
 }
 
 const flushTimeout = 10 * time.Second
@@ -44,11 +53,11 @@ func (s *Storage) Load(ctx context.Context) error {
 	defer s.mu.Unlock()
 
 	var restoreErr error
-	marks, err := s.persistence.Load(ctx, func(take Stored) {
+	marks, err := s.persistence.Load(ctx, func(entry Stored) {
 		if restoreErr != nil {
 			return
 		}
-		restoreErr = s.restoreLocked(take.Position, take.Taking)
+		restoreErr = s.restoreLocked(entry)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to read the stored ledger: %w", err)
@@ -66,18 +75,23 @@ func (s *Storage) Load(ctx context.Context) error {
 	return nil
 }
 
-func (s *Storage) restoreLocked(position ledger.Position, taking ledger.Taking) error {
-	if position < s.next {
-		return fmt.Errorf("%w: take at %d overlaps takes up to %d", errCorruptState, position, s.next)
+func (s *Storage) restoreLocked(entry Stored) error {
+	if entry.Position < s.next {
+		return fmt.Errorf("%w: event at %d overlaps events up to %d", errCorruptState, entry.Position, s.next)
 	}
 
-	if position != s.next {
+	if entry.Position != s.next {
 		if n := len(s.chunks); n > 0 {
 			s.sealLocked(s.chunks[n-1])
 		}
-		s.next = position
+		s.next = entry.Position
 	}
-	s.appendLocked(taking)
+
+	if entry.Bombing != nil {
+		s.appendBombingLocked(*entry.Bombing)
+		return nil
+	}
+	s.appendLocked(entry.Taking)
 
 	return nil
 }
@@ -146,9 +160,9 @@ func (s *Storage) Flush(ctx context.Context) error {
 	s.mu.Unlock()
 
 	err := s.persistence.Save(ctx, Changes{
-		From:  from,
-		Takes: storedOf(views),
-		Marks: Marks{Head: head, Forgotten: forgotten},
+		From:   from,
+		Events: storedOf(views),
+		Marks:  Marks{Head: head, Forgotten: forgotten},
 	})
 
 	s.mu.Lock()
@@ -167,8 +181,11 @@ func (s *Storage) Flush(ctx context.Context) error {
 func storedOf(views []view) iter.Seq[Stored] {
 	return func(yield func(Stored) bool) {
 		for _, v := range views {
-			for i, r := range v.records {
-				if !yield(Stored{Position: v.first + ledger.Position(i), Taking: v.taking(r)}) { //nolint:gosec // i < chunkSize.
+			bombs := v.bombs
+			for i := range v.records {
+				var entry Stored
+				entry, bombs = v.stored(i, bombs)
+				if !yield(entry) {
 					return
 				}
 			}

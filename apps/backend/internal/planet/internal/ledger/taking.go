@@ -24,6 +24,7 @@ type Taking struct {
 	Country  string
 	Previous string
 	At       time.Time
+	Bombed   bool
 }
 
 type Position uint64

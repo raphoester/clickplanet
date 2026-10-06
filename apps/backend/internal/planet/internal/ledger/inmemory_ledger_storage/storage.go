@@ -4,9 +4,11 @@ import (
 	"log/slog"
 	"maps"
 	"math"
+	"slices"
 	"sync"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
@@ -82,9 +84,15 @@ type chunk struct {
 	records   []record
 	callers   []string
 	countries []string
+	bombs     []bomb
 
 	callerIDs  map[string]uint32
 	countryIDs map[string]uint16
+}
+
+type bomb struct {
+	position ledger.Position
+	blast    clicks.Blast
 }
 
 func newChunk(first ledger.Position) *chunk {
@@ -127,6 +135,24 @@ func (s *Storage) Append(taking ledger.Taking) {
 	defer s.mu.Unlock()
 
 	s.appendLocked(taking)
+}
+
+func (s *Storage) AppendBombing(bombing ledger.Bombing) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.appendBombingLocked(bombing)
+}
+
+func (s *Storage) appendBombingLocked(bombing ledger.Bombing) {
+	position := s.next
+	s.appendLocked(bombing.Landing())
+
+	blast := bombing.Blast
+	blast.Cleared, blast.Owners = slices.Clone(blast.Cleared), slices.Clone(blast.Owners)
+
+	open := s.chunks[len(s.chunks)-1]
+	open.bombs = append(open.bombs, bomb{position: position, blast: blast})
 }
 
 func (s *Storage) appendLocked(taking ledger.Taking) {
@@ -260,6 +286,7 @@ type view struct {
 	records   []record
 	callers   []string
 	countries []string
+	bombs     []bomb
 }
 
 func (s *Storage) viewsLocked(from ledger.Position) []view {
@@ -276,11 +303,18 @@ func (s *Storage) viewsLocked(from ledger.Position) []view {
 			start = int(from - c.first) //nolint:gosec // inside this chunk.
 		}
 
+		first := c.first + ledger.Position(start) //nolint:gosec // at most chunkSize.
+		bombs := c.bombs[:len(c.bombs):len(c.bombs)]
+		for len(bombs) > 0 && bombs[0].position < first {
+			bombs = bombs[1:]
+		}
+
 		views = append(views, view{
-			first:     c.first + ledger.Position(start), //nolint:gosec // at most chunkSize.
+			first:     first,
 			records:   c.records[start:len(c.records):len(c.records)],
 			callers:   c.callers[:len(c.callers):len(c.callers)],
 			countries: c.countries[:len(c.countries):len(c.countries)],
+			bombs:     bombs,
 		})
 	}
 
@@ -295,12 +329,20 @@ func (s *Storage) Replay(see func(ledger.Taking)) ledger.Position {
 	s.mu.Unlock()
 
 	for _, v := range views {
-		for i, r := range v.records {
-			taking := v.taking(r)
-			if forgottenAt(forgotten, taking, v.first+ledger.Position(i)) { //nolint:gosec // i < chunkSize.
+		bombs := v.bombs
+		for i := range v.records {
+			var entry Stored
+			entry, bombs = v.stored(i, bombs)
+			if forgottenAt(forgotten, entry.row(), entry.Position) {
 				continue
 			}
-			see(taking)
+			if entry.Bombing == nil {
+				see(entry.Taking)
+				continue
+			}
+			for _, taking := range entry.Bombing.Takings() {
+				see(taking)
+			}
 		}
 	}
 
@@ -317,6 +359,19 @@ func forgottenAt(forgotten map[ledger.Caller]ledger.Position, taking ledger.Taki
 	before, ok := forgotten[ledger.Caller{Account: taking.Account}]
 
 	return ok && position < before
+}
+
+func (v view) stored(i int, bombs []bomb) (Stored, []bomb) {
+	position := v.first + ledger.Position(i) //nolint:gosec // i < chunkSize.
+	taking := v.taking(v.records[i])
+
+	if len(bombs) == 0 || bombs[0].position != position {
+		return Stored{Position: position, Taking: taking}, bombs
+	}
+
+	return Stored{Position: position, Bombing: &ledger.Bombing{
+		Scope: taking.Scope, Account: taking.Account, At: taking.At, Blast: bombs[0].blast,
+	}}, bombs[1:]
 }
 
 func (v view) taking(r record) ledger.Taking {

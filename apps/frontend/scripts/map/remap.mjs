@@ -65,14 +65,33 @@ JOIN tile_remap r ON t.id >= r.from_id AND t.id < r.from_id + r.span;
 DELETE FROM tiles;
 INSERT INTO tiles (id, country) SELECT id, country FROM tiles_remapped;
 
-DELETE FROM ledger_takes t
-WHERE NOT EXISTS (
-    SELECT 1 FROM tile_remap r WHERE t.tile >= r.from_id AND t.tile < r.from_id + r.span
+DELETE FROM ledger_events e
+WHERE e.kind = 'take' AND NOT EXISTS (
+    SELECT 1 FROM tile_remap r WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span
 );
 
-UPDATE ledger_takes t
-SET tile = r.to_id + (t.tile - r.from_id)
+UPDATE ledger_events e
+SET tile = 0, previous = ''
+WHERE e.kind = 'bomb' AND NOT EXISTS (
+    SELECT 1 FROM tile_remap r WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span
+);
+
+UPDATE ledger_events e
+SET tile = r.to_id + (e.tile - r.from_id)
 FROM tile_remap r
-WHERE t.tile >= r.from_id AND t.tile < r.from_id + r.span;
+WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span;
+
+UPDATE ledger_events e
+SET payload = jsonb_set(e.payload, '{cleared}', COALESCE((
+    SELECT jsonb_object_agg(kept.owner, kept.tiles)
+    FROM (
+        SELECT c.key AS owner, jsonb_agg(r.to_id + (t.tile - r.from_id) ORDER BY t.tile) AS tiles
+        FROM jsonb_each(e.payload->'cleared') c
+        CROSS JOIN LATERAL (SELECT value::integer AS tile FROM jsonb_array_elements_text(c.value)) t
+        JOIN tile_remap r ON t.tile >= r.from_id AND t.tile < r.from_id + r.span
+        GROUP BY c.key
+    ) kept
+), '{}'::jsonb))
+WHERE e.kind = 'bomb';
 `
 }
