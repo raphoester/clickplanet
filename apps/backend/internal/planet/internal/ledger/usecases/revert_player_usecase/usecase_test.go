@@ -42,10 +42,12 @@ func (m *stubMap) Restore(_ context.Context, restorations []clicks.Restoration) 
 
 func takenBy(book *inmemory_ledger_storage.Storage, scope string) int {
 	n := 0
-	book.Replay(func(taking ledger.Taking) {
-		if taking.Scope == scope {
-			n++
-		}
+	book.Replay(func(event ledger.Event) {
+		event.Replay(func(taking ledger.Taking) {
+			if taking.Scope == scope {
+				n++
+			}
+		})
 	})
 	return n
 }
@@ -174,4 +176,20 @@ func TestAnAccountIsRevertedWhateverScopeItTookFrom(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, again.Touched, "the account's takes are forgotten")
 	assert.Equal(t, 1, takenBy(book, "campus"), "and only the account's")
+}
+
+func TestItGivesTheBombersBlastBackToTheTilesStillEmpty(t *testing.T) {
+	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
+	tiles := &stubMap{owners: map[uint32]string{1: "", 2: "", 3: "fr"}}
+	book.Append(ledger.Bombing{Scope: "9.9.9.9", Blast: clicks.Blast{
+		Tile: 2, CountryID: "de", Cleared: []uint32{1, 2, 3}, Owners: []string{"il", "il", "ps"},
+	}})
+	book.Append(ledger.Taking{Tile: 3, Scope: "1.1.1.1", Country: "fr"})
+
+	out, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 10}).
+		Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
+	require.NoError(t, err)
+
+	assert.Equal(t, revert_player_usecase.Out{Scope: "9.9.9.9", Touched: 3, Held: 2, Restored: 2}, out)
+	assert.Equal(t, map[uint32]string{1: "il", 2: "il", 3: "fr"}, tiles.owners, "a tile retaken since stays retaken")
 }

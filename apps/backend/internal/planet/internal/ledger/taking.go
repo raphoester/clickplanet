@@ -26,6 +26,24 @@ type Taking struct {
 	At       time.Time
 }
 
+const kindTake = "take"
+
+func (t Taking) Replay(see func(Taking)) {
+	see(t)
+}
+
+func (t Taking) Entry() (Entry, error) {
+	return Entry{
+		Kind: kindTake, Tile: t.Tile, Scope: t.Scope, Account: t.Account, Country: t.Country, Previous: t.Previous, At: t.At,
+	}, nil
+}
+
+func takingOf(entry Entry) (Event, error) {
+	return Taking{
+		Tile: entry.Tile, Scope: entry.Scope, Account: entry.Account, Country: entry.Country, Previous: entry.Previous, At: entry.At,
+	}, nil
+}
+
 type Position uint64
 
 type AccountID = cpsession.AccountID
@@ -61,6 +79,10 @@ func ParseCaller(scope, account string) (Caller, error) {
 	}
 
 	return Caller{Scope: parsed}, nil
+}
+
+func (t Taking) Cleared() bool {
+	return t.Country == ""
 }
 
 func (c Caller) Made(taking Taking) bool {

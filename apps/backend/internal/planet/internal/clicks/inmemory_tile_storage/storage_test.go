@@ -10,7 +10,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -158,7 +157,7 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 	}
 }
 
-var _ click_usecase.TileStorage = (*inmemory_tile_storage.Storage)(nil)
+var _ clicks.Claimable = (*inmemory_tile_storage.Storage)(nil)
 
 func stateBatch(s *inmemory_tile_storage.Storage, start uint32, end uint32) (map[uint32]string, error) {
 	batch, err := s.StateBatchDense(start, end)

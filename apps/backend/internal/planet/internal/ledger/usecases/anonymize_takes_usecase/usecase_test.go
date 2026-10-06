@@ -41,8 +41,8 @@ func TestATakeNotYetFlushedIsKeptWithNoAccount(t *testing.T) {
 	require.NoError(t, anonymize_takes_usecase.New(takings, persistence).Execute(t.Context(), gone(t)))
 
 	assert.Equal(t, []inmemory_ledger_storage.Stored{
-		{Position: 0, Taking: ledger.Taking{Tile: 1, Scope: "1.2.3.4", Country: "fr", At: at}},
-		{Position: 1, Taking: ledger.Taking{Tile: 2, Scope: "1.2.3.4", Account: kept, Country: "de", Previous: "fr", At: at}},
+		{Position: 0, Entry: ledger.Entry{Kind: "take", Tile: 1, Scope: "1.2.3.4", Country: "fr", At: at}},
+		{Position: 1, Entry: ledger.Entry{Kind: "take", Tile: 2, Scope: "1.2.3.4", Account: kept, Country: "de", Previous: "fr", At: at}},
 	}, persistence.Stored())
 }
 

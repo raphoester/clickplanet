@@ -5,17 +5,11 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 )
 
-type TileStorage interface {
-	Owner(tile uint32) (string, bool)
-	Set(ctx context.Context, tile uint32, value string) error
-}
-
-type Rule interface {
-	Strike(ctx context.Context, tile uint32, owner, flag string) clicks.Outcome
+type Encloser interface {
+	Enclose(ctx context.Context, tile uint32, flag string, inside []uint32) error
 }
 
 type Spender interface {
@@ -27,14 +21,13 @@ type Publisher interface {
 }
 
 type Annexer struct {
-	storage   TileStorage
-	rule      Rule
+	encloser  Encloser
 	spender   Spender
 	publisher Publisher
 }
 
-func NewAnnexer(storage TileStorage, rule Rule, spender Spender, publisher Publisher) Annexer {
-	return Annexer{storage: storage, rule: rule, spender: spender, publisher: publisher}
+func NewAnnexer(encloser Encloser, spender Spender, publisher Publisher) Annexer {
+	return Annexer{encloser: encloser, spender: spender, publisher: publisher}
 }
 
 func (a Annexer) Annex(ctx context.Context, entrant bonuses.Entrant, holder bonuses.Holder, closing click_usecase.In, pockets []bonuses.Pocket) error {
@@ -43,24 +36,11 @@ func (a Annexer) Annex(ctx context.Context, entrant bonuses.Entrant, holder bonu
 	}
 
 	pocket := pockets[0]
-	if err := a.take(ctx, pocket, closing.CountryID); err != nil {
-		return err
+	if err := a.encloser.Enclose(ctx, closing.TileID, closing.CountryID, pocket.Inside()); err != nil {
+		return fmt.Errorf("failed to take the pocket closed at tile %d: %w", closing.TileID, err)
 	}
 
 	a.publisher.PublishEnclosed(entrant, pocket.Announcement(closing.CountryID, closing.TileID))
-
-	return nil
-}
-
-func (a Annexer) take(ctx context.Context, pocket bonuses.Pocket, country string) error {
-	for _, tile := range pocket.Inside() {
-		owner, _ := a.storage.Owner(tile)
-		after := a.rule.Strike(ctx, tile, owner, country).OwnerAfter(owner, country)
-
-		if err := a.storage.Set(ctx, tile, after); err != nil {
-			return fmt.Errorf("failed to take enclosed tile %d: %w", tile, err)
-		}
-	}
 
 	return nil
 }

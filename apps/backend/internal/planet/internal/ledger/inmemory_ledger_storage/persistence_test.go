@@ -3,15 +3,24 @@ package inmemory_ledger_storage_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 )
+
+func written(t *testing.T, event ledger.Event) ledger.Entry {
+	t.Helper()
+	entry, err := event.Entry()
+	require.NoError(t, err)
+	return entry
+}
 
 func loaded(t *testing.T, config inmemory_ledger_storage.Config, persistence inmemory_ledger_storage.Persistence) *inmemory_ledger_storage.Storage {
 	t.Helper()
@@ -24,7 +33,7 @@ func TestAnEmptyStoreLoadsAnEmptyLedger(t *testing.T) {
 	storage := loaded(t, inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
 	assert.Empty(t, replay(storage))
-	assert.Equal(t, ledger.Position(0), storage.Replay(func(ledger.Taking) {}))
+	assert.Equal(t, ledger.Position(0), storage.Replay(func(ledger.Event) {}))
 }
 
 func TestALedgerSurvivesARestartWithItsPositionsAndMarks(t *testing.T) {
@@ -35,13 +44,13 @@ func TestALedgerSurvivesARestartWithItsPositionsAndMarks(t *testing.T) {
 	before.Append(take(1, "bot", "ps", "il", start))
 	before.Append(take(2, "player", "fr", "", start.Add(time.Second)))
 	require.NoError(t, before.Flush(ctx))
-	before.Forget(ledger.Caller{Scope: "bot"}, before.Replay(func(ledger.Taking) {}))
+	before.Forget(ledger.Caller{Scope: "bot"}, before.Replay(func(ledger.Event) {}))
 	before.Append(take(3, "bot", "ps", "", start.Add(time.Minute)))
 	require.NoError(t, before.Flush(ctx))
 
 	after := loaded(t, inmemory_ledger_storage.Config{}, persistence)
 	assert.Equal(t, replay(before), replay(after))
-	assert.Equal(t, ledger.Position(3), after.Replay(func(ledger.Taking) {}))
+	assert.Equal(t, ledger.Position(3), after.Replay(func(ledger.Event) {}))
 
 	after.Append(take(4, "bot", "ps", "", start.Add(time.Hour)))
 	assert.Len(t, replay(after), 3, "positions carry on past the stored takes")
@@ -69,8 +78,8 @@ func TestFlushWritesOnlyTheTakesSinceTheLastFlush(t *testing.T) {
 
 	assert.Equal(t, 2, persistence.Saves(), "a flush with nothing new writes nothing")
 	assert.Equal(t, []inmemory_ledger_storage.Stored{
-		{Position: 0, Taking: take(1, "a", "fr", "", start)},
-		{Position: 1, Taking: take(2, "b", "de", "", start)},
+		{Position: 0, Entry: written(t, take(1, "a", "fr", "", start))},
+		{Position: 1, Entry: written(t, take(2, "b", "de", "", start))},
 	}, persistence.Stored())
 }
 
@@ -80,7 +89,7 @@ func TestAFailedFlushKeepsTheChangesForTheNextOne(t *testing.T) {
 	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
 
 	storage.Append(take(1, "bot", "ps", "", start))
-	storage.Forget(ledger.Caller{Scope: "bot"}, storage.Replay(func(ledger.Taking) {}))
+	storage.Forget(ledger.Caller{Scope: "bot"}, storage.Replay(func(ledger.Event) {}))
 	persistence.FailWith(errors.New("connection reset"))
 	require.Error(t, storage.Flush(ctx))
 
@@ -105,8 +114,8 @@ func TestFlushKeepsWhatTheRetentionDroppedWithoutItsScope(t *testing.T) {
 	require.NoError(t, storage.Flush(ctx))
 
 	assert.Equal(t, []inmemory_ledger_storage.Stored{
-		{Position: 0, Taking: take(1, "", "fr", "", start)},
-		{Position: 1, Taking: take(2, "a", "fr", "", start.Add(time.Hour))},
+		{Position: 0, Entry: written(t, take(1, "", "fr", "", start))},
+		{Position: 1, Entry: written(t, take(2, "a", "fr", "", start.Add(time.Hour)))},
 	}, persistence.Stored())
 	assert.Equal(t, ledger.Position(1), persistence.Marks().Head)
 }
@@ -136,7 +145,7 @@ func TestATakeDroppedBeforeItWasFlushedIsNeverWritten(t *testing.T) {
 	storage.Append(take(2, "b", "fr", "", start))
 	require.NoError(t, storage.Flush(ctx))
 
-	assert.Equal(t, []inmemory_ledger_storage.Stored{{Position: 1, Taking: take(2, "b", "fr", "", start)}}, persistence.Stored())
+	assert.Equal(t, []inmemory_ledger_storage.Stored{{Position: 1, Entry: written(t, take(2, "b", "fr", "", start))}}, persistence.Stored())
 }
 
 func TestPositionsCarryOnPastALedgerTheRetentionEmptied(t *testing.T) {
@@ -150,7 +159,7 @@ func TestPositionsCarryOnPastALedgerTheRetentionEmptied(t *testing.T) {
 	require.NoError(t, storage.Flush(ctx))
 
 	after := loaded(t, inmemory_ledger_storage.Config{}, persistence)
-	assert.Equal(t, ledger.Position(2), after.Replay(func(ledger.Taking) {}))
+	assert.Equal(t, ledger.Position(2), after.Replay(func(ledger.Event) {}))
 }
 
 func TestRunFlushesOnShutdown(t *testing.T) {
@@ -190,4 +199,60 @@ func TestRunFlushesOnItsInterval(t *testing.T) {
 	storage.Append(take(7, "a", "fr", "", start))
 
 	assert.Eventually(t, func() bool { return len(persistence.Stored()) == 1 }, 5*time.Second, 10*time.Millisecond)
+}
+
+func TestFlushWritesABombingAsOneEvent(t *testing.T) {
+	persistence := inmemory_ledger_storage.NewMemoryPersistence()
+	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
+
+	hit := bombing("bomber", start, []uint32{1, 2}, "fr", "il")
+	storage.Append(take(1, "a", "fr", "", start))
+	storage.Append(hit)
+	require.NoError(t, storage.Flush(t.Context()))
+
+	assert.Equal(t, []inmemory_ledger_storage.Stored{
+		{Position: 0, Entry: written(t, take(1, "a", "fr", "", start))},
+		{Position: 1, Entry: written(t, hit)},
+	}, persistence.Stored())
+}
+
+func TestABombingSurvivesARestart(t *testing.T) {
+	persistence := inmemory_ledger_storage.NewMemoryPersistence()
+
+	before := loaded(t, inmemory_ledger_storage.Config{}, persistence)
+	before.Append(bombing("bomber", start, []uint32{1, 2}, "fr", "il"))
+	before.Append(take(1, "a", "fr", "", start.Add(time.Second)))
+	before.Append(bombing("bomber", start.Add(2*time.Second), nil))
+	require.NoError(t, before.Flush(t.Context()))
+
+	after := loaded(t, inmemory_ledger_storage.Config{}, persistence)
+	assert.Equal(t, replay(before), replay(after))
+	assert.Equal(t, ledger.Position(3), after.Replay(func(ledger.Event) {}))
+	assert.Equal(t, inmemory_ledger_storage.Stored{
+		Position: 2, Entry: written(t, ledger.Bombing{Scope: "bomber", At: start.Add(2 * time.Second), Blast: clicks.Blast{CountryID: "de"}}),
+	}, persistence.Stored()[2], "a bomb in the sea is kept too")
+}
+
+func TestFlushKeepsABombingTheRetentionDroppedWithoutItsScope(t *testing.T) {
+	persistence := inmemory_ledger_storage.NewMemoryPersistence()
+	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
+
+	storage.Append(bombing("bomber", start, []uint32{1}, "fr"))
+	storage.Append(take(2, "a", "fr", "", start.Add(time.Hour)))
+	require.NoError(t, storage.Flush(t.Context()))
+
+	storage.ForgetBefore(start.Add(time.Minute))
+	require.NoError(t, storage.Flush(t.Context()))
+
+	gone := bombing("", start, []uint32{1}, "fr")
+	assert.Equal(t, inmemory_ledger_storage.Stored{Position: 0, Entry: written(t, gone)}, persistence.Stored()[0])
+}
+
+func TestAnEventOfAKindTheLedgerDoesNotKnowRefusesTheBoot(t *testing.T) {
+	persistence := inmemory_ledger_storage.NewMemoryPersistence()
+	require.NoError(t, persistence.Save(t.Context(), inmemory_ledger_storage.Changes{
+		Entries: slices.Values([]inmemory_ledger_storage.Stored{{Position: 0, Entry: ledger.Entry{Kind: "quake", Scope: "a"}}}),
+	}))
+
+	require.ErrorIs(t, newStorage(inmemory_ledger_storage.Config{}, persistence).Load(t.Context()), ledger.ErrUnknownKind)
 }

@@ -3,6 +3,7 @@ package enclose_click_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"testing"
 
@@ -64,10 +65,18 @@ func (d shields) Strike(_ context.Context, tile uint32, _ string) bool {
 	return true
 }
 
+type board struct {
+	tiles
+	shields
+}
+
+func (b board) Click(ctx context.Context, tile uint32, value string) error {
+	return b.Set(ctx, tile, value)
+}
+
 type rule struct {
-	tiles     tiles
-	shielding clicks.Shielding
-	err       error
+	claiming clicks.Claiming
+	err      error
 }
 
 func (r rule) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
@@ -75,10 +84,21 @@ func (r rule) Execute(ctx context.Context, in click_usecase.In) (click_usecase.O
 		return click_usecase.Out{}, r.err
 	}
 
-	owner, _ := r.tiles.Owner(in.TileID)
-	outcome := r.shielding.Strike(ctx, in.TileID, owner, in.CountryID)
+	impact, err := r.claiming.Click(ctx, in.TileID, in.CountryID)
 
-	return click_usecase.Out{Outcome: outcome}, r.tiles.Set(ctx, in.TileID, outcome.OwnerAfter(owner, in.CountryID))
+	return click_usecase.Out{Outcome: impact.Outcome}, err
+}
+
+type encloser struct{ claiming clicks.Claiming }
+
+func (e encloser) Enclose(ctx context.Context, _ uint32, flag string, inside []uint32) error {
+	for _, tile := range inside {
+		if _, err := e.claiming.Claim(ctx, tile, flag); err != nil {
+			return fmt.Errorf("failed to claim tile %d: %w", tile, err)
+		}
+	}
+
+	return nil
 }
 
 type recorder struct{ published []bonuses.Enclosed }
@@ -118,9 +138,9 @@ func setup(charged bool, err error) fixture {
 		f.charges.Grant(caller, bonuses.KindEncloseClicks, 1)
 	}
 
-	shielding := clicks.NewShielding(f.shields)
-	f.useCase = enclose_click.New(rule{tiles: f.tiles, shielding: shielding, err: err}, f.charges,
-		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(f.tiles, shielding, f.charges, f.published))
+	claiming := clicks.NewClaiming(board{tiles: f.tiles, shields: f.shields})
+	f.useCase = enclose_click.New(rule{claiming: claiming, err: err}, f.charges,
+		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(encloser{claiming: claiming}, f.charges, f.published))
 
 	return f
 }

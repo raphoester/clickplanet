@@ -8,7 +8,7 @@ import (
 )
 
 type Ledger interface {
-	Replay(see func(ledger.Taking)) ledger.Position
+	Replay(see func(ledger.Event)) ledger.Position
 }
 
 type Owners interface {

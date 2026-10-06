@@ -1,6 +1,7 @@
 package inmemory_ledger_storage_test
 
 import (
+	"errors"
 	"log/slog"
 	"sync"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 )
@@ -17,7 +19,9 @@ var start = time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
 
 func replay(storage *inmemory_ledger_storage.Storage) []ledger.Taking {
 	var takings []ledger.Taking
-	storage.Replay(func(taking ledger.Taking) { takings = append(takings, taking) })
+	storage.Replay(func(event ledger.Event) {
+		event.Replay(func(taking ledger.Taking) { takings = append(takings, taking) })
+	})
 	return takings
 }
 
@@ -27,6 +31,14 @@ func newStorage(config inmemory_ledger_storage.Config, persistence inmemory_ledg
 
 func take(tile uint32, scope, country, previous string, at time.Time) ledger.Taking {
 	return ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: previous, At: at}
+}
+
+func bombing(scope string, at time.Time, cleared []uint32, owners ...string) ledger.Bombing {
+	return ledger.Bombing{Scope: scope, At: at, Blast: clicks.Blast{CountryID: "de", Cleared: cleared, Owners: owners}}
+}
+
+func bombed(tile uint32, scope, previous string, at time.Time) ledger.Taking {
+	return ledger.Taking{Tile: tile, Scope: scope, Previous: previous, At: at}
 }
 
 func TestEveryTakeIsKeptInOrder(t *testing.T) {
@@ -42,7 +54,7 @@ func TestEveryTakeIsKeptInOrder(t *testing.T) {
 	}
 
 	assert.Equal(t, want, replay(storage))
-	assert.Equal(t, ledger.Position(3), storage.Replay(func(ledger.Taking) {}))
+	assert.Equal(t, ledger.Position(3), storage.Replay(func(ledger.Event) {}))
 }
 
 func TestATimeIsKeptToTheSecond(t *testing.T) {
@@ -75,7 +87,7 @@ func TestForgetHidesTheScopesTakesBeforeThePositionOnly(t *testing.T) {
 
 	storage.Append(take(1, "bot", "ps", "il", start))
 	storage.Append(take(2, "player", "il", "", start))
-	end := storage.Replay(func(ledger.Taking) {})
+	end := storage.Replay(func(ledger.Event) {})
 	storage.Append(take(3, "bot", "ps", "", start.Add(time.Second)))
 
 	storage.Forget(ledger.Caller{Scope: "bot"}, end)
@@ -121,9 +133,11 @@ func TestAReplayRacingAppendsSeesAConsistentPrefix(t *testing.T) {
 
 	for range 20 {
 		last := int64(-1)
-		storage.Replay(func(taking ledger.Taking) {
-			assert.Greater(t, int64(taking.Tile), last)
-			last = int64(taking.Tile)
+		storage.Replay(func(event ledger.Event) {
+			event.Replay(func(taking ledger.Taking) {
+				assert.Greater(t, int64(taking.Tile), last)
+				last = int64(taking.Tile)
+			})
 		})
 		storage.ForgetBefore(start)
 	}
@@ -145,7 +159,93 @@ func TestForgetOnAnAccountHidesItsTakesFromEveryScope(t *testing.T) {
 	for _, taking := range []ledger.Taking{guest, elsewhere, classmate, noAccount} {
 		storage.Append(taking)
 	}
-	storage.Forget(ledger.Caller{Account: "a-guest"}, storage.Replay(func(ledger.Taking) {}))
+	storage.Forget(ledger.Caller{Account: "a-guest"}, storage.Replay(func(ledger.Event) {}))
 
 	assert.Equal(t, []ledger.Taking{classmate, noAccount}, replay(storage))
+}
+
+func TestABombingReplaysAsOneClearPerTileInItsPlace(t *testing.T) {
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
+
+	storage.Append(take(1, "a", "fr", "", start))
+	storage.Append(bombing("bomber", start.Add(time.Second), []uint32{1, 2}, "fr", "il"))
+	storage.Append(take(1, "a", "fr", "", start.Add(2*time.Second)))
+
+	assert.Equal(t, []ledger.Taking{
+		take(1, "a", "fr", "", start),
+		bombed(1, "bomber", "fr", start.Add(time.Second)),
+		bombed(2, "bomber", "il", start.Add(time.Second)),
+		take(1, "a", "fr", "", start.Add(2*time.Second)),
+	}, replay(storage))
+	assert.Equal(t, ledger.Position(3), storage.Replay(func(ledger.Event) {}), "a bombing is one event")
+}
+
+func TestABombingKeepsWhatItHitWhateverTheCallerDoesWithItsBlast(t *testing.T) {
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
+
+	hit := bombing("bomber", start, []uint32{1}, "fr")
+	storage.Append(hit)
+	hit.Blast.Cleared[0], hit.Blast.Owners[0] = 9, "jp"
+
+	assert.Equal(t, []ledger.Taking{bombed(1, "bomber", "fr", start)}, replay(storage))
+}
+
+func TestForgetHidesTheCallersBombings(t *testing.T) {
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
+
+	storage.Append(bombing("bot", start, []uint32{1}, "fr"))
+	storage.Append(take(2, "player", "il", "", start))
+	storage.Forget(ledger.Caller{Scope: "bot"}, storage.Replay(func(ledger.Event) {}))
+
+	assert.Equal(t, []ledger.Taking{take(2, "player", "il", "", start)}, replay(storage))
+}
+
+func TestTheRetentionDropsABombingWithItsTime(t *testing.T) {
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
+
+	storage.Append(bombing("old", start, []uint32{1}, "fr"))
+	storage.Append(take(2, "a", "fr", "", start.Add(time.Hour)))
+	storage.Append(bombing("new", start.Add(2*time.Hour), []uint32{2}, "fr"))
+
+	storage.ForgetBefore(start.Add(time.Minute))
+
+	assert.Equal(t, []ledger.Taking{
+		take(2, "a", "fr", "", start.Add(time.Hour)),
+		bombed(2, "new", "fr", start.Add(2*time.Hour)),
+	}, replay(storage))
+}
+
+func TestBombingsSpanChunks(t *testing.T) {
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
+
+	const n = 1<<16 + 2
+	for i := range uint32(n) {
+		if i == 1<<16-1 || i == 1<<16 {
+			storage.Append(bombing("bomber", start, []uint32{i}, "fr"))
+			continue
+		}
+		storage.Append(take(i, "1.2.3.4", "fr", "", start))
+	}
+
+	takings := replay(storage)
+	require.Len(t, takings, n)
+	assert.Equal(t, bombed(1<<16-1, "bomber", "fr", start), takings[1<<16-1], "the last event of a chunk")
+	assert.Equal(t, bombed(1<<16, "bomber", "fr", start), takings[1<<16], "the first event of the next")
+	assert.Equal(t, "fr", takings[n-1].Country)
+}
+
+type unwritable struct{}
+
+func (unwritable) Replay(func(ledger.Taking)) {}
+
+func (unwritable) Entry() (ledger.Entry, error) { return ledger.Entry{}, errors.New("no words for it") }
+
+func TestAnEventTheLedgerCannotWriteDownIsNotKept(t *testing.T) {
+	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
+
+	storage.Append(unwritable{})
+	storage.Append(take(1, "a", "fr", "", start))
+
+	assert.Equal(t, []ledger.Taking{take(1, "a", "fr", "", start)}, replay(storage))
+	assert.Equal(t, ledger.Position(1), storage.Replay(func(ledger.Event) {}))
 }
