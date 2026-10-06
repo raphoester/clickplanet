@@ -24,6 +24,10 @@ type shieldsPayload struct {
 
 func (s Striking) Replay(func(Taking)) {}
 
+func (s Striking) Show(see func(Scene)) {
+	see(Scene{At: s.At, Change: struck(s.Tile, s.Owner, s.Shields, true)})
+}
+
 func (s Striking) Entry() (Entry, error) {
 	payload, err := json.Marshal(shieldsPayload{Shields: s.Shields})
 	if err != nil {

@@ -5,7 +5,154 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { ChargesHeld } from "./planet_pb.js";
+import { ChargesHeld, GetMapResponse, PlanetEvent } from "./planet_pb.js";
+
+/**
+ * @generated from message planet.v1.GetReplayRequest
+ */
+export class GetReplayRequest extends Message<GetReplayRequest> {
+  /**
+   * @generated from field: google.protobuf.Timestamp since = 1;
+   */
+  since?: Timestamp;
+
+  /**
+   * Unset is now.
+   *
+   * @generated from field: google.protobuf.Timestamp until = 2;
+   */
+  until?: Timestamp;
+
+  constructor(data?: PartialMessage<GetReplayRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetReplayRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "since", kind: "message", T: Timestamp },
+    { no: 2, name: "until", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetReplayRequest {
+    return new GetReplayRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetReplayRequest {
+    return new GetReplayRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetReplayRequest {
+    return new GetReplayRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetReplayRequest | PlainMessage<GetReplayRequest> | undefined, b: GetReplayRequest | PlainMessage<GetReplayRequest> | undefined): boolean {
+    return proto3.util.equals(GetReplayRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetReplayResponse
+ */
+export class GetReplayResponse extends Message<GetReplayResponse> {
+  /**
+   * The map as it was at `since`.
+   *
+   * @generated from field: planet.v1.GetMapResponse opening = 1;
+   */
+  opening?: GetMapResponse;
+
+  /**
+   * @generated from field: repeated planet.v1.ReplayedEvent events = 2;
+   */
+  events: ReplayedEvent[] = [];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp since = 3;
+   */
+  since?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp until = 4;
+   */
+  until?: Timestamp;
+
+  constructor(data?: PartialMessage<GetReplayResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetReplayResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "opening", kind: "message", T: GetMapResponse },
+    { no: 2, name: "events", kind: "message", T: ReplayedEvent, repeated: true },
+    { no: 3, name: "since", kind: "message", T: Timestamp },
+    { no: 4, name: "until", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetReplayResponse {
+    return new GetReplayResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetReplayResponse {
+    return new GetReplayResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetReplayResponse {
+    return new GetReplayResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetReplayResponse | PlainMessage<GetReplayResponse> | undefined, b: GetReplayResponse | PlainMessage<GetReplayResponse> | undefined): boolean {
+    return proto3.util.equals(GetReplayResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.ReplayedEvent
+ */
+export class ReplayedEvent extends Message<ReplayedEvent> {
+  /**
+   * @generated from field: google.protobuf.Timestamp at = 1;
+   */
+  at?: Timestamp;
+
+  /**
+   * A tile update, a bomb, a spread or an enclosure, as the live stream sent it.
+   *
+   * @generated from field: planet.v1.PlanetEvent event = 2;
+   */
+  event?: PlanetEvent;
+
+  constructor(data?: PartialMessage<ReplayedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ReplayedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "at", kind: "message", T: Timestamp },
+    { no: 2, name: "event", kind: "message", T: PlanetEvent },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReplayedEvent {
+    return new ReplayedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReplayedEvent {
+    return new ReplayedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReplayedEvent {
+    return new ReplayedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReplayedEvent | PlainMessage<ReplayedEvent> | undefined, b: ReplayedEvent | PlainMessage<ReplayedEvent> | undefined): boolean {
+    return proto3.util.equals(ReplayedEvent, a, b);
+  }
+}
 
 /**
  * @generated from message planet.v1.GrantChargesRequest

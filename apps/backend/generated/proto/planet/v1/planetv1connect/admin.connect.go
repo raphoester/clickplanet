@@ -55,6 +55,8 @@ const (
 	// AdminServiceGrantChargesProcedure is the fully-qualified name of the AdminService's GrantCharges
 	// RPC.
 	AdminServiceGrantChargesProcedure = "/planet.v1.AdminService/GrantCharges"
+	// AdminServiceGetReplayProcedure is the fully-qualified name of the AdminService's GetReplay RPC.
+	AdminServiceGetReplayProcedure = "/planet.v1.AdminService/GetReplay"
 )
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
@@ -67,6 +69,7 @@ type AdminServiceClient interface {
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
+	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the planet.v1.AdminService service. By default, it
@@ -128,6 +131,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GrantCharges")),
 			connect.WithClientOptions(opts...),
 		),
+		getReplay: connect.NewClient[v1.GetReplayRequest, v1.GetReplayResponse](
+			httpClient,
+			baseURL+AdminServiceGetReplayProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -141,6 +150,7 @@ type adminServiceClient struct {
 	paintRandomTiles *connect.Client[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse]
 	inspectPlayer    *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
 	grantCharges     *connect.Client[v1.GrantChargesRequest, v1.GrantChargesResponse]
+	getReplay        *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
 }
 
 // ReassignCountry calls planet.v1.AdminService.ReassignCountry.
@@ -183,6 +193,11 @@ func (c *adminServiceClient) GrantCharges(ctx context.Context, req *connect.Requ
 	return c.grantCharges.CallUnary(ctx, req)
 }
 
+// GetReplay calls planet.v1.AdminService.GetReplay.
+func (c *adminServiceClient) GetReplay(ctx context.Context, req *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error) {
+	return c.getReplay.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
@@ -193,6 +208,7 @@ type AdminServiceHandler interface {
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
+	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -250,6 +266,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GrantCharges")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceGetReplayHandler := connect.NewUnaryHandler(
+		AdminServiceGetReplayProcedure,
+		svc.GetReplay,
+		connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceReassignCountryProcedure:
@@ -268,6 +290,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceInspectPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceGrantChargesProcedure:
 			adminServiceGrantChargesHandler.ServeHTTP(w, r)
+		case AdminServiceGetReplayProcedure:
+			adminServiceGetReplayHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -307,4 +331,8 @@ func (UnimplementedAdminServiceHandler) InspectPlayer(context.Context, *connect.
 
 func (UnimplementedAdminServiceHandler) GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GrantCharges is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.GetReplay is not implemented"))
 }

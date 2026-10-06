@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipscope"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
@@ -30,6 +31,12 @@ const kindTake = "take"
 
 func (t Taking) Replay(see func(Taking)) {
 	see(t)
+}
+
+func (t Taking) Show(see func(Scene)) {
+	see(Scene{At: t.At, Change: &Change{
+		TileUpdate: clicks.TileUpdate{Tile: t.Tile, Value: t.Country, Previous: t.Previous, Clicked: true},
+	}})
 }
 
 func (t Taking) Entry() (Entry, error) {

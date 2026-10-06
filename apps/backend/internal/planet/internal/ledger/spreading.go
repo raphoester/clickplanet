@@ -21,6 +21,11 @@ func (s Spreading) Replay(see func(Taking)) {
 	replayClaims(see, s.Impacts, Taking{Scope: s.Scope, Account: s.Account, Country: s.Country, At: s.At})
 }
 
+func (s Spreading) Show(see func(Scene)) {
+	showImpacts(see, s.At, s.Country, s.Impacts)
+	see(Scene{At: s.At, Spread: bonusAt(s.Tile, s.Country, s.Impacts)})
+}
+
 func (s Spreading) Entry() (Entry, error) {
 	return claimsEntry(Entry{
 		Kind: kindSpread, Tile: s.Tile, Scope: s.Scope, Account: s.Account, Country: s.Country, At: s.At,

@@ -3,9 +3,9 @@ package listen_for_events_handler
 import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
 )
 
 type EventStream interface {
@@ -33,13 +33,15 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 	case event.Taken != nil:
 		return s.stream.Send(bonusTakenEvent(event.Taken))
 	case event.Blast != nil:
-		return s.stream.Send(bombDroppedEvent(event.Blast))
+		return s.stream.Send(planetmessage.BombDropped(event.Blast))
 	case event.Enclosed != nil:
-		return s.stream.Send(tilesEnclosedEvent(event.Enclosed))
+		enclosed := event.Enclosed
+		return s.stream.Send(planetmessage.TilesEnclosed(
+			enclosed.CountryID, enclosed.ClosingTile, enclosed.Wall, enclosed.Filled, enclosed.Yours))
 	case event.Spread != nil:
-		return s.stream.Send(tilesSpreadEvent(event.Spread))
+		return s.stream.Send(planetmessage.TilesSpread(event.Spread.CountryID, event.Spread.Tile, event.Spread.Neighbours))
 	default:
-		return s.stream.Send(tileUpdateEvent(event.Update))
+		return s.stream.Send(planetmessage.TileUpdate(event.Update))
 	}
 }
 
@@ -77,63 +79,6 @@ func bonusTakenEvent(taken *bonuses.Taken) *planetv1.PlanetEvent {
 				QuizSubjectCountryId: taken.QuizSubject,
 			},
 		},
-	}
-}
-
-func bombDroppedEvent(blast *clicks.Blast) *planetv1.PlanetEvent {
-	return &planetv1.PlanetEvent{
-		Event: &planetv1.PlanetEvent_BombDropped{
-			BombDropped: &planetv1.BombDropped{
-				TileId:         blast.Tile,
-				CountryId:      blast.CountryID,
-				Radius:         blast.Radius,
-				ClearedTileIds: blast.Cleared,
-				StruckTileIds:  blast.Struck,
-				Point:          &planetv1.GlobePoint{X: blast.Point.X, Y: blast.Point.Y, Z: blast.Point.Z},
-			},
-		},
-	}
-}
-
-func tilesEnclosedEvent(enclosed *bonuses.Enclosed) *planetv1.PlanetEvent {
-	return &planetv1.PlanetEvent{
-		Event: &planetv1.PlanetEvent_TilesEnclosed{
-			TilesEnclosed: &planetv1.TilesEnclosed{
-				CountryId:     enclosed.CountryID,
-				ClosingTileId: enclosed.ClosingTile,
-				WallTileIds:   enclosed.Wall,
-				FilledTileIds: enclosed.Filled,
-				Yours:         enclosed.Yours,
-			},
-		},
-	}
-}
-
-func tilesSpreadEvent(spread *bonuses.Spread) *planetv1.PlanetEvent {
-	return &planetv1.PlanetEvent{
-		Event: &planetv1.PlanetEvent_TilesSpread{
-			TilesSpread: &planetv1.TilesSpread{
-				CountryId:     spread.CountryID,
-				TileId:        spread.Tile,
-				SpreadTileIds: spread.Neighbours,
-			},
-		},
-	}
-}
-
-func toProto(update clicks.TileUpdate) *planetv1.TileUpdate {
-	return &planetv1.TileUpdate{
-		TileId:            update.Tile,
-		CountryId:         update.Value,
-		PreviousCountryId: update.Previous,
-		Clicked:           update.Clicked,
-		Shields:           uint32(update.Shields), //nolint:gosec // a byte in the tile storage.
-	}
-}
-
-func tileUpdateEvent(update clicks.TileUpdate) *planetv1.PlanetEvent {
-	return &planetv1.PlanetEvent{
-		Event: &planetv1.PlanetEvent_TileUpdate{TileUpdate: toProto(update)},
 	}
 }
 
