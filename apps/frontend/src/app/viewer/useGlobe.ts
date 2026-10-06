@@ -8,7 +8,6 @@ import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from '../../domain/bonus.ts';
 import {BombDrop, Bomber, BonusCatch, BonusListener} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
-import {ClearNotes} from '../../domain/clearNotes.ts';
 import {AcceptedClick} from './acceptedClicks.ts';
 
 export type GlobeStatus =
@@ -65,14 +64,6 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const takeBonus = useCallback((reward: BonusReward) => setAward(reward), [])
 
-    const [clearNotes] = useState(() => new ClearNotes(localStore()))
-    const [lastClear, setLastClear] = useState<{ground: string, id: number} | undefined>()
-    const recordClear = useCallback((ground: string) => {
-        if (!clearNotes.due) return
-        clearNotes.record()
-        setLastClear((previous) => ({ground, id: (previous?.id ?? 0) + 1}))
-    }, [clearNotes])
-
     const globeRef = useRef<Globe | null>(null)
 
     const initialCountry = useRef(country)
@@ -112,7 +103,6 @@ export function useGlobe(options: UseGlobeOptions) {
             bomber,
             onBombDropped: recordBomb,
             onArmedChange: setBombArmed,
-            onNativeCleared: recordClear,
             onClickAccepted,
             playSound,
             signal: abortController.signal,
@@ -141,7 +131,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordClear])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb])
 
     useEffect(() => {
         initialCountry.current = country
@@ -168,7 +158,6 @@ export function useGlobe(options: UseGlobeOptions) {
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
     const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !switches[name]), [switches])
     const dismissBomb = useCallback(() => setLastBomb(undefined), [])
-    const dismissClear = useCallback(() => setLastClear(undefined), [])
 
     return {
         status,
@@ -192,16 +181,6 @@ export function useGlobe(options: UseGlobeOptions) {
         lastCatch,
         lastBomb,
         dismissBomb,
-        lastClear,
-        dismissClear,
-    }
-}
-
-function localStore(): Storage | undefined {
-    try {
-        return window.localStorage
-    } catch {
-        return undefined
     }
 }
 

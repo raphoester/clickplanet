@@ -174,11 +174,6 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			pricer := clicks.NewToll(config.Toll, tilesStorage)
 
-			homeSoil := clicks.NewHomeSoil(config.HomeSoil, borders)
-			if homeSoil.Enabled() {
-				props.Logger.Info("home soil enabled: native land takes two clicks")
-			}
-
 			writer := ledger.NewRecording(tilesStorage, publishing_ledger_storage.New(takings, props.Events), clock)
 
 			registry := bonuses.New(config.Bonus, clock, charges)
@@ -199,12 +194,12 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			bombRules := bonuses.NewBombRules(config.Bonus.Bomb, geography.Spacing())
 
-			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries, homeSoil)
-			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, homeSoil, registry)
+			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
+			clickUseCase = spread_click.New(clickUseCase, charges, geography, writer, registry)
 
 			clickUseCase = enclose_click.New(clickUseCase, charges,
 				bonuses.NewTerrain(geography, tilesStorage),
-				enclose_click.NewAnnexer(writer, homeSoil, charges, prom_enclose.New(registry, props.Metrics)))
+				enclose_click.NewAnnexer(writer, charges, prom_enclose.New(registry, props.Metrics)))
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
@@ -218,7 +213,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			props.Runners.Add(guard)
 
-			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, homeSoil, clock, props.Metrics)
+			clickUseCase = antibot_click.New(clickUseCase, guard, tilesStorage, clock, props.Metrics)
 
 			clickUseCase = bonus_click.New(clickUseCase, registry)
 
@@ -335,7 +330,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				DropBombHandler:      drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:     use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
 				GetChargesHandler:    get_charges_handler.New(get_charges_usecase.New(charges)),
-				GetBonusRulesHandler: get_bonus_rules_handler.New(rules, homeSoil, pricer),
+				GetBonusRulesHandler: get_bonus_rules_handler.New(rules, pricer),
 				OpenQuizHandler:      open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 			}

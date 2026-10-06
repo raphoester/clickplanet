@@ -54,15 +54,3 @@ func TestATakeWithNoAccountIsRecordedAndNotPublished(t *testing.T) {
 	assert.Equal(t, 1, takes)
 	assert.Empty(t, events.Published())
 }
-
-func TestAClearIsRecordedAndNotPublished(t *testing.T) {
-	storage, inner, events := setUp()
-
-	storage.Append(ledger.Taking{Tile: 42, Scope: "203.0.113.7", Account: account, Country: "", Previous: "pl", At: start})
-
-	var recorded []ledger.Taking
-	inner.Replay(func(taking ledger.Taking) { recorded = append(recorded, taking) })
-	require.Len(t, recorded, 1, "the revert follows a clear")
-	assert.True(t, recorded[0].Cleared())
-	assert.Empty(t, events.Published(), "a clear took no tile, so it is no tile in the stats")
-}

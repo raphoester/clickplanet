@@ -26,7 +26,6 @@ import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 import {nearestTile, tilesWithin} from "../domain/blast.ts";
-import {outcomeOf, ownerAfter} from "../domain/homeSoil.ts";
 
 const TILE_COUNT = 257_000
 
@@ -73,7 +72,7 @@ const BOT_BOMB_EVERY_MS = 25_000
 const BOT_CLICKS_PER_SECOND = 4
 const ENCLOSE_MAX_TILES = 25
 
-const RULES: Omit<BonusRules, "homeSoil"> = {
+const RULES: BonusRules = {
     blastRadius: BOMB_RADIUS,
     enclosureMaxTiles: ENCLOSE_MAX_TILES,
     spreadClicks: SPREAD_CLICKS,
@@ -85,7 +84,6 @@ export type FakeBackendOptions = {
     vpnBlocked?: boolean
     sessionUnavailable?: boolean
     tilePositions?: () => Promise<Float32Array>
-    grounds?: () => Promise<(tile: number) => string | undefined>
 }
 
 export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller {
@@ -103,8 +101,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private charges: Charges = NO_CHARGES
     private positions: Promise<Float32Array> | undefined
     private readonly tilePositions: (() => Promise<Float32Array>) | undefined
-    private readonly homeSoil: boolean
-    private groundOf: (tile: number) => string | undefined = () => undefined
 
     private offered: BonusOffer | undefined
 
@@ -122,10 +118,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.vpnBlocked = options.vpnBlocked ?? false
         this.sessionUnavailable = options.sessionUnavailable ?? false
         this.tilePositions = options.tilePositions
-        this.homeSoil = options.grounds !== undefined
-        void options.grounds?.().then((groundOf) => {
-            this.groundOf = groundOf
-        })
 
         for (let i = 1; i <= TILE_COUNT; i++) {
             this.tileBindings.set(i, "fr")
@@ -345,15 +337,13 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     private applyClick(tileId: number, countryId: string, clicked = true) {
         const prev = this.tileBindings.get(tileId)
-        const next = ownerAfter(outcomeOf(prev, this.groundOf(tileId), countryId), prev, countryId)
-        if (next === undefined) this.tileBindings.delete(tileId)
-        else this.tileBindings.set(tileId, next)
+        this.tileBindings.set(tileId, countryId)
         this.count(prev, -1)
-        this.count(next, 1)
+        this.count(countryId, 1)
         this.updateListeners.forEach(l => l({
             tile: tileId,
             previousCountry: prev,
-            newCountry: next,
+            newCountry: countryId,
             clicked,
         }))
     }
@@ -383,7 +373,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public listenForBonuses(handlers: BonusHandlers): () => void {
         const identifier = UUIDv4()
         this.bonusCallbacks.set(identifier, handlers)
-        handlers.onRules({...RULES, homeSoil: this.homeSoil})
+        handlers.onRules(RULES)
         handlers.onCharges(this.charges)
 
         return () => this.bonusCallbacks.delete(identifier)

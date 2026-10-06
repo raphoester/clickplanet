@@ -11,19 +11,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/prom_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-type fakeClick struct {
-	outcome clicks.Outcome
-	err     error
-}
+type fakeClick struct{ err error }
 
 func (c *fakeClick) Execute(context.Context, click_usecase.In) (click_usecase.Out, error) {
-	return click_usecase.Out{Outcome: c.outcome}, c.err
+	return click_usecase.Out{}, c.err
 }
 
 func TestEveryClickIsCountedByCountryAndOutcomeAndNeverByAddress(t *testing.T) {
@@ -46,27 +42,5 @@ func TestEveryClickIsCountedByCountryAndOutcomeAndNeverByAddress(t *testing.T) {
 # TYPE clicks_total counter
 clicks_total{country_id="de",status="error"} 1
 clicks_total{country_id="fr",status="ok"} 2
-`)))
-}
-
-func TestAClearIsCountedApartByTheFlagClicked(t *testing.T) {
-	registry := prometheus.NewRegistry()
-	inner := &fakeClick{outcome: clicks.Cleared}
-	usecase := prom_click.New(inner, registry)
-
-	_, err := usecase.Execute(t.Context(), click_usecase.In{CountryID: "de"})
-	require.NoError(t, err)
-
-	inner.outcome = clicks.Taken
-	_, err = usecase.Execute(t.Context(), click_usecase.In{CountryID: "de"})
-	require.NoError(t, err)
-
-	require.NoError(t, testutil.GatherAndCompare(registry, strings.NewReader(`
-# HELP clicks_cleared_total Clicks that cleared a tile on its own country's ground rather than taking it, by the flag clicked
-# TYPE clicks_cleared_total counter
-clicks_cleared_total{country_id="de"} 1
-# HELP clicks_total Clicks that reached the rule, by country and outcome
-# TYPE clicks_total counter
-clicks_total{country_id="de",status="ok"} 2
 `)))
 }

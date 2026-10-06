@@ -1032,7 +1032,6 @@ type GetBonusRulesResponse struct {
 	EnclosureMaxTiles uint32                 `protobuf:"varint,2,opt,name=enclosure_max_tiles,json=enclosureMaxTiles,proto3" json:"enclosure_max_tiles,omitempty"`
 	SpreadClicks      uint32                 `protobuf:"varint,3,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
 	Enclosures        uint32                 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
-	HomeSoil          bool                   `protobuf:"varint,5,opt,name=home_soil,json=homeSoil,proto3" json:"home_soil,omitempty"`
 	// Rising shares: from `share` of every tile on the map, a country refills `slowdown` times slower.
 	TollSteps     []*TollStep `protobuf:"bytes,6,rep,name=toll_steps,json=tollSteps,proto3" json:"toll_steps,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1095,13 +1094,6 @@ func (x *GetBonusRulesResponse) GetEnclosures() uint32 {
 		return x.Enclosures
 	}
 	return 0
-}
-
-func (x *GetBonusRulesResponse) GetHomeSoil() bool {
-	if x != nil {
-		return x.HomeSoil
-	}
-	return false
 }
 
 func (x *GetBonusRulesResponse) GetTollSteps() []*TollStep {
@@ -2328,17 +2320,16 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x16\n" +
-	"\x14GetBonusRulesRequest\"\x80\x02\n" +
+	"\x14GetBonusRulesRequest\"\xf4\x01\n" +
 	"\x15GetBonusRulesResponse\x12!\n" +
 	"\fblast_radius\x18\x01 \x01(\x01R\vblastRadius\x12.\n" +
 	"\x13enclosure_max_tiles\x18\x02 \x01(\rR\x11enclosureMaxTiles\x12#\n" +
 	"\rspread_clicks\x18\x03 \x01(\rR\fspreadClicks\x12\x1e\n" +
 	"\n" +
 	"enclosures\x18\x04 \x01(\rR\n" +
-	"enclosures\x12\x1b\n" +
-	"\thome_soil\x18\x05 \x01(\bR\bhomeSoil\x122\n" +
+	"enclosures\x122\n" +
 	"\n" +
-	"toll_steps\x18\x06 \x03(\v2\x13.planet.v1.TollStepR\ttollSteps\"<\n" +
+	"toll_steps\x18\x06 \x03(\v2\x13.planet.v1.TollStepR\ttollStepsJ\x04\b\x05\x10\x06R\thome_soil\"<\n" +
 	"\bTollStep\x12\x14\n" +
 	"\x05share\x18\x01 \x01(\x01R\x05share\x12\x1a\n" +
 	"\bslowdown\x18\x02 \x01(\x01R\bslowdown\"\x8f\x01\n" +

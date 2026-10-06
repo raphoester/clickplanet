@@ -9,22 +9,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-type HomeSoil interface {
-	Enabled() bool
-}
-
 type Toll interface {
 	Steps() []clicks.TollStep
 }
 
-func New(rules bonuses.Rules, homeSoil HomeSoil, toll Toll) GetBonusRulesHandler {
-	return GetBonusRulesHandler{rules: rules, homeSoil: homeSoil, toll: toll}
+func New(rules bonuses.Rules, toll Toll) GetBonusRulesHandler {
+	return GetBonusRulesHandler{rules: rules, toll: toll}
 }
 
 type GetBonusRulesHandler struct {
-	rules    bonuses.Rules
-	homeSoil HomeSoil
-	toll     Toll
+	rules bonuses.Rules
+	toll  Toll
 }
 
 func (h GetBonusRulesHandler) GetBonusRules(
@@ -36,7 +31,6 @@ func (h GetBonusRulesHandler) GetBonusRules(
 		EnclosureMaxTiles: uint32(h.rules.EnclosureMaxTiles),
 		SpreadClicks:      uint32(h.rules.SpreadClicks),
 		Enclosures:        uint32(h.rules.Enclosures),
-		HomeSoil:          h.homeSoil.Enabled(),
 		TollSteps:         tollStepsOf(h.toll.Steps()),
 	}), nil
 }
