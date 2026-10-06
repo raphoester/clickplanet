@@ -72,12 +72,12 @@ ${values};
 CREATE INDEX ON tile_remap (from_id);
 
 CREATE TEMP TABLE tiles_remapped ON COMMIT DROP AS
-SELECT r.to_id + (t.id - r.from_id) AS id, t.country
+SELECT r.to_id + (t.id - r.from_id) AS id, t.country, t.shields
 FROM tiles t
 JOIN tile_remap r ON t.id >= r.from_id AND t.id < r.from_id + r.span;
 
 DELETE FROM tiles;
-INSERT INTO tiles (id, country) SELECT id, country FROM tiles_remapped;
+INSERT INTO tiles (id, country, shields) SELECT id, country, shields FROM tiles_remapped;
 
 DELETE FROM ledger_events e
 WHERE e.payload IS NULL AND NOT EXISTS (

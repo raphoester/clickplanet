@@ -40,8 +40,7 @@ func (s *Storage) Load(ctx context.Context) error {
 			internErr = err
 			return
 		}
-		s.tiles[tile] = id
-		s.shields[tile] = uint8(min(max(shields, 0), math.MaxUint8)) //nolint:gosec // clamped to a byte.
+		s.tiles[tile] = tileState{owner: id, shields: uint8(min(max(shields, 0), math.MaxUint8))} //nolint:gosec // clamped to a byte.
 		s.counts[id]++
 		owned++
 	})
@@ -119,7 +118,8 @@ func (s *Storage) takeDirty() []Tile {
 		for word != 0 {
 			tile := uint32(w*64 + bits.TrailingZeros64(word)) //nolint:gosec // tile <= maxIndex, which is a uint32.
 			word &= word - 1
-			tiles = append(tiles, Tile{ID: tile, Owner: s.codes[s.tiles[tile]], Shields: int(s.shields[tile])})
+			state := s.tiles[tile]
+			tiles = append(tiles, Tile{ID: tile, Owner: s.codes[state.owner], Shields: int(state.shields)})
 		}
 	}
 

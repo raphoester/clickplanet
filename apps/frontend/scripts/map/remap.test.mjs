@@ -57,8 +57,14 @@ describe("remapSQL", () => {
     it("rebuilds tiles rather than updating in place", () => {
         const sql = remapSQL(plan)
         expect(sql).toContain("DELETE FROM tiles;")
-        expect(sql).toContain("INSERT INTO tiles (id, country)")
+        expect(sql).toContain("INSERT INTO tiles (id, country, shields)")
         expect(sql).not.toMatch(/UPDATE tiles\b/)
+    })
+
+    it("keeps the shields on every tile it moves", () => {
+        const sql = remapSQL(plan)
+        expect(sql).toContain("AS id, t.country, t.shields\n")
+        expect(sql).toContain("SELECT id, country, shields FROM tiles_remapped;")
     })
 
     it("deletes the ledger's takes on tiles the new map does not have", () => {
