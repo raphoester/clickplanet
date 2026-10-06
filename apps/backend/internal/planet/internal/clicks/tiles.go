@@ -15,8 +15,12 @@ type Blast struct {
 	Point     Vec3
 	Radius    float64
 	Cleared   []uint32
+	// Owners[i] is the flag Cleared[i] wore before the blast: Clear fills it.
+	Owners []string
 
 	Struck []uint32
+	// Left[i] is the shields Struck[i] kept: Clear fills it.
+	Left []int
 }
 
 type Change struct {

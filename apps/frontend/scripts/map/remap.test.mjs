@@ -57,12 +57,28 @@ describe("remapSQL", () => {
     it("rebuilds tiles rather than updating in place", () => {
         const sql = remapSQL(plan)
         expect(sql).toContain("DELETE FROM tiles;")
-        expect(sql).toContain("INSERT INTO tiles (id, country)")
+        expect(sql).toContain("INSERT INTO tiles (id, country, shields)")
         expect(sql).not.toMatch(/UPDATE tiles\b/)
     })
 
+    it("keeps the shields on every tile it moves", () => {
+        const sql = remapSQL(plan)
+        expect(sql).toContain("AS id, t.country, t.shields\n")
+        expect(sql).toContain("SELECT id, country, shields FROM tiles_remapped;")
+    })
+
     it("deletes the ledger's takes on tiles the new map does not have", () => {
-        expect(remapSQL(plan)).toContain("DELETE FROM ledger_takes")
+        expect(remapSQL(plan)).toContain("DELETE FROM ledger_events e\nWHERE e.payload IS NULL")
+    })
+
+    it("keeps every event with a payload, and moves every tile its payload lists", () => {
+        const sql = remapSQL(plan)
+        expect(sql).toContain("SET tile = 0, previous = ''\nWHERE e.payload IS NOT NULL")
+        for (const key of ["cleared", "taken", "struck"]) {
+            expect(sql).toContain(`jsonb_set(e.payload, '{${key}}'`)
+            expect(sql).toContain(`WHERE e.payload ? '${key}';`)
+        }
+        expect(sql).not.toMatch(/e\.kind/)
     })
 
     it("walks the runs the other way going down", () => {

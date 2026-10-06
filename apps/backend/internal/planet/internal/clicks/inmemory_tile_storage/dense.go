@@ -19,22 +19,17 @@ func (s *Storage) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, 
 	}
 
 	tiles := make([]byte, 0, (uint64(end-start)+1)*2)
-	for _, code := range s.tiles[start : uint64(end)+1] {
-		tiles = binary.LittleEndian.AppendUint16(tiles, code)
+	var shields []clicks.TileShields
+	for i, state := range s.tiles[start : uint64(end)+1] {
+		tiles = binary.LittleEndian.AppendUint16(tiles, state.owner)
+		if state.shields > 0 {
+			tile := start + uint32(i) //nolint:gosec // tile <= end, which is a uint32.
+			shields = append(shields, clicks.TileShields{Tile: tile, Shields: int(state.shields)})
+		}
 	}
 
 	codes := make([]string, len(s.codes))
 	copy(codes, s.codes)
-
-	var shields []clicks.TileShields
-	for tile := start; ; tile++ {
-		if s.shields[tile] > 0 {
-			shields = append(shields, clicks.TileShields{Tile: tile, Shields: int(s.shields[tile])})
-		}
-		if tile == end {
-			break
-		}
-	}
 
 	return clicks.DenseBatch{Start: start, Codes: codes, Tiles: tiles, Shields: shields}, nil
 }

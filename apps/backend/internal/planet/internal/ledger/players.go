@@ -38,33 +38,42 @@ type hold struct {
 	country string
 }
 
-func (t *Tally) See(taking Taking) {
-	if !t.counts(taking) {
-		delete(t.tiles, taking.Tile)
-		return
-	}
+func (t *Tally) See(event Event) {
+	player := -1
+	event.Replay(func(taking Taking) {
+		if !t.counts(taking) {
+			delete(t.tiles, taking.Tile)
+			return
+		}
 
-	key := Caller{Scope: taking.Scope, Account: taking.Account}
+		key := Caller{Scope: taking.Scope, Account: taking.Account}
+		index, ok := t.callers[key]
+		if !ok {
+			index = len(t.players)
+			t.callers[key] = index
+			t.players = append(t.players, Player{
+				Scope: taking.Scope, Account: taking.Account, FirstAt: taking.At, LastAt: taking.At,
+			})
+		}
+		player = index
 
-	index, ok := t.callers[key]
-	if !ok {
-		index = len(t.players)
-		t.callers[key] = index
-		t.players = append(t.players, Player{
-			Scope: taking.Scope, Account: taking.Account, FirstAt: taking.At, LastAt: taking.At,
-		})
-	}
+		if taking.At.Before(t.players[index].FirstAt) {
+			t.players[index].FirstAt = taking.At
+		}
+		if taking.At.After(t.players[index].LastAt) {
+			t.players[index].LastAt = taking.At
+		}
 
-	player := &t.players[index]
-	player.Takes++
-	if taking.At.Before(player.FirstAt) {
-		player.FirstAt = taking.At
-	}
-	if taking.At.After(player.LastAt) {
-		player.LastAt = taking.At
-	}
+		if taking.Cleared() {
+			delete(t.tiles, taking.Tile)
+			return
+		}
+		t.tiles[taking.Tile] = hold{player: index, country: taking.Country}
+	})
 
-	t.tiles[taking.Tile] = hold{player: index, country: taking.Country}
+	if player >= 0 {
+		t.players[player].Takes++
+	}
 }
 
 func (t *Tally) Players(owners Owners) []Player {

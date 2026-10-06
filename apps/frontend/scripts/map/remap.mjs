@@ -39,6 +39,20 @@ export function remap(before, after) {
     return {runs, kept: survived.size, removed, added: after.length - survived.size}
 }
 
+const PAYLOAD_TILE_LISTS = ["cleared", "taken", "struck"]
+
+function payloadTilesSQL(key) {
+    const tile = "(o.value->>'tile')::integer"
+    return `UPDATE ledger_events e
+SET payload = jsonb_set(e.payload, '{${key}}', COALESCE((
+    SELECT jsonb_agg(jsonb_set(o.value, '{tile}', to_jsonb(r.to_id + (${tile} - r.from_id))) ORDER BY o.ordinality)
+    FROM jsonb_array_elements(e.payload->'${key}') WITH ORDINALITY o
+    JOIN tile_remap r ON ${tile} >= r.from_id AND ${tile} < r.from_id + r.span
+), '[]'::jsonb))
+WHERE e.payload ? '${key}';
+`
+}
+
 export function remapSQL({runs, kept, removed, added, before, after, from, to}, {down = false} = {}) {
     const walked = down
         ? runs.map(({from: f, to: t, span}) => ({from: t, to: f, span}))
@@ -58,21 +72,28 @@ ${values};
 CREATE INDEX ON tile_remap (from_id);
 
 CREATE TEMP TABLE tiles_remapped ON COMMIT DROP AS
-SELECT r.to_id + (t.id - r.from_id) AS id, t.country
+SELECT r.to_id + (t.id - r.from_id) AS id, t.country, t.shields
 FROM tiles t
 JOIN tile_remap r ON t.id >= r.from_id AND t.id < r.from_id + r.span;
 
 DELETE FROM tiles;
-INSERT INTO tiles (id, country) SELECT id, country FROM tiles_remapped;
+INSERT INTO tiles (id, country, shields) SELECT id, country, shields FROM tiles_remapped;
 
-DELETE FROM ledger_takes t
-WHERE NOT EXISTS (
-    SELECT 1 FROM tile_remap r WHERE t.tile >= r.from_id AND t.tile < r.from_id + r.span
+DELETE FROM ledger_events e
+WHERE e.payload IS NULL AND NOT EXISTS (
+    SELECT 1 FROM tile_remap r WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span
 );
 
-UPDATE ledger_takes t
-SET tile = r.to_id + (t.tile - r.from_id)
+UPDATE ledger_events e
+SET tile = 0, previous = ''
+WHERE e.payload IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM tile_remap r WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span
+);
+
+UPDATE ledger_events e
+SET tile = r.to_id + (e.tile - r.from_id)
 FROM tile_remap r
-WHERE t.tile >= r.from_id AND t.tile < r.from_id + r.span;
-`
+WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span;
+
+${PAYLOAD_TILE_LISTS.map(payloadTilesSQL).join("\n")}`
 }

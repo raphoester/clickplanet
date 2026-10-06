@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -42,15 +43,15 @@ const guest = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
 func stored(position ledger.Position, tile uint32, scope, country, previous string, at time.Time) inmemory_ledger_storage.Stored {
 	return inmemory_ledger_storage.Stored{
 		Position: position,
-		Taking:   ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: previous, At: at},
+		Entry:    ledger.Entry{Kind: "take", Tile: tile, Scope: scope, Country: country, Previous: previous, At: at},
 	}
 }
 
 func changes(from, head ledger.Position, forgotten map[ledger.Caller]ledger.Position, takes ...inmemory_ledger_storage.Stored) inmemory_ledger_storage.Changes {
 	return inmemory_ledger_storage.Changes{
-		From:  from,
-		Takes: slices.Values(takes),
-		Marks: inmemory_ledger_storage.Marks{Head: head, Forgotten: forgotten},
+		From:    from,
+		Entries: slices.Values(takes),
+		Marks:   inmemory_ledger_storage.Marks{Head: head, Forgotten: forgotten},
 	}
 }
 
@@ -92,7 +93,7 @@ func (s *testSuite) TestATimeComesBackInUTC() {
 
 	takes, _ := s.load()
 	s.Require().Len(takes, 1)
-	s.Equal(start, takes[0].Taking.At)
+	s.Equal(start, takes[0].Entry.At)
 }
 
 func (s *testSuite) TestASaveWhoseCommitWasLostIsWrittenAgainWithoutConflict() {
@@ -118,7 +119,7 @@ type row struct {
 
 func (s *testSuite) rows() []row {
 	rows, err := s.db.QueryContext(context.Background(),
-		`SELECT position, tile, scope, account::text, country, previous, taken_at FROM ledger_takes ORDER BY position`)
+		`SELECT position, tile, scope, account::text, country, previous, taken_at FROM ledger_events ORDER BY position`)
 	s.Require().NoError(err)
 	defer func() { s.Require().NoError(rows.Close()) }()
 
@@ -140,7 +141,7 @@ func text(value string) sql.NullString { return sql.NullString{String: value, Va
 func (s *testSuite) TestTheHeadKeepsTheTakesItLeftBehindWithoutTheirScope() {
 	ctx := context.Background()
 	first := stored(0, 1, "1.2.3.4", "fr", "de", start)
-	first.Taking.Account = guest
+	first.Entry.Account = guest
 	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{},
 		first,
 		stored(1, 2, "2001:db8::/64", "ps", "", start.Add(time.Second)),
@@ -187,7 +188,7 @@ func (s *testSuite) TestAnAnonymizedAccountsTakesKeepTheirTileFlagAndTime() {
 		stored(1, 2, "1.2.3.4", "fr", "", start),
 		stored(2, 3, "1.2.3.4", "de", "fr", start.Add(time.Hour)),
 	}
-	takes[0].Taking.Account, takes[1].Taking.Account, takes[2].Taking.Account = guest, other, guest
+	takes[0].Entry.Account, takes[1].Entry.Account, takes[2].Entry.Account = guest, other, guest
 	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{}, takes...)))
 	s.Require().NoError(s.store.Save(ctx, changes(3, 1, map[ledger.Caller]ledger.Position{})))
 
@@ -240,13 +241,13 @@ func (s *testSuite) TestAFailedSaveWritesNothing() {
 func (s *testSuite) TestATakesAccountComesBackAndNoneIsNull() {
 	ctx := context.Background()
 	withAccount := stored(0, 1, "1.2.3.4", "fr", "", start)
-	withAccount.Taking.Account = guest
+	withAccount.Entry.Account = guest
 	without := stored(1, 2, "1.2.3.4", "fr", "", start)
 
 	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{}, withAccount, without)))
 
 	var nulls int
-	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT count(*) FROM ledger_takes WHERE account IS NULL`).Scan(&nulls))
+	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT count(*) FROM ledger_events WHERE account IS NULL`).Scan(&nulls))
 	s.Equal(1, nulls)
 
 	takes, _ := s.load()
@@ -264,4 +265,79 @@ func (s *testSuite) TestAccountMarksAreKeptApartFromScopeMarks() {
 	s.Require().NoError(s.store.Save(ctx, changes(0, 3, map[ledger.Caller]ledger.Position{})))
 	_, loaded = s.load()
 	s.Equal(map[ledger.Caller]ledger.Position{{Account: guest}: 4}, loaded.Forgotten, "the head drops account marks too")
+}
+
+func withPayload(position ledger.Position, kind, payload string) inmemory_ledger_storage.Stored {
+	entry := stored(position, 7, "1.2.3.4", "", "il", start)
+	entry.Entry.Kind, entry.Entry.Payload = kind, []byte(payload)
+	return entry
+}
+
+func (s *testSuite) TestAnEntryOfAnyKindComesBackWithItsPayload() {
+	ctx := context.Background()
+	quake := withPayload(1, "quake", `{"magnitude": 7}`)
+	quake.Entry.Account = guest
+
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{},
+		stored(0, 3, "1.2.3.4", "fr", "", start), quake)))
+
+	takes, _ := s.load()
+	s.Require().Len(takes, 2)
+	s.Equal(stored(0, 3, "1.2.3.4", "fr", "", start), takes[0], "an entry with no payload comes back with none")
+	s.JSONEq(`{"magnitude": 7}`, string(takes[1].Entry.Payload))
+	takes[1].Entry.Payload = quake.Entry.Payload
+	s.Equal(quake, takes[1], "the store reads no kind")
+}
+
+func (s *testSuite) TestAPayloadIsKeptAsJSONBesideTheTileItIsAbout() {
+	ctx := context.Background()
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{},
+		withPayload(0, "bomb", `{"cleared": [{"tile": 7, "owner": "il"}]}`))))
+
+	s.Equal([]row{{position: 0, tile: 7, scope: text("1.2.3.4"), account: null(), country: "", previous: "il", takenAt: start}},
+		s.rows())
+
+	var kind, payload string
+	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT kind, payload->'cleared'->0->>'owner' FROM ledger_events`).Scan(&kind, &payload))
+	s.Equal("bomb", kind)
+	s.Equal("il", payload)
+}
+
+func (s *testSuite) TestATakeIsARowOfItsKindWithNoPayload() {
+	ctx := context.Background()
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{}, stored(0, 1, "a", "fr", "", start))))
+
+	var (
+		kind    string
+		payload sql.NullString
+	)
+	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT kind, payload::text FROM ledger_events`).Scan(&kind, &payload))
+	s.Equal("take", kind)
+	s.False(payload.Valid)
+}
+
+func (s *testSuite) TestTheHeadBlanksTheScopeOfAnEntryWithAPayloadToo() {
+	ctx := context.Background()
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{}, withPayload(0, "bomb", `{}`))))
+	s.Require().NoError(s.store.Save(ctx, changes(1, 1, map[ledger.Caller]ledger.Position{})))
+
+	s.Equal(null(), s.rows()[0].scope)
+}
+
+func (s *testSuite) TestABombingReadsBackAsTheBombingItWas() {
+	ctx := context.Background()
+	bombing := ledger.Bombing{Scope: "1.2.3.4", Account: guest, At: start, Blast: clicks.Blast{
+		Tile: 7, CountryID: "de", Point: clicks.Vec3{X: 0.6, Z: 0.8}, Radius: 0.032,
+		Cleared: []uint32{3, 7, 9}, Owners: []string{"fr", "il", "fr"}, Struck: []uint32{8}, Left: []int{0},
+	}}
+	entry, err := bombing.Entry()
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{},
+		inmemory_ledger_storage.Stored{Entry: entry})))
+
+	takes, _ := s.load()
+	s.Require().Len(takes, 1)
+	read, err := ledger.EventOf(takes[0].Entry)
+	s.Require().NoError(err)
+	s.Equal(bombing, read, "postgres reorders the keys of its JSON, and the bombing does not mind")
 }

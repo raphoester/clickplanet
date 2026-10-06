@@ -33,8 +33,7 @@ func New(
 		logger:      logger,
 		persistence: persistence,
 		maxIndex:    maxIndex,
-		tiles:       make([]uint16, int(maxIndex)+1),
-		shields:     make([]uint8, int(maxIndex)+1),
+		tiles:       make([]tileState, int(maxIndex)+1),
 		dirty:       make([]uint64, (int(maxIndex)+64)/64),
 		counts:      []uint32{0},
 		codes:       []string{""},
@@ -52,8 +51,7 @@ type Storage struct {
 	maxIndex    uint32
 
 	tilesMu sync.RWMutex
-	tiles   []uint16
-	shields []uint8
+	tiles   []tileState
 	counts  []uint32
 	codes   []string
 	codeIDs map[string]uint16
@@ -98,7 +96,9 @@ func (s *Storage) put(update clicks.TileUpdate) error {
 
 func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, error) {
 	cleared := make([]uint32, 0, len(blast.Cleared))
+	owners := make([]string, 0, len(blast.Cleared))
 	var struck []uint32
+	var left []int
 
 	s.tilesMu.Lock()
 	for _, tile := range blast.Cleared {
@@ -106,15 +106,17 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 			s.tilesMu.Unlock()
 			return clicks.Blast{}, fmt.Errorf("tile %d out of range (max %d)", tile, s.maxIndex)
 		}
-		if s.shields[tile] > 0 {
-			s.shields[tile]--
+		if s.tiles[tile].shields > 0 {
+			s.tiles[tile].shields--
 			s.markDirtyLocked(tile)
 			struck = append(struck, tile)
+			left = append(left, int(s.tiles[tile].shields))
 			continue
 		}
-		if s.tiles[tile] != unownedCode {
-			s.counts[s.tiles[tile]]--
-			s.tiles[tile] = unownedCode
+		if s.tiles[tile].owner != unownedCode {
+			owners = append(owners, s.codes[s.tiles[tile].owner])
+			s.counts[s.tiles[tile].owner]--
+			s.tiles[tile] = ownedBy(unownedCode)
 			s.markDirtyLocked(tile)
 			cleared = append(cleared, tile)
 		}
@@ -122,7 +124,9 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 	s.tilesMu.Unlock()
 
 	blast.Cleared = cleared
+	blast.Owners = owners
 	blast.Struck = struck
+	blast.Left = left
 	s.publish(clicks.Change{Blast: &blast})
 
 	return blast, nil
@@ -163,14 +167,14 @@ func (s *Storage) Owner(tile uint32) (string, bool) {
 	s.tilesMu.RLock()
 	defer s.tilesMu.RUnlock()
 
-	return s.codes[s.tiles[tile]], true
+	return s.codes[s.tiles[tile].owner], true
 }
 
 func (s *Storage) set(tile uint32, value string) (previous string, changed bool, err error) {
 	s.tilesMu.Lock()
 	defer s.tilesMu.Unlock()
 
-	previous = s.codes[s.tiles[tile]]
+	previous = s.codes[s.tiles[tile].owner]
 	if previous == value {
 		return previous, false, nil
 	}
@@ -180,14 +184,13 @@ func (s *Storage) set(tile uint32, value string) (previous string, changed bool,
 		return "", false, err
 	}
 
-	if s.tiles[tile] != unownedCode {
-		s.counts[s.tiles[tile]]--
+	if s.tiles[tile].owner != unownedCode {
+		s.counts[s.tiles[tile].owner]--
 	}
 	if id != unownedCode {
 		s.counts[id]++
 	}
-	s.tiles[tile] = id
-	s.shields[tile] = 0
+	s.tiles[tile] = ownedBy(id)
 	s.markDirtyLocked(tile)
 
 	return previous, true, nil
@@ -281,7 +284,7 @@ func (s *Storage) Shields(tile uint32) int {
 	s.tilesMu.RLock()
 	defer s.tilesMu.RUnlock()
 
-	return int(s.shields[tile])
+	return int(s.tiles[tile].shields)
 }
 
 func (s *Storage) Strike(_ context.Context, tile uint32, owner string) bool {
@@ -290,13 +293,13 @@ func (s *Storage) Strike(_ context.Context, tile uint32, owner string) bool {
 	}
 
 	s.tilesMu.Lock()
-	if s.codes[s.tiles[tile]] != owner || s.shields[tile] == 0 {
+	if s.codes[s.tiles[tile].owner] != owner || s.tiles[tile].shields == 0 {
 		s.tilesMu.Unlock()
 		return false
 	}
-	s.shields[tile]--
+	s.tiles[tile].shields--
 	s.markDirtyLocked(tile)
-	left := int(s.shields[tile])
+	left := int(s.tiles[tile].shields)
 	s.tilesMu.Unlock()
 
 	s.publish(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: owner, Previous: owner, Shields: left}})
@@ -310,14 +313,14 @@ func (s *Storage) Shield(_ context.Context, tile uint32, country string, most in
 	}
 
 	s.tilesMu.Lock()
-	owner := s.codes[s.tiles[tile]]
-	if err := clicks.ShieldError(owner, country, int(s.shields[tile]), min(most, math.MaxUint8)); err != nil {
+	owner := s.codes[s.tiles[tile].owner]
+	if err := clicks.ShieldError(owner, country, int(s.tiles[tile].shields), min(most, math.MaxUint8)); err != nil {
 		s.tilesMu.Unlock()
 		return fmt.Errorf("tile %d: %w", tile, err)
 	}
-	s.shields[tile]++
+	s.tiles[tile].shields++
 	s.markDirtyLocked(tile)
-	now := int(s.shields[tile])
+	now := int(s.tiles[tile].shields)
 	s.tilesMu.Unlock()
 
 	s.publish(clicks.Change{Update: &clicks.TileUpdate{Tile: tile, Value: country, Previous: country, Shields: now}})

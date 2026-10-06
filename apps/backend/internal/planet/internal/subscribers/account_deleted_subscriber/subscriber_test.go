@@ -46,7 +46,7 @@ func TestADeletedAccountIsTakenOffEveryTakeItMade(t *testing.T) {
 
 	var all, named, held int
 	require.NoError(t, db.QueryRowContext(ctx,
-		`SELECT count(*), count(account), count(*) FILTER (WHERE account = $1) FROM ledger_takes`,
+		`SELECT count(*), count(account), count(*) FILTER (WHERE account = $1) FROM ledger_events`,
 		uuid.MustParse(gone)).Scan(&all, &named, &held))
 	assert.Equal(t, 3, all, "every take is still there, the one behind the head too")
 	assert.Equal(t, 1, named, "only the other account's take names an account")

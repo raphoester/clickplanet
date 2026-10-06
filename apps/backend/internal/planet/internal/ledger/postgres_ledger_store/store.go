@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -37,7 +36,7 @@ func (s *Store) Load(ctx context.Context, visit func(inmemory_ledger_storage.Sto
 	}
 	marks.Head = ledger.Position(head) //nolint:gosec // CHECK (head >= 0).
 
-	if err := s.loadTakes(ctx, head, visit); err != nil {
+	if err := s.loadEvents(ctx, head, visit); err != nil {
 		return marks, err
 	}
 
@@ -93,35 +92,35 @@ func storedHead(ctx context.Context, db cppg.Querier) (int64, error) {
 	return head, nil
 }
 
-func (s *Store) loadTakes(ctx context.Context, head int64, visit func(inmemory_ledger_storage.Stored)) error {
+func (s *Store) loadEvents(ctx context.Context, head int64, visit func(inmemory_ledger_storage.Stored)) error {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT position, tile, scope, account::text, country, previous, taken_at
-		FROM ledger_takes
+		SELECT position, kind, tile, scope, account::text, country, previous, taken_at, payload
+		FROM ledger_events
 		WHERE position >= $1
 		ORDER BY position
 	`, head)
 	if err != nil {
-		return fmt.Errorf("failed to read takes: %w", err)
+		return fmt.Errorf("failed to read the ledger: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var (
 			position int64
-			take     ledger.Taking
+			entry    ledger.Entry
 			account  sql.NullString
-			at       time.Time
 		)
-		if err := rows.Scan(&position, &take.Tile, &take.Scope, &account, &take.Country, &take.Previous, &at); err != nil {
-			return fmt.Errorf("failed to scan a take: %w", err)
+		if err := rows.Scan(&position, &entry.Kind, &entry.Tile, &entry.Scope, &account,
+			&entry.Country, &entry.Previous, &entry.At, &entry.Payload); err != nil {
+			return fmt.Errorf("failed to scan an event: %w", err)
 		}
-		take.Account = account.String
-		take.At = at.UTC()
-		visit(inmemory_ledger_storage.Stored{Position: ledger.Position(position), Taking: take}) //nolint:gosec // CHECK (position >= 0).
+		entry.Account = account.String
+		entry.At = entry.At.UTC()
+		visit(inmemory_ledger_storage.Stored{Position: ledger.Position(position), Entry: entry}) //nolint:gosec // CHECK (position >= 0).
 	}
 
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("failed to read takes: %w", err)
+		return fmt.Errorf("failed to read the ledger: %w", err)
 	}
 
 	return nil
@@ -143,19 +142,19 @@ func (s *Store) Save(ctx context.Context, changes inmemory_ledger_storage.Change
 
 	// Rows at or past From come from a flush whose commit answer was lost.
 	if _, err := tx.ExecContext(ctx,
-		`DELETE FROM ledger_takes WHERE position >= $1`,
+		`DELETE FROM ledger_events WHERE position >= $1`,
 		int64(changes.From), //nolint:gosec // a position fits a bigint.
 	); err != nil {
-		return fmt.Errorf("failed to delete takes: %w", err)
+		return fmt.Errorf("failed to delete events: %w", err)
 	}
 
-	if err := copyTakes(ctx, tx, changes); err != nil {
+	if err := copyEvents(ctx, tx, changes); err != nil {
 		return err
 	}
 
 	if head > kept {
 		if _, err := tx.ExecContext(ctx,
-			`UPDATE ledger_takes SET scope = NULL WHERE position >= $1 AND position < $2`, kept, head,
+			`UPDATE ledger_events SET scope = NULL WHERE position >= $1 AND position < $2`, kept, head,
 		); err != nil {
 			return fmt.Errorf("failed to blank the scopes behind the head: %w", err)
 		}
@@ -181,37 +180,40 @@ func (s *Store) Save(ctx context.Context, changes inmemory_ledger_storage.Change
 
 func (s *Store) AnonymizeTakes(ctx context.Context, account ledger.AccountID) error {
 	if _, err := s.db.ExecContext(ctx,
-		`UPDATE ledger_takes SET account = NULL WHERE account = $1`, uuid.UUID(account),
+		`UPDATE ledger_events SET account = NULL WHERE account = $1`, uuid.UUID(account),
 	); err != nil {
 		return fmt.Errorf("failed to anonymize an account's takes: %w", err)
 	}
 	return nil
 }
 
-func copyTakes(ctx context.Context, tx *sql.Tx, changes inmemory_ledger_storage.Changes) error {
-	stmt, err := tx.PrepareContext(ctx,
-		pq.CopyIn("ledger_takes", "position", "tile", "scope", "account", "country", "previous", "taken_at"))
+func copyEvents(ctx context.Context, tx *sql.Tx, changes inmemory_ledger_storage.Changes) error {
+	stmt, err := tx.PrepareContext(ctx, pq.CopyIn("ledger_events",
+		"position", "kind", "tile", "scope", "account", "country", "previous", "taken_at", "payload"))
 	if err != nil {
-		return fmt.Errorf("failed to start copying takes: %w", err)
+		return fmt.Errorf("failed to start copying events: %w", err)
 	}
 	defer func() { _ = stmt.Close() }()
 
-	for take := range changes.Takes {
+	for stored := range changes.Entries {
+		entry := stored.Entry
 		if _, err := stmt.ExecContext(ctx,
-			int64(take.Position), //nolint:gosec // a position fits a bigint.
-			int64(take.Taking.Tile),
-			take.Taking.Scope,
-			nullIfEmpty(take.Taking.Account),
-			take.Taking.Country,
-			take.Taking.Previous,
-			take.Taking.At,
+			int64(stored.Position), //nolint:gosec // a position fits a bigint.
+			entry.Kind,
+			int64(entry.Tile),
+			entry.Scope,
+			nullIfEmpty(entry.Account),
+			entry.Country,
+			entry.Previous,
+			entry.At,
+			jsonOrNull(entry.Payload),
 		); err != nil {
-			return fmt.Errorf("failed to copy a take: %w", err)
+			return fmt.Errorf("failed to copy an event: %w", err)
 		}
 	}
 
 	if _, err := stmt.ExecContext(ctx); err != nil {
-		return fmt.Errorf("failed to copy takes: %w", err)
+		return fmt.Errorf("failed to copy events: %w", err)
 	}
 
 	return nil
@@ -264,6 +266,13 @@ func saveForgotten(ctx context.Context, tx *sql.Tx, marks inmemory_ledger_storag
 
 func compareCallers(a, b ledger.Caller) int {
 	return cmp.Or(cmp.Compare(a.Scope, b.Scope), cmp.Compare(a.Account, b.Account))
+}
+
+func jsonOrNull(payload []byte) any {
+	if payload == nil {
+		return nil
+	}
+	return string(payload)
 }
 
 func nullIfEmpty(value string) any {

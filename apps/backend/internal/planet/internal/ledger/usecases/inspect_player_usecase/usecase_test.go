@@ -21,11 +21,11 @@ func (e *examiner) Examine(scope, account string) antibot.Examination {
 	return antibot.Examination{Scope: scope, Account: account, Clicks: 3}
 }
 
-type book []ledger.Taking
+type book []ledger.Event
 
-func (b book) Replay(see func(ledger.Taking)) ledger.Position {
-	for _, taking := range b {
-		see(taking)
+func (b book) Replay(see func(ledger.Event)) ledger.Position {
+	for _, event := range b {
+		see(event)
 	}
 	return ledger.Position(len(b))
 }
@@ -60,9 +60,9 @@ func TestAnAccountIsInspectedOnTheScopeOfItsLatestTake(t *testing.T) {
 	const guest = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
 	e := &examiner{}
 	takes := book{
-		{Tile: 1, Scope: "1.2.3.4", Account: guest},
-		{Tile: 2, Scope: "5.6.7.8", Account: guest},
-		{Tile: 3, Scope: "9.9.9.9", Account: "someone-else"},
+		ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: guest},
+		ledger.Taking{Tile: 2, Scope: "5.6.7.8", Account: guest},
+		ledger.Taking{Tile: 3, Scope: "9.9.9.9", Account: "someone-else"},
 	}
 
 	out, err := inspect_player_usecase.New(e, takes).Execute(t.Context(), inspect_player_usecase.In{Account: guest})

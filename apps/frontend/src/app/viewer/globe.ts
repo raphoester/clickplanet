@@ -54,6 +54,7 @@ import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {ShieldChange, outcomeOf, placementOf, TileShields} from "../../domain/shields.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
+import {drawShieldMarks, shieldCellsOf} from "./shieldMarks.ts";
 import {AcceptedClick} from "./acceptedClicks.ts";
 
 type Uniforms = BlastUniforms & {
@@ -66,6 +67,8 @@ type Uniforms = BlastUniforms & {
     pixelRatio: THREE.IUniform<number>
     flagPaint: THREE.IUniform
     shieldMost: THREE.IUniform<number>
+    shieldMarks: THREE.IUniform<THREE.Texture>
+    shieldCells: THREE.IUniform<THREE.Vector2>
 }
 
 const SHAKE_SECONDS = 0.5
@@ -209,6 +212,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget, graphics);
     let mapView: MapView = initialMapView
 
+    let dirty = true
+    const invalidate = () => {
+        dirty = true
+    }
+
     const uniforms: Uniforms = {
         pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height, mapView) * renderer.getPixelRatio()},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
@@ -219,6 +227,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         pixelRatio: {value: renderer.getPixelRatio()},
         flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height, mapView)},
         shieldMost: {value: SHIELD_MOST_UNTIL_READ},
+        shieldMarks: {value: drawShieldMarks(SHIELD_MOST_UNTIL_READ, invalidate)},
+        shieldCells: {value: shieldCellsOf(SHIELD_MOST_UNTIL_READ)},
         ...blastUniforms(prefersReducedMotion()),
     };
 
@@ -260,11 +270,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const ownClicks = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
     const ownHits = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
     const ownPlacements = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
-
-    let dirty = true
-    const invalidate = () => {
-        dirty = true
-    }
 
     const driveBonusBox = (seconds: number) => {
         const enclosing = enclosures.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
@@ -379,7 +384,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onCharges: (held) => takeCharges(held),
         onRules: (read) => {
             rules = read
-            if (read.tileShields > 0) uniforms.shieldMost.value = read.tileShields
+            if (read.tileShields > 0 && read.tileShields !== uniforms.shieldMost.value) {
+                uniforms.shieldMost.value = read.tileShields
+                uniforms.shieldMarks.value.dispose()
+                uniforms.shieldMarks.value = drawShieldMarks(read.tileShields, invalidate)
+                uniforms.shieldCells.value = shieldCellsOf(read.tileShields)
+            }
             invalidate()
             onRules(read)
         },
