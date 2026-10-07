@@ -16,6 +16,27 @@ describe("the headline of a clip", () => {
     })
 })
 
+describe("a place of two countries", () => {
+    it("names both, tags both and asks to defend both", () => {
+        const words = wordsOf({...story("invasion", {countries: ["eg", "tr"]}), attacker: "il"})
+
+        expect(words.headline).toBe("ISRAEL IS INVADING EGYPT AND TURKEY")
+        expect(words.callFlags).toEqual(["eg", "tr"])
+        expect(words.caption).toMatch(/#map #egypt #turkey$/)
+    })
+})
+
+describe("a continent striking back together", () => {
+    it("is the continent's story, under its flag", () => {
+        const words = wordsOf({...story("comeback", {region: "Europe"}), attacker: "de", team: "Europe"})
+
+        expect(words.headline).toBe("EUROPE STRIKES BACK")
+        expect(words.call).toBe("FIGHT FOR EUROPE")
+        expect(words.callFlags).toEqual(["eu"])
+        expect(words.caption).toMatch(/^EUROPE STRIKES BACK\. Who joins them\? 👇\n/)
+    })
+})
+
 describe("the line under the headline", () => {
     it("names the battle and nothing else", () => {
         expect(wordsOf(story("battle", {country: "fr"}, "nl")).line).toBe("The battle for France")

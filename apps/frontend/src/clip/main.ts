@@ -14,16 +14,17 @@ import {cellOf, dot, Point, pointOf} from "../domain/clip/geometry.ts"
 import {SCRIBBLE_BELOW, solidityOf} from "../domain/clip/solidity.ts"
 import {anthemOf} from "../domain/clip/music.ts"
 import {ANTHEMS} from "../app/anthem/anthemsAsset.ts"
-import {Candidate, candidatesOf, inCandidate} from "../domain/clip/window.ts"
+import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
+import {Candidate, candidatesOf, inCandidate, Window} from "../domain/clip/window.ts"
 import {Front, frontOf, FRONT_RADIANS, sameFront, spanOf} from "../domain/clip/front.ts"
-import {Story, storyOf, THE_WORLD} from "../domain/clip/story.ts"
+import {castOf, Story, storyOf, THE_WORLD} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
 import {blastZoomOf, cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
 import {bombShareOf, momentsOf, paceOf, playedAt, timelineOf} from "../domain/clip/pace.ts"
 import {tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {installVirtualClock} from "./virtualClock.ts"
-import {createOverlay, nameOf, placeName, wordsOf} from "./overlay.ts"
+import {createOverlay, nameOf, placeName, sidesOf, wordsOf} from "./overlay.ts"
 
 export type Recording = {
     pick: number
@@ -35,8 +36,8 @@ export type Recording = {
     until: string
     look: string
     skipped: string[]
-    // The anthem to play under the clip: where it is served from, its title and whose it is.
-    music: {url: string, title: string, country: string} | undefined
+    // The anthem to play under the clip: where it is, its title, whose it is, and the credit its licence asks for.
+    music: {url: string, title: string, whose: string, credit?: string} | undefined
     place: string
     headline: string
     line: string
@@ -99,9 +100,11 @@ type Take = {candidate: Candidate, front: Front, story: Story, score: number}
 
 type Review = Take & {backend: ReplayBackend, solidity: number, skipped: string | undefined}
 
+const RECORDED: Readonly<Record<string, {url: string, title: string, credit?: string}>> = {...ANTHEMS, ...CLIP_ANTHEMS}
+
 function musicOf(story: Story): Recording["music"] {
-    const country = anthemOf(story, (code) => code in ANTHEMS)
-    return country === undefined ? undefined : {...ANTHEMS[country], country: nameOf(country)}
+    const code = anthemOf(story, (anthem) => anthem in RECORDED)
+    return code === undefined ? undefined : {...RECORDED[code], whose: story.team ?? nameOf(code)}
 }
 
 function lookParam(): Look | undefined {
@@ -114,14 +117,13 @@ function flipsLine(flips: readonly Flip[]): string {
     return `landmasses changed hands: ${named.join(", ")}${flips.length > 4 ? ` and ${flips.length - 4} more` : ""}`
 }
 
-function windowParam(replay: ReplayBackend): Candidate | undefined {
+function windowParam(replay: ReplayBackend): Window | undefined {
     const since = params.get("since")
     const until = params.get("until")
     if (since === null && until === null) return undefined
     return {
         since: since === null ? replay.since : Math.max(replay.since, Date.parse(since)),
         until: until === null ? replay.until : Math.min(replay.until, Date.parse(until)),
-        cell: -1,
     }
 }
 
@@ -143,26 +145,29 @@ async function prepare(): Promise<Recording> {
     const groundAt = (tile: number) => countryOfTile(borders, tile)
     const within = (tile: number) => focus === undefined || groundAt(tile) === focus
 
-    const all = replay.changes().filter(({tile}) => within(tile))
+    const everything = replay.changes()
+    const all = everything.filter(({tile}) => within(tile))
     const cells = all.map(({tile}) => cellOf(pointAt(tile)))
     const takeOf = (candidate: Candidate): Take | undefined => {
         const inside = all.filter(({at}, i) =>
-            at >= candidate.since && at <= candidate.until && (candidate.cell < 0 || inCandidate(candidate, cells[i])))
-        const front = frontOf(inside, pointAt)
+            at >= candidate.since && at <= candidate.until && inCandidate(candidate, cells[i]))
+        // The fighting of some flags only, wherever it is densest: not another war next door.
+        const fightOf = (sides: ReadonlySet<string | undefined>) => frontOf(inside.filter(({from, to}) =>
+            (to !== undefined && sides.has(to)) || (from !== undefined && sides.has(from))), pointAt)
+        const front = attacker === undefined ? frontOf(inside, pointAt) : fightOf(new Set([attacker]))
         const story = front && storyOf(front.changes, groundAt, regionOf, attacker)
         if (!front || !story) return undefined
-        // Then only the story's own fighting, wherever it is densest: not another war next door.
-        const sides = new Set([story.attacker, story.rival])
-        const own = frontOf(inside.filter(({from, to}) =>
-            (to !== undefined && sides.has(to)) || (from !== undefined && sides.has(from))), pointAt) ?? front
+        const own = fightOf(new Set([story.attacker, story.rival])) ?? front
         const told = storyOf(own.changes, groundAt, regionOf, story.attacker) ?? story
         return {candidate, front: own, story: told, score: scoreOf(own.changes, groundAt, (candidate.until - candidate.since) / 3_600_000)}
     }
 
+    // A window asked for is still split into its places, so a war next door is a story of its own.
     const asked = windowParam(replay)
-    const ranked = (asked ? [asked] : candidatesOf(
+    const ranked = candidatesOf(
         all.map(({at, from}, i) => ({at, cell: cells[i], captured: from !== undefined})),
-        replay.since, replay.until, numberParam("hours")))
+        asked?.since ?? replay.since, asked?.until ?? replay.until,
+        asked ? (asked.until - asked.since) / 3_600_000 : numberParam("hours"))
         .flatMap((candidate) => takeOf(candidate) ?? [])
         .sort((a, b) => b.score - a.score)
     const stories = ranked.filter((take, i) => ranked.findIndex((other) =>
@@ -175,7 +180,11 @@ async function prepare(): Promise<Recording> {
         const trimmed = spanOf(take.front, MARGIN_MS)
         const backend = replay.cut(
             Math.max(take.candidate.since, trimmed.since), Math.min(take.candidate.until, trimmed.until))
-        const story = storyOf(take.front.changes, groundAt, regionOf, attacker, holderIn(backend.opening)) ?? take.story
+        const told = storyOf(take.front.changes, groundAt, regionOf, attacker, holderIn(backend.opening)) ?? take.story
+        const near = Math.cos(FRONT_RADIANS)
+        const cast = castOf(told, everything.filter(({tile, at}) =>
+            at >= backend.since && at <= backend.until && dot(pointAt(tile), take.front.heart) >= near), regionOf)
+        const story = cast ?? told
         const after = ownersAfter(backend.opening, backend.changes())
         const held: Point[] = []
         for (const [tile, owner] of after) if (owner === story.attacker) held.push(pointAt(tile))
@@ -184,7 +193,8 @@ async function prepare(): Promise<Recording> {
         const solidity = solidityOf(taken.map(pointAt), held)
         const skipped = "region" in story.place && story.place.region === THE_WORLD
             ? "spread over several continents, no one place to show"
-            : solidity < SCRIBBLE_BELOW ? "lines drawn on someone else's land, not land taken" : undefined
+            : cast === undefined ? "nobody leads it: its flags took too little of what changed hands around them"
+                : solidity < SCRIBBLE_BELOW ? "lines drawn on someone else's land, not land taken" : undefined
         return {...take, story, backend, solidity, skipped}
     }
     const reviewed = stories.map(reviewOf)
@@ -227,18 +237,20 @@ async function prepare(): Promise<Recording> {
         })),
     })
 
+    // A continent striking back together is counted as one side.
+    const sideOf = (owner: string) => story.team !== undefined && regionOf(owner) === story.team ? sidesOf(story)[0] : owner
     const owners = new Map([...backend.opening].filter(([tile]) => inArea(tile)))
     const held = new Map<string, number>()
-    for (const owner of owners.values()) held.set(owner, (held.get(owner) ?? 0) + 1)
+    for (const owner of owners.values()) held.set(sideOf(owner), (held.get(sideOf(owner)) ?? 0) + 1)
     const opening = new Map(held)
     const own = (tile: number, owner: string | undefined) => {
         if (!inArea(tile)) return
         const was = owners.get(tile)
-        if (was !== undefined) held.set(was, (held.get(was) ?? 0) - 1)
+        if (was !== undefined) held.set(sideOf(was), (held.get(sideOf(was)) ?? 0) - 1)
         if (owner === undefined) owners.delete(tile)
         else {
             owners.set(tile, owner)
-            held.set(owner, (held.get(owner) ?? 0) + 1)
+            held.set(sideOf(owner), (held.get(sideOf(owner)) ?? 0) + 1)
         }
     }
     backend.listenForUpdates((update) => own(update.tile, update.newCountry))
