@@ -5,13 +5,7 @@ export type TileChange = {
     at: number
 }
 
-export function countsOf(owners: ReadonlyMap<number, string>): Map<string, number> {
-    const counts = new Map<string, number>()
-    for (const owner of owners.values()) counts.set(owner, (counts.get(owner) ?? 0) + 1)
-    return counts
-}
-
-export function finalOwners(opening: ReadonlyMap<number, string>, changes: readonly TileChange[]): Map<number, string> {
+export function ownersAfter(opening: ReadonlyMap<number, string>, changes: readonly TileChange[]): Map<number, string> {
     const owners = new Map(opening)
     for (const {tile, to} of changes) {
         if (to === undefined) owners.delete(tile)

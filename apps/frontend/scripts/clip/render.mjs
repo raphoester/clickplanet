@@ -146,6 +146,8 @@ const evaluate = async (expression) => {
     return result.value
 }
 
+let skippedTold = false
+
 async function record(pick, chosenOut) {
     loaded = false
     const query = new URLSearchParams({fps: flag("fps", "30"), pick: String(pick)})
@@ -160,9 +162,13 @@ async function record(pick, chosenOut) {
 
     const recording = await evaluate("window.clip.ready")
     const out = chosenOut ?? join(dirname(replayPath), `clip-${pick}.mp4`)
+    if (!skippedTold) {
+        for (const reason of recording.skipped) console.log(`skipped ${reason}`)
+        skippedTold = true
+    }
     console.log([
         `#${recording.pick} of ${recording.stories}: ${recording.headline}`,
-        `  ${recording.line}`,
+        ...recording.line ? [`  ${recording.line}`] : [],
         `  window: ${recording.since} to ${recording.until}`,
         `  place: ${recording.place}, ${recording.seconds}s`,
         `  look: ${recording.look}`,
@@ -217,7 +223,7 @@ try {
         if (recorded.stories <= pick) break
     }
 } catch (error) {
-    console.error(error.message)
+    console.error(error.message.split("\n").filter((line) => !line.trimStart().startsWith("at ")).join("\n"))
     await done(1)
 }
 

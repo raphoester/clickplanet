@@ -1,4 +1,4 @@
-import {ranked, tally} from "./changes.ts"
+import {ranked, TileChange} from "./changes.ts"
 
 // flags: painted flags all along. tiles: every tile all along. dive: painted flags from far, tiles up close between.
 export type Look = "flags" | "tiles" | "dive"
@@ -16,34 +16,57 @@ const FLAGS_GROUND = 2000
 // A dive pulls back out to show the land that changed hands, so some has to be big enough to see from far.
 const REVEAL_TILES = 300
 
-export type Flip = {tiles: number, was: string, is: string}
+// A landmass taken and taken back changed hands too: its holder is read this many times along the changes.
+const CHECKPOINTS = 8
+
+// holders: who held most of the landmass, in turn, from the first.
+export type Flip = {tiles: number, holders: string[]}
 
 // A landmass flips when the flag holding most of it changes: the only change its painted flag shows from far.
-// landmassOf holds each tile's landmass, tile id - 1 first, 0 for none.
+// landmassOf holds each tile's landmass, tile id - 1 first, 0 for none. changes are in the order they happened.
 export function flipsOf(
     landmassOf: ArrayLike<number>,
-    before: ReadonlyMap<number, string>,
-    after: ReadonlyMap<number, string>,
+    opening: ReadonlyMap<number, string>,
+    changes: readonly TileChange[],
     touched: readonly number[],
 ): Flip[] {
     const landmasses = new Set(touched.map((tile) => landmassOf[tile - 1]).filter((landmass) => landmass > 0))
-    const owners = new Map<number, {was: string[], is: string[]}>()
+    const held = new Map<number, Map<string, number>>()
+    const sizes = new Map<number, number>()
+    const hold = (landmass: number, owner: string, count: number) => {
+        let owners = held.get(landmass)
+        if (!owners) held.set(landmass, owners = new Map())
+        owners.set(owner, (owners.get(owner) ?? 0) + count)
+    }
     for (let i = 0; i < landmassOf.length; i++) {
         const landmass = landmassOf[i]
         if (!landmasses.has(landmass)) continue
-        let held = owners.get(landmass)
-        if (!held) owners.set(landmass, held = {was: [], is: []})
-        held.was.push(before.get(i + 1) ?? "")
-        held.is.push(after.get(i + 1) ?? "")
+        sizes.set(landmass, (sizes.get(landmass) ?? 0) + 1)
+        hold(landmass, opening.get(i + 1) ?? "", 1)
     }
 
-    const flips: Flip[] = []
-    for (const {was, is} of owners.values()) {
-        if (was.length < MIN_LANDMASS_TILES) continue
-        const flip = {tiles: was.length, was: ranked(tally(was))[0][0], is: ranked(tally(is))[0][0]}
-        if (flip.was !== flip.is) flips.push(flip)
+    const holders = new Map([...held].map(([landmass, owners]) => [landmass, [ranked(owners)[0][0]]]))
+    const read = () => {
+        for (const [landmass, owners] of held) {
+            const seen = holders.get(landmass)!
+            const now = ranked(owners)[0][0]
+            if (seen[seen.length - 1] !== now) seen.push(now)
+        }
     }
-    return flips.sort((a, b) => b.tiles - a.tiles)
+    const step = Math.max(1, Math.ceil(changes.length / CHECKPOINTS))
+    changes.forEach(({tile, from, to}, i) => {
+        const landmass = landmassOf[tile - 1]
+        if (landmasses.has(landmass)) {
+            hold(landmass, from ?? "", -1)
+            hold(landmass, to ?? "", 1)
+        }
+        if ((i + 1) % step === 0 || i === changes.length - 1) read()
+    })
+
+    return [...holders]
+        .filter(([landmass, seen]) => seen.length > 1 && (sizes.get(landmass) ?? 0) >= MIN_LANDMASS_TILES)
+        .map(([landmass, seen]) => ({tiles: sizes.get(landmass) ?? 0, holders: seen}))
+        .sort((a, b) => b.tiles - a.tiles)
 }
 
 // A wide front is painted flags when big land changed hands. Any front is a dive when some did, and tiles otherwise.

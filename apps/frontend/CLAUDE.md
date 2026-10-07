@@ -2384,13 +2384,23 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   where. Nearly all in one country (90%) is **"X IS INVADING FRANCE"**; spread over several, it is **"X IS
   ATTACKING"** the continent holding 70% of it (`static/countries/regions.json`, written by `npm run regions` from
   the snapshot the map is cut from), or the world. Not a sub-region: "defend Western Europe" is not how anybody
-  talks. A flag taking back its own ground is **"X STRIKES BACK"**; a second flag taking 60% as much makes it
-  **"X VS Y"**. `src/clip/overlay.ts` words it.
+  talks. A flag taking back its own ground is **"X STRIKES BACK"**; a flag that already held most of the country
+  when the story starts is **"X IS KICKING Y OUT OF AUSTRALIA"**, since the opening shot shows its flag there
+  already; a second flag taking 60% as much makes it **"X VS Y"**. `src/clip/overlay.ts` words it.
+- **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
+  France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
+  The caption is the headline and a question ("Who stops them?", "Pick a side"), the site as plain text (a caption's
+  link cannot be clicked) and the account's tags with the place's. Never the attacker's: a flag's tag can be a
+  political feed.
 - **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
   the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
   story already told by a better candidate (same attacker, same place) is dropped.
+- **`solidity.ts` skips graffiti.** For each tile the attacker took and holds at the end, the share of its 6
+  neighbours it holds too: about 1 for land taken, 0.56 for names written across Canada. Under 0.75 the story is
+  skipped, and `--plan` says so.
 - **`look.ts` picks when the camera comes back out of the tiles.** From far, a landmass's painted flag only
-  changes when its biggest holder does (`flipsOf`, over the borders blob). A front too wide to frame closer than
+  changes when its biggest holder does (`flipsOf`, over the borders blob, read 8 times along the changes, so a
+  landmass taken and taken back counts too). A front too wide to frame closer than
   `TILES_ZOOM` (3) is **flags** when at least 2 landmasses changed their biggest holder and those hold 2,000 tiles
   or more: a steamroll, which comes back out halfway so its painted flags change on screen. Any front is a
   **dive** when one landmass of 300 tiles or more changed hands: it comes back out at the end to show what changed.

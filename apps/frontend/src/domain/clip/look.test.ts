@@ -1,4 +1,5 @@
 import {describe, expect, it} from "vitest"
+import {TileChange} from "./changes.ts"
 import {Flip, flipsOf, lookOf, TILES_ZOOM} from "./look.ts"
 
 const landmassOf = [...Array(30).fill(1), ...Array(30).fill(2), ...Array(5).fill(3), 0]
@@ -7,29 +8,37 @@ function holding(owner: string, from: number, to: number): Map<number, string> {
     return new Map(Array.from({length: to - from + 1}, (_, i) => [from + i, owner]))
 }
 
+function taking(to: string | undefined, from: string | undefined, first: number, last: number, at = 0): TileChange[] {
+    return Array.from({length: last - first + 1}, (_, i) => ({tile: first + i, from, to, at: at + i}))
+}
+
 describe("the landmasses that changed hands", () => {
     it("are the ones whose biggest holder changed", () => {
-        const before = new Map([...holding("pl", 1, 30), ...holding("fr", 31, 60)])
-        const after = new Map([...holding("de", 1, 20), ...holding("pl", 21, 30), ...holding("fr", 31, 60)])
+        const opening = new Map([...holding("pl", 1, 30), ...holding("fr", 31, 60)])
 
-        expect(flipsOf(landmassOf, before, after, [1, 31])).toEqual([{tiles: 30, was: "pl", is: "de"}])
+        expect(flipsOf(landmassOf, opening, taking("de", "pl", 1, 20), [1, 31])).toEqual([{tiles: 30, holders: ["pl", "de"]}])
+    })
+
+    it("count a landmass taken and taken back", () => {
+        const changes = [...taking("nl", "ps", 1, 25), ...taking("ps", "nl", 1, 25, 100)]
+
+        expect(flipsOf(landmassOf, holding("ps", 1, 30), changes, [1])).toEqual([{tiles: 30, holders: ["ps", "nl", "ps"]}])
     })
 
     it("leave out a landmass nothing touched, and a small island", () => {
-        const before = holding("pl", 1, 65)
-        const after = holding("de", 1, 65)
+        const changes = taking("de", "pl", 1, 65)
 
-        expect(flipsOf(landmassOf, before, after, [1, 61])).toHaveLength(1)
-        expect(flipsOf(landmassOf, before, after, [66])).toEqual([])
+        expect(flipsOf(landmassOf, holding("pl", 1, 65), changes, [1, 61])).toHaveLength(1)
+        expect(flipsOf(landmassOf, holding("pl", 1, 65), changes, [66])).toEqual([])
     })
 
     it("count a landmass emptied by bombs", () => {
-        expect(flipsOf(landmassOf, holding("pl", 1, 30), new Map(), [1])).toEqual([{tiles: 30, was: "pl", is: ""}])
+        expect(flipsOf(landmassOf, holding("pl", 1, 30), taking(undefined, "pl", 1, 30), [1])).toEqual([{tiles: 30, holders: ["pl", ""]}])
     })
 })
 
 describe("the look of a clip", () => {
-    const flip = (tiles: number): Flip => ({tiles, was: "fr", is: "ps"})
+    const flip = (tiles: number): Flip => ({tiles, holders: ["fr", "ps"]})
 
     it("is painted flags when several big landmasses changed hands over a wide front", () => {
         expect(lookOf([flip(1500), flip(900)], 1.5)).toBe("flags")
