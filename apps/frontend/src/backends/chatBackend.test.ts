@@ -6,6 +6,7 @@ import {
     ChatEvent,
     ChatMessage as ChatMessagePb,
     Heartbeat,
+    MuteRefusal,
     Reaction,
     ReactionCount,
     ReactionsChanged,
@@ -14,6 +15,7 @@ import {ChatService} from "../gen/grpc/chat/v1/chat_connect.ts"
 import {
     ChatBlockedError,
     ChatMessageGoneError,
+    ChatMutedError,
     ChatNoSessionError,
     ChatRateLimitedError,
     ChatRejectedError,
@@ -129,6 +131,14 @@ describe("ChatServiceBackend.react", () => {
         expect(headersOf(react).get(SESSION_HEADER)).toBe("token-1")
     })
 
+    it("reads a muted reactor as muted", async () => {
+        const react = vi.fn().mockRejectedValue(new ConnectError("muted in the chat", Code.PermissionDenied, undefined,
+            [new MuteRefusal({mutedUntilUnixMs: BigInt(1_700_003_600_000)})]))
+
+        await expect(new ChatServiceBackend({react} as unknown as PromiseClient<typeof ChatService>, session(), unusedKeepalive)
+            .react(reaction)).rejects.toBeInstanceOf(ChatMutedError)
+    })
+
     it("mints a token when none is held", async () => {
         const react = vi.fn().mockResolvedValue(answer)
         const guest = unheld()
@@ -202,6 +212,22 @@ describe("decodedAnnouncement", () => {
             tile: undefined,
             cleared: 0,
         })
+    })
+
+    it("reads a mute, with the name and how long it lasts", () => {
+        expect(decodedAnnouncement(announced(`{"name":"guest_a1b2c3","seconds":3600}`, "mute"))).toEqual({
+            kind: "mute",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            name: "guest_a1b2c3",
+            seconds: 3600,
+        })
+    })
+
+    it("drops a mute with no name or no length", () => {
+        expect(decodedAnnouncement(announced(`{"seconds":3600}`, "mute"))).toBeUndefined()
+        expect(decodedAnnouncement(announced(`{"name":"guest_a1b2c3"}`, "mute"))).toBeUndefined()
+        expect(decodedAnnouncement(announced(`{"name":"guest_a1b2c3","seconds":0}`, "mute"))).toBeUndefined()
     })
 
     it("reads a country passing the leader", () => {
@@ -344,6 +370,17 @@ describe("ChatServiceBackend.sendMessage", () => {
         const backend = new ChatServiceBackend(clientThatFails(new ConnectError("no", code)), session(), unusedKeepalive)
 
         await expect(backend.sendMessage(outgoing)).rejects.toBeInstanceOf(error)
+    })
+
+    it("reads a denial that carries a mute as muted, with its end", async () => {
+        const muted = new ConnectError("muted in the chat", Code.PermissionDenied, undefined,
+            [new MuteRefusal({mutedUntilUnixMs: BigInt(1_700_003_600_000)})])
+        const backend = new ChatServiceBackend(clientThatFails(muted), session(), unusedKeepalive)
+
+        const refusal = await backend.sendMessage(outgoing).catch((e: unknown) => e)
+
+        expect(refusal).toBeInstanceOf(ChatMutedError)
+        expect((refusal as ChatMutedError).until).toBe(1_700_003_600_000)
     })
 
     it("leaves any other fault alone", async () => {

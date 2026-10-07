@@ -6,6 +6,7 @@ import {
     ChatListener,
     ChatMessage,
     ChatMessageGoneError,
+    ChatMutedError,
     ChatNoSessionError,
     ChatRateLimitedError,
     ChatReactor,
@@ -21,6 +22,7 @@ import {
     Announcement as AnnouncementPb,
     ChatEvent,
     ChatMessage as ChatMessagePb,
+    MuteRefusal,
     ReactionCount as ReactionCountPb,
 } from "../gen/grpc/chat/v1/chat_pb.ts";
 import {ChatService} from "../gen/grpc/chat/v1/chat_connect.ts";
@@ -175,8 +177,11 @@ function translate(e: unknown): unknown {
     switch (e.code) {
         case Code.ResourceExhausted:
             return new ChatRateLimitedError({cause: e})
-        case Code.PermissionDenied:
+        case Code.PermissionDenied: {
+            const muted = e.findDetails(MuteRefusal)[0]
+            if (muted) return new ChatMutedError(Number(muted.mutedUntilUnixMs), {cause: e})
             return new ChatBlockedError({cause: e})
+        }
         case Code.InvalidArgument:
             return new ChatRejectedError({cause: e})
         case Code.NotFound:
@@ -247,6 +252,16 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 ground: typeof values.ground === "string" && values.ground !== "" ? values.ground : undefined,
                 tile: typeof values.tile === "number" && values.tile > 0 ? values.tile : undefined,
                 cleared: typeof values.cleared === "number" ? values.cleared : 0,
+            }
+        case "mute":
+            if (typeof values.name !== "string" || values.name === "") return undefined
+            if (typeof values.seconds !== "number" || !(values.seconds > 0)) return undefined
+            return {
+                kind: "mute",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                name: values.name,
+                seconds: values.seconds,
             }
         case "lead_changed":
             if (!isSeason(values.season) || !isCountry(values.leader) || !isCountry(values.passed)) return undefined

@@ -10,6 +10,7 @@ import {
     ChatAnnouncement,
     ChatBackend,
     ChatMessage,
+    ChatMutedError,
     ChatNoSessionError,
     ChatRateLimitedError,
     ChatRejectedError,
@@ -216,6 +217,27 @@ describe("ChatPanel", () => {
         expect(line.previousElementSibling?.textContent).toContain("before")
         expect(line.nextElementSibling?.textContent).toContain("after")
         expect(item("after").className).toContain("chat-message-opens")
+    })
+
+    it("says who was muted and for how long, as a line between the messages", async () => {
+        const mute: ChatAnnouncement = {kind: "mute", id: "hush", announcedAt: 1_700_000_000_500, name: "guest_a1b2c3", seconds: 3600}
+        const {backend} = stubBackend([message("a", "We target the players"), message("b", "thanks", 1_700_000_001_000)], [mute])
+        setup(backend)
+
+        const line = (await screen.findByText("has been muted for one hour", {exact: false})).closest("li")!
+        expect(line.className).toBe("chat-announcement")
+        expect(line.textContent).toContain("guest_a1b2c3 has been muted for one hour")
+        expect(line.previousElementSibling?.textContent).toContain("We target the players")
+    })
+
+    it("shows a mute announced while the chat is open", async () => {
+        const {backend, announce} = stubBackend()
+        setup(backend)
+
+        await screen.findByText("Nobody has said anything yet. Go on.")
+        act(() => announce({kind: "mute", id: "hush", announcedAt: Date.now(), name: "Ada_L", seconds: 7200}))
+
+        expect(await screen.findByText("has been muted for 2 hours", {exact: false})).toBeDefined()
     })
 
     it("shows a bomb that lands while the chat is open", async () => {
@@ -455,6 +477,21 @@ describe("ChatPanel", () => {
                 "textContent",
                 "You're sending messages too fast. Give it a few seconds.",
             )
+            expect(messageBox()).toHaveProperty("value", "hello")
+        })
+
+        it("says until when a muted player is muted, and keeps the text", async () => {
+            const until = Date.now() + 3600_000
+            const {backend} = stubBackend()
+            backend.sendMessage.mockRejectedValue(new ChatMutedError(until))
+            vi.spyOn(console, "error").mockImplementation(() => {})
+            const {user} = setup(backend)
+            await screen.findByRole("textbox", {name: "Message"})
+
+            await user.type(messageBox(), "hello{Enter}")
+
+            const clock = new Intl.DateTimeFormat(undefined, {hour: "2-digit", minute: "2-digit"})
+            expect(await screen.findByRole("alert")).toHaveProperty("textContent", `You are muted until ${clock.format(until)}.`)
             expect(messageBox()).toHaveProperty("value", "hello")
         })
 
@@ -878,6 +915,20 @@ describe("ChatPanel reactions", () => {
         await user.click(screen.getByRole("button", {name: "Clown"}))
 
         await waitFor(() => expect(screen.queryByRole("button", {name: /^Clown: /})).toBeNull())
+    })
+
+    it("undoes a reaction refused to a muted player, and says it is muted", async () => {
+        const {backend} = stubBackend([message("m1", "gm")])
+        backend.react.mockRejectedValueOnce(new ChatMutedError(Date.now() + 3600_000))
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const {user} = setup(backend)
+        await screen.findByText("gm")
+
+        await user.click(screen.getByRole("button", {name: "Add a reaction"}))
+        await user.click(screen.getByRole("button", {name: "Clown"}))
+
+        await waitFor(() => expect(screen.queryByRole("button", {name: /^Clown: /})).toBeNull())
+        expect((await screen.findByRole("alert")).textContent).toMatch(/^You are muted until /)
     })
 
     it("closes the picker on Escape", async () => {

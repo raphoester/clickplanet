@@ -1,5 +1,5 @@
 import {Fragment, ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {ChatAnnouncement, ChatMessage, Reaction} from "../../backends/chat.ts";
+import {ChatAnnouncement, ChatMessage, MuteAnnouncement, Reaction} from "../../backends/chat.ts";
 import {PlayerLine} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
@@ -9,6 +9,7 @@ import TitleBadge from "../titles/TitleBadge.tsx";
 import {ChevronIcon} from "../components/icons.tsx";
 import {ChatLogEntry, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
 import {describeBlast} from "../../domain/blast.ts";
+import {describeMute} from "../../domain/mute.ts";
 import {truncate} from "../truncate.ts";
 import {authorOf, authorStyle} from "./authorStyle.ts";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
@@ -233,6 +234,8 @@ function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
                 <strong>{countryName(announcement.country)}</strong> {describeBlast(announcement, ground)}
             </Announced>
         }
+        case "mute":
+            return <MuteLine announcement={announcement}/>
         case "leadChanged":
             return <Announced country={announcement.leader} at={announcement.announcedAt}>
                 <strong>{countryName(announcement.leader)}</strong> passes {countryName(announcement.passed)}
@@ -242,6 +245,18 @@ function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
                 <strong>{countryName(announcement.winner)}</strong> wins Season {announcement.season}
             </Announced>
     }
+}
+
+function MuteLine({announcement}: {announcement: MuteAnnouncement}) {
+    return <li className="chat-announcement" data-at={announcement.announcedAt}>
+        <span className="chat-announcement-icon" aria-hidden="true">🔇</span>
+        <span className="chat-announcement-text">
+            <strong>{announcement.name}</strong> {describeMute(announcement.seconds)}
+        </span>
+        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
+            {clock.format(announcement.announcedAt)}
+        </time>
+    </li>
 }
 
 function Announced({country, at, icon, won, children}: {

@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatmessage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatmute"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
@@ -51,6 +52,10 @@ func (h ReactHandler) React(
 }
 
 func toConnect(err error) error {
+	if refused, ok := chatmute.Refusal(err); ok {
+		return refused
+	}
+
 	switch {
 	case errors.Is(err, reactions.ErrInvalidReaction):
 		return connect.NewError(connect.CodeInvalidArgument, reactions.ErrInvalidReaction)

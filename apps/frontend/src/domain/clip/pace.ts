@@ -5,12 +5,22 @@ export type Timeline = {
 
 const ENDING_SECONDS = 2.5
 
-const SHORTEST_SECONDS = 14
+// A clip lasts as long as its camera has somewhere to go: a fight in one place is over in a few seconds, however
+// long it went on, and only one that crosses the map gets long. The shortest still has room for the dive in, the
+// close-ups, and the pull back out to the map as it is now.
+const SHORTEST_PLAY_SECONDS = 6
+
+const SECONDS_PER_SCREEN = 1.2
+
+const LONGEST_PLAY_SECONDS = 15
+
+// A bomb gets the seconds it takes to fall and go off.
+const BOMB_SECONDS = 2
 
 const LONGEST_SECONDS = 22
 
-// A bomb holds the clip still while it falls and goes off: about a tenth of it for one bomb.
-const BOMB_SHARE = 0.12
+// Bombs never take more than this much of the clip between them.
+const MOST_FOR_BOMBS = 0.6
 
 // When something happened, and how much of the clip it is worth: a tile changing hands is 1.
 export type Moment = {at: number, weight: number}
@@ -21,10 +31,16 @@ export type Pace = {
     heldOn(at: number): {from: number, to: number}
 }
 
-// The more tiles change hands, the longer the clip, within what a feed holds a viewer for.
-export function timelineOf(action: number, seconds?: number): Timeline {
-    const chosen = seconds ?? Math.round(2 * (8 + 3 * Math.log10(Math.max(1, action)))) / 2
-    return {seconds: Math.min(LONGEST_SECONDS, Math.max(SHORTEST_SECONDS, chosen)), ending: ENDING_SECONDS}
+// screens: how far the action moves up close, in screen heights.
+export function timelineOf(screens: number, bombs: number, seconds?: number): Timeline {
+    const play = Math.min(LONGEST_PLAY_SECONDS, SHORTEST_PLAY_SECONDS + SECONDS_PER_SCREEN * screens) + BOMB_SECONDS * bombs
+    const chosen = seconds ?? Math.round(2 * (play + ENDING_SECONDS)) / 2
+    return {seconds: Math.min(LONGEST_SECONDS, chosen), ending: ENDING_SECONDS}
+}
+
+// The share of the clip's play one bomb holds still for.
+export function bombShareOf({seconds, ending}: Timeline): number {
+    return BOMB_SECONDS / Math.max(seconds - ending, BOMB_SECONDS)
 }
 
 // The share of the replay played after so many seconds of video: all of it once the ending starts.
@@ -33,8 +49,10 @@ export function playedAt({seconds, ending}: Timeline, at: number): number {
     return playing <= 0 ? 1 : Math.min(1, Math.max(0, at / playing))
 }
 
-export function momentsOf(changes: readonly number[], bombs: readonly number[]): Moment[] {
-    const bomb = Math.max(1, changes.length * BOMB_SHARE)
+// bombShare: the share of the clip each bomb holds still for.
+export function momentsOf(changes: readonly number[], bombs: readonly number[], bombShare: number): Moment[] {
+    const share = Math.min(bombShare, MOST_FOR_BOMBS / Math.max(1, bombs.length))
+    const bomb = Math.max(1, changes.length * share / (1 - bombs.length * share))
     return [...changes.map((at) => ({at, weight: 1})), ...bombs.map((at) => ({at, weight: bomb}))]
 }
 

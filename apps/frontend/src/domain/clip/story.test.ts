@@ -40,6 +40,16 @@ describe("the story of a front", () => {
         expect(story).toMatchObject({kind: "comeback", attacker: "ru", victims: ["ua"], place: {country: "ru"}})
     })
 
+    it("is a kickout when the attacker already held most of the country it takes", () => {
+        const story = storyOf(took("fr", "pl", 90), () => "au", regionOf, undefined, () => "fr")
+
+        expect(story).toMatchObject({kind: "kickout", attacker: "fr", victims: ["pl"], place: {country: "au"}})
+    })
+
+    it("is an invasion when somebody else held the country at the start", () => {
+        expect(storyOf(took("fr", "pl", 90), () => "au", regionOf, undefined, () => "pl")).toMatchObject({kind: "invasion"})
+    })
+
     it("is a battle when two flags took about as much", () => {
         const changes = [...took("fr", "ps", 50, 1), ...took("ps", "fr", 40, 51)]
 

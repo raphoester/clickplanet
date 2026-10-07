@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/postgres_announcement_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_mute_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
@@ -20,6 +21,7 @@ import (
 	history_authors "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mark_seen_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mute_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/react_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/inprocess_feed"
@@ -31,14 +33,23 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase/log_prune"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/muting_send_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/publishing_send_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/postgres_mute_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase/audit_mute"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase/publishing_mute"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase/muting_react"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/postgres_seen_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/forget_seen_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/mark_seen_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_deleted_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_muted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/lead_changed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
@@ -60,6 +71,8 @@ const (
 )
 
 const accountDeletedBuffer = 256
+
+const accountMutedBuffer = 64
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -92,15 +105,20 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	reactionStore := postgres_reaction_store.New(db)
 	announcementStore := postgres_announcement_store.New(db)
 	seenStore := postgres_seen_store.New(db)
+	muteStore := postgres_mute_store.New(db)
+	muteBook := mutes.NewBook(muteStore, cptime.SystemClock{})
 	window := messages.NewWindow(storage.HistorySize, storage.Retention)
 	updates := inprocess_feed.New(storage.SubscriberBuffer, props.Logger)
 
 	prune := log_prune.New(
-		prune_usecase.New(storage.Retention, cptime.SystemClock{}, messageStore, reactionStore, announcementStore),
+		prune_usecase.New(storage.Retention, cptime.SystemClock{}, messageStore, reactionStore, announcementStore, muteStore),
 		props.Logger)
 
+	announce := announce_usecase.New(announcementStore, updates)
+	authors := log_authors.New(rpc_player_authors.New(player), props.Logger)
+
 	bombs, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-bombs", bombLandedBuffer,
-		log_subscriber.New(bomb_landed_subscriber.New(announce_usecase.New(announcementStore, updates)), props.Logger))
+		log_subscriber.New(bomb_landed_subscriber.New(announce), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.BombLanded: %w", err)
@@ -113,15 +131,22 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
+	mutings, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-mutes", accountMutedBuffer,
+		log_subscriber.New(account_muted_subscriber.New(announce_mute_usecase.New(authors, announce)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to chat.v1.AccountMuted: %w", err)
+	}
+
 	leads, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-leads", seasonBuffer,
-		log_subscriber.New(lead_changed_subscriber.New(announce_usecase.New(announcementStore, updates)), props.Logger))
+		log_subscriber.New(lead_changed_subscriber.New(announce), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to seasons.v1.LeadChanged: %w", err)
 	}
 
 	wins, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-wins", seasonBuffer,
-		log_subscriber.New(season_ended_subscriber.New(announce_usecase.New(announcementStore, updates)), props.Logger))
+		log_subscriber.New(season_ended_subscriber.New(announce), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to seasons.v1.SeasonEnded: %w", err)
@@ -129,7 +154,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		prune_usecase.NewRunner(storage.PruneInterval, prune), bombs, deletions, leads, wins))
+		prune_usecase.NewRunner(storage.PruneInterval, prune), bombs, deletions, mutings, leads, wins))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)
@@ -145,17 +170,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to build the chat blocklist: %w", err)
 	}
 
-	authors := log_authors.New(rpc_player_authors.New(player), props.Logger)
-
 	chatService := chatv1controller.ChatService{
-		SendMessageHandler: send_message_handler.New(publishing_send_message.New(send_message_usecase.New(
-			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service), props.Events)),
+		SendMessageHandler: send_message_handler.New(muting_send_message.New(publishing_send_message.New(send_message_usecase.New(
+			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service), props.Events), muteBook)),
 		GetHistoryHandler: get_history_handler.New(history_query.NewPostgresQuery(
 			db, history_authors.New(player), cptime.SystemClock{}, storage.HistorySize, storage.Retention)),
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(updates, props.Server.StreamHeartbeat)),
-		ReactHandler: react_handler.New(react_usecase.New(
-			messageStore, reactionStore, updates, authors, cptime.SystemClock{}, window)),
+		ReactHandler: react_handler.New(muting_react.New(react_usecase.New(
+			messageStore, reactionStore, updates, authors, cptime.SystemClock{}, window), muteBook)),
 		MarkSeenHandler: mark_seen_handler.New(mark_seen_usecase.New(seenStore, cptime.SystemClock{})),
 	}
 
@@ -172,6 +195,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	)
 	if err != nil {
 		return err
+	}
+
+	adminService := chatv1controller.AdminService{
+		MuteHandler: mute_handler.New(audit_mute.New(publishing_mute.New(
+			mute_usecase.New(muteStore, messageStore, uuid_id_provider.Provider{}, cptime.SystemClock{}), props.Events),
+			props.Logger)),
+	}
+	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return chatv1connect.NewAdminServiceHandler(adminService, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount chat.v1.AdminService: %w", err)
 	}
 
 	props.Logger.Info("chat built", slog.String("schema", config.Database.Schema))

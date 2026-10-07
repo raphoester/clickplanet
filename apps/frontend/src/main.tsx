@@ -86,6 +86,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         },
     })
 
+    Object.assign(window, {fakeChat})
     const fakeSeason = new FakeSeasonBackend(SEASON_ZERO)
     const fakeStandings = new FakeStandingsBackend()
     const clicker = fakeStandings.counting(fake)

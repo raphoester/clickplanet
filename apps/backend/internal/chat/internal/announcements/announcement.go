@@ -17,6 +17,7 @@ type Kind string
 
 const (
 	KindBomb        Kind = "bomb"
+	KindMute        Kind = "mute"
 	KindLeadChanged Kind = "lead_changed"
 	KindSeasonWon   Kind = "season_won"
 )
@@ -27,7 +28,7 @@ var (
 	ErrKept = errors.New("an announcement with this id is already kept")
 )
 
-func Kinds() []Kind { return []Kind{KindBomb, KindLeadChanged, KindSeasonWon} }
+func Kinds() []Kind { return []Kind{KindBomb, KindMute, KindLeadChanged, KindSeasonWon} }
 
 func (k Kind) Known() bool { return slices.Contains(Kinds(), k) }
 
@@ -72,6 +73,28 @@ func (b Bomb) Payload() (json.RawMessage, error) {
 	payload, err := json.Marshal(bombPayload{Country: b.country, Ground: b.ground, Tile: b.tile, Cleared: b.cleared})
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode a bomb announcement: %w", err)
+	}
+	return payload, nil
+}
+
+type Muted struct {
+	name     string
+	duration time.Duration
+}
+
+func MutedOf(name string, duration time.Duration) Muted {
+	return Muted{name: name, duration: duration}
+}
+
+type mutedPayload struct {
+	Name    string `json:"name"`
+	Seconds int64  `json:"seconds"`
+}
+
+func (m Muted) Payload() (json.RawMessage, error) {
+	payload, err := json.Marshal(mutedPayload{Name: m.name, Seconds: int64(m.duration / time.Second)})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode a mute announcement: %w", err)
 	}
 	return payload, nil
 }

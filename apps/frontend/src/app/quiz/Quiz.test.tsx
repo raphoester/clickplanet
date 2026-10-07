@@ -159,7 +159,7 @@ describe("Quiz", () => {
         fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
         await settle()
 
-        expect(screen.getByText("Correct")).toBeTruthy()
+        expect(screen.getByText("Correct!")).toBeTruthy()
         expect(screen.getByText("Refill")).toBeTruthy()
     })
 
@@ -176,6 +176,37 @@ describe("Quiz", () => {
 
         expect(screen.getByText("Not quite")).toBeTruthy()
         expect(screen.getByText("Tallinn")).toBeTruthy()
+    })
+
+    it("shows the choices again with the answer, and none of them can be pressed", async () => {
+        master.outcome = {correct: false, correctChoice: 1}
+
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Riga"}))
+        await settle()
+
+        expect(screen.queryAllByRole("button")).toEqual([])
+        expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+            "Riga, your pick",
+            "Tallinn, the answer",
+            "CVilnius",
+        ])
+    })
+
+    it("takes no answer once a choice is pressed", async () => {
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Riga"}))
+
+        screen.getAllByRole("button").forEach((choice) => expect((choice as HTMLButtonElement).disabled).toBe(true))
+        await settle()
     })
 
     it("answers nothing, and learns the answer, when the time runs out", async () => {
@@ -235,7 +266,7 @@ describe("Quiz", () => {
 
         act(() => void vi.advanceTimersByTime(RESULT_MS + 100))
 
-        expect(screen.queryByText("Correct")).toBeNull()
+        expect(screen.queryByText("Correct!")).toBeNull()
     })
 
     it("leaves nothing on screen when the banner got away before it opened", async () => {

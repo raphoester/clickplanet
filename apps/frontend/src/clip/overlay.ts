@@ -3,12 +3,14 @@ import {Place, Story, THE_WORLD} from "../domain/clip/story.ts"
 
 export type Words = {
     headline: string
-    line: string
+    // Only where it says something the map does not.
+    line: string | undefined
     call: string
     // The flags of what the call asks the viewer to fight for.
     callFlags: string[]
     link: string
-    tags: string[]
+    // What to post with the clip: links in a caption cannot be clicked, so the site is plain text.
+    caption: string
 }
 
 export type Moment = {
@@ -24,13 +26,13 @@ export type Overlay = {
 
 const NUMBER = new Intl.NumberFormat("en-US")
 
-const LIST = new Intl.ListFormat("en", {style: "long", type: "conjunction"})
-
 const TIME = new Intl.DateTimeFormat("en-GB", {
     weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC",
 })
 
 const SITE = "https://clickplanet.lol"
+
+const PICK_A_SIDE = "PICK A SIDE"
 
 // The only continent with a flag of its own in static/countries/svg.
 const CONTINENT_FLAGS: ReadonlyMap<string, string[]> = new Map([["Europe", ["eu"]]])
@@ -43,62 +45,63 @@ export function placeName(place: Place): string {
     return "country" in place ? nameOf(place.country) : place.region
 }
 
-function spanOf(milliseconds: number): string {
-    const hours = Math.round(milliseconds / 3_600_000)
-    if (hours >= 2) return `${hours} hours`
-    if (hours === 1) return "1 hour"
-    return `${Math.max(1, Math.round(milliseconds / 60_000))} minutes`
-}
+// The account's own tags, and the place's. Never the attacker's: a flag's tag can be a political feed.
+const TAGS = ["#clickplanet", "#pixelwars", "#rplace", "#wplace", "#map"]
 
 function tagOf(name: string): string {
-    return `#${name.replace(/[^\p{L}\p{N}]/gu, "")}`
+    return `#${name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")}`
 }
 
-export function wordsOf(story: Story, span: number, headline?: string): Words {
+// The flags a story is between: the attacker, and whoever it fights or kicks out.
+export function sidesOf(story: Story): string[] {
+    if (story.kind === "battle" && story.rival !== undefined) return [story.attacker, story.rival]
+    if (story.kind === "kickout" && story.victims.length > 0) return [story.attacker, story.victims[0]]
+    return [story.attacker]
+}
+
+export function wordsOf(story: Story, headline?: string): Words {
     const attacker = nameOf(story.attacker)
     const place = placeName(story.place)
-    const during = spanOf(span)
-    const taken = NUMBER.format(story.taken)
-    const tags = [...new Set([tagOf("clickplanet"), tagOf(attacker), ...place === THE_WORLD ? [] : [tagOf(place)], "#geography", "#map"])]
+    const tags = place === THE_WORLD ? TAGS : [...TAGS, tagOf(place)]
+    const sides = sidesOf(story)
+    const finish = (words: Omit<Words, "caption">): Words => ({
+        ...words,
+        caption: `${words.headline}. ${words.call === PICK_A_SIDE ? "Pick a side" : "Who stops them?"} 👇\n`
+            + `clickplanet.lol\n${tags.join(" ")}`,
+    })
 
-    if (story.kind === "battle" && story.rival !== undefined) {
-        return {
-            headline: headline ?? `${attacker} VS ${nameOf(story.rival)}`.toUpperCase(),
-            line: `The battle for ${place}, ${during} of it.`,
-            call: "PICK A SIDE",
-            callFlags: [story.attacker, story.rival],
+    if (sides.length === 2) {
+        return finish({
+            headline: headline ?? (story.kind === "kickout"
+                ? `${attacker} IS KICKING ${nameOf(sides[1])} OUT OF ${place}`
+                : `${attacker} VS ${nameOf(sides[1])}`).toUpperCase(),
+            line: story.kind === "battle" ? `The battle for ${place}` : undefined,
+            call: PICK_A_SIDE,
+            callFlags: sides,
             link: SITE,
-            tags,
-        }
+        })
     }
 
-    const victims = story.victims.map(nameOf)
     if (story.kind === "comeback") {
-        return {
+        return finish({
             headline: headline ?? `${attacker} STRIKES BACK`.toUpperCase(),
-            line: victims.length > 0
-                ? `${taken} tiles taken back in ${during}, from ${LIST.format(victims)}.`
-                : `${taken} tiles taken back in ${during}.`,
+            line: undefined,
             call: `FIGHT FOR ${attacker}`.toUpperCase(),
             callFlags: [story.attacker],
             link: `${SITE}/?f=${story.attacker}`,
-            tags,
-        }
+        })
     }
 
     const defended = "country" in story.place ? story.place.country : story.victims[0]
-    return {
+    return finish({
         headline: headline ?? (story.kind === "invasion"
             ? `${attacker} IS INVADING ${place}`
             : `${attacker} IS ATTACKING ${place}`).toUpperCase(),
-        line: victims.length > 0 && story.kind === "attack"
-            ? `${taken} tiles in ${during}, from ${LIST.format(victims)}.`
-            : `${taken} tiles in ${during}.`,
+        line: undefined,
         call: `DEFEND ${place}`.toUpperCase(),
         callFlags: "country" in story.place ? [story.place.country] : CONTINENT_FLAGS.get(story.place.region) ?? [],
         link: defended === undefined ? SITE : `${SITE}/?f=${defended}`,
-        tags,
-    }
+    })
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, parent: HTMLElement) {
@@ -116,13 +119,13 @@ function flag(code: string, className: string, parent: HTMLElement) {
 }
 
 export function createOverlay(root: HTMLElement, story: Story, words: Words, opening: ReadonlyMap<string, number>): Overlay {
-    const sides = story.rival === undefined ? [story.attacker] : [story.attacker, story.rival]
+    const sides = sidesOf(story)
 
     const top = element("header", "clip-top", root)
     const headline = element("h1", "clip-headline", top)
     for (const side of sides) flag(side, "clip-headline-flag", headline)
     element("span", "", headline).textContent = words.headline
-    element("p", "clip-line", top).textContent = words.line
+    if (words.line !== undefined) element("p", "clip-line", top).textContent = words.line
 
     const bottom = element("footer", "clip-bottom", root)
     const counters = element("div", "clip-counters", bottom)

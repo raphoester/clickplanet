@@ -9,6 +9,7 @@ package chatv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -82,17 +83,82 @@ func (x *MessageSent) GetSentAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type AccountMuted struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	MutedAt       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=muted_at,json=mutedAt,proto3" json:"muted_at,omitempty"`
+	Duration      *durationpb.Duration   `protobuf:"bytes,3,opt,name=duration,proto3" json:"duration,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AccountMuted) Reset() {
+	*x = AccountMuted{}
+	mi := &file_chat_v1_events_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AccountMuted) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AccountMuted) ProtoMessage() {}
+
+func (x *AccountMuted) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_v1_events_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AccountMuted.ProtoReflect.Descriptor instead.
+func (*AccountMuted) Descriptor() ([]byte, []int) {
+	return file_chat_v1_events_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *AccountMuted) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *AccountMuted) GetMutedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.MutedAt
+	}
+	return nil
+}
+
+func (x *AccountMuted) GetDuration() *durationpb.Duration {
+	if x != nil {
+		return x.Duration
+	}
+	return nil
+}
+
 var File_chat_v1_events_proto protoreflect.FileDescriptor
 
 const file_chat_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x14chat/v1/events.proto\x12\achat.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x80\x01\n" +
+	"\x14chat/v1/events.proto\x12\achat.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x80\x01\n" +
 	"\vMessageSent\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\tR\taccountId\x123\n" +
-	"\asent_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAtB\xa5\x01\n" +
+	"\asent_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\"\x9b\x01\n" +
+	"\fAccountMuted\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x125\n" +
+	"\bmuted_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\amutedAt\x125\n" +
+	"\bduration\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\bdurationB\xa5\x01\n" +
 	"\vcom.chat.v1B\vEventsProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1;chatv1\xa2\x02\x03CXX\xaa\x02\aChat.V1\xca\x02\aChat\\V1\xe2\x02\x13Chat\\V1\\GPBMetadata\xea\x02\bChat::V1b\x06proto3"
 
 var (
@@ -107,18 +173,22 @@ func file_chat_v1_events_proto_rawDescGZIP() []byte {
 	return file_chat_v1_events_proto_rawDescData
 }
 
-var file_chat_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_chat_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chat_v1_events_proto_goTypes = []any{
 	(*MessageSent)(nil),           // 0: chat.v1.MessageSent
-	(*timestamppb.Timestamp)(nil), // 1: google.protobuf.Timestamp
+	(*AccountMuted)(nil),          // 1: chat.v1.AccountMuted
+	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 3: google.protobuf.Duration
 }
 var file_chat_v1_events_proto_depIdxs = []int32{
-	1, // 0: chat.v1.MessageSent.sent_at:type_name -> google.protobuf.Timestamp
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: chat.v1.MessageSent.sent_at:type_name -> google.protobuf.Timestamp
+	2, // 1: chat.v1.AccountMuted.muted_at:type_name -> google.protobuf.Timestamp
+	3, // 2: chat.v1.AccountMuted.duration:type_name -> google.protobuf.Duration
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_chat_v1_events_proto_init() }
@@ -132,7 +202,7 @@ func file_chat_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chat_v1_events_proto_rawDesc), len(file_chat_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -38,11 +38,15 @@ func (m Message) Named(author Author) Message {
 	return m
 }
 
-var ErrInvalidMessage = errors.New("invalid chat message")
+var (
+	ErrInvalidMessage = errors.New("invalid chat message")
+	ErrNoMessage      = errors.New("the account sent no message")
+)
 
 type Storage interface {
 	Append(ctx context.Context, record Record) error
 	Shown(ctx context.Context, id MessageID, since time.Time, limit int) (bool, error)
+	LatestAddress(ctx context.Context, account AccountID) (string, error)
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
 }
 

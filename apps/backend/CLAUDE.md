@@ -63,7 +63,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username, and sets `planet`'s rules and reads its shares during a finale. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent`, `player` publishes `StatsChanged`, and `seasons` publishes `LeadChanged` and `SeasonEnded`; `player` hears all six of the first, `seasons` hears `TileTaken` and `AccountDeleted`, `planet` and `chat` hear `AccountDeleted` too, and `chat` hears `BombLanded` and both of `seasons`'.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username, and sets `planet`'s rules and reads its shares during a finale. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `LeadChanged` and `SeasonEnded`; `player` hears all six of the first but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, `planet` and `chat` hear `AccountDeleted` too, and `chat` hears `BombLanded` and both of `seasons`'.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -252,6 +252,7 @@ The events today:
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
+| `chat.v1.AccountMuted{account_id, muted_at, duration}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
 | `player.v1.StatsChanged{account_id}` | `player`, `record_take_usecase/publishing_record_take` and `record_message_usecase/publishing_record_message` | after each take or message is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
 | `seasons.v1.LeadChanged{season, leader, passed, changed_at}` | `seasons`, `watch_lead_usecase` | a country took the lead during a finale and held it (see [The Final Battle](#the-final-battle)) | `chat`, which announces it |
 | `seasons.v1.SeasonEnded{season, winner, ended_at}` | `seasons`, `watch_lead_usecase` | once a season has ended and its map is frozen, with the country holding the most tiles; nothing when nobody holds one | `chat`, which announces it |
@@ -378,9 +379,9 @@ handler declares: they tell the guard what a caller reads, for the `scraper`.
 
 ### Inside the chat module: the same shape
 
-Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has five:
-`messages`, `reactions` (which imports `messages`), `announcements`, `seen` (which imports `messages`), and `feed`,
-the live stream, which carries the first three. `subscribers/` is its edge for events, as `chatv1controller/` is
+Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has six:
+`messages`, `reactions` (which imports `messages`), `announcements`, `seen` (which imports `messages`), `mutes`
+(which imports `messages`), and `feed`, the live stream, which carries the first three. `subscribers/` is its edge for events, as `chatv1controller/` is
 its edge for the wire. A read is a query under its handler: see [Reads are queries](#reads-are-queries).
 
 ```
@@ -394,6 +395,7 @@ internal/chat/internal/
     log_authors/                        logs a caller, or a page of them, it could not name
     usecases/send_message_usecase/      names, cleans, appends, publishes — Appender, Publisher, CountryChecker, Authors
       publishing_send_message/          publishes chat.v1.MessageSent once a message is kept
+      muting_send_message/              refuses a muted caller before anything else — Mutes
     usecases/prune_usecase/             deletes past retention, from each table; Runner — Pruner
       log_prune/                        logs what a prune deleted
   reactions/                            Reaction, Reactor, AccountOf, Reactions, Count, Tally, Change, Named,
@@ -401,30 +403,43 @@ internal/chat/internal/
     postgres_reaction_store/            Storage, over chat.reactions
     inmemory_reaction_storage/          Storage in a slice — behind the testing tag, tests only
     usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher, Authors
+      muting_react/                     refuses a muted caller before anything else — Mutes
   announcements/                        Announcement, AnnouncementID, Kind (Kinds, Known: announce_usecase refuses
-                                        any other), Bomb (a payload), the Storage port and its suite
+                                        any other), Bomb and Muted (payloads), the Storage port and its suite
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
     usecases/announce_usecase/          keeps an announcement, then publishes it — Appender, Publisher
+    usecases/announce_mute_usecase/     names a muted account, announces it as a Muted payload — Authors, Announcer
   seen/                                 Until (the rule on a mark's time), ErrNoTime, the Storage port: writes only
     postgres_seen_store/                Storage, over chat.seen; what it keeps is tested through history_query
     inmemory_seen_storage/              Storage in a map, and Kept for a test — behind the testing tag, tests only
     usecases/mark_seen_usecase/         keeps until when an account saw the chat — Saver
     usecases/forget_seen_usecase/       deletes an account's mark — Deleter
+  mutes/                                Mute (NewMute, MuteOf, ApplicableTo, Refusal), MuteID, Caller, Scope (ScopeOf),
+                                        DurationOf, Book (MuteError), the IDProvider and Storage ports, the suite
+    postgres_mute_store/                Storage, over chat.mutes
+    inmemory_mute_storage/              Storage in a slice — behind the testing tag, tests only
+    uuid_id_provider/                   IDProvider: a UUIDv7 per mute
+    usecases/mute_usecase/              keeps a mute on the account and its network — Saver, Addresses, IDProvider
+      publishing_mute/                  publishes chat.v1.AccountMuted once a mute is kept
+      audit_mute/                       logs every mute at Warn
   feed/                                 Update: a message sent, a message's new reactions, or an announcement
                                         (MessageSent, ReactionsChanged, Announced)
     inprocess_feed/                     the fanout to every open stream, in this process
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — UpdatesSubscriber
-  chatv1controller/                     ChatService (a bag), the interceptors
+  chatv1controller/                     ChatService and AdminService (bags), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
+    mute_handler/
     get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, named, and until when
                                         the viewer saw the chat — Authors
       rpc_player_authors/               Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
     chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), for the post,
                                         the reaction and the stream
     chatannouncement/                   Encode, for the stream
+    chatmute/                           Refusal: a mute as PermissionDenied with a MuteRefusal detail
   subscribers/                          Timeout
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb payload
+    account_muted_subscriber/           chat.v1.AccountMuted → announce_mute_usecase
     account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema
@@ -631,6 +646,7 @@ POST /chat.v1.ChatService/SendMessage   [X-Session-Token: required, naming an ac
   → [cpbootstrap: error net], BlocklistInterceptor, RateLimitInterceptor, then SessionInterceptor (a reader: refuses nothing)
       [cpsessionverifier: the key from auth.v1.InternalService, asked once per boot]
   → ChatService → send_message_handler (the account off the context, or none)
+  → muting_send_message: a mute on the account or its network is PermissionDenied, with when it ends
   → messages/usecases/send_message_usecase: no account is ErrNoAccount (Unauthenticated), then
       who posts (log_authors → rpc_player_authors → player.v1.InternalService/GetAuthor): the account's
       username, or "guest_" and its guest code; stamps id/time
@@ -645,6 +661,7 @@ A failed insert fails the whole post: the table is the audit trail, so a message
 POST /chat.v1.ChatService/React   [X-Session-Token: required, naming an account]
   → [cpbootstrap: error net], BlocklistInterceptor, ReactionRateLimitInterceptor, SessionInterceptor (a reader)
   → react_handler (refuses a Reaction the proto does not name)
+  → muting_react: a mute on the account or its network is PermissionDenied, with when it ends
   → reactions/usecases/react_usecase: who reacts is the account (reactions.ReactorOf); no account is ErrNoAccount
       is the message shown (postgres_message_store.Shown), what it carries (postgres_reaction_store.Reactions)
   → postgres_reaction_store.Save() [inserts or deletes in chat.reactions and bumps chat.reaction_versions, one statement]
@@ -739,17 +756,18 @@ The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Cl
 
 **Each table has its own `Storage` port and a contract suite** (`messages.StorageContractSuite`, `reactions.StorageContractSuite`, behind the `testing` tag). The postgres stores run it against a real postgres; `inmemory_message_storage` and `inmemory_reaction_storage` run it too, and exist **only for tests** — both files carry the `testing` tag, have no persistence port and are never built into the binary. Use case tests use them instead of hand-written fakes.
 
-**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, once at boot and every `pruneInterval`, and `log_prune` logs it. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
+**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, then the mutes that ended before it, once at boot and every `pruneInterval`, and `log_prune` logs it. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
 
 The table holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size.
 
 #### Announcements
 
 **The chat also says things on its own**: a line between the messages with no sender, which the client draws
-without a bubble. There are three kinds: `bomb`, every bomb that went off, on land or in the sea;
-`lead_changed`, a country that took the lead during a finale (`{season, leader, passed}`, from
-`seasons.v1.LeadChanged` by `lead_changed_subscriber`); and `season_won`, the country holding the most
-tiles when a season ended (`{season, winner}`, from `seasons.v1.SeasonEnded` by `season_ended_subscriber`).
+without a bubble. There are four kinds: `bomb`, every bomb that went off, on land or in the sea; `mute`, every
+mute an operator gave (see [Mutes](#mutes)); `lead_changed`, a country that took the lead during a finale
+(`{season, leader, passed}`, from `seasons.v1.LeadChanged` by `lead_changed_subscriber`); and `season_won`, the
+country holding the most tiles when a season ended (`{season, winner}`, from `seasons.v1.SeasonEnded` by
+`season_ended_subscriber`).
 
 - **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
   text or reactions, and a message has no kind or payload; sharing a base would make every column of one
@@ -778,6 +796,44 @@ tiles when a season ended (`{season, winner}`, from `seasons.v1.SeasonEnded` by 
   (the `beginning` CTE in `history_query`): the two caps are apart, so 200 bombs reached days past 200 messages, and all of
   them sat in a pile on top of the chat.
 - **Not personal data**, but the prune deletes them past `retention` with the messages they sit between.
+
+#### Mutes
+
+**An operator can take a player's chat away and leave it the map**: `chat.v1.AdminService/Mute(account_id,
+duration)`, on the admin listener (see [Operator tools](#operator-tools-adminservice)). A muted caller's
+`SendMessage` and `React` are refused; it still reads the chat and plays.
+
+- **A mute holds the account and its network.** The network is the address of the account's latest message
+  (`messages.Storage.LatestAddress`, by `seq`), as `mutes.ScopeOf` reads it: the /64 over IPv6, the address over
+  IPv4, the throttle's unit (`cpipscope`). Never wider: Free Mobile's subscribers share a /32. So a new guest in a
+  private tab on the same line is muted from its first post. An account that never posted has no network, and
+  only it is muted. **An IPv4 address can be a carrier's NAT**: a mute on one holds the strangers behind it too.
+- **The rule is `Mute.ApplicableTo`**: a caller is muted while a mute names its account or its network and has not
+  ended. `postgres_mute_store` asks the same in SQL (a mute with no network is `NULL`, which matches nobody), and
+  the contract suite runs both stores.
+- **Two decorators refuse, before anything else**: `muting_send_message` and `muting_react` ask
+  `mutes.Book.MuteError` with the account and the request's address. A refused post is never named, kept nor
+  published, and a refused reaction never written. The use cases did not change.
+- **The refusal is `PermissionDenied` with a `chat.v1.MuteRefusal` detail** (`chatmute.Refusal`): the end of the
+  mute that ends last. The blocklist's denial carries no detail, which is how the client tells the two apart; an
+  older client shows its "not allowed to post" line.
+- **No duration is one hour** (`mutes.DefaultDuration`). Otherwise whole seconds, and a negative or fractional one
+  is `InvalidArgument`, as is an id that is not an account. A second mute is a second row, so it never shortens one
+  that ends later.
+- **Every mute is announced, after it is kept, by an event.** `mute_usecase` only keeps the mute, with an id from
+  its `IDProvider` (`uuid_id_provider`; tests use `mutes.SequentialIDs`). `publishing_mute` then publishes
+  `chat.v1.AccountMuted`, and the chat hears it itself (`chat-announcements-mutes`): `account_muted_subscriber`
+  hands it to `announce_mute_usecase`, which names the account (`GetAuthor`) and gives an `announcements.Muted`
+  payload, `{name, seconds}`, to `announce_usecase`. So the operator's call never fails on the announcement, and a
+  mute that was not kept is never announced. The client writes "<name> has been muted for one hour", under the name
+  the account had when the event was heard. **Delivery is at most once**, like every event: a full buffer (64) or a
+  restart loses the line, never the mute; a failure to name the account is logged by `log_subscriber`.
+- **`audit_mute` logs every call at Warn** (`admin chat mute`), with the network it holds.
+- **Kept in `chat.mutes`** (`id`, `account_id`, `scope`, `muted_at`, `muted_until`). The network is personal data,
+  so the prune deletes a mute that ended more than `retention` ago. There is no unmute RPC: deleting the rows ends
+  a mute early (`deploy/vps/README.md`).
+- `e2e/mute_test.go` mutes over the admin listener and sees the player, its reaction and a fresh guest on its
+  network refused, and the line reach the history.
 
 #### Reactions
 
@@ -1202,7 +1258,7 @@ internal/player/internal/
   An account with no username has no profile row, so it cannot be one: pick the name first.
 - **`GetPlayer(name)` is what anybody may know about a player with a username**: the name as typed, its color, the stats as of today, and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **It never answers the account id.** The name is found ignoring case (`player_query`, on the unique index on `name_folded`). A name no account holds is `NotFound` (`player_query.ErrNoPlayer`), and so is one no account may hold, a guest's included: it is folded and looked up like any other, and finds nobody. A guest has no username, so it has no answer here: the client shows its name and flag only. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which now also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
 - **A title is an object, not a row of thresholds.** **Titles are a concept of their own** (`titles/`), beside `players` and `presence`, with their own `Store` port, contract suite and adapters. `titles` imports `players` (an account, its `Stats`), never the other way, so a player's stats know nothing of titles: `player_query` puts the two together, as chat's history query puts a message and its author together. Each title is its own type implementing `titles.Title`: `ID()` (what the store keeps), `Name()` (what the card shows) and `EarnedBy(career)`, which is free to hold any rule. A `titles.Career` is the account's `Stats` and its `players.Account`: whether it is `Linked` and its `CreatedAt`, as auth says (a guest with no date when auth does not know it). **A guest earns no title**: `Catalog.EarnedBy` answers nothing for a career whose account is not linked, whatever the titles say, so neither the worker nor the reconciliation writes a row for one. A guest has no username, so nobody could see its titles anyway; once it signs in, its next take earns them on its whole career, OG included. `catalog_test.go` pins each threshold, and that each id is unique and fits the table's `CHECK`. A rule that needs more than a `Career` holds widens `Career`, and whoever builds one.
-  - **Most titles are ranks on a track.** A `titles.Track` is an id, a name, its ranks in order, and `Progress(career)`, the number its ranks are measured on; a `titles.Rank` is a title with a `Threshold()`. `Conquest` is `Settler`, `Raider`, `Warlord`, `Conqueror` and `Warmaster` (100, 1,000, 10,000, 100,000 and 1,000,000 tiles taken; its progress is the tiles taken). `Devotion` is `Loyal`, `Devoted` and `Unbroken` (a best streak of 7, 30 and 100 days, so a broken streak keeps its rank; its progress is the streak now). `Chatter` is `Talker`, `Chatterbox`, `Socialite` and `Icon` (100, 1,000, 10,000 and 100,000 messages sent; its progress is the messages sent). `OG` stands alone: an account made before 2026-11-01 UTC (a zero date is not). `titles.NewCatalog()` is the standalone titles and the tracks, in the order they are shown. **A new rank is a type added to its track**, a new track a type listed in the catalog: no migration, no proto change. `Conquest`'s names are army words, and a rank past `Warmaster` keeps to them (`Grand Warmaster`, then `Supreme Warmaster`); `Chatter`'s are social words. The client draws a medal per id and the initial for an id it does not know, so a new title shows before the client has its art.
+  - **Most titles are ranks on a track.** A `titles.Track` is an id, a name, its ranks in order, and `Progress(career)`, the number its ranks are measured on; a `titles.Rank` is a title with a `Threshold()`. `Conquest` is `Settler`, `Raider`, `Warlord`, `Conqueror` and `Warmaster` (100, 1,000, 10,000, 100,000 and 1,000,000 tiles taken; its progress is the tiles taken). `Devotion` is `Loyal`, `Devoted` and `Unbroken` (a best streak of 7, 30 and 100 days, so a broken streak keeps its rank; its progress is the streak now). `Chatter` is `Talker`, `Chatterbox`, `Socialite` and `Icon` (10, 30, 100 and 1,000 messages sent; its progress is the messages sent). `OG` stands alone: an account made before 2026-11-01 UTC (a zero date is not). `titles.NewCatalog()` is the standalone titles and the tracks, in the order they are shown. **A new rank is a type added to its track**, a new track a type listed in the catalog: no migration, no proto change. `Conquest`'s names are army words, and a rank past `Warmaster` keeps to them (`Grand Warmaster`, then `Supreme Warmaster`); `Chatter`'s are social words. The client draws a medal per id and the initial for an id it does not know, so a new title shows before the client has its art.
   - **Only the highest rank of each track is shown.** `Catalog.Shown(held)` is the standalone titles held, then the highest rank held of each track, each as a `Standing`: the title and its `Place` (track, rank number, how many ranks). A lower rank stays held, so a stricter rule or a reconciliation never has to give one back.
   - **Titles are kept** in `player.titles` (`account_id`, `title`, `earned_at`), one row per title held. `titles.Book` (the store and the catalog) is what the use cases call: `Unheld` is what the career earns and the account does not hold, and reads nothing when the career earns nothing (a guest); `Grant` keeps them; `Shown` is what the catalog shows of the titles held. Each track's progress is `Catalog.Progress` (every rank, its threshold and whether it is held), which `titles_query` calls.
   - **Wearing a title is a concept of its own** (`wearing/`): holding a title and wearing one change apart, so the choice has its own port, its own table, its own adapters and its own subscriber. `wearing` imports `titles`, never the other way. A player's choice is kept in `player.worn_titles` (`account_id`, `title`, `worn_at`; migration `20261003120000_worn_titles`), one row per account, by `postgres_worn_title_store`. `wearing.WornOf(shown, chosen)` is what is shown as worn: the choice when it is shown, the rank shown on its track when the choice is a rank of one, otherwise the first ranked title shown, then the first shown, and none for an account that shows no title. So a player who wore `Settler` wears `Raider` the moment it earns it, and nothing is rewritten when a rank is added or a title revoked. `wearing.Wardrobe` (the store, the titles shown through its `Titles` port, which `titles.Book` fills, and the catalog) is what the use cases call: `Showcase` is the worn title and the titles shown; `Wear` refuses a title that is not shown (`wearing.ErrNotWearable`, answered `InvalidArgument` by `WearTitle`) and keeps the choice. `WearTitle(title_id)` (`wear_title_usecase`) answers the title now worn. **The title worn goes with the name**: `wearing.Author` is a `players.Author` and its worn title, which `GetAuthor`, `GetAuthors` and the roster carry, so the chat, the roster and the season board draw it beside the name. `wearing.ShowcaseOf(catalog, held, choice)` is the same rule over what a query read: the titles shown and the one worn.
@@ -2599,7 +2655,7 @@ Nothing lives in files any more: the container mounts no state volume.
 
 **A second router, on a loopback listener.** `props.AdminRPC.Mount` is `props.RPC.Mount` for services an operator calls: same builder, same error net, but `cpbootstrap` serves them on `httpServer.adminBindAddress` instead of the public router — logging middleware only, no CORS. Empty serves no admin listener; anything but a loopback `host:port` refuses the boot, both in `ServerConfig.Validate` and again in `Run`, and a port already taken refuses it too. They have no authentication, so loopback is their whole protection, and they are off the router Caddy forwards to on purpose: one Caddyfile edit would otherwise let anybody repaint the map. In production they are reached with `docker compose exec backend wget`; see `deploy/vps/README.md`, "Operator tools".
 
-`planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+`planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute` — see [Mutes](#mutes). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream and the clicks still arriving need the rest of the buffer.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
