@@ -30,14 +30,13 @@ func (h MuteHandler) Mute(
 		in.Duration = duration.AsDuration()
 	}
 
-	out, err := h.useCase.Execute(ctx, in)
+	mute, err := h.useCase.Execute(ctx, in)
 
 	switch {
 	case err == nil:
 		return connect.NewResponse(&chatv1.MuteResponse{
-			Name:       out.Name,
-			Scope:      string(out.Mute.Caller().Scope()),
-			MutedUntil: timestamppb.New(out.Mute.Until()),
+			Scope:      string(mute.Caller().Scope()),
+			MutedUntil: timestamppb.New(mute.Until()),
 		}), nil
 	case errors.Is(err, mutes.ErrNoAccount), errors.Is(err, mutes.ErrInvalidDuration):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

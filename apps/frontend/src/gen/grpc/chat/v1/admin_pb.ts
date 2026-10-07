@@ -54,17 +54,12 @@ export class MuteRequest extends Message<MuteRequest> {
  */
 export class MuteResponse extends Message<MuteResponse> {
   /**
-   * @generated from field: string name = 1;
-   */
-  name = "";
-
-  /**
-   * @generated from field: string scope = 2;
+   * @generated from field: string scope = 1;
    */
   scope = "";
 
   /**
-   * @generated from field: google.protobuf.Timestamp muted_until = 3;
+   * @generated from field: google.protobuf.Timestamp muted_until = 2;
    */
   mutedUntil?: Timestamp;
 
@@ -76,9 +71,8 @@ export class MuteResponse extends Message<MuteResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chat.v1.MuteResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "muted_until", kind: "message", T: Timestamp },
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "muted_until", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MuteResponse {

@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
  * @generated from message chat.v1.MessageSent
@@ -52,6 +52,55 @@ export class MessageSent extends Message<MessageSent> {
 
   static equals(a: MessageSent | PlainMessage<MessageSent> | undefined, b: MessageSent | PlainMessage<MessageSent> | undefined): boolean {
     return proto3.util.equals(MessageSent, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.AccountMuted
+ */
+export class AccountMuted extends Message<AccountMuted> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp muted_at = 2;
+   */
+  mutedAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Duration duration = 3;
+   */
+  duration?: Duration;
+
+  constructor(data?: PartialMessage<AccountMuted>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.AccountMuted";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "muted_at", kind: "message", T: Timestamp },
+    { no: 3, name: "duration", kind: "message", T: Duration },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AccountMuted {
+    return new AccountMuted().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AccountMuted {
+    return new AccountMuted().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AccountMuted {
+    return new AccountMuted().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AccountMuted | PlainMessage<AccountMuted> | undefined, b: AccountMuted | PlainMessage<AccountMuted> | undefined): boolean {
+    return proto3.util.equals(AccountMuted, a, b);
   }
 }
 

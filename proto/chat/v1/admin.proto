@@ -16,7 +16,6 @@ message MuteRequest {
 }
 
 message MuteResponse {
-  string name = 1;
-  string scope = 2;
-  google.protobuf.Timestamp muted_until = 3;
+  string scope = 1;
+  google.protobuf.Timestamp muted_until = 2;
 }

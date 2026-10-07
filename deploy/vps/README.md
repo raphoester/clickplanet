@@ -1219,13 +1219,14 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 
 - **The network is muted too**: the address of the player's latest message, as
   its /64 over IPv6 and exactly over IPv4. A new guest from the same network is
-  muted, so a private tab does not get around it. `scope` in the answer is that
-  network; it is empty when the player never posted, and then only the account
-  is muted.
+  muted, so a private tab does not get around it. The answer is that network,
+  `scope`, and `mutedUntil`. `scope` is empty when the player never posted, and
+  then only the account is muted.
 - An IPv4 address can be a carrier's, shared by strangers: they are muted for
   as long too.
 - Everyone in the chat sees "<name> has been muted for one hour", with the
-  real duration.
+  real duration, a moment after the answer. If the line does not come, the mute
+  still holds: `journalctl CONTAINER_NAME=cp-backend | grep AccountMuted` shows why.
 - A muted player's post or reaction is refused with the time the mute ends.
 - A second mute does not shorten the first: the one that ends last holds.
 - `duration` is whole seconds (`"86400s"` is a day). A bad account or duration

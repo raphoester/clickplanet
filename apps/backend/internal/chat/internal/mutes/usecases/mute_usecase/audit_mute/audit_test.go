@@ -18,12 +18,12 @@ import (
 )
 
 type stubExecutor struct {
-	out mute_usecase.Out
-	err error
+	mute mutes.Mute
+	err  error
 }
 
-func (s stubExecutor) Execute(context.Context, mute_usecase.In) (mute_usecase.Out, error) {
-	return s.out, s.err
+func (s stubExecutor) Execute(context.Context, mute_usecase.In) (mutes.Mute, error) {
+	return s.mute, s.err
 }
 
 var bully = messages.AccountID{15: 1}
@@ -41,10 +41,10 @@ func TestEveryMuteIsLoggedWithTheNetworkItHolds(t *testing.T) {
 	at := time.Date(2026, 10, 7, 20, 0, 0, 0, time.UTC)
 	mute := mutes.NewMute(mutes.MuteID{1}, mutes.CallerOf(bully, "2a01:e0a:1:2::/64"), at, time.Hour)
 
-	logs, err := run(t, stubExecutor{out: mute_usecase.Out{Name: "guest_a1b2c3", Mute: mute}})
+	logs, err := run(t, stubExecutor{mute: mute})
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, `level=WARN msg="admin chat mute" account=00000000-0000-0000-0000-000000000001 duration=1h0m0s name=guest_a1b2c3 scope=2a01:e0a:1:2::/64 mutedUntil=2026-10-07T21:00:00.000Z`)
+	assert.Contains(t, logs, `level=WARN msg="admin chat mute" account=00000000-0000-0000-0000-000000000001 duration=1h0m0s scope=2a01:e0a:1:2::/64 mutedUntil=2026-10-07T21:00:00.000Z`)
 }
 
 func TestARefusedMuteIsLoggedToo(t *testing.T) {

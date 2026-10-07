@@ -86,6 +86,8 @@ func (m Mute) At() time.Time { return m.at }
 
 func (m Mute) Until() time.Time { return m.until }
 
+func (m Mute) Duration() time.Duration { return m.until.Sub(m.at) }
+
 func (m Mute) ApplicableTo(caller Caller, at time.Time) bool {
 	if !at.Before(m.until) {
 		return false

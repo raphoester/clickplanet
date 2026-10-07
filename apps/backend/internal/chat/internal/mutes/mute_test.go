@@ -65,6 +65,7 @@ func TestAMuteEndsAfterItsDuration(t *testing.T) {
 	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "203.0.113.7"), at, time.Hour)
 
 	assert.Equal(t, at.Add(time.Hour), mute.Until())
+	assert.Equal(t, time.Hour, mute.Duration())
 	assert.True(t, mute.ApplicableTo(mutes.NewCaller(bully, "198.51.100.1"), at.Add(59*time.Minute)))
 	assert.False(t, mute.ApplicableTo(mutes.NewCaller(bully, "203.0.113.7"), at.Add(time.Hour)))
 }

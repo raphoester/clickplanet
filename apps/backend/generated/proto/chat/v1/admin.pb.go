@@ -77,9 +77,8 @@ func (x *MuteRequest) GetDuration() *durationpb.Duration {
 
 type MuteResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Scope         string                 `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
-	MutedUntil    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=muted_until,json=mutedUntil,proto3" json:"muted_until,omitempty"`
+	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	MutedUntil    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=muted_until,json=mutedUntil,proto3" json:"muted_until,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -114,13 +113,6 @@ func (*MuteResponse) Descriptor() ([]byte, []int) {
 	return file_chat_v1_admin_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *MuteResponse) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
 func (x *MuteResponse) GetScope() string {
 	if x != nil {
 		return x.Scope
@@ -143,11 +135,10 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"\vMuteRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x125\n" +
-	"\bduration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bduration\"u\n" +
-	"\fMuteResponse\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
-	"\x05scope\x18\x02 \x01(\tR\x05scope\x12;\n" +
-	"\vmuted_until\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"\bduration\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bduration\"a\n" +
+	"\fMuteResponse\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\tR\x05scope\x12;\n" +
+	"\vmuted_until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"mutedUntil2C\n" +
 	"\fAdminService\x123\n" +
 	"\x04Mute\x12\x14.chat.v1.MuteRequest\x1a\x15.chat.v1.MuteResponseB\xa4\x01\n" +

@@ -51,12 +51,11 @@ func TestAMutedPlayerCanNeitherPostNorReactNorDodgeItWithAFreshGuestAndEveryoneI
 	newcomer, bully := game.newPlayer(t), game.newPlayer(t)
 	welcome, err := newcomer.post()
 	require.NoError(t, err)
-	_, err = bully.post()
+	said, err := bully.post()
 	require.NoError(t, err)
 
 	muted := game.mute(t, bully.account())
 
-	assert.Regexp(t, guestName, muted.GetName())
 	assert.Equal(t, callerIP, muted.GetScope(), "the network of the latest message")
 	assert.WithinDuration(t, time.Now().Add(time.Hour), muted.GetMutedUntil().AsTime(), time.Minute)
 
@@ -67,10 +66,13 @@ func TestAMutedPlayerCanNeitherPostNorReactNorDodgeItWithAFreshGuestAndEveryoneI
 	_, err = game.newPlayer(t).post()
 	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), "a fresh guest on the muted network")
 
-	announcements := newcomer.announcements()
-	require.Len(t, announcements, 1)
+	var announcements []*chatv1.Announcement
+	require.Eventually(t, func() bool {
+		announcements = newcomer.announcements()
+		return len(announcements) == 1
+	}, 5*time.Second, 20*time.Millisecond, "the chat hears the mute and announces it")
 	assert.Equal(t, "mute", announcements[0].GetKind())
-	assert.JSONEq(t, `{"name":"`+muted.GetName()+`","seconds":3600}`, announcements[0].GetPayload())
+	assert.JSONEq(t, `{"name":"`+said.GetAuthorName()+`","seconds":3600}`, announcements[0].GetPayload())
 }
 
 func TestAPlayerThatNeverPostedIsMutedAloneAndTheOthersStillChat(t *testing.T) {
