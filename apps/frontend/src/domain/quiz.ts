@@ -30,6 +30,16 @@ export function timeLeft(question: QuizQuestion, at: number): number {
     return Math.max(0, Math.min(1, (question.deadline - at) / question.window))
 }
 
+export function secondsLeft(question: QuizQuestion, at: number): number {
+    return Math.max(0, Math.ceil((question.deadline - at) / 1000))
+}
+
+export function untilNextSecond(question: QuizQuestion, at: number): number {
+    const left = question.deadline - at
+    if (left <= 0) return Infinity
+    return left % 1000 || 1000
+}
+
 export function stillOpen(question: QuizQuestion, at: number): boolean {
     return at < question.deadline
 }
