@@ -16,7 +16,7 @@ import {anthemOf} from "../domain/clip/music.ts"
 import {ANTHEMS} from "../app/anthem/anthemsAsset.ts"
 import {Candidate, candidatesOf, inCandidate} from "../domain/clip/window.ts"
 import {Front, frontOf, FRONT_RADIANS, sameFront, spanOf} from "../domain/clip/front.ts"
-import {Story, storyOf} from "../domain/clip/story.ts"
+import {Story, storyOf, THE_WORLD} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
 import {blastZoomOf, cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
@@ -151,7 +151,12 @@ async function prepare(): Promise<Recording> {
         const front = frontOf(inside, pointAt)
         const story = front && storyOf(front.changes, groundAt, regionOf, attacker)
         if (!front || !story) return undefined
-        return {candidate, front, story, score: scoreOf(front.changes, groundAt, (candidate.until - candidate.since) / 3_600_000)}
+        // Then only the story's own fighting, wherever it is densest: not another war next door.
+        const sides = new Set([story.attacker, story.rival])
+        const own = frontOf(inside.filter(({from, to}) =>
+            (to !== undefined && sides.has(to)) || (from !== undefined && sides.has(from))), pointAt) ?? front
+        const told = storyOf(own.changes, groundAt, regionOf, story.attacker) ?? story
+        return {candidate, front: own, story: told, score: scoreOf(own.changes, groundAt, (candidate.until - candidate.since) / 3_600_000)}
     }
 
     const asked = windowParam(replay)
@@ -177,7 +182,9 @@ async function prepare(): Promise<Recording> {
         const taken = [...new Set(take.front.changes.flatMap(({tile, to}) =>
             to === story.attacker && after.get(tile) === story.attacker ? [tile] : []))]
         const solidity = solidityOf(taken.map(pointAt), held)
-        const skipped = solidity < SCRIBBLE_BELOW ? "lines drawn on someone else's land, not land taken" : undefined
+        const skipped = "region" in story.place && story.place.region === THE_WORLD
+            ? "spread over several continents, no one place to show"
+            : solidity < SCRIBBLE_BELOW ? "lines drawn on someone else's land, not land taken" : undefined
         return {...take, story, backend, solidity, skipped}
     }
     const reviewed = stories.map(reviewOf)

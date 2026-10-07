@@ -40,6 +40,21 @@ describe("the story of a front", () => {
         expect(story).toMatchObject({kind: "comeback", attacker: "ru", victims: ["ua"], place: {country: "ru"}})
     })
 
+    it("is a comeback when a flag takes its own continent back from a flag from elsewhere", () => {
+        const changes = [...took("be", "ps", 40, 1), ...took("be", "ps", 30, 41), ...took("be", "ps", 30, 71)]
+        const ground = (tile: number) => tile <= 40 ? "fr" : tile <= 70 ? "gb" : "es"
+
+        expect(storyOf(changes, ground, (country) => country === "ps" ? "Asia" : regionOf(country) ?? "Europe"))
+            .toMatchObject({kind: "comeback", attacker: "be", place: {region: "Europe"}})
+    })
+
+    it("is an attack when a flag takes its own continent from a neighbour", () => {
+        const changes = [...took("de", "fr", 40, 1), ...took("de", "fr", 30, 41), ...took("de", "fr", 30, 71)]
+        const ground = (tile: number) => tile <= 40 ? "fr" : tile <= 70 ? "gb" : "es"
+
+        expect(storyOf(changes, ground, regionOf)).toMatchObject({kind: "attack", place: {region: "Europe"}})
+    })
+
     it("is a kickout when the attacker already held most of the country it takes", () => {
         const story = storyOf(took("fr", "pl", 90), () => "au", regionOf, undefined, () => "fr")
 

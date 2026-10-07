@@ -46,12 +46,18 @@ export function storyOf(
         .map(([flag]) => flag)
 
     const place = placeOf(takes.map(({tile}) => groundOf(tile)), regionOf)
+    const home = "country" in place ? place.country === lead : backHome(lead, place.region, victims, regionOf)
     const kind = rival !== undefined ? "battle"
-        : !("country" in place) ? "attack"
-            : place.country === lead ? "comeback"
+        : home ? "comeback"
+            : !("country" in place) ? "attack"
                 : heldAtStart?.(place.country) === lead && victims.length > 0 ? "kickout" : "invasion"
 
     return {kind, attacker: lead, rival, victims, place, taken}
+}
+
+// A flag of a continent taking it back from a flag from elsewhere is not attacking it.
+function backHome(lead: string, region: string, victims: readonly string[], regionOf: RegionOf): boolean {
+    return regionOf(lead) === region && victims.length > 0 && regionOf(victims[0]) !== region
 }
 
 // One country when nearly all of it is there, else the continent most of it is in.
