@@ -4,11 +4,16 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/chatmute"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 )
 
 // Bare sentinel: the sender must not learn which check tripped.
 func toConnect(err error) error {
+	if refused, ok := chatmute.Refusal(err); ok {
+		return refused
+	}
+
 	if errors.Is(err, messages.ErrInvalidMessage) {
 		return connect.NewError(connect.CodeInvalidArgument, messages.ErrInvalidMessage)
 	}

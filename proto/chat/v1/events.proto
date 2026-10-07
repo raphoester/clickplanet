@@ -2,10 +2,17 @@ syntax = "proto3";
 
 package chat.v1;
 
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 message MessageSent {
   string message_id = 1;
   string account_id = 2;
   google.protobuf.Timestamp sent_at = 3;
+}
+
+message AccountMuted {
+  string account_id = 1;
+  google.protobuf.Timestamp muted_at = 2;
+  google.protobuf.Duration duration = 3;
 }

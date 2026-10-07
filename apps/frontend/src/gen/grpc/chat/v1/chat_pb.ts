@@ -357,6 +357,43 @@ export class SendMessageResponse extends Message<SendMessageResponse> {
 }
 
 /**
+ * @generated from message chat.v1.MuteRefusal
+ */
+export class MuteRefusal extends Message<MuteRefusal> {
+  /**
+   * @generated from field: int64 muted_until_unix_ms = 1;
+   */
+  mutedUntilUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<MuteRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.MuteRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "muted_until_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MuteRefusal {
+    return new MuteRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MuteRefusal {
+    return new MuteRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MuteRefusal {
+    return new MuteRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MuteRefusal | PlainMessage<MuteRefusal> | undefined, b: MuteRefusal | PlainMessage<MuteRefusal> | undefined): boolean {
+    return proto3.util.equals(MuteRefusal, a, b);
+  }
+}
+
+/**
  * @generated from message chat.v1.GetHistoryRequest
  */
 export class GetHistoryRequest extends Message<GetHistoryRequest> {

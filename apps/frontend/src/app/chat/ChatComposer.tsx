@@ -6,14 +6,20 @@ export type ChatComposerProps = {
     username?: string
     guestName?: string
     failure?: ChatSendFailure
+    mutedUntil?: number
     onSend: (text: string) => Promise<boolean>
 }
 
 const COUNTER_SHOWS_FROM = MAX_TEXT_LENGTH - 40
 
+const clock = new Intl.DateTimeFormat(undefined, {hour: "2-digit", minute: "2-digit"})
+const calendar = new Intl.DateTimeFormat(undefined, {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"})
+const CLOCK_READS_FOR_MS = 20 * 3600_000
+
 const FAILURES: Record<ChatSendFailure, string> = {
     'rate-limited': "You're sending messages too fast. Give it a few seconds.",
     'blocked': "This connection is not allowed to post.",
+    'muted': "You are muted.",
     'rejected': "That message was refused.",
     'no-session': "Could not start a session to chat. Try again in a moment.",
     'failed': "The message could not be sent. Try again.",
@@ -83,6 +89,13 @@ export default function ChatComposer(props: ChatComposerProps) {
                 </span>}
         </div>
 
-        {props.failure && <p className="chat-notice" role="alert">{FAILURES[props.failure]}</p>}
+        {props.failure && <p className="chat-notice" role="alert">{noticeOf(props.failure, props.mutedUntil)}</p>}
     </form>
+}
+
+function noticeOf(failure: ChatSendFailure, mutedUntil: number | undefined): string {
+    if (failure !== 'muted' || mutedUntil === undefined) return FAILURES[failure]
+
+    const until = mutedUntil - Date.now() < CLOCK_READS_FOR_MS ? clock.format(mutedUntil) : calendar.format(mutedUntil)
+    return `You are muted until ${until}.`
 }

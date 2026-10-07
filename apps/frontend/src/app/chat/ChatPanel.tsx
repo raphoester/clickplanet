@@ -64,7 +64,7 @@ export default function ChatPanel(props: ChatPanelProps) {
     const {startResize, resetSize} = useChatSize(panel)
 
     const {username} = props
-    const {messages, announcements, mine, displayName, seenAtLoad, status, failure, send, react} =
+    const {messages, announcements, mine, displayName, seenAtLoad, status, failure, mutedUntil, send, react} =
         useChat({backend: props.backend, username})
     const identity = useChatIdentity()
     const markSeen = useSeenMark(props.backend, seenAtLoad?.kept ? seenAtLoad.until : 0)
@@ -207,6 +207,7 @@ export default function ChatPanel(props: ChatPanelProps) {
             <ChatComposer username={username}
                           guestName={username === undefined ? displayName : undefined}
                           failure={failure}
+                          mutedUntil={mutedUntil}
                           onSend={onSend}/>
         </>
 

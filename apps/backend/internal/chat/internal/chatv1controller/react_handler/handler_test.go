@@ -3,6 +3,7 @@ package react_handler_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,7 @@ import (
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/react_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -74,6 +76,17 @@ func TestReactMapsTheRefusals(t *testing.T) {
 
 		assert.Equal(t, code, connect.CodeOf(err), cause.Error())
 	}
+}
+
+func TestAMutedReactorIsDenied(t *testing.T) {
+	muted := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(messages.AccountID{15: 1}, ""), time.Now(), time.Hour)
+
+	_, err := react(t.Context(), &stubUseCase{err: muted.Refusal()}, chatv1.Reaction_REACTION_CLOWN)
+
+	var denied *connect.Error
+	require.ErrorAs(t, err, &denied)
+	assert.Equal(t, connect.CodePermissionDenied, denied.Code())
+	assert.Len(t, denied.Details(), 1, "the end of the mute travels with the refusal")
 }
 
 func TestAnUnexpectedFailureIsLeftForTheErrorNet(t *testing.T) {
