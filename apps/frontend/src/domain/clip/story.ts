@@ -3,7 +3,7 @@ import {ranked, tally, TileChange} from "./changes.ts"
 export type Place = {country: string} | {region: string}
 
 export type Story = {
-    kind: "attack" | "invasion" | "comeback" | "battle"
+    kind: "attack" | "invasion" | "comeback" | "kickout" | "battle"
     attacker: string
     rival: string | undefined
     victims: string[]
@@ -24,11 +24,13 @@ const VICTIMS = 3
 
 export const THE_WORLD = "the world"
 
+// heldAtStart: the flag that held most of a country's ground when the story starts.
 export function storyOf(
     changes: readonly TileChange[],
     groundOf: (tile: number) => string | undefined,
     regionOf: RegionOf,
     attacker?: string,
+    heldAtStart?: (country: string) => string | undefined,
 ): Story | undefined {
     const gains = ranked(tally(changes.flatMap(({to}) => to === undefined ? [] : [to])))
     const lead = attacker ?? gains[0]?.[0]
@@ -46,7 +48,8 @@ export function storyOf(
     const place = placeOf(takes.map(({tile}) => groundOf(tile)), regionOf)
     const kind = rival !== undefined ? "battle"
         : !("country" in place) ? "attack"
-            : place.country === lead ? "comeback" : "invasion"
+            : place.country === lead ? "comeback"
+                : heldAtStart?.(place.country) === lead && victims.length > 0 ? "kickout" : "invasion"
 
     return {kind, attacker: lead, rival, victims, place, taken}
 }

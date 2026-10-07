@@ -2359,7 +2359,7 @@ card on a phone.
 
 ## Clips
 
-**A clip is the real globe playing back a war, for TikTok, Shorts and Reels**: 1080×1920, 14 to 22s, a headline,
+**A clip is the real globe playing back a war, for TikTok, Shorts and Reels**: 1080×1920, 8.5 to 22s, a headline,
 the map moving under it from the first frame, and the link at the end. `npm run clip` makes them from a replay
 and **chooses everything itself**: the stretch of time, the place, the headline, the camera, the look and the
 length. Each comes with a `.txt` holding the caption to post. `--count 3` makes the three best stories, for a
@@ -2383,7 +2383,8 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   aims the camera at the shot it is given every frame. The game passes none.
 - **The text stays where TikTok draws nothing** (`--safe-*` on `#clip` in `clip.css`, measured on a phone): a tall
   phone crops the sides, the tabs cover the top, the buttons run down the right from the middle, and the name and
-  the caption cover the bottom. The counter sits left of the buttons, and the call to act in the top half. The call
+  the caption cover the bottom. The counter sits left of the buttons, and the call to act in the top half, darkening only that half: the map
+  pulled back out stays in sight under it. The call
   shows the flag it asks the viewer to fight for: the country to defend, the flag that strikes back, both sides of a
   battle, or a continent's own flag (Europe's alone, `static/countries/svg/eu.svg`, from the same set as the others).
 
@@ -2398,27 +2399,43 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   where. Nearly all in one country (90%) is **"X IS INVADING FRANCE"**; spread over several, it is **"X IS
   ATTACKING"** the continent holding 70% of it (`static/countries/regions.json`, written by `npm run regions` from
   the snapshot the map is cut from), or the world. Not a sub-region: "defend Western Europe" is not how anybody
-  talks. A flag taking back its own ground is **"X STRIKES BACK"**; a second flag taking 60% as much makes it
-  **"X VS Y"**. `src/clip/overlay.ts` words it.
+  talks. A flag taking back its own ground is **"X STRIKES BACK"**; a flag that already held most of the country
+  when the story starts is **"X IS KICKING Y OUT OF AUSTRALIA"**, since the opening shot shows its flag there
+  already; a second flag taking 60% as much makes it **"X VS Y"**. `src/clip/overlay.ts` words it.
+- **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
+  France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
+  The caption is the headline and a question ("Who stops them?", "Pick a side"), the site as plain text (a caption's
+  link cannot be clicked) and the account's tags with the place's. Never the attacker's: a flag's tag can be a
+  political feed.
 - **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
   the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
   story already told by a better candidate (same attacker, same place) is dropped.
+- **`solidity.ts` skips graffiti.** For each tile the attacker took and holds at the end, the share of its 6
+  neighbours it holds too: about 1 for land taken, 0.56 for names written across Canada. Under 0.75 the story is
+  skipped, and `--plan` says so.
 - **`look.ts` picks when the camera comes back out of the tiles.** From far, a landmass's painted flag only
-  changes when its biggest holder does (`flipsOf`, over the borders blob). A front too wide to frame closer than
+  changes when its biggest holder does (`flipsOf`, over the borders blob, read 8 times along the changes, so a
+  landmass taken and taken back counts too). A front too wide to frame closer than
   `TILES_ZOOM` (3) is **flags** when at least 2 landmasses changed their biggest holder and those hold 2,000 tiles
-  or more: a steamroll, which comes back out halfway so its painted flags change on screen. Any front is a
-  **dive** when one landmass of 300 tiles or more changed hands: it comes back out at the end to show what changed.
-  Everything else is **tiles**, which stays down to the end, since nothing big enough to see from far changed.
+  or more: a steamroll, which comes back out halfway so its painted flags change on screen. Everything else is a
+  **dive**, which comes back out at the end.
 - **`camera.ts` opens on the map and dives into the tiles**: every clip opens on the middle of the front's
   changes, zoomed until 95% of them fit but never closer than a continent (`openingOf`), so the first frame is the
   map with its painted flags. It holds there 0.3s (`--hold`), then dives in 0.7s past the zoom the painted flags
   are gone at (`tilesZoomOf`), to where the most tiles change hands, so the fight is seen tile by tile. It follows
-  the densest fighting, and comes back out to the opening as the look says. **It flies to every bomb on the
+  the densest fighting, and comes back out to the opening as the look says. **Every clip ends pulled back out**,
+  and holds there 1s before the call to act while the last tiles change hands: close-ups are for the middle, and
+  the end shows the rest of the map as it is now. **It never sits still**: where the
+  fighting crosses less than 0.4 screens a second, it breathes, out to where the painted flags show and back into
+  the tiles every 3s. **It flies to every bomb on the
   front**, close enough for the blast to be a fifth of the screen, and holds there while it goes off. The globe is
   always drawn with the painted flags on, so the zoom alone hands them over to the tiles, as in the game.
 - **`pace.ts` spends the clip on what happens and nothing else**: the replay's clock jumps over every quiet
-  stretch, so the map moves from the first frame to the last. A bomb holds the clip still for about a tenth of
-  it. The length grows with the action, from 14 to 22s, and the last 2.5s are the call to act.
+  stretch, so the map moves from the first frame to the last. **A clip is as long as its camera has somewhere to
+  go**: 6s for a fight in one place, however many hours it lasted (room for the dive, the close-ups and the pull back
+  out), and 1.2s more for every screen the fighting
+  crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds the 2s it holds the clip
+  still for, while it falls and goes off. The last 2.5s are the call to act, and nothing runs past 22s.
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
 headless Chrome at 540×960 at 2×, waits for `window.clip.ready`, then for each frame calls `window.clip.frame(i)`,

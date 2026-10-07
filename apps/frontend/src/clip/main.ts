@@ -9,15 +9,16 @@ import {countryOfTile, loadBorders} from "../app/viewer/borderField.ts"
 import {BORDERS_URL} from "../app/viewer/bordersAsset.ts"
 import {Countries} from "../domain/countries.ts"
 import {regionOf} from "../domain/regions.ts"
-import {finalOwners} from "../domain/clip/changes.ts"
-import {cellOf, dot, pointOf} from "../domain/clip/geometry.ts"
+import {ownersAfter, ranked as rankedBy, tally} from "../domain/clip/changes.ts"
+import {cellOf, dot, Point, pointOf} from "../domain/clip/geometry.ts"
+import {SCRIBBLE_BELOW, solidityOf} from "../domain/clip/solidity.ts"
 import {Candidate, candidatesOf, inCandidate} from "../domain/clip/window.ts"
 import {Front, frontOf, FRONT_RADIANS, sameFront, spanOf} from "../domain/clip/front.ts"
 import {Story, storyOf} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
-import {blastZoomOf, cameraOf, framingOf, openingOf, PullBack} from "../domain/clip/camera.ts"
-import {momentsOf, paceOf, playedAt, timelineOf} from "../domain/clip/pace.ts"
+import {blastZoomOf, cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
+import {bombShareOf, momentsOf, paceOf, playedAt, timelineOf} from "../domain/clip/pace.ts"
 import {tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, placeName, wordsOf} from "./overlay.ts"
@@ -31,6 +32,7 @@ export type Recording = {
     since: string
     until: string
     look: string
+    skipped: string[]
     place: string
     headline: string
     line: string
@@ -57,7 +59,7 @@ const MARGIN_MS = 30_000
 // A little past where the painted flags are gone, so the dive's detail is all tiles.
 const DIVE_DEPTH = 1.1
 
-const PULL_BACKS: Record<Look, PullBack> = {tiles: "never", dive: "atEnd", flags: "midway"}
+const PULL_BACKS: Record<Look, PullBack> = {dive: "atEnd", flags: "midway"}
 
 const clock = installVirtualClock()
 const params = new URLSearchParams(location.search)
@@ -91,13 +93,15 @@ function numberParam(name: string): number | undefined {
 
 type Take = {candidate: Candidate, front: Front, story: Story, score: number}
 
+type Review = Take & {backend: ReplayBackend, solidity: number, skipped: string | undefined}
+
 function lookParam(): Look | undefined {
-    return (["flags", "tiles", "dive"] as const).find((look) => params.has(look))
+    return (["flags", "dive"] as const).find((look) => params.has(look))
 }
 
 function flipsLine(flips: readonly Flip[]): string {
     if (flips.length === 0) return "no landmass changed hands"
-    const named = flips.slice(0, 4).map(({tiles, was, is}) => `${was || "nobody"} to ${is || "nobody"} (${tiles} tiles)`)
+    const named = flips.slice(0, 4).map(({tiles, holders}) => `${holders.map((holder) => holder || "nobody").join(" to ")} (${tiles} tiles)`)
     return `landmasses changed hands: ${named.join(", ")}${flips.length > 4 ? ` and ${flips.length - 4} more` : ""}`
 }
 
@@ -149,13 +153,35 @@ async function prepare(): Promise<Recording> {
         .sort((a, b) => b.score - a.score)
     const stories = ranked.filter((take, i) => ranked.findIndex((other) =>
         other.story.attacker === take.story.attacker && sameFront(other.front, take.front)) === i)
+
+    // The flag that held most of a country's ground in a map.
+    const holderIn = (owners: ReadonlyMap<number, string>) => (country: string) =>
+        rankedBy(tally([...owners].flatMap(([tile, owner]) => groundAt(tile) === country ? [owner] : [])))[0]?.[0]
+    const reviewOf = (take: Take): Review => {
+        const trimmed = spanOf(take.front, MARGIN_MS)
+        const backend = replay.cut(
+            Math.max(take.candidate.since, trimmed.since), Math.min(take.candidate.until, trimmed.until))
+        const story = storyOf(take.front.changes, groundAt, regionOf, attacker, holderIn(backend.opening)) ?? take.story
+        const after = ownersAfter(backend.opening, backend.changes())
+        const held: Point[] = []
+        for (const [tile, owner] of after) if (owner === story.attacker) held.push(pointAt(tile))
+        const taken = [...new Set(take.front.changes.flatMap(({tile, to}) =>
+            to === story.attacker && after.get(tile) === story.attacker ? [tile] : []))]
+        const solidity = solidityOf(taken.map(pointAt), held)
+        const skipped = solidity < SCRIBBLE_BELOW ? "lines drawn on someone else's land, not land taken" : undefined
+        return {...take, story, backend, solidity, skipped}
+    }
+    const reviewed = stories.map(reviewOf)
+    const worth = reviewed.filter(({skipped}) => skipped === undefined)
+    const skipped = reviewed.flatMap(({story: told, skipped: why, solidity}) =>
+        why === undefined ? [] : [`${wordsOf(told).headline}: ${why} (solidity ${solidity.toFixed(2)})`])
+
     const pick = numberParam("pick") ?? 1
-    const picked = stories[pick - 1]
-    if (!picked) throw new Error(`no story number ${pick}: this replay has ${stories.length}`)
-    const {front, story} = picked
-    const trimmed = spanOf(front, MARGIN_MS)
-    const backend = replay.cut(
-        Math.max(picked.candidate.since, trimmed.since), Math.min(picked.candidate.until, trimmed.until))
+    const picked = worth[pick - 1]
+    if (!picked) {
+        throw new Error([`no story number ${pick}: this replay has ${worth.length} worth a clip`, ...skipped].join("\n  skipped "))
+    }
+    const {front, story, backend, solidity} = picked
     const changes = backend.changes().filter(({tile}) => within(tile))
 
     const reach = Math.cos(FRONT_RADIANS)
@@ -165,15 +191,18 @@ async function prepare(): Promise<Recording> {
     const points = front.changes.map(({tile}) => pointAt(tile))
     const wide = framingOf(points, aspect)
     const touched = front.changes.map(({tile}) => tile)
-    const flips = flipsOf(borders.assignment, backend.opening, finalOwners(backend.opening, changes), touched)
+    const flips = flipsOf(borders.assignment, backend.opening, changes, touched)
     const look = lookParam() ?? lookOf(flips, wide.zoom)
     const first = openingOf(wide)
 
     const drops = backend.drops().filter(({drop}) => drop.tile !== undefined && inArea(drop.tile))
-    const pace = paceOf(momentsOf(front.changes.map(({at}) => at), drops.map(({at}) => at)), backend.since, backend.until)
-    const timeline = timelineOf(front.changes.length, numberParam("seconds"))
+    const close = Math.max(first.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH)
+    const screens = screensOf(front.changes.map(({tile}, i) => ({share: i / front.changes.length, point: pointAt(tile)})), close)
+    const timeline = timelineOf(screens, drops.length, numberParam("seconds"))
+    const moments = momentsOf(front.changes.map(({at}) => at), drops.map(({at}) => at), bombShareOf(timeline))
+    const pace = paceOf(moments, backend.since, backend.until)
     const camera = cameraOf(first, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
-        close: Math.max(first.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH),
+        close,
         seconds: timeline.seconds - timeline.ending,
         pullBack: PULL_BACKS[look],
         hold: numberParam("hold"),
@@ -199,8 +228,7 @@ async function prepare(): Promise<Recording> {
     backend.listenForUpdates((update) => own(update.tile, update.newCountry))
     backend.listenForBombs((drop) => drop.cleared.forEach((tile) => own(tile, undefined)))
 
-    const span = backend.until - backend.since
-    const words = wordsOf(story, span, params.get("headline") ?? undefined)
+    const words = wordsOf(story, params.get("headline") ?? undefined)
     const overlay = createOverlay(root, story, words, opening)
 
     let played = 0
@@ -247,19 +275,21 @@ async function prepare(): Promise<Recording> {
 
     return {
         pick,
-        stories: stories.length,
+        stories: worth.length,
         frames: Math.round(timeline.seconds * fps),
         fps,
         seconds: timeline.seconds,
         since: new Date(backend.since).toISOString(),
         until: new Date(backend.until).toISOString(),
-        look: `${look} (front framed at zoom ${wide.zoom.toFixed(1)}), ${drops.length} ${drops.length === 1 ? "bomb" : "bombs"}, ${flipsLine(flips)}`,
+        look: `${look} (front framed at zoom ${wide.zoom.toFixed(1)}), ${drops.length} ${drops.length === 1 ? "bomb" : "bombs"}, `
+            + `action crosses ${screens.toFixed(1)} screens, solidity ${solidity.toFixed(2)}, ${flipsLine(flips)}`,
+        skipped,
         place: placeName(story.place),
         headline: words.headline,
-        line: words.line,
+        line: words.line ?? "",
         call: words.call,
         link: words.link,
-        caption: `${words.headline}. ${words.line}\n${words.call}: ${words.link}\n${words.tags.join(" ")}`,
+        caption: words.caption,
     }
 }
 
