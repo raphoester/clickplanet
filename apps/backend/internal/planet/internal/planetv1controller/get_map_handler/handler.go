@@ -7,6 +7,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
 )
 
 type UseCase interface {
@@ -33,18 +34,5 @@ func (h GetMapHandler) GetMap(
 		return nil, toConnect(err)
 	}
 
-	shields := make([]*planetv1.TileShields, len(batch.Shields))
-	for i, tile := range batch.Shields {
-		shields[i] = &planetv1.TileShields{
-			TileId:  tile.Tile,
-			Shields: uint32(tile.Shields), //nolint:gosec // a byte in the tile storage.
-		}
-	}
-
-	return connect.NewResponse(&planetv1.GetMapResponse{
-		StartTileId: batch.Start,
-		Codes:       batch.Codes,
-		Tiles:       batch.Tiles,
-		Shields:     shields,
-	}), nil
+	return connect.NewResponse(planetmessage.Map(batch)), nil
 }

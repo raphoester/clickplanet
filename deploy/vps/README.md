@@ -1082,6 +1082,20 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - A bad account id or a grant of nothing shows as `server returned error: HTTP/1.1 400`.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin charge grant"`.
 
+### Get a replay for a clip
+
+The map as it was at `since`, and every act on it until `until` (unset: now). The
+frontend's `npm run clip:fetch` sends this over SSH and saves the answer, which
+`npm run clip` turns into a video:
+
+```bash
+docker compose exec -T backend wget -qO- --header 'Content-Type: application/json' --post-data '{"since":"2026-10-06T00:00:00Z","until":"2026-10-07T00:00:00Z"}' http://127.0.0.1:8081/planet.v1.AdminService/GetReplay > replay.json
+```
+
+- **It reads the ledger in memory**: no further back than 72 hours.
+- A day is a few MB. It names no player.
+- A `since` that is not before `until` shows as `server returned error: HTTP/1.1 400`.
+
 ### Find, ban and revert one player
 
 For a pattern you see on the map and no watchdog catches. A player is a

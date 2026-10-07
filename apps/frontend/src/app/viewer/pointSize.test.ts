@@ -6,6 +6,7 @@ import {
     MAX_PICK_WINDOW,
     pickWindowSize,
     tilePointSize,
+    tilesZoomOf,
 } from "./pointSize.ts"
 import {MAX_ZOOM, MIN_ZOOM} from "./zoom.ts"
 
@@ -121,6 +122,15 @@ describe("the handover from the painted flag to the tiles", () => {
                 expect(flagPaint(ZOOMS[i], height, "flags"), `${ZOOMS[i]} at ${height}px`)
                     .toBeLessThanOrEqual(flagPaint(ZOOMS[i - 1], height, "flags"))
             }
+        }
+    })
+})
+
+describe("the zoom the tiles take over from", () => {
+    it("is where the painted flag is gone", () => {
+        for (const height of VIEWPORTS) {
+            expect(flagPaint(tilesZoomOf(height), height, "flags"), `${height}px`).toBeCloseTo(0, 9)
+            expect(flagPaint(tilesZoomOf(height) * 0.95, height, "flags"), `${height}px`).toBeGreaterThan(0)
         }
     })
 })

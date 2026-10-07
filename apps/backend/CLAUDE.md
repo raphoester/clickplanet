@@ -298,7 +298,7 @@ internal/planet/internal/
   `Shielding` (what a click does to a tile and its shields), `Claiming` (a player's
   click written: the strike, then the owner it leaves, as an `Impact`), `Pacing` (how an
   operator's bulk change is spread out), `Geography` and `Borders`.
-- **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Player`, `Tally`, `Runs`,
+- **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Scene`, `Footage`, `Player`, `Tally`, `Runs`,
   the `Storage` port, `Recording` (the tile writer that records each act) and `Retention`. `FindPlayers`, `TopPlayers`, `BanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
 - **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
@@ -347,6 +347,7 @@ because it serves every concept over one Connect service. It only maps.
 | `ledger/usecases/inspect_player_usecase` | what the antibot holds on one caller | `Examiner` |
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
 | `ledger/usecases/anonymize_takes_usecase` | flushes the ledger, then takes a deleted account off every take postgres keeps | `Ledger`, `Takes` |
+| `ledger/usecases/replay_usecase` | the map as it was at a time, and every act on it since | `Ledger`, `MaxIndexReader`, `DenseMapReader`, `Clock` |
 | `bonuses/usecases/claim_bonus_usecase` | redeems a box | `Registry`, `Charger` |
 | `bonuses/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer` |
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
@@ -2603,6 +2604,29 @@ Measured on a copy of production's map, before postgres: 22,040 tiles in 4.4s, a
 - **The caps hold**: `Held.Granted` is the rule, so a refill and a bomb are one, enclosures stop at `bonus.enclose.held`, spread clicks at `bonus.spread.clicks` and shields at `bonus.shield.held`. The answer is what the account held `before` and `after`, so the operator sees what fit.
 - **An account id, never a scope**: a charge is an account's (`bonuses.ParseHolder`). A grant of nothing is `InvalidArgument` (`ErrNothingToGrant`). Planet does not know which accounts exist, so an id nobody holds gets a row nobody reads.
 - **Nothing pushes it**: the player sees it on the next `GetCharges`, at its next page load.
+
+#### `GetReplay`
+
+`GetReplay(since, until)` runs `ledger/usecases/replay_usecase`: the map as it was at `since` (`opening`, a
+`GetMapResponse`), and every act on it from `since` until `until` (unset: now), each with its time and as the live
+stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, "Clips").
+
+- **An event shows what every screen saw** (`Event.Show`), as `ledger.Scene`s: a click, a strike, a shield placed
+  and each tile a spread or an enclosure took or struck is a `Change` (a `clicks.TileUpdate` and the shields the tile
+  held before); a bomb is its `clicks.Blast`; a spread or an enclosure is then one `Bonus` too, for its effect. So
+  a replay goes out as `tile_update`, `bomb_dropped`, `tiles_spread` and `tiles_enclosed`, which
+  `planetv1controller/planetmessage` encodes for the stream and the replay alike. An enclosure has no wall: the
+  ledger does not keep it.
+- **`ledger.Footage` rewinds the map**: each tile opens on what it held before its first scene at or after `since`,
+  owner and shields apart, and every other tile on the map now. It reads the scenes past `until` too, to rewind
+  across them. The use case reads the map before the ledger, so a change made between the two reads is rewound.
+- **What it cannot see it cannot rewind**: a reassign, a paint and a revert write no event, and a reverted
+  caller's takes are forgotten, so a tile one of them changed since `since` opens as it is now.
+- **It reads memory**, like the other tools here: a `since` older than `ledger.retention` (72h) opens on the map at
+  the oldest event kept. It changes nothing and logs nothing. A `since` that is not before `until` is
+  `InvalidArgument` (`replay_usecase.ErrInvalidWindow`).
+- **Nothing in it names a player**: no scope and no account goes out, as on the live stream.
+- A day of production is about 40,000 events, a few MB of JSON.
 
 #### `PaintRandomTiles`
 
