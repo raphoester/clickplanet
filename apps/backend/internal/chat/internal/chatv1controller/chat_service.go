@@ -5,6 +5,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mark_seen_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mute_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/react_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 )
@@ -18,3 +19,9 @@ type ChatService struct {
 }
 
 var _ chatv1connect.ChatServiceHandler = ChatService{}
+
+type AdminService struct {
+	mute_handler.MuteHandler
+}
+
+var _ chatv1connect.AdminServiceHandler = AdminService{}

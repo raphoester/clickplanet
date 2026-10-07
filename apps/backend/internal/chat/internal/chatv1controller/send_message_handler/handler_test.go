@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
@@ -106,6 +107,17 @@ func TestASenderThePlayerModuleCouldNotNameIsUnavailable(t *testing.T) {
 
 	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
 	assert.NotContains(t, err.Error(), "postgres")
+}
+
+func TestAMutedSenderIsDenied(t *testing.T) {
+	muted := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(messages.AccountID{15: 1}, ""), time.Now(), time.Hour)
+
+	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: muted.Refusal()})
+
+	var denied *connect.Error
+	require.ErrorAs(t, err, &denied)
+	assert.Equal(t, connect.CodePermissionDenied, denied.Code())
+	assert.Len(t, denied.Details(), 1, "the end of the mute travels with the refusal")
 }
 
 func TestAnUnexpectedFailureIsLeftForTheErrorNet(t *testing.T) {

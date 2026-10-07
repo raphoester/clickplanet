@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package chat.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// Unauthenticated: serve only on the loopback admin listener, never the public router.
+service AdminService {
+  rpc Mute(MuteRequest) returns (MuteResponse);
+}
+
+message MuteRequest {
+  string account_id = 1;
+  google.protobuf.Duration duration = 2;
+}
+
+message MuteResponse {
+  string name = 1;
+  string scope = 2;
+  google.protobuf.Timestamp muted_until = 3;
+}

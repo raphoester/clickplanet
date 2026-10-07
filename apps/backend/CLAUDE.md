@@ -366,9 +366,9 @@ handler declares: they tell the guard what a caller reads, for the `scraper`.
 
 ### Inside the chat module: the same shape
 
-Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has five:
-`messages`, `reactions` (which imports `messages`), `announcements`, `seen` (which imports `messages`), and `feed`,
-the live stream, which carries the first three. `subscribers/` is its edge for events, as `chatv1controller/` is
+Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has six:
+`messages`, `reactions` (which imports `messages`), `announcements`, `seen` (which imports `messages`), `mutes`
+(which imports `messages`), and `feed`, the live stream, which carries the first three. `subscribers/` is its edge for events, as `chatv1controller/` is
 its edge for the wire. A read is a query under its handler: see [Reads are queries](#reads-are-queries).
 
 ```
@@ -382,6 +382,7 @@ internal/chat/internal/
     log_authors/                        logs a caller, or a page of them, it could not name
     usecases/send_message_usecase/      names, cleans, appends, publishes — Appender, Publisher, CountryChecker, Authors
       publishing_send_message/          publishes chat.v1.MessageSent once a message is kept
+      muting_send_message/              refuses a muted caller before anything else — Mutes
     usecases/prune_usecase/             deletes past retention, from each table; Runner — Pruner
       log_prune/                        logs what a prune deleted
   reactions/                            Reaction, Reactor, AccountOf, Reactions, Count, Tally, Change, Named,
@@ -389,8 +390,9 @@ internal/chat/internal/
     postgres_reaction_store/            Storage, over chat.reactions
     inmemory_reaction_storage/          Storage in a slice — behind the testing tag, tests only
     usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher, Authors
+      muting_react/                     refuses a muted caller before anything else — Mutes
   announcements/                        Announcement, AnnouncementID, Kind (Kinds, Known: announce_usecase refuses
-                                        any other), Bomb (a payload), the Storage port and its suite
+                                        any other), Bomb and Muted (payloads), the Storage port and its suite
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
     usecases/announce_usecase/          keeps an announcement, then publishes it — Appender, Publisher
@@ -399,18 +401,27 @@ internal/chat/internal/
     inmemory_seen_storage/              Storage in a map, and Kept for a test — behind the testing tag, tests only
     usecases/mark_seen_usecase/         keeps until when an account saw the chat — Saver
     usecases/forget_seen_usecase/       deletes an account's mark — Deleter
+  mutes/                                Mute (NewMute, MuteOf, ApplicableTo, Refusal), MuteID, Caller, Scope (ScopeOf),
+                                        DurationOf, Book (MuteError), the Storage port and its suite
+    postgres_mute_store/                Storage, over chat.mutes
+    inmemory_mute_storage/              Storage in a slice — behind the testing tag, tests only
+    usecases/mute_usecase/              names, keeps a mute on the account and its network, announces it — Saver,
+                                        Addresses, Authors, Announcer
+      audit_mute/                       logs every mute at Warn
   feed/                                 Update: a message sent, a message's new reactions, or an announcement
                                         (MessageSent, ReactionsChanged, Announced)
     inprocess_feed/                     the fanout to every open stream, in this process
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — UpdatesSubscriber
-  chatv1controller/                     ChatService (a bag), the interceptors
+  chatv1controller/                     ChatService and AdminService (bags), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
+    mute_handler/
     get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, named, and until when
                                         the viewer saw the chat — Authors
       rpc_player_authors/               Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
     chatmessage/                        Encode, EncodeCounts and Reaction (the wire's enum, checked), for the post,
                                         the reaction and the stream
     chatannouncement/                   Encode, for the stream
+    chatmute/                           Refusal: a mute as PermissionDenied with a MuteRefusal detail
   subscribers/                          Timeout
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb payload
     account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
@@ -617,6 +628,7 @@ POST /chat.v1.ChatService/SendMessage   [X-Session-Token: required, naming an ac
   → [cpbootstrap: error net], BlocklistInterceptor, RateLimitInterceptor, then SessionInterceptor (a reader: refuses nothing)
       [cpsessionverifier: the key from auth.v1.InternalService, asked once per boot]
   → ChatService → send_message_handler (the account off the context, or none)
+  → muting_send_message: a mute on the account or its network is PermissionDenied, with when it ends
   → messages/usecases/send_message_usecase: no account is ErrNoAccount (Unauthenticated), then
       who posts (log_authors → rpc_player_authors → player.v1.InternalService/GetAuthor): the account's
       username, or "guest_" and its guest code; stamps id/time
@@ -631,6 +643,7 @@ A failed insert fails the whole post: the table is the audit trail, so a message
 POST /chat.v1.ChatService/React   [X-Session-Token: required, naming an account]
   → [cpbootstrap: error net], BlocklistInterceptor, ReactionRateLimitInterceptor, SessionInterceptor (a reader)
   → react_handler (refuses a Reaction the proto does not name)
+  → muting_react: a mute on the account or its network is PermissionDenied, with when it ends
   → reactions/usecases/react_usecase: who reacts is the account (reactions.ReactorOf); no account is ErrNoAccount
       is the message shown (postgres_message_store.Shown), what it carries (postgres_reaction_store.Reactions)
   → postgres_reaction_store.Save() [inserts or deletes in chat.reactions and bumps chat.reaction_versions, one statement]
@@ -725,14 +738,15 @@ The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Cl
 
 **Each table has its own `Storage` port and a contract suite** (`messages.StorageContractSuite`, `reactions.StorageContractSuite`, behind the `testing` tag). The postgres stores run it against a real postgres; `inmemory_message_storage` and `inmemory_reaction_storage` run it too, and exist **only for tests** — both files carry the `testing` tag, have no persistence port and are never built into the binary. Use case tests use them instead of hand-written fakes.
 
-**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, once at boot and every `pruneInterval`, and `log_prune` logs it. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
+**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, then the mutes that ended before it, once at boot and every `pruneInterval`, and `log_prune` logs it. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
 
 The table holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size.
 
 #### Announcements
 
 **The chat also says things on its own**: a line between the messages with no sender, which the client draws
-without a bubble. Today there is one kind, `bomb`: every bomb that went off, on land or in the sea.
+without a bubble. Two kinds today: `bomb`, every bomb that went off, on land or in the sea, and `mute`, every
+mute an operator gave (see [Mutes](#mutes)).
 
 - **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
   text or reactions, and a message has no kind or payload; sharing a base would make every column of one
@@ -757,6 +771,40 @@ without a bubble. Today there is one kind, `bomb`: every bomb that went off, on 
   (the `beginning` CTE in `history_query`): the two caps are apart, so 200 bombs reached days past 200 messages, and all of
   them sat in a pile on top of the chat.
 - **Not personal data**, but the prune deletes them past `retention` with the messages they sit between.
+
+#### Mutes
+
+**An operator can take a player's chat away and leave it the map**: `chat.v1.AdminService/Mute(account_id,
+duration)`, on the admin listener (see [Operator tools](#operator-tools-adminservice)). A muted caller's
+`SendMessage` and `React` are refused; it still reads the chat and plays.
+
+- **A mute holds the account and its network.** The network is the address of the account's latest message
+  (`messages.Storage.LatestAddress`, by `seq`), as `mutes.ScopeOf` reads it: the /64 over IPv6, the address over
+  IPv4, the throttle's unit (`cpipscope`). Never wider: Free Mobile's subscribers share a /32. So a new guest in a
+  private tab on the same line is muted from its first post. An account that never posted has no network, and
+  only it is muted. **An IPv4 address can be a carrier's NAT**: a mute on one holds the strangers behind it too.
+- **The rule is `Mute.ApplicableTo`**: a caller is muted while a mute names its account or its network and has not
+  ended. `postgres_mute_store` asks the same in SQL (a mute with no network is `NULL`, which matches nobody), and
+  the contract suite runs both stores.
+- **Two decorators refuse, before anything else**: `muting_send_message` and `muting_react` ask
+  `mutes.Book.MuteError` with the account and the request's address. A refused post is never named, kept nor
+  published, and a refused reaction never written. The use cases did not change.
+- **The refusal is `PermissionDenied` with a `chat.v1.MuteRefusal` detail** (`chatmute.Refusal`): the end of the
+  mute that ends last. The blocklist's denial carries no detail, which is how the client tells the two apart; an
+  older client shows its "not allowed to post" line.
+- **No duration is one hour** (`mutes.DefaultDuration`). Otherwise whole seconds, and a negative or fractional one
+  is `InvalidArgument`, as is an id that is not an account. A second mute is a second row, so it never shortens one
+  that ends later.
+- **Every mute is announced.** `mute_usecase` names the account (`GetAuthor`), keeps the mute, then hands an
+  `announcements.Muted` payload, `{name, seconds}`, to `announce_usecase`, which keeps it and publishes it. The
+  client writes "<name> has been muted for one hour". The name is the one the account had then. A mute that could
+  not be kept is not announced; one kept and not announced answers an error and stands.
+- **`audit_mute` logs every call at Warn** (`admin chat mute`), with the network it holds.
+- **Kept in `chat.mutes`** (`id`, `account_id`, `scope`, `muted_at`, `muted_until`). The network is personal data,
+  so the prune deletes a mute that ended more than `retention` ago. There is no unmute RPC: deleting the rows ends
+  a mute early (`deploy/vps/README.md`).
+- `e2e/mute_test.go` mutes over the admin listener and sees the player, its reaction and a fresh guest on its
+  network refused, and the line in the history.
 
 #### Reactions
 
@@ -2501,7 +2549,7 @@ Nothing lives in files any more: the container mounts no state volume.
 
 **A second router, on a loopback listener.** `props.AdminRPC.Mount` is `props.RPC.Mount` for services an operator calls: same builder, same error net, but `cpbootstrap` serves them on `httpServer.adminBindAddress` instead of the public router — logging middleware only, no CORS. Empty serves no admin listener; anything but a loopback `host:port` refuses the boot, both in `ServerConfig.Validate` and again in `Run`, and a port already taken refuses it too. They have no authentication, so loopback is their whole protection, and they are off the router Caddy forwards to on purpose: one Caddyfile edit would otherwise let anybody repaint the map. In production they are reached with `docker compose exec backend wget`; see `deploy/vps/README.md`, "Operator tools".
 
-`planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+`planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute` — see [Mutes](#mutes). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream and the clicks still arriving need the rest of the buffer.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.

@@ -74,6 +74,10 @@ message SendMessageResponse {
   ChatMessage message = 1;
 }
 
+message MuteRefusal {
+  int64 muted_until_unix_ms = 1;
+}
+
 message GetHistoryRequest {}
 
 message Announcement {

@@ -2,6 +2,8 @@ package postgres_message_store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -44,6 +46,20 @@ func (s *Store) Shown(ctx context.Context, id messages.MessageID, since time.Tim
 		return false, fmt.Errorf("failed to read whether a message is shown: %w", err)
 	}
 	return shown, nil
+}
+
+func (s *Store) LatestAddress(ctx context.Context, account messages.AccountID) (string, error) {
+	var ip string
+	err := s.db.QueryRowContext(ctx, `
+		SELECT ip FROM messages WHERE account_id = $1 ORDER BY seq DESC LIMIT 1
+	`, uuid.UUID(account)).Scan(&ip)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", messages.ErrNoMessage
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to read the latest address of an account: %w", err)
+	}
+	return ip, nil
 }
 
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {
