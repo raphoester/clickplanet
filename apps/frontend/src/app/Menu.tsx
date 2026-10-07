@@ -10,7 +10,7 @@ import MenuPanel from "./components/MenuPanel.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
 import Modal from "./components/Modal.tsx";
 import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
-import {CameraIcon, DiscordIcon, HomeIcon, InfoIcon, SwapIcon} from "./components/icons.tsx";
+import {CameraIcon, DiscordIcon, HomeIcon, InfoIcon, InstagramIcon, SwapIcon, TikTokIcon} from "./components/icons.tsx";
 import SettingsPlace, {SettingsPlaceProps} from "./settings/SettingsPlace.tsx";
 import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
@@ -18,7 +18,7 @@ import AccountPanel from "./account/AccountPanel.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerInfoBackend} from "../backends/player.ts";
 import {youLabel} from "./youLabel.ts"
-import {DISCORD_INVITE} from "../links.ts"
+import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from "../links.ts"
 import BoardViews, {BoardStandings} from "./standings/BoardViews.tsx"
 import {ListenForClicks} from "./viewer/acceptedClicks.ts"
 import "./Menu.css"
@@ -254,6 +254,20 @@ export function MorePlace({onTakePicture, taking}: MorePlaceProps) {
                className="panel-box menu-tile">
                 <DiscordIcon size={22}/>
                 <span>Discord</span>
+            </a>
+            <a href={TIKTOK_PROFILE}
+               target="_blank"
+               rel="noopener noreferrer"
+               className="panel-box menu-tile">
+                <TikTokIcon size={22}/>
+                <span>TikTok</span>
+            </a>
+            <a href={INSTAGRAM_PROFILE}
+               target="_blank"
+               rel="noopener noreferrer"
+               className="panel-box menu-tile">
+                <InstagramIcon size={22}/>
+                <span>Instagram</span>
             </a>
         </div>
 
