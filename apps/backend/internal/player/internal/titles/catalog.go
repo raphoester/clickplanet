@@ -245,7 +245,7 @@ func (Talker) ID() ID { return "talker" }
 
 func (Talker) Name() string { return "Talker" }
 
-func (Talker) Threshold() uint64 { return 100 }
+func (Talker) Threshold() uint64 { return 10 }
 
 func (t Talker) EarnedBy(career Career) bool { return career.stats.MessagesSent() >= t.Threshold() }
 
@@ -255,7 +255,7 @@ func (Chatterbox) ID() ID { return "chatterbox" }
 
 func (Chatterbox) Name() string { return "Chatterbox" }
 
-func (Chatterbox) Threshold() uint64 { return 1_000 }
+func (Chatterbox) Threshold() uint64 { return 30 }
 
 func (c Chatterbox) EarnedBy(career Career) bool { return career.stats.MessagesSent() >= c.Threshold() }
 
@@ -265,7 +265,7 @@ func (Socialite) ID() ID { return "socialite" }
 
 func (Socialite) Name() string { return "Socialite" }
 
-func (Socialite) Threshold() uint64 { return 10_000 }
+func (Socialite) Threshold() uint64 { return 100 }
 
 func (s Socialite) EarnedBy(career Career) bool { return career.stats.MessagesSent() >= s.Threshold() }
 
@@ -275,6 +275,6 @@ func (Icon) ID() ID { return "icon" }
 
 func (Icon) Name() string { return "Icon" }
 
-func (Icon) Threshold() uint64 { return 100_000 }
+func (Icon) Threshold() uint64 { return 1_000 }
 
 func (i Icon) EarnedBy(career Career) bool { return career.stats.MessagesSent() >= i.Threshold() }
