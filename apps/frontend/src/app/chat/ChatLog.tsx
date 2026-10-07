@@ -1,5 +1,5 @@
 import {Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {ChatAnnouncement, ChatMessage, Reaction} from "../../backends/chat.ts";
+import {BombAnnouncement, ChatAnnouncement, ChatMessage, MuteAnnouncement, Reaction} from "../../backends/chat.ts";
 import {PlayerLine} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
@@ -9,6 +9,7 @@ import TitleBadge from "../titles/TitleBadge.tsx";
 import {ChevronIcon} from "../components/icons.tsx";
 import {ChatLogEntry, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
 import {describeBlast} from "../../domain/blast.ts";
+import {describeMute} from "../../domain/mute.ts";
 import {truncate} from "../truncate.ts";
 import {authorOf, authorStyle} from "./authorStyle.ts";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
@@ -224,6 +225,24 @@ function MessageLine({message, previous, flashing, picking, pick, ...props}: Mes
 }
 
 function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
+    return announcement.kind === "bomb"
+        ? <BombLine announcement={announcement}/>
+        : <MuteLine announcement={announcement}/>
+}
+
+function MuteLine({announcement}: {announcement: MuteAnnouncement}) {
+    return <li className="chat-announcement" data-at={announcement.announcedAt}>
+        <span className="chat-announcement-icon" aria-hidden="true">🔇</span>
+        <span className="chat-announcement-text">
+            <strong>{announcement.name}</strong> {describeMute(announcement.seconds)}
+        </span>
+        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
+            {clock.format(announcement.announcedAt)}
+        </time>
+    </li>
+}
+
+function BombLine({announcement}: {announcement: BombAnnouncement}) {
     const bomber = countryName(announcement.country)
     const ground = announcement.ground === undefined ? undefined : Countries.get(announcement.ground)?.name
 

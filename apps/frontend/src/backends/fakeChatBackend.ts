@@ -6,6 +6,7 @@ import {
     ChatListener,
     ChatMessage,
     ChatMessageGoneError,
+    ChatMutedError,
     ChatRateLimitedError,
     ChatReactor,
     ChatRejectedError,
@@ -63,6 +64,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private readonly blocked: boolean
     private seenUntil: number
+    private mutedUntil = 0
     private tokens = MESSAGE_BURST
     private lastRefillMs = Date.now()
     private nextChatter = 0
@@ -118,6 +120,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
 
     public async sendMessage(message: OutgoingMessage): Promise<ChatMessage> {
         if (this.blocked) throw new ChatBlockedError()
+        if (Date.now() < this.mutedUntil) throw new ChatMutedError(this.mutedUntil)
 
         const text = message.text.trim()
         if (text === "" || countRunes(text) > MAX_TEXT_LENGTH) throw new ChatRejectedError()
@@ -143,6 +146,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
 
     public async react(reaction: OutgoingReaction): Promise<ReactionsChange> {
         if (this.blocked) throw new ChatBlockedError()
+        if (Date.now() < this.mutedUntil) throw new ChatMutedError(this.mutedUntil)
         if (!this.messages.some(message => message.id === reaction.messageId)) throw new ChatMessageGoneError()
 
         this.give(reaction.messageId, reaction.reaction, ME, reaction.on)
@@ -175,8 +179,17 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             tile: drop.tile,
             cleared: drop.cleared.length,
         }
+        this.announce(announcement)
+    }
+
+    private announce(announcement: ChatAnnouncement) {
         this.announcements.push(announcement)
         this.listeners.forEach(listener => listener.announcement?.(announcement))
+    }
+
+    public mute(seconds = 3600, name = OWN_GUEST_NAME) {
+        if (name === OWN_GUEST_NAME) this.mutedUntil = Date.now() + seconds * 1000
+        this.announce({kind: "mute", id: UUIDv4(), announcedAt: Date.now(), name, seconds})
     }
 
     public listenForMessages(

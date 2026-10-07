@@ -4,6 +4,7 @@ import {
     ChatBackend,
     ChatBlockedError,
     ChatMessage,
+    ChatMutedError,
     ChatNoSessionError,
     ChatRateLimitedError,
     ChatRejectedError,
@@ -20,7 +21,7 @@ import {
 
 export type ChatStatus = 'loading' | 'ready' | 'unavailable'
 
-export type ChatSendFailure = 'rate-limited' | 'blocked' | 'rejected' | 'no-session' | 'failed'
+export type ChatSendFailure = 'rate-limited' | 'blocked' | 'muted' | 'rejected' | 'no-session' | 'failed'
 
 export type SeenAtLoad = {
     until: number
@@ -39,6 +40,7 @@ export function useChat({backend, username}: UseChatOptions) {
     const [announcements, setAnnouncements] = useState<ChatAnnouncement[]>([])
     const [status, setStatus] = useState<ChatStatus>(backend ? 'loading' : 'unavailable')
     const [failure, setFailure] = useState<ChatSendFailure | undefined>(undefined)
+    const [mutedUntil, setMutedUntil] = useState<number>()
     const [mine, setMine] = useState<ReadonlySet<string>>(NOTHING_SENT)
     const [seenAtLoad, setSeenAtLoad] = useState<SeenAtLoad>()
 
@@ -104,6 +106,7 @@ export function useChat({backend, username}: UseChatOptions) {
             return true
         } catch (e) {
             console.error("The message could not be sent", e)
+            if (e instanceof ChatMutedError) setMutedUntil(e.until)
             setFailure(failureOf(e))
             return false
         }
@@ -123,14 +126,19 @@ export function useChat({backend, username}: UseChatOptions) {
         } catch (e) {
             console.error("The reaction could not be sent", e)
             toggle(!reaction.on)
+            if (e instanceof ChatMutedError) {
+                setMutedUntil(e.until)
+                setFailure('muted')
+            }
         }
     }, [backend])
 
-    return {messages, announcements, mine, displayName, seenAtLoad, status, failure, send, react}
+    return {messages, announcements, mine, displayName, seenAtLoad, status, failure, mutedUntil, send, react}
 }
 
 function failureOf(e: unknown): ChatSendFailure {
     if (e instanceof ChatRateLimitedError) return 'rate-limited'
+    if (e instanceof ChatMutedError) return 'muted'
     if (e instanceof ChatBlockedError) return 'blocked'
     if (e instanceof ChatRejectedError) return 'rejected'
     if (e instanceof ChatNoSessionError) return 'no-session'

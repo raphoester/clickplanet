@@ -6,6 +6,7 @@ import {
     ChatEvent,
     ChatMessage as ChatMessagePb,
     Heartbeat,
+    MuteRefusal,
     Reaction,
     ReactionCount,
     ReactionsChanged,
@@ -14,6 +15,7 @@ import {ChatService} from "../gen/grpc/chat/v1/chat_connect.ts"
 import {
     ChatBlockedError,
     ChatMessageGoneError,
+    ChatMutedError,
     ChatNoSessionError,
     ChatRateLimitedError,
     ChatRejectedError,
@@ -129,6 +131,14 @@ describe("ChatServiceBackend.react", () => {
         expect(headersOf(react).get(SESSION_HEADER)).toBe("token-1")
     })
 
+    it("reads a muted reactor as muted", async () => {
+        const react = vi.fn().mockRejectedValue(new ConnectError("muted in the chat", Code.PermissionDenied, undefined,
+            [new MuteRefusal({mutedUntilUnixMs: BigInt(1_700_003_600_000)})]))
+
+        await expect(new ChatServiceBackend({react} as unknown as PromiseClient<typeof ChatService>, session(), unusedKeepalive)
+            .react(reaction)).rejects.toBeInstanceOf(ChatMutedError)
+    })
+
     it("mints a token when none is held", async () => {
         const react = vi.fn().mockResolvedValue(answer)
         const guest = unheld()
@@ -193,11 +203,31 @@ describe("decodedAnnouncement", () => {
     })
 
     it("reads a bomb in the sea, with no ground and no tile", () => {
-        const announcement = decodedAnnouncement(bomb(`{"country":"fr","cleared":0}`))
+        expect(decodedAnnouncement(bomb(`{"country":"fr","cleared":0}`))).toEqual({
+            kind: "bomb",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            country: "fr",
+            ground: undefined,
+            tile: undefined,
+            cleared: 0,
+        })
+    })
 
-        expect(announcement?.tile).toBeUndefined()
-        expect(announcement?.ground).toBeUndefined()
-        expect(announcement?.cleared).toBe(0)
+    it("reads a mute, with the name and how long it lasts", () => {
+        expect(decodedAnnouncement(bomb(`{"name":"guest_a1b2c3","seconds":3600}`, "mute"))).toEqual({
+            kind: "mute",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            name: "guest_a1b2c3",
+            seconds: 3600,
+        })
+    })
+
+    it("drops a mute with no name or no length", () => {
+        expect(decodedAnnouncement(bomb(`{"seconds":3600}`, "mute"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"name":"guest_a1b2c3"}`, "mute"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"name":"guest_a1b2c3","seconds":0}`, "mute"))).toBeUndefined()
     })
 
     it("drops a kind it does not know, and a payload that is not the kind's", () => {
@@ -210,7 +240,7 @@ describe("decodedAnnouncement", () => {
     it("comes off the stream as the announcement case only", () => {
         const event = new ChatEvent({event: {case: "announcement", value: bomb(`{"country":"fr","cleared":0}`)}})
 
-        expect(announcementOf(event)?.country).toBe("fr")
+        expect(announcementOf(event)).toMatchObject({kind: "bomb", country: "fr"})
         expect(announcementOf(new ChatEvent({event: {case: "message", value: proto()}}))).toBeUndefined()
     })
 })
@@ -298,6 +328,17 @@ describe("ChatServiceBackend.sendMessage", () => {
         const backend = new ChatServiceBackend(clientThatFails(new ConnectError("no", code)), session(), unusedKeepalive)
 
         await expect(backend.sendMessage(outgoing)).rejects.toBeInstanceOf(error)
+    })
+
+    it("reads a denial that carries a mute as muted, with its end", async () => {
+        const muted = new ConnectError("muted in the chat", Code.PermissionDenied, undefined,
+            [new MuteRefusal({mutedUntilUnixMs: BigInt(1_700_003_600_000)})])
+        const backend = new ChatServiceBackend(clientThatFails(muted), session(), unusedKeepalive)
+
+        const refusal = await backend.sendMessage(outgoing).catch((e: unknown) => e)
+
+        expect(refusal).toBeInstanceOf(ChatMutedError)
+        expect((refusal as ChatMutedError).until).toBe(1_700_003_600_000)
     })
 
     it("leaves any other fault alone", async () => {
