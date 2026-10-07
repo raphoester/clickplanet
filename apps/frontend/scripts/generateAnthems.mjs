@@ -1,10 +1,9 @@
-import {execFileSync} from "node:child_process"
 import crypto from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
+import {CACHE, encode} from "./anthemEncoding.mjs"
 
 const SOURCE = "https://archive.org/download/us-navy-band-national-anthems-public-domain/"
-const CACHE = "node_modules/.cache/anthems"
 const OUT = "static/anthems"
 const ASSET = "src/app/anthem/anthemsAsset.ts"
 
@@ -146,13 +145,6 @@ const SHARES = {
     cn: ["hk", "mo"],
 }
 
-const FILTER = [
-    "silenceremove=start_periods=1:start_threshold=-50dB",
-    "areverse",
-    "silenceremove=start_periods=1:start_threshold=-50dB",
-    "areverse",
-    "loudnorm=I=-18:TP=-2:LRA=11",
-].join(",")
 
 async function download(recording) {
     const cached = path.join(CACHE, recording + ".mp3")
@@ -165,18 +157,6 @@ async function download(recording) {
     return cached
 }
 
-function encode(input) {
-    const tmp = path.join(CACHE, "encoding.m4a")
-    execFileSync("ffmpeg", [
-        "-v", "error", "-y", "-i", input,
-        "-af", FILTER, "-ar", "44100", "-ac", "1",
-        "-c:a", "aac", "-b:a", "56k",
-        "-map_metadata", "-1", "-fflags", "+bitexact", "-flags:a", "+bitexact",
-        "-movflags", "+faststart",
-        tmp,
-    ])
-    return fs.readFileSync(tmp)
-}
 
 const queue = [...new Set(Object.values(RECORDINGS))]
 const cached = new Map()

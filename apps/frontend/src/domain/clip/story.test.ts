@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {TileChange} from "./changes.ts"
-import {placeOf, storyOf, THE_WORLD} from "./story.ts"
+import {castOf, placeOf, Story, storyOf, THE_WORLD} from "./story.ts"
 
 const REGIONS: Record<string, string> = {
     fr: "Europe",
@@ -87,8 +87,38 @@ describe("the place of a story", () => {
         expect(placeOf(["fr", "fr", "de", "de", "fr", "de", "fr", "gb"], regionOf)).toEqual({region: "Europe"})
     })
 
+    it("is the two countries most of it happened in, when no continent holds most of it", () => {
+        expect(placeOf(["eg", "eg", "eg", "tr", "tr", "tr", "rs"], (country) => ({eg: "Africa", tr: "Asia", rs: "Europe"})[country]))
+            .toEqual({countries: ["eg", "tr"]})
+    })
+
     it("is the world when nothing holds most of it", () => {
-        expect(placeOf(["fr", "br"], regionOf)).toEqual({region: THE_WORLD})
+        expect(placeOf(["fr", "br", "jp", "au"], regionOf)).toEqual({region: THE_WORLD})
         expect(placeOf([undefined], regionOf)).toEqual({region: THE_WORLD})
+    })
+})
+
+describe("who a story is about", () => {
+    const continents: Record<string, string> = {be: "Europe", de: "Europe", pl: "Europe", fr: "Europe", ps: "Asia", il: "Asia"}
+    const continentOf = (country: string) => continents[country]
+    const comeback = (attacker: string): Story =>
+        ({kind: "comeback", attacker, rival: undefined, victims: ["ps"], place: {region: "Europe"}, taken: 10})
+
+    it("is its flag when that flag leads what is taken around it", () => {
+        const around = [...took("be", "ps", 60), ...took("de", "ps", 20, 61), ...took("il", "ps", 20, 81)]
+
+        expect(castOf(comeback("be"), around, continentOf)).toEqual(comeback("be"))
+    })
+
+    it("is its continent when the continent's flags strike back together and none of them leads", () => {
+        const around = [...took("be", "ps", 30), ...took("de", "ps", 25, 31), ...took("pl", "ps", 25, 56), ...took("il", "ps", 20, 81)]
+
+        expect(castOf(comeback("de"), around, continentOf)).toMatchObject({attacker: "de", team: "Europe"})
+    })
+
+    it("is nobody when a minor flag is not part of a continent striking back", () => {
+        const around = [...took("il", "ps", 70), ...took("de", "ps", 10, 71), ...took("fr", "ps", 20, 81)]
+
+        expect(castOf(comeback("de"), around, continentOf)).toBeUndefined()
     })
 })

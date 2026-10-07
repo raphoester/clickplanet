@@ -22,6 +22,7 @@ npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
 npm run clip:fetch -- --ssh <user@host> --out replay.json  # A replay of the last 72h from production (see "Clips")
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
+npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run regions    # Rewrite each country's continent and sub-region from Natural Earth, for the clips' headlines
 ```
 
@@ -2399,30 +2400,38 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 
 - **`window.ts` finds the candidates**: for each length from 1 to 24 hours, the busiest stretch of a few places
   far apart, counting the tiles taken from another flag in each 10° cell and the eight around it. Filling empty
-  ground is not war.
+  ground is not war. A window asked for (`--since`, `--until`) is split into its places the same way, so a war
+  next door is a story of its own.
 - **`front.ts` finds the front** of a candidate: the point where most tiles changed hands, and every change within
   about 2,900 km of it, so a war in France brings in England, Spain and Germany. Once the story is known, the front
   is found again from its own flags' fighting alone, so a war next door (Israel in Turkey) does not pull the
-  camera off Belgium's.
+  camera off Belgium's; with `--country`, it is that flag's fighting from the start.
 - **`story.ts` writes the story** (`storyOf`): the flag that took the most there, the flags it took from, and
   where. Nearly all in one country (90%) is **"X IS INVADING FRANCE"**; spread over several, it is **"X IS
   ATTACKING"** the continent holding 70% of it (`static/countries/regions.json`, written by `npm run regions` from
-  the snapshot the map is cut from), or the world. Not a sub-region: "defend Western Europe" is not how anybody
-  talks. A flag taking back its own ground, or its own continent from a flag from elsewhere (Belgium taking Europe
+  the snapshot the map is cut from), else **"X IS INVADING EGYPT AND TURKEY"** when two countries hold 70% of it,
+  else the world. Not a sub-region: "defend Western Europe" is not how anybody talks. A flag taking back its own ground, or its own continent from a flag from elsewhere (Belgium taking Europe
   back from Palestine), is **"X STRIKES BACK"**; a flag that already held most of the country
   when the story starts is **"X IS KICKING Y OUT OF AUSTRALIA"**, since the opening shot shows its flag there
   already; a second flag taking 60% as much makes it **"X VS Y"**. `src/clip/overlay.ts` words it.
+- **A story is about who leads the fighting** (`castOf`): its flags have to take 35% of everything taken around
+  it. Below that, flags of one continent taking it back together, with half of it between them, are the story,
+  **"EUROPE STRIKES BACK"**, under the continent's flag with one counter for them all. Otherwise nobody leads it
+  and it is skipped: Germany taking its own land back while Belgium and Israel made the war around it.
 - **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
   France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
   The caption is the headline and the question its call to act asks ("Who stops them?" to defend, "Who joins
   them?" to fight for a flag striking back, "Pick a side"), the site as plain text (a caption's
   link cannot be clicked) and the account's tags with the place's. Never the attacker's: a flag's tag can be a
   political feed.
-- **`music.ts` picks the anthem under the clip**, since YouTube Shorts cannot add a sound to an upload: the leading
-  flag's, else the other side's, else the place's, else a victim's. They are the game's own anthems (see [The
-  leader's anthem](#the-leaders-anthem)), US Navy Band recordings in the public domain, so they carry no claim.
-  Palestine has none: the Navy Band never recorded it. It fades out over the last 1.2s. `--silent` leaves it out,
-  for TikTok and Instagram, where a sound is added when posting.
+- **`music.ts` picks the anthem under the clip**, since YouTube Shorts cannot add a sound to an upload: the anthem
+  of whoever makes the moves, the leading flag's, else the other side's in a battle, or the continent's when a
+  continent strikes back. Never a loser's: a clip with none plays none. They are the game's own anthems (see [The
+  leader's anthem](#the-leaders-anthem)), US Navy Band recordings in the public domain, and two the game does not
+  play, vendored by `npm run clip:anthems` into `scripts/clip/anthems/`: the Anthem of Europe (Navy Band too) and
+  Palestine's Fida'i, which the Navy Band never recorded, in an instrumental under CC BY 3.0. A recording under a
+  licence carries its credit, and the caption of every clip it plays under ends with it. It fades out over the
+  last 1.2s. `--silent` leaves it out, for TikTok and Instagram, where a sound is added when posting.
 - **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
   the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
   story already told by a better candidate (same attacker, same place) is dropped.
