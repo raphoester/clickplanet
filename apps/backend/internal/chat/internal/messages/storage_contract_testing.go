@@ -4,6 +4,7 @@ package messages
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/stretchr/testify/suite"
@@ -68,6 +69,34 @@ func (s *StorageContractSuite) TestAMessageIsShownOnlyWhileItIsAmongTheNewestInT
 	s.False(s.shown("old", contractStart, 2), "pushed out by newer ones")
 	s.False(s.shown("middle", contractStart.Add(2*time.Hour), 10), "sent before the window")
 	s.False(s.shown("never-sent", contractStart, 10))
+}
+
+func (s *StorageContractSuite) TestTheLatestAddressIsTheOneTheAccountLastPostedFrom() {
+	other := AccountID{15: 2}
+	for i, sent := range []struct {
+		account AccountID
+		ip      string
+	}{
+		{contractAccount, "2001:db8:1:2::1"},
+		{contractAccount, "2001:db8:9:9::1"},
+		{other, "198.51.100.1"},
+	} {
+		message := NewMessage(MessageID(fmt.Sprintf("id-%d", i)), contractStart.Add(-time.Duration(i)*time.Minute), sent.account, "fr", "hi")
+		s.Require().NoError(s.storage.Append(context.Background(), NewRecord(message, "some-uuid", sent.ip, "test-agent")))
+	}
+
+	ip, err := s.storage.LatestAddress(context.Background(), contractAccount)
+	s.Require().NoError(err)
+
+	s.Equal("2001:db8:9:9::1", ip, "the last appended, whatever its time")
+}
+
+func (s *StorageContractSuite) TestAnAccountThatSentNothingHasNoLatestAddress() {
+	s.append("hello")
+
+	_, err := s.storage.LatestAddress(context.Background(), AccountID{15: 9})
+
+	s.ErrorIs(err, ErrNoMessage)
 }
 
 func (s *StorageContractSuite) TestDeleteBeforeRemovesOnlyOlderMessages() {

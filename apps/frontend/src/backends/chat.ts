@@ -26,7 +26,7 @@ export type ChatMessage = {
     reactionsVersion: number
 }
 
-export type ChatAnnouncement = BombAnnouncement
+export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement
 
 export type BombAnnouncement = {
     kind: "bomb"
@@ -36,6 +36,14 @@ export type BombAnnouncement = {
     ground?: string
     tile?: number
     cleared: number
+}
+
+export type MuteAnnouncement = {
+    kind: "mute"
+    id: string
+    announcedAt: number
+    name: string
+    seconds: number
 }
 
 export type ChatHistory = {
@@ -106,6 +114,16 @@ export class ChatBlockedError extends Error {
     constructor(options?: {cause?: unknown}) {
         super("this address is not allowed to post", options)
         this.name = "ChatBlockedError"
+    }
+}
+
+export class ChatMutedError extends Error {
+    readonly until: number
+
+    constructor(until: number, options?: {cause?: unknown}) {
+        super("muted in the chat", options)
+        this.name = "ChatMutedError"
+        this.until = until
     }
 }
 

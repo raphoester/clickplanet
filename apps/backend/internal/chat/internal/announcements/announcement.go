@@ -15,11 +15,14 @@ type AnnouncementID uuid.UUID
 
 type Kind string
 
-const KindBomb Kind = "bomb"
+const (
+	KindBomb Kind = "bomb"
+	KindMute Kind = "mute"
+)
 
 var ErrUnknownKind = errors.New("an announcement of a kind nobody knows")
 
-func Kinds() []Kind { return []Kind{KindBomb} }
+func Kinds() []Kind { return []Kind{KindBomb, KindMute} }
 
 func (k Kind) Known() bool { return slices.Contains(Kinds(), k) }
 
@@ -64,6 +67,28 @@ func (b Bomb) Payload() (json.RawMessage, error) {
 	payload, err := json.Marshal(bombPayload{Country: b.country, Ground: b.ground, Tile: b.tile, Cleared: b.cleared})
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode a bomb announcement: %w", err)
+	}
+	return payload, nil
+}
+
+type Muted struct {
+	name     string
+	duration time.Duration
+}
+
+func MutedOf(name string, duration time.Duration) Muted {
+	return Muted{name: name, duration: duration}
+}
+
+type mutedPayload struct {
+	Name    string `json:"name"`
+	Seconds int64  `json:"seconds"`
+}
+
+func (m Muted) Payload() (json.RawMessage, error) {
+	payload, err := json.Marshal(mutedPayload{Name: m.name, Seconds: int64(m.duration / time.Second)})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode a mute announcement: %w", err)
 	}
 	return payload, nil
 }

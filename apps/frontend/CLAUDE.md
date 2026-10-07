@@ -464,6 +464,9 @@ and the advice is one line:
 - `resource_exhausted` → `ChatRateLimitedError`, chat's own bucket (one message
   every 3s), unrelated to the click bucket
 - `permission_denied` → `ChatBlockedError`, the address is in `chat.blockedIPs`
+- `permission_denied` with a `MuteRefusal` detail → `ChatMutedError`, an operator
+  muted the account or its network; the composer says until when (the time, or
+  the date and time past 20 hours). A muted reaction is undone and says the same
 - `invalid_argument` → `ChatRejectedError`, the server refused the content
 - `unauthenticated` twice, or no token to be had → `ChatNoSessionError`
 
@@ -533,8 +536,8 @@ is the list, and the backend refuses any other.
 #### Announcements
 
 The chat also shows lines nobody sent: `ChatEvent.announcement` on the stream,
-and `GetHistoryResponse.announcements` beside the messages. Today the one kind
-is `bomb`, every bomb that went off.
+and `GetHistoryResponse.announcements` beside the messages. Two kinds today:
+`bomb`, every bomb that went off, and `mute`, every mute an operator gave.
 
 - **Decoded, not trusted**: `decodedAnnouncement` reads the `kind` and parses
   the JSON `payload` into a typed `ChatAnnouncement`. A kind this build does not
@@ -542,7 +545,8 @@ is `bomb`, every bomb that went off.
   a new kind first.
 - **The payload is values, the client writes the sentence**: a bomb line is
   `describeBlast`, the same words as `BombNews`, so the chat and the news line
-  never disagree.
+  never disagree. A mute line is the name and `describeMute` of its seconds
+  (`domain/mute.ts`): "one hour", "90 minutes", "2 days".
 - **Kept apart from the messages** (`useChat`'s `announcements`,
   `addAnnouncements`) and put in one list only to draw (`interleave`, by time).
   So a burst of bombs never pushes a message out of the log, and the sound and
@@ -557,6 +561,9 @@ is `bomb`, every bomb that went off.
   says again who is talking.
 - In fake mode `main.tsx` hands every `FakeBackend` bomb to
   `FakeChatBackend.announceBomb`, with no ground: the fake has no borders.
+  `fakeChat.mute()` in the console announces a mute of the player for an hour
+  and refuses its posts and reactions until it ends; `fakeChat.mute(600, "Ana")`
+  only announces somebody else's.
 
 #### Saying that a message landed
 

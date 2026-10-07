@@ -975,7 +975,7 @@ rm -f ~/backups/tiles-*.tar.gz
 ## 10. Operator tools
 
 `httpServer.adminBindAddress` serves the backend's operator services
-(`planet.v1.AdminService`, `player.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
+(`planet.v1.AdminService`, `player.v1.AdminService`, `chat.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
 not behind Caddy and have **no authentication**: loopback is their whole
 protection, so a non-loopback address refuses the boot. Reach them from the box
 with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
@@ -1202,10 +1202,47 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
   `antiBot.jury.trackWindow`: it is not clicking now, or not from this scope.
 - With `antiBot.enabled` off it is refused: `server returned error: HTTP/1.1 400`. A bad scope is refused the same way.
 
+### Mute a player in the chat
+
+A muted player keeps playing the map but can neither post nor react. Find its
+account in the last messages, with the name the chat shows:
+
+```bash
+docker compose exec postgres psql -U clickplanet -c "select m.account_id, coalesce(p.name, 'guest_' || g.code) as name, m.text from chat.messages m left join player.profiles p using (account_id) left join player.guest_codes g using (account_id) order by m.seq desc limit 20"
+```
+
+Then mute it. Leave out `duration` for one hour:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"<account_id>","duration":"3600s"}' http://127.0.0.1:8081/chat.v1.AdminService/Mute
+```
+
+- **The network is muted too**: the address of the player's latest message, as
+  its /64 over IPv6 and exactly over IPv4. A new guest from the same network is
+  muted, so a private tab does not get around it. The answer is that network,
+  `scope`, and `mutedUntil`. `scope` is empty when the player never posted, and
+  then only the account is muted.
+- An IPv4 address can be a carrier's, shared by strangers: they are muted for
+  as long too.
+- Everyone in the chat sees "<name> has been muted for one hour", with the
+  real duration, a moment after the answer. If the line does not come, the mute
+  still holds: `journalctl CONTAINER_NAME=cp-backend | grep AccountMuted` shows why.
+- A muted player's post or reaction is refused with the time the mute ends.
+- A second mute does not shorten the first: the one that ends last holds.
+- `duration` is whole seconds (`"86400s"` is a day). A bad account or duration
+  is refused: `server returned error: HTTP/1.1 400`.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin chat mute"`.
+- To end a mute early, delete it:
+
+```bash
+docker compose exec postgres psql -U clickplanet -c "delete from chat.mutes where account_id = '<account_id>'"
+```
+
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` appended to `.env` on the box, then `docker compose up -d backend`. The next deploy renders `.env` again and drops the pin, so fix forward rather than leaving it.
 - **Lost or corrupt tile state:** stop the backend, restore the `planet` schema from a dump (`drop schema planet cascade`, then `psql -U clickplanet clickplanet < planet-DATE.sql`), start it again.
 - **Lost or corrupt chat messages:** the same, with the `chat` schema and `chat-DATE.sql`.
+- **Backend rolled back below the chat mute:** that build refuses a history holding an announcement kind it does not know, so the chat is hidden until `delete from chat.announcements where kind = 'mute'` in psql.
 - **In-process storage misbehaving:** there is no config switch back to Redis — that code is gone. Roll the backend image back to a pre-migration `<sha>` and restore the matching Redis stack from git history.
 - **Frontend:** roll back the deployment in the Pages dashboard.

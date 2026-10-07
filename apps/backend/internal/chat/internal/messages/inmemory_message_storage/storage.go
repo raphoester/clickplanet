@@ -46,6 +46,18 @@ func (s *Storage) Shown(_ context.Context, id messages.MessageID, since time.Tim
 	}), nil
 }
 
+func (s *Storage) LatestAddress(_ context.Context, account messages.AccountID) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, record := range slices.Backward(s.records) {
+		if record.Message().Account() == account {
+			return record.IP(), nil
+		}
+	}
+	return "", messages.ErrNoMessage
+}
+
 func (s *Storage) DeleteBefore(_ context.Context, cutoff time.Time) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
