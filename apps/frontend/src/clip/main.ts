@@ -12,6 +12,8 @@ import {regionOf} from "../domain/regions.ts"
 import {ownersAfter, ranked as rankedBy, tally} from "../domain/clip/changes.ts"
 import {cellOf, dot, Point, pointOf} from "../domain/clip/geometry.ts"
 import {SCRIBBLE_BELOW, solidityOf} from "../domain/clip/solidity.ts"
+import {anthemOf} from "../domain/clip/music.ts"
+import {ANTHEMS} from "../app/anthem/anthemsAsset.ts"
 import {Candidate, candidatesOf, inCandidate} from "../domain/clip/window.ts"
 import {Front, frontOf, FRONT_RADIANS, sameFront, spanOf} from "../domain/clip/front.ts"
 import {Story, storyOf} from "../domain/clip/story.ts"
@@ -21,7 +23,7 @@ import {blastZoomOf, cameraOf, framingOf, openingOf, PullBack, screensOf} from "
 import {bombShareOf, momentsOf, paceOf, playedAt, timelineOf} from "../domain/clip/pace.ts"
 import {tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {installVirtualClock} from "./virtualClock.ts"
-import {createOverlay, placeName, wordsOf} from "./overlay.ts"
+import {createOverlay, nameOf, placeName, wordsOf} from "./overlay.ts"
 
 export type Recording = {
     pick: number
@@ -33,6 +35,8 @@ export type Recording = {
     until: string
     look: string
     skipped: string[]
+    // The anthem to play under the clip: where it is served from, its title and whose it is.
+    music: {url: string, title: string, country: string} | undefined
     place: string
     headline: string
     line: string
@@ -94,6 +98,11 @@ function numberParam(name: string): number | undefined {
 type Take = {candidate: Candidate, front: Front, story: Story, score: number}
 
 type Review = Take & {backend: ReplayBackend, solidity: number, skipped: string | undefined}
+
+function musicOf(story: Story): Recording["music"] {
+    const country = anthemOf(story, (code) => code in ANTHEMS)
+    return country === undefined ? undefined : {...ANTHEMS[country], country: nameOf(country)}
+}
 
 function lookParam(): Look | undefined {
     return (["flags", "dive"] as const).find((look) => params.has(look))
@@ -290,6 +299,7 @@ async function prepare(): Promise<Recording> {
         call: words.call,
         link: words.link,
         caption: words.caption,
+        music: musicOf(story),
     }
 }
 
