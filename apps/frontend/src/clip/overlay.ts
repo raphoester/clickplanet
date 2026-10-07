@@ -60,10 +60,17 @@ function tagOf(name: string): string {
     return `#${name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")}`
 }
 
+// The flag a continent striking back together is counted and shown under.
+export function teamFlagOf(story: Story): string | undefined {
+    return story.team === undefined ? undefined : flagOfContinent(story.team) ?? story.attacker
+}
+
 // The flags a story is between: the attacker, and whoever it fights or kicks out. A continent striking back
 // together is its own flag, or its leading one's when it has none.
 export function sidesOf(story: Story): string[] {
-    if (story.team !== undefined) return [flagOfContinent(story.team) ?? story.attacker]
+    const team = teamFlagOf(story)
+    if (story.kind === "rout" && team !== undefined) return [story.victims[0], team]
+    if (team !== undefined) return [team]
     if (story.kind === "battle" && story.rival !== undefined) return [story.attacker, story.rival]
     if (story.kind === "kickout" && story.victims.length > 0) return [story.attacker, story.victims[0]]
     return [story.attacker]
@@ -82,6 +89,16 @@ export function wordsOf(story: Story, headline?: string): Words {
         ...words,
         caption: `${words.headline}. ${question} 👇\nclickplanet.lol\n${tags.join(" ")}`,
     })
+
+    if (story.kind === "rout") {
+        return finish({
+            headline: headline ?? `${nameOf(sides[0])} GETS KICKED OUT OF ${place}`.toUpperCase(),
+            line: undefined,
+            call: "PICK A SIDE",
+            callFlags: sides,
+            link: SITE,
+        }, "Pick a side")
+    }
 
     if (story.team !== undefined) {
         return finish({

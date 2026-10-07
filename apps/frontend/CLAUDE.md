@@ -2413,11 +2413,18 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   else the world. Not a sub-region: "defend Western Europe" is not how anybody talks. A flag taking back its own ground, or its own continent from a flag from elsewhere (Belgium taking Europe
   back from Palestine), is **"X STRIKES BACK"**; a flag that already held most of the country
   when the story starts is **"X IS KICKING Y OUT OF AUSTRALIA"**, since the opening shot shows its flag there
-  already; a second flag taking 60% as much makes it **"X VS Y"**. `src/clip/overlay.ts` words it.
+  already; a second flag taking 60% as much makes it **"X VS Y"**, but only when the two are at war, a quarter of
+  what one took taken from the other: Israel and Belgium both taking Europe from Palestine are allies, not a battle.
+  `src/clip/overlay.ts` words it.
 - **A story is about who leads the fighting** (`castOf`): its flags have to take 35% of everything taken around
   it. Below that, flags of one continent taking it back together, with half of it between them, are the story,
   **"EUROPE STRIKES BACK"**, under the continent's flag with one counter for them all. Otherwise nobody leads it
   and it is skipped: Germany taking its own land back while Belgium and Israel made the war around it.
+- **A flag thrown out is its own story** (`routOf`): once the flag a story takes most from has lost half of what it
+  held in the place (300 tiles or more), a continent's flags taking it back together become **"PALESTINE GETS
+  KICKED OUT OF EUROPE"**, told from its side with its counter falling against the continent's, and one attacker
+  becomes **"ISRAEL IS KICKING PALESTINE OUT OF EUROPE"**. A flag taking its own ground back still strikes back.
+  Two stories about one flag thrown out of one place are told once, the better one.
 - **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
   France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
   The caption is the headline and the question its call to act asks ("Who stops them?" to defend, "Who joins

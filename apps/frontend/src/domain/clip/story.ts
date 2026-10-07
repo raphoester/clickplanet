@@ -4,7 +4,7 @@ export type Place = {country: string} | {countries: [string, string]} | {region:
 
 // team: the continent whose flags strike back together, when no one flag of them leads.
 export type Story = {
-    kind: "attack" | "invasion" | "comeback" | "kickout" | "battle"
+    kind: "attack" | "invasion" | "comeback" | "kickout" | "rout" | "battle"
     attacker: string
     rival: string | undefined
     victims: string[]
@@ -18,6 +18,10 @@ export type RegionOf = (country: string) => string | undefined
 
 const EVEN_FORCES = 0.6
 
+// Two flags are at war when this much of what one of them took, it took from the other. Two flags taking as much
+// from a third are allies, not a battle.
+const AT_WAR = 0.25
+
 const ONE_COUNTRY = 0.9
 
 const ONE_REGION = 0.7
@@ -29,6 +33,12 @@ const VICTIMS = 3
 const MAIN_SHARE = 0.35
 
 const TEAM_SHARE = 0.5
+
+// A continent striking back is told from the side of the flag it throws out, once that flag has lost half of what
+// it held there, and held enough there to be thrown out of it.
+const ROUT_SHARE = 0.5
+
+const ROUT_LEAST = 300
 
 export const THE_WORLD = "the world"
 
@@ -46,7 +56,8 @@ export function storyOf(
 
     const taken = gains.find(([flag]) => flag === lead)?.[1] ?? 0
     const challenger = gains.find(([flag]) => flag !== lead)
-    const rival = challenger !== undefined && taken > 0 && challenger[1] >= taken * EVEN_FORCES ? challenger[0] : undefined
+    const rival = challenger !== undefined && taken > 0 && challenger[1] >= taken * EVEN_FORCES
+        && atWar(changes, lead, challenger[0]) ? challenger[0] : undefined
 
     const takes = changes.filter(({to}) => to === lead || (rival !== undefined && to === rival))
     const victims = ranked(tally(takes.flatMap(({from}) => from === undefined || from === lead ? [] : [from])))
@@ -77,6 +88,35 @@ export function castOf(story: Story, around: readonly TileChange[], regionOf: Re
     if (story.kind !== "comeback" || !("region" in story.place)) return undefined
     const team = story.place.region
     return shareOf((flag) => regionOf(flag) === team) >= TEAM_SHARE ? {...story, team} : undefined
+}
+
+function atWar(changes: readonly TileChange[], one: string, other: string): boolean {
+    const between = (from: string, to: string) => changes.filter((change) => change.from === from && change.to === to).length
+    const took = (flag: string) => changes.filter(({to}) => to === flag).length
+    return between(other, one) >= took(one) * AT_WAR || between(one, other) >= took(other) * AT_WAR
+}
+
+// held: the tiles the flag the story takes most from held in the place, when the story starts and when it ends.
+// Once it lost half of it, the story is it being thrown out: by a continent together, told from its side; by one
+// attacker, "X IS KICKING Y OUT". A flag taking its own ground back still strikes back.
+export function routOf(story: Story, held: {before: number, after: number}): Story {
+    if (held.before < ROUT_LEAST || held.after > held.before * (1 - ROUT_SHARE)) return story
+    if (story.team !== undefined) return {...story, kind: "rout"}
+    return story.kind === "attack" || story.kind === "invasion" ? {...story, kind: "kickout"} : story
+}
+
+// Two stories about one flag thrown out of one place are one story.
+export function sameRout(a: Story, b: Story, placeName: (place: Place) => string): boolean {
+    const thrownOut = (story: Story) => story.kind === "rout" || story.kind === "kickout"
+    return thrownOut(a) && thrownOut(b) && a.victims[0] === b.victims[0] && placeName(a.place) === placeName(b.place)
+}
+
+// Whether a country's ground is part of a place.
+export function inPlace(place: Place, ground: string | undefined, regionOf: RegionOf): boolean {
+    if (ground === undefined) return false
+    if ("country" in place) return ground === place.country
+    if ("countries" in place) return place.countries.includes(ground)
+    return regionOf(ground) === place.region
 }
 
 // A flag of a continent taking it back from a flag from elsewhere is not attacking it.

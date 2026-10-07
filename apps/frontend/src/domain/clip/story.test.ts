@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {TileChange} from "./changes.ts"
-import {castOf, placeOf, Story, storyOf, THE_WORLD} from "./story.ts"
+import {castOf, inPlace, placeOf, routOf, sameRout, Story, storyOf, THE_WORLD} from "./story.ts"
 
 const REGIONS: Record<string, string> = {
     fr: "Europe",
@@ -65,6 +65,12 @@ describe("the story of a front", () => {
         expect(storyOf(took("fr", "pl", 90), () => "au", regionOf, undefined, () => "pl")).toMatchObject({kind: "invasion"})
     })
 
+    it("is no battle when two flags took about as much from a third: they are allies", () => {
+        const changes = [...took("il", "ps", 50, 1), ...took("be", "ps", 40, 51)]
+
+        expect(storyOf(changes, () => "fr", regionOf)).toMatchObject({rival: undefined, attacker: "il"})
+    })
+
     it("is a battle when two flags took about as much", () => {
         const changes = [...took("fr", "ps", 50, 1), ...took("ps", "fr", 40, 51)]
 
@@ -120,5 +126,56 @@ describe("who a story is about", () => {
         const around = [...took("il", "ps", 70), ...took("de", "ps", 10, 71), ...took("fr", "ps", 20, 81)]
 
         expect(castOf(comeback("de"), around, continentOf)).toBeUndefined()
+    })
+})
+
+describe("a flag thrown out", () => {
+    const europe: Story = {
+        kind: "comeback", attacker: "de", rival: undefined, victims: ["ps"], place: {region: "Europe"}, taken: 10, team: "Europe",
+    }
+
+    it("is the story when a continent striking back takes half of what it held there", () => {
+        expect(routOf(europe, {before: 1000, after: 400})).toMatchObject({kind: "rout", victims: ["ps"], team: "Europe"})
+    })
+
+    it("is not when it kept more than half", () => {
+        expect(routOf(europe, {before: 1000, after: 700})).toEqual(europe)
+    })
+
+    it("is not when it only had a foothold there", () => {
+        expect(routOf(europe, {before: 100, after: 0})).toEqual(europe)
+    })
+
+    it("is one attacker kicking it out when one flag attacks and takes half of what it held there", () => {
+        const israel = {...europe, kind: "attack" as const, attacker: "il", team: undefined}
+
+        expect(routOf(israel, {before: 1000, after: 300})).toMatchObject({kind: "kickout", attacker: "il", victims: ["ps"]})
+    })
+
+    it("is one rout however many sides tell it", () => {
+        const thrownOut = routOf(europe, {before: 1000, after: 0})
+        const kicked = routOf({...europe, kind: "attack", attacker: "il", team: undefined}, {before: 1000, after: 0})
+        const name = (place: Story["place"]) => "region" in place ? place.region : "elsewhere"
+
+        expect(sameRout(thrownOut, kicked, name)).toBe(true)
+        expect(sameRout(thrownOut, {...kicked, victims: ["bg"]}, name)).toBe(false)
+    })
+
+    it("is not when one flag leads the comeback: that flag is the story", () => {
+        const belgium = {...europe, attacker: "be", team: undefined}
+
+        expect(routOf(belgium, {before: 1000, after: 0})).toEqual(belgium)
+    })
+})
+
+describe("the ground of a place", () => {
+    const continentOf = (country: string) => ({fr: "Europe", tr: "Asia"})[country]
+
+    it("is a country's, two countries', or a continent's", () => {
+        expect(inPlace({country: "fr"}, "fr", continentOf)).toBe(true)
+        expect(inPlace({countries: ["eg", "tr"]}, "tr", continentOf)).toBe(true)
+        expect(inPlace({region: "Europe"}, "fr", continentOf)).toBe(true)
+        expect(inPlace({region: "Europe"}, "tr", continentOf)).toBe(false)
+        expect(inPlace({region: "Europe"}, undefined, continentOf)).toBe(false)
     })
 })

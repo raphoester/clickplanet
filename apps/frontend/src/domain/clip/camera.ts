@@ -127,8 +127,9 @@ export function cameraOf(
         const breath = 1 - BREATH_DEPTH * still[i] * breathAt(at - hold - DIVE_SECONDS)
         const near = closenessAt(at, hold) * breath * (pullBack === "midway" ? 1 - out(at) : 1)
         let shot = {direction: blend(opening.direction, keyAt(keys, share), near), zoom: between(opening.zoom, close, near)}
+        // A blast never takes the opening away: the camera goes to it once the dive is down.
         for (const blast of blasts) {
-            const pull = pullAt(blast, share)
+            const pull = pullAt(blast, share) * closenessAt(at, hold)
             if (pull > 0) shot = {direction: blend(shot.direction, blast.point, pull), zoom: between(shot.zoom, Math.max(shot.zoom, blast.zoom), pull)}
         }
         const end = pullBack === "atEnd" ? out(at) : 0

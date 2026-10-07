@@ -21,6 +21,10 @@ describe("the anthem of a clip", () => {
         expect(anthemOf({...story("de", {region: "Europe"}), kind: "comeback", team: "Europe"}, recorded)).toBe("eu")
     })
 
+    it("is the continent's when it throws a flag out", () => {
+        expect(anthemOf({...story("de", {region: "Europe"}), kind: "rout", victims: ["ps"], team: "Europe"}, recorded)).toBe("eu")
+    })
+
     it("is never a loser's: nothing when the flags making the moves have no recording", () => {
         expect(anthemOf(story("ps", {country: "tr"}), recorded)).toBeUndefined()
         expect(anthemOf(story("ps", {region: "Europe"}), recorded)).toBeUndefined()

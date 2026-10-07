@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {Story} from "../domain/clip/story.ts"
-import {wordsOf} from "./overlay.ts"
+import {sidesOf, teamFlagOf, wordsOf} from "./overlay.ts"
 
 function story(kind: Story["kind"], place: Story["place"], rival?: string): Story {
     return {kind, attacker: "ps", rival, victims: ["fr", "es"], place, taken: 2593}
@@ -23,6 +23,23 @@ describe("a place of two countries", () => {
         expect(words.headline).toBe("ISRAEL IS INVADING EGYPT AND TURKEY")
         expect(words.callFlags).toEqual(["eg", "tr"])
         expect(words.caption).toMatch(/#map #egypt #turkey$/)
+    })
+})
+
+describe("a flag thrown out of a continent", () => {
+    it("is told from its side, against the continent's flag", () => {
+        const words = wordsOf({...story("rout", {region: "Europe"}), attacker: "de", victims: ["ps"], team: "Europe"})
+
+        expect(words.headline).toBe("PALESTINE GETS KICKED OUT OF EUROPE")
+        expect(words.call).toBe("PICK A SIDE")
+        expect(words.callFlags).toEqual(["ps", "eu"])
+    })
+
+    it("counts the continent under its flag, and the flag thrown out under its own", () => {
+        const rout: Story = {...story("rout", {region: "Europe"}), attacker: "de", victims: ["ps"], team: "Europe"}
+
+        expect(teamFlagOf(rout)).toBe("eu")
+        expect(sidesOf(rout)).toEqual(["ps", "eu"])
     })
 })
 

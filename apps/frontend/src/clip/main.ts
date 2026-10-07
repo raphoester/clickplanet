@@ -17,14 +17,14 @@ import {ANTHEMS} from "../app/anthem/anthemsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
 import {Candidate, candidatesOf, inCandidate, Window} from "../domain/clip/window.ts"
 import {Front, frontOf, FRONT_RADIANS, sameFront, spanOf} from "../domain/clip/front.ts"
-import {castOf, Story, storyOf, THE_WORLD} from "../domain/clip/story.ts"
+import {castOf, inPlace, routOf, sameRout, Story, storyOf, THE_WORLD} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
 import {blastZoomOf, cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
 import {bombShareOf, momentsOf, paceOf, playedAt, timelineOf} from "../domain/clip/pace.ts"
 import {tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {installVirtualClock} from "./virtualClock.ts"
-import {createOverlay, nameOf, placeName, sidesOf, wordsOf} from "./overlay.ts"
+import {createOverlay, nameOf, placeName, teamFlagOf, wordsOf} from "./overlay.ts"
 
 export type Recording = {
     pick: number
@@ -184,8 +184,11 @@ async function prepare(): Promise<Recording> {
         const near = Math.cos(FRONT_RADIANS)
         const cast = castOf(told, everything.filter(({tile, at}) =>
             at >= backend.since && at <= backend.until && dot(pointAt(tile), take.front.heart) >= near), regionOf)
-        const story = cast ?? told
         const after = ownersAfter(backend.opening, backend.changes())
+        const loser = (cast ?? told).victims[0]
+        const heldBy = (owners: ReadonlyMap<number, string>) => [...owners].filter(([tile, owner]) =>
+            owner === loser && inPlace((cast ?? told).place, groundAt(tile), regionOf)).length
+        const story = routOf(cast ?? told, {before: heldBy(backend.opening), after: heldBy(after)})
         const held: Point[] = []
         for (const [tile, owner] of after) if (owner === story.attacker) held.push(pointAt(tile))
         const taken = [...new Set(take.front.changes.flatMap(({tile, to}) =>
@@ -198,7 +201,11 @@ async function prepare(): Promise<Recording> {
         return {...take, story, backend, solidity, skipped}
     }
     const reviewed = stories.map(reviewOf)
-    const worth = reviewed.filter(({skipped}) => skipped === undefined)
+    const kept = reviewed.filter(({skipped}) => skipped === undefined)
+    const worth = kept.filter((review, i) => {
+        const first = kept.findIndex((other) => sameRout(other.story, review.story, placeName))
+        return first === -1 || first === i
+    })
     const skipped = reviewed.flatMap(({story: told, skipped: why, solidity}) =>
         why === undefined ? [] : [`${wordsOf(told).headline}: ${why} (solidity ${solidity.toFixed(2)})`])
 
@@ -238,7 +245,8 @@ async function prepare(): Promise<Recording> {
     })
 
     // A continent striking back together is counted as one side.
-    const sideOf = (owner: string) => story.team !== undefined && regionOf(owner) === story.team ? sidesOf(story)[0] : owner
+    const team = teamFlagOf(story)
+    const sideOf = (owner: string) => team !== undefined && regionOf(owner) === story.team ? team : owner
     const owners = new Map([...backend.opening].filter(([tile]) => inArea(tile)))
     const held = new Map<string, number>()
     for (const owner of owners.values()) held.set(sideOf(owner), (held.get(sideOf(owner)) ?? 0) + 1)
