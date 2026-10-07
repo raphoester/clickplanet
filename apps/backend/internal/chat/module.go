@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/postgres_announcement_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_mute_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
+	announcement_ids "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query"
@@ -35,13 +36,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/muting_send_message"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/publishing_send_message"
+	message_ids "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/postgres_mute_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase/audit_mute"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase/publishing_mute"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/uuid_id_provider"
+	mute_ids "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase/muting_react"
@@ -109,8 +111,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		prune_usecase.New(storage.Retention, cptime.SystemClock{}, messageStore, reactionStore, announcementStore, muteStore),
 		props.Logger)
 
-	announce := announce_usecase.New(announcementStore, updates)
+	announce := announce_usecase.New(announcementStore, updates, announcement_ids.Provider{})
 	authors := log_authors.New(rpc_player_authors.New(player), props.Logger)
+	drafts := messages.NewDrafts(message_ids.Provider{}, cptime.SystemClock{}, messages.NewLimits(config.Service.MaxTextLength))
 
 	bombs, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-bombs", bombLandedBuffer,
 		log_subscriber.New(bomb_landed_subscriber.New(announce), props.Logger))
@@ -153,7 +156,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(muting_send_message.New(publishing_send_message.New(send_message_usecase.New(
-			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service), props.Events), muteBook)),
+			messageStore, updates, cpcountries.New(), authors, drafts), props.Events), muteBook)),
 		GetHistoryHandler: get_history_handler.New(history_query.NewPostgresQuery(
 			db, history_authors.New(player), cptime.SystemClock{}, storage.HistorySize, storage.Retention)),
 		ListenForEventsHandler: listen_for_events_handler.New(
@@ -180,7 +183,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	adminService := chatv1controller.AdminService{
 		MuteHandler: mute_handler.New(audit_mute.New(publishing_mute.New(
-			mute_usecase.New(muteStore, messageStore, uuid_id_provider.Provider{}, cptime.SystemClock{}), props.Events),
+			mute_usecase.New(muteStore, messageStore, mute_ids.Provider{}, cptime.SystemClock{}), props.Events),
 			props.Logger)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

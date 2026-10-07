@@ -20,7 +20,7 @@ import (
 var at = time.Date(2026, 9, 18, 12, 0, 0, 0, time.UTC)
 
 func subscriber(store *inmemory_announcement_storage.Storage) bomb_landed_subscriber.Subscriber {
-	return bomb_landed_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler))))
+	return bomb_landed_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler)), &announcements.SequentialIDs{}))
 }
 
 func TestABombIsAnnouncedAtTheTimeItLanded(t *testing.T) {

@@ -39,7 +39,7 @@ func TestAMuteIsAnnouncedUnderTheNameOfTheAccountAndForItsDuration(t *testing.T)
 	store := inmemory_announcement_storage.New()
 	updates := &recordedFeed{}
 
-	err := announce_mute_usecase.New(fakeAuthors{}, announce_usecase.New(store, updates)).Execute(t.Context(),
+	err := announce_mute_usecase.New(fakeAuthors{}, announce_usecase.New(store, updates, &announcements.SequentialIDs{})).Execute(t.Context(),
 		announce_mute_usecase.In{Account: bully, At: at, Duration: 90 * time.Minute})
 
 	require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestAMuteNobodyCanNameIsNotAnnounced(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 	updates := &recordedFeed{}
 
-	err := announce_mute_usecase.New(fakeAuthors{err: errors.New("the player module is down")}, announce_usecase.New(store, updates)).
+	err := announce_mute_usecase.New(fakeAuthors{err: errors.New("the player module is down")}, announce_usecase.New(store, updates, &announcements.SequentialIDs{})).
 		Execute(t.Context(), announce_mute_usecase.In{Account: bully, At: at, Duration: time.Hour})
 
 	require.Error(t, err)
