@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -84,6 +84,15 @@ export const AdminService = {
       name: "GrantCharges",
       I: GrantChargesRequest,
       O: GrantChargesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc planet.v1.AdminService.GetReplay
+     */
+    getReplay: {
+      name: "GetReplay",
+      I: GetReplayRequest,
+      O: GetReplayResponse,
       kind: MethodKind.Unary,
     },
   }

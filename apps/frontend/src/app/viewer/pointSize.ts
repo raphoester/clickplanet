@@ -17,6 +17,11 @@ export function coarseHandover(tileSize: number): number {
     return Math.min(1, Math.max(0, (tileSize - COARSE_FROM) / (COARSE_UNTIL - COARSE_FROM)))
 }
 
+// The zoom from which the tiles have the frame to themselves.
+export function tilesZoomOf(viewportHeight: number): number {
+    return COARSE_UNTIL / tilePointSize(1, viewportHeight)
+}
+
 function handover(tileSize: number, view: MapView): number {
     return view === "tiles" ? 1 : coarseHandover(tileSize)
 }

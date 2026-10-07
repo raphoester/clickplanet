@@ -18,6 +18,7 @@ import {MapView, Rendering} from "../../domain/displaySettings.ts";
 import {
     BombDrop,
     Bomber,
+    GlobePoint,
     BonusCatch,
     BonusListener,
     BonusLostError,
@@ -119,6 +120,13 @@ const CLAIM_MARGIN_MS = 2_000
 
 const textureLoader = new THREE.TextureLoader();
 
+export type Shot = {
+    direction: GlobePoint
+    zoom: number
+}
+
+export type Director = (seconds: number) => Shot
+
 export type GlobeOptions = {
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
@@ -145,6 +153,7 @@ export type GlobeOptions = {
     onShieldFull?: () => void
     onClickAccepted?: (click: AcceptedClick) => void
     playSound?: PlaySound
+    director?: Director
     signal: AbortSignal
 }
 
@@ -192,6 +201,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onShieldFull = () => {},
         onClickAccepted = () => {},
         playSound = () => {},
+        director,
         signal,
     } = options
 
@@ -682,7 +692,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return waiting
     }
 
-    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, () => mapView, () => {
+    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, director, () => mapView, () => {
         const was = dirty
         dirty = false
         return was
@@ -796,6 +806,7 @@ function startAnimation(
     camera: THREE.OrthographicCamera,
     uniforms: Uniforms,
     pickingUniforms: {pointSize: THREE.IUniform},
+    director: Director | undefined,
     mapView: () => MapView,
     takeChange: () => boolean,
     beforeRender: (seconds: number) => boolean,
@@ -809,6 +820,7 @@ function startAnimation(
     controls.panSpeed = 0.1;
     controls.enableDamping = true;
     controls.autoRotateSpeed = SPIN_TURNS_PER_MINUTE;
+    controls.enabled = director === undefined;
 
     // A wheel zoom moves the camera inside OrbitControls' own handler, so update() misses it.
     let moved = false;
@@ -837,7 +849,9 @@ function startAnimation(
         const sinceLastTick = tickedAt === undefined ? 0 : time - tickedAt;
         tickedAt = time;
 
-        const turned = controls.update(spinStep(sinceLastTick)) || moved;
+        const turned = director
+            ? aim(camera, director(time / 1000))
+            : controls.update(spinStep(sinceLastTick)) || moved;
 
         const {y: height} = renderer.getSize(viewport);
         const ratio = renderer.getPixelRatio();
@@ -867,6 +881,15 @@ function startAnimation(
             starfield.dispose();
         },
     };
+}
+
+function aim(camera: THREE.OrthographicCamera, {direction, zoom}: Shot): boolean {
+    const distance = camera.position.length()
+    camera.position.set(direction.x, direction.y, direction.z).setLength(distance)
+    camera.lookAt(0, 0, 0)
+    camera.zoom = zoom
+    camera.updateProjectionMatrix()
+    return true
 }
 
 function prefersReducedMotion(): boolean {

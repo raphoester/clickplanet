@@ -31,6 +31,11 @@ func (b Bombing) Replay(see func(Taking)) {
 	}
 }
 
+func (b Bombing) Show(see func(Scene)) {
+	blast := b.Blast
+	see(Scene{At: b.At, Blast: &blast})
+}
+
 func (b Bombing) Entry() (Entry, error) {
 	payload := bombPayload{
 		Flag:   b.Blast.CountryID,

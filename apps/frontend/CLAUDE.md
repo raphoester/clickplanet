@@ -20,6 +20,9 @@ npm run borderLines # Trace the countries' outlines onto the tile lattice (see "
 npm run earth      # Cut the globe's texture from the tile field (see "The globe's texture")
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
+npm run clip:fetch -- --ssh <user@host> --out replay.json  # A replay of the last 72h from production (see "Clips")
+npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
+npm run regions    # Rewrite each country's continent and sub-region from Natural Earth, for the clips' headlines
 ```
 
 `.github/workflows/check-frontend.yml` runs lint, build and tests on every PR
@@ -2339,6 +2342,73 @@ column of text to, drops the scroll fade that would veil the bottom of the card,
 and fits the picture to the room between the header and the buttons rather than
 capping it in `vh`, which left a hand's width of empty panel under a portrait
 card on a phone.
+
+## Clips
+
+**A clip is the real globe playing back a war, for TikTok, Shorts and Reels**: 1080×1920, 14 to 22s, a headline,
+the map moving under it from the first frame, and the link at the end. `npm run clip` makes them from a replay
+and **chooses everything itself**: the stretch of time, the place, the headline, the camera, the look and the
+length. Each comes with a `.txt` holding the caption to post. `--count 3` makes the three best stories, for a
+person to pick one; `--plan` prints what they would be and renders nothing, and `--preview 3` renders only the
+first 3 seconds; every choice can be forced (`npm run clip -- --help`).
+
+- **The replay is the backend's** (`planet.v1.AdminService/GetReplay`, see the backend's CLAUDE.md): the map as it
+  was at the start, and every act after it as the live stream sent it. `npm run clip:fetch` asks for the last
+  72 hours over SSH (`--ssh`, or `CLICKPLANET_SSH`); `npm run clip:record` follows the public stream for a few
+  minutes instead, to try the generator without the operator tool.
+- **It is the game's own globe**, so a clip shows exactly what a player sees: `clip.html` is a page of its own,
+  served by `npm run dev` and **left out of the build** (it is not in `rollupOptions.input`). `src/clip/main.ts`
+  builds the globe with `createGlobe` over `backends/replayBackend.ts`, which plays the replay through the same
+  decoders as `PlanetBackend` (`updateOf`, `bombOf`, `spreadOf`, `enclosureOf`): tile updates in batches, and a
+  bomb, a spread or an enclosure as an effect. `ReplayBackend.cut` opens on the map at a later time.
+- **The recorder owns the clock.** `src/clip/virtualClock.ts` replaces `performance.now` and
+  `requestAnimationFrame`, so a frame is drawn only when `window.clip.frame(i)` asks, and a bomb takes its second
+  of video however long a frame takes to capture. **No CSS animation or transition on the page**: they run on the
+  real clock. The overlay is set from JS each frame.
+- **The camera is the clip's** (`GlobeOptions.director`): with one, `createGlobe` turns OrbitControls off and
+  aims the camera at the shot it is given every frame. The game passes none.
+- **The text stays where TikTok draws nothing** (`--safe-*` on `#clip` in `clip.css`, measured on a phone): a tall
+  phone crops the sides, the tabs cover the top, the buttons run down the right from the middle, and the name and
+  the caption cover the bottom. The counter sits left of the buttons, and the call to act in the top half. The call
+  shows the flag it asks the viewer to fight for: the country to defend, the flag that strikes back, both sides of a
+  battle, or a continent's own flag (Europe's alone, `static/countries/svg/eu.svg`, from the same set as the others).
+
+**`src/domain/clip/` is the director**, pure and under test:
+
+- **`window.ts` finds the candidates**: for each length from 1 to 24 hours, the busiest stretch of a few places
+  far apart, counting the tiles taken from another flag in each 10° cell and the eight around it. Filling empty
+  ground is not war.
+- **`front.ts` finds the front** of a candidate: the point where most tiles changed hands, and every change within
+  about 2,900 km of it, so a war in France brings in England, Spain and Germany.
+- **`story.ts` writes the story** (`storyOf`): the flag that took the most there, the flags it took from, and
+  where. Nearly all in one country (90%) is **"X IS INVADING FRANCE"**; spread over several, it is **"X IS
+  ATTACKING"** the continent holding 70% of it (`static/countries/regions.json`, written by `npm run regions` from
+  the snapshot the map is cut from), or the world. Not a sub-region: "defend Western Europe" is not how anybody
+  talks. A flag taking back its own ground is **"X STRIKES BACK"**; a second flag taking 60% as much makes it
+  **"X VS Y"**. `src/clip/overlay.ts` words it.
+- **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
+  the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
+  story already told by a better candidate (same attacker, same place) is dropped.
+- **`look.ts` picks when the camera comes back out of the tiles.** From far, a landmass's painted flag only
+  changes when its biggest holder does (`flipsOf`, over the borders blob). A front too wide to frame closer than
+  `TILES_ZOOM` (3) is **flags** when at least 2 landmasses changed their biggest holder and those hold 2,000 tiles
+  or more: a steamroll, which comes back out halfway so its painted flags change on screen. Any front is a
+  **dive** when one landmass of 300 tiles or more changed hands: it comes back out at the end to show what changed.
+  Everything else is **tiles**, which stays down to the end, since nothing big enough to see from far changed.
+- **`camera.ts` opens on the map and dives into the tiles**: every clip opens on the middle of the front's
+  changes, zoomed until 95% of them fit but never closer than a continent (`openingOf`), so the first frame is the
+  map with its painted flags. It holds there 0.3s (`--hold`), then dives in 0.7s past the zoom the painted flags
+  are gone at (`tilesZoomOf`), to where the most tiles change hands, so the fight is seen tile by tile. It follows
+  the densest fighting, and comes back out to the opening as the look says. **It flies to every bomb on the
+  front**, close enough for the blast to be a fifth of the screen, and holds there while it goes off. The globe is
+  always drawn with the painted flags on, so the zoom alone hands them over to the tiles, as in the game.
+- **`pace.ts` spends the clip on what happens and nothing else**: the replay's clock jumps over every quiet
+  stretch, so the map moves from the first frame to the last. A bomb holds the clip still for about a tenth of
+  it. The length grows with the action, from 14 to 22s, and the last 2.5s are the call to act.
+
+**`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
+headless Chrome at 540×960 at 2×, waits for `window.clip.ready`, then for each frame calls `window.clip.frame(i)`,
+takes a screenshot and pipes it to ffmpeg (libx264, `yuv420p`). It needs ffmpeg and Chrome (`CHROME_PATH`).
 
 ## Sound
 

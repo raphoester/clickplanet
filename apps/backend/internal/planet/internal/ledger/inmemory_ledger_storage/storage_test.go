@@ -238,6 +238,8 @@ type unwritable struct{}
 
 func (unwritable) Replay(func(ledger.Taking)) {}
 
+func (unwritable) Show(func(ledger.Scene)) {}
+
 func (unwritable) Entry() (ledger.Entry, error) { return ledger.Entry{}, errors.New("no words for it") }
 
 func TestAnEventTheLedgerCannotWriteDownIsNotKept(t *testing.T) {

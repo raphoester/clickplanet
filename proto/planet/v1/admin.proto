@@ -23,6 +23,28 @@ service AdminService {
   rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse);
 
   rpc GrantCharges(GrantChargesRequest) returns (GrantChargesResponse);
+
+  rpc GetReplay(GetReplayRequest) returns (GetReplayResponse);
+}
+
+message GetReplayRequest {
+  google.protobuf.Timestamp since = 1;
+  // Unset is now.
+  google.protobuf.Timestamp until = 2;
+}
+
+message GetReplayResponse {
+  // The map as it was at `since`.
+  GetMapResponse opening = 1;
+  repeated ReplayedEvent events = 2;
+  google.protobuf.Timestamp since = 3;
+  google.protobuf.Timestamp until = 4;
+}
+
+message ReplayedEvent {
+  google.protobuf.Timestamp at = 1;
+  // A tile update, a bomb, a spread or an enclosure, as the live stream sent it.
+  PlanetEvent event = 2;
 }
 
 message GrantChargesRequest {
