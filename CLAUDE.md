@@ -50,7 +50,7 @@ cd apps/frontend && npm run quiz:generate   # rewrite /quiz/bank.json
 cd apps/backend && make quiz                # → apps/backend/generated/quiz (embedded)
 ```
 
-About 970 of the questions are **derived** from the same pinned Natural Earth snapshot `map/` is cut
+About 820 of the questions are **derived** from the same pinned Natural Earth snapshot `map/` is cut
 from and from the tile borders themselves, so they are regenerated rather than corrected; the rest
 are hand-written in `apps/frontend/scripts/quiz/extra.json` for what no dataset here can answer. See
 [`quiz/README.md`](quiz/README.md), which also has the rule that keeps the hand-written half from

@@ -10,39 +10,46 @@ type Shares interface {
 	Share(country string) float64
 }
 
-func (b *Bank) subject() string {
-	subjects := b.subjects
-	if len(subjects) == 0 {
-		return ""
-	}
+// A question that does not name its subject is answered by it, so the lean would give the answer away.
+func (b *Bank) pool() []Question {
+	pools := make([][]Question, 0, 2*len(b.subjects)+1)
+	weights := make([]float64, 0, cap(pools))
 
-	anywhere := len(b.anywhere) > 0
+	for _, subject := range b.subjects {
+		questions := b.bySubject[subject]
+		size := float64(questions.size())
 
-	weights := make([]float64, 0, len(subjects)+1)
-	total := 0.0
-	for _, subject := range subjects {
-		weight := b.weight(subject, len(subjects))
-		weights = append(weights, weight)
-		total += weight
+		pools = append(pools, questions.named, questions.unnamed)
+		weights = append(weights,
+			b.weight(subject, len(b.subjects))*float64(len(questions.named))/size,
+			float64(len(questions.unnamed))/size)
 	}
-	if anywhere {
+	if len(b.anywhere) > 0 {
+		pools = append(pools, b.anywhere)
 		weights = append(weights, 1)
-		total++
+	}
+	if len(pools) == 0 {
+		return nil
+	}
+
+	return pools[drawn(weights)]
+}
+
+func drawn(weights []float64) int {
+	total := 0.0
+	for _, weight := range weights {
+		total += weight
 	}
 
 	left := fraction() * total
 	for i, weight := range weights {
 		if left < weight {
-			if i == len(subjects) {
-				return ""
-			}
-
-			return subjects[i]
+			return i
 		}
 		left -= weight
 	}
 
-	return subjects[len(subjects)-1]
+	return len(weights) - 1
 }
 
 func (b *Bank) weight(subject string, countries int) float64 {

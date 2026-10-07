@@ -1,6 +1,10 @@
 import {first, pick, shuffled} from "./random.mjs"
+import {repeats} from "./words.mjs"
 
 export const DISTRACTORS = 5
+
+// Natural Earth's continent for an island far out at sea: not a continent anybody would answer.
+const OPEN_OCEAN = "Seven seas (open ocean)"
 
 /**
  * @param {Map<string, import("./facts.mjs").Facts>} facts
@@ -15,11 +19,11 @@ export function questionsFrom(facts) {
         ...all.flatMap((country) => borders(country, facts, all)),
         ...all.flatMap((country) => continent(country, all)),
         ...all.flatMap((country) => mostPeople(country, all)),
-    ]
+    ].filter((question) => !repeats(question.text, question.answer))
 }
 
 function capital(country, all) {
-    if (!country.capital) return []
+    if (!country.capital || country.capitalIsWorldCity) return []
 
     const wrong = first(near(country, all).map((other) => other.capital), DISTRACTORS)
     if (wrong.length < 2) return []
@@ -35,7 +39,7 @@ function capital(country, all) {
 }
 
 function capitalOf(country, all) {
-    if (!country.capital) return []
+    if (!country.capital || country.capitalIsWorldCity) return []
 
     const wrong = first(near(country, all).map((other) => other.name), DISTRACTORS)
     if (wrong.length < 2) return []
@@ -51,10 +55,14 @@ function capitalOf(country, all) {
 }
 
 function borders(country, facts, all) {
-    if (country.neighbours.length === 0) return []
+    const text = `Which of these shares a border with ${country.name}?`
 
-    const answer = facts.get(pick(country.neighbours, 1, `borders:${country.code}`)[0])
-    if (!answer) return []
+    const neighbours = country.neighbours
+        .map((code) => facts.get(code))
+        .filter((neighbour) => neighbour && !repeats(text, neighbour.name))
+    if (neighbours.length === 0) return []
+
+    const answer = pick(neighbours, 1, `borders:${country.code}`)[0]
 
     const strangers = all.filter((other) =>
         other.code !== country.code
@@ -68,16 +76,16 @@ function borders(country, facts, all) {
         id: `borders:${country.code}`,
         subject: country.code,
         ask: "borders",
-        text: `Which of these shares a border with ${country.name}?`,
+        text,
         answer: answer.name,
         wrong,
     }]
 }
 
 function continent(country, all) {
-    if (!country.continent) return []
+    if (!continentOf(country) || country.capitalIsWorldCity) return []
 
-    const others = [...new Set(all.map((other) => other.continent).filter(Boolean))]
+    const others = [...new Set(all.map(continentOf).filter(Boolean))]
         .filter((name) => name !== country.continent)
 
     const wrong = pick(others, DISTRACTORS, `continent:${country.code}`)
@@ -93,18 +101,27 @@ function continent(country, all) {
     }]
 }
 
+function continentOf(country) {
+    if (!country.continent || country.continent === OPEN_OCEAN) return undefined
+    if (repeats(country.name, country.continent)) return undefined
+
+    return country.continent
+}
+
 const MARGIN = 2
 
 function mostPeople(country, all) {
     if (country.population <= 0) return []
 
-    const smaller = all.filter((other) =>
-        other.code !== country.code
-        && other.continent === country.continent
-        && other.population > 0
-        && country.population >= other.population * MARGIN)
+    const smaller = all
+        .filter((other) =>
+            other.code !== country.code
+            && other.continent === country.continent
+            && other.population > 0
+            && country.population >= other.population * MARGIN)
+        .sort((a, b) => b.population - a.population)
 
-    const wrong = pick(smaller.map((other) => other.name), DISTRACTORS, `mostPeople:${country.code}`)
+    const wrong = first(smaller.map((other) => other.name), DISTRACTORS)
     if (wrong.length < 2) return []
 
     return [{

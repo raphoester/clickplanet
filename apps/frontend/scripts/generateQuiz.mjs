@@ -5,6 +5,7 @@ import {fileURLToPath} from "node:url"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
 import {countryFacts, gameNames} from "./quiz/facts.mjs"
 import {DISTRACTORS, questionsFrom} from "./quiz/templates.mjs"
+import {names} from "./quiz/words.mjs"
 
 const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const quizDir = path.resolve(frontendRoot, "..", "..", "quiz")
@@ -21,7 +22,11 @@ say(`${derived.length} questions derived from Natural Earth ${NATURAL_EARTH_TAG}
 const extra = handWritten()
 say(`${extra.length} questions written by hand`)
 
-const questions = [...derived, ...extra]
+const countries = gameNames()
+const questions = [...derived, ...extra].map((question) => ({
+    ...question,
+    namesSubject: question.subject !== "" && names(question.text, countries.get(question.subject)),
+}))
 check(questions)
 
 const bank = {

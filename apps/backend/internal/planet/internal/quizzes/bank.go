@@ -22,9 +22,26 @@ type Bank struct {
 	all []Question
 
 	subjects  []string
-	bySubject map[string][]Question
+	bySubject map[string]about
 
 	anywhere []Question
+}
+
+type about struct {
+	named   []Question
+	unnamed []Question
+}
+
+func (a about) size() int { return len(a.named) + len(a.unnamed) }
+
+func (a about) with(question Question) about {
+	if question.NamesSubject {
+		a.named = append(a.named, question)
+	} else {
+		a.unnamed = append(a.unnamed, question)
+	}
+
+	return a
 }
 
 func Load(config Config, shares Shares) (*Bank, error) {
@@ -50,7 +67,7 @@ func Load(config Config, shares Shares) (*Bank, error) {
 		bias:      config.withDefaults().LeaderBias,
 		shares:    shares,
 		all:       file.Questions,
-		bySubject: make(map[string][]Question),
+		bySubject: make(map[string]about),
 	}
 
 	seen := cpcolls.NewSetWithCapacity[string](len(file.Questions))
@@ -71,7 +88,7 @@ func Load(config Config, shares Shares) (*Bank, error) {
 		if _, known := bank.bySubject[question.Subject]; !known {
 			bank.subjects = append(bank.subjects, question.Subject)
 		}
-		bank.bySubject[question.Subject] = append(bank.bySubject[question.Subject], question)
+		bank.bySubject[question.Subject] = bank.bySubject[question.Subject].with(question)
 	}
 
 	slices.Sort(bank.subjects)
@@ -100,17 +117,12 @@ func (b *Bank) Draw() Round {
 }
 
 func (b *Bank) question() Question {
-	subject := b.subject()
-
-	own := b.anywhere
-	if subject != "" {
-		own = b.bySubject[subject]
-	}
-	if len(own) == 0 {
+	pool := b.pool()
+	if len(pool) == 0 {
 		return b.all[index(len(b.all))]
 	}
 
-	return own[index(len(own))]
+	return pool[index(len(pool))]
 }
 
 func (b *Bank) round(question Question) Round {
