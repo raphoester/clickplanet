@@ -59,7 +59,7 @@ const MARGIN_MS = 30_000
 // A little past where the painted flags are gone, so the dive's detail is all tiles.
 const DIVE_DEPTH = 1.1
 
-const PULL_BACKS: Record<Look, PullBack> = {tiles: "never", dive: "atEnd", flags: "midway"}
+const PULL_BACKS: Record<Look, PullBack> = {dive: "atEnd", flags: "midway"}
 
 const clock = installVirtualClock()
 const params = new URLSearchParams(location.search)
@@ -96,7 +96,7 @@ type Take = {candidate: Candidate, front: Front, story: Story, score: number}
 type Review = Take & {backend: ReplayBackend, solidity: number, skipped: string | undefined}
 
 function lookParam(): Look | undefined {
-    return (["flags", "tiles", "dive"] as const).find((look) => params.has(look))
+    return (["flags", "dive"] as const).find((look) => params.has(look))
 }
 
 function flipsLine(flips: readonly Flip[]): string {

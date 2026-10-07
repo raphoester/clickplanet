@@ -61,19 +61,20 @@ describe("the camera over a clip", () => {
     })
 
     it("does not breathe where the action crosses the map", () => {
-        const travelling = cameraOf(opening, moving, {close: 6, seconds, pullBack: "never"})
+        const travelling = cameraOf(opening, moving, {close: 6, seconds, pullBack: "atEnd" as const})
 
         expect(travelling(0.25).zoom).toBeCloseTo(6, 1)
         expect(travelling(0.55).zoom).toBeCloseTo(6, 1)
     })
 
-    it("pulls back out to the opening at the end", () => {
+    it("pulls back out to the opening at the end, and holds there a second before the call to act", () => {
+        expect(after(9).zoom).toBeCloseTo(1.5)
         expect(after(10).zoom).toBeCloseTo(1.5)
         expect(after(10).direction.x).toBeLessThan(0.1)
     })
 
-    it("stays in the tiles to the end when it never pulls back", () => {
-        expect(cameraOf(opening, moving, {close: 6, seconds, pullBack: "never"})(1).zoom).toBeCloseTo(6, 1)
+    it("pulls back out at the end even when the action crosses the map", () => {
+        expect(cameraOf(opening, moving, {close: 6, seconds, pullBack: "atEnd" as const})(0.9).zoom).toBeCloseTo(1.5)
     })
 
     it("pulls back halfway and stays out, for a steamroll's painted flags", () => {
@@ -121,10 +122,10 @@ describe("a blast", () => {
     })
 
     it("still pulls back out at the end when it falls late", () => {
-        const late = {...blast, from: 0.88, to: 0.9}
+        const late = {...blast, from: 0.7, to: 0.72}
         const camera = cameraOf(opening, [], {...script, blasts: [late]})
 
-        expect(camera(0.89).zoom).toBeGreaterThan(6)
+        expect(camera(0.71).zoom).toBeGreaterThan(6)
         expect(camera(1).zoom).toBeCloseTo(1.5)
         expect(camera(1).direction.x).toBeCloseTo(0)
     })

@@ -49,9 +49,9 @@ describe("the look of a clip", () => {
         expect(lookOf([flip(1000), flip(600)], 1.5)).toBe("dive")
     })
 
-    it("is tiles when nothing big enough to see from far changed hands", () => {
-        expect(lookOf([flip(60), flip(40), flip(30)], 1.5)).toBe("tiles")
-        expect(lookOf([], 1.5)).toBe("tiles")
+    it("dives when nothing big enough to see from far changed hands", () => {
+        expect(lookOf([flip(60), flip(40), flip(30)], 1.5)).toBe("dive")
+        expect(lookOf([], 1.5)).toBe("dive")
     })
 
     it("dives rather than paint flags all along when the fight fits a view close enough to read the tiles", () => {

@@ -28,8 +28,8 @@ Everything below is chosen from the replay when left out:
   --seconds <n>       the clip's length, from 14 to 22 by how much happens
   --country <code>    the attacker, default the flag that took the most where the action is
   --focus <code>      only what changed hands on that country's ground
-  --flags, --tiles    paint each country's flag over its land, or draw every tile
-  --dive              painted flags from far, diving into the tiles for the action
+  --flags             come back out of the tiles halfway, to watch the painted flags change
+  --dive              come back out of the tiles at the end
   --headline <text>   the headline
   --hold <s>          how long the opening holds on the whole front before diving in, default 0.3
   --fps <n>           frames a second, default 30
@@ -154,7 +154,7 @@ async function record(pick, chosenOut) {
     for (const name of ["since", "until", "hours", "seconds", "country", "focus", "headline", "hold"]) {
         if (flag(name)) query.set(name, flag(name))
     }
-    for (const name of ["flags", "tiles", "dive"]) {
+    for (const name of ["flags", "dive"]) {
         if (has(name)) query.set(name, "")
     }
     await send("Page.navigate", {url: `${origin}clip.html?${query}`})

@@ -161,7 +161,7 @@ html, body {
     justify-content: flex-start;
     gap: 18px;
     padding: calc(var(--safe-top) + 24px) var(--safe-side) 0;
-    background: var(--scrim);
+    background: linear-gradient(var(--scrim), var(--scrim) 45%, transparent 70%);
     text-align: center;
     opacity: 0;
 }

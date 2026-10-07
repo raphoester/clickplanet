@@ -11,9 +11,9 @@ export type Beat = {share: number, point: Point}
 // A bomb: the shares of the clip that hold still on it, where it fell, and how close to see it.
 export type Blast = {from: number, to: number, point: Point, zoom: number}
 
-// When the camera comes back out of the tiles to the opening: never, for the last moments to show what changed, or
-// halfway, so a steamroll's painted flags change on screen.
-export type PullBack = "never" | "atEnd" | "midway"
+// When the camera comes back out of the tiles to the opening, which every clip ends on: for its last moments, to show
+// the map as it is now, or halfway, so a steamroll's painted flags change on screen.
+export type PullBack = "atEnd" | "midway"
 
 // close: the zoom of the tiles. seconds: how long the replay plays.
 export type Script = {
@@ -53,6 +53,9 @@ const REVEAL_SECONDS = 1.6
 
 // A bomb late in the clip pushes the pull back out later, down to this much of it.
 const SHORTEST_REVEAL_SECONDS = 1.3
+
+// The view pulled back out holds this long before the call to act, while the last tiles change hands.
+const END_HOLD_SECONDS = 1
 
 const MIDWAY = 0.5
 
@@ -191,11 +194,11 @@ function keyAt(keys: readonly Point[], share: number): Point {
 
 // 0 down in the tiles, 1 back out on the opening. At the end it waits for the last blast to be over.
 function outAt(pullBack: PullBack, seconds: number, down: number, lastBlast: number): (at: number) => number {
-    if (pullBack === "never") return () => 0
+    const out = seconds - END_HOLD_SECONDS
     const from = pullBack === "midway"
         ? Math.max(down, seconds * MIDWAY)
-        : Math.max(down, Math.min(seconds - SHORTEST_REVEAL_SECONDS, Math.max(seconds - REVEAL_SECONDS, lastBlast)))
-    const length = pullBack === "midway" ? MIDWAY_SECONDS : Math.max(1e-3, seconds - from)
+        : Math.max(down, Math.min(out - SHORTEST_REVEAL_SECONDS, Math.max(out - REVEAL_SECONDS, lastBlast)))
+    const length = pullBack === "midway" ? MIDWAY_SECONDS : Math.max(1e-3, out - from)
     return (at) => smooth(clamp((at - from) / length))
 }
 

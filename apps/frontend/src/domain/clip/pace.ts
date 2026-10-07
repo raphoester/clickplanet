@@ -6,8 +6,9 @@ export type Timeline = {
 const ENDING_SECONDS = 2.5
 
 // A clip lasts as long as its camera has somewhere to go: a fight in one place is over in a few seconds, however
-// long it went on, and only one that crosses the map gets long.
-const SHORTEST_PLAY_SECONDS = 5
+// long it went on, and only one that crosses the map gets long. The shortest still has room for the dive in, the
+// close-ups, and the pull back out to the map as it is now.
+const SHORTEST_PLAY_SECONDS = 6
 
 const SECONDS_PER_SCREEN = 1.2
 

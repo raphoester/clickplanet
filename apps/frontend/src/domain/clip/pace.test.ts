@@ -38,17 +38,17 @@ describe("the pace of a replay", () => {
 
 describe("the length of a clip", () => {
     it("is short when the action stays in one place, however long it went on", () => {
-        expect(timelineOf(0, 0).seconds).toBe(7.5)
+        expect(timelineOf(0, 0).seconds).toBe(8.5)
     })
 
     it("grows with how far the action moves, up to what a feed holds a viewer for", () => {
-        expect(timelineOf(5, 0).seconds).toBe(13.5)
+        expect(timelineOf(5, 0).seconds).toBe(14.5)
         expect(timelineOf(100, 0).seconds).toBe(17.5)
     })
 
     it("gives every bomb the seconds it takes to go off, and never runs past 22", () => {
-        expect(timelineOf(0, 2).seconds).toBe(11.5)
-        expect(bombShareOf(timelineOf(0, 2))).toBeCloseTo(2 / 9)
+        expect(timelineOf(0, 2).seconds).toBe(12.5)
+        expect(bombShareOf(timelineOf(0, 2))).toBeCloseTo(2 / 10)
         expect(timelineOf(100, 12).seconds).toBe(22)
     })
 
