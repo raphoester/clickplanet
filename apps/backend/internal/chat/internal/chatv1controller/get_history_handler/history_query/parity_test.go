@@ -141,8 +141,8 @@ func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
 	}
 	s.authors.named[bob] = &playerv1.Author{AccountId: bob.String(), Name: "guest_0b1c2d"}
 	clock := cptime.NewFixedClock(now.Add(-time.Hour).Add(123_456 * time.Microsecond))
-	send := send_message_usecase.New(s.messages, silentFeed{}, cpcountries.New(), commandAuthors{query: s.authors}, clock,
-		send_message_usecase.Config{})
+	send := send_message_usecase.New(s.messages, silentFeed{}, cpcountries.New(), commandAuthors{query: s.authors},
+		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0)))
 
 	answers := map[string]*chatv1.ChatMessage{}
 	for _, in := range []send_message_usecase.In{
@@ -164,7 +164,7 @@ func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
 }
 
 func (s *testSuite) TestEveryKindTheChatAnnouncesIsReadBack() {
-	announce := announce_usecase.New(s.announcements, silentFeed{})
+	announce := announce_usecase.New(s.announcements, silentFeed{}, &announcements.SequentialIDs{})
 	kinds := announcements.Kinds()
 	for i, kind := range kinds {
 		s.Require().NoError(announce.Execute(s.T().Context(), announce_usecase.In{

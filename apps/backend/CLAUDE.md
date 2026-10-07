@@ -373,14 +373,17 @@ its edge for the wire. A read is a query under its handler: see [Reads are queri
 
 ```
 internal/chat/internal/
-  messages/                             Message (NewMessage, Named), MessageID, Record, Limits, AccountID, Author, Title,
-                                        Rank, ErrNoAccount, Window, the Storage port and its StorageContractSuite
+  messages/                             Message (NewMessage, Named), MessageID, Drafts, Record, Limits, AccountID, Author,
+                                        Title, Rank, ErrNoAccount, Window, the Storage and IDProvider ports, the
+                                        StorageContractSuite and SequentialIDs
     postgres_message_store/             Storage, over chat.messages
     inmemory_message_storage/           Storage in a slice — behind the testing tag, tests only
     rpc_player_authors/                 who an account is, from player.v1.InternalService/GetAuthor(s): one on
                                         each post, the people under a message on each reaction
     log_authors/                        logs a caller, or a page of them, it could not name
-    usecases/send_message_usecase/      names, cleans, appends, publishes — Appender, Publisher, CountryChecker, Authors
+    uuid_id_provider/                   IDProvider: a random UUID, as text
+    usecases/send_message_usecase/      drafts, names, appends, publishes — Appender, Publisher, CountryChecker, Authors,
+                                        Drafts
       publishing_send_message/          publishes chat.v1.MessageSent once a message is kept
     usecases/prune_usecase/             deletes past retention, from each table; Runner — Pruner
       log_prune/                        logs what a prune deleted
@@ -390,10 +393,12 @@ internal/chat/internal/
     inmemory_reaction_storage/          Storage in a slice — behind the testing tag, tests only
     usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher, Authors
   announcements/                        Announcement, AnnouncementID, Kind (Kinds, Known: announce_usecase refuses
-                                        any other), Bomb (a payload), the Storage port and its suite
+                                        any other), Bomb (a payload), the Storage and IDProvider ports, the suite
+                                        and SequentialIDs
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
-    usecases/announce_usecase/          keeps an announcement, then publishes it — Appender, Publisher
+    uuid_id_provider/                   IDProvider: a random UUID
+    usecases/announce_usecase/          keeps an announcement, then publishes it — Appender, Publisher, IDProvider
   seen/                                 Until (the rule on a mark's time), ErrNoTime, the Storage port: writes only
     postgres_seen_store/                Storage, over chat.seen; what it keeps is tested through history_query
     inmemory_seen_storage/              Storage in a map, and Kept for a test — behind the testing tag, tests only
@@ -419,6 +424,7 @@ internal/chat/internal/
 ```
 
 - **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters), `AccountIDOf` (the context's account, or `cpsession.NoAccount`) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
+- **Ids are injected** (`messages.IDProvider`, `announcements.IDProvider`), like the clock. Tests use each concept's `SequentialIDs` (behind the tag), so they assert exact ids. `messages.Drafts` holds the ids, the clock and the `Limits`, and builds a new `Message` from what was sent, so `send_message_usecase` stays at five ports. A message id is still a UUID string: `chat.messages.id` is text, with no unique constraint.
 - **`send_message_usecase.Config` stays under `chat.Config.Service`**, so the `chat.service.*` keys do not change.
 - **`chatv1controller`'s root tests are about the chain** (error net, blocklist, throttle). Each handler package tests its own mapping.
 

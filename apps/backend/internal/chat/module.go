@@ -14,6 +14,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/postgres_announcement_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
+	announcement_ids "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query"
@@ -32,6 +33,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/prune_usecase/log_prune"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase/publishing_send_message"
+	message_ids "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
@@ -95,7 +97,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		props.Logger)
 
 	bombs, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-bombs", bombLandedBuffer,
-		log_subscriber.New(bomb_landed_subscriber.New(announce_usecase.New(announcementStore, updates)), props.Logger))
+		log_subscriber.New(bomb_landed_subscriber.New(announce_usecase.New(announcementStore, updates, announcement_ids.Provider{})), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.BombLanded: %w", err)
@@ -127,10 +129,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	authors := log_authors.New(rpc_player_authors.New(player), props.Logger)
+	drafts := messages.NewDrafts(message_ids.Provider{}, cptime.SystemClock{}, messages.NewLimits(config.Service.MaxTextLength))
 
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(publishing_send_message.New(send_message_usecase.New(
-			messageStore, updates, cpcountries.New(), authors, cptime.SystemClock{}, config.Service), props.Events)),
+			messageStore, updates, cpcountries.New(), authors, drafts), props.Events)),
 		GetHistoryHandler: get_history_handler.New(history_query.NewPostgresQuery(
 			db, history_authors.New(player), cptime.SystemClock{}, storage.HistorySize, storage.Retention)),
 		ListenForEventsHandler: listen_for_events_handler.New(

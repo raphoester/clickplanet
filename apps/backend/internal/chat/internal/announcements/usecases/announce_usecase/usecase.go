@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 )
@@ -26,13 +24,14 @@ type In struct {
 	Payload json.RawMessage
 }
 
-func New(appender Appender, publisher Publisher) *UseCase {
-	return &UseCase{appender: appender, publisher: publisher}
+func New(appender Appender, publisher Publisher, ids announcements.IDProvider) *UseCase {
+	return &UseCase{appender: appender, publisher: publisher, ids: ids}
 }
 
 type UseCase struct {
 	appender  Appender
 	publisher Publisher
+	ids       announcements.IDProvider
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) error {
@@ -40,7 +39,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("%w: %q", announcements.ErrUnknownKind, in.Kind)
 	}
 
-	announcement := announcements.NewAnnouncement(announcements.AnnouncementID(uuid.New()), in.Kind, in.At, in.Payload)
+	id, err := u.ids.NewID()
+	if err != nil {
+		return fmt.Errorf("failed to draw an announcement id: %w", err)
+	}
+
+	announcement := announcements.NewAnnouncement(id, in.Kind, in.At, in.Payload)
 
 	if err := u.appender.Append(ctx, announcement); err != nil {
 		return fmt.Errorf("failed to store a %s announcement: %w", in.Kind, err)
