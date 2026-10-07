@@ -17,8 +17,8 @@ import {Front, frontOf, FRONT_RADIANS, sameFront, spanOf} from "../domain/clip/f
 import {Story, storyOf} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
-import {blastZoomOf, cameraOf, framingOf, openingOf, PullBack} from "../domain/clip/camera.ts"
-import {momentsOf, paceOf, playedAt, timelineOf} from "../domain/clip/pace.ts"
+import {blastZoomOf, cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
+import {bombShareOf, momentsOf, paceOf, playedAt, timelineOf} from "../domain/clip/pace.ts"
 import {tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, placeName, wordsOf} from "./overlay.ts"
@@ -196,10 +196,13 @@ async function prepare(): Promise<Recording> {
     const first = openingOf(wide)
 
     const drops = backend.drops().filter(({drop}) => drop.tile !== undefined && inArea(drop.tile))
-    const pace = paceOf(momentsOf(front.changes.map(({at}) => at), drops.map(({at}) => at)), backend.since, backend.until)
-    const timeline = timelineOf(front.changes.length, numberParam("seconds"))
+    const close = Math.max(first.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH)
+    const screens = screensOf(front.changes.map(({tile}, i) => ({share: i / front.changes.length, point: pointAt(tile)})), close)
+    const timeline = timelineOf(screens, drops.length, numberParam("seconds"))
+    const moments = momentsOf(front.changes.map(({at}) => at), drops.map(({at}) => at), bombShareOf(timeline))
+    const pace = paceOf(moments, backend.since, backend.until)
     const camera = cameraOf(first, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
-        close: Math.max(first.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH),
+        close,
         seconds: timeline.seconds - timeline.ending,
         pullBack: PULL_BACKS[look],
         hold: numberParam("hold"),
@@ -279,7 +282,7 @@ async function prepare(): Promise<Recording> {
         since: new Date(backend.since).toISOString(),
         until: new Date(backend.until).toISOString(),
         look: `${look} (front framed at zoom ${wide.zoom.toFixed(1)}), ${drops.length} ${drops.length === 1 ? "bomb" : "bombs"}, `
-            + `solidity ${solidity.toFixed(2)}, ${flipsLine(flips)}`,
+            + `action crosses ${screens.toFixed(1)} screens, solidity ${solidity.toFixed(2)}, ${flipsLine(flips)}`,
         skipped,
         place: placeName(story.place),
         headline: words.headline,

@@ -2345,7 +2345,7 @@ card on a phone.
 
 ## Clips
 
-**A clip is the real globe playing back a war, for TikTok, Shorts and Reels**: 1080×1920, 14 to 22s, a headline,
+**A clip is the real globe playing back a war, for TikTok, Shorts and Reels**: 1080×1920, 7.5 to 22s, a headline,
 the map moving under it from the first frame, and the link at the end. `npm run clip` makes them from a replay
 and **chooses everything itself**: the stretch of time, the place, the headline, the camera, the look and the
 length. Each comes with a `.txt` holding the caption to post. `--count 3` makes the three best stories, for a
@@ -2409,12 +2409,16 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   changes, zoomed until 95% of them fit but never closer than a continent (`openingOf`), so the first frame is the
   map with its painted flags. It holds there 0.3s (`--hold`), then dives in 0.7s past the zoom the painted flags
   are gone at (`tilesZoomOf`), to where the most tiles change hands, so the fight is seen tile by tile. It follows
-  the densest fighting, and comes back out to the opening as the look says. **It flies to every bomb on the
+  the densest fighting, and comes back out to the opening as the look says. **It never sits still**: where the
+  fighting crosses less than 0.4 screens a second, it breathes, out to where the painted flags show and back into
+  the tiles every 3s. **It flies to every bomb on the
   front**, close enough for the blast to be a fifth of the screen, and holds there while it goes off. The globe is
   always drawn with the painted flags on, so the zoom alone hands them over to the tiles, as in the game.
 - **`pace.ts` spends the clip on what happens and nothing else**: the replay's clock jumps over every quiet
-  stretch, so the map moves from the first frame to the last. A bomb holds the clip still for about a tenth of
-  it. The length grows with the action, from 14 to 22s, and the last 2.5s are the call to act.
+  stretch, so the map moves from the first frame to the last. **A clip is as long as its camera has somewhere to
+  go**: 5s for a fight in one place, however many hours it lasted, and 1.2s more for every screen the fighting
+  crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds the 2s it holds the clip
+  still for, while it falls and goes off. The last 2.5s are the call to act, and nothing runs past 22s.
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
 headless Chrome at 540×960 at 2×, waits for `window.clip.ready`, then for each frame calls `window.clip.frame(i)`,

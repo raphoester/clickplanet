@@ -63,6 +63,17 @@ const BLAST_EASE = 0.05
 // A blast is a fifth of the screen's width.
 const BLAST_WIDTHS = 5
 
+// Up close the camera has to cross about this many screens a second, or it breathes: out to where the painted
+// flags show and back into the tiles, every BREATH_SECONDS, halfway to the opening at most.
+const BRISK_SCREENS_PER_SECOND = 0.4
+
+const BREATH_SECONDS = 3
+
+const BREATH_DEPTH = 0.5
+
+// How long a stretch of the clip the camera's speed is read over.
+const PACE_WINDOW = 0.05
+
 const GRID = 480
 
 const SMOOTHING = 0.03
@@ -83,6 +94,16 @@ export function openingOf(framing: Shot): Shot {
     return {direction: framing.direction, zoom: Math.min(framing.zoom, OPENING_ZOOM)}
 }
 
+// How far the action moves up close, in screens: what a clip has to show beyond one place.
+// Read on the camera's smoothed path, so a heart hopping between two places it never leaves counts for little.
+export function screensOf(beats: readonly Beat[], close: number): number {
+    const keys = keysOf(meanOf(beats.map(({point}) => point)) ?? {x: 0, y: 0, z: 1}, beats)
+    const path = smoothed(Array.from({length: GRID + 1}, (_, i) => ({direction: keyAt(keys, i / GRID), zoom: close})))
+    let travel = 0
+    for (let i = 1; i < path.length; i++) travel += angleBetween(path[i - 1].direction, path[i].direction)
+    return travel / screenOf(close)
+}
+
 export function blastZoomOf(radius: number, aspect: number): number {
     return Math.min(MAX_ZOOM, aspect / (BLAST_WIDTHS * Math.max(radius, 1e-3)))
 }
@@ -96,10 +117,12 @@ export function cameraOf(
 ): (share: number) => Shot {
     const keys = keysOf(opening.direction, beats)
     const out = outAt(pullBack, seconds, hold + DIVE_SECONDS, Math.max(0, ...blasts.map(({to}) => to * seconds)))
+    const still = stillnessOf(keys, close, seconds)
     const path = smoothed(Array.from({length: GRID + 1}, (_, i) => {
         const share = i / GRID
         const at = share * seconds
-        const near = closenessAt(at, hold) * (pullBack === "midway" ? 1 - out(at) : 1)
+        const breath = 1 - BREATH_DEPTH * still[i] * breathAt(at - hold - DIVE_SECONDS)
+        const near = closenessAt(at, hold) * breath * (pullBack === "midway" ? 1 - out(at) : 1)
         let shot = {direction: blend(opening.direction, keyAt(keys, share), near), zoom: between(opening.zoom, close, near)}
         for (const blast of blasts) {
             const pull = pullAt(blast, share)
@@ -115,6 +138,32 @@ export function cameraOf(
         const t = position - i
         return {direction: blend(path[i].direction, path[i + 1].direction, t), zoom: between(path[i].zoom, path[i + 1].zoom, t)}
     }
+}
+
+// The height of the screen, in radians of the globe, at a zoom.
+function screenOf(zoom: number): number {
+    return 2 / zoom
+}
+
+// 1 where the camera would sit still up close, 0 where it already crosses the map briskly, along the grid.
+function stillnessOf(keys: readonly Point[], close: number, seconds: number): number[] {
+    const raw = Array.from({length: GRID + 1}, (_, i) => {
+        const share = i / GRID
+        const from = keyAt(keys, clamp(share - PACE_WINDOW / 2))
+        const to = keyAt(keys, clamp(share + PACE_WINDOW / 2))
+        const speed = angleBetween(from, to) / screenOf(close) / (PACE_WINDOW * Math.max(seconds, 1e-3))
+        return 1 - clamp(speed / BRISK_SCREENS_PER_SECOND)
+    })
+    const reach = Math.round(PACE_WINDOW * GRID)
+    return raw.map((_, i) => {
+        const around = raw.slice(Math.max(0, i - reach), i + reach + 1)
+        return around.reduce((sum, value) => sum + value, 0) / around.length
+    })
+}
+
+// 0 in the tiles, 1 out at the painted flags, breathing from the moment the dive is down.
+function breathAt(since: number): number {
+    return since <= 0 ? 0 : (1 - Math.cos(2 * Math.PI * since / BREATH_SECONDS)) / 2
 }
 
 function keysOf(fallback: Point, beats: readonly Beat[]): Point[] {

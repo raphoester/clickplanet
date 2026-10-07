@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {blastZoomOf, cameraOf, framingOf, openingOf} from "./camera.ts"
+import {blastZoomOf, cameraOf, framingOf, openingOf, screensOf} from "./camera.ts"
 import {Point} from "./geometry.ts"
 
 const at = (angle: number): Point => ({x: Math.sin(angle), y: 0, z: Math.cos(angle)})
@@ -30,9 +30,10 @@ describe("the opening shot", () => {
 
 describe("the camera over a clip", () => {
     const opening = {direction: at(0), zoom: 1.5}
-    const beats = Array.from({length: 100}, (_, i) => ({share: i / 100, point: at(0.3)}))
+    const still = Array.from({length: 100}, (_, i) => ({share: i / 100, point: at(0.3)}))
+    const moving = Array.from({length: 100}, (_, i) => ({share: i / 100, point: at(-1.2 + 2.4 * i / 100)}))
     const seconds = 10
-    const camera = cameraOf(opening, beats, {close: 6, seconds, pullBack: "atEnd" as const})
+    const camera = cameraOf(opening, still, {close: 6, seconds, pullBack: "atEnd" as const})
     const after = (time: number) => camera(time / seconds)
 
     it("holds on the opening shot for a moment", () => {
@@ -42,15 +43,28 @@ describe("the camera over a clip", () => {
 
     it("then dives fast into where the tiles change hands", () => {
         expect(after(0.65).zoom).toBeGreaterThan(2.5)
-        expect(after(1.1).zoom).toBeCloseTo(6)
-        expect(after(5).direction.x).toBeCloseTo(Math.sin(0.3))
+        expect(after(1).zoom).toBeCloseTo(6)
+        expect(after(4).direction.x).toBeCloseTo(Math.sin(0.3), 1)
     })
 
     it("holds as long as it is told before it dives", () => {
-        const late = cameraOf(opening, beats, {close: 6, seconds, pullBack: "atEnd" as const, hold: 1.5})
+        const late = cameraOf(opening, still, {close: 6, seconds, pullBack: "atEnd" as const, hold: 1.5})
 
         expect(late(1.4 / seconds).zoom).toBeCloseTo(1.5)
-        expect(late(2.3 / seconds).zoom).toBeCloseTo(6)
+        expect(late(2.2 / seconds).zoom).toBeCloseTo(6)
+    })
+
+    it("breathes out to the painted flags and back in where the action stays in one place", () => {
+        expect(after(2.5).zoom).toBeCloseTo(3, 1)
+        expect(after(4).zoom).toBeCloseTo(6, 1)
+        expect(after(5.5).zoom).toBeCloseTo(3, 1)
+    })
+
+    it("does not breathe where the action crosses the map", () => {
+        const travelling = cameraOf(opening, moving, {close: 6, seconds, pullBack: "never"})
+
+        expect(travelling(0.25).zoom).toBeCloseTo(6, 1)
+        expect(travelling(0.55).zoom).toBeCloseTo(6, 1)
     })
 
     it("pulls back out to the opening at the end", () => {
@@ -59,15 +73,13 @@ describe("the camera over a clip", () => {
     })
 
     it("stays in the tiles to the end when it never pulls back", () => {
-        const kept = cameraOf(opening, beats, {close: 6, seconds, pullBack: "never"})
-
-        expect(kept(1).zoom).toBeCloseTo(6)
+        expect(cameraOf(opening, moving, {close: 6, seconds, pullBack: "never"})(1).zoom).toBeCloseTo(6, 1)
     })
 
     it("pulls back halfway and stays out, for a steamroll's painted flags", () => {
-        const steamroll = cameraOf(opening, beats, {close: 6, seconds, pullBack: "midway"})
+        const steamroll = cameraOf(opening, moving, {close: 6, seconds, pullBack: "midway"})
 
-        expect(steamroll(0.3).zoom).toBeCloseTo(6)
+        expect(steamroll(0.3).zoom).toBeCloseTo(6, 1)
         expect(steamroll(0.75).zoom).toBeCloseTo(1.5)
         expect(steamroll(1).zoom).toBeCloseTo(1.5)
     })
@@ -77,6 +89,18 @@ describe("the camera over a clip", () => {
 
         expect(direction.x).toBeCloseTo(0)
         expect(direction.z).toBeCloseTo(1)
+    })
+})
+
+describe("how far the action moves", () => {
+    const beats = (points: (i: number) => Point) => Array.from({length: 100}, (_, i) => ({share: i / 100, point: points(i)}))
+
+    it("is nothing for a fight in one place", () => {
+        expect(screensOf(beats(() => at(0.3)), 6)).toBeCloseTo(0)
+    })
+
+    it("is counted in screens up close", () => {
+        expect(screensOf(beats((i) => at(-0.5 + i / 100)), 6)).toBeCloseTo(0.95 * 3, 0)
     })
 })
 
