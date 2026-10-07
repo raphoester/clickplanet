@@ -20,6 +20,7 @@ if (!replay || has("help")) {
   --count <n>         the n best stories, one clip each, default 1
   --pick <n>          only the n-th best story
   --plan              print what each clip would be, and make none
+  --silent            no anthem under the clip, for a sound added where it is posted
   --preview <s>       only the first s seconds of each clip
 
 Everything below is chosen from the replay when left out:
@@ -45,6 +46,7 @@ const CHROME = process.env.CHROME_PATH ?? "/Applications/Google Chrome.app/Conte
 const WIDTH = 540
 const HEIGHT = 960
 const SCALE = 2
+const MUSIC_FADE_SECONDS = 1.2
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const replayPath = resolve(replay)
@@ -172,13 +174,22 @@ async function record(pick, chosenOut) {
         `  window: ${recording.since} to ${recording.until}`,
         `  place: ${recording.place}, ${recording.seconds}s`,
         `  look: ${recording.look}`,
+        `  music: ${recording.music ? `${recording.music.title}, the anthem of ${recording.music.country}` : "none"}`,
     ].join("\n"))
     if (has("plan")) return recording
 
+    const frames = has("preview") ? Math.min(recording.frames, Math.round(Number(flag("preview")) * recording.fps)) : recording.frames
+    const music = has("silent") ? undefined : recording.music
+    const fadeFrom = Math.max(0, frames / recording.fps - MUSIC_FADE_SECONDS)
     ffmpeg = spawn("ffmpeg", [
         "-y", "-loglevel", "error",
         "-f", "image2pipe", "-framerate", String(recording.fps), "-i", "-",
+        ...music ? ["-i", join(APP, music.url)] : [],
         "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p",
+        ...music ? [
+            "-map", "0:v", "-map", "1:a", "-c:a", "aac", "-b:a", "128k",
+            "-af", `afade=t=out:st=${fadeFrom.toFixed(2)}:d=${MUSIC_FADE_SECONDS}`, "-shortest",
+        ] : [],
         "-movflags", "+faststart", out,
     ], {stdio: ["pipe", "inherit", "inherit"]})
     const encoded = new Promise((resolve, reject) => {
@@ -187,7 +198,6 @@ async function record(pick, chosenOut) {
     })
 
     const started = Date.now()
-    const frames = has("preview") ? Math.min(recording.frames, Math.round(Number(flag("preview")) * recording.fps)) : recording.frames
     for (let frame = 0; frame < frames; frame++) {
         await evaluate(`window.clip.frame(${frame})`)
         const {data} = await send("Page.captureScreenshot", {format: "png", optimizeForSpeed: true})
