@@ -20,7 +20,7 @@ import (
 var ended = time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC)
 
 func subscriber(store *inmemory_announcement_storage.Storage) season_ended_subscriber.Subscriber {
-	return season_ended_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler))))
+	return season_ended_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler)), &announcements.SequentialIDs{}))
 }
 
 func TestTheWinnerIsAnnouncedAtTheEnd(t *testing.T) {

@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Appender interface {
@@ -30,6 +27,10 @@ type Authors interface {
 	Author(ctx context.Context, account messages.AccountID) (messages.Author, error)
 }
 
+type Drafts interface {
+	Draft(account messages.AccountID, country string, text string) (messages.Message, error)
+}
+
 const writeTimeout = 5 * time.Second
 
 type In struct {
@@ -45,16 +46,14 @@ func New(
 	publisher Publisher,
 	countryChecker CountryChecker,
 	authors Authors,
-	clock cptime.Clock,
-	config Config,
+	drafts Drafts,
 ) *UseCase {
 	return &UseCase{
 		appender:       appender,
 		publisher:      publisher,
 		countryChecker: countryChecker,
 		authors:        authors,
-		clock:          clock,
-		limits:         messages.NewLimits(config.MaxTextLength),
+		drafts:         drafts,
 	}
 }
 
@@ -63,8 +62,7 @@ type UseCase struct {
 	publisher      Publisher
 	countryChecker CountryChecker
 	authors        Authors
-	clock          cptime.Clock
-	limits         messages.Limits
+	drafts         Drafts
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) {
@@ -72,9 +70,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 		return messages.Message{}, messages.ErrNoAccount
 	}
 
-	text, err := u.limits.Text(in.Text)
+	message, err := u.drafts.Draft(in.Account, in.CountryID, in.Text)
 	if err != nil {
-		return messages.Message{}, fmt.Errorf("failed to check the message: %w", err)
+		return messages.Message{}, fmt.Errorf("failed to draft the message: %w", err)
 	}
 
 	if !u.countryChecker.CheckCountry(in.CountryID) {
@@ -87,8 +85,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 	if err != nil {
 		return messages.Message{}, fmt.Errorf("%w: %w", messages.ErrAuthorUnavailable, err)
 	}
-
-	message := messages.NewMessage(messages.MessageID(uuid.NewString()), u.clock.Now(), in.Account, in.CountryID, text)
 
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()

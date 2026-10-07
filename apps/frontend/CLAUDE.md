@@ -2447,6 +2447,11 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   The caption is the headline and a question ("Who stops them?", "Pick a side"), the site as plain text (a caption's
   link cannot be clicked) and the account's tags with the place's. Never the attacker's: a flag's tag can be a
   political feed.
+- **`music.ts` picks the anthem under the clip**, since YouTube Shorts cannot add a sound to an upload: the leading
+  flag's, else the other side's, else the place's, else a victim's. They are the game's own anthems (see [The
+  leader's anthem](#the-leaders-anthem)), US Navy Band recordings in the public domain, so they carry no claim.
+  Palestine has none: the Navy Band never recorded it. It fades out over the last 1.2s. `--silent` leaves it out,
+  for TikTok and Instagram, where a sound is added when posting.
 - **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
   the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
   story already told by a better candidate (same attacker, same place) is dropped.

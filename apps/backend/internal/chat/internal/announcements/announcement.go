@@ -13,6 +13,13 @@ import (
 
 type AnnouncementID uuid.UUID
 
+var keyedSpace = uuid.MustParse("8b0e7c52-5f2d-4c1e-9a64-3f1d2b7a9e10")
+
+// One key always names one line, so a fact told twice is kept once.
+func KeyedID(kind Kind, key string) AnnouncementID {
+	return AnnouncementID(uuid.NewSHA1(keyedSpace, []byte(string(kind)+":"+key)))
+}
+
 type Kind string
 
 const (

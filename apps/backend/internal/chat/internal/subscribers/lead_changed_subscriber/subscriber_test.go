@@ -20,7 +20,7 @@ import (
 var at = time.Date(2026, 10, 31, 21, 42, 0, 0, time.UTC)
 
 func subscriber(store *inmemory_announcement_storage.Storage) lead_changed_subscriber.Subscriber {
-	return lead_changed_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler))))
+	return lead_changed_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler)), &announcements.SequentialIDs{}))
 }
 
 func TestALeadChangeIsAnnouncedAtTheTimeItChanged(t *testing.T) {

@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 )
@@ -30,15 +28,14 @@ type In struct {
 	Once string
 }
 
-var onceSpace = uuid.MustParse("8b0e7c52-5f2d-4c1e-9a64-3f1d2b7a9e10")
-
-func New(appender Appender, publisher Publisher) *UseCase {
-	return &UseCase{appender: appender, publisher: publisher}
+func New(appender Appender, publisher Publisher, ids announcements.IDProvider) *UseCase {
+	return &UseCase{appender: appender, publisher: publisher, ids: ids}
 }
 
 type UseCase struct {
 	appender  Appender
 	publisher Publisher
+	ids       announcements.IDProvider
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) error {
@@ -46,11 +43,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("%w: %q", announcements.ErrUnknownKind, in.Kind)
 	}
 
-	id := uuid.New()
-	if in.Once != "" {
-		id = uuid.NewSHA1(onceSpace, []byte(string(in.Kind)+":"+in.Once))
+	id, err := u.idOf(in)
+	if err != nil {
+		return err
 	}
-	announcement := announcements.NewAnnouncement(announcements.AnnouncementID(id), in.Kind, in.At, in.Payload)
+
+	announcement := announcements.NewAnnouncement(id, in.Kind, in.At, in.Payload)
 
 	if err := u.appender.Append(ctx, announcement); err != nil {
 		if errors.Is(err, announcements.ErrKept) && in.Once != "" {
@@ -61,4 +59,16 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 
 	u.publisher.Publish(feed.Announced(announcement))
 	return nil
+}
+
+func (u *UseCase) idOf(in In) (announcements.AnnouncementID, error) {
+	if in.Once != "" {
+		return announcements.KeyedID(in.Kind, in.Once), nil
+	}
+
+	id, err := u.ids.NewID()
+	if err != nil {
+		return announcements.AnnouncementID{}, fmt.Errorf("failed to draw an announcement id: %w", err)
+	}
+	return id, nil
 }

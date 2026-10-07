@@ -28,34 +28,60 @@ func (failingAppender) Append(context.Context, announcements.Announcement) error
 	return errors.New("postgres is down")
 }
 
+type failingIDs struct{}
+
+func (failingIDs) NewID() (announcements.AnnouncementID, error) {
+	return announcements.AnnouncementID{}, errors.New("no entropy")
+}
+
 func TestAnAnnouncementIsKeptThenPublished(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 	updates := &recordedFeed{}
 	payload := json.RawMessage(`{"country":"fr","cleared":0}`)
 
-	err := announce_usecase.New(store, updates).Execute(t.Context(),
+	err := announce_usecase.New(store, updates, &announcements.SequentialIDs{}).Execute(t.Context(),
 		announce_usecase.In{Kind: announcements.KindBomb, At: at, Payload: payload})
 
 	require.NoError(t, err)
-	kept := store.Kept()
-	require.Len(t, kept, 1)
-	assert.NotEmpty(t, kept[0].ID())
-	assert.Equal(t, announcements.KindBomb, kept[0].Kind())
-	assert.Equal(t, at, kept[0].At())
+	assert.Equal(t,
+		[]announcements.Announcement{announcements.NewAnnouncement(announcements.AnnouncementID{15: 1}, announcements.KindBomb, at, payload)},
+		store.Kept())
+	assert.Equal(t, []feed.Update{feed.Announced(store.Kept()[0])}, updates.updates)
+}
 
-	require.Len(t, updates.updates, 1)
-	published, announced := updates.updates[0].Announcement()
-	require.True(t, announced)
-	assert.Equal(t, kept[0], published)
+func TestEachAnnouncementGetsAnIDOfItsOwn(t *testing.T) {
+	store := inmemory_announcement_storage.New()
+	useCase := announce_usecase.New(store, &recordedFeed{}, &announcements.SequentialIDs{})
+	in := announce_usecase.In{Kind: announcements.KindBomb, At: at, Payload: json.RawMessage(`{}`)}
+
+	require.NoError(t, useCase.Execute(t.Context(), in))
+	require.NoError(t, useCase.Execute(t.Context(), in))
+
+	kept := store.Kept()
+	require.Len(t, kept, 2)
+	assert.Equal(t, announcements.AnnouncementID{15: 1}, kept[0].ID())
+	assert.Equal(t, announcements.AnnouncementID{15: 2}, kept[1].ID())
 }
 
 func TestAnAnnouncementThatCannotBeKeptIsNotPublished(t *testing.T) {
 	updates := &recordedFeed{}
 
-	err := announce_usecase.New(failingAppender{}, updates).Execute(t.Context(),
+	err := announce_usecase.New(failingAppender{}, updates, &announcements.SequentialIDs{}).Execute(t.Context(),
 		announce_usecase.In{Kind: announcements.KindBomb, At: at, Payload: json.RawMessage(`{}`)})
 
 	require.Error(t, err)
+	assert.Empty(t, updates.updates)
+}
+
+func TestAnAnnouncementWithNoIDIsNeitherKeptNorPublished(t *testing.T) {
+	store := inmemory_announcement_storage.New()
+	updates := &recordedFeed{}
+
+	err := announce_usecase.New(store, updates, failingIDs{}).Execute(t.Context(),
+		announce_usecase.In{Kind: announcements.KindBomb, At: at, Payload: json.RawMessage(`{}`)})
+
+	require.Error(t, err)
+	assert.Empty(t, store.Kept())
 	assert.Empty(t, updates.updates)
 }
 
@@ -63,7 +89,7 @@ func TestAnAnnouncementOfAKindNobodyKnowsIsRefusedAndNeitherKeptNorPublished(t *
 	store := inmemory_announcement_storage.New()
 	updates := &recordedFeed{}
 
-	err := announce_usecase.New(store, updates).Execute(t.Context(),
+	err := announce_usecase.New(store, updates, &announcements.SequentialIDs{}).Execute(t.Context(),
 		announce_usecase.In{Kind: "meteor", At: at, Payload: json.RawMessage(`{}`)})
 
 	require.ErrorIs(t, err, announcements.ErrUnknownKind)
@@ -74,7 +100,7 @@ func TestAnAnnouncementOfAKindNobodyKnowsIsRefusedAndNeitherKeptNorPublished(t *
 func TestAnAnnouncementMadeOnceIsKeptAndShownOnce(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 	updates := &recordedFeed{}
-	useCase := announce_usecase.New(store, updates)
+	useCase := announce_usecase.New(store, updates, failingIDs{})
 	in := announce_usecase.In{Kind: announcements.KindSeasonWon, At: at, Payload: json.RawMessage(`{"season":0,"winner":"dz"}`), Once: "season-0"}
 
 	require.NoError(t, useCase.Execute(t.Context(), in))
@@ -82,6 +108,8 @@ func TestAnAnnouncementMadeOnceIsKeptAndShownOnce(t *testing.T) {
 
 	assert.Len(t, store.Kept(), 1)
 	assert.Len(t, updates.updates, 1, "nobody is shown it twice")
+	assert.Equal(t, announcements.KeyedID(announcements.KindSeasonWon, "season-0"), store.Kept()[0].ID(),
+		"its id comes from its key, never from the provider")
 
 	in.Once = "season-1"
 	require.NoError(t, useCase.Execute(t.Context(), in))

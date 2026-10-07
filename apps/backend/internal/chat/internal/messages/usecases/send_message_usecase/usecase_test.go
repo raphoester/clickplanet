@@ -47,8 +47,7 @@ func (s *testSuite) SetupTest() {
 		s.publisher,
 		fakeCountryChecker{known: cpcolls.NewSet("fr", "de")},
 		s.authors,
-		s.clock,
-		send_message_usecase.Config{},
+		messages.NewDrafts(&messages.SequentialIDs{}, s.clock, messages.NewLimits(0)),
 	)
 }
 
@@ -70,7 +69,7 @@ func (s *testSuite) TestNominalCase() {
 	message, err := s.send(validIn())
 	s.Require().NoError(err)
 
-	s.NotEmpty(message.ID())
+	s.Equal(messages.MessageID("00000000-0000-0000-0000-000000000001"), message.ID())
 	s.Equal("guest_0b1c2d", message.Author().Name(), "a guest posts under the name the player module gives it")
 	s.Equal("fr", message.Country())
 	s.Equal("hello planet", message.Text())
@@ -86,6 +85,19 @@ func (s *testSuite) TestNominalCase() {
 	s.Equal("curl/8", s.appender.records[0].UserAgent())
 
 	s.Equal([]feed.Update{feed.MessageSent(message)}, s.publisher.updates, "the message goes out once it is kept")
+}
+
+func (s *testSuite) TestEachMessageGetsAnIDOfItsOwn() {
+	first, err := s.send(validIn())
+	s.Require().NoError(err)
+	second, err := s.send(validIn())
+	s.Require().NoError(err)
+
+	s.Equal(messages.MessageID("00000000-0000-0000-0000-000000000001"), first.ID())
+	s.Equal(messages.MessageID("00000000-0000-0000-0000-000000000002"), second.ID())
+	s.Require().Len(s.appender.records, 2)
+	s.Equal(first.ID(), s.appender.records[0].Message().ID())
+	s.Equal(second.ID(), s.appender.records[1].Message().ID())
 }
 
 func (s *testSuite) TestTheSenderIPIsRecordedButNeverReturned() {
