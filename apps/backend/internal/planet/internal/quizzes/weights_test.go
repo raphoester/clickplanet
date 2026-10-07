@@ -29,13 +29,41 @@ func subjectCounts(t *testing.T, config quizzes.Config, shares quizzes.Shares) m
 	return counts
 }
 
-func TestALeadingCountryIsAskedAboutMoreOften(t *testing.T) {
-	counts := subjectCounts(t, quizzes.Config{LeaderBias: 1}, board{"bg": 0.1})
+func drawsWhere(t *testing.T, config quizzes.Config, shares quizzes.Shares, n int, match func(quizzes.Question) bool) int {
+	t.Helper()
 
-	flat := subjectCounts(t, quizzes.Config{LeaderBias: 0}, board{"bg": 0.1})
+	bank, err := quizzes.Load(config, shares)
+	require.NoError(t, err)
 
-	assert.Greater(t, counts["bg"], flat["bg"]*3,
+	matched := 0
+	for range n {
+		if match(bank.Draw().Question) {
+			matched++
+		}
+	}
+
+	return matched
+}
+
+func TestALeadingCountryIsNamedMoreOften(t *testing.T) {
+	named := func(question quizzes.Question) bool { return question.Subject == "bg" && question.NamesSubject }
+
+	leaned := drawsWhere(t, quizzes.Config{LeaderBias: 1}, board{"bg": 0.1}, draws, named)
+	flat := drawsWhere(t, quizzes.Config{LeaderBias: 0}, board{"bg": 0.1}, draws, named)
+
+	assert.Greater(t, leaned, flat*3,
 		"a country holding a tenth of the map should come up far more than it does on a flat draw")
+}
+
+func TestALeadingCountryIsNotTheAnswerMoreOften(t *testing.T) {
+	const many = 100000
+	answered := func(question quizzes.Question) bool { return question.Answer == "Bulgaria" }
+
+	leaned := drawsWhere(t, quizzes.Config{LeaderBias: 1}, board{"bg": 0.1}, many, answered)
+	flat := drawsWhere(t, quizzes.Config{LeaderBias: 0}, board{"bg": 0.1}, many, answered)
+
+	require.Positive(t, flat)
+	assert.Less(t, leaned, flat*2, "\"pick the leader\" must not be a way to answer")
 }
 
 func TestNoCountryIsEverDrawnOutOfTheGame(t *testing.T) {

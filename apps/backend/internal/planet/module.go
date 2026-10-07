@@ -211,7 +211,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 				registry.Quizzing(config.Bonus.Quiz, bank)
 				props.Logger.Info("quizzes enabled",
-					slog.String("bank", bank.Name()),
+					slog.String("bank", bank.Version()),
 					slog.Int("questions", bank.Size()),
 					slog.Int("subjects", bank.Subjects()))
 			}

@@ -230,8 +230,10 @@ bonus:
   quiz:
     enabled: true
 
-    minInterval: 6m
-    maxInterval: 11m
+    minInterval: 4m
+    maxInterval: 8m
+
+    missRetry: 2m
 
     offerTTL: 25s
 
@@ -239,7 +241,7 @@ bonus:
 
     leaderBias: 1
 
-    maxChargesPerHour: 6
+    maxChargesPerHour: 12
 
 auth:
   enabled: true

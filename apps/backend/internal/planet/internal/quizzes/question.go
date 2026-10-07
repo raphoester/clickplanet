@@ -10,6 +10,8 @@ type Question struct {
 
 	Subject string `json:"subject"`
 
+	NamesSubject bool `json:"namesSubject"`
+
 	Ask string `json:"ask"`
 
 	Text   string   `json:"text"`

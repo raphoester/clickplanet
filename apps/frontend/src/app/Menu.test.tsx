@@ -10,7 +10,7 @@ import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
 import {DEFAULT_DISPLAY_SETTINGS} from "../domain/displaySettings.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
-import {DISCORD_INVITE} from "../links.ts"
+import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from "../links.ts"
 import {NameColor} from "../backends/player.ts"
 import {PlayerBackend, PlayerError, PlayerInfoBackend, PlayerTitle, TitleDashboard} from "../backends/player.ts"
 import {AcceptedClicks, acceptedClicks} from "./viewer/acceptedClicks.ts"
@@ -87,15 +87,17 @@ describe("Menu", () => {
         expect(screen.getByRole("link", {name: "Home page"}).getAttribute("href")).toBe("/#home")
     })
 
-    it("links Discord to the server's invite, in a new tab", async () => {
-        const {user} = setup()
-        await user.click(tab("More"))
+    for (const [name, href] of Object.entries({Discord: DISCORD_INVITE, TikTok: TIKTOK_PROFILE, Instagram: INSTAGRAM_PROFILE})) {
+        it(`links ${name} from links.ts, in a new tab`, async () => {
+            const {user} = setup()
+            await user.click(tab("More"))
 
-        const discord = screen.getByRole("link", {name: "Discord"})
-        expect(discord.getAttribute("href")).toBe(DISCORD_INVITE)
-        expect(discord.getAttribute("target")).toBe("_blank")
-        expect(discord.getAttribute("rel")).toBe("noopener noreferrer")
-    })
+            const link = screen.getByRole("link", {name})
+            expect(link.getAttribute("href")).toBe(href)
+            expect(link.getAttribute("target")).toBe("_blank")
+            expect(link.getAttribute("rel")).toBe("noopener noreferrer")
+        })
+    }
 
     describe("the leader", () => {
         const toll = [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}]

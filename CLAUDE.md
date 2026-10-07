@@ -38,7 +38,7 @@ Both apps' `buf.gen.yaml` reference `../../proto` (or `../../../proto` for the b
 ## Shared quiz bank
 
 `quiz/` is the **third and last thing the root holds**, and the one that is shared with only *one*
-app. `bank-<hash>.json` is every question the quizzes can ask and the answer to each; `make quiz`
+app. `bank.json` is every question the quizzes can ask and the answer to each; `make quiz`
 copies it into `apps/backend/generated/quiz/`, where it is embedded.
 
 **The frontend deliberately has no copy**, because the answers are in it: a bank served to the page
@@ -46,11 +46,11 @@ is a bank anyone can fetch with the network tab open. The question and its three
 client one at a time from `OpenQuiz`, and which of the three is right never leaves the server.
 
 ```bash
-cd apps/frontend && npm run quiz:generate   # rewrite /quiz/bank-<hash>.json
+cd apps/frontend && npm run quiz:generate   # rewrite /quiz/bank.json
 cd apps/backend && make quiz                # → apps/backend/generated/quiz (embedded)
 ```
 
-About 970 of the questions are **derived** from the same pinned Natural Earth snapshot `map/` is cut
+About 820 of the questions are **derived** from the same pinned Natural Earth snapshot `map/` is cut
 from and from the tile borders themselves, so they are regenerated rather than corrected; the rest
 are hand-written in `apps/frontend/scripts/quiz/extra.json` for what no dataset here can answer. See
 [`quiz/README.md`](quiz/README.md), which also has the rule that keeps the hand-written half from
@@ -88,7 +88,8 @@ follows every owned tile across; `map/README.md` has the checklist.
 `./.githooks/install` points git at [`.githooks/`](.githooks), once per clone.
 pre-commit formats (gofumpt, via `make tidy`) and lints whichever app has staged
 changes, commit-msg enforces conventional commits, and pre-push runs the
-backend's tests, dead-code check, linter and format check concurrently. All three
+backend's tests, dead-code check, linter and format check concurrently, and checks
+that the backend's copy of the quiz bank is the one in `quiz/`. All three
 take `--no-verify`.
 
 It is a script rather than a root `Makefile` target on purpose — see

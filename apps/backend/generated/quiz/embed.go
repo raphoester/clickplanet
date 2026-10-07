@@ -10,33 +10,9 @@
 // repo controls.
 package quizdata
 
-import (
-	"embed"
-	"fmt"
-	"io/fs"
-)
+import _ "embed"
 
-// Globbed because the file is content-addressed, which keeps `make quiz` a copy with no generated
-// constant beside it.
-//
-//go:embed bank-*.json
-var files embed.FS
+//go:embed bank.json
+var bank []byte
 
-// Bank returns the bank and the name it is content-addressed under.
-func Bank() ([]byte, string, error) {
-	entries, err := fs.Glob(files, "bank-*.json")
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to glob the quiz bank: %w", err)
-	}
-	if len(entries) != 1 {
-		// Two means a `make quiz` that copied without sweeping the previous one.
-		return nil, "", fmt.Errorf("expected exactly one quiz bank, found %d: %v", len(entries), entries)
-	}
-
-	blob, err := files.ReadFile(entries[0])
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to read %s: %w", entries[0], err)
-	}
-
-	return blob, entries[0], nil
-}
+func Bank() []byte { return bank }

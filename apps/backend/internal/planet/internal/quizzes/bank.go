@@ -2,6 +2,8 @@ package quizzes
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -12,7 +14,7 @@ import (
 )
 
 type Bank struct {
-	name string
+	version string
 
 	bias   float64
 	shares Shares
@@ -20,47 +22,61 @@ type Bank struct {
 	all []Question
 
 	subjects  []string
-	bySubject map[string][]Question
+	bySubject map[string]about
 
 	anywhere []Question
 }
 
-func Load(config Config, shares Shares) (*Bank, error) {
-	blob, name, err := quizdata.Bank()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the embedded quiz bank: %w", err)
+type about struct {
+	named   []Question
+	unnamed []Question
+}
+
+func (a about) size() int { return len(a.named) + len(a.unnamed) }
+
+func (a about) with(question Question) about {
+	if question.NamesSubject {
+		a.named = append(a.named, question)
+	} else {
+		a.unnamed = append(a.unnamed, question)
 	}
+
+	return a
+}
+
+func Load(config Config, shares Shares) (*Bank, error) {
+	blob := quizdata.Bank()
 
 	var file struct {
 		Format    int        `json:"format"`
 		Questions []Question `json:"questions"`
 	}
 	if err := json.Unmarshal(blob, &file); err != nil {
-		return nil, fmt.Errorf("failed to read %s: %w", name, err)
+		return nil, fmt.Errorf("failed to read %s: %w", source, err)
 	}
 
 	if file.Format != format {
-		return nil, fmt.Errorf("%s is format %d, this build reads %d", name, file.Format, format)
+		return nil, fmt.Errorf("%s is format %d, this build reads %d", source, file.Format, format)
 	}
 	if len(file.Questions) == 0 {
-		return nil, fmt.Errorf("%s holds no questions", name)
+		return nil, fmt.Errorf("%s holds no questions", source)
 	}
 
 	bank := &Bank{
-		name:      name,
+		version:   versionOf(blob),
 		bias:      config.withDefaults().LeaderBias,
 		shares:    shares,
 		all:       file.Questions,
-		bySubject: make(map[string][]Question),
+		bySubject: make(map[string]about),
 	}
 
 	seen := cpcolls.NewSetWithCapacity[string](len(file.Questions))
 	for _, question := range file.Questions {
 		if err := question.Validate(); err != nil {
-			return nil, fmt.Errorf("%s: %w", name, err)
+			return nil, fmt.Errorf("%s: %w", source, err)
 		}
 		if seen.Contains(question.ID) {
-			return nil, fmt.Errorf("%s: two questions are called %q", name, question.ID)
+			return nil, fmt.Errorf("%s: two questions are called %q", source, question.ID)
 		}
 		seen.Add(question.ID)
 
@@ -72,7 +88,7 @@ func Load(config Config, shares Shares) (*Bank, error) {
 		if _, known := bank.bySubject[question.Subject]; !known {
 			bank.subjects = append(bank.subjects, question.Subject)
 		}
-		bank.bySubject[question.Subject] = append(bank.bySubject[question.Subject], question)
+		bank.bySubject[question.Subject] = bank.bySubject[question.Subject].with(question)
 	}
 
 	slices.Sort(bank.subjects)
@@ -80,9 +96,17 @@ func Load(config Config, shares Shares) (*Bank, error) {
 	return bank, nil
 }
 
-const format = 1
+const (
+	format = 1
+	source = "bank.json"
+)
 
-func (b *Bank) Name() string { return b.name }
+func versionOf(blob []byte) string {
+	sum := sha256.Sum256(blob)
+	return hex.EncodeToString(sum[:4])
+}
+
+func (b *Bank) Version() string { return b.version }
 
 func (b *Bank) Size() int { return len(b.all) }
 
@@ -93,17 +117,12 @@ func (b *Bank) Draw() Round {
 }
 
 func (b *Bank) question() Question {
-	subject := b.subject()
-
-	own := b.anywhere
-	if subject != "" {
-		own = b.bySubject[subject]
-	}
-	if len(own) == 0 {
+	pool := b.pool()
+	if len(pool) == 0 {
 		return b.all[index(len(b.all))]
 	}
 
-	return own[index(len(own))]
+	return pool[index(len(pool))]
 }
 
 func (b *Bank) round(question Question) Round {
