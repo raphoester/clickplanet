@@ -13,6 +13,7 @@ const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
  *   code: string,
  *   name: string,
  *   capital: string | undefined,
+ *   capitalIsWorldCity: boolean,
  *   continent: string | undefined,
  *   subregion: string | undefined,
  *   population: number,
@@ -40,10 +41,12 @@ export async function countryFacts({directory} = {}) {
         if (facts.has(code)) continue
 
         const properties = feature.properties
+        const capital = capitals.get(code)
         facts.set(code, {
             code,
             name,
-            capital: capitals.get(code),
+            capital: capital?.name,
+            capitalIsWorldCity: capital?.worldCity ?? false,
             continent: text(properties.CONTINENT),
             subregion: text(properties.SUBREGION),
             population: Number(properties.POP_EST) || 0,
@@ -78,7 +81,7 @@ function capitalsByCountry(places, countries) {
         const name = text(properties.name)
         // A country with two seats gets neither: the question needs one answer.
         if (capitals.has(code)) capitals.set(code, undefined)
-        else if (name) capitals.set(code, name)
+        else if (name) capitals.set(code, {name, worldCity: properties.worldcity === 1})
     }
 
     return capitals

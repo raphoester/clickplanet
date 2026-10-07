@@ -1464,6 +1464,14 @@ lean is capped, because a quiz that only ever asked about the top three would be
 four questions deep by the end of the week. **`leaderBias` 0 is a flat draw, and
 0 is what leaving the key out means.**
 
+**The lean only reaches a question that names its subject** (`namesSubject` in
+the bank, worked out by the generator). "Sofia is the capital of which country?"
+is about Bulgaria and answered by it: leaned, it made "press the leader" a way to
+answer, and "Bulgaria" came up as the answer 23 times as often as on a flat draw.
+So each subject's questions are two pools: the named ones weigh the lean, the
+others weigh what they would on a flat draw. With no lean the draw is the same as
+before.
+
 **`quiz_offered` is one more case on `PlanetEvent`**, addressed to one caller like
 `bonus_offered`, and carrying only the token and the expiry. A win is announced
 with the existing `bonus_taken`, which grew a `quiz_subject_country_id` rather

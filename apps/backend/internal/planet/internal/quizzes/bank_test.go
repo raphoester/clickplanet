@@ -24,7 +24,7 @@ func TestTheShippedBankLoads(t *testing.T) {
 
 	assert.Positive(t, bank.Size())
 	assert.Greater(t, bank.Subjects(), 100, "a bank that asks about a handful of countries is a stale bank")
-	assert.Regexp(t, `^bank-[0-9a-f]{8}\.json$`, bank.Name())
+	assert.Regexp(t, `^[0-9a-f]{8}$`, bank.Version())
 }
 
 func TestADrawIsThreeChoicesWithOneOfThemRight(t *testing.T) {

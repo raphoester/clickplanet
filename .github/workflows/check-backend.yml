@@ -6,11 +6,13 @@ on:
     paths:
       - 'apps/backend/**'
       - 'proto/**'
+      - 'quiz/**'
       - '.github/workflows/check-backend.yml'
   pull_request:
     paths:
       - 'apps/backend/**'
       - 'proto/**'
+      - 'quiz/**'
       - '.github/workflows/check-backend.yml'
   workflow_dispatch:
 
@@ -36,6 +38,8 @@ jobs:
       - run: make test
 
       - run: make deadcode
+
+      - run: make check-quiz
 
   lint:
     runs-on: ubuntu-latest
