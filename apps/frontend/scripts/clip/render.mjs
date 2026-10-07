@@ -174,7 +174,7 @@ async function record(pick, chosenOut) {
         `  window: ${recording.since} to ${recording.until}`,
         `  place: ${recording.place}, ${recording.seconds}s`,
         `  look: ${recording.look}`,
-        `  music: ${recording.music ? `${recording.music.title}, the anthem of ${recording.music.country}` : "none"}`,
+        `  music: ${recording.music ? `${recording.music.title}, the anthem of ${recording.music.whose}` : "none"}`,
     ].join("\n"))
     if (has("plan")) return recording
 
@@ -214,7 +214,7 @@ async function record(pick, chosenOut) {
     ffmpeg = undefined
 
     const caption = out.replace(/\.mp4$/, "") + ".txt"
-    writeFileSync(caption, recording.caption + "\n")
+    writeFileSync(caption, recording.caption + (music?.credit ? `\n🎵 ${music.credit}` : "") + "\n")
     console.log(`  saved ${out} and ${basename(caption)}`)
     return recording
 }

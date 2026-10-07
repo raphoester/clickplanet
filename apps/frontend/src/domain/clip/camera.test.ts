@@ -117,6 +117,14 @@ describe("a blast", () => {
         expect(shot.zoom).toBeGreaterThan(6)
     })
 
+    it("never takes the opening away: the camera goes to it once the dive is down", () => {
+        const early = {...blast, from: 0, to: 0.08}
+        const camera = cameraOf(opening, [], {...script, blasts: [early]})
+
+        expect(camera(0).zoom).toBeCloseTo(1.5)
+        expect(camera(0.02).zoom).toBeCloseTo(1.5)
+    })
+
     it("lets it go after", () => {
         expect(cameraOf(opening, [], script)(0.7).zoom).toBeCloseTo(3)
     })

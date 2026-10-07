@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest"
 import {anthemOf} from "./music.ts"
 import {Story} from "./story.ts"
 
-const recorded = (country: string) => ["fr", "nl", "tr", "es"].includes(country)
+const recorded = (country: string) => ["fr", "nl", "tr", "es", "eu"].includes(country)
 
 function story(attacker: string, place: Story["place"], rival?: string): Story {
     return {kind: "invasion", attacker, rival, victims: ["es", "fr"], place, taken: 100}
@@ -13,19 +13,20 @@ describe("the anthem of a clip", () => {
         expect(anthemOf(story("fr", {country: "au"}), recorded)).toBe("fr")
     })
 
-    it("is the other side's when the leading flag has no recording", () => {
+    it("is the other side's in a battle when the leading flag has no recording", () => {
         expect(anthemOf(story("ps", {country: "fr"}, "nl"), recorded)).toBe("nl")
     })
 
-    it("is the place's when no side has one", () => {
-        expect(anthemOf(story("ps", {country: "tr"}), recorded)).toBe("tr")
+    it("is the continent's when a continent strikes back together", () => {
+        expect(anthemOf({...story("de", {region: "Europe"}), kind: "comeback", team: "Europe"}, recorded)).toBe("eu")
     })
 
-    it("is a victim's when the place is a continent", () => {
-        expect(anthemOf(story("ps", {region: "Europe"}), recorded)).toBe("es")
+    it("is the continent's when it throws a flag out", () => {
+        expect(anthemOf({...story("de", {region: "Europe"}), kind: "rout", victims: ["ps"], team: "Europe"}, recorded)).toBe("eu")
     })
 
-    it("is nothing when no flag in the story has one", () => {
-        expect(anthemOf(story("ps", {region: "Europe"}), () => false)).toBeUndefined()
+    it("is never a loser's: nothing when the flags making the moves have no recording", () => {
+        expect(anthemOf(story("ps", {country: "tr"}), recorded)).toBeUndefined()
+        expect(anthemOf(story("ps", {region: "Europe"}), recorded)).toBeUndefined()
     })
 })
