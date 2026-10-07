@@ -1394,10 +1394,12 @@ choices and **a short clock** to answer. A right answer is worth the same charge
 caught box is. A wrong one, and running out of time, cost nothing.
 
 **It is a second way to earn a charge, not a box of another shape.** Its own
-clock (`bonus.quiz.minInterval` / `maxInterval`), its own banner lifetime, and
-its own `bonus.quiz.maxChargesPerHour` on top of the boxes'. A caller can be
-holding an unopened banner and a flying box at the same time. What it *does*
-share with a box is the reward: the kind is drawn at offer time from
+clock (`bonus.quiz.minInterval` / `maxInterval`), its own banner lifetime, its
+own `bonus.quiz.missRetry`, and its own `bonus.quiz.maxChargesPerHour` on top of
+the boxes'. The miss rule is the box's: a banner that lapses, opened or not,
+brings the next one forward once, and an answer, right or wrong, clears it. A
+caller can be holding an unopened banner and a flying box at the same time. What
+it *does* share with a box is the reward: the kind is drawn at offer time from
 `bonus.kinds`, filtered by `offerable` exactly as a box's is, so nobody is ever
 asked a question for a bomb they already hold, and a caller with nothing to gain
 is asked nothing.
@@ -1476,7 +1478,8 @@ seconds, and the caller they are started for has to be the caller that answers.
 
 **Off unless switched on.** With `bonus.quiz.enabled` false no bank is loaded,
 `Quizzing` is never called, and the boxes fly exactly as they did. **Production
-runs it on**, at 6m-11m with `maxChargesPerHour: 6` on top of the boxes' 12 —
+runs it on**, at the boxes' own 4m-8m and `maxChargesPerHour: 12`, so a player
+is asked about as many questions as they are flown boxes —
 `deploy/vps/backend.yaml` says why each number is what it is.
 
 #### Charges (refill, bomb, enclose, spread, shields)

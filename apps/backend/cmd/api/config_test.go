@@ -31,12 +31,13 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	quiz := config.Planet.Bonus.Quiz
 	assert.True(t, quiz.Enabled)
-	assert.Equal(t, 6*time.Minute, quiz.MinInterval)
-	assert.Equal(t, 11*time.Minute, quiz.MaxInterval)
+	assert.Equal(t, 4*time.Minute, quiz.MinInterval)
+	assert.Equal(t, 8*time.Minute, quiz.MaxInterval)
+	assert.Equal(t, 2*time.Minute, quiz.MissRetry)
 	assert.Equal(t, 25*time.Second, quiz.OfferTTL)
 	assert.Equal(t, 8*time.Second, quiz.AnswerWindow, "example.yaml must load the answerWindow it documents")
 	assert.InDelta(t, 1.0, quiz.LeaderBias, 1e-9)
-	assert.Equal(t, 6, quiz.MaxChargesPerHour)
+	assert.Equal(t, 12, quiz.MaxChargesPerHour)
 
 	assert.Equal(t, 72*time.Hour, config.Planet.Ledger.Retention)
 	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
