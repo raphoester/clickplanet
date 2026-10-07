@@ -12,6 +12,8 @@ type Config struct {
 	MinInterval time.Duration
 	MaxInterval time.Duration
 
+	MissRetry time.Duration
+
 	OfferTTL time.Duration
 
 	AnswerWindow time.Duration
@@ -22,14 +24,16 @@ type Config struct {
 }
 
 const (
-	defaultMinInterval = 6 * time.Minute
-	defaultMaxInterval = 11 * time.Minute
+	defaultMinInterval = 4 * time.Minute
+	defaultMaxInterval = 8 * time.Minute
+
+	defaultMissRetry = 2 * time.Minute
 
 	defaultOfferTTL = 25 * time.Second
 
 	defaultAnswerWindow = 8 * time.Second
 
-	defaultMaxChargesPerHour = 6
+	defaultMaxChargesPerHour = 12
 )
 
 func (c Config) withDefaults() Config {
@@ -38,6 +42,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.MaxInterval < c.MinInterval {
 		c.MaxInterval = max(c.MinInterval, defaultMaxInterval)
+	}
+	if c.MissRetry <= 0 {
+		c.MissRetry = defaultMissRetry
 	}
 	if c.OfferTTL <= 0 {
 		c.OfferTTL = defaultOfferTTL
@@ -66,8 +73,8 @@ func (c Config) Validate() error {
 			c.AnswerWindow)
 	}
 
-	if c.MinInterval < 0 || c.OfferTTL < 0 {
-		return fmt.Errorf("bonus.quiz.minInterval and offerTtl must not be negative")
+	if c.MinInterval < 0 || c.MissRetry < 0 || c.OfferTTL < 0 {
+		return fmt.Errorf("bonus.quiz.minInterval, missRetry and offerTtl must not be negative")
 	}
 
 	return nil

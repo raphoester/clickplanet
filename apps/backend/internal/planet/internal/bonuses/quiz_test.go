@@ -13,6 +13,7 @@ import (
 
 const (
 	quizWindow = 3 * time.Minute
+	quizRetry  = 30 * time.Second
 	answerIn   = 5 * time.Second
 	bannerFor  = 20 * time.Second
 )
@@ -25,6 +26,7 @@ func newQuizzingRegistry(t *testing.T) (*Registry, *cptime.FixedClock) {
 		Enabled:           true,
 		MinInterval:       quizWindow,
 		MaxInterval:       quizWindow,
+		MissRetry:         quizRetry,
 		OfferTTL:          bannerFor,
 		AnswerWindow:      answerIn,
 		MaxChargesPerHour: 6,
@@ -50,6 +52,11 @@ func (fixedBank) Draw() quizzes.Round {
 
 func waitOutQuiz(r *Registry, clock *cptime.FixedClock) {
 	clock.Advance(quizWindow + time.Second)
+	r.sweep()
+}
+
+func letTheBannerLapse(r *Registry, clock *cptime.FixedClock) {
+	clock.Advance(bannerFor + time.Second)
 	r.sweep()
 }
 
@@ -219,6 +226,86 @@ func TestABannerNobodyOpensLapsesAndFreesTheSlot(t *testing.T) {
 	clicked(registry, "scope-a")
 	waitOutQuiz(registry, clock)
 	assert.NotNil(t, quizOffered(t, events), "the caller is due another once its window passes")
+}
+
+func TestAMissedQuizBringsTheNextOneForwardOnce(t *testing.T) {
+	registry, clock := newQuizzingRegistry(t)
+	events := playing(t, registry, "scope-a")
+
+	waitOutQuiz(registry, clock)
+	require.NotNil(t, quizOffered(t, events))
+
+	letTheBannerLapse(registry, clock)
+	require.Nil(t, quizOffered(t, events))
+
+	clock.Advance(quizRetry + time.Second)
+	registry.sweep()
+
+	assert.NotNil(t, quizOffered(t, events), "a missed quiz should come back sooner")
+}
+
+func TestASecondMissedQuizInARowWaitsTheOrdinaryWindow(t *testing.T) {
+	registry, clock := newQuizzingRegistry(t)
+	events := playing(t, registry, "scope-a")
+
+	waitOutQuiz(registry, clock)
+	require.NotNil(t, quizOffered(t, events))
+	letTheBannerLapse(registry, clock)
+
+	clock.Advance(quizRetry + time.Second)
+	registry.sweep()
+	require.NotNil(t, quizOffered(t, events))
+	letTheBannerLapse(registry, clock)
+
+	clock.Advance(quizRetry + time.Second)
+	registry.sweep()
+	assert.Nil(t, quizOffered(t, events), "the second miss is not brought forward")
+
+	clicked(registry, "scope-a")
+	waitOutQuiz(registry, clock)
+	assert.NotNil(t, quizOffered(t, events))
+}
+
+func TestAQuestionOpenedAndLeftCountsAsAMiss(t *testing.T) {
+	registry, clock := newQuizzingRegistry(t)
+	events := playing(t, registry, "scope-a")
+
+	waitOutQuiz(registry, clock)
+	offer := quizOffered(t, events)
+	require.NotNil(t, offer)
+
+	_, ok := registry.OpenQuiz(offer.Token, "scope-a")
+	require.True(t, ok)
+
+	clock.Advance(answerIn + time.Second)
+	registry.sweep()
+
+	clock.Advance(quizRetry + time.Second)
+	registry.sweep()
+
+	assert.NotNil(t, quizOffered(t, events))
+}
+
+func TestAnsweringClearsTheQuizMissThatCameBefore(t *testing.T) {
+	registry, clock := newQuizzingRegistry(t)
+	events := playing(t, registry, "scope-a")
+
+	waitOutQuiz(registry, clock)
+	require.NotNil(t, quizOffered(t, events))
+	letTheBannerLapse(registry, clock)
+
+	clock.Advance(quizRetry + time.Second)
+	registry.sweep()
+	offer := quizOffered(t, events)
+	require.NotNil(t, offer)
+
+	_, ok := registry.OpenQuiz(offer.Token, "scope-a")
+	require.True(t, ok)
+
+	_, ok = registry.AnswerQuiz(offer.Token, "scope-a", 99)
+	require.True(t, ok)
+
+	assert.Equal(t, 0, registry.callers["scope-a"].quizMisses, "a wrong answer is an answer, not a miss")
 }
 
 func TestAQuestionOpenedAndLeftLapsesAtItsDeadline(t *testing.T) {

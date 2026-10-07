@@ -104,6 +104,7 @@ func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answer
 	entry, known := r.callers[entrant]
 	if known && entry.outstandingQuiz == token {
 		entry.outstandingQuiz = ""
+		entry.quizMisses = 0
 		entry.nextQuizAt = now.Add(r.quizWindow())
 	}
 
@@ -213,6 +214,10 @@ func (r *Registry) collectStaleQuizzes(now time.Time) {
 
 		entry.outstandingQuiz = ""
 		entry.nextQuizAt = now.Add(r.quizWindow())
+		if entry.quizMisses == 0 {
+			entry.nextQuizAt = now.Add(r.quizConfig.MissRetry)
+		}
+		entry.quizMisses++
 
 		if r.report.QuizLapsed != nil {
 			r.report.QuizLapsed(quiz.scope)

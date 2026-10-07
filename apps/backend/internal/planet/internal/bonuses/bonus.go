@@ -96,6 +96,7 @@ type caller struct {
 
 	nextQuizAt      time.Time
 	outstandingQuiz string
+	quizMisses      int
 	quizGrants      []time.Time
 }
 
