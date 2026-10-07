@@ -2054,17 +2054,28 @@ templates, because a teaser that has to be checked against every question in the
 bank leaks again the first time a template is added. What makes the banner worth
 pressing is the charge behind it.
 
+**The charge is teased as a slot reel** (`PrizeReel`): the five bonus boxes roll
+past under a gold "?", on the banner and again beside the clock. The server picks
+the kind when it offers the quiz and does not send it, so the reel shows every
+kind and stops on none. A right answer is the first time the client knows, and
+the box then spins in as the bonus won.
+
 It draws no countdown of its own either, because it is free to ignore, and it
 goes away by itself.
 
 **The countdown bar starts at what is actually left, not at full.** The five
 seconds are the server's and they began when it answered, so a slow round trip
 has already spent some of them; a bar that started full would promise time the
-player does not have. From there it is **one CSS transition on `transform`** to
-empty — on the compositor, so a whole window of continuous animation costs nothing
-beside a WebGL globe drawing at the same time, where a `width` transition would
-relayout every frame. Under `prefers-reduced-motion` the countdown **stays**: it
-is information, not decoration.
+player does not have. From there it is **one CSS animation on `transform`** to
+empty, started that far in with a negative `animation-delay` — on the compositor,
+so a whole window of continuous animation costs nothing beside a WebGL globe
+drawing at the same time, where a `width` transition would relayout every frame.
+An animation rather than a transition because **a pressed choice pauses it**
+(`animation-play-state`): the bar stops where the answer was given. The seconds
+beside it are drawn by React once a second (`secondsLeft`, `untilNextSecond`), and
+in the last three the coin and the card's glow turn red. Under
+`prefers-reduced-motion` the countdown **stays**: it is information, not
+decoration.
 
 **Running out of time is sent as a choice past the end of the three.** The server
 reads it as wrong, which it is, and answers with the right one — so a question
@@ -2073,6 +2084,9 @@ it.
 
 **The result says which one was right whether or not that was the one pressed.**
 A wrong answer costs nothing, so the only thing left to give back is the answer.
+It draws the three choices again where they were, the right one green and a
+wrong pick red, **as list items and not buttons**: nothing on the result can be
+pressed, so nothing on it reacts to the pointer.
 
 **The quiz and `BombNews` both want the band at the top**, and the bomb line is
 the one that gives it up (`lowered`): four seconds of news nobody presses moves,
