@@ -1,4 +1,4 @@
-.PHONY: proto map quiz test lint lint-ci tidy check-format setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains metrics
+.PHONY: proto map quiz test lint lint-ci tidy check-format check-quiz setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains metrics
 
 TEST_TAG := testing
 
@@ -21,11 +21,16 @@ QUIZ_DIR := ../../quiz
 QUIZ_ASSET_DIR := generated/quiz
 
 quiz:
-	@test -n "$$(ls $(QUIZ_DIR)/bank-*.json 2>/dev/null)" || { echo "quiz: no $(QUIZ_DIR)/bank-<hash>.json" >&2; exit 1; }
+	@test -f $(QUIZ_DIR)/bank.json || { echo "quiz: no $(QUIZ_DIR)/bank.json" >&2; exit 1; }
 	@mkdir -p $(QUIZ_ASSET_DIR)
-	@rm -f $(QUIZ_ASSET_DIR)/bank-*.json
-	@cp $(QUIZ_DIR)/bank-*.json $(QUIZ_ASSET_DIR)/
-	@ls $(QUIZ_ASSET_DIR)/bank-*.json
+	@cp $(QUIZ_DIR)/bank.json $(QUIZ_ASSET_DIR)/
+	@ls $(QUIZ_ASSET_DIR)/bank.json
+
+check-quiz:
+	@cmp -s $(QUIZ_DIR)/bank.json $(QUIZ_ASSET_DIR)/bank.json || { \
+		echo "$(QUIZ_ASSET_DIR)/bank.json is not $(QUIZ_DIR)/bank.json. Run 'make quiz'." >&2; \
+		exit 1; \
+	}
 
 dBuild:
 	@docker build -t clickplanet-back:local .

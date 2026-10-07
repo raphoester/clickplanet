@@ -1,4 +1,3 @@
-import crypto from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 import {fileURLToPath} from "node:url"
@@ -28,7 +27,7 @@ check(questions)
 const bank = {
     format: 1,
     naturalEarthTag: NATURAL_EARTH_TAG,
-    // No timestamp: the file is named by its content hash.
+    // No timestamp: a run that asks the same questions writes the same file.
     questions,
 }
 
@@ -75,21 +74,30 @@ function check(questions) {
     }
 }
 
+// One question per line, so a diff of the bank is one line per question that changed.
+function serialized(bank) {
+    const questions = bank.questions.map((question) => `    ${JSON.stringify(question)}`).join(",\n")
+
+    return [
+        "{",
+        `  "format": ${JSON.stringify(bank.format)},`,
+        `  "naturalEarthTag": ${JSON.stringify(bank.naturalEarthTag)},`,
+        `  "questions": [`,
+        questions,
+        "  ]",
+        "}",
+        "",
+    ].join("\n")
+}
+
 function write(bank) {
-    const body = `${JSON.stringify(bank, null, 2)}\n`
-    const hash = crypto.createHash("sha256").update(body).digest("hex").slice(0, 8)
-    const name = `bank-${hash}.json`
+    const body = serialized(bank)
 
     fs.mkdirSync(quizDir, {recursive: true})
-
-    for (const stale of fs.readdirSync(quizDir).filter((entry) => /^bank-[0-9a-f]{8}\.json$/.test(entry))) {
-        if (stale !== name) fs.rmSync(path.join(quizDir, stale))
-    }
-
-    fs.writeFileSync(path.join(quizDir, name), body)
+    fs.writeFileSync(path.join(quizDir, "bank.json"), body)
 
     say("")
-    say(`wrote quiz/${name}: ${bank.questions.length} questions, ${(body.length / 1024).toFixed(0)} KiB`)
+    say(`wrote quiz/bank.json: ${bank.questions.length} questions, ${(body.length / 1024).toFixed(0)} KiB`)
     say("")
     say("next:")
     say("  cd apps/backend && make quiz   # copy it in to be embedded, then commit both")
