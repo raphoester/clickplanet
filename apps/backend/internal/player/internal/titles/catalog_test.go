@@ -39,10 +39,10 @@ func TestEachTitleIsEarnedAtItsThresholdAndNotBefore(t *testing.T) {
 		{titles.Loyal{}, streak(6), streak(7)},
 		{titles.Devoted{}, streak(29), streak(30)},
 		{titles.Unbroken{}, streak(99), streak(100)},
-		{titles.Talker{}, messages(99), messages(100)},
-		{titles.Chatterbox{}, messages(999), messages(1_000)},
-		{titles.Socialite{}, messages(9_999), messages(10_000)},
-		{titles.Icon{}, messages(99_999), messages(100_000)},
+		{titles.Talker{}, messages(9), messages(10)},
+		{titles.Chatterbox{}, messages(29), messages(30)},
+		{titles.Socialite{}, messages(99), messages(100)},
+		{titles.Icon{}, messages(999), messages(1_000)},
 	} {
 		assert.False(t, c.title.EarnedBy(c.before), "%s at %+v", c.title.ID(), c.before)
 		assert.True(t, c.title.EarnedBy(c.after), "%s at %+v", c.title.ID(), c.after)
