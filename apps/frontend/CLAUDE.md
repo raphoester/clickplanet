@@ -2401,17 +2401,21 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   far apart, counting the tiles taken from another flag in each 10° cell and the eight around it. Filling empty
   ground is not war.
 - **`front.ts` finds the front** of a candidate: the point where most tiles changed hands, and every change within
-  about 2,900 km of it, so a war in France brings in England, Spain and Germany.
+  about 2,900 km of it, so a war in France brings in England, Spain and Germany. Once the story is known, the front
+  is found again from its own flags' fighting alone, so a war next door (Israel in Turkey) does not pull the
+  camera off Belgium's.
 - **`story.ts` writes the story** (`storyOf`): the flag that took the most there, the flags it took from, and
   where. Nearly all in one country (90%) is **"X IS INVADING FRANCE"**; spread over several, it is **"X IS
   ATTACKING"** the continent holding 70% of it (`static/countries/regions.json`, written by `npm run regions` from
   the snapshot the map is cut from), or the world. Not a sub-region: "defend Western Europe" is not how anybody
-  talks. A flag taking back its own ground is **"X STRIKES BACK"**; a flag that already held most of the country
+  talks. A flag taking back its own ground, or its own continent from a flag from elsewhere (Belgium taking Europe
+  back from Palestine), is **"X STRIKES BACK"**; a flag that already held most of the country
   when the story starts is **"X IS KICKING Y OUT OF AUSTRALIA"**, since the opening shot shows its flag there
   already; a second flag taking 60% as much makes it **"X VS Y"**. `src/clip/overlay.ts` words it.
 - **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
   France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
-  The caption is the headline and a question ("Who stops them?", "Pick a side"), the site as plain text (a caption's
+  The caption is the headline and the question its call to act asks ("Who stops them?" to defend, "Who joins
+  them?" to fight for a flag striking back, "Pick a side"), the site as plain text (a caption's
   link cannot be clicked) and the account's tags with the place's. Never the attacker's: a flag's tag can be a
   political feed.
 - **`music.ts` picks the anthem under the clip**, since YouTube Shorts cannot add a sound to an upload: the leading
@@ -2424,7 +2428,8 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   story already told by a better candidate (same attacker, same place) is dropped.
 - **`solidity.ts` skips graffiti.** For each tile the attacker took and holds at the end, the share of its 6
   neighbours it holds too: about 1 for land taken, 0.56 for names written across Canada. Under 0.75 the story is
-  skipped, and `--plan` says so.
+  skipped, and `--plan` says so. So is a story placed in "the world": its tiles are spread over several continents
+  and there is no one place to show, and "Israel is attacking the world" is a line no clip may carry.
 - **`look.ts` picks when the camera comes back out of the tiles.** From far, a landmass's painted flag only
   changes when its biggest holder does (`flipsOf`, over the borders blob, read 8 times along the changes, so a
   landmass taken and taken back counts too). A front too wide to frame closer than

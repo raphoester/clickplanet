@@ -32,8 +32,6 @@ const TIME = new Intl.DateTimeFormat("en-GB", {
 
 const SITE = "https://clickplanet.lol"
 
-const PICK_A_SIDE = "PICK A SIDE"
-
 // The only continent with a flag of its own in static/countries/svg.
 const CONTINENT_FLAGS: ReadonlyMap<string, string[]> = new Map([["Europe", ["eu"]]])
 
@@ -64,10 +62,10 @@ export function wordsOf(story: Story, headline?: string): Words {
     const place = placeName(story.place)
     const tags = place === THE_WORLD ? TAGS : [...TAGS, tagOf(place)]
     const sides = sidesOf(story)
-    const finish = (words: Omit<Words, "caption">): Words => ({
+    // The caption asks what the call at the end asks.
+    const finish = (words: Omit<Words, "caption">, question: string): Words => ({
         ...words,
-        caption: `${words.headline}. ${words.call === PICK_A_SIDE ? "Pick a side" : "Who stops them?"} 👇\n`
-            + `clickplanet.lol\n${tags.join(" ")}`,
+        caption: `${words.headline}. ${question} 👇\nclickplanet.lol\n${tags.join(" ")}`,
     })
 
     if (sides.length === 2) {
@@ -76,10 +74,10 @@ export function wordsOf(story: Story, headline?: string): Words {
                 ? `${attacker} IS KICKING ${nameOf(sides[1])} OUT OF ${place}`
                 : `${attacker} VS ${nameOf(sides[1])}`).toUpperCase(),
             line: story.kind === "battle" ? `The battle for ${place}` : undefined,
-            call: PICK_A_SIDE,
+            call: "PICK A SIDE",
             callFlags: sides,
             link: SITE,
-        })
+        }, "Pick a side")
     }
 
     if (story.kind === "comeback") {
@@ -89,7 +87,7 @@ export function wordsOf(story: Story, headline?: string): Words {
             call: `FIGHT FOR ${attacker}`.toUpperCase(),
             callFlags: [story.attacker],
             link: `${SITE}/?f=${story.attacker}`,
-        })
+        }, "Who joins them?")
     }
 
     const defended = "country" in story.place ? story.place.country : story.victims[0]
@@ -101,7 +99,7 @@ export function wordsOf(story: Story, headline?: string): Words {
         call: `DEFEND ${place}`.toUpperCase(),
         callFlags: "country" in story.place ? [story.place.country] : CONTINENT_FLAGS.get(story.place.region) ?? [],
         link: defended === undefined ? SITE : `${SITE}/?f=${defended}`,
-    })
+    }, "Who stops them?")
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, parent: HTMLElement) {

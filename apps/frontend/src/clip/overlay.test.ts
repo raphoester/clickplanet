@@ -34,6 +34,10 @@ describe("the caption", () => {
             "PALESTINE IS INVADING TURKEY. Who stops them? 👇\nclickplanet.lol\n#clickplanet #pixelwars #rplace #wplace #map #turkey")
     })
 
+    it("asks who joins a flag striking back, as its call asks to fight for it", () => {
+        expect(wordsOf(story("comeback", {region: "Europe"})).caption).toMatch(/^PALESTINE STRIKES BACK\. Who joins them\? 👇\n/)
+    })
+
     it("asks to pick a side in a battle", () => {
         expect(wordsOf(story("battle", {country: "fr"}, "nl")).caption).toMatch(/^PALESTINE VS NETHERLANDS\. Pick a side 👇\n/)
     })
