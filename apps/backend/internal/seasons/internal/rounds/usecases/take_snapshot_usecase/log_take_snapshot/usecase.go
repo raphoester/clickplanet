@@ -19,14 +19,16 @@ type Logged struct {
 
 var _ take_snapshot_usecase.Executor = (*Logged)(nil)
 
-func (l *Logged) Execute(ctx context.Context) ([]rounds.Round, error) {
+func (l *Logged) Execute(ctx context.Context) ([]rounds.Closed, error) {
 	closed, err := l.inner.Execute(ctx)
 
 	for _, round := range closed {
 		l.logger.Info("closed a round",
-			slog.Uint64("season", uint64(round.Season)),
-			slog.Time("endsAt", round.EndsAt),
-			slog.Bool("finale", round.Finale))
+			slog.Uint64("season", uint64(round.Round.Season)),
+			slog.Uint64("number", uint64(round.Number)),
+			slog.Time("endsAt", round.Round.EndsAt),
+			slog.Bool("finale", round.Round.Finale),
+			slog.Int("ranked", len(round.Results)))
 	}
 	if err != nil && ctx.Err() == nil {
 		l.logger.Error("failed to take the snapshot", slog.Any("error", err))

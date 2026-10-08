@@ -15,7 +15,7 @@ type countingExecutor struct {
 	calls chan struct{}
 }
 
-func (c countingExecutor) Execute(context.Context) ([]rounds.Round, error) {
+func (c countingExecutor) Execute(context.Context) ([]rounds.Closed, error) {
 	c.calls <- struct{}{}
 	return nil, nil
 }

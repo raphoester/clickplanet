@@ -16,13 +16,14 @@ type AnnouncementID uuid.UUID
 type Kind string
 
 const (
-	KindBomb Kind = "bomb"
-	KindMute Kind = "mute"
+	KindBomb  Kind = "bomb"
+	KindMute  Kind = "mute"
+	KindRound Kind = "round"
 )
 
 var ErrUnknownKind = errors.New("an announcement of a kind nobody knows")
 
-func Kinds() []Kind { return []Kind{KindBomb, KindMute} }
+func Kinds() []Kind { return []Kind{KindBomb, KindMute, KindRound} }
 
 func (k Kind) Known() bool { return slices.Contains(Kinds(), k) }
 
@@ -89,6 +90,58 @@ func (m Muted) Payload() (json.RawMessage, error) {
 	payload, err := json.Marshal(mutedPayload{Name: m.name, Seconds: int64(m.duration / time.Second)})
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode a mute announcement: %w", err)
+	}
+	return payload, nil
+}
+
+const podium = 3
+
+type Place struct {
+	country string
+	rank    uint32
+	points  uint32
+}
+
+func PlaceOf(country string, rank uint32, points uint32) Place {
+	return Place{country: country, rank: rank, points: points}
+}
+
+type Round struct {
+	number uint32
+	finale bool
+	podium []Place
+}
+
+func RoundOf(number uint32, finale bool, places []Place) Round {
+	kept := make([]Place, 0, podium)
+	for _, place := range places {
+		if place.rank <= podium && place.points > 0 {
+			kept = append(kept, place)
+		}
+	}
+	return Round{number: number, finale: finale, podium: kept}
+}
+
+type placePayload struct {
+	Country string `json:"country"`
+	Rank    uint32 `json:"rank"`
+	Points  uint32 `json:"points"`
+}
+
+type roundPayload struct {
+	Number uint32         `json:"number"`
+	Finale bool           `json:"finale,omitempty"`
+	Podium []placePayload `json:"podium"`
+}
+
+func (r Round) Payload() (json.RawMessage, error) {
+	places := make([]placePayload, 0, len(r.podium))
+	for _, place := range r.podium {
+		places = append(places, placePayload{Country: place.country, Rank: place.rank, Points: place.points})
+	}
+	payload, err := json.Marshal(roundPayload{Number: r.number, Finale: r.finale, Podium: places})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode a round announcement: %w", err)
 	}
 	return payload, nil
 }

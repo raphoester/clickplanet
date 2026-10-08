@@ -8,11 +8,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/inmemory_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -38,6 +42,7 @@ func (s *stubTerritory) Snapshot(context.Context) (rounds.Snapshot, error) {
 type fixture struct {
 	territory *stubTerritory
 	store     *inmemory_round_store.Store
+	events    *cpbootstrap.RecordedEvents
 	clock     *cptime.FixedClock
 	useCase   *take_snapshot_usecase.UseCase
 }
@@ -45,12 +50,14 @@ type fixture struct {
 func newFixture(now time.Time) fixture {
 	territory := &stubTerritory{held: map[rounds.Country]uint32{"fr": 3, "de": 1}}
 	store := inmemory_round_store.New()
+	events := cpbootstrap.NewRecordedEvents()
 	clock := cptime.NewFixedClock(now)
 	return fixture{
 		territory: territory,
 		store:     store,
+		events:    events,
 		clock:     clock,
-		useCase:   take_snapshot_usecase.New(territory, store, seasonZero, clock),
+		useCase:   take_snapshot_usecase.New(territory, store, events, seasonZero, clock),
 	}
 }
 
@@ -87,13 +94,53 @@ func TestTheFirstSnapshotAfterARoundEndsClosesItWithItsResults(t *testing.T) {
 	closed, err := f.useCase.Execute(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, []rounds.Round{sixteenth}, closed)
-	assert.Equal(t, []rounds.Result{
+	results := []rounds.Result{
 		{Country: "fr", Rank: 1, Points: 25},
 		{Country: "de", Rank: 2, Points: 18},
-	}, f.store.Results(sixteenth))
+	}
+	assert.Equal(t, []rounds.Closed{{Round: sixteenth, Number: 1, Results: results}}, closed)
+	assert.Equal(t, results, f.store.Results(sixteenth))
 	assert.Equal(t, map[rounds.Country]uint64{"fr": 3, "de": 1}, f.held(t, rounds.Round{EndsAt: utc(17, 21, 0)}),
 		"the snapshot at the end counts for the round that starts")
+}
+
+func TestClosingARoundTellsTheOtherModulesItsResults(t *testing.T) {
+	f := newFixture(utc(15, 20, 59))
+	_, err := f.useCase.Execute(t.Context())
+	require.NoError(t, err)
+	f.clock.Advance(time.Minute)
+	_, err = f.useCase.Execute(t.Context())
+	require.NoError(t, err)
+	f.territory.held = map[rounds.Country]uint32{"de": 4, "fr": 1}
+
+	f.clock.Advance(24 * time.Hour)
+	_, err = f.useCase.Execute(t.Context())
+
+	require.NoError(t, err)
+	published := f.events.Published()
+	require.Len(t, published, 2)
+	assert.True(t, proto.Equal(&seasonsv1.RoundClosed{
+		Season:  0,
+		Number:  2,
+		EndedAt: timestamppb.New(sixteenth.EndsAt),
+		Results: []*seasonsv1.RoundResult{
+			{Country: "fr", Rank: 1, Points: 25},
+			{Country: "de", Rank: 2, Points: 18},
+		},
+	}, published[1]), "got %v", published[1])
+}
+
+func TestARoundThatFailedToCloseIsNotPublished(t *testing.T) {
+	f := newFixture(utc(16, 20, 59))
+	_, err := f.useCase.Execute(t.Context())
+	require.NoError(t, err)
+	f.store.FailWith(errors.New("postgres is down"))
+
+	f.clock.Advance(time.Minute)
+	_, err = f.useCase.Execute(t.Context())
+
+	require.Error(t, err)
+	assert.Empty(t, f.events.Published())
 }
 
 func TestAfterTheLastSeasonNothingIsCountedAndTheFinaleStillCloses(t *testing.T) {
@@ -105,11 +152,12 @@ func TestAfterTheLastSeasonNothingIsCountedAndTheFinaleStillCloses(t *testing.T)
 	closed, err := f.useCase.Execute(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, []rounds.Round{finale}, closed)
-	assert.Equal(t, []rounds.Result{
+	results := []rounds.Result{
 		{Country: "fr", Rank: 1, Points: 75},
 		{Country: "de", Rank: 2, Points: 54},
-	}, f.store.Results(finale))
+	}
+	assert.Equal(t, []rounds.Closed{{Round: finale, Number: 1, Results: results}}, closed)
+	assert.Equal(t, results, f.store.Results(finale))
 	assert.Equal(t, 1, f.territory.asked)
 }
 
@@ -124,7 +172,8 @@ func TestATerritoryThatCannotBeReadIsAnErrorAndTheEndedRoundsStillClose(t *testi
 	closed, err := f.useCase.Execute(t.Context())
 
 	require.ErrorIs(t, err, unreachable)
-	assert.Equal(t, []rounds.Round{sixteenth}, closed)
+	require.Len(t, closed, 1)
+	assert.Equal(t, sixteenth, closed[0].Round)
 	assert.Empty(t, f.held(t, rounds.Round{EndsAt: utc(17, 21, 0)}))
 }
 

@@ -517,6 +517,11 @@ export class Race extends Message<Race> {
    */
   scores: Score[] = [];
 
+  /**
+   * @generated from field: seasons.v1.ClosedRound closed = 3;
+   */
+  closed?: ClosedRound;
+
   constructor(data?: PartialMessage<Race>) {
     super();
     proto3.util.initPartial(data, this);
@@ -527,6 +532,7 @@ export class Race extends Message<Race> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "round", kind: "message", T: Round },
     { no: 2, name: "scores", kind: "message", T: Score, repeated: true },
+    { no: 3, name: "closed", kind: "message", T: ClosedRound },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Race {
@@ -543,6 +549,79 @@ export class Race extends Message<Race> {
 
   static equals(a: Race | PlainMessage<Race> | undefined, b: Race | PlainMessage<Race> | undefined): boolean {
     return proto3.util.equals(Race, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.ClosedRound
+ */
+export class ClosedRound extends Message<ClosedRound> {
+  /**
+   * @generated from field: uint32 season = 1;
+   */
+  season = 0;
+
+  /**
+   * @generated from field: uint32 number = 2;
+   */
+  number = 0;
+
+  /**
+   * @generated from field: int64 ended_at_unix_ms = 3;
+   */
+  endedAtUnixMs = protoInt64.zero;
+
+  /**
+   * @generated from field: bool finale = 4;
+   */
+  finale = false;
+
+  /**
+   * @generated from field: repeated seasons.v1.RoundStanding standings = 5;
+   */
+  standings: RoundStanding[] = [];
+
+  /**
+   * @generated from field: repeated seasons.v1.Score before = 6;
+   */
+  before: Score[] = [];
+
+  /**
+   * @generated from field: repeated seasons.v1.Score after = 7;
+   */
+  after: Score[] = [];
+
+  constructor(data?: PartialMessage<ClosedRound>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.ClosedRound";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "season", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "ended_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 4, name: "finale", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "standings", kind: "message", T: RoundStanding, repeated: true },
+    { no: 6, name: "before", kind: "message", T: Score, repeated: true },
+    { no: 7, name: "after", kind: "message", T: Score, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClosedRound {
+    return new ClosedRound().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClosedRound {
+    return new ClosedRound().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClosedRound {
+    return new ClosedRound().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClosedRound | PlainMessage<ClosedRound> | undefined, b: ClosedRound | PlainMessage<ClosedRound> | undefined): boolean {
+    return proto3.util.equals(ClosedRound, a, b);
   }
 }
 
