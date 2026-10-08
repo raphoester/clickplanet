@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
 
@@ -29,16 +30,23 @@ type Accounts interface {
 	CreatedAt(ctx context.Context, account cpsession.AccountID) (time.Time, error)
 }
 
+type Fronts interface {
+	Fronts(ctx context.Context, account cpsession.AccountID) (*playerv1.GetFrontsResponse, error)
+}
+
 var ErrNoPlayer = errors.New("no player has this name")
 
-func NewPostgresQuery(db cppg.Querier, titles Titles, accounts Accounts, clock cptime.Clock) *PostgresQuery {
-	return &PostgresQuery{db: db, titles: titles, accounts: accounts, clock: clock}
+const shownFronts = 3
+
+func NewPostgresQuery(db cppg.Querier, titles Titles, accounts Accounts, fronts Fronts, clock cptime.Clock) *PostgresQuery {
+	return &PostgresQuery{db: db, titles: titles, accounts: accounts, fronts: fronts, clock: clock}
 }
 
 type PostgresQuery struct {
 	db       cppg.Querier
 	titles   Titles
 	accounts Accounts
+	fronts   Fronts
 	clock    cptime.Clock
 }
 
@@ -87,9 +95,24 @@ func (q *PostgresQuery) Player(ctx context.Context, name string) (*playerv1.GetP
 		return nil, fmt.Errorf("failed to read the player's color: %w", err)
 	}
 
-	createdAt, err := q.accounts.CreatedAt(ctx, cpsession.AccountID(account))
-	if err != nil {
-		return nil, fmt.Errorf("failed to ask when the account was made: %w", err)
+	var createdAt time.Time
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() (err error) {
+		if createdAt, err = q.accounts.CreatedAt(groupCtx, cpsession.AccountID(account)); err != nil {
+			return fmt.Errorf("failed to ask when the account was made: %w", err)
+		}
+		return nil
+	})
+	group.Go(func() error {
+		fronts, err := q.fronts.Fronts(groupCtx, cpsession.AccountID(account))
+		if err != nil {
+			return fmt.Errorf("failed to ask which countries the player plays for and against: %w", err)
+		}
+		answer.PlaysFor, answer.PlaysAgainst = topOf(fronts.GetPlaysFor()), topOf(fronts.GetPlaysAgainst())
+		return nil
+	})
+	if err := group.Wait(); err != nil {
+		return nil, err //nolint:wrapcheck // each part already names what failed.
 	}
 	if !createdAt.IsZero() {
 		answer.CreatedAtUnixMs = createdAt.UnixMilli()
@@ -98,6 +121,10 @@ func (q *PostgresQuery) Player(ctx context.Context, name string) (*playerv1.GetP
 	answer.Titles = q.titles.Shown(held)
 	answer.WornTitle = q.titles.Worn(held, choice)
 	return &playerv1.GetPlayerResponse{Player: answer}, nil
+}
+
+func topOf(countries []*playerv1.CountryTiles) []*playerv1.CountryTiles {
+	return countries[:min(len(countries), shownFronts)]
 }
 
 // The same fold the profile was kept under, or a name typed in another case finds nobody.

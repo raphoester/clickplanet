@@ -4,7 +4,130 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+
+/**
+ * @generated from message planet.v1.GetTakesByCountryRequest
+ */
+export class GetTakesByCountryRequest extends Message<GetTakesByCountryRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<GetTakesByCountryRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetTakesByCountryRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTakesByCountryRequest {
+    return new GetTakesByCountryRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTakesByCountryRequest {
+    return new GetTakesByCountryRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTakesByCountryRequest {
+    return new GetTakesByCountryRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTakesByCountryRequest | PlainMessage<GetTakesByCountryRequest> | undefined, b: GetTakesByCountryRequest | PlainMessage<GetTakesByCountryRequest> | undefined): boolean {
+    return proto3.util.equals(GetTakesByCountryRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetTakesByCountryResponse
+ */
+export class GetTakesByCountryResponse extends Message<GetTakesByCountryResponse> {
+  /**
+   * @generated from field: repeated planet.v1.CountryTakes taken_for = 1;
+   */
+  takenFor: CountryTakes[] = [];
+
+  /**
+   * @generated from field: repeated planet.v1.CountryTakes taken_from = 2;
+   */
+  takenFrom: CountryTakes[] = [];
+
+  constructor(data?: PartialMessage<GetTakesByCountryResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetTakesByCountryResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "taken_for", kind: "message", T: CountryTakes, repeated: true },
+    { no: 2, name: "taken_from", kind: "message", T: CountryTakes, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTakesByCountryResponse {
+    return new GetTakesByCountryResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTakesByCountryResponse {
+    return new GetTakesByCountryResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTakesByCountryResponse {
+    return new GetTakesByCountryResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTakesByCountryResponse | PlainMessage<GetTakesByCountryResponse> | undefined, b: GetTakesByCountryResponse | PlainMessage<GetTakesByCountryResponse> | undefined): boolean {
+    return proto3.util.equals(GetTakesByCountryResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.CountryTakes
+ */
+export class CountryTakes extends Message<CountryTakes> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint64 tiles = 2;
+   */
+  tiles = protoInt64.zero;
+
+  constructor(data?: PartialMessage<CountryTakes>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.CountryTakes";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CountryTakes {
+    return new CountryTakes().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CountryTakes {
+    return new CountryTakes().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CountryTakes {
+    return new CountryTakes().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CountryTakes | PlainMessage<CountryTakes> | undefined, b: CountryTakes | PlainMessage<CountryTakes> | undefined): boolean {
+    return proto3.util.equals(CountryTakes, a, b);
+  }
+}
 
 /**
  * @generated from message planet.v1.GetTerritoryRequest

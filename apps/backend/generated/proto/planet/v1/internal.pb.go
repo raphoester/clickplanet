@@ -21,6 +21,154 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GetTakesByCountryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTakesByCountryRequest) Reset() {
+	*x = GetTakesByCountryRequest{}
+	mi := &file_planet_v1_internal_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTakesByCountryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTakesByCountryRequest) ProtoMessage() {}
+
+func (x *GetTakesByCountryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTakesByCountryRequest.ProtoReflect.Descriptor instead.
+func (*GetTakesByCountryRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *GetTakesByCountryRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+type GetTakesByCountryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TakenFor      []*CountryTakes        `protobuf:"bytes,1,rep,name=taken_for,json=takenFor,proto3" json:"taken_for,omitempty"`
+	TakenFrom     []*CountryTakes        `protobuf:"bytes,2,rep,name=taken_from,json=takenFrom,proto3" json:"taken_from,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTakesByCountryResponse) Reset() {
+	*x = GetTakesByCountryResponse{}
+	mi := &file_planet_v1_internal_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTakesByCountryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTakesByCountryResponse) ProtoMessage() {}
+
+func (x *GetTakesByCountryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTakesByCountryResponse.ProtoReflect.Descriptor instead.
+func (*GetTakesByCountryResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GetTakesByCountryResponse) GetTakenFor() []*CountryTakes {
+	if x != nil {
+		return x.TakenFor
+	}
+	return nil
+}
+
+func (x *GetTakesByCountryResponse) GetTakenFrom() []*CountryTakes {
+	if x != nil {
+		return x.TakenFrom
+	}
+	return nil
+}
+
+type CountryTakes struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Tiles         uint64                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CountryTakes) Reset() {
+	*x = CountryTakes{}
+	mi := &file_planet_v1_internal_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CountryTakes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CountryTakes) ProtoMessage() {}
+
+func (x *CountryTakes) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CountryTakes.ProtoReflect.Descriptor instead.
+func (*CountryTakes) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CountryTakes) GetCountryId() string {
+	if x != nil {
+		return x.CountryId
+	}
+	return ""
+}
+
+func (x *CountryTakes) GetTiles() uint64 {
+	if x != nil {
+		return x.Tiles
+	}
+	return 0
+}
+
 type GetTerritoryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -29,7 +177,7 @@ type GetTerritoryRequest struct {
 
 func (x *GetTerritoryRequest) Reset() {
 	*x = GetTerritoryRequest{}
-	mi := &file_planet_v1_internal_proto_msgTypes[0]
+	mi := &file_planet_v1_internal_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41,7 +189,7 @@ func (x *GetTerritoryRequest) String() string {
 func (*GetTerritoryRequest) ProtoMessage() {}
 
 func (x *GetTerritoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_internal_proto_msgTypes[0]
+	mi := &file_planet_v1_internal_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,7 +202,7 @@ func (x *GetTerritoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTerritoryRequest.ProtoReflect.Descriptor instead.
 func (*GetTerritoryRequest) Descriptor() ([]byte, []int) {
-	return file_planet_v1_internal_proto_rawDescGZIP(), []int{0}
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{3}
 }
 
 type GetTerritoryResponse struct {
@@ -67,7 +215,7 @@ type GetTerritoryResponse struct {
 
 func (x *GetTerritoryResponse) Reset() {
 	*x = GetTerritoryResponse{}
-	mi := &file_planet_v1_internal_proto_msgTypes[1]
+	mi := &file_planet_v1_internal_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -79,7 +227,7 @@ func (x *GetTerritoryResponse) String() string {
 func (*GetTerritoryResponse) ProtoMessage() {}
 
 func (x *GetTerritoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_internal_proto_msgTypes[1]
+	mi := &file_planet_v1_internal_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -92,7 +240,7 @@ func (x *GetTerritoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTerritoryResponse.ProtoReflect.Descriptor instead.
 func (*GetTerritoryResponse) Descriptor() ([]byte, []int) {
-	return file_planet_v1_internal_proto_rawDescGZIP(), []int{1}
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetTerritoryResponse) GetTiles() uint32 {
@@ -119,7 +267,7 @@ type Territory struct {
 
 func (x *Territory) Reset() {
 	*x = Territory{}
-	mi := &file_planet_v1_internal_proto_msgTypes[2]
+	mi := &file_planet_v1_internal_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -131,7 +279,7 @@ func (x *Territory) String() string {
 func (*Territory) ProtoMessage() {}
 
 func (x *Territory) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_internal_proto_msgTypes[2]
+	mi := &file_planet_v1_internal_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -144,7 +292,7 @@ func (x *Territory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Territory.ProtoReflect.Descriptor instead.
 func (*Territory) Descriptor() ([]byte, []int) {
-	return file_planet_v1_internal_proto_rawDescGZIP(), []int{2}
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Territory) GetCountryId() string {
@@ -165,7 +313,18 @@ var File_planet_v1_internal_proto protoreflect.FileDescriptor
 
 const file_planet_v1_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x18planet/v1/internal.proto\x12\tplanet.v1\"\x15\n" +
+	"\x18planet/v1/internal.proto\x12\tplanet.v1\"9\n" +
+	"\x18GetTakesByCountryRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"\x89\x01\n" +
+	"\x19GetTakesByCountryResponse\x124\n" +
+	"\ttaken_for\x18\x01 \x03(\v2\x17.planet.v1.CountryTakesR\btakenFor\x126\n" +
+	"\n" +
+	"taken_from\x18\x02 \x03(\v2\x17.planet.v1.CountryTakesR\ttakenFrom\"C\n" +
+	"\fCountryTakes\x12\x1d\n" +
+	"\n" +
+	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
+	"\x05tiles\x18\x02 \x01(\x04R\x05tiles\"\x15\n" +
 	"\x13GetTerritoryRequest\"d\n" +
 	"\x14GetTerritoryResponse\x12\x14\n" +
 	"\x05tiles\x18\x01 \x01(\rR\x05tiles\x126\n" +
@@ -173,8 +332,9 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\tTerritory\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
-	"\x05tiles\x18\x02 \x01(\rR\x05tiles2g\n" +
-	"\x0fInternalService\x12T\n" +
+	"\x05tiles\x18\x02 \x01(\rR\x05tiles2\xcc\x01\n" +
+	"\x0fInternalService\x12c\n" +
+	"\x11GetTakesByCountry\x12#.planet.v1.GetTakesByCountryRequest\x1a$.planet.v1.GetTakesByCountryResponse\"\x03\x90\x02\x01\x12T\n" +
 	"\fGetTerritory\x12\x1e.planet.v1.GetTerritoryRequest\x1a\x1f.planet.v1.GetTerritoryResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
 	"\rcom.planet.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
@@ -191,21 +351,28 @@ func file_planet_v1_internal_proto_rawDescGZIP() []byte {
 	return file_planet_v1_internal_proto_rawDescData
 }
 
-var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_planet_v1_internal_proto_goTypes = []any{
-	(*GetTerritoryRequest)(nil),  // 0: planet.v1.GetTerritoryRequest
-	(*GetTerritoryResponse)(nil), // 1: planet.v1.GetTerritoryResponse
-	(*Territory)(nil),            // 2: planet.v1.Territory
+	(*GetTakesByCountryRequest)(nil),  // 0: planet.v1.GetTakesByCountryRequest
+	(*GetTakesByCountryResponse)(nil), // 1: planet.v1.GetTakesByCountryResponse
+	(*CountryTakes)(nil),              // 2: planet.v1.CountryTakes
+	(*GetTerritoryRequest)(nil),       // 3: planet.v1.GetTerritoryRequest
+	(*GetTerritoryResponse)(nil),      // 4: planet.v1.GetTerritoryResponse
+	(*Territory)(nil),                 // 5: planet.v1.Territory
 }
 var file_planet_v1_internal_proto_depIdxs = []int32{
-	2, // 0: planet.v1.GetTerritoryResponse.territories:type_name -> planet.v1.Territory
-	0, // 1: planet.v1.InternalService.GetTerritory:input_type -> planet.v1.GetTerritoryRequest
-	1, // 2: planet.v1.InternalService.GetTerritory:output_type -> planet.v1.GetTerritoryResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
+	2, // 1: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
+	5, // 2: planet.v1.GetTerritoryResponse.territories:type_name -> planet.v1.Territory
+	0, // 3: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
+	3, // 4: planet.v1.InternalService.GetTerritory:input_type -> planet.v1.GetTerritoryRequest
+	1, // 5: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
+	4, // 6: planet.v1.InternalService.GetTerritory:output_type -> planet.v1.GetTerritoryResponse
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_internal_proto_init() }
@@ -219,7 +386,7 @@ func file_planet_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_internal_proto_rawDesc), len(file_planet_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

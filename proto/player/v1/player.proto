@@ -28,6 +28,8 @@ service PlayerService {
   rpc GetTitles(GetTitlesRequest) returns (GetTitlesResponse);
 
   rpc WearTitle(WearTitleRequest) returns (WearTitleResponse);
+
+  rpc GetFronts(GetFrontsRequest) returns (GetFrontsResponse);
 }
 
 message Profile {
@@ -140,6 +142,20 @@ message Player {
   NameColor color = 5;
   repeated Title titles = 6;
   Title worn_title = 7;
+  repeated CountryTiles plays_for = 8;
+  repeated CountryTiles plays_against = 9;
+}
+
+message CountryTiles {
+  string country_id = 1;
+  uint64 tiles = 2;
+}
+
+message GetFrontsRequest {}
+
+message GetFrontsResponse {
+  repeated CountryTiles plays_for = 1;
+  repeated CountryTiles plays_against = 2;
 }
 
 message TitleEarned {

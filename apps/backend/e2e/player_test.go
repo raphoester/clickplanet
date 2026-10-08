@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
@@ -296,6 +297,48 @@ func TestAnybodyReadsAPlayerByItsUsernameWithNoToken(t *testing.T) {
 
 	_, err = anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "Bob"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func TestAPlayerReadsEveryCountryItPlaysAgainstAndAnybodyTheTopThree(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.click(1, "fr")
+	ada.click(2, "it")
+	ada.click(3, "es")
+	ada.click(4, "pt")
+	bob := game.newPlayer(t)
+	bob.link("google-bob")
+	_, err := bob.setName("Bob_B")
+	require.NoError(t, err)
+
+	for tile := range uint32(5) {
+		bob.click(tile+1, "de")
+	}
+
+	everyCountry := []*playerv1.CountryTiles{
+		{CountryId: "es", Tiles: 1}, {CountryId: "fr", Tiles: 1}, {CountryId: "it", Tiles: 1}, {CountryId: "pt", Tiles: 1},
+	}
+	require.Eventually(t, func() bool {
+		req := connect.NewRequest(&playerv1.GetFrontsRequest{})
+		bob.send(req.Header())
+		res, err := bob.players().GetFronts(t.Context(), req)
+		return err == nil && proto.Equal(&playerv1.GetFrontsResponse{
+			PlaysFor:     []*playerv1.CountryTiles{{CountryId: "de", Tiles: 5}},
+			PlaysAgainst: everyCountry,
+		}, res.Msg)
+	}, 5*time.Second, 20*time.Millisecond, "a tile nobody held is against nobody")
+
+	anybody := playerv1connect.NewPlayerServiceClient(http.DefaultClient, game.baseURL, connect.WithHTTPGet())
+	res, err := anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "Bob_B"}))
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(&playerv1.Player{
+		PlaysFor:     []*playerv1.CountryTiles{{CountryId: "de", Tiles: 5}},
+		PlaysAgainst: everyCountry[:3],
+	}, &playerv1.Player{PlaysFor: res.Msg.GetPlayer().GetPlaysFor(), PlaysAgainst: res.Msg.GetPlayer().GetPlaysAgainst()}))
+
+	_, err = playerv1connect.NewPlayerServiceClient(http.DefaultClient, game.baseURL).
+		GetFronts(t.Context(), connect.NewRequest(&playerv1.GetFrontsRequest{}))
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err), "the whole list is the player's own")
 }
 
 func TestAPlayerCallWithNoTokenIsUnauthenticated(t *testing.T) {
