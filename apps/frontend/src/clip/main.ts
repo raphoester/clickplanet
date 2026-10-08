@@ -17,7 +17,7 @@ import {ANTHEMS} from "../app/anthem/anthemsAsset.ts"
 import {HIGHLIGHTS} from "./anthemHighlightsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
 import {Candidate, candidatesOf, inCandidate, Window} from "../domain/clip/window.ts"
-import {Front, frontOf, FRONT_RADIANS, sameFront, spanOf} from "../domain/clip/front.ts"
+import {Front, frontOf, FRONT_RADIANS, inSightOf, sameFront, spanOf} from "../domain/clip/front.ts"
 import {castOf, inPlace, placeOf, routOf, sameStory, Story, storyOf, THE_WORLD} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
@@ -255,7 +255,8 @@ async function prepare(): Promise<Recording> {
     const look = lookParam() ?? lookOf(flips, wide.zoom)
     const first = openingOf(wide)
 
-    const drops = backend.drops().filter(({drop}) => drop.tile !== undefined && inArea(drop.tile))
+    const inSight = inSightOf(front, pointAt, groundAt, scope)
+    const drops = backend.drops().filter(({drop}) => drop.tile !== undefined && inSight(drop.tile))
     const close = Math.max(first.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH)
     const screens = screensOf(front.changes.map(({tile}, i) => ({share: i / front.changes.length, point: pointAt(tile)})), close)
     const timeline = timelineOf(screens, drops.length, numberParam("seconds"))

@@ -2479,11 +2479,13 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   map with its painted flags. It holds there 0.3s (`--hold`), then dives in 0.7s past the zoom the painted flags
   are gone at (`tilesZoomOf`), to where the most tiles change hands, so the fight is seen tile by tile. It follows
   the densest fighting, and comes back out to the opening as the look says. **Every clip ends pulled back out**,
-  and holds there 1s before the call to act while the last tiles change hands: close-ups are for the middle, and
+  and holds there 1s before the call to act while the last tiles change hands, even when a bomb in its last moments
+  took the camera back in after a pull back halfway: close-ups are for the middle, and
   the end shows the rest of the map as it is now. **It never sits still**: where the
   fighting crosses less than 0.4 screens a second, it breathes, out to where the painted flags show and back into
   the tiles every 3s. **It flies to every bomb on the
-  front**, close enough for the blast to be a fifth of the screen, and holds there while it goes off. The globe is
+  front**, close enough for the blast to be a fifth of the screen, and holds there while it goes off. On the front
+  only (`inSightOf`): a story told on the USA does not fly to a bomb in Alaska while the fighting is in Florida. The globe is
   always drawn with the painted flags on, so the zoom alone hands them over to the tiles, as in the game.
 - **`pace.ts` spends the clip on what happens and nothing else**: the replay's clock jumps over every quiet
   stretch, so the map moves from the first frame to the last. **A clip is as long as its camera has somewhere to
