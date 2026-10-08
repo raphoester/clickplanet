@@ -58,6 +58,8 @@ import StatusBar from "../hud/StatusBar.tsx";
 import TabBar from "../hud/TabBar.tsx";
 import {StandingsBackend} from "../../backends/standings.ts";
 import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
+import {useRace} from "../standings/useRace.ts";
+import {CountryOrder} from "../../domain/race.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
 import "./Viewer.css"
 
@@ -100,6 +102,8 @@ export default function Viewer(props: ViewerProps) {
     const [unlocked, setUnlocked] = useState<readonly PlayerTitle[]>([])
     const roster = useRoster(props.presence, (title) => setUnlocked((queue) => [...queue, title]))
     const season = useSeason(props.season)
+    const race = useRace(props.standings)
+    const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
     const [pitchOpen, setPitchOpen] = useState(false)
     const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
     const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
@@ -205,6 +209,9 @@ export default function Viewer(props: ViewerProps) {
         toll,
         anthem: <AnthemControls anthem={anthem} settings={sound.settings} onChange={sound.setSettings}/>,
         standings,
+        race,
+        countryOrder,
+        onCountryOrder: setCountryOrder,
     }
     const you = {
         account: props.account,

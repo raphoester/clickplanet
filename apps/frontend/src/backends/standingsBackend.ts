@@ -1,8 +1,8 @@
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
 import {SeasonService} from "../gen/grpc/seasons/v1/seasons_connect.ts"
-import {GetMySeasonResponse, Standing as StandingPb} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {GetMySeasonResponse, Race as RacePb, Standing as StandingPb} from "../gen/grpc/seasons/v1/seasons_pb.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {MySeason, Standing, StandingsBackend} from "./standings.ts"
+import {MySeason, Race, Standing, StandingsBackend} from "./standings.ts"
 import {titleOf} from "./title.ts"
 import {NO_TIMEOUT, openStream, retrying} from "./transport.ts"
 
@@ -21,6 +21,17 @@ export class ConnectStandingsBackend implements StandingsBackend {
                 if (event.event.case === "board") onStandings(event.event.value.standings.map(standingOf))
             },
             "standings",
+        )
+    }
+
+    public listenForRace(onRace: (race: Race) => void): () => void {
+        const client = this.client
+        return openStream(
+            (signal) => client.listenForEvents({countryId: ""}, {signal, timeoutMs: NO_TIMEOUT}),
+            (event) => {
+                if (event.event.case === "race") onRace(raceOf(event.event.value))
+            },
+            "race",
         )
     }
 
@@ -51,6 +62,28 @@ function standingOf(standing: StandingPb): Standing {
         countryCode: standing.countryId,
         tiles: Number(standing.tiles),
         wornTitle: titleOf(standing.wornTitle),
+    }
+}
+
+function raceOf(race: RacePb): Race {
+    return {
+        round: race.round && {
+            number: race.round.number,
+            endsAt: Number(race.round.endsAtUnixMs),
+            finale: race.round.finale,
+            standings: race.round.standings.map((standing) => ({
+                rank: standing.rank,
+                countryCode: standing.countryId,
+                share: standing.share,
+                points: standing.points,
+            })),
+        },
+        scores: race.scores.map((score) => ({
+            rank: score.rank,
+            countryCode: score.countryId,
+            points: score.points,
+            roundsWon: score.roundsWon,
+        })),
     }
 }
 

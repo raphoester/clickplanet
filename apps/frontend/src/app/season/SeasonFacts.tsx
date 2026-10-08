@@ -11,7 +11,11 @@ export default function SeasonFacts({season, finale}: {season: Season, finale: b
                     name="Final Battle"
                     when={finaleLine(season)}
                     text="The climax of the season. Everybody gets tons of power-ups."/>}
-        <Fact art={<GroundArt/>} name="Hold ground" text={`Points are counted when the ${finale ? "battle" : "season"} ends.`}/>
+        <Fact art={<GroundArt/>}
+              name="Win the day"
+              text={finale
+                  ? "The countries holding the most ground score triple points."
+                  : "Each day, the countries that held the most ground score points. The Final Battle scores triple."}/>
         <Fact art={<TrophyArt/>} name="Win" text="The winning country gets a trophy in the Hall of Fame."/>
         <Fact art={<MedalArt/>} name="Titles" text="Every signed-in player gets a title, and one more if their country wins."/>
     </ul>

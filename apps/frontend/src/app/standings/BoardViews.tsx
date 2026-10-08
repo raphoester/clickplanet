@@ -40,14 +40,14 @@ export default function BoardViews(props: BoardViewsProps) {
     return <>
         <HeadingSelect label="Leaderboard" choices={choices} value={props.view} onChange={props.onView}/>
 
-        {props.view === "countries"
-            ? props.countries
-            : <PlayerStandings backend={props.backend}
-                               countryCode={props.view === "country" ? props.country.code : ""}
-                               label={props.view === "country" ? `Players, ${props.country.name}` : "Players"}
-                               caller={props.caller}
-                               listenForClicks={props.listenForClicks}
-                               onSignIn={props.onSignIn}
-                               onOpenPlayer={props.onOpenPlayer}/>}
+        {props.view === "countries" && props.countries}
+        {(props.view === "players" || props.view === "country") &&
+            <PlayerStandings backend={props.backend}
+                             countryCode={props.view === "country" ? props.country.code : ""}
+                             label={props.view === "country" ? `Players, ${props.country.name}` : "Players"}
+                             caller={props.caller}
+                             listenForClicks={props.listenForClicks}
+                             onSignIn={props.onSignIn}
+                             onOpenPlayer={props.onOpenPlayer}/>}
     </>
 }

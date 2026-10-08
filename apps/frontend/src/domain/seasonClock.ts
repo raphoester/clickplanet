@@ -24,8 +24,10 @@ export type FinaleClock = {
 
 export function seasonClock(season: Season, now: number): SeasonClock | undefined {
     if (now >= season.endsAt) return undefined
+    if (now >= season.finaleStartsAt) return {finale: true, left: timeLeft(countdownTo(season.endsAt, now))}
 
-    return {finale: now >= season.finaleStartsAt, left: timeLeft(countdownTo(season.endsAt, now))}
+    const daysAfter = Math.floor((season.finaleStartsAt - now - 1) / (DAY * 1000))
+    return {finale: false, left: timeLeft(countdownTo(season.finaleStartsAt - daysAfter * DAY * 1000, now))}
 }
 
 export function finaleClock(season: Season, now: number): FinaleClock | undefined {

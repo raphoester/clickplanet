@@ -55,6 +55,7 @@ function backendOf(mine?: Mine, world = WORLD, french = FRENCH) {
             void Promise.resolve().then(() => onStandings(countryCode === "" ? world : countryCode === "fr" ? french : []))
             return () => {}
         }),
+        listenForRace: vi.fn(() => () => {}),
         mySeason: vi.fn(async (countryCode: string) => mine?.(countryCode)),
     } satisfies StandingsBackend
 }
@@ -145,6 +146,7 @@ describe("BoardViews", () => {
                 onStandings(WORLD)
                 return () => {}
             }),
+            listenForRace: vi.fn(() => () => {}),
             mySeason: vi.fn(async () => undefined),
         } satisfies StandingsBackend
         await shown({backend, caller: GUEST, view: "players"})

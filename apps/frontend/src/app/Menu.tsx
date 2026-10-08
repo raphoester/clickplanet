@@ -1,7 +1,9 @@
 import {ReactNode, useEffect, useId, useRef, useState} from "react";
 import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry, rankOf} from "../domain/leaderboard.ts";
+import {CountryOrder} from "../domain/race.ts";
 import {NO_TILE_DELTAS, TileDeltas} from "../domain/tileDeltas.ts";
+import {Race} from "../backends/standings.ts";
 import {TollStep} from "../domain/toll.ts";
 import Leaderboard from "./Leaderboard.tsx";
 import About from "./About.tsx";
@@ -34,6 +36,9 @@ export type BoardPlaceProps = {
     toll?: readonly TollStep[],
     anthem?: ReactNode,
     standings?: BoardStandings,
+    race?: Race,
+    countryOrder?: CountryOrder,
+    onCountryOrder?: (order: CountryOrder) => void,
 }
 
 export type YouPlaceProps = {
@@ -185,7 +190,10 @@ export function BoardPlace(props: BoardPlaceProps & {playing: boolean}) {
                                    tilesCount={props.tilesCount}
                                    highlight={props.country}
                                    toll={props.toll}
-                                   anthem={props.anthem}/>
+                                   anthem={props.anthem}
+                                   race={props.race}
+                                   order={props.countryOrder}
+                                   onOrder={props.onCountryOrder}/>
 
     return <>
         {props.playing && <PlayingFor country={props.country}

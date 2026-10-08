@@ -22,6 +22,7 @@ function server(tiles = 10) {
     return {
         kept,
         listenForStandings: vi.fn(() => () => {}),
+        listenForRace: vi.fn(() => () => {}),
         mySeason: vi.fn(async (countryCode: string): Promise<MySeason> => countryCode === "de"
             ? {countryCode: "de", tiles: kept.de}
             : {countryCode: "fr", tiles: kept.tiles}),

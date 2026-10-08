@@ -4,13 +4,17 @@ import {
     Board,
     GetMySeasonResponse,
     Heartbeat,
+    Race as RacePb,
+    Round as RoundPb,
+    RoundStanding as RoundStandingPb,
+    Score as ScorePb,
     SeasonEvent,
     Standing as StandingPb,
 } from "../gen/grpc/seasons/v1/seasons_pb.ts"
 import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 import {NameColor} from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {Standing} from "./standings.ts"
+import {Race, Standing} from "./standings.ts"
 import {ConnectStandingsBackend} from "./standingsBackend.ts"
 import {NO_TIMEOUT} from "./transport.ts"
 
@@ -189,5 +193,54 @@ describe("ConnectStandingsBackend.mySeason", () => {
 
     it("passes on a refusal it does not know", async () => {
         await expect(backendWith({getMySeason: refusing(Code.Internal)}).mySeason("")).rejects.toThrow(ConnectError)
+    })
+})
+
+describe("ConnectStandingsBackend.listenForRace", () => {
+    const streaming = (...events: SeasonEvent[]) =>
+        vi.fn<(req: object, options: {signal: AbortSignal, timeoutMs: number}) => AsyncIterable<SeasonEvent>>(
+            () => (async function* () {
+                yield* events
+                await new Promise(() => {})
+            })(),
+        )
+
+    it("follows the whole map's stream, reads each race in numbers, and skips the boards and the heartbeats", async () => {
+        const listenForEvents = streaming(
+            new SeasonEvent({event: {case: "board", value: new Board()}}),
+            new SeasonEvent({event: {case: "heartbeat", value: new Heartbeat()}}),
+            new SeasonEvent({
+                event: {
+                    case: "race", value: new RacePb({
+                        round: new RoundPb({
+                            number: 5,
+                            endsAtUnixMs: 1_792_191_600_000n,
+                            standings: [new RoundStandingPb({rank: 1, countryId: "fr", share: 0.25, points: 25})],
+                        }),
+                        scores: [new ScorePb({rank: 1, countryId: "de", points: 43, roundsWon: 2})],
+                    }),
+                },
+            }),
+            new SeasonEvent({event: {case: "race", value: new RacePb()}}),
+        )
+        const seen: Race[] = []
+
+        const stop = backendWith({listenForEvents}).listenForRace((race) => seen.push(race))
+
+        await vi.waitFor(() => expect(seen).toHaveLength(2))
+        expect(listenForEvents).toHaveBeenCalledWith({countryId: ""}, expect.objectContaining({timeoutMs: NO_TIMEOUT}))
+        expect(seen).toEqual([
+            {
+                round: {
+                    number: 5,
+                    endsAt: 1_792_191_600_000,
+                    finale: false,
+                    standings: [{rank: 1, countryCode: "fr", share: 0.25, points: 25}],
+                },
+                scores: [{rank: 1, countryCode: "de", points: 43, roundsWon: 2}],
+            },
+            {round: undefined, scores: []},
+        ])
+        stop()
     })
 })

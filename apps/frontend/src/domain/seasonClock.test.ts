@@ -12,16 +12,23 @@ const before = {...season, finaleStartsAt: endsAt}
 const left = (ms: number) => seasonClock(season, endsAt - ms)
 
 describe("seasonClock", () => {
-    it("counts days, hours, minutes and seconds while more than a day is left", () => {
-        expect(left(27 * DAY + 14 * HOUR + 5 * MINUTE + 12 * SECOND)).toEqual({finale: false, left: "27d 14h 05m 12s"})
-        expect(left(DAY + 4 * HOUR)?.left).toBe("1d 04h 00m 00s")
-        expect(left(DAY)?.left).toBe("1d 00h 00m 00s")
+    const finaleStartsAt = season.finaleStartsAt
+    const today = (beforeCutoff: number) => seasonClock(season, finaleStartsAt - 3 * DAY - beforeCutoff)
+
+    it("counts down to today's cutoff, at the time of day the Final Battle starts", () => {
+        expect(today(13 * HOUR + 5 * MINUTE + 20 * SECOND)).toEqual({finale: false, left: "13h 05m 20s"})
+        expect(today(DAY - SECOND)?.left).toBe("23h 59m 59s")
+        expect(today(SECOND)?.left).toBe("00m 01s")
     })
 
-    it("drops the days once less than a day is left", () => {
-        expect(left(DAY - SECOND)?.left).toBe("23h 59m 59s")
-        expect(left(13 * HOUR + 5 * MINUTE + 20 * SECOND)).toEqual({finale: false, left: "13h 05m 20s"})
-        expect(left(2 * HOUR + SECOND)?.left).toBe("2h 00m 01s")
+    it("starts the next day at the cutoff", () => {
+        expect(today(0)?.left).toBe("1d 00h 00m 00s")
+        expect(today(-SECOND)?.left).toBe("23h 59m 59s")
+    })
+
+    it("counts the last day down to the start of the Final Battle", () => {
+        expect(left(2 * HOUR + SECOND)).toEqual({finale: false, left: "00m 01s"})
+        expect(left(5 * HOUR)?.left).toBe("3h 00m 00s")
     })
 
     it("drops the hours once less than an hour is left", () => {
