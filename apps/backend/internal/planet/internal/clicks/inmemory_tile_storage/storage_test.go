@@ -152,6 +152,21 @@ func (s *testSuite) TestConcurrentSetsAndReads() {
 	}
 }
 
+func (s *testSuite) TestTheTerritoriesAreTheTilesEachCountryHoldsAndNoneForACountryThatHoldsNone() {
+	storage := s.newStorage(inmemory_tile_storage.Config{})
+	ctx := context.Background()
+	s.Require().NoError(storage.Set(ctx, 1, "fr"))
+	s.Require().NoError(storage.Set(ctx, 2, "fr"))
+	s.Require().NoError(storage.Set(ctx, 3, "de"))
+	s.Require().NoError(storage.Set(ctx, 4, "it"))
+
+	s.Require().NoError(storage.Set(ctx, 4, "fr"))
+	_, err := storage.Clear(ctx, clicks.Blast{Cleared: []uint32{3}})
+	s.Require().NoError(err)
+
+	s.Equal(map[string]uint32{"fr": 3}, storage.Territories())
+}
+
 var _ clicks.Claimable = (*inmemory_tile_storage.Storage)(nil)
 
 func stateBatch(s *inmemory_tile_storage.Storage, start uint32, end uint32) (map[uint32]string, error) {

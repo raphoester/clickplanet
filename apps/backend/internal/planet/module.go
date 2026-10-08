@@ -94,6 +94,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_shares_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler/takes_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler/territories_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
@@ -290,6 +292,8 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			internalService := planetv1controller.InternalService{
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
+				GetTerritoriesHandler: get_territories_handler.New(
+					territories_query.NewMemoryQuery(tilesStorage, config.GameMap.MaxIndex)),
 				SetRulesHandler: set_rules_handler.New(
 					log_set_rules.New(set_rules_usecase.New(switches), props.Logger)),
 				GetSharesHandler: get_shares_handler.New(get_shares_usecase.New(tilesStorage, tilesChecker)),

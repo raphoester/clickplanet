@@ -153,6 +153,19 @@ func (s *Storage) Holdings() []clicks.Holding {
 	return holdings
 }
 
+func (s *Storage) Territories() map[string]uint32 {
+	s.tilesMu.RLock()
+	defer s.tilesMu.RUnlock()
+
+	held := map[string]uint32{}
+	for id, count := range s.counts {
+		if id != int(unownedCode) && count > 0 {
+			held[s.codes[id]] = count
+		}
+	}
+	return held
+}
+
 func (s *Storage) Owner(tile uint32) (string, bool) {
 	if tile > s.maxIndex {
 		return "", false

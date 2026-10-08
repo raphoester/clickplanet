@@ -130,6 +130,123 @@ export class CountryTakes extends Message<CountryTakes> {
 }
 
 /**
+ * @generated from message planet.v1.GetTerritoriesRequest
+ */
+export class GetTerritoriesRequest extends Message<GetTerritoriesRequest> {
+  constructor(data?: PartialMessage<GetTerritoriesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetTerritoriesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTerritoriesRequest {
+    return new GetTerritoriesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTerritoriesRequest {
+    return new GetTerritoriesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTerritoriesRequest {
+    return new GetTerritoriesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTerritoriesRequest | PlainMessage<GetTerritoriesRequest> | undefined, b: GetTerritoriesRequest | PlainMessage<GetTerritoriesRequest> | undefined): boolean {
+    return proto3.util.equals(GetTerritoriesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetTerritoriesResponse
+ */
+export class GetTerritoriesResponse extends Message<GetTerritoriesResponse> {
+  /**
+   * @generated from field: uint32 tiles = 1;
+   */
+  tiles = 0;
+
+  /**
+   * @generated from field: repeated planet.v1.Territory territories = 2;
+   */
+  territories: Territory[] = [];
+
+  constructor(data?: PartialMessage<GetTerritoriesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetTerritoriesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "territories", kind: "message", T: Territory, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTerritoriesResponse {
+    return new GetTerritoriesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTerritoriesResponse {
+    return new GetTerritoriesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTerritoriesResponse {
+    return new GetTerritoriesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTerritoriesResponse | PlainMessage<GetTerritoriesResponse> | undefined, b: GetTerritoriesResponse | PlainMessage<GetTerritoriesResponse> | undefined): boolean {
+    return proto3.util.equals(GetTerritoriesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.Territory
+ */
+export class Territory extends Message<Territory> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 tiles = 2;
+   */
+  tiles = 0;
+
+  constructor(data?: PartialMessage<Territory>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.Territory";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Territory {
+    return new Territory().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Territory {
+    return new Territory().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Territory {
+    return new Territory().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Territory | PlainMessage<Territory> | undefined, b: Territory | PlainMessage<Territory> | undefined): boolean {
+    return proto3.util.equals(Territory, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.SetRulesRequest
  */
 export class SetRulesRequest extends Message<SetRulesRequest> {

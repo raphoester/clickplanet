@@ -123,7 +123,7 @@ describe("PlayerCard", () => {
         expect(await screen.findByText("The stats could not be loaded.")).toBeDefined()
     })
 
-    it("shows the countries the server says a player plays for and against, most tiles first", async () => {
+    it("shows the countries the server says a player fought for and against, most tiles first", async () => {
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
                                name: "Ana", tilesTaken: 1300, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [],
@@ -132,11 +132,11 @@ describe("PlayerCard", () => {
                            }))}
                            onClose={() => {}}/>)
 
-        const playsFor = await screen.findByRole("region", {name: "Plays for"})
-        const playsAgainst = screen.getByRole("region", {name: "Plays against"})
+        const foughtFor = await screen.findByRole("region", {name: "Fought for"})
+        const foughtAgainst = screen.getByRole("region", {name: "Fought against"})
         const rows = (front: HTMLElement) => within(front).getAllByRole("listitem").map((row) => row.textContent)
-        expect(rows(playsFor)).toEqual([`France${(1200).toLocaleString()}`, "Belgium100"])
-        expect(rows(playsAgainst)).toEqual(["Germany500", "Spain300", "Italy150"])
+        expect(rows(foughtFor)).toEqual([`France${(1200).toLocaleString()}`, "Belgium100"])
+        expect(rows(foughtAgainst)).toEqual(["Germany500", "Spain300", "Italy150"])
         expect(screen.queryByRole("button", {name: /See all/})).toBeNull()
     })
 
@@ -148,8 +148,8 @@ describe("PlayerCard", () => {
                            }))}
                            onClose={() => {}}/>)
 
-        expect(await screen.findByRole("region", {name: "Plays for"})).toBeDefined()
-        expect(screen.queryByRole("region", {name: "Plays against"})).toBeNull()
+        expect(await screen.findByRole("region", {name: "Fought for"})).toBeDefined()
+        expect(screen.queryByRole("region", {name: "Fought against"})).toBeNull()
         cleanup()
 
         render(<PlayerCard player={ana}
@@ -157,7 +157,7 @@ describe("PlayerCard", () => {
                            onClose={() => {}}/>)
 
         await screen.findByText("Tiles taken")
-        expect(screen.queryByRole("region", {name: "Plays for"})).toBeNull()
+        expect(screen.queryByRole("region", {name: "Fought for"})).toBeNull()
     })
 
     it("crowns an admin in its title, as clicked or as read", async () => {

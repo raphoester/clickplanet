@@ -23,6 +23,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/lead/usecases/watch_lead_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/lead/usecases/watch_lead_usecase/log_watch_lead"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/postgres_round_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/rpc_planet_territories"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase/log_take_snapshot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query"
@@ -34,6 +38,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/inprocess_board_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/inprocess_board_feed/log_board_reader"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/inprocess_race_feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/inprocess_race_feed/log_race_reader"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/race_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/postgres_contribution_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/forget_account_usecase/marking_forget_account"
@@ -107,7 +114,14 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards))
+
+	races := inprocess_race_feed.New(log_race_reader.New(race_query.NewPostgresQuery(db, seasons, clock), props.Logger))
+	snapshot := take_snapshot_usecase.NewRunner(config.Snapshot, log_take_snapshot.New(
+		take_snapshot_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), seasons, clock),
+		props.Logger,
+	))
+
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards, races, snapshot))
 
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(
@@ -117,7 +131,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetMySeasonHandler: get_my_season_handler.New(my_season_query.NewPostgresQuery(
 			db, my_season_authors.New(player), seasons, clock, countries,
 		)),
-		ListenForEventsHandler: listen_for_events_handler.New(boards, countries, props.Server.StreamHeartbeat),
+		ListenForEventsHandler: listen_for_events_handler.New(boards, races, countries, props.Server.StreamHeartbeat),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "seasons")))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -141,6 +155,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 type Config struct {
 	Calendar calendar.Config `koanf:",squash"`
+	Snapshot take_snapshot_usecase.Config
 	Database cppg.Config
 
 	Finale finale.Config
