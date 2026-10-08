@@ -4,10 +4,6 @@ import * as THREE from "three"
 
 const DETAIL = 300
 
-const HEAL_NEIGHBOURS = 4
-
-const HEAL_PASSES = 2
-
 const say = (...args) => console.error(...args)
 
 say(`rebuilding the icosahedron at detail ${DETAIL}...`)
@@ -63,36 +59,6 @@ say(`${bordersName}: ${countryCount.size - 1} countries across ${header.codes.le
 
 const country = new Uint16Array(vertices)
 for (let t = 0; t < tiles; t++) country[vertexOfTile[t]] = countryOfLandmass[assignment[t]]
-
-const degree = new Uint8Array(vertices)
-const neighbours = new Int32Array(vertices * 6)
-const link = (a, b) => {
-    for (let i = 0; i < degree[a]; i++) if (neighbours[a * 6 + i] === b) return
-    neighbours[a * 6 + degree[a]++] = b
-}
-for (let f = 0; f < corners.length; f += 3) {
-    const [a, b, c] = [corners[f], corners[f + 1], corners[f + 2]]
-    link(a, b); link(b, a); link(b, c); link(c, b); link(c, a); link(a, c)
-}
-
-for (let pass = 0; pass < HEAL_PASSES; pass++) {
-    const next = Uint16Array.from(country)
-    let filled = 0
-    for (let v = 0; v < vertices; v++) {
-        if (country[v]) continue
-        let around = 0, one = 0, mixed = false
-        for (let i = 0; i < degree[v]; i++) {
-            const c = country[neighbours[v * 6 + i]]
-            if (!c) continue
-            around++
-            if (!one) one = c
-            else if (one !== c) mixed = true
-        }
-        if (around >= HEAL_NEIGHBOURS && !mixed) { next[v] = one; filled++ }
-    }
-    country.set(next)
-    say(`heal pass ${pass + 1}: ${filled} vertices took a neighbouring country`)
-}
 
 const centres = new Float64Array(faces * 3)
 const haveCentre = new Uint8Array(faces)

@@ -1789,16 +1789,15 @@ vertex or it refuses. A cell corner is the circumcentre of a lattice triangle �
 the normal of the plane through its three vertices — which makes the cells a true
 Voronoi diagram of the tiles and the corners meet exactly, so there are no seams
 to cover up at the joins. The edges are then chained into runs, which is what
-keeps the file to one corner per edge rather than two: 49,632 edges in 302 KB.
+keeps the file to one corner per edge rather than two: 53,217 edges in 331 KB.
 The smoothing is not baked in — the blob is the outline on the lattice, and how
 finely it is rounded off is the renderer's business and four times the size.
 
-**Pinholes are filled before the outline is traced.** A vertex in no country
-takes its neighbours' country when at least four of the six agree and none
-disagrees, twice over. Without it every one-tile lake, every strait one tile
-wide gets an outline of its own, and every coast frays. It closes about 1,650 of
-them — it was 2,500 before the two blobs agreed on where the land is — and takes a
-fifth off the coastline's length.
+**The coast is the tiles' edge and nothing else.** A one-tile lake gets a ring of
+its own, and a bay one tile wide is drawn as a bay. It used to give a sea vertex
+its neighbours' country when four of the six agreed, which closed about 1,650 of
+them: the coast came out smoother, but ran up to two tiles out over the water,
+around ground nobody can click.
 
 It stays out of `/map`, unlike the two blobs it is built from: the backend has no
 use for it. Where a tile is and who owns the ground under it are the game's rules
