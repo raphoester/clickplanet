@@ -2,8 +2,6 @@ package shadowban
 
 import (
 	"context"
-	"errors"
-	"sync"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -16,10 +14,10 @@ type Caller struct {
 	SignedIn bool
 }
 
-func NewBans(config Config, clock cptime.Clock, scopes, accounts Persistence, onStateError func(error)) *Bans {
+func NewBans(config Config, clock cptime.Clock, scopes, accounts Store) *Bans {
 	return &Bans{
-		scopes:   New(config, clock, scopes, onStateError),
-		accounts: New(config, clock, accounts, onStateError),
+		scopes:   New(config, clock, scopes),
+		accounts: New(config, clock, accounts),
 	}
 }
 
@@ -28,62 +26,78 @@ type Bans struct {
 	accounts *Banner
 }
 
-func (b *Bans) Flag(caller Caller) (Sentence, bool) {
+func (b *Bans) Flag(ctx context.Context, caller Caller) (Sentence, bool, error) {
 	var (
 		sentence Sentence
 		accepted bool
 	)
 
 	for _, target := range b.targets(caller) {
-		if s, ok := target.banner.Flag(target.key); ok {
+		s, ok, err := target.banner.Flag(ctx, target.key)
+		if err != nil {
+			return sentence, accepted, err
+		}
+		if ok {
 			sentence, accepted = latest(sentence, s), true
 		}
 	}
 
-	return sentence, accepted
+	return sentence, accepted, nil
 }
 
-func (b *Bans) Ban(caller Caller, duration time.Duration) Sentence {
+func (b *Bans) Ban(ctx context.Context, caller Caller, duration time.Duration) (Sentence, error) {
 	var sentence Sentence
 	for _, target := range b.targets(caller) {
-		sentence = latest(sentence, target.banner.Ban(target.key, duration))
+		s, err := target.banner.Ban(ctx, target.key, duration)
+		if err != nil {
+			return sentence, err
+		}
+		sentence = latest(sentence, s)
 	}
 
-	return sentence
+	return sentence, nil
 }
 
-func (b *Bans) Banned(caller Caller) bool {
-	return b.scopes.Banned(caller.Scope) || b.accounts.Banned(caller.Account)
+func (b *Bans) Unban(ctx context.Context, caller Caller) error {
+	if err := b.scopes.Unban(ctx, caller.Scope); err != nil {
+		return err
+	}
+	return b.accounts.Unban(ctx, caller.Account)
 }
 
-func (b *Bans) Sentence(caller Caller) (Sentence, bool) {
-	scope, onScope := b.scopes.Sentence(caller.Scope)
-	account, onAccount := b.accounts.Sentence(caller.Account)
-
-	return latest(scope, account), onScope || onAccount
+func (b *Bans) Banned(ctx context.Context, caller Caller) (bool, error) {
+	if banned, err := b.scopes.Banned(ctx, caller.Scope); err != nil || banned {
+		return banned, err
+	}
+	return b.accounts.Banned(ctx, caller.Account)
 }
 
-func (b *Bans) Flagged() int {
-	return b.scopes.Flagged() + b.accounts.Flagged()
+func (b *Bans) Sentence(ctx context.Context, caller Caller) (Sentence, bool, error) {
+	scope, onScope, err := b.scopes.Sentence(ctx, caller.Scope)
+	if err != nil {
+		return Sentence{}, false, err
+	}
+	account, onAccount, err := b.accounts.Sentence(ctx, caller.Account)
+	if err != nil {
+		return Sentence{}, false, err
+	}
+
+	return latest(scope, account), onScope || onAccount, nil
+}
+
+func (b *Bans) Flagged(ctx context.Context) (int, error) {
+	scopes, err := b.scopes.Flagged(ctx)
+	if err != nil {
+		return 0, err
+	}
+	accounts, err := b.accounts.Flagged(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return scopes + accounts, nil
 }
 
 func (b *Bans) Enforcing() bool { return b.scopes.Enforcing() }
-
-func (b *Bans) Load(ctx context.Context) error {
-	return errors.Join(b.scopes.Load(ctx), b.accounts.Load(ctx))
-}
-
-func (b *Bans) Run(ctx context.Context) {
-	var wg sync.WaitGroup
-	for _, banner := range []*Banner{b.scopes, b.accounts} {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			banner.Run(ctx)
-		}()
-	}
-	wg.Wait()
-}
 
 type target struct {
 	banner *Banner
@@ -95,7 +109,6 @@ func (b *Bans) targets(caller Caller) []target {
 	if caller.Account != "" {
 		targets = append(targets, target{banner: b.accounts, key: caller.Account})
 	}
-	// A guest sheds its account with a new cookie, so its ban falls on the scope too.
 	if caller.Account == "" || !caller.SignedIn {
 		targets = append(targets, target{banner: b.scopes, key: caller.Scope})
 	}

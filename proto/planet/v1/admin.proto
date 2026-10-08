@@ -16,6 +16,8 @@ service AdminService {
 
   rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse);
 
+  rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse);
+
   rpc RevertPlayer(RevertPlayerRequest) returns (RevertPlayerResponse);
 
   rpc PaintRandomTiles(PaintRandomTilesRequest) returns (PaintRandomTilesResponse);
@@ -162,6 +164,19 @@ message BanPlayerResponse {
   uint32 offence = 2;
   google.protobuf.Timestamp banned_until = 3;
   bool enforced = 4;
+}
+
+message UnbanPlayerRequest {
+  string scope = 1;
+  string account_id = 2;
+}
+
+// The ban that was lifted. Its offence no longer counts.
+message UnbanPlayerResponse {
+  string scope = 1;
+  string account_id = 2;
+  uint32 offence = 3;
+  google.protobuf.Timestamp banned_until = 4;
 }
 
 message RevertPlayerRequest {

@@ -2,6 +2,8 @@ package antibot_click
 
 import (
 	"context"
+	"math"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -14,10 +16,12 @@ import (
 )
 
 type ClickGuard interface {
-	Inspect(click antibot.Click) (drop bool)
+	Inspect(ctx context.Context, click antibot.Click) (drop bool)
 	Committed(click antibot.Click)
-	Flagged() int
+	Flagged(ctx context.Context) (int, error)
 }
+
+const flaggedTimeout = time.Second
 
 type TileOwner interface {
 	Owner(tile uint32) (string, bool)
@@ -49,7 +53,16 @@ func New(
 	factory.NewGaugeFunc(prometheus.GaugeOpts{
 		Name: "shadowban_flagged",
 		Help: "Callers currently banned, whether or not shadowBan.enforce is on",
-	}, func() float64 { return float64(guard.Flagged()) })
+	}, func() float64 {
+		ctx, cancel := context.WithTimeout(context.Background(), flaggedTimeout)
+		defer cancel()
+
+		flagged, err := guard.Flagged(ctx)
+		if err != nil {
+			return math.NaN()
+		}
+		return float64(flagged)
+	})
 
 	return &UseCase{
 		implementation: implementation,
@@ -87,7 +100,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		observed.Shielded = outcome == clicks.Shielded
 	}
 
-	if u.guard.Inspect(observed) {
+	if u.guard.Inspect(ctx, observed) {
 		// Answer like an accepted click: a refusal would tell the bot it was caught.
 		u.dropped.Inc()
 		return click_usecase.Out{}, nil

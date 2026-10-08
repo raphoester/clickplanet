@@ -1,6 +1,8 @@
 package ban_player_usecase_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -19,13 +21,14 @@ type banner struct {
 	accounts  []string
 	durations []time.Duration
 	off       bool
+	failing   error
 }
 
-func (b *banner) Ban(scope, account string, duration time.Duration) antibot.Sentence {
+func (b *banner) Ban(_ context.Context, scope, account string, duration time.Duration) (antibot.Sentence, error) {
 	b.scopes = append(b.scopes, scope)
 	b.accounts = append(b.accounts, account)
 	b.durations = append(b.durations, duration)
-	return antibot.Sentence{Offence: 1, Until: until}
+	return antibot.Sentence{Offence: 1, Until: until}, b.failing
 }
 
 func (b *banner) Enforcing() bool { return true }
@@ -87,4 +90,11 @@ func TestItRefusesBothOrNeitherAndWhatIsNotAnAccount(t *testing.T) {
 	require.ErrorIs(t, err, ledger.ErrInvalidAccount)
 
 	assert.Empty(t, b.accounts)
+}
+
+func TestABanThatCannotBeKeptIsAnError(t *testing.T) {
+	cause := errors.New("postgres is down")
+
+	_, err := ban_player_usecase.New(&banner{failing: cause}).Execute(t.Context(), ban_player_usecase.In{Scope: "1.2.3.4"})
+	require.ErrorIs(t, err, cause)
 }

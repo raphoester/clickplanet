@@ -23,7 +23,7 @@ func (s *stubUseCase) Execute(_ context.Context, in drop_bomb_usecase.In) (click
 
 type bans struct{ scopes, accounts *cpcolls.Set[string] }
 
-func (b bans) Banned(scope, account string) bool {
+func (b bans) Banned(_ context.Context, scope, account string) bool {
 	return b.scopes.Contains(scope) || b.accounts.Contains(account)
 }
 

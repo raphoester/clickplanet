@@ -16,7 +16,7 @@ var (
 )
 
 type Banner interface {
-	Ban(scope, account string, duration time.Duration) antibot.Sentence
+	Ban(ctx context.Context, scope, account string, duration time.Duration) (antibot.Sentence, error)
 	Enforcing() bool
 	Enabled() bool
 }
@@ -43,7 +43,7 @@ type UseCase struct {
 	banner Banner
 }
 
-func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
+func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	if !u.banner.Enabled() {
 		return Out{}, ErrAntiBotOff
 	}
@@ -56,7 +56,10 @@ func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 		return Out{}, fmt.Errorf("%w: %s", ErrNegativeDuration, in.Duration)
 	}
 
-	sentence := u.banner.Ban(caller.Scope, caller.Account, in.Duration)
+	sentence, err := u.banner.Ban(ctx, caller.Scope, caller.Account, in.Duration)
+	if err != nil {
+		return Out{}, fmt.Errorf("failed to ban: %w", err)
+	}
 
 	return Out{
 		Scope:    caller.Scope,

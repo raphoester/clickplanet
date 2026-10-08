@@ -1,6 +1,7 @@
 package inspect_player_usecase_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,9 +17,9 @@ type examiner struct {
 	off    bool
 }
 
-func (e *examiner) Examine(scope, account string) antibot.Examination {
+func (e *examiner) Examine(_ context.Context, scope, account string) (antibot.Examination, error) {
 	e.scopes = append(e.scopes, scope)
-	return antibot.Examination{Scope: scope, Account: account, Clicks: 3}
+	return antibot.Examination{Scope: scope, Account: account, Clicks: 3}, nil
 }
 
 type book []ledger.Event

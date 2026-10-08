@@ -1,6 +1,7 @@
 package top_players_usecase_test
 
 import (
+	"context"
 	"log/slog"
 	"testing"
 	"time"
@@ -23,12 +24,12 @@ func (o owners) Owner(tile uint32) (string, bool) { return o[tile], true }
 
 type bans map[string]antibot.Sentence
 
-func (b bans) Sentence(scope, account string) (antibot.Sentence, bool) {
+func (b bans) Sentence(_ context.Context, scope, account string) (antibot.Sentence, bool, error) {
 	if sentence, ok := b[account]; ok {
-		return sentence, true
+		return sentence, true, nil
 	}
 	sentence, ok := b[scope]
-	return sentence, ok
+	return sentence, ok, nil
 }
 
 func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {

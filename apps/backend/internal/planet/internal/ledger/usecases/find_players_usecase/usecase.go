@@ -22,7 +22,7 @@ type Borders interface {
 }
 
 type Bans interface {
-	Sentence(scope, account string) (antibot.Sentence, bool)
+	Sentence(ctx context.Context, scope, account string) (antibot.Sentence, bool, error)
 }
 
 type CountryChecker interface {
@@ -52,7 +52,7 @@ type UseCase struct {
 	countries CountryChecker
 }
 
-func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
+func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	if !u.countries.CheckCountry(in.Flag) {
 		return Out{}, fmt.Errorf("%w: flag %q", clicks.ErrUnknownCountry, in.Flag)
 	}
@@ -73,7 +73,11 @@ func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 	}
 
 	for i := range out.Players {
-		if sentence, running := u.bans.Sentence(out.Players[i].Scope, out.Players[i].Account); running {
+		sentence, running, err := u.bans.Sentence(ctx, out.Players[i].Scope, out.Players[i].Account)
+		if err != nil {
+			return Out{}, fmt.Errorf("failed to read the bans: %w", err)
+		}
+		if running {
 			out.Players[i].Serving(sentence)
 		}
 	}

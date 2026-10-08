@@ -23,7 +23,7 @@ func (s *saying) Committed(detect.Click)                               {}
 func (s *saying) Watch(detect.Click) (detect.Verdict, detect.Evidence) { return s.verdict, s.evidence }
 
 func newJury(clock cptime.Clock, hooks Hooks, watchdog detect.Watchdog) *Jury {
-	banner := shadowban.NewBans(shadowban.Config{Enforce: true}, clock, shadowban.NewMemoryPersistence(), shadowban.NewMemoryPersistence(), func(error) {})
+	banner := shadowban.NewBans(shadowban.Config{Enforce: true}, clock, shadowban.NewMemoryStore(), shadowban.NewMemoryStore())
 	return New(Config{TrackWindow: time.Hour}, banner, clock, hooks, watchdog)
 }
 
@@ -42,7 +42,7 @@ func TestTheCallerAndItsOpinionsSurviveASaveAndLoad(t *testing.T) {
 
 	for tile := range uint32(20) {
 		clock.Advance(time.Second)
-		j.Inspect(detect.Click{Scope: "caller", Tile: tile, Country: "FR", At: clock.Now()})
+		inspect(t, j, detect.Click{Scope: "caller", Tile: tile, Country: "FR", At: clock.Now()})
 	}
 
 	savedAt := clock.Now()
@@ -68,7 +68,7 @@ func TestTheCallerAndItsOpinionsSurviveASaveAndLoad(t *testing.T) {
 
 	clock.Advance(time.Second)
 	watchdog.verdict = detect.Certain
-	require.True(t, restarted.Inspect(detect.Click{Scope: "caller", Tile: 20, Country: "FR", At: clock.Now()}))
+	require.True(t, inspect(t, restarted, detect.Click{Scope: "caller", Tile: 20, Country: "FR", At: clock.Now()}))
 	require.Len(t, reports, 1)
 	assert.Equal(t, []detect.Verdict{detect.Certain}, rises, "suspect was already standing before the restart")
 
@@ -84,9 +84,9 @@ func TestForgetDropsSilentCallersAndOldOpinions(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
 	j := newJury(clock, Hooks{}, &saying{verdict: detect.Clear})
-	j.Inspect(detect.Click{Scope: "silent", Tile: 1, Country: "FR", At: clock.Now()})
+	inspect(t, j, detect.Click{Scope: "silent", Tile: 1, Country: "FR", At: clock.Now()})
 	clock.Advance(time.Hour)
-	j.Inspect(detect.Click{Scope: "active", Tile: 1, Country: "FR", At: clock.Now()})
+	inspect(t, j, detect.Click{Scope: "active", Tile: 1, Country: "FR", At: clock.Now()})
 
 	j.Forget(clock.Now().Add(-time.Minute))
 
