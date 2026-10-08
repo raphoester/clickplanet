@@ -1,5 +1,6 @@
 httpServer:
   bindAddress: 0.0.0.0:8080
+  startupTimeout: 1m
   adminBindAddress: 127.0.0.1:8081
   internalBindAddress: 127.0.0.1:8082
 gameMap:

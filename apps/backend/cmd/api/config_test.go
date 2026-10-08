@@ -94,6 +94,7 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
 	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
+	assert.Equal(t, time.Minute, config.HTTPServer.StartupTimeout)
 	assert.NotZero(t, config.Planet.GameMap.MaxIndex)
 	assert.InDelta(t, 0.2, config.Planet.RateLimiter.PerSecond, 1e-9, "one click every 5s")
 	assert.Equal(t, 60, config.Planet.RateLimiter.Burst)
