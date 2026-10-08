@@ -6,7 +6,7 @@ import {fileURLToPath} from "node:url"
 import sharp from "sharp"
 
 import {readCoordinates} from "./map/blob.mjs"
-import {coverage, spacingOf} from "./map/coverage.mjs"
+import {coverage, spacingOf, tilesOn} from "./map/coverage.mjs"
 import {DETAIL, lattice, neighbours} from "./map/lattice.mjs"
 import {recolour} from "./map/recolour.mjs"
 
@@ -14,7 +14,7 @@ const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 const earthDir = path.join(frontendRoot, "static", "earth")
 const assetModule = path.join(frontendRoot, "src", "app", "viewer", "earthAsset.ts")
 
-const QUALITY = 88
+const QUALITY = 80
 const NAME = /^earth-[0-9a-f]{8}\.jpg$/
 
 const source = process.argv[2] ?? path.join(earthDir, "earth-source.jpg")
@@ -27,12 +27,12 @@ const {data: photo, info} = await sharp(source).raw().toBuffer({resolveWithObjec
 const {width, height, channels} = info
 console.log(`${path.basename(source)}: ${width}x${height}, ${tiles.name}: ${tiles.count} tiles`)
 
-const {positions} = lattice(DETAIL)
-const spacing = spacingOf(positions, neighbours(DETAIL))
+const vertices = lattice(DETAIL)
+const spacing = spacingOf(vertices.positions, neighbours(DETAIL))
 console.log(`tile spacing ${(spacing * 6371).toFixed(1)} km, so a cell is about ${
     (spacing * 180 / Math.PI * height / 180 / Math.sqrt(3)).toFixed(2)} pixels across`)
 
-const cover = coverage(tiles, spacing, width, height)
+const cover = coverage(vertices, tilesOn(vertices, tiles), spacing, width, height)
 const land = cover.reduce((total, value) => total + (value > 0.5 ? 1 : 0), 0)
 console.log(`the tile field covers ${(land / cover.length * 100).toFixed(2)}% of the image`)
 
@@ -40,7 +40,7 @@ const {pixels, moved} = recolour(photo, cover, {width, height, channels})
 console.log(`${moved} of ${width * height} pixels moved (${(moved / (width * height) * 100).toFixed(2)}%)`)
 
 const bytes = await sharp(pixels, {raw: {width, height, channels: 3}})
-    .jpeg({quality: QUALITY, mozjpeg: true})
+    .jpeg({quality: QUALITY, mozjpeg: true, chromaSubsampling: "4:4:4"})
     .toBuffer()
 
 const fileName = `earth-${createHash("sha256").update(bytes).digest("hex").slice(0, 8)}.jpg`
