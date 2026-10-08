@@ -209,7 +209,9 @@ async function prepare(): Promise<Recording> {
         const heldBy = (owners: ReadonlyMap<number, string>) => [...owners].filter(([tile, owner]) =>
             owner === loser && inPlace(base.place, groundAt(tile), regionOf)).length
         const home = loser !== undefined && inPlace(base.place, loser, regionOf)
-        const story = routOf(base, {before: heldBy(backend.opening), after: heldBy(after)}, cast !== undefined, home)
+        // The flag that took the most of the loser's land may lead there, though the flag of the front did not.
+        const led = cast ?? castOf(base, around, regionOf)
+        const story = routOf(base, {before: heldBy(backend.opening), after: heldBy(after)}, led !== undefined, home)
         const held: Point[] = []
         for (const [tile, owner] of after) if (owner === story.attacker) held.push(pointAt(tile))
         const taken = [...new Set(take.front.changes.flatMap(({tile, to}) =>
@@ -217,17 +219,22 @@ async function prepare(): Promise<Recording> {
         const solidity = solidityOf(taken.map(pointAt), held)
         const skipped = "region" in story.place && story.place.region === THE_WORLD
             ? "spread over several continents, no one place to show"
-            : cast === undefined && story.kind !== "rout"
-                ? "nobody leads it: its flags took too little of what changed hands around them"
-                : solidity < SCRIBBLE_BELOW ? "lines drawn on someone else's land, not land taken" : undefined
+            : cast === undefined && attacker !== undefined ? `${nameOf(attacker)} leads nothing there`
+                : cast === undefined && story.kind !== "rout" && story.kind !== "kickout"
+                    ? "nobody leads it: its flags took too little of what changed hands around them"
+                    : solidity < SCRIBBLE_BELOW ? "lines drawn on someone else's land, not land taken" : undefined
         return {...take, story, backend, solidity, skipped}
     }
     const reviewed = stories.map(reviewOf)
     const kept = reviewed.filter(({skipped}) => skipped === undefined)
     // One story per flag and what it did, whatever window or scale found it: the best one.
-    const worth = kept.filter((review, i) => kept.findIndex((other) => sameStory(other.story, review.story, placeName)) === i)
-    const skipped = reviewed.flatMap(({story: told, skipped: why, solidity}) =>
-        why === undefined ? [] : [`${wordsOf(told).headline}: ${why} (solidity ${solidity.toFixed(2)})`])
+    const worth = kept.filter((review, i) => kept.findIndex((other) => sameStory(other.story, review.story, placeName, regionOf)) === i)
+    const skipped = [
+        ...reviewed.flatMap(({story: told, skipped: why, solidity}) =>
+            why === undefined ? [] : [`${wordsOf(told).headline}: ${why} (solidity ${solidity.toFixed(2)})`]),
+        ...kept.flatMap((review) => worth.includes(review) ? [] : [`${wordsOf(review.story).headline} in ${placeName(review.story.place)}: `
+            + `told already as ${wordsOf(kept.find((other) => sameStory(other.story, review.story, placeName, regionOf))!.story).headline}`]),
+    ]
 
     const pick = numberParam("pick") ?? 1
     const picked = worth[pick - 1]

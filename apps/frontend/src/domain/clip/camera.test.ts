@@ -138,6 +138,14 @@ describe("a blast", () => {
         expect(camera(1).direction.x).toBeCloseTo(0)
     })
 
+    it("still ends on the opening when it falls in the last moments after a pull back halfway", () => {
+        const last = {...blast, from: 0.95, to: 1}
+        const camera = cameraOf(opening, [], {...script, pullBack: "midway", blasts: [last]})
+
+        expect(camera(1).zoom).toBeCloseTo(1.5)
+        expect(camera(1).direction.x).toBeCloseTo(0)
+    })
+
     it("is a fifth of the screen wide", () => {
         expect(blastZoomOf(0.016, 0.5625)).toBeCloseTo(0.5625 / 0.08)
         expect(blastZoomOf(0.001, 0.5625)).toBe(9)
