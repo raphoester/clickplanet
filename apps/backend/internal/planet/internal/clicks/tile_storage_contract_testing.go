@@ -248,21 +248,6 @@ func (s *TileStorageContractSuite) TestShareFollowsSetsAndBlasts() {
 	s.Zero(s.storage.Share(""), "unowned ground is nobody's share")
 }
 
-func (s *TileStorageContractSuite) TestHoldingsCountEveryCountryThatHoldsATile() {
-	ctx := context.Background()
-	s.Empty(s.storage.Holdings(), "an empty map is nobody's")
-
-	for tile := uint32(1); tile <= 5; tile++ {
-		s.Require().NoError(s.storage.Set(ctx, tile, "bg"))
-	}
-	s.Require().NoError(s.storage.Set(ctx, 3, "fr"))
-	s.Require().NoError(s.storage.Set(ctx, 9, "de"))
-	s.Require().NoError(s.storage.Set(ctx, 9, ""))
-
-	s.ElementsMatch([]Holding{{Country: "bg", Tiles: 4}, {Country: "fr", Tiles: 1}}, s.storage.Holdings(),
-		"a country left with no tile is not listed, and unowned ground is nobody's")
-}
-
 func (s *TileStorageContractSuite) TestReassignMovesOnlyTheTilesFromHolds() {
 	ctx := context.Background()
 	for tile, country := range map[uint32]string{3: "dz", 4: "bg", 5: "dz", 9: "fr"} {

@@ -19,14 +19,14 @@ import (
 type stubPlanet struct {
 	planetv1connect.UnimplementedInternalServiceHandler
 
-	res *planetv1.GetSharesResponse
+	res *planetv1.GetTerritoriesResponse
 	err error
 }
 
-func (s stubPlanet) GetShares(
+func (s stubPlanet) GetTerritories(
 	context.Context,
-	*connect.Request[planetv1.GetSharesRequest],
-) (*connect.Response[planetv1.GetSharesResponse], error) {
+	*connect.Request[planetv1.GetTerritoriesRequest],
+) (*connect.Response[planetv1.GetTerritoriesResponse], error) {
 	if s.err != nil {
 		return nil, s.err
 	}
@@ -45,8 +45,8 @@ func serve(t *testing.T, planet stubPlanet) planetv1connect.InternalServiceClien
 }
 
 func TestTheSharesAreWhatPlanetHolds(t *testing.T) {
-	planet := stubPlanet{res: &planetv1.GetSharesResponse{MapTiles: 262119, Countries: []*planetv1.CountryTiles{
-		{Country: "dz", Tiles: 40000}, {Country: "fr", Tiles: 39000},
+	planet := stubPlanet{res: &planetv1.GetTerritoriesResponse{Tiles: 262119, Territories: []*planetv1.Territory{
+		{CountryId: "dz", Tiles: 40000}, {CountryId: "fr", Tiles: 39000},
 	}}}
 
 	shares, err := rpc_planet_shares.New(serve(t, planet)).Shares(t.Context())

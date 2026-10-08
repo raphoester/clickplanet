@@ -47,8 +47,3 @@ type Restoration struct {
 	From string
 	To   string
 }
-
-type Holding struct {
-	Country string
-	Tiles   uint32
-}

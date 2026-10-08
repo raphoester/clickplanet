@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetSharesRequest, GetSharesResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, SetRulesRequest, SetRulesResponse } from "./internal_pb.js";
+import { GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, SetRulesRequest, SetRulesResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -40,16 +40,6 @@ export const InternalService = {
       I: SetRulesRequest,
       O: SetRulesResponse,
       kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc planet.v1.InternalService.GetShares
-     */
-    getShares: {
-      name: "GetShares",
-      I: GetSharesRequest,
-      O: GetSharesResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

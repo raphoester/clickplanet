@@ -205,10 +205,9 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
-| `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute) | `rounds/rpc_planet_territories` |
+| `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute), and each second of a finale and once at a season's end for the lead | `rounds/rpc_planet_territories`, `lead/rpc_planet_shares` |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `seasons` | `planet.v1.InternalService/SetRules` | the rules the calendar says hold now: plain, the finale's, or a frozen map; at boot and at each change | `finale/rpc_planet_rules` |
-| `seasons` | `planet.v1.InternalService/GetShares` | how many tiles each country holds, each second of a finale and once at a season's end | `lead/rpc_planet_shares` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts` and on each `GetPlayer` the cache does not answer | `playerv1controller/rpc_planet_fronts` |
 
 A module cannot import another's interior, so the key client all four need is `shared/cpsessionverifier` rather than a copy in each.
@@ -363,7 +362,6 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
-| `clicks/usecases/get_shares_usecase` | the tiles each country holds, for `seasons` | `HoldingsReader`, `MaxIndexReader` |
 | `tempo/usecases/set_rules_usecase` | puts the rules `seasons` asks for in force | `Switches` |
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker` |
 
@@ -1332,7 +1330,7 @@ internal/seasons/internal/
     usecases/converge_rules_usecase/  sets what holds now, unless planet confirmed it; Runner
       log_converge_rules/
   lead/                           Config, Shares, Race (the hysteresis), Pass
-    rpc_planet_shares/            planet.v1.InternalService/GetShares → Shares
+    rpc_planet_shares/            planet.v1.InternalService/GetTerritories → Shares
     usecases/watch_lead_usecase/  LeadChanged during a finale, SeasonEnded once at the end
       log_watch_lead/
   standings/                      AccountID, Country, Take (Season), Tally (WithTake); the Store port (RecordTake,
@@ -1433,7 +1431,7 @@ moment wins, and the chat says so.
 **Planet does not know seasons exist.** It offers rule switches in its own words, on
 `planet.v1.InternalService/SetRules`, and does not know why they are set: a refill multiplier, a box interval,
 a gift named by an opaque tag, and frozen on or off. This is a command, not a fact: the calendar is
-seasons' business, and what a speedup does to a bucket is planet's. `GetShares` is the read beside it.
+seasons' business, and what a speedup does to a bucket is planet's.
 
 - **`tempo.Switches` holds the rules in force**, swapped whole by `set_rules_usecase` (`log_set_rules` logs
   each call). Nothing is stored: seasons sets them again at boot. `tempo.Plain()` changes nothing.
@@ -1479,7 +1477,7 @@ so a restart in the middle of a finale converges within seconds. A refused set i
 `log_converge_rules` logs the change of state, not every tick. The gift's tag is `season-<n>-finale`, and its
 cutoff is the finale's start.
 
-**The lead is read, not counted.** Each tick of a finale, `watch_lead_usecase` asks `GetShares` and moves a
+**The lead is read, not counted.** Each tick of a finale, `watch_lead_usecase` asks `GetTerritories` and moves a
 `lead.Race`: the first reading names the leader and says nothing, so a restart is silent; a challenger takes
 the lead once it has led by `seasons.lead.margin` tiles (50) for `seasons.lead.hold` (30s), so a flapping
 lead says nothing. A pass publishes `seasons.v1.LeadChanged`. **At the end**, it runs only once the freeze

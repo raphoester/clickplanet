@@ -52,7 +52,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase/antibot_get_map"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_shares_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase/antibot_listen_for_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
@@ -91,7 +90,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_shares_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler/takes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler"
@@ -296,7 +294,6 @@ func NewModule(config Config) cpbootstrap.Module {
 					territories_query.NewMemoryQuery(tilesStorage, config.GameMap.MaxIndex)),
 				SetRulesHandler: set_rules_handler.New(
 					log_set_rules.New(set_rules_usecase.New(switches), props.Logger)),
-				GetSharesHandler: get_shares_handler.New(get_shares_usecase.New(tilesStorage, tilesChecker)),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)

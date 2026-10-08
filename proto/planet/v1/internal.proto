@@ -12,10 +12,6 @@ service InternalService {
   }
 
   rpc SetRules(SetRulesRequest) returns (SetRulesResponse);
-
-  rpc GetShares(GetSharesRequest) returns (GetSharesResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
-  }
 }
 
 message GetTakesByCountryRequest {
@@ -64,16 +60,3 @@ message Gift {
 }
 
 message SetRulesResponse {}
-
-message GetSharesRequest {}
-
-message GetSharesResponse {
-  uint32 map_tiles = 1;
-
-  repeated CountryTiles countries = 2;
-}
-
-message CountryTiles {
-  string country = 1;
-  uint32 tiles = 2;
-}

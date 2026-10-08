@@ -468,146 +468,6 @@ func (*SetRulesResponse) Descriptor() ([]byte, []int) {
 	return file_planet_v1_internal_proto_rawDescGZIP(), []int{8}
 }
 
-type GetSharesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetSharesRequest) Reset() {
-	*x = GetSharesRequest{}
-	mi := &file_planet_v1_internal_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetSharesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetSharesRequest) ProtoMessage() {}
-
-func (x *GetSharesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_internal_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetSharesRequest.ProtoReflect.Descriptor instead.
-func (*GetSharesRequest) Descriptor() ([]byte, []int) {
-	return file_planet_v1_internal_proto_rawDescGZIP(), []int{9}
-}
-
-type GetSharesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MapTiles      uint32                 `protobuf:"varint,1,opt,name=map_tiles,json=mapTiles,proto3" json:"map_tiles,omitempty"`
-	Countries     []*CountryTiles        `protobuf:"bytes,2,rep,name=countries,proto3" json:"countries,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetSharesResponse) Reset() {
-	*x = GetSharesResponse{}
-	mi := &file_planet_v1_internal_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetSharesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetSharesResponse) ProtoMessage() {}
-
-func (x *GetSharesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_internal_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetSharesResponse.ProtoReflect.Descriptor instead.
-func (*GetSharesResponse) Descriptor() ([]byte, []int) {
-	return file_planet_v1_internal_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *GetSharesResponse) GetMapTiles() uint32 {
-	if x != nil {
-		return x.MapTiles
-	}
-	return 0
-}
-
-func (x *GetSharesResponse) GetCountries() []*CountryTiles {
-	if x != nil {
-		return x.Countries
-	}
-	return nil
-}
-
-type CountryTiles struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Country       string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
-	Tiles         uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CountryTiles) Reset() {
-	*x = CountryTiles{}
-	mi := &file_planet_v1_internal_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CountryTiles) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CountryTiles) ProtoMessage() {}
-
-func (x *CountryTiles) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_internal_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CountryTiles.ProtoReflect.Descriptor instead.
-func (*CountryTiles) Descriptor() ([]byte, []int) {
-	return file_planet_v1_internal_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *CountryTiles) GetCountry() string {
-	if x != nil {
-		return x.Country
-	}
-	return ""
-}
-
-func (x *CountryTiles) GetTiles() uint32 {
-	if x != nil {
-		return x.Tiles
-	}
-	return 0
-}
-
 var File_planet_v1_internal_proto protoreflect.FileDescriptor
 
 const file_planet_v1_internal_proto_rawDesc = "" +
@@ -640,19 +500,11 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\x04Gift\x12\x10\n" +
 	"\x03tag\x18\x01 \x01(\tR\x03tag\x12>\n" +
 	"\x1caccounts_made_before_unix_ms\x18\x02 \x01(\x03R\x18accountsMadeBeforeUnixMs\"\x12\n" +
-	"\x10SetRulesResponse\"\x12\n" +
-	"\x10GetSharesRequest\"g\n" +
-	"\x11GetSharesResponse\x12\x1b\n" +
-	"\tmap_tiles\x18\x01 \x01(\rR\bmapTiles\x125\n" +
-	"\tcountries\x18\x02 \x03(\v2\x17.planet.v1.CountryTilesR\tcountries\">\n" +
-	"\fCountryTiles\x12\x18\n" +
-	"\acountry\x18\x01 \x01(\tR\acountry\x12\x14\n" +
-	"\x05tiles\x18\x02 \x01(\rR\x05tiles2\xe4\x02\n" +
+	"\x10SetRulesResponse2\x97\x02\n" +
 	"\x0fInternalService\x12c\n" +
 	"\x11GetTakesByCountry\x12#.planet.v1.GetTakesByCountryRequest\x1a$.planet.v1.GetTakesByCountryResponse\"\x03\x90\x02\x01\x12Z\n" +
 	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01\x12C\n" +
-	"\bSetRules\x12\x1a.planet.v1.SetRulesRequest\x1a\x1b.planet.v1.SetRulesResponse\x12K\n" +
-	"\tGetShares\x12\x1b.planet.v1.GetSharesRequest\x1a\x1c.planet.v1.GetSharesResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
+	"\bSetRules\x12\x1a.planet.v1.SetRulesRequest\x1a\x1b.planet.v1.SetRulesResponseB\xb5\x01\n" +
 	"\rcom.planet.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -668,7 +520,7 @@ func file_planet_v1_internal_proto_rawDescGZIP() []byte {
 	return file_planet_v1_internal_proto_rawDescData
 }
 
-var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_planet_v1_internal_proto_goTypes = []any{
 	(*GetTakesByCountryRequest)(nil),  // 0: planet.v1.GetTakesByCountryRequest
 	(*GetTakesByCountryResponse)(nil), // 1: planet.v1.GetTakesByCountryResponse
@@ -679,29 +531,23 @@ var file_planet_v1_internal_proto_goTypes = []any{
 	(*SetRulesRequest)(nil),           // 6: planet.v1.SetRulesRequest
 	(*Gift)(nil),                      // 7: planet.v1.Gift
 	(*SetRulesResponse)(nil),          // 8: planet.v1.SetRulesResponse
-	(*GetSharesRequest)(nil),          // 9: planet.v1.GetSharesRequest
-	(*GetSharesResponse)(nil),         // 10: planet.v1.GetSharesResponse
-	(*CountryTiles)(nil),              // 11: planet.v1.CountryTiles
 }
 var file_planet_v1_internal_proto_depIdxs = []int32{
-	2,  // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
-	2,  // 1: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
-	5,  // 2: planet.v1.GetTerritoriesResponse.territories:type_name -> planet.v1.Territory
-	7,  // 3: planet.v1.SetRulesRequest.gift:type_name -> planet.v1.Gift
-	11, // 4: planet.v1.GetSharesResponse.countries:type_name -> planet.v1.CountryTiles
-	0,  // 5: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
-	3,  // 6: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	6,  // 7: planet.v1.InternalService.SetRules:input_type -> planet.v1.SetRulesRequest
-	9,  // 8: planet.v1.InternalService.GetShares:input_type -> planet.v1.GetSharesRequest
-	1,  // 9: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
-	4,  // 10: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	8,  // 11: planet.v1.InternalService.SetRules:output_type -> planet.v1.SetRulesResponse
-	10, // 12: planet.v1.InternalService.GetShares:output_type -> planet.v1.GetSharesResponse
-	9,  // [9:13] is the sub-list for method output_type
-	5,  // [5:9] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	2, // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
+	2, // 1: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
+	5, // 2: planet.v1.GetTerritoriesResponse.territories:type_name -> planet.v1.Territory
+	7, // 3: planet.v1.SetRulesRequest.gift:type_name -> planet.v1.Gift
+	0, // 4: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
+	3, // 5: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
+	6, // 6: planet.v1.InternalService.SetRules:input_type -> planet.v1.SetRulesRequest
+	1, // 7: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
+	4, // 8: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	8, // 9: planet.v1.InternalService.SetRules:output_type -> planet.v1.SetRulesResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_internal_proto_init() }
@@ -715,7 +561,7 @@ func file_planet_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_internal_proto_rawDesc), len(file_planet_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
