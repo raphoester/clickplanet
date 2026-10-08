@@ -17,9 +17,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/postgres_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/rpc_planet_territories"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_census_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_census_usecase/log_take_census"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_census_usecase/marking_take_census"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase/log_take_snapshot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase/marking_take_snapshot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query"
@@ -109,12 +109,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	races := inprocess_race_feed.New(log_race_reader.New(race_query.NewPostgresQuery(db, seasons, clock), props.Logger), clock)
-	census := take_census_usecase.NewRunner(config.Census, log_take_census.New(marking_take_census.New(
-		take_census_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), seasons, clock),
+	snapshot := take_snapshot_usecase.NewRunner(config.Snapshot, log_take_snapshot.New(marking_take_snapshot.New(
+		take_snapshot_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), seasons, clock),
 		races,
 	), props.Logger))
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards, races, census))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, deletions, boards, races, snapshot))
 
 	service := seasonsv1controller.SeasonService{
 		GetSeasonHandler: get_season_handler.New(
@@ -142,7 +142,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 type Config struct {
 	Calendar calendar.Config `koanf:",squash"`
-	Census   take_census_usecase.Config
+	Snapshot take_snapshot_usecase.Config
 	Database cppg.Config
 }
 

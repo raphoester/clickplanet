@@ -29,7 +29,7 @@ func Current(seasons calendar.Calendar, at time.Time) (Round, bool) {
 	return Round{Season: season.Number, EndsAt: season.FinaleStartsAt.Add(-time.Duration(days * int64(Length)))}, true
 }
 
-type Census struct {
+type Snapshot struct {
 	Tiles uint32
 	Held  map[Country]uint32
 }

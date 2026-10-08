@@ -1,4 +1,4 @@
-package take_census_usecase_test
+package take_snapshot_usecase_test
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/inmemory_round_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_census_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -30,16 +30,16 @@ type stubTerritory struct {
 	asked int
 }
 
-func (s *stubTerritory) Census(context.Context) (rounds.Census, error) {
+func (s *stubTerritory) Snapshot(context.Context) (rounds.Snapshot, error) {
 	s.asked++
-	return rounds.Census{Tiles: 100, Held: s.held}, s.err
+	return rounds.Snapshot{Tiles: 100, Held: s.held}, s.err
 }
 
 type fixture struct {
 	territory *stubTerritory
 	store     *inmemory_round_store.Store
 	clock     *cptime.FixedClock
-	useCase   *take_census_usecase.UseCase
+	useCase   *take_snapshot_usecase.UseCase
 }
 
 func newFixture(now time.Time) fixture {
@@ -50,7 +50,7 @@ func newFixture(now time.Time) fixture {
 		territory: territory,
 		store:     store,
 		clock:     clock,
-		useCase:   take_census_usecase.New(territory, store, seasonZero, clock),
+		useCase:   take_snapshot_usecase.New(territory, store, seasonZero, clock),
 	}
 }
 
@@ -66,7 +66,7 @@ var (
 	finale    = rounds.Round{EndsAt: utc(31, 23, 0), Finale: true}
 )
 
-func TestACensusAddsWhatEachCountryHoldsToTheRoundInProgress(t *testing.T) {
+func TestASnapshotAddsWhatEachCountryHoldsToTheRoundInProgress(t *testing.T) {
 	f := newFixture(utc(16, 12, 0))
 
 	_, err := f.useCase.Execute(t.Context())
@@ -78,7 +78,7 @@ func TestACensusAddsWhatEachCountryHoldsToTheRoundInProgress(t *testing.T) {
 	assert.Equal(t, map[rounds.Country]uint64{"fr": 6, "de": 2}, f.held(t, sixteenth))
 }
 
-func TestTheFirstCensusAfterARoundEndsClosesItWithItsResults(t *testing.T) {
+func TestTheFirstSnapshotAfterARoundEndsClosesItWithItsResults(t *testing.T) {
 	f := newFixture(utc(16, 20, 59))
 	_, err := f.useCase.Execute(t.Context())
 	require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestTheFirstCensusAfterARoundEndsClosesItWithItsResults(t *testing.T) {
 		{Country: "de", Rank: 2, Points: 18},
 	}, f.store.Results(sixteenth))
 	assert.Equal(t, map[rounds.Country]uint64{"fr": 3, "de": 1}, f.held(t, rounds.Round{EndsAt: utc(17, 21, 0)}),
-		"the census at the end counts for the round that starts")
+		"the snapshot at the end counts for the round that starts")
 }
 
 func TestAfterTheLastSeasonNothingIsCountedAndTheFinaleStillCloses(t *testing.T) {

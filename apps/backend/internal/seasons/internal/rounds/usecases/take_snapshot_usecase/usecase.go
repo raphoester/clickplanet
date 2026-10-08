@@ -1,4 +1,4 @@
-package take_census_usecase
+package take_snapshot_usecase
 
 import (
 	"context"
@@ -12,11 +12,11 @@ import (
 )
 
 type Territory interface {
-	Census(ctx context.Context) (rounds.Census, error)
+	Snapshot(ctx context.Context) (rounds.Snapshot, error)
 }
 
 type Rounds interface {
-	RecordCensus(ctx context.Context, round rounds.Round, census rounds.Census) error
+	RecordSnapshot(ctx context.Context, round rounds.Round, snapshot rounds.Snapshot) error
 	Unclosed(ctx context.Context, endedBy time.Time) ([]rounds.Round, error)
 	Held(ctx context.Context, round rounds.Round) (map[rounds.Country]uint64, error)
 	Close(ctx context.Context, round rounds.Round, results []rounds.Result) error
@@ -90,12 +90,12 @@ func (u *UseCase) count(ctx context.Context, now time.Time) error {
 		return nil
 	}
 
-	census, err := u.territory.Census(ctx)
+	snapshot, err := u.territory.Snapshot(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to count what each country holds: %w", err)
 	}
-	if err := u.store.RecordCensus(ctx, round, census); err != nil {
-		return fmt.Errorf("failed to record the census: %w", err)
+	if err := u.store.RecordSnapshot(ctx, round, snapshot); err != nil {
+		return fmt.Errorf("failed to record the snapshot: %w", err)
 	}
 	return nil
 }

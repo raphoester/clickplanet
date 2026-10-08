@@ -205,7 +205,7 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
-| `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, once a census (a minute) | `rounds/rpc_planet_territories` |
+| `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute) | `rounds/rpc_planet_territories` |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts` and on each `GetPlayer` the cache does not answer | `playerv1controller/rpc_planet_fronts` |
 
@@ -1313,14 +1313,14 @@ internal/seasons/internal/
     usecases/record_take_usecase/  forget_account_usecase/
       record_take_usecase/marking_record_take/        marks the live boards a take moved, once it is kept
       forget_account_usecase/marking_forget_account/  marks the live boards that list an account, once it is forgotten
-  rounds/                         Country, Round (Current, Results), Census, Result, Score, Placed (TableOf); the Store
-                                  port (RecordCensus, Unclosed, Held, Close) and its contract suite
+  rounds/                         Country, Round (Current, Results), Snapshot, Result, Score, Placed (TableOf); the Store
+                                  port (RecordSnapshot, Unclosed, Held, Close) and its contract suite
     postgres_round_store/         the Store over seasons.rounds, round_holdings and round_results
     inmemory_round_store/         the same port in maps, behind the testing tag
-    rpc_planet_territories/         the census, from planet.v1.InternalService/GetTerritories
-    usecases/take_census_usecase/ closes the rounds that ended, then counts the round in progress; Runner
-      log_take_census/            logs each round closed, and a census that failed
-      marking_take_census/        marks the live race, once a census is taken
+    rpc_planet_territories/         the snapshot, from planet.v1.InternalService/GetTerritories
+    usecases/take_snapshot_usecase/ closes the rounds that ended, then counts the round in progress; Runner
+      log_take_snapshot/            logs each round closed, and a snapshot that failed
+      marking_take_snapshot/        marks the live race, once a snapshot is taken
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
     get_standings_handler/standings_query/   PostgresQuery: GetStandingsResponse from SQL, named, and the same top as
@@ -1369,16 +1369,16 @@ standings rank players, the rounds rank countries.
   a round of its own, from its start to the season's end. A round is kept by its season and its end
   (`Round{Season, EndsAt, Finale}`); its number is the read side's, from the rounds counted before it, so a season
   with no start (Season 0) still says "day 1".
-- **A census a minute** (`take_census_usecase`, `seasons.census.interval`): ask planet what each country holds, then
+- **A snapshot a minute** (`take_snapshot_usecase`, `seasons.snapshot.interval`): ask planet what each country holds, then
   add each count to the round in progress. **A country's result is its average share**: the sum of its counts over the
-  round, over the censuses taken. A census missed (a restart, planet down) is one sample fewer for every country, so
+  round, over the snapshots taken. A snapshot missed (a restart, planet down) is one sample fewer for every country, so
   it biases nobody. Counting started the day this shipped; nothing is replayed.
 - **`Round.Results` is the rule**: countries ranked by the ground held, ties sharing a rank and its points, and the top
   10 scoring 25, 18, 15, 12, 10, 8, 6, 4, 2, 1. The finale scores 3 times that. A day's win is worth the same at 1% as
   at 30%, so an early lead cannot be banked.
-- **A round closes on the first census after it ended** (`Store.Unclosed`): its results are written once, in one
+- **A round closes on the first snapshot after it ended** (`Store.Unclosed`): its results are written once, in one
   transaction that marks it closed, and a second close changes nothing. Closing does not need a current season, so the
-  finale closes after the last season ends. `log_take_census` logs each round closed.
+  finale closes after the last season ends. `log_take_snapshot` logs each round closed.
 - **`rounds.TableOf` ranks the season**: points, then rounds won, then the finale's points. Countries level on all
   three share the rank. The trophy and the titles at the season's end are a later slice; they read the same table.
 - **Kept in `seasons.rounds`** (`season`, `ends_at`, `finale`, `samples`, `map_tiles`, `closed`), **`round_holdings`**
@@ -1387,7 +1387,7 @@ standings rank players, the rounds rank countries.
 - **The race is live on the season stream** (`SeasonEvent.race`), to every stream whatever its view. `race_query` reads
   the round in progress (its number, its end, each country's rank, average share and the points it would score if it
   ended now) and the season's scores, best first, of every country with points. **One read for every stream**:
-  `inprocess_race_feed` reads it when the first stream opens, after each census (`marking_take_census`), at most once a
+  `inprocess_race_feed` reads it when the first stream opens, after each snapshot (`marking_take_snapshot`), at most once a
   second (`Every`) and at least once a minute (`AtLeast`), and sends it only when it changed. It forgets the race when
   the last stream closes. A failed read is tried again a second later and logged (`log_race_reader`). No season is an
   empty race.
@@ -3038,7 +3038,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `player.tagSalt` — salts the hash of an address the roster caps its visits with. It is never shown, so empty, which generates one at boot, costs nothing. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
 - `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
-- `seasons.census.interval` — how often the census counts what each country holds into the round in progress (default 1m)
+- `seasons.snapshot.interval` — how often a snapshot of what each country holds is added to the round in progress (default 1m)
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
 
 ### Protobuf
@@ -3053,7 +3053,7 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
-**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.RunOn` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire. `RunOn` serves on listeners the test already holds, bound to `127.0.0.1:0`: a port picked free and closed again can be taken by another process before the server binds it. Under `RunOn`, `cpbootstrap` binds nothing, and an address with no held listener fails the boot. `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused; `standings_test.go` boots the game stack with seasons (one season ending in 30 days), clicks as two players with a username and a guest, and reads `GetStandings` and `GetMySeason`; `race_test.go` takes a census every 50ms on that stack and reads the race off the season stream.
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.RunOn` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire. `RunOn` serves on listeners the test already holds, bound to `127.0.0.1:0`: a port picked free and closed again can be taken by another process before the server binds it. Under `RunOn`, `cpbootstrap` binds nothing, and an address with no held listener fails the boot. `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused; `standings_test.go` boots the game stack with seasons (one season ending in 30 days), clicks as two players with a username and a guest, and reads `GetStandings` and `GetMySeason`; `race_test.go` takes a snapshot every 50ms on that stack and reads the race off the season stream.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 

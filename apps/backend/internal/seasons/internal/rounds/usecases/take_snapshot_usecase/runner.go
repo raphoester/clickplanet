@@ -1,4 +1,4 @@
-package take_census_usecase
+package take_snapshot_usecase
 
 import (
 	"context"
@@ -14,7 +14,7 @@ func NewRunner(config Config, executor Executor) *Runner {
 	return &Runner{interval: config.WithDefaults().Interval, executor: executor}
 }
 
-func (r *Runner) Name() string { return "seasons-census" }
+func (r *Runner) Name() string { return "seasons-snapshots" }
 
 func (r *Runner) Run(ctx context.Context) {
 	ticker := time.NewTicker(r.interval)

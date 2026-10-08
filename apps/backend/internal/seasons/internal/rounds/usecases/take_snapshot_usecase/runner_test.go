@@ -1,4 +1,4 @@
-package take_census_usecase_test
+package take_snapshot_usecase_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_census_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
 )
 
 type countingExecutor struct {
@@ -20,9 +20,9 @@ func (c countingExecutor) Execute(context.Context) ([]rounds.Round, error) {
 	return nil, nil
 }
 
-func TestTheRunnerTakesACensusAtStartThenEveryIntervalUntilStopped(t *testing.T) {
+func TestTheRunnerTakesASnapshotAtStartThenEveryIntervalUntilStopped(t *testing.T) {
 	executor := countingExecutor{calls: make(chan struct{}, 10)}
-	runner := take_census_usecase.NewRunner(take_census_usecase.Config{Interval: 10 * time.Millisecond}, executor)
+	runner := take_snapshot_usecase.NewRunner(take_snapshot_usecase.Config{Interval: 10 * time.Millisecond}, executor)
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan struct{})
 
@@ -45,6 +45,6 @@ func TestTheRunnerTakesACensusAtStartThenEveryIntervalUntilStopped(t *testing.T)
 }
 
 func TestTheIntervalIsAMinuteUnlessSet(t *testing.T) {
-	assert.Equal(t, time.Minute, take_census_usecase.Config{}.WithDefaults().Interval)
-	assert.Equal(t, time.Second, take_census_usecase.Config{Interval: time.Second}.WithDefaults().Interval)
+	assert.Equal(t, time.Minute, take_snapshot_usecase.Config{}.WithDefaults().Interval)
+	assert.Equal(t, time.Second, take_snapshot_usecase.Config{Interval: time.Second}.WithDefaults().Interval)
 }

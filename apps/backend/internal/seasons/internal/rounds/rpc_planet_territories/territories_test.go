@@ -45,16 +45,16 @@ func territories(t *testing.T, planet stubPlanet) *rpc_planet_territories.Territ
 	return rpc_planet_territories.New(planetv1connect.NewInternalServiceClient(server.Client(), server.URL))
 }
 
-func TestTheCensusIsWhatThePlanetModuleSaysEachCountryHolds(t *testing.T) {
+func TestTheSnapshotIsWhatThePlanetModuleSaysEachCountryHolds(t *testing.T) {
 	planet := stubPlanet{answer: &planetv1.GetTerritoriesResponse{
 		Tiles:       100,
 		Territories: []*planetv1.Territory{{CountryId: "bg", Tiles: 7}, {CountryId: "fr", Tiles: 3}},
 	}}
 
-	census, err := territories(t, planet).Census(t.Context())
+	snapshot, err := territories(t, planet).Snapshot(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, rounds.Census{Tiles: 100, Held: map[rounds.Country]uint32{"bg": 7, "fr": 3}}, census)
+	assert.Equal(t, rounds.Snapshot{Tiles: 100, Held: map[rounds.Country]uint32{"bg": 7, "fr": 3}}, snapshot)
 }
 
 func TestTilesHeldByNoCountryAreAnError(t *testing.T) {
@@ -62,7 +62,7 @@ func TestTilesHeldByNoCountryAreAnError(t *testing.T) {
 		Tiles: 100, Territories: []*planetv1.Territory{{Tiles: 7}},
 	}}
 
-	_, err := territories(t, planet).Census(t.Context())
+	_, err := territories(t, planet).Snapshot(t.Context())
 
 	assert.ErrorIs(t, err, rpc_planet_territories.ErrNoCountry)
 }
@@ -70,7 +70,7 @@ func TestTilesHeldByNoCountryAreAnError(t *testing.T) {
 func TestAPlanetModuleThatFailsIsAnError(t *testing.T) {
 	planet := stubPlanet{err: connect.NewError(connect.CodeInternal, errors.New("boom"))}
 
-	_, err := territories(t, planet).Census(t.Context())
+	_, err := territories(t, planet).Snapshot(t.Context())
 
 	assert.ErrorContains(t, err, "failed to ask the planet module")
 }

@@ -58,7 +58,7 @@ func TestTheRaceRanksTheCountriesByTheGroundTheyHoldToday(t *testing.T) {
 	assert.Equal(t, "de", standings[1].GetCountryId())
 	assert.Equal(t, uint32(18), standings[1].GetPoints())
 
-	assert.LessOrEqual(t, standings[0].GetShare(), 2.0/mapTiles, "an average over every census, the ones before the clicks too")
+	assert.LessOrEqual(t, standings[0].GetShare(), 2.0/mapTiles, "an average over every snapshot, the ones before the clicks too")
 	assert.LessOrEqual(t, standings[1].GetShare(), 1.0/mapTiles)
 	assert.Greater(t, standings[1].GetShare(), 0.0)
 

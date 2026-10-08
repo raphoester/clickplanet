@@ -56,12 +56,12 @@ func (s *testSuite) at(now time.Time) {
 	s.query = race_query.NewPostgresQuery(s.db, s.seasons, cptime.NewFixedClock(now))
 }
 
-func (s *testSuite) census(round rounds.Round, held map[rounds.Country]uint32) {
-	s.Require().NoError(s.store.RecordCensus(s.T().Context(), round, rounds.Census{Tiles: 100, Held: held}))
+func (s *testSuite) snapshot(round rounds.Round, held map[rounds.Country]uint32) {
+	s.Require().NoError(s.store.RecordSnapshot(s.T().Context(), round, rounds.Snapshot{Tiles: 100, Held: held}))
 }
 
 func (s *testSuite) closed(round rounds.Round, results ...rounds.Result) {
-	s.census(round, map[rounds.Country]uint32{"fr": 1})
+	s.snapshot(round, map[rounds.Country]uint32{"fr": 1})
 	s.Require().NoError(s.store.Close(s.T().Context(), round, results))
 }
 
@@ -73,8 +73,8 @@ func (s *testSuite) race() *seasonsv1.Race {
 
 func (s *testSuite) TestTheRoundInProgressRanksEachCountryByItsAverageShareOfTheMap() {
 	s.closed(fifteenth)
-	s.census(sixteenth, map[rounds.Country]uint32{"fr": 30, "de": 10})
-	s.census(sixteenth, map[rounds.Country]uint32{"fr": 20, "de": 10})
+	s.snapshot(sixteenth, map[rounds.Country]uint32{"fr": 30, "de": 10})
+	s.snapshot(sixteenth, map[rounds.Country]uint32{"fr": 20, "de": 10})
 
 	race := s.race()
 
@@ -99,7 +99,7 @@ func (s *testSuite) TestARoundNobodyCountedYetIsShownWithNoStandings() {
 
 func (s *testSuite) TestTheFinaleIsShownAsTheFinale() {
 	s.at(utc(31, 22))
-	s.census(finale, map[rounds.Country]uint32{"fr": 50})
+	s.snapshot(finale, map[rounds.Country]uint32{"fr": 50})
 
 	race := s.race()
 
@@ -119,7 +119,7 @@ func (s *testSuite) TestTheScoresAreThePointsOfTheClosedRoundsBestFirst() {
 	s.closed(fifteenth,
 		rounds.Result{Country: "fr", Rank: 1, Points: 25},
 		rounds.Result{Country: "de", Rank: 2, Points: 18})
-	s.census(sixteenth, map[rounds.Country]uint32{"it": 99})
+	s.snapshot(sixteenth, map[rounds.Country]uint32{"it": 99})
 
 	race := s.race()
 

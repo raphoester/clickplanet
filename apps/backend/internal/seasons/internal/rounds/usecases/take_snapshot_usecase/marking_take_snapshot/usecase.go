@@ -1,26 +1,26 @@
-package marking_take_census
+package marking_take_snapshot
 
 import (
 	"context"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_census_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase"
 )
 
 type Race interface {
 	MarkCounted()
 }
 
-func New(implementation take_census_usecase.Executor, race Race) *Decorator {
+func New(implementation take_snapshot_usecase.Executor, race Race) *Decorator {
 	return &Decorator{implementation: implementation, race: race}
 }
 
 type Decorator struct {
-	implementation take_census_usecase.Executor
+	implementation take_snapshot_usecase.Executor
 	race           Race
 }
 
-var _ take_census_usecase.Executor = (*Decorator)(nil)
+var _ take_snapshot_usecase.Executor = (*Decorator)(nil)
 
 func (d *Decorator) Execute(ctx context.Context) ([]rounds.Round, error) {
 	closed, err := d.implementation.Execute(ctx)

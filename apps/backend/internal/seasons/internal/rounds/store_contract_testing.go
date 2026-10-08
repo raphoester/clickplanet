@@ -28,8 +28,8 @@ var (
 	contractFinale  = Round{EndsAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC), Finale: true}
 )
 
-func (s *StoreContractSuite) census(round Round, held map[Country]uint32) {
-	s.Require().NoError(s.store.RecordCensus(s.T().Context(), round, Census{Tiles: 100, Held: held}))
+func (s *StoreContractSuite) snapshot(round Round, held map[Country]uint32) {
+	s.Require().NoError(s.store.RecordSnapshot(s.T().Context(), round, Snapshot{Tiles: 100, Held: held}))
 }
 
 func (s *StoreContractSuite) held(round Round) map[Country]uint64 {
@@ -48,24 +48,24 @@ func (s *StoreContractSuite) TestARoundNobodyCountedHoldsNothing() {
 	s.Empty(s.held(contractDay))
 }
 
-func (s *StoreContractSuite) TestEachCensusAddsWhatEachCountryHeld() {
-	s.census(contractDay, map[Country]uint32{"fr": 3, "de": 1})
-	s.census(contractDay, map[Country]uint32{"fr": 2})
+func (s *StoreContractSuite) TestEachSnapshotAddsWhatEachCountryHeld() {
+	s.snapshot(contractDay, map[Country]uint32{"fr": 3, "de": 1})
+	s.snapshot(contractDay, map[Country]uint32{"fr": 2})
 
 	s.Equal(map[Country]uint64{"fr": 5, "de": 1}, s.held(contractDay))
 }
 
 func (s *StoreContractSuite) TestACountryThatHeldNothingIsNotKept() {
-	s.census(contractDay, map[Country]uint32{"fr": 2, "de": 0})
+	s.snapshot(contractDay, map[Country]uint32{"fr": 2, "de": 0})
 
 	s.Equal(map[Country]uint64{"fr": 2}, s.held(contractDay))
 }
 
-func (s *StoreContractSuite) TestEachRoundKeepsItsOwnCensuses() {
+func (s *StoreContractSuite) TestEachRoundKeepsItsOwnSnapshots() {
 	nextSeason := Round{Season: 1, EndsAt: contractDay.EndsAt}
-	s.census(contractDay, map[Country]uint32{"fr": 1})
-	s.census(contractNextDay, map[Country]uint32{"de": 2})
-	s.census(nextSeason, map[Country]uint32{"it": 3})
+	s.snapshot(contractDay, map[Country]uint32{"fr": 1})
+	s.snapshot(contractNextDay, map[Country]uint32{"de": 2})
+	s.snapshot(nextSeason, map[Country]uint32{"it": 3})
 
 	s.Equal(map[Country]uint64{"fr": 1}, s.held(contractDay))
 	s.Equal(map[Country]uint64{"de": 2}, s.held(contractNextDay))
@@ -73,9 +73,9 @@ func (s *StoreContractSuite) TestEachRoundKeepsItsOwnCensuses() {
 }
 
 func (s *StoreContractSuite) TestARoundIsUnclosedFromItsEndUntilItIsClosed() {
-	s.census(contractDay, map[Country]uint32{"fr": 1})
-	s.census(contractNextDay, map[Country]uint32{"fr": 1})
-	s.census(contractFinale, map[Country]uint32{"fr": 1})
+	s.snapshot(contractDay, map[Country]uint32{"fr": 1})
+	s.snapshot(contractNextDay, map[Country]uint32{"fr": 1})
+	s.snapshot(contractFinale, map[Country]uint32{"fr": 1})
 
 	s.Empty(s.unclosed(contractDay.EndsAt.Add(-time.Second)))
 	s.Equal([]Round{contractDay}, s.unclosed(contractDay.EndsAt))
@@ -88,7 +88,7 @@ func (s *StoreContractSuite) TestARoundNobodyCountedIsNeverUnclosed() {
 }
 
 func (s *StoreContractSuite) TestAClosedRoundKeepsItsResultsAndIsNoLongerUnclosed() {
-	s.census(contractDay, map[Country]uint32{"fr": 2, "de": 1})
+	s.snapshot(contractDay, map[Country]uint32{"fr": 2, "de": 1})
 	results := []Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}
 
 	s.Require().NoError(s.store.Close(s.T().Context(), contractDay, results))
@@ -98,7 +98,7 @@ func (s *StoreContractSuite) TestAClosedRoundKeepsItsResultsAndIsNoLongerUnclose
 }
 
 func (s *StoreContractSuite) TestASecondCloseChangesNothing() {
-	s.census(contractDay, map[Country]uint32{"fr": 2, "de": 1})
+	s.snapshot(contractDay, map[Country]uint32{"fr": 2, "de": 1})
 	first := []Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}
 	s.Require().NoError(s.store.Close(s.T().Context(), contractDay, first))
 
@@ -107,12 +107,12 @@ func (s *StoreContractSuite) TestASecondCloseChangesNothing() {
 	s.Equal(first, s.ResultsOf(s.store, contractDay))
 }
 
-func (s *StoreContractSuite) TestCensusesAtOnceAreAllCounted() {
+func (s *StoreContractSuite) TestSnapshotsAtOnceAreAllCounted() {
 	var wg sync.WaitGroup
 	for range 40 {
 		wg.Go(func() {
-			s.NoError(s.store.RecordCensus(s.T().Context(), contractDay,
-				Census{Tiles: 100, Held: map[Country]uint32{"fr": 1, "de": 2}}))
+			s.NoError(s.store.RecordSnapshot(s.T().Context(), contractDay,
+				Snapshot{Tiles: 100, Held: map[Country]uint32{"fr": 1, "de": 2}}))
 		})
 	}
 	wg.Wait()

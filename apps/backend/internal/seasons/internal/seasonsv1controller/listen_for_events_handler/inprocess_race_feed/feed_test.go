@@ -132,7 +132,7 @@ func TestAnotherStreamGetsTheRaceAtOnceWithNoRead(t *testing.T) {
 	assert.Equal(t, 1, f.reader.readCount())
 }
 
-func TestACensusMovesTheRaceForEveryStream(t *testing.T) {
+func TestASnapshotMovesTheRaceForEveryStream(t *testing.T) {
 	f := newFixture()
 	first := f.feed.Subscribe(t.Context())
 	second := f.feed.Subscribe(t.Context())
@@ -164,7 +164,7 @@ func TestAMovedRaceIsReadAtMostOnceASecond(t *testing.T) {
 	assert.Equal(t, 2, f.reader.readCount(), "nothing was counted since")
 }
 
-func TestAFollowedRaceIsReadAgainEveryMinuteWithNoCensus(t *testing.T) {
+func TestAFollowedRaceIsReadAgainEveryMinuteWithNoSnapshot(t *testing.T) {
 	f := newFixture()
 	races := f.feed.Subscribe(t.Context())
 	f.feed.Refresh(t.Context())

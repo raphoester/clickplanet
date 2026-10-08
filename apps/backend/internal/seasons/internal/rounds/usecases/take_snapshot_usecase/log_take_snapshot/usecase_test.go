@@ -1,4 +1,4 @@
-package log_take_census_test
+package log_take_snapshot_test
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_census_usecase/log_take_census"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_snapshot_usecase/log_take_snapshot"
 )
 
 type stubExecutor struct {
@@ -26,11 +26,11 @@ func (s stubExecutor) Execute(context.Context) ([]rounds.Round, error) {
 
 func run(ctx context.Context, inner stubExecutor) (string, []rounds.Round, error) {
 	var logs bytes.Buffer
-	closed, err := log_take_census.New(inner, slog.New(slog.NewTextHandler(&logs, nil))).Execute(ctx)
+	closed, err := log_take_snapshot.New(inner, slog.New(slog.NewTextHandler(&logs, nil))).Execute(ctx)
 	return logs.String(), closed, err
 }
 
-func TestACensusThatClosedNothingLogsNothing(t *testing.T) {
+func TestASnapshotThatClosedNothingLogsNothing(t *testing.T) {
 	logs, _, err := run(t.Context(), stubExecutor{})
 
 	require.NoError(t, err)
@@ -53,7 +53,7 @@ func TestAFailureIsLoggedAndPassedOn(t *testing.T) {
 	logs, _, err := run(t.Context(), stubExecutor{err: failure})
 
 	require.ErrorIs(t, err, failure)
-	assert.Contains(t, logs, `level=ERROR msg="failed to take the census" error="planet is down"`)
+	assert.Contains(t, logs, `level=ERROR msg="failed to take the snapshot" error="planet is down"`)
 }
 
 func TestAFailureWhileStoppingIsNotLogged(t *testing.T) {

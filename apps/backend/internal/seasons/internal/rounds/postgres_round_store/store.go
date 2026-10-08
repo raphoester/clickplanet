@@ -23,10 +23,10 @@ type Store struct {
 
 var _ rounds.Store = (*Store)(nil)
 
-func (s *Store) RecordCensus(ctx context.Context, round rounds.Round, census rounds.Census) (err error) {
-	countries := make([]string, 0, len(census.Held))
-	tiles := make([]int64, 0, len(census.Held))
-	for country, held := range census.Held {
+func (s *Store) RecordSnapshot(ctx context.Context, round rounds.Round, snapshot rounds.Snapshot) (err error) {
+	countries := make([]string, 0, len(snapshot.Held))
+	tiles := make([]int64, 0, len(snapshot.Held))
+	for country, held := range snapshot.Held {
 		if held > 0 {
 			countries = append(countries, string(country))
 			tiles = append(tiles, int64(held))
@@ -35,7 +35,7 @@ func (s *Store) RecordCensus(ctx context.Context, round rounds.Round, census rou
 
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to begin counting the census: %w", err)
+		return fmt.Errorf("failed to begin counting the snapshot: %w", err)
 	}
 	defer func() {
 		if err != nil {
@@ -46,8 +46,8 @@ func (s *Store) RecordCensus(ctx context.Context, round rounds.Round, census rou
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO rounds (season, ends_at, finale, samples, map_tiles) VALUES ($1, $2, $3, 1, $4)
 		ON CONFLICT (season, ends_at) DO UPDATE SET samples = rounds.samples + 1, map_tiles = excluded.map_tiles
-	`, int64(round.Season), round.EndsAt, round.Finale, int64(census.Tiles)); err != nil {
-		return fmt.Errorf("failed to count the census in its round: %w", err)
+	`, int64(round.Season), round.EndsAt, round.Finale, int64(snapshot.Tiles)); err != nil {
+		return fmt.Errorf("failed to count the snapshot in its round: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO round_holdings (season, ends_at, country, tiles)
@@ -58,7 +58,7 @@ func (s *Store) RecordCensus(ctx context.Context, round rounds.Round, census rou
 	}
 
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit the census: %w", err)
+		return fmt.Errorf("failed to commit the snapshot: %w", err)
 	}
 	return nil
 }

@@ -49,7 +49,7 @@ func (s *Store) FailWith(err error) {
 	s.failWith = err
 }
 
-func (s *Store) RecordCensus(_ context.Context, round rounds.Round, census rounds.Census) error {
+func (s *Store) RecordSnapshot(_ context.Context, round rounds.Round, snapshot rounds.Snapshot) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -61,7 +61,7 @@ func (s *Store) RecordCensus(_ context.Context, round rounds.Round, census round
 		at = &kept{round: round, held: map[rounds.Country]uint64{}}
 		s.rounds[keyOf(round)] = at
 	}
-	for country, tiles := range census.Held {
+	for country, tiles := range snapshot.Held {
 		if tiles > 0 {
 			at.held[country] += uint64(tiles)
 		}
