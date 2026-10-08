@@ -82,6 +82,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler/takes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
@@ -263,6 +265,15 @@ func NewModule(config Config) cpbootstrap.Module {
 				return planetv1connect.NewAdminServiceHandler(adminService, options...)
 			}); err != nil {
 				return err
+			}
+
+			internalService := planetv1controller.InternalService{
+				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
+			}
+			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+				return planetv1connect.NewInternalServiceHandler(internalService, options...)
+			}); err != nil {
+				return fmt.Errorf("failed to mount planet.v1.InternalService: %w", err)
 			}
 
 			blocklist := cpipblock.New(config.VPNBlocklist)

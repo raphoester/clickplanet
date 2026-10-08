@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/fronts/postgres_front_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/fronts/usecases/forget_fronts_usecase"
-	record_front_take "github.com/raphoester/clickplanet.lol-backend/internal/player/internal/fronts/usecases/record_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
@@ -39,7 +38,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_fronts_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_fronts_handler/fronts_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
@@ -56,6 +54,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/name_accounts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/reconcile_titles_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_planet_fronts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_planet_fronts/caching_fronts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/wear_title_handler"
@@ -71,7 +71,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/stats_changed_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/tile_taken_fronts_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inprocess_title_feed"
@@ -97,6 +96,8 @@ import (
 
 const moduleName = "player"
 
+const frontsKeptFor = 30 * time.Second
+
 const (
 	tileTakenBuffer      = 8192
 	accountDeletedBuffer = 2048
@@ -119,9 +120,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the player module asks auth about accounts: %w", err)
+		return fmt.Errorf("the player module asks auth about accounts and planet about takes: %w", err)
 	}
 	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
+	fronts := rpc_planet_fronts.New(planetv1connect.NewInternalServiceClient(internal, baseURL))
 
 	tagSalt := config.TagSalt
 	if tagSalt == "" {
@@ -150,7 +152,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	titleBook := titles.NewBook(titleStore, catalog)
 	titleFeed := inprocess_title_feed.New()
 	wornTitleStore := postgres_worn_title_store.New(db)
-	frontStore := postgres_front_store.New(db)
 	wardrobe := wearing.NewWardrobe(wornTitleStore, titleBook, catalog)
 	titleCards := inprocess_title_catalog.New(catalog)
 
@@ -167,12 +168,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
-	}
-	frontTakes, err := cpbootstrap.Subscribe(props.Events, "player-fronts", tileTakenBuffer,
-		log_subscriber.New(tile_taken_fronts_subscriber.New(record_front_take.New(frontStore)), props.Logger))
-	if err != nil {
-		_ = db.Close()
-		return fmt.Errorf("failed to subscribe the fronts to planet.v1.TileTaken: %w", err)
 	}
 	posts, err := cpbootstrap.Subscribe(props.Events, "player-stats-messages", messageSentBuffer,
 		log_subscriber.New(message_sent_subscriber.New(
@@ -209,13 +204,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe the worn titles to auth.v1.AccountDeleted: %w", err)
 	}
 
-	forgottenFronts, err := cpbootstrap.Subscribe(props.Events, "player-fronts-accounts", accountDeletedBuffer,
-		log_subscriber.New(account_deleted_subscriber.New(forget_fronts_usecase.New(frontStore)), props.Logger))
-	if err != nil {
-		_ = db.Close()
-		return fmt.Errorf("failed to subscribe the fronts to auth.v1.AccountDeleted: %w", err)
-	}
-
 	forgetVisit := forget_visit_usecase.New(visits)
 	signIns, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-ins", signInBuffer,
 		log_subscriber.New(signed_in_subscriber.New(move_visit_usecase.New(authors, visits)), props.Logger))
@@ -246,8 +234,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(signOuts)
 	props.Runners.Add(gone)
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		takes, frontTakes, posts, awards, deletions, forgottenTitles, forgottenChoices, forgottenFronts, signIns, namings))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, posts, awards, deletions, forgottenTitles, forgottenChoices, signIns, namings))
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 
@@ -267,10 +254,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat),
 			listen_for_titles_usecase.New(titleFeed, catalog),
 		),
-		GetPlayerHandler: get_player_handler.New(player_query.NewPostgresQuery(db, titleCards, accounts, clock)),
+		GetPlayerHandler: get_player_handler.New(player_query.NewPostgresQuery(
+			db, titleCards, accounts, caching_fronts.New(fronts, frontsKeptFor, clock), clock,
+		)),
 		GetTitlesHandler: get_titles_handler.New(titles_query.NewPostgresQuery(db, titleCards, clock)),
 		WearTitleHandler: wear_title_handler.New(dressing_wear_title.New(wear_title_usecase.New(wardrobe, clock), visits)),
-		GetFrontsHandler: get_fronts_handler.New(fronts_query.NewPostgresQuery(db)),
+		GetFrontsHandler: get_fronts_handler.New(fronts),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)

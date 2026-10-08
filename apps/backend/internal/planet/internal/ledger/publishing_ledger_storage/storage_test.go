@@ -43,7 +43,7 @@ func TestATakeWithAnAccountIsRecordedThenPublished(t *testing.T) {
 	published := events.Published()
 	require.Len(t, published, 1)
 	assert.True(t, proto.Equal(&planetv1.TileTaken{
-		AccountId: account, TileId: 42, Country: "fr", TakenAt: timestamppb.New(start), PreviousCountry: "de",
+		AccountId: account, TileId: 42, Country: "fr", TakenAt: timestamppb.New(start),
 	}, published[0]))
 }
 

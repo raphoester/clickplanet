@@ -63,7 +63,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, and `player` publishes `StatsChanged`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet` and `chat` hear `AccountDeleted` too.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, and `player` publishes `StatsChanged`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet` and `chat` hear `AccountDeleted` too.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -206,6 +206,7 @@ return []bootstrap.Module{
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
+| `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts` and on each `GetPlayer` the cache does not answer | `playerv1controller/rpc_planet_fronts` |
 
 A module cannot import another's interior, so the key client all four need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -244,7 +245,7 @@ The events today:
 
 | event | published by | when | heard by |
 |---|---|---|---|
-| `planet.v1.TileTaken{account_id, tile_id, country, taken_at, previous_country}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile; `previous_country` is the flag that held the tile, empty for a tile nobody held | `player`, for the stats and the fronts; `seasons`, for the standings |
+| `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats; `seasons`, for the standings |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
@@ -282,6 +283,7 @@ internal/planet/internal/
     postgres_charge_store/
     usecases/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
+    get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
   subscribers/                    the edge for events: auth.v1.AccountDeleted → anonymize_takes_usecase
 ```
 
@@ -294,6 +296,11 @@ internal/planet/internal/
 - **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Scene`, `Footage`, `Player`, `Tally`, `Runs`,
   the `Storage` port, `Recording` (the tile writer that records each act) and `Retention`. `FindPlayers`, `TopPlayers`, `BanPlayer`, `UnbanPlayer` and
   `RevertPlayer` live here: they are one moderation workflow — find, ban, undo.
+  **The postgres copy is the whole history**: the memory keeps 72h, while `ledger_events` keeps every event and
+  only blanks its address past the retention. `planet.v1.InternalService/GetTakesByCountry` reads it there
+  (`takes_query`): an account's tiles by the flag they were taken for and by the flag that held them, counting a
+  take's own row and each tile in a spread's or an enclose's payload, as `Taking.Replay` does. A parity test runs
+  every kind of event through both. It is what `player` shows as "plays for" and "plays against".
 - **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
   Its root also holds the rules a bonus plays by: `Terrain` and `Pocket` (what an
   enclose closes) and `BombRules` (where a bomb lands and what it clears).
@@ -448,7 +455,8 @@ internal/chat/internal/
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetFronts`, `GetAuthors`, `GetRoster`), auth
+(`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
+(`GetTakesByCountry`), auth
 (`GetMe`, `GetAccount`, `GetAccounts`) and seasons (`GetStandings`, `GetMySeason`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
@@ -1171,11 +1179,6 @@ internal/player/internal/
     inmemory_worn_title_store/      the same port in maps, behind the testing tag
     usecases/wear_title_usecase/  forget_worn_title_usecase/
       wear_title_usecase/dressing_wear_title/   shows a title worn on the roster at once
-  fronts/                           Country, Take (NewTake, Against); the Store port and its contract suite, and Tally behind the
-                                    testing tag
-    postgres_front_store/           the Store over player.fronts
-    inmemory_front_store/           the same port in maps, behind the testing tag
-    usecases/record_take_usecase/  forget_fronts_usecase/
   presence/                         Visit, Entry, RosterOf, TTL: who is playing
     inmemory_visit_storage/         the last visit of each account, capped, keyed, pruned every 5s (a Runner), and each change to its subscribers
     usecases/announce_usecase/  listen_for_events_usecase/  move_visit_usecase/  forget_visit_usecase/
@@ -1184,18 +1187,19 @@ internal/player/internal/
     get_authors_handler/  get_titles_handler/  wear_title_handler/  get_fronts_handler/
     announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
     get_profile_handler/profile_query/  get_stats_handler/stats_query/  get_player_handler/player_query/
-    get_titles_handler/titles_query/  get_authors_handler/authors_query/  get_fronts_handler/fronts_query/
-                                    PostgresQuery: the response straight from SQL
+    get_titles_handler/titles_query/  get_authors_handler/authors_query/   PostgresQuery: the response straight from SQL
     get_roster_handler/roster_query/    MemoryQuery: the roster, from its Lines port
       inmemory_roster/              Lines from the visits in memory (presence.RosterOf)
     inprocess_title_catalog/        the Titles port of three queries: shown, worn and each track, from titles.Catalog
-    playerread/                     what the queries share and that knows only the wire: KeptColor, Career, Fronts and
-                                    TopFronts
+    rpc_planet_fronts/              the countries played for and against, from planet.v1.InternalService/GetTakesByCountry:
+                                    GetFronts' port, and GetPlayer's through caching_fronts/
+      caching_fronts/               one answer per account for 30s
+    playerread/                     what the queries share and that knows only the wire: KeptColor, Career
     caller/                         the account on the context, or Unauthenticated
     playermessage/                  Profile, Title and the roster lines as player.v1 messages, for the commands and the adapters
   subscribers/                      the edge for events, as the controller is for the wire
     tile_taken_subscriber/  message_sent_subscriber/  account_deleted_subscriber/  signed_in_subscriber/  signed_out_subscriber/
-    stats_changed_subscriber/  signed_in_account_subscriber/  tile_taken_fronts_subscriber/
+    stats_changed_subscriber/  signed_in_account_subscriber/
     log_subscriber/
   migrations/
 ```
@@ -1262,28 +1266,27 @@ internal/player/internal/
   - **An operator reconciles them**: `player.v1.AdminService/ReconcileTitles`, on the admin listener (see [Operator tools](#operator-tools-adminservice)), after a deploy that adds a title or changes a rule, and once after the one that brought titles. Nothing runs it at boot. `reconcile_titles_usecase` pages through `player.stats` (the players store's `StatsAfter`, 500 accounts at a time, in account order); for each page it asks auth about the accounts (`GetAccounts`, one call) and reads their titles (`Store.Holdings`, one query), and `Catalog.ReconciliationOf` says what to grant (earned, not held) and what to revoke (held, not earned: a guest's titles, a title a stricter rule no longer gives, an id the catalog no longer has). Then one `Grant` and one `Revoke` per page. It records nothing of its own: a second run changes nothing, and a failed or interrupted one is simply run again. The answer counts the titles `granted` and `revoked`. It runs beside the listener: a title the listener grants mid-run is one the rules give, so the run never revokes it. `audit_reconcile_titles` logs every call at Warn. It never touches what a player wears: a choice it makes unshowable is simply not worn, and `WornOf` falls back.
   - **`GetPlayer` answers the titles shown and the one worn**, each as `{id, name, rank}` (`playermessage.Titles`, `playermessage.Title`), `rank` set for a rank of a track: its id and name, its number and how many ranks the track has.
   - **`auth.v1.AccountDeleted` deletes the titles too**, through a subscription of their own (`player-titles-accounts`, `forget_titles_usecase`), as the roster has one: the players store no longer touches `player.titles`. The choice of what to wear is deleted by another (`player-wearing-accounts`, `forget_worn_title_usecase`). A grant that lands after the delete, from a take or a reconciliation page read before it, leaves rows for an account that is gone, as a late take does for the stats.
-- **The countries a player plays for and against are `fronts/`**, a concept of its own with its own table, as titles
-  are. Each `planet.v1.TileTaken` counts one tile for its flag (`country`) and one against the flag that held the tile
-  (`previous_country`); a tile nobody held is against nobody (`Take.Against`). Kept in `player.fronts` (`account_id`,
-  `country`, `plays_for`, `plays_against`; migration `20261008120000_fronts`), one row per account and country, by one
-  upsert per take (`player-fronts`). The upsert writes its rows in country order, so two takes crossing the same two
-  countries lock them in one order. `auth.v1.AccountDeleted` deletes them (`player-fronts-accounts`). Both reads give
-  each list (`plays_for`, `plays_against`, each `{country_id, tiles}`) most tiles first, then by country, with no zero
-  in either, from one statement in `playerread`:
-  - **`GetPlayer`, which anybody may call, answers the top 3 of each** (`playerread.TopFronts`). The rest is not on
-    the public wire at all, so the cut is not one a page can undo.
-  - **`GetFronts` is the caller's every country** (`fronts_query`, `playerread.Fronts`), behind the session
-    interceptor as `Identified`: a read, so the identity token resumed from the cookie is enough.
-- **They are the total since counting started, never a season's.** Decided on 2026-10-08, in season 0, when the two are
-  the same. The card says which flags a player's tiles went to, so the flag beside its name on the Players board makes
-  sense. **The per-season split belongs to `seasons`**: it already keeps each season's tiles per flag in
-  `seasons.contributions`, and would count `previous_country` the same way; the card would then show the season beside
-  the total. Until it does, from season 1 the top flag on the card can differ from the flag on the board.
-- **The migration starts the totals from `seasons.contributions`**, summed over every season, so "plays for" counts
-  from 2026-10-03, when the seasons started counting, and not from the deploy. It is the one place a module reads
-  another's schema: once, at boot, before any subscriber runs, and only where that table exists (not on a fresh
-  database, nor in the tests but its own). "Plays against" starts at the deploy: the ledger keeps a take's previous
-  owner for 72h only. So neither list adds up to `tiles_taken`, which counts from 2026-09-17.
+- **The countries a player plays for and against are read from the ledger, not kept here.** The postgres ledger
+  (`planet.ledger_events`) keeps every take since 2026-09-16 with its account, its flag and the flag that held the
+  tile: after 72h only the address is blanked, and a deleted account is blanked off its takes. So `player` keeps no
+  copy: it asks `planet.v1.InternalService/GetTakesByCountry` over the internal listener (`rpc_planet_fronts`, 5s
+  timeout), and planet answers from one SQL statement (`takes_query`). Both lists (`plays_for`, `plays_against`, each
+  `{country_id, tiles}`) come most tiles first, then by country, and a tile nobody held is against nobody.
+  - **`GetPlayer`, which anybody may call, answers the top 3 of each**, through `caching_fronts`: one answer per
+    account for 30s (`frontsKeptFor`), at most 4,096 accounts, an expired one making room. The rest is not on the
+    public wire at all, so the cut is not one a page can undo.
+  - **`GetFronts` is the caller's every country**, uncached, behind the session interceptor as `Identified`: a read,
+    so the identity token resumed from the cookie is enough. The client already asks at most every 10s while it clicks.
+  - **A failure to ask planet is a real error**, the error net's `internal`, as for auth.
+  - **It costs one grouped read of the account's events**, through `ledger_events_account`. A player with a million
+    takes makes that heavy, which is what the cache is for on the public card. If it ever is too slow, a projection
+    fed by `TileTaken` is the way back.
+- **They are the total since the ledger has accounts, never a season's.** Decided on 2026-10-08, in season 0, when the
+  two are the same. The card says which flags a player's tiles went to, so the flag beside its name on the Players
+  board makes sense. **The per-season split is the same query bounded by the season's start and end**: `seasons`
+  holds the calendar, so it would pass the interval. Until then, from season 1 the top flag on the card can differ
+  from the flag on the board. Neither list adds up to `tiles_taken`, which counts from 2026-09-17 and only what the
+  event bus delivered.
 - **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
 - **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
 - **No memory copy: every call reads or writes postgres.** This is not the tile map's pattern on purpose. The map is in memory so a click never waits on the database; a take reaches this module over the event bus, so a click already never waits on it, and the calls are few (production is ~15 takes a second at peak). A memory copy would load every account that ever took a tile at boot, and cost a dirty set, a flush loop and a window a hard kill loses.
