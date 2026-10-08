@@ -2441,7 +2441,8 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   political feed.
 - **`music.ts` picks the anthem under the clip**, since YouTube Shorts cannot add a sound to an upload: the anthem
   of whoever makes the moves, the leading flag's, else the other side's in a battle, or the continent's when a
-  continent strikes back. Never a loser's: a clip with none plays none. They are the game's own anthems (see [The
+  continent strikes back. Never a loser's, but for a flag thrown out by many flags none of which leads ("ALGERIA IS
+  FALLING"): the clip names no other flag. A clip with none plays none. They are the game's own anthems (see [The
   leader's anthem](#the-leaders-anthem)), US Navy Band recordings in the public domain, and two the game does not
   play, vendored by `npm run clip:anthems` into `scripts/clip/anthems/`: the Anthem of Europe (Navy Band too) and
   Palestine's Fida'i, which the Navy Band never recorded, in an instrumental under CC BY 3.0. A recording under a
