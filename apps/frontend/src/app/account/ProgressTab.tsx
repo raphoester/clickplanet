@@ -5,7 +5,8 @@ import TitleBanner from "../titles/TitleBanner.tsx"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import TrackPath from "../titles/TrackPath.tsx"
 import {PlayerStats} from "../players/PlayerCard.tsx"
-import PlayerFronts from "../players/PlayerFronts.tsx"
+import {FrontFolds} from "../players/PlayerFronts.tsx"
+import Fold from "../components/Fold.tsx"
 import {usePlayerInfo} from "../players/usePlayerInfo.ts"
 import {takenCount} from "../../domain/standings.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
@@ -90,30 +91,32 @@ export default function ProgressTab({store, me, stats, listenForClicks}: Progres
 
         {stats && <OwnStats {...stats} listenForClicks={listenForClicks}/>}
 
-        {wearable.length > 0 && <div className="account-wear">
-            <span className="menu-label" id={labelId}>Wear a title</span>
-            <div className="account-wear-options" role="radiogroup" aria-labelledby={labelId}>
-                {wearable.map((title) => {
-                    const checked = title.id === worn?.id
-                    return <button key={title.id}
-                                   type="button"
-                                   role="radio"
-                                   aria-checked={checked}
-                                   className="panel-box account-wear-option"
-                                   disabled={wearing !== undefined}
-                                   onClick={() => {
-                                       if (!checked) wear(title.id)
-                                   }}>
-                        <TitleEmblem title={title} size={44} ribbon/>
-                        <span className="account-wear-name">{title.name}</span>
-                    </button>
-                })}
-            </div>
-        </div>}
+        <Fold title="Titles" startOpen>
+            {wearable.length > 0 && <div className="account-wear">
+                <span className="menu-label" id={labelId}>Wear a title</span>
+                <div className="account-wear-options" role="radiogroup" aria-labelledby={labelId}>
+                    {wearable.map((title) => {
+                        const checked = title.id === worn?.id
+                        return <button key={title.id}
+                                       type="button"
+                                       role="radio"
+                                       aria-checked={checked}
+                                       className="panel-box account-wear-option"
+                                       disabled={wearing !== undefined}
+                                       onClick={() => {
+                                           if (!checked) wear(title.id)
+                                       }}>
+                            <TitleEmblem title={title} size={44} ribbon/>
+                            <span className="account-wear-name">{title.name}</span>
+                        </button>
+                    })}
+                </div>
+            </div>}
 
-        {tracks.map((track) => <TrackPath key={track.id} track={track}/>)}
+            {tracks.map((track) => <TrackPath key={track.id} track={track}/>)}
+        </Fold>
 
-        {fronts && <PlayerFronts {...fronts}/>}
+        {fronts && <FrontFolds {...fronts}/>}
     </div>
 }
 

@@ -1,0 +1,54 @@
+.fold {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.fold-heading {
+    margin: 0;
+    font: inherit;
+}
+
+.fold-bar {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    width: 100%;
+    padding: 11px var(--space-3) 8px;
+    font-family: var(--font-display);
+    font-size: var(--display-m);
+    line-height: 1;
+    color: var(--gold);
+    text-align: left;
+    text-shadow: var(--text-drop);
+    cursor: pointer;
+}
+
+.fold-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.fold-chevron {
+    display: flex;
+    align-self: center;
+    color: var(--text-muted);
+    transform: rotate(-90deg);
+    transition: transform 0.12s ease;
+}
+
+.fold-bar[aria-expanded="true"] .fold-chevron {
+    transform: none;
+}
+
+.fold-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fold-chevron {
+        transition: none;
+    }
+}
