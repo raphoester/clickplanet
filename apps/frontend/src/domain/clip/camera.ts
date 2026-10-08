@@ -164,7 +164,7 @@ function keysOf(fallback: Point, beats: readonly Beat[]): Point[] {
     })
 }
 
-function heartOf(points: readonly Point[]): Point | undefined {
+export function heartOf(points: readonly Point[]): Point | undefined {
     const step = Math.max(1, Math.ceil(points.length / MOST_POINTS))
     const heart = densest(points.filter((_, i) => i % step === 0), HEART_RADIANS)
     if (heart === undefined) return undefined
@@ -192,7 +192,7 @@ function closenessAt(at: number, hold: number): number {
 }
 
 // The keys turn the camera at a corner each; the zoom is smooth already.
-function smoothed(shots: readonly Shot[]): Shot[] {
+export function smoothed(shots: readonly Shot[]): Shot[] {
     const sigma = SMOOTHING * GRID
     const reach = Math.ceil(3 * sigma)
     const weights = Array.from({length: 2 * reach + 1}, (_, j) => Math.exp(-(((j - reach) / sigma) ** 2) / 2))
