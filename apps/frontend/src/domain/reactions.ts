@@ -54,6 +54,21 @@ export function applyReactionsAnswer(log: readonly ChatMessage[], answer: Reacti
     return versioned(log, answer, () => answer.reactions)
 }
 
+export function withNewerReactions(log: readonly ChatMessage[], fresher: readonly ChatMessage[]): ChatMessage[] {
+    const byId = new Map(fresher.map(message => [message.id, message]))
+
+    let changed = false
+    const next = log.map(message => {
+        const fresh = byId.get(message.id)
+        if (!fresh || fresh.reactionsVersion <= message.reactionsVersion) return message
+
+        changed = true
+        return {...message, reactions: fresh.reactions, reactionsVersion: fresh.reactionsVersion}
+    })
+
+    return changed ? next : log as ChatMessage[]
+}
+
 function versioned(
     log: readonly ChatMessage[],
     change: ReactionsChange,

@@ -32,22 +32,27 @@ func (silentFeed) Attend(bonuses.Entrant) (<-chan bonuses.Event, func()) {
 }
 
 type recorder struct {
-	mu     sync.Mutex
-	events []listen_for_events_usecase.Event
-	err    error
-	fed    chan struct{}
+	mu       sync.Mutex
+	events   []listen_for_events_usecase.Event
+	err      error
+	accepted int
+	fed      chan struct{}
 }
 
 func (r *recorder) Send(event listen_for_events_usecase.Event) error {
 	r.mu.Lock()
 	r.events = append(r.events, event)
+	refused := len(r.events) > r.accepted
 	r.mu.Unlock()
 
 	if r.fed != nil {
 		r.fed <- struct{}{}
 	}
 
-	return r.err
+	if refused {
+		return r.err
+	}
+	return nil
 }
 
 func (r *recorder) seen() []listen_for_events_usecase.Event {
@@ -103,10 +108,12 @@ func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 	}()
 
 	<-sink.fed
+	<-sink.fed
 	cancel()
 	require.NoError(t, <-done)
 
 	require.Equal(t, []listen_for_events_usecase.Event{
+		{Heartbeat: true},
 		{Update: clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}},
 	}, sink.seen())
 }
@@ -125,10 +132,60 @@ func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	}()
 
 	<-sink.fed
+	<-sink.fed
 	cancel()
 	require.NoError(t, <-done)
 
-	require.Equal(t, []listen_for_events_usecase.Event{{Blast: blast}}, sink.seen())
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Blast: blast}}, sink.seen())
+}
+
+func TestAStreamOpensWithAHeartbeat(t *testing.T) {
+	sink := &recorder{fed: make(chan struct{})}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, silentFeed{}).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}}, sink.seen())
+}
+
+type watchedSubscriber struct{ subscribed bool }
+
+func (s *watchedSubscriber) Subscribe(context.Context) (<-chan clicks.Change, error) {
+	s.subscribed = true
+
+	updates := make(chan clicks.Change)
+	close(updates)
+
+	return updates, nil
+}
+
+type witness struct {
+	subscriber *watchedSubscriber
+	feed       *attendedFeed
+	followed   []bool
+}
+
+func (w *witness) Send(listen_for_events_usecase.Event) error {
+	w.followed = append(w.followed, w.subscriber.subscribed && len(w.feed.entrants) == 1)
+	return nil
+}
+
+func TestTheOpeningHeartbeatComesOnceTheMapAndTheBoxesAreFollowed(t *testing.T) {
+	subscriber := &watchedSubscriber{}
+	feed := &attendedFeed{}
+	sink := &witness{subscriber: subscriber, feed: feed}
+
+	require.NoError(t, listen_for_events_usecase.New(subscriber, time.Hour, feed).Execute(t.Context(), sink))
+
+	assert.Equal(t, []bool{true}, sink.followed, "a client resyncs on it, so nothing after it may be missed")
 }
 
 func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
@@ -165,9 +222,26 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 func TestAFailedSendEndsTheFeed(t *testing.T) {
 	updates := make(chan clicks.Change, 1)
 	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 1}}
+	sink := &recorder{err: assert.AnError, accepted: 1}
 
 	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).
-		Execute(t.Context(), &recorder{err: assert.AnError})
+		Execute(t.Context(), sink)
 
 	require.ErrorIs(t, err, assert.AnError)
+	assert.Equal(t, []listen_for_events_usecase.Event{
+		{Heartbeat: true},
+		{Update: clicks.TileUpdate{Tile: 1}},
+	}, sink.seen())
+}
+
+func TestAFailedOpeningHeartbeatEndsTheFeed(t *testing.T) {
+	updates := make(chan clicks.Change, 1)
+	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 1}}
+	sink := &recorder{err: assert.AnError}
+
+	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).
+		Execute(t.Context(), sink)
+
+	require.ErrorIs(t, err, assert.AnError)
+	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}}, sink.seen())
 }

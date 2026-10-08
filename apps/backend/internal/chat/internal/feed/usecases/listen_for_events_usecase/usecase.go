@@ -43,6 +43,11 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 		return fmt.Errorf("failed to subscribe to the chat feed: %w", err)
 	}
 
+	// Connect writes nothing until the first Send, and the client resyncs on a stream's first event.
+	if err := sink.Send(Event{Heartbeat: true}); err != nil {
+		return err
+	}
+
 	heartbeat := time.NewTicker(u.heartbeat)
 	defer heartbeat.Stop()
 

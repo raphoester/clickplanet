@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"math"
 	"sync"
-	"sync/atomic"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
@@ -38,7 +37,7 @@ func New(
 		counts:      []uint32{0},
 		codes:       []string{""},
 		codeIDs:     map[string]uint16{"": unownedCode},
-		subscribers: cpcolls.NewSet[*subscriber](),
+		subscribers: cpcolls.NewSet[chan clicks.Change](),
 	}
 
 	return s
@@ -58,12 +57,7 @@ type Storage struct {
 	dirty   []uint64
 
 	subscribersMu sync.Mutex
-	subscribers   *cpcolls.Set[*subscriber]
-}
-
-type subscriber struct {
-	ch      chan clicks.Change
-	dropped atomic.Uint64
+	subscribers   *cpcolls.Set[chan clicks.Change]
 }
 
 func (s *Storage) Set(_ context.Context, tile uint32, value string) error {
@@ -199,10 +193,10 @@ func (s *Storage) internLocked(value string) (uint16, error) {
 }
 
 func (s *Storage) Subscribe(ctx context.Context) (<-chan clicks.Change, error) {
-	sub := &subscriber{ch: make(chan clicks.Change, s.config.SubscriberBuffer)}
+	changes := make(chan clicks.Change, s.config.SubscriberBuffer)
 
 	s.subscribersMu.Lock()
-	s.subscribers.Add(sub)
+	s.subscribers.Add(changes)
 	s.subscribersMu.Unlock()
 
 	go func() {
@@ -211,52 +205,37 @@ func (s *Storage) Subscribe(ctx context.Context) (<-chan clicks.Change, error) {
 		s.subscribersMu.Lock()
 		defer s.subscribersMu.Unlock()
 
-		s.subscribers.Delete(sub)
-		close(sub.ch)
+		s.unsubscribe(changes)
 	}()
 
-	return sub.ch, nil
+	return changes, nil
 }
-
-const dropLogInterval = 1000
 
 func (s *Storage) publish(change clicks.Change) {
 	s.subscribersMu.Lock()
 	defer s.subscribersMu.Unlock()
 
-	s.subscribers.ForEach(func(sub *subscriber) {
+	var behind []chan clicks.Change
+	s.subscribers.ForEach(func(changes chan clicks.Change) {
 		select {
-		case sub.ch <- change:
+		case changes <- change:
 		default:
-			dropped := sub.dropped.Add(1)
-			if dropped == 1 || dropped%dropLogInterval == 0 {
-				s.logger.Warn("dropped map change for a slow subscriber",
-					slog.Uint64("tile", uint64(tileOf(change))),
-					slog.Uint64("droppedTotal", dropped),
-				)
-			}
+			behind = append(behind, changes)
 		}
 	})
+	for _, changes := range behind {
+		s.logger.Warn("cut off a map subscriber that fell behind", slog.Int("buffer", s.config.SubscriberBuffer))
+		s.unsubscribe(changes)
+	}
 }
 
-func tileOf(change clicks.Change) uint32 {
-	if change.Blast != nil {
-		return change.Blast.Tile
+func (s *Storage) unsubscribe(changes chan clicks.Change) {
+	if !s.subscribers.Contains(changes) {
+		return
 	}
 
-	return change.Update.Tile
-}
-
-func (s *Storage) DroppedUpdates() uint64 {
-	s.subscribersMu.Lock()
-	defer s.subscribersMu.Unlock()
-
-	var total uint64
-	s.subscribers.ForEach(func(sub *subscriber) {
-		total += sub.dropped.Load()
-	})
-
-	return total
+	s.subscribers.Delete(changes)
+	close(changes)
 }
 
 var _ clicks.TileStorage = (*Storage)(nil)

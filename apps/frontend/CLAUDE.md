@@ -147,7 +147,10 @@ app/       components
   by a batch that was already in flight. Counts follow this map, never the
   `previousCountry` an event reports. It also holds the third source, **your own
   clicks, painted before the server has agreed to them** — see [Rolling back a
-  refused click](#rolling-back-a-refused-click).
+  refused click](#rolling-back-a-refused-click). After a gap in the stream,
+  `forgetLive` and `resync` take a whole map again: a tile it does not list is
+  emptied, a tile the stream set since `forgetLive` is kept, and a click in
+  flight stays painted. `TileShields` has the same two.
 - `leaderboard.ts` — `rankCountries`, a pure sort over those counts. Ties break
   on country code so equally-placed rows stop swapping.
 - `tileDeltas.ts` — what the leaderboard floats beside a tile count as "+3" or
@@ -244,6 +247,22 @@ restarted server or a proxy timeout, and nothing reopens it — Connect carries 
 reconnect, which is the whole reason `openStream` exists. The backoff resets on
 a received message rather than on connect, because a connection is only known to
 work once something has come down it.
+
+**A reopened stream has a gap, and nothing replays it.** A phone that locks, or
+a tab the browser freezes, loses its connection, and whatever the server sent in
+the meantime is gone. So `openStream` calls `onResumed` on the first message of
+a connection when an earlier one had been live; the planet and the chat read
+the map and the history again there (see below). The roster and the board need
+nothing: each connection starts with the whole of it. Two more things find a
+gap sooner:
+
+- **A silent stream is reopened.** A socket killed while the page slept can look
+  open forever. Nothing heard for `SILENCE_LIMIT_MS` (60s, two heartbeats) aborts
+  it and connects again. A server heartbeat slower than 30s would trip this.
+- **The page coming back is a wake** (`pageWakeups`: `visibilitychange` to
+  visible, `resume`, `pageshow`, `online`). It connects at once rather than
+  waiting out the backoff, and reopens a stream already silent too long. Tests
+  pass their own `wakeups`.
 
 **`NO_TIMEOUT` is load-bearing, not decoration.** `main.tsx` builds the clients
 with `timeoutMs: 2000`, and connect-web applies `defaultTimeoutMs` to a stream
@@ -343,6 +362,15 @@ bucket, so the counter is live in dev.
 exponential backoff. It is the only source of live changes, so a drop that is not
 retried freezes the globe until a reload.
 
+**A resumed stream makes the globe catch up.** `listenForResumes` is called
+after `PlanetBackend` has flushed the updates from before the gap. The globe then
+forgets which tiles the stream had set (`forgetLive`), waits
+`CATCH_UP_DELAY_MS`, reads the whole map again and applies it with `resync`.
+**The wait is `GetMap`'s `max-age`** (5s): a copy from the edge is never older
+than that, so after the wait it is never older than the resumed stream, and
+what the stream said since still wins. It costs a whole map, about 0.5 MB, per
+gap.
+
 **The planet stream carries the click token it can have without a mint.** Each
 (re)connect puts `SessionProvider.held()` in `X-Session-Token`, so the server
 knows which account the stream serves; with none held it opens without one and
@@ -403,7 +431,8 @@ right-hand column, folded and unfolded from its own header. On a phone it is the
 Chat tab's sheet, and `Viewer` holds whether it is open (`open`,
 `onOpenChange`); see [The screen](#the-screen-four-zones). **It is always
 mounted**, open or not, on both: it owns the history load, the stream, the unread
-count and the sound. Closed on a phone it draws only the peek (below) and hands
+count and the sound. **A resumed stream reads the history again**: `addMessages`
+takes what it missed, and `withNewerReactions` the reactions that moved meanwhile. Closed on a phone it draws only the peek (below) and hands
 the unread count up through `onUnread`, for the tab's badge.
 
 **The chat and who is online share the panel**: with a roster wired, its header

@@ -37,35 +37,30 @@ func (s *testSuite) newStorageOn(cfg inmemory_tile_storage.Config, persistence i
 	return inmemory_tile_storage.New(maxIndex, cfg, persistence, slog.New(slog.DiscardHandler))
 }
 
-func (s *testSuite) TestSlowSubscriberIsDroppedNotBlocking() {
+func (s *testSuite) TestASlowSubscriberIsClosedRatherThanHoldingTheWriters() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	storage := s.newStorage(inmemory_tile_storage.Config{SubscriberBuffer: 1})
 
-	listener, err := storage.Subscribe(ctx)
+	slow, err := storage.Subscribe(ctx)
+	s.Require().NoError(err)
+	reading, err := storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
-	errs := make(chan error, 1)
-	go func() {
-		defer close(errs)
-		for i := uint32(1); i <= 1000; i++ {
-			if err := storage.Set(context.Background(), i, "fr"); err != nil {
-				errs <- err
-				return
-			}
-		}
-	}()
+	for tile := uint32(1); tile <= 1000; tile++ {
+		s.Require().NoError(storage.Set(context.Background(), tile, "fr"))
 
-	select {
-	case err := <-errs:
-		s.Require().NoError(err)
-	case <-time.After(5 * time.Second):
-		s.T().Fatal("a slow subscriber blocked the writers")
+		change, open := <-reading
+		s.Require().True(open, "a subscriber that keeps up is never cut off")
+		s.Require().Equal(tile, change.Update.Tile)
 	}
 
-	s.Equal(uint64(999), storage.DroppedUpdates())
-	s.Len(listener, 1)
+	change, open := <-slow
+	s.Require().True(open)
+	s.Equal(uint32(1), change.Update.Tile)
+	_, open = <-slow
+	s.False(open, "closed, not skipped: its stream ends and the client reads the map again")
 
 	state, err := stateBatch(storage, 1, 1000)
 	s.Require().NoError(err)

@@ -60,6 +60,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readonly quizCallbacks = new Map<string, (offer: QuizOffer) => void>()
     private readonly bombCallbacks = new Map<string, (drop: BombDrop) => void>()
     private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
+    private readonly resumeCallbacks = new Map<string, () => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private stopListening: () => void
 
@@ -109,6 +110,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.quizCallbacks.clear()
         this.bombCallbacks.clear()
         this.budgetCallbacks.clear()
+        this.resumeCallbacks.clear()
         this.pendingUpdates = []
     }
 
@@ -293,6 +295,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 if (spread) this.bonusCallbacks.forEach(handlers => handlers.onSpread(spread))
             },
             "planet events",
+            {
+                onResumed: () => {
+                    // Updates from before the gap land before the globe forgets them, or they would outrank the catch-up.
+                    this.flushUpdates()
+                    this.resumeCallbacks.forEach(callback => callback())
+                },
+            },
         )
     }
 
@@ -360,6 +369,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.updateCallbacks.set(id, callback)
 
         return () => this.updateCallbacks.delete(id)
+    }
+
+    public listenForResumes(callback: () => void): () => void {
+        const id = generateUUID()
+        this.resumeCallbacks.set(id, callback)
+
+        return () => this.resumeCallbacks.delete(id)
     }
 
     public listenForBonuses(handlers: BonusHandlers): () => void {

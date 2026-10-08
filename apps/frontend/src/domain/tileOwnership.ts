@@ -44,18 +44,36 @@ export class TileOwnership {
     public applyBatch(ownerships: Ownerships): OwnerChange[] {
         const changes: OwnerChange[] = []
         ownerships.bindings.forEach((country, tile) => {
-            if (!this.inRange(tile)) return
-
-            const pending = this.pending.get(tile)
-            if (pending) {
-                if (!pending.claimedLive) pending.country = country
-                return
-            }
-
-            if (this.claimedLive[tile]) return
-            if (this.assign(tile, country)) changes.push({tile, country})
+            if (this.inRange(tile)) this.takeFromMap(tile, country, changes)
         })
         return changes
+    }
+
+    public forgetLive(): void {
+        this.claimedLive.fill(0)
+        for (const [tile, pending] of this.pending) {
+            this.claimedLive[tile] = 1
+            pending.claimedLive = false
+        }
+    }
+
+    public resync(bindings: ReadonlyMap<number, string>): OwnerChange[] {
+        const changes: OwnerChange[] = []
+        for (let tile = 1; tile <= this.size; tile++) {
+            this.takeFromMap(tile, bindings.get(tile), changes)
+        }
+        return changes
+    }
+
+    private takeFromMap(tile: number, country: string | undefined, changes: OwnerChange[]) {
+        const pending = this.pending.get(tile)
+        if (pending) {
+            if (!pending.claimedLive) pending.country = country
+            return
+        }
+
+        if (this.claimedLive[tile]) return
+        if (this.assign(tile, country)) changes.push({tile, country})
     }
 
     public applyUpdates(updates: Update[]): OwnerChange[] {
