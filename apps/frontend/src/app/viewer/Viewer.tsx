@@ -23,6 +23,7 @@ import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
 import ClicksPanel from "../components/ClicksPanel.tsx";
 import Inventory from "../components/Inventory.tsx";
 import {useBonusGuide} from "../components/useBonusGuide.ts";
+import {useBoardGuide} from "../useBoardGuide.ts";
 import {isFirstWin} from "../../domain/bonusGuide.ts";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
@@ -108,6 +109,7 @@ export default function Viewer(props: ViewerProps) {
     const race = useRace(props.standings)
     const reveal = useRoundReveal(race)
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
+    const boardGuide = useBoardGuide()
     const [pitchOpen, setPitchOpen] = useState(false)
     const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
     const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
@@ -216,6 +218,8 @@ export default function Viewer(props: ViewerProps) {
         race,
         countryOrder,
         onCountryOrder: setCountryOrder,
+        guided: boardGuide.guided,
+        onGuided: boardGuide.markGuided,
     }
     const you = {
         account: props.account,

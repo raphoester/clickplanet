@@ -39,6 +39,8 @@ export type BoardPlaceProps = {
     race?: Race,
     countryOrder?: CountryOrder,
     onCountryOrder?: (order: CountryOrder) => void,
+    guided?: boolean,
+    onGuided?: () => void,
 }
 
 export type YouPlaceProps = {
@@ -193,7 +195,9 @@ export function BoardPlace(props: BoardPlaceProps & {playing: boolean}) {
                                    anthem={props.anthem}
                                    race={props.race}
                                    order={props.countryOrder}
-                                   onOrder={props.onCountryOrder}/>
+                                   onOrder={props.onCountryOrder}
+                                   guided={props.guided}
+                                   onGuided={props.onGuided}/>
 
     return <>
         {props.playing && <PlayingFor country={props.country}

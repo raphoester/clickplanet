@@ -25,7 +25,7 @@ describe("countryLines", () => {
         ])
     })
 
-    it("orders by the season: the points, with what each would score if the day ended now", () => {
+    it("orders by the season: the points won on the days that ended", () => {
         expect(shown(countryLines(MAP, RACE, "season"))).toEqual([
             "fr 700 43+18",
             "it 0 30+0",
@@ -40,10 +40,12 @@ describe("countryLines", () => {
         expect(countryLines([], race(1, [], [score(1, "it", 30)]), "territory")).toEqual([])
     })
 
-    it("orders the countries level on points by their tiles", () => {
-        expect(shown(countryLines([held("es", 10), held("pt", 80)], race(1, [], []), "season"))).toEqual([
-            "pt 80 0+0",
-            "es 10 0+0",
+    it("orders the countries level on points by their tiles, not by what they score today", () => {
+        const day = race(1, [today(9, "es", 2), today(10, "it", 1)], [])
+
+        expect(shown(countryLines([held("es", 3_817), held("it", 4_867)], day, "season"))).toEqual([
+            "it 4867 0+1",
+            "es 3817 0+2",
         ])
     })
 
