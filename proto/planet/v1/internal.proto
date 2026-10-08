@@ -6,6 +6,10 @@ service InternalService {
   rpc GetTakesByCountry(GetTakesByCountryRequest) returns (GetTakesByCountryResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetTakesByCountryRequest {
@@ -20,4 +24,16 @@ message GetTakesByCountryResponse {
 message CountryTakes {
   string country_id = 1;
   uint64 tiles = 2;
+}
+
+message GetTerritoriesRequest {}
+
+message GetTerritoriesResponse {
+  uint32 tiles = 1;
+  repeated Territory territories = 2;
+}
+
+message Territory {
+  string country_id = 1;
+  uint32 tiles = 2;
 }
