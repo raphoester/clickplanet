@@ -1335,8 +1335,8 @@ strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 3):
   a click that closes a shape of the caller's own tiles also takes the tiles
   inside it, at most `bonus.enclose.maxTiles` (25), and spends one.
   See [What an enclose does to a click](#what-an-enclose-does-to-a-click).
-- **`shields`** — 1 to `bonus.shield.maxPerBox` (3) shields added to a stack
-  of at most `bonus.shield.held` (12). Each is placed on a tile the player's flag
+- **`shields`** — `bonus.shield.minPerBox` (5) to `bonus.shield.maxPerBox` (20)
+  shields added to a stack of at most `bonus.shield.held` (30). Each is placed on a tile the player's flag
   holds and takes one foreign click there. See [Shields](#shields).
 
 Every kind is a **charge**, worth about one bank, rather than a timer — see
@@ -1576,8 +1576,8 @@ its own.
 - **How much fits.** A refill and a bomb are one: a second replaces the first,
   which is what stops a stockpile of bombs being dropped all at once. Enclosures
   stack to `bonus.enclose.held` (3), spread clicks pool to `bonus.spread.clicks`
-  (8) and shields stack to `bonus.shield.held` (12). A box draws its amount evenly from 1 to `maxPerBox` (`Registry.amountOf`,
-  `crypto/rand`) and the grant caps it at the size. The claim answers
+  (8) and shields stack to `bonus.shield.held` (30). A box draws its amount evenly from 1 to `maxPerBox`, or from
+  `bonus.shield.minPerBox` for shields (`Registry.amountOf`, `crypto/rand`), and the grant caps it at the size. The claim answers
   `ClaimBonusResponse.amount` as **what was kept**, `Count` after less `Count`
   before, so a player is never told of clicks that did not fit.
 - **The schedule offers no kind that is full** for any account that clicked as
@@ -2874,7 +2874,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.kinds` — a weight per kind (`refill`, `spread_clicks`, `bomb`, `enclose_clicks`, `shields`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
 - `bonus.spread.clicks`, `bonus.spread.maxPerBox` — the most spread clicks held (8, about 56 tiles, a bomb's worth), and the most one box adds (4; it draws 1 to that). A count, not a time: a timed spread let a full bank of clicks be dumped inside it
 - `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
-- `bonus.shield.held`, `bonus.shield.maxPerBox`, `bonus.shield.perTile` — the most shields held (12), the most one box adds (3; it draws 1 to that), and the most one tile holds (10)
+- `bonus.shield.held`, `bonus.shield.minPerBox`, `bonus.shield.maxPerBox`, `bonus.shield.perTile` — the most shields held (30), the fewest and the most one box adds (5 and 20; it draws evenly between them), and the most one tile holds (10)
 - `chargeStorage.flushInterval` — how often the charges that changed are written to postgres (default 1s); also flushed on shutdown
 - `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
 - `antiBot.enabled` — off registers nothing and measures nothing
