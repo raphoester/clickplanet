@@ -2413,11 +2413,13 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   where. Nearly all in one country (90%) is **"X IS INVADING FRANCE"**; spread over several, it is **"X IS
   ATTACKING"** the continent holding 70% of it (`static/countries/regions.json`, written by `npm run regions` from
   the snapshot the map is cut from), else **"X IS INVADING EGYPT AND TURKEY"** when two countries hold 70% of it,
-  else the world. Not a sub-region: "defend Western Europe" is not how anybody talks. A flag taking back its own ground, or its own continent from a flag from elsewhere (Belgium taking Europe
-  back from Palestine), is **"X STRIKES BACK"**; a flag that already held most of the country
+  else the world. Not a sub-region: "defend Western Europe" is not how anybody talks. A flag taking back its own ground, or its own continent from flags from elsewhere (Belgium taking Europe
+  back from Palestine), is **"X STRIKES BACK"**, when they lost it at least half of what it took there: Portugal taking
+  Europe from Israel first but from Germany, Poland and Spain more is attacking it; a flag that already held most of the country
   when the story starts is **"X IS KICKING Y OUT OF AUSTRALIA"**, since the opening shot shows its flag there
   already; a second flag taking 60% as much makes it **"X VS Y"**, but only when the two are at war, a quarter of
-  what one took taken from the other: Israel and Belgium both taking Europe from Palestine are allies, not a battle.
+  what each took taken from the other: Israel and Belgium both taking Europe from Palestine are allies, not a battle,
+  and Portugal nibbling at Romania while Romania takes the USA from Algeria is no battle either.
   `src/clip/overlay.ts` words it.
 - **A story is about who leads the fighting** (`castOf`): its flags have to take 35% of everything taken around
   it. Below that, flags of one continent taking it back together, with half of it between them, are the story,
@@ -2428,11 +2430,14 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   KICKED OUT OF EUROPE"**, told from its side with its counter falling against the continent's, and one attacker
   becomes **"ISRAEL IS KICKING PALESTINE OUT OF EUROPE"**. When many flags take it and none leads, it is the story
   alone, placed where it lost its land: **"PALESTINE GETS KICKED OUT OF SOUTH AMERICA"**, with "Fight for
-  Palestine". Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
+  Palestine"; when the flag that took most of it leads there, though the flag of the front did not, it is that flag
+  kicking it out. With `--country`, a story that flag leads nothing in is skipped. Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
   country **"IS FALLING"**, and one attacker taking it is an invasion. A flag taking its own ground back still strikes
   back.
 - **One story per flag and what it did** (`sameStory`), whatever window or scale found it, the best one: one flag
-  beating another, one flag thrown out of one place, one flag striking back. A battle is its two sides in one place.
+  beating another in one place or one inside it (Europe and France), one flag thrown out of one place, one flag
+  striking back. Portugal beating France in Africa and in India is two stories. A battle is its two sides in one
+  place. `--plan` lists each one dropped with the one it repeats.
 - **Names are said with their article** where English wants one: "the UK", "the Netherlands". Tags keep them bare.
 - **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
   France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.

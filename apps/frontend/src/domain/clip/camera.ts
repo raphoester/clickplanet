@@ -119,7 +119,10 @@ export function cameraOf(
     {close, seconds, pullBack, hold = HOLD_SECONDS, blasts = []}: Script,
 ): (share: number) => Shot {
     const keys = keysOf(opening.direction, beats)
-    const out = outAt(pullBack, seconds, hold + DIVE_SECONDS, Math.max(0, ...blasts.map(({to}) => to * seconds)))
+    const lastBlast = Math.max(0, ...blasts.map(({to}) => to * seconds))
+    const out = outAt(pullBack, seconds, hold + DIVE_SECONDS, lastBlast)
+    // Every clip ends on the opening, even when a blast took the camera back in after a pull back halfway.
+    const last = pullBack === "atEnd" ? out : outAt("atEnd", seconds, hold + DIVE_SECONDS, lastBlast)
     const still = stillnessOf(keys, close, seconds)
     const path = smoothed(Array.from({length: GRID + 1}, (_, i) => {
         const share = i / GRID
@@ -132,7 +135,7 @@ export function cameraOf(
             const pull = pullAt(blast, share) * closenessAt(at, hold)
             if (pull > 0) shot = {direction: blend(shot.direction, blast.point, pull), zoom: between(shot.zoom, Math.max(shot.zoom, blast.zoom), pull)}
         }
-        const end = pullBack === "atEnd" ? out(at) : 0
+        const end = last(at)
         return end > 0 ? {direction: blend(shot.direction, opening.direction, end), zoom: between(shot.zoom, opening.zoom, end)} : shot
     }))
 
