@@ -45,8 +45,8 @@ server does: in its map batches, its tile updates and its bombs' struck tiles.
 In fake mode the console has a few commands: `giveBomb()` puts a bomb in the
 inventory as if a box holding one had just been caught, `giveBonus("refill")` does
 the same for any other bonus (the fake holds charges as the server does: a refill
-and a bomb at most, a pool of 8 spread clicks, a stack of 3 enclosures and 12
-shields, a box adding 1 to 4, 1 to 3 and 1 to 3 of them, spread and enclose
+and a bomb at most, a pool of 8 spread clicks, a stack of 3 enclosures and 30
+shields, a box adding 1 to 4, 1 to 3 and 5 to 20 of them, spread and enclose
 spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
 banner up at once, `giveTitle("warlord")` plays the unlock of any title (the fake
@@ -1974,8 +1974,8 @@ a refill (the click bank, filled when the player presses it), a bomb (one drop),
 stack of enclosures (one shape each, `maxTiles` at most), a pool of spread
 clicks and a pool of shields. The server keeps them per account, in postgres:
 a refill and a bomb at most, up to 3 enclosures, up to 8 spread clicks and up to
-12 shields. A box adds a random 1 to 3 enclosures, 1 to 4 spread clicks or 1
-to 3 shields, capped at the size; the reward it announces
+30 shields. A box adds a random 1 to 3 enclosures, 1 to 4 spread clicks or 5
+to 20 shields, capped at the size; the reward it announces
 is what was kept (`+2 spread clicks`), which is what the server answers in
 `ClaimBonusResponse.amount`.
 
