@@ -107,8 +107,9 @@ export function routOf(story: Story, held: {before: number, after: number}, led 
     return !home && (story.kind === "attack" || story.kind === "invasion") ? {...story, kind: "kickout"} : story
 }
 
-// Two stories one flag tells about another in one place, or in a place and another inside it, are one story; so are
-// two about one flag thrown out of one place. Battles are told by both sides in their place.
+// Two stories of one flag in one place, or in a place and another inside it, are one story, whoever it beat: Portugal
+// taking Germany is part of Portugal taking Europe. So are two about one flag thrown out of one place. Battles are told
+// by both sides in their place.
 export function sameStory(a: Story, b: Story, placeName: (place: Place) => string, regionOf: RegionOf): boolean {
     if (sameRout(a, b, placeName)) return true
     // A flag thrown out is its story, whoever took its land.
@@ -118,7 +119,12 @@ export function sameStory(a: Story, b: Story, placeName: (place: Place) => strin
         return a.kind === b.kind && a.attacker === b.attacker && a.rival === b.rival && placeName(a.place) === placeName(b.place)
     }
     return a.attacker === b.attacker && overlaps(a.place, b.place, regionOf)
-        && (a.victims[0] === b.victims[0] || placeName(a.place) === placeName(b.place))
+}
+
+// Of two tellings of one story, the one over more of the map tells it: the continent before the country.
+export function widerThan(a: Place, b: Place): boolean {
+    const breadth = (place: Place) => "country" in place ? 0 : "countries" in place ? 1 : place.region === THE_WORLD ? 3 : 2
+    return breadth(a) > breadth(b)
 }
 
 function overlaps(a: Place, b: Place, regionOf: RegionOf): boolean {

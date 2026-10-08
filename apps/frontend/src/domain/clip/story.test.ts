@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {TileChange} from "./changes.ts"
-import {castOf, inPlace, placeOf, routOf, sameRout, sameStory, Story, storyOf, THE_WORLD} from "./story.ts"
+import {castOf, inPlace, placeOf, routOf, sameRout, sameStory, Story, storyOf, THE_WORLD, widerThan} from "./story.ts"
 
 const REGIONS: Record<string, string> = {
     fr: "Europe",
@@ -218,8 +218,19 @@ describe("the same story", () => {
         expect(same(italy({countries: ["fr", "es"]}), italy({country: "es"}))).toBe(true)
     })
 
+    it("is one flag taking a continent and a country of it, whoever it beat there", () => {
+        expect(same(italy({region: "Europe"}), {...italy({country: "es"}), kind: "invasion", victims: ["ma"]})).toBe(true)
+    })
+
     it("is not the same flag beating another flag elsewhere", () => {
-        expect(same(italy({region: "Europe"}), {...italy({country: "es"}), victims: ["ma"]})).toBe(false)
+        expect(same(italy({country: "fr"}), {...italy({country: "es"}), victims: ["ma"]})).toBe(false)
+    })
+
+    it("is told over the most of the map", () => {
+        expect(widerThan({region: "Europe"}, {country: "de"})).toBe(true)
+        expect(widerThan({region: THE_WORLD}, {region: "Europe"})).toBe(true)
+        expect(widerThan({country: "de"}, {countries: ["de", "pl"]})).toBe(false)
+        expect(widerThan({region: "Asia"}, {region: "Europe"})).toBe(false)
     })
 
     it("is not the same flag beating one flag on two continents", () => {

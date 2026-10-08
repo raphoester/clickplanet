@@ -8,9 +8,6 @@ export type Shot = {
 // Where a tile changed hands, and when in the clip's play, from 0 to 1.
 export type Beat = {share: number, point: Point}
 
-// A bomb: the shares of the clip that hold still on it, where it fell, and how close to see it.
-export type Blast = {from: number, to: number, point: Point, zoom: number}
-
 // When the camera comes back out of the tiles to the opening, which every clip ends on: for its last moments, to show
 // the map as it is now, or halfway, so a steamroll's painted flags change on screen.
 export type PullBack = "atEnd" | "midway"
@@ -21,7 +18,6 @@ export type Script = {
     seconds: number
     pullBack: PullBack
     hold?: number
-    blasts?: readonly Blast[]
 }
 
 const FILL = 0.6
@@ -51,20 +47,12 @@ const DIVE_SECONDS = 0.7
 
 const REVEAL_SECONDS = 1.6
 
-// A bomb late in the clip pushes the pull back out later, down to this much of it.
-const SHORTEST_REVEAL_SECONDS = 1.3
-
 // The view pulled back out holds this long before the call to act, while the last tiles change hands.
 const END_HOLD_SECONDS = 1
 
 const MIDWAY = 0.5
 
 const MIDWAY_SECONDS = 1.2
-
-const BLAST_EASE = 0.05
-
-// A blast is a fifth of the screen's width.
-const BLAST_WIDTHS = 5
 
 // Up close the camera has to cross about this many screens a second, or it breathes: out to where the painted
 // flags show and back into the tiles, every BREATH_SECONDS, halfway to the opening at most.
@@ -107,35 +95,24 @@ export function screensOf(beats: readonly Beat[], close: number): number {
     return travel / screenOf(close)
 }
 
-export function blastZoomOf(radius: number, aspect: number): number {
-    return Math.min(MAX_ZOOM, aspect / (BLAST_WIDTHS * Math.max(radius, 1e-3)))
-}
-
-// Opens on the opening shot, dives down into the tiles where they change hands and follows them, comes back out as
-// pullBack says, and flies to every blast.
+// Opens on the opening shot, dives down into the tiles where they change hands and follows them, and comes back out
+// as pullBack says. A bomb holds nothing still: the camera goes where the tiles change hands, and a bomb's crater is
+// tiles changing hands.
 export function cameraOf(
     opening: Shot,
     beats: readonly Beat[],
-    {close, seconds, pullBack, hold = HOLD_SECONDS, blasts = []}: Script,
+    {close, seconds, pullBack, hold = HOLD_SECONDS}: Script,
 ): (share: number) => Shot {
     const keys = keysOf(opening.direction, beats)
-    const lastBlast = Math.max(0, ...blasts.map(({to}) => to * seconds))
-    const out = outAt(pullBack, seconds, hold + DIVE_SECONDS, lastBlast)
-    // Every clip ends on the opening, even when a blast took the camera back in after a pull back halfway.
-    const last = pullBack === "atEnd" ? out : outAt("atEnd", seconds, hold + DIVE_SECONDS, lastBlast)
+    const out = outAt(pullBack, seconds, hold + DIVE_SECONDS)
     const still = stillnessOf(keys, close, seconds)
     const path = smoothed(Array.from({length: GRID + 1}, (_, i) => {
         const share = i / GRID
         const at = share * seconds
         const breath = 1 - BREATH_DEPTH * still[i] * breathAt(at - hold - DIVE_SECONDS)
         const near = closenessAt(at, hold) * breath * (pullBack === "midway" ? 1 - out(at) : 1)
-        let shot = {direction: blend(opening.direction, keyAt(keys, share), near), zoom: between(opening.zoom, close, near)}
-        // A blast never takes the opening away: the camera goes to it once the dive is down.
-        for (const blast of blasts) {
-            const pull = pullAt(blast, share) * closenessAt(at, hold)
-            if (pull > 0) shot = {direction: blend(shot.direction, blast.point, pull), zoom: between(shot.zoom, Math.max(shot.zoom, blast.zoom), pull)}
-        }
-        const end = last(at)
+        const shot = {direction: blend(opening.direction, keyAt(keys, share), near), zoom: between(opening.zoom, close, near)}
+        const end = pullBack === "atEnd" ? out(at) : 0
         return end > 0 ? {direction: blend(shot.direction, opening.direction, end), zoom: between(shot.zoom, opening.zoom, end)} : shot
     }))
 
@@ -196,12 +173,10 @@ function keyAt(keys: readonly Point[], share: number): Point {
     return blend(keys[k], keys[k + 1], clamp(position - k))
 }
 
-// 0 down in the tiles, 1 back out on the opening. At the end it waits for the last blast to be over.
-function outAt(pullBack: PullBack, seconds: number, down: number, lastBlast: number): (at: number) => number {
+// 0 down in the tiles, 1 back out on the opening.
+function outAt(pullBack: PullBack, seconds: number, down: number): (at: number) => number {
     const out = seconds - END_HOLD_SECONDS
-    const from = pullBack === "midway"
-        ? Math.max(down, seconds * MIDWAY)
-        : Math.max(down, Math.min(out - SHORTEST_REVEAL_SECONDS, Math.max(out - REVEAL_SECONDS, lastBlast)))
+    const from = pullBack === "midway" ? Math.max(down, seconds * MIDWAY) : Math.max(down, out - REVEAL_SECONDS)
     const length = pullBack === "midway" ? MIDWAY_SECONDS : Math.max(1e-3, out - from)
     return (at) => smooth(clamp((at - from) / length))
 }
@@ -209,12 +184,6 @@ function outAt(pullBack: PullBack, seconds: number, down: number, lastBlast: num
 // 0 on the opening shot, 1 down in the action.
 function closenessAt(at: number, hold: number): number {
     return at < hold ? 0 : smooth(clamp((at - hold) / DIVE_SECONDS))
-}
-
-function pullAt({from, to}: Blast, share: number): number {
-    if (share < from) return smooth(clamp(1 - (from - share) / BLAST_EASE))
-    if (share > to) return smooth(clamp(1 - (share - to) / BLAST_EASE))
-    return 1
 }
 
 // The keys turn the camera at a corner each; the zoom is smooth already.
