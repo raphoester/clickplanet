@@ -18,11 +18,11 @@ import {HIGHLIGHTS} from "./anthemHighlightsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
 import {Candidate, candidatesOf, inCandidate, Window} from "../domain/clip/window.ts"
 import {Front, frontOf, FRONT_RADIANS, inSightOf, sameFront, spanOf} from "../domain/clip/front.ts"
-import {castOf, inPlace, placeOf, routOf, sameStory, Story, storyOf, THE_WORLD} from "../domain/clip/story.ts"
+import {castOf, inPlace, placeOf, routOf, sameStory, Story, storyOf, THE_WORLD, widerThan} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
-import {blastZoomOf, cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
-import {bombShareOf, momentsOf, paceOf, playedAt, timelineOf} from "../domain/clip/pace.ts"
+import {cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
+import {paceOf, playedAt, timelineOf} from "../domain/clip/pace.ts"
 import {tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, nameOf, placeName, teamFlagOf, wordsOf} from "./overlay.ts"
@@ -227,13 +227,20 @@ async function prepare(): Promise<Recording> {
     }
     const reviewed = stories.map(reviewOf)
     const kept = reviewed.filter(({skipped}) => skipped === undefined)
-    // One story per flag and what it did, whatever window or scale found it: the best one.
-    const worth = kept.filter((review, i) => kept.findIndex((other) => sameStory(other.story, review.story, placeName, regionOf)) === i)
+    // One story per flag and what it did, whatever window or scale found it: told over the most of the map, else the best.
+    const tellerOf = (review: Review) => kept.find((other) => other !== review
+        && sameStory(other.story, review.story, placeName, regionOf)
+        && (widerThan(other.story.place, review.story.place)
+            || (!widerThan(review.story.place, other.story.place) && kept.indexOf(other) < kept.indexOf(review))))
+    const worth = kept.filter((review) => tellerOf(review) === undefined)
     const skipped = [
         ...reviewed.flatMap(({story: told, skipped: why, solidity}) =>
             why === undefined ? [] : [`${wordsOf(told).headline}: ${why} (solidity ${solidity.toFixed(2)})`]),
-        ...kept.flatMap((review) => worth.includes(review) ? [] : [`${wordsOf(review.story).headline} in ${placeName(review.story.place)}: `
-            + `told already as ${wordsOf(kept.find((other) => sameStory(other.story, review.story, placeName, regionOf))!.story).headline}`]),
+        ...kept.flatMap((review) => {
+            const teller = tellerOf(review)
+            return teller === undefined ? [] : [`${wordsOf(review.story).headline} in ${placeName(review.story.place)}: `
+                + `told already as ${wordsOf(teller.story).headline}`]
+        }),
     ]
 
     const pick = numberParam("pick") ?? 1
@@ -259,17 +266,13 @@ async function prepare(): Promise<Recording> {
     const drops = backend.drops().filter(({drop}) => drop.tile !== undefined && inSight(drop.tile))
     const close = Math.max(first.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH)
     const screens = screensOf(front.changes.map(({tile}, i) => ({share: i / front.changes.length, point: pointAt(tile)})), close)
-    const timeline = timelineOf(screens, drops.length, numberParam("seconds"))
-    const moments = momentsOf(front.changes.map(({at}) => at), drops.map(({at}) => at), bombShareOf(timeline))
-    const pace = paceOf(moments, backend.since, backend.until)
+    const timeline = timelineOf(screens, numberParam("seconds"))
+    const pace = paceOf(front.changes.map(({at}) => at), backend.since, backend.until)
     const camera = cameraOf(first, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
         close,
         seconds: timeline.seconds - timeline.ending,
         pullBack: PULL_BACKS[look],
         hold: numberParam("hold"),
-        blasts: drops.map(({at, drop}) => ({
-            ...pace.heldOn(at), point: pointAt(drop.tile ?? 0), zoom: blastZoomOf(drop.radius, aspect),
-        })),
     })
 
     // A continent striking back together is counted as one side.

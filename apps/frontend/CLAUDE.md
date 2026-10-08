@@ -2653,8 +2653,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   kicking it out. With `--country`, a story that flag leads nothing in is skipped. Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
   country **"IS FALLING"**, and one attacker taking it is an invasion. A flag taking its own ground back still strikes
   back.
-- **One story per flag and what it did** (`sameStory`), whatever window or scale found it, the best one: one flag
-  beating another in one place or one inside it (Europe and France), one flag thrown out of one place, one flag
+- **One story per flag and what it did** (`sameStory`), whatever window or scale found it, told over the most of the
+  map (`widerThan`), else the best: one flag taking one place or one inside it, whoever it beat there ("Portugal is
+  invading Germany" is part of "Portugal is attacking Europe"), one flag thrown out of one place, one flag
   striking back. Portugal beating France in Africa and in India is two stories. A battle is its two sides in one
   place. `--plan` lists each one dropped with the one it repeats.
 - **Names are said with their article** where English wants one: "the UK", "the Netherlands". Tags keep them bare.
@@ -2698,20 +2699,19 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   map with its painted flags. It holds there 0.3s (`--hold`), then dives in 0.7s past the zoom the painted flags
   are gone at (`tilesZoomOf`), to where the most tiles change hands, so the fight is seen tile by tile. It follows
   the densest fighting, and comes back out to the opening as the look says. **Every clip ends pulled back out**,
-  and holds there 1s before the call to act while the last tiles change hands, even when a bomb in its last moments
-  took the camera back in after a pull back halfway: close-ups are for the middle, and
+  and holds there 1s before the call to act while the last tiles change hands: close-ups are for the middle, and
   the end shows the rest of the map as it is now. **It never sits still**: where the
   fighting crosses less than 0.4 screens a second, it breathes, out to where the painted flags show and back into
-  the tiles every 3s. **It flies to every bomb on the
-  front**, close enough for the blast to be a fifth of the screen, and holds there while it goes off. On the front
-  only (`inSightOf`): a story told on the USA does not fly to a bomb in Alaska while the fighting is in Florida. The globe is
+  the tiles every 3s. **A bomb holds nothing still**: neither the camera nor the replay's clock stops for it, as five
+  bombs in a row on Portugal froze a clip of Portugal taking Europe. It goes off while the map goes on changing, and
+  the camera goes there only as the tiles it clears pull it, like any others. `--plan` counts the bombs on the front
+  (`inSightOf`): not one in Alaska for a story told on the USA while the fighting is in Florida. The globe is
   always drawn with the painted flags on, so the zoom alone hands them over to the tiles, as in the game.
 - **`pace.ts` spends the clip on what happens and nothing else**: the replay's clock jumps over every quiet
   stretch, so the map moves from the first frame to the last. **A clip is as long as its camera has somewhere to
   go**: 6s for a fight in one place, however many hours it lasted (room for the dive, the close-ups and the pull back
   out), and 1.2s more for every screen the fighting
-  crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds the 2s it holds the clip
-  still for, while it falls and goes off. The last 2.5s are the call to act, and nothing runs past 22s.
+  crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds nothing. The last 2.5s are the call to act, and nothing runs past 22s.
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
 headless Chrome at 540×960 at 2×, waits for `window.clip.ready`, then for each frame calls `window.clip.frame(i)`,
