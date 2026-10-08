@@ -1,65 +1,53 @@
 import {describe, expect, it} from "vitest"
 import {Race, RoundStanding, Score} from "../backends/standings.ts"
-import {raceTable} from "./race.ts"
+import {Countries} from "./countries.ts"
+import {LeaderboardEntry} from "./leaderboard.ts"
+import {countryLines} from "./race.ts"
 
 const today = (rank: number, countryCode: string, points: number): RoundStanding => ({rank, countryCode, share: 0.1, points})
 const score = (rank: number, countryCode: string, points: number, roundsWon = 0): Score => ({rank, countryCode, points, roundsWon})
-const race = (standings: RoundStanding[], scores: Score[]): Race =>
-    ({round: {number: 3, endsAt: 0, finale: false, standings}, scores})
+const race = (number: number, standings: RoundStanding[], scores: Score[]): Race =>
+    ({round: {number, endsAt: 0, finale: false, standings}, scores})
+const held = (code: string, tiles: number): LeaderboardEntry => ({country: Countries.get(code)!, tiles})
+const shown = (lines: ReturnType<typeof countryLines>) =>
+    lines.map((line) => `${line.country.code} ${line.tiles} ${line.points}+${line.today}`)
 
-describe("raceTable", () => {
-    it("ranks the countries by their points with what they would score if the day ended now", () => {
-        const table = raceTable(race(
-            [today(1, "de", 25), today(2, "fr", 18), today(3, "es", 15)],
-            [score(1, "fr", 43, 1), score(2, "de", 25, 1)],
-        ), "fr")
+const MAP = [held("de", 900), held("fr", 700), held("es", 300), held("bg", 50)]
+const RACE = race(5, [today(1, "de", 25), today(2, "fr", 18), today(3, "es", 15)], [score(1, "fr", 43, 1), score(2, "it", 30, 1)])
 
-        expect(table).toEqual({
-            listed: [
-                {rank: 1, countryCode: "fr", points: 43, today: 18},
-                {rank: 2, countryCode: "de", points: 25, today: 25},
-                {rank: 3, countryCode: "es", points: 0, today: 15},
-            ],
-        })
-    })
-
-    it("lists a country that scores nothing today for the points it has", () => {
-        const table = raceTable(race([today(1, "de", 25)], [score(1, "it", 30)]), "fr")
-
-        expect(table.listed).toEqual([
-            {rank: 1, countryCode: "it", points: 30, today: 0},
-            {rank: 2, countryCode: "de", points: 0, today: 25},
+describe("countryLines", () => {
+    it("keeps the map's order by territory, with each country's points beside its tiles", () => {
+        expect(shown(countryLines(MAP, RACE, "territory"))).toEqual([
+            "de 900 0+25",
+            "fr 700 43+18",
+            "es 300 0+15",
+            "bg 50 0+0",
         ])
     })
 
-    it("leaves out a country that has no points and scores nothing today", () => {
-        const table = raceTable(race([today(1, "de", 25), today(11, "fr", 0)], []), "fr")
-
-        expect(table.listed.map((row) => row.countryCode)).toEqual(["de"])
-        expect(table.below).toBeUndefined()
-    })
-
-    it("shares a rank between countries level on the total, the better day first", () => {
-        const table = raceTable(race([today(1, "es", 25), today(2, "fr", 18)], [score(1, "fr", 7)]), "fr")
-
-        expect(table.listed).toEqual([
-            {rank: 1, countryCode: "es", points: 0, today: 25},
-            {rank: 1, countryCode: "fr", points: 7, today: 18},
+    it("orders by the season: the points, with what each would score if the day ended now", () => {
+        expect(shown(countryLines(MAP, RACE, "season"))).toEqual([
+            "fr 700 43+18",
+            "it 0 30+0",
+            "de 900 0+25",
+            "es 300 0+15",
+            "bg 50 0+0",
         ])
     })
 
-    it("shows the top ten, and the country played for under them when it is further down", () => {
-        const scores = Array.from({length: 12}, (_, i) => score(i + 1, `c${String(i).padStart(2, "0")}`, 100 - i))
-
-        const table = raceTable(race([], scores), "c11")
-
-        expect(table.listed).toHaveLength(10)
-        expect(table.listed.at(-1)?.countryCode).toBe("c09")
-        expect(table.below).toEqual({rank: 12, countryCode: "c11", points: 89, today: 0})
+    it("lists a country that holds no ground in the season for the points it has", () => {
+        expect(shown(countryLines([], race(1, [], [score(1, "it", 30)]), "season"))).toEqual(["it 0 30+0"])
+        expect(countryLines([], race(1, [], [score(1, "it", 30)]), "territory")).toEqual([])
     })
 
-    it("reads a race with no round in progress", () => {
-        expect(raceTable({scores: [score(1, "fr", 75, 1)]}, "fr").listed)
-            .toEqual([{rank: 1, countryCode: "fr", points: 75, today: 0}])
+    it("orders the countries level on points by their tiles", () => {
+        expect(shown(countryLines([held("es", 10), held("pt", 80)], race(1, [], []), "season"))).toEqual([
+            "pt 80 0+0",
+            "es 10 0+0",
+        ])
+    })
+
+    it("reads no race as no points", () => {
+        expect(shown(countryLines(MAP, undefined, "season"))).toEqual(["de 900 0+0", "fr 700 0+0", "es 300 0+0", "bg 50 0+0"])
     })
 })

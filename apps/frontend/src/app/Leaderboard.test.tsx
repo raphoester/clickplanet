@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it} from "vitest"
-import {cleanup, render, screen, within} from "@testing-library/react"
+import {afterEach, describe, expect, it, vi} from "vitest"
+import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
+import {Race} from "../backends/standings.ts"
 import Leaderboard from "./Leaderboard.tsx"
 import {Countries} from "../domain/countries.ts"
 import {TileDelta, TileDeltas} from "../domain/tileDeltas.ts"
@@ -167,5 +168,57 @@ describe("Leaderboard tile deltas", () => {
     it("leaves the count itself as the number it is", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 600), entry("jp", 503)]} deltas={deltas({jp: 3})}/>)
         expect(cells()).toEqual([["2", "Japan", "503+3", "50.30"]])
+    })
+})
+
+describe("Leaderboard with the season's race", () => {
+    const MAP = [entry("de", 500), entry("fr", 300), entry("es", 100)]
+    const RACE: Race = {
+        round: {
+            number: 5,
+            endsAt: 0,
+            finale: false,
+            standings: [
+                {rank: 1, countryCode: "de", share: 0.5, points: 25},
+                {rank: 2, countryCode: "fr", share: 0.3, points: 18},
+            ],
+        },
+        scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}],
+    }
+
+    it("ranks by the season first: the points, with what each would score if the day ended now", () => {
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={vi.fn()}/>)
+
+        expect(leader()!.getAttribute("aria-label")).toBe("First: France")
+        expect(within(leader()!).getByText("300 tiles")).toBeDefined()
+        expect(within(leader()!).getByText("points")).toBeDefined()
+        expect(within(leader()!).getByText(/^43/).textContent).toBe("43+18 today")
+        expect(screen.getAllByRole("columnheader").map(h => h.textContent)).toEqual(["#", "Country", "Tiles", "Points"])
+        expect(cells()).toEqual([
+            ["2", "Germany", "500", "0+25 today"],
+            ["3", "Spain", "100", "0"],
+        ])
+    })
+
+    it("offers to order by the season or by the territory, and says which is on", () => {
+        const onOrder = vi.fn()
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={onOrder}/>)
+
+        const order = screen.getByRole("group", {name: "Order"})
+        expect(within(order).getAllByRole("button").map(b => [b.textContent, b.getAttribute("aria-pressed")]))
+            .toEqual([["Season", "true"], ["Territory", "false"]])
+
+        fireEvent.click(within(order).getByRole("button", {name: "Territory"}))
+        expect(onOrder).toHaveBeenCalledWith("territory")
+    })
+
+    it("ranks by the tiles held now when ordered by territory, the points still beside them", () => {
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} order="territory" onOrder={vi.fn()}/>)
+
+        expect(leader()!.getAttribute("aria-label")).toBe("First: Germany")
+        expect(cells()).toEqual([
+            ["2", "France", "300", "43+18 today"],
+            ["3", "Spain", "100", "0"],
+        ])
     })
 })

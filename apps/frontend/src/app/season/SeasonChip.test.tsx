@@ -21,13 +21,13 @@ afterEach(() => {
 })
 
 describe("SeasonChip", () => {
-    it("names the season and counts down to its end", () => {
+    it("counts down to today's cutoff, at the time of day the Final Battle starts", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
         render(<SeasonChip season={season} compact={false} open={false} onToggle={vi.fn()}/>)
 
         expect(screen.getByRole("region", {name: "Season 0"})).toBeDefined()
-        expect(screen.getByText("Season 0 ends in")).toBeDefined()
-        expect(screen.getByRole("timer").textContent).toBe("27d 14h 00m 00s")
+        expect(screen.getByText("Today ends in")).toBeDefined()
+        expect(screen.getByRole("timer").textContent).toBe("12h 00m 00s")
         expect(finaleLine()).toBeNull()
     })
 
@@ -45,11 +45,11 @@ describe("SeasonChip", () => {
         const onToggle = vi.fn()
         const {rerender} = render(<SeasonChip season={season} compact={false} open={false} onToggle={onToggle}/>)
 
-        fireEvent.click(screen.getByRole("button", {name: /Season 0 ends in/}))
+        fireEvent.click(screen.getByRole("button", {name: /Today ends in/}))
         expect(onToggle).toHaveBeenCalledTimes(1)
 
         rerender(<SeasonChip season={season} compact={false} open onToggle={onToggle}/>)
-        expect(screen.getByRole("button", {name: /Season 0 ends in/}).getAttribute("aria-expanded")).toBe("true")
+        expect(screen.getByRole("button", {name: /Today ends in/}).getAttribute("aria-expanded")).toBe("true")
         expect(finaleLine()).not.toBeNull()
         expect(screen.getByText("Each day, the countries that held the most ground score points. The Final Battle scores triple.")).toBeDefined()
 
@@ -97,8 +97,8 @@ describe("SeasonChip", () => {
             vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR - 5 * MINUTE})
             render(<SeasonChip season={season} compact open={false} onToggle={vi.fn()}/>)
 
-            const chip = screen.getByRole("button", {name: "Season 0 ends in 27d 14h 05m 00s"})
-            expect(chip.textContent).toBe("27d 14h")
+            const chip = screen.getByRole("button", {name: "Today ends in 12h 05m 00s"})
+            expect(chip.textContent).toBe("12h 05m")
             expect(chip.getAttribute("aria-expanded")).toBe("false")
         })
 
@@ -114,7 +114,8 @@ describe("SeasonDetails", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY})
         render(<SeasonDetails season={season}/>)
 
-        expect(screen.getByRole("timer").textContent).toBe("27d 00h 00m 00s")
+        expect(screen.getByText("Today ends in")).toBeDefined()
+        expect(screen.getByRole("timer").textContent).toBe("22h 00m 00s")
         expect(finaleLine()).not.toBeNull()
     })
 

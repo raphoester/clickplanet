@@ -1,37 +1,41 @@
 import {Race} from "../backends/standings.ts"
+import {Countries, Country} from "./countries.ts"
+import {LeaderboardEntry} from "./leaderboard.ts"
 
-export const RACE_SHOWN = 10
+export type CountryOrder = "season" | "territory"
 
-export type RaceRow = {
-    rank: number
-    countryCode: string
+export type CountryLine = {
+    country: Country
+    tiles: number
     points: number
     today: number
 }
 
-export type RaceTable = {
-    listed: RaceRow[]
-    below?: RaceRow
-}
+export function countryLines(
+    leaderboard: readonly LeaderboardEntry[],
+    race: Race | undefined,
+    order: CountryOrder,
+): CountryLine[] {
+    const today = new Map(race?.round?.standings.map((standing) => [standing.countryCode, standing.points]))
+    const points = new Map(race?.scores.map((score) => [score.countryCode, score.points]))
+    const line = (entry: LeaderboardEntry): CountryLine => ({
+        ...entry,
+        points: points.get(entry.country.code) ?? 0,
+        today: today.get(entry.country.code) ?? 0,
+    })
 
-export function raceTable(race: Race, countryCode: string): RaceTable {
-    const today = new Map(race.round?.standings.map((standing) => [standing.countryCode, standing]))
-    const points = new Map(race.scores.map((score) => [score.countryCode, score.points]))
-    const codes = new Set([...points.keys(), ...[...today.values()].filter((s) => s.points > 0).map((s) => s.countryCode)])
+    const lines = leaderboard.map(line)
+    if (order === "territory") return lines
 
-    const rows = [...codes]
-        .map((code) => ({rank: 0, countryCode: code, points: points.get(code) ?? 0, today: today.get(code)?.points ?? 0}))
+    const held = new Set(leaderboard.map((entry) => entry.country.code))
+    for (const code of new Set([...points.keys(), ...today.keys()])) {
+        const country = Countries.get(code)
+        if (!held.has(code) && country) lines.push(line({country, tiles: 0}))
+    }
+    return lines
+        .filter((l) => l.tiles > 0 || l.points + l.today > 0)
         .sort((a, b) =>
-            total(b) - total(a)
-            || (today.get(a.countryCode)?.rank ?? Infinity) - (today.get(b.countryCode)?.rank ?? Infinity)
-            || a.countryCode.localeCompare(b.countryCode))
-    rows.forEach((row, i) => row.rank = i > 0 && total(rows[i - 1]) === total(row) ? rows[i - 1].rank : i + 1)
-
-    const listed = rows.slice(0, RACE_SHOWN)
-    const below = rows.slice(RACE_SHOWN).find((row) => row.countryCode === countryCode)
-    return below ? {listed, below} : {listed}
-}
-
-function total(row: RaceRow): number {
-    return row.points + row.today
+            b.points + b.today - (a.points + a.today)
+            || b.tiles - a.tiles
+            || a.country.code.localeCompare(b.country.code))
 }

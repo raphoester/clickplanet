@@ -23,7 +23,7 @@ export default function SeasonChip({season, compact, open, onToggle}: SeasonChip
     const clock = seasonClock(season, useNow())
     if (!clock) return null
 
-    const label = clock.finale ? "Final Battle ends in" : `Season ${season.number} ends in`
+    const label = clock.finale ? "Final Battle ends in" : "Today ends in"
     const className = ["season-chip", compact ? "season-chip--compact" : "panel", clock.finale && "season-chip--live"]
         .filter(Boolean).join(" ")
 
@@ -63,7 +63,7 @@ export function SeasonDetails({season}: {season: Season}) {
 
     return <>
         <div className="panel-box season-details-left">
-            <span className="menu-label">{clock.finale ? "Final Battle ends in" : "Ends in"}</span>
+            <span className="menu-label">{clock.finale ? "Final Battle ends in" : "Today ends in"}</span>
             <span className="season-chip-left" role="timer">{clock.left}</span>
         </div>
         <div className="panel-box season-details-facts"><SeasonFacts season={season} finale={clock.finale}/></div>
