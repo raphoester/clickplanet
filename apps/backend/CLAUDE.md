@@ -205,7 +205,7 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
-| `seasons` | `planet.v1.InternalService/GetTerritory` | the tiles each country holds and the size of the map, once a census (a minute) | `rounds/rpc_planet_territory` |
+| `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, once a census (a minute) | `rounds/rpc_planet_territories` |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts` and on each `GetPlayer` the cache does not answer | `playerv1controller/rpc_planet_fronts` |
 
@@ -457,7 +457,7 @@ internal/chat/internal/
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
 (`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
-(`GetTakesByCountry`, `GetTerritory`), auth
+(`GetTakesByCountry`, `GetTerritories`), auth
 (`GetMe`, `GetAccount`, `GetAccounts`) and seasons (`GetStandings`, `GetMySeason`, the live race) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
@@ -1300,7 +1300,7 @@ internal/player/internal/
 
 ### Seasons (`internal/seasons/`)
 
-**When a season ends, when its finale starts, and who leads it.** Planet never imports, calls or hears it: seasons asks planet what each country holds (`planet.v1.InternalService/GetTerritory`), never the other way.
+**When a season ends, when its finale starts, and who leads it.** Planet never imports, calls or hears it: seasons asks planet what each country holds (`planet.v1.InternalService/GetTerritories`), never the other way.
 
 ```
 internal/seasons/internal/
@@ -1317,7 +1317,7 @@ internal/seasons/internal/
                                   port (RecordCensus, Unclosed, Held, Close) and its contract suite
     postgres_round_store/         the Store over seasons.rounds, round_holdings and round_results
     inmemory_round_store/         the same port in maps, behind the testing tag
-    rpc_planet_territory/         the census, from planet.v1.InternalService/GetTerritory
+    rpc_planet_territories/         the census, from planet.v1.InternalService/GetTerritories
     usecases/take_census_usecase/ closes the rounds that ended, then counts the round in progress; Runner
       log_take_census/            logs each round closed, and a census that failed
       marking_take_census/        marks the live race, once a census is taken

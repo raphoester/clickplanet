@@ -36,15 +36,15 @@ const (
 	// InternalServiceGetTakesByCountryProcedure is the fully-qualified name of the InternalService's
 	// GetTakesByCountry RPC.
 	InternalServiceGetTakesByCountryProcedure = "/planet.v1.InternalService/GetTakesByCountry"
-	// InternalServiceGetTerritoryProcedure is the fully-qualified name of the InternalService's
-	// GetTerritory RPC.
-	InternalServiceGetTerritoryProcedure = "/planet.v1.InternalService/GetTerritory"
+	// InternalServiceGetTerritoriesProcedure is the fully-qualified name of the InternalService's
+	// GetTerritories RPC.
+	InternalServiceGetTerritoriesProcedure = "/planet.v1.InternalService/GetTerritories"
 )
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
 type InternalServiceClient interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
-	GetTerritory(context.Context, *connect.Request[v1.GetTerritoryRequest]) (*connect.Response[v1.GetTerritoryResponse], error)
+	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the planet.v1.InternalService service. By
@@ -65,10 +65,10 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
-		getTerritory: connect.NewClient[v1.GetTerritoryRequest, v1.GetTerritoryResponse](
+		getTerritories: connect.NewClient[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse](
 			httpClient,
-			baseURL+InternalServiceGetTerritoryProcedure,
-			connect.WithSchema(internalServiceMethods.ByName("GetTerritory")),
+			baseURL+InternalServiceGetTerritoriesProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetTerritories")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
@@ -78,7 +78,7 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
 	getTakesByCountry *connect.Client[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse]
-	getTerritory      *connect.Client[v1.GetTerritoryRequest, v1.GetTerritoryResponse]
+	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
 }
 
 // GetTakesByCountry calls planet.v1.InternalService.GetTakesByCountry.
@@ -86,15 +86,15 @@ func (c *internalServiceClient) GetTakesByCountry(ctx context.Context, req *conn
 	return c.getTakesByCountry.CallUnary(ctx, req)
 }
 
-// GetTerritory calls planet.v1.InternalService.GetTerritory.
-func (c *internalServiceClient) GetTerritory(ctx context.Context, req *connect.Request[v1.GetTerritoryRequest]) (*connect.Response[v1.GetTerritoryResponse], error) {
-	return c.getTerritory.CallUnary(ctx, req)
+// GetTerritories calls planet.v1.InternalService.GetTerritories.
+func (c *internalServiceClient) GetTerritories(ctx context.Context, req *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
+	return c.getTerritories.CallUnary(ctx, req)
 }
 
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
-	GetTerritory(context.Context, *connect.Request[v1.GetTerritoryRequest]) (*connect.Response[v1.GetTerritoryResponse], error)
+	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -111,10 +111,10 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	internalServiceGetTerritoryHandler := connect.NewUnaryHandler(
-		InternalServiceGetTerritoryProcedure,
-		svc.GetTerritory,
-		connect.WithSchema(internalServiceMethods.ByName("GetTerritory")),
+	internalServiceGetTerritoriesHandler := connect.NewUnaryHandler(
+		InternalServiceGetTerritoriesProcedure,
+		svc.GetTerritories,
+		connect.WithSchema(internalServiceMethods.ByName("GetTerritories")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -122,8 +122,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		switch r.URL.Path {
 		case InternalServiceGetTakesByCountryProcedure:
 			internalServiceGetTakesByCountryHandler.ServeHTTP(w, r)
-		case InternalServiceGetTerritoryProcedure:
-			internalServiceGetTerritoryHandler.ServeHTTP(w, r)
+		case InternalServiceGetTerritoriesProcedure:
+			internalServiceGetTerritoriesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -137,6 +137,6 @@ func (UnimplementedInternalServiceHandler) GetTakesByCountry(context.Context, *c
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTakesByCountry is not implemented"))
 }
 
-func (UnimplementedInternalServiceHandler) GetTerritory(context.Context, *connect.Request[v1.GetTerritoryRequest]) (*connect.Response[v1.GetTerritoryResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTerritory is not implemented"))
+func (UnimplementedInternalServiceHandler) GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTerritories is not implemented"))
 }

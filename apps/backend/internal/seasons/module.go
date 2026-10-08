@@ -16,7 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/get_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/postgres_round_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/rpc_planet_territory"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/rpc_planet_territories"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_census_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_census_usecase/log_take_census"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/usecases/take_census_usecase/marking_take_census"
@@ -110,7 +110,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	races := inprocess_race_feed.New(log_race_reader.New(race_query.NewPostgresQuery(db, seasons, clock), props.Logger), clock)
 	census := take_census_usecase.NewRunner(config.Census, log_take_census.New(marking_take_census.New(
-		take_census_usecase.New(rpc_planet_territory.New(planet), postgres_round_store.New(db), seasons, clock),
+		take_census_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), seasons, clock),
 		races,
 	), props.Logger))
 

@@ -1,4 +1,4 @@
-package get_territory_handler_test
+package get_territories_handler_test
 
 import (
 	"testing"
@@ -9,24 +9,24 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territory_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler"
 )
 
 type stubQuery struct {
-	answer *planetv1.GetTerritoryResponse
+	answer *planetv1.GetTerritoriesResponse
 }
 
-func (s stubQuery) Territory() *planetv1.GetTerritoryResponse {
+func (s stubQuery) Territories() *planetv1.GetTerritoriesResponse {
 	return s.answer
 }
 
 func TestTheTerritoryIsTheQuerys(t *testing.T) {
-	query := stubQuery{answer: &planetv1.GetTerritoryResponse{
+	query := stubQuery{answer: &planetv1.GetTerritoriesResponse{
 		Tiles: 100, Territories: []*planetv1.Territory{{CountryId: "fr", Tiles: 3}},
 	}}
 
-	res, err := get_territory_handler.New(query).GetTerritory(t.Context(),
-		connect.NewRequest(&planetv1.GetTerritoryRequest{}))
+	res, err := get_territories_handler.New(query).GetTerritories(t.Context(),
+		connect.NewRequest(&planetv1.GetTerritoriesRequest{}))
 
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(query.answer, res.Msg))

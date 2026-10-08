@@ -7,7 +7,7 @@ service InternalService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  rpc GetTerritory(GetTerritoryRequest) returns (GetTerritoryResponse) {
+  rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
@@ -26,9 +26,9 @@ message CountryTakes {
   uint64 tiles = 2;
 }
 
-message GetTerritoryRequest {}
+message GetTerritoriesRequest {}
 
-message GetTerritoryResponse {
+message GetTerritoriesResponse {
   uint32 tiles = 1;
   repeated Territory territories = 2;
 }

@@ -1,4 +1,4 @@
-package rpc_planet_territory
+package rpc_planet_territories
 
 import (
 	"context"
@@ -14,31 +14,31 @@ import (
 )
 
 type Planet interface {
-	GetTerritory(
+	GetTerritories(
 		ctx context.Context,
-		req *connect.Request[planetv1.GetTerritoryRequest],
-	) (*connect.Response[planetv1.GetTerritoryResponse], error)
+		req *connect.Request[planetv1.GetTerritoriesRequest],
+	) (*connect.Response[planetv1.GetTerritoriesResponse], error)
 }
 
 var ErrNoCountry = errors.New("the planet module answered tiles held by no country")
 
 const askTimeout = 2 * time.Second
 
-func New(planet Planet) *Territory {
-	return &Territory{planet: planet}
+func New(planet Planet) *Territories {
+	return &Territories{planet: planet}
 }
 
-type Territory struct {
+type Territories struct {
 	planet Planet
 }
 
-var _ take_census_usecase.Territory = (*Territory)(nil)
+var _ take_census_usecase.Territory = (*Territories)(nil)
 
-func (t *Territory) Census(ctx context.Context) (rounds.Census, error) {
+func (t *Territories) Census(ctx context.Context) (rounds.Census, error) {
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
-	res, err := t.planet.GetTerritory(ctx, connect.NewRequest(&planetv1.GetTerritoryRequest{}))
+	res, err := t.planet.GetTerritories(ctx, connect.NewRequest(&planetv1.GetTerritoriesRequest{}))
 	if err != nil {
 		return rounds.Census{}, fmt.Errorf("failed to ask the planet module what each country holds: %w", err)
 	}

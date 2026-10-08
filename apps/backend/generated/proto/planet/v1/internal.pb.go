@@ -169,26 +169,26 @@ func (x *CountryTakes) GetTiles() uint64 {
 	return 0
 }
 
-type GetTerritoryRequest struct {
+type GetTerritoriesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetTerritoryRequest) Reset() {
-	*x = GetTerritoryRequest{}
+func (x *GetTerritoriesRequest) Reset() {
+	*x = GetTerritoriesRequest{}
 	mi := &file_planet_v1_internal_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetTerritoryRequest) String() string {
+func (x *GetTerritoriesRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetTerritoryRequest) ProtoMessage() {}
+func (*GetTerritoriesRequest) ProtoMessage() {}
 
-func (x *GetTerritoryRequest) ProtoReflect() protoreflect.Message {
+func (x *GetTerritoriesRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_planet_v1_internal_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -200,12 +200,12 @@ func (x *GetTerritoryRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetTerritoryRequest.ProtoReflect.Descriptor instead.
-func (*GetTerritoryRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetTerritoriesRequest.ProtoReflect.Descriptor instead.
+func (*GetTerritoriesRequest) Descriptor() ([]byte, []int) {
 	return file_planet_v1_internal_proto_rawDescGZIP(), []int{3}
 }
 
-type GetTerritoryResponse struct {
+type GetTerritoriesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Tiles         uint32                 `protobuf:"varint,1,opt,name=tiles,proto3" json:"tiles,omitempty"`
 	Territories   []*Territory           `protobuf:"bytes,2,rep,name=territories,proto3" json:"territories,omitempty"`
@@ -213,20 +213,20 @@ type GetTerritoryResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetTerritoryResponse) Reset() {
-	*x = GetTerritoryResponse{}
+func (x *GetTerritoriesResponse) Reset() {
+	*x = GetTerritoriesResponse{}
 	mi := &file_planet_v1_internal_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetTerritoryResponse) String() string {
+func (x *GetTerritoriesResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetTerritoryResponse) ProtoMessage() {}
+func (*GetTerritoriesResponse) ProtoMessage() {}
 
-func (x *GetTerritoryResponse) ProtoReflect() protoreflect.Message {
+func (x *GetTerritoriesResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_planet_v1_internal_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -238,19 +238,19 @@ func (x *GetTerritoryResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetTerritoryResponse.ProtoReflect.Descriptor instead.
-func (*GetTerritoryResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetTerritoriesResponse.ProtoReflect.Descriptor instead.
+func (*GetTerritoriesResponse) Descriptor() ([]byte, []int) {
 	return file_planet_v1_internal_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetTerritoryResponse) GetTiles() uint32 {
+func (x *GetTerritoriesResponse) GetTiles() uint32 {
 	if x != nil {
 		return x.Tiles
 	}
 	return 0
 }
 
-func (x *GetTerritoryResponse) GetTerritories() []*Territory {
+func (x *GetTerritoriesResponse) GetTerritories() []*Territory {
 	if x != nil {
 		return x.Territories
 	}
@@ -324,18 +324,18 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\fCountryTakes\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
-	"\x05tiles\x18\x02 \x01(\x04R\x05tiles\"\x15\n" +
-	"\x13GetTerritoryRequest\"d\n" +
-	"\x14GetTerritoryResponse\x12\x14\n" +
+	"\x05tiles\x18\x02 \x01(\x04R\x05tiles\"\x17\n" +
+	"\x15GetTerritoriesRequest\"f\n" +
+	"\x16GetTerritoriesResponse\x12\x14\n" +
 	"\x05tiles\x18\x01 \x01(\rR\x05tiles\x126\n" +
 	"\vterritories\x18\x02 \x03(\v2\x14.planet.v1.TerritoryR\vterritories\"@\n" +
 	"\tTerritory\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
-	"\x05tiles\x18\x02 \x01(\rR\x05tiles2\xcc\x01\n" +
+	"\x05tiles\x18\x02 \x01(\rR\x05tiles2\xd2\x01\n" +
 	"\x0fInternalService\x12c\n" +
-	"\x11GetTakesByCountry\x12#.planet.v1.GetTakesByCountryRequest\x1a$.planet.v1.GetTakesByCountryResponse\"\x03\x90\x02\x01\x12T\n" +
-	"\fGetTerritory\x12\x1e.planet.v1.GetTerritoryRequest\x1a\x1f.planet.v1.GetTerritoryResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
+	"\x11GetTakesByCountry\x12#.planet.v1.GetTakesByCountryRequest\x1a$.planet.v1.GetTakesByCountryResponse\"\x03\x90\x02\x01\x12Z\n" +
+	"\x0eGetTerritories\x12 .planet.v1.GetTerritoriesRequest\x1a!.planet.v1.GetTerritoriesResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
 	"\rcom.planet.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -356,18 +356,18 @@ var file_planet_v1_internal_proto_goTypes = []any{
 	(*GetTakesByCountryRequest)(nil),  // 0: planet.v1.GetTakesByCountryRequest
 	(*GetTakesByCountryResponse)(nil), // 1: planet.v1.GetTakesByCountryResponse
 	(*CountryTakes)(nil),              // 2: planet.v1.CountryTakes
-	(*GetTerritoryRequest)(nil),       // 3: planet.v1.GetTerritoryRequest
-	(*GetTerritoryResponse)(nil),      // 4: planet.v1.GetTerritoryResponse
+	(*GetTerritoriesRequest)(nil),     // 3: planet.v1.GetTerritoriesRequest
+	(*GetTerritoriesResponse)(nil),    // 4: planet.v1.GetTerritoriesResponse
 	(*Territory)(nil),                 // 5: planet.v1.Territory
 }
 var file_planet_v1_internal_proto_depIdxs = []int32{
 	2, // 0: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
 	2, // 1: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
-	5, // 2: planet.v1.GetTerritoryResponse.territories:type_name -> planet.v1.Territory
+	5, // 2: planet.v1.GetTerritoriesResponse.territories:type_name -> planet.v1.Territory
 	0, // 3: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
-	3, // 4: planet.v1.InternalService.GetTerritory:input_type -> planet.v1.GetTerritoryRequest
+	3, // 4: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
 	1, // 5: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
-	4, // 6: planet.v1.InternalService.GetTerritory:output_type -> planet.v1.GetTerritoryResponse
+	4, // 6: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
 	5, // [5:7] is the sub-list for method output_type
 	3, // [3:5] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name

@@ -1,4 +1,4 @@
-package territory_query
+package territories_query
 
 import (
 	"cmp"
@@ -20,7 +20,7 @@ type MemoryQuery struct {
 	tiles       uint32
 }
 
-func (q *MemoryQuery) Territory() *planetv1.GetTerritoryResponse {
+func (q *MemoryQuery) Territories() *planetv1.GetTerritoriesResponse {
 	held := q.territories.Territories()
 
 	territories := make([]*planetv1.Territory, 0, len(held))
@@ -31,5 +31,5 @@ func (q *MemoryQuery) Territory() *planetv1.GetTerritoryResponse {
 		return cmp.Compare(a.GetCountryId(), b.GetCountryId())
 	})
 
-	return &planetv1.GetTerritoryResponse{Tiles: q.tiles, Territories: territories}
+	return &planetv1.GetTerritoriesResponse{Tiles: q.tiles, Territories: territories}
 }
