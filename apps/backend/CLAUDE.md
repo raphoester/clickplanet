@@ -163,7 +163,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
-**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger, bans and evidence all flush from their runners, after the closers, once the server has stopped taking writes.
+**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger and the antibot's evidence all flush from their runners, after the closers, once the server has stopped taking writes.
 
 **`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules. It builds no objects, derives nothing, and reads inside no block.
 
@@ -1926,7 +1926,7 @@ the caller takes no tiles so `retaker` starves, but ids and timing still flow, s
 
 **Bans and evidence both, in postgres, in the `antibot` schema.** Bans are
 `antibot.bans`, one row per scope ever banned, and `antibot.account_bans`, one row per
-account, written by `antibot/internal/shadowban`. What
+account, read and written by `antibot/internal/shadowban` with no copy in memory. What
 each watchdog is tracking and the jury's record of each caller — its tally and
 the last opinion of every watchdog — are `antibot.evidence`, one row per section, written by
 `antibot/internal/evidence`. This exists because of 2026-09-14: production
@@ -1940,20 +1940,37 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   `antibot/internal/migrations`. It is a library, not a module, but the planet's
   migrations sit behind `planet/internal/` where it cannot reach them, and its
   tables are its own business. `antibot.New` builds the pool and connects nothing;
-  `Guard.LoadState(ctx)` connects, migrates and loads, and **an error refuses the
-  boot**: a boot that forgets the bans unbans every bot. The guard's `Run` closes the
-  pool after the last flush, the way `cppg.CloseAfter` does for the tile map.
-- **The tile map's pattern.** `shadowban.Persistence` and `evidence.Persistence`
-  are the ports, `postgres_ban_store` and `postgres_evidence_store` the adapters,
-  `MemoryPersistence` (behind the `testing` tag) the fakes. State lives in memory
-  and is flushed every `saveInterval` (1m), with a 10s timeout, and once more on
-  shutdown. `antibot.NewInMemory` (behind the tag) builds a guard over the fakes.
-- **Bans are flushed by key.** Scopes and accounts are two `Banner`s over two
-  tables, each with its own ladder. A flag or a ban marks the key dirty; a flush
-  upserts the dirty keys, as they are then, in one statement per table. A failed flush
-  marks them again for the next tick. A row is never deleted. An offence is
-  forgotten only when an operator lifts its ban (`UnbanPlayer`): the row is written back with the ban
-  ended and one offence fewer. `nextFlagAt` is not kept, as it never was.
+  `Guard.LoadState(ctx)` connects, migrates and loads the evidence, and **an error
+  refuses the boot**. The guard's `Run` closes the pool after the last flush of the
+  evidence, the way `cppg.CloseAfter` does for the tile map.
+- **Bans are postgres, and nothing else.** `shadowban.Store` is the port: `Record`
+  reads one key, `Running` counts the bans running, and `Change` runs a function on
+  one key's record under `pg_advisory_xact_lock` and writes what it answers, in one
+  transaction. The ladder, the reflag interval and the unban stay in Go, on the
+  `Record` and the `Banner`; the store only locks, reads and writes. So a flag, a
+  ban or an unban is in the table when the call returns, two processes or a restart
+  cannot disagree about one, and an operator's `UnbanPlayer` needs no restart. The
+  reflag time is a column (`next_flag_at`, migration `20261008120000`), so a restart
+  is no way around it either. `postgres_ban_store` is the adapter and `MemoryStore`
+  (behind the `testing` tag) the fake; `shadowban.StoreContractSuite` runs on both,
+  and pins the lock: changes to one key never overlap.
+- **Every click reads them**, in `Guard.Inspect`, and a bomb or a shield in
+  `Guard.Banned`: one primary-key lookup on the scope and one on the account, and
+  none at all with `enforce` off. A read gets `banTimeout` (1s). **A ban that cannot
+  be read is no ban**: the click goes through, and the error reaches
+  `Observer.OnStateError`, which logs it. Postgres down lets a banned bot click,
+  rather than every player's clicks being dropped without a word. The operator
+  tools answer the error instead.
+- **A row is never deleted.** Scopes and accounts are two `Banner`s over two
+  tables, each with its own ladder. An offence is forgotten only when an operator
+  lifts its ban (`UnbanPlayer`): the row is written with the ban ended and one
+  offence fewer.
+- **Evidence is the tile map's pattern.** `evidence.Persistence` is the port,
+  `postgres_evidence_store` the adapter, `MemoryPersistence` (behind the `testing`
+  tag) the fake. It lives in memory and is flushed every `saveInterval` (1m), with a
+  10s timeout, and once more on shutdown: it changes on every click, so a write per
+  click is what it cannot afford. `antibot.NewInMemory` (behind the tag) builds a
+  guard over the fakes.
 - **Evidence is flushed whole.** One section per watchdog and one for the jury,
   each encoded by its own package (`state.go` beside it), so a watchdog's fields
   stay unexported. A flush replaces every row in one transaction, so a section
@@ -2557,7 +2574,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread-shields).
 
-The antibot's bans and evidence are in postgres too, in the `antibot` schema, the same way — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](#seasons-internalseasons).
+The antibot's evidence is in postgres too, in the `antibot` schema, the same way, and its bans are read and written there on every call — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](#seasons-internalseasons).
 
 Nothing lives in files any more: the container mounts no state volume.
 
@@ -2632,9 +2649,8 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 - **Ban before reverting**: an unbanned player repaints behind the revert.
 - **`UnbanPlayer(scope | account_id)`** lifts a running ban, for a false positive: the ban ends now and its
   offence is forgotten, so the next ban takes the step the lifted one took. An offence before it still counts:
-  the scope may be shared, and the account may have run a script last week. `Banner.Unban` marks the key dirty
-  with the new record, so the next flush writes it (`saveInterval`, 1m, and on shutdown) and a restart keeps the
-  caller unbanned: no restart and no SQL. It lifts the key it is given, so **a guest the jury banned needs two
+  the scope may be shared, and the account may have run a script last week. The row is written before the call
+  answers, so a restart keeps the caller unbanned: no restart and no SQL. It lifts the key it is given, so **a guest the jury banned needs two
   calls**, its account and its scope. No running ban is `NotFound` (`ErrNotBanned`), which a typo or the wrong
   half shows loudly; with `antiBot.enabled` false it is `FailedPrecondition`, as `BanPlayer` is.
   - **It does not touch the evidence.** The watchdogs read their own on every click, the dropped ones included,
@@ -2886,7 +2902,6 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
 - `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**, but for the one an operator lifts with `UnbanPlayer`
 - `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration or load refuses the boot
-- `antiBot.shadowBan.saveInterval` — how often changed bans are written to `antibot.bans` and `antibot.account_bans` (1m, and on shutdown)
 - `antiBot.shadowBan.reflagInterval` — how soon a banned caller can be judged again
 - `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered

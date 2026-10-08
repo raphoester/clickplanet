@@ -2,82 +2,132 @@ package postgres_ban_store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
-
-	"github.com/lib/pq"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-var _ shadowban.Persistence = (*Store)(nil)
+var _ shadowban.Store = (*Store)(nil)
 
-func NewScopes(db cppg.Querier) *Store {
-	return &Store{db: db, load: `SELECT scope, flags, offences, banned_until FROM bans`, save: `
-		INSERT INTO bans (scope, flags, offences, banned_until)
-		SELECT * FROM unnest($1::text[], $2::integer[], $3::integer[], $4::timestamptz[])
-		ON CONFLICT (scope) DO UPDATE SET
-			flags = EXCLUDED.flags,
-			offences = EXCLUDED.offences,
-			banned_until = EXCLUDED.banned_until
-	`}
+const (
+	scopesLock   = 0x62616e73
+	accountsLock = 0x61636e74
+)
+
+func NewScopes(db cppg.QuerierBeginner) *Store {
+	return &Store{db: db, lock: scopesLock, queries: queries{
+		record:  `SELECT flags, offences, banned_until, next_flag_at FROM bans WHERE scope = $1`,
+		running: `SELECT count(*) FROM bans WHERE banned_until > $1`,
+		save: `
+			INSERT INTO bans (scope, flags, offences, banned_until, next_flag_at) VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (scope) DO UPDATE SET
+				flags = excluded.flags,
+				offences = excluded.offences,
+				banned_until = excluded.banned_until,
+				next_flag_at = excluded.next_flag_at
+		`,
+	}}
 }
 
-func NewAccounts(db cppg.Querier) *Store {
-	return &Store{db: db, load: `SELECT account::text, flags, offences, banned_until FROM account_bans`, save: `
-		INSERT INTO account_bans (account, flags, offences, banned_until)
-		SELECT * FROM unnest($1::uuid[], $2::integer[], $3::integer[], $4::timestamptz[])
-		ON CONFLICT (account) DO UPDATE SET
-			flags = EXCLUDED.flags,
-			offences = EXCLUDED.offences,
-			banned_until = EXCLUDED.banned_until
-	`}
+func NewAccounts(db cppg.QuerierBeginner) *Store {
+	return &Store{db: db, lock: accountsLock, queries: queries{
+		record:  `SELECT flags, offences, banned_until, next_flag_at FROM account_bans WHERE account = $1`,
+		running: `SELECT count(*) FROM account_bans WHERE banned_until > $1`,
+		save: `
+			INSERT INTO account_bans (account, flags, offences, banned_until, next_flag_at) VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (account) DO UPDATE SET
+				flags = excluded.flags,
+				offences = excluded.offences,
+				banned_until = excluded.banned_until,
+				next_flag_at = excluded.next_flag_at
+		`,
+	}}
 }
 
 type Store struct {
-	db   cppg.Querier
-	load string
-	save string
+	db      cppg.QuerierBeginner
+	lock    int64
+	queries queries
 }
 
-func (s *Store) Load(ctx context.Context, visit func(record shadowban.Record)) error {
-	rows, err := s.db.QueryContext(ctx, s.load)
+type queries struct {
+	record  string
+	running string
+	save    string
+}
+
+func (s *Store) Record(ctx context.Context, key string) (shadowban.Record, bool, error) {
+	return s.recordOf(ctx, s.db, key)
+}
+
+func (s *Store) recordOf(ctx context.Context, db cppg.Querier, key string) (shadowban.Record, bool, error) {
+	record := shadowban.Record{Key: key}
+
+	var next sql.NullTime
+	err := db.QueryRowContext(ctx, s.queries.record, key).Scan(&record.Flags, &record.Offences, &record.Until, &next)
+	if errors.Is(err, sql.ErrNoRows) {
+		return record, false, nil
+	}
 	if err != nil {
-		return fmt.Errorf("failed to read bans: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var record shadowban.Record
-		if err := rows.Scan(&record.Key, &record.Flags, &record.Offences, &record.Until); err != nil {
-			return fmt.Errorf("failed to scan a ban: %w", err)
-		}
-		visit(record)
+		return shadowban.Record{}, false, fmt.Errorf("failed to read the ban: %w", err)
 	}
 
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("failed to read bans: %w", err)
+	record.Until = record.Until.UTC()
+	if next.Valid {
+		record.NextFlagAt = next.Time.UTC()
 	}
 
-	return nil
+	return record, true, nil
 }
 
-func (s *Store) Save(ctx context.Context, records []shadowban.Record) error {
-	keys := make([]string, len(records))
-	flags := make([]int64, len(records))
-	offences := make([]int64, len(records))
-	until := make([]time.Time, len(records))
-	for i, record := range records {
-		keys[i] = record.Key
-		flags[i] = int64(record.Flags)
-		offences[i] = int64(record.Offences)
-		until[i] = record.Until
+func (s *Store) Running(ctx context.Context, now time.Time) (int, error) {
+	var running int
+	if err := s.db.QueryRowContext(ctx, s.queries.running, now).Scan(&running); err != nil {
+		return 0, fmt.Errorf("failed to count the running bans: %w", err)
+	}
+	return running, nil
+}
+
+func (s *Store) Change(
+	ctx context.Context,
+	key string,
+	change func(record shadowban.Record, found bool) (shadowban.Record, bool),
+) (err error) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to begin changing the ban: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, s.lock, key); err != nil {
+		return fmt.Errorf("failed to lock the ban: %w", err)
 	}
 
-	if _, err := s.db.ExecContext(ctx, s.save, pq.Array(keys), pq.Array(flags), pq.Array(offences), pq.Array(until)); err != nil {
-		return fmt.Errorf("failed to upsert bans: %w", err)
+	record, found, err := s.recordOf(ctx, tx, key)
+	if err != nil {
+		return err
 	}
 
+	next, keep := change(record, found)
+	if !keep {
+		return tx.Commit() //nolint:wrapcheck // nothing was written, so there is nothing to name.
+	}
+
+	if _, err := tx.ExecContext(ctx, s.queries.save, key, next.Flags, next.Offences, next.Until,
+		sql.NullTime{Time: next.NextFlagAt, Valid: !next.NextFlagAt.IsZero()}); err != nil {
+		return fmt.Errorf("failed to save the ban: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit the ban: %w", err)
+	}
 	return nil
 }

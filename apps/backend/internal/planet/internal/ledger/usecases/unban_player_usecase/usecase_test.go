@@ -1,6 +1,8 @@
 package unban_player_usecase_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -19,6 +21,7 @@ type unbanner struct {
 	scopes   []string
 	accounts []string
 	off      bool
+	failing  error
 }
 
 func bannedOn(keys ...string) *unbanner {
@@ -29,14 +32,15 @@ func bannedOn(keys ...string) *unbanner {
 	return u
 }
 
-func (u *unbanner) Sentence(scope, account string) (antibot.Sentence, bool) {
+func (u *unbanner) Sentence(_ context.Context, scope, account string) (antibot.Sentence, bool, error) {
 	sentence, ok := u.banned[scope+account]
-	return sentence, ok
+	return sentence, ok, u.failing
 }
 
-func (u *unbanner) Unban(scope, account string) {
+func (u *unbanner) Unban(_ context.Context, scope, account string) error {
 	u.scopes = append(u.scopes, scope)
 	u.accounts = append(u.accounts, account)
+	return nil
 }
 
 func (u *unbanner) Enabled() bool { return !u.off }
@@ -96,6 +100,17 @@ func TestWithTheAntiBotOffThereIsNoBanToLift(t *testing.T) {
 
 	_, err := unban_player_usecase.New(u).Execute(t.Context(), unban_player_usecase.In{Scope: "1.2.3.4"})
 	require.ErrorIs(t, err, unban_player_usecase.ErrAntiBotOff)
+
+	assert.Empty(t, u.scopes)
+}
+
+func TestABanThatCannotBeReadIsAnErrorAndNothingIsLifted(t *testing.T) {
+	u := bannedOn("1.2.3.4")
+	cause := errors.New("postgres is down")
+	u.failing = cause
+
+	_, err := unban_player_usecase.New(u).Execute(t.Context(), unban_player_usecase.In{Scope: "1.2.3.4"})
+	require.ErrorIs(t, err, cause)
 
 	assert.Empty(t, u.scopes)
 }

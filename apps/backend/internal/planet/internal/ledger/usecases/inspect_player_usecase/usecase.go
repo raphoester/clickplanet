@@ -12,7 +12,7 @@ import (
 var ErrAntiBotOff = errors.New("antiBot is off, so there is nothing to inspect")
 
 type Examiner interface {
-	Examine(scope, account string) antibot.Examination
+	Examine(ctx context.Context, scope, account string) (antibot.Examination, error)
 	Enabled() bool
 }
 
@@ -34,7 +34,7 @@ type UseCase struct {
 	ledger   Ledger
 }
 
-func (u *UseCase) Execute(_ context.Context, in In) (antibot.Examination, error) {
+func (u *UseCase) Execute(ctx context.Context, in In) (antibot.Examination, error) {
 	if !u.examiner.Enabled() {
 		return antibot.Examination{}, ErrAntiBotOff
 	}
@@ -55,5 +55,10 @@ func (u *UseCase) Execute(_ context.Context, in In) (antibot.Examination, error)
 		})
 	}
 
-	return u.examiner.Examine(scope, caller.Account), nil
+	examination, err := u.examiner.Examine(ctx, scope, caller.Account)
+	if err != nil {
+		return antibot.Examination{}, fmt.Errorf("failed to inspect: %w", err)
+	}
+
+	return examination, nil
 }

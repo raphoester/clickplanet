@@ -16,8 +16,8 @@ var (
 )
 
 type Unbanner interface {
-	Sentence(scope, account string) (antibot.Sentence, bool)
-	Unban(scope, account string)
+	Sentence(ctx context.Context, scope, account string) (antibot.Sentence, bool, error)
+	Unban(ctx context.Context, scope, account string) error
 	Enabled() bool
 }
 
@@ -41,7 +41,7 @@ type UseCase struct {
 	unbanner Unbanner
 }
 
-func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
+func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	if !u.unbanner.Enabled() {
 		return Out{}, ErrAntiBotOff
 	}
@@ -51,12 +51,17 @@ func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 		return Out{}, fmt.Errorf("cannot unban: %w", err)
 	}
 
-	sentence, banned := u.unbanner.Sentence(caller.Scope, caller.Account)
+	sentence, banned, err := u.unbanner.Sentence(ctx, caller.Scope, caller.Account)
+	if err != nil {
+		return Out{}, fmt.Errorf("failed to read the ban: %w", err)
+	}
 	if !banned {
 		return Out{}, ErrNotBanned
 	}
 
-	u.unbanner.Unban(caller.Scope, caller.Account)
+	if err := u.unbanner.Unban(ctx, caller.Scope, caller.Account); err != nil {
+		return Out{}, fmt.Errorf("failed to unban: %w", err)
+	}
 
 	return Out{
 		Scope:   caller.Scope,

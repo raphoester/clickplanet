@@ -1,6 +1,7 @@
 package find_players_usecase_test
 
 import (
+	"context"
 	"log/slog"
 	"testing"
 	"time"
@@ -28,12 +29,12 @@ func (b borders) CountryOf(tile uint32) string { return b[tile] }
 
 type bans map[string]antibot.Sentence
 
-func (b bans) Sentence(scope, account string) (antibot.Sentence, bool) {
+func (b bans) Sentence(_ context.Context, scope, account string) (antibot.Sentence, bool, error) {
 	if sentence, ok := b[account]; ok {
-		return sentence, true
+		return sentence, true, nil
 	}
 	sentence, ok := b[scope]
-	return sentence, ok
+	return sentence, ok, nil
 }
 
 type countries struct{}

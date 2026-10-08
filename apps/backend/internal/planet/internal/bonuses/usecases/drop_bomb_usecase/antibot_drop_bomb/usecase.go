@@ -12,7 +12,7 @@ type UseCase interface {
 }
 
 type Bans interface {
-	Banned(scope, account string) bool
+	Banned(ctx context.Context, scope, account string) bool
 }
 
 func New(implementation UseCase, bans Bans) *Decorator {
@@ -27,7 +27,7 @@ type Decorator struct {
 // Still runs the drop: a bomb left in hand would tell a banned caller it was refused.
 func (d *Decorator) Execute(ctx context.Context, in drop_bomb_usecase.In) (clicks.Blast, error) {
 	payer := clicks.PayerOf(ctx)
-	in.Dud = d.bans.Banned(payer.Scope, payer.Account)
+	in.Dud = d.bans.Banned(ctx, payer.Scope, payer.Account)
 
 	return d.implementation.Execute(ctx, in) //nolint:wrapcheck // a decorator adds a flag, not a sentence.
 }

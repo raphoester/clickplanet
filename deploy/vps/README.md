@@ -635,10 +635,12 @@ at what the other watchdogs were reading on the same callers before loosening
 
 Bans escalate: 24h for a first offence, 7 days for a second, 3 years from the
 third. A caller that keeps going while banned only extends the ban it has. Bans
-are kept in postgres, in `antibot.bans`, so a deploy keeps them. What the
-watchdogs are tracking is kept beside them, in `antibot.evidence`, so a restart
-does not start their windows again; it keeps three days at most. Both are
-written every minute and once more on a clean shutdown.
+are kept in postgres only, in `antibot.bans` and `antibot.account_bans`: each
+ban is written when it is passed and read on every click, so a deploy keeps
+them. What the watchdogs are tracking is kept beside them, in
+`antibot.evidence`, so a restart does not start their windows again; it keeps
+three days at most, and is written every minute and once more on a clean
+shutdown.
 
 See every running ban:
 
@@ -647,8 +649,9 @@ docker compose exec postgres psql -U clickplanet -c "select * from antibot.bans 
 ```
 
 To lift a ban that was a mistake, use `UnbanPlayer`: see
-[Unban a player](#unban-a-player). Do not edit `antibot.bans` while the backend
-runs: it holds the bans in memory and writes them back.
+[Unban a player](#unban-a-player). The backend reads the table on every click,
+so a hand edit of it counts at once too, but the call keeps the offence count
+right and is logged.
 
 Set `enforce` back to false to stop dropping clicks for everyone at once.
 ### Evidence has to outlive a deploy, and by default it does not
@@ -905,9 +908,9 @@ player module.
 
 The tile map, the ledger and the chat are kept in the `postgres` service, on the
 `pg_data` volume, and so are the antibot's bans and evidence. The API loads them
-at boot, writes what changed every second (bans and evidence every minute), and
+at boot, writes what changed every second (the evidence every minute), and
 once more on a clean shutdown; each chat message is written before it is
-broadcast. It is published on `127.0.0.1:5432` only: the backend and the box
+broadcast, and each ban before the call that passed it returns. It is published on `127.0.0.1:5432` only: the backend and the box
 itself reach it, the internet does not. Each backend module keeps its tables in a schema of its own (`planet`
 for the tile map and the ledger, `antibot` for bans and evidence, `chat` for the
 messages) and migrates it at boot. The API refuses to start without postgres.
@@ -1192,8 +1195,8 @@ docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --pos
 - A player with no running ban is refused: `server returned error: HTTP/1.1 404`.
   A bad scope or account is refused with `400`, and so is any call while
   `antiBot.enabled` is off.
-- It goes to postgres with the next save of the bans (within one minute) and
-  on a clean shutdown, so a restart after that keeps the player unbanned.
+- It is in postgres when the answer comes, so a restart keeps the player
+  unbanned.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin unban"`.
 
 ### See how close the antibot is to one player

@@ -1,6 +1,7 @@
 package jury
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -29,20 +30,27 @@ func (w *fixedWatchdog) Watch(detect.Click) (detect.Verdict, detect.Evidence) {
 
 func (w *fixedWatchdog) Committed(detect.Click) {}
 
-func (stubBanner) Flag(shadowban.Caller) (shadowban.Sentence, bool) {
-	return shadowban.Sentence{Flags: 1}, true
+func (stubBanner) Flag(context.Context, shadowban.Caller) (shadowban.Sentence, bool, error) {
+	return shadowban.Sentence{Flags: 1}, true, nil
 }
 
-func (stubBanner) Banned(shadowban.Caller) bool { return false }
+func (stubBanner) Banned(context.Context, shadowban.Caller) (bool, error) { return false, nil }
 
-func (stubBanner) Flagged() int { return 0 }
+func (stubBanner) Flagged(context.Context) (int, error) { return 0, nil }
+
+func inspect(t *testing.T, j *Jury, click detect.Click) bool {
+	t.Helper()
+	drop, err := j.Inspect(t.Context(), click)
+	require.NoError(t, err)
+	return drop
+}
 
 func TestSweepForgetsIdleCallers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
 	j := New(Config{TrackWindow: time.Minute}, stubBanner{}, clock, Hooks{})
 
-	j.Inspect(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
+	inspect(t, j, detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
 	require.Len(t, j.callers, 1)
 
 	clock.Advance(2 * time.Hour)
@@ -57,7 +65,7 @@ func TestTheCountryTallyIsCapped(t *testing.T) {
 	j := New(Config{}, stubBanner{}, clock, Hooks{})
 
 	for i := range 100 {
-		j.Inspect(detect.Click{
+		inspect(t, j, detect.Click{
 			Scope:   "spreader",
 			Tile:    uint32(i),
 			Country: string(rune('A'+i%26)) + string(rune('A'+i/26)),
@@ -75,7 +83,7 @@ func TestOnlyTheLastFewTilesAreKept(t *testing.T) {
 	j := New(Config{}, stubBanner{}, clock, Hooks{})
 
 	for i := range uint32(100) {
-		j.Inspect(detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.Now()})
+		inspect(t, j, detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.Now()})
 	}
 
 	assert.Len(t, j.callers["caller"].tiles, keptTiles)
@@ -95,14 +103,14 @@ func TestTheSweepReportsWhoIsStanding(t *testing.T) {
 		},
 	}, unsure, sure)
 
-	j.Inspect(detect.Click{Scope: "stale", At: clock.Now()})
+	inspect(t, j, detect.Click{Scope: "stale", At: clock.Now()})
 	clock.Advance(20 * time.Minute)
 
-	j.Inspect(detect.Click{Scope: "first", At: clock.Now()})
-	j.Inspect(detect.Click{Scope: "second", At: clock.Now()})
+	inspect(t, j, detect.Click{Scope: "first", At: clock.Now()})
+	inspect(t, j, detect.Click{Scope: "second", At: clock.Now()})
 
 	sure.verdict = detect.Certain
-	j.Inspect(detect.Click{Scope: "third", At: clock.Now()})
+	inspect(t, j, detect.Click{Scope: "third", At: clock.Now()})
 
 	j.sweep()
 

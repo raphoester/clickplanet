@@ -17,14 +17,14 @@ func newClock() *cptime.FixedClock {
 
 const threeYears = 3 * 365 * 24 * time.Hour
 
-func newBanner(t *testing.T, config shadowban.Config, clock cptime.Clock) *shadowban.Banner {
+func newBanner(t *testing.T, config shadowban.Config, clock cptime.Clock) banner {
 	t.Helper()
-	return shadowban.New(config, clock, shadowban.NewMemoryPersistence(), failOnStateError(t))
+	return bannerOver(t, config, clock, shadowban.NewMemoryStore())
 }
 
-func failOnStateError(t *testing.T) func(error) {
+func bannerOver(t *testing.T, config shadowban.Config, clock cptime.Clock, store shadowban.Store) banner {
 	t.Helper()
-	return func(err error) { assert.NoError(t, err, "unexpected state error") }
+	return banner{t: t, inner: shadowban.New(config, clock, store)}
 }
 
 func config() shadowban.Config {
@@ -32,7 +32,6 @@ func config() shadowban.Config {
 		Enforce:        true,
 		BanDurations:   []time.Duration{time.Hour, 24 * time.Hour, threeYears},
 		ReflagInterval: 5 * time.Minute,
-		SaveInterval:   time.Minute,
 	}
 }
 
@@ -255,20 +254,18 @@ func TestAnUnbanForgetsOnlyTheOffenceItLifts(t *testing.T) {
 
 func TestAnUnbanWithNoRunningBanChangesNothing(t *testing.T) {
 	clock := newClock()
-	persistence := shadowban.NewMemoryPersistence()
-	banner := shadowban.New(config(), clock, persistence, failOnStateError(t))
+	store := shadowban.NewMemoryStore()
+	banner := bannerOver(t, config(), clock, store)
 
 	banner.Flag("bot")
-	require.NoError(t, banner.Flush(t.Context()))
 	clock.Advance(2 * time.Hour)
+	before := store.Stored()
 
 	banner.Unban("bot")
 	banner.Unban("nobody")
 	banner.Unban("")
-	require.NoError(t, banner.Flush(t.Context()))
 
-	assert.Len(t, persistence.Saves(), 1, "nothing changed, so nothing is written")
-	assert.NotContains(t, persistence.Stored(), "nobody")
+	assert.Equal(t, before, store.Stored(), "nothing ran, so nothing is written")
 
 	sentence, accepted := banner.Flag("bot")
 	require.True(t, accepted)

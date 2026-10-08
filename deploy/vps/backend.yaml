@@ -66,7 +66,6 @@ antiBot:
     enforce: true
     banDurations: [24h, 168h, 26280h]
     reflagInterval: 5m
-    saveInterval: 1m
 
   jury:
     minSuspects: 2
