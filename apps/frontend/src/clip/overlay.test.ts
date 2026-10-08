@@ -43,6 +43,36 @@ describe("a flag thrown out of a continent", () => {
     })
 })
 
+describe("a flag losing land nobody leads the taking of", () => {
+    it("gets kicked out of a place that is not its own, and is asked to be saved", () => {
+        const words = wordsOf({...story("rout", {region: "South America"}), attacker: "cy", victims: ["ps"]})
+
+        expect(words.headline).toBe("PALESTINE GETS KICKED OUT OF SOUTH AMERICA")
+        expect(words.call).toBe("FIGHT FOR PALESTINE")
+        expect(words.callFlags).toEqual(["ps"])
+        expect(words.caption).toMatch(/Who saves them\? 👇/)
+    })
+
+    it("is falling when the land it loses is its own country", () => {
+        expect(wordsOf({...story("rout", {country: "dz"}), attacker: "bg", victims: ["dz"]}).headline).toBe("ALGERIA IS FALLING")
+    })
+
+    it("is losing a place that is its own", () => {
+        expect(wordsOf({...story("rout", {region: "Africa"}), attacker: "il", victims: ["dz"]}).headline)
+            .toBe("ALGERIA IS LOSING AFRICA")
+    })
+})
+
+describe("names said with their article", () => {
+    it("say the UK and the Netherlands, and tag them bare", () => {
+        const words = wordsOf({...story("kickout", {countries: ["no", "se"]}), attacker: "gb", victims: ["il"]})
+
+        expect(words.headline).toBe("THE UK IS KICKING ISRAEL OUT OF NORWAY AND SWEDEN")
+        expect(wordsOf(story("battle", {country: "gb"}, "nl")).line).toBe("The battle for the UK")
+        expect(wordsOf(story("battle", {country: "gb"}, "nl")).caption).toMatch(/#uk$/)
+    })
+})
+
 describe("a continent striking back together", () => {
     it("is the continent's story, under its flag", () => {
         const words = wordsOf({...story("comeback", {region: "Europe"}), attacker: "de", team: "Europe"})
@@ -77,7 +107,7 @@ describe("the caption", () => {
     })
 
     it("asks to pick a side in a battle", () => {
-        expect(wordsOf(story("battle", {country: "fr"}, "nl")).caption).toMatch(/^PALESTINE VS NETHERLANDS\. Pick a side 👇\n/)
+        expect(wordsOf(story("battle", {country: "fr"}, "nl")).caption).toMatch(/^PALESTINE VS THE NETHERLANDS\. Pick a side 👇\n/)
     })
 
     it("tags no place for the world", () => {

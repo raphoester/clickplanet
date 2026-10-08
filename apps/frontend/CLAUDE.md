@@ -2401,7 +2401,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 - **`window.ts` finds the candidates**: for each length from 1 to 24 hours, the busiest stretch of a few places
   far apart, counting the tiles taken from another flag in each 10° cell and the eight around it. Filling empty
   ground is not war. A window asked for (`--since`, `--until`) is split into its places the same way, so a war
-  next door is a story of its own.
+  next door is a story of its own. **Every scale is searched**: the whole map, and each of the 12 countries whose
+  ground changed hands the most (400 tiles or more), on its own ground alone, as `--focus` does. So Germany and
+  Romania trading Germany is a story beside the war across Europe it is part of.
 - **`front.ts` finds the front** of a candidate: the point where most tiles changed hands, and every change within
   about 2,900 km of it, so a war in France brings in England, Spain and Germany. Once the story is known, the front
   is found again from its own flags' fighting alone, so a war next door (Israel in Turkey) does not pull the
@@ -2423,8 +2425,14 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 - **A flag thrown out is its own story** (`routOf`): once the flag a story takes most from has lost half of what it
   held in the place (300 tiles or more), a continent's flags taking it back together become **"PALESTINE GETS
   KICKED OUT OF EUROPE"**, told from its side with its counter falling against the continent's, and one attacker
-  becomes **"ISRAEL IS KICKING PALESTINE OUT OF EUROPE"**. A flag taking its own ground back still strikes back.
-  Two stories about one flag thrown out of one place are told once, the better one.
+  becomes **"ISRAEL IS KICKING PALESTINE OUT OF EUROPE"**. When many flags take it and none leads, it is the story
+  alone, placed where it lost its land: **"PALESTINE GETS KICKED OUT OF SOUTH AMERICA"**, with "Fight for
+  Palestine". Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
+  country **"IS FALLING"**, and one attacker taking it is an invasion. A flag taking its own ground back still strikes
+  back.
+- **One story per flag and what it did** (`sameStory`), whatever window or scale found it, the best one: one flag
+  beating another, one flag thrown out of one place, one flag striking back. A battle is its two sides in one place.
+- **Names are said with their article** where English wants one: "the UK", "the Netherlands". Tags keep them bare.
 - **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
   France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
   The caption is the headline and the question its call to act asks ("Who stops them?" to defend, "Who joins
@@ -2441,7 +2449,7 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   last 1.2s. `--silent` leaves it out, for TikTok and Instagram, where a sound is added when posting.
 - **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
   the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
-  story already told by a better candidate (same attacker, same place) is dropped.
+  story already told by a better candidate (same attacker, same front) is dropped.
 - **`solidity.ts` skips graffiti.** For each tile the attacker took and holds at the end, the share of its 6
   neighbours it holds too: about 1 for land taken, 0.56 for names written across Canada. Under 0.75 the story is
   skipped, and `--plan` says so. So is a story placed in "the world": its tiles are spread over several continents
