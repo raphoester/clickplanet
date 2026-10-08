@@ -952,17 +952,34 @@ draws it.
   finale starts**, the backend's `rounds.Current`: worked out here from the
   season, so the chip needs no race. `finaleClock` and `finaleWindow` are the
   finale's countdown and its day and hours in the player's own time zone.
+  `countdownsOf` is the chip's faces, made from the two clocks: today's cutoff
+  and the finale's start. On the last day they are the same time, so there is
+  one face. During the finale there is one, to the season's end. After it, none.
 - `app/season/` — `useSeason`, which drops the season at its end (a page open
-  across it goes back to no season), `SeasonChip`, `SeasonDetails` and
-  `SeasonFacts`, the rows both of them open on.
+  across it goes back to no season), `SeasonChip`, `SeasonDetails`,
+  `SeasonFacts`, the rows both of them open on, and `useRotation`, which turns
+  the chip's faces.
 
-**The season is a chip in the status zone, and it counts down to today's
-cutoff**: the day is what scores, and the season's end is weeks away. On a
-desktop it sits at the top centre: "Today ends in 13h 05m 12s", and a press opens
-a dropdown (Escape closes it). On a phone it is the right end of the status bar,
-the two largest units alone ("13h 05m", named in full for a screen reader), and
-a press opens the same details as a sheet. During the finale it glows and says
-"Final Battle ends in"; it still opens.
+**The season is a chip in the status zone, and it turns between two
+countdowns**: today's cutoff, because the day is what scores, and the start of
+the Final Battle. Each face shows for 6 seconds. A face is a label and its time
+together, so a look never shows one countdown's time under the other's label.
+The next face slides up into place; under `prefers-reduced-motion` it changes
+with no movement. The mouse over the chip, or focus on it, stops the turns. With
+one face the chip does not turn.
+
+On a desktop it sits at the top centre: "Today ends in 13h 05m 12s", then "Final
+Battle in 23d 04h 12m 05s", and a press opens a dropdown (Escape closes it). On a
+phone it is the right end of the status bar, the two largest units alone
+("13h 05m"), under a short tag ("Today", "Final") when there are two faces. A
+press opens the same details as a sheet, with both countdowns at once. The chip's
+name holds both countdowns in full, so a screen reader does not wait for a turn.
+The faces are hidden from it, and they are not a live region. During the finale
+it glows and says "Final Battle ends in"; it still opens.
+
+**All faces are in one grid cell**, and the faces not shown are
+`visibility: hidden`. So the chip is as wide as its widest face, and its width
+does not change at each turn.
 
 **The desktop chip has a fixed width** (368px, the widest countdown plus a
 little). Luckiest Guy has no equal-width digits, so the countdown changes width

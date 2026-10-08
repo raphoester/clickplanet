@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {finaleClock, finaleWindow, seasonClock} from "./seasonClock.ts"
+import {countdownsOf, finaleClock, finaleWindow, seasonClock} from "./seasonClock.ts"
 
 const SECOND = 1000
 const MINUTE = 60 * SECOND
@@ -77,6 +77,41 @@ describe("finaleClock", () => {
 
     it("is gone once the season is over", () => {
         expect(finaleClock(season, endsAt)).toBeUndefined()
+    })
+})
+
+describe("countdownsOf", () => {
+    const finaleStartsAt = season.finaleStartsAt
+
+    it("counts down to today's cutoff and to the Final Battle", () => {
+        expect(countdownsOf(season, finaleStartsAt - 3 * DAY - (13 * HOUR + 5 * MINUTE + 20 * SECOND))).toEqual([
+            {label: "Today ends in", tag: "Today", left: "13h 05m 20s"},
+            {label: "Final Battle in", tag: "Final", left: "3d 13h 05m 20s"},
+        ])
+    })
+
+    it("counts the last day once, since it ends when the Final Battle starts", () => {
+        expect(countdownsOf(season, finaleStartsAt - DAY - SECOND).map((c) => c.left)).toEqual(["00m 01s", "1d 00h 00m 01s"])
+        expect(countdownsOf(season, finaleStartsAt - DAY)).toEqual([
+            {label: "Final Battle in", tag: "Final", left: "1d 00h 00m 00s"},
+        ])
+        expect(countdownsOf(season, finaleStartsAt - 3 * HOUR)).toEqual([
+            {label: "Final Battle in", tag: "Final", left: "3h 00m 00s"},
+        ])
+    })
+
+    it("counts down to the end of the season once the Final Battle runs", () => {
+        expect(countdownsOf(season, finaleStartsAt)).toEqual([
+            {label: "Final Battle ends in", tag: "Final", left: "2h 00m 00s"},
+        ])
+        expect(countdownsOf(season, endsAt - (12 * MINUTE + 5 * SECOND))).toEqual([
+            {label: "Final Battle ends in", tag: "Final", left: "12m 05s"},
+        ])
+    })
+
+    it("is empty once the season is over", () => {
+        expect(countdownsOf(season, endsAt)).toEqual([])
+        expect(countdownsOf(season, endsAt + DAY)).toEqual([])
     })
 })
 
