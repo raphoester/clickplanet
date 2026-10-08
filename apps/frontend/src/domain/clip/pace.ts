@@ -24,7 +24,11 @@ export type Pace = {
 // screens: how far the action moves up close, in screen heights. A bomb takes no time of its own: it goes off while
 // the map goes on changing.
 export function timelineOf(screens: number, seconds?: number): Timeline {
-    const play = Math.min(LONGEST_PLAY_SECONDS, SHORTEST_PLAY_SECONDS + SECONDS_PER_SCREEN * screens)
+    return timelineFor(Math.min(LONGEST_PLAY_SECONDS, SHORTEST_PLAY_SECONDS + SECONDS_PER_SCREEN * screens), seconds)
+}
+
+// play: how long the replay plays before the call to act.
+export function timelineFor(play: number, seconds?: number): Timeline {
     const chosen = seconds ?? Math.round(2 * (play + ENDING_SECONDS)) / 2
     return {seconds: Math.min(LONGEST_SECONDS, chosen), ending: ENDING_SECONDS}
 }

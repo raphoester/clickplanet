@@ -2653,6 +2653,15 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   kicking it out. With `--country`, a story that flag leads nothing in is skipped. Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
   country **"IS FALLING"**, and one attacker taking it is an invasion. A flag taking its own ground back still strikes
   back.
+- **A flag taking land on several continents at once is on a tour of the world** (`tour.ts`): the busiest stretches
+  of the whole map, for the 3 flags that took the most in each (or `--country`), when no continent holds 70% of
+  what the flag took and it leads what is taken across the world (35%). **"PORTUGAL IS TAKING OVER THE WORLD"**,
+  and its call is "Fight back", with no flag. Each continent with a tenth of what it took is a stop, four at most,
+  in the order it got there (a fifth of it taken). The camera opens on the whole globe over the first stop, flies
+  to each in turn, framed on its painted flags where it took the most there (Angola, not all of Africa from
+  Guinea-Bissau to Mozambique, which only the whole globe frames) and closing in while it is there, high over the globe between two
+  far apart, and pulls back out to the globe over all of them; 0.9s a flight and 2.4s a stop. The counter counts
+  the flag across the world. A tour is told beside the flag's stories on each continent, not instead of them.
 - **One story per flag and what it did** (`sameStory`), whatever window or scale found it, told over the most of the
   map (`widerThan`), else the best: one flag taking one place or one inside it, whoever it beat there ("Portugal is
   invading Germany" is part of "Portugal is attacking Europe"), one flag thrown out of one place, one flag
@@ -2686,8 +2695,8 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   story already told by a better candidate (same attacker, same front) is dropped.
 - **`solidity.ts` skips graffiti.** For each tile the attacker took and holds at the end, the share of its 6
   neighbours it holds too: about 1 for land taken, 0.56 for names written across Canada. Under 0.75 the story is
-  skipped, and `--plan` says so. So is a story placed in "the world": its tiles are spread over several continents
-  and there is no one place to show, and "Israel is attacking the world" is a line no clip may carry.
+  skipped, and `--plan` says so. So is a front whose story lands in "the world": its tiles are spread over several
+  continents and there is no one place to show. Only a flag leading the world gets a tour of it.
 - **`look.ts` picks when the camera comes back out of the tiles.** From far, a landmass's painted flag only
   changes when its biggest holder does (`flipsOf`, over the borders blob, read 8 times along the changes, so a
   landmass taken and taken back counts too). A front too wide to frame closer than
