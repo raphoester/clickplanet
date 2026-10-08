@@ -25,22 +25,27 @@ func (s stubSubscriber) Subscribe(context.Context) (<-chan feed.Update, error) {
 }
 
 type recorder struct {
-	mu     sync.Mutex
-	events []listen_for_events_usecase.Event
-	err    error
-	fed    chan struct{}
+	mu       sync.Mutex
+	events   []listen_for_events_usecase.Event
+	err      error
+	accepted int
+	fed      chan struct{}
 }
 
 func (r *recorder) Send(event listen_for_events_usecase.Event) error {
 	r.mu.Lock()
 	r.events = append(r.events, event)
+	refused := len(r.events) > r.accepted
 	r.mu.Unlock()
 
 	if r.fed != nil {
 		r.fed <- struct{}{}
 	}
 
-	return r.err
+	if refused {
+		return r.err
+	}
+	return nil
 }
 
 func (r *recorder) seen() []listen_for_events_usecase.Event {
@@ -72,12 +77,61 @@ func TestAMessageIsCarriedToTheSink(t *testing.T) {
 	}()
 
 	<-sink.fed
+	<-sink.fed
 	cancel()
 	require.NoError(t, <-done)
 
 	require.Equal(t, []listen_for_events_usecase.Event{
+		{Heartbeat: true},
 		{Update: feed.MessageSent(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", "hello"))},
 	}, sink.seen())
+}
+
+func TestAStreamOpensWithAHeartbeat(t *testing.T) {
+	sink := &recorder{fed: make(chan struct{})}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(
+			stubSubscriber{feed: make(chan feed.Update)}, time.Hour).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}}, sink.seen())
+}
+
+type watchedSubscriber struct{ subscribed bool }
+
+func (s *watchedSubscriber) Subscribe(context.Context) (<-chan feed.Update, error) {
+	s.subscribed = true
+
+	updates := make(chan feed.Update)
+	close(updates)
+
+	return updates, nil
+}
+
+type witness struct {
+	subscriber *watchedSubscriber
+	followed   []bool
+}
+
+func (w *witness) Send(listen_for_events_usecase.Event) error {
+	w.followed = append(w.followed, w.subscriber.subscribed)
+	return nil
+}
+
+func TestTheOpeningHeartbeatComesOnceTheFeedIsFollowed(t *testing.T) {
+	subscriber := &watchedSubscriber{}
+	sink := &witness{subscriber: subscriber}
+
+	require.NoError(t, listen_for_events_usecase.New(subscriber, time.Hour).Execute(t.Context(), sink))
+
+	assert.Equal(t, []bool{true}, sink.followed, "a client resyncs on it, so nothing after it may be missed")
 }
 
 func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
@@ -112,11 +166,26 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 }
 
 func TestAFailedSendEndsTheFeed(t *testing.T) {
+	sent := feed.MessageSent(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", ""))
 	updates := make(chan feed.Update, 1)
-	updates <- feed.MessageSent(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", ""))
+	updates <- sent
+	sink := &recorder{err: assert.AnError, accepted: 1}
 
 	err := listen_for_events_usecase.New(stubSubscriber{feed: updates}, time.Hour).
-		Execute(t.Context(), &recorder{err: assert.AnError})
+		Execute(t.Context(), sink)
 
 	require.ErrorIs(t, err, assert.AnError)
+	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}, {Update: sent}}, sink.seen())
+}
+
+func TestAFailedOpeningHeartbeatEndsTheFeed(t *testing.T) {
+	updates := make(chan feed.Update, 1)
+	updates <- feed.MessageSent(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", ""))
+	sink := &recorder{err: assert.AnError}
+
+	err := listen_for_events_usecase.New(stubSubscriber{feed: updates}, time.Hour).
+		Execute(t.Context(), sink)
+
+	require.ErrorIs(t, err, assert.AnError)
+	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}}, sink.seen())
 }

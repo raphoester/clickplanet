@@ -592,6 +592,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
     }
 
+    public listenForResumes(): () => void {
+        return () => {}
+    }
+
     public async getCurrentOwnershipsByBatch(
         batchSize: number,
         maxIndex: number,

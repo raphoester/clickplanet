@@ -91,6 +91,9 @@ const SHIELD_MOST_UNTIL_READ = 10
 
 const TILES_PER_BATCH = 10_000
 
+// GetMap's max-age: a map read any sooner could be older than the stream that resumed.
+const CATCH_UP_DELAY_MS = 5_000
+
 const IDLE_FRAME_MS = 16
 
 const SPIN_TURNS_PER_MINUTE = 2
@@ -694,6 +697,41 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
     })
 
+    let catchingUp: AbortController | undefined
+
+    const catchUp = async () => {
+        catchingUp?.abort()
+        const attempt = new AbortController()
+        catchingUp = attempt
+
+        ownership.forgetLive()
+        shielded.forgetLive()
+
+        const bindings = new Map<number, string>()
+        const shields = new Map<number, number>()
+        try {
+            await pause(CATCH_UP_DELAY_MS, attempt.signal)
+            await ownershipsGetter.getCurrentOwnershipsByBatch(
+                TILES_PER_BATCH,
+                field.size,
+                (batch) => {
+                    batch.bindings.forEach((owner, tile) => bindings.set(tile, owner))
+                    batch.shields.forEach((count, tile) => shields.set(tile, count))
+                },
+                attempt.signal,
+            )
+        } catch (e) {
+            if (!attempt.signal.aborted) console.error("could not catch up with the map", e)
+            return
+        }
+        if (attempt.signal.aborted) return
+
+        applyChanges(ownership.resync(bindings), false)
+        showShields(shielded.resync(shields))
+    }
+
+    const stopResumes = updatesListener.listenForResumes(() => void catchUp())
+
     addDisplayObjects(scene, field.displayPoints, graphics)
 
     let captureRequests: CaptureRequest[] = []
@@ -765,6 +803,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
             stopAnimation()
             cleanUpdatesListener()
+            stopResumes()
+            catchingUp?.abort()
             stopBonuses?.()
             stopBombs?.()
 
@@ -934,4 +974,14 @@ export function reportClickFailure(
         return false
     }
     return true
+}
+
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, ms)
+        signal.addEventListener("abort", () => {
+            clearTimeout(timer)
+            reject(signal.reason)
+        }, {once: true})
+    })
 }

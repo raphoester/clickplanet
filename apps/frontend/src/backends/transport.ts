@@ -43,14 +43,48 @@ function unreachable(e: unknown): boolean {
 const INITIAL_RECONNECT_DELAY_MS = 500
 const MAX_RECONNECT_DELAY_MS = 30_000
 
+// Two of the server's 30s heartbeats missed.
+export const SILENCE_LIMIT_MS = 60_000
+
+export type Wakeups = (wake: () => void) => () => void
+
+export const pageWakeups: Wakeups = (wake) => {
+    if (typeof document === "undefined") return () => {}
+
+    const onVisibility = () => {
+        if (document.visibilityState === "visible") wake()
+    }
+
+    document.addEventListener("visibilitychange", onVisibility)
+    document.addEventListener("resume", wake)
+    window.addEventListener("pageshow", wake)
+    window.addEventListener("online", wake)
+
+    return () => {
+        document.removeEventListener("visibilitychange", onVisibility)
+        document.removeEventListener("resume", wake)
+        window.removeEventListener("pageshow", wake)
+        window.removeEventListener("online", wake)
+    }
+}
+
+export type StreamOptions = {
+    onResumed?: () => void
+    wakeups?: Wakeups
+}
+
 export function openStream<T>(
     open: (signal: AbortSignal) => AsyncIterable<T>,
     onMessage: (message: T) => void,
     what: string,
+    {onResumed, wakeups = pageWakeups}: StreamOptions = {},
 ): () => void {
     let controller: AbortController | undefined
     let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let silenceTimer: ReturnType<typeof setTimeout> | undefined
     let retryDelayMs = INITIAL_RECONNECT_DELAY_MS
+    let heardAt = Date.now()
+    let wasLive = false
     let stopped = false
 
     const scheduleReconnect = () => {
@@ -62,15 +96,53 @@ export function openStream<T>(
         retryDelayMs = Math.min(retryDelayMs * 2, MAX_RECONNECT_DELAY_MS)
     }
 
+    const silentFor = () => Date.now() - heardAt
+
+    const watchSilence = () => {
+        if (silenceTimer !== undefined) clearTimeout(silenceTimer)
+        silenceTimer = setTimeout(() => {
+            silenceTimer = undefined
+            if (controller === undefined) return
+            if (silentFor() >= SILENCE_LIMIT_MS) {
+                reopen()
+            } else {
+                watchSilence()
+            }
+        }, SILENCE_LIMIT_MS - silentFor())
+    }
+
+    const reopen = () => {
+        if (stopped) return
+
+        if (retryTimer !== undefined) clearTimeout(retryTimer)
+        retryTimer = undefined
+        retryDelayMs = INITIAL_RECONNECT_DELAY_MS
+
+        const stale = controller
+        controller = undefined
+        stale?.abort()
+
+        void connect()
+    }
+
     const connect = async () => {
         if (stopped) return
 
         const attempt = new AbortController()
         controller = attempt
+        heardAt = Date.now()
+        watchSilence()
 
+        let first = true
         try {
             for await (const message of open(attempt.signal)) {
+                heardAt = Date.now()
                 retryDelayMs = INITIAL_RECONNECT_DELAY_MS
+                if (first) {
+                    first = false
+                    if (wasLive) onResumed?.()
+                    wasLive = true
+                }
                 onMessage(message)
             }
         } catch (e) {
@@ -78,15 +150,23 @@ export function openStream<T>(
             console.error(`${what} stream failed`, e)
         }
 
-        if (controller === attempt) controller = undefined
+        if (controller !== attempt) return
+        controller = undefined
         scheduleReconnect()
     }
+
+    const stopWaking = wakeups(() => {
+        if (stopped) return
+        if (retryTimer !== undefined || silentFor() >= SILENCE_LIMIT_MS) reopen()
+    })
 
     void connect()
 
     return () => {
         stopped = true
+        stopWaking()
         if (retryTimer !== undefined) clearTimeout(retryTimer)
+        if (silenceTimer !== undefined) clearTimeout(silenceTimer)
         controller?.abort()
         controller = undefined
     }

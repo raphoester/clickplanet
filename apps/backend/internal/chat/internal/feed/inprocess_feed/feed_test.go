@@ -58,16 +58,26 @@ func TestASubscriptionClosesWithItsContext(t *testing.T) {
 	}, 2*time.Second, time.Millisecond)
 }
 
-func TestASlowSubscriberMissesUpdatesRatherThanHoldingThePublisher(t *testing.T) {
+func TestASlowSubscriberIsClosedRatherThanHoldingThePublisher(t *testing.T) {
 	updates := newFeed(1)
-	_, err := updates.Subscribe(t.Context())
+	slow, err := updates.Subscribe(t.Context())
+	require.NoError(t, err)
+	reading, err := updates.Subscribe(t.Context())
 	require.NoError(t, err)
 
 	for range 10 {
 		updates.Publish(sent("hello"))
+
+		update, open := <-reading
+		require.True(t, open, "a subscriber that keeps up is never cut off")
+		assert.Equal(t, sent("hello"), update)
 	}
 
-	assert.Equal(t, uint64(9), updates.Dropped())
+	update, open := <-slow
+	require.True(t, open)
+	assert.Equal(t, sent("hello"), update)
+	_, open = <-slow
+	assert.False(t, open, "closed, not skipped: its stream ends and the client reads the history again")
 }
 
 func TestConcurrentUseIsSafe(t *testing.T) {

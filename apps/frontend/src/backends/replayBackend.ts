@@ -169,6 +169,10 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         return () => this.batchListeners.delete(callback)
     }
 
+    listenForResumes(): () => void {
+        return () => {}
+    }
+
     listenForBonuses(handlers: BonusHandlers): () => void {
         this.bonusHandlers.add(handlers)
         return () => this.bonusHandlers.delete(handlers)
