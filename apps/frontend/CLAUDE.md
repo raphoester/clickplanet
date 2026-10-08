@@ -850,7 +850,8 @@ is the player's own view.
 `backends/standings.ts` is the contract: `StandingsBackend`, `Standing` (a
 ranked player: rank, name, color, worn title, the flag its tiles are for, tiles)
 and `MySeason` (the caller's line on one board: that flag, its tiles, its rank
-and its worn title). `standingsBackend.ts` implements it over
+and its worn title), and the countries' `Race` (the `Round` in progress and the
+season's `Score`s). `standingsBackend.ts` implements it over
 `seasons.v1.SeasonService/ListenForEvents` and `GetMySeason`, and
 `fakeStandingsBackend.ts` stands in for it in fake mode, counting the player's
 own clicks and moving the other players a few tiles every 1.5s. `app/standings/`
@@ -862,11 +863,23 @@ draws it.
   on the board of each flag it took for, from its first take. The server ranks
   only signed-in players (each has a username; a guest has none), and ties share
   a rank (1, 2, 2, 4). `RankCoin` draws the rank, as on the countries' board.
-- **The board has three views** (`BoardViews`): Countries, the `Leaderboard` as
-  it was; Players; and the players of the country played for, named by its flag
+- **The board has four views** (`BoardViews`): Countries, the `Leaderboard` as
+  it was; Season; Players; and the players of the country played for, named by its flag
   and name. `Viewer` holds the view, so a closed sheet or
   another menu tab keeps it. With no `StandingsBackend` wired the board has no
   views.
+- **Season is the countries' race** (`RaceStandings`): each day is a round, the
+  top 10 countries by the ground they held score 25, 18, 15 … 1, and the Final
+  Battle triple (the backend's CLAUDE.md, Seasons). `listenForRace` follows the
+  whole map's season stream and reads its `race` case, which every stream
+  carries; the server reads it again every 10s. Over the table, two stat tiles:
+  the day (or "Final Battle") with the time it has left (`leftUntil`, ticking with
+  `useNow`), and the country played for's rank today. **The table is the season as
+  it would stand if the day ended now** (`domain/race.ts`, `raceTable`): each
+  country's points from the days closed, plus what it scores today shown beside
+  them as "+18", ranked by the sum; ties share a rank, the better day first. A
+  country with no points that scores nothing today is not listed; the country
+  played for is added under the top 10 when it is further down.
 - **The view is picked from the board's heading** (`HeadingSelect`, a gold
   section title that opens a listbox), not from tabs: the board is already a
   tab of the menu, and tabs in a tab read as one row of places. **The list is
@@ -950,11 +963,11 @@ every second: a chip as wide as its text moved every second and wrapped the
 dropdown's rows again with it.
 
 **What it opens is the one place the UI explains the rules**, asked for on
-purpose: four rows (`SeasonFacts`), the Final Battle with its day and hours, held
-ground counted at the end, the winner's trophy in the Hall of Fame, and the
+purpose: four rows (`SeasonFacts`), the Final Battle with its day and hours, the
+daily rounds ("Win the day"), the winner's trophy in the Hall of Fame, and the
 titles. During the finale the first row is the power-ups instead of the date.
-**Say only what is decided**: a battle full of power-ups, points for held ground
-counted at the end, a trophy for the winning country, a title for every
+**Say only what is decided**: a battle full of power-ups, points each day for the
+countries that held the most ground (triple in the Final Battle), a trophy for the winning country, a title for every
 signed-in player and one more for the winning country's. Guests get no title, so
 the row says "signed-in".
 

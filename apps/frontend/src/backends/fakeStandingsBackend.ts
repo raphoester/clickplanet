@@ -1,7 +1,7 @@
 import {STANDINGS_SHOWN} from "../domain/standings.ts"
 import {TileClicker} from "./backend.ts"
 import {NameColor, PlayerTitle} from "./player.ts"
-import {MySeason, Standing, StandingsBackend} from "./standings.ts"
+import {MySeason, Race, Standing, StandingsBackend} from "./standings.ts"
 
 export type FakePlayer = Pick<Standing, "name" | "color" | "wornTitle"> & {tiles: Record<string, number>}
 
@@ -31,6 +31,14 @@ const PLAYERS: FakePlayer[] = [
     {name: "Noor", color: NameColor.UNSPECIFIED, tiles: {ae: 44, in: 12}},
 ]
 
+const SEASON_POINTS: Record<string, [points: number, roundsWon: number]> = {
+    fr: [61, 2], br: [43, 1], in: [36, 1], nz: [25, 1], es: [18, 0], ru: [12, 0],
+}
+const DAY_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
+const MAP_TILES = 262_119
+const DAY_ENDS_AT_UTC_HOUR = 21
+const DAY_MS = 24 * 60 * 60 * 1000
+
 export const MOVE_EVERY_MS = 1_500
 const MOST_PER_MOVE = 40
 
@@ -40,7 +48,11 @@ export class FakeStandingsBackend implements StandingsBackend {
     private readonly listeners = new Set<() => void>()
     private timer?: ReturnType<typeof setInterval>
 
-    constructor(players: readonly FakePlayer[] = PLAYERS, private readonly random: () => number = Math.random) {
+    constructor(
+        players: readonly FakePlayer[] = PLAYERS,
+        private readonly random: () => number = Math.random,
+        private readonly now: () => number = Date.now,
+    ) {
         this.players = players.map((player) => ({...player, tiles: {...player.tiles}}))
     }
 
@@ -54,7 +66,14 @@ export class FakeStandingsBackend implements StandingsBackend {
     }
 
     public listenForStandings(countryCode: string, onStandings: (standings: Standing[]) => void): () => void {
-        const send = () => onStandings(this.top(countryCode))
+        return this.listen(() => onStandings(this.top(countryCode)))
+    }
+
+    public listenForRace(onRace: (race: Race) => void): () => void {
+        return this.listen(() => onRace(this.race()))
+    }
+
+    private listen(send: () => void): () => void {
         this.listeners.add(send)
         void Promise.resolve().then(() => {
             if (this.listeners.has(send)) send()
@@ -87,6 +106,20 @@ export class FakeStandingsBackend implements StandingsBackend {
             .slice(0, STANDINGS_SHOWN)
     }
 
+    private race(): Race {
+        const held = new Map(this.taken)
+        for (const player of this.players) {
+            for (const [code, tiles] of Object.entries(player.tiles)) held.set(code, (held.get(code) ?? 0) + tiles)
+        }
+        const standings = [...held]
+            .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
+            .map(([countryCode, tiles], i) => ({rank: i + 1, countryCode, share: tiles / MAP_TILES, points: DAY_POINTS[i] ?? 0}))
+        const scores = Object.entries(SEASON_POINTS)
+            .map(([countryCode, [points, roundsWon]], i) => ({rank: i + 1, countryCode, points, roundsWon}))
+
+        return {round: {number: 5, endsAt: dayEndAfter(this.now()), finale: false, standings}, scores}
+    }
+
     public async mySeason(countryCode: string): Promise<MySeason | undefined> {
         const line = lineOf(this.taken, countryCode)
         return {countryCode: line.countryCode || undefined, tiles: line.tiles}
@@ -101,4 +134,10 @@ function lineOf(tiles: ReadonlyMap<string, number>, countryCode: string): {count
         if (count > main.tiles) main = {countryCode: code, tiles: count}
     }
     return main
+}
+
+function dayEndAfter(now: number): number {
+    const end = new Date(now)
+    end.setUTCHours(DAY_ENDS_AT_UTC_HOUR, 0, 0, 0)
+    return end.getTime() > now ? end.getTime() : end.getTime() + DAY_MS
 }

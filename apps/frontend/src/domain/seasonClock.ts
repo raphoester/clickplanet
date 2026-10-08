@@ -36,6 +36,10 @@ export function finaleClock(season: Season, now: number): FinaleClock | undefine
     return {live, left: timeLeft(countdown), countdown}
 }
 
+export function leftUntil(at: number, now: number): string {
+    return timeLeft(countdownTo(Math.max(at, now), now))
+}
+
 function countdownTo(at: number, now: number): Countdown {
     const seconds = Math.ceil((at - now) / 1000)
     return {

@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {finaleClock, finaleWindow, seasonClock} from "./seasonClock.ts"
+import {finaleClock, finaleWindow, leftUntil, seasonClock} from "./seasonClock.ts"
 
 const SECOND = 1000
 const MINUTE = 60 * SECOND
@@ -79,5 +79,12 @@ describe("finaleWindow", () => {
         expect(finaleWindow(season, "UTC")).toEqual({day: "Sat 31 Oct", from: "21:00", to: "23:00"})
         expect(finaleWindow(season, "America/New_York")).toEqual({day: "Sat 31 Oct", from: "17:00", to: "19:00"})
         expect(finaleWindow(season, "Asia/Kolkata")).toEqual({day: "Sun 1 Nov", from: "02:30", to: "04:30"})
+    })
+})
+
+describe("leftUntil", () => {
+    it("counts down to a time, and stops at nothing left", () => {
+        expect(leftUntil(endsAt, endsAt - 3 * HOUR - 12 * MINUTE - 5_000)).toBe("3h 12m 05s")
+        expect(leftUntil(endsAt, endsAt + MINUTE)).toBe("00m 00s")
     })
 })

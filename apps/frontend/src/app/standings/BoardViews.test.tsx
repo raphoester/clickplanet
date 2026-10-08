@@ -5,7 +5,7 @@ import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {AccountBackend, Provider} from "../../backends/account.ts"
 import {NameColor, PlayerBackend, PlayerLine, PlayerTitle} from "../../backends/player.ts"
-import {MySeason, Standing, StandingsBackend} from "../../backends/standings.ts"
+import {MySeason, Race, Standing, StandingsBackend} from "../../backends/standings.ts"
 import {Countries, Country} from "../../domain/countries.ts"
 import {hueOf} from "../../domain/authorColor.ts"
 import {AccountStore} from "../account/accountStore.ts"
@@ -49,10 +49,34 @@ type Mine = (countryCode: string) => MySeason
 const season = (main: MySeason, countries: Record<string, MySeason> = {}): Mine => (countryCode) =>
     countryCode === "" ? main : countries[countryCode] ?? {countryCode, tiles: 0}
 
-function backendOf(mine?: Mine, world = WORLD, french = FRENCH) {
+const HOUR = 60 * 60 * 1000
+
+const RACE: Race = {
+    round: {
+        number: 5,
+        endsAt: Date.now() + 3 * HOUR,
+        finale: false,
+        standings: [
+            {rank: 1, countryCode: "de", share: 0.2, points: 25},
+            {rank: 2, countryCode: "fr", share: 0.1, points: 18},
+            {rank: 3, countryCode: "es", share: 0.05, points: 15},
+        ],
+    },
+    scores: [
+        {rank: 1, countryCode: "fr", points: 43, roundsWon: 1},
+        {rank: 2, countryCode: "it", points: 30, roundsWon: 1},
+        {rank: 3, countryCode: "de", points: 25, roundsWon: 1},
+    ],
+}
+
+function backendOf(mine?: Mine, world = WORLD, french = FRENCH, race = RACE) {
     return {
         listenForStandings: vi.fn((countryCode: string, onStandings: (standings: Standing[]) => void) => {
             void Promise.resolve().then(() => onStandings(countryCode === "" ? world : countryCode === "fr" ? french : []))
+            return () => {}
+        }),
+        listenForRace: vi.fn((onRace: (race: Race) => void) => {
+            void Promise.resolve().then(() => onRace(race))
             return () => {}
         }),
         mySeason: vi.fn(async (countryCode: string) => mine?.(countryCode)),
@@ -109,12 +133,62 @@ afterEach(() => {
 })
 
 describe("BoardViews", () => {
+    it("ranks the countries of the season with what each would score if the day ended now", async () => {
+        const backend = backendOf()
+        const {user} = await shown({backend, caller: GUEST})
+
+        await pick(user, "Countries", "Season")
+
+        expect(heading("Season")).toBeDefined()
+        expect(backend.listenForRace).toHaveBeenCalledTimes(1)
+        expect(screen.getByRole("table", {name: "Season"})).toBeDefined()
+        expect(cells()).toEqual([
+            ["1", "France", "43+18 today"],
+            ["2", "Germany", "25+25 today"],
+            ["3", "Italy", "30"],
+            ["4", "Spain", "0+15 today"],
+        ])
+        expect(rows()[0].getAttribute("aria-current")).toBe("true")
+    })
+
+    it("says which day it is, how long it has left, and where the country played for stands today", async () => {
+        const {user} = await shown({backend: backendOf(), caller: GUEST})
+
+        await pick(user, "Countries", "Season")
+
+        const today = screen.getByRole("region", {name: "Today"})
+        const tiles = [...today.querySelectorAll(".stat-tile")].map((tile) =>
+            [tile.querySelector("dt")!.textContent, tile.querySelector("dd")!.textContent])
+        expect(tiles[0][0]).toBe("Day 5")
+        expect(tiles[0][1]).toMatch(/^[23]h \d\dm \d\ds$/)
+        expect(tiles[1]).toEqual(["France", "#2"])
+    })
+
+    it("names the Final Battle while it runs", async () => {
+        const finale: Race = {...RACE, round: {...RACE.round!, finale: true}}
+        const {user} = await shown({backend: backendOf(undefined, WORLD, FRENCH, finale), caller: GUEST})
+
+        await pick(user, "Countries", "Season")
+
+        expect(within(screen.getByRole("region", {name: "Today"})).getByText("Final Battle")).toBeDefined()
+    })
+
+    it("says nobody yet before any country scores", async () => {
+        const empty: Race = {round: {number: 1, endsAt: Date.now() + HOUR, finale: false, standings: []}, scores: []}
+        const {user} = await shown({backend: backendOf(undefined, WORLD, FRENCH, empty), caller: GUEST})
+
+        await pick(user, "Countries", "Season")
+
+        expect(screen.getByText("Nobody yet.")).toBeDefined()
+        expect(screen.queryByRole("table")).toBeNull()
+    })
+
     it("starts on the countries, and offers the players and the players of the country played for", async () => {
         const {user} = await shown({backend: backendOf(), caller: GUEST})
 
         expect(screen.getByText("the countries")).toBeDefined()
         await user.click(heading("Countries"))
-        expect(options().map((option) => option.textContent)).toEqual(["Countries", "Players", "France"])
+        expect(options().map((option) => option.textContent)).toEqual(["Countries", "Season", "Players", "France"])
         expect(screen.getByRole("option", {name: "Countries"}).getAttribute("aria-selected")).toBe("true")
         expect(screen.queryByRole("table")).toBeNull()
     })
@@ -145,6 +219,7 @@ describe("BoardViews", () => {
                 onStandings(WORLD)
                 return () => {}
             }),
+            listenForRace: vi.fn(() => () => {}),
             mySeason: vi.fn(async () => undefined),
         } satisfies StandingsBackend
         await shown({backend, caller: GUEST, view: "players"})

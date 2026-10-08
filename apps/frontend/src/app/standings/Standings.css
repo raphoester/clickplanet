@@ -84,3 +84,16 @@
 .standings-empty {
     margin: var(--space-2) var(--space-1);
 }
+
+.standings-table .race-points {
+    width: auto;
+    white-space: nowrap;
+}
+
+.race-today {
+    margin-left: 0.35em;
+    font-family: var(--font-text);
+    font-weight: 700;
+    font-size: var(--text-s);
+    color: var(--gain);
+}

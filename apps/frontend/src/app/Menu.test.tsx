@@ -136,7 +136,11 @@ describe("Menu", () => {
 
     describe("the players' standings", () => {
         const standings = {
-            backend: {listenForStandings: vi.fn(() => () => {}), mySeason: vi.fn(async () => undefined)},
+            backend: {
+                listenForStandings: vi.fn(() => () => {}),
+                listenForRace: vi.fn(() => () => {}),
+                mySeason: vi.fn(async () => undefined),
+            },
             caller: {linked: false},
             listenForClicks: () => () => {},
             view: "countries" as const,
