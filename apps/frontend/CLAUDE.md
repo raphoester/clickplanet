@@ -1687,10 +1687,11 @@ so the mosaic blends it into open water however carefully the polygons are drawn
 A player must never see green with nothing to click on it, or a disc floating on
 open water.
 
-So `npm run earth` cuts it from the tile field instead. Each tile's Voronoi cell —
-a hexagon of circumradius `spacing/√3`, the same 1.155× the renderer widens the
-discs by when they have to cover the ground for the painted flag — is rasterised
-onto an equirectangular image as `cover`, and the photo is corrected toward it:
+So `npm run earth` cuts it from the tile field instead. A pixel is land when the
+lattice vertex nearest to it is a tile, and sea when it is not — so `cover` is each
+tile's own cell, the same cell edge the countries' outline runs along, and a
+one-tile lake is water across its whole cell. It fades over 0.4 of a tile spacing
+across that edge. The photo is corrected toward it:
 
 ```
 out = photo + (cover - opinion) * (landColour - seaColour)
@@ -1713,6 +1714,15 @@ neighbour that has some.
 Where land and water are the same colour — under cloud, on an ice shelf — there is
 no direction to move a pixel along, and nothing is moved. `scripts/map/recolour.mjs`
 holds the rule and `recolour.test.mjs` pins every case above.
+
+**The JPEG keeps colour at full resolution** (`chromaSubsampling: "4:4:4"`). The
+default halves it, and a cell is about three pixels wide, so a strip of land one
+tile wide came out blue and a lake came out green. At quality 80 it is the same
+size as the halved one at 88.
+
+`cover` used to be a disc round each tile reaching 0.83 of a spacing. Its
+neighbours' discs all but filled a one-tile lake, so the lake stayed green inside
+its outline.
 
 An earlier version was a frequency separation, `mix(sea, land, cover) + (photo -
 average)`. That is only the identity inside a block that is all land or all water;
