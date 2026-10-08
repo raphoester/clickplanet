@@ -74,10 +74,9 @@ func startAuthModule(t *testing.T, newModule func(auth.Config) cpbootstrap.Modul
 	done := make(chan error, 1)
 	go func() {
 		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
-			Server:         server,
-			Logger:         slog.New(slog.DiscardHandler),
-			StartupTimeout: time.Minute,
-			Modules:        []cpbootstrap.Module{newModule(config)},
+			Server:  server,
+			Logger:  slog.New(slog.DiscardHandler),
+			Modules: []cpbootstrap.Module{newModule(config)},
 		}, listener)
 	}()
 	t.Cleanup(func() {

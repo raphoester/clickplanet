@@ -79,9 +79,8 @@ func startGame(t *testing.T) gameStack {
 	done := make(chan error, 1)
 	go func() {
 		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
-			Server:         server,
-			Logger:         slog.New(slog.DiscardHandler),
-			StartupTimeout: time.Minute,
+			Server: server,
+			Logger: slog.New(slog.DiscardHandler),
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
 				seasons.NewModule(seasonsConfig),
