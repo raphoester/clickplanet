@@ -1083,6 +1083,80 @@ export class CountryTiles extends Message<CountryTiles> {
 }
 
 /**
+ * @generated from message player.v1.GetFrontsRequest
+ */
+export class GetFrontsRequest extends Message<GetFrontsRequest> {
+  constructor(data?: PartialMessage<GetFrontsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetFrontsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetFrontsRequest {
+    return new GetFrontsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetFrontsRequest {
+    return new GetFrontsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetFrontsRequest {
+    return new GetFrontsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetFrontsRequest | PlainMessage<GetFrontsRequest> | undefined, b: GetFrontsRequest | PlainMessage<GetFrontsRequest> | undefined): boolean {
+    return proto3.util.equals(GetFrontsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.GetFrontsResponse
+ */
+export class GetFrontsResponse extends Message<GetFrontsResponse> {
+  /**
+   * @generated from field: repeated player.v1.CountryTiles plays_for = 1;
+   */
+  playsFor: CountryTiles[] = [];
+
+  /**
+   * @generated from field: repeated player.v1.CountryTiles plays_against = 2;
+   */
+  playsAgainst: CountryTiles[] = [];
+
+  constructor(data?: PartialMessage<GetFrontsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.GetFrontsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "plays_for", kind: "message", T: CountryTiles, repeated: true },
+    { no: 2, name: "plays_against", kind: "message", T: CountryTiles, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetFrontsResponse {
+    return new GetFrontsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetFrontsResponse {
+    return new GetFrontsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetFrontsResponse {
+    return new GetFrontsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetFrontsResponse | PlainMessage<GetFrontsResponse> | undefined, b: GetFrontsResponse | PlainMessage<GetFrontsResponse> | undefined): boolean {
+    return proto3.util.equals(GetFrontsResponse, a, b);
+  }
+}
+
+/**
  * @generated from message player.v1.TitleEarned
  */
 export class TitleEarned extends Message<TitleEarned> {

@@ -448,7 +448,7 @@ internal/chat/internal/
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), auth
+(`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetFronts`, `GetAuthors`, `GetRoster`), auth
 (`GetMe`, `GetAccount`, `GetAccounts`) and seasons (`GetStandings`, `GetMySeason`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
@@ -1181,14 +1181,16 @@ internal/player/internal/
     usecases/announce_usecase/  listen_for_events_usecase/  move_visit_usecase/  forget_visit_usecase/
   playerv1controller/               PlayerService and InternalService (bags), the session interceptor
     get_profile_handler/  set_name_handler/  set_color_handler/  get_stats_handler/  get_author_handler/  get_player_handler/
-    get_authors_handler/  get_titles_handler/  wear_title_handler/
+    get_authors_handler/  get_titles_handler/  wear_title_handler/  get_fronts_handler/
     announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
     get_profile_handler/profile_query/  get_stats_handler/stats_query/  get_player_handler/player_query/
-    get_titles_handler/titles_query/  get_authors_handler/authors_query/   PostgresQuery: the response straight from SQL
+    get_titles_handler/titles_query/  get_authors_handler/authors_query/  get_fronts_handler/fronts_query/
+                                    PostgresQuery: the response straight from SQL
     get_roster_handler/roster_query/    MemoryQuery: the roster, from its Lines port
       inmemory_roster/              Lines from the visits in memory (presence.RosterOf)
     inprocess_title_catalog/        the Titles port of three queries: shown, worn and each track, from titles.Catalog
-    playerread/                     what the queries share and that knows only the wire: KeptColor, Career
+    playerread/                     what the queries share and that knows only the wire: KeptColor, Career, Fronts and
+                                    TopFronts
     caller/                         the account on the context, or Unauthenticated
     playermessage/                  Profile, Title and the roster lines as player.v1 messages, for the commands and the adapters
   subscribers/                      the edge for events, as the controller is for the wire
@@ -1199,7 +1201,8 @@ internal/player/internal/
 ```
 
 - **The caller is the account in the click token.** Every call but `GetRoster`, `GetPlayer` and `ListenForEvents` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, on the key `auth` hands over the internal listener, as `planet` does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
-- **`GetProfile`** answers the account id and its name, empty when none was chosen, and its color. **`GetStats`** answers `tiles_taken`, `streak_current`, `streak_best` and `streak_last_day` (YYYY-MM-DD).
+- **`GetProfile`** answers the account id and its name, empty when none was chosen, and its color. **`GetFronts`**
+  answers every country the caller plays for and against (see the fronts below). **`GetStats`** answers `tiles_taken`, `streak_current`, `streak_best` and `streak_last_day` (YYYY-MM-DD).
 - **`SetName` chooses a username.** `players.NameOf` is the rule. It puts the name in **NFC** and cuts the spaces (U+0020) at its ends — the same text, as it shows — and changes nothing else. Then:
   - **3 to 15 characters, counted in code points after NFC**, as postgres' `char_length` counts, so both agree. A letter with a combining mark NFC cannot compose counts two.
   - **Each is a letter of any script (`\p{L}`), a combining mark (`Mn`, `Mc`) right after a letter or a mark, at most 3 in a row, a decimal digit (`Nd`), `_` or a space.** Never two spaces in a row. So emojis, punctuation, symbols, controls, enclosing marks, and every other space (NBSP, ideographic) are refused. **Invisible characters are refused by name**, since some are letters or marks: Hangul fillers (U+3164, U+115F…, `Other_Default_Ignorable_Code_Point`) and variation selectors; zero-width, bidi and soft hyphen are format characters, refused as not letters.
@@ -1264,9 +1267,13 @@ internal/player/internal/
   (`previous_country`); a tile nobody held is against nobody (`Take.Against`). Kept in `player.fronts` (`account_id`,
   `country`, `plays_for`, `plays_against`; migration `20261008120000_fronts`), one row per account and country, by one
   upsert per take (`player-fronts`). The upsert writes its rows in country order, so two takes crossing the same two
-  countries lock them in one order. `auth.v1.AccountDeleted` deletes them (`player-fronts-accounts`). **`GetPlayer`
-  answers both lists** (`plays_for`, `plays_against`, each `{country_id, tiles}`), most tiles first, then by country,
-  with no zero in either.
+  countries lock them in one order. `auth.v1.AccountDeleted` deletes them (`player-fronts-accounts`). Both reads give
+  each list (`plays_for`, `plays_against`, each `{country_id, tiles}`) most tiles first, then by country, with no zero
+  in either, from one statement in `playerread`:
+  - **`GetPlayer`, which anybody may call, answers the top 3 of each** (`playerread.TopFronts`). The rest is not on
+    the public wire at all, so the cut is not one a page can undo.
+  - **`GetFronts` is the caller's every country** (`fronts_query`, `playerread.Fronts`), behind the session
+    interceptor as `Identified`: a read, so the identity token resumed from the cookie is enough.
 - **They are the total since counting started, never a season's.** Decided on 2026-10-08, in season 0, when the two are
   the same. The card says which flags a player's tiles went to, so the flag beside its name on the Players board makes
   sense. **The per-season split belongs to `seasons`**: it already keeps each season's tiles per flag in

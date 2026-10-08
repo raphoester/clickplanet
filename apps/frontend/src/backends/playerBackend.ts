@@ -12,6 +12,7 @@ import {
 import {
     ColoredProfile,
     CountryTiles,
+    Fronts,
     NameColor,
     PlayerBackend,
     PlayerError,
@@ -88,6 +89,12 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
             wearable: res.wearable.flatMap((title) => titleOf(title) ?? []),
             tracks: res.tracks.map(trackOf),
         }
+    }
+
+    public async fronts(): Promise<Fronts> {
+        const res = await this.authenticated((headers) =>
+            retrying(() => this.client.getFronts({}, {headers}), "GetFronts"))
+        return {playsFor: res.playsFor.map(countryTilesOf), playsAgainst: res.playsAgainst.map(countryTilesOf)}
     }
 
     public async wearTitle(id: string): Promise<PlayerTitle | undefined> {

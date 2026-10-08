@@ -148,6 +148,20 @@ describe("ConnectPlayerBackend", () => {
         expect((await backend.titles()).worn).toBeUndefined()
     })
 
+    it("reads every country the player plays for and against with the click token", async () => {
+        const getFronts = vi.fn(async () => ({
+            playsFor: [new CountryTilesPb({countryId: "fr", tiles: 1200n})],
+            playsAgainst: [new CountryTilesPb({countryId: "de", tiles: 900n}), new CountryTilesPb({countryId: "es", tiles: 4n})],
+        }))
+        const backend = backendWith({getFronts})
+
+        expect(await backend.fronts()).toEqual({
+            playsFor: [{countryCode: "fr", tiles: 1200}],
+            playsAgainst: [{countryCode: "de", tiles: 900}, {countryCode: "es", tiles: 4}],
+        })
+        expect(headersOf(getFronts).headers.get(SESSION_HEADER)).toBe("token-1")
+    })
+
     it("wears a title with the click token, and answers the one the server says is worn", async () => {
         const wearTitle = vi.fn(async () => ({worn: settlerPb}))
         const backend = backendWith({wearTitle})

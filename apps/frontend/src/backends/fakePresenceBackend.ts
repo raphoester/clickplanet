@@ -147,8 +147,11 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         const player = PLAYERS.find((p) => !p.guest && p.name.toLowerCase() === name.toLowerCase())
         if (!player) return undefined
 
+        const career = this.career(player)
         return {
-            ...this.career(player),
+            ...career,
+            playsFor: career.playsFor.slice(0, SHOWN_FRONTS),
+            playsAgainst: career.playsAgainst.slice(0, SHOWN_FRONTS),
             name: player.name,
             streakCurrent: player.streak,
             admin: player.admin,
@@ -169,6 +172,8 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         }
     }
 }
+
+const SHOWN_FRONTS = 3
 
 const RIVALS = ["de", "es", "it", "gb", "be", "pt", "nl", "pl", "br", "us", "jp", "in", "ru", "ca", "mx", "ch"]
 

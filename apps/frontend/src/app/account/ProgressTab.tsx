@@ -1,10 +1,11 @@
 import {useEffect, useId, useState} from "react"
 import {Me} from "../../backends/account.ts"
-import {NameColor, PlayerInfoBackend, TitleDashboard} from "../../backends/player.ts"
+import {Fronts, NameColor, PlayerInfoBackend, TitleDashboard} from "../../backends/player.ts"
 import TitleBanner from "../titles/TitleBanner.tsx"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import TrackPath from "../titles/TrackPath.tsx"
 import {PlayerStats} from "../players/PlayerCard.tsx"
+import PlayerFronts from "../players/PlayerFronts.tsx"
 import {usePlayerInfo} from "../players/usePlayerInfo.ts"
 import {takenCount} from "../../domain/standings.ts"
 import {ListenForClicks} from "../viewer/acceptedClicks.ts"
@@ -40,6 +41,26 @@ function useTitles(store: AccountStore, me: Me, listenForClicks: ListenForClicks
     return [titles, () => setRead((n) => n + 1)]
 }
 
+function useFronts(store: AccountStore, me: Me, listenForClicks: ListenForClicks | undefined): Fronts | undefined {
+    const [fronts, setFronts] = useState<Fronts>()
+    const reads = useReadsAfterClicks(listenForClicks)
+
+    useEffect(() => {
+        let stale = false
+        store.fronts().then(
+            (read) => {
+                if (!stale) setFronts(read)
+            },
+            (e) => console.error("Could not read the countries played for and against", e),
+        )
+        return () => {
+            stale = true
+        }
+    }, [store, me, reads])
+
+    return fronts
+}
+
 export type ProgressTabProps = {
     store: AccountStore
     me: Me
@@ -49,6 +70,7 @@ export type ProgressTabProps = {
 
 export default function ProgressTab({store, me, stats, listenForClicks}: ProgressTabProps) {
     const [titles, reread] = useTitles(store, me, listenForClicks)
+    const fronts = useFronts(store, me, listenForClicks)
     const [wearing, setWearing] = useState<string>()
     const labelId = useId()
 
@@ -90,6 +112,8 @@ export default function ProgressTab({store, me, stats, listenForClicks}: Progres
         </div>}
 
         {tracks.map((track) => <TrackPath key={track.id} track={track}/>)}
+
+        {fronts && <PlayerFronts {...fronts}/>}
     </div>
 }
 

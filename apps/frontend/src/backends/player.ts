@@ -53,6 +53,8 @@ export interface PlayerBackend {
     titles(): Promise<TitleDashboard>
 
     wearTitle(id: string): Promise<PlayerTitle | undefined>
+
+    fronts(): Promise<Fronts>
 }
 
 export type PlayerFailure =
@@ -142,6 +144,9 @@ export type PlayerInfo = {
     color: NameColor
     titles: PlayerTitle[]
     wornTitle?: PlayerTitle
+} & Fronts
+
+export type Fronts = {
     playsFor: CountryTiles[]
     playsAgainst: CountryTiles[]
 }

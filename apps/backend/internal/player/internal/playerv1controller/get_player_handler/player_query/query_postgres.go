@@ -32,6 +32,8 @@ type Accounts interface {
 
 var ErrNoPlayer = errors.New("no player has this name")
 
+const shownFronts = 3
+
 func NewPostgresQuery(db cppg.Querier, titles Titles, accounts Accounts, clock cptime.Clock) *PostgresQuery {
 	return &PostgresQuery{db: db, titles: titles, accounts: accounts, clock: clock}
 }
@@ -97,8 +99,8 @@ func (q *PostgresQuery) Player(ctx context.Context, name string) (*playerv1.GetP
 		return nil
 	})
 	group.Go(func() (err error) {
-		answer.PlaysFor, answer.PlaysAgainst, err = q.fronts(groupCtx, account)
-		return err
+		answer.PlaysFor, answer.PlaysAgainst, err = playerread.TopFronts(groupCtx, q.db, account, shownFronts)
+		return err //nolint:wrapcheck // it names what failed.
 	})
 	if err := group.Wait(); err != nil {
 		return nil, err //nolint:wrapcheck // each part already names what failed.
@@ -110,40 +112,6 @@ func (q *PostgresQuery) Player(ctx context.Context, name string) (*playerv1.GetP
 	answer.Titles = q.titles.Shown(held)
 	answer.WornTitle = q.titles.Worn(held, choice)
 	return &playerv1.GetPlayerResponse{Player: answer}, nil
-}
-
-const fronts = `
-	SELECT true, country, plays_for FROM fronts WHERE account_id = $1 AND plays_for > 0
-	UNION ALL
-	SELECT false, country, plays_against FROM fronts WHERE account_id = $1 AND plays_against > 0
-	ORDER BY 3 DESC, 2
-`
-
-func (q *PostgresQuery) fronts(ctx context.Context, account uuid.UUID) (playsFor, playsAgainst []*playerv1.CountryTiles, err error) {
-	rows, err := q.db.QueryContext(ctx, fronts, account)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read the countries the player plays for and against: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var (
-			isFor   bool
-			country = &playerv1.CountryTiles{}
-		)
-		if err := rows.Scan(&isFor, &country.CountryId, &country.Tiles); err != nil {
-			return nil, nil, fmt.Errorf("failed to read a country the player plays for or against: %w", err)
-		}
-		if isFor {
-			playsFor = append(playsFor, country)
-		} else {
-			playsAgainst = append(playsAgainst, country)
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, nil, fmt.Errorf("failed to read the countries the player plays for and against: %w", err)
-	}
-	return playsFor, playsAgainst, nil
 }
 
 // The same fold the profile was kept under, or a name typed in another case finds nobody.

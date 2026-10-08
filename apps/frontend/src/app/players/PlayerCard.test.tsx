@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
 import {NameColor, PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 import PlayerCard from "./PlayerCard.tsx"
 
@@ -124,16 +123,12 @@ describe("PlayerCard", () => {
         expect(await screen.findByText("The stats could not be loaded.")).toBeDefined()
     })
 
-    it("shows the top 3 countries a player plays for and against, and the rest on a press", async () => {
-        const user = userEvent.setup()
+    it("shows the countries the server says a player plays for and against, most tiles first", async () => {
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
                                name: "Ana", tilesTaken: 1300, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [],
                                playsFor: [{countryCode: "fr", tiles: 1200}, {countryCode: "be", tiles: 100}],
-                               playsAgainst: [
-                                   {countryCode: "de", tiles: 500}, {countryCode: "es", tiles: 300}, {countryCode: "it", tiles: 150},
-                                   {countryCode: "pt", tiles: 50},
-                               ],
+                               playsAgainst: [{countryCode: "de", tiles: 500}, {countryCode: "es", tiles: 300}, {countryCode: "it", tiles: 150}],
                            }))}
                            onClose={() => {}}/>)
 
@@ -141,14 +136,8 @@ describe("PlayerCard", () => {
         const playsAgainst = screen.getByRole("region", {name: "Plays against"})
         const rows = (front: HTMLElement) => within(front).getAllByRole("listitem").map((row) => row.textContent)
         expect(rows(playsFor)).toEqual([`France${(1200).toLocaleString()}`, "Belgium100"])
-        expect(within(playsFor).queryByRole("button")).toBeNull()
         expect(rows(playsAgainst)).toEqual(["Germany500", "Spain300", "Italy150"])
-
-        await user.click(within(playsAgainst).getByRole("button", {name: "See all 4"}))
-        expect(rows(playsAgainst)).toEqual(["Germany500", "Spain300", "Italy150", "Portugal50"])
-
-        await user.click(within(playsAgainst).getByRole("button", {name: "Show fewer"}))
-        expect(rows(playsAgainst)).toHaveLength(3)
+        expect(screen.queryByRole("button", {name: /See all/})).toBeNull()
     })
 
     it("leaves out a side the player has no tiles on, and the whole part with none", async () => {

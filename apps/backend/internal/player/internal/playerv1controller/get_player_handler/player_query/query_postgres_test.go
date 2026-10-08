@@ -160,21 +160,23 @@ func (s *testSuite) took(account players.AccountID, country, previous fronts.Cou
 	}
 }
 
-func (s *testSuite) TestThePlayerPlaysForAndAgainstEachCountryMostTilesFirst() {
-	s.took(ada, "fr", "de", 3)
+func (s *testSuite) TestAnybodyReadsTheTopThreeCountriesThePlayerPlaysForAndAgainst() {
+	s.took(ada, "fr", "de", 5)
 	s.took(ada, "fr", "", 2)
 	s.took(ada, "it", "es", 1)
 	s.took(ada, "be", "it", 1)
+	s.took(ada, "nl", "pt", 1)
+	s.took(ada, "ch", "at", 1)
 	s.took(players.AccountID{15: 2}, "de", "fr", 9)
 
 	player := s.player("Ada_L")
 
 	s.True(proto.Equal(&playerv1.Player{
-		PlaysFor: []*playerv1.CountryTiles{{CountryId: "fr", Tiles: 5}, {CountryId: "be", Tiles: 1}, {CountryId: "it", Tiles: 1}},
+		PlaysFor: []*playerv1.CountryTiles{{CountryId: "fr", Tiles: 7}, {CountryId: "be", Tiles: 1}, {CountryId: "ch", Tiles: 1}},
 		PlaysAgainst: []*playerv1.CountryTiles{
-			{CountryId: "de", Tiles: 3}, {CountryId: "es", Tiles: 1}, {CountryId: "it", Tiles: 1},
+			{CountryId: "de", Tiles: 5}, {CountryId: "at", Tiles: 1}, {CountryId: "es", Tiles: 1},
 		},
-	}, &playerv1.Player{PlaysFor: player.GetPlaysFor(), PlaysAgainst: player.GetPlaysAgainst()}))
+	}, &playerv1.Player{PlaysFor: player.GetPlaysFor(), PlaysAgainst: player.GetPlaysAgainst()}), "%v", player)
 }
 
 func (s *testSuite) TestAPlayerThatTookNothingPlaysForAndAgainstNobody() {
