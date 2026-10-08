@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/unban_player_handler"
 )
 
 type AdminService struct {
@@ -18,6 +19,7 @@ type AdminService struct {
 	find_players_handler.FindPlayersHandler
 	top_players_handler.TopPlayersHandler
 	ban_player_handler.BanPlayerHandler
+	unban_player_handler.UnbanPlayerHandler
 	revert_player_handler.RevertPlayerHandler
 	inspect_player_handler.InspectPlayerHandler
 	paint_random_tiles_handler.PaintRandomTilesHandler

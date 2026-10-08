@@ -52,6 +52,11 @@ func (b *Bans) Ban(caller Caller, duration time.Duration) Sentence {
 	return sentence
 }
 
+func (b *Bans) Unban(caller Caller) {
+	b.scopes.Unban(caller.Scope)
+	b.accounts.Unban(caller.Account)
+}
+
 func (b *Bans) Banned(caller Caller) bool {
 	return b.scopes.Banned(caller.Scope) || b.accounts.Banned(caller.Account)
 }

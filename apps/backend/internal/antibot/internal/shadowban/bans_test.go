@@ -99,3 +99,18 @@ func TestAccountBansAreKeptApartAndSurviveARestart(t *testing.T) {
 	require.NoError(t, after.Load(t.Context()))
 	assert.True(t, after.Banned(shadowban.Caller{Scope: "5.6.7.8", Account: "guest"}))
 }
+
+func TestAnUnbanLiftsOnlyTheBanItNames(t *testing.T) {
+	bans, _, _ := newBans(t, newClock())
+	guest := shadowban.Caller{Scope: "1.2.3.4", Account: "guest"}
+
+	bans.Flag(guest)
+
+	bans.Unban(shadowban.Caller{Account: "guest"})
+	assert.True(t, bans.Banned(guest), "the guest's scope is still banned")
+	assert.False(t, bans.Banned(shadowban.Caller{Scope: "5.6.7.8", Account: "guest"}))
+
+	bans.Unban(shadowban.Caller{Scope: "1.2.3.4"})
+	assert.False(t, bans.Banned(guest))
+	assert.Equal(t, 0, bans.Flagged())
+}

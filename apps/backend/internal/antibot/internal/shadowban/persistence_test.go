@@ -101,3 +101,28 @@ func TestOneScopeIsUnbannedByDeletingItsRow(t *testing.T) {
 	assert.True(t, banner.Banned("keep"))
 	assert.False(t, banner.Banned("release"))
 }
+
+func TestAnUnbanIsWrittenAndSurvivesARestart(t *testing.T) {
+	clock := newClock()
+	persistence := shadowban.NewMemoryPersistence()
+
+	before := shadowban.New(config(), clock, persistence, failOnStateError(t))
+	require.NoError(t, before.Load(t.Context()))
+
+	before.Flag("player")
+	require.NoError(t, before.Flush(t.Context()))
+	clock.Advance(10 * time.Minute)
+	before.Unban("player")
+	stopAndFlush(before)
+
+	assert.Equal(t, shadowban.Record{Key: "player", Flags: 1, Until: clock.Now()}, persistence.Stored()["player"])
+
+	after := shadowban.New(config(), clock, persistence, failOnStateError(t))
+	require.NoError(t, after.Load(t.Context()))
+
+	assert.False(t, after.Banned("player"))
+
+	sentence, accepted := after.Flag("player")
+	require.True(t, accepted)
+	assert.Equal(t, 1, sentence.Offence)
+}

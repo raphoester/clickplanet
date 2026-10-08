@@ -646,21 +646,9 @@ See every running ban:
 docker compose exec postgres psql -U clickplanet -c "select * from antibot.bans where banned_until > now() order by banned_until"
 ```
 
-Unban one scope. Stop the backend first: the running one holds its bans in
-memory, keeps the ban running and writes it back.
-
-```bash
-docker compose stop backend
-docker compose exec postgres psql -U clickplanet -c "delete from antibot.bans where scope = '1.2.3.4'"
-docker compose start backend
-```
-
-That forgets its offences too. To end the ban and keep them, so its next ban
-climbs the ladder: `update antibot.bans set banned_until = now() where scope = '1.2.3.4'`.
-
-A ban on a guest falls on its account too. Unban the account the same way, in
-`antibot.account_bans` (`where account = '<account id>'`), or it is still dropped
-from any address.
+To lift a ban that was a mistake, use `UnbanPlayer`: see
+[Unban a player](#unban-a-player). Do not edit `antibot.bans` while the backend
+runs: it holds the bans in memory and writes them back.
 
 Set `enforce` back to false to stop dropping clicks for everyone at once.
 ### Evidence has to outlive a deploy, and by default it does not
@@ -1153,8 +1141,7 @@ Ban the scope when the player is on a guest account: a guest drops its account
 with a new cookie.
 
 `"enforced":false` in the answer means `antiBot.shadowBan.enforce` is off: the
-ban is kept but drops nothing. There is no unban call yet: see "Unban one scope"
-in [Watching for bots](#6-watching-for-bots).
+ban is kept but drops nothing. To lift a ban, see [Unban a player](#unban-a-player).
 
 Then revert, dry run first:
 
@@ -1177,6 +1164,37 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - Paced like the reassign, each tile an ordinary update on the live stream.
 - A second run answers zeros: a reverted player has nothing left to revert.
 - Every ban and revert is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin ban\|admin player revert"`.
+
+### Unban a player
+
+For a ban that was a mistake: a rule read a person as a bot, or you banned the
+wrong player. It ends the ban now. There is no restart and no SQL:
+
+```bash
+docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}' http://127.0.0.1:8081/planet.v1.AdminService/UnbanPlayer
+docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --post-data '{"scope":"203.0.113.7"}' http://127.0.0.1:8081/planet.v1.AdminService/UnbanPlayer
+```
+
+- **Fix the rule first.** The unban does not change what the watchdogs hold. If
+  a rule still reads the player `certain`, the jury bans it again on its next
+  click, at the earliest 5 minutes after the last ban
+  (`antiBot.shadowBan.reflagInterval`).
+  [`InspectPlayer`](#see-how-close-the-antibot-is-to-one-player) shows which
+  rule it was. Change the rule and deploy, then unban.
+- **The ban's offence is forgotten**: the next ban takes the same step of the
+  ladder (24h for a first offence). An older offence still counts.
+- **A guest that the jury banned is banned on its account and on its scope.**
+  Send two calls, one with `accountId` and one with `scope`. `InspectPlayer` with
+  the `accountId` gives the scope of its latest take. A signed-in player is
+  banned on its account only. Send `scope` or `accountId` in one call, not both.
+- The answer is the ban that was lifted: `offence`, and `bannedUntil`, when it
+  would have ended.
+- A player with no running ban is refused: `server returned error: HTTP/1.1 404`.
+  A bad scope or account is refused with `400`, and so is any call while
+  `antiBot.enabled` is off.
+- It goes to postgres with the next save of the bans (within one minute) and
+  on a clean shutdown, so a restart after that keeps the player unbanned.
+- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin unban"`.
 
 ### See how close the antibot is to one player
 

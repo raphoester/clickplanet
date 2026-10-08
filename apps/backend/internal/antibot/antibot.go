@@ -447,6 +447,12 @@ func (g *Guard) Ban(scope, account string, duration time.Duration) Sentence {
 	return g.banner.Ban(shadowban.Caller{Scope: scope, Account: account}, duration)
 }
 
+func (g *Guard) Unban(scope, account string) {
+	if g.Enabled() {
+		g.banner.Unban(shadowban.Caller{Scope: scope, Account: account})
+	}
+}
+
 func (g *Guard) Sentence(scope, account string) (Sentence, bool) {
 	if !g.Enabled() {
 		return Sentence{}, false

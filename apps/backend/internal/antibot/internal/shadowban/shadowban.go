@@ -144,6 +144,23 @@ func (b *Banner) Ban(scope string, duration time.Duration) Sentence {
 	return record.sentence()
 }
 
+func (b *Banner) Unban(scope string) {
+	now := b.clock.Now()
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	record, ok := b.bans[scope]
+	if !ok || !record.running(now) {
+		return
+	}
+
+	record.offences = max(record.offences-1, 0)
+	record.until = now
+
+	b.dirty.Add(scope)
+}
+
 func (b *Banner) Sentence(scope string) (Sentence, bool) {
 	now := b.clock.Now()
 

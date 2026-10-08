@@ -790,6 +790,64 @@ func TestBansSurviveARestart(t *testing.T) {
 	assert.Contains(t, s.accountBans.Stored(), "a-guest")
 }
 
+func TestAnUnbannedAccountStaysUnbannedAfterARestart(t *testing.T) {
+	s := newStack()
+
+	s.clock.Advance(time.Second)
+	s.guard.Ban("", "a-player", 0)
+	s.restart(20 * time.Second)
+	require.True(t, s.guard.Banned("5.6.7.8", "a-player"))
+
+	s.guard.Unban("", "a-player")
+	s.restart(20 * time.Second)
+	defer func() { s.stop() }()
+
+	require.Empty(t, s.errors)
+	assert.False(t, s.guard.Banned("5.6.7.8", "a-player"))
+	assert.Equal(t, 0, s.accountBans.Stored()["a-player"].Offences)
+	assert.Equal(t, 1, s.guard.Ban("", "a-player", 0).Offence, "the lifted ban is no offence")
+}
+
+func TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain(t *testing.T) {
+	s := newStack()
+
+	//nolint:gosec // seeded test PRNG
+	random := rand.New(rand.NewPCG(28, 9))
+
+	const scope = "2001:db8:1:2::/64"
+	click := func() bool {
+		s.clock.Advance(4500*time.Millisecond + time.Duration(random.Int64N(int64(time.Second))))
+		return s.clickAs(scope, "night", 180000+uint32(random.IntN(60000)), "DZ")
+	}
+
+	start := s.clock.Now()
+	var caught bool
+	for !caught && s.clock.Now().Sub(start) < 8*time.Hour {
+		for i := 0; i < 300 && !caught; i++ {
+			caught = click()
+		}
+		if !caught {
+			s.clock.Advance(5 * time.Minute)
+		}
+	}
+	require.True(t, caught)
+
+	unbannedAt := s.clock.Now()
+	s.guard.Unban(scope, "night")
+
+	var bannedAgainAfter time.Duration
+	for bannedAgainAfter == 0 && s.clock.Now().Sub(unbannedAt) < time.Hour {
+		if click() {
+			bannedAgainAfter = s.clock.Now().Sub(unbannedAt)
+		}
+	}
+
+	require.NotZero(t, bannedAgainAfter, "the watchdogs still read the evidence that banned it")
+	assert.GreaterOrEqual(t, bannedAgainAfter, 5*time.Minute, "not before the reflag interval")
+	assert.Less(t, bannedAgainAfter, 6*time.Minute)
+	assert.Equal(t, 1, s.reports[len(s.reports)-1].Offence, "the lifted ban is no offence")
+}
+
 func TestABannedGuestWithAFreshCookieIsStillDropped(t *testing.T) {
 	s := newStack()
 
