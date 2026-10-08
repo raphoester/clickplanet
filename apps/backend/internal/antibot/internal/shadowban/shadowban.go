@@ -45,16 +45,16 @@ type Banner struct {
 }
 
 func (r Record) running(now time.Time) bool {
-	return now.Before(r.Until)
+	return now.Before(r.ExpiresAt)
 }
 
 func (r Record) sentence() Sentence {
-	return Sentence{Flags: r.Flags, Offence: r.Offences, Until: r.Until}
+	return Sentence{Flags: r.Flags, Offence: r.Offences, Until: r.ExpiresAt}
 }
 
 func (r Record) extendedTo(until time.Time) Record {
-	if until.After(r.Until) {
-		r.Until = until
+	if until.After(r.ExpiresAt) {
+		r.ExpiresAt = until
 	}
 	return r
 }
@@ -64,7 +64,7 @@ func (b *Banner) flagged(record Record, now time.Time) Record {
 		record.Offences++
 	}
 	record.Flags++
-	record.NextFlagAt = now.Add(b.config.ReflagInterval)
+	record.LastFlaggedAt = now
 
 	return record.extendedTo(now.Add(b.duration(record.Offences)))
 }
@@ -82,7 +82,7 @@ func (b *Banner) banned(record Record, now time.Time, duration time.Duration) Re
 
 func lifted(record Record, now time.Time) Record {
 	record.Offences = max(record.Offences-1, 0)
-	record.Until = now
+	record.ExpiresAt = now
 	return record
 }
 
@@ -99,7 +99,7 @@ func (b *Banner) Flag(ctx context.Context, scope string) (Sentence, bool, error)
 	)
 
 	if err := b.store.Change(ctx, scope, func(record Record, found bool) (Record, bool) {
-		if found && now.Before(record.NextFlagAt) {
+		if found && now.Before(record.LastFlaggedAt.Add(b.config.ReflagInterval)) {
 			sentence = record.sentence()
 			return record, false
 		}

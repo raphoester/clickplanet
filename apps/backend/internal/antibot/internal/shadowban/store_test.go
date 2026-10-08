@@ -54,7 +54,7 @@ func TestTheReflagIntervalIsKeptInTheStore(t *testing.T) {
 
 func TestABanInTheStoreIsRunning(t *testing.T) {
 	clock := newClock()
-	store := shadowban.NewMemoryStore(shadowban.Record{Key: "kept", Flags: 1, Offences: 1, Until: clock.Now().Add(time.Hour)})
+	store := shadowban.NewMemoryStore(shadowban.Record{Key: "kept", Flags: 1, Offences: 1, ExpiresAt: clock.Now().Add(time.Hour)})
 
 	banner := bannerOver(t, config(), clock, store)
 
@@ -106,7 +106,7 @@ func TestAnUnbanIsKeptInTheStore(t *testing.T) {
 	before.Unban("player")
 
 	assert.Equal(t, shadowban.Record{
-		Key: "player", Flags: 1, Until: clock.Now(), NextFlagAt: flaggedAt.Add(5 * time.Minute),
+		Key: "player", Flags: 1, ExpiresAt: clock.Now(), LastFlaggedAt: flaggedAt,
 	}, store.Stored()["player"])
 
 	after := bannerOver(t, config(), clock, store)

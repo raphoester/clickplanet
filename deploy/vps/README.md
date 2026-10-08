@@ -645,7 +645,7 @@ shutdown.
 See every running ban:
 
 ```bash
-docker compose exec postgres psql -U clickplanet -c "select * from antibot.bans where banned_until > now() order by banned_until"
+docker compose exec postgres psql -U clickplanet -c "select * from antibot.bans where expires_at > now() order by expires_at"
 ```
 
 To lift a ban that was a mistake, use `UnbanPlayer`: see

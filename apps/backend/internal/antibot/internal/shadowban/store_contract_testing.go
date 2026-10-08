@@ -42,8 +42,8 @@ func (s *StoreContractSuite) TestAKeyNeverChangedIsNotFound() {
 }
 
 func (s *StoreContractSuite) TestAChangeIsKeptAndReadBack() {
-	flagged := Record{Key: s.Key(1), Flags: 3, Offences: 2, Until: contractAt, NextFlagAt: contractAt.Add(-time.Hour)}
-	banned := Record{Key: s.Key(2), Flags: 0, Offences: 1, Until: contractAt.Add(time.Hour)}
+	flagged := Record{Key: s.Key(1), Flags: 3, Offences: 2, ExpiresAt: contractAt, LastFlaggedAt: contractAt.Add(-time.Hour)}
+	banned := Record{Key: s.Key(2), Flags: 0, Offences: 1, ExpiresAt: contractAt.Add(time.Hour)}
 	s.keep(flagged)
 	s.keep(banned)
 
@@ -53,23 +53,23 @@ func (s *StoreContractSuite) TestAChangeIsKeptAndReadBack() {
 
 	record, found = s.record(s.Key(2))
 	s.Require().True(found)
-	s.Equal(banned, record, "a ban that was never flagged has no reflag time")
+	s.Equal(banned, record, "a ban that was never flagged has no flag time")
 }
 
 func (s *StoreContractSuite) TestAChangeSeesWhatWasKeptAndReplacesIt() {
-	s.keep(Record{Key: s.Key(1), Flags: 1, Offences: 1, Until: contractAt})
+	s.keep(Record{Key: s.Key(1), Flags: 1, Offences: 1, ExpiresAt: contractAt})
 
 	s.Require().NoError(s.store.Change(s.T().Context(), s.Key(1), func(record Record, found bool) (Record, bool) {
 		s.True(found)
 		s.Equal(s.Key(1), record.Key)
 		record.Flags++
 		record.Offences = 0
-		record.Until = contractAt.Add(-time.Minute)
+		record.ExpiresAt = contractAt.Add(-time.Minute)
 		return record, true
 	}))
 
 	record, _ := s.record(s.Key(1))
-	s.Equal(Record{Key: s.Key(1), Flags: 2, Until: contractAt.Add(-time.Minute)}, record)
+	s.Equal(Record{Key: s.Key(1), Flags: 2, ExpiresAt: contractAt.Add(-time.Minute)}, record)
 }
 
 func (s *StoreContractSuite) TestAChangeOfAKeyNeverKeptStartsFromNothing() {
@@ -81,11 +81,11 @@ func (s *StoreContractSuite) TestAChangeOfAKeyNeverKeptStartsFromNothing() {
 }
 
 func (s *StoreContractSuite) TestAChangeThatKeepsNothingWritesNothing() {
-	s.keep(Record{Key: s.Key(1), Flags: 1, Offences: 1, Until: contractAt})
+	s.keep(Record{Key: s.Key(1), Flags: 1, Offences: 1, ExpiresAt: contractAt})
 
 	for _, key := range []string{s.Key(1), s.Key(2)} {
 		s.Require().NoError(s.store.Change(s.T().Context(), key, func(Record, bool) (Record, bool) {
-			return Record{Key: key, Flags: 9, Offences: 9, Until: contractAt.Add(time.Hour)}, false
+			return Record{Key: key, Flags: 9, Offences: 9, ExpiresAt: contractAt.Add(time.Hour)}, false
 		}))
 	}
 
@@ -116,9 +116,9 @@ func (s *StoreContractSuite) TestChangesToOneKeyNeverOverlap() {
 }
 
 func (s *StoreContractSuite) TestRunningCountsTheBansThatEndAfterNow() {
-	s.keep(Record{Key: s.Key(1), Offences: 1, Until: contractAt.Add(time.Second)})
-	s.keep(Record{Key: s.Key(2), Offences: 1, Until: contractAt})
-	s.keep(Record{Key: s.Key(3), Offences: 2, Until: contractAt.Add(-time.Hour)})
+	s.keep(Record{Key: s.Key(1), Offences: 1, ExpiresAt: contractAt.Add(time.Second)})
+	s.keep(Record{Key: s.Key(2), Offences: 1, ExpiresAt: contractAt})
+	s.keep(Record{Key: s.Key(3), Offences: 2, ExpiresAt: contractAt.Add(-time.Hour)})
 
 	running, err := s.store.Running(s.T().Context(), contractAt)
 	s.Require().NoError(err)

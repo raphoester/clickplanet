@@ -1949,10 +1949,12 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   transaction. The ladder, the reflag interval and the unban stay in Go, on the
   `Record` and the `Banner`; the store only locks, reads and writes. So a flag, a
   ban or an unban is in the table when the call returns, two processes or a restart
-  cannot disagree about one, and an operator's `UnbanPlayer` needs no restart. The
-  reflag time is a column (`next_flag_at`, migration `20261008120000`), so a restart
-  is no way around it either. `postgres_ban_store` is the adapter and `MemoryStore`
-  (behind the `testing` tag) the fake; `shadowban.StoreContractSuite` runs on both,
+  cannot disagree about one, and an operator's `UnbanPlayer` needs no restart. A row
+  keeps when the key was last flagged (`last_flagged_at`), not when it may be flagged
+  next: the reflag interval is added in Go, so a new `reflagInterval` applies to every
+  row, and a restart is no way around it. The ban's end is `expires_at` (migration
+  `20261008120000` added the first and renamed `banned_until` to the second).
+  `postgres_ban_store` is the adapter and `MemoryStore` (behind the `testing` tag) the fake; `shadowban.StoreContractSuite` runs on both,
   and pins the lock: changes to one key never overlap.
 - **Every click reads them**, in `Guard.Inspect`, and a bomb or a shield in
   `Guard.Banned`: one primary-key lookup on the scope and one on the account, and

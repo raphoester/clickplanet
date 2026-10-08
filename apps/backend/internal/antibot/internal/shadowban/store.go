@@ -6,11 +6,11 @@ import (
 )
 
 type Record struct {
-	Key        string
-	Flags      int
-	Offences   int
-	Until      time.Time
-	NextFlagAt time.Time
+	Key           string
+	Flags         int
+	Offences      int
+	ExpiresAt     time.Time
+	LastFlaggedAt time.Time
 }
 
 type Store interface {

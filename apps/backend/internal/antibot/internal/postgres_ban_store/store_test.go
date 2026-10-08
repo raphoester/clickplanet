@@ -53,7 +53,7 @@ func (s *testSuite) TestAccountsAreKeptApartFromScopes() {
 	const account = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
 
 	s.Require().NoError(accounts.Change(ctx, account, func(record shadowban.Record, _ bool) (shadowban.Record, bool) {
-		record.Offences, record.Until = 1, until
+		record.Offences, record.ExpiresAt = 1, until
 		return record, true
 	}))
 
