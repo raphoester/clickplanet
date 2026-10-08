@@ -891,9 +891,12 @@ draws it.
   chip at the top centre. On a phone the sheet is the screen's width; a long
   country name ends in "…" before a column moves.
 - **A switch orders the countries, Season or Territory** (`.leaderboard-order`,
-  `aria-pressed`), Season first. Season ranks by the points plus today's, as the
-  season would stand if the day ended now, then by tiles (`domain/race.ts`,
-  `countryLines`), and lists a country with points that holds no ground.
+  `aria-pressed`), Season first. Season ranks by the points of the days closed, then
+  by tiles (`domain/race.ts`, `countryLines`), and lists a country with points that
+  holds no ground. **Today's points do not move the order**: they come from the
+  ground held on average since the day started, not from the tiles held now, so a
+  country can score less today than one under it. Ranked by them, two countries at
+  0 points swapped against their tiles, which read as a bug (2026-10-08).
   Territory is the order by tiles held now, as the board was. `Viewer` holds the
   choice. With no race, there is no switch and the board is as it was.
 - **The view is picked from the board's heading** (`HeadingSelect`, a gold
