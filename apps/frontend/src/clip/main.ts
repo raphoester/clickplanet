@@ -12,8 +12,9 @@ import {regionOf} from "../domain/regions.ts"
 import {foughtOver, losersOf, ownersAfter, ranked as rankedBy, takersFrom, tally} from "../domain/clip/changes.ts"
 import {cellOf, dot, Point, pointOf} from "../domain/clip/geometry.ts"
 import {SCRIBBLE_BELOW, solidityOf} from "../domain/clip/solidity.ts"
-import {anthemOf} from "../domain/clip/music.ts"
+import {anthemOf, startOf} from "../domain/clip/music.ts"
 import {ANTHEMS} from "../app/anthem/anthemsAsset.ts"
+import {HIGHLIGHTS} from "./anthemHighlightsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
 import {Candidate, candidatesOf, inCandidate, Window} from "../domain/clip/window.ts"
 import {Front, frontOf, FRONT_RADIANS, sameFront, spanOf} from "../domain/clip/front.ts"
@@ -37,7 +38,7 @@ export type Recording = {
     look: string
     skipped: string[]
     // The anthem to play under the clip: where it is, its title, whose it is, and the credit its licence asks for.
-    music: {url: string, title: string, whose: string, credit?: string} | undefined
+    music: {url: string, title: string, whose: string, from: number, credit?: string} | undefined
     place: string
     headline: string
     line: string
@@ -103,9 +104,11 @@ type Review = Take & {backend: ReplayBackend, solidity: number, skipped: string 
 
 const RECORDED: Readonly<Record<string, {url: string, title: string, credit?: string}>> = {...ANTHEMS, ...CLIP_ANTHEMS}
 
-function musicOf(story: Story): Recording["music"] {
+function musicOf(story: Story, seconds: number): Recording["music"] {
     const code = anthemOf(story, (anthem) => anthem in RECORDED)
-    return code === undefined ? undefined : {...RECORDED[code], whose: story.team ?? nameOf(code)}
+    if (code === undefined) return undefined
+    const recording = RECORDED[code]
+    return {...recording, whose: story.team ?? nameOf(code), from: startOf(HIGHLIGHTS[recording.url], seconds)}
 }
 
 function lookParam(): Look | undefined {
@@ -343,7 +346,7 @@ async function prepare(): Promise<Recording> {
         call: words.call,
         link: words.link,
         caption: words.caption,
-        music: musicOf(story),
+        music: musicOf(story, timeline.seconds),
     }
 }
 

@@ -23,6 +23,7 @@ npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile 
 npm run clip:fetch -- --ssh <user@host> --out replay.json  # A replay of the last 72h from production (see "Clips")
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
+npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
 npm run regions    # Rewrite each country's continent and sub-region from Natural Earth, for the clips' headlines
 ```
 
@@ -2448,6 +2449,13 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   Palestine's Fida'i, which the Navy Band never recorded, in an instrumental under CC BY 3.0. A recording under a
   licence carries its credit, and the caption of every clip it plays under ends with it. It fades out over the
   last 1.2s. `--silent` leaves it out, for TikTok and Instagram, where a sound is added when posting.
+- **An anthem starts on a highlight**, never on its first second: the UK's opens on 11s of drum roll, Algeria's on 7s
+  of drums. `highlight.ts` hears a drum roll from a tune (a noisy spectrum, against the band's notes) and ranks the
+  notes struck with the band playing on, loudest first, a phrase after a pause counting as louder.
+  `npm run clip:highlights` writes what it finds for every recording into `src/clip/anthemHighlightsAsset.ts`,
+  keyed by the content-addressed file, and both anthem scripts run it, since a new encode is a new file; a test
+  fails when one is missing. A clip starts on the best highlight that leaves the anthem playing to its end, else
+  early enough that it does.
 - **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
   the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
   story already told by a better candidate (same attacker, same front) is dropped.
