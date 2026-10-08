@@ -226,6 +226,11 @@ describe("the same story", () => {
         expect(same(italy({country: "fr"}), {...italy({country: "es"}), victims: ["ma"]})).toBe(false)
     })
 
+    it("is a flag's tour of the world beside its stories on each continent", () => {
+        expect(same(italy({region: THE_WORLD}), italy({region: "Europe"}))).toBe(false)
+        expect(same(italy({region: THE_WORLD}), {...italy({region: THE_WORLD}), victims: ["ma"]})).toBe(true)
+    })
+
     it("is told over the most of the map", () => {
         expect(widerThan({region: "Europe"}, {country: "de"})).toBe(true)
         expect(widerThan({region: THE_WORLD}, {region: "Europe"})).toBe(true)

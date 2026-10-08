@@ -127,11 +127,14 @@ export function widerThan(a: Place, b: Place): boolean {
     return breadth(a) > breadth(b)
 }
 
+// A flag's tour of the world is told beside its stories on each continent, not instead of them.
 function overlaps(a: Place, b: Place, regionOf: RegionOf): boolean {
+    const world = (place: Place) => "region" in place && place.region === THE_WORLD
+    if (world(a) || world(b)) return world(a) && world(b)
     const countries = (place: Place) => "country" in place ? [place.country] : "countries" in place ? place.countries : []
     if (!("region" in a) && !("region" in b)) return countries(a).some((country) => countries(b).includes(country))
     const regions = (place: Place) => "region" in place ? [place.region] : countries(place).map(regionOf)
-    return [a, b].some((place) => regions(place).includes(THE_WORLD)) || regions(a).some((region) => regions(b).includes(region))
+    return regions(a).some((region) => regions(b).includes(region))
 }
 
 // Two stories about one flag thrown out of one place are one story.

@@ -113,6 +113,15 @@ describe("the caption", () => {
     it("tags no place for the world", () => {
         expect(wordsOf(story("attack", {region: "the world"})).caption).toMatch(/#map$/)
     })
+
+    it("says a flag taking land on every continent at once is taking over the world, and asks to fight back", () => {
+        const words = wordsOf({...story("attack", {region: "the world"}), attacker: "pt"})
+
+        expect(words.headline).toBe("PORTUGAL IS TAKING OVER THE WORLD")
+        expect(words.call).toBe("FIGHT BACK")
+        expect(words.callFlags).toEqual([])
+        expect(words.link).toBe("https://clickplanet.lol")
+    })
 })
 
 describe("the call at the end of a clip", () => {

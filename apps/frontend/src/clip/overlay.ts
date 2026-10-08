@@ -147,13 +147,14 @@ export function wordsOf(story: Story, headline?: string): Words {
         }, "Who joins them?")
     }
 
-    const defended = countriesOf(story.place)[0] ?? story.victims[0]
+    const world = "region" in story.place && story.place.region === THE_WORLD
+    const defended = world ? undefined : countriesOf(story.place)[0] ?? story.victims[0]
     return finish({
-        headline: headline ?? (story.kind === "invasion"
-            ? `${attacker} IS INVADING ${place}`
-            : `${attacker} IS ATTACKING ${place}`).toUpperCase(),
+        headline: headline ?? (world ? `${attacker} IS TAKING OVER ${place}`
+            : story.kind === "invasion" ? `${attacker} IS INVADING ${place}`
+                : `${attacker} IS ATTACKING ${place}`).toUpperCase(),
         line: undefined,
-        call: `DEFEND ${place}`.toUpperCase(),
+        call: world ? "FIGHT BACK" : `DEFEND ${place}`.toUpperCase(),
         callFlags: placeFlags(story.place),
         link: defended === undefined ? SITE : `${SITE}/?f=${defended}`,
     }, "Who stops them?")

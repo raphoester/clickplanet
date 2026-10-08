@@ -69,8 +69,13 @@ const GRID = 480
 
 const SMOOTHING = 0.03
 
+// The whole globe, with a little sky around it.
+export function widestZoomOf(aspect: number): number {
+    return aspect * WIDEST
+}
+
 export function framingOf(points: readonly Point[], aspect: number): Shot {
-    const least = aspect * WIDEST
+    const least = widestZoomOf(aspect)
     const direction = meanOf(points)
     if (direction === undefined) return {direction: {x: 0, y: 0, z: 1}, zoom: least}
 
@@ -204,18 +209,18 @@ function smoothed(shots: readonly Shot[]): Shot[] {
     })
 }
 
-function blend(a: Point, b: Point, t: number): Point {
+export function blend(a: Point, b: Point, t: number): Point {
     return meanOf([{x: a.x * (1 - t), y: a.y * (1 - t), z: a.z * (1 - t)}, {x: b.x * t, y: b.y * t, z: b.z * t}]) ?? a
 }
 
-function between(a: number, b: number, t: number): number {
+export function between(a: number, b: number, t: number): number {
     return a * (b / a) ** t
 }
 
-function clamp(value: number): number {
+export function clamp(value: number): number {
     return Math.min(1, Math.max(0, value))
 }
 
-function smooth(t: number): number {
+export function smooth(t: number): number {
     return t * t * (3 - 2 * t)
 }

@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {paceOf, playedAt, timelineOf} from "./pace.ts"
+import {paceOf, playedAt, timelineFor, timelineOf} from "./pace.ts"
 
 describe("the pace of a replay", () => {
     const quietThenBusy = [...Array.from({length: 90}, (_, i) => 900 + i), 10, 20, 30]
@@ -35,6 +35,10 @@ describe("the length of a clip", () => {
     it("grows with how far the action moves, up to what a feed holds a viewer for", () => {
         expect(timelineOf(5).seconds).toBe(14.5)
         expect(timelineOf(100).seconds).toBe(17.5)
+    })
+
+    it("is as long as it plays, and the call to act", () => {
+        expect(timelineFor(16.1).seconds).toBe(18.5)
     })
 
     it("is what it is told, never past 22", () => {
