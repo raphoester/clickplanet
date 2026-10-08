@@ -23,6 +23,7 @@ import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
 import ClicksPanel from "../components/ClicksPanel.tsx";
 import Inventory from "../components/Inventory.tsx";
 import {useBonusGuide} from "../components/useBonusGuide.ts";
+import {useBoardGuide} from "../useBoardGuide.ts";
 import {isFirstWin} from "../../domain/bonusGuide.ts";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
@@ -59,6 +60,9 @@ import TabBar from "../hud/TabBar.tsx";
 import {StandingsBackend} from "../../backends/standings.ts";
 import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
 import {useRace} from "../standings/useRace.ts";
+import RoundReveal from "../season/RoundReveal.tsx";
+import {useRoundReveal} from "../season/useRoundReveal.ts";
+import {revealKeyOf} from "../../domain/roundReveal.ts";
 import {CountryOrder} from "../../domain/race.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
 import "./Viewer.css"
@@ -103,7 +107,9 @@ export default function Viewer(props: ViewerProps) {
     const roster = useRoster(props.presence, (title) => setUnlocked((queue) => [...queue, title]))
     const season = useSeason(props.season)
     const race = useRace(props.standings)
+    const reveal = useRoundReveal(race)
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
+    const boardGuide = useBoardGuide()
     const [pitchOpen, setPitchOpen] = useState(false)
     const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
     const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
@@ -212,6 +218,8 @@ export default function Viewer(props: ViewerProps) {
         race,
         countryOrder,
         onCountryOrder: setCountryOrder,
+        guided: boardGuide.guided,
+        onGuided: boardGuide.markGuided,
     }
     const you = {
         account: props.account,
@@ -338,6 +346,12 @@ export default function Viewer(props: ViewerProps) {
                                                play={sound.play}
                                                onWear={props.account?.wearTitle}
                                                onClose={() => setUnlocked((queue) => queue.slice(1))}/>}
+
+        {ready && unlocked.length === 0 && reveal.closed && <RoundReveal key={revealKeyOf(reveal.closed)}
+                                                                         closed={reveal.closed}
+                                                                         countryCode={countryState.code}
+                                                                         play={sound.play}
+                                                                         onClose={reveal.dismiss}/>}
 
         {award && <BonusAward reward={award}
                               kept={isFirstWin(bonusGuide.guide, award.kind)}

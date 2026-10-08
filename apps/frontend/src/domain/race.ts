@@ -34,8 +34,5 @@ export function countryLines(
     }
     return lines
         .filter((l) => l.tiles > 0 || l.points + l.today > 0)
-        .sort((a, b) =>
-            b.points + b.today - (a.points + a.today)
-            || b.tiles - a.tiles
-            || a.country.code.localeCompare(b.country.code))
+        .sort((a, b) => b.points - a.points || b.tiles - a.tiles || a.country.code.localeCompare(b.country.code))
 }

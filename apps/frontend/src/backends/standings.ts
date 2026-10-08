@@ -37,9 +37,20 @@ export type Score = {
     roundsWon: number
 }
 
+export type ClosedRound = {
+    season: number
+    number: number
+    endedAt: number
+    finale: boolean
+    standings: RoundStanding[]
+    before: Score[]
+    after: Score[]
+}
+
 export type Race = {
     round?: Round
     scores: Score[]
+    closed?: ClosedRound
 }
 
 export interface StandingsBackend {

@@ -81,6 +81,17 @@ message Board {
 message Race {
   Round round = 1;
   repeated Score scores = 2;
+  ClosedRound closed = 3;
+}
+
+message ClosedRound {
+  uint32 season = 1;
+  uint32 number = 2;
+  int64 ended_at_unix_ms = 3;
+  bool finale = 4;
+  repeated RoundStanding standings = 5;
+  repeated Score before = 6;
+  repeated Score after = 7;
 }
 
 message Round {

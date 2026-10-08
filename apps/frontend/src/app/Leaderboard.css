@@ -31,6 +31,7 @@
     font-weight: 600;
     font-size: var(--text-xs);
     color: var(--text-muted);
+    white-space: nowrap;
     padding: var(--space-2) 0 calc(6px + var(--outline-thin) + 7px) 0;
     background: linear-gradient(var(--ink), var(--ink)) left bottom 7px / 100% var(--outline-thin) no-repeat;
 }
@@ -64,17 +65,51 @@
 }
 
 .leaderboard-table-share {
-    width: 76px;
-    padding-right: var(--space-2);
+    width: 70px;
 }
 
 .leaderboard-table-points {
-    width: 92px;
+    width: 50px;
+}
+
+.leaderboard-table-today {
+    width: 40px;
+    padding-left: 5px;
+    text-align: left;
+}
+
+.leaderboard-table :is(th, td):last-child {
     padding-right: var(--space-2);
 }
 
+.leaderboard-hint {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    text-shadow: inherit;
+    cursor: help;
+}
+
+.leaderboard-hint:focus-visible {
+    outline: 2px solid var(--action-light);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+}
+
+.leaderboard-table-head .leaderboard-hint {
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+}
+
+.leaderboard-table-head .leaderboard-hint:hover {
+    color: var(--text);
+}
+
 .leaderboard-today {
-    margin-left: 0.3em;
     font-family: var(--font-text);
     font-weight: 700;
     font-size: var(--text-s);
@@ -274,6 +309,13 @@
     color: var(--loss);
 }
 
+.leader-frame-map {
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
 .leader-frame-tiles .leaderboard-delta {
     right: auto;
     left: calc(100% + 4px);
@@ -291,6 +333,10 @@
     line-height: 1;
     color: var(--gold);
     text-shadow: var(--text-drop);
+}
+
+.leader-frame-share .leaderboard-today {
+    margin-left: 0.3em;
 }
 
 .leader-frame-share-unit {

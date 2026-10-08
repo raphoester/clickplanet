@@ -133,9 +133,70 @@ func (s *testSuite) TestTheScoresAreThePointsOfTheClosedRoundsBestFirst() {
 	}
 }
 
-func (s *testSuite) TestThereIsNoRaceOutsideASeason() {
+func (s *testSuite) TestOutsideASeasonTheRaceIsOnlyTheRoundClosedLast() {
 	s.at(utc(31, 23))
 	s.closed(fifteenth, rounds.Result{Country: "fr", Rank: 1, Points: 25})
 
-	s.True(proto.Equal(&seasonsv1.Race{}, s.race()))
+	race := s.race()
+
+	s.Nil(race.GetRound())
+	s.Empty(race.GetScores())
+	s.Equal(uint32(1), race.GetClosed().GetNumber())
+}
+
+func (s *testSuite) TestBeforeAnyRoundClosesTheRaceCarriesNoClosedRound() {
+	s.snapshot(sixteenth, map[rounds.Country]uint32{"fr": 30})
+
+	s.Nil(s.race().GetClosed())
+}
+
+func (s *testSuite) TestTheRoundClosedLastCarriesItsResultsAndTheTableBeforeAndAfterIt() {
+	s.closed(fourteenth,
+		rounds.Result{Country: "de", Rank: 1, Points: 25},
+		rounds.Result{Country: "fr", Rank: 2, Points: 18})
+	s.snapshot(fifteenth, map[rounds.Country]uint32{"fr": 30, "de": 10, "es": 1})
+	s.snapshot(fifteenth, map[rounds.Country]uint32{"fr": 20, "de": 10, "es": 1})
+	s.Require().NoError(s.store.Close(s.T().Context(), fifteenth, []rounds.Result{
+		{Country: "fr", Rank: 1, Points: 25},
+		{Country: "de", Rank: 2, Points: 18},
+		{Country: "es", Rank: 11, Points: 0},
+	}))
+	s.snapshot(sixteenth, map[rounds.Country]uint32{"it": 99})
+
+	s.True(proto.Equal(&seasonsv1.ClosedRound{
+		Season:        0,
+		Number:        2,
+		EndedAtUnixMs: fifteenth.EndsAt.UnixMilli(),
+		Standings: []*seasonsv1.RoundStanding{
+			{Rank: 1, CountryId: "fr", Share: 0.25, Points: 25},
+			{Rank: 2, CountryId: "de", Share: 0.1, Points: 18},
+		},
+		Before: []*seasonsv1.Score{
+			{Rank: 1, CountryId: "de", Points: 25, RoundsWon: 1},
+			{Rank: 2, CountryId: "fr", Points: 18},
+		},
+		After: []*seasonsv1.Score{
+			{Rank: 1, CountryId: "de", Points: 43, RoundsWon: 1},
+			{Rank: 1, CountryId: "fr", Points: 43, RoundsWon: 1},
+		},
+	}, s.race().GetClosed()), s.race().GetClosed())
+}
+
+func (s *testSuite) TestTheFirstRoundClosedHasNothingBeforeIt() {
+	s.closed(fifteenth, rounds.Result{Country: "fr", Rank: 1, Points: 25})
+
+	closed := s.race().GetClosed()
+
+	s.Empty(closed.GetBefore())
+	s.Len(closed.GetAfter(), 1)
+}
+
+func (s *testSuite) TestTheFinaleClosedIsShownAsTheFinale() {
+	s.at(utc(31, 23))
+	s.closed(finale, rounds.Result{Country: "fr", Rank: 1, Points: 75})
+
+	closed := s.race().GetClosed()
+
+	s.True(closed.GetFinale())
+	s.Equal(finale.EndsAt.UnixMilli(), closed.GetEndedAtUnixMs())
 }

@@ -63,7 +63,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username and `planet` what each country holds. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, and `player` publishes `StatsChanged`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet` and `chat` hear `AccountDeleted` too.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username and `planet` what each country holds. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, `planet` and `chat` hear `AccountDeleted` too, and `chat` hears `RoundClosed`.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -254,6 +254,7 @@ The events today:
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
 | `chat.v1.AccountMuted{account_id, muted_at, duration}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
 | `player.v1.StatsChanged{account_id}` | `player`, `record_take_usecase/publishing_record_take` and `record_message_usecase/publishing_record_message` | after each take or message is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
+| `seasons.v1.RoundClosed{season, number, finale, ended_at, results}` | `seasons`, `take_snapshot_usecase` | after each round's results are kept; a failed close publishes nothing | `chat`, which announces the podium |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
@@ -405,7 +406,7 @@ internal/chat/internal/
     usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher, Authors
       muting_react/                     refuses a muted caller before anything else — Mutes
   announcements/                        Announcement, AnnouncementID, Kind (Kinds, Known: announce_usecase refuses
-                                        any other), Bomb and Muted (payloads), the Storage and IDProvider ports,
+                                        any other), Bomb, Muted and Round (payloads), the Storage and IDProvider ports,
                                         the suite and SequentialIDs
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
@@ -442,6 +443,7 @@ internal/chat/internal/
   subscribers/                          Timeout
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb payload
     account_muted_subscriber/           chat.v1.AccountMuted → announce_mute_usecase
+    round_closed_subscriber/            seasons.v1.RoundClosed → announce_usecase, as a Round payload
     account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema
@@ -765,8 +767,8 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 #### Announcements
 
 **The chat also says things on its own**: a line between the messages with no sender, which the client draws
-without a bubble. Two kinds today: `bomb`, every bomb that went off, on land or in the sea, and `mute`, every
-mute an operator gave (see [Mutes](#mutes)).
+without a bubble. Three kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
+mute an operator gave (see [Mutes](#mutes)), and `round`, every round of a season that closed.
 
 - **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
   text or reactions, and a message has no kind or payload; sharing a base would make every column of one
@@ -785,6 +787,10 @@ mute an operator gave (see [Mutes](#mutes)).
   payload and `announce_usecase` inserts it, then publishes it on `inprocess_feed`. The announcement's time is
   the event's `landed_at`. **Delivery is at most once**, like every event: a full buffer (256) or a restart loses
   the line, never the bomb.
+- **How a round gets here**: `seasons` publishes `seasons.v1.RoundClosed` once a round's results are kept;
+  `round_closed_subscriber` turns it into a `Round` payload, `{number, finale, podium}`, and `announce_usecase`
+  keeps it. The podium is `announcements.RoundOf`'s rule: the places ranked 3rd or better, ties included. The
+  announcement's time is the round's end, not the minute it closed.
 - **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
   `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
   lists in one by time. **Once the messages fill the window, none is older than the oldest of them**
@@ -1311,12 +1317,14 @@ internal/seasons/internal/
     postgres_contribution_store/  the Store over seasons.contributions
     inmemory_contribution_store/  the same port in a map, behind the testing tag
     usecases/record_take_usecase/  forget_account_usecase/
-  rounds/                         Country, Round (Current, Results), Snapshot, Result, Score, Placed (TableOf); the Store
-                                  port (RecordSnapshot, Unclosed, Held, Close) and its contract suite
+  rounds/                         Country, Round (Current, Results, Closed), Snapshot, Result, Closed, Score, Placed
+                                  (TableOf); the Store port (RecordSnapshot, Unclosed, Held, Number, Close) and its
+                                  contract suite
     postgres_round_store/         the Store over seasons.rounds, round_holdings and round_results
     inmemory_round_store/         the same port in maps, behind the testing tag
     rpc_planet_territories/         the snapshot, from planet.v1.InternalService/GetTerritories
-    usecases/take_snapshot_usecase/ closes the rounds that ended, then counts the round in progress; Runner
+    usecases/take_snapshot_usecase/ closes the rounds that ended and publishes each, then counts the round in progress;
+                                  Runner
       log_take_snapshot/            logs each round closed, and a snapshot that failed
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
@@ -1376,6 +1384,11 @@ standings rank players, the rounds rank countries.
 - **A round closes on the first snapshot after it ended** (`Store.Unclosed`): its results are written once, in one
   transaction that marks it closed, and a second close changes nothing. Closing does not need a current season, so the
   finale closes after the last season ends. `log_take_snapshot` logs each round closed.
+- **Each round closed is told to the other modules** as `seasons.v1.RoundClosed`: its season, its number
+  (`Store.Number`, the rounds of its season counted before it, as the read side counts them), whether it is the finale,
+  its end and its results. The use case publishes it itself, through its `Publisher` port, once `Close` returned: a
+  round that failed to close is not published, and is closed and published by the next snapshot. The chat announces
+  it — see [Announcements](#announcements).
 - **`rounds.TableOf` ranks the season**: points, then rounds won, then the finale's points. Countries level on all
   three share the rank. The trophy and the titles at the season's end are a later slice; they read the same table.
 - **Kept in `seasons.rounds`** (`season`, `ends_at`, `finale`, `samples`, `map_tiles`, `closed`), **`round_holdings`**
@@ -1383,12 +1396,15 @@ standings rank players, the rounds rank countries.
   rule stays in Go: SQL keeps the sums and what `Results` said.
 - **The race is live on the season stream** (`SeasonEvent.race`), to every stream whatever its view. `race_query` reads
   the round in progress (its number, its end, each country's rank, average share and the points it would score if it
-  ended now) and the season's scores, best first, of every country with points. **One read for every stream**:
+  ended now) and the season's scores, best first, of every country with points. **It also carries the round closed
+  last** (`closed`), in any season, so the finale still shows once its season is over: its number, its end, the
+  countries that scored in it with their average share, and its season's table before and after it, both ranked by
+  `rounds.TableOf`. A client plays the cutoff from it. **One read for every stream**:
   `inprocess_race_feed` reads it when the first stream opens and then every 10s (`Every`) while a stream follows it, and
   sends it only when it changed. **Nothing tells it a snapshot was taken**: the race only changes once a minute, so
   reading on its own clock is at most 10s late, and the snapshot use case knows nothing of who reads its rows. It
   forgets the race when the last stream closes. A failed read is logged (`log_race_reader`) and the next tick reads
-  again. No season is an empty race.
+  again. No season is a race with no round and no scores, and no round closed yet is a race with no `closed`.
 - `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
   and reads the race off the stream.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
@@ -3041,7 +3057,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto) and [`player/v1/player.proto`](../../proto/player/v1/player.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto) and [`player/v1/player.proto`](../../proto/player/v1/player.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
 `generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
 

@@ -551,6 +551,59 @@
     color: var(--text-faint);
 }
 
+.chat-announcement-round {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+    margin: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: var(--outline-thin) solid var(--gold);
+    border-radius: var(--radius-m);
+    background: color-mix(in srgb, var(--gold) 14%, var(--panel));
+    font-size: var(--text-s);
+    color: var(--text);
+}
+
+.chat-round-head {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.chat-round-head strong {
+    font-family: var(--font-display);
+    font-weight: 400;
+    color: var(--gold);
+    text-shadow: var(--text-outline);
+}
+
+.chat-round-podium {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-1) var(--space-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.chat-round-place {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.chat-round-country {
+    font-weight: 600;
+}
+
+.chat-round-points {
+    font-weight: 700;
+    color: var(--gain);
+}
+
 .chat-unseen {
     display: flex;
     align-items: center;

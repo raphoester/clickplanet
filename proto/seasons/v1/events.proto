@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package seasons.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message RoundClosed {
+  uint32 season = 1;
+  uint32 number = 2;
+  bool finale = 3;
+  google.protobuf.Timestamp ended_at = 4;
+  repeated RoundResult results = 5;
+}
+
+message RoundResult {
+  string country = 1;
+  uint32 rank = 2;
+  uint32 points = 3;
+}

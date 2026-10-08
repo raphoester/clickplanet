@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
+import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import {Race} from "../backends/standings.ts"
 import Leaderboard from "./Leaderboard.tsx"
+import {FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts"
 import {Countries} from "../domain/countries.ts"
 import {TileDelta, TileDeltas} from "../domain/tileDeltas.ts"
 
@@ -15,8 +16,15 @@ const deltas = (pairs: Record<string, number>): TileDeltas => new Map(
 const leader = () => screen.queryByRole("region", {name: /^First: /})
 const rows = () => screen.queryAllByRole("row").slice(1)
 const cells = () => rows().map(r => within(r).getAllByRole("cell").map(c => c.textContent))
+const headers = (...names: string[]) => {
+    expect(screen.getAllByRole("columnheader")).toHaveLength(names.length)
+    for (const name of names) expect(screen.getByRole("columnheader", {name})).toBeDefined()
+}
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+})
 
 describe("Leaderboard", () => {
     it("frames the first country, then lists the rest in the order it was given", () => {
@@ -76,8 +84,7 @@ describe("Leaderboard", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
 
         expect(screen.getByRole("region", {name: "Leaderboard"})).toBeDefined()
-        expect(screen.getAllByRole("columnheader").map(h => h.textContent))
-            .toEqual(["#", "Country", "Tiles", "% of map"])
+        headers("#", "Country", "Tiles", "% of map")
     })
 
     it("marks the player's own row", () => {
@@ -109,7 +116,46 @@ describe("Leaderboard", () => {
 
     it("owns no toggle of its own", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
-        expect(screen.queryAllByRole("button")).toEqual([])
+        expect(screen.queryAllByRole("button").filter(b => b.hasAttribute("aria-pressed"))).toEqual([])
+    })
+
+    it("says what a column means for a while when its head is tapped", () => {
+        vi.useFakeTimers()
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
+        const head = screen.getByRole("button", {name: "% of map"})
+
+        fireEvent.pointerDown(head, {pointerType: "touch"})
+        fireEvent.click(head)
+        expect(screen.getByRole("status").textContent).toBe(FIGURES.share)
+
+        act(() => vi.advanceTimersByTime(TAP_HINT_MS - 1))
+        expect(screen.getByRole("status")).toBeDefined()
+        act(() => vi.advanceTimersByTime(1))
+        expect(screen.queryByRole("status")).toBeNull()
+    })
+
+    it("keeps saying it while the mouse stays, even after a click", () => {
+        vi.useFakeTimers()
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
+        const head = screen.getByRole("button", {name: "Tiles"})
+
+        fireEvent.pointerEnter(head, {pointerType: "mouse"})
+        fireEvent.pointerDown(head, {pointerType: "mouse"})
+        fireEvent.click(head)
+        act(() => vi.advanceTimersByTime(10 * TAP_HINT_MS))
+
+        expect(screen.getByRole("status").textContent).toBe(FIGURES.tiles)
+    })
+
+    it("says what a column means while a mouse is over its head, and stops when it leaves", () => {
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
+        const head = screen.getByRole("button", {name: "Tiles"})
+
+        fireEvent.pointerEnter(head, {pointerType: "mouse"})
+        expect(screen.getByRole("status").textContent).toBe(FIGURES.tiles)
+
+        fireEvent.pointerLeave(head, {pointerType: "mouse"})
+        expect(screen.queryByRole("status")).toBeNull()
     })
 
     it("says how much slower the first country refills, off the toll", () => {
@@ -193,11 +239,41 @@ describe("Leaderboard with the season's race", () => {
         expect(within(leader()!).getByText("300 tiles")).toBeDefined()
         expect(within(leader()!).getByText("points")).toBeDefined()
         expect(within(leader()!).getByText(/^43/).textContent).toBe("43+18 today")
-        expect(screen.getAllByRole("columnheader").map(h => h.textContent)).toEqual(["#", "Country", "Tiles", "Points"])
+        headers("#", "Country", "Tiles", "% of map", "Points", "Today")
         expect(cells()).toEqual([
-            ["2", "Germany", "500", "0+25 today"],
-            ["3", "Spain", "100", "0"],
+            ["2", "Germany", "500", "50.00", "0", "+25 today"],
+            ["3", "Spain", "100", "10.00", "0", ""],
         ])
+    })
+
+    it("keeps the first country's share of the map under its tiles", () => {
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={vi.fn()}/>)
+
+        expect(within(leader()!).getByText("30.00% of map")).toBeDefined()
+    })
+
+    it("says what the points mean the first time it shows them, once", () => {
+        const onGuided = vi.fn()
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={vi.fn()} guided={false} onGuided={onGuided}/>)
+
+        expect(screen.getByRole("status").textContent).toBe(FIGURES.points)
+        expect(onGuided).toHaveBeenCalledOnce()
+    })
+
+    it("lets the first word on the points stay long enough to read", () => {
+        vi.useFakeTimers()
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={vi.fn()} guided={false} onGuided={vi.fn()}/>)
+
+        act(() => vi.advanceTimersByTime(GUIDE_MS - 1))
+        expect(screen.getByRole("status")).toBeDefined()
+        act(() => vi.advanceTimersByTime(1))
+        expect(screen.queryByRole("status")).toBeNull()
+    })
+
+    it("says nothing on its own once the player was told", () => {
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={vi.fn()} guided onGuided={vi.fn()}/>)
+
+        expect(screen.queryByRole("status")).toBeNull()
     })
 
     it("offers to order by the season or by the territory, and says which is on", () => {
@@ -217,8 +293,8 @@ describe("Leaderboard with the season's race", () => {
 
         expect(leader()!.getAttribute("aria-label")).toBe("First: Germany")
         expect(cells()).toEqual([
-            ["2", "France", "300", "43+18 today"],
-            ["3", "Spain", "100", "0"],
+            ["2", "France", "300", "30.00", "43", "+18 today"],
+            ["3", "Spain", "100", "10.00", "0", ""],
         ])
     })
 })

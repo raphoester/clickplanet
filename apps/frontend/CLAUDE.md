@@ -51,7 +51,12 @@ shields, a box adding 1 to 4, 1 to 3 and 5 to 20 of them, spread and enclose
 spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
 banner up at once, `giveTitle("warlord")` plays the unlock of any title (the fake
-wires no account, so the overlay offers Close only), and `fakeBackend.botBomb(tile, "fr")`,
+wires no account, so the overlay offers Close only), `closeDay()` closes the
+fake's day: its countries score with a little luck, the race carries the round
+closed with the season's table before and after it, and the chat announces the
+podium, so the cutoff plays (see [The cutoff, revealed](#the-cutoff-revealed)).
+`closeFinale()` does the same for the Final Battle, at triple points. Each call
+closes the next day, so the reveal plays again. `fakeBackend.botBomb(tile, "fr")`,
 `fakeBackend.botSpread(tile, "fr")` and `fakeBackend.botShield(tile, "fr")` play
 somebody else's bomb, spread click or shield. `fakeBackend.shareClicks("guests")` (or
 `"network"`) reads the bucket as shared, and `fakeBackend.shareClicks()` as the
@@ -569,8 +574,9 @@ is the list, and the backend refuses any other.
 #### Announcements
 
 The chat also shows lines nobody sent: `ChatEvent.announcement` on the stream,
-and `GetHistoryResponse.announcements` beside the messages. Two kinds today:
-`bomb`, every bomb that went off, and `mute`, every mute an operator gave.
+and `GetHistoryResponse.announcements` beside the messages. Three kinds today:
+`bomb`, every bomb that went off, `mute`, every mute an operator gave, and
+`round`, every round of a season that closed.
 
 - **Decoded, not trusted**: `decodedAnnouncement` reads the `kind` and parses
   the JSON `payload` into a typed `ChatAnnouncement`. A kind this build does not
@@ -592,8 +598,17 @@ and `GetHistoryResponse.announcements` beside the messages. Two kinds today:
 - **Not a balloon**: `ChatLog` draws a centred line (`.chat-announcement`) with
   the bomber's flag and the time. It ends the run above it, so the next message
   says again who is talking.
+- **A round is a gold card** (`RoundLine`, `.chat-announcement-round`): "Day 5
+  is over!" or "The Final Battle is over!" (`roundOverLine`, the words of the
+  reveal), the time, then one place per podium country: its medal, its flag,
+  its name and the points it won. The payload is `{number, finale, podium}`; the
+  podium is the places ranked 3rd or better, ties included (the backend's
+  CLAUDE.md, Announcements). A place with no country, or with a rank or points
+  under 1, is dropped. Its time is the round's end.
 - In fake mode `main.tsx` hands every `FakeBackend` bomb to
   `FakeChatBackend.announceBomb`, with no ground: the fake has no borders.
+  `closeDay()` and `closeFinale()` announce their round through
+  `FakeChatBackend.announceRound`.
   `fakeChat.mute()` in the console announces a mute of the player for an hour
   and refuses its posts and reactions until it ends; `fakeChat.mute(600, "Ana")`
   only announces somebody else's.
@@ -874,13 +889,30 @@ draws it.
   `listenForRace` follows the whole map's season stream and reads its `race`
   case, which every stream carries; the server reads it again every 10s.
   `Viewer` follows it once (`useRace`) and hands it to the board. With a race the
-  board has a Points column in place of "% of map", each country's points from the
-  days closed with what it scores today beside them in green ("43 +18"), and the
-  leader frame shows them where it showed the share.
+  board keeps "% of map" and adds two columns: Points, each country's points from
+  the days closed, right-aligned, and Today, what it scores if the day ends now, in
+  green ("+18") and left-aligned. **Today is its own column so the points line up**:
+  as a badge beside the points it pushed only the rows that had one. The leader
+  frame shows the points where it showed the share, and the share under its tiles.
+- **Each number says what it means** (`Hint` in `Leaderboard`, the texts in
+  `boardFigures.ts`), as a bonus does: the column heads and the leader frame's
+  figures are buttons that show a `Bubble`: with a mouse, for as long as it is
+  over them, a click included; after a tap or a key, for `TAP_HINT_MS` (7s), long
+  enough to read. **The first time the board shows points, it says what they are
+  on its own** (`GUIDE_MS`, 10s), once per browser: `useBoardGuide`, the
+  `clickplanet-board-guide` key. The bubble renders beside its button, not inside:
+  inside, it mounts before the button's ref is set and has nothing to sit on.
+- **The desktop menu is `clamp(380px, 34vw, 460px)` wide**, every tab alike, for the
+  six columns. It stops at 380px below about 1120px so it stays clear of the season
+  chip at the top centre. On a phone the sheet is the screen's width; a long
+  country name ends in "…" before a column moves.
 - **A switch orders the countries, Season or Territory** (`.leaderboard-order`,
-  `aria-pressed`), Season first. Season ranks by the points plus today's, as the
-  season would stand if the day ended now, then by tiles (`domain/race.ts`,
-  `countryLines`), and lists a country with points that holds no ground.
+  `aria-pressed`), Season first. Season ranks by the points of the days closed, then
+  by tiles (`domain/race.ts`, `countryLines`), and lists a country with points that
+  holds no ground. **Today's points do not move the order**: they come from the
+  ground held on average since the day started, not from the tiles held now, so a
+  country can score less today than one under it. Ranked by them, two countries at
+  0 points swapped against their tiles, which read as a bug (2026-10-08).
   Territory is the order by tiles held now, as the board was. `Viewer` holds the
   choice. With no race, there is no switch and the board is as it was.
 - **The view is picked from the board's heading** (`HeadingSelect`, a gold
@@ -957,8 +989,9 @@ draws it.
   one face. During the finale there is one, to the season's end. After it, none.
 - `app/season/` — `useSeason`, which drops the season at its end (a page open
   across it goes back to no season), `SeasonChip`, `SeasonDetails`,
-  `SeasonFacts`, the rows both of them open on, and `useRotation`, which turns
-  the chip's faces.
+  `SeasonFacts`, the rows both of them open on, `useRotation`, which turns the
+  chip's faces, and `RoundReveal` with `useRoundReveal` (see [The cutoff,
+  revealed](#the-cutoff-revealed)).
 
 **The season is a chip in the status zone, and it turns between two
 countdowns**: today's cutoff, because the day is what scores, and the start of
@@ -1008,6 +1041,45 @@ page's `<style>`, as `.panel` and `.button` are.
 **The desktop chip writes its bottom edge on `:root` as `--status-bottom`**
 (`useBottomEdge`), and on a phone the status bar does: the quiz and the bomb
 news sit under it. With neither, the property is unset and they sit at the top.
+
+### The cutoff, revealed
+
+When a day closes, who won it and the season's new order play full screen,
+once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
+
+- **It plays from the race.** The race on the season stream carries `closed`,
+  the round closed last: its season, its number, its end, whether it was the
+  finale, the countries that scored in it, and the season's table before and
+  after it (`ClosedRound`; the backend's CLAUDE.md, Seasons). `useRoundReveal`
+  reads it from the race `Viewer` already follows (`useRace`).
+- **When**: a round that ended less than 6 hours before the page opened
+  (`REVEAL_WITHIN_MS`), or one that closes while the page is open. **Once per
+  browser**: Close keeps the round's key (`season:number:end`) in
+  `clickplanet-round-seen`, and a round with that key does not play again, after
+  a reload too. Only the last key is kept.
+- **Two stages.** First the podium: "Day 5 is over!" or "The Final Battle is
+  over!", then the top 3 countries rise on steps (2nd, 1st, 3rd), each with its
+  flag, its name and the points it won. Only places with points; ties share a
+  rank. After `ROUND_REVEAL.podium` (3.4s), or on Next, the season table: the
+  top 10 in their order before the round, and the player's country, marked,
+  under them when it is not in the top 10. Then the rows slide to their new
+  order, the points count up to the new total, and each row shows what it won
+  and how it moved (▲2, ▼1, New, –). With no podium it opens on the table; with
+  no table it stops on the podium.
+- **Nothing closes it before it is settled**: no button, and Escape does
+  nothing, until the rows have moved (`ROUND_REVEAL.slide` + `settle`), or the
+  podium has run when there is no table. Then Close appears and Escape works.
+  The rule is the title unlock's: a player spamming the globe would close it
+  unseen.
+- **It waits for a title unlock to close.** `Viewer` mounts it once the map is
+  loaded and only while no `TitleUnlocked` is queued, so a title earned at the
+  cutoff plays first and the reveal plays after it.
+- It looks like the unlock: a portal on the body, the `title-reveal` classes of
+  `TitleUnlocked.css`, and the `title` sound. Under
+  `prefers-reduced-motion: reduce` the rows do not slide and the steps only fade
+  in.
+- In fake mode `closeDay()` and `closeFinale()` play it (see
+  [Commands](#commands)).
 
 ### Sessions
 

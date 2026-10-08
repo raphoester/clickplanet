@@ -107,6 +107,24 @@ func (s *StoreContractSuite) TestASecondCloseChangesNothing() {
 	s.Equal(first, s.ResultsOf(s.store, contractDay))
 }
 
+func (s *StoreContractSuite) number(round Round) uint32 {
+	number, err := s.store.Number(s.T().Context(), round)
+	s.Require().NoError(err)
+	return number
+}
+
+func (s *StoreContractSuite) TestARoundIsNumberedAfterTheRoundsOfItsSeasonCountedBeforeIt() {
+	nextSeason := Round{Season: 1, EndsAt: contractNextDay.EndsAt.Add(Length)}
+	s.snapshot(contractDay, map[Country]uint32{"fr": 1})
+	s.snapshot(contractNextDay, map[Country]uint32{"fr": 1})
+	s.snapshot(nextSeason, map[Country]uint32{"fr": 1})
+
+	s.Equal(uint32(1), s.number(contractDay))
+	s.Equal(uint32(2), s.number(contractNextDay))
+	s.Equal(uint32(3), s.number(contractFinale))
+	s.Equal(uint32(1), s.number(nextSeason))
+}
+
 func (s *StoreContractSuite) TestSnapshotsAtOnceAreAllCounted() {
 	var wg sync.WaitGroup
 	for range 40 {

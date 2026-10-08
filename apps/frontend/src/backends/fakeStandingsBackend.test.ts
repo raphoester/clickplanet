@@ -54,6 +54,34 @@ describe("FakeStandingsBackend.listenForRace", () => {
         expect(latest?.round?.endsAt).toBe(Date.UTC(2026, 9, 17, 21))
         expect(latest?.round?.standings.map((s) => `${s.rank} ${s.countryCode} ${s.points}`)).toEqual(["1 fr 25", "2 gh 18"])
         expect(latest?.scores[0]).toEqual({rank: 1, countryCode: "fr", points: 61, roundsWon: 2})
+        expect(latest?.closed).toBeUndefined()
         stop()
+    })
+
+    it("closes the day on demand: its results, and the season's table before and after them", async () => {
+        vi.useFakeTimers()
+        const now = Date.UTC(2026, 9, 16, 21)
+        const backend = new FakeStandingsBackend(PLAYERS, () => 0, () => now)
+        let latest: Race | undefined
+        const stop = backend.listenForRace((race) => latest = race)
+        await vi.advanceTimersByTimeAsync(0)
+
+        const closed = backend.closeRound()
+
+        expect(closed.number).toBe(5)
+        expect(closed.endedAt).toBe(now)
+        expect(closed.standings.map((s) => `${s.rank} ${s.countryCode} ${s.points}`)).toEqual(["1 fr 25", "2 gh 18"])
+        expect(closed.before[0]).toEqual({rank: 1, countryCode: "fr", points: 61, roundsWon: 2})
+        expect(closed.after[0]).toEqual({rank: 1, countryCode: "fr", points: 86, roundsWon: 3})
+        expect(closed.after.find((score) => score.countryCode === "gh")).toMatchObject({points: 18})
+        expect(latest?.closed).toEqual(closed)
+        expect(latest?.round?.number).toBe(6)
+        stop()
+    })
+
+    it("scores the Final Battle triple", () => {
+        const backend = new FakeStandingsBackend(PLAYERS, () => 0, () => 0)
+
+        expect(backend.closeRound(true).standings.map((s) => s.points)).toEqual([75, 54])
     })
 })

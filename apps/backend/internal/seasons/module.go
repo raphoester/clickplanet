@@ -103,7 +103,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	races := inprocess_race_feed.New(log_race_reader.New(race_query.NewPostgresQuery(db, seasons, clock), props.Logger))
 	snapshot := take_snapshot_usecase.NewRunner(config.Snapshot, log_take_snapshot.New(
-		take_snapshot_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), seasons, clock),
+		take_snapshot_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), props.Events, seasons, clock),
 		props.Logger,
 	))
 
