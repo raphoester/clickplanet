@@ -385,6 +385,11 @@
     padding-bottom: 36px;
 }
 
+.account-progress .player-fronts {
+    grid-auto-flow: row;
+    margin-bottom: 0;
+}
+
 .account-wear {
     display: flex;
     flex-direction: column;

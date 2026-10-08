@@ -2,6 +2,7 @@ import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrp
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {PlayerService} from "../gen/grpc/player/v1/player_connect.ts"
 import {
+    CountryTiles as CountryTilesPb,
     Player as PlayerPb,
     PlayerEvent as PlayerEventPb,
     Profile as ProfilePb,
@@ -10,6 +11,8 @@ import {
 } from "../gen/grpc/player/v1/player_pb.ts"
 import {
     ColoredProfile,
+    CountryTiles,
+    Fronts,
     NameColor,
     PlayerBackend,
     PlayerError,
@@ -86,6 +89,12 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
             wearable: res.wearable.flatMap((title) => titleOf(title) ?? []),
             tracks: res.tracks.map(trackOf),
         }
+    }
+
+    public async fronts(): Promise<Fronts> {
+        const res = await this.authenticated((headers) =>
+            retrying(() => this.client.getFronts({}, {headers}), "GetFronts"))
+        return {playsFor: res.playsFor.map(countryTilesOf), playsAgainst: res.playsAgainst.map(countryTilesOf)}
     }
 
     public async wearTitle(id: string): Promise<PlayerTitle | undefined> {
@@ -242,7 +251,13 @@ function playerInfoOf(player: PlayerPb | undefined): PlayerInfo {
         color: player?.color ?? NameColor.UNSPECIFIED,
         titles: (player?.titles ?? []).flatMap((title) => titleOf(title) ?? []),
         wornTitle: titleOf(player?.wornTitle),
+        playsFor: (player?.playsFor ?? []).map(countryTilesOf),
+        playsAgainst: (player?.playsAgainst ?? []).map(countryTilesOf),
     }
+}
+
+function countryTilesOf(country: CountryTilesPb): CountryTiles {
+    return {countryCode: country.countryId, tiles: Number(country.tiles)}
 }
 
 function trackOf(track: TrackPb): TitleTrack {

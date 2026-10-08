@@ -26,6 +26,7 @@ async function guest() {
         setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
         setColor: vi.fn(async (color: NameColor) => color),
         titles: vi.fn(async () => ({wearable: [], tracks: []})),
+        fronts: vi.fn(async () => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
     } satisfies PlayerBackend
     const navigate = vi.fn()

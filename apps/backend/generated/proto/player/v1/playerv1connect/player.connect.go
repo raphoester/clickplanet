@@ -57,6 +57,8 @@ const (
 	PlayerServiceGetTitlesProcedure = "/player.v1.PlayerService/GetTitles"
 	// PlayerServiceWearTitleProcedure is the fully-qualified name of the PlayerService's WearTitle RPC.
 	PlayerServiceWearTitleProcedure = "/player.v1.PlayerService/WearTitle"
+	// PlayerServiceGetFrontsProcedure is the fully-qualified name of the PlayerService's GetFronts RPC.
+	PlayerServiceGetFrontsProcedure = "/player.v1.PlayerService/GetFronts"
 )
 
 // PlayerServiceClient is a client for the player.v1.PlayerService service.
@@ -72,6 +74,7 @@ type PlayerServiceClient interface {
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
 	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
 	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
+	GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error)
 }
 
 // NewPlayerServiceClient constructs a client for the player.v1.PlayerService service. By default,
@@ -153,6 +156,12 @@ func NewPlayerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(playerServiceMethods.ByName("WearTitle")),
 			connect.WithClientOptions(opts...),
 		),
+		getFronts: connect.NewClient[v1.GetFrontsRequest, v1.GetFrontsResponse](
+			httpClient,
+			baseURL+PlayerServiceGetFrontsProcedure,
+			connect.WithSchema(playerServiceMethods.ByName("GetFronts")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -169,6 +178,7 @@ type playerServiceClient struct {
 	getPlayer       *connect.Client[v1.GetPlayerRequest, v1.GetPlayerResponse]
 	getTitles       *connect.Client[v1.GetTitlesRequest, v1.GetTitlesResponse]
 	wearTitle       *connect.Client[v1.WearTitleRequest, v1.WearTitleResponse]
+	getFronts       *connect.Client[v1.GetFrontsRequest, v1.GetFrontsResponse]
 }
 
 // GetProfile calls player.v1.PlayerService.GetProfile.
@@ -226,6 +236,11 @@ func (c *playerServiceClient) WearTitle(ctx context.Context, req *connect.Reques
 	return c.wearTitle.CallUnary(ctx, req)
 }
 
+// GetFronts calls player.v1.PlayerService.GetFronts.
+func (c *playerServiceClient) GetFronts(ctx context.Context, req *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error) {
+	return c.getFronts.CallUnary(ctx, req)
+}
+
 // PlayerServiceHandler is an implementation of the player.v1.PlayerService service.
 type PlayerServiceHandler interface {
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.GetProfileResponse], error)
@@ -239,6 +254,7 @@ type PlayerServiceHandler interface {
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
 	GetTitles(context.Context, *connect.Request[v1.GetTitlesRequest]) (*connect.Response[v1.GetTitlesResponse], error)
 	WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error)
+	GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error)
 }
 
 // NewPlayerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -316,6 +332,12 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(playerServiceMethods.ByName("WearTitle")),
 		connect.WithHandlerOptions(opts...),
 	)
+	playerServiceGetFrontsHandler := connect.NewUnaryHandler(
+		PlayerServiceGetFrontsProcedure,
+		svc.GetFronts,
+		connect.WithSchema(playerServiceMethods.ByName("GetFronts")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.PlayerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case PlayerServiceGetProfileProcedure:
@@ -340,6 +362,8 @@ func NewPlayerServiceHandler(svc PlayerServiceHandler, opts ...connect.HandlerOp
 			playerServiceGetTitlesHandler.ServeHTTP(w, r)
 		case PlayerServiceWearTitleProcedure:
 			playerServiceWearTitleHandler.ServeHTTP(w, r)
+		case PlayerServiceGetFrontsProcedure:
+			playerServiceGetFrontsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -391,4 +415,8 @@ func (UnimplementedPlayerServiceHandler) GetTitles(context.Context, *connect.Req
 
 func (UnimplementedPlayerServiceHandler) WearTitle(context.Context, *connect.Request[v1.WearTitleRequest]) (*connect.Response[v1.WearTitleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.WearTitle is not implemented"))
+}
+
+func (UnimplementedPlayerServiceHandler) GetFronts(context.Context, *connect.Request[v1.GetFrontsRequest]) (*connect.Response[v1.GetFrontsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.PlayerService.GetFronts is not implemented"))
 }

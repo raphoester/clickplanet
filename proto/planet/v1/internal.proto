@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package planet.v1;
+
+service InternalService {
+  rpc GetTakesByCountry(GetTakesByCountryRequest) returns (GetTakesByCountryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetTakesByCountryRequest {
+  string account_id = 1;
+}
+
+message GetTakesByCountryResponse {
+  repeated CountryTakes taken_for = 1;
+  repeated CountryTakes taken_from = 2;
+}
+
+message CountryTakes {
+  string country_id = 1;
+  uint64 tiles = 2;
+}

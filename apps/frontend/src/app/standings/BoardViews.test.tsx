@@ -423,6 +423,7 @@ async function guestStore() {
         setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
         setColor: vi.fn(async (color: NameColor) => color),
         titles: vi.fn(async () => ({wearable: [], tracks: []})),
+        fronts: vi.fn(async () => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
     } satisfies PlayerBackend
     const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate: vi.fn(), remember: vi.fn()})

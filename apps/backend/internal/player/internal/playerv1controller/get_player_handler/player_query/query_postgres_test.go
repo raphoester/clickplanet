@@ -38,6 +38,15 @@ func (f *fakeAccounts) CreatedAt(_ context.Context, account players.AccountID) (
 	return f.created[account], f.err
 }
 
+type fakeFronts struct {
+	answer *playerv1.GetFrontsResponse
+	err    error
+}
+
+func (f *fakeFronts) Fronts(context.Context, players.AccountID) (*playerv1.GetFrontsResponse, error) {
+	return f.answer, f.err
+}
+
 type testSuite struct {
 	suite.Suite
 
@@ -45,6 +54,7 @@ type testSuite struct {
 	players  *postgres_player_store.Store
 	titles   *postgres_title_store.Store
 	worn     *postgres_worn_title_store.Store
+	fronts   *fakeFronts
 	accounts *fakeAccounts
 	clock    *cptime.FixedClock
 }
@@ -65,6 +75,7 @@ func (s *testSuite) SetupSuite() {
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 	s.accounts = &fakeAccounts{created: map[players.AccountID]time.Time{ada: createdAt}}
+	s.fronts = &fakeFronts{answer: &playerv1.GetFrontsResponse{}}
 	s.clock = cptime.NewFixedClock(monday)
 	s.named(ada, "Ada_L")
 }
@@ -74,7 +85,7 @@ func (s *testSuite) named(account players.AccountID, name players.Name) {
 }
 
 func (s *testSuite) query() *player_query.PostgresQuery {
-	return player_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()), s.accounts, s.clock)
+	return player_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()), s.accounts, s.fronts, s.clock)
 }
 
 func (s *testSuite) player(name string) *playerv1.Player {
@@ -146,6 +157,38 @@ func (s *testSuite) TestATitleTheCatalogNoLongerHasIsNotShown() {
 
 	s.Require().Len(shown, 1, "the next reconciliation revokes it")
 	s.Equal("og", shown[0].GetId())
+}
+
+func (s *testSuite) TestAnybodyReadsTheTopThreeCountriesThePlayerPlaysForAndAgainst() {
+	countries := func(codes ...string) []*playerv1.CountryTiles {
+		tiles := make([]*playerv1.CountryTiles, 0, len(codes))
+		for i, code := range codes {
+			tiles = append(tiles, &playerv1.CountryTiles{CountryId: code, Tiles: uint64(10 - i)}) //nolint:gosec // a few countries.
+		}
+		return tiles
+	}
+	s.fronts.answer = &playerv1.GetFrontsResponse{PlaysFor: countries("fr", "be"), PlaysAgainst: countries("de", "es", "it", "pt")}
+
+	player := s.player("Ada_L")
+
+	s.True(proto.Equal(&playerv1.Player{PlaysFor: countries("fr", "be"), PlaysAgainst: countries("de", "es", "it")},
+		&playerv1.Player{PlaysFor: player.GetPlaysFor(), PlaysAgainst: player.GetPlaysAgainst()}), "%v", player)
+}
+
+func (s *testSuite) TestAPlayerThatTookNothingPlaysForAndAgainstNobody() {
+	player := s.player("Ada_L")
+
+	s.Empty(player.GetPlaysFor())
+	s.Empty(player.GetPlaysAgainst())
+}
+
+func (s *testSuite) TestAFailureToAskForTheCountriesIsAnError() {
+	s.fronts.err = errors.New("planet is down")
+
+	_, err := s.query().Player(s.T().Context(), "Ada_L")
+
+	s.Require().ErrorIs(err, s.fronts.err)
+	s.NotErrorIs(err, player_query.ErrNoPlayer)
 }
 
 func (s *testSuite) TestTheStreakIsReadAsOfToday() {
