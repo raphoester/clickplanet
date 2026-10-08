@@ -12,48 +12,36 @@ import (
 
 	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/inprocess_board_feed"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-var (
-	ana  = standings.AccountID{15: 1}
-	kofi = standings.AccountID{15: 2}
-	lea  = standings.AccountID{15: 3}
-)
-
-type kept struct {
-	board    *seasonsv1.Board
-	accounts []standings.AccountID
-}
-
 type reader struct {
 	mu     sync.Mutex
-	boards map[string]kept
+	boards map[string]*seasonsv1.Board
 	reads  map[string]int
 	err    error
 }
 
 func newReader() *reader {
-	return &reader{boards: map[string]kept{}, reads: map[string]int{}}
+	return &reader{boards: map[string]*seasonsv1.Board{}, reads: map[string]int{}}
 }
 
-func (r *reader) Board(_ context.Context, country string) (*seasonsv1.Board, []standings.AccountID, error) {
+func (r *reader) Board(_ context.Context, country string) (*seasonsv1.Board, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.reads[country]++
 	if r.err != nil {
-		return nil, nil, r.err
+		return nil, r.err
 	}
-	shown, ok := r.boards[country]
+	board, ok := r.boards[country]
 	if !ok {
-		return &seasonsv1.Board{}, []standings.AccountID{}, nil
+		return &seasonsv1.Board{}, nil
 	}
-	return proto.CloneOf(shown.board), shown.accounts, nil
+	return proto.CloneOf(board), nil
 }
 
-func (r *reader) show(country string, accounts []standings.AccountID, names ...string) {
+func (r *reader) show(country string, names ...string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -61,7 +49,7 @@ func (r *reader) show(country string, accounts []standings.AccountID, names ...s
 	for _, name := range names {
 		board.Standings = append(board.Standings, &seasonsv1.Standing{Name: name})
 	}
-	r.boards[country] = kept{board: board, accounts: accounts}
+	r.boards[country] = board
 }
 
 func (r *reader) fail(err error) {
@@ -123,9 +111,21 @@ func quiet(t *testing.T, boards <-chan *seasonsv1.Board) {
 	}
 }
 
+func closed(t *testing.T, boards <-chan *seasonsv1.Board) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		select {
+		case _, open := <-boards:
+			return !open
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond)
+}
+
 func TestAStreamGetsItsBoardOnceItIsRead(t *testing.T) {
 	f := newFixture()
-	f.reader.show("", []standings.AccountID{ana}, "Ana")
+	f.reader.show("", "Ana")
 
 	boards := f.feed.Subscribe(t.Context(), "")
 	quiet(t, boards)
@@ -137,15 +137,70 @@ func TestAStreamGetsItsBoardOnceItIsRead(t *testing.T) {
 
 func TestAnotherStreamOfTheViewGetsTheBoardAtOnceWithNoRead(t *testing.T) {
 	f := newFixture()
-	f.reader.show("fr", []standings.AccountID{ana}, "Ana")
+	f.reader.show("fr", "Ana")
 	first := f.feed.Subscribe(t.Context(), "fr")
 	f.feed.Refresh(t.Context())
 	next(t, first)
 
 	second := f.feed.Subscribe(t.Context(), "fr")
+	f.feed.Refresh(t.Context())
 
 	assert.Equal(t, []string{"Ana"}, next(t, second))
 	assert.Equal(t, 1, f.reader.readsOf("fr"))
+}
+
+func TestOneReadServesEveryStreamOfAView(t *testing.T) {
+	f := newFixture()
+	f.reader.show("", "Ana")
+	streams := []<-chan *seasonsv1.Board{
+		f.feed.Subscribe(t.Context(), ""),
+		f.feed.Subscribe(t.Context(), ""),
+		f.feed.Subscribe(t.Context(), ""),
+	}
+
+	f.feed.Refresh(t.Context())
+
+	for _, boards := range streams {
+		assert.Equal(t, []string{"Ana"}, next(t, boards))
+	}
+	assert.Equal(t, 1, f.reader.readsOf(""))
+}
+
+func TestAFollowedBoardIsReadAgainOnItsOwnClock(t *testing.T) {
+	f := newFixture()
+	boards := f.feed.Subscribe(t.Context(), "")
+	f.feed.Refresh(t.Context())
+	next(t, boards)
+
+	f.reader.show("", "Ana")
+	f.refreshAfter(t, inprocess_board_feed.Every-time.Millisecond)
+	assert.Equal(t, 1, f.reader.readsOf(""))
+	quiet(t, boards)
+
+	f.refreshAfter(t, time.Millisecond)
+
+	assert.Equal(t, 2, f.reader.readsOf(""))
+	assert.Equal(t, []string{"Ana"}, next(t, boards))
+}
+
+func TestEachViewIsReadOnItsOwnClock(t *testing.T) {
+	f := newFixture()
+	f.feed.Subscribe(t.Context(), "")
+	f.feed.Refresh(t.Context())
+
+	f.clock.Advance(inprocess_board_feed.Every / 2)
+	f.feed.Subscribe(t.Context(), "fr")
+	f.feed.Refresh(t.Context())
+	assert.Equal(t, 1, f.reader.readsOf(""), "a new view is no reason to read the others")
+	assert.Equal(t, 1, f.reader.readsOf("fr"), "a new view is read at once")
+
+	f.refreshAfter(t, inprocess_board_feed.Every/2)
+	assert.Equal(t, 2, f.reader.readsOf(""))
+	assert.Equal(t, 1, f.reader.readsOf("fr"))
+
+	f.refreshAfter(t, inprocess_board_feed.Every/2)
+	assert.Equal(t, 2, f.reader.readsOf(""))
+	assert.Equal(t, 2, f.reader.readsOf("fr"))
 }
 
 func TestEveryStreamOfAViewGetsTheNewBoard(t *testing.T) {
@@ -156,81 +211,20 @@ func TestEveryStreamOfAViewGetsTheNewBoard(t *testing.T) {
 	next(t, first)
 	next(t, second)
 
-	f.reader.show("", []standings.AccountID{ana}, "Ana")
-	f.feed.MarkTaken(standings.Take{Account: ana, Country: "fr"})
+	f.reader.show("", "Ana")
 	f.refreshAfter(t, inprocess_board_feed.Every)
 
 	assert.Equal(t, []string{"Ana"}, next(t, first))
 	assert.Equal(t, []string{"Ana"}, next(t, second))
 }
 
-func TestATakeMovesTheBoardOfEveryPlayerAndTheBoardOfItsFlag(t *testing.T) {
-	f := newFixture()
-	for _, country := range []string{"", "fr", "de"} {
-		f.feed.Subscribe(t.Context(), country)
-	}
-	f.feed.Refresh(t.Context())
-
-	f.feed.MarkTaken(standings.Take{Account: ana, Country: "fr"})
-	f.refreshAfter(t, inprocess_board_feed.Every)
-
-	assert.Equal(t, 2, f.reader.readsOf(""))
-	assert.Equal(t, 2, f.reader.readsOf("fr"))
-	assert.Equal(t, 1, f.reader.readsOf("de"), "a take for France moves no German board that does not list its taker")
-}
-
-func TestATakeMovesNoOtherFlagsBoardEvenOneThatListsItsTaker(t *testing.T) {
-	f := newFixture()
-	f.reader.show("de", []standings.AccountID{kofi, ana}, "Kofi", "Ana")
-	f.feed.Subscribe(t.Context(), "de")
-	f.feed.Refresh(t.Context())
-
-	f.feed.MarkTaken(standings.Take{Account: ana, Country: "fr"})
-	f.refreshAfter(t, inprocess_board_feed.Every)
-
-	assert.Equal(t, 1, f.reader.readsOf("de"), "Ana's tiles for Germany did not change")
-}
-
-func TestAMovedBoardIsReadAtMostOnceASecond(t *testing.T) {
-	f := newFixture()
-	f.feed.Subscribe(t.Context(), "")
-	f.feed.Refresh(t.Context())
-
-	f.feed.MarkTaken(standings.Take{Account: ana, Country: "fr"})
-	f.refreshAfter(t, inprocess_board_feed.Every-time.Millisecond)
-	f.feed.MarkTaken(standings.Take{Account: kofi, Country: "gh"})
-	f.feed.Refresh(t.Context())
-	assert.Equal(t, 1, f.reader.readsOf(""))
-
-	f.refreshAfter(t, time.Millisecond)
-	assert.Equal(t, 2, f.reader.readsOf(""), "two takes in one second are one read")
-
-	f.refreshAfter(t, inprocess_board_feed.Every)
-	assert.Equal(t, 2, f.reader.readsOf(""), "nothing moved since")
-}
-
-func TestAFollowedBoardIsReadAgainEveryFifteenSecondsWithNoTake(t *testing.T) {
-	f := newFixture()
-	boards := f.feed.Subscribe(t.Context(), "")
-	f.feed.Refresh(t.Context())
-	next(t, boards)
-
-	f.reader.show("", []standings.AccountID{ana}, "Ana renamed")
-	f.refreshAfter(t, inprocess_board_feed.AtLeast-time.Millisecond)
-	quiet(t, boards)
-
-	f.refreshAfter(t, time.Millisecond)
-	assert.Equal(t, []string{"Ana renamed"}, next(t, boards))
-}
-
 func TestABoardThatDidNotChangeIsNotSentAgain(t *testing.T) {
 	f := newFixture()
-	f.reader.show("", []standings.AccountID{ana}, "Ana")
+	f.reader.show("", "Ana")
 	boards := f.feed.Subscribe(t.Context(), "")
 	f.feed.Refresh(t.Context())
 	next(t, boards)
 
-	f.feed.MarkTaken(standings.Take{Account: kofi, Country: "gh"})
 	f.refreshAfter(t, inprocess_board_feed.Every)
 
 	assert.Equal(t, 2, f.reader.readsOf(""))
@@ -242,33 +236,16 @@ func TestAStreamThatReadsNothingGetsOnlyTheNewestBoard(t *testing.T) {
 	boards := f.feed.Subscribe(t.Context(), "")
 	f.feed.Refresh(t.Context())
 
-	f.reader.show("", []standings.AccountID{ana}, "Ana")
-	f.feed.MarkTaken(standings.Take{Account: ana, Country: "fr"})
+	f.reader.show("", "Ana")
 	f.refreshAfter(t, inprocess_board_feed.Every)
-	f.reader.show("", []standings.AccountID{ana, kofi}, "Ana", "Kofi")
-	f.feed.MarkTaken(standings.Take{Account: kofi, Country: "gh"})
+	f.reader.show("", "Ana", "Kofi")
 	f.refreshAfter(t, inprocess_board_feed.Every)
 
 	assert.Equal(t, []string{"Ana", "Kofi"}, next(t, boards))
 	quiet(t, boards)
 }
 
-func TestAForgottenAccountMovesOnlyTheBoardsThatListIt(t *testing.T) {
-	f := newFixture()
-	f.reader.show("fr", []standings.AccountID{ana}, "Ana")
-	f.reader.show("gh", []standings.AccountID{kofi}, "Kofi")
-	f.feed.Subscribe(t.Context(), "fr")
-	f.feed.Subscribe(t.Context(), "gh")
-	f.feed.Refresh(t.Context())
-
-	f.feed.MarkForgotten(ana)
-	f.refreshAfter(t, inprocess_board_feed.Every)
-
-	assert.Equal(t, 2, f.reader.readsOf("fr"))
-	assert.Equal(t, 1, f.reader.readsOf("gh"))
-}
-
-func TestABoardNobodyFollowsIsNeitherReadNorMoved(t *testing.T) {
+func TestABoardNobodyFollowsIsNotRead(t *testing.T) {
 	f := newFixture()
 	ctx, cancel := context.WithCancel(t.Context())
 	boards := f.feed.Subscribe(ctx, "fr")
@@ -276,23 +253,34 @@ func TestABoardNobodyFollowsIsNeitherReadNorMoved(t *testing.T) {
 	next(t, boards)
 
 	cancel()
-	require.Eventually(t, func() bool {
-		select {
-		case _, open := <-boards:
-			return !open
-		default:
-			return false
-		}
-	}, 2*time.Second, time.Millisecond)
+	closed(t, boards)
 
-	f.feed.MarkTaken(standings.Take{Account: lea, Country: "fr"})
-	f.refreshAfter(t, inprocess_board_feed.AtLeast)
+	f.refreshAfter(t, inprocess_board_feed.Every)
 	assert.Equal(t, 1, f.reader.readsOf("fr"))
 }
 
-func TestAFailedReadIsTriedAgainASecondLater(t *testing.T) {
+func TestTheFirstStreamAfterNobodyFollowedWaitsForAFreshRead(t *testing.T) {
 	f := newFixture()
-	f.reader.show("", []standings.AccountID{ana}, "Ana")
+	f.reader.show("fr", "Ana")
+	ctx, cancel := context.WithCancel(t.Context())
+	gone := f.feed.Subscribe(ctx, "fr")
+	f.feed.Refresh(t.Context())
+	next(t, gone)
+	cancel()
+	closed(t, gone)
+
+	f.reader.show("fr", "Kofi")
+	boards := f.feed.Subscribe(t.Context(), "fr")
+	quiet(t, boards)
+	f.feed.Refresh(t.Context())
+
+	assert.Equal(t, []string{"Kofi"}, next(t, boards))
+	assert.Equal(t, 2, f.reader.readsOf("fr"))
+}
+
+func TestAFailedReadIsTriedAgainOnTheNextRead(t *testing.T) {
+	f := newFixture()
+	f.reader.show("", "Ana")
 	f.reader.fail(assert.AnError)
 	boards := f.feed.Subscribe(t.Context(), "")
 
@@ -309,7 +297,7 @@ func TestAFailedReadIsTriedAgainASecondLater(t *testing.T) {
 
 func TestTheRunnerReadsANewViewAndStopsWithItsContext(t *testing.T) {
 	f := newFixture()
-	f.reader.show("", []standings.AccountID{ana}, "Ana")
+	f.reader.show("", "Ana")
 	ctx, cancel := context.WithCancel(t.Context())
 	stopped := make(chan struct{})
 	go func() {
