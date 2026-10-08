@@ -874,9 +874,22 @@ draws it.
   `listenForRace` follows the whole map's season stream and reads its `race`
   case, which every stream carries; the server reads it again every 10s.
   `Viewer` follows it once (`useRace`) and hands it to the board. With a race the
-  board has a Points column in place of "% of map", each country's points from the
-  days closed with what it scores today beside them in green ("43 +18"), and the
-  leader frame shows them where it showed the share.
+  board keeps "% of map" and adds two columns: Points, each country's points from
+  the days closed, right-aligned, and Today, what it scores if the day ends now, in
+  green ("+18") and left-aligned. **Today is its own column so the points line up**:
+  as a badge beside the points it pushed only the rows that had one. The leader
+  frame shows the points where it showed the share, and the share under its tiles.
+- **Each number says what it means** (`Hint` in `Leaderboard`, the texts in
+  `boardFigures.ts`), as a bonus does: the column heads and the leader frame's
+  figures are buttons that show a `Bubble`, while a mouse is over them or for
+  `BUBBLE_MS` after a press. **The first time the board shows points, it says what
+  they are on its own** (twice as long), once per browser: `useBoardGuide`, the
+  `clickplanet-board-guide` key. The bubble renders beside its button, not inside:
+  inside, it mounts before the button's ref is set and has nothing to sit on.
+- **The desktop menu is `clamp(380px, 34vw, 460px)` wide**, every tab alike, for the
+  six columns. It stops at 380px below about 1120px so it stays clear of the season
+  chip at the top centre. On a phone the sheet is the screen's width; a long
+  country name ends in "…" before a column moves.
 - **A switch orders the countries, Season or Territory** (`.leaderboard-order`,
   `aria-pressed`), Season first. Season ranks by the points plus today's, as the
   season would stand if the day ended now, then by tiles (`domain/race.ts`,
