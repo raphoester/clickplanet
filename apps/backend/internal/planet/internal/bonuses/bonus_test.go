@@ -864,19 +864,20 @@ func TestAClosedShapeReachesEveryoneAndOnlyItsCloserIsToldItIsTheirs(t *testing.
 	assert.Equal(t, []uint32{7, 8}, seen.Wall)
 }
 
-func TestABoxGivesAFewEnclosuresOrSpreadClicksAndOneOfTheRest(t *testing.T) {
+func TestABoxGivesAFewEnclosuresSpreadClicksOrShieldsAndOneOfTheRest(t *testing.T) {
 	registry, _ := newTestRegistry()
 
 	seen := map[Kind]*cpcolls.Set[int]{}
 	for _, kind := range Kinds {
 		seen[kind] = cpcolls.NewSet[int]()
-		for range 200 {
+		for range 1000 {
 			seen[kind].Add(registry.amountOf(kind))
 		}
 	}
 
 	assert.Equal(t, cpcolls.NewSet(1, 2, 3, 4), seen[KindSpreadClicks], "1 to 4 spread clicks")
 	assert.Equal(t, cpcolls.NewSet(1, 2, 3), seen[KindEncloseClicks], "1 to 3 enclosures")
+	assert.Equal(t, cpcolls.NewSet(5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20), seen[KindShields], "5 to 20 shields")
 	assert.Equal(t, cpcolls.NewSet(1), seen[KindBomb])
 	assert.Equal(t, cpcolls.NewSet(1), seen[KindRefill])
 }
