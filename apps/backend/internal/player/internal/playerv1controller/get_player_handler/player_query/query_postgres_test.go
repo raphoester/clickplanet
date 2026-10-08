@@ -11,6 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/fronts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/fronts/postgres_front_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
@@ -45,6 +47,7 @@ type testSuite struct {
 	players  *postgres_player_store.Store
 	titles   *postgres_title_store.Store
 	worn     *postgres_worn_title_store.Store
+	fronts   *postgres_front_store.Store
 	accounts *fakeAccounts
 	clock    *cptime.FixedClock
 }
@@ -60,6 +63,7 @@ func (s *testSuite) SetupSuite() {
 	s.players = postgres_player_store.New(s.db)
 	s.titles = postgres_title_store.New(s.db)
 	s.worn = postgres_worn_title_store.New(s.db)
+	s.fronts = postgres_front_store.New(s.db)
 }
 
 func (s *testSuite) SetupTest() {
@@ -146,6 +150,38 @@ func (s *testSuite) TestATitleTheCatalogNoLongerHasIsNotShown() {
 
 	s.Require().Len(shown, 1, "the next reconciliation revokes it")
 	s.Equal("og", shown[0].GetId())
+}
+
+func (s *testSuite) took(account players.AccountID, country, previous fronts.Country, tiles int) {
+	take, err := fronts.NewTake(account, country, previous)
+	s.Require().NoError(err)
+	for range tiles {
+		s.Require().NoError(s.fronts.RecordTake(s.T().Context(), take))
+	}
+}
+
+func (s *testSuite) TestThePlayerPlaysForAndAgainstEachCountryMostTilesFirst() {
+	s.took(ada, "fr", "de", 3)
+	s.took(ada, "fr", "", 2)
+	s.took(ada, "it", "es", 1)
+	s.took(ada, "be", "it", 1)
+	s.took(players.AccountID{15: 2}, "de", "fr", 9)
+
+	player := s.player("Ada_L")
+
+	s.True(proto.Equal(&playerv1.Player{
+		PlaysFor: []*playerv1.CountryTiles{{CountryId: "fr", Tiles: 5}, {CountryId: "be", Tiles: 1}, {CountryId: "it", Tiles: 1}},
+		PlaysAgainst: []*playerv1.CountryTiles{
+			{CountryId: "de", Tiles: 3}, {CountryId: "es", Tiles: 1}, {CountryId: "it", Tiles: 1},
+		},
+	}, &playerv1.Player{PlaysFor: player.GetPlaysFor(), PlaysAgainst: player.GetPlaysAgainst()}))
+}
+
+func (s *testSuite) TestAPlayerThatTookNothingPlaysForAndAgainstNobody() {
+	player := s.player("Ada_L")
+
+	s.Empty(player.GetPlaysFor())
+	s.Empty(player.GetPlaysAgainst())
 }
 
 func (s *testSuite) TestTheStreakIsReadAsOfToday() {

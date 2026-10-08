@@ -1,6 +1,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    CountryTiles as CountryTilesPb,
     Player as PlayerPb,
     PlayerEvent as PlayerEventPb,
     PlayerLeft as PlayerLeftPb,
@@ -422,6 +423,8 @@ describe("ConnectPlayerBackend player info", () => {
                 color: NameColor.VIOLET,
                 titles: [new TitlePb({id: "og", name: "OG"}), settlerPb],
                 wornTitle: settlerPb,
+                playsFor: [new CountryTilesPb({countryId: "fr", tiles: 1200n}), new CountryTilesPb({countryId: "be", tiles: 34n})],
+                playsAgainst: [new CountryTilesPb({countryId: "de", tiles: 900n})],
             }),
         }))
 
@@ -430,6 +433,8 @@ describe("ConnectPlayerBackend player info", () => {
             color: NameColor.VIOLET,
             titles: [{id: "og", name: "OG"}, settler],
             wornTitle: settler,
+            playsFor: [{countryCode: "fr", tiles: 1200}, {countryCode: "be", tiles: 34}],
+            playsAgainst: [{countryCode: "de", tiles: 900}],
         })
         expect(getPlayer).toHaveBeenCalledWith({name: "ana"})
         expect(session.token).not.toHaveBeenCalled()

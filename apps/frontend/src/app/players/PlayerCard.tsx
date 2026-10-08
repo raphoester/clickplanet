@@ -11,6 +11,7 @@ import TitleBanner from "../titles/TitleBanner.tsx"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import {metalOf, OG} from "../titles/titleArt.ts"
 import {truncate} from "../truncate.ts"
+import PlayerFronts from "./PlayerFronts.tsx"
 import {usePlayerInfo} from "./usePlayerInfo.ts"
 import "./PlayerCard.css"
 
@@ -53,6 +54,7 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
         {info?.wornTitle && <TitleBanner title={info.wornTitle}/>}
         {info && <PlayerTitles titles={info.titles}/>}
         {info && <PlayerStats info={info}/>}
+        {info && <PlayerFronts playsFor={info.playsFor} playsAgainst={info.playsAgainst}/>}
     </Modal>
 }
 

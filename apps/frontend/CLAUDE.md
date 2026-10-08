@@ -730,7 +730,14 @@ flag and the country, then, for a player with a username, what
 `player.v1.PlayerService/GetPlayer` answers: the title it wears and the titles
 it shows (see [Titles](#titles)), then tiles taken, the current and best
 streak, and "Playing since", the day the account was made (left out when the
-server does not know it). The fake gives its players titles of its own over
+server does not know it). Under them, **"Plays for" and "Plays against"**
+(`PlayerFronts`): the countries the player took tiles for, and the ones it took
+them from, each with a bar of its share of that side's tiles. The top 3 show,
+and "See all N" opens the rest in place. A side with no tile is left out. They
+are the player's total, not the season's (see the backend's CLAUDE.md, Player),
+so the top one explains the flag beside its name on the Players board. Two
+columns on a desktop, which is why the card is 440px wide; one under the other
+on a phone. The fake gives its players titles and countries of its own over
 their fake stats and creation date. **A guest's card asks nothing**: a guest has no
 username, so there is nothing to look up, and the card shows the name and the
 flag alone. It says nothing to the viewer, who may well be signed in. The chat tells

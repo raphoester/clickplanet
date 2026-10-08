@@ -142,6 +142,13 @@ export type PlayerInfo = {
     color: NameColor
     titles: PlayerTitle[]
     wornTitle?: PlayerTitle
+    playsFor: CountryTiles[]
+    playsAgainst: CountryTiles[]
+}
+
+export type CountryTiles = {
+    countryCode: string
+    tiles: number
 }
 
 export interface PlayerInfoBackend {

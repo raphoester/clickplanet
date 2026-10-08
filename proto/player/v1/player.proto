@@ -140,6 +140,13 @@ message Player {
   NameColor color = 5;
   repeated Title titles = 6;
   Title worn_title = 7;
+  repeated CountryTiles plays_for = 8;
+  repeated CountryTiles plays_against = 9;
+}
+
+message CountryTiles {
+  string country_id = 1;
+  uint64 tiles = 2;
 }
 
 message TitleEarned {

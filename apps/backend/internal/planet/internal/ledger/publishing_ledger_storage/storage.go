@@ -32,10 +32,11 @@ func (s Storage) Append(event ledger.Event) {
 		}
 
 		s.events.Publish(&planetv1.TileTaken{
-			AccountId: taking.Account,
-			TileId:    taking.Tile,
-			Country:   taking.Country,
-			TakenAt:   timestamppb.New(taking.At),
+			AccountId:       taking.Account,
+			TileId:          taking.Tile,
+			Country:         taking.Country,
+			TakenAt:         timestamppb.New(taking.At),
+			PreviousCountry: taking.Previous,
 		})
 	})
 }

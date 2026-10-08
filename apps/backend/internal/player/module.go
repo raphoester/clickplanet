@@ -11,6 +11,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/fronts/postgres_front_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/fronts/usecases/forget_fronts_usecase"
+	record_front_take "github.com/raphoester/clickplanet.lol-backend/internal/player/internal/fronts/usecases/record_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
@@ -66,6 +69,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_out_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/stats_changed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/tile_taken_fronts_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/tile_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/inprocess_title_feed"
@@ -144,6 +148,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	titleBook := titles.NewBook(titleStore, catalog)
 	titleFeed := inprocess_title_feed.New()
 	wornTitleStore := postgres_worn_title_store.New(db)
+	frontStore := postgres_front_store.New(db)
 	wardrobe := wearing.NewWardrobe(wornTitleStore, titleBook, catalog)
 	titleCards := inprocess_title_catalog.New(catalog)
 
@@ -160,6 +165,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
+	}
+	frontTakes, err := cpbootstrap.Subscribe(props.Events, "player-fronts", tileTakenBuffer,
+		log_subscriber.New(tile_taken_fronts_subscriber.New(record_front_take.New(frontStore)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the fronts to planet.v1.TileTaken: %w", err)
 	}
 	posts, err := cpbootstrap.Subscribe(props.Events, "player-stats-messages", messageSentBuffer,
 		log_subscriber.New(message_sent_subscriber.New(
@@ -196,6 +207,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe the worn titles to auth.v1.AccountDeleted: %w", err)
 	}
 
+	forgottenFronts, err := cpbootstrap.Subscribe(props.Events, "player-fronts-accounts", accountDeletedBuffer,
+		log_subscriber.New(account_deleted_subscriber.New(forget_fronts_usecase.New(frontStore)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe the fronts to auth.v1.AccountDeleted: %w", err)
+	}
+
 	forgetVisit := forget_visit_usecase.New(visits)
 	signIns, err := cpbootstrap.Subscribe(props.Events, "player-presence-sign-ins", signInBuffer,
 		log_subscriber.New(signed_in_subscriber.New(move_visit_usecase.New(authors, visits)), props.Logger))
@@ -226,7 +244,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Runners.Add(signOuts)
 	props.Runners.Add(gone)
 
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, takes, posts, awards, deletions, forgottenTitles, forgottenChoices, signIns, namings))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
+		takes, frontTakes, posts, awards, deletions, forgottenTitles, forgottenChoices, forgottenFronts, signIns, namings))
 
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "player")))
 

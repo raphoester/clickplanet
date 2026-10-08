@@ -524,7 +524,7 @@ describe("Menu", () => {
             const playerInfo = {
                 playerInfo: vi.fn(async (name: string) => ({
                     name, tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
-                    color: NameColor.UNSPECIFIED, titles: [],
+                    color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
                 })),
             }
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, playerInfo)
@@ -540,7 +540,7 @@ describe("Menu", () => {
             const playerInfo = {
                 playerInfo: vi.fn(async (name: string) => ({
                     name, tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
-                    color: NameColor.UNSPECIFIED, titles: [],
+                    color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
                 })),
             }
             const clicks = acceptedClicks()

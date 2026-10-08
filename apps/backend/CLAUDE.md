@@ -244,7 +244,7 @@ The events today:
 
 | event | published by | when | heard by |
 |---|---|---|---|
-| `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats; `seasons`, for the standings |
+| `planet.v1.TileTaken{account_id, tile_id, country, taken_at, previous_country}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile; `previous_country` is the flag that held the tile, empty for a tile nobody held | `player`, for the stats and the fronts; `seasons`, for the standings |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
@@ -1135,7 +1135,7 @@ internal/auth/internal/
 
 ### Player (`internal/player/`)
 
-**What the game keeps about one account: the name it chose or its guest code, the tiles it took and its daily streak; and who is playing now.** It makes no account and mints nothing. Always on: the chat asks it who posts.
+**What the game keeps about one account: the name it chose or its guest code, the tiles it took, the countries it took them for and from, and its daily streak; and who is playing now.** It makes no account and mints nothing. Always on: the chat asks it who posts.
 
 ```
 internal/player/internal/
@@ -1171,6 +1171,11 @@ internal/player/internal/
     inmemory_worn_title_store/      the same port in maps, behind the testing tag
     usecases/wear_title_usecase/  forget_worn_title_usecase/
       wear_title_usecase/dressing_wear_title/   shows a title worn on the roster at once
+  fronts/                           Country, Take (NewTake, Against); the Store port and its contract suite, and Tally behind the
+                                    testing tag
+    postgres_front_store/           the Store over player.fronts
+    inmemory_front_store/           the same port in maps, behind the testing tag
+    usecases/record_take_usecase/  forget_fronts_usecase/
   presence/                         Visit, Entry, RosterOf, TTL: who is playing
     inmemory_visit_storage/         the last visit of each account, capped, keyed, pruned every 5s (a Runner), and each change to its subscribers
     usecases/announce_usecase/  listen_for_events_usecase/  move_visit_usecase/  forget_visit_usecase/
@@ -1188,7 +1193,7 @@ internal/player/internal/
     playermessage/                  Profile, Title and the roster lines as player.v1 messages, for the commands and the adapters
   subscribers/                      the edge for events, as the controller is for the wire
     tile_taken_subscriber/  message_sent_subscriber/  account_deleted_subscriber/  signed_in_subscriber/  signed_out_subscriber/
-    stats_changed_subscriber/  signed_in_account_subscriber/
+    stats_changed_subscriber/  signed_in_account_subscriber/  tile_taken_fronts_subscriber/
     log_subscriber/
   migrations/
 ```
@@ -1242,7 +1247,7 @@ internal/player/internal/
   ```
 
   An account with no username has no profile row, so it cannot be one: pick the name first.
-- **`GetPlayer(name)` is what anybody may know about a player with a username**: the name as typed, its color, the stats as of today, and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **It never answers the account id.** The name is found ignoring case (`player_query`, on the unique index on `name_folded`). A name no account holds is `NotFound` (`player_query.ErrNoPlayer`), and so is one no account may hold, a guest's included: it is folded and looked up like any other, and finds nobody. A guest has no username, so it has no answer here: the client shows its name and flag only. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which now also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
+- **`GetPlayer(name)` is what anybody may know about a player with a username**: the name as typed, its color, the stats as of today, the countries it plays for and against (see the fronts below), and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **It never answers the account id.** The name is found ignoring case (`player_query`, on the unique index on `name_folded`). A name no account holds is `NotFound` (`player_query.ErrNoPlayer`), and so is one no account may hold, a guest's included: it is folded and looked up like any other, and finds nobody. A guest has no username, so it has no answer here: the client shows its name and flag only. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which now also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
 - **A title is an object, not a row of thresholds.** **Titles are a concept of their own** (`titles/`), beside `players` and `presence`, with their own `Store` port, contract suite and adapters. `titles` imports `players` (an account, its `Stats`), never the other way, so a player's stats know nothing of titles: `player_query` puts the two together, as chat's history query puts a message and its author together. Each title is its own type implementing `titles.Title`: `ID()` (what the store keeps), `Name()` (what the card shows) and `EarnedBy(career)`, which is free to hold any rule. A `titles.Career` is the account's `Stats` and its `players.Account`: whether it is `Linked` and its `CreatedAt`, as auth says (a guest with no date when auth does not know it). **A guest earns no title**: `Catalog.EarnedBy` answers nothing for a career whose account is not linked, whatever the titles say, so neither the worker nor the reconciliation writes a row for one. A guest has no username, so nobody could see its titles anyway; once it signs in, its next take earns them on its whole career, OG included. `catalog_test.go` pins each threshold, and that each id is unique and fits the table's `CHECK`. A rule that needs more than a `Career` holds widens `Career`, and whoever builds one.
   - **Most titles are ranks on a track.** A `titles.Track` is an id, a name, its ranks in order, and `Progress(career)`, the number its ranks are measured on; a `titles.Rank` is a title with a `Threshold()`. `Conquest` is `Settler`, `Raider`, `Warlord`, `Conqueror` and `Warmaster` (100, 1,000, 10,000, 100,000 and 1,000,000 tiles taken; its progress is the tiles taken). `Devotion` is `Loyal`, `Devoted` and `Unbroken` (a best streak of 7, 30 and 100 days, so a broken streak keeps its rank; its progress is the streak now). `Chatter` is `Talker`, `Chatterbox`, `Socialite` and `Icon` (10, 30, 100 and 1,000 messages sent; its progress is the messages sent). `OG` stands alone: an account made before 2026-11-01 UTC (a zero date is not). `titles.NewCatalog()` is the standalone titles and the tracks, in the order they are shown. **A new rank is a type added to its track**, a new track a type listed in the catalog: no migration, no proto change. `Conquest`'s names are army words, and a rank past `Warmaster` keeps to them (`Grand Warmaster`, then `Supreme Warmaster`); `Chatter`'s are social words. The client draws a medal per id and the initial for an id it does not know, so a new title shows before the client has its art.
   - **Only the highest rank of each track is shown.** `Catalog.Shown(held)` is the standalone titles held, then the highest rank held of each track, each as a `Standing`: the title and its `Place` (track, rank number, how many ranks). A lower rank stays held, so a stricter rule or a reconciliation never has to give one back.
@@ -1254,6 +1259,24 @@ internal/player/internal/
   - **An operator reconciles them**: `player.v1.AdminService/ReconcileTitles`, on the admin listener (see [Operator tools](#operator-tools-adminservice)), after a deploy that adds a title or changes a rule, and once after the one that brought titles. Nothing runs it at boot. `reconcile_titles_usecase` pages through `player.stats` (the players store's `StatsAfter`, 500 accounts at a time, in account order); for each page it asks auth about the accounts (`GetAccounts`, one call) and reads their titles (`Store.Holdings`, one query), and `Catalog.ReconciliationOf` says what to grant (earned, not held) and what to revoke (held, not earned: a guest's titles, a title a stricter rule no longer gives, an id the catalog no longer has). Then one `Grant` and one `Revoke` per page. It records nothing of its own: a second run changes nothing, and a failed or interrupted one is simply run again. The answer counts the titles `granted` and `revoked`. It runs beside the listener: a title the listener grants mid-run is one the rules give, so the run never revokes it. `audit_reconcile_titles` logs every call at Warn. It never touches what a player wears: a choice it makes unshowable is simply not worn, and `WornOf` falls back.
   - **`GetPlayer` answers the titles shown and the one worn**, each as `{id, name, rank}` (`playermessage.Titles`, `playermessage.Title`), `rank` set for a rank of a track: its id and name, its number and how many ranks the track has.
   - **`auth.v1.AccountDeleted` deletes the titles too**, through a subscription of their own (`player-titles-accounts`, `forget_titles_usecase`), as the roster has one: the players store no longer touches `player.titles`. The choice of what to wear is deleted by another (`player-wearing-accounts`, `forget_worn_title_usecase`). A grant that lands after the delete, from a take or a reconciliation page read before it, leaves rows for an account that is gone, as a late take does for the stats.
+- **The countries a player plays for and against are `fronts/`**, a concept of its own with its own table, as titles
+  are. Each `planet.v1.TileTaken` counts one tile for its flag (`country`) and one against the flag that held the tile
+  (`previous_country`); a tile nobody held is against nobody (`Take.Against`). Kept in `player.fronts` (`account_id`,
+  `country`, `plays_for`, `plays_against`; migration `20261008120000_fronts`), one row per account and country, by one
+  upsert per take (`player-fronts`). The upsert writes its rows in country order, so two takes crossing the same two
+  countries lock them in one order. `auth.v1.AccountDeleted` deletes them (`player-fronts-accounts`). **`GetPlayer`
+  answers both lists** (`plays_for`, `plays_against`, each `{country_id, tiles}`), most tiles first, then by country,
+  with no zero in either.
+- **They are the total since counting started, never a season's.** Decided on 2026-10-08, in season 0, when the two are
+  the same. The card says which flags a player's tiles went to, so the flag beside its name on the Players board makes
+  sense. **The per-season split belongs to `seasons`**: it already keeps each season's tiles per flag in
+  `seasons.contributions`, and would count `previous_country` the same way; the card would then show the season beside
+  the total. Until it does, from season 1 the top flag on the card can differ from the flag on the board.
+- **The migration starts the totals from `seasons.contributions`**, summed over every season, so "plays for" counts
+  from 2026-10-03, when the seasons started counting, and not from the deploy. It is the one place a module reads
+  another's schema: once, at boot, before any subscriber runs, and only where that table exists (not on a fresh
+  database, nor in the tests but its own). "Plays against" starts at the deploy: the ledger keeps a take's previous
+  owner for 72h only. So neither list adds up to `tiles_taken`, which counts from 2026-09-17.
 - **`auth.v1.AccountDeleted` deletes both rows.** A take that arrives after, on a token minted before the delete, makes a new stats row; the token lives an hour at most.
 - **Events are at most once.** A take dropped by a full buffer (`events_dropped_total`) or lost in a crash is a tile the stats never count. Stats start the day the module is turned on: takes before are not replayed.
 - **No memory copy: every call reads or writes postgres.** This is not the tile map's pattern on purpose. The map is in memory so a click never waits on the database; a take reaches this module over the event bus, so a click already never waits on it, and the calls are few (production is ~15 takes a second at peak). A memory copy would load every account that ever took a tile at boot, and cost a dirty set, a flush loop and a window a hard kill loses.

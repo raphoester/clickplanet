@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
@@ -295,6 +296,35 @@ func TestAnybodyReadsAPlayerByItsUsernameWithNoToken(t *testing.T) {
 
 	_, err = anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "Bob"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func TestAPlayerPlaysForItsFlagAndAgainstTheCountriesItTookTilesFrom(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.click(1, "fr")
+	ada.click(2, "it")
+	bob := game.newPlayer(t)
+	bob.link("google-bob")
+	_, err := bob.setName("Bob_B")
+	require.NoError(t, err)
+
+	bob.click(1, "de")
+	bob.click(2, "de")
+	bob.click(3, "de")
+
+	anybody := playerv1connect.NewPlayerServiceClient(http.DefaultClient, game.baseURL, connect.WithHTTPGet())
+	want := &playerv1.Player{
+		PlaysFor:     []*playerv1.CountryTiles{{CountryId: "de", Tiles: 3}},
+		PlaysAgainst: []*playerv1.CountryTiles{{CountryId: "fr", Tiles: 1}, {CountryId: "it", Tiles: 1}},
+	}
+	require.Eventually(t, func() bool {
+		res, err := anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "Bob_B"}))
+		if err != nil {
+			return false
+		}
+		player := res.Msg.GetPlayer()
+		return proto.Equal(want, &playerv1.Player{PlaysFor: player.GetPlaysFor(), PlaysAgainst: player.GetPlaysAgainst()})
+	}, 5*time.Second, 20*time.Millisecond, "a tile nobody held is against nobody")
 }
 
 func TestAPlayerCallWithNoTokenIsUnauthenticated(t *testing.T) {

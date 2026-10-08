@@ -993,6 +993,16 @@ export class Player extends Message<Player> {
    */
   wornTitle?: Title;
 
+  /**
+   * @generated from field: repeated player.v1.CountryTiles plays_for = 8;
+   */
+  playsFor: CountryTiles[] = [];
+
+  /**
+   * @generated from field: repeated player.v1.CountryTiles plays_against = 9;
+   */
+  playsAgainst: CountryTiles[] = [];
+
   constructor(data?: PartialMessage<Player>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1008,6 +1018,8 @@ export class Player extends Message<Player> {
     { no: 5, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 6, name: "titles", kind: "message", T: Title, repeated: true },
     { no: 7, name: "worn_title", kind: "message", T: Title },
+    { no: 8, name: "plays_for", kind: "message", T: CountryTiles, repeated: true },
+    { no: 9, name: "plays_against", kind: "message", T: CountryTiles, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Player {
@@ -1024,6 +1036,49 @@ export class Player extends Message<Player> {
 
   static equals(a: Player | PlainMessage<Player> | undefined, b: Player | PlainMessage<Player> | undefined): boolean {
     return proto3.util.equals(Player, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.CountryTiles
+ */
+export class CountryTiles extends Message<CountryTiles> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint64 tiles = 2;
+   */
+  tiles = protoInt64.zero;
+
+  constructor(data?: PartialMessage<CountryTiles>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.CountryTiles";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CountryTiles {
+    return new CountryTiles().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CountryTiles {
+    return new CountryTiles().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CountryTiles {
+    return new CountryTiles().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CountryTiles | PlainMessage<CountryTiles> | undefined, b: CountryTiles | PlainMessage<CountryTiles> | undefined): boolean {
+    return proto3.util.equals(CountryTiles, a, b);
   }
 }
 

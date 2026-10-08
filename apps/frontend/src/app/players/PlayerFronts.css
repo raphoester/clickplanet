@@ -1,0 +1,105 @@
+.player-fronts {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.player-front {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 10px var(--space-3);
+}
+
+.player-front-heading {
+    margin: 0 0 var(--space-1);
+    text-align: left;
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+}
+
+.player-front-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.player-front-line {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    padding-top: 2px;
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    line-height: 1.2;
+    color: var(--text);
+    text-shadow: var(--text-drop);
+}
+
+.player-front-line .country-flag {
+    flex-shrink: 0;
+    margin-right: 0;
+}
+
+.player-front-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-front-tiles {
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.player-front-bar {
+    display: block;
+    height: 8px;
+    margin-top: 3px;
+    overflow: hidden;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--panel-sunk);
+}
+
+.player-front-bar-filled {
+    display: block;
+    min-width: 2px;
+    height: 100%;
+    background: var(--gold);
+}
+
+.player-front-more {
+    align-self: flex-start;
+    margin-top: var(--space-2);
+    padding: 0;
+    border: none;
+    background: none;
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    color: var(--gold);
+    cursor: pointer;
+}
+
+.player-front-more:hover,
+.player-front-more:focus-visible {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+@media only screen and (max-width: 768px) {
+    .player-fronts {
+        grid-auto-flow: row;
+    }
+}
