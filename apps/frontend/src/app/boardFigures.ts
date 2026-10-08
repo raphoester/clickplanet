@@ -1,3 +1,6 @@
+export const TAP_HINT_MS = 7000
+export const GUIDE_MS = 10_000
+
 export type Figure = "tiles" | "share" | "points" | "today"
 
 export const FIGURES: Record<Figure, string> = {

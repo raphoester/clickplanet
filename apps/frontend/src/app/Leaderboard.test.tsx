@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
+import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import {Race} from "../backends/standings.ts"
 import Leaderboard from "./Leaderboard.tsx"
-import {FIGURES} from "./boardFigures.ts"
+import {FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts"
 import {Countries} from "../domain/countries.ts"
 import {TileDelta, TileDeltas} from "../domain/tileDeltas.ts"
 
@@ -21,7 +21,10 @@ const headers = (...names: string[]) => {
     for (const name of names) expect(screen.getByRole("columnheader", {name})).toBeDefined()
 }
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+})
 
 describe("Leaderboard", () => {
     it("frames the first country, then lists the rest in the order it was given", () => {
@@ -116,12 +119,32 @@ describe("Leaderboard", () => {
         expect(screen.queryAllByRole("button").filter(b => b.hasAttribute("aria-pressed"))).toEqual([])
     })
 
-    it("says what a column means when its head is pressed", () => {
+    it("says what a column means for a while when its head is tapped", () => {
+        vi.useFakeTimers()
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
+        const head = screen.getByRole("button", {name: "% of map"})
 
-        fireEvent.click(screen.getByRole("button", {name: "% of map"}))
-
+        fireEvent.pointerDown(head, {pointerType: "touch"})
+        fireEvent.click(head)
         expect(screen.getByRole("status").textContent).toBe(FIGURES.share)
+
+        act(() => vi.advanceTimersByTime(TAP_HINT_MS - 1))
+        expect(screen.getByRole("status")).toBeDefined()
+        act(() => vi.advanceTimersByTime(1))
+        expect(screen.queryByRole("status")).toBeNull()
+    })
+
+    it("keeps saying it while the mouse stays, even after a click", () => {
+        vi.useFakeTimers()
+        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
+        const head = screen.getByRole("button", {name: "Tiles"})
+
+        fireEvent.pointerEnter(head, {pointerType: "mouse"})
+        fireEvent.pointerDown(head, {pointerType: "mouse"})
+        fireEvent.click(head)
+        act(() => vi.advanceTimersByTime(10 * TAP_HINT_MS))
+
+        expect(screen.getByRole("status").textContent).toBe(FIGURES.tiles)
     })
 
     it("says what a column means while a mouse is over its head, and stops when it leaves", () => {
@@ -235,6 +258,16 @@ describe("Leaderboard with the season's race", () => {
 
         expect(screen.getByRole("status").textContent).toBe(FIGURES.points)
         expect(onGuided).toHaveBeenCalledOnce()
+    })
+
+    it("lets the first word on the points stay long enough to read", () => {
+        vi.useFakeTimers()
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={vi.fn()} guided={false} onGuided={vi.fn()}/>)
+
+        act(() => vi.advanceTimersByTime(GUIDE_MS - 1))
+        expect(screen.getByRole("status")).toBeDefined()
+        act(() => vi.advanceTimersByTime(1))
+        expect(screen.queryByRole("status")).toBeNull()
     })
 
     it("says nothing on its own once the player was told", () => {

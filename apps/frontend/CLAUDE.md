@@ -881,9 +881,10 @@ draws it.
   frame shows the points where it showed the share, and the share under its tiles.
 - **Each number says what it means** (`Hint` in `Leaderboard`, the texts in
   `boardFigures.ts`), as a bonus does: the column heads and the leader frame's
-  figures are buttons that show a `Bubble`, while a mouse is over them or for
-  `BUBBLE_MS` after a press. **The first time the board shows points, it says what
-  they are on its own** (twice as long), once per browser: `useBoardGuide`, the
+  figures are buttons that show a `Bubble`: with a mouse, for as long as it is
+  over them, a click included; after a tap or a key, for `TAP_HINT_MS` (7s), long
+  enough to read. **The first time the board shows points, it says what they are
+  on its own** (`GUIDE_MS`, 10s), once per browser: `useBoardGuide`, the
   `clickplanet-board-guide` key. The bubble renders beside its button, not inside:
   inside, it mounts before the button's ref is set and has nothing to sit on.
 - **The desktop menu is `clamp(380px, 34vw, 460px)` wide**, every tab alike, for the

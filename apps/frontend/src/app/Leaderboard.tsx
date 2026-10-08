@@ -5,11 +5,11 @@ import {Country} from "../domain/countries.ts";
 import {factor} from "../domain/clickPrice.ts";
 import {LeaderboardEntry} from "../domain/leaderboard.ts";
 import {CountryLine, countryLines, CountryOrder} from "../domain/race.ts";
-import {Figure, FIGURES} from "./boardFigures.ts";
+import {Figure, FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts";
 import {DELTA_HOLD_MS, NO_TILE_DELTAS, signed, TileDelta, TileDeltas} from "../domain/tileDeltas.ts";
 import {slowdownAt, TollStep} from "../domain/toll.ts";
 import {truncate} from "./truncate.ts";
-import Bubble, {BUBBLE_MS} from "./components/Bubble.tsx";
+import Bubble from "./components/Bubble.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
 import {HourglassIcon} from "./components/icons.tsx";
 import RankCoin from "./components/RankCoin.tsx";
@@ -34,8 +34,6 @@ const ORDERS: {order: CountryOrder, label: string}[] = [
     {order: "season", label: "Season"},
     {order: "territory", label: "Territory"},
 ]
-
-const GUIDE_MS = 2 * BUBBLE_MS
 
 type Shown = {figure: Figure, at: "head" | "leader", ms?: number}
 
@@ -67,7 +65,7 @@ export default function Leaderboard(props: LeaderboardProps) {
     const hint = (figure: Figure, at: Shown["at"]) => ({
         figure,
         open: shown?.figure === figure && shown.at === at,
-        onShow: (timed: boolean) => setShown({figure, at, ms: timed ? BUBBLE_MS : undefined}),
+        onShow: (timed: boolean) => setShown({figure, at, ms: timed ? TAP_HINT_MS : undefined}),
         onHide: () => setShown((now) => now?.figure === figure && now.at === at && now.ms === undefined ? undefined : now),
         onLost: () => setShown((now) => now?.figure === figure && now.at === at ? undefined : now),
     })
@@ -207,6 +205,7 @@ type HintProps = {
 
 function Hint({figure, open, onShow, onHide, onLost, className, children}: HintProps & {className?: string, children: ReactNode}) {
     const anchor = useRef<HTMLButtonElement>(null)
+    const pointer = useRef("")
     const described = useId()
     const mouse = (event: PointerEvent) => event.pointerType === "mouse"
 
@@ -217,7 +216,11 @@ function Hint({figure, open, onShow, onHide, onLost, className, children}: HintP
                 aria-describedby={described}
                 onPointerEnter={(event) => mouse(event) && onShow(false)}
                 onPointerLeave={(event) => mouse(event) && onHide()}
-                onClick={() => onShow(true)}>
+                onPointerDown={(event) => pointer.current = event.pointerType}
+                onClick={() => {
+                    if (pointer.current !== "mouse") onShow(true)
+                    pointer.current = ""
+                }}>
             {children}
             <span id={described} hidden>{FIGURES[figure]}</span>
         </button>
