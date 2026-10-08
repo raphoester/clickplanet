@@ -55,7 +55,11 @@ wires no account, so the overlay offers Close only), and `fakeBackend.botBomb(ti
 `fakeBackend.botSpread(tile, "fr")` and `fakeBackend.botShield(tile, "fr")` play
 somebody else's bomb, spread click or shield. `fakeBackend.shareClicks("guests")` (or
 `"network"`) reads the bucket as shared, and `fakeBackend.shareClicks()` as the
-player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
+player's own again. `fakeBackend.freeze()` freezes the map as at the end of a
+season, `fakeBackend.giftNextClick()` makes the next accepted click the finale's
+gift, and `announceLead("bg", "fr")` and `announceWinner("dz", 0)` put the
+season's two lines in the chat.
+`fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 
@@ -298,26 +302,31 @@ Connect does not retry, so `retrying` wraps every call: five attempts while the
 server cannot be reached, and never a retry of an answer the server chose to
 send.
 
-The backend refuses a click in three ways, and `clickTile` translates all of
-them into errors declared beside the interfaces — the first two in `backend.ts`,
-the third in `session.ts` — so `globe.ts` recognises them without knowing what a
-Connect code is:
+The backend refuses a click in four ways, and `clickTile` translates all of
+them into errors declared beside the interfaces — `session.ts` holds
+`SessionUnavailableError`, `backend.ts` the others — so `globe.ts` recognises
+them without knowing what a Connect code is:
 
 - `resource_exhausted` → `RateLimitedError`. The per-IP token bucket is spent.
 - `permission_denied` → `VPNBlockedError`. The address is in the backend's VPN
   and proxy blocklist.
 - `unauthenticated` → `SessionUnavailableError`, **and only after a retry** —
   see [Sessions](#sessions).
+- `failed_precondition` with a `planet.v1.MapFrozen` detail → `MapFrozenError`.
+  The season is over and the map takes no more writes. A drop, a refill and a
+  shield are refused the same way, and read the same (`asBonusError`,
+  `asRefillError`, `asShieldError`).
 
 They are separate classes rather than one with a field because each one says
 something different: ease off for a second (the click meter shakes — no dialog),
-turn the VPN off, or reload and unblock the challenge. Everything else is a transport fault and still reaches the
-console.
+turn the VPN off, reload and unblock the challenge, or nothing at all: a frozen
+map raises no dialog and logs nothing. Everything else is a transport fault and
+still reaches the console.
 
-`FakeBackend` reproduces all three, so every refusal is reachable in dev: it
-enforces the same bucket as production's `rateLimiter` (one click every 5s, 60 in hand), and takes `vpnBlocked` and
-`sessionUnavailable` options that refuse every click (there is no address and no
-widget there to judge). Its own simulated traffic bypasses all of them, standing
+`FakeBackend` reproduces all four, so every refusal is reachable in dev: it
+enforces the same bucket as production's `rateLimiter` (one click every 5s, 60 in hand), and takes `vpnBlocked`,
+`sessionUnavailable` and `frozen` options that refuse every click (there is no address and no
+widget there to judge). `freeze()` freezes it from the console. Its own simulated traffic bypasses all of them, standing
 in for other players rather than for this one.
 
 #### The click budget
@@ -569,8 +578,14 @@ is the list, and the backend refuses any other.
 #### Announcements
 
 The chat also shows lines nobody sent: `ChatEvent.announcement` on the stream,
-and `GetHistoryResponse.announcements` beside the messages. Two kinds today:
-`bomb`, every bomb that went off, and `mute`, every mute an operator gave.
+and `GetHistoryResponse.announcements` beside the messages. Four kinds:
+
+- `bomb`, every bomb that went off.
+- `mute`, every mute an operator gave.
+- `lead_changed`, a country taking first place in the season: "Bulgaria passes
+  France" (`{"season","leader","passed"}`).
+- `season_won`, the season's winner: "Algeria wins Season 0"
+  (`{"season","winner"}`).
 
 - **Decoded, not trusted**: `decodedAnnouncement` reads the `kind` and parses
   the JSON `payload` into a typed `ChatAnnouncement`. A kind this build does not
@@ -578,7 +593,8 @@ and `GetHistoryResponse.announcements` beside the messages. Two kinds today:
   a new kind first.
 - **The payload is values, the client writes the sentence**: a bomb line is
   `describeBlast`, the same words as `BombNews`, so the chat and the news line
-  never disagree. A mute line is the name and `describeMute` of its seconds
+  never disagree. Country names come from the country list, never the payload.
+  A mute line is the name and `describeMute` of its seconds
   (`domain/mute.ts`): "one hour", "90 minutes", "2 days".
 - **Kept apart from the messages** (`useChat`'s `announcements`,
   `addAnnouncements`) and put in one list only to draw (`interleave`, by time).
@@ -590,10 +606,12 @@ and `GetHistoryResponse.announcements` beside the messages. Two kinds today:
   session the older bombs piled up on top of the chat. The server does the same
   for the history.
 - **Not a balloon**: `ChatLog` draws a centred line (`.chat-announcement`) with
-  the bomber's flag and the time. It ends the run above it, so the next message
-  says again who is talking.
+  one flag (the bomber's, the new leader's, the winner's) and the time. It ends
+  the run above it, so the next message says again who is talking. The winner's
+  line is a little larger, its name in gold (`.chat-announcement--won`).
 - In fake mode `main.tsx` hands every `FakeBackend` bomb to
   `FakeChatBackend.announceBomb`, with no ground: the fake has no borders.
+  `announceLead` and `announceWinner` are console commands.
   `fakeChat.mute()` in the console announces a mute of the player for an hour
   and refuses its posts and reactions until it ends; `fakeChat.mute(600, "Ana")`
   only announces somebody else's.
@@ -1828,11 +1846,12 @@ and are shared; how thick a line is drawn between them is this app's.
    A refused click is taken back off the map. A throttled one bumps `refusals` in
    `useGlobe`, and `ClickBudgetMeter` shakes and flashes red once per bump — a
    dialog here was annoying, since a player hits the wall mid-burst and the meter
-   already says why. The other two raise a flag that `Viewer` renders as
+   already says why. The VPN and the session raise a flag that `Viewer` renders as
    `VPNBlockedModal` or `SessionUnavailableModal`. The globe reports every refused
    click, so those flags are booleans and not a queue — a burst is one thing to
-   say, once.
-   `reportClickFailure` in `globe.ts` is the four-way branch that picks which,
+   say, once. A frozen map raises nothing: it stops the paint (see [Rolling back
+   a refused click](#rolling-back-a-refused-click)).
+   `reportClickFailure` in `globe.ts` is the five-way branch that picks which,
    split out of the click handler because it is the one piece of that handler
    worth testing: sending a refusal to the wrong dialog leaves a working page
    giving the wrong advice.
@@ -1990,6 +2009,14 @@ Rolling back on *any* failure, including a transport fault, is deliberate: if
 the click did land and only the response was lost, the stream's echo repaints
 it, and if the echo arrives first the rollback is already a no-op.
 
+**A frozen map stops the paint**, so a click does not show a flag and take it
+back. The first `MapFrozenError`, from a click or a drop, calls
+`TileOwnership.freeze()` (`onMapFrozen`), and for the rest of the page's life
+`applyOptimistic` paints nothing and hands back no claim. With no claim the
+globe plays no click sound and no glint: the click still
+goes out, and the refusal's sound is its only answer. A click the server accepts
+after all is painted by its echo, as any other player's is.
+
 ## Charges
 
 A bonus box holds a **charge**, which has no clock and is never used on its own:
@@ -2010,11 +2037,17 @@ the account's. `ClaimBonusResponse.charges` replaces them on a claim, and
 `PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread
 click off, this player's own `tilesEnclosed` takes an enclosure off, and a drop
-takes the bomb off at once and gives it back only if the call never reached the
-server; a shield is taken off the same way. The click answer says nothing about charges, on purpose (see the backend's
+takes the bomb off at once and gives it back unless the server had none
+(`BonusLostError`), so a drop refused on a frozen map keeps it; a shield is taken off the same way. The click answer says nothing about charges, on purpose (see the backend's
 CLAUDE.md). A charge spent in another tab stays on screen until the next read. It
 reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` hands it to the
 inventory.
+
+**The finale's gift**: the first click an account makes in the finale fills its
+bank and gives it a bomb, and `ClickResponse.gift` says so. The click's own
+budget was read before the fill, and the click says nothing about charges, so
+`PlanetBackend` reads `GetCharges` (with the click's token) and `GetBudget`
+again: the bomb shows in the inventory and the meter shows the full bank.
 
 **The sizes are rules, read once**: `GetBonusRules` (a cached GET) answers the
 blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
@@ -2053,7 +2086,8 @@ its size (`5/8`, `2/3`), and a word over the icon says what the slot is doing
 - **Refill** fills the bank (`Refiller.useRefill`). **On a full bank it sends
   nothing** and says "Full": a refill there would be wasted. The
   server refuses it too, `FailedPrecondition`, read as `BankFullError`, and spends
-  nothing.
+  nothing. The same code with a `MapFrozen` detail is `MapFrozenError`: the
+  refill stays and nothing is said.
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).
 - **Spread**, **Enclose** and **Shield** switch (`Globe.setSwitch`),
   `aria-pressed`.

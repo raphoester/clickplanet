@@ -9,6 +9,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/clickbudget"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/frozenmap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 )
 
 type UseCase interface {
@@ -39,6 +41,8 @@ func (h UseRefillHandler) UseRefill(
 		return nil, connect.NewError(connect.CodeNotFound, use_refill_usecase.ErrNoRefill)
 	case errors.Is(err, use_refill_usecase.ErrBankFull):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, use_refill_usecase.ErrBankFull)
+	case errors.Is(err, tempo.ErrFrozen):
+		return nil, frozenmap.Refusal(err)
 	default:
 		return nil, err
 	}

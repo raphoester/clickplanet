@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/place_shield_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 )
 
 type stubUseCase struct {
@@ -60,4 +61,16 @@ func TestEachRefusalHasItsCode(t *testing.T) {
 		_, refused := place(t, &stubUseCase{err: err})
 		assert.Equal(t, code, connect.CodeOf(refused), err.Error())
 	}
+}
+
+func TestAShieldOnAFrozenMapIsAFailedPreconditionThatSaysSo(t *testing.T) {
+	_, err := place(t, &stubUseCase{err: tempo.ErrFrozen})
+
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	var connectErr *connect.Error
+	require.ErrorAs(t, err, &connectErr)
+	require.Len(t, connectErr.Details(), 1, "the detail is what tells it from a tile that is not yours")
+	value, valueErr := connectErr.Details()[0].Value()
+	require.NoError(t, valueErr)
+	assert.IsType(t, &planetv1.MapFrozen{}, value)
 }

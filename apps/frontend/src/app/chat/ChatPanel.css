@@ -546,6 +546,16 @@
     color: var(--text);
 }
 
+.chat-announcement--won {
+    font-size: var(--text-s);
+    color: var(--text-soft);
+}
+
+.chat-announcement--won .chat-announcement-text strong {
+    font-weight: 700;
+    color: var(--gold);
+}
+
 .chat-announcement-time {
     flex-shrink: 0;
     color: var(--text-faint);

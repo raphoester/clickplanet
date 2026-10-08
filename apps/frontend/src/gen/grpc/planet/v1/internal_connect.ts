@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, SetRulesRequest, SetRulesResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -31,6 +31,15 @@ export const InternalService = {
       O: GetTerritoriesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.InternalService.SetRules
+     */
+    setRules: {
+      name: "SetRules",
+      I: SetRulesRequest,
+      O: SetRulesResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

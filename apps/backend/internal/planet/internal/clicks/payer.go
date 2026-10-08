@@ -138,14 +138,18 @@ type pool struct {
 }
 
 func (b Buckets) pools(payer Payer, price Price) []pool {
-	pace := 1 / max(price.Slowdown, 1)
+	speedup := max(price.Speedup, 1)
+	pace := speedup / max(price.Slowdown, 1)
 
 	if payer.Account == "" {
 		// Its own key, not "scope:": a bucket's Scale is fixed when it is first made.
 		return []pool{{key: cpratelimit.Key{Name: payer.Scope, Scale: 1, Pace: pace}, sharedWith: SharedWithNobody}}
 	}
 
-	scope := pool{key: cpratelimit.Key{Name: "scope:" + payer.Scope, Scale: b.scopeMultiplier}, sharedWith: SharedWithScope}
+	scope := pool{
+		key:        cpratelimit.Key{Name: "scope:" + payer.Scope, Scale: b.scopeMultiplier, Pace: speedup},
+		sharedWith: SharedWithScope,
+	}
 
 	if payer.Linked {
 		return []pool{{key: b.own(payer, pace*b.linkedMultiplier), sharedWith: SharedWithNobody}, scope}

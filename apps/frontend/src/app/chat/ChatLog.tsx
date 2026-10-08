@@ -1,5 +1,5 @@
-import {Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {BombAnnouncement, ChatAnnouncement, ChatMessage, MuteAnnouncement, Reaction} from "../../backends/chat.ts";
+import {Fragment, ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
+import {ChatAnnouncement, ChatMessage, MuteAnnouncement, Reaction} from "../../backends/chat.ts";
 import {PlayerLine} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
@@ -225,9 +225,26 @@ function MessageLine({message, previous, flashing, picking, pick, ...props}: Mes
 }
 
 function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
-    return announcement.kind === "bomb"
-        ? <BombLine announcement={announcement}/>
-        : <MuteLine announcement={announcement}/>
+    switch (announcement.kind) {
+        case "bomb": {
+            const ground = announcement.ground === undefined ? undefined : Countries.get(announcement.ground)?.name
+            return <Announced country={announcement.country}
+                              at={announcement.announcedAt}
+                              icon={announcement.tile === undefined ? "🌊" : "💥"}>
+                <strong>{countryName(announcement.country)}</strong> {describeBlast(announcement, ground)}
+            </Announced>
+        }
+        case "mute":
+            return <MuteLine announcement={announcement}/>
+        case "leadChanged":
+            return <Announced country={announcement.leader} at={announcement.announcedAt}>
+                <strong>{countryName(announcement.leader)}</strong> passes {countryName(announcement.passed)}
+            </Announced>
+        case "seasonWon":
+            return <Announced country={announcement.winner} at={announcement.announcedAt} won>
+                <strong>{countryName(announcement.winner)}</strong> wins Season {announcement.season}
+            </Announced>
+    }
 }
 
 function MuteLine({announcement}: {announcement: MuteAnnouncement}) {
@@ -242,20 +259,19 @@ function MuteLine({announcement}: {announcement: MuteAnnouncement}) {
     </li>
 }
 
-function BombLine({announcement}: {announcement: BombAnnouncement}) {
-    const bomber = countryName(announcement.country)
-    const ground = announcement.ground === undefined ? undefined : Countries.get(announcement.ground)?.name
-
-    return <li className="chat-announcement" data-at={announcement.announcedAt}>
-        <span className="chat-announcement-icon" aria-hidden="true">
-            {announcement.tile === undefined ? "🌊" : "💥"}
-        </span>
-        <CountryFlag code={announcement.country}/>
-        <span className="chat-announcement-text">
-            <strong>{bomber}</strong> {describeBlast(announcement, ground)}
-        </span>
-        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
-            {clock.format(announcement.announcedAt)}
+function Announced({country, at, icon, won, children}: {
+    country: string
+    at: number
+    icon?: string
+    won?: boolean
+    children: ReactNode
+}) {
+    return <li className={won ? "chat-announcement chat-announcement--won" : "chat-announcement"} data-at={at}>
+        {icon && <span className="chat-announcement-icon" aria-hidden="true">{icon}</span>}
+        <CountryFlag code={country}/>
+        <span className="chat-announcement-text">{children}</span>
+        <time className="chat-announcement-time" dateTime={new Date(at).toISOString()}>
+            {clock.format(at)}
         </time>
     </li>
 }

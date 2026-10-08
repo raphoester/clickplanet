@@ -11,6 +11,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/frozenmap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 )
 
 type UseCase interface {
@@ -43,6 +45,8 @@ func (h PlaceShieldHandler) PlaceShield(
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, place_shield_usecase.ErrNoShield):
 		return nil, connect.NewError(connect.CodeNotFound, err)
+	case errors.Is(err, tempo.ErrFrozen):
+		return nil, frozenmap.Refusal(err)
 	default:
 		return nil, err
 	}

@@ -24,6 +24,7 @@ import {
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
+    MapFrozenError,
     ShieldRefusedError,
     OwnershipsGetter,
     RateLimitedError,
@@ -257,6 +258,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const picker = new GpuPicker(renderer, field.pickingPoints);
     const ownership = new TileOwnership(field.size);
+    const onMapFrozen = () => ownership.freeze()
     const shielded = new TileShields(field.size);
 
     let country: Country = initialCountry;
@@ -420,7 +422,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber.dropBomb({x: point.x, y: point.y, z: point.z}, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
             ownDropAt = undefined
-            reportClaimFailure(e, {onSessionUnavailable})
+            reportClaimFailure(e, {onSessionUnavailable, onMapFrozen})
         })
     }
 
@@ -475,7 +477,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         shielder.placeShield(tile, country.code).catch((e) => {
             if (lifetime.signal.aborted || e instanceof ShieldRefusedError) return
-            reportClaimFailure(e, {onSessionUnavailable})
+            reportClaimFailure(e, {onSessionUnavailable, onMapFrozen})
         })
     }
 
@@ -600,7 +602,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 .then(takeReward)
                 .catch((e) => {
                     if (lifetime.signal.aborted) return
-                    reportClaimFailure(e, {onSessionUnavailable})
+                    reportClaimFailure(e, {onSessionUnavailable, onMapFrozen})
                 })
             return
         }
@@ -634,16 +636,18 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const {changes, claim} = outcome === "shielded"
             ? {changes: [], claim: undefined}
             : ownership.applyOptimistic(tile, country.code)
-        applyChanges(changes)
-        playSound("click")
+        if (!ownership.isFrozen()) {
+            applyChanges(changes)
+            playSound("click")
 
-        const seconds = performance.now() / 1000
-        ownClicks.record(tile, country.code, seconds)
-        if (outcome === "shielded") {
-            ownHits.record(tile, country.code, seconds)
-            plainClicks.playHit(tile, camera)
-        } else {
-            plainClicks.playOwnClick(tile, camera)
+            const seconds = performance.now() / 1000
+            ownClicks.record(tile, country.code, seconds)
+            if (outcome === "shielded") {
+                ownHits.record(tile, country.code, seconds)
+                plainClicks.playHit(tile, camera)
+            } else {
+                plainClicks.playOwnClick(tile, camera)
+            }
         }
 
         const clicked = country.code
@@ -660,7 +664,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }, (e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
-            if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onSessionUnavailable})) playSound("refused")
+            if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onSessionUnavailable, onMapFrozen})) playSound("refused")
         })
     }, listenerOptions);
 
@@ -951,10 +955,11 @@ function prefersReducedMotion(): boolean {
 
 export function reportClaimFailure(
     error: unknown,
-    handlers: {onSessionUnavailable: () => void},
+    handlers: {onSessionUnavailable: () => void, onMapFrozen: () => void},
 ) {
     if (error instanceof BonusLostError) return
     if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
+    else if (error instanceof MapFrozenError) handlers.onMapFrozen()
     else console.error(error)
 }
 
@@ -964,11 +969,13 @@ export function reportClickFailure(
         onRateLimited: () => void,
         onVPNBlocked: () => void,
         onSessionUnavailable: () => void,
+        onMapFrozen: () => void,
     },
 ): boolean {
     if (error instanceof RateLimitedError) handlers.onRateLimited()
     else if (error instanceof VPNBlockedError) handlers.onVPNBlocked()
     else if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
+    else if (error instanceof MapFrozenError) handlers.onMapFrozen()
     else {
         console.error(error)
         return false

@@ -13,16 +13,29 @@ import (
 
 type AnnouncementID uuid.UUID
 
+var keyedSpace = uuid.MustParse("8b0e7c52-5f2d-4c1e-9a64-3f1d2b7a9e10")
+
+// One key always names one line, so a fact told twice is kept once.
+func KeyedID(kind Kind, key string) AnnouncementID {
+	return AnnouncementID(uuid.NewSHA1(keyedSpace, []byte(string(kind)+":"+key)))
+}
+
 type Kind string
 
 const (
-	KindBomb Kind = "bomb"
-	KindMute Kind = "mute"
+	KindBomb        Kind = "bomb"
+	KindMute        Kind = "mute"
+	KindLeadChanged Kind = "lead_changed"
+	KindSeasonWon   Kind = "season_won"
 )
 
-var ErrUnknownKind = errors.New("an announcement of a kind nobody knows")
+var (
+	ErrUnknownKind = errors.New("an announcement of a kind nobody knows")
 
-func Kinds() []Kind { return []Kind{KindBomb, KindMute} }
+	ErrKept = errors.New("an announcement with this id is already kept")
+)
+
+func Kinds() []Kind { return []Kind{KindBomb, KindMute, KindLeadChanged, KindSeasonWon} }
 
 func (k Kind) Known() bool { return slices.Contains(Kinds(), k) }
 
@@ -89,6 +102,52 @@ func (m Muted) Payload() (json.RawMessage, error) {
 	payload, err := json.Marshal(mutedPayload{Name: m.name, Seconds: int64(m.duration / time.Second)})
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode a mute announcement: %w", err)
+	}
+	return payload, nil
+}
+
+type LeadChange struct {
+	season uint32
+	leader string
+	passed string
+}
+
+func LeadChangeOf(season uint32, leader string, passed string) LeadChange {
+	return LeadChange{season: season, leader: leader, passed: passed}
+}
+
+type leadChangePayload struct {
+	Season uint32 `json:"season"`
+	Leader string `json:"leader"`
+	Passed string `json:"passed"`
+}
+
+func (l LeadChange) Payload() (json.RawMessage, error) {
+	payload, err := json.Marshal(leadChangePayload{Season: l.season, Leader: l.leader, Passed: l.passed})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode a lead change announcement: %w", err)
+	}
+	return payload, nil
+}
+
+type Win struct {
+	season uint32
+	winner string
+}
+
+func WinOf(season uint32, winner string) Win {
+	return Win{season: season, winner: winner}
+}
+
+type winPayload struct {
+	Season uint32 `json:"season"`
+	Winner string `json:"winner"`
+}
+
+func (w Win) Payload() (json.RawMessage, error) {
+	payload, err := json.Marshal(winPayload{Season: w.season, Winner: w.winner})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode a season won announcement: %w", err)
 	}
 	return payload, nil
 }

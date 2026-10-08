@@ -107,3 +107,21 @@ func TestAFinaleOfNothingIsRefused(t *testing.T) {
 	config.List[0].Finale = -time.Hour
 	require.ErrorContains(t, config.Validate(), "list[0].finale")
 }
+
+func TestTheLastEndedSeasonIsTheLatestWhoseEndHasCome(t *testing.T) {
+	seasons := calendar.New(twoSeasons())
+
+	_, ok := seasons.LastEnded(seasonZeroEnds.Add(-time.Second))
+	assert.False(t, ok, "nothing has ended yet")
+
+	season, ok := seasons.LastEnded(seasonZeroEnds)
+	require.True(t, ok, "a season has ended at the instant it ends")
+	assert.Equal(t, calendar.Number(0), season.Number)
+
+	season, ok = seasons.LastEnded(seasonOneEnds.Add(time.Hour))
+	require.True(t, ok)
+	assert.Equal(t, calendar.Number(1), season.Number)
+
+	_, ok = calendar.New(calendar.Config{}).LastEnded(seasonOneEnds)
+	assert.False(t, ok)
+}

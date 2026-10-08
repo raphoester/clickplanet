@@ -10,6 +10,8 @@ service InternalService {
   rpc GetTerritories(GetTerritoriesRequest) returns (GetTerritoriesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc SetRules(SetRulesRequest) returns (SetRulesResponse);
 }
 
 message GetTakesByCountryRequest {
@@ -37,3 +39,24 @@ message Territory {
   string country_id = 1;
   uint32 tiles = 2;
 }
+
+message SetRulesRequest {
+  // 0 is the plain pace.
+  double refill_multiplier = 1;
+
+  // 0 is the configured schedule.
+  int64 box_interval_ms = 2;
+
+  Gift gift = 3;
+
+  bool frozen = 4;
+}
+
+message Gift {
+  string tag = 1;
+
+  // 0 is every account.
+  int64 accounts_made_before_unix_ms = 2;
+}
+
+message SetRulesResponse {}

@@ -1,4 +1,4 @@
-.PHONY: proto map quiz test lint lint-ci tidy check-format check-quiz setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains metrics
+.PHONY: proto map quiz test lint lint-ci tidy check-format check-quiz setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains metrics finale
 
 TEST_TAG := testing
 
@@ -139,6 +139,22 @@ DISPOSABLE_DOMAINS_FILE := internal/auth/internal/signin/embedded_disposable_dom
 disposable-domains:
 	@curl -sSf $(DISPOSABLE_DOMAINS_URL) -o $(DISPOSABLE_DOMAINS_FILE)
 	@wc -l $(DISPOSABLE_DOMAINS_FILE)
+
+FINALE_IN ?= 1
+FINALE_FOR ?= 5
+
+# example.yaml with auth on, and Season 0's finale FINALE_IN minutes from now and FINALE_FOR long.
+finale:
+	@secs=$$(( $$(date +%s) + ($(FINALE_IN) + $(FINALE_FOR)) * 60 )); \
+	ends=$$(date -u -d @$$secs +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -r $$secs +%Y-%m-%dT%H:%M:%SZ); \
+	config=$$(mktemp -t finale.XXXXXX); \
+	sed -e "s|endsAt: .*|endsAt: $$ends|" -e "s|      finale: .*|      finale: $(FINALE_FOR)m|" \
+		-e "/^auth:/,/^[a-z]/ s|^  enabled: false|  enabled: true|" \
+		-e "/^auth:/,/^[a-z]/ s|^  enforce: false|  enforce: true|" \
+		-e "/^auth:/,/^[a-z]/ s|^  secret: \"\"|  secret: $$(openssl rand -hex 32)|" \
+		cmd/api/example.yaml > $$config; \
+	echo "season 0 ends at $$ends, after a finale of $(FINALE_FOR)m"; \
+	go run ./cmd/api -config $$config
 
 METRIC ?= .
 

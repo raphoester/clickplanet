@@ -63,7 +63,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username and `planet` what each country holds. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, and `player` publishes `StatsChanged`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet` and `chat` hear `AccountDeleted` too.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username and `planet` what each country holds, and sets `planet`'s rules during a finale. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `LeadChanged` and `SeasonEnded`; `player` hears all six of the first but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, `planet` and `chat` hear `AccountDeleted` too, and `chat` hears `BombLanded` and both of `seasons`'.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -205,8 +205,9 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
-| `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute) | `rounds/rpc_planet_territories` |
+| `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute), and each second of a finale and once at a season's end for the lead | `rounds/rpc_planet_territories`, `lead/rpc_planet_shares` |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
+| `seasons` | `planet.v1.InternalService/SetRules` | the rules the calendar says hold now: plain, the finale's, or a frozen map; at boot and at each change | `finale/rpc_planet_rules` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts` and on each `GetPlayer` the cache does not answer | `playerv1controller/rpc_planet_fronts` |
 
 A module cannot import another's interior, so the key client all four need is `shared/cpsessionverifier` rather than a copy in each.
@@ -254,6 +255,8 @@ The events today:
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
 | `chat.v1.AccountMuted{account_id, muted_at, duration}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
 | `player.v1.StatsChanged{account_id}` | `player`, `record_take_usecase/publishing_record_take` and `record_message_usecase/publishing_record_message` | after each take or message is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
+| `seasons.v1.LeadChanged{season, leader, passed, changed_at}` | `seasons`, `watch_lead_usecase` | a country took the lead during a finale and held it (see [The Final Battle](#the-final-battle)) | `chat`, which announces it |
+| `seasons.v1.SeasonEnded{season, winner, ended_at}` | `seasons`, `watch_lead_usecase` | once a season has ended and its map is frozen, with the country holding the most tiles; nothing when nobody holds one | `chat`, which announces it |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
@@ -283,6 +286,10 @@ internal/planet/internal/
     inmemory_charge_storage/
     postgres_charge_store/
     usecases/
+  tempo/                          the rules in force: Rules, Switches, Pricing, Gift; set by seasons, read by the rest
+    usecases/set_rules_usecase/
+  gifts/                          who already had a gift: the Storage port and its suite
+    postgres_gift_store/  inmemory_gift_cache/  log_gift_storage/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
     get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
   subscribers/                    the edge for events: auth.v1.AccountDeleted → anonymize_takes_usecase
@@ -305,6 +312,8 @@ internal/planet/internal/
 - **`bonuses/`** — the boxes, their schedule, and the running bonuses they grant.
   Its root also holds the rules a bonus plays by: `Terrain` and `Pocket` (what an
   enclose closes) and `BombRules` (where a bomb lands and what it clears).
+- **`tempo/`** and **`gifts/`** — the rules a finale switches on, in planet's own
+  words, and who already had its gift. See [The Final Battle](#the-final-battle).
 
 **A concept's root is its domain.** The use cases under `usecases/` load, call
 the root, and persist; a rule that could be unit-tested without a port belongs
@@ -353,6 +362,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
+| `tempo/usecases/set_rules_usecase` | puts the rules `seasons` asks for in force | `Switches` |
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker` |
 
 **The interfaces in that last column are declared by the package that calls
@@ -630,8 +640,10 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
       [cpsessionverifier: the key from auth.v1.InternalService, asked once per boot
        then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
+  → frozen_click    (a frozen map refuses it here: FailedPrecondition with a MapFrozen detail, no token spent)
   → antibot_attempt_click (times every try for the metronome; drops nothing)
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
+  → gift_click      (a finale's gift on the account's first accepted click; outside the ban, so a banned caller gets it too)
   → antibot_click   (judges; a flagged caller is answered OK and dropped)
   → prom_click      (counts)
   → clicks/usecases/click_usecase (validates tile ID + country)
@@ -765,8 +777,11 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 #### Announcements
 
 **The chat also says things on its own**: a line between the messages with no sender, which the client draws
-without a bubble. Two kinds today: `bomb`, every bomb that went off, on land or in the sea, and `mute`, every
-mute an operator gave (see [Mutes](#mutes)).
+without a bubble. There are four kinds: `bomb`, every bomb that went off, on land or in the sea; `mute`, every
+mute an operator gave (see [Mutes](#mutes)); `lead_changed`, a country that took the lead during a finale
+(`{season, leader, passed}`, from `seasons.v1.LeadChanged` by `lead_changed_subscriber`); and `season_won`, the
+country holding the most tiles when a season ended (`{season, winner}`, from `seasons.v1.SeasonEnded` by
+`season_ended_subscriber`).
 
 - **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
   text or reactions, and a message has no kind or payload; sharing a base would make every column of one
@@ -785,6 +800,10 @@ mute an operator gave (see [Mutes](#mutes)).
   payload and `announce_usecase` inserts it, then publishes it on `inprocess_feed`. The announcement's time is
   the event's `landed_at`. **Delivery is at most once**, like every event: a full buffer (256) or a restart loses
   the line, never the bomb.
+- **A line said once is kept once.** `announce_usecase.In.Once` draws the id from a key, and the store
+  answers `announcements.ErrKept` for an id it holds (`ON CONFLICT DO NOTHING`), which the use case takes as
+  done and does not publish. `season_ended_subscriber` keys a win by its season, so a restart that tells the
+  end again shows nothing new.
 - **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
   `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
   lists in one by time. **Once the messages fill the window, none is older than the oldest of them**
@@ -1300,12 +1319,20 @@ internal/player/internal/
 
 ### Seasons (`internal/seasons/`)
 
-**When a season ends, when its finale starts, and who leads it.** Planet never imports, calls or hears it: seasons asks planet what each country holds (`planet.v1.InternalService/GetTerritories`), never the other way.
+**When a season ends, when its finale starts, and who leads it.** Planet never imports, calls or hears it: seasons asks planet what each country holds (`planet.v1.InternalService/GetTerritories`) and sets its rules during a finale, never the other way. See [The Final Battle](#the-final-battle).
 
 ```
 internal/seasons/internal/
-  calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current)
+  calendar/                       Number, Season, Entry, Config (its Validate), Calendar (Current, LastEnded)
     usecases/get_season_usecase/  the calendar and the clock
+  finale/                         Config, Rules (the finale's rule set), Phase (PhaseAt), Switches
+    rpc_planet_rules/             Switches → planet.v1.InternalService/SetRules
+    usecases/converge_rules_usecase/  sets what holds now, unless planet confirmed it; Runner
+      log_converge_rules/
+  lead/                           Config, Shares, Race (the hysteresis), Pass
+    rpc_planet_shares/            planet.v1.InternalService/GetTerritories → Shares
+    usecases/watch_lead_usecase/  LeadChanged during a finale, SeasonEnded once at the end
+      log_watch_lead/
   standings/                      AccountID, Country, Take (Season), Tally (WithTake); the Store port (RecordTake,
                                   DeleteAccount) and its contract suite
     postgres_contribution_store/  the Store over seasons.contributions
@@ -1394,6 +1421,73 @@ standings rank players, the rounds rank countries.
 - `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
   and reads the race off the stream.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
+
+### The Final Battle
+
+**From a season's `finale_starts_at` to its `ends_at`, the game runs faster; at `ends_at` the map freezes.**
+Season 0's is Saturday 31 October 2026, 21:00 to 23:00 UTC. The country holding the most tiles at that
+moment wins, and the chat says so.
+
+**Planet does not know seasons exist.** It offers rule switches in its own words, on
+`planet.v1.InternalService/SetRules`, and does not know why they are set: a refill multiplier, a box interval,
+a gift named by an opaque tag, and frozen on or off. This is a command, not a fact: the calendar is
+seasons' business, and what a speedup does to a bucket is planet's.
+
+- **`tempo.Switches` holds the rules in force**, swapped whole by `set_rules_usecase` (`log_set_rules` logs
+  each call). Nothing is stored: seasons sets them again at boot. `tempo.Plain()` changes nothing.
+- **Clicks refill `refillMultiplier` times faster, for everyone.** `tempo.Pricing` wraps the toll and puts
+  the multiplier on `clicks.Price.Speedup`; `Buckets` composes it: the payer's own bucket at speedup ×
+  linked ÷ slowdown, the guests' at speedup ÷ slowdown, and the scope's at the speedup, or nobody behind one
+  network would refill faster. The scope's key now always carries its pace, so it goes back to 1 after a
+  finale. The bank never changes size. `payer_test.go` pins the composition.
+- **A box every `boxInterval`.** The registry draws no wait while one is set, pulls in a box already further
+  away, and raises `maxChargesPerHour` to what that interval can send in an hour, so the boxes are not lost
+  to the cap. Quizzes keep their own clock.
+- **The gift: a full bank and a bomb, once per account per tag**, on its first accepted click while the tag is
+  set (`gift_click`). Only an account made before `accounts_made_before` is owed it (`tempo.Gift.OwedTo`): an
+  account made during the finale would be a free bank and bomb per cookie. An id that does not say when it
+  was made is older than those that do. The bank is filled the way a refill fills it (`Buckets.Bank`: the
+  account's and, for a guest, its guests', never the scope's), and a bomb charge is granted.
+  - **`gifts.Storage` records (tag, account)** in `planet.gifts`, so a restart gives nothing twice:
+    `postgres_gift_store` inserts and reads a conflict as `gifts.ErrGiven`. `inmemory_gift_cache` sits in
+    front, so only an account's first click of a finale waits on postgres. A failure gives nothing, is logged
+    by `log_gift_storage`, and the next click tries again. `gifts.StorageContractSuite` runs on the three.
+  - **It sits outside the shadow ban**, so a banned caller is gifted like anyone: a gift it never got would tell
+    it it is banned. Its bomb is a dud and its clicks are dropped anyway.
+  - **`ClickResponse.gift` says so**, and the client reads `GetCharges` and `GetBudget` again. It carries no
+    charge: `Click` still says nothing a ban would change.
+- **Frozen refuses every write a player makes**: `frozen_click`, `frozen_drop_bomb`, `frozen_use_refill` and `frozen_place_shield`,
+  outermost, so no token is spent and no try is timed. Spreads and encloses are clicks. The answer is
+  `FailedPrecondition` with a `planet.v1.MapFrozen` detail (`planetv1controller/frozenmap`): not the throttle,
+  and not a full bank either, which is `FailedPrecondition` too. No box or quiz is offered; one already
+  offered lapses. The operator tools still write.
+- **The antibot reads the pace.** Each `antibot.Click` carries `Pace`, the multiplier in force. Its bounds
+  were measured at the plain pace, so the two that read it scale by it: `metronome`'s `cadence` reads each gap
+  times the pace (a hand waiting on a faster refill is no steadier for it), and `stamina` counts a slice busy
+  at `clicks` times the fastest pace in it. Both are pinned at three times the pace in `pace_test.go`, against
+  a hand and against the loops of September. No other watchdog reads a rate: `retaker` reads reaction times,
+  `sequencer` tile ids, `defender` a share of takes, `catcher` each box's delay (more boxes only bring its
+  reading sooner), `cohort` scopes' paces against each other, `scraper` map reads, `churner` accounts.
+
+**Seasons drives it, level-triggered.** `converge_rules_usecase` computes what holds now from the calendar and
+the clock (`finale.PhaseAt`: plain, running, or over when the last season ended and none follows), turns it into
+switches with the finale's rule set (`finale.Rules`, from `seasons.finale`), and sets them unless planet
+already confirmed those. Its `Runner` runs each `seasons.finale.checkEvery` (1s), from one tick after boot,
+so a restart in the middle of a finale converges within seconds. A refused set is tried again next tick;
+`log_converge_rules` logs the change of state, not every tick. The gift's tag is `season-<n>-finale`, and its
+cutoff is the finale's start.
+
+**The lead is read, not counted.** Each tick of a finale, `watch_lead_usecase` asks `GetTerritories` and moves a
+`lead.Race`: the first reading names the leader and says nothing, so a restart is silent; a challenger takes
+the lead once it has led by `seasons.lead.margin` tiles (50) for `seasons.lead.hold` (30s), so a flapping
+lead says nothing. A pass publishes `seasons.v1.LeadChanged`. **At the end**, it runs only once the freeze
+holds (the runner runs it after the rules converge), reads the shares and publishes `seasons.v1.SeasonEnded`
+with the leader. A boot more than 10 minutes after the end says nothing; a restart inside those 10 minutes
+tells it again, and the chat keeps it once (see [Announcements](#announcements)).
+
+**Try it locally**: `make finale` runs `cmd/api` with `example.yaml`'s Season 0 ending `FINALE_IN` +
+`FINALE_FOR` minutes from now (1 and 5 by default). Once it ends, the map stays frozen until the next run.
+`e2e/finale_test.go` boots a finale fifteen seconds away and plays it through.
 
 
 A question-mark box flies past the planet every so often; whoever catches it
@@ -2660,6 +2754,8 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **Size.** 1M takes are 83 MB of table and 31 MB of indexes (the primary key and the account). Production made ~116,000 takes in 72h at the start of October 2026, ~40,000 a day: ~15M rows and ~1.7 GB a year. Each take is written twice, once by the `COPY` and once when its scope is blanked, and autovacuum reuses the space. No partitioning yet.
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges, deletions)` runs them together and closes the pool after the last flushes, and after the subscriber drained its buffer.
 
+**The gifts follow it**, in `planet.gifts` (`tag`, `account`, `given_at`), one row per account per finale, written as it is given rather than flushed. See [The Final Battle](#the-final-battle).
+
 **The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread-shields).
 
 The antibot's evidence is in postgres too, in the `antibot` schema, the same way, and its bans are read and written there on every call — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](#seasons-internalseasons).
@@ -3040,10 +3136,12 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
 - `seasons.snapshot.interval` — how often a snapshot of what each country holds is added to the round in progress (default 1m)
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
+- `seasons.finale.refillMultiplier`, `boxInterval`, `checkEvery` — the finale's rules (3, 2m) and how often the calendar is checked (1s); a multiplier under 1 refuses the boot
+- `seasons.lead.margin`, `hold` — how many tiles a challenger must lead by, and for how long, before the chat says it passed (50, 30s)
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto) and [`player/v1/player.proto`](../../proto/player/v1/player.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto) and [`player/v1/player.proto`](../../proto/player/v1/player.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
 `generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
 

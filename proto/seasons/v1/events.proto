@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package seasons.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message LeadChanged {
+  uint32 season = 1;
+  string leader = 2;
+  string passed = 3;
+  google.protobuf.Timestamp changed_at = 4;
+}
+
+message SeasonEnded {
+  uint32 season = 1;
+  string winner = 2;
+  google.protobuf.Timestamp ended_at = 3;
+}

@@ -80,7 +80,13 @@ message ClickRequest {
 
 message ClickResponse {
   ClickBudget budget = 1;
+
+  // Read the charges again: this click brought a gift. Set whether or not the caller is banned.
+  bool gift = 2;
 }
+
+// The detail of a FailedPrecondition: the map takes no more writes.
+message MapFrozen {}
 
 message GetBudgetRequest {
   string country_id = 1;

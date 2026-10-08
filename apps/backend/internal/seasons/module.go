@@ -14,6 +14,14 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/get_season_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/finale"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/finale/rpc_planet_rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/finale/usecases/converge_rules_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/finale/usecases/converge_rules_usecase/log_converge_rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/lead"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/lead/rpc_planet_shares"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/lead/usecases/watch_lead_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/lead/usecases/watch_lead_usecase/log_watch_lead"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/postgres_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/rounds/rpc_planet_territories"
@@ -72,7 +80,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the seasons module asks the player module who plays: %w", err)
+		return fmt.Errorf("the seasons module asks the player module who plays and sets planet's rules: %w", err)
 	}
 	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
 	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
@@ -134,6 +142,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount seasons.v1.SeasonService: %w", err)
 	}
 
+	rules := log_converge_rules.New(converge_rules_usecase.New(
+		seasons, finale.NewRules(config.Finale), clock, rpc_planet_rules.New(planet)), props.Logger)
+	watch := log_watch_lead.New(watch_lead_usecase.New(
+		seasons, config.Lead, clock, rpc_planet_shares.New(planet), props.Events), props.Logger)
+	props.Runners.Add(converge_rules_usecase.NewRunner(config.Finale.WithDefaults().CheckEvery, rules, watch))
+
 	props.Logger.Info("seasons built", slog.Int("seasons", len(config.Calendar.List)), slog.String("schema", config.Database.Schema))
 
 	return nil
@@ -143,10 +157,16 @@ type Config struct {
 	Calendar calendar.Config `koanf:",squash"`
 	Snapshot take_snapshot_usecase.Config
 	Database cppg.Config
+
+	Finale finale.Config
+	Lead   lead.Config
 }
 
 func (c Config) Validate() error {
 	if err := c.Calendar.Validate(); err != nil {
+		return fmt.Errorf("seasons: %w", err)
+	}
+	if err := c.Finale.Validate(); err != nil {
 		return fmt.Errorf("seasons: %w", err)
 	}
 	if err := c.Database.Validate(); err != nil {

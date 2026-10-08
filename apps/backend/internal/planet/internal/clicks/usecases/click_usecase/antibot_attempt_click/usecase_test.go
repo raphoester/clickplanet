@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_attempt_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -34,14 +35,14 @@ func TestAntiBotAttemptClick(t *testing.T) {
 		clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC))
 		ctx := cpctx.AddIPToContext(t.Context(), "2001:db8::dead:beef")
 
-		useCase := antibot_attempt_click.New(throttled{}, guard, clock)
+		useCase := antibot_attempt_click.New(throttled{}, guard, tempo.NewSwitches(), clock)
 
 		out, err := useCase.Execute(ctx, click_usecase.In{TileID: 42, CountryID: "BG"})
 
 		require.ErrorIs(t, err, clicks.ErrThrottled, "the answer is the inner one, untouched")
 		assert.True(t, out.Limited)
 		require.Len(t, guard.attempted, 1)
-		assert.Equal(t, antibot.Click{Scope: "2001:db8::/64", Tile: 42, Country: "BG", At: clock.Now()}, guard.attempted[0])
+		assert.Equal(t, antibot.Click{Scope: "2001:db8::/64", Tile: 42, Country: "BG", At: clock.Now(), Pace: 1}, guard.attempted[0])
 	})
 
 	t.Run("shows the guard a linked account as signed in", func(t *testing.T) {
@@ -49,12 +50,27 @@ func TestAntiBotAttemptClick(t *testing.T) {
 		clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC))
 		ctx := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-player"))
 
-		useCase := antibot_attempt_click.New(throttled{}, guard, clock)
+		useCase := antibot_attempt_click.New(throttled{}, guard, tempo.NewSwitches(), clock)
 
 		_, err := useCase.Execute(ctx, click_usecase.In{TileID: 42, CountryID: "BG"})
 
 		require.ErrorIs(t, err, clicks.ErrThrottled)
 		require.Len(t, guard.attempted, 1)
-		assert.Equal(t, antibot.Click{Scope: "1.2.3.4", Account: "a-player", SignedIn: true, Tile: 42, Country: "BG", At: clock.Now()}, guard.attempted[0])
+		assert.Equal(t, antibot.Click{Scope: "1.2.3.4", Account: "a-player", SignedIn: true, Tile: 42, Country: "BG", At: clock.Now(), Pace: 1}, guard.attempted[0])
+	})
+
+	t.Run("tells the guard the pace the refill runs at", func(t *testing.T) {
+		guard := &fakeGuard{}
+		switches := tempo.NewSwitches()
+		rules, err := tempo.NewRules(3, 0, false)
+		require.NoError(t, err)
+		switches.Set(rules)
+
+		_, err = antibot_attempt_click.New(throttled{}, guard, switches, cptime.NewFixedClock(time.Now())).
+			Execute(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), click_usecase.In{TileID: 42, CountryID: "BG"})
+
+		require.ErrorIs(t, err, clicks.ErrThrottled)
+		require.Len(t, guard.attempted, 1)
+		assert.InDelta(t, 3.0, guard.attempted[0].Pace, 1e-9)
 	})
 }

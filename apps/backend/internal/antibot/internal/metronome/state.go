@@ -37,6 +37,7 @@ type savedSpender struct {
 type savedSlice struct {
 	Index  int64
 	Clicks int
+	Pace   float64
 }
 
 func (w *Watchdog) Save() ([]byte, error) {
@@ -61,7 +62,7 @@ func (w *Watchdog) Save() ([]byte, error) {
 	for payer, sp := range w.spenders {
 		slices := make([]savedSlice, 0, len(sp.slices))
 		for _, counted := range sp.slices {
-			slices = append(slices, savedSlice{Index: counted.index, Clicks: counted.clicks})
+			slices = append(slices, savedSlice{Index: counted.index, Clicks: counted.clicks, Pace: counted.pace})
 		}
 		s.Spenders = append(s.Spenders, savedSpender{Payer: payer, LastSeen: evidence.Nanos(sp.lastSeen), Slices: slices})
 	}
@@ -94,7 +95,7 @@ func (w *Watchdog) Load(data []byte) error {
 		for _, sp := range s.Spenders {
 			slices := make([]slice, 0, len(sp.Slices))
 			for _, counted := range sp.Slices {
-				slices = append(slices, slice{index: counted.Index, clicks: counted.Clicks})
+				slices = append(slices, slice{index: counted.Index, clicks: counted.Clicks, pace: counted.Pace})
 			}
 			spenders[sp.Payer] = &spender{lastSeen: evidence.Time(sp.LastSeen), slices: slices}
 		}

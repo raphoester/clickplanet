@@ -10,6 +10,7 @@ import {
     ShieldRefusedError,
     GlobePoint,
     Enclosure,
+    MapFrozenError,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
@@ -92,6 +93,7 @@ const RULES: BonusRules = {
 export type FakeBackendOptions = {
     vpnBlocked?: boolean
     sessionUnavailable?: boolean
+    frozen?: boolean
     tilePositions?: () => Promise<Float32Array>
 }
 
@@ -124,10 +126,13 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private shapesClose = true
     private readonly vpnBlocked: boolean
     private readonly sessionUnavailable: boolean
+    private frozen: boolean
+    private gifting = false
 
     constructor(batchUpdateDurationMs: number, options: FakeBackendOptions = {}) {
         this.vpnBlocked = options.vpnBlocked ?? false
         this.sessionUnavailable = options.sessionUnavailable ?? false
+        this.frozen = options.frozen ?? false
         this.tilePositions = options.tilePositions
 
         for (let i = 1; i <= TILE_COUNT; i++) {
@@ -206,6 +211,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (switches.spread && switches.enclose) throw new Error("spread and enclose switched on together")
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         if (this.vpnBlocked) throw new VPNBlockedError()
+        if (this.frozen) throw new MapFrozenError()
 
         const allowed = this.allow(countryId)
         this.reportBudget()
@@ -214,6 +220,22 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.applyClick(tileId, countryId)
         if (switches.enclose && this.shapesClose) this.pretendToEnclose(tileId, countryId)
         if (switches.spread) this.announceBonusClick(tileId, countryId)
+        if (this.gifting) this.gift()
+    }
+
+    public freeze(): void {
+        this.frozen = true
+    }
+
+    public giftNextClick(): void {
+        this.gifting = true
+    }
+
+    private gift() {
+        this.gifting = false
+        this.tokens = CLICK_BURST
+        this.hold({...this.charges, bomb: true})
+        this.reportBudget()
     }
 
     private announceBonusClick(tileId: number, countryId: string) {
@@ -271,6 +293,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async useRefill(): Promise<void> {
+        if (this.frozen) throw new MapFrozenError()
         if (!this.charges.refill) throw new BonusLostError()
 
         this.refill()
@@ -521,6 +544,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public async dropBomb(target: GlobePoint, countryId: string): Promise<void> {
         if (this.sessionUnavailable) throw new SessionUnavailableError()
+        if (this.frozen) throw new MapFrozenError()
         if (!this.charges.bomb) throw new BonusLostError()
 
         this.hold({...this.charges, bomb: false})

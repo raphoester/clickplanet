@@ -171,15 +171,22 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     }
 
     public announceBomb(drop: {countryId: string, tile: number | undefined, cleared: readonly number[]}) {
-        const announcement: ChatAnnouncement = {
+        this.announce({
             kind: "bomb",
             id: UUIDv4(),
             announcedAt: Date.now(),
             country: drop.countryId,
             tile: drop.tile,
             cleared: drop.cleared.length,
-        }
-        this.announce(announcement)
+        })
+    }
+
+    public announceLead(leader: string, passed: string, season = 0) {
+        this.announce({kind: "leadChanged", id: UUIDv4(), announcedAt: Date.now(), season, leader, passed})
+    }
+
+    public announceWinner(winner: string, season = 0) {
+        this.announce({kind: "seasonWon", id: UUIDv4(), announcedAt: Date.now(), season, winner})
     }
 
     private announce(announcement: ChatAnnouncement) {

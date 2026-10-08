@@ -43,7 +43,7 @@ func (s *StorageContractSuite) append(names ...string) {
 func (s *StorageContractSuite) TestAnIDIsKeptOnce() {
 	s.append("boom")
 
-	s.Error(s.storage.Append(context.Background(), contractAnnouncement("boom", contractStart.Add(time.Hour))))
+	s.ErrorIs(s.storage.Append(context.Background(), contractAnnouncement("boom", contractStart.Add(time.Hour))), ErrKept)
 }
 
 func (s *StorageContractSuite) TestDeleteBeforeRemovesWhatIsOlderAndCountsIt() {

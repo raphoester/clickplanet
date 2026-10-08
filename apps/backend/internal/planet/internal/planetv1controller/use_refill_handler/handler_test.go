@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/tempo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 )
 
@@ -64,4 +65,20 @@ func TestAFullBankIsAFailedPrecondition(t *testing.T) {
 	_, err := use(t, &stubUseCase{err: use_refill_usecase.ErrBankFull})
 
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}
+
+func TestARefillOnAFrozenMapIsNotABankFull(t *testing.T) {
+	_, err := use(t, &stubUseCase{err: tempo.ErrFrozen})
+
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	var connectErr *connect.Error
+	require.ErrorAs(t, err, &connectErr)
+	require.Len(t, connectErr.Details(), 1, "the detail is what tells it from a full bank")
+	value, valueErr := connectErr.Details()[0].Value()
+	require.NoError(t, valueErr)
+	assert.IsType(t, &planetv1.MapFrozen{}, value)
+
+	_, err = use(t, &stubUseCase{err: use_refill_usecase.ErrBankFull})
+	require.ErrorAs(t, err, &connectErr)
+	assert.Empty(t, connectErr.Details())
 }

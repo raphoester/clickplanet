@@ -39,12 +39,16 @@ const (
 	// InternalServiceGetTerritoriesProcedure is the fully-qualified name of the InternalService's
 	// GetTerritories RPC.
 	InternalServiceGetTerritoriesProcedure = "/planet.v1.InternalService/GetTerritories"
+	// InternalServiceSetRulesProcedure is the fully-qualified name of the InternalService's SetRules
+	// RPC.
+	InternalServiceSetRulesProcedure = "/planet.v1.InternalService/SetRules"
 )
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
 type InternalServiceClient interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	SetRules(context.Context, *connect.Request[v1.SetRulesRequest]) (*connect.Response[v1.SetRulesResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the planet.v1.InternalService service. By
@@ -72,6 +76,12 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		setRules: connect.NewClient[v1.SetRulesRequest, v1.SetRulesResponse](
+			httpClient,
+			baseURL+InternalServiceSetRulesProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("SetRules")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -79,6 +89,7 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type internalServiceClient struct {
 	getTakesByCountry *connect.Client[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse]
 	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
+	setRules          *connect.Client[v1.SetRulesRequest, v1.SetRulesResponse]
 }
 
 // GetTakesByCountry calls planet.v1.InternalService.GetTakesByCountry.
@@ -91,10 +102,16 @@ func (c *internalServiceClient) GetTerritories(ctx context.Context, req *connect
 	return c.getTerritories.CallUnary(ctx, req)
 }
 
+// SetRules calls planet.v1.InternalService.SetRules.
+func (c *internalServiceClient) SetRules(ctx context.Context, req *connect.Request[v1.SetRulesRequest]) (*connect.Response[v1.SetRulesResponse], error) {
+	return c.setRules.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error)
+	SetRules(context.Context, *connect.Request[v1.SetRulesRequest]) (*connect.Response[v1.SetRulesResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -118,12 +135,20 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceSetRulesHandler := connect.NewUnaryHandler(
+		InternalServiceSetRulesProcedure,
+		svc.SetRules,
+		connect.WithSchema(internalServiceMethods.ByName("SetRules")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetTakesByCountryProcedure:
 			internalServiceGetTakesByCountryHandler.ServeHTTP(w, r)
 		case InternalServiceGetTerritoriesProcedure:
 			internalServiceGetTerritoriesHandler.ServeHTTP(w, r)
+		case InternalServiceSetRulesProcedure:
+			internalServiceSetRulesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -139,4 +164,8 @@ func (UnimplementedInternalServiceHandler) GetTakesByCountry(context.Context, *c
 
 func (UnimplementedInternalServiceHandler) GetTerritories(context.Context, *connect.Request[v1.GetTerritoriesRequest]) (*connect.Response[v1.GetTerritoriesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTerritories is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) SetRules(context.Context, *connect.Request[v1.SetRulesRequest]) (*connect.Response[v1.SetRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.SetRules is not implemented"))
 }

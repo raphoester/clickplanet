@@ -96,3 +96,22 @@ func TestAnAnnouncementOfAKindNobodyKnowsIsRefusedAndNeitherKeptNorPublished(t *
 	assert.Empty(t, store.Kept())
 	assert.Empty(t, updates.updates)
 }
+
+func TestAnAnnouncementMadeOnceIsKeptAndShownOnce(t *testing.T) {
+	store := inmemory_announcement_storage.New()
+	updates := &recordedFeed{}
+	useCase := announce_usecase.New(store, updates, failingIDs{})
+	in := announce_usecase.In{Kind: announcements.KindSeasonWon, At: at, Payload: json.RawMessage(`{"season":0,"winner":"dz"}`), Once: "season-0"}
+
+	require.NoError(t, useCase.Execute(t.Context(), in))
+	require.NoError(t, useCase.Execute(t.Context(), in), "a second telling is no fault")
+
+	assert.Len(t, store.Kept(), 1)
+	assert.Len(t, updates.updates, 1, "nobody is shown it twice")
+	assert.Equal(t, announcements.KeyedID(announcements.KindSeasonWon, "season-0"), store.Kept()[0].ID(),
+		"its id comes from its key, never from the provider")
+
+	in.Once = "season-1"
+	require.NoError(t, useCase.Execute(t.Context(), in))
+	assert.Len(t, store.Kept(), 2)
+}

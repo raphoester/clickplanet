@@ -27,6 +27,7 @@ export class TileOwnership {
     private readonly countsByCountry = new Map<string, number>()
     private readonly pending = new Map<number, Pending>()
     private lastToken = 0
+    private frozen = false
 
     constructor(public readonly size: number) {
         this.owners = new Array<string | undefined>(size + 1)
@@ -39,6 +40,14 @@ export class TileOwnership {
 
     public counts(): ReadonlyMap<string, number> {
         return this.countsByCountry
+    }
+
+    public freeze(): void {
+        this.frozen = true
+    }
+
+    public isFrozen(): boolean {
+        return this.frozen
     }
 
     public applyBatch(ownerships: Ownerships): OwnerChange[] {
@@ -103,7 +112,7 @@ export class TileOwnership {
     }
 
     public applyOptimistic(tile: number, country: string): OptimisticPaint {
-        if (!this.inRange(tile)) return {changes: [], claim: undefined}
+        if (this.frozen || !this.inRange(tile)) return {changes: [], claim: undefined}
 
         const token = ++this.lastToken
         const pending = this.pending.get(tile)

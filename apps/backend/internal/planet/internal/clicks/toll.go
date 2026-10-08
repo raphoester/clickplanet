@@ -37,6 +37,9 @@ type Price struct {
 	Slowdown float64
 	Share    float64
 
+	// Every bucket of every payer, the scope's included, refills this many times faster.
+	Speedup float64
+
 	NextShare    float64
 	NextSlowdown float64
 }

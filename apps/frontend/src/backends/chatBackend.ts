@@ -265,9 +265,36 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 name: values.name,
                 seconds: values.seconds,
             }
+        case "lead_changed":
+            if (!isSeason(values.season) || !isCountry(values.leader) || !isCountry(values.passed)) return undefined
+            return {
+                kind: "leadChanged",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                season: values.season,
+                leader: values.leader,
+                passed: values.passed,
+            }
+        case "season_won":
+            if (!isSeason(values.season) || !isCountry(values.winner)) return undefined
+            return {
+                kind: "seasonWon",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                season: values.season,
+                winner: values.winner,
+            }
         default:
             return undefined
     }
+}
+
+function isCountry(value: unknown): value is string {
+    return typeof value === "string" && value !== ""
+}
+
+function isSeason(value: unknown): value is number {
+    return typeof value === "number" && Number.isInteger(value) && value >= 0
 }
 
 function decodedCount(count: ReactionCountPb): ReactionCount {

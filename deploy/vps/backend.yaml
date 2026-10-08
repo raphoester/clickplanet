@@ -338,3 +338,9 @@ seasons:
     schema: seasons
     pool:
       maxOpenConns: 2
+  finale:
+    refillMultiplier: 3
+    boxInterval: 2m
+  lead:
+    margin: 50
+    hold: 30s

@@ -246,3 +246,138 @@ export class Territory extends Message<Territory> {
   }
 }
 
+/**
+ * @generated from message planet.v1.SetRulesRequest
+ */
+export class SetRulesRequest extends Message<SetRulesRequest> {
+  /**
+   * 0 is the plain pace.
+   *
+   * @generated from field: double refill_multiplier = 1;
+   */
+  refillMultiplier = 0;
+
+  /**
+   * 0 is the configured schedule.
+   *
+   * @generated from field: int64 box_interval_ms = 2;
+   */
+  boxIntervalMs = protoInt64.zero;
+
+  /**
+   * @generated from field: planet.v1.Gift gift = 3;
+   */
+  gift?: Gift;
+
+  /**
+   * @generated from field: bool frozen = 4;
+   */
+  frozen = false;
+
+  constructor(data?: PartialMessage<SetRulesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.SetRulesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "refill_multiplier", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 2, name: "box_interval_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "gift", kind: "message", T: Gift },
+    { no: 4, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetRulesRequest {
+    return new SetRulesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetRulesRequest {
+    return new SetRulesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetRulesRequest {
+    return new SetRulesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetRulesRequest | PlainMessage<SetRulesRequest> | undefined, b: SetRulesRequest | PlainMessage<SetRulesRequest> | undefined): boolean {
+    return proto3.util.equals(SetRulesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.Gift
+ */
+export class Gift extends Message<Gift> {
+  /**
+   * @generated from field: string tag = 1;
+   */
+  tag = "";
+
+  /**
+   * 0 is every account.
+   *
+   * @generated from field: int64 accounts_made_before_unix_ms = 2;
+   */
+  accountsMadeBeforeUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<Gift>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.Gift";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "accounts_made_before_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Gift {
+    return new Gift().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Gift {
+    return new Gift().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Gift {
+    return new Gift().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Gift | PlainMessage<Gift> | undefined, b: Gift | PlainMessage<Gift> | undefined): boolean {
+    return proto3.util.equals(Gift, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.SetRulesResponse
+ */
+export class SetRulesResponse extends Message<SetRulesResponse> {
+  constructor(data?: PartialMessage<SetRulesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.SetRulesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetRulesResponse {
+    return new SetRulesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetRulesResponse {
+    return new SetRulesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetRulesResponse {
+    return new SetRulesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetRulesResponse | PlainMessage<SetRulesResponse> | undefined, b: SetRulesResponse | PlainMessage<SetRulesResponse> | undefined): boolean {
+    return proto3.util.equals(SetRulesResponse, a, b);
+  }
+}
+

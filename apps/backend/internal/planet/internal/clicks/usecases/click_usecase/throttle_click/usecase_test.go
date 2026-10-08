@@ -106,7 +106,7 @@ func TestThrottleClick(t *testing.T) {
 		assert.Equal(t, [][]cpratelimit.Key{{
 			{Name: "account:a-guest", Scale: 1, Pace: 1},
 			{Name: "guests:1.2.3.4", Scale: 1, Pace: 1},
-			{Name: "scope:1.2.3.4", Scale: 10},
+			{Name: "scope:1.2.3.4", Scale: 10, Pace: 1},
 		}}, limiter.keys)
 	})
 

@@ -26,7 +26,7 @@ export type ChatMessage = {
     reactionsVersion: number
 }
 
-export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement
+export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | LeadChangedAnnouncement | SeasonWonAnnouncement
 
 export type BombAnnouncement = {
     kind: "bomb"
@@ -44,6 +44,23 @@ export type MuteAnnouncement = {
     announcedAt: number
     name: string
     seconds: number
+}
+
+export type LeadChangedAnnouncement = {
+    kind: "leadChanged"
+    id: string
+    announcedAt: number
+    season: number
+    leader: string
+    passed: string
+}
+
+export type SeasonWonAnnouncement = {
+    kind: "seasonWon"
+    id: string
+    announcedAt: number
+    season: number
+    winner: string
 }
 
 export type ChatHistory = {
