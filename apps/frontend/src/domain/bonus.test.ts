@@ -32,11 +32,11 @@ describe("describeReward", () => {
         expect(describeReward({kind: "encloseClicks", shapes: 1, maxTiles: 25}).title).toBe("+1 enclosure")
     })
 
-    it("says how many shields a box added, and nothing more", () => {
+    it("says how many shields a box added, and where they go", () => {
         const {title, detail} = describeReward({kind: "shields", shields: 3})
 
         expect(title).toBe("+3 shields")
-        expect(detail).toBeUndefined()
+        expect(detail).toBe("Switch shield on, then tap your tiles. Each shield stops one enemy click")
         expect(describeReward({kind: "shields", shields: 1}).title).toBe("+1 shield")
     })
 

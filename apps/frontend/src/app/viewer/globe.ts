@@ -45,7 +45,7 @@ import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createClickEffects} from "./clickEffects.ts";
 import {createClickGlints} from "./clickGlints.ts";
-import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
+import {ALL_OFF, BonusNotice, BonusReward, BonusRules, Charges, NO_CHARGES, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
 import {now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
@@ -84,6 +84,8 @@ const DISTANT_BOMB_VOLUME = 0.45
 const OWN_DROP_WINDOW_SECONDS = 5
 
 const OWN_CLICK_WINDOW_SECONDS = 3
+
+const ENCLOSURE_WAIT_MS = 1500
 
 const SHIELD_MOST_UNTIL_READ = 10
 
@@ -150,7 +152,7 @@ export type GlobeOptions = {
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
     onArmedChange: (armed: boolean) => void
     shielder?: Shielder
-    onShieldFull?: () => void
+    onNotice?: (notice: BonusNotice) => void
     onClickAccepted?: (click: AcceptedClick) => void
     playSound?: PlaySound
     director?: Director
@@ -198,7 +200,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onBombDropped,
         onArmedChange,
         shielder,
-        onShieldFull = () => {},
+        onNotice = () => {},
         onClickAccepted = () => {},
         playSound = () => {},
         director,
@@ -278,6 +280,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const ownClicks = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
     const ownHits = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
     const ownPlacements = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
+    const ownEnclosures = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
 
     const driveBonusBox = (seconds: number) => {
         const enclosing = enclosures.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
@@ -383,7 +386,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onTaken: (taken) => onBonusTaken(taken),
         onEnclosed: (enclosure) => {
             enclosures.play(enclosure)
-            if (enclosure.yours) playSound("enclose")
+            if (!enclosure.yours) return
+            playSound("enclose")
+            ownEnclosures.record(enclosure.closingTile, enclosure.countryId, performance.now() / 1000)
         },
         onSpread: (spread) => {
             bonusClicks.playSpread(spread)
@@ -613,7 +618,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (switches.shield && shielder) {
             const placement = placementOf(owner, country.code, shields, rules?.tileShields)
             if (placement === "full") {
-                onShieldFull()
+                onNotice("shieldFull")
                 return
             }
             if (placement === "place") {
@@ -639,9 +644,16 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
 
         const clicked = country.code
+        const shielding = switches.shield && shielder !== undefined
+        const enclosing = switches.enclose && outcome === "taken"
         tileClicker.clickTile(tile, clicked, switches).then(() => {
             if (lifetime.signal.aborted) return
             onClickAccepted({country: clicked, took: outcome === "taken"})
+            if (shielding) onNotice(outcome === "taken" ? "shieldTaken" : "shieldNotYours")
+            if (enclosing) setTimeout(() => {
+                if (lifetime.signal.aborted || ownEnclosures.has(tile, clicked, performance.now() / 1000)) return
+                onNotice("nothingEnclosed")
+            }, ENCLOSURE_WAIT_MS)
         }, (e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))

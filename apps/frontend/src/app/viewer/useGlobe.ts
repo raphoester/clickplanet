@@ -5,7 +5,7 @@ import {Country} from '../../domain/countries.ts';
 import {MapView, Rendering} from '../../domain/displaySettings.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
-import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from '../../domain/bonus.ts';
+import {ALL_OFF, BonusNotice, BonusNoticeEvent, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from '../../domain/bonus.ts';
 import {BombDrop, Bomber, BonusCatch, BonusListener, Shielder} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 import {AcceptedClick} from './acceptedClicks.ts';
@@ -44,7 +44,8 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const [refusals, setRefusals] = useState(0)
 
-    const [shieldFull, setShieldFull] = useState(0)
+    const [notice, setNotice] = useState<BonusNoticeEvent | undefined>()
+    const notify = useCallback((what: BonusNotice) => setNotice((was) => ({notice: what, seq: (was?.seq ?? 0) + 1})), [])
 
     const [vpnBlocked, setVPNBlocked] = useState(false)
 
@@ -107,7 +108,7 @@ export function useGlobe(options: UseGlobeOptions) {
             onBombDropped: recordBomb,
             onArmedChange: setBombArmed,
             shielder,
-            onShieldFull: () => setShieldFull(n => n + 1),
+            onNotice: notify,
             onClickAccepted,
             playSound,
             signal: abortController.signal,
@@ -136,7 +137,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, notify])
 
     useEffect(() => {
         initialCountry.current = country
@@ -183,7 +184,7 @@ export function useGlobe(options: UseGlobeOptions) {
         toggleBomb,
         switches,
         toggleSwitch,
-        shieldFull,
+        notice,
         lastCatch,
         lastBomb,
         dismissBomb,
