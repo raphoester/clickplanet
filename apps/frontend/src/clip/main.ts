@@ -24,7 +24,7 @@ import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
 import {cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
 import {paceOf, playedAt, timelineFor, timelineOf} from "../domain/clip/pace.ts"
 import {stopsOf, tourOf, tourSecondsOf, Visit} from "../domain/clip/tour.ts"
-import {tilesZoomOf} from "../app/viewer/pointSize.ts"
+import {flagsZoomOf, tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, nameOf, placeName, teamFlagOf, wordsOf} from "./overlay.ts"
 
@@ -313,7 +313,7 @@ async function prepare(): Promise<Recording> {
     const pace = paceOf(front.changes.map(({at}) => at), backend.since, backend.until)
     const stops = world ? stopsOf(visitsOf(front, story.attacker, pace.shareOf), aspect) : []
     const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds")) : timelineOf(screens, numberParam("seconds"))
-    const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending)
+    const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending, flagsZoomOf(root.clientHeight))
         : cameraOf(first, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
             close,
             seconds: timeline.seconds - timeline.ending,

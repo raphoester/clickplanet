@@ -2438,10 +2438,14 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   of the whole map, for the 3 flags that took the most in each (or `--country`), when no continent holds 70% of
   what the flag took and it leads what is taken across the world (35%). **"PORTUGAL IS TAKING OVER THE WORLD"**,
   and its call is "Fight back", with no flag. Each continent with a tenth of what it took is a stop, four at most,
-  in the order it got there (a fifth of it taken). The camera opens on the whole globe over the first stop, flies
-  to each in turn, framed on its painted flags where it took the most there (Angola, not all of Africa from
-  Guinea-Bissau to Mozambique, which only the whole globe frames) and closing in while it is there, high over the globe between two
-  far apart, and pulls back out to the globe over all of them; 0.9s a flight and 2.4s a stop. The counter counts
+  in the order it got there (a fifth of it taken). Each stop is framed where it took the most there (Angola, not
+  all of Africa from Guinea-Bissau to Mozambique, which only the whole globe frames). The camera opens on the whole
+  globe over the first stop and dives into it, twice as close as that framing but never past where the painted flags
+  start to blend into the tiles (`flagsZoomOf`): the flags changing hands are what a tour shows. At each stop it
+  follows the flag's fighting there as it happens, as a clip follows its front, then flies to the next, rising a
+  little over a long way (1.6 times out at most), never out to the globe and back in, which was brutal. It pulls back
+  out to the globe over all of them at the end; 1.2s a flight and 2.6s a stop. Up close, a big country's painted flag
+  is blurred: the flag atlas is the game's. The counter counts
   the flag across the world. A tour is told beside the flag's stories on each continent, not instead of them.
 - **One story per flag and what it did** (`sameStory`), whatever window or scale found it, told over the most of the
   map (`widerThan`), else the best: one flag taking one place or one inside it, whoever it beat there ("Portugal is
