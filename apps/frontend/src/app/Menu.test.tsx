@@ -569,7 +569,7 @@ describe("Menu", () => {
             expect(playerInfo.playerInfo).toHaveBeenCalledTimes(1)
         })
 
-        it("shows a signed-in player every country it plays for and against, read again once its clicks settle", async () => {
+        it("folds every country a signed-in player fought for and against, and reads them again once its clicks settle", async () => {
             const clicks = acceptedClicks()
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, undefined, clicks)
             player.titles.mockResolvedValue(dashboard(140))
@@ -578,10 +578,17 @@ describe("Menu", () => {
 
             await user.click(await screen.findByRole("tab", {name: "You"}))
 
-            const playsAgainst = await screen.findByRole("region", {name: "Plays against"})
-            expect(within(playsAgainst).getAllByRole("listitem").map((row) => row.textContent))
+            const foughtAgainst = await screen.findByRole("region", {name: "Fought against"})
+            const foughtFor = screen.getByRole("region", {name: "Fought for"})
+            expect(within(foughtAgainst).queryByRole("list")).toBeNull()
+            expect(within(foughtFor).queryByRole("list")).toBeNull()
+            expect(screen.getByRole("button", {name: "Titles"}).getAttribute("aria-expanded")).toBe("true")
+
+            await user.click(within(foughtAgainst).getByRole("button", {name: "Fought against, 5 countries"}))
+            await user.click(within(foughtFor).getByRole("button", {name: "Fought for, 1 country"}))
+            expect(within(foughtAgainst).getAllByRole("listitem").map((row) => row.textContent))
                 .toEqual(["Germany50", "Spain49", "Italy48", "Portugal47", "Belgium46"])
-            expect(within(screen.getByRole("region", {name: "Plays for"})).getAllByRole("listitem")).toHaveLength(1)
+            expect(within(foughtFor).getAllByRole("listitem")).toHaveLength(1)
 
             vi.useFakeTimers()
             player.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 501}], playsAgainst: against})

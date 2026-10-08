@@ -730,9 +730,11 @@ flag and the country, then, for a player with a username, what
 `player.v1.PlayerService/GetPlayer` answers: the title it wears and the titles
 it shows (see [Titles](#titles)), then tiles taken, the current and best
 streak, and "Playing since", the day the account was made (left out when the
-server does not know it). Under them, **"Plays for" and "Plays against"**
+server does not know it). Under them, **"Fought for" and "Fought against"**
 (`PlayerFronts`): the countries the player took tiles for, and the ones it took
-them from, each with a bar against the side's first country. The card shows
+them from, each with a bar against the side's first country. Past tense on
+purpose: "You're playing for" at the top of the menu is the flag now, and these
+are the player's whole history. The card shows
 the top 3 of each, all `GetPlayer` sends; the player's own Progress tab shows
 every one (below). A side with no tile is left out. They
 are the player's total, not the season's (see the backend's CLAUDE.md, Player),
@@ -807,17 +809,22 @@ is the player's own view.
   and the name), and a ring of its metal inside the card's ink border
   (`title-frame-<metal>` on the `Modal`). Under it, one medal per title shown.
   OG is also a stamp beside the name (`OgStamp`).
-- **The Progress tab** is the worn title (a compact banner), "Wear a title" (a
+- **The Progress tab** is the worn title (a compact banner) and the stats, then
+  three folds (`components/Fold.tsx`, a bar that opens what is under it). Titles
+  is open first and holds "Wear a title" (a
   `radiogroup` of the titles that can be worn; a press sends `WearTitle` and reads
   the titles again), and one `TrackPath` per track: every rank, its threshold
   (`stepLabel`), a bar filled up to the progress (`filledOf`), and in its header
   what is left to the next rank (`leftLabel`). The path scrolls sideways and opens
   centred on the next rank. `useTitles` reads `GetTitles` (the click token, as
   `GetProfile`) each time the panel opens and after a run of clicks, at the pace
-  of `useMySeason`; a failed read says so. Under the tracks, **every country the
-  player plays for and against** (`PlayerFronts`, one list under the other):
-  `useFronts` reads `GetFronts` (`AccountStore.fronts`) at the same moments, and
-  a failed read shows nothing. Tiles taken counts each take at once
+  of `useMySeason`; a failed read says so. Then **"Fought for" and "Fought
+  against"** (`FrontFolds`), closed first: each bar shows its top 3 flags and how
+  many countries, and opens on every one of them. Open, a player on 30 countries
+  had two lists longer than the screen under the titles. `useFronts` reads
+  `GetFronts` (`AccountStore.fronts`) at the same moments, and a failed read
+  shows nothing. What is open stays open through these reads, and closes when
+  the tab is left. Tiles taken counts each take at once
   (`useOwnTakes`): `GetPlayer` is cached 10s, so it is read only once.
 - **The unlock moment is live.** The player stream carries `titleEarned` to a
   stream opened with this player's token. `useRoster` hands it to `Viewer`, which

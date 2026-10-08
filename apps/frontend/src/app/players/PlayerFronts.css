@@ -13,6 +13,23 @@
     padding: 10px var(--space-3);
 }
 
+.player-front-summary {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    flex-shrink: 0;
+}
+
+.player-front-flags {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25em;
+}
+
+.player-front-flags .country-flag {
+    margin-right: 0;
+}
+
 .player-front-heading {
     margin: 0 0 var(--space-1);
     text-align: left;
