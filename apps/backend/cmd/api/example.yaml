@@ -180,7 +180,7 @@ antiBot:
         slice: 10m
         clicks: 40
         window: 6h
-        certainBusy: 5h30m
+        minBusy: 5h30m
       trackWindow: 15m
       sweepInterval: 1m
 

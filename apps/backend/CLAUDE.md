@@ -2112,7 +2112,7 @@ tiles, and every watchdog read `clear`.
 - **The rule is the busy time inside `stamina.window` (6h)**: a slice of
   `stamina.slice` (10m) is busy when the payer got `stamina.clicks` (40) past the
   throttle in it. A pause shorter than about half a slice ends nothing, and no pause
-  resets anything: to stay under `certainBusy` a loop has to stop for a share of every
+  resets anything: to stay under a bound a loop has to stop for a share of every
   window, not once.
 - **It counts the payer, not the scope**: the account the click token names, or the
   scope when it names none, as the throttle keys its buckets. What it measures is
@@ -2121,12 +2121,19 @@ tiles, and every watchdog read `clear`.
   like every watchdog's.
 - **It counts in `Watch`, not `Attempted`**: a try the throttle refused spent nothing,
   and a click a ban is dropping still passed the throttle, so a running ban keeps
-  reading `certain`.
+  reading.
 - **Measured before it was set**, over three days of ledger per account: the bot's two
   accounts read 6h of 6h, the heaviest player 4h50m, and 5 of 555 accounts 3h or more.
-  Production sets `certainBusy` 5h30m, which stops such a run about five and a half
-  hours in. `minBusy` is unset: `click_busy_hours` is each payer's busy time, once a
-  sweep, for the payers that clicked since the last one.
+- **It only reads `Suspect`, since 2026-10-08.** Production shipped `certainBusy`
+  5h30m, and in its first week it made two bans, both on people who then asked in
+  the chat why their clicks did nothing. One was a new player on a phone, on its
+  first evening: six hours at its linked pace, chatting all through it, and 6h of 6h,
+  as the bot read. No bound tells them apart, so production sets `minBusy` 5h30m and
+  no `certainBusy`, and a run at pace for hours is banned only beside another
+  watchdog. The bot of 2026-09-28 reads `clear` everywhere else, so it is free again
+  until one does. `TestAnEveningAtPaceAloneBansNobody` pins it.
+- `click_busy_hours` is each payer's busy time, once a sweep, for the payers that
+  clicked since the last one.
 - **It is its own evidence in the metronome's section**, saved with the indexes'
   slice length; a section saved under another length drops its payers on load. A
   restart costs only the clicks it missed, since slices are wall clock.
