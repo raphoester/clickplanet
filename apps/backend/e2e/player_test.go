@@ -68,6 +68,7 @@ func startGame(t *testing.T) gameStack {
 	playerConfig := player.Config{Database: postgres.ConfigFor("player"), TagSalt: "pepper"}
 
 	seasonsConfig := currentSeason(t, postgres.ConfigFor("seasons"))
+	seasonsConfig.Census.Interval = 50 * time.Millisecond
 
 	chatConfig := chat.Config{Database: postgres.ConfigFor("chat")}
 	chatConfig.RateLimiter.PerSecond = 100

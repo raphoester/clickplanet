@@ -59,11 +59,11 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 - **`internal/chat/`** — the live chat: messages, identity, retention.
 - **`internal/auth/`** — who a caller is and what it has to prove before it may click: Turnstile, accounts, the click token. See [Auth](#auth-internalauth).
 - **`internal/player/`** — what the game keeps about one account: the name it chose, the tiles it took, its daily streak. See [Player](#player-internalplayer).
-- **`internal/seasons/`** — the season calendar and each season's player standings, above the game. See [Seasons](#seasons-internalseasons).
+- **`internal/seasons/`** — the season calendar, each season's player standings and its daily rounds between countries, above the game. See [Seasons](#seasons-internalseasons).
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, and `player` publishes `StatsChanged`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet` and `chat` hear `AccountDeleted` too.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username and `planet` what each country holds. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, and `player` publishes `StatsChanged`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet` and `chat` hear `AccountDeleted` too.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -205,6 +205,7 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
+| `seasons` | `planet.v1.InternalService/GetTerritory` | the tiles each country holds and the size of the map, once a census (a minute) | `rounds/rpc_planet_territory` |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 
 A module cannot import another's interior, so the key client all four need is `shared/cpsessionverifier` rather than a copy in each.
@@ -449,7 +450,7 @@ internal/chat/internal/
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
 (`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), auth
-(`GetMe`, `GetAccount`, `GetAccounts`) and seasons (`GetStandings`, `GetMySeason`) follow this so far. **A command may
+(`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race) and planet's `GetTerritory` follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
 through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
@@ -1266,7 +1267,7 @@ internal/player/internal/
 
 ### Seasons (`internal/seasons/`)
 
-**When a season ends, when its finale starts, and who leads it.** Planet never imports, calls or hears it: a later slice will have seasons call a planet internal service, never the other way.
+**When a season ends, when its finale starts, and who leads it.** Planet never imports, calls or hears it: seasons asks planet what each country holds (`planet.v1.InternalService/GetTerritory`), never the other way.
 
 ```
 internal/seasons/internal/
@@ -1279,14 +1280,26 @@ internal/seasons/internal/
     usecases/record_take_usecase/  forget_account_usecase/
       record_take_usecase/marking_record_take/        marks the live boards a take moved, once it is kept
       forget_account_usecase/marking_forget_account/  marks the live boards that list an account, once it is forgotten
+  rounds/                         Country, Round (Current, Results), Census, Result, Score, Placed (TableOf); the Store
+                                  port (RecordCensus, Unclosed, Held, Close) and its contract suite
+    postgres_round_store/         the Store over seasons.rounds, round_holdings and round_results
+    inmemory_round_store/         the same port in maps, behind the testing tag
+    rpc_planet_territory/         the census, from planet.v1.InternalService/GetTerritory
+    usecases/take_census_usecase/ closes the rounds that ended, then counts the round in progress; Runner
+      log_take_census/            logs each round closed, and a census that failed
+      marking_take_census/        marks the live race, once a census is taken
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
     get_standings_handler/standings_query/   PostgresQuery: GetStandingsResponse from SQL, named, and the same top as
                                   a Board with the account of each line, for the live boards — Authors
       rpc_player_authors/         Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
-    listen_for_events_handler/    the stream: the view's board, each new one, a heartbeat — Boards, CountryChecker
+    listen_for_events_handler/    the stream: the view's board, the race, each new one, a heartbeat — Boards, Races,
+                                  CountryChecker
       inprocess_board_feed/       the boards streams follow, each read through standings_query; a Runner
         log_board_reader/         logs a board it could not read
+      inprocess_race_feed/        the race every stream follows, read through race_query; a Runner
+        log_race_reader/          logs a race it could not read
+      race_query/                 PostgresQuery: the Race from SQL, ranked by rounds.Round.Results and rounds.TableOf
     get_my_season_handler/my_season_query/   PostgresQuery: GetMySeasonResponse from SQL, ranked — Authors
       rpc_player_authors/         the same adapter, for this query
     caller/                       the account on the context, or Unauthenticated
@@ -1315,6 +1328,38 @@ internal/seasons/internal/
   - **A slow stream skips to the newest board**: each holds one, and a new one replaces the one it did not take. A board is whole, so nothing is lost.
   - **A failed read is tried again a second later** and logged (`log_board_reader`), but not when the shutdown cut it. The feed runs under the pool's `cppg.CloseAfter`, so it stops before the pool closes.
 - **`GetMySeason(country_id)`** (`my_season_query`) is the caller's main flag, its tiles for it and its rank among every player, and its tiles for `country_id` and its rank on that country's board (`country_tiles`, `country_rank`), and the title it wears, from the `GetAuthors` that tells it is not a guest. A rank is 0 and there is no title for a guest, and every number is 0 for an account with no take this season; the country's are 0 with no `country_id`, or no take for it. A country that is not one is `InvalidArgument` (`my_season_query.ErrUnknownCountry`). It sits behind `seasonsv1controller.NewSessionInterceptor`, always enforcing, on the key `auth` hands over (`seasons_session_checks{verdict}`), and takes the identity token (`cpconnect.Identified`): it only reads. It counts the ranked players above the caller: SQL reads the main rows with more tiles than the caller's main flag, and the country's rows with more than the caller's for it, each 500 at a time and both at once, and costs one `GetAuthors` a page.
+**A country's season score is the points of the rounds it won places in**, counted from the ground it held: the
+standings rank players, the rounds rank countries.
+
+- **A round is a day, and the Final Battle is the last one** (`rounds.Current`). A day round ends at the time of day
+  the finale starts (21:00 UTC in production, evening in Europe), so every day ends while people play. The finale is
+  a round of its own, from its start to the season's end. A round is kept by its season and its end
+  (`Round{Season, EndsAt, Finale}`); its number is the read side's, from the rounds counted before it, so a season
+  with no start (Season 0) still says "day 1".
+- **A census a minute** (`take_census_usecase`, `seasons.census.interval`): ask planet what each country holds, then
+  add each count to the round in progress. **A country's result is its average share**: the sum of its counts over the
+  round, over the censuses taken. A census missed (a restart, planet down) is one sample fewer for every country, so
+  it biases nobody. Counting started the day this shipped; nothing is replayed.
+- **`Round.Results` is the rule**: countries ranked by the ground held, ties sharing a rank and its points, and the top
+  10 scoring 25, 18, 15, 12, 10, 8, 6, 4, 2, 1. The finale scores 3 times that. A day's win is worth the same at 1% as
+  at 30%, so an early lead cannot be banked.
+- **A round closes on the first census after it ended** (`Store.Unclosed`): its results are written once, in one
+  transaction that marks it closed, and a second close changes nothing. Closing does not need a current season, so the
+  finale closes after the last season ends. `log_take_census` logs each round closed.
+- **`rounds.TableOf` ranks the season**: points, then rounds won, then the finale's points. Countries level on all
+  three share the rank. The trophy and the titles at the season's end are a later slice; they read the same table.
+- **Kept in `seasons.rounds`** (`season`, `ends_at`, `finale`, `samples`, `map_tiles`, `closed`), **`round_holdings`**
+  (the sum of each country's counts) and **`round_results`** (`rank`, `points`), migration `20261009120000_rounds`. The
+  rule stays in Go: SQL keeps the sums and what `Results` said.
+- **The race is live on the season stream** (`SeasonEvent.race`), to every stream whatever its view. `race_query` reads
+  the round in progress (its number, its end, each country's rank, average share and the points it would score if it
+  ended now) and the season's scores, best first, of every country with points. **One read for every stream**:
+  `inprocess_race_feed` reads it when the first stream opens, after each census (`marking_take_census`), at most once a
+  second (`Every`) and at least once a minute (`AtLeast`), and sends it only when it changed. It forgets the race when
+  the last stream closes. A failed read is tried again a second later and logged (`log_race_reader`). No season is an
+  empty race.
+- `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
+  and reads the race off the stream.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
 
 
@@ -2960,7 +3005,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `player.tagSalt` — salts the hash of an address the roster caps its visits with. It is never shown, so empty, which generates one at boot, costs nothing. Production reads it from `CHAT_TAG_SALT`, the chat's old variable
 - `player.database.*` — profiles and stats, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
 - `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
-- `seasons.database.*` — the standings, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
+- `seasons.census.interval` — how often the census counts what each country holds into the round in progress (default 1m)
+- `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
 
 ### Protobuf
 
@@ -2974,7 +3020,7 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
-**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.RunOn` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire. `RunOn` serves on listeners the test already holds, bound to `127.0.0.1:0`: a port picked free and closed again can be taken by another process before the server binds it. Under `RunOn`, `cpbootstrap` binds nothing, and an address with no held listener fails the boot. `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused; `standings_test.go` boots the game stack with seasons (one season ending in 30 days), clicks as two players with a username and a guest, and reads `GetStandings` and `GetMySeason`.
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.RunOn` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire. `RunOn` serves on listeners the test already holds, bound to `127.0.0.1:0`: a port picked free and closed again can be taken by another process before the server binds it. Under `RunOn`, `cpbootstrap` binds nothing, and an address with no held listener fails the boot. `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused; `standings_test.go` boots the game stack with seasons (one season ending in 30 days), clicks as two players with a username and a guest, and reads `GetStandings` and `GetMySeason`; `race_test.go` takes a census every 50ms on that stack and reads the race off the season stream.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 

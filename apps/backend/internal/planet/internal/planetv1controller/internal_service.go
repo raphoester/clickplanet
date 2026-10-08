@@ -1,0 +1,12 @@
+package planetv1controller
+
+import (
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territory_handler"
+)
+
+type InternalService struct {
+	get_territory_handler.GetTerritoryHandler
+}
+
+var _ planetv1connect.InternalServiceHandler = InternalService{}

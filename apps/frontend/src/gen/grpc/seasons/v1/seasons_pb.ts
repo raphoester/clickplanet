@@ -428,6 +428,12 @@ export class SeasonEvent extends Message<SeasonEvent> {
      */
     value: Heartbeat;
     case: "heartbeat";
+  } | {
+    /**
+     * @generated from field: seasons.v1.Race race = 3;
+     */
+    value: Race;
+    case: "race";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<SeasonEvent>) {
@@ -440,6 +446,7 @@ export class SeasonEvent extends Message<SeasonEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "board", kind: "message", T: Board, oneof: "event" },
     { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
+    { no: 3, name: "race", kind: "message", T: Race, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SeasonEvent {
@@ -493,6 +500,214 @@ export class Board extends Message<Board> {
 
   static equals(a: Board | PlainMessage<Board> | undefined, b: Board | PlainMessage<Board> | undefined): boolean {
     return proto3.util.equals(Board, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.Race
+ */
+export class Race extends Message<Race> {
+  /**
+   * @generated from field: seasons.v1.Round round = 1;
+   */
+  round?: Round;
+
+  /**
+   * @generated from field: repeated seasons.v1.Score scores = 2;
+   */
+  scores: Score[] = [];
+
+  constructor(data?: PartialMessage<Race>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.Race";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "round", kind: "message", T: Round },
+    { no: 2, name: "scores", kind: "message", T: Score, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Race {
+    return new Race().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Race {
+    return new Race().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Race {
+    return new Race().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Race | PlainMessage<Race> | undefined, b: Race | PlainMessage<Race> | undefined): boolean {
+    return proto3.util.equals(Race, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.Round
+ */
+export class Round extends Message<Round> {
+  /**
+   * @generated from field: uint32 number = 1;
+   */
+  number = 0;
+
+  /**
+   * @generated from field: int64 ends_at_unix_ms = 2;
+   */
+  endsAtUnixMs = protoInt64.zero;
+
+  /**
+   * @generated from field: bool finale = 3;
+   */
+  finale = false;
+
+  /**
+   * @generated from field: repeated seasons.v1.RoundStanding standings = 4;
+   */
+  standings: RoundStanding[] = [];
+
+  constructor(data?: PartialMessage<Round>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.Round";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "number", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "ends_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "finale", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "standings", kind: "message", T: RoundStanding, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Round {
+    return new Round().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Round {
+    return new Round().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Round {
+    return new Round().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Round | PlainMessage<Round> | undefined, b: Round | PlainMessage<Round> | undefined): boolean {
+    return proto3.util.equals(Round, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.RoundStanding
+ */
+export class RoundStanding extends Message<RoundStanding> {
+  /**
+   * @generated from field: uint32 rank = 1;
+   */
+  rank = 0;
+
+  /**
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: double share = 3;
+   */
+  share = 0;
+
+  /**
+   * @generated from field: uint32 points = 4;
+   */
+  points = 0;
+
+  constructor(data?: PartialMessage<RoundStanding>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.RoundStanding";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 4, name: "points", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoundStanding {
+    return new RoundStanding().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoundStanding {
+    return new RoundStanding().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoundStanding {
+    return new RoundStanding().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoundStanding | PlainMessage<RoundStanding> | undefined, b: RoundStanding | PlainMessage<RoundStanding> | undefined): boolean {
+    return proto3.util.equals(RoundStanding, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.Score
+ */
+export class Score extends Message<Score> {
+  /**
+   * @generated from field: uint32 rank = 1;
+   */
+  rank = 0;
+
+  /**
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 points = 3;
+   */
+  points = 0;
+
+  /**
+   * @generated from field: uint32 rounds_won = 4;
+   */
+  roundsWon = 0;
+
+  constructor(data?: PartialMessage<Score>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.Score";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "points", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "rounds_won", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Score {
+    return new Score().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Score {
+    return new Score().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Score {
+    return new Score().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Score | PlainMessage<Score> | undefined, b: Score | PlainMessage<Score> | undefined): boolean {
+    return proto3.util.equals(Score, a, b);
   }
 }
 

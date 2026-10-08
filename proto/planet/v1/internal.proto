@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package planet.v1;
+
+service InternalService {
+  rpc GetTerritory(GetTerritoryRequest) returns (GetTerritoryResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetTerritoryRequest {}
+
+message GetTerritoryResponse {
+  uint32 tiles = 1;
+  repeated Territory territories = 2;
+}
+
+message Territory {
+  string country_id = 1;
+  uint32 tiles = 2;
+}

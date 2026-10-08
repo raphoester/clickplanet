@@ -70,11 +70,38 @@ message SeasonEvent {
   oneof event {
     Board board = 1;
     Heartbeat heartbeat = 2;
+    Race race = 3;
   }
 }
 
 message Board {
   repeated Standing standings = 1;
+}
+
+message Race {
+  Round round = 1;
+  repeated Score scores = 2;
+}
+
+message Round {
+  uint32 number = 1;
+  int64 ends_at_unix_ms = 2;
+  bool finale = 3;
+  repeated RoundStanding standings = 4;
+}
+
+message RoundStanding {
+  uint32 rank = 1;
+  string country_id = 2;
+  double share = 3;
+  uint32 points = 4;
+}
+
+message Score {
+  uint32 rank = 1;
+  string country_id = 2;
+  uint32 points = 3;
+  uint32 rounds_won = 4;
 }
 
 message Heartbeat {}

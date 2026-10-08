@@ -46,9 +46,35 @@ func (s *stubBoards) subscribed() ([]string, context.Context) {
 	return s.asked, s.ctx
 }
 
-func serve(t *testing.T, boards *stubBoards, heartbeat time.Duration) seasonsv1connect.SeasonServiceClient {
+type stubRaces struct {
+	races chan *seasonsv1.Race
+
+	mu       sync.Mutex
+	followed int
+}
+
+func newStubRaces() *stubRaces {
+	return &stubRaces{races: make(chan *seasonsv1.Race, 4)}
+}
+
+func (s *stubRaces) Subscribe(context.Context) <-chan *seasonsv1.Race {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.followed++
+	return s.races
+}
+
+func (s *stubRaces) followers() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.followed
+}
+
+func serve(t *testing.T, boards *stubBoards, races *stubRaces, heartbeat time.Duration) seasonsv1connect.SeasonServiceClient {
 	t.Helper()
-	handler := listen_for_events_handler.New(boards, cpcountries.New(), heartbeat)
+	handler := listen_for_events_handler.New(boards, races, cpcountries.New(), heartbeat)
 	mux := http.NewServeMux()
 	mux.Handle(seasonsv1connect.SeasonServiceListenForEventsProcedure, connect.NewServerStreamHandler(
 		seasonsv1connect.SeasonServiceListenForEventsProcedure, handler.ListenForEvents))
@@ -70,7 +96,7 @@ func TestTheStreamSendsEachBoardOfTheViewItAsksFor(t *testing.T) {
 	boards.boards <- board("Ana")
 	boards.boards <- board("Ana", "Kofi")
 
-	stream, err := serve(t, boards, time.Hour).ListenForEvents(t.Context(),
+	stream, err := serve(t, boards, newStubRaces(), time.Hour).ListenForEvents(t.Context(),
 		connect.NewRequest(&seasonsv1.ListenForEventsRequest{CountryId: "fr"}))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = stream.Close() })
@@ -85,7 +111,7 @@ func TestTheStreamSendsEachBoardOfTheViewItAsksFor(t *testing.T) {
 }
 
 func TestAQuietStreamSendsAHeartbeat(t *testing.T) {
-	stream, err := serve(t, newStubBoards(), 10*time.Millisecond).ListenForEvents(t.Context(),
+	stream, err := serve(t, newStubBoards(), newStubRaces(), 10*time.Millisecond).ListenForEvents(t.Context(),
 		connect.NewRequest(&seasonsv1.ListenForEventsRequest{}))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = stream.Close() })
@@ -94,9 +120,24 @@ func TestAQuietStreamSendsAHeartbeat(t *testing.T) {
 	assert.NotNil(t, stream.Msg().GetHeartbeat())
 }
 
+func TestEveryStreamSendsEachRaceWhateverItsView(t *testing.T) {
+	races := newStubRaces()
+	races.races <- &seasonsv1.Race{Scores: []*seasonsv1.Score{{Rank: 1, CountryId: "fr", Points: 25}}}
+
+	stream, err := serve(t, newStubBoards(), races, time.Hour).ListenForEvents(t.Context(),
+		connect.NewRequest(&seasonsv1.ListenForEventsRequest{CountryId: "de"}))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = stream.Close() })
+
+	require.True(t, stream.Receive(), stream.Err())
+	require.NotNil(t, stream.Msg().GetRace(), "a race travels as the race case")
+	assert.Equal(t, "fr", stream.Msg().GetRace().GetScores()[0].GetCountryId())
+}
+
 func TestACountryThatIsNotOneIsInvalidArgumentAndFollowsNothing(t *testing.T) {
 	boards := newStubBoards()
-	stream, err := serve(t, boards, time.Hour).ListenForEvents(t.Context(),
+	races := newStubRaces()
+	stream, err := serve(t, boards, races, time.Hour).ListenForEvents(t.Context(),
 		connect.NewRequest(&seasonsv1.ListenForEventsRequest{CountryId: "zz"}))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = stream.Close() })
@@ -105,12 +146,13 @@ func TestACountryThatIsNotOneIsInvalidArgumentAndFollowsNothing(t *testing.T) {
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(stream.Err()))
 	asked, _ := boards.subscribed()
 	assert.Empty(t, asked)
+	assert.Zero(t, races.followers())
 }
 
 func TestTheViewIsLeftWhenTheStreamCloses(t *testing.T) {
 	boards := newStubBoards()
 	boards.boards <- board("Ana")
-	stream, err := serve(t, boards, time.Hour).ListenForEvents(t.Context(),
+	stream, err := serve(t, boards, newStubRaces(), time.Hour).ListenForEvents(t.Context(),
 		connect.NewRequest(&seasonsv1.ListenForEventsRequest{}))
 	require.NoError(t, err)
 	require.True(t, stream.Receive(), stream.Err())
