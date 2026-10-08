@@ -155,6 +155,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         callback: (message: ChatMessage) => void,
         onReactions?: (change: ReactionsChange) => void,
         onAnnouncement?: (announcement: ChatAnnouncement) => void,
+        onResumed?: () => void,
     ): () => void {
         return openStream(
             (signal) => this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT}),
@@ -167,6 +168,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
                 if (announcement) onAnnouncement?.(announcement)
             },
             "chat",
+            {onResumed},
         )
     }
 }

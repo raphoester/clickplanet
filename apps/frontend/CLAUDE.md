@@ -22,6 +22,7 @@ npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
 npm run clip:fetch -- --ssh <user@host> --out replay.json  # A replay of the last 72h from production (see "Clips")
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
+npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run regions    # Rewrite each country's continent and sub-region from Natural Earth, for the clips' headlines
 ```
 
@@ -44,8 +45,8 @@ server does: in its map batches, its tile updates and its bombs' struck tiles.
 In fake mode the console has a few commands: `giveBomb()` puts a bomb in the
 inventory as if a box holding one had just been caught, `giveBonus("refill")` does
 the same for any other bonus (the fake holds charges as the server does: a refill
-and a bomb at most, a pool of 8 spread clicks, a stack of 3 enclosures and 12
-shields, a box adding 1 to 4, 1 to 3 and 1 to 3 of them, spread and enclose
+and a bomb at most, a pool of 8 spread clicks, a stack of 3 enclosures and 30
+shields, a box adding 1 to 4, 1 to 3 and 5 to 20 of them, spread and enclose
 spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
 banner up at once, `giveTitle("warlord")` plays the unlock of any title (the fake
@@ -57,6 +58,9 @@ player's own again. `fakeBackend.freeze()` freezes the map as at the end of a
 season, `fakeBackend.giftNextClick()` makes the next accepted click the finale's
 gift, and `announceLead("bg", "fr")` and `announceWinner("dz", 0)` put the
 season's two lines in the chat.
+`fakeBackend.closeShapes(false)` makes every enclose click
+close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
+`localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` runs chat (it is always on), and the Go server answers
@@ -149,7 +153,10 @@ app/       components
   by a batch that was already in flight. Counts follow this map, never the
   `previousCountry` an event reports. It also holds the third source, **your own
   clicks, painted before the server has agreed to them** — see [Rolling back a
-  refused click](#rolling-back-a-refused-click).
+  refused click](#rolling-back-a-refused-click). After a gap in the stream,
+  `forgetLive` and `resync` take a whole map again: a tile it does not list is
+  emptied, a tile the stream set since `forgetLive` is kept, and a click in
+  flight stays painted. `TileShields` has the same two.
 - `leaderboard.ts` — `rankCountries`, a pure sort over those counts. Ties break
   on country code so equally-placed rows stop swapping.
 - `tileDeltas.ts` — what the leaderboard floats beside a tile count as "+3" or
@@ -246,6 +253,22 @@ restarted server or a proxy timeout, and nothing reopens it — Connect carries 
 reconnect, which is the whole reason `openStream` exists. The backoff resets on
 a received message rather than on connect, because a connection is only known to
 work once something has come down it.
+
+**A reopened stream has a gap, and nothing replays it.** A phone that locks, or
+a tab the browser freezes, loses its connection, and whatever the server sent in
+the meantime is gone. So `openStream` calls `onResumed` on the first message of
+a connection when an earlier one had been live; the planet and the chat read
+the map and the history again there (see below). The roster and the board need
+nothing: each connection starts with the whole of it. Two more things find a
+gap sooner:
+
+- **A silent stream is reopened.** A socket killed while the page slept can look
+  open forever. Nothing heard for `SILENCE_LIMIT_MS` (60s, two heartbeats) aborts
+  it and connects again. A server heartbeat slower than 30s would trip this.
+- **The page coming back is a wake** (`pageWakeups`: `visibilitychange` to
+  visible, `resume`, `pageshow`, `online`). It connects at once rather than
+  waiting out the backoff, and reopens a stream already silent too long. Tests
+  pass their own `wakeups`.
 
 **`NO_TIMEOUT` is load-bearing, not decoration.** `main.tsx` builds the clients
 with `timeoutMs: 2000`, and connect-web applies `defaultTimeoutMs` to a stream
@@ -350,6 +373,15 @@ bucket, so the counter is live in dev.
 exponential backoff. It is the only source of live changes, so a drop that is not
 retried freezes the globe until a reload.
 
+**A resumed stream makes the globe catch up.** `listenForResumes` is called
+after `PlanetBackend` has flushed the updates from before the gap. The globe then
+forgets which tiles the stream had set (`forgetLive`), waits
+`CATCH_UP_DELAY_MS`, reads the whole map again and applies it with `resync`.
+**The wait is `GetMap`'s `max-age`** (5s): a copy from the edge is never older
+than that, so after the wait it is never older than the resumed stream, and
+what the stream said since still wins. It costs a whole map, about 0.5 MB, per
+gap.
+
 **The planet stream carries the click token it can have without a mint.** Each
 (re)connect puts `SessionProvider.held()` in `X-Session-Token`, so the server
 knows which account the stream serves; with none held it opens without one and
@@ -410,7 +442,8 @@ right-hand column, folded and unfolded from its own header. On a phone it is the
 Chat tab's sheet, and `Viewer` holds whether it is open (`open`,
 `onOpenChange`); see [The screen](#the-screen-four-zones). **It is always
 mounted**, open or not, on both: it owns the history load, the stream, the unread
-count and the sound. Closed on a phone it draws only the peek (below) and hands
+count and the sound. **A resumed stream reads the history again**: `addMessages`
+takes what it missed, and `withNewerReactions` the reactions that moved meanwhile. Closed on a phone it draws only the peek (below) and hands
 the unread count up through `onUnread`, for the tab's badge.
 
 **The chat and who is online share the panel**: with a roster wired, its header
@@ -684,7 +717,9 @@ name (`ChatMessage.authorColor` and `authorStreak`, `RosterEntry.color` and
 `streak`, `PlayerInfo.color`), read from the account when shown, so a new pick
 shows on everything its player ever said once the chat is read again. The
 flame (`StreakFlame`) is the Noto fire of the reactions, `role="img"` named
-"12-day streak", and is left out under 3 days (`streakShown`). **A guest has
+"12-day streak", and is left out under 3 days (`streakShown`). It is a button: a
+press, or a mouse resting on it, says "Played 12 days in a row" in a `Bubble`,
+which goes when the log under it scrolls. **A guest has
 neither**: the server sends it no color and a streak of 0, so a signed-in player
 shows a flame only once it has a username.
 
@@ -1970,8 +2005,8 @@ a refill (the click bank, filled when the player presses it), a bomb (one drop),
 stack of enclosures (one shape each, `maxTiles` at most), a pool of spread
 clicks and a pool of shields. The server keeps them per account, in postgres:
 a refill and a bomb at most, up to 3 enclosures, up to 8 spread clicks and up to
-12 shields. A box adds a random 1 to 3 enclosures, 1 to 4 spread clicks or 1
-to 3 shields, capped at the size; the reward it announces
+30 shields. A box adds a random 1 to 3 enclosures, 1 to 4 spread clicks or 5
+to 20 shields, capped at the size; the reward it announces
 is what was kept (`+2 spread clicks`), which is what the server answers in
 `ClaimBonusResponse.amount`.
 
@@ -2024,19 +2059,52 @@ the dock** (the meter takes it as `children`, and shows it even with no budget).
 It draws no border or background of its own: the one panel is `.click-budget-dock`.
 One slot per kind, always shown, each drawn with its box's
 icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
-`BonusAward.css`, shared with the announcement). An empty slot is dimmed and
-cannot be pressed. A pool shows its count against its size (`5/8`, `2/3`), and a
-word over the icon says what the slot is doing (`On`, `Aim`, `Full`).
+`BonusAward.css`, shared with the announcement). An empty slot is dimmed, and a
+press on it does nothing but say how to get one. A pool shows its count against
+its size (`5/8`, `2/3`), and a word over the icon says what the slot is doing
+(`On`, `Aim`, `Full`, or `New` for a kind held and never pressed).
 
 - **Refill** fills the bank (`Refiller.useRefill`). **On a full bank it sends
-  nothing** and says "Full" for two seconds: a refill there would be wasted. The
+  nothing** and says "Full": a refill there would be wasted. The
   server refuses it too, `FailedPrecondition`, read as `BankFullError`, and spends
   nothing. The same code with a `MapFrozen` detail is `MapFrozenError`: the
   refill stays and nothing is said.
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).
 - **Spread**, **Enclose** and **Shield** switch (`Globe.setSwitch`),
-  `aria-pressed`. Shield says "Full" for two seconds when a click meets a tile
-  that holds all the shields it can (`shieldFull`, a count like `refusals`).
+  `aria-pressed`.
+
+**A slot speaks in a bubble, never a `title`.** Most of the players who came from
+TikTok play on a phone, where a `title` never shows, and they asked in the chat
+what enclose and shields do. So `Bubble` (`components/Bubble.tsx`, drawn in a
+portal on the body like the reaction popup) says one line over a slot: what it
+does while a mouse rests on it, how to get one on a press of an empty slot, and
+how to use it on a press that switches it on or aims it, for its first
+`LEARNING_USES` (3). The line goes after a few seconds, or as soon as the slot's
+charge is spent. The same line is in the slot's `aria-describedby`.
+
+**The globe says when a bonus did not do what the player meant**
+(`GlobeOptions.onNotice`, a `BonusNotice`), and the slot says it in its bubble:
+
+- **Shield on, a tile of another flag**: the click is an ordinary one, so the
+  bubble says "Tile taken. Tap it again to shield it", or that shields go on the
+  player's own tiles when a shield stopped the click.
+- **Shield on, a full tile**: "Full" on the slot and a line saying so.
+- **Enclose on, a click that took a tile and closed no shape**: "Shape is not
+  closed or is too big (25 tiles max)". **This is guessed on the client, on
+  purpose**: `Click` answers nothing about bonuses so a shadow-banned caller
+  cannot tell its clicks are dropped (see the backend's CLAUDE.md), and the
+  server cannot tell an open shape from one too big either. The globe waits
+  `ENCLOSURE_WAIT_MS` (1.5s) after the click is accepted for this player's own
+  `tilesEnclosed` closed at that tile, and says it when none came. A banned
+  player learns nothing new: it sees no enclosure either way.
+
+**What a player has learned is kept in the browser** (`clickplanet-bonus-guide`,
+`domain/bonusGuide.ts`, `useBonusGuide`): how many times each kind was switched
+on (up to `LEARNING_USES`) and which kinds it has won. `Viewer` holds the one
+copy and hands it to the inventory and the award. **The first box of each kind
+stays up** until "Got it" or Escape (`BonusAward`'s `kept`): the passing award
+lasts 2.9s and a tap anywhere closes it, which in a clicking game is before the
+line under it is read. Later boxes of that kind pass as before.
 
 **It does not fold**: five slots are one row, labelled from 1280px and icons
 with their counts below that (the name stays in `aria-label`). A fold on a row
@@ -2432,32 +2500,52 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 
 - **`window.ts` finds the candidates**: for each length from 1 to 24 hours, the busiest stretch of a few places
   far apart, counting the tiles taken from another flag in each 10° cell and the eight around it. Filling empty
-  ground is not war.
+  ground is not war. A window asked for (`--since`, `--until`) is split into its places the same way, so a war
+  next door is a story of its own.
 - **`front.ts` finds the front** of a candidate: the point where most tiles changed hands, and every change within
-  about 2,900 km of it, so a war in France brings in England, Spain and Germany.
+  about 2,900 km of it, so a war in France brings in England, Spain and Germany. Once the story is known, the front
+  is found again from its own flags' fighting alone, so a war next door (Israel in Turkey) does not pull the
+  camera off Belgium's; with `--country`, it is that flag's fighting from the start.
 - **`story.ts` writes the story** (`storyOf`): the flag that took the most there, the flags it took from, and
   where. Nearly all in one country (90%) is **"X IS INVADING FRANCE"**; spread over several, it is **"X IS
   ATTACKING"** the continent holding 70% of it (`static/countries/regions.json`, written by `npm run regions` from
-  the snapshot the map is cut from), or the world. Not a sub-region: "defend Western Europe" is not how anybody
-  talks. A flag taking back its own ground is **"X STRIKES BACK"**; a flag that already held most of the country
+  the snapshot the map is cut from), else **"X IS INVADING EGYPT AND TURKEY"** when two countries hold 70% of it,
+  else the world. Not a sub-region: "defend Western Europe" is not how anybody talks. A flag taking back its own ground, or its own continent from a flag from elsewhere (Belgium taking Europe
+  back from Palestine), is **"X STRIKES BACK"**; a flag that already held most of the country
   when the story starts is **"X IS KICKING Y OUT OF AUSTRALIA"**, since the opening shot shows its flag there
-  already; a second flag taking 60% as much makes it **"X VS Y"**. `src/clip/overlay.ts` words it.
+  already; a second flag taking 60% as much makes it **"X VS Y"**, but only when the two are at war, a quarter of
+  what one took taken from the other: Israel and Belgium both taking Europe from Palestine are allies, not a battle.
+  `src/clip/overlay.ts` words it.
+- **A story is about who leads the fighting** (`castOf`): its flags have to take 35% of everything taken around
+  it. Below that, flags of one continent taking it back together, with half of it between them, are the story,
+  **"EUROPE STRIKES BACK"**, under the continent's flag with one counter for them all. Otherwise nobody leads it
+  and it is skipped: Germany taking its own land back while Belgium and Israel made the war around it.
+- **A flag thrown out is its own story** (`routOf`): once the flag a story takes most from has lost half of what it
+  held in the place (300 tiles or more), a continent's flags taking it back together become **"PALESTINE GETS
+  KICKED OUT OF EUROPE"**, told from its side with its counter falling against the continent's, and one attacker
+  becomes **"ISRAEL IS KICKING PALESTINE OUT OF EUROPE"**. A flag taking its own ground back still strikes back.
+  Two stories about one flag thrown out of one place are told once, the better one.
 - **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
   France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
-  The caption is the headline and a question ("Who stops them?", "Pick a side"), the site as plain text (a caption's
+  The caption is the headline and the question its call to act asks ("Who stops them?" to defend, "Who joins
+  them?" to fight for a flag striking back, "Pick a side"), the site as plain text (a caption's
   link cannot be clicked) and the account's tags with the place's. Never the attacker's: a flag's tag can be a
   political feed.
-- **`music.ts` picks the anthem under the clip**, since YouTube Shorts cannot add a sound to an upload: the leading
-  flag's, else the other side's, else the place's, else a victim's. They are the game's own anthems (see [The
-  leader's anthem](#the-leaders-anthem)), US Navy Band recordings in the public domain, so they carry no claim.
-  Palestine has none: the Navy Band never recorded it. It fades out over the last 1.2s. `--silent` leaves it out,
-  for TikTok and Instagram, where a sound is added when posting.
+- **`music.ts` picks the anthem under the clip**, since YouTube Shorts cannot add a sound to an upload: the anthem
+  of whoever makes the moves, the leading flag's, else the other side's in a battle, or the continent's when a
+  continent strikes back. Never a loser's: a clip with none plays none. They are the game's own anthems (see [The
+  leader's anthem](#the-leaders-anthem)), US Navy Band recordings in the public domain, and two the game does not
+  play, vendored by `npm run clip:anthems` into `scripts/clip/anthems/`: the Anthem of Europe (Navy Band too) and
+  Palestine's Fida'i, which the Navy Band never recorded, in an instrumental under CC BY 3.0. A recording under a
+  licence carries its credit, and the caption of every clip it plays under ends with it. It fades out over the
+  last 1.2s. `--silent` leaves it out, for TikTok and Instagram, where a sound is added when posting.
 - **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
   the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
   story already told by a better candidate (same attacker, same place) is dropped.
 - **`solidity.ts` skips graffiti.** For each tile the attacker took and holds at the end, the share of its 6
   neighbours it holds too: about 1 for land taken, 0.56 for names written across Canada. Under 0.75 the story is
-  skipped, and `--plan` says so.
+  skipped, and `--plan` says so. So is a story placed in "the world": its tiles are spread over several continents
+  and there is no one place to show, and "Israel is attacking the world" is a line no clip may carry.
 - **`look.ts` picks when the camera comes back out of the tiles.** From far, a landmass's painted flag only
   changes when its biggest holder does (`flipsOf`, over the borders blob, read 8 times along the changes, so a
   landmass taken and taken back counts too). A front too wide to frame closer than

@@ -399,3 +399,49 @@ describe("counts after rollbacks", () => {
         expect([...store.counts().values()].every((count) => count > 0)).toBe(true)
     })
 })
+
+describe("catching up after a gap in the live stream", () => {
+    const snapshot = (bindings: Record<number, string>) => batch(bindings).bindings
+
+    it("takes the snapshot over what the stream said before the gap", () => {
+        const store = new TileOwnership(10)
+        store.applyUpdates([update(1, "fr")])
+
+        store.forgetLive()
+        expect(store.resync(snapshot({1: "jp"}))).toEqual([{tile: 1, country: "jp"}])
+        expect(counts(store)).toEqual({jp: 1})
+    })
+
+    it("empties a tile the snapshot no longer lists", () => {
+        const store = new TileOwnership(10)
+        store.applyBatch(batch({2: "fr", 3: "de"}))
+
+        store.forgetLive()
+        expect(store.resync(snapshot({3: "de"}))).toEqual([{tile: 2, country: undefined}])
+        expect(counts(store)).toEqual({de: 1})
+    })
+
+    it("lets what the stream says after the gap win over the snapshot", () => {
+        const store = new TileOwnership(10)
+        store.applyUpdates([update(1, "fr")])
+
+        store.forgetLive()
+        store.applyUpdates([update(1, "it", "fr")])
+
+        expect(store.resync(snapshot({1: "jp"}))).toEqual([])
+        expect(store.ownerOf(1)).toBe("it")
+    })
+
+    it("keeps a click in flight painted, and rolls it back to the snapshot", () => {
+        const store = new TileOwnership(10)
+        store.applyUpdates([update(1, "de")])
+        const {claim} = store.applyOptimistic(1, "fr")
+
+        store.forgetLive()
+        expect(store.resync(snapshot({1: "jp"}))).toEqual([])
+        expect(store.ownerOf(1)).toBe("fr")
+
+        expect(store.rollback(claim)).toEqual([{tile: 1, country: "jp"}])
+        expect(counts(store)).toEqual({jp: 1})
+    })
+})

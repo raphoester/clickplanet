@@ -16,6 +16,7 @@ import {
     applyReactionsAnswer,
     applyReactionsChange,
     toggledReactions,
+    withNewerReactions,
     withReactions,
 } from '../../domain/reactions.ts';
 
@@ -66,10 +67,23 @@ export function useChat({backend, username}: UseChatOptions) {
         setSeenAtLoad(undefined)
 
         const abort = new AbortController()
+
+        const catchUp = () => backend.getHistory(abort.signal)
+            .then(history => {
+                if (abort.signal.aborted) return
+                setMessages(current => withNewerReactions(addMessages(current, history.messages), history.messages))
+                setAnnouncements(current => addAnnouncements(current, history.announcements))
+            })
+            .catch(e => {
+                if (abort.signal.aborted) return
+                console.error("The chat could not catch up", e)
+            })
+
         const stopListening = backend.listenForMessages(
             message => receive([message]),
             change => setMessages(current => applyReactionsChange(current, change)),
             announcement => setAnnouncements(current => addAnnouncements(current, [announcement])),
+            () => void catchUp(),
         )
 
         backend.getHistory(abort.signal)

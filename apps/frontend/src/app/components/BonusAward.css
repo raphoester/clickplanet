@@ -51,6 +51,15 @@
     animation: bonus-award 2.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+.bonus-award--kept .bonus-award-card {
+    pointer-events: auto;
+    animation: bonus-award-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bonus-award-done {
+    margin-top: var(--space-2);
+}
+
 .bonus-award-box {
     display: flex;
     align-items: center;
@@ -153,6 +162,20 @@
     }
 }
 
+@keyframes bonus-award-in {
+    0% {
+        opacity: 0;
+        transform: scale(0.55);
+    }
+    54% {
+        opacity: 1;
+        transform: scale(1.06);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
 @keyframes bonus-award-spin {
     from {
         transform: rotate(-160deg) scale(0.2);
@@ -195,7 +218,8 @@
         animation: bonus-award-still 2.9s steps(1, end) forwards;
     }
 
-    .bonus-award-box {
+    .bonus-award-box,
+    .bonus-award--kept .bonus-award-card {
         animation: none;
     }
 }

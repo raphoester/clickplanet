@@ -107,6 +107,28 @@ describe("TileShields", () => {
         expect(counts(shields, [1, 2, 3])).toEqual([2, 0, 0])
     })
 
+    it("takes a snapshot after a gap over what the stream said before it, emptying tiles it does not list", () => {
+        const shields = new TileShields(10)
+        shields.applyUpdates([update(1, 3), update(2, 4)])
+
+        shields.forgetLive()
+        expect(shields.resync(new Map([[1, 5]]))).toEqual([
+            {tile: 1, shields: 5, was: 3},
+            {tile: 2, shields: 0, was: 4},
+        ])
+    })
+
+    it("lets what the stream says after a gap win over the snapshot", () => {
+        const shields = new TileShields(10)
+        shields.applyUpdates([update(1, 3)])
+
+        shields.forgetLive()
+        shields.applyUpdates([update(1, 1)])
+
+        expect(shields.resync(new Map([[1, 5]]))).toEqual([])
+        expect(shields.shieldsOf(1)).toBe(1)
+    })
+
     it("ignores tiles outside the map", () => {
         const shields = new TileShields(4)
 

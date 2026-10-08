@@ -127,6 +127,28 @@ describe("BonusAward", () => {
         expect(new Set(looks.map(look => look.icon)).size).toBe(rewards.length)
     })
 
+    it("stays for a kind won for the first time, whatever is pressed beside it", () => {
+        const onDone = vi.fn()
+        render(<BonusAward reward={REWARD} onDone={onDone} kept/>)
+
+        act(() => void vi.advanceTimersByTime(AWARD_MS * 3))
+        fireEvent.pointerDown(document.body)
+        fireEvent.pointerDown(screen.getByText("Refill"))
+
+        expect(onDone).not.toHaveBeenCalled()
+        expect(screen.getByText("Fills your clicks to full, when you choose")).toBeTruthy()
+    })
+
+    it("goes away when a first win is read and acknowledged", () => {
+        const onDone = vi.fn()
+        render(<BonusAward reward={REWARD} onDone={onDone} kept/>)
+
+        fireEvent.click(screen.getByRole("button", {name: "Got it"}))
+        fireEvent.keyDown(document, {key: "Escape"})
+
+        expect(onDone).toHaveBeenCalledTimes(2)
+    })
+
     it("drops its timer when it goes, so nothing fires into an unmounted award", () => {
         const onDone = vi.fn()
         const {unmount} = render(<BonusAward reward={REWARD} onDone={onDone}/>)

@@ -46,7 +46,7 @@ import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createClickEffects} from "./clickEffects.ts";
 import {createClickGlints} from "./clickGlints.ts";
-import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
+import {ALL_OFF, BonusNotice, BonusReward, BonusRules, Charges, NO_CHARGES, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
 import {now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
@@ -86,9 +86,14 @@ const OWN_DROP_WINDOW_SECONDS = 5
 
 const OWN_CLICK_WINDOW_SECONDS = 3
 
+const ENCLOSURE_WAIT_MS = 1500
+
 const SHIELD_MOST_UNTIL_READ = 10
 
 const TILES_PER_BATCH = 10_000
+
+// GetMap's max-age: a map read any sooner could be older than the stream that resumed.
+const CATCH_UP_DELAY_MS = 5_000
 
 const IDLE_FRAME_MS = 16
 
@@ -151,7 +156,7 @@ export type GlobeOptions = {
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
     onArmedChange: (armed: boolean) => void
     shielder?: Shielder
-    onShieldFull?: () => void
+    onNotice?: (notice: BonusNotice) => void
     onClickAccepted?: (click: AcceptedClick) => void
     playSound?: PlaySound
     director?: Director
@@ -199,7 +204,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onBombDropped,
         onArmedChange,
         shielder,
-        onShieldFull = () => {},
+        onNotice = () => {},
         onClickAccepted = () => {},
         playSound = () => {},
         director,
@@ -280,6 +285,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const ownClicks = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
     const ownHits = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
     const ownPlacements = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
+    const ownEnclosures = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
 
     const driveBonusBox = (seconds: number) => {
         const enclosing = enclosures.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
@@ -385,7 +391,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onTaken: (taken) => onBonusTaken(taken),
         onEnclosed: (enclosure) => {
             enclosures.play(enclosure)
-            if (enclosure.yours) playSound("enclose")
+            if (!enclosure.yours) return
+            playSound("enclose")
+            ownEnclosures.record(enclosure.closingTile, enclosure.countryId, performance.now() / 1000)
         },
         onSpread: (spread) => {
             bonusClicks.playSpread(spread)
@@ -615,7 +623,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (switches.shield && shielder) {
             const placement = placementOf(owner, country.code, shields, rules?.tileShields)
             if (placement === "full") {
-                onShieldFull()
+                onNotice("shieldFull")
                 return
             }
             if (placement === "place") {
@@ -643,9 +651,16 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
 
         const clicked = country.code
+        const shielding = switches.shield && shielder !== undefined
+        const enclosing = switches.enclose && outcome === "taken"
         tileClicker.clickTile(tile, clicked, switches).then(() => {
             if (lifetime.signal.aborted) return
             onClickAccepted({country: clicked, took: outcome === "taken"})
+            if (shielding) onNotice(outcome === "taken" ? "shieldTaken" : "shieldNotYours")
+            if (enclosing) setTimeout(() => {
+                if (lifetime.signal.aborted || ownEnclosures.has(tile, clicked, performance.now() / 1000)) return
+                onNotice("nothingEnclosed")
+            }, ENCLOSURE_WAIT_MS)
         }, (e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
@@ -685,6 +700,41 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             plainClicks.playClick(tile, camera)
         }
     })
+
+    let catchingUp: AbortController | undefined
+
+    const catchUp = async () => {
+        catchingUp?.abort()
+        const attempt = new AbortController()
+        catchingUp = attempt
+
+        ownership.forgetLive()
+        shielded.forgetLive()
+
+        const bindings = new Map<number, string>()
+        const shields = new Map<number, number>()
+        try {
+            await pause(CATCH_UP_DELAY_MS, attempt.signal)
+            await ownershipsGetter.getCurrentOwnershipsByBatch(
+                TILES_PER_BATCH,
+                field.size,
+                (batch) => {
+                    batch.bindings.forEach((owner, tile) => bindings.set(tile, owner))
+                    batch.shields.forEach((count, tile) => shields.set(tile, count))
+                },
+                attempt.signal,
+            )
+        } catch (e) {
+            if (!attempt.signal.aborted) console.error("could not catch up with the map", e)
+            return
+        }
+        if (attempt.signal.aborted) return
+
+        applyChanges(ownership.resync(bindings), false)
+        showShields(shielded.resync(shields))
+    }
+
+    const stopResumes = updatesListener.listenForResumes(() => void catchUp())
 
     addDisplayObjects(scene, field.displayPoints, graphics)
 
@@ -757,6 +807,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
             stopAnimation()
             cleanUpdatesListener()
+            stopResumes()
+            catchingUp?.abort()
             stopBonuses?.()
             stopBombs?.()
 
@@ -929,4 +981,14 @@ export function reportClickFailure(
         return false
     }
     return true
+}
+
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(resolve, ms)
+        signal.addEventListener("abort", () => {
+            clearTimeout(timer)
+            reject(signal.reason)
+        }, {once: true})
+    })
 }

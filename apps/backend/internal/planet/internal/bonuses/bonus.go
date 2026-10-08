@@ -599,23 +599,23 @@ func (r *Registry) drawKind(kinds *cpcolls.Set[Kind]) Kind {
 }
 
 func (r *Registry) amountOf(kind Kind) int {
-	most := 1
+	least, most := 1, 1
 	switch kind {
 	case KindSpreadClicks:
 		most = r.config.Spread.MaxPerBox
 	case KindEncloseClicks:
 		most = r.config.Enclose.MaxPerBox
 	case KindShields:
-		most = r.config.Shield.MaxPerBox
+		least, most = r.config.Shield.MinPerBox, r.config.Shield.MaxPerBox
 	case KindRefill, KindBomb:
 	}
 
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(most)))
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(most-least+1)))
 	if err != nil {
-		return 1
+		return least
 	}
 
-	return 1 + int(n.Int64())
+	return least + int(n.Int64())
 }
 
 func newToken() (string, error) {

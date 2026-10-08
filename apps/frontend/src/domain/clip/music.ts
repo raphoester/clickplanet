@@ -1,9 +1,9 @@
+import {flagOfContinent} from "../regions.ts"
 import {Story} from "./story.ts"
 
-// The anthem a clip plays: the leading flag's, else the other side's, else the place's, else a victim's, for the
-// flags with no recording.
-export function anthemOf(story: Story, recorded: (country: string) => boolean): string | undefined {
-    const place = "country" in story.place ? story.place.country : undefined
-    return [story.attacker, story.rival, place, ...story.victims]
-        .find((country): country is string => country !== undefined && recorded(country))
+// The anthem a clip plays is the one of whoever makes the moves: the attacker's, the other side's in a battle, or
+// the continent's when a continent strikes back together. Never a loser's: a clip with no such anthem plays none.
+export function anthemOf(story: Story, recorded: (code: string) => boolean): string | undefined {
+    const movers = story.team !== undefined ? [flagOfContinent(story.team)] : [story.attacker, story.rival]
+    return movers.find((code): code is string => code !== undefined && recorded(code))
 }

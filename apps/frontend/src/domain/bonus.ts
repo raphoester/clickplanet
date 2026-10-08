@@ -52,6 +52,17 @@ export function switchesHeld(switches: Switches, charges: Charges): Switches {
     return {spread, enclose, shield}
 }
 
+export type BonusNotice = "shieldFull" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed"
+
+export type BonusNoticeEvent = {
+    notice: BonusNotice
+    seq: number
+}
+
+export function slotOf(notice: BonusNotice): ChargeKind {
+    return notice === "nothingEnclosed" ? "encloseClicks" : "shields"
+}
+
 export type BonusRules = {
     blastRadius: number
     enclosureMaxTiles: number
@@ -90,6 +101,7 @@ export function describeReward(reward: BonusReward): {
         case "shields":
             return {
                 title: reward.shields === 1 ? "+1 shield" : `+${reward.shields} shields`,
+                detail: "Switch shield on, then tap your tiles. Each shield stops one enemy click",
             }
     }
 }

@@ -7,6 +7,7 @@ import {
     mergedReactions,
     toggledReactions,
     whoReacted,
+    withNewerReactions,
     withReactions,
 } from "./reactions.ts";
 
@@ -136,5 +137,24 @@ describe("applyReactionsChange", () => {
         const log = [message("a")]
 
         expect(withReactions(log, "gone", () => [count(Reaction.HEART, 1, false)])).toBe(log)
+    })
+})
+
+describe("withNewerReactions", () => {
+    it("takes the reactions of a fresher copy of a message, mine included", () => {
+        const log = [message("a"), message("b", [count(Reaction.HEART, 1, false)])]
+        const fresher = {...message("b", [count(Reaction.HEART, 2, true, ["Ana"])]), reactionsVersion: 3}
+
+        const next = withNewerReactions(log, [fresher])
+
+        expect(next[0]).toBe(log[0])
+        expect(next[1].reactions).toEqual([count(Reaction.HEART, 2, true, ["Ana"])])
+        expect(next[1].reactionsVersion).toBe(3)
+    })
+
+    it("hands back the log it was given when no copy is fresher", () => {
+        const log = [message("a", [count(Reaction.HEART, 3, false)])]
+
+        expect(withNewerReactions(log, [message("a"), message("unknown")])).toBe(log)
     })
 })

@@ -79,9 +79,8 @@ func startFinale(t *testing.T, startsIn, lasts time.Duration) finale {
 	done := make(chan error, 1)
 	go func() {
 		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
-			Server:         server,
-			Logger:         slog.New(slog.DiscardHandler),
-			StartupTimeout: time.Minute,
+			Server: server,
+			Logger: slog.New(slog.DiscardHandler),
 			Modules: []cpbootstrap.Module{
 				authModule,
 				planet.NewModule(planetConfig),

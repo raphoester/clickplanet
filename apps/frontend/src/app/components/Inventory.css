@@ -27,17 +27,18 @@
     transition: background 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, transform 0.12s ease;
 }
 
-.inventory-slot:not(:disabled):hover,
+.inventory-slot:not(:disabled, [aria-disabled="true"]):hover,
 .inventory-slot:focus-visible {
     background: color-mix(in srgb, var(--bonus-box) 20%, var(--panel-raised));
 }
 
-.inventory-slot:active:not(:disabled) {
+.inventory-slot:active:not(:disabled, [aria-disabled="true"]) {
     transform: translateY(3px);
     box-shadow: none;
 }
 
-.inventory-slot:disabled {
+.inventory-slot:disabled,
+.inventory-slot[aria-disabled="true"] {
     cursor: default;
 }
 
@@ -73,6 +74,10 @@
     animation: inventory-on 1.6s ease-in-out infinite;
 }
 
+.inventory-slot--new {
+    animation: inventory-new 1.4s ease-in-out infinite;
+}
+
 .inventory-state {
     position: absolute;
     top: -11px;
@@ -106,6 +111,12 @@
 @keyframes inventory-on {
     50% {
         box-shadow: 0 0 10px var(--bonus-accent);
+    }
+}
+
+@keyframes inventory-new {
+    50% {
+        box-shadow: var(--drop-s), 0 0 0 2px var(--bonus-accent), 0 0 16px var(--bonus-box);
     }
 }
 
@@ -157,11 +168,16 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .inventory-slot--on .inventory-box {
+    .inventory-slot--on .inventory-box,
+    .inventory-slot--new {
         animation: none;
     }
 
-    .inventory-slot:active:not(:disabled) {
+    .inventory-slot--new {
+        box-shadow: var(--drop-s), 0 0 0 2px var(--bonus-accent);
+    }
+
+    .inventory-slot:active:not(:disabled, [aria-disabled="true"]) {
         transform: none;
     }
 }

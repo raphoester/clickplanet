@@ -42,6 +42,18 @@ export class TileShields {
         return changes
     }
 
+    public forgetLive(): void {
+        this.live.fill(0)
+    }
+
+    public resync(shields: ReadonlyMap<number, number>): ShieldChange[] {
+        const changes: ShieldChange[] = []
+        for (let tile = 1; tile <= this.size; tile++) {
+            if (!this.live[tile]) this.set(tile, shields.get(tile) ?? 0, changes)
+        }
+        return changes
+    }
+
     public applyUpdates(updates: readonly Update[]): ShieldChange[] {
         const changes: ShieldChange[] = []
         for (const {tile, shields} of updates) this.setLive(tile, shields, changes)

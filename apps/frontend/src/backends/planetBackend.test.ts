@@ -1009,6 +1009,23 @@ describe("PlanetBackend bombs", () => {
         await vi.waitFor(() => expect(order).toEqual(["updates", "bomb"]))
         backend.close()
     })
+
+    it("hands over the tile updates that came before a gap, before saying the stream resumed", async () => {
+        let connections = 0
+        const listenForEvents = vi.fn(async function* () {
+            connections++
+            yield tileUpdateEvent({tileId: connections, countryId: "jp"})
+            if (connections > 1) await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000)
+
+        const order: string[] = []
+        backend.listenForUpdatesBatch((updates) => order.push(`updates ${updates.map(({tile}) => tile).join(",")}`))
+        backend.listenForResumes(() => order.push("resumed"))
+
+        await vi.waitFor(() => expect(order).toEqual(["updates 1", "resumed"]), {timeout: 2_000})
+        backend.close()
+    })
 })
 
 describe("PlanetBackend shields", () => {

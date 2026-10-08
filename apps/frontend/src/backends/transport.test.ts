@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {openStream} from "./transport.ts"
+import {openStream, SILENCE_LIMIT_MS, Wakeups} from "./transport.ts"
 
 type Opened<T> = {
     signal: AbortSignal
@@ -60,6 +60,22 @@ function fakeSource<T>() {
         open,
         opened,
         latest: () => opened[opened.length - 1],
+    }
+}
+
+function fakeWakeups() {
+    let listener: (() => void) | undefined
+
+    const wakeups: Wakeups = (wake) => {
+        listener = wake
+        return () => {
+            listener = undefined
+        }
+    }
+
+    return {
+        wakeups,
+        wake: () => listener?.(),
     }
 }
 
@@ -216,6 +232,137 @@ describe("openStream", () => {
         await vi.advanceTimersByTimeAsync(60_000)
 
         expect(errors).not.toHaveBeenCalled()
+        expect(source.opened).toHaveLength(1)
+    })
+    it("tells the caller when a stream that was live comes back", async () => {
+        const source = fakeSource<string>()
+        const seen: string[] = []
+
+        openStream(source.open, m => seen.push(m), "test", {onResumed: () => seen.push("resumed")})
+        await settle()
+
+        source.latest().push("one")
+        await settle()
+        source.latest().end()
+        await vi.advanceTimersByTimeAsync(500)
+        source.latest().push("two")
+        await settle()
+
+        expect(seen).toEqual(["one", "resumed", "two"])
+    })
+
+    it("does not call a stream that was never live resumed", async () => {
+        const source = fakeSource<string>()
+        const onResumed = vi.fn()
+
+        openStream(source.open, () => {}, "test", {onResumed})
+        await settle()
+
+        source.latest().end()
+        await vi.advanceTimersByTimeAsync(500)
+        source.latest().push("first")
+        await settle()
+
+        expect(onResumed).not.toHaveBeenCalled()
+    })
+
+    it("reopens a stream that has gone silent", async () => {
+        const source = fakeSource<string>()
+        const onResumed = vi.fn()
+
+        openStream(source.open, () => {}, "test", {onResumed, wakeups: fakeWakeups().wakeups})
+        await settle()
+
+        source.latest().push("alive")
+        await vi.advanceTimersByTimeAsync(SILENCE_LIMIT_MS)
+
+        expect(source.opened).toHaveLength(2)
+        expect(source.opened[0].signal.aborted).toBe(true)
+
+        source.latest().push("back")
+        await settle()
+
+        expect(onResumed).toHaveBeenCalledOnce()
+    })
+
+    it("keeps a stream that keeps hearing from the server", async () => {
+        const source = fakeSource<string>()
+        openStream(source.open, () => {}, "test", {wakeups: fakeWakeups().wakeups})
+        await settle()
+
+        for (let i = 0; i < 6; i++) {
+            source.latest().push("heartbeat")
+            await vi.advanceTimersByTimeAsync(30_000)
+        }
+
+        expect(source.opened).toHaveLength(1)
+    })
+
+    it("retries at once on a wake instead of waiting out the backoff", async () => {
+        const source = fakeSource<string>()
+        const page = fakeWakeups()
+        openStream(source.open, () => {}, "test", {wakeups: page.wakeups})
+        await settle()
+
+        for (let i = 0; i < 5; i++) {
+            source.latest().end()
+            await vi.advanceTimersByTimeAsync(30_000)
+        }
+        source.latest().end()
+        await settle()
+
+        const before = source.opened.length
+        page.wake()
+        await settle()
+
+        expect(source.opened).toHaveLength(before + 1)
+    })
+
+    it("reopens on a wake a stream that heard nothing while the page was frozen", async () => {
+        const source = fakeSource<string>()
+        const page = fakeWakeups()
+        openStream(source.open, () => {}, "test", {wakeups: page.wakeups})
+        await settle()
+
+        source.latest().push("alive")
+        await settle()
+        vi.setSystemTime(Date.now() + SILENCE_LIMIT_MS)
+
+        page.wake()
+        await settle()
+
+        expect(source.opened).toHaveLength(2)
+        expect(source.opened[0].signal.aborted).toBe(true)
+    })
+
+    it("leaves a healthy stream alone on a wake", async () => {
+        const source = fakeSource<string>()
+        const page = fakeWakeups()
+        openStream(source.open, () => {}, "test", {wakeups: page.wakeups})
+        await settle()
+
+        source.latest().push("alive")
+        await settle()
+
+        page.wake()
+        await settle()
+
+        expect(source.opened).toHaveLength(1)
+    })
+
+    it("stops listening for wakes once closed", async () => {
+        const source = fakeSource<string>()
+        const page = fakeWakeups()
+        const close = openStream(source.open, () => {}, "test", {wakeups: page.wakeups})
+        await settle()
+
+        source.latest().end()
+        await settle()
+        close()
+
+        page.wake()
+        await settle()
+
         expect(source.opened).toHaveLength(1)
     })
 })

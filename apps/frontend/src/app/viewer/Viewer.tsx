@@ -23,6 +23,8 @@ import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
 import ClicksPanel from "../components/ClicksPanel.tsx";
 import Inventory from "../components/Inventory.tsx";
+import {useBonusGuide} from "../components/useBonusGuide.ts";
+import {isFirstWin} from "../../domain/bonusGuide.ts";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import SharePreview from "../share/SharePreview.tsx";
@@ -140,7 +142,7 @@ export default function Viewer(props: ViewerProps) {
         toggleBomb,
         switches,
         toggleSwitch,
-        shieldFull,
+        notice,
         lastBomb,
         dismissBomb,
     } = useGlobe({
@@ -158,6 +160,8 @@ export default function Viewer(props: ViewerProps) {
         mapView: display.settings.mapView,
         rendering: display.settings.rendering,
     })
+
+    const bonusGuide = useBonusGuide()
 
     const refiller = props.refiller
     const spendRefill = refiller && (() => {
@@ -264,7 +268,9 @@ export default function Viewer(props: ViewerProps) {
                                                onToggleBomb={props.bomber ? toggleBomb : undefined}
                                                onUseRefill={spendRefill}
                                                onToggleShield={props.shielder ? () => toggleSwitch("shield") : undefined}
-                                               shieldFull={shieldFull}/>}
+                                               notice={notice}
+                                               guide={bonusGuide.guide}
+                                               onUsed={bonusGuide.markUsed}/>}
         </ClickBudgetMeter>}
 
         {ready && <ChatPanel
@@ -327,7 +333,12 @@ export default function Viewer(props: ViewerProps) {
                                                onWear={props.account?.wearTitle}
                                                onClose={() => setUnlocked((queue) => queue.slice(1))}/>}
 
-        {award && <BonusAward reward={award} onDone={dismissAward}/>}
+        {award && <BonusAward reward={award}
+                              kept={isFirstWin(bonusGuide.guide, award.kind)}
+                              onDone={() => {
+                                  bonusGuide.markWon(award.kind)
+                                  dismissAward()
+                              }}/>}
 
         {lastBomb && <BombNews
             key={lastBomb.id}

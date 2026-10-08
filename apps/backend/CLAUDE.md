@@ -554,10 +554,10 @@ Both live feeds are served **two ways at once**, and that is a transition, not a
 
 **One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message`, `heartbeat`, `reactions` and `announcement`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
 
-**`heartbeat` is not decoration.** Cloudflare cuts a silent response at **~125s with a 524** — measured against production three times, exactly 125.1s. The websocket never hit this because Cloudflare keeps those open; a chunked HTTP response is not so lucky. A quiet chat is the normal case, and a quiet planet happens, so both streams send a heartbeat every `httpServer.streamHeartbeat` (30s by default, and it **must** stay well under 125s). Without it a silent stream dies and reconnects forever, losing whatever was published in each gap.
+**`heartbeat` is not decoration.** Cloudflare cuts a silent response at **~125s with a 524** — measured against production three times, exactly 125.1s. The websocket never hit this because Cloudflare keeps those open; a chunked HTTP response is not so lucky. A quiet chat is the normal case, and a quiet planet happens, so both streams send a heartbeat every `httpServer.streamHeartbeat` (30s by default, and it **must** stay well under 125s). Without it a silent stream dies and reconnects forever, losing whatever was published in each gap. **Each also sends one at once when it opens**, once it is subscribed (and, for the planet, attending its boxes): Connect writes nothing, not even the headers, until the first `Send`, and the client takes a stream's first event as the sign it is live and refetches the map or the history then. Without it a quiet chat stream would wait up to 30s to say so.
 These replaced a pair of websockets on `/ws/listen` and `/ws/chat`, broadcast by a `wspublisher` fanout. **Nothing here speaks websocket any more** — no upgrade route, no second mux, no `coder/websocket` dependency.
 
-Each handler calls the storage's `Subscribe(ctx)` **per call**, and the request context is what unsubscribes — it is cancelled however the stream ends, so a disconnect needs no `CloseRead` equivalent. Both storages already handed every subscriber its own buffered channel and dropped rather than blocked for a slow one, so one subscription per connected client is what they were built for; `subscriberBuffer` now bounds a client rather than the single fanout.
+Each handler calls the storage's `Subscribe(ctx)` **per call**, and the request context is what unsubscribes — it is cancelled however the stream ends, so a disconnect needs no `CloseRead` equivalent. Both storages hand every subscriber its own buffered channel and never block on a slow one, so one subscription per connected client is what they were built for; `subscriberBuffer` now bounds a client rather than the single fanout. **A subscriber that falls `subscriberBuffer` changes behind is closed, not skipped** (one Warn line, with the buffer size): a skipped change would leave a stream that stays open with a hole in it, and a closed one ends, so the client reconnects and refetches. It is the roster's rule (`inmemory_visit_storage`), and the context's goroutine closes through the same idempotent `unsubscribe`, so a channel is closed once.
 
 #### Ending the streams on shutdown
 
@@ -758,7 +758,7 @@ The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Cl
 
 **Every message is a row in `chat.messages`**, inserted before it is broadcast: `seq` (the order it was accepted in), `id`, `sent_at`, `account_id` (who sent it), `country`, `ip`, `user_agent`, `text` — plus `name`, `author_admin` and `author_id`, of which the first two are only ever read, for rows written before `account_id` existed, and the third is a UUID the client made up and nothing trusts. **Postgres is the chat's only copy.** There is no cache in front of it, nothing loaded at boot and nothing flushed: chat is low volume (one message per 3s per address), so every write is one statement and every read one query. `send_message_usecase` inserts (5s timeout) and only then publishes to `inprocess_feed`; `GetHistory` reads the newest `chat.storage.historySize` rows within `retention`, straight from the table: the same window `React` checks a message against (`messages.Window`), and a parity test pins the two. A stream can therefore see two messages sent at the same instant in the other order than `seq`; the client sorts by time.
 
-**The fanout is not storage.** `feed/inprocess_feed` keeps nothing: it hands each update to every open stream, drops for one too slow to keep up (`chat.storage.subscriberBuffer`, a key kept from before), and a client that was not listening reads the history instead.
+**The fanout is not storage.** `feed/inprocess_feed` keeps nothing: it hands each update to every open stream and closes one too slow to keep up (`chat.storage.subscriberBuffer`, a key kept from before), never skips an update on it. A client reads the history again each time its stream reopens, which covers whatever it was not listening for.
 
 **Each table has its own `Storage` port and a contract suite** (`messages.StorageContractSuite`, `reactions.StorageContractSuite`, behind the `testing` tag). The postgres stores run it against a real postgres; `inmemory_message_storage` and `inmemory_reaction_storage` run it too, and exist **only for tests** — both files carry the `testing` tag, have no persistence port and are never built into the binary. Use case tests use them instead of hand-written fakes.
 
@@ -1431,8 +1431,8 @@ strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 3):
   a click that closes a shape of the caller's own tiles also takes the tiles
   inside it, at most `bonus.enclose.maxTiles` (25), and spends one.
   See [What an enclose does to a click](#what-an-enclose-does-to-a-click).
-- **`shields`** — 1 to `bonus.shield.maxPerBox` (3) shields added to a stack
-  of at most `bonus.shield.held` (12). Each is placed on a tile the player's flag
+- **`shields`** — `bonus.shield.minPerBox` (5) to `bonus.shield.maxPerBox` (20)
+  shields added to a stack of at most `bonus.shield.held` (30). Each is placed on a tile the player's flag
   holds and takes one foreign click there. See [Shields](#shields).
 
 Every kind is a **charge**, worth about one bank, rather than a timer — see
@@ -1672,8 +1672,8 @@ its own.
 - **How much fits.** A refill and a bomb are one: a second replaces the first,
   which is what stops a stockpile of bombs being dropped all at once. Enclosures
   stack to `bonus.enclose.held` (3), spread clicks pool to `bonus.spread.clicks`
-  (8) and shields stack to `bonus.shield.held` (12). A box draws its amount evenly from 1 to `maxPerBox` (`Registry.amountOf`,
-  `crypto/rand`) and the grant caps it at the size. The claim answers
+  (8) and shields stack to `bonus.shield.held` (30). A box draws its amount evenly from 1 to `maxPerBox`, or from
+  `bonus.shield.minPerBox` for shields (`Registry.amountOf`, `crypto/rand`), and the grant caps it at the size. The claim answers
   `ClaimBonusResponse.amount` as **what was kept**, `Count` after less `Count`
   before, so a player is never told of clicks that did not fit.
 - **The schedule offers no kind that is full** for any account that clicked as
@@ -2208,7 +2208,7 @@ tiles, and every watchdog read `clear`.
 - **The rule is the busy time inside `stamina.window` (6h)**: a slice of
   `stamina.slice` (10m) is busy when the payer got `stamina.clicks` (40) past the
   throttle in it. A pause shorter than about half a slice ends nothing, and no pause
-  resets anything: to stay under `certainBusy` a loop has to stop for a share of every
+  resets anything: to stay under a bound a loop has to stop for a share of every
   window, not once.
 - **It counts the payer, not the scope**: the account the click token names, or the
   scope when it names none, as the throttle keys its buckets. What it measures is
@@ -2217,12 +2217,19 @@ tiles, and every watchdog read `clear`.
   like every watchdog's.
 - **It counts in `Watch`, not `Attempted`**: a try the throttle refused spent nothing,
   and a click a ban is dropping still passed the throttle, so a running ban keeps
-  reading `certain`.
+  reading.
 - **Measured before it was set**, over three days of ledger per account: the bot's two
   accounts read 6h of 6h, the heaviest player 4h50m, and 5 of 555 accounts 3h or more.
-  Production sets `certainBusy` 5h30m, which stops such a run about five and a half
-  hours in. `minBusy` is unset: `click_busy_hours` is each payer's busy time, once a
-  sweep, for the payers that clicked since the last one.
+- **It only reads `Suspect`, since 2026-10-08.** Production shipped `certainBusy`
+  5h30m, and in its first week it made two bans, both on people who then asked in
+  the chat why their clicks did nothing. One was a new player on a phone, on its
+  first evening: six hours at its linked pace, chatting all through it, and 6h of 6h,
+  as the bot read. No bound tells them apart, so production sets `minBusy` 5h30m and
+  no `certainBusy`, and a run at pace for hours is banned only beside another
+  watchdog. The bot of 2026-09-28 reads `clear` everywhere else, so it is free again
+  until one does. `TestAnEveningAtPaceAloneBansNobody` pins it.
+- `click_busy_hours` is each payer's busy time, once a sweep, for the payers that
+  clicked since the last one.
 - **It is its own evidence in the metronome's section**, saved with the indexes'
   slice length; a section saved under another length drops its payers on load. A
   restart costs only the clicks it missed, since slices are wall clock.
@@ -2643,6 +2650,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
   Each tile a payload lists is `{tile, owner}`, and `shields` too when a shield kept it, so a remap of the map moves every tile id in it. A refill, a box and a quiz change no tile, and are not kept. Migration `20261006130000_ledger_events` renamed `ledger_takes` and made every row before it a `take`; its down deletes the bombs. `ledger_head` is one row: the oldest position memory keeps, so positions carry on past a window the retention emptied. `ledger_forgotten` is a reverted scope's mark, and `ledger_forgotten_accounts` a reverted account's.
 - **Boot loads from the head**: the takes from `ledger_head` on, in position order, then the marks. So memory and the boot time stay bounded by the window, however long the table grows. **A failed load refuses the boot.** Measured at 1M takes on a laptop: 0.8s to load, 1.3s to copy in — so ~3s and ~5s at the 4M cap.
+- **The boot has `httpServer.startupTimeout` (1m) for all of it**, every module included. Production is about ten times slower than a laptop. On 2026-10-08, with 255k owned tiles and 180k takes, a boot that came right after another took 3.6s: geography 0.9s, tile map 0.6s, ledger 1.5s. The first boot after a stop is 2 to 3 times slower at each step, because the 1 GB droplet reads its pages back from swap and disk. Postgres alone takes ~2s to send the ledger window and ~1s to send the tiles, so the time is the box, not the Go code. The old 5s deadline made the first boot fail four times between Oct 6 and Oct 8, each time on whatever step was running at 5s (once the player module's ping). At ~8µs a take, the 4M cap would load in ~30s on a warm boot.
 - **A flush appends, it never rewrites a take.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, blanks the scope of the takes between the head postgres held and the new one (what the retention or the cap dropped from memory), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written, in memory or in postgres. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
 - **The address does not outlive the retention.** A scope is personal data, so every row behind the head has none and every row from it on has one: the boot never loads a row with no scope. Blanking runs at ~100k rows a second on a laptop, so a cut of `ledger.retention` that drops a million takes at once passes the 10s flush timeout, and so does every retry; at today's volume the whole window is ~120k.
 - **A deleted account stops being named.** `planet` hears `auth.v1.AccountDeleted` (`planet-ledger-accounts`, `subscribers/account_deleted_subscriber`, `anonymize_takes_usecase`): it flushes the ledger, then sets `account` to NULL on every row of that account, on the partial index `ledger_events_account`. The flush comes first, or a take still in memory would be written after the update with the account on it. The takes keep their tile, flag and time. **What still names it**: memory, until the take ages out (72h at most); a revert mark, until the head passes it; a take made after the delete on a click token minted before it (an hour at most), as for the player's stats; and every take of an event the bus dropped (full buffer, crash). The subscriber's timeout is a minute, not 5s: the update grows with the account's history.
@@ -2663,7 +2671,7 @@ Nothing lives in files any more: the container mounts no state volume.
 
 `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute` — see [Mutes](#mutes). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
-- **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream and the clicks still arriving need the rest of the buffer.
+- **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
 - **A tile `from` retakes behind the scan stays theirs.** The answer reads both counts again at the end, so `from_after` says whether to run it again.
 - **`audit_reassign` logs every call at Warn**, dry runs and failures included: it is the only record that those tiles did not change hands through play. It is a decorator for the reason `prom_click` is — handlers here do not log.
@@ -2942,7 +2950,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 **Each module owns its own config struct** — `planet.Config`, `chat.Config`, `auth.Config`, `player.Config` — and `app.Config` is the four of them plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `app.Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
-- `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s). **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
+- `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s), after the one it opens with. **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
+- `httpServer.startupTimeout` — how long building every module may take, the loads included (default 1m). A boot that passes it fails, and the container's restart policy boots it again. See [Durability](#durability) for why it is not 5s.
 - `httpServer.adminBindAddress` — where the operator services listen (see [Operator tools](#operator-tools-adminservice)); empty serves none, and a non-loopback address refuses the boot
 - `httpServer.internalBindAddress` — where the services other modules call listen (see [Calling another module](#calling-another-module)); empty serves none, a caller that dials it then fails, and a non-loopback address refuses the boot
 - `httpServer.allowedOrigin` — the frontend's exact origin (`scheme://host[:port]`, no path). The public router answers CORS for it alone, with `Access-Control-Allow-Credentials: true`, so the `cp_sid` cookie travels on the web client's mint. **Empty, `*` or anything that is not an origin refuses the boot**: a browser drops a credentialed answer that allows every origin, so a wrong value would only show up as every mint starting a new guest. In production it comes from `FRONTEND_ORIGIN`, the value the Caddyfile allows, which sets the same headers and overwrites these.
@@ -2952,7 +2961,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `ledger.retention`, `ledger.sweepInterval` — how long the operator tools can trace and revert a take (72h)
 - `ledgerStorage.flushInterval` — how often new takes are written to postgres (1s, and on shutdown)
 - `ledgerStorage.maxTakes` — the most takes kept (4M, ~100 MiB); past it the oldest go before the retention
-- `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; updates for a subscriber that cannot keep up are dropped, not blocked on
+- `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; a subscriber that falls that far behind is closed, never blocked on or skipped
 - `rateLimiter.perSecond`, `rateLimiter.burst`, `rateLimiter.sweepInterval` — one account's click allowance, and a token with no account's scope bucket (defaults 1/s, burst 10, swept every minute; `perSecond` is a float, so 0.2 is one click every 5s)
 - `rateLimiter.scopeMultiplier` — the scope's bucket over one account's, shared by every account behind the address (default 10). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)
 - `rateLimiter.guestScopeMultiplier` — the bucket every guest behind one address shares, over one account's (default 1: the guests on one network are one bank). Below 1 refuses the boot. See [Two buckets per click](#two-buckets-per-click)
@@ -2963,7 +2972,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.kinds` — a weight per kind (`refill`, `spread_clicks`, `bomb`, `enclose_clicks`, `shields`); a kind's chance is its weight over the sum. Left out or 0 is never offered, empty offers every kind equally, and an unknown kind, a negative weight or all zeros refuse the boot
 - `bonus.spread.clicks`, `bonus.spread.maxPerBox` — the most spread clicks held (8, about 56 tiles, a bomb's worth), and the most one box adds (4; it draws 1 to that). A count, not a time: a timed spread let a full bank of clicks be dumped inside it
 - `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
-- `bonus.shield.held`, `bonus.shield.maxPerBox`, `bonus.shield.perTile` — the most shields held (12), the most one box adds (3; it draws 1 to that), and the most one tile holds (10)
+- `bonus.shield.held`, `bonus.shield.minPerBox`, `bonus.shield.maxPerBox`, `bonus.shield.perTile` — the most shields held (30), the fewest and the most one box adds (5 and 20; it draws evenly between them), and the most one tile holds (10)
 - `chargeStorage.flushInterval` — how often the charges that changed are written to postgres (default 1s); also flushed on shutdown
 - `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
 - `antiBot.enabled` — off registers nothing and measures nothing

@@ -33,6 +33,9 @@ export interface UpdatesListener {
     listenForUpdatesBatch(
         callback: (updates: Update[]) => void,
     ): () => void
+
+    // The stream came back after a gap: what happened in it was never sent.
+    listenForResumes(callback: () => void): () => void
 }
 
 export type BonusOffer = {

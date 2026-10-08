@@ -1,3 +1,15 @@
+.streak-flame-button {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-self: center;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
 .streak-flame {
     display: inline-flex;
     flex-shrink: 0;

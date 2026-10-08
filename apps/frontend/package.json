@@ -14,6 +14,7 @@
     "clip": "node scripts/clip/render.mjs",
     "clip:record": "vite-node scripts/clip/record.ts --",
     "clip:fetch": "node scripts/clip/fetch.mjs",
+    "clip:anthems": "node scripts/clip/anthems.mjs",
     "preview": "vite preview",
     "proto": "npx buf generate",
     "atlas": "vite-node scripts/generateAtlas.ts --",
