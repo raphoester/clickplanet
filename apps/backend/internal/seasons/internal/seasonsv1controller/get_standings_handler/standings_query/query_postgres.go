@@ -50,41 +50,40 @@ type PostgresQuery struct {
 }
 
 func (q *PostgresQuery) Standings(ctx context.Context, country string) (*seasonsv1.GetStandingsResponse, error) {
-	top, _, err := q.top(ctx, country)
+	top, err := q.top(ctx, country)
 	if err != nil {
 		return nil, err
 	}
 	return &seasonsv1.GetStandingsResponse{Standings: top}, nil
 }
 
-func (q *PostgresQuery) Board(ctx context.Context, country string) (*seasonsv1.Board, []standings.AccountID, error) {
-	top, accounts, err := q.top(ctx, country)
+func (q *PostgresQuery) Board(ctx context.Context, country string) (*seasonsv1.Board, error) {
+	top, err := q.top(ctx, country)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return &seasonsv1.Board{Standings: top}, accounts, nil
+	return &seasonsv1.Board{Standings: top}, nil
 }
 
-func (q *PostgresQuery) top(ctx context.Context, country string) ([]*seasonsv1.Standing, []standings.AccountID, error) {
+func (q *PostgresQuery) top(ctx context.Context, country string) ([]*seasonsv1.Standing, error) {
 	if country != "" && !q.countries.CheckCountry(country) {
-		return nil, nil, fmt.Errorf("%w: %q", ErrUnknownCountry, country)
+		return nil, fmt.Errorf("%w: %q", ErrUnknownCountry, country)
 	}
 	season, ok := q.seasons.Current(q.clock.Now())
 	if !ok {
-		return []*seasonsv1.Standing{}, []standings.AccountID{}, nil
+		return []*seasonsv1.Standing{}, nil
 	}
 
 	top := make([]*seasonsv1.Standing, 0, Shown)
-	accounts := make([]standings.AccountID, 0, Shown)
 	after := start
 	for {
 		lines, err := q.lines(ctx, season.Number, country, after)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		named, err := q.named(ctx, lines)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		for _, line := range lines {
 			author, known := named[line.account]
@@ -99,13 +98,12 @@ func (q *PostgresQuery) top(ctx context.Context, country string) ([]*seasonsv1.S
 				Tiles:     line.tiles,
 				WornTitle: author.GetWornTitle(),
 			})
-			accounts = append(accounts, line.account)
 			if len(top) == Shown {
-				return top, accounts, nil
+				return top, nil
 			}
 		}
 		if len(lines) < page {
-			return top, accounts, nil
+			return top, nil
 		}
 		after = lines[len(lines)-1]
 	}
