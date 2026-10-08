@@ -77,6 +77,38 @@
     font-size: var(--display-s);
 }
 
+.season-chip-faces {
+    display: grid;
+}
+
+.season-chip-face {
+    grid-area: 1 / 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    animation: season-chip-turn 0.26s ease-out;
+}
+
+.season-chip-face--away {
+    visibility: hidden;
+    animation: none;
+}
+
+.season-chip--compact .season-chip-face {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+}
+
+.season-chip-tag {
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    line-height: 1;
+    color: var(--text-soft);
+    white-space: nowrap;
+}
+
 .season-chip-chevron {
     display: flex;
     margin-left: auto;
@@ -94,14 +126,20 @@
     border-top: var(--outline-thin) solid var(--ink);
 }
 
-.season-details-left {
+.season-details-countdowns {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: var(--space-3);
     padding: var(--space-3);
 }
 
-.season-details-left .season-chip-left {
+.season-details-countdown {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.season-details-countdown .season-chip-left {
     font-size: var(--display-xl);
 }
 
@@ -239,8 +277,16 @@
     }
 }
 
+@keyframes season-chip-turn {
+    from {
+        opacity: 0;
+        transform: translateY(50%);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .season-chip--live {
+    .season-chip--live,
+    .season-chip-face {
         animation: none;
     }
 }
