@@ -14,7 +14,8 @@
     "clip": "node scripts/clip/render.mjs",
     "clip:record": "vite-node scripts/clip/record.ts --",
     "clip:fetch": "node scripts/clip/fetch.mjs",
-    "clip:anthems": "node scripts/clip/anthems.mjs",
+    "clip:anthems": "node scripts/clip/anthems.mjs && npm run clip:highlights",
+    "clip:highlights": "vite-node scripts/clip/highlights.ts",
     "preview": "vite preview",
     "proto": "npx buf generate",
     "atlas": "vite-node scripts/generateAtlas.ts --",
@@ -27,7 +28,7 @@
     "earth": "node --max-old-space-size=8192 scripts/generateEarth.mjs",
     "copy:static": "rm -rf dist/static && mkdir -p dist/static && cp -R static/. dist/static/ && rm -f dist/static/og-source.png dist/static/earth/earth-source.jpg && { ls dist/static/coordinates-*.bin >/dev/null 2>&1 || { echo \"copy:static: static/coordinates-<hash>.bin is missing - run 'npm run map:generate'\" >&2; exit 1; }; } && { ls dist/static/borders-*.bin >/dev/null 2>&1 || { echo \"copy:static: static/borders-<hash>.bin is missing - run 'npm run map:generate'\" >&2; exit 1; }; } && { ls dist/static/borderLines-*.bin >/dev/null 2>&1 || { echo \"copy:static: static/borderLines-<hash>.bin is missing - run 'npm run borderLines'\" >&2; exit 1; }; } && { ls dist/static/earth/earth-*.jpg >/dev/null 2>&1 || { echo \"copy:static: static/earth/earth-<hash>.jpg is missing - run 'npm run earth'\" >&2; exit 1; }; }",
     "flagFit": "node scripts/generateFlagFit.mjs",
-    "anthems": "node scripts/generateAnthems.mjs",
+    "anthems": "node scripts/generateAnthems.mjs && npm run clip:highlights",
     "reactions": "node scripts/generateReactions.mjs",
     "regions": "node scripts/generateRegions.mjs"
   },

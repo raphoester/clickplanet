@@ -71,7 +71,8 @@ export function storyOf(
     const kind = rival !== undefined ? "battle"
         : home ? "comeback"
             : "region" in place ? "attack"
-                : "country" in place && heldAtStart?.(place.country) === lead && victims.length > 0 ? "kickout" : "invasion"
+                : "country" in place && heldAtStart?.(place.country) === lead && victims.length > 0
+                    && victims[0] !== place.country ? "kickout" : "invasion"
 
     return {kind, attacker: lead, rival, victims, place, taken}
 }
@@ -97,12 +98,26 @@ function atWar(changes: readonly TileChange[], one: string, other: string): bool
 }
 
 // held: the tiles the flag the story takes most from held in the place, when the story starts and when it ends.
-// Once it lost half of it, the story is it being thrown out: by a continent together, told from its side; by one
-// attacker, "X IS KICKING Y OUT". A flag taking its own ground back still strikes back.
-export function routOf(story: Story, held: {before: number, after: number}): Story {
+// Once it lost half of it, the story is it losing it: to a continent together, or to many flags none of which leads
+// (led false), told from its side; to one attacker, "X IS KICKING Y OUT", unless the place is its own (home): nobody
+// is kicked out of their own land. A flag taking its own ground back still strikes back.
+export function routOf(story: Story, held: {before: number, after: number}, led = true, home = false): Story {
     if (held.before < ROUT_LEAST || held.after > held.before * (1 - ROUT_SHARE)) return story
-    if (story.team !== undefined) return {...story, kind: "rout"}
-    return story.kind === "attack" || story.kind === "invasion" ? {...story, kind: "kickout"} : story
+    if (story.team !== undefined || !led) return {...story, kind: "rout"}
+    return !home && (story.kind === "attack" || story.kind === "invasion") ? {...story, kind: "kickout"} : story
+}
+
+// Two stories one flag tells about another, at any scale, are one story; so are two about one flag thrown out of one
+// place. Battles are told by both sides in their place.
+export function sameStory(a: Story, b: Story, placeName: (place: Place) => string): boolean {
+    if (sameRout(a, b, placeName)) return true
+    // A flag thrown out is its story, whoever took its land.
+    if (a.kind === "rout" || b.kind === "rout") return false
+    if (a.kind === "comeback" && b.kind === "comeback") return a.attacker === b.attacker
+    if (a.kind === "battle" || b.kind === "battle") {
+        return a.kind === b.kind && a.attacker === b.attacker && a.rival === b.rival && placeName(a.place) === placeName(b.place)
+    }
+    return a.attacker === b.attacker && (a.victims[0] === b.victims[0] || placeName(a.place) === placeName(b.place))
 }
 
 // Two stories about one flag thrown out of one place are one story.
