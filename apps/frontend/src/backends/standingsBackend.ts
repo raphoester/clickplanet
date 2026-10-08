@@ -1,8 +1,14 @@
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
 import {SeasonService} from "../gen/grpc/seasons/v1/seasons_connect.ts"
-import {GetMySeasonResponse, Race as RacePb, Standing as StandingPb} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {
+    GetMySeasonResponse,
+    Race as RacePb,
+    RoundStanding as RoundStandingPb,
+    Score as ScorePb,
+    Standing as StandingPb,
+} from "../gen/grpc/seasons/v1/seasons_pb.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {MySeason, Race, Standing, StandingsBackend} from "./standings.ts"
+import {MySeason, Race, RoundStanding, Score, Standing, StandingsBackend} from "./standings.ts"
 import {titleOf} from "./title.ts"
 import {NO_TIMEOUT, openStream, retrying} from "./transport.ts"
 
@@ -71,20 +77,27 @@ function raceOf(race: RacePb): Race {
             number: race.round.number,
             endsAt: Number(race.round.endsAtUnixMs),
             finale: race.round.finale,
-            standings: race.round.standings.map((standing) => ({
-                rank: standing.rank,
-                countryCode: standing.countryId,
-                share: standing.share,
-                points: standing.points,
-            })),
+            standings: race.round.standings.map(roundStandingOf),
         },
-        scores: race.scores.map((score) => ({
-            rank: score.rank,
-            countryCode: score.countryId,
-            points: score.points,
-            roundsWon: score.roundsWon,
-        })),
+        scores: race.scores.map(scoreOf),
+        closed: race.closed && {
+            season: race.closed.season,
+            number: race.closed.number,
+            endedAt: Number(race.closed.endedAtUnixMs),
+            finale: race.closed.finale,
+            standings: race.closed.standings.map(roundStandingOf),
+            before: race.closed.before.map(scoreOf),
+            after: race.closed.after.map(scoreOf),
+        },
     }
+}
+
+function roundStandingOf(standing: RoundStandingPb): RoundStanding {
+    return {rank: standing.rank, countryCode: standing.countryId, share: standing.share, points: standing.points}
+}
+
+function scoreOf(score: ScorePb): Score {
+    return {rank: score.rank, countryCode: score.countryId, points: score.points, roundsWon: score.roundsWon}
 }
 
 function mySeasonOf(res: GetMySeasonResponse, countryCode: string): MySeason {

@@ -15,6 +15,7 @@ import {
     ChatSender,
     OutgoingMessage,
     OutgoingReaction,
+    PodiumPlace,
     ReactionCount,
     ReactionsChange,
 } from "./chat.ts";
@@ -265,9 +266,28 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 name: values.name,
                 seconds: values.seconds,
             }
+        case "round":
+            if (typeof values.number !== "number" || !(values.number > 0)) return undefined
+            if (!Array.isArray(values.podium)) return undefined
+            return {
+                kind: "round",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                number: values.number,
+                finale: values.finale === true,
+                podium: values.podium.filter(isPodiumPlace),
+            }
         default:
             return undefined
     }
+}
+
+function isPodiumPlace(value: unknown): value is PodiumPlace {
+    if (typeof value !== "object" || value === null) return false
+    const place = value as Record<string, unknown>
+    return typeof place.country === "string" && place.country !== ""
+        && typeof place.rank === "number" && place.rank > 0
+        && typeof place.points === "number" && place.points > 0
 }
 
 function decodedCount(count: ReactionCountPb): ReactionCount {

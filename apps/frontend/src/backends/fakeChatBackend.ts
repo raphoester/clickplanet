@@ -21,6 +21,8 @@ import {
     ReactionsChange,
 } from "./chat.ts";
 import {NameColor, PlayerTitle} from "./player.ts";
+import {ClosedRound} from "./standings.ts";
+import {podiumOf} from "../domain/roundReveal.ts";
 import {v4 as UUIDv4} from 'uuid';
 
 const MESSAGES_PER_SECOND = 0.33
@@ -180,6 +182,21 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             cleared: drop.cleared.length,
         }
         this.announce(announcement)
+    }
+
+    public announceRound(closed: ClosedRound) {
+        this.announce({
+            kind: "round",
+            id: UUIDv4(),
+            announcedAt: closed.endedAt,
+            number: closed.number,
+            finale: closed.finale,
+            podium: podiumOf(closed).map((standing) => ({
+                country: standing.countryCode,
+                rank: standing.rank,
+                points: standing.points,
+            })),
+        })
     }
 
     private announce(announcement: ChatAnnouncement) {
