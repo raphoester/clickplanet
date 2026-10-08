@@ -80,7 +80,7 @@ func newStack(t *testing.T, options ...func(*antibot.Config)) *stack {
 	config.Metronome.Detector.CertainFor = 30 * time.Minute
 	config.Metronome.Detector.CertainClicks = 900
 	config.Metronome.Detector.TrackWindow = 15 * time.Minute
-	config.Metronome.Detector.Stamina.CertainBusy = 5*time.Hour + 30*time.Minute
+	config.Metronome.Detector.Stamina.MinBusy = 5*time.Hour + 30*time.Minute
 
 	config.Catcher.Enabled = true
 	config.Catcher.Detector.MinCatches = 5
@@ -324,38 +324,29 @@ func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 	assert.Greater(t, clicks, 1700, "a lone watchdog has to be sure, and sure takes certainFor")
 }
 
-func TestTheNightBotIsCaughtOnStaminaAlone(t *testing.T) {
+func TestAnEveningAtPaceAloneBansNobody(t *testing.T) {
 	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
-	random := rand.New(rand.NewPCG(28, 9))
+	random := rand.New(rand.NewPCG(10, 7))
 
-	const scope = "2001:db8:1:2::/64"
+	const scope = "198.51.100.7"
 	start := s.clock.Now()
+	tile := uint32(100000)
 
-	var caughtAfter time.Duration
-	for caughtAfter == 0 && s.clock.Now().Sub(start) < 8*time.Hour {
-		for range 300 {
-			s.clock.Advance(4500*time.Millisecond + time.Duration(random.Int64N(int64(time.Second))))
+	for s.clock.Now().Sub(start) < 7*time.Hour {
+		for range 10 + random.IntN(30) {
+			s.clock.Advance(time.Duration(80+random.IntN(450)) * time.Millisecond)
 
-			click := antibot.Click{Scope: scope, Account: "night", Tile: 180000 + uint32(random.IntN(60000)), Country: "DZ", At: s.clock.Now()}
-			s.guard.Attempted(click)
-			if s.inspect(click) {
-				caughtAfter = s.clock.Now().Sub(start)
-				break
-			}
-			s.guard.Committed(click)
+			tile = uint32(int(tile) + random.IntN(80) - 40)
+			require.False(t, s.clickAs(scope, "evening", tile, "IL"), "a player must never be dropped")
 		}
-		s.clock.Advance(5 * time.Minute)
+
+		s.clock.Advance(time.Duration(5+random.IntN(60)) * time.Second)
 	}
 
-	require.NotZero(t, caughtAfter)
-	assert.Greater(t, caughtAfter, 5*time.Hour)
-	assert.Less(t, caughtAfter, 6*time.Hour)
-
-	verdicts := s.verdicts(scope)
-	assert.Equal(t, detect.Certain, verdicts["metronome"])
-	assert.Equal(t, detect.Clear, verdicts["sequencer"])
+	assert.Empty(t, s.reports)
+	assert.Contains(t, s.rises, "metronome suspect", "stamina still reads, for the jury to cross")
 }
 
 func TestALoopFiringIntoTheThrottleIsCaught(t *testing.T) {
@@ -841,8 +832,12 @@ func TestAnUnbannedAccountStaysUnbannedAfterARestart(t *testing.T) {
 	assert.Equal(t, 1, s.ban("", "a-player", 0).Offence, "the lifted ban is no offence")
 }
 
+func staminaBansAlone(config *antibot.Config) {
+	config.Metronome.Detector.Stamina.CertainBusy = 5*time.Hour + 30*time.Minute
+}
+
 func TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain(t *testing.T) {
-	s := newStack(t)
+	s := newStack(t, staminaBansAlone)
 
 	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(28, 9))

@@ -52,6 +52,7 @@ type EncloseConfig struct {
 
 type ShieldConfig struct {
 	Held      int
+	MinPerBox int
 	MaxPerBox int
 	PerTile   int
 }
@@ -72,8 +73,9 @@ const (
 	defaultEnclosePerBox   = 3
 	defaultBombRings       = 4
 	defaultEncloseMaxTiles = 25
-	defaultShieldsHeld     = 12
-	defaultShieldsPerBox   = 3
+	defaultShieldsHeld     = 30
+	defaultShieldsMinBox   = 5
+	defaultShieldsPerBox   = 20
 	defaultShieldsOnTile   = 10
 )
 
@@ -161,8 +163,11 @@ func (c ShieldConfig) withDefaults() ShieldConfig {
 	if c.Held <= 0 {
 		c.Held = defaultShieldsHeld
 	}
-	if c.MaxPerBox <= 0 {
-		c.MaxPerBox = defaultShieldsPerBox
+	if c.MinPerBox <= 0 {
+		c.MinPerBox = defaultShieldsMinBox
+	}
+	if c.MaxPerBox < c.MinPerBox {
+		c.MaxPerBox = max(c.MinPerBox, defaultShieldsPerBox)
 	}
 	if c.PerTile <= 0 {
 		c.PerTile = defaultShieldsOnTile

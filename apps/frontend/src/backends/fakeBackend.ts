@@ -46,8 +46,9 @@ const SPREAD_CLICKS = 8
 const SPREAD_PER_BOX = 4
 const ENCLOSURES = 3
 const ENCLOSURES_PER_BOX = 3
-const SHIELDS = 12
-const SHIELDS_PER_BOX = 3
+const SHIELDS = 30
+const SHIELDS_MIN_PER_BOX = 5
+const SHIELDS_PER_BOX = 20
 const TILE_SHIELDS = 10
 const BONUS_KINDS: BonusReward["kind"][] = [
     "refill", "refill", "refill", "refill", "refill",
@@ -261,7 +262,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 return {reward: rewardOfKind(kind, spreadClicksLeft - held.spreadClicksLeft), charges: this.charges}
             }
             case "shields": {
-                const shields = Math.min(held.shields + drawUpTo(SHIELDS_PER_BOX), SHIELDS)
+                const shields = Math.min(held.shields + drawBetween(SHIELDS_MIN_PER_BOX, SHIELDS_PER_BOX), SHIELDS)
                 this.hold({...held, shields})
                 return {reward: rewardOfKind(kind, shields - held.shields), charges: this.charges}
             }
@@ -610,7 +611,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 }
 
 function drawUpTo(most: number): number {
-    return 1 + Math.floor(Math.random() * most)
+    return drawBetween(1, most)
+}
+
+function drawBetween(least: number, most: number): number {
+    return least + Math.floor(Math.random() * (most - least + 1))
 }
 
 function rewardOfKind(kind: BonusReward["kind"], amount = 1): BonusReward {

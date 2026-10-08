@@ -74,6 +74,8 @@ type ServerConfig struct {
 
 	StreamHeartbeat time.Duration
 
+	StartupTimeout time.Duration
+
 	AdminBindAddress string
 
 	InternalBindAddress string
@@ -140,8 +142,6 @@ func isLoopback(address string) bool {
 type Options struct {
 	Server ServerConfig
 
-	StartupTimeout time.Duration
-
 	ShutdownTimeout time.Duration
 
 	Logger *slog.Logger
@@ -150,7 +150,7 @@ type Options struct {
 }
 
 const (
-	defaultStartupTimeout  = 5 * time.Second
+	defaultStartupTimeout  = time.Minute
 	defaultShutdownTimeout = 5 * time.Second
 )
 
@@ -251,7 +251,7 @@ func buildModules(
 	runners *runnerRegistry,
 	closers *closerRegistry,
 ) error {
-	ctx, cancel := context.WithTimeout(ctx, options.StartupTimeout)
+	ctx, cancel := context.WithTimeout(ctx, options.Server.StartupTimeout)
 	defer cancel()
 
 	for _, module := range options.Modules {
@@ -288,8 +288,8 @@ func buildModules(
 }
 
 func (o Options) withDefaults() Options {
-	if o.StartupTimeout <= 0 {
-		o.StartupTimeout = defaultStartupTimeout
+	if o.Server.StartupTimeout <= 0 {
+		o.Server.StartupTimeout = defaultStartupTimeout
 	}
 	if o.ShutdownTimeout <= 0 {
 		o.ShutdownTimeout = defaultShutdownTimeout

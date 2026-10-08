@@ -27,6 +27,9 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 4, config.Planet.Bonus.Spread.MaxPerBox)
 	assert.Equal(t, 3, config.Planet.Bonus.Enclose.Held)
 	assert.Equal(t, 3, config.Planet.Bonus.Enclose.MaxPerBox)
+	assert.Equal(t, 30, config.Planet.Bonus.Shield.Held)
+	assert.Equal(t, 5, config.Planet.Bonus.Shield.MinPerBox)
+	assert.Equal(t, 20, config.Planet.Bonus.Shield.MaxPerBox)
 	assert.Equal(t, 12, config.Planet.Bonus.MaxChargesPerHour)
 
 	quiz := config.Planet.Bonus.Quiz
@@ -93,6 +96,7 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
 
 	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
+	assert.Equal(t, time.Minute, config.HTTPServer.StartupTimeout)
 	assert.NotZero(t, config.Planet.GameMap.MaxIndex)
 	assert.InDelta(t, 0.2, config.Planet.RateLimiter.PerSecond, 1e-9, "one click every 5s")
 	assert.Equal(t, 60, config.Planet.RateLimiter.Burst)

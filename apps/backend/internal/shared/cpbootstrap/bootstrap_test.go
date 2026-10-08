@@ -28,6 +28,29 @@ func TestAModuleThatFailsToBuildNamesItselfInTheError(t *testing.T) {
 	assert.Contains(t, err.Error(), "no log path")
 }
 
+func TestABootSlowerThanTheStartupTimeoutIsRefused(t *testing.T) {
+	err := runOn(t, cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0", StartupTimeout: time.Millisecond},
+		[]cpbootstrap.Module{newContextModule("planet", func(ctx context.Context) error {
+			<-ctx.Done()
+			return ctx.Err()
+		})})
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Contains(t, err.Error(), "planet")
+}
+
+func TestABootIsGivenAMinuteByDefault(t *testing.T) {
+	var deadline time.Time
+	began := time.Now()
+
+	require.NoError(t, run(t, []cpbootstrap.Module{newContextModule("planet", func(ctx context.Context) error {
+		deadline, _ = ctx.Deadline()
+		return nil
+	})}))
+
+	assert.WithinDuration(t, began.Add(time.Minute), deadline, time.Second)
+}
+
 func TestTwoModulesCannotClaimTheSameRoute(t *testing.T) {
 	var mountErr error
 
@@ -181,12 +204,26 @@ func newModule(name string, build func(cpbootstrap.Props) error) cpbootstrap.Mod
 	}
 }
 
+func newContextModule(name string, build func(context.Context) error) cpbootstrap.Module {
+	return cpbootstrap.Module{
+		Name:       name,
+		Enabled:    true,
+		DiSequence: func(ctx context.Context, _ cpbootstrap.Props) error { return build(ctx) },
+	}
+}
+
 func disabled(module cpbootstrap.Module) cpbootstrap.Module {
 	module.Enabled = false
 	return module
 }
 
 func run(t *testing.T, modules []cpbootstrap.Module) error {
+	t.Helper()
+
+	return runOn(t, cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0"}, modules)
+}
+
+func runOn(t *testing.T, server cpbootstrap.ServerConfig, modules []cpbootstrap.Module) error {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -197,7 +234,7 @@ func run(t *testing.T, modules []cpbootstrap.Module) error {
 	defer cancel()
 
 	return cpbootstrap.Run(ctx, cpbootstrap.Options{
-		Server:  cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0"},
+		Server:  server,
 		Logger:  slog.New(slog.DiscardHandler),
 		Modules: modules,
 	})
