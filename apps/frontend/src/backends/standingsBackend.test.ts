@@ -2,6 +2,7 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
     Board,
+    ClosedRound as ClosedRoundPb,
     GetMySeasonResponse,
     Heartbeat,
     Race as RacePb,
@@ -238,9 +239,49 @@ describe("ConnectStandingsBackend.listenForRace", () => {
                     standings: [{rank: 1, countryCode: "fr", share: 0.25, points: 25}],
                 },
                 scores: [{rank: 1, countryCode: "de", points: 43, roundsWon: 2}],
+                closed: undefined,
             },
-            {round: undefined, scores: []},
+            {round: undefined, scores: [], closed: undefined},
         ])
+        stop()
+    })
+
+    it("reads the round closed last, its results and its season's table before and after it", async () => {
+        const listenForEvents = streaming(new SeasonEvent({
+            event: {
+                case: "race", value: new RacePb({
+                    closed: new ClosedRoundPb({
+                        season: 0,
+                        number: 4,
+                        endedAtUnixMs: 1_792_105_200_000n,
+                        finale: true,
+                        standings: [new RoundStandingPb({rank: 1, countryId: "fr", share: 0.3, points: 75})],
+                        before: [new ScorePb({rank: 1, countryId: "de", points: 43, roundsWon: 2})],
+                        after: [
+                            new ScorePb({rank: 1, countryId: "fr", points: 93, roundsWon: 2}),
+                            new ScorePb({rank: 2, countryId: "de", points: 43, roundsWon: 2}),
+                        ],
+                    }),
+                }),
+            },
+        }))
+        const seen: Race[] = []
+
+        const stop = backendWith({listenForEvents}).listenForRace((race) => seen.push(race))
+
+        await vi.waitFor(() => expect(seen).toHaveLength(1))
+        expect(seen[0].closed).toEqual({
+            season: 0,
+            number: 4,
+            endedAt: 1_792_105_200_000,
+            finale: true,
+            standings: [{rank: 1, countryCode: "fr", share: 0.3, points: 75}],
+            before: [{rank: 1, countryCode: "de", points: 43, roundsWon: 2}],
+            after: [
+                {rank: 1, countryCode: "fr", points: 93, roundsWon: 2},
+                {rank: 2, countryCode: "de", points: 43, roundsWon: 2},
+            ],
+        })
         stop()
     })
 })

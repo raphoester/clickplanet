@@ -16,15 +16,15 @@ import (
 )
 
 type stubExecutor struct {
-	closed []rounds.Round
+	closed []rounds.Closed
 	err    error
 }
 
-func (s stubExecutor) Execute(context.Context) ([]rounds.Round, error) {
+func (s stubExecutor) Execute(context.Context) ([]rounds.Closed, error) {
 	return s.closed, s.err
 }
 
-func run(ctx context.Context, inner stubExecutor) (string, []rounds.Round, error) {
+func run(ctx context.Context, inner stubExecutor) (string, []rounds.Closed, error) {
 	var logs bytes.Buffer
 	closed, err := log_take_snapshot.New(inner, slog.New(slog.NewTextHandler(&logs, nil))).Execute(ctx)
 	return logs.String(), closed, err
@@ -38,13 +38,17 @@ func TestASnapshotThatClosedNothingLogsNothing(t *testing.T) {
 }
 
 func TestEachRoundClosedIsLoggedAndPassedOn(t *testing.T) {
-	finale := rounds.Round{EndsAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC), Finale: true}
+	finale := rounds.Closed{
+		Round:   rounds.Round{EndsAt: time.Date(2026, 10, 31, 23, 0, 0, 0, time.UTC), Finale: true},
+		Number:  23,
+		Results: []rounds.Result{{Country: "fr", Rank: 1, Points: 75}},
+	}
 
-	logs, closed, err := run(t.Context(), stubExecutor{closed: []rounds.Round{finale}})
+	logs, closed, err := run(t.Context(), stubExecutor{closed: []rounds.Closed{finale}})
 
 	require.NoError(t, err)
-	assert.Equal(t, []rounds.Round{finale}, closed)
-	assert.Contains(t, logs, `level=INFO msg="closed a round" season=0 endsAt=2026-10-31T23:00:00.000Z finale=true`)
+	assert.Equal(t, []rounds.Closed{finale}, closed)
+	assert.Contains(t, logs, `level=INFO msg="closed a round" season=0 number=23 endsAt=2026-10-31T23:00:00.000Z finale=true ranked=1`)
 }
 
 func TestAFailureIsLoggedAndPassedOn(t *testing.T) {

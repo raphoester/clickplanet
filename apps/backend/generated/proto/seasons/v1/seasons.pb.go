@@ -653,6 +653,7 @@ type Race struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Round         *Round                 `protobuf:"bytes,1,opt,name=round,proto3" json:"round,omitempty"`
 	Scores        []*Score               `protobuf:"bytes,2,rep,name=scores,proto3" json:"scores,omitempty"`
+	Closed        *ClosedRound           `protobuf:"bytes,3,opt,name=closed,proto3" json:"closed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -701,6 +702,105 @@ func (x *Race) GetScores() []*Score {
 	return nil
 }
 
+func (x *Race) GetClosed() *ClosedRound {
+	if x != nil {
+		return x.Closed
+	}
+	return nil
+}
+
+type ClosedRound struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Season        uint32                 `protobuf:"varint,1,opt,name=season,proto3" json:"season,omitempty"`
+	Number        uint32                 `protobuf:"varint,2,opt,name=number,proto3" json:"number,omitempty"`
+	EndedAtUnixMs int64                  `protobuf:"varint,3,opt,name=ended_at_unix_ms,json=endedAtUnixMs,proto3" json:"ended_at_unix_ms,omitempty"`
+	Finale        bool                   `protobuf:"varint,4,opt,name=finale,proto3" json:"finale,omitempty"`
+	Standings     []*RoundStanding       `protobuf:"bytes,5,rep,name=standings,proto3" json:"standings,omitempty"`
+	Before        []*Score               `protobuf:"bytes,6,rep,name=before,proto3" json:"before,omitempty"`
+	After         []*Score               `protobuf:"bytes,7,rep,name=after,proto3" json:"after,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClosedRound) Reset() {
+	*x = ClosedRound{}
+	mi := &file_seasons_v1_seasons_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClosedRound) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClosedRound) ProtoMessage() {}
+
+func (x *ClosedRound) ProtoReflect() protoreflect.Message {
+	mi := &file_seasons_v1_seasons_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClosedRound.ProtoReflect.Descriptor instead.
+func (*ClosedRound) Descriptor() ([]byte, []int) {
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ClosedRound) GetSeason() uint32 {
+	if x != nil {
+		return x.Season
+	}
+	return 0
+}
+
+func (x *ClosedRound) GetNumber() uint32 {
+	if x != nil {
+		return x.Number
+	}
+	return 0
+}
+
+func (x *ClosedRound) GetEndedAtUnixMs() int64 {
+	if x != nil {
+		return x.EndedAtUnixMs
+	}
+	return 0
+}
+
+func (x *ClosedRound) GetFinale() bool {
+	if x != nil {
+		return x.Finale
+	}
+	return false
+}
+
+func (x *ClosedRound) GetStandings() []*RoundStanding {
+	if x != nil {
+		return x.Standings
+	}
+	return nil
+}
+
+func (x *ClosedRound) GetBefore() []*Score {
+	if x != nil {
+		return x.Before
+	}
+	return nil
+}
+
+func (x *ClosedRound) GetAfter() []*Score {
+	if x != nil {
+		return x.After
+	}
+	return nil
+}
+
 type Round struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Number        uint32                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
@@ -713,7 +813,7 @@ type Round struct {
 
 func (x *Round) Reset() {
 	*x = Round{}
-	mi := &file_seasons_v1_seasons_proto_msgTypes[12]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -725,7 +825,7 @@ func (x *Round) String() string {
 func (*Round) ProtoMessage() {}
 
 func (x *Round) ProtoReflect() protoreflect.Message {
-	mi := &file_seasons_v1_seasons_proto_msgTypes[12]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -738,7 +838,7 @@ func (x *Round) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Round.ProtoReflect.Descriptor instead.
 func (*Round) Descriptor() ([]byte, []int) {
-	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{12}
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Round) GetNumber() uint32 {
@@ -781,7 +881,7 @@ type RoundStanding struct {
 
 func (x *RoundStanding) Reset() {
 	*x = RoundStanding{}
-	mi := &file_seasons_v1_seasons_proto_msgTypes[13]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -793,7 +893,7 @@ func (x *RoundStanding) String() string {
 func (*RoundStanding) ProtoMessage() {}
 
 func (x *RoundStanding) ProtoReflect() protoreflect.Message {
-	mi := &file_seasons_v1_seasons_proto_msgTypes[13]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -806,7 +906,7 @@ func (x *RoundStanding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundStanding.ProtoReflect.Descriptor instead.
 func (*RoundStanding) Descriptor() ([]byte, []int) {
-	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{13}
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RoundStanding) GetRank() uint32 {
@@ -849,7 +949,7 @@ type Score struct {
 
 func (x *Score) Reset() {
 	*x = Score{}
-	mi := &file_seasons_v1_seasons_proto_msgTypes[14]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -861,7 +961,7 @@ func (x *Score) String() string {
 func (*Score) ProtoMessage() {}
 
 func (x *Score) ProtoReflect() protoreflect.Message {
-	mi := &file_seasons_v1_seasons_proto_msgTypes[14]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -874,7 +974,7 @@ func (x *Score) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Score.ProtoReflect.Descriptor instead.
 func (*Score) Descriptor() ([]byte, []int) {
-	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{14}
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Score) GetRank() uint32 {
@@ -913,7 +1013,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_seasons_v1_seasons_proto_msgTypes[15]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -925,7 +1025,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_seasons_v1_seasons_proto_msgTypes[15]
+	mi := &file_seasons_v1_seasons_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -938,7 +1038,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{15}
+	return file_seasons_v1_seasons_proto_rawDescGZIP(), []int{16}
 }
 
 var File_seasons_v1_seasons_proto protoreflect.FileDescriptor
@@ -990,10 +1090,19 @@ const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"\x04race\x18\x03 \x01(\v2\x10.seasons.v1.RaceH\x00R\x04raceB\a\n" +
 	"\x05event\";\n" +
 	"\x05Board\x122\n" +
-	"\tstandings\x18\x01 \x03(\v2\x14.seasons.v1.StandingR\tstandings\"Z\n" +
+	"\tstandings\x18\x01 \x03(\v2\x14.seasons.v1.StandingR\tstandings\"\x8b\x01\n" +
 	"\x04Race\x12'\n" +
 	"\x05round\x18\x01 \x01(\v2\x11.seasons.v1.RoundR\x05round\x12)\n" +
-	"\x06scores\x18\x02 \x03(\v2\x11.seasons.v1.ScoreR\x06scores\"\x97\x01\n" +
+	"\x06scores\x18\x02 \x03(\v2\x11.seasons.v1.ScoreR\x06scores\x12/\n" +
+	"\x06closed\x18\x03 \x01(\v2\x17.seasons.v1.ClosedRoundR\x06closed\"\x8b\x02\n" +
+	"\vClosedRound\x12\x16\n" +
+	"\x06season\x18\x01 \x01(\rR\x06season\x12\x16\n" +
+	"\x06number\x18\x02 \x01(\rR\x06number\x12'\n" +
+	"\x10ended_at_unix_ms\x18\x03 \x01(\x03R\rendedAtUnixMs\x12\x16\n" +
+	"\x06finale\x18\x04 \x01(\bR\x06finale\x127\n" +
+	"\tstandings\x18\x05 \x03(\v2\x19.seasons.v1.RoundStandingR\tstandings\x12)\n" +
+	"\x06before\x18\x06 \x03(\v2\x11.seasons.v1.ScoreR\x06before\x12'\n" +
+	"\x05after\x18\a \x03(\v2\x11.seasons.v1.ScoreR\x05after\"\x97\x01\n" +
 	"\x05Round\x12\x16\n" +
 	"\x06number\x18\x01 \x01(\rR\x06number\x12%\n" +
 	"\x0fends_at_unix_ms\x18\x02 \x01(\x03R\fendsAtUnixMs\x12\x16\n" +
@@ -1034,7 +1143,7 @@ func file_seasons_v1_seasons_proto_rawDescGZIP() []byte {
 	return file_seasons_v1_seasons_proto_rawDescData
 }
 
-var file_seasons_v1_seasons_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_seasons_v1_seasons_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_seasons_v1_seasons_proto_goTypes = []any{
 	(*GetSeasonRequest)(nil),       // 0: seasons.v1.GetSeasonRequest
 	(*GetSeasonResponse)(nil),      // 1: seasons.v1.GetSeasonResponse
@@ -1048,39 +1157,44 @@ var file_seasons_v1_seasons_proto_goTypes = []any{
 	(*SeasonEvent)(nil),            // 9: seasons.v1.SeasonEvent
 	(*Board)(nil),                  // 10: seasons.v1.Board
 	(*Race)(nil),                   // 11: seasons.v1.Race
-	(*Round)(nil),                  // 12: seasons.v1.Round
-	(*RoundStanding)(nil),          // 13: seasons.v1.RoundStanding
-	(*Score)(nil),                  // 14: seasons.v1.Score
-	(*Heartbeat)(nil),              // 15: seasons.v1.Heartbeat
-	(v1.NameColor)(0),              // 16: player.v1.NameColor
-	(*v1.Title)(nil),               // 17: player.v1.Title
+	(*ClosedRound)(nil),            // 12: seasons.v1.ClosedRound
+	(*Round)(nil),                  // 13: seasons.v1.Round
+	(*RoundStanding)(nil),          // 14: seasons.v1.RoundStanding
+	(*Score)(nil),                  // 15: seasons.v1.Score
+	(*Heartbeat)(nil),              // 16: seasons.v1.Heartbeat
+	(v1.NameColor)(0),              // 17: player.v1.NameColor
+	(*v1.Title)(nil),               // 18: player.v1.Title
 }
 var file_seasons_v1_seasons_proto_depIdxs = []int32{
 	2,  // 0: seasons.v1.GetSeasonResponse.season:type_name -> seasons.v1.Season
 	5,  // 1: seasons.v1.GetStandingsResponse.standings:type_name -> seasons.v1.Standing
-	16, // 2: seasons.v1.Standing.color:type_name -> player.v1.NameColor
-	17, // 3: seasons.v1.Standing.worn_title:type_name -> player.v1.Title
-	17, // 4: seasons.v1.GetMySeasonResponse.worn_title:type_name -> player.v1.Title
+	17, // 2: seasons.v1.Standing.color:type_name -> player.v1.NameColor
+	18, // 3: seasons.v1.Standing.worn_title:type_name -> player.v1.Title
+	18, // 4: seasons.v1.GetMySeasonResponse.worn_title:type_name -> player.v1.Title
 	10, // 5: seasons.v1.SeasonEvent.board:type_name -> seasons.v1.Board
-	15, // 6: seasons.v1.SeasonEvent.heartbeat:type_name -> seasons.v1.Heartbeat
+	16, // 6: seasons.v1.SeasonEvent.heartbeat:type_name -> seasons.v1.Heartbeat
 	11, // 7: seasons.v1.SeasonEvent.race:type_name -> seasons.v1.Race
 	5,  // 8: seasons.v1.Board.standings:type_name -> seasons.v1.Standing
-	12, // 9: seasons.v1.Race.round:type_name -> seasons.v1.Round
-	14, // 10: seasons.v1.Race.scores:type_name -> seasons.v1.Score
-	13, // 11: seasons.v1.Round.standings:type_name -> seasons.v1.RoundStanding
-	0,  // 12: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
-	3,  // 13: seasons.v1.SeasonService.GetStandings:input_type -> seasons.v1.GetStandingsRequest
-	6,  // 14: seasons.v1.SeasonService.GetMySeason:input_type -> seasons.v1.GetMySeasonRequest
-	8,  // 15: seasons.v1.SeasonService.ListenForEvents:input_type -> seasons.v1.ListenForEventsRequest
-	1,  // 16: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
-	4,  // 17: seasons.v1.SeasonService.GetStandings:output_type -> seasons.v1.GetStandingsResponse
-	7,  // 18: seasons.v1.SeasonService.GetMySeason:output_type -> seasons.v1.GetMySeasonResponse
-	9,  // 19: seasons.v1.SeasonService.ListenForEvents:output_type -> seasons.v1.SeasonEvent
-	16, // [16:20] is the sub-list for method output_type
-	12, // [12:16] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	13, // 9: seasons.v1.Race.round:type_name -> seasons.v1.Round
+	15, // 10: seasons.v1.Race.scores:type_name -> seasons.v1.Score
+	12, // 11: seasons.v1.Race.closed:type_name -> seasons.v1.ClosedRound
+	14, // 12: seasons.v1.ClosedRound.standings:type_name -> seasons.v1.RoundStanding
+	15, // 13: seasons.v1.ClosedRound.before:type_name -> seasons.v1.Score
+	15, // 14: seasons.v1.ClosedRound.after:type_name -> seasons.v1.Score
+	14, // 15: seasons.v1.Round.standings:type_name -> seasons.v1.RoundStanding
+	0,  // 16: seasons.v1.SeasonService.GetSeason:input_type -> seasons.v1.GetSeasonRequest
+	3,  // 17: seasons.v1.SeasonService.GetStandings:input_type -> seasons.v1.GetStandingsRequest
+	6,  // 18: seasons.v1.SeasonService.GetMySeason:input_type -> seasons.v1.GetMySeasonRequest
+	8,  // 19: seasons.v1.SeasonService.ListenForEvents:input_type -> seasons.v1.ListenForEventsRequest
+	1,  // 20: seasons.v1.SeasonService.GetSeason:output_type -> seasons.v1.GetSeasonResponse
+	4,  // 21: seasons.v1.SeasonService.GetStandings:output_type -> seasons.v1.GetStandingsResponse
+	7,  // 22: seasons.v1.SeasonService.GetMySeason:output_type -> seasons.v1.GetMySeasonResponse
+	9,  // 23: seasons.v1.SeasonService.ListenForEvents:output_type -> seasons.v1.SeasonEvent
+	20, // [20:24] is the sub-list for method output_type
+	16, // [16:20] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_seasons_v1_seasons_proto_init() }
@@ -1099,7 +1213,7 @@ func file_seasons_v1_seasons_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_seasons_v1_seasons_proto_rawDesc), len(file_seasons_v1_seasons_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,5 +1,5 @@
 import {Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {BombAnnouncement, ChatAnnouncement, ChatMessage, MuteAnnouncement, Reaction} from "../../backends/chat.ts";
+import {BombAnnouncement, ChatAnnouncement, ChatMessage, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
 import {PlayerLine} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
@@ -10,6 +10,7 @@ import {ChevronIcon} from "../components/icons.tsx";
 import {ChatLogEntry, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
 import {describeBlast} from "../../domain/blast.ts";
 import {describeMute} from "../../domain/mute.ts";
+import {medalOf, roundOverLine} from "../../domain/roundReveal.ts";
 import {truncate} from "../truncate.ts";
 import {authorOf, authorStyle} from "./authorStyle.ts";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
@@ -225,9 +226,34 @@ function MessageLine({message, previous, flashing, picking, pick, ...props}: Mes
 }
 
 function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
-    return announcement.kind === "bomb"
-        ? <BombLine announcement={announcement}/>
-        : <MuteLine announcement={announcement}/>
+    switch (announcement.kind) {
+        case "bomb":
+            return <BombLine announcement={announcement}/>
+        case "mute":
+            return <MuteLine announcement={announcement}/>
+        case "round":
+            return <RoundLine announcement={announcement}/>
+    }
+}
+
+function RoundLine({announcement}: {announcement: RoundAnnouncement}) {
+    return <li className="chat-announcement chat-announcement-round" data-at={announcement.announcedAt}>
+        <span className="chat-round-head">
+            <span className="chat-announcement-icon" aria-hidden="true">🏁</span>
+            <strong>{roundOverLine(announcement)}</strong>
+            <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
+                {clock.format(announcement.announcedAt)}
+            </time>
+        </span>
+        {announcement.podium.length > 0 && <ol className="chat-round-podium">
+            {announcement.podium.map((place) => <li key={place.country} className="chat-round-place">
+                <span aria-hidden="true">{medalOf(place.rank)}</span>
+                <CountryFlag code={place.country}/>
+                <span className="chat-round-country">{countryName(place.country)}</span>
+                <span className="chat-round-points">+{place.points}</span>
+            </li>)}
+        </ol>}
+    </li>
 }
 
 function MuteLine({announcement}: {announcement: MuteAnnouncement}) {

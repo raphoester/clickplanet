@@ -54,6 +54,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_muted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/round_closed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -70,6 +71,8 @@ const bombLandedBuffer = 256
 const accountDeletedBuffer = 256
 
 const accountMutedBuffer = 64
+
+const roundClosedBuffer = 16
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -136,9 +139,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to chat.v1.AccountMuted: %w", err)
 	}
 
+	roundsClosed, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-rounds", roundClosedBuffer,
+		log_subscriber.New(round_closed_subscriber.New(announce), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to seasons.v1.RoundClosed: %w", err)
+	}
+
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		prune_usecase.NewRunner(storage.PruneInterval, prune), bombs, deletions, mutings))
+		prune_usecase.NewRunner(storage.PruneInterval, prune), bombs, deletions, mutings, roundsClosed))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)

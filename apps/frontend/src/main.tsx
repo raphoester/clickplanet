@@ -75,6 +75,16 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fakePresence.earnTitle(id)
             return "a title is unlocked"
         },
+        closeDay: () => {
+            const closed = fakeStandings.closeRound()
+            fakeChat.announceRound(closed)
+            return `day ${closed.number} is over`
+        },
+        closeFinale: () => {
+            const closed = fakeStandings.closeRound(true)
+            fakeChat.announceRound(closed)
+            return "the Final Battle is over"
+        },
     })
 
     const fakeChat = new FakeChatBackend()
