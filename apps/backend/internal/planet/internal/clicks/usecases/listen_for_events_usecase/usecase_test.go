@@ -37,6 +37,7 @@ type recorder struct {
 	err      error
 	accepted int
 	fed      chan struct{}
+	stopped  <-chan struct{}
 }
 
 func (r *recorder) Send(event listen_for_events_usecase.Event) error {
@@ -46,7 +47,10 @@ func (r *recorder) Send(event listen_for_events_usecase.Event) error {
 	r.mu.Unlock()
 
 	if r.fed != nil {
-		r.fed <- struct{}{}
+		select {
+		case r.fed <- struct{}{}:
+		case <-r.stopped:
+		}
 	}
 
 	if refused {
@@ -99,9 +103,8 @@ func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 	updates := make(chan clicks.Change, 1)
 	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 42, Value: "fr", Previous: "de"}}
 
-	sink := &recorder{fed: make(chan struct{})}
-
 	ctx, cancel := context.WithCancel(t.Context())
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).Execute(ctx, sink)
@@ -123,9 +126,8 @@ func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	blast := &clicks.Blast{Tile: 7, CountryID: "fr", Cleared: []uint32{6, 7, 8}}
 	updates <- clicks.Change{Blast: blast}
 
-	sink := &recorder{fed: make(chan struct{})}
-
 	ctx, cancel := context.WithCancel(t.Context())
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentFeed{}).Execute(ctx, sink)
@@ -140,9 +142,8 @@ func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 }
 
 func TestAStreamOpensWithAHeartbeat(t *testing.T) {
-	sink := &recorder{fed: make(chan struct{})}
-
 	ctx, cancel := context.WithCancel(t.Context())
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
@@ -189,9 +190,8 @@ func TestTheOpeningHeartbeatComesOnceTheMapAndTheBoxesAreFollowed(t *testing.T) 
 }
 
 func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
-	sink := &recorder{fed: make(chan struct{})}
-
 	ctx, cancel := context.WithCancel(t.Context())
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(

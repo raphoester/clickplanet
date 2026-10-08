@@ -1,7 +1,6 @@
 package shadowban_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -12,11 +11,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func newBans(t *testing.T, clock cptime.Clock) (*shadowban.Bans, *shadowban.MemoryPersistence, *shadowban.MemoryPersistence) {
+func newBans(t *testing.T, clock cptime.Clock) (bans, *shadowban.MemoryStore, *shadowban.MemoryStore) {
 	t.Helper()
 
-	scopes, accounts := shadowban.NewMemoryPersistence(), shadowban.NewMemoryPersistence()
-	return shadowban.NewBans(config(), clock, scopes, accounts, failOnStateError(t)), scopes, accounts
+	scopes, accounts := shadowban.NewMemoryStore(), shadowban.NewMemoryStore()
+	return bans{t: t, inner: shadowban.NewBans(config(), clock, scopes, accounts)}, scopes, accounts
 }
 
 func TestAFlaggedGuestIsBannedOnItsAccountAndItsScope(t *testing.T) {
@@ -81,21 +80,31 @@ func TestTheSentenceIsTheBanThatEndsLast(t *testing.T) {
 	assert.False(t, running)
 }
 
-func TestAccountBansAreKeptApartAndSurviveARestart(t *testing.T) {
+func TestAccountBansAreKeptApart(t *testing.T) {
 	clock := newClock()
 	before, scopes, accounts := newBans(t, clock)
 
 	before.Flag(shadowban.Caller{Scope: "1.2.3.4", Account: "guest"})
 
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-	before.Run(ctx)
-
 	assert.Contains(t, scopes.Stored(), "1.2.3.4")
 	assert.NotContains(t, scopes.Stored(), "guest")
 	assert.Contains(t, accounts.Stored(), "guest")
 
-	after := shadowban.NewBans(config(), clock, scopes, accounts, failOnStateError(t))
-	require.NoError(t, after.Load(t.Context()))
+	after := bans{t: t, inner: shadowban.NewBans(config(), clock, scopes, accounts)}
 	assert.True(t, after.Banned(shadowban.Caller{Scope: "5.6.7.8", Account: "guest"}))
+}
+
+func TestAnUnbanLiftsOnlyTheBanItNames(t *testing.T) {
+	bans, _, _ := newBans(t, newClock())
+	guest := shadowban.Caller{Scope: "1.2.3.4", Account: "guest"}
+
+	bans.Flag(guest)
+
+	bans.Unban(shadowban.Caller{Account: "guest"})
+	assert.True(t, bans.Banned(guest), "the guest's scope is still banned")
+	assert.False(t, bans.Banned(shadowban.Caller{Scope: "5.6.7.8", Account: "guest"}))
+
+	bans.Unban(shadowban.Caller{Scope: "1.2.3.4"})
+	assert.False(t, bans.Banned(guest))
+	assert.Equal(t, 0, bans.Flagged())
 }

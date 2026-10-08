@@ -26,7 +26,7 @@ type fakeGuard struct {
 	committed []antibot.Click
 }
 
-func (g *fakeGuard) Inspect(click antibot.Click) bool {
+func (g *fakeGuard) Inspect(_ context.Context, click antibot.Click) bool {
 	g.seen = append(g.seen, click)
 	return g.drop
 }
@@ -35,7 +35,7 @@ func (g *fakeGuard) Committed(click antibot.Click) {
 	g.committed = append(g.committed, click)
 }
 
-func (g *fakeGuard) Flagged() int { return len(g.seen) }
+func (g *fakeGuard) Flagged(context.Context) (int, error) { return len(g.seen), nil }
 
 type fakeOwner map[uint32]string
 

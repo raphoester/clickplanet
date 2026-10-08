@@ -1,5 +1,5 @@
 import {AccountBackend, AuthFailure, failureOf, Intent, Me, OAuthProvider, Provider, PROVIDERS} from "../../backends/account.ts"
-import {NameColor, PlayerBackend, PlayerFailure, playerFailureOf, PlayerTitle, TitleDashboard} from "../../backends/player.ts"
+import {Fronts, NameColor, PlayerBackend, PlayerFailure, playerFailureOf, PlayerTitle, TitleDashboard} from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
 
 export type AccountAction = "signIn" | "link" | "sendCode" | "checkCode" | "signOut" | "signOutEverywhere" | "deleteAccount"
@@ -51,6 +51,8 @@ export class AccountStore {
     public titles = (): Promise<TitleDashboard> => this.player.titles()
 
     public wearTitle = (id: string): Promise<PlayerTitle | undefined> => this.player.wearTitle(id)
+
+    public fronts = (): Promise<Fronts> => this.player.fronts()
 
     public subscribe = (listener: () => void): (() => void) => {
         this.listeners.add(listener)

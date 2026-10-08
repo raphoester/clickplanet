@@ -181,8 +181,8 @@ func build(
 	clock cptime.Clock,
 	observer Observer,
 	db database,
-	scopeBans shadowban.Persistence,
-	accountBans shadowban.Persistence,
+	scopeBans shadowban.Store,
+	accountBans shadowban.Store,
 	evidences evidence.Persistence,
 ) (*Guard, error) {
 	if clock == nil {
@@ -304,8 +304,7 @@ func build(
 
 	juryConfig := config.Jury.WithDefaults()
 
-	banner := shadowban.NewBans(config.ShadowBan, clock, scopeBans, accountBans, onStateError)
-	g.runners = append(g.runners, banner.Run)
+	banner := shadowban.NewBans(config.ShadowBan, clock, scopeBans, accountBans)
 
 	g.banner = banner
 	g.jury = jury.New(juryConfig, banner, clock, juryHooks(observer), watchdogs...)
@@ -367,9 +366,23 @@ func (g *Guard) Attempted(click Click) {
 	}
 }
 
+const banTimeout = time.Second
+
 // Call before the handler runs: afterwards the map no longer knows who held the tile.
-func (g *Guard) Inspect(click Click) (drop bool) {
-	return g.Enabled() && g.jury.Inspect(click)
+func (g *Guard) Inspect(ctx context.Context, click Click) (drop bool) {
+	if !g.Enabled() {
+		return false
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, banTimeout)
+	defer cancel()
+
+	drop, err := g.jury.Inspect(ctx, click)
+	if err != nil {
+		g.onStateError(err)
+	}
+
+	return drop
 }
 
 // Only for a click the handler accepted; a refused one would frame the next clicker.
@@ -418,11 +431,6 @@ func (g *Guard) LoadState(ctx context.Context) error {
 		return err
 	}
 
-	if err := g.banner.Load(ctx); err != nil {
-		_ = g.database.close()
-		return fmt.Errorf("failed to load the bans: %w", err)
-	}
-
 	if err := g.evidence.Load(ctx); err != nil {
 		_ = g.database.close()
 		return fmt.Errorf("failed to load the antibot evidence: %w", err)
@@ -431,52 +439,76 @@ func (g *Guard) LoadState(ctx context.Context) error {
 	return nil
 }
 
-func (g *Guard) Flagged() int {
+func (g *Guard) Flagged(ctx context.Context) (int, error) {
 	if !g.Enabled() {
-		return 0
+		return 0, nil
 	}
 
-	return g.jury.Flagged()
+	return g.jury.Flagged(ctx) //nolint:wrapcheck // the banner already named what failed.
 }
 
-func (g *Guard) Ban(scope, account string, duration time.Duration) Sentence {
+func (g *Guard) Ban(ctx context.Context, scope, account string, duration time.Duration) (Sentence, error) {
 	if !g.Enabled() {
-		return Sentence{}
+		return Sentence{}, nil
 	}
 
-	return g.banner.Ban(shadowban.Caller{Scope: scope, Account: account}, duration)
+	return g.banner.Ban(ctx, shadowban.Caller{Scope: scope, Account: account}, duration) //nolint:wrapcheck // the banner already named what failed.
 }
 
-func (g *Guard) Sentence(scope, account string) (Sentence, bool) {
+func (g *Guard) Unban(ctx context.Context, scope, account string) error {
 	if !g.Enabled() {
-		return Sentence{}, false
+		return nil
 	}
 
-	return g.banner.Sentence(shadowban.Caller{Scope: scope, Account: account})
+	return g.banner.Unban(ctx, shadowban.Caller{Scope: scope, Account: account}) //nolint:wrapcheck // the banner already named what failed.
 }
 
-func (g *Guard) Examine(scope, account string) Examination {
+func (g *Guard) Sentence(ctx context.Context, scope, account string) (Sentence, bool, error) {
 	if !g.Enabled() {
-		return Examination{Scope: scope, Account: account}
+		return Sentence{}, false, nil
+	}
+
+	return g.banner.Sentence(ctx, shadowban.Caller{Scope: scope, Account: account}) //nolint:wrapcheck // the banner already named what failed.
+}
+
+func (g *Guard) Examine(ctx context.Context, scope, account string) (Examination, error) {
+	if !g.Enabled() {
+		return Examination{Scope: scope, Account: account}, nil
 	}
 
 	examination := g.jury.Examine(scope)
 	examination.Account = account
 
-	if sentence, banned := g.banner.Sentence(shadowban.Caller{Scope: scope, Account: account}); banned {
+	sentence, banned, err := g.banner.Sentence(ctx, shadowban.Caller{Scope: scope, Account: account})
+	if err != nil {
+		return Examination{}, err //nolint:wrapcheck // the banner already named what failed.
+	}
+	if banned {
 		examination.Banned = true
 		examination.Flags = sentence.Flags
 		examination.Offence = sentence.Offence
 		examination.BannedUntil = sentence.Until
 	}
 
-	return examination
+	return examination, nil
 }
 
 func (g *Guard) Enforcing() bool { return g.Enabled() && g.banner.Enforcing() }
 
-func (g *Guard) Banned(scope, account string) bool {
-	return g.Enabled() && g.banner.Banned(shadowban.Caller{Scope: scope, Account: account})
+func (g *Guard) Banned(ctx context.Context, scope, account string) bool {
+	if !g.Enabled() {
+		return false
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, banTimeout)
+	defer cancel()
+
+	banned, err := g.banner.Banned(ctx, shadowban.Caller{Scope: scope, Account: account})
+	if err != nil {
+		g.onStateError(err)
+	}
+
+	return banned
 }
 
 func (g *Guard) Enabled() bool { return g.jury != nil }

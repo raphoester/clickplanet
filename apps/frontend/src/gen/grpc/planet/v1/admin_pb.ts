@@ -1003,6 +1003,106 @@ export class BanPlayerResponse extends Message<BanPlayerResponse> {
 }
 
 /**
+ * @generated from message planet.v1.UnbanPlayerRequest
+ */
+export class UnbanPlayerRequest extends Message<UnbanPlayerRequest> {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<UnbanPlayerRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.UnbanPlayerRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnbanPlayerRequest {
+    return new UnbanPlayerRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnbanPlayerRequest {
+    return new UnbanPlayerRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnbanPlayerRequest {
+    return new UnbanPlayerRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UnbanPlayerRequest | PlainMessage<UnbanPlayerRequest> | undefined, b: UnbanPlayerRequest | PlainMessage<UnbanPlayerRequest> | undefined): boolean {
+    return proto3.util.equals(UnbanPlayerRequest, a, b);
+  }
+}
+
+/**
+ * The ban that was lifted. Its offence no longer counts.
+ *
+ * @generated from message planet.v1.UnbanPlayerResponse
+ */
+export class UnbanPlayerResponse extends Message<UnbanPlayerResponse> {
+  /**
+   * @generated from field: string scope = 1;
+   */
+  scope = "";
+
+  /**
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: uint32 offence = 3;
+   */
+  offence = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp banned_until = 4;
+   */
+  bannedUntil?: Timestamp;
+
+  constructor(data?: PartialMessage<UnbanPlayerResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.UnbanPlayerResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "offence", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "banned_until", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnbanPlayerResponse {
+    return new UnbanPlayerResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnbanPlayerResponse {
+    return new UnbanPlayerResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnbanPlayerResponse {
+    return new UnbanPlayerResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UnbanPlayerResponse | PlainMessage<UnbanPlayerResponse> | undefined, b: UnbanPlayerResponse | PlainMessage<UnbanPlayerResponse> | undefined): boolean {
+    return proto3.util.equals(UnbanPlayerResponse, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.RevertPlayerRequest
  */
 export class RevertPlayerRequest extends Message<RevertPlayerRequest> {

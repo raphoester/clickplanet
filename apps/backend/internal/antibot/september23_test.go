@@ -101,7 +101,7 @@ func poolClaims(r *rand.Rand, from time.Time, until time.Time) []event {
 }
 
 func TestTheHiddenTabOfSeptember23IsCaughtByItsBeat(t *testing.T) {
-	s := newStack(withTheWeekOfSeptember23)
+	s := newStack(t, withTheWeekOfSeptember23)
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(23, 9))
 
@@ -120,7 +120,7 @@ func TestTheHiddenTabOfSeptember23IsCaughtByItsBeat(t *testing.T) {
 }
 
 func TestTheHiddenTabOfSeptember23IsCaughtSoonerWithTheBoxesItPasses(t *testing.T) {
-	s := newStack(withTheWeekOfSeptember23)
+	s := newStack(t, withTheWeekOfSeptember23)
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(23, 9))
 
@@ -150,7 +150,7 @@ func jitteredPainter(r *rand.Rand, from time.Time, until time.Time) []event {
 }
 
 func TestTheBoxPoolOfSeptember22IsCaughtOnTheBoxesAlone(t *testing.T) {
-	s := newStack(withTheWeekOfSeptember23)
+	s := newStack(t, withTheWeekOfSeptember23)
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(22, 9))
 
@@ -208,7 +208,7 @@ func browser(r *rand.Rand, from time.Time, until time.Time, quantiles [5]time.Du
 }
 
 func TestTheHeavyPlayersOfSeptember23AreNotBanned(t *testing.T) {
-	s := newStack(withTheWeekOfSeptember23)
+	s := newStack(t, withTheWeekOfSeptember23)
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(7, 70))
 
@@ -227,7 +227,7 @@ func TestTheHeavyPlayersOfSeptember23AreNotBanned(t *testing.T) {
 		_, dropped := s.replay("2001:db8:861:700::/64", 3, chunk)
 		require.False(t, dropped)
 
-		for _, reading := range s.guard.Examine("2001:db8:861:700::/64", "").Readings {
+		for _, reading := range s.examine("2001:db8:861:700::/64", "").Readings {
 			if reading.Evidence != "" {
 				rules.Add(reading.Watchdog + " " + strings.Fields(reading.Evidence)[0])
 			}

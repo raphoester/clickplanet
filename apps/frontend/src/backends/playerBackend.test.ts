@@ -1,6 +1,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    CountryTiles as CountryTilesPb,
     Player as PlayerPb,
     PlayerEvent as PlayerEventPb,
     PlayerLeft as PlayerLeftPb,
@@ -145,6 +146,20 @@ describe("ConnectPlayerBackend", () => {
         const backend = backendWith({getTitles: vi.fn(async () => ({wearable: [], tracks: []}))})
 
         expect((await backend.titles()).worn).toBeUndefined()
+    })
+
+    it("reads every country the player plays for and against with the click token", async () => {
+        const getFronts = vi.fn(async () => ({
+            playsFor: [new CountryTilesPb({countryId: "fr", tiles: 1200n})],
+            playsAgainst: [new CountryTilesPb({countryId: "de", tiles: 900n}), new CountryTilesPb({countryId: "es", tiles: 4n})],
+        }))
+        const backend = backendWith({getFronts})
+
+        expect(await backend.fronts()).toEqual({
+            playsFor: [{countryCode: "fr", tiles: 1200}],
+            playsAgainst: [{countryCode: "de", tiles: 900}, {countryCode: "es", tiles: 4}],
+        })
+        expect(headersOf(getFronts).headers.get(SESSION_HEADER)).toBe("token-1")
     })
 
     it("wears a title with the click token, and answers the one the server says is worn", async () => {
@@ -422,6 +437,8 @@ describe("ConnectPlayerBackend player info", () => {
                 color: NameColor.VIOLET,
                 titles: [new TitlePb({id: "og", name: "OG"}), settlerPb],
                 wornTitle: settlerPb,
+                playsFor: [new CountryTilesPb({countryId: "fr", tiles: 1200n}), new CountryTilesPb({countryId: "be", tiles: 34n})],
+                playsAgainst: [new CountryTilesPb({countryId: "de", tiles: 900n})],
             }),
         }))
 
@@ -430,6 +447,8 @@ describe("ConnectPlayerBackend player info", () => {
             color: NameColor.VIOLET,
             titles: [{id: "og", name: "OG"}, settler],
             wornTitle: settler,
+            playsFor: [{countryCode: "fr", tiles: 1200}, {countryCode: "be", tiles: 34}],
+            playsAgainst: [{countryCode: "de", tiles: 900}],
         })
         expect(getPlayer).toHaveBeenCalledWith({name: "ana"})
         expect(session.token).not.toHaveBeenCalled()

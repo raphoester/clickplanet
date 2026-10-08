@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
@@ -35,6 +37,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_fronts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
@@ -51,6 +54,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/name_accounts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/reconcile_titles_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_planet_fronts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rpc_planet_fronts/caching_fronts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_name_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/wear_title_handler"
@@ -91,6 +96,8 @@ import (
 
 const moduleName = "player"
 
+const frontsKeptFor = 30 * time.Second
+
 const (
 	tileTakenBuffer      = 8192
 	accountDeletedBuffer = 2048
@@ -113,9 +120,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the player module asks auth about accounts: %w", err)
+		return fmt.Errorf("the player module asks auth about accounts and planet about takes: %w", err)
 	}
 	auth := authv1connect.NewInternalServiceClient(internal, baseURL)
+	fronts := rpc_planet_fronts.New(planetv1connect.NewInternalServiceClient(internal, baseURL))
 
 	tagSalt := config.TagSalt
 	if tagSalt == "" {
@@ -246,9 +254,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat),
 			listen_for_titles_usecase.New(titleFeed, catalog),
 		),
-		GetPlayerHandler: get_player_handler.New(player_query.NewPostgresQuery(db, titleCards, accounts, clock)),
+		GetPlayerHandler: get_player_handler.New(player_query.NewPostgresQuery(
+			db, titleCards, accounts, caching_fronts.New(fronts, frontsKeptFor, clock), clock,
+		)),
 		GetTitlesHandler: get_titles_handler.New(titles_query.NewPostgresQuery(db, titleCards, clock)),
 		WearTitleHandler: wear_title_handler.New(dressing_wear_title.New(wear_title_usecase.New(wardrobe, clock), visits)),
+		GetFrontsHandler: get_fronts_handler.New(fronts),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)

@@ -2,6 +2,7 @@ package antibot_test
 
 import (
 	"context"
+	"errors"
 	"math/rand/v2"
 	"testing"
 	"time"
@@ -18,13 +19,14 @@ import (
 )
 
 type stack struct {
+	t      *testing.T
 	guard  *antibot.Guard
 	clock  *cptime.FixedClock
 	config antibot.Config
 	stop   func()
 
-	bans           *shadowban.MemoryPersistence
-	accountBans    *shadowban.MemoryPersistence
+	bans           *shadowban.MemoryStore
+	accountBans    *shadowban.MemoryStore
 	evidence       *evidence.MemoryPersistence
 	forgetEvidence bool
 
@@ -35,13 +37,15 @@ type stack struct {
 	errors  []error
 }
 
-func newStack(options ...func(*antibot.Config)) *stack {
+func newStack(t *testing.T, options ...func(*antibot.Config)) *stack {
+	t.Helper()
 	s := &stack{
+		t:           t,
 		clock:       cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
 		owner:       map[uint32]string{},
 		shields:     map[uint32]int{},
-		bans:        shadowban.NewMemoryPersistence(),
-		accountBans: shadowban.NewMemoryPersistence(),
+		bans:        shadowban.NewMemoryStore(),
+		accountBans: shadowban.NewMemoryStore(),
 		evidence:    evidence.NewMemoryPersistence(),
 	}
 
@@ -170,6 +174,33 @@ func (s *stack) restart(outage time.Duration) {
 	s.boot()
 }
 
+func (s *stack) inspect(click antibot.Click) bool {
+	return s.guard.Inspect(s.t.Context(), click)
+}
+
+func (s *stack) ban(scope, account string, duration time.Duration) antibot.Sentence {
+	s.t.Helper()
+	sentence, err := s.guard.Ban(s.t.Context(), scope, account, duration)
+	require.NoError(s.t, err)
+	return sentence
+}
+
+func (s *stack) unban(scope, account string) {
+	s.t.Helper()
+	require.NoError(s.t, s.guard.Unban(s.t.Context(), scope, account))
+}
+
+func (s *stack) banned(scope, account string) bool {
+	return s.guard.Banned(s.t.Context(), scope, account)
+}
+
+func (s *stack) examine(scope, account string) antibot.Examination {
+	s.t.Helper()
+	examination, err := s.guard.Examine(s.t.Context(), scope, account)
+	require.NoError(s.t, err)
+	return examination
+}
+
 func (s *stack) click(scope string, tile uint32, country string) bool {
 	return s.clickAs(scope, "", tile, country)
 }
@@ -190,7 +221,7 @@ func (s *stack) clickAs(scope, account string, tile uint32, country string) bool
 
 	s.guard.Attempted(click)
 
-	drop := s.guard.Inspect(click)
+	drop := s.inspect(click)
 	if !drop {
 		s.guard.Committed(click)
 		switch {
@@ -218,7 +249,7 @@ func (s *stack) verdicts(scope string) map[string]detect.Verdict {
 }
 
 func TestTheOvernightSweepIsCaught(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	var (
 		tile    = uint32(180000)
@@ -248,7 +279,7 @@ func TestTheOvernightSweepIsCaught(t *testing.T) {
 }
 
 func TestALoneSuspicionIsReportedWithoutABan(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	rng := rand.New(rand.NewPCG(14, 9))
@@ -265,7 +296,7 @@ func TestALoneSuspicionIsReportedWithoutABan(t *testing.T) {
 }
 
 func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(1, 2))
@@ -294,7 +325,7 @@ func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 }
 
 func TestAnEveningAtPaceAloneBansNobody(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(10, 7))
@@ -319,7 +350,7 @@ func TestAnEveningAtPaceAloneBansNobody(t *testing.T) {
 }
 
 func TestALoopFiringIntoTheThrottleIsCaught(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(9, 10))
@@ -344,7 +375,7 @@ func TestALoopFiringIntoTheThrottleIsCaught(t *testing.T) {
 }
 
 func TestAnObsessedPlayerIsNotBanned(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(3, 4))
@@ -366,7 +397,7 @@ func TestAnObsessedPlayerIsNotBanned(t *testing.T) {
 }
 
 func TestATileWarBansNeither(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(5, 6))
@@ -409,7 +440,7 @@ func (s *stack) polishTile(random *rand.Rand) uint32 {
 }
 
 func TestAPlayerAnsweringRaidsIsNotBanned(t *testing.T) {
-	s := newStack(productionRetakes)
+	s := newStack(t, productionRetakes)
 
 	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(11, 12))
@@ -430,7 +461,7 @@ func TestAPlayerAnsweringRaidsIsNotBanned(t *testing.T) {
 }
 
 func TestARecaptureLoopIsCaught(t *testing.T) {
-	s := newStack(productionRetakes)
+	s := newStack(t, productionRetakes)
 
 	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(13, 14))
@@ -454,7 +485,7 @@ func TestARecaptureLoopIsCaught(t *testing.T) {
 }
 
 func TestTheReflexBotIsStillCaught(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(7, 8))
@@ -480,7 +511,7 @@ func TestTheReflexBotIsStillCaught(t *testing.T) {
 }
 
 func TestTheBoxSnatcherIsCaught(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(9, 10))
@@ -510,7 +541,7 @@ func TestTheBoxSnatcherIsCaught(t *testing.T) {
 }
 
 func TestAPlayerWhoMissesABoxIsNotBanned(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	for box := range 30 {
 		s.clock.Advance(2 * time.Minute)
@@ -574,7 +605,7 @@ func (s *stack) paint(seed uint64, flag string, identities ...rotation) map[stri
 }
 
 func TestTheRotatingPoolIsCaught(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	start := s.clock.Now()
 	stays := 476 * time.Second
@@ -607,7 +638,7 @@ func TestTheRotatingPoolIsCaught(t *testing.T) {
 }
 
 func TestTwoFriendsJoiningAFlagWarAreNotBanned(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	start := s.clock.Now()
 	dropped := s.paint(12, "bg",
@@ -628,7 +659,7 @@ func (s *stack) pageLoad(scope string) {
 }
 
 func TestTheMapScraperIsCaught(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(15, 9))
@@ -654,7 +685,7 @@ func TestTheMapScraperIsCaught(t *testing.T) {
 }
 
 func TestPlayersBehindOneAddressAreNotBanned(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	random := rand.New(rand.NewPCG(16, 9))
@@ -676,14 +707,14 @@ func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.False(t, guard.Enabled())
-	assert.False(t, guard.Inspect(antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"}))
-	assert.False(t, guard.Banned("1.2.3.4", "a-guest"))
+	assert.False(t, guard.Inspect(t.Context(), antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"}))
+	assert.False(t, guard.Banned(t.Context(), "1.2.3.4", "a-guest"))
 }
 
 func TestALoopRestartedEveryFewMinutesIsStillCaught(t *testing.T) {
 	for name, persisted := range map[string]bool{"with the evidence saved": true, "in memory": false} {
 		t.Run(name, func(t *testing.T) {
-			s := newStack()
+			s := newStack(t)
 			s.forgetEvidence = !persisted
 			defer func() { s.stop() }()
 
@@ -714,13 +745,13 @@ func TestALoopRestartedEveryFewMinutesIsStillCaught(t *testing.T) {
 }
 
 func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	s.clock.Advance(time.Second)
 	s.click("player", 1, "FR")
-	s.guard.Ban("player", "", 2*time.Hour)
+	s.ban("player", "", 2*time.Hour)
 
-	examination := s.guard.Examine("player", "")
+	examination := s.examine("player", "")
 
 	assert.True(t, examination.Tracked)
 	assert.True(t, examination.Banned)
@@ -738,7 +769,9 @@ func TestAGuardThatIsOffExaminesNothing(t *testing.T) {
 	guard, err := antibot.New(antibot.Config{}, cptime.SystemClock{}, antibot.Observer{})
 	require.NoError(t, err)
 
-	assert.Equal(t, antibot.Examination{Scope: "player", Account: "a-guest"}, guard.Examine("player", "a-guest"))
+	examination, err := guard.Examine(t.Context(), "player", "a-guest")
+	require.NoError(t, err)
+	assert.Equal(t, antibot.Examination{Scope: "player", Account: "a-guest"}, examination)
 }
 
 func TestValidateNamesTheCohortBoundItRefuses(t *testing.T) {
@@ -767,31 +800,106 @@ func TestValidateRefusesAnEnabledGuardWithNoDatabase(t *testing.T) {
 }
 
 func TestBansSurviveARestart(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	s.clock.Advance(time.Second)
-	s.guard.Ban("1.2.3.4", "", time.Hour)
-	s.guard.Ban("", "a-guest", time.Hour)
+	s.ban("1.2.3.4", "", time.Hour)
+	s.ban("", "a-guest", time.Hour)
 	s.restart(20 * time.Second)
 	defer func() { s.stop() }()
 
 	require.Empty(t, s.errors)
-	assert.True(t, s.guard.Banned("1.2.3.4", ""))
-	assert.True(t, s.guard.Banned("5.6.7.8", "a-guest"))
+	assert.True(t, s.banned("1.2.3.4", ""))
+	assert.True(t, s.banned("5.6.7.8", "a-guest"))
 	assert.Contains(t, s.accountBans.Stored(), "a-guest")
 }
 
-func TestABannedGuestWithAFreshCookieIsStillDropped(t *testing.T) {
-	s := newStack()
+func TestAnUnbannedAccountStaysUnbannedAfterARestart(t *testing.T) {
+	s := newStack(t)
 
 	s.clock.Advance(time.Second)
-	s.guard.Ban("", "a-guest", time.Hour)
-	assert.False(t, s.guard.Inspect(antibot.Click{Scope: "1.2.3.4", Account: "another-guest", Tile: 1, Country: "fr", At: s.clock.Now()}),
+	s.ban("", "a-player", 0)
+	s.restart(20 * time.Second)
+	require.True(t, s.banned("5.6.7.8", "a-player"))
+
+	s.unban("", "a-player")
+	s.restart(20 * time.Second)
+	defer func() { s.stop() }()
+
+	require.Empty(t, s.errors)
+	assert.False(t, s.banned("5.6.7.8", "a-player"))
+	assert.Equal(t, 0, s.accountBans.Stored()["a-player"].Offences)
+	assert.Equal(t, 1, s.ban("", "a-player", 0).Offence, "the lifted ban is no offence")
+}
+
+func staminaBansAlone(config *antibot.Config) {
+	config.Metronome.Detector.Stamina.CertainBusy = 5*time.Hour + 30*time.Minute
+}
+
+func TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain(t *testing.T) {
+	s := newStack(t, staminaBansAlone)
+
+	//nolint:gosec // seeded test PRNG
+	random := rand.New(rand.NewPCG(28, 9))
+
+	const scope = "2001:db8:1:2::/64"
+	click := func() bool {
+		s.clock.Advance(4500*time.Millisecond + time.Duration(random.Int64N(int64(time.Second))))
+		return s.clickAs(scope, "night", 180000+uint32(random.IntN(60000)), "DZ")
+	}
+
+	start := s.clock.Now()
+	var caught bool
+	for !caught && s.clock.Now().Sub(start) < 8*time.Hour {
+		for i := 0; i < 300 && !caught; i++ {
+			caught = click()
+		}
+		if !caught {
+			s.clock.Advance(5 * time.Minute)
+		}
+	}
+	require.True(t, caught)
+
+	unbannedAt := s.clock.Now()
+	s.unban(scope, "night")
+
+	var bannedAgainAfter time.Duration
+	for bannedAgainAfter == 0 && s.clock.Now().Sub(unbannedAt) < time.Hour {
+		if click() {
+			bannedAgainAfter = s.clock.Now().Sub(unbannedAt)
+		}
+	}
+
+	require.NotZero(t, bannedAgainAfter, "the watchdogs still read the evidence that banned it")
+	assert.GreaterOrEqual(t, bannedAgainAfter, 5*time.Minute, "not before the reflag interval")
+	assert.Less(t, bannedAgainAfter, 6*time.Minute)
+	assert.Equal(t, 1, s.reports[len(s.reports)-1].Offence, "the lifted ban is no offence")
+}
+
+func TestABannedGuestWithAFreshCookieIsStillDropped(t *testing.T) {
+	s := newStack(t)
+
+	s.clock.Advance(time.Second)
+	s.ban("", "a-guest", time.Hour)
+	assert.False(t, s.inspect(antibot.Click{Scope: "1.2.3.4", Account: "another-guest", Tile: 1, Country: "fr", At: s.clock.Now()}),
 		"an operator's ban on an account alone leaves its scope alone")
 
-	s.guard.Ban("1.2.3.4", "", time.Hour)
-	assert.True(t, s.guard.Inspect(antibot.Click{Scope: "1.2.3.4", Account: "a-third-guest", Tile: 1, Country: "fr", At: s.clock.Now()}),
+	s.ban("1.2.3.4", "", time.Hour)
+	assert.True(t, s.inspect(antibot.Click{Scope: "1.2.3.4", Account: "a-third-guest", Tile: 1, Country: "fr", At: s.clock.Now()}),
 		"a banned scope drops every account behind it")
-	assert.True(t, s.guard.Inspect(antibot.Click{Scope: "9.9.9.9", Account: "a-guest", Tile: 1, Country: "fr", At: s.clock.Now()}),
+	assert.True(t, s.inspect(antibot.Click{Scope: "9.9.9.9", Account: "a-guest", Tile: 1, Country: "fr", At: s.clock.Now()}),
 		"a banned account is dropped from any scope")
+}
+
+func TestABanStoreThatFailsLetsTheClickThroughAndSaysSo(t *testing.T) {
+	s := newStack(t)
+	defer func() { s.stop() }()
+
+	s.clock.Advance(time.Second)
+	s.ban("1.2.3.4", "", time.Hour)
+	s.bans.FailWith(errors.New("postgres is down"))
+
+	assert.False(t, s.click("1.2.3.4", 1, "FR"), "a ban nobody can read drops nothing")
+	assert.False(t, s.banned("1.2.3.4", ""))
+	assert.Len(t, s.errors, 2, "each ban it could not read is reported")
 }

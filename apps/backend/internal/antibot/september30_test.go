@@ -23,7 +23,7 @@ func (s *stack) shed(r *rand.Rand, scope, account, flag string) (int, bool) {
 }
 
 func TestTheHomeLineThatShedsItsAccountIsCaught(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(30, 9))
@@ -48,7 +48,7 @@ func TestTheHomeLineThatShedsItsAccountIsCaught(t *testing.T) {
 }
 
 func TestTheRelayOverFreshMobileLinesIsCaught(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(30, 10))
@@ -69,7 +69,7 @@ func TestTheRelayOverFreshMobileLinesIsCaught(t *testing.T) {
 }
 
 func TestAFamilyOnOneLineIsNotBanned(t *testing.T) {
-	s := newStack()
+	s := newStack(t)
 
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(30, 11))

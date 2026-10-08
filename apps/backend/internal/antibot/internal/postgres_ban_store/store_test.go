@@ -1,6 +1,7 @@
 package postgres_ban_store_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -18,97 +19,62 @@ func TestRunSuite(t *testing.T) {
 
 type testSuite struct {
 	suite.Suite
-	db       *cppg.Postgres
-	store    *postgres_ban_store.Store
-	accounts *postgres_ban_store.Store
+	db *cppg.Postgres
 }
 
 func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "antibot", migrations.FS)
-	s.store = postgres_ban_store.NewScopes(s.db)
-	s.accounts = postgres_ban_store.NewAccounts(s.db)
 }
 
-func (s *testSuite) SetupTest() {
+func (s *testSuite) purge() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 }
 
-func (s *testSuite) load() map[string]shadowban.Record {
-	return s.loadFrom(s.store)
+func (s *testSuite) TestScopesKeepTheContract() {
+	suite.Run(s.T(), &shadowban.StoreContractSuite{
+		NewStore: func() shadowban.Store { s.purge(); return postgres_ban_store.NewScopes(s.db) },
+		Key:      func(n int) string { return fmt.Sprintf("2001:db8:%x::/64", n) },
+	})
 }
 
-func (s *testSuite) loadFrom(store *postgres_ban_store.Store) map[string]shadowban.Record {
-	loaded := map[string]shadowban.Record{}
-	s.Require().NoError(store.Load(s.T().Context(), func(record shadowban.Record) {
-		loaded[record.Key] = record
-	}))
-	return loaded
+func (s *testSuite) TestAccountsKeepTheContract() {
+	suite.Run(s.T(), &shadowban.StoreContractSuite{
+		NewStore: func() shadowban.Store { s.purge(); return postgres_ban_store.NewAccounts(s.db) },
+		Key:      func(n int) string { return fmt.Sprintf("0b7e5b6c-8f3a-4d2e-9c1a-%012x", n) },
+	})
 }
 
-var until = time.Date(2026, 9, 16, 12, 30, 0, 123456000, time.UTC)
-
-func (s *testSuite) TestAnEmptyTableLoadsNothing() {
-	s.Empty(s.load())
-}
-
-func (s *testSuite) TestSaveThenLoad() {
-	s.Require().NoError(s.store.Save(s.T().Context(), []shadowban.Record{
-		{Key: "1.2.3.4", Flags: 3, Offences: 2, Until: until},
-		{Key: "2a00:8c40:f0c5:6713::/64", Flags: 1, Offences: 1, Until: until.Add(time.Hour)},
-	}))
-
-	loaded := s.load()
-	s.Require().Len(loaded, 2)
-	s.Equal(3, loaded["1.2.3.4"].Flags)
-	s.Equal(2, loaded["1.2.3.4"].Offences)
-	s.True(loaded["1.2.3.4"].Until.Equal(until))
-	s.True(loaded["2a00:8c40:f0c5:6713::/64"].Until.Equal(until.Add(time.Hour)))
-}
-
-func (s *testSuite) TestSaveOverwritesAScopeAndKeepsTheOthers() {
-	ctx := s.T().Context()
-	s.Require().NoError(s.store.Save(ctx, []shadowban.Record{
-		{Key: "kept", Flags: 1, Offences: 1, Until: until},
-		{Key: "changed", Flags: 1, Offences: 1, Until: until},
-	}))
-
-	s.Require().NoError(s.store.Save(ctx, []shadowban.Record{{Key: "changed", Flags: 2, Offences: 2, Until: until.Add(24 * time.Hour)}}))
-
-	loaded := s.load()
-	s.Require().Len(loaded, 2)
-	s.Equal(1, loaded["kept"].Flags)
-	s.Equal(2, loaded["changed"].Offences)
-	s.True(loaded["changed"].Until.Equal(until.Add(24 * time.Hour)))
-}
-
-func (s *testSuite) TestAFailedSaveWritesNothing() {
-	s.Require().Error(s.store.Save(s.T().Context(), []shadowban.Record{
-		{Key: "fine", Flags: 1, Offences: 1, Until: until},
-		{Key: "", Flags: 1, Offences: 1, Until: until},
-	}))
-
-	s.Empty(s.load())
-}
+var until = time.Date(2026, 10, 8, 12, 30, 0, 0, time.UTC)
 
 func (s *testSuite) TestAccountsAreKeptApartFromScopes() {
+	s.purge()
 	ctx := s.T().Context()
+	scopes, accounts := postgres_ban_store.NewScopes(s.db), postgres_ban_store.NewAccounts(s.db)
 	const account = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
 
-	s.Require().NoError(s.accounts.Save(ctx, []shadowban.Record{{Key: account, Flags: 2, Offences: 1, Until: until}}))
-	s.Require().NoError(s.store.Save(ctx, []shadowban.Record{{Key: "1.2.3.4", Flags: 1, Offences: 1, Until: until}}))
-
-	loaded := s.loadFrom(s.accounts)
-	s.Require().Len(loaded, 1)
-	s.Equal(2, loaded[account].Flags)
-	s.True(loaded[account].Until.Equal(until))
-	s.NotContains(s.load(), account)
-}
-
-func (s *testSuite) TestAKeyThatIsNotAnAccountWritesNothing() {
-	s.Require().Error(s.accounts.Save(s.T().Context(), []shadowban.Record{
-		{Key: "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10", Flags: 1, Offences: 1, Until: until},
-		{Key: "1.2.3.4", Flags: 1, Offences: 1, Until: until},
+	s.Require().NoError(accounts.Change(ctx, account, func(record shadowban.Record, _ bool) (shadowban.Record, bool) {
+		record.Offences, record.ExpiresAt = 1, until
+		return record, true
 	}))
 
-	s.Empty(s.loadFrom(s.accounts))
+	_, found, err := scopes.Record(ctx, account)
+	s.Require().NoError(err)
+	s.False(found)
+
+	running, err := scopes.Running(ctx, until.Add(-time.Hour))
+	s.Require().NoError(err)
+	s.Zero(running)
+}
+
+func (s *testSuite) TestAKeyThatIsNotAnAccountIsAnError() {
+	s.purge()
+	accounts := postgres_ban_store.NewAccounts(s.db)
+
+	s.Require().Error(accounts.Change(s.T().Context(), "1.2.3.4", func(record shadowban.Record, _ bool) (shadowban.Record, bool) {
+		return record, true
+	}))
+
+	running, err := accounts.Running(s.T().Context(), until)
+	s.Require().NoError(err)
+	s.Zero(running)
 }

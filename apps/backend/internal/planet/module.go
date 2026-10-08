@@ -76,6 +76,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase/audit_revert"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/top_players_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/unban_player_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/unban_player_usecase/audit_unban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/answer_quiz_handler"
@@ -90,6 +92,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_shares_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler/takes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/inspect_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
@@ -101,6 +105,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/set_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/unban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/account_deleted_subscriber"
@@ -264,6 +269,8 @@ func NewModule(config Config) cpbootstrap.Module {
 					find_players_usecase.New(takings, tilesStorage, borders, guard, countries)),
 				TopPlayersHandler: top_players_handler.New(top_players_usecase.New(takings, tilesStorage, guard)),
 				BanPlayerHandler:  ban_player_handler.New(audit_ban.New(ban_player_usecase.New(guard), props.Logger)),
+				UnbanPlayerHandler: unban_player_handler.New(
+					audit_unban.New(unban_player_usecase.New(guard), props.Logger)),
 				RevertPlayerHandler: revert_player_handler.New(
 					audit_revert.New(revert_player_usecase.New(takings, tilesStorage, pace), props.Logger)),
 				InspectPlayerHandler: inspect_player_handler.New(inspect_player_usecase.New(guard, takings)),
@@ -282,15 +289,15 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			internalService := planetv1controller.InternalService{
+				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				SetRulesHandler: set_rules_handler.New(
 					log_set_rules.New(set_rules_usecase.New(switches), props.Logger)),
 				GetSharesHandler: get_shares_handler.New(get_shares_usecase.New(tilesStorage, tilesChecker)),
 			}
-
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)
 			}); err != nil {
-				return err
+				return fmt.Errorf("failed to mount planet.v1.InternalService: %w", err)
 			}
 
 			blocklist := cpipblock.New(config.VPNBlocklist)

@@ -12,7 +12,7 @@ import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
 import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from "../links.ts"
 import {NameColor} from "../backends/player.ts"
-import {PlayerBackend, PlayerError, PlayerInfoBackend, PlayerTitle, TitleDashboard} from "../backends/player.ts"
+import {Fronts, PlayerBackend, PlayerError, PlayerInfoBackend, PlayerTitle, TitleDashboard} from "../backends/player.ts"
 import {AcceptedClicks, acceptedClicks} from "./viewer/acceptedClicks.ts"
 import {SETTLE_MS} from "./viewer/useAcceptedClicks.ts"
 
@@ -413,6 +413,7 @@ describe("Menu", () => {
                 setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
                 setColor: vi.fn(async (color: NameColor) => color),
                 titles: vi.fn(async (): Promise<TitleDashboard> => ({wearable: [], tracks: []})),
+                fronts: vi.fn(async (): Promise<Fronts> => ({playsFor: [], playsAgainst: []})),
                 wearTitle: vi.fn(async (): Promise<PlayerTitle | undefined> => undefined),
             } satisfies PlayerBackend
             const store = new AccountStore(backend, player, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn()})
@@ -524,7 +525,7 @@ describe("Menu", () => {
             const playerInfo = {
                 playerInfo: vi.fn(async (name: string) => ({
                     name, tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
-                    color: NameColor.UNSPECIFIED, titles: [],
+                    color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
                 })),
             }
             const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, playerInfo)
@@ -540,7 +541,7 @@ describe("Menu", () => {
             const playerInfo = {
                 playerInfo: vi.fn(async (name: string) => ({
                     name, tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
-                    color: NameColor.UNSPECIFIED, titles: [],
+                    color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
                 })),
             }
             const clicks = acceptedClicks()
@@ -566,6 +567,30 @@ describe("Menu", () => {
             expect(player.titles).toHaveBeenCalledTimes(2)
             expect(await screen.findByText("857 tiles to Raider")).toBeDefined()
             expect(playerInfo.playerInfo).toHaveBeenCalledTimes(1)
+        })
+
+        it("shows a signed-in player every country it plays for and against, read again once its clicks settle", async () => {
+            const clicks = acceptedClicks()
+            const {user, player} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, undefined, clicks)
+            player.titles.mockResolvedValue(dashboard(140))
+            const against = ["de", "es", "it", "pt", "be"].map((countryCode, i) => ({countryCode, tiles: 50 - i}))
+            player.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 500}], playsAgainst: against})
+
+            await user.click(await screen.findByRole("tab", {name: "You"}))
+
+            const playsAgainst = await screen.findByRole("region", {name: "Plays against"})
+            expect(within(playsAgainst).getAllByRole("listitem").map((row) => row.textContent))
+                .toEqual(["Germany50", "Spain49", "Italy48", "Portugal47", "Belgium46"])
+            expect(within(screen.getByRole("region", {name: "Plays for"})).getAllByRole("listitem")).toHaveLength(1)
+
+            vi.useFakeTimers()
+            player.fronts.mockResolvedValue({playsFor: [{countryCode: "fr", tiles: 501}], playsAgainst: against})
+            act(() => clicks.record({country: "fr", took: true}))
+            await act(async () => vi.advanceTimersByTime(SETTLE_MS))
+            vi.useRealTimers()
+
+            expect(player.fronts).toHaveBeenCalledTimes(2)
+            expect(await screen.findByText("501")).toBeDefined()
         })
 
         it("wears the title pressed, and shows it worn", async () => {

@@ -14,8 +14,8 @@ func NewInMemory(
 	config Config,
 	clock cptime.Clock,
 	observer Observer,
-	bans *shadowban.MemoryPersistence,
-	accountBans *shadowban.MemoryPersistence,
+	bans *shadowban.MemoryStore,
+	accountBans *shadowban.MemoryStore,
 	evidences *evidence.MemoryPersistence,
 ) (*Guard, error) {
 	if !config.Enabled {

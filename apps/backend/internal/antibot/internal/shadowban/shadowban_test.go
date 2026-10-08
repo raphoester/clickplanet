@@ -17,14 +17,14 @@ func newClock() *cptime.FixedClock {
 
 const threeYears = 3 * 365 * 24 * time.Hour
 
-func newBanner(t *testing.T, config shadowban.Config, clock cptime.Clock) *shadowban.Banner {
+func newBanner(t *testing.T, config shadowban.Config, clock cptime.Clock) banner {
 	t.Helper()
-	return shadowban.New(config, clock, shadowban.NewMemoryPersistence(), failOnStateError(t))
+	return bannerOver(t, config, clock, shadowban.NewMemoryStore())
 }
 
-func failOnStateError(t *testing.T) func(error) {
+func bannerOver(t *testing.T, config shadowban.Config, clock cptime.Clock, store shadowban.Store) banner {
 	t.Helper()
-	return func(err error) { assert.NoError(t, err, "unexpected state error") }
+	return banner{t: t, inner: shadowban.New(config, clock, store)}
 }
 
 func config() shadowban.Config {
@@ -32,7 +32,6 @@ func config() shadowban.Config {
 		Enforce:        true,
 		BanDurations:   []time.Duration{time.Hour, 24 * time.Hour, threeYears},
 		ReflagInterval: 5 * time.Minute,
-		SaveInterval:   time.Minute,
 	}
 }
 
@@ -218,4 +217,57 @@ func TestAManualBanOnAnEmptyScopeBansNothing(t *testing.T) {
 
 	assert.Equal(t, shadowban.Sentence{}, banner.Ban("", time.Hour))
 	assert.Equal(t, 0, banner.Flagged())
+}
+
+func TestAnUnbanEndsTheBanNowAndForgetsItsOffence(t *testing.T) {
+	clock := newClock()
+	banner := newBanner(t, config(), clock)
+
+	banner.Flag("player")
+	clock.Advance(10 * time.Minute)
+	banner.Unban("player")
+
+	assert.False(t, banner.Banned("player"))
+	_, running := banner.Sentence("player")
+	assert.False(t, running)
+	assert.Equal(t, 0, banner.Flagged())
+
+	sentence, accepted := banner.Flag("player")
+	require.True(t, accepted)
+	assert.Equal(t, 1, sentence.Offence, "the next ban starts the ladder where the lifted one did")
+	assert.Equal(t, clock.Now().Add(time.Hour), sentence.Until)
+}
+
+func TestAnUnbanForgetsOnlyTheOffenceItLifts(t *testing.T) {
+	clock := newClock()
+	banner := newBanner(t, config(), clock)
+
+	banner.Ban("bot", 0)
+	clock.Advance(2 * time.Hour)
+	banner.Ban("bot", 0)
+	banner.Unban("bot")
+
+	sentence := banner.Ban("bot", 0)
+	assert.Equal(t, 2, sentence.Offence, "the first offence was not the one lifted")
+	assert.Equal(t, clock.Now().Add(24*time.Hour), sentence.Until)
+}
+
+func TestAnUnbanWithNoRunningBanChangesNothing(t *testing.T) {
+	clock := newClock()
+	store := shadowban.NewMemoryStore()
+	banner := bannerOver(t, config(), clock, store)
+
+	banner.Flag("bot")
+	clock.Advance(2 * time.Hour)
+	before := store.Stored()
+
+	banner.Unban("bot")
+	banner.Unban("nobody")
+	banner.Unban("")
+
+	assert.Equal(t, before, store.Stored(), "nothing ran, so nothing is written")
+
+	sentence, accepted := banner.Flag("bot")
+	require.True(t, accepted)
+	assert.Equal(t, 2, sentence.Offence, "a ban that already lapsed keeps its offence")
 }

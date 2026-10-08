@@ -23,6 +23,7 @@ npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile 
 npm run clip:fetch -- --ssh <user@host> --out replay.json  # A replay of the last 72h from production (see "Clips")
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
+npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
 npm run regions    # Rewrite each country's continent and sub-region from Natural Earth, for the clips' headlines
 ```
 
@@ -747,7 +748,15 @@ flag and the country, then, for a player with a username, what
 `player.v1.PlayerService/GetPlayer` answers: the title it wears and the titles
 it shows (see [Titles](#titles)), then tiles taken, the current and best
 streak, and "Playing since", the day the account was made (left out when the
-server does not know it). The fake gives its players titles of its own over
+server does not know it). Under them, **"Plays for" and "Plays against"**
+(`PlayerFronts`): the countries the player took tiles for, and the ones it took
+them from, each with a bar against the side's first country. The card shows
+the top 3 of each, all `GetPlayer` sends; the player's own Progress tab shows
+every one (below). A side with no tile is left out. They
+are the player's total, not the season's (see the backend's CLAUDE.md, Player),
+so the top one explains the flag beside its name on the Players board. Two
+columns on a desktop, which is why the card is 440px wide; one under the other
+on a phone. The fake gives its players titles and countries of its own over
 their fake stats and creation date. **A guest's card asks nothing**: a guest has no
 username, so there is nothing to look up, and the card shows the name and the
 flag alone. It says nothing to the viewer, who may well be signed in. The chat tells
@@ -823,7 +832,10 @@ is the player's own view.
   what is left to the next rank (`leftLabel`). The path scrolls sideways and opens
   centred on the next rank. `useTitles` reads `GetTitles` (the click token, as
   `GetProfile`) each time the panel opens and after a run of clicks, at the pace
-  of `useMySeason`; a failed read says so. Tiles taken counts each take at once
+  of `useMySeason`; a failed read says so. Under the tracks, **every country the
+  player plays for and against** (`PlayerFronts`, one list under the other):
+  `useFronts` reads `GetFronts` (`AccountStore.fronts`) at the same moments, and
+  a failed read shows nothing. Tiles taken counts each take at once
   (`useOwnTakes`): `GetPlayer` is cached 10s, so it is read only once.
 - **The unlock moment is live.** The player stream carries `titleEarned` to a
   stream opened with this player's token. `useRoster` hands it to `Viewer`, which
@@ -2501,7 +2513,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 - **`window.ts` finds the candidates**: for each length from 1 to 24 hours, the busiest stretch of a few places
   far apart, counting the tiles taken from another flag in each 10° cell and the eight around it. Filling empty
   ground is not war. A window asked for (`--since`, `--until`) is split into its places the same way, so a war
-  next door is a story of its own.
+  next door is a story of its own. **Every scale is searched**: the whole map, and each of the 12 countries whose
+  ground changed hands the most (400 tiles or more), on its own ground alone, as `--focus` does. So Germany and
+  Romania trading Germany is a story beside the war across Europe it is part of.
 - **`front.ts` finds the front** of a candidate: the point where most tiles changed hands, and every change within
   about 2,900 km of it, so a war in France brings in England, Spain and Germany. Once the story is known, the front
   is found again from its own flags' fighting alone, so a war next door (Israel in Turkey) does not pull the
@@ -2523,8 +2537,14 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 - **A flag thrown out is its own story** (`routOf`): once the flag a story takes most from has lost half of what it
   held in the place (300 tiles or more), a continent's flags taking it back together become **"PALESTINE GETS
   KICKED OUT OF EUROPE"**, told from its side with its counter falling against the continent's, and one attacker
-  becomes **"ISRAEL IS KICKING PALESTINE OUT OF EUROPE"**. A flag taking its own ground back still strikes back.
-  Two stories about one flag thrown out of one place are told once, the better one.
+  becomes **"ISRAEL IS KICKING PALESTINE OUT OF EUROPE"**. When many flags take it and none leads, it is the story
+  alone, placed where it lost its land: **"PALESTINE GETS KICKED OUT OF SOUTH AMERICA"**, with "Fight for
+  Palestine". Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
+  country **"IS FALLING"**, and one attacker taking it is an invasion. A flag taking its own ground back still strikes
+  back.
+- **One story per flag and what it did** (`sameStory`), whatever window or scale found it, the best one: one flag
+  beating another, one flag thrown out of one place, one flag striking back. A battle is its two sides in one place.
+- **Names are said with their article** where English wants one: "the UK", "the Netherlands". Tags keep them bare.
 - **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
   France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
   The caption is the headline and the question its call to act asks ("Who stops them?" to defend, "Who joins
@@ -2533,15 +2553,23 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   political feed.
 - **`music.ts` picks the anthem under the clip**, since YouTube Shorts cannot add a sound to an upload: the anthem
   of whoever makes the moves, the leading flag's, else the other side's in a battle, or the continent's when a
-  continent strikes back. Never a loser's: a clip with none plays none. They are the game's own anthems (see [The
+  continent strikes back. Never a loser's, but for a flag thrown out by many flags none of which leads ("ALGERIA IS
+  FALLING"): the clip names no other flag. A clip with none plays none. They are the game's own anthems (see [The
   leader's anthem](#the-leaders-anthem)), US Navy Band recordings in the public domain, and two the game does not
   play, vendored by `npm run clip:anthems` into `scripts/clip/anthems/`: the Anthem of Europe (Navy Band too) and
   Palestine's Fida'i, which the Navy Band never recorded, in an instrumental under CC BY 3.0. A recording under a
   licence carries its credit, and the caption of every clip it plays under ends with it. It fades out over the
   last 1.2s. `--silent` leaves it out, for TikTok and Instagram, where a sound is added when posting.
+- **An anthem starts on a highlight**, never on its first second: the UK's opens on 11s of drum roll, Algeria's on 7s
+  of drums. `highlight.ts` hears a drum roll from a tune (a noisy spectrum, against the band's notes) and ranks the
+  notes struck with the band playing on, loudest first, a phrase after a pause counting as louder.
+  `npm run clip:highlights` writes what it finds for every recording into `src/clip/anthemHighlightsAsset.ts`,
+  keyed by the content-addressed file, and both anthem scripts run it, since a new encode is a new file; a test
+  fails when one is missing. A clip starts on the best highlight that leaves the anthem playing to its end, else
+  early enough that it does.
 - **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
   the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
-  story already told by a better candidate (same attacker, same place) is dropped.
+  story already told by a better candidate (same attacker, same front) is dropped.
 - **`solidity.ts` skips graffiti.** For each tile the attacker took and holds at the end, the share of its 6
   neighbours it holds too: about 1 for land taken, 0.56 for names written across Canada. Under 0.75 the story is
   skipped, and `--plan` says so. So is a story placed in "the world": its tiles are spread over several continents

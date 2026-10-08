@@ -1,6 +1,7 @@
 import {OWN_GUEST_NAME} from "./fakeChatBackend.ts"
 import {compareRosterEntries} from "../domain/roster.ts"
 import {
+    CountryTiles,
     NameColor,
     PlayerInfo,
     PlayerInfoBackend,
@@ -146,8 +147,11 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         const player = PLAYERS.find((p) => !p.guest && p.name.toLowerCase() === name.toLowerCase())
         if (!player) return undefined
 
+        const career = this.career(player)
         return {
-            ...this.career(player),
+            ...career,
+            playsFor: career.playsFor.slice(0, SHOWN_FRONTS),
+            playsAgainst: career.playsAgainst.slice(0, SHOWN_FRONTS),
             name: player.name,
             streakCurrent: player.streak,
             admin: player.admin,
@@ -161,8 +165,29 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         const streakBest = player.streak + seed % 40
         const createdAt = this.now() - (1 + seed % 200) * 86_400_000
         const titles = shownTitles(tilesTaken, streakBest, createdAt)
-        return {tilesTaken, streakBest, createdAt, titles, wornTitle: titles.find((title) => title.rank) ?? titles[0]}
+        return {
+            tilesTaken, streakBest, createdAt, titles, wornTitle: titles.find((title) => title.rank) ?? titles[0],
+            playsFor: fronts([player.countryCode, ...rivals(player.countryCode, seed, seed % 4)], tilesTaken, 6),
+            playsAgainst: fronts(rivals(player.countryCode, seed >>> 3, 2 + seed % 9), Math.floor(tilesTaken * 0.7), 2),
+        }
     }
+}
+
+const SHOWN_FRONTS = 3
+
+const RIVALS = ["de", "es", "it", "gb", "be", "pt", "nl", "pl", "br", "us", "jp", "in", "ru", "ca", "mx", "ch"]
+
+function rivals(own: string, seed: number, count: number): string[] {
+    const others = RIVALS.filter((code) => code !== own)
+    return Array.from({length: count}, (_, i) => others[(seed + i * 7) % others.length])
+}
+
+function fronts(countries: string[], tiles: number, steepness: number): CountryTiles[] {
+    const weights = countries.map((_, i) => 1 / steepness ** i)
+    const total = weights.reduce((sum, weight) => sum + weight, 0)
+    return countries
+        .map((countryCode, i) => ({countryCode, tiles: Math.max(1, Math.round(tiles * weights[i] / total))}))
+        .filter((country) => tiles > 0 && country.tiles > 0)
 }
 
 function onShift(index: number, now: number): boolean {

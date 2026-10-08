@@ -2,6 +2,7 @@ package jury
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -48,9 +49,9 @@ func (c Config) WithDefaults() Config {
 }
 
 type Banner interface {
-	Flag(caller shadowban.Caller) (shadowban.Sentence, bool)
-	Banned(caller shadowban.Caller) bool
-	Flagged() int
+	Flag(ctx context.Context, caller shadowban.Caller) (shadowban.Sentence, bool, error)
+	Banned(ctx context.Context, caller shadowban.Caller) (bool, error)
+	Flagged(ctx context.Context) (int, error)
 }
 
 type Hooks struct {
@@ -108,9 +109,10 @@ type caller struct {
 	reached map[string]*[detect.Certain + 1]time.Time
 }
 
-func (j *Jury) Inspect(click detect.Click) bool {
+// A ban that cannot be read is no ban: the click goes through, and the error says why.
+func (j *Jury) Inspect(ctx context.Context, click detect.Click) (bool, error) {
 	if click.Scope == "" {
-		return false
+		return false, nil
 	}
 
 	j.record(click)
@@ -125,8 +127,11 @@ func (j *Jury) Inspect(click detect.Click) bool {
 		}
 	}
 
+	var flagErr error
 	if report, guilty := j.deliberate(click); guilty {
-		if sentence, accepted := j.banner.Flag(callerOf(click)); accepted {
+		sentence, accepted, err := j.banner.Flag(ctx, callerOf(click))
+		flagErr = err
+		if accepted {
 			report.Flags = sentence.Flags
 			report.Offence = sentence.Offence
 			report.BannedUntil = sentence.Until
@@ -136,7 +141,8 @@ func (j *Jury) Inspect(click detect.Click) bool {
 		}
 	}
 
-	return j.banner.Banned(callerOf(click))
+	banned, err := j.banner.Banned(ctx, callerOf(click))
+	return banned, errors.Join(flagErr, err)
 }
 
 func callerOf(click detect.Click) shadowban.Caller {
@@ -159,7 +165,9 @@ func (j *Jury) Committed(click detect.Click) {
 	}
 }
 
-func (j *Jury) Flagged() int { return j.banner.Flagged() }
+func (j *Jury) Flagged(ctx context.Context) (int, error) {
+	return j.banner.Flagged(ctx) //nolint:wrapcheck // the banner already named what failed.
+}
 
 func (j *Jury) record(click detect.Click) {
 	j.mu.Lock()

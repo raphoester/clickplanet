@@ -1,10 +1,10 @@
 package shadowban
 
 import (
-	"sync"
+	"context"
+	"fmt"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -14,13 +14,9 @@ type Config struct {
 	BanDurations []time.Duration
 
 	ReflagInterval time.Duration
-	SaveInterval   time.Duration
 }
 
-const (
-	defaultReflagInterval = 5 * time.Minute
-	defaultSaveInterval   = time.Minute
-)
+const defaultReflagInterval = 5 * time.Minute
 
 func (c Config) withDefaults() Config {
 	if len(c.BanDurations) == 0 {
@@ -28,9 +24,6 @@ func (c Config) withDefaults() Config {
 	}
 	if c.ReflagInterval <= 0 {
 		c.ReflagInterval = defaultReflagInterval
-	}
-	if c.SaveInterval <= 0 {
-		c.SaveInterval = defaultSaveInterval
 	}
 	return c
 }
@@ -41,121 +34,138 @@ type Sentence struct {
 	Until   time.Time
 }
 
-func New(config Config, clock cptime.Clock, persistence Persistence, onStateError func(error)) *Banner {
-	return &Banner{
-		config:       config.withDefaults(),
-		clock:        clock,
-		persistence:  persistence,
-		onStateError: onStateError,
-		bans:         make(map[string]*ban),
-		dirty:        cpcolls.NewSet[string](),
-	}
+func New(config Config, clock cptime.Clock, store Store) *Banner {
+	return &Banner{config: config.withDefaults(), clock: clock, store: store}
 }
 
 type Banner struct {
-	config       Config
-	clock        cptime.Clock
-	persistence  Persistence
-	onStateError func(error)
-
-	mu    sync.Mutex
-	bans  map[string]*ban
-	dirty *cpcolls.Set[string]
+	config Config
+	clock  cptime.Clock
+	store  Store
 }
 
-type ban struct {
-	flags      int
-	offences   int
-	until      time.Time
-	nextFlagAt time.Time
+func (r Record) running(now time.Time) bool {
+	return now.Before(r.ExpiresAt)
 }
 
-func (r *ban) running(now time.Time) bool {
-	return now.Before(r.until)
+func (r Record) sentence() Sentence {
+	return Sentence{Flags: r.Flags, Offence: r.Offences, Until: r.ExpiresAt}
 }
 
-func (r *ban) sentence() Sentence {
-	return Sentence{Flags: r.flags, Offence: r.offences, Until: r.until}
-}
-
-func (b *Banner) Flag(scope string) (Sentence, bool) {
-	if scope == "" {
-		return Sentence{}, false
+func (r Record) extendedTo(until time.Time) Record {
+	if until.After(r.ExpiresAt) {
+		r.ExpiresAt = until
 	}
+	return r
+}
 
-	now := b.clock.Now()
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	record, ok := b.bans[scope]
-	if !ok {
-		record = &ban{}
-		b.bans[scope] = record
-	}
-
-	if ok && now.Before(record.nextFlagAt) {
-		return record.sentence(), false
-	}
-
+func (b *Banner) flagged(record Record, now time.Time) Record {
 	if !record.running(now) {
-		record.offences++
+		record.Offences++
 	}
-	record.flags++
-	record.nextFlagAt = now.Add(b.config.ReflagInterval)
+	record.Flags++
+	record.LastFlaggedAt = now
 
-	if until := now.Add(b.duration(record.offences)); until.After(record.until) {
-		record.until = until
-	}
-
-	b.dirty.Add(scope)
-
-	return record.sentence(), true
+	return record.extendedTo(now.Add(b.duration(record.Offences)))
 }
 
-func (b *Banner) Ban(scope string, duration time.Duration) Sentence {
-	if scope == "" {
-		return Sentence{}
-	}
-
-	now := b.clock.Now()
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	record, ok := b.bans[scope]
-	if !ok {
-		record = &ban{}
-		b.bans[scope] = record
-	}
-
+func (b *Banner) banned(record Record, now time.Time, duration time.Duration) Record {
 	if !record.running(now) {
-		record.offences++
+		record.Offences++
 	}
 	if duration <= 0 {
-		duration = b.duration(record.offences)
-	}
-	if until := now.Add(duration); until.After(record.until) {
-		record.until = until
+		duration = b.duration(record.Offences)
 	}
 
-	b.dirty.Add(scope)
-
-	return record.sentence()
+	return record.extendedTo(now.Add(duration))
 }
 
-func (b *Banner) Sentence(scope string) (Sentence, bool) {
-	now := b.clock.Now()
+func lifted(record Record, now time.Time) Record {
+	record.Offences = max(record.Offences-1, 0)
+	record.ExpiresAt = now
+	return record
+}
 
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	record, ok := b.bans[scope]
-	if !ok || !record.running(now) {
-		return Sentence{}, false
+func (b *Banner) Flag(ctx context.Context, scope string) (Sentence, bool, error) {
+	if scope == "" {
+		return Sentence{}, false, nil
 	}
 
-	return record.sentence(), true
+	now := b.clock.Now()
+
+	var (
+		sentence Sentence
+		accepted bool
+	)
+
+	if err := b.store.Change(ctx, scope, func(record Record, found bool) (Record, bool) {
+		if found && now.Before(record.LastFlaggedAt.Add(b.config.ReflagInterval)) {
+			sentence = record.sentence()
+			return record, false
+		}
+
+		record = b.flagged(record, now)
+		sentence, accepted = record.sentence(), true
+		return record, true
+	}); err != nil {
+		return Sentence{}, false, fmt.Errorf("failed to flag %q: %w", scope, err)
+	}
+
+	return sentence, accepted, nil
+}
+
+func (b *Banner) Ban(ctx context.Context, scope string, duration time.Duration) (Sentence, error) {
+	if scope == "" {
+		return Sentence{}, nil
+	}
+
+	now := b.clock.Now()
+
+	var sentence Sentence
+	if err := b.store.Change(ctx, scope, func(record Record, _ bool) (Record, bool) {
+		record = b.banned(record, now, duration)
+		sentence = record.sentence()
+		return record, true
+	}); err != nil {
+		return Sentence{}, fmt.Errorf("failed to ban %q: %w", scope, err)
+	}
+
+	return sentence, nil
+}
+
+func (b *Banner) Unban(ctx context.Context, scope string) error {
+	if scope == "" {
+		return nil
+	}
+
+	now := b.clock.Now()
+
+	if err := b.store.Change(ctx, scope, func(record Record, found bool) (Record, bool) {
+		if !found || !record.running(now) {
+			return record, false
+		}
+		return lifted(record, now), true
+	}); err != nil {
+		return fmt.Errorf("failed to unban %q: %w", scope, err)
+	}
+
+	return nil
+}
+
+func (b *Banner) Sentence(ctx context.Context, scope string) (Sentence, bool, error) {
+	if scope == "" {
+		return Sentence{}, false, nil
+	}
+
+	record, found, err := b.store.Record(ctx, scope)
+	if err != nil {
+		return Sentence{}, false, fmt.Errorf("failed to read the ban on %q: %w", scope, err)
+	}
+	if !found || !record.running(b.clock.Now()) {
+		return Sentence{}, false, nil
+	}
+
+	return record.sentence(), true, nil
 }
 
 func (b *Banner) duration(offence int) time.Duration {
@@ -166,34 +176,21 @@ func (b *Banner) duration(offence int) time.Duration {
 	return ladder[offence-1]
 }
 
-func (b *Banner) Banned(scope string) bool {
+func (b *Banner) Banned(ctx context.Context, scope string) (bool, error) {
 	if !b.config.Enforce {
-		return false
+		return false, nil
 	}
 
-	now := b.clock.Now()
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	record, ok := b.bans[scope]
-	return ok && record.running(now)
+	_, running, err := b.Sentence(ctx, scope)
+	return running, err
 }
 
-func (b *Banner) Flagged() int {
-	now := b.clock.Now()
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	var count int
-	for _, record := range b.bans {
-		if record.running(now) {
-			count++
-		}
+func (b *Banner) Flagged(ctx context.Context) (int, error) {
+	running, err := b.store.Running(ctx, b.clock.Now())
+	if err != nil {
+		return 0, fmt.Errorf("failed to count the running bans: %w", err)
 	}
-
-	return count
+	return running, nil
 }
 
 func (b *Banner) Enforcing() bool { return b.config.Enforce }

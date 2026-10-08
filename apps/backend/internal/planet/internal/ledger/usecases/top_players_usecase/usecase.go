@@ -2,6 +2,7 @@ package top_players_usecase
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
@@ -16,7 +17,7 @@ type Owners interface {
 }
 
 type Bans interface {
-	Sentence(scope, account string) (antibot.Sentence, bool)
+	Sentence(ctx context.Context, scope, account string) (antibot.Sentence, bool, error)
 }
 
 type In struct {
@@ -38,7 +39,7 @@ type UseCase struct {
 	bans   Bans
 }
 
-func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
+func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	tally := ledger.NewTally(func(ledger.Taking) bool { return true })
 	u.ledger.Replay(tally.See)
 
@@ -50,7 +51,11 @@ func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
 	}
 
 	for i := range out.Players {
-		if sentence, running := u.bans.Sentence(out.Players[i].Scope, out.Players[i].Account); running {
+		sentence, running, err := u.bans.Sentence(ctx, out.Players[i].Scope, out.Players[i].Account)
+		if err != nil {
+			return Out{}, fmt.Errorf("failed to read the bans: %w", err)
+		}
+		if running {
 			out.Players[i].Serving(sentence)
 		}
 	}

@@ -43,6 +43,9 @@ const (
 	AdminServiceTopPlayersProcedure = "/planet.v1.AdminService/TopPlayers"
 	// AdminServiceBanPlayerProcedure is the fully-qualified name of the AdminService's BanPlayer RPC.
 	AdminServiceBanPlayerProcedure = "/planet.v1.AdminService/BanPlayer"
+	// AdminServiceUnbanPlayerProcedure is the fully-qualified name of the AdminService's UnbanPlayer
+	// RPC.
+	AdminServiceUnbanPlayerProcedure = "/planet.v1.AdminService/UnbanPlayer"
 	// AdminServiceRevertPlayerProcedure is the fully-qualified name of the AdminService's RevertPlayer
 	// RPC.
 	AdminServiceRevertPlayerProcedure = "/planet.v1.AdminService/RevertPlayer"
@@ -65,6 +68,7 @@ type AdminServiceClient interface {
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
+	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
@@ -107,6 +111,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("BanPlayer")),
 			connect.WithClientOptions(opts...),
 		),
+		unbanPlayer: connect.NewClient[v1.UnbanPlayerRequest, v1.UnbanPlayerResponse](
+			httpClient,
+			baseURL+AdminServiceUnbanPlayerProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("UnbanPlayer")),
+			connect.WithClientOptions(opts...),
+		),
 		revertPlayer: connect.NewClient[v1.RevertPlayerRequest, v1.RevertPlayerResponse](
 			httpClient,
 			baseURL+AdminServiceRevertPlayerProcedure,
@@ -146,6 +156,7 @@ type adminServiceClient struct {
 	findPlayers      *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
 	topPlayers       *connect.Client[v1.TopPlayersRequest, v1.TopPlayersResponse]
 	banPlayer        *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
+	unbanPlayer      *connect.Client[v1.UnbanPlayerRequest, v1.UnbanPlayerResponse]
 	revertPlayer     *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
 	paintRandomTiles *connect.Client[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse]
 	inspectPlayer    *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
@@ -171,6 +182,11 @@ func (c *adminServiceClient) TopPlayers(ctx context.Context, req *connect.Reques
 // BanPlayer calls planet.v1.AdminService.BanPlayer.
 func (c *adminServiceClient) BanPlayer(ctx context.Context, req *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error) {
 	return c.banPlayer.CallUnary(ctx, req)
+}
+
+// UnbanPlayer calls planet.v1.AdminService.UnbanPlayer.
+func (c *adminServiceClient) UnbanPlayer(ctx context.Context, req *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error) {
+	return c.unbanPlayer.CallUnary(ctx, req)
 }
 
 // RevertPlayer calls planet.v1.AdminService.RevertPlayer.
@@ -204,6 +220,7 @@ type AdminServiceHandler interface {
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
+	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
@@ -240,6 +257,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceBanPlayerProcedure,
 		svc.BanPlayer,
 		connect.WithSchema(adminServiceMethods.ByName("BanPlayer")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceUnbanPlayerHandler := connect.NewUnaryHandler(
+		AdminServiceUnbanPlayerProcedure,
+		svc.UnbanPlayer,
+		connect.WithSchema(adminServiceMethods.ByName("UnbanPlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceRevertPlayerHandler := connect.NewUnaryHandler(
@@ -282,6 +305,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceTopPlayersHandler.ServeHTTP(w, r)
 		case AdminServiceBanPlayerProcedure:
 			adminServiceBanPlayerHandler.ServeHTTP(w, r)
+		case AdminServiceUnbanPlayerProcedure:
+			adminServiceUnbanPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceRevertPlayerProcedure:
 			adminServiceRevertPlayerHandler.ServeHTTP(w, r)
 		case AdminServicePaintRandomTilesProcedure:
@@ -315,6 +340,10 @@ func (UnimplementedAdminServiceHandler) TopPlayers(context.Context, *connect.Req
 
 func (UnimplementedAdminServiceHandler) BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.BanPlayer is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.UnbanPlayer is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error) {

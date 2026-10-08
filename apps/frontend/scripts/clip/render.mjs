@@ -47,6 +47,7 @@ const WIDTH = 540
 const HEIGHT = 960
 const SCALE = 2
 const MUSIC_FADE_SECONDS = 1.2
+const MUSIC_FADE_IN_SECONDS = 0.05
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const replayPath = resolve(replay)
@@ -174,7 +175,7 @@ async function record(pick, chosenOut) {
         `  window: ${recording.since} to ${recording.until}`,
         `  place: ${recording.place}, ${recording.seconds}s`,
         `  look: ${recording.look}`,
-        `  music: ${recording.music ? `${recording.music.title}, the anthem of ${recording.music.whose}` : "none"}`,
+        `  music: ${recording.music ? `${recording.music.title}, the anthem of ${recording.music.whose}, from ${recording.music.from.toFixed(1)}s` : "none"}`,
     ].join("\n"))
     if (has("plan")) return recording
 
@@ -184,11 +185,11 @@ async function record(pick, chosenOut) {
     ffmpeg = spawn("ffmpeg", [
         "-y", "-loglevel", "error",
         "-f", "image2pipe", "-framerate", String(recording.fps), "-i", "-",
-        ...music ? ["-i", join(APP, music.url)] : [],
+        ...music ? ["-ss", music.from.toFixed(2), "-i", join(APP, music.url)] : [],
         "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p",
         ...music ? [
             "-map", "0:v", "-map", "1:a", "-c:a", "aac", "-b:a", "128k",
-            "-af", `afade=t=out:st=${fadeFrom.toFixed(2)}:d=${MUSIC_FADE_SECONDS}`, "-shortest",
+            "-af", `afade=t=in:d=${MUSIC_FADE_IN_SECONDS},afade=t=out:st=${fadeFrom.toFixed(2)}:d=${MUSIC_FADE_SECONDS},apad`, "-shortest",
         ] : [],
         "-movflags", "+faststart", out,
     ], {stdio: ["pipe", "inherit", "inherit"]})
