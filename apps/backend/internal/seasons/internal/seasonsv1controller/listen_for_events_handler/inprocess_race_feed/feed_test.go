@@ -12,7 +12,6 @@ import (
 
 	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/inprocess_race_feed"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type reader struct {
@@ -70,21 +69,9 @@ func leadersOf(race *seasonsv1.Race) []string {
 	return leaders
 }
 
-type fixture struct {
-	feed   *inprocess_race_feed.Feed
-	reader *reader
-	clock  *cptime.FixedClock
-}
-
-func newFixture() fixture {
+func newFeed() (*inprocess_race_feed.Feed, *reader) {
 	reader := &reader{race: raceOf()}
-	clock := cptime.NewFixedClock(time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC))
-	return fixture{feed: inprocess_race_feed.New(reader, clock), reader: reader, clock: clock}
-}
-
-func (f fixture) refreshAfter(t *testing.T, elapsed time.Duration) {
-	f.clock.Advance(elapsed)
-	f.feed.Refresh(t.Context())
+	return inprocess_race_feed.New(reader), reader
 }
 
 func next(t *testing.T, races <-chan *seasonsv1.Race) []string {
@@ -107,99 +94,8 @@ func quiet(t *testing.T, races <-chan *seasonsv1.Race) {
 	}
 }
 
-func TestAStreamGetsTheRaceOnceItIsRead(t *testing.T) {
-	f := newFixture()
-	f.reader.show("fr")
-
-	races := f.feed.Subscribe(t.Context())
-	quiet(t, races)
-
-	f.feed.Refresh(t.Context())
-
-	assert.Equal(t, []string{"fr"}, next(t, races))
-}
-
-func TestAnotherStreamGetsTheRaceAtOnceWithNoRead(t *testing.T) {
-	f := newFixture()
-	f.reader.show("fr")
-	first := f.feed.Subscribe(t.Context())
-	f.feed.Refresh(t.Context())
-	next(t, first)
-
-	second := f.feed.Subscribe(t.Context())
-
-	assert.Equal(t, []string{"fr"}, next(t, second))
-	assert.Equal(t, 1, f.reader.readCount())
-}
-
-func TestASnapshotMovesTheRaceForEveryStream(t *testing.T) {
-	f := newFixture()
-	first := f.feed.Subscribe(t.Context())
-	second := f.feed.Subscribe(t.Context())
-	f.feed.Refresh(t.Context())
-	next(t, first)
-	next(t, second)
-
-	f.reader.show("de", "fr")
-	f.feed.MarkCounted()
-	f.refreshAfter(t, inprocess_race_feed.Every)
-
-	assert.Equal(t, []string{"de", "fr"}, next(t, first))
-	assert.Equal(t, []string{"de", "fr"}, next(t, second))
-}
-
-func TestAMovedRaceIsReadAtMostOnceASecond(t *testing.T) {
-	f := newFixture()
-	f.feed.Subscribe(t.Context())
-	f.feed.Refresh(t.Context())
-
-	f.feed.MarkCounted()
-	f.refreshAfter(t, inprocess_race_feed.Every-time.Millisecond)
-	assert.Equal(t, 1, f.reader.readCount())
-
-	f.refreshAfter(t, time.Millisecond)
-	assert.Equal(t, 2, f.reader.readCount())
-
-	f.refreshAfter(t, inprocess_race_feed.Every)
-	assert.Equal(t, 2, f.reader.readCount(), "nothing was counted since")
-}
-
-func TestAFollowedRaceIsReadAgainEveryMinuteWithNoSnapshot(t *testing.T) {
-	f := newFixture()
-	races := f.feed.Subscribe(t.Context())
-	f.feed.Refresh(t.Context())
-	next(t, races)
-
-	f.reader.show("it")
-	f.refreshAfter(t, inprocess_race_feed.AtLeast-time.Millisecond)
-	quiet(t, races)
-
-	f.refreshAfter(t, time.Millisecond)
-	assert.Equal(t, []string{"it"}, next(t, races))
-}
-
-func TestARaceThatDidNotChangeIsNotSentAgain(t *testing.T) {
-	f := newFixture()
-	f.reader.show("fr")
-	races := f.feed.Subscribe(t.Context())
-	f.feed.Refresh(t.Context())
-	next(t, races)
-
-	f.feed.MarkCounted()
-	f.refreshAfter(t, inprocess_race_feed.Every)
-
-	assert.Equal(t, 2, f.reader.readCount())
-	quiet(t, races)
-}
-
-func TestARaceNobodyFollowsIsNotRead(t *testing.T) {
-	f := newFixture()
-	ctx, cancel := context.WithCancel(t.Context())
-	races := f.feed.Subscribe(ctx)
-	f.feed.Refresh(t.Context())
-	next(t, races)
-
-	cancel()
+func closed(t *testing.T, races <-chan *seasonsv1.Race) {
+	t.Helper()
 	require.Eventually(t, func() bool {
 		select {
 		case _, open := <-races:
@@ -208,65 +104,119 @@ func TestARaceNobodyFollowsIsNotRead(t *testing.T) {
 			return false
 		}
 	}, 2*time.Second, time.Millisecond)
+}
 
-	f.feed.MarkCounted()
-	f.refreshAfter(t, inprocess_race_feed.AtLeast)
-	assert.Equal(t, 1, f.reader.readCount())
+func TestAStreamGetsTheRaceOnceItIsRead(t *testing.T) {
+	feed, reader := newFeed()
+	reader.show("fr")
+
+	races := feed.Subscribe(t.Context())
+	quiet(t, races)
+
+	feed.Refresh(t.Context())
+
+	assert.Equal(t, []string{"fr"}, next(t, races))
+}
+
+func TestAnotherStreamGetsTheRaceAtOnceWithNoRead(t *testing.T) {
+	feed, reader := newFeed()
+	reader.show("fr")
+	first := feed.Subscribe(t.Context())
+	feed.Refresh(t.Context())
+	next(t, first)
+
+	second := feed.Subscribe(t.Context())
+
+	assert.Equal(t, []string{"fr"}, next(t, second))
+	assert.Equal(t, 1, reader.readCount())
+}
+
+func TestEachReadSendsANewRaceToEveryStream(t *testing.T) {
+	feed, reader := newFeed()
+	first := feed.Subscribe(t.Context())
+	second := feed.Subscribe(t.Context())
+	feed.Refresh(t.Context())
+	next(t, first)
+	next(t, second)
+
+	reader.show("de", "fr")
+	feed.Refresh(t.Context())
+
+	assert.Equal(t, []string{"de", "fr"}, next(t, first))
+	assert.Equal(t, []string{"de", "fr"}, next(t, second))
+}
+
+func TestARaceThatDidNotChangeIsNotSentAgain(t *testing.T) {
+	feed, reader := newFeed()
+	reader.show("fr")
+	races := feed.Subscribe(t.Context())
+	feed.Refresh(t.Context())
+	next(t, races)
+
+	feed.Refresh(t.Context())
+
+	assert.Equal(t, 2, reader.readCount())
+	quiet(t, races)
+}
+
+func TestARaceNobodyFollowsIsNotRead(t *testing.T) {
+	feed, reader := newFeed()
+	ctx, cancel := context.WithCancel(t.Context())
+	races := feed.Subscribe(ctx)
+	feed.Refresh(t.Context())
+	next(t, races)
+
+	cancel()
+	closed(t, races)
+
+	feed.Refresh(t.Context())
+	assert.Equal(t, 1, reader.readCount())
 }
 
 func TestTheFirstStreamAfterNobodyFollowedWaitsForAFreshRead(t *testing.T) {
-	f := newFixture()
-	f.reader.show("fr")
+	feed, reader := newFeed()
+	reader.show("fr")
 	ctx, cancel := context.WithCancel(t.Context())
-	gone := f.feed.Subscribe(ctx)
-	f.feed.Refresh(t.Context())
+	gone := feed.Subscribe(ctx)
+	feed.Refresh(t.Context())
 	next(t, gone)
 	cancel()
-	require.Eventually(t, func() bool {
-		select {
-		case _, open := <-gone:
-			return !open
-		default:
-			return false
-		}
-	}, 2*time.Second, time.Millisecond)
+	closed(t, gone)
 
-	f.reader.show("de")
-	races := f.feed.Subscribe(t.Context())
+	reader.show("de")
+	races := feed.Subscribe(t.Context())
 	quiet(t, races)
-	f.feed.Refresh(t.Context())
+	feed.Refresh(t.Context())
 
 	assert.Equal(t, []string{"de"}, next(t, races))
 }
 
-func TestAFailedReadIsTriedAgainASecondLater(t *testing.T) {
-	f := newFixture()
-	f.reader.show("fr")
-	f.reader.fail(assert.AnError)
-	races := f.feed.Subscribe(t.Context())
+func TestAFailedReadSendsNothingAndTheNextReadDoes(t *testing.T) {
+	feed, reader := newFeed()
+	reader.show("fr")
+	reader.fail(assert.AnError)
+	races := feed.Subscribe(t.Context())
 
-	f.feed.Refresh(t.Context())
+	feed.Refresh(t.Context())
 	quiet(t, races)
-	f.refreshAfter(t, inprocess_race_feed.Every-time.Millisecond)
-	assert.Equal(t, 1, f.reader.readCount())
 
-	f.reader.fail(nil)
-	f.refreshAfter(t, time.Millisecond)
+	reader.fail(nil)
+	feed.Refresh(t.Context())
 
 	assert.Equal(t, []string{"fr"}, next(t, races))
 }
 
 func TestTheRunnerReadsForANewStreamAndStopsWithItsContext(t *testing.T) {
-	f := newFixture()
-	f.reader.show("fr")
+	feed, reader := newFeed()
+	reader.show("fr")
 	ctx, cancel := context.WithCancel(t.Context())
 	stopped := make(chan struct{})
 	go func() {
 		defer close(stopped)
-		f.feed.Run(ctx)
+		feed.Run(ctx)
 	}()
 
-	races := f.feed.Subscribe(t.Context())
+	races := feed.Subscribe(t.Context())
 
 	require.Eventually(t, func() bool {
 		select {

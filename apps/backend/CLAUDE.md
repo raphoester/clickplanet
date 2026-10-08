@@ -1320,7 +1320,6 @@ internal/seasons/internal/
     rpc_planet_territories/         the snapshot, from planet.v1.InternalService/GetTerritories
     usecases/take_snapshot_usecase/ closes the rounds that ended, then counts the round in progress; Runner
       log_take_snapshot/            logs each round closed, and a snapshot that failed
-      marking_take_snapshot/        marks the live race, once a snapshot is taken
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
     get_standings_handler/standings_query/   PostgresQuery: GetStandingsResponse from SQL, named, and the same top as
@@ -1387,10 +1386,11 @@ standings rank players, the rounds rank countries.
 - **The race is live on the season stream** (`SeasonEvent.race`), to every stream whatever its view. `race_query` reads
   the round in progress (its number, its end, each country's rank, average share and the points it would score if it
   ended now) and the season's scores, best first, of every country with points. **One read for every stream**:
-  `inprocess_race_feed` reads it when the first stream opens, after each snapshot (`marking_take_snapshot`), at most once a
-  second (`Every`) and at least once a minute (`AtLeast`), and sends it only when it changed. It forgets the race when
-  the last stream closes. A failed read is tried again a second later and logged (`log_race_reader`). No season is an
-  empty race.
+  `inprocess_race_feed` reads it when the first stream opens and then every 10s (`Every`) while a stream follows it, and
+  sends it only when it changed. **Nothing tells it a snapshot was taken**: the race only changes once a minute, so
+  reading on its own clock is at most 10s late, and the snapshot use case knows nothing of who reads its rows. It
+  forgets the race when the last stream closes. A failed read is logged (`log_race_reader`) and the next tick reads
+  again. No season is an empty race.
 - `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
   and reads the race off the stream.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.

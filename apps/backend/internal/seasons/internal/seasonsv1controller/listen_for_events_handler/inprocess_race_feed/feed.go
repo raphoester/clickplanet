@@ -9,24 +9,17 @@ import (
 
 	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Reader interface {
 	Race(ctx context.Context) (*seasonsv1.Race, error)
 }
 
-const (
-	Every   = time.Second
-	AtLeast = time.Minute
+const Every = 10 * time.Second
 
-	tick = 250 * time.Millisecond
-)
-
-func New(reader Reader, clock cptime.Clock) *Feed {
+func New(reader Reader) *Feed {
 	return &Feed{
 		reader:  reader,
-		clock:   clock,
 		wake:    make(chan struct{}, 1),
 		streams: cpcolls.NewSet[chan *seasonsv1.Race](),
 	}
@@ -34,14 +27,11 @@ func New(reader Reader, clock cptime.Clock) *Feed {
 
 type Feed struct {
 	reader Reader
-	clock  cptime.Clock
 	wake   chan struct{}
 
 	mu      sync.Mutex
 	streams *cpcolls.Set[chan *seasonsv1.Race]
 	race    *seasonsv1.Race
-	readAt  time.Time
-	moved   bool
 }
 
 func (f *Feed) Subscribe(ctx context.Context) <-chan *seasonsv1.Race {
@@ -56,7 +46,10 @@ func (f *Feed) Subscribe(ctx context.Context) <-chan *seasonsv1.Race {
 	f.mu.Unlock()
 
 	if first {
-		f.nudge()
+		select {
+		case f.wake <- struct{}{}:
+		default:
+		}
 	}
 
 	go func() {
@@ -67,7 +60,7 @@ func (f *Feed) Subscribe(ctx context.Context) <-chan *seasonsv1.Race {
 
 		f.streams.Delete(races)
 		if f.streams.Empty() {
-			f.race, f.readAt, f.moved = nil, time.Time{}, false
+			f.race = nil
 		}
 		close(races)
 	}()
@@ -75,25 +68,10 @@ func (f *Feed) Subscribe(ctx context.Context) <-chan *seasonsv1.Race {
 	return races
 }
 
-func (f *Feed) MarkCounted() {
-	f.mu.Lock()
-	f.moved = true
-	f.mu.Unlock()
-
-	f.nudge()
-}
-
-func (f *Feed) nudge() {
-	select {
-	case f.wake <- struct{}{}:
-	default:
-	}
-}
-
 func (f *Feed) Name() string { return "seasons-race" }
 
 func (f *Feed) Run(ctx context.Context) {
-	ticker := time.NewTicker(tick)
+	ticker := time.NewTicker(Every)
 	defer ticker.Stop()
 
 	for {
@@ -108,22 +86,18 @@ func (f *Feed) Run(ctx context.Context) {
 }
 
 func (f *Feed) Refresh(ctx context.Context) {
-	if !f.due() {
+	if !f.followed() {
 		return
 	}
 	race, err := f.reader.Race(ctx)
+	if err != nil {
+		return
+	}
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if f.streams.Empty() {
-		return
-	}
-	if err != nil {
-		f.moved = true
-		return
-	}
-	if f.race != nil && proto.Equal(f.race, race) {
+	if f.streams.Empty() || (f.race != nil && proto.Equal(f.race, race)) {
 		return
 	}
 	f.race = race
@@ -136,20 +110,9 @@ func (f *Feed) Refresh(ctx context.Context) {
 	})
 }
 
-func (f *Feed) due() bool {
-	now := f.clock.Now()
-
+func (f *Feed) followed() bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if f.streams.Empty() || !f.stale(now) {
-		return false
-	}
-	f.moved, f.readAt = false, now
-	return true
-}
-
-func (f *Feed) stale(now time.Time) bool {
-	elapsed := now.Sub(f.readAt)
-	return f.readAt.IsZero() || elapsed >= AtLeast || (f.moved && elapsed >= Every)
+	return !f.streams.Empty()
 }

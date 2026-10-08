@@ -17,19 +17,34 @@ import (
 func (s gameStack) raceWhere(t *testing.T, done func(*seasonsv1.Race) bool) *seasonsv1.Race {
 	t.Helper()
 
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	var found *seasonsv1.Race
+	require.Eventually(t, func() bool {
+		race := s.firstRace(t)
+		if race != nil && done(race) {
+			found = race
+		}
+		return found != nil
+	}, 10*time.Second, 100*time.Millisecond, "a stream opened after the snapshot reads it at once")
+	return found
+}
+
+func (s gameStack) firstRace(t *testing.T) *seasonsv1.Race {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
 	stream, err := seasonsv1connect.NewSeasonServiceClient(http.DefaultClient, s.baseURL).
 		ListenForEvents(ctx, connect.NewRequest(&seasonsv1.ListenForEventsRequest{}))
-	require.NoError(t, err)
+	if err != nil {
+		return nil
+	}
 	defer func() { _ = stream.Close() }()
 
 	for stream.Receive() {
-		if race := stream.Msg().GetRace(); race != nil && done(race) {
+		if race := stream.Msg().GetRace(); race != nil {
 			return race
 		}
 	}
-	require.FailNow(t, "the stream ended before the race it waited for", "%v", stream.Err())
 	return nil
 }
 
