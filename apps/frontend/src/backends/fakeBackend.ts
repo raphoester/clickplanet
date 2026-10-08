@@ -121,6 +121,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private lastRefillMs = Date.now()
     private pace = 1
     private sharedWith: SharedBy | undefined
+    private shapesClose = true
     private readonly vpnBlocked: boolean
     private readonly sessionUnavailable: boolean
 
@@ -211,7 +212,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         if (!allowed) throw new RateLimitedError()
         this.applyClick(tileId, countryId)
-        if (switches.enclose) this.pretendToEnclose(tileId, countryId)
+        if (switches.enclose && this.shapesClose) this.pretendToEnclose(tileId, countryId)
         if (switches.spread) this.announceBonusClick(tileId, countryId)
     }
 
@@ -317,6 +318,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private reportBudget() {
         const budget = this.budget()
         this.budgetCallbacks.forEach(callback => callback(budget))
+    }
+
+    public closeShapes(close: boolean): void {
+        this.shapesClose = close
     }
 
     public shareClicks(sharedWith?: SharedBy): void {

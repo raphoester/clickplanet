@@ -54,7 +54,9 @@ wires no account, so the overlay offers Close only), and `fakeBackend.botBomb(ti
 `fakeBackend.botSpread(tile, "fr")` and `fakeBackend.botShield(tile, "fr")` play
 somebody else's bomb, spread click or shield. `fakeBackend.shareClicks("guests")` (or
 `"network"`) reads the bucket as shared, and `fakeBackend.shareClicks()` as the
-player's own again.
+player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
+close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
+`localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` runs chat (it is always on), and the Go server answers
@@ -668,7 +670,9 @@ name (`ChatMessage.authorColor` and `authorStreak`, `RosterEntry.color` and
 `streak`, `PlayerInfo.color`), read from the account when shown, so a new pick
 shows on everything its player ever said once the chat is read again. The
 flame (`StreakFlame`) is the Noto fire of the reactions, `role="img"` named
-"12-day streak", and is left out under 3 days (`streakShown`). **A guest has
+"12-day streak", and is left out under 3 days (`streakShown`). It is a button: a
+press, or a mouse resting on it, says "Played 12 days in a row" in a `Bubble`,
+which goes when the log under it scrolls. **A guest has
 neither**: the server sends it no color and a streak of 0, so a signed-in player
 shows a flame only once it has a username.
 
@@ -1993,18 +1997,51 @@ the dock** (the meter takes it as `children`, and shows it even with no budget).
 It draws no border or background of its own: the one panel is `.click-budget-dock`.
 One slot per kind, always shown, each drawn with its box's
 icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
-`BonusAward.css`, shared with the announcement). An empty slot is dimmed and
-cannot be pressed. A pool shows its count against its size (`5/8`, `2/3`), and a
-word over the icon says what the slot is doing (`On`, `Aim`, `Full`).
+`BonusAward.css`, shared with the announcement). An empty slot is dimmed, and a
+press on it does nothing but say how to get one. A pool shows its count against
+its size (`5/8`, `2/3`), and a word over the icon says what the slot is doing
+(`On`, `Aim`, `Full`, or `New` for a kind held and never pressed).
 
 - **Refill** fills the bank (`Refiller.useRefill`). **On a full bank it sends
-  nothing** and says "Full" for two seconds: a refill there would be wasted. The
+  nothing** and says "Full": a refill there would be wasted. The
   server refuses it too, `FailedPrecondition`, read as `BankFullError`, and spends
   nothing.
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).
 - **Spread**, **Enclose** and **Shield** switch (`Globe.setSwitch`),
-  `aria-pressed`. Shield says "Full" for two seconds when a click meets a tile
-  that holds all the shields it can (`shieldFull`, a count like `refusals`).
+  `aria-pressed`.
+
+**A slot speaks in a bubble, never a `title`.** Most of the players who came from
+TikTok play on a phone, where a `title` never shows, and they asked in the chat
+what enclose and shields do. So `Bubble` (`components/Bubble.tsx`, drawn in a
+portal on the body like the reaction popup) says one line over a slot: what it
+does while a mouse rests on it, how to get one on a press of an empty slot, and
+how to use it on a press that switches it on or aims it, for its first
+`LEARNING_USES` (3). The line goes after a few seconds, or as soon as the slot's
+charge is spent. The same line is in the slot's `aria-describedby`.
+
+**The globe says when a bonus did not do what the player meant**
+(`GlobeOptions.onNotice`, a `BonusNotice`), and the slot says it in its bubble:
+
+- **Shield on, a tile of another flag**: the click is an ordinary one, so the
+  bubble says "Tile taken. Tap it again to shield it", or that shields go on the
+  player's own tiles when a shield stopped the click.
+- **Shield on, a full tile**: "Full" on the slot and a line saying so.
+- **Enclose on, a click that took a tile and closed no shape**: "Shape is not
+  closed or is too big (25 tiles max)". **This is guessed on the client, on
+  purpose**: `Click` answers nothing about bonuses so a shadow-banned caller
+  cannot tell its clicks are dropped (see the backend's CLAUDE.md), and the
+  server cannot tell an open shape from one too big either. The globe waits
+  `ENCLOSURE_WAIT_MS` (1.5s) after the click is accepted for this player's own
+  `tilesEnclosed` closed at that tile, and says it when none came. A banned
+  player learns nothing new: it sees no enclosure either way.
+
+**What a player has learned is kept in the browser** (`clickplanet-bonus-guide`,
+`domain/bonusGuide.ts`, `useBonusGuide`): how many times each kind was switched
+on (up to `LEARNING_USES`) and which kinds it has won. `Viewer` holds the one
+copy and hands it to the inventory and the award. **The first box of each kind
+stays up** until "Got it" or Escape (`BonusAward`'s `kept`): the passing award
+lasts 2.9s and a tap anywhere closes it, which in a clicking game is before the
+line under it is read. Later boxes of that kind pass as before.
 
 **It does not fold**: five slots are one row, labelled from 1280px and icons
 with their counts below that (the name stays in `aria-label`). A fold on a row
