@@ -3,6 +3,7 @@ package antibot_test
 import (
 	"context"
 	"errors"
+	"math"
 	"math/rand/v2"
 	"testing"
 	"time"
@@ -122,6 +123,14 @@ func newStack(t *testing.T, options ...func(*antibot.Config)) *stack {
 	config.Churner.Detector.Relay.MinLinks = 3
 	config.Churner.Detector.Relay.CertainLinks = 6
 
+	config.Hopper.Enabled = true
+	config.Hopper.Detector.MinAngle = 45
+	config.Hopper.Detector.MinGap = 100 * time.Millisecond
+	config.Hopper.Detector.MaxGap = 30 * time.Second
+	config.Hopper.Detector.MinSteps = 40
+	config.Hopper.Detector.MinShare = 0.4
+	config.Hopper.Detector.TrackWindow = 15 * time.Minute
+
 	for _, option := range options {
 		option(&config)
 	}
@@ -206,12 +215,17 @@ func (s *stack) click(scope string, tile uint32, country string) bool {
 }
 
 func (s *stack) clickAs(scope, account string, tile uint32, country string) bool {
+	return s.clickOn(scope, account, tile, antibot.Point{}, country)
+}
+
+func (s *stack) clickOn(scope, account string, tile uint32, at antibot.Point, country string) bool {
 	held := s.owner[tile]
 
 	click := antibot.Click{
 		Scope:    scope,
 		Account:  account,
 		Tile:     tile,
+		Position: at,
 		Country:  country,
 		At:       s.clock.Now(),
 		Held:     held,
@@ -322,6 +336,58 @@ func TestSweepingInARandomOrderStillGetsCaught(t *testing.T) {
 	assert.Equal(t, detect.Certain, verdicts["metronome"])
 
 	assert.Greater(t, clicks, 1700, "a lone watchdog has to be sure, and sure takes certainFor")
+}
+
+func anywhere(rng *rand.Rand) antibot.Point {
+	z := 2*rng.Float64() - 1
+	phi := 2 * math.Pi * rng.Float64()
+	r := math.Sqrt(1 - z*z)
+	return antibot.Point{X: r * math.Cos(phi), Y: r * math.Sin(phi), Z: z}
+}
+
+func TestALoopAimingAllOverTheGlobeIsCaughtBeforeTheClockIsSure(t *testing.T) {
+	s := newStack(t)
+
+	//nolint:gosec // seeded test PRNG
+	rng := rand.New(rand.NewPCG(10, 9))
+
+	var (
+		clicks  int
+		dropped bool
+	)
+
+	for range 3000 {
+		s.clock.Advance(time.Second)
+		clicks++
+		if s.clickOn("aimer", "bot", 1+uint32(rng.IntN(262119)), anywhere(rng), "PL") {
+			dropped = true
+			break
+		}
+	}
+
+	require.True(t, dropped)
+
+	verdicts := s.verdicts("aimer")
+	assert.Equal(t, detect.Suspect, verdicts["hopper"])
+	assert.Equal(t, detect.Suspect, verdicts["metronome"])
+	assert.Equal(t, detect.Clear, verdicts["sequencer"])
+
+	assert.Less(t, clicks, 200, "the shuffled ids no longer leave the clock alone for half an hour")
+}
+
+func TestHoppingAloneBansNobody(t *testing.T) {
+	s := newStack(t)
+
+	//nolint:gosec // seeded test PRNG
+	rng := rand.New(rand.NewPCG(14, 9))
+
+	for range 300 {
+		s.clock.Advance(500*time.Millisecond + time.Duration(rng.Int64N(int64(1500*time.Millisecond))))
+		require.False(t, s.clickOn("hopper", "player", 1+uint32(rng.IntN(262119)), anywhere(rng), "PL"))
+	}
+
+	assert.Empty(t, s.reports)
+	assert.Equal(t, []string{"hopper suspect"}, s.rises)
 }
 
 func TestAnEveningAtPaceAloneBansNobody(t *testing.T) {
@@ -761,7 +827,7 @@ func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
 	for _, reading := range examination.Readings {
 		watchdogs = append(watchdogs, reading.Watchdog)
 	}
-	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper", "churner"}, watchdogs)
+	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper", "churner", "hopper"}, watchdogs)
 	assert.False(t, examination.Guilty)
 }
 

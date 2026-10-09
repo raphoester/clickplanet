@@ -354,8 +354,14 @@ carries the token already held** (`SessionProvider.held()`, never a mint):
 without it the server reads the bucket of an address with no account, which is
 never spent and always full, and the next click contradicts it. It also subtracts its own clicks in
 flight, so the counter only ever *under*-promises: a counter that says 1 and is
-refused is a bug the player sees, and one that says 0 and works is a click they
-still get.
+refused is a bug the player sees.
+
+**The globe sends no click the counter cannot pay** (`canClick`). It paints
+nothing, plays the refusal and shakes the meter, as a 429 would. A painted tile
+that flips back is exactly an enemy retake to the eye: on 2026-10-09 a player on
+a train read 25 refusals as a Polish bot retaking Antarctica in
+seconds. What it costs is the click a counter at 0 would still have won, when a
+click in flight fails. With no reading, nothing is held.
 
 **One bank, one click per token.** The bank's size never moves: not with the
 country, a bonus or signing in. The more of the map a country holds, the slower
@@ -397,6 +403,28 @@ first click of a page load, and the first one after a sign-in or a sign-out. The
 hourly re-mint for the same account reopens it too: telling the two apart would
 mean reading the token, which is the server's business. A refused call reopens
 nothing.
+
+#### Connection health
+
+**Every call is the probe, so there is no ping.** `connectionInterceptor`
+(`connection.ts`) sits on every Connect transport (`Config.interceptors`, set in
+`main.tsx`) and tells one `ConnectionHealth` how each call went. A health RPC
+would only say whether the health RPC gets through.
+
+- **Any answer is the server reached**, a refusal it sent included. A failed
+  fetch (connect-web's `Unknown` over a `TypeError`), a timeout
+  (`DeadlineExceeded`, the 2s `timeoutMs`) and a proxy with nothing behind it
+  (`Unavailable`, a 502 to 504) are misses. A call the page cancelled says nothing.
+- **A stream is followed past its opening**: each message is the server reached,
+  and a break is a miss.
+- `DOWN_AFTER_MISSES` (2) in a row is down, and the first answer is up again. The
+  browser's `offline` is down at once (`followBrowser`); `online` waits for an
+  answer, which `openStream`'s wake brings at once.
+- **`Viewer` shows `ConnectionLost` in the Moments zone while it is down.** Clicks
+  still go out and roll back: they are how it finds the way back. A deploy's
+  restart reads as down too, which is what it is from here.
+- The fakes have no transport. In fake mode `connection` is on `window`:
+  `connection.wentOffline()` raises the card and `connection.reached()` drops it.
 
 ### The screen: four zones
 
@@ -2130,7 +2158,9 @@ take back.
 
 Rolling back on *any* failure, including a transport fault, is deliberate: if
 the click did land and only the response was lost, the stream's echo repaints
-it, and if the echo arrives first the rollback is already a no-op.
+it, and if the echo arrives first the rollback is already a no-op. A transport
+fault rolls back with no sound and no dialog; the card from
+[Connection health](#connection-health) is what says why.
 
 ## Charges
 

@@ -70,6 +70,12 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		Buckets: []float64{0, 1, 2, 3, 4, 5, 6, 8, 10, 15, 20, 30},
 	})
 
+	hopShares := factory.NewHistogram(prometheus.HistogramOpts{
+		Name:    "click_hop_share",
+		Help:    "Share of a payer's steps between tries that jump at least the hopper's minAngle across the globe, per payer per sweep",
+		Buckets: []float64{0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0},
+	})
+
 	flags := factory.NewCounterVec(prometheus.CounterOpts{
 		Name: "shadowban_flags",
 		Help: "Times a caller has been flagged, counted once per watchdog that argued for it",
@@ -105,6 +111,8 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 		},
 
 		OnRelayLinks: func(links int) { relayLinks.Observe(float64(links)) },
+
+		OnHopShare: hopShares.Observe,
 
 		// The address goes in the log, never on a label: unbounded cardinality and personal data.
 		OnFlag: func(report antibot.Report) {

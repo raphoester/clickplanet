@@ -46,6 +46,7 @@ export type {Config}
 export function newClickServiceClient(config: Config): PromiseClient<typeof ClickService> {
     return createPromiseClient(ClickService, createConnectTransport({
         baseUrl: config.baseUrl,
+        interceptors: config.interceptors,
         useBinaryFormat: true,
         useHttpGet: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,

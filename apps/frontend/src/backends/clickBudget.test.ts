@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest'
-import {ClickBudget, nextClickProgress, secondsToNextClick, secondsToOneMore, tokensAt} from './clickBudget.ts'
+import {canClick, ClickBudget, nextClickProgress, secondsToNextClick, secondsToOneMore, tokensAt} from './clickBudget.ts'
 
 function reading(overrides: Partial<ClickBudget> = {}): ClickBudget {
     return {tokens: 4, capacity: 10, perSecond: 1, readAt: 1_000, ...overrides}
@@ -28,6 +28,25 @@ describe("tokensAt", () => {
 
     it("does not run backwards if the reading is somehow ahead of the clock", () => {
         expect(tokensAt(reading(), 0)).toBe(4)
+    })
+})
+
+describe("canClick", () => {
+    it("lets a click go while one is in hand", () => {
+        expect(canClick(reading({tokens: 1}), 1_000)).toBe(true)
+    })
+
+    it("holds a click when the bank is spent, clicks in flight included", () => {
+        expect(canClick(reading({tokens: 0.6}), 1_000)).toBe(false)
+        expect(canClick(reading({tokens: -2}), 1_000)).toBe(false)
+    })
+
+    it("lets it go again once the refill has brought one back", () => {
+        expect(canClick(reading({tokens: 0.6}), 1_400)).toBe(true)
+    })
+
+    it("lets every click go when the server reports no budget", () => {
+        expect(canClick(undefined, 1_000)).toBe(true)
     })
 })
 

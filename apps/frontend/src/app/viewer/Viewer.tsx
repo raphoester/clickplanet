@@ -12,6 +12,9 @@ import {
     UpdatesListener,
 } from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
+import ConnectionLost from "../components/ConnectionLost.tsx";
+import {ConnectionSource} from "../../backends/connection.ts";
+import {useConnection} from "./useConnection.ts";
 import Quiz from "../quiz/Quiz.tsx";
 import {useQuiz} from "../quiz/useQuiz.ts";
 import {ChatBackend} from "../../backends/chat.ts";
@@ -77,6 +80,7 @@ export type ViewerProps = {
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
     clickBudgetSource?: ClickBudgetSource
+    connection?: ConnectionSource
     bonusListener?: BonusListener
     quizMaster?: QuizMaster
     bomber?: Bomber
@@ -94,6 +98,7 @@ export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
     const {countryState, handleSetCountry} = useCountryStorage(props.sharedCountry)
     const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
+    const connection = useConnection(props.connection)
     const sound = useSound()
     const display = useDisplaySettings()
     const account = useAccount(props.account)
@@ -159,6 +164,7 @@ export default function Viewer(props: ViewerProps) {
         tileClicker: props.tileClicker,
         ownershipsGetter: props.ownershipsGetter,
         updatesListener: props.updatesListener,
+        clickBudget: props.clickBudgetSource,
         bonusListener: props.bonusListener,
         bomber: props.bomber,
         shielder: props.shielder,
@@ -356,6 +362,8 @@ export default function Viewer(props: ViewerProps) {
                                   bonusGuide.markWon(award.kind)
                                   dismissAward()
                               }}/>}
+
+        {ready && connection === "down" && <ConnectionLost lowered={quiz.state.phase !== 'idle'}/>}
 
         {lastBomb && <BombNews
             key={lastBomb.id}

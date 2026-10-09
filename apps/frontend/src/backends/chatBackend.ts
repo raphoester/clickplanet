@@ -36,6 +36,7 @@ import {titleOf} from "./title.ts";
 export function newChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
     return createPromiseClient(ChatService, createConnectTransport({
         baseUrl: config.baseUrl,
+        interceptors: config.interceptors,
         useBinaryFormat: true,
         useHttpGet: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
@@ -45,6 +46,7 @@ export function newChatServiceClient(config: Config): PromiseClient<typeof ChatS
 export function newKeepaliveChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
     return createPromiseClient(ChatService, createConnectTransport({
         baseUrl: config.baseUrl,
+        interceptors: config.interceptors,
         useBinaryFormat: true,
         fetch: (input, init) => globalThis.fetch(input, {...init, keepalive: true}),
     }))

@@ -35,6 +35,7 @@ import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
 export function newPlayerServiceClient(config: Config): PromiseClient<typeof PlayerService> {
     return createPromiseClient(PlayerService, createConnectTransport({
         baseUrl: config.baseUrl,
+        interceptors: config.interceptors,
         useBinaryFormat: true,
         useHttpGet: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
@@ -44,6 +45,7 @@ export function newPlayerServiceClient(config: Config): PromiseClient<typeof Pla
 export function newKeepalivePlayerServiceClient(config: Config): PromiseClient<typeof PlayerService> {
     return createPromiseClient(PlayerService, createConnectTransport({
         baseUrl: config.baseUrl,
+        interceptors: config.interceptors,
         useBinaryFormat: true,
         fetch: (input, init) => fetch(input, {...init, keepalive: true}),
     }))

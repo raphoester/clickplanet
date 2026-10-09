@@ -313,7 +313,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	payer := payerOf(click)
+	payer := click.Payer()
 	w.spend(payer, click.At)
 	stamina, staminaEvidence := w.stamina(w.spenders[payer])
 
@@ -333,13 +333,6 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 		verdict, evidence = stamina, staminaEvidence
 	}
 	return verdict, evidence
-}
-
-func payerOf(click detect.Click) string {
-	if click.Account != "" {
-		return "account:" + click.Account
-	}
-	return "scope:" + click.Scope
 }
 
 func (w *Watchdog) spend(payer string, at time.Time) {
