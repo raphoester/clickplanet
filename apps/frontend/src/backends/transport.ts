@@ -1,4 +1,5 @@
 import {Code, ConnectError, Interceptor} from "@connectrpc/connect";
+import {outcomeOf} from "./connection.ts";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "https://api.clickplanet.lol"
 
@@ -20,13 +21,13 @@ type Retries = {
 const READS: Retries = {
     attempts: 8,
     delayBefore: (attempt) => attempt < 2 ? 0 : Math.min(1000 * 2 ** (attempt - 2), 8_000),
-    worthRetrying: (e) => unreachable(e) || timedOut(e),
+    worthRetrying: missed,
 }
 
 const ACTS: Retries = {
     attempts: 5,
     delayBefore: () => 0,
-    worthRetrying: unreachable,
+    worthRetrying: (e) => missed(e) && !timedOut(e),
 }
 
 export function retrying<T>(attempt: () => Promise<T>, what: string, signal?: AbortSignal): Promise<T> {
@@ -64,10 +65,8 @@ async function retried<T>(
     throw new Error(`${what} failed after ${attempts} attempts`, {cause: lastError})
 }
 
-// connect-web turns a failed fetch into Unknown, with the fetch's TypeError as its cause.
-function unreachable(e: unknown): boolean {
-    if (!(e instanceof ConnectError)) return true
-    return e.code === Code.Unavailable || (e.code === Code.Unknown && e.cause instanceof TypeError)
+function missed(e: unknown): boolean {
+    return outcomeOf(e) === "missed"
 }
 
 function timedOut(e: unknown): boolean {

@@ -304,6 +304,8 @@ server cannot be reached or does not answer in time, and never a retry of an
 answer the server chose to send. **A failed fetch is `unknown`, not
 `unavailable`**: connect-web wraps the fetch's `TypeError` as the cause, and
 that is how "cannot be reached" is told from an `unknown` the server sent.
+The rule is `outcomeOf`'s miss, in `connection.ts`: the one the connection
+card counts by (see [Connection health](#connection-health)).
 Until this was known, no dropped connection was ever retried. **It is built for a phone on a train**: the
 second attempt goes at once (a dead pooled connection), then it waits 1s, 2s,
 4s and 8s, about 30s in all, so a tunnel does not fail the map. The timeout was

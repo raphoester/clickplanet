@@ -85,7 +85,7 @@ function observe(health: ConnectionHealth, failure: unknown): void {
 }
 
 // A ConnectError the server sent is an answer; one about the road to it is a miss.
-function outcomeOf(failure: unknown): "reached" | "missed" | undefined {
+export function outcomeOf(failure: unknown): "reached" | "missed" | undefined {
     if (failure instanceof ConnectError) {
         switch (failure.code) {
             case Code.Canceled:
