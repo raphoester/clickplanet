@@ -2,7 +2,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import {Race} from "../backends/standings.ts"
-import Leaderboard from "./Leaderboard.tsx"
+import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx"
 import {FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts"
 import {Countries} from "../domain/countries.ts"
 import {TileDelta, TileDeltas} from "../domain/tileDeltas.ts"
@@ -158,11 +158,6 @@ describe("Leaderboard", () => {
         expect(screen.queryByRole("status")).toBeNull()
     })
 
-    it("says how much slower the first country refills, off the toll", () => {
-        render(<Leaderboard tilesCount={1000} data={[entry("fr", 250)]} toll={[{share: 0.1, slowdown: 1.5}, {share: 0.2, slowdown: 2.5}]}/>)
-        expect(within(leader()!).getByText("Refills 2.5× slower")).toBeDefined()
-    })
-
     it("holds what it is given beside the first country", () => {
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 250)]} anthem={<p>the anthem</p>}/>)
         expect(within(leader()!).getByText("the anthem")).toBeDefined()
@@ -233,7 +228,7 @@ describe("Leaderboard with the season's race", () => {
     }
 
     it("ranks by the season first: the points, with what each would score if the day ended now", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={vi.fn()}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
 
         expect(leader()!.getAttribute("aria-label")).toBe("First: France")
         expect(within(leader()!).getByText("300 tiles")).toBeDefined()
@@ -246,15 +241,15 @@ describe("Leaderboard with the season's race", () => {
         ])
     })
 
-    it("keeps the first country's share of the map under its tiles", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={vi.fn()}/>)
+    it("keeps the first country's share of the map beside its tiles", () => {
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
 
         expect(within(leader()!).getByText("30.00% of map")).toBeDefined()
     })
 
     it("says what the points mean the first time it shows them, once", () => {
         const onGuided = vi.fn()
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={vi.fn()} guided={false} onGuided={onGuided}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} guided={false} onGuided={onGuided}/>)
 
         expect(screen.getByRole("status").textContent).toBe(FIGURES.points)
         expect(onGuided).toHaveBeenCalledOnce()
@@ -262,7 +257,7 @@ describe("Leaderboard with the season's race", () => {
 
     it("lets the first word on the points stay long enough to read", () => {
         vi.useFakeTimers()
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={vi.fn()} guided={false} onGuided={vi.fn()}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} guided={false} onGuided={vi.fn()}/>)
 
         act(() => vi.advanceTimersByTime(GUIDE_MS - 1))
         expect(screen.getByRole("status")).toBeDefined()
@@ -271,14 +266,19 @@ describe("Leaderboard with the season's race", () => {
     })
 
     it("says nothing on its own once the player was told", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={vi.fn()} guided onGuided={vi.fn()}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} guided onGuided={vi.fn()}/>)
 
         expect(screen.queryByRole("status")).toBeNull()
     })
 
+    it("leaves its order to the switch beside the heading", () => {
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE}/>)
+        expect(screen.queryByRole("group", {name: "Order"})).toBeNull()
+    })
+
     it("offers to order by the season or by the territory, and says which is on", () => {
         const onOrder = vi.fn()
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} onOrder={onOrder}/>)
+        render(<OrderSwitch order="season" onOrder={onOrder}/>)
 
         const order = screen.getByRole("group", {name: "Order"})
         expect(within(order).getAllByRole("button").map(b => [b.textContent, b.getAttribute("aria-pressed")]))
@@ -289,7 +289,7 @@ describe("Leaderboard with the season's race", () => {
     })
 
     it("ranks by the tiles held now when ordered by territory, the points still beside them", () => {
-        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} order="territory" onOrder={vi.fn()}/>)
+        render(<Leaderboard tilesCount={1000} data={MAP} race={RACE} order="territory"/>)
 
         expect(leader()!.getAttribute("aria-label")).toBe("First: Germany")
         expect(cells()).toEqual([

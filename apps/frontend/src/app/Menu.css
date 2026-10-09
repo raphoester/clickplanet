@@ -188,6 +188,48 @@
     font-size: var(--display-m);
 }
 
+/* On a phone the status bar already names the country and its rank: here it is one line, for the Change button. */
+.menu-playing--slim {
+    padding: 0;
+}
+
+.menu-playing--slim .menu-playing-what {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-2);
+}
+
+.menu-playing--slim .menu-label {
+    flex-shrink: 0;
+}
+
+.board-sheet .sheet-head {
+    padding-bottom: var(--space-2);
+}
+
+.board-sheet .sheet-body {
+    gap: var(--space-2);
+}
+
+/* The whole sheet scrolls, not the table alone: the leader's frame goes up out of the way and the column heads stay. */
+.board-sheet .leaderboard,
+.board-sheet .leaderboard-table-container {
+    flex: none;
+    overflow: visible;
+}
+
+.board-sheet .leaderboard-table-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--panel);
+}
+
+.board-sheet .leaderboard::after {
+    position: sticky;
+    margin-top: -36px;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .menu-tile {
         transition: none;
