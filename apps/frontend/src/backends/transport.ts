@@ -1,10 +1,11 @@
-import {Code, ConnectError} from "@connectrpc/connect";
+import {Code, ConnectError, Interceptor} from "@connectrpc/connect";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "https://api.clickplanet.lol"
 
 export type Config = {
     baseUrl: string
     timeoutMs?: number
+    interceptors?: Interceptor[]
 }
 
 // connect-web applies defaultTimeoutMs to streams too; <= 0 turns it off for a call.

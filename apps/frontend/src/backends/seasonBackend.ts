@@ -8,6 +8,7 @@ import {Config, retrying} from "./transport.ts"
 export function newSeasonServiceClient(config: Config): PromiseClient<typeof SeasonService> {
     return createPromiseClient(SeasonService, createConnectTransport({
         baseUrl: config.baseUrl,
+        interceptors: config.interceptors,
         useBinaryFormat: true,
         useHttpGet: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
