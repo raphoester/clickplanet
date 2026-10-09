@@ -299,9 +299,18 @@ are implicit in the position, so it is far smaller than a keyed map — 516 KB
 against 3.6 MB for a full map — and protobuf does all the framing, so there is
 no hand-rolled encoding to keep in step with the backend.
 
-Connect does not retry, so `retrying` wraps every call: five attempts while the
+Connect does not retry, so `retrying` wraps every read: five attempts while the
 server cannot be reached, and never a retry of an answer the server chose to
-send.
+send. **Cannot be reached is `outcomeOf`'s miss** (`connection.ts`, see
+[Connection health](#connection-health)): a failed fetch, a timeout or a 502 to
+504. connect-web hands a failed fetch back as `Unknown`, with the browser's
+`TypeError` as its cause, so a rule on `Unavailable` alone never retried a
+request lost on a bad phone network.
+
+**A write is not sent again after a failed fetch or a timeout**: its answer may
+be what was lost, and a click sent twice spends two clicks, and two spread
+charges. `Click` goes through `retryingWrite`, which retries a 502 to 504
+alone; every other write is sent once.
 
 The backend refuses a click in three ways, and `clickTile` translates all of
 them into errors declared beside the interfaces — the first two in `backend.ts`,

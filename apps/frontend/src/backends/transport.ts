@@ -1,4 +1,5 @@
 import {Code, ConnectError, Interceptor} from "@connectrpc/connect";
+import {outcomeOf} from "./connection.ts";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "https://api.clickplanet.lol"
 
@@ -13,9 +14,18 @@ export const NO_TIMEOUT = 0
 
 const ATTEMPTS = 5
 
-export async function retrying<T>(
+export function retrying<T>(attempt: () => Promise<T>, what: string, signal?: AbortSignal): Promise<T> {
+    return retried(attempt, what, missed, signal)
+}
+
+export function retryingWrite<T>(attempt: () => Promise<T>, what: string): Promise<T> {
+    return retried(attempt, what, unavailable)
+}
+
+async function retried<T>(
     attempt: () => Promise<T>,
     what: string,
+    retries: (e: unknown) => boolean,
     signal?: AbortSignal,
 ): Promise<T> {
     let lastError: unknown
@@ -27,7 +37,7 @@ export async function retrying<T>(
             return await attempt()
         } catch (e) {
             signal?.throwIfAborted()
-            if (!unreachable(e)) throw e
+            if (!retries(e)) throw e
 
             lastError = e
             console.error(`${what} failed (attempt ${i + 1}/${ATTEMPTS})`, e)
@@ -37,8 +47,13 @@ export async function retrying<T>(
     throw new Error(`${what} failed after ${ATTEMPTS} attempts`, {cause: lastError})
 }
 
-function unreachable(e: unknown): boolean {
-    return !(e instanceof ConnectError) || e.code === Code.Unavailable
+function missed(e: unknown): boolean {
+    return outcomeOf(e) === "missed"
+}
+
+// A failed fetch or a timeout may have landed, and a write sent twice is spent twice.
+function unavailable(e: unknown): boolean {
+    return e instanceof ConnectError && e.code === Code.Unavailable
 }
 
 const INITIAL_RECONNECT_DELAY_MS = 500

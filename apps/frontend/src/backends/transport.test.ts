@@ -1,5 +1,12 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {openStream, SILENCE_LIMIT_MS, Wakeups} from "./transport.ts"
+import {Code, ConnectError, createPromiseClient} from "@connectrpc/connect"
+import {createConnectTransport} from "@connectrpc/connect-web"
+import {Message} from "@bufbuild/protobuf"
+import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts"
+import {ClickResponse} from "../gen/grpc/planet/v1/planet_pb.ts"
+import {SeasonService} from "../gen/grpc/seasons/v1/seasons_connect.ts"
+import {GetSeasonResponse} from "../gen/grpc/seasons/v1/seasons_pb.ts"
+import {openStream, retrying, retryingWrite, SILENCE_LIMIT_MS, Wakeups} from "./transport.ts"
 
 type Opened<T> = {
     signal: AbortSignal
@@ -364,5 +371,149 @@ describe("openStream", () => {
         await settle()
 
         expect(source.opened).toHaveLength(1)
+    })
+})
+
+type Reply = (init: RequestInit | undefined) => Promise<Response>
+
+const failedFetch: Reply = async () => {
+    throw new TypeError("Failed to fetch")
+}
+
+const noAnswer: Reply = (init) => new Promise((_, reject) => {
+    init?.signal?.addEventListener("abort", () => reject(init.signal?.reason))
+})
+
+const gateway = (status: number): Reply => async () => new Response("", {status})
+
+const refusal = (code: string): Reply => async () => new Response(JSON.stringify({code}), {
+    status: 429,
+    headers: {"content-type": "application/json"},
+})
+
+const answer = (message: Message): Reply => async () => new Response(message.toBinary(), {
+    headers: {"content-type": "application/proto"},
+})
+
+const season = answer(new GetSeasonResponse())
+
+const clicked = answer(new ClickResponse())
+
+function network(...replies: Reply[]) {
+    const sent: RequestInit[] = []
+    const fetch = (_: RequestInfo | URL, init?: RequestInit) => {
+        sent.push(init ?? {})
+        const reply = replies[Math.min(sent.length, replies.length) - 1]
+        return reply(init)
+    }
+
+    const transport = createConnectTransport({
+        baseUrl: "https://api.test",
+        fetch,
+        useBinaryFormat: true,
+        useHttpGet: true,
+        defaultTimeoutMs: 20,
+    })
+
+    return {
+        seasons: createPromiseClient(SeasonService, transport),
+        clicks: createPromiseClient(ClickService, transport),
+        sent,
+    }
+}
+
+describe("retrying", () => {
+    beforeEach(() => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+    })
+
+    afterEach(() => vi.restoreAllMocks())
+
+    it("retries a read whose fetch failed", async () => {
+        const {seasons, sent} = network(failedFetch, failedFetch, season)
+
+        await expect(retrying(() => seasons.getSeason({}), "GetSeason")).resolves.toBeInstanceOf(GetSeasonResponse)
+        expect(sent).toHaveLength(3)
+    })
+
+    it("retries a read that timed out", async () => {
+        const {seasons, sent} = network(noAnswer, season)
+
+        await expect(retrying(() => seasons.getSeason({}), "GetSeason")).resolves.toBeInstanceOf(GetSeasonResponse)
+        expect(sent).toHaveLength(2)
+    })
+
+    it("retries a read the gateway could not hand on", async () => {
+        const {seasons, sent} = network(gateway(502), gateway(503), gateway(504), season)
+
+        await expect(retrying(() => seasons.getSeason({}), "GetSeason")).resolves.toBeInstanceOf(GetSeasonResponse)
+        expect(sent).toHaveLength(4)
+    })
+
+    it("never retries an answer the server sent", async () => {
+        const {seasons, sent} = network(refusal("resource_exhausted"), season)
+
+        await expect(retrying(() => seasons.getSeason({}), "GetSeason"))
+            .rejects.toMatchObject({code: Code.ResourceExhausted})
+        expect(sent).toHaveLength(1)
+    })
+
+    it("gives up after five attempts", async () => {
+        const {seasons, sent} = network(failedFetch)
+
+        await expect(retrying(() => seasons.getSeason({}), "GetSeason")).rejects.toThrow("GetSeason failed after 5 attempts")
+        expect(sent).toHaveLength(5)
+    })
+
+    it("stops when the caller gives up", async () => {
+        const controller = new AbortController()
+        const {seasons, sent} = network(async (init) => {
+            controller.abort()
+            return failedFetch(init)
+        })
+
+        await expect(retrying(() => seasons.getSeason({}, {signal: controller.signal}), "GetSeason", controller.signal))
+            .rejects.toMatchObject({name: "AbortError"})
+        expect(sent).toHaveLength(1)
+    })
+})
+
+describe("retryingWrite", () => {
+    beforeEach(() => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+    })
+
+    afterEach(() => vi.restoreAllMocks())
+
+    it("sends a write once when its fetch failed", async () => {
+        const {clicks, sent} = network(failedFetch, clicked)
+
+        await expect(retryingWrite(() => clicks.click({tileId: 1, countryId: "fr"}), "click"))
+            .rejects.toMatchObject({code: Code.Unknown, cause: expect.any(TypeError)})
+        expect(sent).toHaveLength(1)
+    })
+
+    it("sends a write once when it timed out", async () => {
+        const {clicks, sent} = network(noAnswer, clicked)
+
+        await expect(retryingWrite(() => clicks.click({tileId: 1, countryId: "fr"}), "click"))
+            .rejects.toMatchObject({code: Code.DeadlineExceeded})
+        expect(sent).toHaveLength(1)
+    })
+
+    it("sends a write again when the gateway could not hand it on", async () => {
+        const {clicks, sent} = network(gateway(502), clicked)
+
+        await expect(retryingWrite(() => clicks.click({tileId: 1, countryId: "fr"}), "click"))
+            .resolves.toBeInstanceOf(ClickResponse)
+        expect(sent).toHaveLength(2)
+    })
+
+    it("never sends again a write the server refused", async () => {
+        const {clicks, sent} = network(refusal("resource_exhausted"), clicked)
+
+        await expect(retryingWrite(() => clicks.click({tileId: 1, countryId: "fr"}), "click"))
+            .rejects.toBeInstanceOf(ConnectError)
+        expect(sent).toHaveLength(1)
     })
 })
