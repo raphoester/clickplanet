@@ -9,6 +9,7 @@ import {ALL_OFF, BonusNotice, BonusNoticeEvent, BonusReward, BonusRules, Charges
 import {BombDrop, Bomber, BonusCatch, BonusListener, Shielder} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 import {AcceptedClick} from './acceptedClicks.ts';
+import {ClickBudgetSource} from '../../backends/clickBudget.ts';
 
 export type GlobeStatus =
     | {state: 'loading', territories?: number}
@@ -20,6 +21,7 @@ export type UseGlobeOptions = {
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
+    clickBudget?: ClickBudgetSource
     bonusListener?: BonusListener
     bomber?: Bomber
     shielder?: Shielder
@@ -35,7 +37,7 @@ export type UseGlobeOptions = {
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, rendering} = options
+    const {container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, clickHue, mapView, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -87,6 +89,7 @@ export function useGlobe(options: UseGlobeOptions) {
             tileClicker,
             ownershipsGetter,
             updatesListener,
+            clickBudget,
             container: element,
             country: initialCountry.current,
             mapView: latestMapView.current,
@@ -137,7 +140,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, notify])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, notify])
 
     useEffect(() => {
         initialCountry.current = country
