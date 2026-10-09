@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {TileChange} from "./changes.ts"
-import {frontOf, sameFront, spanOf} from "./front.ts"
+import {frontOf, inSightOf, sameFront, spanOf} from "./front.ts"
 import {scoreOf} from "./score.ts"
 
 function took(from: string | undefined, count: number, first = 1): TileChange[] {
@@ -43,6 +43,16 @@ describe("the front", () => {
         const front = {heart: point(1), changes: took("fr", 3).map((change, i) => ({...change, at: 1000 * (i + 1)}))}
 
         expect(spanOf(front, 10)).toEqual({since: 990, until: 3010})
+    })
+
+    it("sees what is near it, on the country it is told on, and nothing across that country far away", () => {
+        const front = {heart: point(1), changes: []}
+        const ground = (tile: number) => tile === 2 ? "ca" : "us"
+
+        expect(inSightOf(front, point, ground, "us")(1)).toBe(true)
+        expect(inSightOf(front, point, ground, "us")(2)).toBe(false)
+        expect(inSightOf(front, point, ground, "us")(9)).toBe(false)
+        expect(inSightOf(front, point, ground, undefined)(2)).toBe(true)
     })
 
     it("is the same as one close by, and not as one across the world", () => {

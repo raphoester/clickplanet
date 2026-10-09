@@ -71,6 +71,15 @@ describe("names said with their article", () => {
         expect(wordsOf(story("battle", {country: "gb"}, "nl")).line).toBe("The battle for the UK")
         expect(wordsOf(story("battle", {country: "gb"}, "nl")).caption).toMatch(/#uk$/)
     })
+
+    it("say the Middle East, a part of Asia, and tag it bare", () => {
+        const words = wordsOf({...story("attack", {region: "Middle East"}), attacker: "dz"})
+
+        expect(words.headline).toBe("ALGERIA IS ATTACKING THE MIDDLE EAST")
+        expect(words.call).toBe("DEFEND THE MIDDLE EAST")
+        expect(words.caption).toMatch(/#middleeast$/)
+        expect(wordsOf({...story("comeback", {region: "Middle East"}), team: "Middle East"}).headline).toBe("THE MIDDLE EAST STRIKES BACK")
+    })
 })
 
 describe("a continent striking back together", () => {
@@ -112,6 +121,15 @@ describe("the caption", () => {
 
     it("tags no place for the world", () => {
         expect(wordsOf(story("attack", {region: "the world"})).caption).toMatch(/#map$/)
+    })
+
+    it("says a flag taking land on every continent at once is taking over the world, and asks to fight back", () => {
+        const words = wordsOf({...story("attack", {region: "the world"}), attacker: "pt"})
+
+        expect(words.headline).toBe("PORTUGAL IS TAKING OVER THE WORLD")
+        expect(words.call).toBe("FIGHT BACK")
+        expect(words.callFlags).toEqual([])
+        expect(words.link).toBe("https://clickplanet.lol")
     })
 })
 

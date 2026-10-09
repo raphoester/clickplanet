@@ -24,7 +24,7 @@ npm run clip:fetch -- --ssh <user@host> --out replay.json  # A replay of the las
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
-npm run regions    # Rewrite each country's continent and sub-region from Natural Earth, for the clips' headlines
+npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
 ```
 
 `.github/workflows/check-frontend.yml` runs lint, build and tests on every PR
@@ -2632,11 +2632,15 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   where. Nearly all in one country (90%) is **"X IS INVADING FRANCE"**; spread over several, it is **"X IS
   ATTACKING"** the continent holding 70% of it (`static/countries/regions.json`, written by `npm run regions` from
   the snapshot the map is cut from), else **"X IS INVADING EGYPT AND TURKEY"** when two countries hold 70% of it,
-  else the world. Not a sub-region: "defend Western Europe" is not how anybody talks. A flag taking back its own ground, or its own continent from a flag from elsewhere (Belgium taking Europe
-  back from Palestine), is **"X STRIKES BACK"**; a flag that already held most of the country
+  else the world. Not a sub-region: "defend Western Europe" is not how anybody talks. But Asia is too big to be one
+  place, and nobody calls Saudi Arabia "Asia": its parts are named as people name them, **"THE MIDDLE EAST"** (western
+  Asia and Iran), South Asia, East Asia, Southeast Asia and Central Asia. A flag taking back its own ground, or its own continent from flags from elsewhere (Belgium taking Europe
+  back from Palestine), is **"X STRIKES BACK"**, when they lost it at least half of what it took there: Portugal taking
+  Europe from Israel first but from Germany, Poland and Spain more is attacking it; a flag that already held most of the country
   when the story starts is **"X IS KICKING Y OUT OF AUSTRALIA"**, since the opening shot shows its flag there
   already; a second flag taking 60% as much makes it **"X VS Y"**, but only when the two are at war, a quarter of
-  what one took taken from the other: Israel and Belgium both taking Europe from Palestine are allies, not a battle.
+  what each took taken from the other: Israel and Belgium both taking Europe from Palestine are allies, not a battle,
+  and Portugal nibbling at Romania while Romania takes the USA from Algeria is no battle either.
   `src/clip/overlay.ts` words it.
 - **A story is about who leads the fighting** (`castOf`): its flags have to take 35% of everything taken around
   it. Below that, flags of one continent taking it back together, with half of it between them, are the story,
@@ -2647,11 +2651,30 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   KICKED OUT OF EUROPE"**, told from its side with its counter falling against the continent's, and one attacker
   becomes **"ISRAEL IS KICKING PALESTINE OUT OF EUROPE"**. When many flags take it and none leads, it is the story
   alone, placed where it lost its land: **"PALESTINE GETS KICKED OUT OF SOUTH AMERICA"**, with "Fight for
-  Palestine". Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
+  Palestine"; when the flag that took most of it leads there, though the flag of the front did not, it is that flag
+  kicking it out (`lossOf`, told from scratch). Only a flag thrown out makes a story of a front nobody leads: Portugal
+  losing France and taking it back by evening, 1,004 of its 1,110 tiles, is no "FRANCE IS KICKING PORTUGAL OUT OF
+  FRANCE", whatever the front's own story was. With `--country`, a story that flag leads nothing in is skipped. Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
   country **"IS FALLING"**, and one attacker taking it is an invasion. A flag taking its own ground back still strikes
   back.
-- **One story per flag and what it did** (`sameStory`), whatever window or scale found it, the best one: one flag
-  beating another, one flag thrown out of one place, one flag striking back. A battle is its two sides in one place.
+- **A flag taking land on several continents at once is on a tour of the world** (`tour.ts`): the busiest stretches
+  of the whole map, for the 3 flags that took the most in each (or `--country`), when no continent holds 70% of
+  what the flag took and it leads what is taken across the world (35%). **"PORTUGAL IS TAKING OVER THE WORLD"**,
+  and its call is "Fight back", with no flag. Each continent with a tenth of what it took is a stop, four at most,
+  in the order it got there (a fifth of it taken). Each stop is framed where it took the most there (Angola, not
+  all of Africa from Guinea-Bissau to Mozambique, which only the whole globe frames). The camera opens on the whole
+  globe over the first stop and dives into it, twice as close as that framing but never past where the painted flags
+  start to blend into the tiles (`flagsZoomOf`): the flags changing hands are what a tour shows. At each stop it
+  follows the flag's fighting there as it happens, as a clip follows its front, then flies to the next, rising a
+  little over a long way (1.6 times out at most), never out to the globe and back in, which was brutal. It pulls back
+  out to the globe over all of them at the end; 1.2s a flight and 2.6s a stop. Up close, a big country's painted flag
+  is blurred: the flag atlas is the game's. The counter counts
+  the flag across the world. A tour is told beside the flag's stories on each continent, not instead of them.
+- **One story per flag and what it did** (`sameStory`), whatever window or scale found it, told over the most of the
+  map (`widerThan`), else the best: one flag taking one place or one inside it, whoever it beat there ("Portugal is
+  invading Germany" is part of "Portugal is attacking Europe"), one flag thrown out of one place, one flag
+  striking back. Portugal beating France in Africa and in India is two stories. A battle is its two sides in one
+  place. `--plan` lists each one dropped with the one it repeats.
 - **Names are said with their article** where English wants one: "the UK", "the Netherlands". Tags keep them bare.
 - **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
   France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
@@ -2680,8 +2703,8 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   story already told by a better candidate (same attacker, same front) is dropped.
 - **`solidity.ts` skips graffiti.** For each tile the attacker took and holds at the end, the share of its 6
   neighbours it holds too: about 1 for land taken, 0.56 for names written across Canada. Under 0.75 the story is
-  skipped, and `--plan` says so. So is a story placed in "the world": its tiles are spread over several continents
-  and there is no one place to show, and "Israel is attacking the world" is a line no clip may carry.
+  skipped, and `--plan` says so. So is a front whose story lands in "the world": its tiles are spread over several
+  continents and there is no one place to show. Only a flag leading the world gets a tour of it.
 - **`look.ts` picks when the camera comes back out of the tiles.** From far, a landmass's painted flag only
   changes when its biggest holder does (`flipsOf`, over the borders blob, read 8 times along the changes, so a
   landmass taken and taken back counts too). A front too wide to frame closer than
@@ -2696,15 +2719,16 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   and holds there 1s before the call to act while the last tiles change hands: close-ups are for the middle, and
   the end shows the rest of the map as it is now. **It never sits still**: where the
   fighting crosses less than 0.4 screens a second, it breathes, out to where the painted flags show and back into
-  the tiles every 3s. **It flies to every bomb on the
-  front**, close enough for the blast to be a fifth of the screen, and holds there while it goes off. The globe is
+  the tiles every 3s. **A bomb holds nothing still**: neither the camera nor the replay's clock stops for it, as five
+  bombs in a row on Portugal froze a clip of Portugal taking Europe. It goes off while the map goes on changing, and
+  the camera goes there only as the tiles it clears pull it, like any others. `--plan` counts the bombs on the front
+  (`inSightOf`): not one in Alaska for a story told on the USA while the fighting is in Florida. The globe is
   always drawn with the painted flags on, so the zoom alone hands them over to the tiles, as in the game.
 - **`pace.ts` spends the clip on what happens and nothing else**: the replay's clock jumps over every quiet
   stretch, so the map moves from the first frame to the last. **A clip is as long as its camera has somewhere to
   go**: 6s for a fight in one place, however many hours it lasted (room for the dive, the close-ups and the pull back
   out), and 1.2s more for every screen the fighting
-  crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds the 2s it holds the clip
-  still for, while it falls and goes off. The last 2.5s are the call to act, and nothing runs past 22s.
+  crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds nothing. The last 2.5s are the call to act, and nothing runs past 22s.
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
 headless Chrome at 540×960 at 2×, waits for `window.clip.ready`, then for each frame calls `window.clip.frame(i)`,

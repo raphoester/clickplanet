@@ -17,6 +17,11 @@ export function coarseHandover(tileSize: number): number {
     return Math.min(1, Math.max(0, (tileSize - COARSE_FROM) / (COARSE_UNTIL - COARSE_FROM)))
 }
 
+// The zoom until which the painted flags have the frame to themselves, before they blend into the tiles.
+export function flagsZoomOf(viewportHeight: number): number {
+    return COARSE_FROM / tilePointSize(1, viewportHeight)
+}
+
 // The zoom from which the tiles have the frame to themselves.
 export function tilesZoomOf(viewportHeight: number): number {
     return COARSE_UNTIL / tilePointSize(1, viewportHeight)

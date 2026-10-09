@@ -43,7 +43,7 @@ function countriesOf(place: Place): string[] {
 }
 
 // The UK, the Netherlands: a name said with its article.
-const SAID_WITH_THE = /^(UK|USA|UAE|Vatican|Gambia)$|(lands|ines|amas|ives|oros|elles)$/
+const SAID_WITH_THE = /^(UK|USA|UAE|Vatican|Gambia|Middle East)$|(lands|ines|amas|ives|oros|elles)$/
 
 function said(name: string): string {
     return SAID_WITH_THE.test(name) ? `the ${name}` : name
@@ -54,7 +54,7 @@ export function placeName(place: Place): string {
 }
 
 function placeSaid(place: Place): string {
-    return "region" in place ? place.region : countriesOf(place).map((country) => said(nameOf(country))).join(" and ")
+    return "region" in place ? said(place.region) : countriesOf(place).map((country) => said(nameOf(country))).join(" and ")
 }
 
 // The flags of a place: its countries', or its continent's own when it has one.
@@ -117,9 +117,9 @@ export function wordsOf(story: Story, headline?: string): Words {
 
     if (story.team !== undefined) {
         return finish({
-            headline: headline ?? `${story.team} STRIKES BACK`.toUpperCase(),
+            headline: headline ?? `${said(story.team)} STRIKES BACK`.toUpperCase(),
             line: undefined,
-            call: `FIGHT FOR ${story.team}`.toUpperCase(),
+            call: `FIGHT FOR ${said(story.team)}`.toUpperCase(),
             callFlags: sides,
             link: SITE,
         }, "Who joins them?")
@@ -147,13 +147,14 @@ export function wordsOf(story: Story, headline?: string): Words {
         }, "Who joins them?")
     }
 
-    const defended = countriesOf(story.place)[0] ?? story.victims[0]
+    const world = "region" in story.place && story.place.region === THE_WORLD
+    const defended = world ? undefined : countriesOf(story.place)[0] ?? story.victims[0]
     return finish({
-        headline: headline ?? (story.kind === "invasion"
-            ? `${attacker} IS INVADING ${place}`
-            : `${attacker} IS ATTACKING ${place}`).toUpperCase(),
+        headline: headline ?? (world ? `${attacker} IS TAKING OVER ${place}`
+            : story.kind === "invasion" ? `${attacker} IS INVADING ${place}`
+                : `${attacker} IS ATTACKING ${place}`).toUpperCase(),
         line: undefined,
-        call: `DEFEND ${place}`.toUpperCase(),
+        call: world ? "FIGHT BACK" : `DEFEND ${place}`.toUpperCase(),
         callFlags: placeFlags(story.place),
         link: defended === undefined ? SITE : `${SITE}/?f=${defended}`,
     }, "Who stops them?")

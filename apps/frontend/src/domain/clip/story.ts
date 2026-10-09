@@ -18,8 +18,8 @@ export type RegionOf = (country: string) => string | undefined
 
 const EVEN_FORCES = 0.6
 
-// Two flags are at war when this much of what one of them took, it took from the other. Two flags taking as much
-// from a third are allies, not a battle.
+// Two flags are at war when this much of what each of them took, it took from the other. Two flags taking as much
+// from a third are allies, not a battle; nor is a flag nibbling at one busy taking a third.
 const AT_WAR = 0.25
 
 const ONE_COUNTRY = 0.9
@@ -67,7 +67,7 @@ export function storyOf(
     const place = placeOf(takes.map(({tile}) => groundOf(tile)), regionOf)
     const home = "country" in place ? place.country === lead
         : "countries" in place ? place.countries.includes(lead)
-            : backHome(lead, place.region, victims, regionOf)
+            : backHome(lead, place.region, takes, regionOf)
     const kind = rival !== undefined ? "battle"
         : home ? "comeback"
             : "region" in place ? "attack"
@@ -94,7 +94,7 @@ export function castOf(story: Story, around: readonly TileChange[], regionOf: Re
 function atWar(changes: readonly TileChange[], one: string, other: string): boolean {
     const between = (from: string, to: string) => changes.filter((change) => change.from === from && change.to === to).length
     const took = (flag: string) => changes.filter(({to}) => to === flag).length
-    return between(other, one) >= took(one) * AT_WAR || between(one, other) >= took(other) * AT_WAR
+    return between(other, one) >= took(one) * AT_WAR && between(one, other) >= took(other) * AT_WAR
 }
 
 // held: the tiles the flag the story takes most from held in the place, when the story starts and when it ends.
@@ -107,9 +107,24 @@ export function routOf(story: Story, held: {before: number, after: number}, led 
     return !home && (story.kind === "attack" || story.kind === "invasion") ? {...story, kind: "kickout"} : story
 }
 
-// Two stories one flag tells about another, at any scale, are one story; so are two about one flag thrown out of one
-// place. Battles are told by both sides in their place.
-export function sameStory(a: Story, b: Story, placeName: (place: Place) => string): boolean {
+// A flag losing land around a front nobody leads, told from scratch: the flag that took the most of it, attacking
+// where it lost it. Only a flag thrown out of there makes it a story (routOf); the front's own story, a kickout or a
+// battle of other flags, says nothing of it.
+export function lossOf(told: Story, loser: string, taker: string, place: Place): Story {
+    return {
+        kind: "region" in place ? "attack" : "invasion",
+        attacker: taker,
+        rival: undefined,
+        victims: [loser, ...told.victims.filter((victim) => victim !== loser)],
+        place,
+        taken: told.taken,
+    }
+}
+
+// Two stories of one flag in one place, or in a place and another inside it, are one story, whoever it beat: Portugal
+// taking Germany is part of Portugal taking Europe. So are two about one flag thrown out of one place. Battles are told
+// by both sides in their place.
+export function sameStory(a: Story, b: Story, placeName: (place: Place) => string, regionOf: RegionOf): boolean {
     if (sameRout(a, b, placeName)) return true
     // A flag thrown out is its story, whoever took its land.
     if (a.kind === "rout" || b.kind === "rout") return false
@@ -117,7 +132,23 @@ export function sameStory(a: Story, b: Story, placeName: (place: Place) => strin
     if (a.kind === "battle" || b.kind === "battle") {
         return a.kind === b.kind && a.attacker === b.attacker && a.rival === b.rival && placeName(a.place) === placeName(b.place)
     }
-    return a.attacker === b.attacker && (a.victims[0] === b.victims[0] || placeName(a.place) === placeName(b.place))
+    return a.attacker === b.attacker && overlaps(a.place, b.place, regionOf)
+}
+
+// Of two tellings of one story, the one over more of the map tells it: the continent before the country.
+export function widerThan(a: Place, b: Place): boolean {
+    const breadth = (place: Place) => "country" in place ? 0 : "countries" in place ? 1 : place.region === THE_WORLD ? 3 : 2
+    return breadth(a) > breadth(b)
+}
+
+// A flag's tour of the world is told beside its stories on each continent, not instead of them.
+function overlaps(a: Place, b: Place, regionOf: RegionOf): boolean {
+    const world = (place: Place) => "region" in place && place.region === THE_WORLD
+    if (world(a) || world(b)) return world(a) && world(b)
+    const countries = (place: Place) => "country" in place ? [place.country] : "countries" in place ? place.countries : []
+    if (!("region" in a) && !("region" in b)) return countries(a).some((country) => countries(b).includes(country))
+    const regions = (place: Place) => "region" in place ? [place.region] : countries(place).map(regionOf)
+    return regions(a).some((region) => regions(b).includes(region))
 }
 
 // Two stories about one flag thrown out of one place are one story.
@@ -134,9 +165,12 @@ export function inPlace(place: Place, ground: string | undefined, regionOf: Regi
     return regionOf(ground) === place.region
 }
 
-// A flag of a continent taking it back from a flag from elsewhere is not attacking it.
-function backHome(lead: string, region: string, victims: readonly string[], regionOf: RegionOf): boolean {
-    return regionOf(lead) === region && victims.length > 0 && regionOf(victims[0]) !== region
+// A flag of a continent taking it back from flags from elsewhere is not attacking it: when they lost it at least half
+// of what it took there, not only when one of them lost it the most.
+function backHome(lead: string, region: string, takes: readonly TileChange[], regionOf: RegionOf): boolean {
+    const losers = takes.flatMap(({from}) => from === undefined || from === lead ? [] : [from])
+    return regionOf(lead) === region && losers.length > 0
+        && losers.filter((loser) => regionOf(loser) !== region).length * 2 >= losers.length
 }
 
 // One country when nearly all of it is there, else the continent most of it is in, else the two countries most of
