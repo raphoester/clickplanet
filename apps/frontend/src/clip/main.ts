@@ -18,7 +18,7 @@ import {HIGHLIGHTS} from "./anthemHighlightsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
 import {Candidate, candidatesOf, inCandidate, Window} from "../domain/clip/window.ts"
 import {Front, frontOf, FRONT_RADIANS, inSightOf, sameFront, spanOf} from "../domain/clip/front.ts"
-import {castOf, inPlace, placeOf, routOf, sameStory, Story, storyOf, THE_WORLD, widerThan} from "../domain/clip/story.ts"
+import {castOf, inPlace, lossOf, placeOf, routOf, sameStory, Story, storyOf, THE_WORLD, widerThan} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
 import {cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
@@ -248,12 +248,8 @@ async function prepare(): Promise<Recording> {
         const loser = cast?.victims[0] ?? losersOf(around)[0]
         // Told where the loser lost its land, not where its top taker took it.
         const lost = around.filter(({from, to}) => from === loser && to !== undefined)
-        const base = cast ?? {
-            ...told,
-            attacker: takersFrom(around, loser ?? "")[0] ?? told.attacker,
-            victims: [loser ?? told.victims[0], ...told.victims.filter((victim) => victim !== loser)],
-            place: lost.length > 0 ? placeOf(lost.map(({tile}) => groundAt(tile)), regionOf) : told.place,
-        }
+        const base = cast ?? (loser === undefined ? told : lossOf(told, loser, takersFrom(around, loser)[0] ?? told.attacker,
+            lost.length > 0 ? placeOf(lost.map(({tile}) => groundAt(tile)), regionOf) : told.place))
         const after = ownersAfter(backend.opening, backend.changes())
         const heldBy = (owners: ReadonlyMap<number, string>) => [...owners].filter(([tile, owner]) =>
             owner === loser && inPlace(base.place, groundAt(tile), regionOf)).length

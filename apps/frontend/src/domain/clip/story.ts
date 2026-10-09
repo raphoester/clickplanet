@@ -107,6 +107,20 @@ export function routOf(story: Story, held: {before: number, after: number}, led 
     return !home && (story.kind === "attack" || story.kind === "invasion") ? {...story, kind: "kickout"} : story
 }
 
+// A flag losing land around a front nobody leads, told from scratch: the flag that took the most of it, attacking
+// where it lost it. Only a flag thrown out of there makes it a story (routOf); the front's own story, a kickout or a
+// battle of other flags, says nothing of it.
+export function lossOf(told: Story, loser: string, taker: string, place: Place): Story {
+    return {
+        kind: "region" in place ? "attack" : "invasion",
+        attacker: taker,
+        rival: undefined,
+        victims: [loser, ...told.victims.filter((victim) => victim !== loser)],
+        place,
+        taken: told.taken,
+    }
+}
+
 // Two stories of one flag in one place, or in a place and another inside it, are one story, whoever it beat: Portugal
 // taking Germany is part of Portugal taking Europe. So are two about one flag thrown out of one place. Battles are told
 // by both sides in their place.

@@ -2650,7 +2650,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   becomes **"ISRAEL IS KICKING PALESTINE OUT OF EUROPE"**. When many flags take it and none leads, it is the story
   alone, placed where it lost its land: **"PALESTINE GETS KICKED OUT OF SOUTH AMERICA"**, with "Fight for
   Palestine"; when the flag that took most of it leads there, though the flag of the front did not, it is that flag
-  kicking it out. With `--country`, a story that flag leads nothing in is skipped. Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
+  kicking it out (`lossOf`, told from scratch). Only a flag thrown out makes a story of a front nobody leads: Portugal
+  losing France and taking it back by evening, 1,004 of its 1,110 tiles, is no "FRANCE IS KICKING PORTUGAL OUT OF
+  FRANCE", whatever the front's own story was. With `--country`, a story that flag leads nothing in is skipped. Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
   country **"IS FALLING"**, and one attacker taking it is an invasion. A flag taking its own ground back still strikes
   back.
 - **A flag taking land on several continents at once is on a tour of the world** (`tour.ts`): the busiest stretches

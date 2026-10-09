@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {TileChange} from "./changes.ts"
-import {castOf, inPlace, placeOf, routOf, sameRout, sameStory, Story, storyOf, THE_WORLD, widerThan} from "./story.ts"
+import {castOf, inPlace, lossOf, placeOf, routOf, sameRout, sameStory, Story, storyOf, THE_WORLD, widerThan} from "./story.ts"
 
 const REGIONS: Record<string, string> = {
     fr: "Europe",
@@ -179,6 +179,15 @@ describe("a flag thrown out", () => {
         const many = {...europe, kind: "attack" as const, attacker: "cy", team: undefined}
 
         expect(routOf(many, {before: 1000, after: 200}, false)).toMatchObject({kind: "rout", victims: ["ps"]})
+    })
+
+    it("is told from scratch around a front nobody leads, never as the front's own story", () => {
+        const front: Story = {kind: "kickout", attacker: "pl", rival: "dz", victims: ["fr", "pt"], place: {country: "fr"}, taken: 900}
+        const loss = lossOf(front, "pt", "fr", {country: "fr"})
+
+        expect(loss).toMatchObject({kind: "invasion", attacker: "fr", rival: undefined, victims: ["pt", "fr"]})
+        expect(routOf(loss, {before: 1110, after: 1004}).kind).toBe("invasion")
+        expect(routOf(loss, {before: 1110, after: 300}).kind).toBe("kickout")
     })
 
     it("is never one attacker kicking a flag out of its own land", () => {
