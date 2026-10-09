@@ -927,7 +927,11 @@ draws it.
   goes and says nothing of the toll: the dock shows the slowdown of the country
   played for, and `ClicksPanel` the whole table. All of it so a phone with its
   browser's toolbars (about 390 × 664) shows eight rows of the table, not one
-  (2026-10-09).
+  (2026-10-09). **The whole sheet scrolls there, not the table alone**
+  (`.board-sheet` in `Menu.css`): the table's column heads stick to the top, and
+  "playing for" and the leader's frame go up out of the way, so a scrolled board
+  shows about seventeen rows. The fade at the foot sticks to the sheet's bottom
+  edge. The desktop menu still scrolls the table alone, under the leader.
 - **The view is picked from the board's heading** (`HeadingSelect`, a gold
   section title that opens a listbox), not from tabs: the board is already a
   tab of the menu, and tabs in a tab read as one row of places. **The list is

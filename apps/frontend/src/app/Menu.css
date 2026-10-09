@@ -211,6 +211,25 @@
     gap: var(--space-2);
 }
 
+/* The whole sheet scrolls, not the table alone: the leader's frame goes up out of the way and the column heads stay. */
+.board-sheet .leaderboard,
+.board-sheet .leaderboard-table-container {
+    flex: none;
+    overflow: visible;
+}
+
+.board-sheet .leaderboard-table-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--panel);
+}
+
+.board-sheet .leaderboard::after {
+    position: sticky;
+    margin-top: -36px;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .menu-tile {
         transition: none;
