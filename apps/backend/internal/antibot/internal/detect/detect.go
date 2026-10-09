@@ -13,14 +13,26 @@ type Click struct {
 	Account  string
 	SignedIn bool
 
-	Tile    uint32
-	Country string
-	At      time.Time
+	Tile     uint32
+	Position Point
+	Country  string
+	At       time.Time
 
 	Held string
 	NoOp bool
 
 	Shielded bool
+}
+
+type Point struct{ X, Y, Z float64 }
+
+func (p Point) Known() bool { return p != Point{} }
+
+func (c Click) Payer() string {
+	if c.Account != "" {
+		return "account:" + c.Account
+	}
+	return "scope:" + c.Scope
 }
 
 type Verdict uint8

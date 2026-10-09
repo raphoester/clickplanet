@@ -1917,9 +1917,9 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
-**The whole of its API is ten names**, and `internal/antibot/antibot.go` is all
+**The whole of its API is eleven names**, and `internal/antibot/antibot.go` is all
 of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
-`Click`, `Report`, `Sentence`, `Examination` and `Reading` — the types a caller writes down, because it builds one
+`Click`, `Point`, `Report`, `Sentence`, `Examination` and `Reading` — the types a caller writes down, because it builds two
 and is handed the others. A caller hands over the block and the two hooks it wants
 findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
 the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Fetched`, `Listened`, `Flagged`, `Banned`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
@@ -1962,7 +1962,7 @@ afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
 
-#### Eight watchdogs, one jury
+#### Nine watchdogs, one jury
 
 A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
@@ -1974,6 +1974,7 @@ A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 - **`cohort`** — starts, paces and stops in step with other scopes, group after group.
 - **`scraper`** — reads the whole map again and again, which the web app never does.
 - **`churner`** — sheds its guest account for a fresh bank: many new accounts on one scope (`churn`), or one fresh account after another across a carrier's /64s (`relay`).
+- **`hopper`** — aims all over the globe: click after click lands a continent away from the last.
 
 **Every watchdog has two levels, and that is the design.** `Certain` is a reading
 no hand produces and bans on its own. `Suspect` is a reading that would ban real
@@ -2005,7 +2006,8 @@ goes quiet; with nothing left to corroborate it, `metronome` has to reach
 bought for one line of the bot's code. `TestSweepingInARandomOrderStillGetsCaught`
 pins that too. The answer to that is a fourth watchdog, not a looser bound on the
 third: loosening `metronome` to catch it sooner is how the obsessed player gets
-banned.
+banned. `hopper` is one, for shuffled ids that land all over the globe:
+`TestALoopAimingAllOverTheGlobeIsCaughtBeforeTheClockIsSure`.
 
 **Every watchdog sees every click, including the ones a ban is already
 dropping.** A watchdog cut off the moment another one banned the caller would be
@@ -2473,6 +2475,47 @@ watchdog read `clear`: none lived long enough, and `stamina` counts per account.
 - The counter-moves left cost the bank: keep an account past `maxLife`, wait past
   `handoff` between accounts, or draw /64s from unrelated carriers.
 
+**`hopper`: where a caller aims, not when.** A hand paints where it is looking.
+Zoomed out, the globe shows a hemisphere, so a person does jump a continent in a
+second — Canada to Australia, Africa to Brazil — but not often. A loop that picks
+its tiles from anywhere on the map jumps that far on most of its steps (85% for
+tiles drawn evenly over the sphere).
+
+- **A step is two tries in a row by one payer**, `minGap` (100ms) to `maxGap` (30s)
+  apart, and it **hops** when the two tiles are `minAngle` (45°) or more apart. The
+  share of hops over the steps of `trackWindow`, at most `certainSteps` of them,
+  reads `suspect` at `minShare` once there are `minSteps`, and `certain` at
+  `certainShare` once there are `certainSteps`. Zero shares never read; the sweep
+  reports each payer with `minSteps` through `Observer.OnHopShare`, into
+  `click_hop_share`.
+- **Measured before it was set**, over the ledger of 2026-10-06 to 09 (whole
+  seconds, banned accounts included): the worst 40 steps of any account held 10%
+  hops with steps up to 1s apart, 12.5% up to 10s and 17.5% up to 30s. The most
+  restless player made 53 hops in three days, 0.6% of its steps. 20° is too
+  tight: one player's worst 40 steps read 35% at it.
+- **`maxGap` is long because the throttle is.** Production refills a click every
+  2.5s to 20s, so a loop that waits for each refill never clicks twice inside 2s,
+  and people given time to turn the globe still stay where they paint.
+- **`minGap` is the dead network.** Taps held through a stall, or through the
+  Turnstile wait, arrive milliseconds apart however far apart they were made, so a
+  gap that short is no step and a flush counts only its two ends.
+  `TestAFlushOfHeldTapsCountsOnlyItsEnds` pins it.
+- **It reads tries, like the metronome** (`Attempted`): a try the throttle refused
+  was aimed by the same hand. The position comes from the edge —
+  `antibot_attempt_click` asks `clicks.Geography.Position` and sets
+  `Click.Position` — and a try off the map has none and is no step.
+- **It counts the payer, not the scope**, as `stamina` does: two players behind one
+  NAT painting two continents in turn are two hands. With no account there is
+  nothing to tell them apart. `TestPlayersBehindOneAddressAreJudgedApart` pins both.
+  The reading lands on the scope's jury record.
+- **It only reads `Suspect` in production** (`minShare` 0.4, no `certainShare`).
+  No bot seen so far hopped — each painted one area — so this is for the next one,
+  and alone it bans nobody (`TestHoppingAloneBansNobody`). Beside `cadence` it
+  stops the shuffled loop in about two minutes instead of `certainFor`.
+- **A restart stitches nothing**: the evidence keeps the steps, not the last try,
+  so the first try after a boot only starts the next step.
+- The counter-move is to aim near the last tile, which is to paint like a person.
+
 #### The parts that are easy to get wrong
 
 **Three things are deliberately not reactions**, and each is a way to get an
@@ -2498,7 +2541,7 @@ then strike. It is a click: the `retaker` times it as a reaction, and the
 records no take on the tile, and the `defender` records no loss for `Held` and never
 reads it as a retake.
 
-Note that `sequencer` and `metronome` ignore all of it: a bot sweeping ids walks
+Note that `sequencer`, `metronome` and `hopper` ignore all of it: a bot sweeping ids walks
 over tiles it already owns and over ids the handler refuses, and both are part of
 the walk.
 
@@ -2759,7 +2802,7 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
     so a rule that still reads `certain` bans the caller again on its first click after `reflagInterval`, as a
     first offence. **Fix the rule first**, then unban. `InspectPlayer` says which rule it was. Forgetting the
     evidence instead would only put the ban off until the same play reads the same way again, and it would take
-    a forget in each of the eight watchdogs, keyed by scope, by account or by wider prefix. `TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain` pins it.
+    a forget in each of the nine watchdogs, keyed by scope, by account or by wider prefix. `TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain` pins it.
 - **`InspectPlayer(scope | account_id)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`. **An account is read on the scope of its latest take** in the ledger, because the watchdogs judge scopes, with the bans on both; an account with no take inside the retention answers its bans alone and an empty `scope`. It changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `ledger.ParseCaller` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
 - `audit_ban`, `audit_unban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers`, `TopPlayers` and `InspectPlayer` are reads and log nothing.
 
