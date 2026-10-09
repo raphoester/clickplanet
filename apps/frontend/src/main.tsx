@@ -40,7 +40,7 @@ followBrowser(connection, window)
 
 const config = {
     baseUrl: API_BASE_URL,
-    timeoutMs: 2000,
+    timeoutMs: 10_000,
     interceptors: [connectionInterceptor(connection)],
 }
 

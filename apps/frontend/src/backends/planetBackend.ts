@@ -38,7 +38,7 @@ import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {v4 as generateUUID} from 'uuid';
-import {Config, NO_TIMEOUT, openStream, retrying, retryingWrite} from "./transport.ts";
+import {Config, NO_TIMEOUT, openStream, retrying, retryingAtOnce} from "./transport.ts";
 import {NoSession, SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts";
 
 export type {Config}
@@ -146,7 +146,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         if (token) headers.set(SESSION_HEADER, token)
 
         try {
-            const res = await retryingWrite(
+            const res = await retryingAtOnce(
                 () => this.client.click({tileId, countryId, spread, enclose}, {headers}),
                 `click ${tileId}`,
             )

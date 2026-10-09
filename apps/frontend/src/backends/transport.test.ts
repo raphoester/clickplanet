@@ -6,7 +6,7 @@ import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts"
 import {ClickResponse} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {SeasonService} from "../gen/grpc/seasons/v1/seasons_connect.ts"
 import {GetSeasonResponse} from "../gen/grpc/seasons/v1/seasons_pb.ts"
-import {openStream, retrying, retryingWrite, SILENCE_LIMIT_MS, Wakeups} from "./transport.ts"
+import {openStream, retrying, retryingAtOnce, SILENCE_LIMIT_MS, Wakeups} from "./transport.ts"
 
 type Opened<T> = {
     signal: AbortSignal
@@ -374,6 +374,116 @@ describe("openStream", () => {
     })
 })
 
+describe("retrying", () => {
+    beforeEach(() => {
+        vi.useFakeTimers()
+        vi.spyOn(console, "error").mockImplementation(() => {})
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
+        vi.restoreAllMocks()
+    })
+
+    const timedOut = () => new ConnectError("the operation timed out", Code.DeadlineExceeded)
+
+    it("retries a read that timed out", async () => {
+        const read = vi.fn()
+            .mockRejectedValueOnce(timedOut())
+            .mockResolvedValue("map")
+
+        expect(await retrying(read, "read")).toBe("map")
+        expect(read).toHaveBeenCalledTimes(2)
+    })
+
+    it("waits longer before each later attempt, so a dropped connection has time to come back", async () => {
+        const read = vi.fn().mockRejectedValue(new ConnectError("offline", Code.Unavailable))
+        const result = retrying(read, "read").catch((e: unknown) => e)
+
+        await vi.advanceTimersByTimeAsync(0)
+        expect(read).toHaveBeenCalledTimes(2)
+
+        await vi.advanceTimersByTimeAsync(999)
+        expect(read).toHaveBeenCalledTimes(2)
+        await vi.advanceTimersByTimeAsync(1)
+        expect(read).toHaveBeenCalledTimes(3)
+
+        await vi.advanceTimersByTimeAsync(2_000)
+        expect(read).toHaveBeenCalledTimes(4)
+
+        await vi.advanceTimersByTimeAsync(30_000)
+        expect(read).toHaveBeenCalledTimes(8)
+        expect(await result).toBeInstanceOf(Error)
+    })
+
+    it("stops waiting once the caller aborts", async () => {
+        const controller = new AbortController()
+        const read = vi.fn().mockRejectedValue(timedOut())
+        const result = retrying(read, "read", controller.signal).catch((e: unknown) => e)
+
+        await vi.advanceTimersByTimeAsync(0)
+        controller.abort()
+        await vi.advanceTimersByTimeAsync(60_000)
+
+        expect(read).toHaveBeenCalledTimes(2)
+        expect(await result).toBe(controller.signal.reason)
+    })
+
+    it("retries a fetch that failed, which connect-web reports as unknown", async () => {
+        const read = vi.fn()
+            .mockRejectedValueOnce(ConnectError.from(new TypeError("Failed to fetch")))
+            .mockResolvedValue("map")
+
+        expect(await retrying(read, "read")).toBe("map")
+        expect(read).toHaveBeenCalledTimes(2)
+    })
+
+    it("does not retry an unknown error the server sent", async () => {
+        const read = vi.fn().mockRejectedValue(new ConnectError("boom", Code.Unknown))
+
+        await expect(retrying(read, "read")).rejects.toThrow(/boom/)
+        expect(read).toHaveBeenCalledTimes(1)
+    })
+
+    it("does not retry an answer the server chose to send", async () => {
+        const read = vi.fn().mockRejectedValue(new ConnectError("nope", Code.InvalidArgument))
+
+        await expect(retrying(read, "read")).rejects.toThrow(/nope/)
+        expect(read).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("retryingAtOnce", () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it("retries at once while the server cannot be reached", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const act = vi.fn()
+            .mockRejectedValueOnce(new ConnectError("offline", Code.Unavailable))
+            .mockResolvedValue("done")
+
+        expect(await retryingAtOnce(act, "act")).toBe("done")
+        expect(act).toHaveBeenCalledTimes(2)
+    })
+
+    it("retries at once a fetch that failed", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const act = vi.fn()
+            .mockRejectedValueOnce(ConnectError.from(new TypeError("Load failed")))
+            .mockResolvedValue("done")
+
+        expect(await retryingAtOnce(act, "act")).toBe("done")
+        expect(act).toHaveBeenCalledTimes(2)
+    })
+
+    it("does not retry an act that timed out, which may have landed", async () => {
+        const act = vi.fn().mockRejectedValue(new ConnectError("the operation timed out", Code.DeadlineExceeded))
+
+        await expect(retryingAtOnce(act, "act")).rejects.toThrow(/timed out/)
+        expect(act).toHaveBeenCalledTimes(1)
+    })
+})
+
 type Reply = (init: RequestInit | undefined) => Promise<Response>
 
 const failedFetch: Reply = async () => {
@@ -422,7 +532,7 @@ function network(...replies: Reply[]) {
     }
 }
 
-describe("retrying", () => {
+describe("retrying over connect-web", () => {
     beforeEach(() => {
         vi.spyOn(console, "error").mockImplementation(() => {})
     })
@@ -430,10 +540,10 @@ describe("retrying", () => {
     afterEach(() => vi.restoreAllMocks())
 
     it("retries a read whose fetch failed", async () => {
-        const {seasons, sent} = network(failedFetch, failedFetch, season)
+        const {seasons, sent} = network(failedFetch, season)
 
         await expect(retrying(() => seasons.getSeason({}), "GetSeason")).resolves.toBeInstanceOf(GetSeasonResponse)
-        expect(sent).toHaveLength(3)
+        expect(sent).toHaveLength(2)
     })
 
     it("retries a read that timed out", async () => {
@@ -443,14 +553,14 @@ describe("retrying", () => {
         expect(sent).toHaveLength(2)
     })
 
-    it("retries a read the gateway could not hand on", async () => {
-        const {seasons, sent} = network(gateway(502), gateway(503), gateway(504), season)
+    it.each([502, 503, 504])("retries a read the gateway answered %i", async (status) => {
+        const {seasons, sent} = network(gateway(status), season)
 
         await expect(retrying(() => seasons.getSeason({}), "GetSeason")).resolves.toBeInstanceOf(GetSeasonResponse)
-        expect(sent).toHaveLength(4)
+        expect(sent).toHaveLength(2)
     })
 
-    it("never retries an answer the server sent", async () => {
+    it("never retries a read the server refused", async () => {
         const {seasons, sent} = network(refusal("resource_exhausted"), season)
 
         await expect(retrying(() => seasons.getSeason({}), "GetSeason"))
@@ -458,62 +568,27 @@ describe("retrying", () => {
         expect(sent).toHaveLength(1)
     })
 
-    it("gives up after five attempts", async () => {
-        const {seasons, sent} = network(failedFetch)
-
-        await expect(retrying(() => seasons.getSeason({}), "GetSeason")).rejects.toThrow("GetSeason failed after 5 attempts")
-        expect(sent).toHaveLength(5)
-    })
-
-    it("stops when the caller gives up", async () => {
-        const controller = new AbortController()
-        const {seasons, sent} = network(async (init) => {
-            controller.abort()
-            return failedFetch(init)
-        })
-
-        await expect(retrying(() => seasons.getSeason({}, {signal: controller.signal}), "GetSeason", controller.signal))
-            .rejects.toMatchObject({name: "AbortError"})
-        expect(sent).toHaveLength(1)
-    })
-})
-
-describe("retryingWrite", () => {
-    beforeEach(() => {
-        vi.spyOn(console, "error").mockImplementation(() => {})
-    })
-
-    afterEach(() => vi.restoreAllMocks())
-
-    it("sends a write once when its fetch failed", async () => {
+    it("sends a click again when its fetch failed", async () => {
         const {clicks, sent} = network(failedFetch, clicked)
 
-        await expect(retryingWrite(() => clicks.click({tileId: 1, countryId: "fr"}), "click"))
-            .rejects.toMatchObject({code: Code.Unknown, cause: expect.any(TypeError)})
-        expect(sent).toHaveLength(1)
-    })
-
-    it("sends a write once when it timed out", async () => {
-        const {clicks, sent} = network(noAnswer, clicked)
-
-        await expect(retryingWrite(() => clicks.click({tileId: 1, countryId: "fr"}), "click"))
-            .rejects.toMatchObject({code: Code.DeadlineExceeded})
-        expect(sent).toHaveLength(1)
-    })
-
-    it("sends a write again when the gateway could not hand it on", async () => {
-        const {clicks, sent} = network(gateway(502), clicked)
-
-        await expect(retryingWrite(() => clicks.click({tileId: 1, countryId: "fr"}), "click"))
+        await expect(retryingAtOnce(() => clicks.click({tileId: 1, countryId: "fr"}), "click"))
             .resolves.toBeInstanceOf(ClickResponse)
         expect(sent).toHaveLength(2)
     })
 
-    it("never sends again a write the server refused", async () => {
+    it("sends a click once when it timed out", async () => {
+        const {clicks, sent} = network(noAnswer, clicked)
+
+        await expect(retryingAtOnce(() => clicks.click({tileId: 1, countryId: "fr"}), "click"))
+            .rejects.toMatchObject({code: Code.DeadlineExceeded})
+        expect(sent).toHaveLength(1)
+    })
+
+    it("never sends again a click the server refused", async () => {
         const {clicks, sent} = network(refusal("resource_exhausted"), clicked)
 
-        await expect(retryingWrite(() => clicks.click({tileId: 1, countryId: "fr"}), "click"))
-            .rejects.toBeInstanceOf(ConnectError)
+        await expect(retryingAtOnce(() => clicks.click({tileId: 1, countryId: "fr"}), "click"))
+            .rejects.toMatchObject({code: Code.ResourceExhausted})
         expect(sent).toHaveLength(1)
     })
 })

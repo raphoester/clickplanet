@@ -230,8 +230,8 @@ playing](#who-is-playing)). `playerBackend.ts` implements both against
 `player.v1.PlayerService`.
 
 `transport.ts` holds what both contexts need and neither owns: `retrying`,
-`NO_TIMEOUT`, and `openStream`, which follows a server-streaming RPC and reopens
-it with a capped exponential backoff. It is generic over the message type and
+`retryingAtOnce`, `NO_TIMEOUT`, and `openStream`, which follows a
+server-streaming RPC and reopens it with a capped exponential backoff. It is generic over the message type and
 knows nothing about what it carries, so each context keeps its own mapping —
 `PlanetBackend.listenForUpdates` and `ChatServiceBackend.listenForMessages` are
 both a few lines over it.
@@ -273,9 +273,9 @@ gap sooner:
   pass their own `wakeups`.
 
 **`NO_TIMEOUT` is load-bearing, not decoration.** `main.tsx` builds the clients
-with `timeoutMs: 2000`, and connect-web applies `defaultTimeoutMs` to a stream
+with `timeoutMs: 10_000`, and connect-web applies `defaultTimeoutMs` to a stream
 exactly as to a unary call — so without passing `timeoutMs: NO_TIMEOUT` on the
-call, every live feed would die two seconds in and reconnect forever. Anything
+call, every live feed would die ten seconds in and reconnect forever. Anything
 `<= 0` means no timeout.
 
 `planetBackend.ts` is production, `fakeBackend.ts` is for development, and the
@@ -299,18 +299,21 @@ are implicit in the position, so it is far smaller than a keyed map — 516 KB
 against 3.6 MB for a full map — and protobuf does all the framing, so there is
 no hand-rolled encoding to keep in step with the backend.
 
-Connect does not retry, so `retrying` wraps every read: five attempts while the
-server cannot be reached, and never a retry of an answer the server chose to
-send. **Cannot be reached is `outcomeOf`'s miss** (`connection.ts`, see
-[Connection health](#connection-health)): a failed fetch, a timeout or a 502 to
-504. connect-web hands a failed fetch back as `Unknown`, with the browser's
-`TypeError` as its cause, so a rule on `Unavailable` alone never retried a
-request lost on a bad phone network.
-
-**A write is not sent again after a failed fetch or a timeout**: its answer may
-be what was lost, and a click sent twice spends two clicks, and two spread
-charges. `Click` goes through `retryingWrite`, which retries a 502 to 504
-alone; every other write is sent once.
+Connect does not retry, so `retrying` wraps every read: eight attempts while the
+server cannot be reached or does not answer in time, and never a retry of an
+answer the server chose to send. **A failed fetch is `unknown`, not
+`unavailable`**: connect-web wraps the fetch's `TypeError` as the cause, and
+that is how "cannot be reached" is told from an `unknown` the server sent.
+The rule is `outcomeOf`'s miss, in `connection.ts`: the one the connection
+card counts by (see [Connection health](#connection-health)).
+Until this was known, no dropped connection was ever retried. **It is built for a phone on a train**: the
+second attempt goes at once (a dead pooled connection), then it waits 1s, 2s,
+4s and 8s, about 30s in all, so a tunnel does not fail the map. The timeout was
+2s once, and was not retried: one slow `GetMap` batch of the 26 failed the
+whole globe. The click goes through `retryingAtOnce` instead: five attempts
+with no wait, and **a click that timed out is not sent again**, since it may
+have landed and costs a click and maybe a charge. It is rolled back, and the
+echo repaints it if it did land.
 
 The backend refuses a click in three ways, and `clickTile` translates all of
 them into errors declared beside the interfaces — the first two in `backend.ts`,
