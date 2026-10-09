@@ -36,7 +36,7 @@ if (page.searchParams.has(SHARE_FLAG_PARAM)) window.history.replaceState(null, "
 
 const config = {
     baseUrl: API_BASE_URL,
-    timeoutMs: 2000,
+    timeoutMs: 10_000,
 }
 
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY

@@ -1,5 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {openStream, SILENCE_LIMIT_MS, Wakeups} from "./transport.ts"
+import {Code, ConnectError} from "@connectrpc/connect"
+import {openStream, retrying, retryingAtOnce, SILENCE_LIMIT_MS, Wakeups} from "./transport.ts"
 
 type Opened<T> = {
     signal: AbortSignal
@@ -364,5 +365,89 @@ describe("openStream", () => {
         await settle()
 
         expect(source.opened).toHaveLength(1)
+    })
+})
+
+describe("retrying", () => {
+    beforeEach(() => {
+        vi.useFakeTimers()
+        vi.spyOn(console, "error").mockImplementation(() => {})
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
+        vi.restoreAllMocks()
+    })
+
+    const timedOut = () => new ConnectError("the operation timed out", Code.DeadlineExceeded)
+
+    it("retries a read that timed out", async () => {
+        const read = vi.fn()
+            .mockRejectedValueOnce(timedOut())
+            .mockResolvedValue("map")
+
+        expect(await retrying(read, "read")).toBe("map")
+        expect(read).toHaveBeenCalledTimes(2)
+    })
+
+    it("waits longer before each later attempt, so a dropped connection has time to come back", async () => {
+        const read = vi.fn().mockRejectedValue(new ConnectError("offline", Code.Unavailable))
+        const result = retrying(read, "read").catch((e: unknown) => e)
+
+        await vi.advanceTimersByTimeAsync(0)
+        expect(read).toHaveBeenCalledTimes(2)
+
+        await vi.advanceTimersByTimeAsync(999)
+        expect(read).toHaveBeenCalledTimes(2)
+        await vi.advanceTimersByTimeAsync(1)
+        expect(read).toHaveBeenCalledTimes(3)
+
+        await vi.advanceTimersByTimeAsync(2_000)
+        expect(read).toHaveBeenCalledTimes(4)
+
+        await vi.advanceTimersByTimeAsync(30_000)
+        expect(read).toHaveBeenCalledTimes(8)
+        expect(await result).toBeInstanceOf(Error)
+    })
+
+    it("stops waiting once the caller aborts", async () => {
+        const controller = new AbortController()
+        const read = vi.fn().mockRejectedValue(timedOut())
+        const result = retrying(read, "read", controller.signal).catch((e: unknown) => e)
+
+        await vi.advanceTimersByTimeAsync(0)
+        controller.abort()
+        await vi.advanceTimersByTimeAsync(60_000)
+
+        expect(read).toHaveBeenCalledTimes(2)
+        expect(await result).toBe(controller.signal.reason)
+    })
+
+    it("does not retry an answer the server chose to send", async () => {
+        const read = vi.fn().mockRejectedValue(new ConnectError("nope", Code.InvalidArgument))
+
+        await expect(retrying(read, "read")).rejects.toThrow(/nope/)
+        expect(read).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("retryingAtOnce", () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    it("retries at once while the server cannot be reached", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const act = vi.fn()
+            .mockRejectedValueOnce(new ConnectError("offline", Code.Unavailable))
+            .mockResolvedValue("done")
+
+        expect(await retryingAtOnce(act, "act")).toBe("done")
+        expect(act).toHaveBeenCalledTimes(2)
+    })
+
+    it("does not retry an act that timed out, which may have landed", async () => {
+        const act = vi.fn().mockRejectedValue(new ConnectError("the operation timed out", Code.DeadlineExceeded))
+
+        await expect(retryingAtOnce(act, "act")).rejects.toThrow(/timed out/)
+        expect(act).toHaveBeenCalledTimes(1)
     })
 })
