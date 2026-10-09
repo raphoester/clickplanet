@@ -64,8 +64,10 @@ async function retried<T>(
     throw new Error(`${what} failed after ${attempts} attempts`, {cause: lastError})
 }
 
+// connect-web turns a failed fetch into Unknown, with the fetch's TypeError as its cause.
 function unreachable(e: unknown): boolean {
-    return !(e instanceof ConnectError) || e.code === Code.Unavailable
+    if (!(e instanceof ConnectError)) return true
+    return e.code === Code.Unavailable || (e.code === Code.Unknown && e.cause instanceof TypeError)
 }
 
 function timedOut(e: unknown): boolean {

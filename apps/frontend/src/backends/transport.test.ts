@@ -423,6 +423,22 @@ describe("retrying", () => {
         expect(await result).toBe(controller.signal.reason)
     })
 
+    it("retries a fetch that failed, which connect-web reports as unknown", async () => {
+        const read = vi.fn()
+            .mockRejectedValueOnce(ConnectError.from(new TypeError("Failed to fetch")))
+            .mockResolvedValue("map")
+
+        expect(await retrying(read, "read")).toBe("map")
+        expect(read).toHaveBeenCalledTimes(2)
+    })
+
+    it("does not retry an unknown error the server sent", async () => {
+        const read = vi.fn().mockRejectedValue(new ConnectError("boom", Code.Unknown))
+
+        await expect(retrying(read, "read")).rejects.toThrow(/boom/)
+        expect(read).toHaveBeenCalledTimes(1)
+    })
+
     it("does not retry an answer the server chose to send", async () => {
         const read = vi.fn().mockRejectedValue(new ConnectError("nope", Code.InvalidArgument))
 
@@ -438,6 +454,16 @@ describe("retryingAtOnce", () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
         const act = vi.fn()
             .mockRejectedValueOnce(new ConnectError("offline", Code.Unavailable))
+            .mockResolvedValue("done")
+
+        expect(await retryingAtOnce(act, "act")).toBe("done")
+        expect(act).toHaveBeenCalledTimes(2)
+    })
+
+    it("retries at once a fetch that failed", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const act = vi.fn()
+            .mockRejectedValueOnce(ConnectError.from(new TypeError("Load failed")))
             .mockResolvedValue("done")
 
         expect(await retryingAtOnce(act, "act")).toBe("done")

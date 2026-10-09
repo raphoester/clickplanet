@@ -301,7 +301,10 @@ no hand-rolled encoding to keep in step with the backend.
 
 Connect does not retry, so `retrying` wraps every read: eight attempts while the
 server cannot be reached or does not answer in time, and never a retry of an
-answer the server chose to send. **It is built for a phone on a train**: the
+answer the server chose to send. **A failed fetch is `unknown`, not
+`unavailable`**: connect-web wraps the fetch's `TypeError` as the cause, and
+that is how "cannot be reached" is told from an `unknown` the server sent.
+Until this was known, no dropped connection was ever retried. **It is built for a phone on a train**: the
 second attempt goes at once (a dead pooled connection), then it waits 1s, 2s,
 4s and 8s, about 30s in all, so a tunnel does not fail the map. The timeout was
 2s once, and was not retried: one slow `GetMap` batch of the 26 failed the
