@@ -71,6 +71,15 @@ describe("names said with their article", () => {
         expect(wordsOf(story("battle", {country: "gb"}, "nl")).line).toBe("The battle for the UK")
         expect(wordsOf(story("battle", {country: "gb"}, "nl")).caption).toMatch(/#uk$/)
     })
+
+    it("say the Middle East, a part of Asia, and tag it bare", () => {
+        const words = wordsOf({...story("attack", {region: "Middle East"}), attacker: "dz"})
+
+        expect(words.headline).toBe("ALGERIA IS ATTACKING THE MIDDLE EAST")
+        expect(words.call).toBe("DEFEND THE MIDDLE EAST")
+        expect(words.caption).toMatch(/#middleeast$/)
+        expect(wordsOf({...story("comeback", {region: "Middle East"}), team: "Middle East"}).headline).toBe("THE MIDDLE EAST STRIKES BACK")
+    })
 })
 
 describe("a continent striking back together", () => {

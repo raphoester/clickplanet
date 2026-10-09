@@ -24,7 +24,7 @@ npm run clip:fetch -- --ssh <user@host> --out replay.json  # A replay of the las
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
-npm run regions    # Rewrite each country's continent and sub-region from Natural Earth, for the clips' headlines
+npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
 ```
 
 `.github/workflows/check-frontend.yml` runs lint, build and tests on every PR
@@ -2632,7 +2632,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   where. Nearly all in one country (90%) is **"X IS INVADING FRANCE"**; spread over several, it is **"X IS
   ATTACKING"** the continent holding 70% of it (`static/countries/regions.json`, written by `npm run regions` from
   the snapshot the map is cut from), else **"X IS INVADING EGYPT AND TURKEY"** when two countries hold 70% of it,
-  else the world. Not a sub-region: "defend Western Europe" is not how anybody talks. A flag taking back its own ground, or its own continent from flags from elsewhere (Belgium taking Europe
+  else the world. Not a sub-region: "defend Western Europe" is not how anybody talks. But Asia is too big to be one
+  place, and nobody calls Saudi Arabia "Asia": its parts are named as people name them, **"THE MIDDLE EAST"** (western
+  Asia and Iran), South Asia, East Asia, Southeast Asia and Central Asia. A flag taking back its own ground, or its own continent from flags from elsewhere (Belgium taking Europe
   back from Palestine), is **"X STRIKES BACK"**, when they lost it at least half of what it took there: Portugal taking
   Europe from Israel first but from Germany, Poland and Spain more is attacking it; a flag that already held most of the country
   when the story starts is **"X IS KICKING Y OUT OF AUSTRALIA"**, since the opening shot shows its flag there
