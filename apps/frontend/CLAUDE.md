@@ -893,7 +893,9 @@ draws it.
   the days closed, right-aligned, and Today, what it scores if the day ends now, in
   green ("+18") and left-aligned. **Today is its own column so the points line up**:
   as a badge beside the points it pushed only the rows that had one. The leader
-  frame shows the points where it showed the share, and the share under its tiles.
+  frame shows the points where it showed the share, and the share beside its tiles,
+  first, so the tiles' delta badge floats into the room after them. On a narrow
+  phone the two wrap onto two lines rather than run into the points.
 - **Each number says what it means** (`Hint` in `Leaderboard`, the texts in
   `boardFigures.ts`), as a bonus does: the column heads and the leader frame's
   figures are buttons that show a `Bubble`: with a mouse, for as long as it is
@@ -906,8 +908,10 @@ draws it.
   six columns. It stops at 380px below about 1120px so it stays clear of the season
   chip at the top centre. On a phone the sheet is the screen's width; a long
   country name ends in "…" before a column moves.
-- **A switch orders the countries, Season or Territory** (`.leaderboard-order`,
-  `aria-pressed`), Season first. Season ranks by the points of the days closed, then
+- **A switch orders the countries, Season or Territory** (`OrderSwitch`,
+  `.leaderboard-order`, `aria-pressed`), Season first. It is a small pill on the
+  heading's line, beside the view picked, and only on the Countries view: a row of
+  its own with two full buttons cost the table two of its rows on a phone. Season ranks by the points of the days closed, then
   by tiles (`domain/race.ts`, `countryLines`), and lists a country with points that
   holds no ground. **Today's points do not move the order**: they come from the
   ground held on average since the day started, not from the tiles held now, so a
@@ -915,6 +919,15 @@ draws it.
   0 points swapped against their tiles, which read as a bug (2026-10-08).
   Territory is the order by tiles held now, as the board was. `Viewer` holds the
   choice. With no race, there is no switch and the board is as it was.
+- **On a phone the heading is the sheet's head** (`BoardSheet`, `BoardHeading`):
+  the view picked and the order take the place of the "Leaderboard" title, which
+  stays for a screen reader, and `BoardViews` is `headless`. Under it "playing
+  for" is one line with Change and no box, since the status bar right above
+  already names the country and its rank. The leader's frame is as tight as it
+  goes and says nothing of the toll: the dock shows the slowdown of the country
+  played for, and `ClicksPanel` the whole table. All of it so a phone with its
+  browser's toolbars (about 390 × 664) shows eight rows of the table, not one
+  (2026-10-09).
 - **The view is picked from the board's heading** (`HeadingSelect`, a gold
   section title that opens a listbox), not from tabs: the board is already a
   tab of the menu, and tabs in a tab read as one row of places. **The list is

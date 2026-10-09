@@ -16,7 +16,7 @@ import Quiz from "../quiz/Quiz.tsx";
 import {useQuiz} from "../quiz/useQuiz.ts";
 import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
-import Menu, {BoardPlace, MenuTab, MorePlace, YouPlace} from "../Menu.tsx";
+import Menu, {BoardSheet, MenuTab, MorePlace, YouPlace} from "../Menu.tsx";
 import {youLabel} from "../youLabel.ts";
 import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
@@ -212,7 +212,6 @@ export default function Viewer(props: ViewerProps) {
         leaderboard,
         tileDeltas,
         tilesCount,
-        toll,
         anthem: <AnthemControls anthem={anthem} settings={sound.settings} onChange={sound.setSettings}/>,
         standings,
         race,
@@ -301,9 +300,7 @@ export default function Viewer(props: ViewerProps) {
         />}
 
         {ready && compact && <>
-            {sheet === "board" && <Sheet title="Leaderboard" onClose={closeSheet}>
-                <BoardPlace {...board} playing/>
-            </Sheet>}
+            {sheet === "board" && <BoardSheet {...board} onClose={closeSheet}/>}
             {sheet === "you" && account.kind === 'ready' && <Sheet title={youLabel(linked)} onClose={closeSheet}>
                 <YouPlace {...you}/>
             </Sheet>}

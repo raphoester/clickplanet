@@ -188,6 +188,29 @@
     font-size: var(--display-m);
 }
 
+/* On a phone the status bar already names the country and its rank: here it is one line, for the Change button. */
+.menu-playing--slim {
+    padding: 0;
+}
+
+.menu-playing--slim .menu-playing-what {
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-2);
+}
+
+.menu-playing--slim .menu-label {
+    flex-shrink: 0;
+}
+
+.board-sheet .sheet-head {
+    padding-bottom: var(--space-2);
+}
+
+.board-sheet .sheet-body {
+    gap: var(--space-2);
+}
+
 @media (prefers-reduced-motion: reduce) {
     .menu-tile {
         transition: none;

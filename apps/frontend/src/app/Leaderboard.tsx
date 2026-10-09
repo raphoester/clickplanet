@@ -2,16 +2,13 @@ import "./Leaderboard.css"
 import {PointerEvent, ReactNode, useEffect, useId, useRef, useState} from "react";
 import {Race} from "../backends/standings.ts";
 import {Country} from "../domain/countries.ts";
-import {factor} from "../domain/clickPrice.ts";
 import {LeaderboardEntry} from "../domain/leaderboard.ts";
 import {CountryLine, countryLines, CountryOrder} from "../domain/race.ts";
 import {Figure, FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts";
 import {DELTA_HOLD_MS, NO_TILE_DELTAS, signed, TileDelta, TileDeltas} from "../domain/tileDeltas.ts";
-import {slowdownAt, TollStep} from "../domain/toll.ts";
 import {truncate} from "./truncate.ts";
 import Bubble from "./components/Bubble.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
-import {HourglassIcon} from "./components/icons.tsx";
 import RankCoin from "./components/RankCoin.tsx";
 
 type LeaderboardProps = {
@@ -19,11 +16,9 @@ type LeaderboardProps = {
     data: LeaderboardEntry[],
     deltas?: TileDeltas,
     highlight?: Country,
-    toll?: readonly TollStep[],
     anthem?: ReactNode,
     race?: Race,
     order?: CountryOrder,
-    onOrder?: (order: CountryOrder) => void,
     guided?: boolean,
     onGuided?: () => void,
 }
@@ -73,22 +68,11 @@ export default function Leaderboard(props: LeaderboardProps) {
     return <section className="leaderboard" aria-labelledby={titleId}>
         <h2 className="sr-only" id={titleId}>Leaderboard</h2>
 
-        {race && props.onOrder && <div className="leaderboard-order" role="group" aria-label="Order">
-            {ORDERS.map(({order: each, label}) => <button key={each}
-                                                          type="button"
-                                                          className={`button button-mini leaderboard-order-choice${order === each ? " button-secondary" : ""}`}
-                                                          aria-pressed={order === each}
-                                                          onClick={() => props.onOrder?.(each)}>
-                {label}
-            </button>)}
-        </div>}
-
         {leader && <LeaderFrame line={leader}
                                 scored={race !== undefined}
                                 tilesCount={props.tilesCount}
                                 delta={deltas.get(leader.country.code)}
                                 isPlayer={leader.country.code === props.highlight?.code}
-                                toll={props.toll ?? []}
                                 anthem={props.anthem}
                                 hint={(figure) => hint(figure, "leader")}/>}
 
@@ -146,19 +130,29 @@ export default function Leaderboard(props: LeaderboardProps) {
     </section>
 }
 
+export function OrderSwitch({order, onOrder}: {order: CountryOrder, onOrder: (order: CountryOrder) => void}) {
+    return <div className="leaderboard-order" role="group" aria-label="Order">
+        {ORDERS.map(({order: each, label}) => <button key={each}
+                                                      type="button"
+                                                      className="leaderboard-order-choice"
+                                                      aria-pressed={order === each}
+                                                      onClick={() => onOrder(each)}>
+            {label}
+        </button>)}
+    </div>
+}
+
 type LeaderFrameProps = {
     line: CountryLine
     scored: boolean
     tilesCount: number
     delta?: TileDelta
     isPlayer: boolean
-    toll: readonly TollStep[]
     anthem?: ReactNode
     hint: (figure: Figure) => HintProps
 }
 
-function LeaderFrame({line, scored, tilesCount, delta, isPlayer, toll, anthem, hint}: LeaderFrameProps) {
-    const slowdown = slowdownAt(toll, line.tiles / tilesCount)
+function LeaderFrame({line, scored, tilesCount, delta, isPlayer, anthem, hint}: LeaderFrameProps) {
     const className = isPlayer ? "leader-frame panel-box leader-frame--you" : "leader-frame panel-box"
 
     return <section className={className}
@@ -169,13 +163,15 @@ function LeaderFrame({line, scored, tilesCount, delta, isPlayer, toll, anthem, h
             <span className="leader-frame-flag"><CountryFlag code={line.country.code}/></span>
             <span className="leader-frame-who">
                 <span className="leader-frame-name">{truncate(line.country.name, NAME_MAX_LENGTH)}</span>
-                <span className={tilesClass(delta?.net, "leader-frame-tiles")}>
-                    {line.tiles} tiles
-                    <DeltaBadge delta={delta}/>
+                <span className="leader-frame-line">
+                    {scored && <span className="leader-frame-map">
+                        <Hint {...hint("share")}>{share(line.tiles, tilesCount)}% of map</Hint>
+                    </span>}
+                    <span className={tilesClass(delta?.net, "leader-frame-tiles")}>
+                        {line.tiles} tiles
+                        <DeltaBadge delta={delta}/>
+                    </span>
                 </span>
-                {scored && <span className="leader-frame-map">
-                    <Hint {...hint("share")}>{share(line.tiles, tilesCount)}% of map</Hint>
-                </span>}
             </span>
             {scored
                 ? <Hint {...hint("points")} className="leader-frame-share">
@@ -187,10 +183,6 @@ function LeaderFrame({line, scored, tilesCount, delta, isPlayer, toll, anthem, h
                     <span className="leader-frame-share-unit">% of map</span>
                 </Hint>}
         </div>
-        {slowdown > 1 && <span className="leader-frame-toll">
-            <HourglassIcon/>
-            Refills {factor(slowdown)}× slower
-        </span>}
         {anthem}
     </section>
 }
