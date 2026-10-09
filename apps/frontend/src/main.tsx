@@ -13,6 +13,7 @@ import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
 import {ConnectSeasonBackend, newSeasonServiceClient} from "./backends/seasonBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
+import {ConnectionHealth, connectionInterceptor, followBrowser} from "./backends/connection.ts"
 import {FakeStandingsBackend} from "./backends/fakeStandingsBackend.ts"
 import {ConnectStandingsBackend} from "./backends/standingsBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
@@ -34,9 +35,13 @@ const page = new URL(window.location.href)
 const shared = sharedCountry(page)
 if (page.searchParams.has(SHARE_FLAG_PARAM)) window.history.replaceState(null, "", withoutSharedFlag(page))
 
+const connection = new ConnectionHealth()
+followBrowser(connection, window)
+
 const config = {
     baseUrl: API_BASE_URL,
     timeoutMs: 2000,
+    interceptors: [connectionInterceptor(connection)],
 }
 
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY
@@ -55,6 +60,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fakePresence = new FakePresenceBackend()
     Object.assign(window, {
         fakeBackend: fake,
+        connection,
         giveBomb: () => {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"
@@ -108,6 +114,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     refiller={fake}
                     shielder={fake}
                     clickBudgetSource={fake}
+                    connection={connection}
                     chatBackend={fakeChat}
                     presence={fakePresence}
                     playerInfo={fakePresence}
@@ -142,6 +149,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     refiller={backend}
                     shielder={backend}
                     clickBudgetSource={backend}
+                    connection={connection}
                     chatBackend={chatBackend}
                     account={account}
                     presence={player}

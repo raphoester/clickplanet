@@ -1,0 +1,54 @@
+.connection-lost {
+    position: fixed;
+    top: calc(var(--status-bottom, 8px) + 8px);
+    left: 50%;
+    z-index: 150;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.connection-lost--lowered {
+    top: calc(var(--status-bottom, 8px) + 212px);
+}
+
+.connection-lost-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    color: var(--text-soft);
+    font-size: var(--text-m);
+    white-space: nowrap;
+    animation: connection-lost 200ms ease-out;
+}
+
+.connection-lost-line strong {
+    font-family: var(--font-display);
+    font-weight: normal;
+    font-size: var(--display-s);
+    color: var(--text);
+    text-shadow: var(--text-drop);
+}
+
+@keyframes connection-lost {
+    from {
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 768px) {
+    .connection-lost-line {
+        font-size: var(--text-s);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .connection-lost-line {
+        animation: none;
+    }
+}

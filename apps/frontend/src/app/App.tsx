@@ -13,6 +13,7 @@ export default function App(props: AppProps) {
             ownershipsGetter={props.ownershipsGetter}
             updatesListener={props.updatesListener}
             clickBudgetSource={props.clickBudgetSource}
+            connection={props.connection}
             bonusListener={props.bonusListener}
             quizMaster={props.quizMaster}
             bomber={props.bomber}
