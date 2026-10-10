@@ -42,6 +42,10 @@ const ROUT_LEAST = 300
 
 export const THE_WORLD = "the world"
 
+// The world is too big for a flag to take a third of all taken across it, as on one front: Christmas Island took 28%
+// of it in a day, more than twice the next flag. A flag leads it when it took twice as much as any other.
+const WORLD_LEAD = 2
+
 // heldAtStart: the flag that held most of a country's ground when the story starts.
 export function storyOf(
     changes: readonly TileChange[],
@@ -89,6 +93,13 @@ export function castOf(story: Story, around: readonly TileChange[], regionOf: Re
     if (story.kind !== "comeback" || !("region" in story.place)) return undefined
     const team = story.place.region
     return shareOf((flag) => regionOf(flag) === team) >= TEAM_SHARE ? {...story, team} : undefined
+}
+
+export function leadsTheWorld(flag: string, changes: readonly TileChange[]): boolean {
+    const takers = ranked(tally(changes.flatMap(({from, to}) => to === undefined || to === from ? [] : [to])))
+    const own = takers.find(([taker]) => taker === flag)?.[1] ?? 0
+    const next = takers.find(([taker]) => taker !== flag)?.[1] ?? 0
+    return own > 0 && own >= next * WORLD_LEAD
 }
 
 function atWar(changes: readonly TileChange[], one: string, other: string): boolean {
