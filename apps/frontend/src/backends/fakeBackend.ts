@@ -10,6 +10,7 @@ import {
     ShieldRefusedError,
     GlobePoint,
     Enclosure,
+    Fortification,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
@@ -28,6 +29,7 @@ import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 import {nearestTile, tilesWithin} from "../domain/blast.ts";
+import {FakeFortresses} from "./fakeFortresses.ts";
 
 const TILE_COUNT = 257_000
 
@@ -93,6 +95,8 @@ export type FakeBackendOptions = {
     vpnBlocked?: boolean
     sessionUnavailable?: boolean
     tilePositions?: () => Promise<Float32Array>
+    // The borders blob's tile → landmass table, for fortifying.
+    landmasses?: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
 export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder {
@@ -106,7 +110,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private bonusCallbacks: Map<string, BonusHandlers> = new Map()
     private bombCallbacks: Map<string, (drop: BombDrop) => void> = new Map()
     private quizCallbacks: Map<string, (offer: QuizOffer) => void> = new Map()
+    private fortificationCallbacks: Map<string, (fortification: Fortification) => void> = new Map()
     private shields: Map<number, number> = new Map()
+    private fortresses: FakeFortresses | undefined
 
     private charges: Charges = NO_CHARGES
     private positions: Promise<Float32Array> | undefined
@@ -129,6 +135,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.vpnBlocked = options.vpnBlocked ?? false
         this.sessionUnavailable = options.sessionUnavailable ?? false
         this.tilePositions = options.tilePositions
+        void options.landmasses?.().then(({assignment, count}) => {
+            this.fortresses = new FakeFortresses(assignment, count, (tile) => this.tileBindings.get(tile))
+        })
 
         for (let i = 1; i <= TILE_COUNT; i++) {
             this.tileBindings.set(i, "fr")
@@ -373,6 +382,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.shields.delete(tileId)
         this.count(prev, -1)
         this.count(countryId, 1)
+        this.fortresses?.moved(tileId, prev, countryId)
         this.updateListeners.forEach(l => l({
             tile: tileId,
             previousCountry: prev,
@@ -380,6 +390,34 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             clicked,
             shields: 0,
         }))
+        this.fortifyIfWhole(tileId, countryId)
+    }
+
+    private fortifyIfWhole(tile: number, countryId: string) {
+        const fortified = this.fortresses?.fortify(tile, countryId)
+        if (!fortified) return
+
+        for (const member of fortified.tiles) {
+            this.shields.set(member, Math.min((this.shields.get(member) ?? 0) + 1, TILE_SHIELDS))
+        }
+        this.flushUpdates()
+        this.fortificationCallbacks.forEach((callback) => callback({landmass: fortified.landmass, countryId, tile}))
+    }
+
+    public landmassTiles(landmass: number): number {
+        return this.fortresses?.tilesOf(landmass).length ?? 0
+    }
+
+    // Takes a landmass for a flag, shields and all, leaving `leave` tiles to take by hand.
+    public takeLandmass(landmass: number, countryId: string, leave = 0) {
+        if (!this.fortresses) throw new Error("the landmasses are not loaded yet")
+        const tiles = [...this.fortresses.tilesOf(landmass)]
+        for (const tile of tiles.slice(0, Math.max(0, tiles.length - leave))) {
+            for (let tries = 0; tries <= TILE_SHIELDS && this.tileBindings.get(tile) !== countryId; tries++) {
+                this.applyClick(tile, countryId, false)
+            }
+        }
+        return tiles.slice(tiles.length - leave)
     }
 
     private shield(tile: number, owner: string, shields: number, clicked: boolean) {
@@ -551,6 +589,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 continue
             }
             this.count(owner, -1)
+            this.fortresses?.moved(id, owner, undefined)
             this.tileBindings.delete(id)
             cleared.push(id)
         }
@@ -594,6 +633,16 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public listenForResumes(): () => void {
         return () => {}
+    }
+
+    public listenForFortifications(callback: (fortification: Fortification) => void): () => void {
+        const id = UUIDv4()
+        this.fortificationCallbacks.set(id, callback)
+        return () => this.fortificationCallbacks.delete(id)
+    }
+
+    public async getFortresses(): Promise<Map<number, string>> {
+        return this.fortresses?.fortresses() ?? new Map()
     }
 
     public async getCurrentOwnershipsByBatch(

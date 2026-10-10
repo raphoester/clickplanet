@@ -26,7 +26,7 @@ type testSuite struct {
 func (s *testSuite) SetupTest() {
 	const maxIndex = 250_000
 	s.storage = inmemory_tile_storage.New(
-		maxIndex,
+		clicks.BordersOf(maxIndex),
 		inmemory_tile_storage.Config{},
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}),
 		slog.New(slog.DiscardHandler),
@@ -34,7 +34,7 @@ func (s *testSuite) SetupTest() {
 
 	tileChecker := clicks.NewBoard(maxIndex)
 	countryChecker := cpcountries.New()
-	s.useCase = click_usecase.New(tileChecker, clicks.NewClaiming(s.storage), countryChecker)
+	s.useCase = click_usecase.New(tileChecker, clicks.NewClaiming(s.storage, 10), countryChecker)
 }
 
 func (s *testSuite) execute(tileID uint32, countryID string) error {

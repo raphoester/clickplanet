@@ -84,6 +84,10 @@ func everyKind() []ledger.Event {
 		}},
 		ledger.Striking{Tile: 11, Scope: "203.0.113.7", Account: ada, Country: "fr", Owner: "de", Shields: 1, At: at},
 		ledger.Shielding{Tile: 12, Scope: "203.0.113.7", Account: ada, Country: "fr", Shields: 3, At: at},
+		ledger.Fortifying{
+			Tile: 12, Landmass: 4, Scope: "203.0.113.7", Account: ada, Country: "fr", At: at,
+			Raised: []clicks.TileShields{{Tile: 12, Shields: 4}},
+		},
 		ledger.Taking{Tile: 13, Scope: "198.51.100.4", Account: bob, Country: "de", Previous: "fr", At: at},
 		ledger.Taking{Tile: 14, Scope: "198.51.100.4", Country: "fr", Previous: "de", At: at},
 	}

@@ -202,6 +202,23 @@ describe("decodedAnnouncement", () => {
         })
     })
 
+    it("reads a fortify, with the territory's ground for naming it", () => {
+        expect(decodedAnnouncement(bomb(`{"country":"es","ground":"fr","landmass":359,"tiles":137}`, "fortify"))).toEqual({
+            kind: "fortify",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            country: "es",
+            ground: "fr",
+            landmass: 359,
+            tiles: 137,
+        })
+    })
+
+    it("drops a fortify with no flag or no territory", () => {
+        expect(decodedAnnouncement(bomb(`{"landmass":359,"tiles":137}`, "fortify"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"country":"es","tiles":137}`, "fortify"))).toBeUndefined()
+    })
+
     it("reads a bomb in the sea, with no ground and no tile", () => {
         expect(decodedAnnouncement(bomb(`{"country":"fr","cleared":0}`))).toEqual({
             kind: "bomb",

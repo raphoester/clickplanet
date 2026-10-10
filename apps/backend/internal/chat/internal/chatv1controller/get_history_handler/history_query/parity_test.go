@@ -170,11 +170,10 @@ func (s *testSuite) TestEveryKindTheChatAnnouncesIsReadBack() {
 		s.Require().NoError(announce.Execute(s.T().Context(), announce_usecase.In{
 			Kind: kind, At: now.Add(-time.Duration(len(kinds)-i) * time.Minute), Payload: json.RawMessage(`{"country":"fr"}`),
 		}))
-	}
 
-	read := make([]announcements.Kind, 0, len(kinds))
-	for _, announcement := range s.history(ada).GetAnnouncements() {
-		read = append(read, announcements.Kind(announcement.GetKind()))
+		read := s.history(ada).GetAnnouncements()
+		s.Require().NotEmpty(read)
+		s.Equal(kind, announcements.Kind(read[len(read)-1].GetKind()),
+			"a kind the chat writes and the history refuses would empty the history")
 	}
-	s.Equal(kinds, read, "a kind the chat writes and the history refuses would empty the history")
 }

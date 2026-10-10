@@ -129,6 +129,18 @@ describe("TileShields", () => {
         expect(shields.shieldsOf(1)).toBe(1)
     })
 
+    it("raises each tile of a fortified landmass the flag holds, up to the most a tile holds", () => {
+        const shields = new TileShields(10)
+        shields.applyUpdates([update(1, 2), update(3, 0)])
+        const held = (tile: number) => tile !== 4
+
+        expect(shields.applyFortification([1, 2, 3, 4], held, 2)).toEqual([
+            {tile: 2, shields: 1, was: 0},
+            {tile: 3, shields: 1, was: 0},
+        ])
+        expect(counts(shields, [1, 2, 3, 4])).toEqual([2, 1, 1, 0])
+    })
+
     it("ignores tiles outside the map", () => {
         const shields = new TileShields(4)
 

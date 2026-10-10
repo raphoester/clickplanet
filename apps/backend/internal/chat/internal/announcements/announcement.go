@@ -16,13 +16,14 @@ type AnnouncementID uuid.UUID
 type Kind string
 
 const (
-	KindBomb Kind = "bomb"
-	KindMute Kind = "mute"
+	KindBomb    Kind = "bomb"
+	KindMute    Kind = "mute"
+	KindFortify Kind = "fortify"
 )
 
 var ErrUnknownKind = errors.New("an announcement of a kind nobody knows")
 
-func Kinds() []Kind { return []Kind{KindBomb, KindMute} }
+func Kinds() []Kind { return []Kind{KindBomb, KindMute, KindFortify} }
 
 func (k Kind) Known() bool { return slices.Contains(Kinds(), k) }
 
@@ -67,6 +68,37 @@ func (b Bomb) Payload() (json.RawMessage, error) {
 	payload, err := json.Marshal(bombPayload{Country: b.country, Ground: b.ground, Tile: b.tile, Cleared: b.cleared})
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode a bomb announcement: %w", err)
+	}
+	return payload, nil
+}
+
+// Below this a fortify is a small island somewhere, and the chat says nothing of it.
+const fortifyNewsTiles = 50
+
+type Fortify struct {
+	country  string
+	ground   string
+	landmass uint32
+	tiles    uint32
+}
+
+func FortifyOf(country string, ground string, landmass uint32, tiles uint32) Fortify {
+	return Fortify{country: country, ground: ground, landmass: landmass, tiles: tiles}
+}
+
+func (f Fortify) Newsworthy() bool { return f.tiles >= fortifyNewsTiles }
+
+type fortifyPayload struct {
+	Country  string `json:"country"`
+	Ground   string `json:"ground"`
+	Landmass uint32 `json:"landmass"`
+	Tiles    uint32 `json:"tiles"`
+}
+
+func (f Fortify) Payload() (json.RawMessage, error) {
+	payload, err := json.Marshal(fortifyPayload{Country: f.country, Ground: f.ground, Landmass: f.landmass, Tiles: f.tiles})
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode a fortify announcement: %w", err)
 	}
 	return payload, nil
 }

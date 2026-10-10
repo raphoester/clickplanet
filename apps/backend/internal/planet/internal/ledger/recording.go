@@ -55,6 +55,7 @@ func (r Recording) Click(ctx context.Context, tile uint32, flag string) (clicks.
 	if impact.Outcome != clicks.Unchanged {
 		r.record(ctx, func(by Caller, at time.Time) Event { return clickOf(by, at, flag, impact) })
 	}
+	r.recordFortified(ctx, flag, []clicks.Impact{impact})
 
 	return impact, nil
 }
@@ -64,6 +65,7 @@ func (r Recording) Spread(ctx context.Context, tile uint32, flag string, neighbo
 	r.record(ctx, func(by Caller, at time.Time) Event {
 		return Spreading{Tile: tile, Scope: by.Scope, Account: by.Account, Country: flag, At: at, Impacts: impacts}
 	})
+	r.recordFortified(ctx, flag, impacts)
 
 	return err
 }
@@ -73,6 +75,7 @@ func (r Recording) Enclose(ctx context.Context, tile uint32, flag string, inside
 	r.record(ctx, func(by Caller, at time.Time) Event {
 		return Enclosing{Tile: tile, Scope: by.Scope, Account: by.Account, Country: flag, At: at, Impacts: impacts}
 	})
+	r.recordFortified(ctx, flag, impacts)
 
 	return err
 }
@@ -115,6 +118,14 @@ func (r Recording) claim(ctx context.Context, flag string, tiles []uint32) ([]cl
 	}
 
 	return changed(impacts), nil
+}
+
+func (r Recording) recordFortified(ctx context.Context, flag string, impacts []clicks.Impact) {
+	for _, impact := range impacts {
+		if impact.Fortified != nil {
+			r.record(ctx, func(by Caller, at time.Time) Event { return fortifyingOfImpact(by, at, flag, impact.Fortified) })
+		}
+	}
 }
 
 func (r Recording) record(ctx context.Context, event func(by Caller, at time.Time) Event) {

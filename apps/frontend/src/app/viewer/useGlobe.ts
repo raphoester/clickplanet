@@ -9,6 +9,7 @@ import {ALL_OFF, BonusNotice, BonusNoticeEvent, BonusReward, BonusRules, Charges
 import {BombDrop, Bomber, BonusCatch, BonusListener, Shielder} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 import {AcceptedClick} from './acceptedClicks.ts';
+import {CloseToFortify, Fortified} from '../../domain/fortify.ts';
 
 export type GlobeStatus =
     | {state: 'loading', territories?: number}
@@ -61,9 +62,20 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const recordCatch = useCallback((taken: BonusCatch) => setLastCatch(taken), [])
 
-    const [lastBomb, setLastBomb] = useState<{drop: BombDrop, land: string | undefined, id: number} | undefined>()
+    const [lastBomb, setLastBomb] = useState<{drop: BombDrop, land: string | undefined, id: number, at: number} | undefined>()
     const recordBomb = useCallback((drop: BombDrop, land: string | undefined) => {
-        setLastBomb((previous) => ({drop, land, id: (previous?.id ?? 0) + 1}))
+        setLastBomb((previous) => ({drop, land, id: (previous?.id ?? 0) + 1, at: performance.now()}))
+    }, [])
+
+    const [lastFortified, setLastFortified] = useState<{fortified: Fortified, id: number, at: number} | undefined>()
+    const recordFortified = useCallback((fortified: Fortified) => {
+        if (!fortified.news) return
+        setLastFortified((previous) => ({fortified, id: (previous?.id ?? 0) + 1, at: performance.now()}))
+    }, [])
+
+    const [lastClose, setLastClose] = useState<{close: CloseToFortify, id: number, at: number} | undefined>()
+    const recordClose = useCallback((close: CloseToFortify) => {
+        setLastClose((previous) => ({close, id: (previous?.id ?? 0) + 1, at: performance.now()}))
     }, [])
 
     const takeBonus = useCallback((reward: BonusReward) => setAward(reward), [])
@@ -110,6 +122,8 @@ export function useGlobe(options: UseGlobeOptions) {
             shielder,
             onNotice: notify,
             onClickAccepted,
+            onFortified: recordFortified,
+            onCloseToFortify: recordClose,
             playSound,
             signal: abortController.signal,
         }).then((globe) => {
@@ -137,7 +151,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, notify])
+    }, [container, tileClicker, ownershipsGetter, updatesListener, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, takeBonus, recordCatch, recordBomb, recordFortified, recordClose, notify])
 
     useEffect(() => {
         initialCountry.current = country
@@ -164,6 +178,8 @@ export function useGlobe(options: UseGlobeOptions) {
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
     const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !switches[name]), [switches])
     const dismissBomb = useCallback(() => setLastBomb(undefined), [])
+    const dismissFortified = useCallback(() => setLastFortified(undefined), [])
+    const dismissClose = useCallback(() => setLastClose(undefined), [])
 
     return {
         status,
@@ -188,6 +204,10 @@ export function useGlobe(options: UseGlobeOptions) {
         lastCatch,
         lastBomb,
         dismissBomb,
+        lastFortified,
+        dismissFortified,
+        lastClose,
+        dismissClose,
     }
 }
 

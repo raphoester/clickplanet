@@ -8,6 +8,8 @@ import {NoSession, SessionProvider} from "./backends/session.ts"
 import {localTokenStore, newAuthServiceClient, SessionClient, turnstileAttester} from "./backends/turnstileSession.ts"
 import {ChatServiceBackend, newChatServiceClient, newKeepaliveChatServiceClient} from "./backends/chatBackend.ts"
 import {FakeBackend} from "./backends/fakeBackend.ts"
+import {loadBorders} from "./app/viewer/borderField.ts"
+import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
 import {FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakePresenceBackend} from "./backends/fakePresenceBackend.ts"
 import {FakeSeasonBackend, SEASON_ZERO} from "./backends/fakeSeasonBackend.ts"
@@ -49,8 +51,10 @@ const session: SessionProvider = sitekey
 const root = createRoot(document.getElementById('root')!)
 
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
+    const borders = loadBorders(BORDERS_URL)
     const fake = new FakeBackend(100, {
         tilePositions: () => loadPointGeometryData().then((data) => data.positions),
+        landmasses: () => borders.then(({assignment, codes}) => ({assignment, count: codes.length})),
     })
     const fakePresence = new FakePresenceBackend()
     Object.assign(window, {
@@ -83,6 +87,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fakeStandings = new FakeStandingsBackend()
     const clicker = fakeStandings.counting(fake)
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
+    fake.listenForFortifications((fortification) => void borders.then(({codes}) => fakeChat.announceFortify({
+        ...fortification, ground: codes[fortification.landmass], tiles: fake.landmassTiles(fortification.landmass),
+    })))
 
     root.render(
         <StrictMode>

@@ -1,3 +1,4 @@
+import {NEWS_FROM_TILES} from "../domain/fortify.ts"
 import {
     ChatAnnouncement,
     ChatBlockedError,
@@ -180,6 +181,20 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             cleared: drop.cleared.length,
         }
         this.announce(announcement)
+    }
+
+    // As the server: only a sizeable territory is news in the chat.
+    public announceFortify(fortified: {countryId: string, ground: string, landmass: number, tiles: number}) {
+        if (fortified.tiles < NEWS_FROM_TILES) return
+        this.announce({
+            kind: "fortify",
+            id: UUIDv4(),
+            announcedAt: Date.now(),
+            country: fortified.countryId,
+            ground: fortified.ground,
+            landmass: fortified.landmass,
+            tiles: fortified.tiles,
+        })
     }
 
     private announce(announcement: ChatAnnouncement) {

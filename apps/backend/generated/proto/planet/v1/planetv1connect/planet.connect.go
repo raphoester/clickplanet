@@ -62,6 +62,9 @@ const (
 	// ClickServicePlaceShieldProcedure is the fully-qualified name of the ClickService's PlaceShield
 	// RPC.
 	ClickServicePlaceShieldProcedure = "/planet.v1.ClickService/PlaceShield"
+	// ClickServiceGetFortressesProcedure is the fully-qualified name of the ClickService's
+	// GetFortresses RPC.
+	ClickServiceGetFortressesProcedure = "/planet.v1.ClickService/GetFortresses"
 )
 
 // ClickServiceClient is a client for the planet.v1.ClickService service.
@@ -81,6 +84,7 @@ type ClickServiceClient interface {
 	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
 	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
 	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
+	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
 }
 
 // NewClickServiceClient constructs a client for the planet.v1.ClickService service. By default, it
@@ -175,6 +179,13 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clickServiceMethods.ByName("PlaceShield")),
 			connect.WithClientOptions(opts...),
 		),
+		getFortresses: connect.NewClient[v1.GetFortressesRequest, v1.GetFortressesResponse](
+			httpClient,
+			baseURL+ClickServiceGetFortressesProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetFortresses")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -193,6 +204,7 @@ type clickServiceClient struct {
 	openQuiz        *connect.Client[v1.OpenQuizRequest, v1.OpenQuizResponse]
 	answerQuiz      *connect.Client[v1.AnswerQuizRequest, v1.AnswerQuizResponse]
 	placeShield     *connect.Client[v1.PlaceShieldRequest, v1.PlaceShieldResponse]
+	getFortresses   *connect.Client[v1.GetFortressesRequest, v1.GetFortressesResponse]
 }
 
 // Click calls planet.v1.ClickService.Click.
@@ -260,6 +272,11 @@ func (c *clickServiceClient) PlaceShield(ctx context.Context, req *connect.Reque
 	return c.placeShield.CallUnary(ctx, req)
 }
 
+// GetFortresses calls planet.v1.ClickService.GetFortresses.
+func (c *clickServiceClient) GetFortresses(ctx context.Context, req *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error) {
+	return c.getFortresses.CallUnary(ctx, req)
+}
+
 // ClickServiceHandler is an implementation of the planet.v1.ClickService service.
 type ClickServiceHandler interface {
 	Click(context.Context, *connect.Request[v1.ClickRequest]) (*connect.Response[v1.ClickResponse], error)
@@ -277,6 +294,7 @@ type ClickServiceHandler interface {
 	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
 	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
 	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
+	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
 }
 
 // NewClickServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -367,6 +385,13 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(clickServiceMethods.ByName("PlaceShield")),
 		connect.WithHandlerOptions(opts...),
 	)
+	clickServiceGetFortressesHandler := connect.NewUnaryHandler(
+		ClickServiceGetFortressesProcedure,
+		svc.GetFortresses,
+		connect.WithSchema(clickServiceMethods.ByName("GetFortresses")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.ClickService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClickServiceClickProcedure:
@@ -395,6 +420,8 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceAnswerQuizHandler.ServeHTTP(w, r)
 		case ClickServicePlaceShieldProcedure:
 			clickServicePlaceShieldHandler.ServeHTTP(w, r)
+		case ClickServiceGetFortressesProcedure:
+			clickServiceGetFortressesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -454,4 +481,8 @@ func (UnimplementedClickServiceHandler) AnswerQuiz(context.Context, *connect.Req
 
 func (UnimplementedClickServiceHandler) PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.PlaceShield is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetFortresses is not implemented"))
 }

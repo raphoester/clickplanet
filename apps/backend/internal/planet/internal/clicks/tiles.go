@@ -24,8 +24,9 @@ type Blast struct {
 }
 
 type Change struct {
-	Update *TileUpdate
-	Blast  *Blast
+	Update        *TileUpdate
+	Blast         *Blast
+	Fortification *Fortification
 }
 
 // Tiles holds two little-endian bytes per tile, each an index into Codes.

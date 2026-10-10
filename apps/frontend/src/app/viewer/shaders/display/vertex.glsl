@@ -21,17 +21,32 @@ uniform vec4 blasts[MAX_BLASTS];
 uniform float blastRadii[MAX_BLASTS];
 uniform float motion;
 
+// Must match MAX_FORTIFY_WAVES, FORTIFY_WAVE_SECONDS and FORTIFY_GLOW_SECONDS in domain/fortifyWave.ts.
+#define MAX_FORTIFIES 4
+const float FORTIFY_WAVE = 1.2;
+const float FORTIFY_GLOW = 0.7;
+
+// A tile a flag close to fortifying still misses; the fragment shader beats at the same rate.
+const float PULSE_RATE = 6.2831853 / 1.1;
+
+uniform vec4 fortifies[MAX_FORTIFIES];
+uniform float fortifyLandmass[MAX_FORTIFIES];
+uniform float fortifyReach[MAX_FORTIFIES];
+
 varying float vGlow;
 varying float vScorch;
+varying float vFortify;
 
 attribute float hover;
 attribute vec4 regionVector;
 attribute float landmassIndex;
 attribute float shield;
+attribute float pulse;
 
 varying float vHover;
 flat out vec4 vRegionVector;
 flat out float vShield;
+flat out float vPulse;
 
 #ifdef LIT
 flat out float vShade;
@@ -77,6 +92,7 @@ void main() {
     vHover = hover;
     vRegionVector = regionVector;
     vShield = shield;
+    vPulse = pulse;
 
 #ifdef LIT
     vec3 normal = normalize(normalMatrix * ground);
@@ -163,6 +179,25 @@ void main() {
         float crater = 1.0 - smoothstep(0.85, 1.1, d);
         vScorch = max(vScorch, crater * (1.0 - smoothstep(0.0, BLAST_SCORCH, s)));
     }
+
+    vFortify = 0.0;
+    for (int i = 0; i < MAX_FORTIFIES; i++) {
+        if (abs(landmassIndex - fortifyLandmass[i]) > 0.5) continue;
+
+        float t = time - fortifies[i].w;
+        if (t < 0.0 || t > FORTIFY_WAVE + FORTIFY_GLOW) continue;
+
+        float d = acos(clamp(dot(ground, fortifies[i].xyz), -1.0, 1.0));
+        float arrival = fortifyReach[i] > 0.0 ? d / fortifyReach[i] * FORTIFY_WAVE : 0.0;
+        float since = t - arrival;
+        if (since < 0.0) continue;
+
+        float lit = exp(-since * 5.0);
+        vFortify = max(vFortify, lit);
+        swell = max(swell, lit * 0.6);
+    }
+
+    if (pulse > 0.5) swell = max(swell, 0.12 * (0.5 + 0.5 * sin(time * PULSE_RATE)));
 
     vSpriteSize = pointSize * (1.0 + motion * swell);
     gl_PointSize = vSpriteSize;

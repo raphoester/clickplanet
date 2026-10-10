@@ -30,7 +30,8 @@
     "flagFit": "node scripts/generateFlagFit.mjs",
     "anthems": "node scripts/generateAnthems.mjs && npm run clip:highlights",
     "reactions": "node scripts/generateReactions.mjs",
-    "regions": "node scripts/generateRegions.mjs"
+    "regions": "node scripts/generateRegions.mjs",
+    "landmassNames": "node --max-old-space-size=8192 scripts/generateLandmassNames.mjs"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^1.10.0",

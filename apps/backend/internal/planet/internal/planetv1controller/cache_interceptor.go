@@ -17,6 +17,7 @@ func NewCacheInterceptor() connect.Interceptor {
 		planetv1connect.ClickServiceGetMapProcedure:        mapMaxAge,
 		planetv1connect.ClickServiceMapDensityProcedure:    mapMaxAge,
 		planetv1connect.ClickServiceGetBonusRulesProcedure: rulesMaxAge,
+		planetv1connect.ClickServiceGetFortressesProcedure: mapMaxAge,
 	}
 
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {

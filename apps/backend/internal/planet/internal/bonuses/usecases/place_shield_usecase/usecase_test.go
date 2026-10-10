@@ -34,7 +34,7 @@ func setup(t *testing.T, shields int) fixture {
 		charges.Grant(caller, bonuses.KindShields, shields)
 	}
 
-	tiles := inmemory_tile_storage.New(100, inmemory_tile_storage.Config{},
+	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), inmemory_tile_storage.Config{},
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{7: "fr", 8: "de"}), slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context()))
 

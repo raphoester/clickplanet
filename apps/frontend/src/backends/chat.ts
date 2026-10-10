@@ -26,7 +26,7 @@ export type ChatMessage = {
     reactionsVersion: number
 }
 
-export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement
+export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | FortifyAnnouncement
 
 export type BombAnnouncement = {
     kind: "bomb"
@@ -36,6 +36,16 @@ export type BombAnnouncement = {
     ground?: string
     tile?: number
     cleared: number
+}
+
+export type FortifyAnnouncement = {
+    kind: "fortify"
+    id: string
+    announcedAt: number
+    country: string
+    ground: string
+    landmass: number
+    tiles: number
 }
 
 export type MuteAnnouncement = {

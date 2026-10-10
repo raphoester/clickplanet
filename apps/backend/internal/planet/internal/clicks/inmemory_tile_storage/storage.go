@@ -16,7 +16,7 @@ const maxCodes = math.MaxUint16 + 1
 const unownedCode = uint16(0)
 
 func New(
-	maxIndex uint32,
+	borders *clicks.Borders,
 	config Config,
 	persistence Persistence,
 	logger *slog.Logger,
@@ -26,18 +26,23 @@ func New(
 	}
 
 	config = config.withDefaults()
+	maxIndex := borders.Tiles()
 
 	s := &Storage{
-		config:      config,
-		logger:      logger,
-		persistence: persistence,
-		maxIndex:    maxIndex,
-		tiles:       make([]tileState, int(maxIndex)+1),
-		dirty:       make([]uint64, (int(maxIndex)+64)/64),
-		counts:      []uint32{0},
-		codes:       []string{""},
-		codeIDs:     map[string]uint16{"": unownedCode},
-		subscribers: cpcolls.NewSet[chan clicks.Change](),
+		config:          config,
+		logger:          logger,
+		persistence:     persistence,
+		maxIndex:        maxIndex,
+		borders:         borders,
+		tiles:           make([]tileState, int(maxIndex)+1),
+		dirty:           make([]uint64, (int(maxIndex)+64)/64),
+		counts:          []uint32{0},
+		codes:           []string{""},
+		codeIDs:         map[string]uint16{"": unownedCode},
+		landmassHeld:    make([][]uint32, borders.Landmasses()),
+		fortifiedBy:     make([]uint16, borders.Landmasses()),
+		dirtyLandmasses: make([]uint64, (borders.Landmasses()+63)/64),
+		subscribers:     cpcolls.NewSet[chan clicks.Change](),
 	}
 
 	return s
@@ -48,6 +53,7 @@ type Storage struct {
 	logger      *slog.Logger
 	persistence Persistence
 	maxIndex    uint32
+	borders     *clicks.Borders
 
 	tilesMu sync.RWMutex
 	tiles   []tileState
@@ -55,6 +61,10 @@ type Storage struct {
 	codes   []string
 	codeIDs map[string]uint16
 	dirty   []uint64
+
+	landmassHeld    [][]uint32
+	fortifiedBy     []uint16
+	dirtyLandmasses []uint64
 
 	subscribersMu sync.Mutex
 	subscribers   *cpcolls.Set[chan clicks.Change]
@@ -109,9 +119,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 		}
 		if s.tiles[tile].owner != unownedCode {
 			owners = append(owners, s.codes[s.tiles[tile].owner])
-			s.counts[s.tiles[tile].owner]--
-			s.tiles[tile] = ownedBy(unownedCode)
-			s.markDirtyLocked(tile)
+			s.moveLocked(tile, unownedCode)
 			cleared = append(cleared, tile)
 		}
 	}
@@ -176,14 +184,7 @@ func (s *Storage) set(tile uint32, value string) (previous string, changed bool,
 		return "", false, err
 	}
 
-	if s.tiles[tile].owner != unownedCode {
-		s.counts[s.tiles[tile].owner]--
-	}
-	if id != unownedCode {
-		s.counts[id]++
-	}
-	s.tiles[tile] = ownedBy(id)
-	s.markDirtyLocked(tile)
+	s.moveLocked(tile, id)
 
 	return previous, true, nil
 }

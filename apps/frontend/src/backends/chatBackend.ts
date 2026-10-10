@@ -265,6 +265,18 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 name: values.name,
                 seconds: values.seconds,
             }
+        case "fortify":
+            if (typeof values.country !== "string" || values.country === "") return undefined
+            if (typeof values.landmass !== "number" || typeof values.tiles !== "number") return undefined
+            return {
+                kind: "fortify",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                country: values.country,
+                ground: typeof values.ground === "string" ? values.ground : "",
+                landmass: values.landmass,
+                tiles: values.tiles,
+            }
         default:
             return undefined
     }

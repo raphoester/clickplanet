@@ -151,6 +151,10 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         flush()
     }
 
+    async getFortresses(): Promise<Map<number, string>> {
+        return new Map()
+    }
+
     async getCurrentOwnershipsByBatch(
         _batchSize: number,
         _maxIndex: number,
@@ -170,6 +174,10 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
     }
 
     listenForResumes(): () => void {
+        return () => {}
+    }
+
+    listenForFortifications(): () => void {
         return () => {}
     }
 

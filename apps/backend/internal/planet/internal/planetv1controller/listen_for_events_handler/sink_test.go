@@ -139,6 +139,20 @@ func TestASinkFramesABlastWithEveryTileItCleared(t *testing.T) {
 	assert.InDelta(t, 1, dropped.GetPoint().GetZ(), 1e-9)
 }
 
+func TestASinkFramesAFortifiedLandmass(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Fortification: &clicks.Fortification{Landmass: 42, Country: "us", Tile: 1234},
+	}))
+
+	fortified := stream.sent[0].GetLandmassFortified()
+	require.NotNil(t, fortified, "expected a landmass_fortified case, got %+v", stream.sent[0].GetEvent())
+	assert.Equal(t, uint32(42), fortified.GetLandmassId())
+	assert.Equal(t, "us", fortified.GetCountryId())
+	assert.Equal(t, uint32(1234), fortified.GetTileId())
+}
+
 func TestASinkFramesAClosedShape(t *testing.T) {
 	stream := &recorder{}
 

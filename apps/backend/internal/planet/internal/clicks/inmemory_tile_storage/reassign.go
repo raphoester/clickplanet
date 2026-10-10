@@ -50,12 +50,7 @@ func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, lim
 			break
 		}
 
-		s.tiles[tile] = ownedBy(toID)
-		s.markDirtyLocked(uint32(tile)) //nolint:gosec // tile <= maxIndex, which is a uint32.
-		s.counts[fromID]--
-		if toID != unownedCode {
-			s.counts[toID]++
-		}
+		s.moveLocked(uint32(tile), toID) //nolint:gosec // tile <= maxIndex, which is a uint32.
 		updates = append(updates, clicks.TileUpdate{
 			Tile:     uint32(tile), //nolint:gosec // tile <= maxIndex, which is a uint32.
 			Value:    to,
@@ -63,6 +58,7 @@ func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, lim
 		})
 	}
 
+	s.settleLocked(updates)
 	s.tilesMu.Unlock()
 
 	s.publishUpdates(updates)
@@ -86,19 +82,13 @@ func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) 
 
 		toID, err := s.internLocked(restoration.To)
 		if err != nil {
+			s.settleLocked(updates)
 			s.tilesMu.Unlock()
 			s.publishUpdates(updates)
 			return len(updates), err
 		}
 
-		if fromID != unownedCode {
-			s.counts[fromID]--
-		}
-		if toID != unownedCode {
-			s.counts[toID]++
-		}
-		s.tiles[restoration.Tile] = ownedBy(toID)
-		s.markDirtyLocked(restoration.Tile)
+		s.moveLocked(restoration.Tile, toID)
 
 		updates = append(updates, clicks.TileUpdate{
 			Tile:     restoration.Tile,
@@ -107,6 +97,7 @@ func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) 
 		})
 	}
 
+	s.settleLocked(updates)
 	s.tilesMu.Unlock()
 
 	s.publishUpdates(updates)

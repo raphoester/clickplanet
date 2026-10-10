@@ -39,7 +39,7 @@ export function remap(before, after) {
     return {runs, kept: survived.size, removed, added: after.length - survived.size}
 }
 
-const PAYLOAD_TILE_LISTS = ["cleared", "taken", "struck"]
+const PAYLOAD_TILE_LISTS = ["cleared", "taken", "struck", "raised"]
 
 function payloadTilesSQL(key) {
     const tile = "(o.value->>'tile')::integer"

@@ -18,3 +18,11 @@ message BombLanded {
   uint32 cleared = 4;
   google.protobuf.Timestamp landed_at = 5;
 }
+
+message Fortified {
+  string country = 1;
+  uint32 landmass_id = 2;
+  uint32 tiles = 3;
+  google.protobuf.Timestamp fortified_at = 4;
+  string ground = 5;
+}

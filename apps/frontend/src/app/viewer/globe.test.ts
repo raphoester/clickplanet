@@ -129,7 +129,7 @@ describe("a refused click, from the paint to the rollback", () => {
 
 describe("drawsFrame", () => {
     const tick = (over: Partial<Parameters<typeof drawsFrame>[0]>) => drawsFrame({
-        turned: false, changed: false, at: 10_000, drawnAt: 0, interactingUntil: 0,
+        turned: false, changed: false, ambient: false, at: 10_000, drawnAt: 0, interactingUntil: 0,
         sinceLastTick: 0, ...over,
     })
 
@@ -160,6 +160,12 @@ describe("drawsFrame", () => {
         const halfway = {turned: true, at: 10_000, drawnAt: 9_991.67, sinceLastTick: 8.33}
 
         expect(tick(halfway)).toBe(false)
+    })
+
+    it("draws a pulse at a slower pace than the spin", () => {
+        expect(tick({ambient: true, drawnAt: 9_960})).toBe(false)
+        expect(tick({ambient: true, drawnAt: 9_950})).toBe(true)
+        expect(tick({ambient: true, turned: true, drawnAt: 9_984})).toBe(true)
     })
 
     it("never holds a change back for the spin's sake", () => {

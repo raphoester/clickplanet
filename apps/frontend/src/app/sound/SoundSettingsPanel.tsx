@@ -8,6 +8,7 @@ const LABELS: Record<SwitchName, string> = {
     bonusSpawn: "Bonus box appears",
     bonusCaught: "Bonus box caught",
     bomb: "Bomb explosion",
+    fortify: "Territory fortified",
     chat: "Chat message",
     quiz: "Quiz",
     title: "Title unlocked",
