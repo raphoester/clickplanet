@@ -1,0 +1,36 @@
+name: check ops
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'deploy/vps/ops/**'
+      - '.github/workflows/check-ops.yml'
+  pull_request:
+    paths:
+      - 'deploy/vps/ops/**'
+      - '.github/workflows/check-ops.yml'
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: deploy/vps/ops
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: deploy/vps/ops/go.mod
+          cache-dependency-path: deploy/vps/ops/go.sum
+
+      - run: go build ./...
+
+      - run: go vet -tags testing ./...
+
+      - run: test -z "$(gofmt -l .)"
+
+      - run: go test -tags testing ./...
