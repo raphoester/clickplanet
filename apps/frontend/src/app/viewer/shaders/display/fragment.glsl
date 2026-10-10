@@ -9,6 +9,7 @@ uniform float pixelRatio;
 uniform float shieldMost;
 uniform sampler2D shieldMarks;
 uniform vec2 shieldCells;
+uniform float time;
 
 flat in vec4 vRegionVector;
 flat in vec2 vFlagUV;
@@ -17,6 +18,7 @@ flat in vec4 vFlagRegion;
 flat in float vFlagShare;
 flat in float vSpriteSize;
 flat in float vShield;
+flat in float vPulse;
 #ifdef LIT
 flat in float vShade;
 flat in float vHaze;
@@ -25,6 +27,7 @@ flat in float vHaze;
 varying float vHover;
 varying float vGlow;
 varying float vScorch;
+varying float vFortify;
 
 const float KEYLINE_WIDTH = 1.5;
 const float KEYLINE_FEATHER = 0.5;
@@ -109,6 +112,18 @@ void main() {
 
     vec3 ember = mix(vec3(0.07, 0.02, 0.01), vec3(1.0, 0.32, 0.04), vScorch * vScorch);
     colour = mix(colour, vec4(ember, 0.95), vScorch * 0.9);
+
+    if (vPulse > 0.5) {
+        float beat = 0.5 + 0.5 * sin(time * 6.2831853 / 1.1);
+        float r = length(coordinates);
+        float ring = smoothstep(0.31, 0.38, r) * (1.0 - smoothstep(0.46, 0.5, r));
+        vec3 gold = vec3(1.0, 0.8, 0.22);
+        colour.rgb = mix(colour.rgb, gold, ring * (0.5 + 0.5 * beat));
+        colour.a = max(colour.a, ring * (0.6 + 0.4 * beat));
+    }
+
+    vec3 steel = mix(vec3(0.55, 0.72, 0.95), vec3(0.96, 0.99, 1.0), vFortify * vFortify);
+    colour = mix(colour, vec4(steel, 1.0), vFortify * 0.85);
 
     vec3 hot = mix(vec3(1.0, 0.42, 0.08), vec3(1.0, 0.96, 0.82), vGlow * vGlow);
     colour = mix(colour, vec4(hot, 1.0), vGlow);

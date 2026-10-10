@@ -13,6 +13,8 @@ type TileStorage interface {
 	Shields(tile uint32) int
 	Strike(ctx context.Context, tile uint32, owner string) bool
 	Shield(ctx context.Context, tile uint32, country string, most int) error
+	Fortify(ctx context.Context, tile uint32, flag string, most int) (Fortification, error)
+	Fortresses() map[LandmassID]string
 	Clear(ctx context.Context, blast Blast) (Blast, error)
 	Reassign(ctx context.Context, from, to string, start uint32, limit int) (next uint32, moved int, err error)
 	Restore(ctx context.Context, restorations []Restoration) (int, error)

@@ -17,9 +17,10 @@ type UpdatesSubscriber interface {
 }
 
 type Event struct {
-	Update    clicks.TileUpdate
-	Blast     *clicks.Blast
-	Heartbeat bool
+	Update        clicks.TileUpdate
+	Blast         *clicks.Blast
+	Fortification *clicks.Fortification
+	Heartbeat     bool
 
 	Offer    *bonuses.Offer
 	Quiz     *bonuses.QuizOffer
@@ -108,6 +109,9 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 func eventOf(change clicks.Change) Event {
 	if change.Blast != nil {
 		return Event{Blast: change.Blast}
+	}
+	if change.Fortification != nil {
+		return Event{Fortification: change.Fortification}
 	}
 
 	return Event{Update: *change.Update}

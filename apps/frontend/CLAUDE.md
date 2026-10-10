@@ -25,6 +25,7 @@ npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as v
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
 npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
+npm run landmassNames # Name every landmass but each country's main one, from Natural Earth (see "Fortify")
 ```
 
 `.github/workflows/check-frontend.yml` runs lint, build and tests on every PR
@@ -58,7 +59,10 @@ podium, so the cutoff plays (see [The cutoff, revealed](#the-cutoff-revealed)).
 `closeFinale()` does the same for the Final Battle, at triple points. Each call
 closes the next day, so the reveal plays again. `fakeBackend.botBomb(tile, "fr")`,
 `fakeBackend.botSpread(tile, "fr")` and `fakeBackend.botShield(tile, "fr")` play
-somebody else's bomb, spread click or shield. `fakeBackend.shareClicks("guests")` (or
+somebody else's bomb, spread click or shield. `fakeBackend.takeLandmass(landmass, "es", leave)`
+takes a landmass for a flag, shields and all, and leaves the last `leave` tiles to
+click by hand (it answers them); the fake fortifies as the server does, and every
+landmass starts locked to France. `fakeBackend.shareClicks("guests")` (or
 `"network"`) reads the bucket as shared, and `fakeBackend.shareClicks()` as the
 player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
@@ -2495,6 +2499,47 @@ in `backends/backend.ts`, `domain/shields.ts` the count per tile and the rule,
 - **A count that drops glints red, one that rises glints steel**
   (`clickGlints.ts`). This player's own hit and placement play at once, and their
   echo is skipped (`ownHits`, `ownPlacements`).
+
+## Fortify
+
+A flag that takes all of a landmass gives each of its tiles a shield; the same flag
+never twice in a row (the rule is the server's, see the backend's CLAUDE.md, Fortify).
+A landmass is a row of the borders blob's table, which `BorderField` already reads.
+
+- **The event is `Fortification`** (`landmass_fortified`, through
+  `UpdatesListener.listenForFortifications`). `PlanetBackend` flushes the pending tile
+  updates first, so the shields go on the owners the server had.
+  `TileShields.applyFortification` adds one to each tile of the landmass the flag
+  holds, up to `tileShields`: the same rule as the server, so no tile list travels.
+- **The wave** (`fortifyWaves.ts`, `domain/fortifyWave.ts`): each tile's shield is shown
+  when a front from the closing tile reaches it, `FORTIFY_WAVE_SECONDS` to cross any
+  landmass, and the tile shader glows steel as it passes (`fortifies`,
+  `fortifyLandmass`, `fortifyReach`; the shaders' constants must match the TS ones).
+  The count is right at once; only what is drawn waits. A hidden tab or less motion
+  shows the shields at once.
+- **The banner** (`FortifyNews`, in Moments) is news only to the flag that fortified, or
+  for a landmass of `NEWS_FROM_TILES` (50) or more (`isNews`); so is its sound
+  (`fortify`, a switch of its own). **The first one this browser shows brings a card**
+  (`FortifyCard`, kept until "Got it", in `clickplanet-fortify-guide`).
+- **Close to fortifying** (`domain/fortifyTarget.ts`, `domain/fortifyTargets.ts`): a flag
+  holding more than half of a landmass and `CLOSE_TILES` (25) or fewer from all of it,
+  and not the flag that fortified it last. The tiles it still misses pulse gold (a
+  `pulse` attribute, a ring in the fragment shader), for everyone. The locks come from
+  `GetFortresses` at load and after a gap, then from the events; nothing pulses before
+  they are read. **The pulse is drawn at `AMBIENT_FRAME_MS` (20 fps), and only while a
+  pulsing landmass faces the camera** (`drawsFrame`'s `ambient`).
+- **Your own flag getting close** is a Moments line (`FortifyHint`, "Sicily: 23 tiles to
+  fortify"), once per approach, never during the load. Moments show one at a time: the
+  newest of a bomb, a fortify and this line.
+- **Names** (`domain/landmassNames.ts`): `static/landmassNames.json`, written by
+  `npm run landmassNames` from Natural Earth at the map's pin (`scripts/map/names/`:
+  subunits, islands, island groups, admin-1 and its region, by tiles in common), one
+  name per landmass, unique in its country. A country's main landmass is not listed:
+  it is named after the country, and it is the capital's when the biggest has a name
+  of its own (Java, not New Guinea). **Regenerate it after `npm run map:generate`**;
+  a test fails when it names another borders blob.
+- **In the chat**: an announcement of kind `fortify` (`{country, ground, landmass,
+  tiles}`), for a landmass of 50 tiles or more.
 
 ## Sharing the globe
 

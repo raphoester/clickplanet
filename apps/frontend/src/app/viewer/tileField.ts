@@ -27,6 +27,7 @@ export class TileField {
     private readonly landmass: THREE.BufferAttribute
     private readonly hover: THREE.BufferAttribute
     private readonly shield: THREE.BufferAttribute
+    private readonly pulse: THREE.BufferAttribute
     private hovered: number | undefined
 
     constructor(
@@ -44,6 +45,7 @@ export class TileField {
         this.landmass = new THREE.BufferAttribute(new Float32Array(size), 1)
         this.hover = new THREE.BufferAttribute(new Float32Array(size), 1)
         this.shield = new THREE.BufferAttribute(new Float32Array(size), 1)
+        this.pulse = new THREE.BufferAttribute(new Float32Array(size), 1)
 
         const displayGeometry = new THREE.BufferGeometry()
         displayGeometry.setAttribute('position', position)
@@ -51,6 +53,7 @@ export class TileField {
         displayGeometry.setAttribute('landmassIndex', this.landmass)
         displayGeometry.setAttribute('hover', this.hover)
         displayGeometry.setAttribute('shield', this.shield)
+        displayGeometry.setAttribute('pulse', this.pulse)
 
         const pickingGeometry = new THREE.BufferGeometry()
         pickingGeometry.setAttribute('position', position)
@@ -130,6 +133,32 @@ export class TileField {
             this.shield.addUpdateRange(lowest, highest - lowest)
         }
         this.shield.needsUpdate = true
+    }
+
+    setPulses(tiles: readonly number[], on: boolean) {
+        if (tiles.length === 0) return
+
+        const values = this.pulse.array as Float32Array
+        const individual = tiles.length <= MAX_INDIVIDUAL_RANGES
+        let lowest = Infinity
+        let highest = -Infinity
+
+        for (const tile of tiles) {
+            const index = tile - 1
+            values[index] = on ? 1 : 0
+
+            if (individual) {
+                this.pulse.addUpdateRange(index, 1)
+            } else {
+                lowest = Math.min(lowest, index)
+                highest = Math.max(highest, index + 1)
+            }
+        }
+
+        if (!individual && highest > lowest) {
+            this.pulse.addUpdateRange(lowest, highest - lowest)
+        }
+        this.pulse.needsUpdate = true
     }
 
     setLandmasses(assignment: Uint16Array) {

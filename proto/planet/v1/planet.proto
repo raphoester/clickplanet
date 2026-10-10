@@ -36,6 +36,10 @@ service ClickService {
   rpc AnswerQuiz(AnswerQuizRequest) returns (AnswerQuizResponse);
 
   rpc PlaceShield(PlaceShieldRequest) returns (PlaceShieldResponse);
+
+  rpc GetFortresses(GetFortressesRequest) returns (GetFortressesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message ClickBudget {
@@ -135,7 +139,34 @@ message PlanetEvent {
     TilesSpread tiles_spread = 7;
 
     QuizOffered quiz_offered = 8;
+
+    LandmassFortified landmass_fortified = 9;
   }
+}
+
+message GetFortressesRequest {}
+
+// Every landmass a flag fortified last, or holds whole with nobody having fortified it.
+message GetFortressesResponse {
+  repeated Fortress fortresses = 1;
+}
+
+message Fortress {
+  uint32 landmass_id = 1;
+
+  // The flag that may not fortify the landmass next.
+  string country_id = 2;
+}
+
+// Every tile of the landmass gained one shield, up to GetBonusRules.tile_shields.
+message LandmassFortified {
+  // An index into the borders blob's landmass table.
+  uint32 landmass_id = 1;
+
+  string country_id = 2;
+
+  // The tile whose take made the landmass whole.
+  uint32 tile_id = 3;
 }
 
 message ChargesHeld {

@@ -17,7 +17,7 @@ func (l *Loader) LoadBorders() (*clicks.Borders, error) {
 		return nil, fmt.Errorf("failed to read the embedded borders blob: %w", err)
 	}
 
-	borders, err := decodeBorders(blob)
+	borders, err := decodeBorders(asset, blob)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode %s: %w", asset, err)
 	}
@@ -33,7 +33,7 @@ func (l *Loader) LoadBorders() (*clicks.Borders, error) {
 	return borders, nil
 }
 
-func decodeBorders(blob []byte) (*clicks.Borders, error) {
+func decodeBorders(asset string, blob []byte) (*clicks.Borders, error) {
 	if len(blob) < 4 {
 		return nil, errors.New("too short for a header length")
 	}
@@ -60,7 +60,7 @@ func decodeBorders(blob []byte) (*clicks.Borders, error) {
 		regions[i] = binary.LittleEndian.Uint16(blob[headerEnd+i*2:])
 	}
 
-	borders, err := clicks.NewBorders(regions, header.Codes)
+	borders, err := clicks.NewBorders(asset, regions, header.Codes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build the borders: %w", err)
 	}

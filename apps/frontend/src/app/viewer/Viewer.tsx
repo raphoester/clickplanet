@@ -12,6 +12,11 @@ import {
     UpdatesListener,
 } from "../../backends/backend.ts";
 import BombNews from "../components/BombNews.tsx";
+import FortifyNews from "../components/FortifyNews.tsx";
+import FortifyCard from "../components/FortifyCard.tsx";
+import FortifyHint from "../components/FortifyHint.tsx";
+import {useFortifyGuide} from "../components/useFortifyGuide.ts";
+import {Fortified} from "../../domain/fortify.ts";
 import ConnectionLost from "../components/ConnectionLost.tsx";
 import {ConnectionSource} from "../../backends/connection.ts";
 import {useConnection} from "./useConnection.ts";
@@ -71,6 +76,9 @@ import {acceptedClicks} from "./acceptedClicks.ts";
 import "./Viewer.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
+
+// After the wave has run over the land.
+const FORTIFY_CARD_DELAY_MS = 1600
 
 type SheetName = "board" | "chat" | "you" | "settings" | "more" | "season" | "clicks"
 
@@ -159,6 +167,10 @@ export default function Viewer(props: ViewerProps) {
         notice,
         lastBomb,
         dismissBomb,
+        lastFortified,
+        dismissFortified,
+        lastClose,
+        dismissClose,
     } = useGlobe({
         container,
         tileClicker: props.tileClicker,
@@ -177,6 +189,17 @@ export default function Viewer(props: ViewerProps) {
     })
 
     const bonusGuide = useBonusGuide()
+
+    const fortifyGuide = useFortifyGuide()
+    const [fortifyCard, setFortifyCard] = useState<Fortified | undefined>()
+    useEffect(() => {
+        if (!lastFortified || fortifyGuide.seen) return
+        const timer = setTimeout(() => setFortifyCard(lastFortified.fortified), FORTIFY_CARD_DELAY_MS)
+        return () => clearTimeout(timer)
+    }, [lastFortified, fortifyGuide.seen])
+    // Moments show one at a time: the newest of them.
+    const newest = [lastBomb, lastFortified, lastClose].reduce<{at: number} | undefined>(
+        (latest, moment) => moment && (!latest || moment.at > latest.at) ? moment : latest, undefined)
 
     const refiller = props.refiller
     const spendRefill = refiller && (() => {
@@ -365,7 +388,26 @@ export default function Viewer(props: ViewerProps) {
 
         {ready && connection === "down" && <ConnectionLost lowered={quiz.state.phase !== 'idle'}/>}
 
-        {lastBomb && <BombNews
+        {lastClose && newest === lastClose && <FortifyHint
+            key={`close-${lastClose.id}`}
+            close={lastClose.close}
+            lowered={quiz.state.phase !== 'idle'}
+            onDone={dismissClose}
+        />}
+
+        {lastFortified && newest === lastFortified && <FortifyNews
+            key={`fortify-${lastFortified.id}`}
+            fortified={lastFortified.fortified}
+            lowered={quiz.state.phase !== 'idle'}
+            onDone={dismissFortified}
+        />}
+
+        {fortifyCard && <FortifyCard fortified={fortifyCard} onDone={() => {
+            fortifyGuide.markSeen()
+            setFortifyCard(undefined)
+        }}/>}
+
+        {lastBomb && newest === lastBomb && <BombNews
             key={lastBomb.id}
             drop={lastBomb.drop}
             land={lastBomb.land}

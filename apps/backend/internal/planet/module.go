@@ -54,6 +54,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase/audit_paint_random"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/relay_fortifications_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -80,6 +81,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler/fortresses_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
@@ -147,8 +150,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to migrate the %s schema: %w", config.Database.Schema, err)
 			}
 
-			tilesStorage := inmemory_tile_storage.New(
-				config.GameMap.MaxIndex, config.TilesStorage, postgres_tile_store.New(db), props.Logger)
+			tilesStorage := inmemory_tile_storage.New(borders, config.TilesStorage, postgres_tile_store.New(db), props.Logger)
 			if err := tilesStorage.Load(ctx); err != nil {
 				_ = db.Close()
 				return fmt.Errorf("failed to load the tile map: %w", err)
@@ -179,6 +181,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// Not a closer: closers run before the runners' last flush.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings, charges, deletions))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
+			props.Runners.Add(relay_fortifications_usecase.New(tilesStorage, props.Events, clock, props.Logger))
 
 			limiter := cpratelimit.New("click-limiter", config.RateLimiter.Config, clock)
 			props.Runners.Add(limiter)
@@ -188,7 +191,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			shielding := clicks.NewShielding(tilesStorage)
 
-			writer := ledger.NewRecording(tilesStorage, clicks.NewClaiming(tilesStorage),
+			writer := ledger.NewRecording(tilesStorage, clicks.NewClaiming(tilesStorage, config.Bonus.ShieldsPerTile()),
 				publishing_ledger_storage.New(takings, props.Events), clock)
 
 			registry := bonuses.New(config.Bonus, clock, charges)
@@ -366,6 +369,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				AnswerQuizHandler:    answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(antibot_place_shield.New(
 					place_shield_usecase.New(charges, writer, countries, config.Bonus.ShieldsPerTile()), guard)),
+				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
 			}
 
 			return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

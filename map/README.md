@@ -81,6 +81,7 @@ first run. A second run over its own output would write an identity migration.
 cd apps/backend && make map          # copy both blobs, then commit all three copies of each
 cd apps/frontend && npm run borderLines   # traced from both blobs, stale until it is run
 cd apps/frontend && npm run earth         # the globe's texture, cut from the new tile field
+cd apps/frontend && npm run landmassNames # each landmass's name, keyed by the new borders blob
 cd apps/frontend && npm run map:audit     # every fault should read zero
 ```
 

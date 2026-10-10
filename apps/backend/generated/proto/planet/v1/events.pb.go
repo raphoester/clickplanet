@@ -166,6 +166,82 @@ func (x *BombLanded) GetLandedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type Fortified struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Country       string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
+	LandmassId    uint32                 `protobuf:"varint,2,opt,name=landmass_id,json=landmassId,proto3" json:"landmass_id,omitempty"`
+	Tiles         uint32                 `protobuf:"varint,3,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	FortifiedAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fortified_at,json=fortifiedAt,proto3" json:"fortified_at,omitempty"`
+	Ground        string                 `protobuf:"bytes,5,opt,name=ground,proto3" json:"ground,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Fortified) Reset() {
+	*x = Fortified{}
+	mi := &file_planet_v1_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Fortified) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Fortified) ProtoMessage() {}
+
+func (x *Fortified) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_events_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Fortified.ProtoReflect.Descriptor instead.
+func (*Fortified) Descriptor() ([]byte, []int) {
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *Fortified) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
+}
+
+func (x *Fortified) GetLandmassId() uint32 {
+	if x != nil {
+		return x.LandmassId
+	}
+	return 0
+}
+
+func (x *Fortified) GetTiles() uint32 {
+	if x != nil {
+		return x.Tiles
+	}
+	return 0
+}
+
+func (x *Fortified) GetFortifiedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FortifiedAt
+	}
+	return nil
+}
+
+func (x *Fortified) GetGround() string {
+	if x != nil {
+		return x.Ground
+	}
+	return ""
+}
+
 var File_planet_v1_events_proto protoreflect.FileDescriptor
 
 const file_planet_v1_events_proto_rawDesc = "" +
@@ -183,7 +259,14 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\atile_id\x18\x02 \x01(\rR\x06tileId\x12\x16\n" +
 	"\x06ground\x18\x03 \x01(\tR\x06ground\x12\x18\n" +
 	"\acleared\x18\x04 \x01(\rR\acleared\x127\n" +
-	"\tlanded_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\blandedAtB\xb3\x01\n" +
+	"\tlanded_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\blandedAt\"\xb3\x01\n" +
+	"\tFortified\x12\x18\n" +
+	"\acountry\x18\x01 \x01(\tR\acountry\x12\x1f\n" +
+	"\vlandmass_id\x18\x02 \x01(\rR\n" +
+	"landmassId\x12\x14\n" +
+	"\x05tiles\x18\x03 \x01(\rR\x05tiles\x12=\n" +
+	"\ffortified_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vfortifiedAt\x12\x16\n" +
+	"\x06ground\x18\x05 \x01(\tR\x06groundB\xb3\x01\n" +
 	"\rcom.planet.v1B\vEventsProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -199,20 +282,22 @@ func file_planet_v1_events_proto_rawDescGZIP() []byte {
 	return file_planet_v1_events_proto_rawDescData
 }
 
-var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_planet_v1_events_proto_goTypes = []any{
 	(*TileTaken)(nil),             // 0: planet.v1.TileTaken
 	(*BombLanded)(nil),            // 1: planet.v1.BombLanded
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(*Fortified)(nil),             // 2: planet.v1.Fortified
+	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
 }
 var file_planet_v1_events_proto_depIdxs = []int32{
-	2, // 0: planet.v1.TileTaken.taken_at:type_name -> google.protobuf.Timestamp
-	2, // 1: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 0: planet.v1.TileTaken.taken_at:type_name -> google.protobuf.Timestamp
+	3, // 1: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
+	3, // 2: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_events_proto_init() }
@@ -226,7 +311,7 @@ func file_planet_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_events_proto_rawDesc), len(file_planet_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -11,6 +11,7 @@ import {
     ClaimedBonus,
     ShieldRefusedError,
     Enclosure,
+    Fortification,
     Ownerships,
     OwnershipsGetter,
     QuizMaster,
@@ -62,6 +63,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readonly bombCallbacks = new Map<string, (drop: BombDrop) => void>()
     private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
     private readonly resumeCallbacks = new Map<string, () => void>()
+    private readonly fortificationCallbacks = new Map<string, (fortification: Fortification) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private stopListening: () => void
 
@@ -112,6 +114,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.bombCallbacks.clear()
         this.budgetCallbacks.clear()
         this.resumeCallbacks.clear()
+        this.fortificationCallbacks.clear()
         this.pendingUpdates = []
     }
 
@@ -239,6 +242,17 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
+    public async getFortresses(signal?: AbortSignal): Promise<Map<number, string>> {
+        try {
+            const res = await retrying(() => this.client.getFortresses({}, {signal}), "getFortresses", signal)
+            return new Map(res.fortresses.map(({landmassId, countryId}) => [landmassId, countryId]))
+        } catch (e) {
+            // A server from before fortifying has no locks to tell.
+            if (e instanceof ConnectError && e.code === Code.Unimplemented) return new Map()
+            throw e
+        }
+    }
+
     private openEventStream(): () => void {
         return openStream(
             (signal) => {
@@ -280,6 +294,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     // Earlier tile updates go first, or they repaint over the crater.
                     this.flushUpdates()
                     this.bombCallbacks.forEach(callback => callback(drop))
+                    return
+                }
+
+                const fortification = fortificationOf(event)
+                if (fortification) {
+                    // Its shields go on the owners the earlier updates leave.
+                    this.flushUpdates()
+                    this.fortificationCallbacks.forEach(callback => callback(fortification))
                     return
                 }
 
@@ -377,6 +399,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.resumeCallbacks.set(id, callback)
 
         return () => this.resumeCallbacks.delete(id)
+    }
+
+    public listenForFortifications(callback: (fortification: Fortification) => void): () => void {
+        const id = generateUUID()
+        this.fortificationCallbacks.set(id, callback)
+
+        return () => this.fortificationCallbacks.delete(id)
     }
 
     public listenForBonuses(handlers: BonusHandlers): () => void {
@@ -656,6 +685,13 @@ export function enclosureOf(event: PlanetEvent): Enclosure | undefined {
         filled: [...enclosed.filledTileIds],
         yours: enclosed.yours || undefined,
     }
+}
+
+export function fortificationOf(event: PlanetEvent): Fortification | undefined {
+    if (event.event.case !== "landmassFortified") return undefined
+
+    const fortified = event.event.value
+    return {landmass: fortified.landmassId, countryId: fortified.countryId, tile: fortified.tileId}
 }
 
 export function spreadOf(event: PlanetEvent): SpreadClick | undefined {

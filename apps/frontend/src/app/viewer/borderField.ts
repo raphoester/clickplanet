@@ -81,6 +81,19 @@ export class BorderField {
         return this.painted[landmass]
     }
 
+    // Whoever holds the most of it, however little: the painted holder needs a share, this does not.
+    leaderOf(landmass: number): {holder: string, held: number} | undefined {
+        let leader: {holder: string, held: number} | undefined
+        for (const [holder, held] of this.held[landmass] ?? []) {
+            if (!leader || held > leader.held) leader = {holder, held}
+        }
+        return leader
+    }
+
+    sizeOf(landmass: number): number {
+        return this.data.totals[landmass] ?? 0
+    }
+
     apply(changes: OwnerChange[]) {
         const touched = new Set<number>()
 

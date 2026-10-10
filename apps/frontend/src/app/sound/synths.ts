@@ -344,6 +344,21 @@ const title: Synth = (ctx, at, {volume}) => {
     )
 }
 
+// A gate slamming shut, then the shields ringing in as the wave runs over the land.
+const fortify: Synth = (ctx, at, {volume}) => {
+    const out = ctx.createGain()
+    out.gain.value = 1
+    out.connect(ctx.destination)
+    filteredNoise(ctx, at, out, {start: 0, length: 0.18, gain: 0.35 * volume, filter: "lowpass", from: 900, to: 120})
+    tone(ctx, at, volume, {type: "sine", from: 110, to: 55, start: 0, length: 0.35, gain: 0.45}, out)
+    tone(ctx, at, volume, {type: "triangle", from: 196, start: 0.02, length: 0.5, gain: 0.12}, out)
+    ;[784, 988, 1175, 1568, 1976].forEach((from, i) => {
+        tone(ctx, at, volume, {type: "sine", from, start: 0.18 + i * 0.16, length: 0.9, gain: 0.07}, out)
+        tone(ctx, at, volume, {type: "sine", from: from * 2.76, start: 0.18 + i * 0.16, length: 0.35, gain: 0.025}, out)
+    })
+    window.setTimeout(() => out.disconnect(), (at - ctx.currentTime + 2.5) * 1000)
+}
+
 export const SYNTHS: Record<SoundName, Synth> = {
-    click, refused, bonusSpawn, bonusCaught, spread, enclose, bomb, chat, quiz, quizRight, quizWrong, title,
+    click, refused, bonusSpawn, bonusCaught, spread, enclose, bomb, chat, quiz, quizRight, quizWrong, title, fortify,
 }

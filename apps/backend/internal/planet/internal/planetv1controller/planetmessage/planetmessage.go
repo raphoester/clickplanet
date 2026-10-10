@@ -32,6 +32,18 @@ func BombDropped(blast *clicks.Blast) *planetv1.PlanetEvent {
 	}
 }
 
+func LandmassFortified(fortification *clicks.Fortification) *planetv1.PlanetEvent {
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_LandmassFortified{
+			LandmassFortified: &planetv1.LandmassFortified{
+				LandmassId: uint32(fortification.Landmass),
+				CountryId:  fortification.Country,
+				TileId:     fortification.Tile,
+			},
+		},
+	}
+}
+
 func TilesSpread(country string, tile uint32, spread []uint32) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{
 		Event: &planetv1.PlanetEvent_TilesSpread{

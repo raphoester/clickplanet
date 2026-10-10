@@ -17,6 +17,9 @@ export interface OwnershipsGetter {
         callback: (ownerships: Ownerships) => void,
         signal?: AbortSignal,
     ): Promise<void>
+
+    // The flag each locked landmass is locked to.
+    getFortresses(signal?: AbortSignal): Promise<Map<number, string>>
 }
 
 export type Update = {
@@ -36,6 +39,14 @@ export interface UpdatesListener {
 
     // The stream came back after a gap: what happened in it was never sent.
     listenForResumes(callback: () => void): () => void
+
+    listenForFortifications(callback: (fortification: Fortification) => void): () => void
+}
+
+export type Fortification = {
+    landmass: number
+    countryId: string
+    tile: number
 }
 
 export type BonusOffer = {

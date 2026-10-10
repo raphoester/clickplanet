@@ -251,6 +251,9 @@ func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
 			{Tile: 9, Owner: "de", Outcome: clicks.Shielded},
 		}},
 		ledger.Shielding{Tile: 4, Scope: "A", Account: "guest", Country: "fr", Shields: 10, At: start},
+		ledger.Fortifying{Tile: 6, Landmass: 257, Scope: "A", Account: "guest", Country: "fr", At: start, Raised: []clicks.TileShields{
+			{Tile: 5, Shields: 1}, {Tile: 6, Shields: 10},
+		}},
 	} {
 		entry, err := event.Entry()
 		require.NoError(t, err)
@@ -469,6 +472,7 @@ var errOutOfRange = errors.New("out of range")
 type stubTiles struct {
 	owners  map[uint32]string
 	shields map[uint32]int
+	fortify *clicks.Fortification
 }
 
 func newTiles(owners map[uint32]string) *stubTiles {
@@ -480,6 +484,13 @@ const lastTile = 100
 func (s *stubTiles) Owner(tile uint32) (string, bool) { return s.owners[tile], true }
 
 func (s *stubTiles) Shields(tile uint32) int { return s.shields[tile] }
+
+func (s *stubTiles) Fortify(context.Context, uint32, string, int) (clicks.Fortification, error) {
+	if s.fortify == nil {
+		return clicks.Fortification{}, clicks.ErrNotWhole
+	}
+	return *s.fortify, nil
+}
 
 func (s *stubTiles) Strike(_ context.Context, tile uint32, _ string) bool {
 	if s.shields[tile] == 0 {
@@ -531,7 +542,7 @@ func (s *stubTiles) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, 
 
 func recorded(tiles *stubTiles) (ledger.Recording, *inmemory_ledger_storage.Storage) {
 	events := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
-	return ledger.NewRecording(tiles, clicks.NewClaiming(tiles), events, cptime.NewFixedClock(start)), events
+	return ledger.NewRecording(tiles, clicks.NewClaiming(tiles, 10), events, cptime.NewFixedClock(start)), events
 }
 
 func written(storage ledger.Storage) []ledger.Event {
@@ -735,6 +746,37 @@ func TestRecordingNotesAShieldPlacedWithTheShieldsTheTileNowHolds(t *testing.T) 
 		ledger.Shielding{Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", Shields: 2, At: start},
 	}, written(events))
 	assert.Empty(t, replay(events), "a shield takes no tile")
+}
+
+func TestRecordingNotesAFortifyAfterTheTakeThatEarnedIt(t *testing.T) {
+	tiles := newTiles(map[uint32]string{1: "fr", 2: "de"})
+	tiles.fortify = &clicks.Fortification{Landmass: 3, Country: "fr", Tile: 2, Tiles: 2, Raised: []clicks.TileShields{
+		{Tile: 1, Shields: 1}, {Tile: 2, Shields: 1},
+	}}
+	recording, events := recorded(tiles)
+
+	_, err := recording.Click(caller(t), 2, "fr")
+	require.NoError(t, err)
+
+	assert.Equal(t, []ledger.Event{
+		ledger.Taking{Tile: 2, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", Previous: "de", At: start},
+		ledger.Fortifying{
+			Tile: 2, Landmass: 3, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", At: start,
+			Raised: []clicks.TileShields{{Tile: 1, Shields: 1}, {Tile: 2, Shields: 1}},
+		},
+	}, written(events))
+	assert.Len(t, replay(events), 1, "a fortify takes no tile")
+}
+
+func TestAFortifyShowsEachShieldItRaised(t *testing.T) {
+	var scenes []ledger.Scene
+	ledger.Fortifying{Tile: 2, Country: "fr", At: start, Raised: []clicks.TileShields{{Tile: 1, Shields: 3}}}.
+		Show(func(scene ledger.Scene) { scenes = append(scenes, scene) })
+
+	require.Len(t, scenes, 1)
+	assert.Equal(t, &ledger.Change{
+		TileUpdate: clicks.TileUpdate{Tile: 1, Value: "fr", Previous: "fr", Shields: 3}, Was: 2,
+	}, scenes[0].Change)
 }
 
 func TestRecordingNotesNothingForAShieldTheTileRefused(t *testing.T) {

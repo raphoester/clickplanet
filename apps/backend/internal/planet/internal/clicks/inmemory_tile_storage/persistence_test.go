@@ -184,3 +184,52 @@ func (s *testSuite) TestReassignedTilesSurviveAFlush() {
 	s.Equal(1, restored.Held("fr"))
 	s.Zero(restored.Held("dz"))
 }
+
+func (s *testSuite) TestAFortifiedLandmassStaysLockedAcrossARestart() {
+	ctx := context.Background()
+	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
+	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	for _, tile := range island {
+		s.Require().NoError(storage.Set(ctx, tile, "fr"))
+	}
+	_, err := storage.Fortify(ctx, 90_003, "fr", 10)
+	s.Require().NoError(err)
+	s.Require().NoError(storage.Flush(ctx))
+
+	restarted := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	s.Require().NoError(restarted.Load(ctx))
+	s.Require().NoError(restarted.Set(ctx, 90_001, "de"))
+	s.Require().NoError(restarted.Set(ctx, 90_001, "fr"))
+	_, err = restarted.Fortify(ctx, 90_001, "fr", 10)
+
+	s.Require().ErrorIs(err, clicks.ErrFortifiedAlready)
+	s.Equal(map[clicks.LandmassID]string{1: "fr"}, persistence.StoredLandmasses(borders.Asset()))
+	s.Equal(1, restarted.Shields(90_002))
+}
+
+func (s *testSuite) TestAWholeLandmassNobodyFortifiedIsLockedToItsHolderAtLoad() {
+	ctx := context.Background()
+	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{90_001: "fr", 90_002: "fr", 90_003: "fr"})
+	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	s.Require().NoError(storage.Load(ctx))
+	s.Require().NoError(storage.Flush(ctx))
+
+	_, err := storage.Fortify(ctx, 90_001, "fr", 10)
+
+	s.Require().ErrorIs(err, clicks.ErrFortifiedAlready)
+	s.Equal(map[clicks.LandmassID]string{1: "fr"}, persistence.StoredLandmasses(borders.Asset()))
+	s.Zero(storage.Shields(90_001))
+}
+
+func (s *testSuite) TestALockKeptForAnotherMapIsIgnored() {
+	ctx := context.Background()
+	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{90_001: "de", 90_002: "fr", 90_003: "fr"})
+	persistence.Fortified("borders-older.bin", 1, "fr")
+	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	s.Require().NoError(storage.Load(ctx))
+	s.Require().NoError(storage.Set(ctx, 90_001, "fr"))
+
+	_, err := storage.Fortify(ctx, 90_001, "fr", 10)
+
+	s.Require().NoError(err)
+}

@@ -1,5 +1,6 @@
 import {Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {BombAnnouncement, ChatAnnouncement, ChatMessage, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
+import {BombAnnouncement, ChatAnnouncement, ChatMessage, FortifyAnnouncement, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
+import {landmassName} from "../../domain/landmassNames.ts";
 import {PlayerLine} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
@@ -229,11 +230,26 @@ function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
     switch (announcement.kind) {
         case "bomb":
             return <BombLine announcement={announcement}/>
+        case "fortify":
+            return <FortifyLine announcement={announcement}/>
         case "mute":
             return <MuteLine announcement={announcement}/>
         case "round":
             return <RoundLine announcement={announcement}/>
     }
+}
+
+function FortifyLine({announcement}: {announcement: FortifyAnnouncement}) {
+    return <li className="chat-announcement" data-at={announcement.announcedAt}>
+        <span className="chat-announcement-icon" aria-hidden="true">🛡️</span>
+        <CountryFlag code={announcement.country}/>
+        <span className="chat-announcement-text">
+            <strong>{countryName(announcement.country)}</strong> fortified {landmassName(announcement.landmass, announcement.ground)}
+        </span>
+        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
+            {clock.format(announcement.announcedAt)}
+        </time>
+    </li>
 }
 
 function RoundLine({announcement}: {announcement: RoundAnnouncement}) {

@@ -3,6 +3,7 @@ import {
     asBonusError,
     bindingsOf,
     bombOf,
+    fortificationOf,
     catchOf,
     shieldsOf,
     enclosureOf,
@@ -25,6 +26,7 @@ import {
     GetMapResponse,
     GlobePoint,
     Heartbeat,
+    LandmassFortified,
     PlanetEvent,
     SharedWith,
     TilesEnclosed,
@@ -905,6 +907,20 @@ describe("spreadOf", () => {
 
     it("drops everything that is not a spread click", () => {
         expect(spreadOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+    })
+})
+
+describe("fortificationOf", () => {
+    it("reads the landmass, the flag and the tile that made it whole", () => {
+        const event = new PlanetEvent({
+            event: {case: "landmassFortified", value: new LandmassFortified({landmassId: 42, countryId: "us", tileId: 1234})},
+        })
+
+        expect(fortificationOf(event)).toEqual({landmass: 42, countryId: "us", tile: 1234})
+    })
+
+    it("drops everything that is not a fortified landmass", () => {
+        expect(fortificationOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
     })
 })
 

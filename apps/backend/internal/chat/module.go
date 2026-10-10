@@ -53,6 +53,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_muted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/round_closed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -67,6 +68,8 @@ import (
 const moduleName = "chat"
 
 const bombLandedBuffer = 256
+
+const fortifiedBuffer = 256
 
 const accountDeletedBuffer = 256
 
@@ -125,6 +128,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to planet.v1.BombLanded: %w", err)
 	}
 
+	fortifies, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-fortifies", fortifiedBuffer,
+		log_subscriber.New(fortified_subscriber.New(announce), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to planet.v1.Fortified: %w", err)
+	}
+
 	deletions, err := cpbootstrap.Subscribe(props.Events, "chat-seen", accountDeletedBuffer,
 		log_subscriber.New(account_deleted_subscriber.New(forget_seen_usecase.New(seenStore)), props.Logger))
 	if err != nil {
@@ -148,7 +158,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		prune_usecase.NewRunner(storage.PruneInterval, prune), bombs, deletions, mutings, roundsClosed))
+		prune_usecase.NewRunner(storage.PruneInterval, prune), bombs, fortifies, deletions, mutings, roundsClosed))
 
 	messageLimiter := cpratelimit.New("message-limiter", config.RateLimiter, cptime.SystemClock{})
 	props.Runners.Add(messageLimiter)

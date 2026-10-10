@@ -74,6 +74,10 @@ func (b board) Click(ctx context.Context, tile uint32, value string) error {
 	return b.Set(ctx, tile, value)
 }
 
+func (b board) Fortify(context.Context, uint32, string, int) (clicks.Fortification, error) {
+	return clicks.Fortification{}, clicks.ErrNotWhole
+}
+
 type rule struct {
 	claiming clicks.Claiming
 	err      error
@@ -138,7 +142,7 @@ func setup(charged bool, err error) fixture {
 		f.charges.Grant(caller, bonuses.KindEncloseClicks, 1)
 	}
 
-	claiming := clicks.NewClaiming(board{tiles: f.tiles, shields: f.shields})
+	claiming := clicks.NewClaiming(board{tiles: f.tiles, shields: f.shields}, 10)
 	f.useCase = enclose_click.New(rule{claiming: claiming, err: err}, f.charges,
 		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(encloser{claiming: claiming}, f.charges, f.published))
 

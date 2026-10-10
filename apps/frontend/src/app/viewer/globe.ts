@@ -53,11 +53,16 @@ import {HoldToDrop} from "../../domain/holdToDrop.ts";
 import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {ShieldChange, outcomeOf, placementOf, TileShields} from "../../domain/shields.ts";
+import {Landmasses} from "../../domain/landmasses.ts";
+import {landmassName} from "../../domain/landmassNames.ts";
+import {CloseToFortify, Fortified, isNews} from "../../domain/fortify.ts";
+import {Entered, FortifyTargets} from "../../domain/fortifyTargets.ts";
+import {createFortifyWaves, FortifyUniforms, fortifyUniforms} from "./fortifyWaves.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
 import {drawShieldMarks, shieldCellsOf} from "./shieldMarks.ts";
 import {AcceptedClick} from "./acceptedClicks.ts";
 
-type Uniforms = BlastUniforms & {
+type Uniforms = BlastUniforms & FortifyUniforms & {
     pointSize: THREE.IUniform
     atlasTexture: THREE.IUniform
     atlasTextureSize: THREE.IUniform
@@ -96,6 +101,9 @@ const CATCH_UP_DELAY_MS = 5_000
 
 const IDLE_FRAME_MS = 16
 
+// A pulse that only says "look here" is drawn at 20 frames a second, to spare the battery.
+const AMBIENT_FRAME_MS = 50
+
 const SPIN_TURNS_PER_MINUTE = 2
 
 const MAX_SPIN_STEP_MS = 100
@@ -109,16 +117,17 @@ const INTERACTION_GRACE_MS = 1_000
 export type Tick = {
     turned: boolean
     changed: boolean
+    ambient: boolean
     at: number
     drawnAt: number
     interactingUntil: number
     sinceLastTick: number
 }
 
-export function drawsFrame({turned, changed, at, drawnAt, interactingUntil, sinceLastTick}: Tick): boolean {
-    if (!turned && !changed) return false
+export function drawsFrame({turned, changed, ambient, at, drawnAt, interactingUntil, sinceLastTick}: Tick): boolean {
+    if (!turned && !changed && !ambient) return false
     if (changed || at <= interactingUntil) return true
-    return at + sinceLastTick / 2 >= drawnAt + IDLE_FRAME_MS
+    return at + sinceLastTick / 2 >= drawnAt + (turned ? IDLE_FRAME_MS : AMBIENT_FRAME_MS)
 }
 
 const CLAIM_MARGIN_MS = 2_000
@@ -158,6 +167,8 @@ export type GlobeOptions = {
     shielder?: Shielder
     onNotice?: (notice: BonusNotice) => void
     onClickAccepted?: (click: AcceptedClick) => void
+    onFortified?: (fortified: Fortified) => void
+    onCloseToFortify?: (close: CloseToFortify) => void
     playSound?: PlaySound
     director?: Director
     signal: AbortSignal
@@ -207,6 +218,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         shielder,
         onNotice = () => {},
         onClickAccepted = () => {},
+        onFortified = () => {},
+        onCloseToFortify = () => {},
         playSound = () => {},
         director,
         signal,
@@ -251,6 +264,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         shieldMarks: {value: drawShieldMarks(SHIELD_MOST_UNTIL_READ, invalidate)},
         shieldCells: {value: shieldCellsOf(SHIELD_MOST_UNTIL_READ)},
         ...blastUniforms(prefersReducedMotion()),
+        ...fortifyUniforms(),
     };
 
     const pickingUniforms = {pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()}}
@@ -258,6 +272,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const field = new TileField(uniforms, pickingUniforms, geometryData, graphics.tiles);
 
     const territories = new BorderField(borders, field.size)
+    const landmasses = new Landmasses(borders.assignment, borders.codes.length)
     field.setLandmasses(borders.assignment)
     uniforms.landmassData.value = territories.landmassData
     uniforms.landmassCount.value = borders.codes.length
@@ -301,10 +316,54 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return enclosing || spreading || clicking || boxed
     }
 
+    const targets = new FortifyTargets({
+        sizeOf: (landmass) => territories.sizeOf(landmass),
+        leaderOf: (landmass) => territories.leaderOf(landmass),
+        ownerOf: (tile) => ownership.ownerOf(tile),
+        tilesOf: (landmass) => landmasses.tilesOf(landmass),
+        landmassOf: (tile) => borders.assignment[tile - 1] ?? 0,
+    }, (tiles, on) => {
+        field.setPulses(tiles, on)
+        invalidate()
+    })
+    // Off until the locks are read: without them a pulse would show for the flag that fortified last.
+    let tracking = false
+
+    const announceClose = (entered: Entered[]) => {
+        for (const {landmass, target} of entered) {
+            if (target.flag !== country.code) continue
+            onCloseToFortify({landmass, name: landmassName(landmass, borders.codes[landmass]), missing: target.missing})
+        }
+    }
+
+    const readFortresses = async () => {
+        try {
+            const locks = await ownershipsGetter.getFortresses(lifetime.signal)
+            if (lifetime.signal.aborted) return
+            targets.lockAll(locks, borders.codes.length)
+            tracking = true
+        } catch (e) {
+            if (!lifetime.signal.aborted) console.error("could not read the fortresses", e)
+        }
+    }
+
+    const pulsing = (camera: THREE.Camera) => {
+        for (const landmass of targets.landmasses()) {
+            const at = landmass * 5
+            const along = camera.position.x * borders.frames[at] + camera.position.y * borders.frames[at + 1] + camera.position.z * borders.frames[at + 2]
+            if (along > 0) return true
+        }
+        return false
+    }
+
     const applyChanges = (changes: OwnerChange[], live = true) => {
         if (changes.length === 0) return
         field.setOwners(changes)
         territories.apply(changes)
+        if (tracking) {
+            const entered = targets.touch(changes.map(({tile}) => tile))
+            if (live) announceClose(entered)
+        }
         updateLeaderboard(rankCountries(ownership.counts()), live)
         invalidate()
     }
@@ -741,9 +800,29 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         applyChanges(ownership.resync(bindings), false)
         showShields(shielded.resync(shields))
+        await readFortresses()
     }
 
     const stopResumes = updatesListener.listenForResumes(() => void catchUp())
+
+    const waves = createFortifyWaves(uniforms, geometryData.positions, (tiles) => {
+        field.setShields(Array.from(tiles, (tile) => ({tile, shields: shielded.shieldsOf(tile), was: 0})))
+        invalidate()
+    })
+
+    const stopFortifications = updatesListener.listenForFortifications((fortification) => {
+        const tiles = landmasses.tilesOf(fortification.landmass)
+        const held = (tile: number) => ownership.ownerOf(tile) === fortification.countryId
+        const raised = shielded.applyFortification(tiles, held, uniforms.shieldMost.value)
+        if (document.hidden || uniforms.motion.value === 0) showShields(raised)
+        else waves.start(fortification.landmass, tiles, fortification.tile, performance.now() / 1000)
+
+        const own = fortification.countryId === country.code
+        const news = isNews(fortification, tiles.length, country.code)
+        if (news) playSound("fortify", {volume: own ? 1 : DISTANT_BOMB_VOLUME})
+        onFortified({fortification, name: landmassName(fortification.landmass, borders.codes[fortification.landmass]), tiles: tiles.length, news})
+        if (tracking) targets.lock(fortification.landmass, fortification.countryId)
+    })
 
     addDisplayObjects(scene, field.displayPoints, graphics)
 
@@ -761,7 +840,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return was
     }, (seconds) => {
         const boxed = driveBonusBox(seconds)
-        const blasting = driveBlasts(seconds)
+        const fortifying = waves.update(seconds)
+        const blasting = driveBlasts(seconds) || fortifying
         outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio(), mapView)
 
         if (pendingPointer === undefined) return boxed || blasting
@@ -779,7 +859,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const frame = readDrawingBuffer(renderer)
         for (const request of takeCaptureRequests()) request.resolve(frame)
-    });
+    }, pulsing);
 
     const globe: Globe = {
         tilesCount: field.size,
@@ -817,6 +897,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             stopAnimation()
             cleanUpdatesListener()
             stopResumes()
+            stopFortifications()
             catchingUp?.abort()
             stopBonuses?.()
             stopBombs?.()
@@ -863,6 +944,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     loaded = true
+    void readFortresses()
     return globe
 }
 
@@ -877,6 +959,7 @@ function startAnimation(
     takeChange: () => boolean,
     beforeRender: (seconds: number) => boolean,
     afterRender: () => void,
+    pulsing: (camera: THREE.Camera) => boolean,
 ): {stop: () => void} {
     const starfield = createStarfield();
 
@@ -931,7 +1014,8 @@ function startAnimation(
         const moving = beforeRender(time / 1000);
         const changed = takeChange() || moving;
 
-        if (!drawsFrame({turned, changed, at: time, drawnAt, interactingUntil, sinceLastTick})) return;
+        const ambient = pulsing(camera);
+        if (!drawsFrame({turned, changed, ambient, at: time, drawnAt, interactingUntil, sinceLastTick})) return;
 
         moved = false;
         drawnAt = time;

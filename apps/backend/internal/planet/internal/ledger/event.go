@@ -32,6 +32,7 @@ var kinds = map[string]func(Entry) (Event, error){
 	kindEnclose: enclosingOf,
 	kindBomb:    bombingOf,
 	kindShield:  shieldingOf,
+	kindFortify: fortifyingOf,
 }
 
 func EventOf(entry Entry) (Event, error) {

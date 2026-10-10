@@ -248,6 +248,7 @@ The events today:
 |---|---|---|---|
 | `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats; `seasons`, for the standings |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
+| `planet.v1.Fortified{country, landmass_id, tiles, ground, fortified_at}` | `planet`, `relay_fortifications_usecase` | each landmass a player's take fortified (see [Fortify](#fortify)) | `chat`, which announces the ones of 50 tiles or more |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
@@ -355,6 +356,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker` |
+| `clicks/usecases/relay_fortifications_usecase` | follows the tile map and publishes `planet.v1.Fortified` for each fortify; a `Runner` | `Changes`, `Publisher` |
 
 **The interfaces in that last column are declared by the package that calls
 them**, not gathered in a `gateways.go` every use case imports. A shared port
@@ -587,7 +589,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 `inmemory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
 **Secondary (output):**
-- `clicks/inmemory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table, and a `[]uint8` of each tile's shields beside it (3 bytes per tile — ~3 MB for a 1M-tile map). Fans updates out in process, and flushes the tiles that changed through its `Persistence` port.
+- `clicks/inmemory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table, and a `[]uint8` of each tile's shields beside it (3 bytes per tile — ~3 MB for a 1M-tile map). Fans updates out in process, and flushes the tiles that changed through its `Persistence` port. **`Storage` only holds the lock and orders four objects**, each with one job: `board` (the tiles, the `codebook` they are written in, and what each country holds), `landmasses` (what each flag holds of each landmass, and the flag it is locked to), `feed` (the open streams) and a `dirtySet` in each of the first two (what the next flush writes). A change of owner goes through `Storage.moveLocked`, which moves the board and the landmass count together.
 - `clicks/postgres_tile_store/` — that port, over the `planet.tiles` table. See [Durability](#durability).
 - `ledger/inmemory_ledger_storage/` — the ledger, in memory, flushed through its own `Persistence` port.
 - `ledger/postgres_ledger_store/` — that port, over `planet.ledger_events`, `ledger_head` and `ledger_forgotten`, and `AnonymizeTakes` for a deleted account.
@@ -731,6 +733,46 @@ What a spread, an enclose, a bomb and the antibot do with a shielded tile is in 
 own sections: [spread](#what-a-spread-does-to-a-click), [enclose](#what-an-enclose-does-to-a-click),
 [bomb](#what-a-bomb-does), [antibot](#the-parts-that-are-easy-to-get-wrong).
 
+### Fortify
+
+**A player's take that makes a landmass whole for its flag gives every tile of it a
+shield**, up to `bonus.shield.perTile`. A landmass is a piece of one country's ground
+that touches itself on the lattice, the borders blob's own table (658 of them): Alaska
+is one, the lower 48 another. **The same flag never fortifies a landmass twice in a
+row**: another flag has to take all of it first, through its shields. That is the whole
+defence against taking back the last tile for a free refill, and it costs no timer.
+
+- **The rule is `clicks.FortifyError`**, pure and tested in the `clicks` root: not whole
+  (`ErrNotWhole`), or fortified last by the same flag (`ErrFortifiedAlready`).
+  `clicks.SettlerOf` is the other half: a whole landmass nobody fortified is locked to its
+  holder with no shields.
+- **The lock lives with the tiles**, in `inmemory_tile_storage`'s `landmasses`: a count
+  per landmass and per flag, moved with the board by every change of owner
+  (`moveLocked`), and the flag that fortified each landmass last. `Fortify(tile, flag, most)` checks and
+  raises under the tiles lock, so two takes racing for the last tile fortify once. It
+  publishes one `clicks.Change{Fortification}` on the map's channel, after the updates
+  that made the landmass whole.
+- **Only a player's take fortifies.** `clicks.Claiming` asks `Fortify` after each take,
+  so a click, each tile of a spread and each tile of an enclose can; the answer is on
+  `Impact.Fortified`. A reassign or a revert that makes a landmass whole locks it to its
+  holder instead (`settleLocked`), and so does the boot for every whole landmass with no
+  lock: so the launch, and an operator, can never hand out a free fortify.
+- **Kept with the tiles**: `planet.landmasses (asset, id, fortified_by)`, written by the
+  same flush, so a lock and its shields are never saved apart. A row is keyed by the
+  borders blob's name: a regenerated map numbers its landmasses again, and the boot
+  reads only the rows of the blob it loaded (then settles the rest).
+- **On the wire**: `PlanetEvent.landmass_fortified{landmass_id, country_id, tile_id}`, in
+  order with the tile updates. The client adds the shield to each tile of the landmass
+  its flag holds, as the server did, rather than reading a list of 28,000 tiles.
+  `ClickService/GetFortresses` (`NO_SIDE_EFFECTS`, cached 5s) is every lock now, read
+  through `fortresses_query`, for the pulse on the tiles a flag still misses.
+- **In the ledger**: a `fortify` event after the take that earned it (see
+  [Durability](#durability)), so a replay shows each shield it raised.
+- **To the other modules**: `relay_fortifications_usecase` is a runner that follows the
+  map's channel and publishes `planet.v1.Fortified` for each fortify; the map is where it
+  happened. It subscribes again a second after the map cuts it off. The chat announces
+  the ones of `fortifyNewsTiles` (50) tiles or more.
+
 ### Chat (`internal/chat/`)
 
 Chat is a separate bounded context, not a feature of the tile game: it shares the process, the transport and the country list, and has its own proto package, domain, storage and edge. Nothing under `internal/chat/` imports `internal/planet/`, and the reverse holds too — and since each module's interior sits behind its own `internal/`, neither now can.
@@ -767,8 +809,10 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 #### Announcements
 
 **The chat also says things on its own**: a line between the messages with no sender, which the client draws
-without a bubble. Three kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
-mute an operator gave (see [Mutes](#mutes)), and `round`, every round of a season that closed.
+without a bubble. Four kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
+mute an operator gave (see [Mutes](#mutes)), `round`, every round of a season that closed, and `fortify`, every
+landmass of 50 tiles or more a flag fortified (`{country, ground, landmass, tiles}`: the client names the landmass
+from its own table, `ground` for a country's main one; see [Fortify](#fortify)).
 
 - **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
   text or reactions, and a message has no kind or payload; sharing a base would make every column of one
@@ -2707,8 +2751,9 @@ Both chains order them the same way: error mapping outermost, then the blocklist
   - `spread` and `enclose`: the bonus used on a click, on the tile clicked; `{taken, struck}` lists the tiles it took and the tiles a shield kept. The click itself is a row of its own.
   - `bomb`: one blast; `country` is empty, `previous` the owner of the tile it emptied (tile 0 in the sea), and `{flag, point, radius, cleared, struck}` the rest.
   - `shield`: a shield placed; `{shields}` is what the tile holds now.
+  - `fortify`: a landmass fortified, on the tile whose take made it whole; `{landmass, raised}` lists each tile that gained a shield with the shields it holds now.
 
-  Each tile a payload lists is `{tile, owner}`, and `shields` too when a shield kept it, so a remap of the map moves every tile id in it. A refill, a box and a quiz change no tile, and are not kept. Migration `20261006130000_ledger_events` renamed `ledger_takes` and made every row before it a `take`; its down deletes the bombs. `ledger_head` is one row: the oldest position memory keeps, so positions carry on past a window the retention emptied. `ledger_forgotten` is a reverted scope's mark, and `ledger_forgotten_accounts` a reverted account's.
+  Each tile a payload lists is `{tile, owner}`, and `shields` too when a shield kept it, so a remap of the map moves every tile id in it (`PAYLOAD_TILE_LISTS` in the frontend's `scripts/map/remap.mjs` names the lists). A refill, a box and a quiz change no tile, and are not kept. Migration `20261006130000_ledger_events` renamed `ledger_takes` and made every row before it a `take`; its down deletes the bombs. `ledger_head` is one row: the oldest position memory keeps, so positions carry on past a window the retention emptied. `ledger_forgotten` is a reverted scope's mark, and `ledger_forgotten_accounts` a reverted account's.
 - **Boot loads from the head**: the takes from `ledger_head` on, in position order, then the marks. So memory and the boot time stay bounded by the window, however long the table grows. **A failed load refuses the boot.** Measured at 1M takes on a laptop: 0.8s to load, 1.3s to copy in — so ~3s and ~5s at the 4M cap.
 - **The boot has `httpServer.startupTimeout` (1m) for all of it**, every module included. Production is about ten times slower than a laptop. On 2026-10-08, with 255k owned tiles and 180k takes, a boot that came right after another took 3.6s: geography 0.9s, tile map 0.6s, ledger 1.5s. The first boot after a stop is 2 to 3 times slower at each step, because the 1 GB droplet reads its pages back from swap and disk. Postgres alone takes ~2s to send the ledger window and ~1s to send the tiles, so the time is the box, not the Go code. The old 5s deadline made the first boot fail four times between Oct 6 and Oct 8, each time on whatever step was running at 5s (once the player module's ping). At ~8µs a take, the 4M cap would load in ~30s on a warm boot.
 - **A flush appends, it never rewrites a take.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, blanks the scope of the takes between the head postgres held and the new one (what the retention or the cap dropped from memory), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written, in memory or in postgres. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.

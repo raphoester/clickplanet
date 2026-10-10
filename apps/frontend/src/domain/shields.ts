@@ -72,6 +72,16 @@ export class TileShields {
         return changes
     }
 
+    // The server raised every tile of the landmass; a tile taken since is not the fortifying flag's.
+    public applyFortification(tiles: Iterable<number>, held: (tile: number) => boolean, most: number): ShieldChange[] {
+        const changes: ShieldChange[] = []
+        for (const tile of tiles) {
+            const shields = this.shieldsOf(tile)
+            if (held(tile) && shields < most) this.setLive(tile, shields + 1, changes)
+        }
+        return changes
+    }
+
     private setLive(tile: number, shields: number, changes: ShieldChange[]) {
         if (!this.inRange(tile)) return
         this.live[tile] = 1

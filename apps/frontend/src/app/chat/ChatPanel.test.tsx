@@ -250,6 +250,18 @@ describe("ChatPanel", () => {
         expect(await screen.findByText("bombed the ocean")).toBeDefined()
     })
 
+    it("says which flag fortified which territory, by the territory's own name", async () => {
+        const {backend, announce} = stubBackend()
+        setup(backend)
+
+        await screen.findByText("Nobody has said anything yet. Go on.")
+        act(() => announce({kind: "fortify", id: "wall", announcedAt: Date.now(), country: "es", ground: "fr", landmass: 359, tiles: 137}))
+
+        const line = (await screen.findByText("fortified French Guiana", {exact: false})).closest("li")!
+        expect(line.className).toBe("chat-announcement")
+        expect(line.textContent).toContain("Spain fortified French Guiana")
+    })
+
     it("renders message text as text, never as markup", async () => {
         const {backend} = stubBackend([message("a", "<img src=x onerror=alert(1)>")])
         const {container} = setup(backend)

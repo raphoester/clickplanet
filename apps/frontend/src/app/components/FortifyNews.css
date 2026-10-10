@@ -1,0 +1,32 @@
+.fortify-news {
+    --bonus-box: var(--shield);
+}
+
+.fortify-news-shield {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: var(--outline) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--shield);
+}
+
+.fortify-news-shield .bonus-icon {
+    width: 22px;
+    height: 22px;
+}
+
+.fortify-news-tiles {
+    color: var(--shield-light);
+}
+
+@media (max-width: 768px) {
+    .fortify-news-line {
+        flex-wrap: wrap;
+        justify-content: center;
+        white-space: normal;
+        max-width: calc(100vw - 32px);
+    }
+}
