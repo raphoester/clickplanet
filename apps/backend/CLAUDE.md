@@ -53,13 +53,14 @@ make dBuild
 
 This is a Go backend for a collaborative map-clicking game. It follows **hexagonal architecture (ports & adapters)**.
 
-### Five bounded contexts, one process
+### Six bounded contexts, one process
 
 - **`internal/planet/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
 - **`internal/auth/`** — who a caller is and what it has to prove before it may click: Turnstile, accounts, the click token. See [Auth](#auth-internalauth).
 - **`internal/player/`** — what the game keeps about one account: the name it chose, the tiles it took, its daily streak. See [Player](#player-internalplayer).
 - **`internal/seasons/`** — the season calendar, each season's player standings and its daily rounds between countries, above the game. See [Seasons](#seasons-internalseasons).
+- **`internal/ops/`** — one SQL statement for an operator with no SSH key, read as a role that cannot write. See [Ops](#ops-internalops).
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
@@ -95,6 +96,7 @@ root package**:
 | `auth` | `Config`, `NewModule`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
 | `player` | `Config`, `NewModule` |
 | `seasons` | `Config`, `NewModule` |
+| `ops` | `Config`, `NewModule`; behind the `testing` tag, `NewModuleWithKnownAssertions`, `KnownAssertions` and `ReaderRole` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
@@ -176,10 +178,11 @@ return []bootstrap.Module{
 	chat.NewModule(config.Chat),
 	player.NewModule(config.Player),
 	seasons.NewModule(config.Seasons),
+	ops.NewModule(config.Ops),
 }
 ```
 
-**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet`, `chat`, `player` and `seasons` have no switch and are always on; `auth` has one. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
+**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet`, `chat`, `player` and `seasons` have no switch and are always on; `auth` and `ops` have one each. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
 
 #### What two contexts need, without either handing it to the other
 
@@ -1955,6 +1958,67 @@ and session mints.
 - `UseRefill` is session-gated like `Click` and `DropBomb`, and not throttled:
   holding the refill the server granted is the gate.
 
+### Ops (`internal/ops/`)
+
+**One SQL statement for an operator with no SSH key, and nothing that writes.** A Claude cloud session has no key, so
+it could open a pull request and not look at the data the pull request is about. `ops.v1.OpsService/Query` takes a
+statement and answers its columns and rows. See `deploy/vps/README.md`, "Reading production without SSH", for the
+call, the Cloudflare side and how it is turned on.
+
+```
+internal/ops/
+  module.go                             Config (Enabled, Access, Database), NewModule
+  internal/
+    access/                             Caller, and the caller a request's context carries (WithCaller, CallerOf)
+      cloudflare_assertion_verifier/    the caller a Cloudflare Access assertion names, checked against the team's keys
+      log_verifier/                     logs a caller it refused, never the assertion
+    opsv1controller/                    OpsService (a bag), NewAccessInterceptor
+      query_handler/                    maps the wire to the query and its sentinels to codes
+        statement_query/                PostgresQuery: QueryResponse straight from the statement asked
+          audit_statements/             logs every statement with its caller
+    role/                               ops_reader.sql: the role the module's block names
+```
+
+- **It is a module so that its postgres credentials are its own.** Its `database:` block names `ops_reader`, a member
+  of `pg_read_all_data` and nothing else. The owner's credentials are in the other modules' blocks, which it cannot
+  reach, so a statement that writes fails on the privilege, whatever the session sets. The read-only transaction and
+  the one-statement rule are the second and third locks, not the first.
+- **The role is the deploy's to make, not the module's**: a role that only reads cannot create itself.
+  `role/ops_reader.sql` is the source, `deploy/vps/docker-compose.yaml` runs it at every `up` (`cp-ops-role`) and then
+  sets the password, and `statement_query`'s suite runs the same file (`role.Reader`, behind the tag), so what the
+  tests prove is what production grants. It is plain SQL, with no psql variable, so both can run it.
+- **It never costs the game its boot.** `cppg.Postgres.Open` validates and builds the pool without connecting, where
+  `ConnectCtx` also pings; `ops` is its only caller. A role that is missing, a wrong password or no connection left is
+  `statement_query.ErrUnreachable`, answered `Unavailable` with what postgres said. The team's keys are fetched at the
+  first assertion, and the verifier drops the cancel of the context it was built under, which is the startup
+  deadline. `e2e/ops_test.go` boots the module on a role nobody made.
+- **Every request is checked, by an interceptor on the service** (`NewAccessInterceptor`): the
+  `Cf-Access-Jwt-Assertion` header must be signed by the team (`issuer`) for this application (`audience`), or the
+  answer is `Unauthenticated` and says nothing of why. It guards streams too, so a procedure added later is guarded.
+  It is on the public router because Caddy must reach it; only the `ops.clickplanet.lol` site routes its path. An
+  assertion names its caller by `common_name` (a service token's client id) or `email`; one that names nobody is
+  `access.ErrAnonymous`.
+- **The query answers the wire's message** (see [Reads are queries](#reads-are-queries)): the statement is prepared, so
+  postgres refuses a string that holds two, and run in a read-only transaction under `statementTimeout` (25s, above
+  the role's own 20s so that postgres is the one that says why). Rows stop at the limit asked (1000 unset, 20000 at
+  most) or at 8 MiB, and `truncated` says so. A value is a `google.protobuf.Value`: an integer past 2^53, a
+  `numeric`, a time and anything else JSON cannot carry exactly is text, and a `bytea` is `\x` and hex.
+- **`pool.maxIdleConns: 0` is part of the rule**, not a tuning: with no connection kept, an advisory lock or a `SET`
+  a statement made is gone before the next one. `pool.maxOpenConns: 1`: postgres keeps 3 of its 20 connections for
+  the owner and the other modules' pools add up to 16.
+- **What the caller got wrong is named by the query and turned into a code by the handler**: `ErrNoStatement`,
+  `ErrLimitTooHigh` and `ErrRefused` (postgres said no: a syntax error, a write, a missing privilege) are
+  `InvalidArgument`, `ErrTooSlow` is `DeadlineExceeded`, `ErrUnreachable` is `Unavailable`. Each carries what postgres
+  said, because the caller is the operator.
+- **`audit_statements` logs every statement** with its caller, at Info, and at Warn when it failed. It is a decorator
+  for the reason `audit_reassign` is.
+- **It owns no table and has no migrations**, so its `schema` is `public` and a statement names each table with its
+  module's schema (`planet.tiles`).
+- **Tests**: `cloudflare_assertion_verifier` signs real assertions against a local key set (another application,
+  another team, an expired one, another key); `statement_query`'s suite is the read-only proof, on a real postgres;
+  `e2e/ops_test.go` boots the module with `NewModuleWithKnownAssertions` and calls it over the wire, and once as it
+  ships (`NewModule`) to see it refuse an assertion its team did not sign.
+
 ### Anti-bot (`internal/antibot/`)
 
 What is left after sessions. A player who solves Turnstile in a real browser and
@@ -3142,6 +3206,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
 - `seasons.snapshot.interval` — how often a snapshot of what each country holds is added to the round in progress (default 1m)
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
+- `ops.enabled` — off registers nothing, so `/ops.v1.OpsService/` 404s. It ships off
+- `ops.access.issuer`, `ops.access.audience` — the Cloudflare Access team's address (`https://<team>.cloudflareaccess.com`, no path) and the application's AUD tag; neither is a secret. With `ops.enabled`, an issuer of another shape or an empty audience refuses the boot
+- `ops.database.*` — same shape as `database`, but the `user` is a role that only reads (`ops_reader`) and `schema` is `public`, since the module owns no table. `pool.maxOpenConns: 1` and `pool.maxIdleConns: 0`: see [Ops](#ops-internalops). `ops.database.password` belongs in the environment
 
 ### Protobuf
 

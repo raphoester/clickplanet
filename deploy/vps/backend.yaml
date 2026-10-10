@@ -350,3 +350,21 @@ seasons:
     schema: seasons
     pool:
       maxOpenConns: 2
+
+ops:
+  enabled: false
+  access:
+    issuer: https://silent-heart-ef00.cloudflareaccess.com
+    audience: ""
+  database:
+    host: postgres
+    password: env://OPS_DB_PASSWORD
+    port: "5432"
+    user: ops_reader
+    dbName: clickplanet
+    sslMode: disable
+    schema: public
+    pool:
+      maxOpenConns: 1
+      # No connection outlives its statement, so no lock and no setting does either.
+      maxIdleConns: 0

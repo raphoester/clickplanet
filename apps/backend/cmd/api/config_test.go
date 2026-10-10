@@ -317,3 +317,32 @@ seasons:
 	err := cpconfigs.Load(&config, cpconfigs.FromFile(path))
 	require.ErrorContains(t, err, "seasons: list[0].number is 1")
 }
+
+func TestTheExampleConfigReachesTheOpsBlockAndShipsItOff(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.False(t, config.Ops.Enabled, "the example must not serve SQL to whoever runs it")
+	assert.Equal(t, "ops_reader", config.Ops.Database.User)
+	require.NotNil(t, config.Ops.Database.Pool.MaxIdleConns)
+	assert.Zero(t, *config.Ops.Database.Pool.MaxIdleConns, "a connection kept would keep a statement's locks and settings")
+
+	config.Ops.Enabled = true
+	require.NoError(t, config.Ops.Validate())
+}
+
+func TestOpsThatIsOffIsNotChecked(t *testing.T) {
+	require.NotContains(t, Config{}.Validate().Error(), "ops.")
+}
+
+func TestOpsThatIsOnNamesEverythingItMisses(t *testing.T) {
+	config := Config{}
+	config.Ops.Enabled = true
+	config.Ops.Access.Issuer = "silent-heart.cloudflareaccess.com/login"
+
+	err := config.Validate()
+
+	require.ErrorContains(t, err, "ops.access: audience is empty")
+	require.ErrorContains(t, err, `issuer "silent-heart.cloudflareaccess.com/login" is not the team's address`)
+	require.ErrorContains(t, err, "ops.database: [host port user dbName sslMode schema] is empty")
+}
