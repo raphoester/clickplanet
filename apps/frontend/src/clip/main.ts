@@ -16,7 +16,7 @@ import {anthemOf, startOf} from "../domain/clip/music.ts"
 import {ANTHEMS} from "../app/anthem/anthemsAsset.ts"
 import {HIGHLIGHTS} from "./anthemHighlightsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
-import {Candidate, candidatesOf, inCandidate, Window} from "../domain/clip/window.ts"
+import {Candidate, candidatesOf, inCandidate, newsSince, Window} from "../domain/clip/window.ts"
 import {Front, frontOf, FRONT_RADIANS, inSightOf, sameFront, spanOf} from "../domain/clip/front.ts"
 import {castOf, inPlace, leadsTheWorld, lossOf, placeOf, routOf, sameStory, Story, storyOf, THE_WORLD, widerThan} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
@@ -159,7 +159,7 @@ async function prepare(): Promise<Recording> {
     const aspect = root.clientWidth / root.clientHeight
     const everything = replay.changes()
     const asked = windowParam(replay)
-    const since = asked?.since ?? replay.since
+    const since = asked?.since ?? newsSince(replay.since, replay.until)
     const until = asked?.until ?? replay.until
     // Every scale a story is told at: the whole map, and each country fought over the most, on its own ground.
     const scopes = focus !== undefined ? [focus] : [undefined, ...foughtOver(everything, groundAt, since, until)]

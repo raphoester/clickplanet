@@ -12,6 +12,9 @@ const BUCKET_MS = 15 * 60_000
 
 const HOUR_MS = 3_600_000
 
+// A clip is news: posted a day late, "Christmas Island is taking over the world" is about a flag already thrown out.
+const NEWS_HOURS = 12
+
 const LENGTHS_HOURS = [1, 2, 3, 4, 6, 8, 12, 24]
 
 const PLACES_PER_LENGTH = 4
@@ -71,6 +74,12 @@ function placesOfLength(counts: Int32Array, buckets: number, length: number): {c
 
 function add(sums: Int32Array, counts: Int32Array, bucket: number, sign: number) {
     for (let cell = 0; cell < CELLS; cell++) sums[cell] += sign * counts[bucket * CELLS + cell]
+}
+
+// Where the search starts when no window is asked for: the last hours of the replay only. The busiest stretch of three
+// days is rarely today's, and it would hide today's from the search.
+export function newsSince(since: number, until: number): number {
+    return Math.max(since, until - NEWS_HOURS * HOUR_MS)
 }
 
 export function inCandidate(candidate: Candidate, cell: number): boolean {

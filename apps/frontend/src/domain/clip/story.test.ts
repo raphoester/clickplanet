@@ -186,10 +186,19 @@ describe("a flag thrown out", () => {
     it("is one rout however many sides tell it", () => {
         const thrownOut = routOf(europe, {before: 1000, after: 0})
         const kicked = routOf({...europe, kind: "attack", attacker: "il", team: undefined}, {before: 1000, after: 0})
-        const name = (place: Story["place"]) => "region" in place ? place.region : "elsewhere"
+        const continentOf = (country: string) => ({de: "Europe", gl: "North America"})[country]
 
-        expect(sameRout(thrownOut, kicked, name)).toBe(true)
-        expect(sameRout(thrownOut, {...kicked, victims: ["bg"]}, name)).toBe(false)
+        expect(sameRout(thrownOut, kicked, continentOf)).toBe(true)
+        expect(sameRout(thrownOut, {...kicked, victims: ["bg"]}, continentOf)).toBe(false)
+    })
+
+    it("is one rout out of a continent and out of a country of it, and another out of a country elsewhere", () => {
+        const thrownOut = routOf(europe, {before: 1000, after: 0})
+        const kicked = (country: string): Story => ({...europe, kind: "kickout", attacker: "il", team: undefined, place: {country}})
+        const continentOf = (country: string) => ({de: "Europe", gl: "North America"})[country]
+
+        expect(sameRout(thrownOut, kicked("de"), continentOf)).toBe(true)
+        expect(sameRout(thrownOut, kicked("gl"), continentOf)).toBe(false)
     })
 
     it("is the flag losing it when many flags take it and none of them leads", () => {
@@ -275,10 +284,12 @@ describe("the same story", () => {
         expect(same(back({country: "ma"}, "gb"), back({region: "Africa"}, "il"))).toBe(true)
     })
 
-    it("is not a flag losing a continent and its top taker beating it in one country", () => {
+    it("is a flag losing a continent and its top taker kicking it out of one country of it, told over the continent", () => {
         const losing: Story = {...italy({region: "Africa"}), kind: "rout", attacker: "il", victims: ["dz"]}
+        const kicked: Story = {...italy({country: "sd"}), kind: "kickout", attacker: "il", victims: ["dz"]}
 
-        expect(same(losing, {...italy({country: "sd"}), kind: "kickout", attacker: "il", victims: ["dz"]})).toBe(false)
+        expect(same(losing, kicked)).toBe(true)
+        expect(widerThan(losing.place, kicked.place)).toBe(true)
     })
 
     it("is a battle only when both sides fight over the same place", () => {
