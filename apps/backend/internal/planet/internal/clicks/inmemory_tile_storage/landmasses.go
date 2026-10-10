@@ -1,148 +1,100 @@
 package inmemory_tile_storage
 
-import (
-	"context"
-	"fmt"
-	"math"
+import "github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-)
-
-func (s *Storage) Fortify(_ context.Context, tile uint32, flag string, most int) (clicks.Fortification, error) {
-	landmass := s.borders.LandmassOf(tile)
-
-	s.tilesMu.RLock()
-	err := s.fortifyErrorLocked(landmass, flag)
-	s.tilesMu.RUnlock()
-	if err != nil {
-		return clicks.Fortification{}, err
-	}
-
-	s.tilesMu.Lock()
-	if err := s.fortifyErrorLocked(landmass, flag); err != nil {
-		s.tilesMu.Unlock()
-		return clicks.Fortification{}, err
-	}
-
-	most = min(most, math.MaxUint8)
-	members := s.borders.TilesOf(landmass)
-	raised := make([]clicks.TileShields, 0, len(members))
-	for _, member := range members {
-		if int(s.tiles[member].shields) < most {
-			s.tiles[member].shields++
-			s.markDirtyLocked(member)
-			raised = append(raised, clicks.TileShields{Tile: member, Shields: int(s.tiles[member].shields)})
-		}
-	}
-	s.fortifiedBy[landmass] = s.codeIDs[flag]
-	s.markLandmassDirtyLocked(landmass)
-	s.tilesMu.Unlock()
-
-	fortification := clicks.Fortification{
-		Landmass: landmass, Ground: s.borders.CountryOf(tile), Country: flag, Tile: tile, Tiles: len(members), Raised: raised,
-	}
-	s.publish(clicks.Change{Fortification: &fortification})
-
-	return fortification, nil
+// How many tiles of each landmass each flag holds, and the flag each landmass is locked to.
+type landmasses struct {
+	borders *clicks.Borders
+	held    [][]uint32
+	locks   []uint16
+	dirty   dirtySet
 }
 
-// The flag each locked landmass is locked to: the one that fortified it last, or settled on it whole.
-func (s *Storage) Fortresses() map[clicks.LandmassID]string {
-	s.tilesMu.RLock()
-	defer s.tilesMu.RUnlock()
-
-	fortresses := map[clicks.LandmassID]string{}
-	for landmass, code := range s.fortifiedBy {
-		if code != unownedCode {
-			fortresses[clicks.LandmassID(landmass)] = s.codes[code] //nolint:gosec // landmasses are uint16 in the blob.
-		}
+func newLandmasses(borders *clicks.Borders) *landmasses {
+	return &landmasses{
+		borders: borders,
+		held:    make([][]uint32, borders.Landmasses()),
+		locks:   make([]uint16, borders.Landmasses()),
+		dirty:   newDirtySet(borders.Landmasses()),
 	}
-
-	return fortresses
 }
 
-func (s *Storage) fortifyErrorLocked(landmass clicks.LandmassID, flag string) error {
-	held := 0
-	if id, ok := s.codeIDs[flag]; ok {
-		held = s.heldLocked(landmass, id)
-	}
-
-	if err := clicks.FortifyError(
-		landmass, flag, held, len(s.borders.TilesOf(landmass)), s.codes[s.fortifiedBy[landmass]]); err != nil {
-		return fmt.Errorf("landmass %d: %w", landmass, err)
-	}
-
-	return nil
+func (l *landmasses) of(tile uint32) clicks.LandmassID {
+	return l.borders.LandmassOf(tile)
 }
 
-func (s *Storage) moveLocked(tile uint32, to uint16) {
-	from := s.tiles[tile].owner
-	landmass := s.borders.LandmassOf(tile)
+func (l *landmasses) tilesOf(landmass clicks.LandmassID) []uint32 {
+	return l.borders.TilesOf(landmass)
+}
 
+func (l *landmasses) groundOf(tile uint32) string {
+	return l.borders.CountryOf(tile)
+}
+
+func (l *landmasses) asset() string {
+	return l.borders.Asset()
+}
+
+func (l *landmasses) known(landmass clicks.LandmassID) bool {
+	return int(landmass) < len(l.locks)
+}
+
+func (l *landmasses) moved(tile uint32, from, to uint16) {
+	landmass := l.of(tile)
 	if from != unownedCode {
-		s.counts[from]--
-		*s.landmassCountLocked(landmass, from)--
+		*l.count(landmass, from)--
 	}
 	if to != unownedCode {
-		s.counts[to]++
-		*s.landmassCountLocked(landmass, to)++
-	}
-
-	s.tiles[tile] = ownedBy(to)
-	s.markDirtyLocked(tile)
-}
-
-func (s *Storage) holdLocked(tile uint32, state tileState) {
-	s.tiles[tile] = state
-	if state.owner != unownedCode {
-		s.counts[state.owner]++
-		*s.landmassCountLocked(s.borders.LandmassOf(tile), state.owner)++
+		*l.count(landmass, to)++
 	}
 }
 
-func (s *Storage) heldLocked(landmass clicks.LandmassID, code uint16) int {
-	held := s.landmassHeld[landmass]
-	if int(code) >= len(held) {
+func (l *landmasses) heldBy(landmass clicks.LandmassID, flag uint16) int {
+	held := l.held[landmass]
+	if int(flag) >= len(held) {
 		return 0
 	}
-
-	return int(held[code])
+	return int(held[flag])
 }
 
-func (s *Storage) landmassCountLocked(landmass clicks.LandmassID, code uint16) *uint32 {
-	held := s.landmassHeld[landmass]
-	if int(code) >= len(held) {
-		held = append(held, make([]uint32, int(code)+1-len(held))...)
-		s.landmassHeld[landmass] = held
-	}
-
-	return &held[code]
+func (l *landmasses) lockedTo(landmass clicks.LandmassID) uint16 {
+	return l.locks[landmass]
 }
 
-// A whole landmass nobody fortified is locked to its holder, so a write that made it whole earns nothing later.
-func (s *Storage) settleLocked(updates []clicks.TileUpdate) {
-	for _, update := range updates {
-		s.settleLandmassLocked(s.borders.LandmassOf(update.Tile))
+func (l *landmasses) lock(landmass clicks.LandmassID, flag uint16) {
+	l.locks[landmass] = flag
+	l.dirty.mark(uint32(landmass))
+}
+
+func (l *landmasses) markDirty(landmass clicks.LandmassID) {
+	l.dirty.mark(uint32(landmass))
+}
+
+// A stored lock put back at boot: nothing to flush.
+func (l *landmasses) restore(landmass clicks.LandmassID, flag uint16) {
+	l.locks[landmass] = flag
+}
+
+func (l *landmasses) each(visit func(landmass clicks.LandmassID)) {
+	for landmass := 1; landmass < len(l.locks); landmass++ {
+		visit(clicks.LandmassID(landmass)) //nolint:gosec // landmasses are uint16 in the blob.
 	}
 }
 
-func (s *Storage) settleLandmassLocked(landmass clicks.LandmassID) {
-	members := s.borders.TilesOf(landmass)
-	if landmass == clicks.NoLandmass || len(members) == 0 {
-		return
-	}
-
-	holder := s.tiles[members[0]].owner
-	settler, ok := clicks.SettlerOf(
-		s.codes[holder], s.heldLocked(landmass, holder), len(members), s.codes[s.fortifiedBy[landmass]])
-	if !ok {
-		return
-	}
-
-	s.fortifiedBy[landmass] = s.codeIDs[settler]
-	s.markLandmassDirtyLocked(landmass)
+func (l *landmasses) drainDirty(nameOf func(flag uint16) string) []Landmass {
+	var dirty []Landmass
+	l.dirty.drain(func(id uint32) {
+		landmass := clicks.LandmassID(id) //nolint:gosec // landmasses are uint16 in the blob.
+		dirty = append(dirty, Landmass{ID: landmass, Asset: l.borders.Asset(), FortifiedBy: nameOf(l.locks[landmass])})
+	})
+	return dirty
 }
 
-func (s *Storage) markLandmassDirtyLocked(landmass clicks.LandmassID) {
-	s.dirtyLandmasses[landmass/64] |= 1 << (landmass % 64)
+func (l *landmasses) count(landmass clicks.LandmassID, flag uint16) *uint32 {
+	held := l.held[landmass]
+	if int(flag) >= len(held) {
+		held = append(held, make([]uint32, int(flag)+1-len(held))...)
+		l.held[landmass] = held
+	}
+	return &held[flag]
 }

@@ -589,7 +589,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 `inmemory_tile_storage.StateBatchDense` builds it. The interned ids are copied out exactly as stored and the table travels with them, so nothing is translated on the way out and the client needs no shared country list. Protobuf does all the framing — there is no hand-rolled magic or length-prefixing on either side, and therefore no encoder and decoder that have to be edited together.
 
 **Secondary (output):**
-- `clicks/inmemory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table, and a `[]uint8` of each tile's shields beside it (3 bytes per tile — ~3 MB for a 1M-tile map). Fans updates out in process, and flushes the tiles that changed through its `Persistence` port.
+- `clicks/inmemory_tile_storage/` — the tile map. A preallocated `[]uint16` indexed by tile id, with country codes interned into a side table, and a `[]uint8` of each tile's shields beside it (3 bytes per tile — ~3 MB for a 1M-tile map). Fans updates out in process, and flushes the tiles that changed through its `Persistence` port. **`Storage` only holds the lock and orders four objects**, each with one job: `board` (the tiles, the `codebook` they are written in, and what each country holds), `landmasses` (what each flag holds of each landmass, and the flag it is locked to), `feed` (the open streams) and a `dirtySet` in each of the first two (what the next flush writes). A change of owner goes through `Storage.moveLocked`, which moves the board and the landmass count together.
 - `clicks/postgres_tile_store/` — that port, over the `planet.tiles` table. See [Durability](#durability).
 - `ledger/inmemory_ledger_storage/` — the ledger, in memory, flushed through its own `Persistence` port.
 - `ledger/postgres_ledger_store/` — that port, over `planet.ledger_events`, `ledger_head` and `ledger_forgotten`, and `AnonymizeTakes` for a deleted account.
@@ -746,9 +746,9 @@ defence against taking back the last tile for a free refill, and it costs no tim
   (`ErrNotWhole`), or fortified last by the same flag (`ErrFortifiedAlready`).
   `clicks.SettlerOf` is the other half: a whole landmass nobody fortified is locked to its
   holder with no shields.
-- **The lock lives with the tiles**, in `inmemory_tile_storage`: a count per landmass and
-  per flag beside the country counts, moved by every change of owner (`moveLocked`), and
-  the flag that fortified each landmass last. `Fortify(tile, flag, most)` checks and
+- **The lock lives with the tiles**, in `inmemory_tile_storage`'s `landmasses`: a count
+  per landmass and per flag, moved with the board by every change of owner
+  (`moveLocked`), and the flag that fortified each landmass last. `Fortify(tile, flag, most)` checks and
   raises under the tiles lock, so two takes racing for the last tile fortify once. It
   publishes one `clicks.Change{Fortification}` on the map's channel, after the updates
   that made the landmass whole.

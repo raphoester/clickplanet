@@ -7,61 +7,44 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-func (s *Storage) Held(country string) int {
-	s.tilesMu.RLock()
-	defer s.tilesMu.RUnlock()
-
-	id, ok := s.codeIDs[country]
-	if !ok || id == unownedCode {
-		return 0
-	}
-
-	return int(s.counts[id])
-}
-
 func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, limit int) (uint32, int, error) {
 	if limit <= 0 {
 		return 0, 0, errors.New("reassign limit must be positive")
 	}
 
-	s.tilesMu.Lock()
+	s.mu.Lock()
 
-	fromID, held := s.codeIDs[from]
-	if !held || fromID == unownedCode || from == to {
-		s.tilesMu.Unlock()
+	if from == "" || from == to || s.board.heldBy(from) == 0 {
+		s.mu.Unlock()
 		return 0, 0, nil
 	}
 
-	toID, err := s.internLocked(to)
+	toID, err := s.board.intern(to)
 	if err != nil {
-		s.tilesMu.Unlock()
+		s.mu.Unlock()
 		return 0, 0, err
 	}
 
 	var next uint32
 	updates := make([]clicks.TileUpdate, 0, limit)
 
-	for tile := int(start); tile <= int(s.maxIndex); tile++ {
-		if s.tiles[tile].owner != fromID {
+	for tile := start; tile <= s.board.last(); tile++ {
+		if s.board.ownerOf(tile) != from {
 			continue
 		}
 		if len(updates) == limit {
-			next = uint32(tile) //nolint:gosec // tile <= maxIndex, which is a uint32.
+			next = tile
 			break
 		}
 
-		s.moveLocked(uint32(tile), toID) //nolint:gosec // tile <= maxIndex, which is a uint32.
-		updates = append(updates, clicks.TileUpdate{
-			Tile:     uint32(tile), //nolint:gosec // tile <= maxIndex, which is a uint32.
-			Value:    to,
-			Previous: from,
-		})
+		s.moveLocked(tile, toID)
+		updates = append(updates, clicks.TileUpdate{Tile: tile, Value: to, Previous: from})
 	}
 
 	s.settleLocked(updates)
-	s.tilesMu.Unlock()
+	s.mu.Unlock()
 
-	s.publishUpdates(updates)
+	s.feed.publishUpdates(updates)
 
 	return next, len(updates), nil
 }
@@ -69,22 +52,21 @@ func (s *Storage) Reassign(_ context.Context, from, to string, start uint32, lim
 func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) (int, error) {
 	updates := make([]clicks.TileUpdate, 0, len(restorations))
 
-	s.tilesMu.Lock()
+	s.mu.Lock()
 	for _, restoration := range restorations {
-		if restoration.Tile > s.maxIndex || restoration.From == restoration.To {
+		if restoration.Tile > s.board.last() || restoration.From == restoration.To {
 			continue
 		}
 
-		fromID, ok := s.codeIDs[restoration.From]
-		if !ok || s.tiles[restoration.Tile].owner != fromID {
+		if s.board.ownerOf(restoration.Tile) != restoration.From {
 			continue
 		}
 
-		toID, err := s.internLocked(restoration.To)
+		toID, err := s.board.intern(restoration.To)
 		if err != nil {
 			s.settleLocked(updates)
-			s.tilesMu.Unlock()
-			s.publishUpdates(updates)
+			s.mu.Unlock()
+			s.feed.publishUpdates(updates)
 			return len(updates), err
 		}
 
@@ -98,15 +80,9 @@ func (s *Storage) Restore(_ context.Context, restorations []clicks.Restoration) 
 	}
 
 	s.settleLocked(updates)
-	s.tilesMu.Unlock()
+	s.mu.Unlock()
 
-	s.publishUpdates(updates)
+	s.feed.publishUpdates(updates)
 
 	return len(updates), nil
-}
-
-func (s *Storage) publishUpdates(updates []clicks.TileUpdate) {
-	for i := range updates {
-		s.publish(clicks.Change{Update: &updates[i]})
-	}
 }

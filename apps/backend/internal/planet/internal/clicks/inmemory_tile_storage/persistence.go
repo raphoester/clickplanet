@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"math/bits"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -33,24 +32,25 @@ type Landmass struct {
 const flushTimeout = 10 * time.Second
 
 func (s *Storage) Load(ctx context.Context) error {
-	s.tilesMu.Lock()
-	defer s.tilesMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	var (
 		owned, outside int
 		internErr      error
 	)
 	err := s.persistence.Load(ctx, func(tile uint32, owner string, shields int) {
-		if tile > s.maxIndex {
+		if tile > s.board.last() {
 			outside++
 			return
 		}
-		id, err := s.internLocked(owner)
+		id, err := s.board.intern(owner)
 		if err != nil {
 			internErr = err
 			return
 		}
-		s.holdLocked(tile, tileState{owner: id, shields: uint8(min(max(shields, 0), math.MaxUint8))}) //nolint:gosec // clamped to a byte.
+		s.board.restore(tile, tileState{owner: id, shields: uint8(min(max(shields, 0), math.MaxUint8))}) //nolint:gosec // clamped to a byte.
+		s.landmasses.moved(tile, unownedCode, id)
 		owned++
 	})
 	if err != nil {
@@ -61,17 +61,17 @@ func (s *Storage) Load(ctx context.Context) error {
 	}
 
 	fortified, strays := 0, 0
-	err = s.persistence.LoadLandmasses(ctx, s.borders.Asset(), func(landmass clicks.LandmassID, fortifiedBy string) {
-		if int(landmass) >= len(s.fortifiedBy) {
+	err = s.persistence.LoadLandmasses(ctx, s.landmasses.asset(), func(landmass clicks.LandmassID, fortifiedBy string) {
+		if !s.landmasses.known(landmass) {
 			strays++
 			return
 		}
-		id, err := s.internLocked(fortifiedBy)
+		id, err := s.board.intern(fortifiedBy)
 		if err != nil {
 			internErr = err
 			return
 		}
-		s.fortifiedBy[landmass] = id
+		s.landmasses.restore(landmass, id)
 		fortified++
 	})
 	if err != nil {
@@ -81,9 +81,7 @@ func (s *Storage) Load(ctx context.Context) error {
 		return fmt.Errorf("failed to intern a stored country: %w", internErr)
 	}
 
-	for landmass := range s.borders.Landmasses() {
-		s.settleLandmassLocked(clicks.LandmassID(landmass)) //nolint:gosec // landmasses are uint16 in the blob.
-	}
+	s.landmasses.each(s.settleLandmassLocked)
 
 	if outside > 0 {
 		s.logger.Warn("stored tiles past the end of the map were ignored", slog.Int("tiles", outside))
@@ -92,7 +90,7 @@ func (s *Storage) Load(ctx context.Context) error {
 		s.logger.Warn("stored landmasses past the end of the borders were ignored", slog.Int("landmasses", strays))
 	}
 
-	s.logger.Info("loaded the tile map", slog.Int("ownedTiles", owned), slog.Int("countryCodes", len(s.codes)-1),
+	s.logger.Info("loaded the tile map", slog.Int("ownedTiles", owned), slog.Int("countryCodes", s.board.countries()),
 		slog.Int("fortifiedLandmasses", fortified))
 
 	return nil
@@ -131,14 +129,14 @@ func (s *Storage) Flush(ctx context.Context) error {
 	}
 
 	if err := s.persistence.Save(ctx, tiles, landmasses); err != nil {
-		s.tilesMu.Lock()
+		s.mu.Lock()
 		for _, tile := range tiles {
-			s.markDirtyLocked(tile.ID)
+			s.board.markDirty(tile.ID)
 		}
 		for _, landmass := range landmasses {
-			s.markLandmassDirtyLocked(landmass.ID)
+			s.landmasses.markDirty(landmass.ID)
 		}
-		s.tilesMu.Unlock()
+		s.mu.Unlock()
 
 		return fmt.Errorf("failed to save %d tiles and %d landmasses: %w", len(tiles), len(landmasses), err)
 	}
@@ -147,41 +145,8 @@ func (s *Storage) Flush(ctx context.Context) error {
 }
 
 func (s *Storage) takeDirty() ([]Tile, []Landmass) {
-	s.tilesMu.Lock()
-	defer s.tilesMu.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	var tiles []Tile
-	for w, word := range s.dirty {
-		if word == 0 {
-			continue
-		}
-		s.dirty[w] = 0
-		for word != 0 {
-			tile := uint32(w*64 + bits.TrailingZeros64(word)) //nolint:gosec // tile <= maxIndex, which is a uint32.
-			word &= word - 1
-			state := s.tiles[tile]
-			tiles = append(tiles, Tile{ID: tile, Owner: s.codes[state.owner], Shields: int(state.shields)})
-		}
-	}
-
-	var landmasses []Landmass
-	for w, word := range s.dirtyLandmasses {
-		if word == 0 {
-			continue
-		}
-		s.dirtyLandmasses[w] = 0
-		for word != 0 {
-			landmass := clicks.LandmassID(w*64 + bits.TrailingZeros64(word)) //nolint:gosec // landmasses are uint16.
-			word &= word - 1
-			landmasses = append(landmasses, Landmass{
-				ID: landmass, Asset: s.borders.Asset(), FortifiedBy: s.codes[s.fortifiedBy[landmass]],
-			})
-		}
-	}
-
-	return tiles, landmasses
-}
-
-func (s *Storage) markDirtyLocked(tile uint32) {
-	s.dirty[tile/64] |= 1 << (tile % 64)
+	return s.board.drainDirty(), s.landmasses.drainDirty(s.board.nameOf)
 }
