@@ -49,6 +49,9 @@ Caddyfile; it moves to any provider that rents a Linux box.
   repository's Actions secrets plus `env.public`. Every deploy runs it, and so
   does `bootstrap.sh` (see [Where the secrets live](#where-the-secrets-live)).
 - `.env.example` — documentation of what each secret is for. Nothing copies it.
+- `ops/` — the service that reads postgres, the journal and Caddy's access log
+  for a caller with no SSH key, and `ops/postgres/role.sql`, the role it reads
+  postgres as (see [11. Reading production without SSH](#11-reading-production-without-ssh)).
 
 `deploy/docker-compose.yaml` (one level up) stays as the *local* full-stack
 compose. This directory is only for the production box.
@@ -823,14 +826,16 @@ gh secret set VPS_USER    --body 'deploy'
 gh secret set VPS_SSH_KEY < ~/.ssh/clickplanet_ci
 ```
 
-The workflow builds **two** images: the backend, and Caddy with the
-`caddy-dns/cloudflare` plugin from `caddy/Dockerfile`. Both go to GHCR and the
+The workflow builds **three** images: the backend, Caddy with the
+`caddy-dns/cloudflare` plugin from `caddy/Dockerfile`, and `ops` from
+`ops/Dockerfile`. All go to GHCR and the
 droplet only ever pulls — linking Caddy with that plugin pulls in certmagic,
 quic-go, smallstep, otel and the AWS SDK, which is minutes of CPU and enough
 memory to OOM a 1 GB box mid-deploy.
 
-Both GHCR packages must be set to **Public** after their first build, not just
-the backend one.
+All three GHCR packages must be set to **Public** after their first build, not
+just the backend one. The deploy runs `docker compose pull` on the whole stack,
+so one private package stops every deploy, the backend's included.
 
 `caddy/Caddyfile` is read from the checkout, so editing it needs no rebuild.
 The deploy does this after `git pull`:
@@ -1261,6 +1266,113 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 ```bash
 docker compose exec postgres psql -U clickplanet -c "delete from chat.mutes where account_id = '<account_id>'"
 ```
+
+## 11. Reading production without SSH
+
+Everything above needs the SSH key, and the key is on one laptop. A Claude cloud
+session started from a phone has no key, so it could open a pull request but not
+look at what the pull request is about. `cp-ops` gives such a session three
+reads over HTTPS, at `ops.clickplanet.lol`, and nothing that writes.
+
+```bash
+curl -sS https://ops.clickplanet.lol/sql --data-binary 'select count(*) from planet.tiles'
+curl -sS 'https://ops.clickplanet.lol/journal/cp-backend?since=2026-10-08T08:00:00Z&until=2026-10-08T09:00:00Z&contains=antibot+ban'
+curl -sS 'https://ops.clickplanet.lol/caddy?since=2026-10-08T08:00:00Z&contains=203.0.113.7'
+```
+
+| Call | Reads | Answer |
+|---|---|---|
+| `POST /sql` | One SQL statement, the body | JSON: `columns`, `rows`, `truncated` |
+| `GET /journal/<tag>` | The journal of one container, by its `logging.options.tag` in `docker-compose.yaml` | The lines, as `journalctl -o cat` prints them |
+| `GET /caddy` | `access.log` and its rotated files | The lines, one JSON object each |
+
+- `since` is required on the two log calls and `until` is now when left out.
+  Both are RFC 3339.
+- `contains` keeps the lines that hold that text. It is not a pattern.
+- `limit` is rows or lines: 1000 when left out, 20000 at most. An answer also
+  stops at 8 MiB. A cut answer says so: `truncated` for SQL, the
+  `Ops-Truncated: true` header for the logs, and the oldest lines are the ones
+  kept, so ask again from the last one.
+- A statement postgres refuses is a 400 with what postgres said.
+
+### Who gets in
+
+```
+Claude session ── curl, no credential ──▶ Anthropic's proxy, adds the service token
+  ──▶ Cloudflare Access, checks the token and signs the request
+  ──▶ Caddy ──▶ cp-ops, checks the signature ──▶ postgres, journal, access log
+```
+
+The credential is a Cloudflare Access **service token**. It is stored as a
+*network secret* of the Claude cloud environment, which adds it to a request
+after the request has left the session's VM: the session can call
+`ops.clickplanet.lol` and cannot read, print or commit what lets it in.
+
+Access is checked twice, and the second one is not redundant. ufw lets every
+Cloudflare address reach port 443, and that is every Cloudflare customer, not
+this zone. So `cp-ops` trusts no request for having arrived: it verifies the
+`Cf-Access-Jwt-Assertion` that Access signs, against this team's keys
+(`OPS_ACCESS_ISSUER`) and for this application (`OPS_ACCESS_AUDIENCE`). Without
+a valid one it answers 401 and reads nothing.
+
+### What keeps it to reading
+
+- **The postgres role.** `ops_reader` is a member of `pg_read_all_data` and
+  nothing else, so a write fails on the privilege, whatever the session sets.
+  `ops/postgres/role.sql` makes it, and `cp-ops-role` runs that file at every
+  `up`, so the role's password follows the `OPS_DB_PASSWORD` secret. Changing
+  the secret is all a rotation takes.
+- **One statement a call**, in a read-only transaction, 20 seconds at most, on
+  a connection closed afterwards, so no lock and no setting outlives it.
+- **The container**: a read-only root, no capability, the journal and Caddy's
+  logs mounted read-only, 128 MB and half a CPU, so a wide query costs `cp-ops`
+  and not the API.
+- **`<tag>` is a `cp-` container tag.** The box's own journal, sshd's included,
+  is not reachable.
+
+It reads **everything**, though, which is what makes it useful: the addresses
+in the ledger and the chat, and the emails in `auth.identities`. That is what
+psql over SSH always showed. What an answer holds does not go into a commit, a
+test or a pull request, because the repository is public.
+
+Every call is logged with its caller and its statement:
+
+```bash
+journalctl CONTAINER_TAG=cp-ops --since "1 hour ago" -o cat
+```
+
+### Setting it up
+
+1. **Cloudflare Zero Trust → Access → Service credentials**: a service token.
+   Its client id and secret are shown once.
+2. **Access → Applications**: a self-hosted application on
+   `ops.clickplanet.lol`, with one policy whose action is *Service Auth* and
+   which includes that token and nobody else. Its *Application Audience (AUD)
+   tag* goes in `env.public` as `OPS_ACCESS_AUDIENCE`, and the team domain as
+   `OPS_ACCESS_ISSUER`. Neither is a secret.
+3. **DNS**: an `ops` A record to the droplet, **proxied**, like `api`.
+4. **The role's password**, as an Actions secret:
+
+   ```bash
+   openssl rand -hex 32 | gh secret set OPS_DB_PASSWORD --repo raphoester/clickplanet
+   ```
+
+5. **The `clickplanet-ops` GHCR package set to Public**, before the first
+   deploy that pulls it (see [7. CI and the image registry](#7-ci-and-the-image-registry)).
+6. **The Claude cloud environment** (claude.ai/code → the environment → *Network
+   secrets*): one secret for the website `ops.clickplanet.lol`, with the
+   headers `CF-Access-Client-Id` and `CF-Access-Client-Secret`, no prefix.
+
+Without the token, Access answers before the box does:
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' https://ops.clickplanet.lol/sql -d 'select 1'
+```
+
+A deploy of the game never waits on any of this. `docker-compose.yaml` requires
+neither `OPS_DB_PASSWORD` nor the two `OPS_ACCESS_*` settings: without the
+password `cp-ops-role` exits and says so, without a setting `cp-ops` restarts in
+a loop naming it, and the rest of the stack comes up either way.
 
 ## Rollback
 

@@ -105,6 +105,61 @@ services:
       options:
         tag: cp-metrics-poller
 
+  ops-role:
+    image: postgres:16-alpine
+    container_name: cp-ops-role
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
+      # Not required: a deploy of the game must not fail on a secret only ops reads.
+      OPS_DB_PASSWORD: ${OPS_DB_PASSWORD:-}
+    volumes:
+      # The directory, not the file: a file bind mount keeps the old inode after git pull.
+      - ./ops/postgres:/ops:ro
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        [ -n "$$OPS_DB_PASSWORD" ] || { echo "OPS_DB_PASSWORD is unset: ops_reader is left as it was"; exit 1; }
+        exec psql -h postgres -U clickplanet -d clickplanet -v ON_ERROR_STOP=1 -v password="$$OPS_DB_PASSWORD" -f /ops/role.sql
+    logging:
+      driver: journald
+      options:
+        tag: cp-ops-role
+
+  ops:
+    image: ${OPS_IMAGE:-ghcr.io/raphoester/clickplanet-ops:latest}
+    container_name: cp-ops
+    restart: unless-stopped
+    expose:
+      - "8080"
+    depends_on:
+      - postgres
+    environment:
+      OPS_DATABASE_URL: postgres://ops_reader:${OPS_DB_PASSWORD:-}@postgres:5432/clickplanet?sslmode=disable
+      OPS_ACCESS_ISSUER: ${OPS_ACCESS_ISSUER:-}
+      OPS_ACCESS_AUDIENCE: ${OPS_ACCESS_AUDIENCE:-}
+    volumes:
+      - /var/log/journal:/var/log/journal:ro
+      - caddy_logs:/var/log/caddy:ro
+    # Root owns the journal and Caddy's files, so ops runs as root with nothing else root has.
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # A wide query must cost this container, not the API beside it on 1 GB.
+    mem_limit: 128m
+    cpus: 0.5
+    logging:
+      driver: journald
+      options:
+        tag: cp-ops
+
 volumes:
   caddy_data:
   caddy_config:

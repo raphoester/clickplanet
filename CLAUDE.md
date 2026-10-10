@@ -101,6 +101,20 @@ It is a script rather than a root `Makefile` target on purpose — see
 
 The stack includes a **postgres**: the backend keeps the whole tile map in process and writes what changed to postgres every second. The ledger and the bonus charges each account holds go there too, the antibot keeps its evidence there in its own schema and reads and writes its bans there directly, the chat reads and writes its messages, reactions and when each account last saw it there directly, and broadcasts a write only once it is kept, the player module reads and writes profiles and stats there on every call, and the seasons module keeps each season's standings and its rounds there. See [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) for the durability tradeoff and the full config schema.
 
+## Reading production
+
+A session with no SSH key reads production through `https://ops.clickplanet.lol`: one SQL statement, a container's journal, or Caddy's access log. It only reads. The session's cloud environment adds the credential on the way out, so a plain `curl` works where the environment holds it and gets a 401 where it does not — there is no token to look for.
+
+```bash
+curl -sS https://ops.clickplanet.lol/sql --data-binary 'select count(*) from planet.tiles'
+curl -sS 'https://ops.clickplanet.lol/journal/cp-backend?since=2026-10-08T08:00:00Z&contains=antibot+ban'
+curl -sS 'https://ops.clickplanet.lol/caddy?since=2026-10-08T08:00:00Z&until=2026-10-08T09:00:00Z'
+```
+
+[`deploy/vps/README.md`](deploy/vps/README.md#11-reading-production-without-ssh) has the parameters, the limits and how it is kept to reading.
+
+**What an answer holds stays out of the repository**, which is public: no player's address, account id or email in code, a test, a commit message or a pull request.
+
 ## Independence of the two apps
 
 Each app under `apps/` keeps its own dependency manifest (`package.json` / `go.mod`) and is built from its own directory as the Docker build context — nothing at the repo root is required to build or run either app in isolation. That is why `proto/`, `map/` and `quiz/` all generate a committed copy into the app that needs them instead of being read from the root at build time. Don't introduce root-level build tooling (Nx/Turborepo/etc.) unless the apps actually start sharing more than the proto contract, the map geometry and the quiz bank.

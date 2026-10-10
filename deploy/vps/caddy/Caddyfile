@@ -108,3 +108,17 @@
 		}
 	}
 }
+
+{$OPS_DOMAIN} {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+		resolvers 1.1.1.1 1.0.0.1
+	}
+
+	encode zstd gzip
+
+	header -Server
+
+	# No check here: Cloudflare Access signs each request it lets through, and ops verifies that.
+	reverse_proxy ops:8080
+}
