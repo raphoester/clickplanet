@@ -247,6 +247,33 @@ describe("decodedAnnouncement", () => {
         expect(decodedAnnouncement(bomb(`{"name":"guest_a1b2c3","seconds":0}`, "mute"))).toBeUndefined()
     })
 
+    it("reads a round, with its number and its podium", () => {
+        const payload = `{"number":5,"podium":[{"country":"fr","rank":1,"points":25},{"country":"de","rank":2,"points":18}]}`
+
+        expect(decodedAnnouncement(bomb(payload, "round"))).toEqual({
+            kind: "round",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            number: 5,
+            finale: false,
+            podium: [{country: "fr", rank: 1, points: 25}, {country: "de", rank: 2, points: 18}],
+        })
+    })
+
+    it("reads the Final Battle, and skips a place it cannot read", () => {
+        const payload = `{"number":23,"finale":true,"podium":[{"country":"fr","rank":1,"points":75},{"rank":2}]}`
+
+        expect(decodedAnnouncement(bomb(payload, "round"))).toMatchObject({
+            finale: true,
+            podium: [{country: "fr", rank: 1, points: 75}],
+        })
+    })
+
+    it("drops a round with no number or no podium", () => {
+        expect(decodedAnnouncement(bomb(`{"podium":[]}`, "round"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"number":5}`, "round"))).toBeUndefined()
+    })
+
     it("drops a kind it does not know, and a payload that is not the kind's", () => {
         expect(decodedAnnouncement(bomb(`{"country":"fr"}`, "meteor"))).toBeUndefined()
         expect(decodedAnnouncement(bomb(`not json`))).toBeUndefined()

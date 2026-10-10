@@ -402,6 +402,15 @@ describe("PlanetBackend.clickTile", () => {
         expect(click).toHaveBeenCalledTimes(2)
         backend.close()
     })
+
+    it("does not retry a click that timed out, which may have landed", async () => {
+        const click = vi.fn().mockRejectedValue(new ConnectError("the operation timed out", Code.DeadlineExceeded))
+        const backend = backendWith(click)
+
+        await expect(backend.clickTile(1, "fr")).rejects.toThrow(/timed out/)
+        expect(click).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
 })
 
 describe("PlanetBackend click budget", () => {

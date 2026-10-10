@@ -24,7 +24,7 @@ npm run clip:fetch -- --ssh <user@host> --out replay.json  # A replay of the las
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
-npm run regions    # Rewrite each country's continent and sub-region from Natural Earth, for the clips' headlines
+npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
 npm run landmassNames # Name every landmass but each country's main one, from Natural Earth (see "Fortify")
 ```
 
@@ -52,7 +52,12 @@ shields, a box adding 1 to 4, 1 to 3 and 5 to 20 of them, spread and enclose
 spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
 banner up at once, `giveTitle("warlord")` plays the unlock of any title (the fake
-wires no account, so the overlay offers Close only), and `fakeBackend.botBomb(tile, "fr")`,
+wires no account, so the overlay offers Close only), `closeDay()` closes the
+fake's day: its countries score with a little luck, the race carries the round
+closed with the season's table before and after it, and the chat announces the
+podium, so the cutoff plays (see [The cutoff, revealed](#the-cutoff-revealed)).
+`closeFinale()` does the same for the Final Battle, at triple points. Each call
+closes the next day, so the reveal plays again. `fakeBackend.botBomb(tile, "fr")`,
 `fakeBackend.botSpread(tile, "fr")` and `fakeBackend.botShield(tile, "fr")` play
 somebody else's bomb, spread click or shield. `fakeBackend.takeLandmass(landmass, "es", leave)`
 takes a landmass for a flag, shields and all, and leaves the last `leave` tiles to
@@ -229,8 +234,8 @@ playing](#who-is-playing)). `playerBackend.ts` implements both against
 `player.v1.PlayerService`.
 
 `transport.ts` holds what both contexts need and neither owns: `retrying`,
-`NO_TIMEOUT`, and `openStream`, which follows a server-streaming RPC and reopens
-it with a capped exponential backoff. It is generic over the message type and
+`retryingAtOnce`, `NO_TIMEOUT`, and `openStream`, which follows a
+server-streaming RPC and reopens it with a capped exponential backoff. It is generic over the message type and
 knows nothing about what it carries, so each context keeps its own mapping —
 `PlanetBackend.listenForUpdates` and `ChatServiceBackend.listenForMessages` are
 both a few lines over it.
@@ -272,9 +277,9 @@ gap sooner:
   pass their own `wakeups`.
 
 **`NO_TIMEOUT` is load-bearing, not decoration.** `main.tsx` builds the clients
-with `timeoutMs: 2000`, and connect-web applies `defaultTimeoutMs` to a stream
+with `timeoutMs: 10_000`, and connect-web applies `defaultTimeoutMs` to a stream
 exactly as to a unary call — so without passing `timeoutMs: NO_TIMEOUT` on the
-call, every live feed would die two seconds in and reconnect forever. Anything
+call, every live feed would die ten seconds in and reconnect forever. Anything
 `<= 0` means no timeout.
 
 `planetBackend.ts` is production, `fakeBackend.ts` is for development, and the
@@ -298,9 +303,21 @@ are implicit in the position, so it is far smaller than a keyed map — 516 KB
 against 3.6 MB for a full map — and protobuf does all the framing, so there is
 no hand-rolled encoding to keep in step with the backend.
 
-Connect does not retry, so `retrying` wraps every call: five attempts while the
-server cannot be reached, and never a retry of an answer the server chose to
-send.
+Connect does not retry, so `retrying` wraps every read: eight attempts while the
+server cannot be reached or does not answer in time, and never a retry of an
+answer the server chose to send. **A failed fetch is `unknown`, not
+`unavailable`**: connect-web wraps the fetch's `TypeError` as the cause, and
+that is how "cannot be reached" is told from an `unknown` the server sent.
+The rule is `outcomeOf`'s miss, in `connection.ts`: the one the connection
+card counts by (see [Connection health](#connection-health)).
+Until this was known, no dropped connection was ever retried. **It is built for a phone on a train**: the
+second attempt goes at once (a dead pooled connection), then it waits 1s, 2s,
+4s and 8s, about 30s in all, so a tunnel does not fail the map. The timeout was
+2s once, and was not retried: one slow `GetMap` batch of the 26 failed the
+whole globe. The click goes through `retryingAtOnce` instead: five attempts
+with no wait, and **a click that timed out is not sent again**, since it may
+have landed and costs a click and maybe a charge. It is rolled back, and the
+echo repaints it if it did land.
 
 The backend refuses a click in three ways, and `clickTile` translates all of
 them into errors declared beside the interfaces — the first two in `backend.ts`,
@@ -346,8 +363,14 @@ carries the token already held** (`SessionProvider.held()`, never a mint):
 without it the server reads the bucket of an address with no account, which is
 never spent and always full, and the next click contradicts it. It also subtracts its own clicks in
 flight, so the counter only ever *under*-promises: a counter that says 1 and is
-refused is a bug the player sees, and one that says 0 and works is a click they
-still get.
+refused is a bug the player sees.
+
+**The globe sends no click the counter cannot pay** (`canClick`). It paints
+nothing, plays the refusal and shakes the meter, as a 429 would. A painted tile
+that flips back is exactly an enemy retake to the eye: on 2026-10-09 a player on
+a train read 25 refusals as a Polish bot retaking Antarctica in
+seconds. What it costs is the click a counter at 0 would still have won, when a
+click in flight fails. With no reading, nothing is held.
 
 **One bank, one click per token.** The bank's size never moves: not with the
 country, a bonus or signing in. The more of the map a country holds, the slower
@@ -389,6 +412,28 @@ first click of a page load, and the first one after a sign-in or a sign-out. The
 hourly re-mint for the same account reopens it too: telling the two apart would
 mean reading the token, which is the server's business. A refused call reopens
 nothing.
+
+#### Connection health
+
+**Every call is the probe, so there is no ping.** `connectionInterceptor`
+(`connection.ts`) sits on every Connect transport (`Config.interceptors`, set in
+`main.tsx`) and tells one `ConnectionHealth` how each call went. A health RPC
+would only say whether the health RPC gets through.
+
+- **Any answer is the server reached**, a refusal it sent included. A failed
+  fetch (connect-web's `Unknown` over a `TypeError`), a timeout
+  (`DeadlineExceeded`, the 2s `timeoutMs`) and a proxy with nothing behind it
+  (`Unavailable`, a 502 to 504) are misses. A call the page cancelled says nothing.
+- **A stream is followed past its opening**: each message is the server reached,
+  and a break is a miss.
+- `DOWN_AFTER_MISSES` (2) in a row is down, and the first answer is up again. The
+  browser's `offline` is down at once (`followBrowser`); `online` waits for an
+  answer, which `openStream`'s wake brings at once.
+- **`Viewer` shows `ConnectionLost` in the Moments zone while it is down.** Clicks
+  still go out and roll back: they are how it finds the way back. A deploy's
+  restart reads as down too, which is what it is from here.
+- The fakes have no transport. In fake mode `connection` is on `window`:
+  `connection.wentOffline()` raises the card and `connection.reached()` drops it.
 
 ### The screen: four zones
 
@@ -573,8 +618,9 @@ is the list, and the backend refuses any other.
 #### Announcements
 
 The chat also shows lines nobody sent: `ChatEvent.announcement` on the stream,
-and `GetHistoryResponse.announcements` beside the messages. Two kinds today:
-`bomb`, every bomb that went off, and `mute`, every mute an operator gave.
+and `GetHistoryResponse.announcements` beside the messages. Three kinds today:
+`bomb`, every bomb that went off, `mute`, every mute an operator gave, and
+`round`, every round of a season that closed.
 
 - **Decoded, not trusted**: `decodedAnnouncement` reads the `kind` and parses
   the JSON `payload` into a typed `ChatAnnouncement`. A kind this build does not
@@ -596,8 +642,17 @@ and `GetHistoryResponse.announcements` beside the messages. Two kinds today:
 - **Not a balloon**: `ChatLog` draws a centred line (`.chat-announcement`) with
   the bomber's flag and the time. It ends the run above it, so the next message
   says again who is talking.
+- **A round is a gold card** (`RoundLine`, `.chat-announcement-round`): "Day 5
+  is over!" or "The Final Battle is over!" (`roundOverLine`, the words of the
+  reveal), the time, then one place per podium country: its medal, its flag,
+  its name and the points it won. The payload is `{number, finale, podium}`; the
+  podium is the places ranked 3rd or better, ties included (the backend's
+  CLAUDE.md, Announcements). A place with no country, or with a rank or points
+  under 1, is dropped. Its time is the round's end.
 - In fake mode `main.tsx` hands every `FakeBackend` bomb to
   `FakeChatBackend.announceBomb`, with no ground: the fake has no borders.
+  `closeDay()` and `closeFinale()` announce their round through
+  `FakeChatBackend.announceRound`.
   `fakeChat.mute()` in the console announces a mute of the player for an hour
   and refuses its posts and reactions until it ends; `fakeChat.mute(600, "Ana")`
   only announces somebody else's.
@@ -854,7 +909,8 @@ is the player's own view.
 `backends/standings.ts` is the contract: `StandingsBackend`, `Standing` (a
 ranked player: rank, name, color, worn title, the flag its tiles are for, tiles)
 and `MySeason` (the caller's line on one board: that flag, its tiles, its rank
-and its worn title). `standingsBackend.ts` implements it over
+and its worn title), and the countries' `Race` (the `Round` in progress and the
+season's `Score`s). `standingsBackend.ts` implements it over
 `seasons.v1.SeasonService/ListenForEvents` and `GetMySeason`, and
 `fakeStandingsBackend.ts` stands in for it in fake mode, counting the player's
 own clicks and moving the other players a few tiles every 1.5s. `app/standings/`
@@ -866,11 +922,60 @@ draws it.
   on the board of each flag it took for, from its first take. The server ranks
   only signed-in players (each has a username; a guest has none), and ties share
   a rank (1, 2, 2, 4). `RankCoin` draws the rank, as on the countries' board.
-- **The board has three views** (`BoardViews`): Countries, the `Leaderboard` as
-  it was; Players; and the players of the country played for, named by its flag
+- **The board has three views** (`BoardViews`): Countries, the `Leaderboard`;
+  Players; and the players of the country played for, named by its flag
   and name. `Viewer` holds the view, so a closed sheet or
   another menu tab keeps it. With no `StandingsBackend` wired the board has no
   views.
+- **The countries' points are on the Countries board, where everybody looks.**
+  Each day is a round, the top 10 countries by the ground they held score 25, 18,
+  15 … 1, and the Final Battle triple (the backend's CLAUDE.md, Seasons).
+  `listenForRace` follows the whole map's season stream and reads its `race`
+  case, which every stream carries; the server reads it again every 10s.
+  `Viewer` follows it once (`useRace`) and hands it to the board. With a race the
+  board keeps "% of map" and adds two columns: Points, each country's points from
+  the days closed, right-aligned, and Today, what it scores if the day ends now, in
+  green ("+18") and left-aligned. **Today is its own column so the points line up**:
+  as a badge beside the points it pushed only the rows that had one. The leader
+  frame shows the points where it showed the share, and the share beside its tiles,
+  first, so the tiles' delta badge floats into the room after them. On a narrow
+  phone the two wrap onto two lines rather than run into the points.
+- **Each number says what it means** (`Hint` in `Leaderboard`, the texts in
+  `boardFigures.ts`), as a bonus does: the column heads and the leader frame's
+  figures are buttons that show a `Bubble`: with a mouse, for as long as it is
+  over them, a click included; after a tap or a key, for `TAP_HINT_MS` (7s), long
+  enough to read. **The first time the board shows points, it says what they are
+  on its own** (`GUIDE_MS`, 10s), once per browser: `useBoardGuide`, the
+  `clickplanet-board-guide` key. The bubble renders beside its button, not inside:
+  inside, it mounts before the button's ref is set and has nothing to sit on.
+- **The desktop menu is `clamp(380px, 34vw, 460px)` wide**, every tab alike, for the
+  six columns. It stops at 380px below about 1120px so it stays clear of the season
+  chip at the top centre. On a phone the sheet is the screen's width; a long
+  country name ends in "…" before a column moves.
+- **A switch orders the countries, Season or Territory** (`OrderSwitch`,
+  `.leaderboard-order`, `aria-pressed`), Season first. It is a small pill on the
+  heading's line, beside the view picked, and only on the Countries view: a row of
+  its own with two full buttons cost the table two of its rows on a phone. Season ranks by the points of the days closed, then
+  by tiles (`domain/race.ts`, `countryLines`), and lists a country with points that
+  holds no ground. **Today's points do not move the order**: they come from the
+  ground held on average since the day started, not from the tiles held now, so a
+  country can score less today than one under it. Ranked by them, two countries at
+  0 points swapped against their tiles, which read as a bug (2026-10-08).
+  Territory is the order by tiles held now, as the board was. `Viewer` holds the
+  choice. With no race, there is no switch and the board is as it was.
+- **On a phone the heading is the sheet's head** (`BoardSheet`, `BoardHeading`):
+  the view picked and the order take the place of the "Leaderboard" title, which
+  stays for a screen reader, and `BoardViews` is `headless`. Under it "playing
+  for" is one line with Change and no box, since the status bar right above
+  already names the country and its rank. The leader's frame is as tight as it
+  goes and says nothing of the toll: the dock shows the slowdown of the country
+  played for, and `ClicksPanel` the whole table. All of it so a phone with its
+  browser's toolbars (about 390 × 664) shows eight rows of the table, not one
+  (2026-10-09). **The whole sheet scrolls there, not the table alone**
+  (`.board-sheet` in `Menu.css`): the table's column heads stick to the top, and
+  "playing for" and the leader's frame go up out of the way, so a scrolled board
+  shows about seventeen rows. The fade at the foot sticks to the sheet's bottom
+  edge. The desktop menu still scrolls the table alone, under the leader.
 - **The view is picked from the board's heading** (`HeadingSelect`, a gold
   section title that opens a listbox), not from tabs: the board is already a
   tab of the menu, and tabs in a tab read as one row of places. **The list is
@@ -934,19 +1039,41 @@ draws it.
 `seasons.v1.SeasonService/GetSeason` once per page load (a cached GET), and
 `fakeSeasonBackend.ts` answers Season 0 in fake mode. A 404 reads as no season.
 
-- `domain/seasonClock.ts` — `seasonClock`, the time left to the second
-  (`27d 14h 05m 12s`, `13h 05m 12s`, `52m 10s`, nothing once over) and whether the finale runs, and `finaleWindow`,
-  the finale's day and hours in the player's own time zone.
+- `domain/seasonClock.ts` — `seasonClock`, the time left to today's cutoff to the
+  second (`13h 05m 12s`, `52m 10s`), or to the season's end once the finale runs,
+  and whether it runs, nothing once over. **A day ends at the time of day the
+  finale starts**, the backend's `rounds.Current`: worked out here from the
+  season, so the chip needs no race. `finaleClock` and `finaleWindow` are the
+  finale's countdown and its day and hours in the player's own time zone.
+  `countdownsOf` is the chip's faces, made from the two clocks: today's cutoff
+  and the finale's start. On the last day they are the same time, so there is
+  one face. During the finale there is one, to the season's end. After it, none.
 - `app/season/` — `useSeason`, which drops the season at its end (a page open
-  across it goes back to no season), `SeasonChip`, `SeasonDetails` and
-  `SeasonFacts`, the rows both of them open on.
+  across it goes back to no season), `SeasonChip`, `SeasonDetails`,
+  `SeasonFacts`, the rows both of them open on, `useRotation`, which turns the
+  chip's faces, and `RoundReveal` with `useRoundReveal` (see [The cutoff,
+  revealed](#the-cutoff-revealed)).
 
-**The season is a chip in the status zone.** On a desktop it sits at the top
-centre: "Season 0 ends in 28d 14h 05m 12s", and a press opens a dropdown (Escape
-closes it). On a phone it is the right end of the status bar, the two largest
-units alone ("28d 14h", named in full for a screen reader), and a press opens the
-same details as a sheet. During the finale it glows and says "Final Battle ends
-in"; it still opens.
+**The season is a chip in the status zone, and it turns between two
+countdowns**: today's cutoff, because the day is what scores, and the start of
+the Final Battle. Each face shows for 6 seconds. A face is a label and its time
+together, so a look never shows one countdown's time under the other's label.
+The next face slides up into place; under `prefers-reduced-motion` it changes
+with no movement. The mouse over the chip, or focus on it, stops the turns. With
+one face the chip does not turn.
+
+On a desktop it sits at the top centre: "Today ends in 13h 05m 12s", then "Final
+Battle in 23d 04h 12m 05s", and a press opens a dropdown (Escape closes it). On a
+phone it is the right end of the status bar, the two largest units alone
+("13h 05m"), under a short tag ("Today", "Final") when there are two faces. A
+press opens the same details as a sheet, with both countdowns at once. The chip's
+name holds both countdowns in full, so a screen reader does not wait for a turn.
+The faces are hidden from it, and they are not a live region. During the finale
+it glows and says "Final Battle ends in"; it still opens.
+
+**All faces are in one grid cell**, and the faces not shown are
+`visibility: hidden`. So the chip is as wide as its widest face, and its width
+does not change at each turn.
 
 **The desktop chip has a fixed width** (368px, the widest countdown plus a
 little). Luckiest Guy has no equal-width digits, so the countdown changes width
@@ -954,11 +1081,11 @@ every second: a chip as wide as its text moved every second and wrapped the
 dropdown's rows again with it.
 
 **What it opens is the one place the UI explains the rules**, asked for on
-purpose: four rows (`SeasonFacts`), the Final Battle with its day and hours, held
-ground counted at the end, the winner's trophy in the Hall of Fame, and the
+purpose: four rows (`SeasonFacts`), the Final Battle with its day and hours, the
+daily rounds ("Win the day"), the winner's trophy in the Hall of Fame, and the
 titles. During the finale the first row is the power-ups instead of the date.
-**Say only what is decided**: a battle full of power-ups, points for held ground
-counted at the end, a trophy for the winning country, a title for every
+**Say only what is decided**: a battle full of power-ups, points each day for the
+countries that held the most ground (triple in the Final Battle), a trophy for the winning country, a title for every
 signed-in player and one more for the winning country's. Guests get no title, so
 the row says "signed-in".
 
@@ -975,6 +1102,45 @@ page's `<style>`, as `.panel` and `.button` are.
 **The desktop chip writes its bottom edge on `:root` as `--status-bottom`**
 (`useBottomEdge`), and on a phone the status bar does: the quiz and the bomb
 news sit under it. With neither, the property is unset and they sit at the top.
+
+### The cutoff, revealed
+
+When a day closes, who won it and the season's new order play full screen,
+once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
+
+- **It plays from the race.** The race on the season stream carries `closed`,
+  the round closed last: its season, its number, its end, whether it was the
+  finale, the countries that scored in it, and the season's table before and
+  after it (`ClosedRound`; the backend's CLAUDE.md, Seasons). `useRoundReveal`
+  reads it from the race `Viewer` already follows (`useRace`).
+- **When**: a round that ended less than 6 hours before the page opened
+  (`REVEAL_WITHIN_MS`), or one that closes while the page is open. **Once per
+  browser**: Close keeps the round's key (`season:number:end`) in
+  `clickplanet-round-seen`, and a round with that key does not play again, after
+  a reload too. Only the last key is kept.
+- **Two stages.** First the podium: "Day 5 is over!" or "The Final Battle is
+  over!", then the top 3 countries rise on steps (2nd, 1st, 3rd), each with its
+  flag, its name and the points it won. Only places with points; ties share a
+  rank. After `ROUND_REVEAL.podium` (3.4s), or on Next, the season table: the
+  top 10 in their order before the round, and the player's country, marked,
+  under them when it is not in the top 10. Then the rows slide to their new
+  order, the points count up to the new total, and each row shows what it won
+  and how it moved (▲2, ▼1, New, –). With no podium it opens on the table; with
+  no table it stops on the podium.
+- **Nothing closes it before it is settled**: no button, and Escape does
+  nothing, until the rows have moved (`ROUND_REVEAL.slide` + `settle`), or the
+  podium has run when there is no table. Then Close appears and Escape works.
+  The rule is the title unlock's: a player spamming the globe would close it
+  unseen.
+- **It waits for a title unlock to close.** `Viewer` mounts it once the map is
+  loaded and only while no `TitleUnlocked` is queued, so a title earned at the
+  cutoff plays first and the reveal plays after it.
+- It looks like the unlock: a portal on the body, the `title-reveal` classes of
+  `TitleUnlocked.css`, and the `title` sound. Under
+  `prefers-reduced-motion: reduce` the rows do not slide and the steps only fade
+  in.
+- In fake mode `closeDay()` and `closeFinale()` play it (see
+  [Commands](#commands)).
 
 ### Sessions
 
@@ -1691,10 +1857,11 @@ so the mosaic blends it into open water however carefully the polygons are drawn
 A player must never see green with nothing to click on it, or a disc floating on
 open water.
 
-So `npm run earth` cuts it from the tile field instead. Each tile's Voronoi cell —
-a hexagon of circumradius `spacing/√3`, the same 1.155× the renderer widens the
-discs by when they have to cover the ground for the painted flag — is rasterised
-onto an equirectangular image as `cover`, and the photo is corrected toward it:
+So `npm run earth` cuts it from the tile field instead. A pixel is land when the
+lattice vertex nearest to it is a tile, and sea when it is not — so `cover` is each
+tile's own cell, the same cell edge the countries' outline runs along, and a
+one-tile lake is water across its whole cell. It fades over 0.4 of a tile spacing
+across that edge. The photo is corrected toward it:
 
 ```
 out = photo + (cover - opinion) * (landColour - seaColour)
@@ -1717,6 +1884,15 @@ neighbour that has some.
 Where land and water are the same colour — under cloud, on an ice shelf — there is
 no direction to move a pixel along, and nothing is moved. `scripts/map/recolour.mjs`
 holds the rule and `recolour.test.mjs` pins every case above.
+
+**The JPEG keeps colour at full resolution** (`chromaSubsampling: "4:4:4"`). The
+default halves it, and a cell is about three pixels wide, so a strip of land one
+tile wide came out blue and a lake came out green. At quality 80 it is the same
+size as the halved one at 88.
+
+`cover` used to be a disc round each tile reaching 0.83 of a spacing. Its
+neighbours' discs all but filled a one-tile lake, so the lake stayed green inside
+its outline.
 
 An earlier version was a frequency separation, `mix(sea, land, cover) + (photo -
 average)`. That is only the identity inside a block that is all land or all water;
@@ -1793,16 +1969,15 @@ vertex or it refuses. A cell corner is the circumcentre of a lattice triangle �
 the normal of the plane through its three vertices — which makes the cells a true
 Voronoi diagram of the tiles and the corners meet exactly, so there are no seams
 to cover up at the joins. The edges are then chained into runs, which is what
-keeps the file to one corner per edge rather than two: 49,632 edges in 302 KB.
+keeps the file to one corner per edge rather than two: 53,217 edges in 331 KB.
 The smoothing is not baked in — the blob is the outline on the lattice, and how
 finely it is rounded off is the renderer's business and four times the size.
 
-**Pinholes are filled before the outline is traced.** A vertex in no country
-takes its neighbours' country when at least four of the six agree and none
-disagrees, twice over. Without it every one-tile lake, every strait one tile
-wide gets an outline of its own, and every coast frays. It closes about 1,650 of
-them — it was 2,500 before the two blobs agreed on where the land is — and takes a
-fifth off the coastline's length.
+**The coast is the tiles' edge and nothing else.** A one-tile lake gets a ring of
+its own, and a bay one tile wide is drawn as a bay. It used to give a sea vertex
+its neighbours' country when four of the six agreed, which closed about 1,650 of
+them: the coast came out smoother, but ran up to two tiles out over the water,
+around ground nobody can click.
 
 It stays out of `/map`, unlike the two blobs it is built from: the backend has no
 use for it. Where a tile is and who owns the ground under it are the game's rules
@@ -1992,7 +2167,9 @@ take back.
 
 Rolling back on *any* failure, including a transport fault, is deliberate: if
 the click did land and only the response was lost, the stream's echo repaints
-it, and if the echo arrives first the rollback is already a no-op.
+it, and if the echo arrives first the rollback is already a no-op. A transport
+fault rolls back with no sound and no dialog; the card from
+[Connection health](#connection-health) is what says why.
 
 ## Charges
 
@@ -2542,11 +2719,15 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   where. Nearly all in one country (90%) is **"X IS INVADING FRANCE"**; spread over several, it is **"X IS
   ATTACKING"** the continent holding 70% of it (`static/countries/regions.json`, written by `npm run regions` from
   the snapshot the map is cut from), else **"X IS INVADING EGYPT AND TURKEY"** when two countries hold 70% of it,
-  else the world. Not a sub-region: "defend Western Europe" is not how anybody talks. A flag taking back its own ground, or its own continent from a flag from elsewhere (Belgium taking Europe
-  back from Palestine), is **"X STRIKES BACK"**; a flag that already held most of the country
+  else the world. Not a sub-region: "defend Western Europe" is not how anybody talks. But Asia is too big to be one
+  place, and nobody calls Saudi Arabia "Asia": its parts are named as people name them, **"THE MIDDLE EAST"** (western
+  Asia and Iran), South Asia, East Asia, Southeast Asia and Central Asia. A flag taking back its own ground, or its own continent from flags from elsewhere (Belgium taking Europe
+  back from Palestine), is **"X STRIKES BACK"**, when they lost it at least half of what it took there: Portugal taking
+  Europe from Israel first but from Germany, Poland and Spain more is attacking it; a flag that already held most of the country
   when the story starts is **"X IS KICKING Y OUT OF AUSTRALIA"**, since the opening shot shows its flag there
   already; a second flag taking 60% as much makes it **"X VS Y"**, but only when the two are at war, a quarter of
-  what one took taken from the other: Israel and Belgium both taking Europe from Palestine are allies, not a battle.
+  what each took taken from the other: Israel and Belgium both taking Europe from Palestine are allies, not a battle,
+  and Portugal nibbling at Romania while Romania takes the USA from Algeria is no battle either.
   `src/clip/overlay.ts` words it.
 - **A story is about who leads the fighting** (`castOf`): its flags have to take 35% of everything taken around
   it. Below that, flags of one continent taking it back together, with half of it between them, are the story,
@@ -2557,12 +2738,37 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   KICKED OUT OF EUROPE"**, told from its side with its counter falling against the continent's, and one attacker
   becomes **"ISRAEL IS KICKING PALESTINE OUT OF EUROPE"**. When many flags take it and none leads, it is the story
   alone, placed where it lost its land: **"PALESTINE GETS KICKED OUT OF SOUTH AMERICA"**, with "Fight for
-  Palestine". Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
+  Palestine"; when the flag that took most of it leads there, though the flag of the front did not, it is that flag
+  kicking it out (`lossOf`, told from scratch). Only a flag thrown out makes a story of a front nobody leads: Portugal
+  losing France and taking it back by evening, 1,004 of its 1,110 tiles, is no "FRANCE IS KICKING PORTUGAL OUT OF
+  FRANCE", whatever the front's own story was. With `--country`, a story that flag leads nothing in is skipped. Nobody is kicked out of their own land: a flag losing its own continent **"IS LOSING AFRICA"**, its own
   country **"IS FALLING"**, and one attacker taking it is an invasion. A flag taking its own ground back still strikes
   back.
-- **One story per flag and what it did** (`sameStory`), whatever window or scale found it, the best one: one flag
-  beating another, one flag thrown out of one place, one flag striking back. A battle is its two sides in one place.
-- **Names are said with their article** where English wants one: "the UK", "the Netherlands". Tags keep them bare.
+- **A flag taking land on several continents at once is on a tour of the world** (`tour.ts`): the busiest stretches
+  of the whole map, for the 3 flags that took the most in each (or `--country`), when no continent holds 70% of
+  what the flag took and it leads the world (`leadsTheWorld`): twice as much taken as any other flag, since no flag
+  takes a third of all taken across the world, as one does on a front (Christmas Island took 28% of it on Oct 9). **"PORTUGAL IS TAKING OVER THE WORLD"**,
+  and its call is "Fight back", with no flag. Each continent (Asia's parts) with 5% of what it took is a stop, four at most,
+  in the order it got there (a fifth of it taken). Each stop is framed where it took the most there (Angola, not
+  all of Africa from Guinea-Bissau to Mozambique, which only the whole globe frames). The camera opens on the whole
+  globe over the first stop and dives into it, twice as close as that framing but never past where the painted flags
+  start to blend into the tiles (`flagsZoomOf`): the flags changing hands are what a tour shows. At each stop it
+  follows the flag's fighting there as it happens, as a clip follows its front, then flies to the next, rising a
+  little over a long way (1.6 times out at most), never out to the globe and back in, which was brutal. It pulls back
+  out to the globe over all of them at the end; 1.2s a flight and 2.6s a stop. Up close, a big country's painted flag
+  is blurred: the flag atlas is the game's. The counter counts
+  the flag across the world. A tour is told beside the flag's stories on each continent, not instead of them.
+- **One story per flag and what it did** (`sameStory`), whatever window or scale found it, told over the most of the
+  map (`widerThan`), else the best: one flag taking one place or one inside it, whoever it beat there ("Portugal is
+  invading Germany" is part of "Portugal is attacking Europe"), one flag thrown out of one place, one flag
+  striking back. Portugal beating France in Africa and in India is two stories. A battle is its two sides in one
+  place. `--plan` lists each one dropped with the one it repeats.
+- **A country is said as people say it.** The game's names are cut to fit its board ("Christmas", "N.Zealand", "Czech
+  Rep."), so a clip says the English name they were cut from, from the CLDR data the browser carries
+  (`Intl.DisplayNames`): "CHRISTMAS ISLAND IS TAKING OVER THE WORLD". A name the game chose over CLDR's stays: "Turkey",
+  "Ivory Coast", "UAE", "DR Congo", and its own flags'.
+- **Names are said with their article** where English wants one: "the UK", "the Netherlands", "the Dominican
+  Republic". Tags keep them bare.
 - **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
   France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
   The caption is the headline and the question its call to act asks ("Who stops them?" to defend, "Who joins
@@ -2590,8 +2796,8 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   story already told by a better candidate (same attacker, same front) is dropped.
 - **`solidity.ts` skips graffiti.** For each tile the attacker took and holds at the end, the share of its 6
   neighbours it holds too: about 1 for land taken, 0.56 for names written across Canada. Under 0.75 the story is
-  skipped, and `--plan` says so. So is a story placed in "the world": its tiles are spread over several continents
-  and there is no one place to show, and "Israel is attacking the world" is a line no clip may carry.
+  skipped, and `--plan` says so. So is a front whose story lands in "the world": its tiles are spread over several
+  continents and there is no one place to show. Only a flag leading the world gets a tour of it.
 - **`look.ts` picks when the camera comes back out of the tiles.** From far, a landmass's painted flag only
   changes when its biggest holder does (`flipsOf`, over the borders blob, read 8 times along the changes, so a
   landmass taken and taken back counts too). A front too wide to frame closer than
@@ -2606,15 +2812,16 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   and holds there 1s before the call to act while the last tiles change hands: close-ups are for the middle, and
   the end shows the rest of the map as it is now. **It never sits still**: where the
   fighting crosses less than 0.4 screens a second, it breathes, out to where the painted flags show and back into
-  the tiles every 3s. **It flies to every bomb on the
-  front**, close enough for the blast to be a fifth of the screen, and holds there while it goes off. The globe is
+  the tiles every 3s. **A bomb holds nothing still**: neither the camera nor the replay's clock stops for it, as five
+  bombs in a row on Portugal froze a clip of Portugal taking Europe. It goes off while the map goes on changing, and
+  the camera goes there only as the tiles it clears pull it, like any others. `--plan` counts the bombs on the front
+  (`inSightOf`): not one in Alaska for a story told on the USA while the fighting is in Florida. The globe is
   always drawn with the painted flags on, so the zoom alone hands them over to the tiles, as in the game.
 - **`pace.ts` spends the clip on what happens and nothing else**: the replay's clock jumps over every quiet
   stretch, so the map moves from the first frame to the last. **A clip is as long as its camera has somewhere to
   go**: 6s for a fight in one place, however many hours it lasted (room for the dive, the close-ups and the pull back
   out), and 1.2s more for every screen the fighting
-  crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds the 2s it holds the clip
-  still for, while it falls and goes off. The last 2.5s are the call to act, and nothing runs past 22s.
+  crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds nothing. The last 2.5s are the call to act, and nothing runs past 22s.
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
 headless Chrome at 540×960 at 2×, waits for `window.clip.ready`, then for each frame calls `window.clip.frame(i)`,

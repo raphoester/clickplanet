@@ -7,6 +7,7 @@ import {Config} from "./transport.ts"
 export function newAuthServiceClient(config: Config): PromiseClient<typeof AuthService> {
     return createPromiseClient(AuthService, createConnectTransport({
         baseUrl: config.baseUrl,
+        interceptors: config.interceptors,
         useBinaryFormat: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
         fetch: (input, init) => globalThis.fetch(input, {...init, credentials: "include"}),

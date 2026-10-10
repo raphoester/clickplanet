@@ -22,10 +22,17 @@ export type FinaleClock = {
     countdown: Countdown
 }
 
+export type SeasonCountdown = {
+    label: string
+    tag: string
+    left: string
+}
+
 export function seasonClock(season: Season, now: number): SeasonClock | undefined {
     if (now >= season.endsAt) return undefined
+    if (now >= season.finaleStartsAt) return {finale: true, left: timeLeft(countdownTo(season.endsAt, now))}
 
-    return {finale: now >= season.finaleStartsAt, left: timeLeft(countdownTo(season.endsAt, now))}
+    return {finale: false, left: timeLeft(countdownTo(cutoffOf(season, now), now))}
 }
 
 export function finaleClock(season: Season, now: number): FinaleClock | undefined {
@@ -34,6 +41,22 @@ export function finaleClock(season: Season, now: number): FinaleClock | undefine
     const live = now >= season.finaleStartsAt
     const countdown = countdownTo(live ? season.endsAt : season.finaleStartsAt, now)
     return {live, left: timeLeft(countdown), countdown}
+}
+
+export function countdownsOf(season: Season, now: number): SeasonCountdown[] {
+    const today = seasonClock(season, now)
+    const finale = finaleClock(season, now)
+    if (!today || !finale) return []
+    if (finale.live) return [{label: "Final Battle ends in", tag: "Final", left: finale.left}]
+
+    const battle = {label: "Final Battle in", tag: "Final", left: finale.left}
+    if (cutoffOf(season, now) === season.finaleStartsAt) return [battle]
+    return [{label: "Today ends in", tag: "Today", left: today.left}, battle]
+}
+
+function cutoffOf(season: Season, now: number): number {
+    const daysAfter = Math.floor((season.finaleStartsAt - now - 1) / (DAY * 1000))
+    return season.finaleStartsAt - daysAfter * DAY * 1000
 }
 
 function countdownTo(at: number, now: number): Countdown {

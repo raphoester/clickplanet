@@ -35,6 +35,10 @@ export function tokensAt(budget: ClickBudget, at: number): number {
     return Math.max(0, Math.min(budget.capacity, refilled))
 }
 
+export function canClick(budget: ClickBudget | undefined, at: number): boolean {
+    return budget === undefined || tokensAt(budget, at) >= 1
+}
+
 export function nextClickProgress(budget: ClickBudget, at: number): number {
     const tokens = tokensAt(budget, at)
     if (tokens >= budget.capacity) return 1

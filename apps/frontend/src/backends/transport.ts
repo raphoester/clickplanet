@@ -1,43 +1,90 @@
-import {Code, ConnectError} from "@connectrpc/connect";
+import {Code, ConnectError, Interceptor} from "@connectrpc/connect";
+import {outcomeOf} from "./connection.ts";
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "https://api.clickplanet.lol"
 
 export type Config = {
     baseUrl: string
     timeoutMs?: number
+    interceptors?: Interceptor[]
 }
 
 // connect-web applies defaultTimeoutMs to streams too; <= 0 turns it off for a call.
 export const NO_TIMEOUT = 0
 
-const ATTEMPTS = 5
+type Retries = {
+    attempts: number
+    delayBefore: (attempt: number) => number
+    worthRetrying: (e: unknown) => boolean
+}
 
-export async function retrying<T>(
+const READS: Retries = {
+    attempts: 8,
+    delayBefore: (attempt) => attempt < 2 ? 0 : Math.min(1000 * 2 ** (attempt - 2), 8_000),
+    worthRetrying: missed,
+}
+
+const ACTS: Retries = {
+    attempts: 5,
+    delayBefore: () => 0,
+    worthRetrying: (e) => missed(e) && !timedOut(e),
+}
+
+export function retrying<T>(attempt: () => Promise<T>, what: string, signal?: AbortSignal): Promise<T> {
+    return retried(attempt, what, READS, signal)
+}
+
+export function retryingAtOnce<T>(attempt: () => Promise<T>, what: string): Promise<T> {
+    return retried(attempt, what, ACTS)
+}
+
+async function retried<T>(
     attempt: () => Promise<T>,
     what: string,
+    {attempts, delayBefore, worthRetrying}: Retries,
     signal?: AbortSignal,
 ): Promise<T> {
     let lastError: unknown
 
-    for (let i = 0; i < ATTEMPTS; i++) {
+    for (let i = 0; i < attempts; i++) {
         signal?.throwIfAborted()
+        const delay = delayBefore(i)
+        if (delay > 0) await pause(delay, signal)
 
         try {
             return await attempt()
         } catch (e) {
             signal?.throwIfAborted()
-            if (!unreachable(e)) throw e
+            if (!worthRetrying(e)) throw e
 
             lastError = e
-            console.error(`${what} failed (attempt ${i + 1}/${ATTEMPTS})`, e)
+            console.error(`${what} failed (attempt ${i + 1}/${attempts})`, e)
         }
     }
 
-    throw new Error(`${what} failed after ${ATTEMPTS} attempts`, {cause: lastError})
+    throw new Error(`${what} failed after ${attempts} attempts`, {cause: lastError})
 }
 
-function unreachable(e: unknown): boolean {
-    return !(e instanceof ConnectError) || e.code === Code.Unavailable
+function missed(e: unknown): boolean {
+    return outcomeOf(e) === "missed"
+}
+
+function timedOut(e: unknown): boolean {
+    return e instanceof ConnectError && e.code === Code.DeadlineExceeded
+}
+
+function pause(ms: number, signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const stop = () => {
+            clearTimeout(timer)
+            reject(signal?.reason)
+        }
+        const timer = setTimeout(() => {
+            signal?.removeEventListener("abort", stop)
+            resolve()
+        }, ms)
+        signal?.addEventListener("abort", stop, {once: true})
+    })
 }
 
 const INITIAL_RECONNECT_DELAY_MS = 500

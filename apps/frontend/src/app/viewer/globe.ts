@@ -46,7 +46,7 @@ import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createClickEffects} from "./clickEffects.ts";
 import {createClickGlints} from "./clickGlints.ts";
 import {ALL_OFF, BonusNotice, BonusReward, BonusRules, Charges, NO_CHARGES, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
-import {now as monotonicNow} from "../../backends/clickBudget.ts";
+import {canClick, ClickBudget, ClickBudgetSource, now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
@@ -145,6 +145,7 @@ export type GlobeOptions = {
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
+    clickBudget?: ClickBudgetSource
     container: HTMLElement
     country: Country
     mapView: MapView
@@ -195,6 +196,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         tileClicker,
         ownershipsGetter,
         updatesListener,
+        clickBudget,
         container: eventTarget,
         country: initialCountry,
         mapView: initialMapView,
@@ -232,6 +234,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const lifetime = new AbortController();
     const listenerOptions = {signal: lifetime.signal};
+
+    let budget: ClickBudget | undefined
+    const stopWatchingBudget = clickBudget?.watchClickBudget((reading) => {
+        budget = reading
+    })
 
     let loaded = false
 
@@ -689,6 +696,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             }
         }
 
+        if (!canClick(budget, monotonicNow())) {
+            onRateLimited()
+            playSound("refused")
+            return
+        }
+
         const outcome = outcomeOf(owner, country.code, shields)
         const {changes, claim} = outcome === "shielded"
             ? {changes: [], claim: undefined}
@@ -888,6 +901,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             catchingUp?.abort()
             stopBonuses?.()
             stopBombs?.()
+            stopWatchingBudget?.()
 
             picker.dispose()
             bonusPointer.dispose()

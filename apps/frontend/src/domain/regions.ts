@@ -2,7 +2,8 @@ import regions from "../../static/countries/regions.json"
 
 const CONTINENTS: ReadonlyMap<string, string> = new Map(Object.entries(regions))
 
-// The continent a country is in, as Natural Earth names it; written by `npm run regions`.
+// The continent a country is in, as Natural Earth names it, or in Asia, too big to be one place, the part of it: the
+// Middle East, South Asia, East Asia, Southeast Asia, Central Asia. Written by `npm run regions`.
 export function regionOf(country: string): string | undefined {
     return CONTINENTS.get(country)
 }

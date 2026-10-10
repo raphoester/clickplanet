@@ -35,9 +35,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/listen_for_events_handler/race_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/postgres_contribution_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/forget_account_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/forget_account_usecase/marking_forget_account"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/record_take_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/standings/usecases/record_take_usecase/marking_record_take"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/subscribers/tile_taken_subscriber"
@@ -91,17 +89,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	boards := inprocess_board_feed.New(log_board_reader.New(standingsQuery, props.Logger), clock)
 
 	takes, err := cpbootstrap.Subscribe(props.Events, "seasons-standings", tileTakenBuffer,
-		log_subscriber.New(tile_taken_subscriber.New(
-			marking_record_take.New(record_take_usecase.New(seasons, contributions), boards),
-		), props.Logger))
+		log_subscriber.New(tile_taken_subscriber.New(record_take_usecase.New(seasons, contributions)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to planet.v1.TileTaken: %w", err)
 	}
 	deletions, err := cpbootstrap.Subscribe(props.Events, "seasons-standings-accounts", accountDeletedBuffer,
-		log_subscriber.New(account_deleted_subscriber.New(
-			marking_forget_account.New(forget_account_usecase.New(contributions), boards),
-		), props.Logger))
+		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(contributions)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
@@ -109,7 +103,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	races := inprocess_race_feed.New(log_race_reader.New(race_query.NewPostgresQuery(db, seasons, clock), props.Logger))
 	snapshot := take_snapshot_usecase.NewRunner(config.Snapshot, log_take_snapshot.New(
-		take_snapshot_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), seasons, clock),
+		take_snapshot_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), props.Events, seasons, clock),
 		props.Logger,
 	))
 

@@ -24,30 +24,44 @@ export type BoardStandings = {
 export type BoardViewsProps = BoardStandings & {
     country: Country
     countries: ReactNode
+    order?: ReactNode
+    headless?: boolean
 }
 
-export default function BoardViews(props: BoardViewsProps) {
+export type BoardHeadingProps = Pick<BoardStandings, "view" | "onView"> & {
+    country: Country
+    order?: ReactNode
+}
+
+export function BoardHeading({view, onView, country, order}: BoardHeadingProps) {
     const choices: HeadingChoice<BoardView>[] = [
-        {value: "countries", name: "Countries", label: "Countries"},
-        {value: "players", name: "Players", label: "Players"},
+        {value: "countries", name: "Countries", label: <span>Countries</span>},
+        {value: "players", name: "Players", label: <span>Players</span>},
         {
             value: "country",
-            name: props.country.name,
-            label: <span><CountryFlag code={props.country.code}/>{props.country.name}</span>,
+            name: country.name,
+            label: <span><CountryFlag code={country.code}/>{country.name}</span>,
         },
     ]
 
-    return <>
-        <HeadingSelect label="Leaderboard" choices={choices} value={props.view} onChange={props.onView}/>
+    return <div className="board-heading">
+        <HeadingSelect label="Leaderboard" choices={choices} value={view} onChange={onView}/>
+        {view === "countries" && order}
+    </div>
+}
 
-        {props.view === "countries"
-            ? props.countries
-            : <PlayerStandings backend={props.backend}
-                               countryCode={props.view === "country" ? props.country.code : ""}
-                               label={props.view === "country" ? `Players, ${props.country.name}` : "Players"}
-                               caller={props.caller}
-                               listenForClicks={props.listenForClicks}
-                               onSignIn={props.onSignIn}
-                               onOpenPlayer={props.onOpenPlayer}/>}
+export default function BoardViews(props: BoardViewsProps) {
+    return <>
+        {!props.headless && <BoardHeading view={props.view} onView={props.onView} country={props.country} order={props.order}/>}
+
+        {props.view === "countries" && props.countries}
+        {(props.view === "players" || props.view === "country") &&
+            <PlayerStandings backend={props.backend}
+                             countryCode={props.view === "country" ? props.country.code : ""}
+                             label={props.view === "country" ? `Players, ${props.country.name}` : "Players"}
+                             caller={props.caller}
+                             listenForClicks={props.listenForClicks}
+                             onSignIn={props.onSignIn}
+                             onOpenPlayer={props.onOpenPlayer}/>}
     </>
 }

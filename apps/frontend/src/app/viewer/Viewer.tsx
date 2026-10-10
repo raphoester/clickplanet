@@ -17,17 +17,21 @@ import FortifyCard from "../components/FortifyCard.tsx";
 import FortifyHint from "../components/FortifyHint.tsx";
 import {useFortifyGuide} from "../components/useFortifyGuide.ts";
 import {Fortified} from "../../domain/fortify.ts";
+import ConnectionLost from "../components/ConnectionLost.tsx";
+import {ConnectionSource} from "../../backends/connection.ts";
+import {useConnection} from "./useConnection.ts";
 import Quiz from "../quiz/Quiz.tsx";
 import {useQuiz} from "../quiz/useQuiz.ts";
 import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
-import Menu, {BoardPlace, MenuTab, MorePlace, YouPlace} from "../Menu.tsx";
+import Menu, {BoardSheet, MenuTab, MorePlace, YouPlace} from "../Menu.tsx";
 import {youLabel} from "../youLabel.ts";
 import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
 import ClicksPanel from "../components/ClicksPanel.tsx";
 import Inventory from "../components/Inventory.tsx";
 import {useBonusGuide} from "../components/useBonusGuide.ts";
+import {useBoardGuide} from "../useBoardGuide.ts";
 import {isFirstWin} from "../../domain/bonusGuide.ts";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
@@ -63,6 +67,11 @@ import StatusBar from "../hud/StatusBar.tsx";
 import TabBar from "../hud/TabBar.tsx";
 import {StandingsBackend} from "../../backends/standings.ts";
 import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
+import {useRace} from "../standings/useRace.ts";
+import RoundReveal from "../season/RoundReveal.tsx";
+import {useRoundReveal} from "../season/useRoundReveal.ts";
+import {revealKeyOf} from "../../domain/roundReveal.ts";
+import {CountryOrder} from "../../domain/race.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
 import "./Viewer.css"
 
@@ -79,6 +88,7 @@ export type ViewerProps = {
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
     clickBudgetSource?: ClickBudgetSource
+    connection?: ConnectionSource
     bonusListener?: BonusListener
     quizMaster?: QuizMaster
     bomber?: Bomber
@@ -96,6 +106,7 @@ export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
     const {countryState, handleSetCountry} = useCountryStorage(props.sharedCountry)
     const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
+    const connection = useConnection(props.connection)
     const sound = useSound()
     const display = useDisplaySettings()
     const account = useAccount(props.account)
@@ -108,6 +119,10 @@ export default function Viewer(props: ViewerProps) {
     const [unlocked, setUnlocked] = useState<readonly PlayerTitle[]>([])
     const roster = useRoster(props.presence, (title) => setUnlocked((queue) => [...queue, title]))
     const season = useSeason(props.season)
+    const race = useRace(props.standings)
+    const reveal = useRoundReveal(race)
+    const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
+    const boardGuide = useBoardGuide()
     const [pitchOpen, setPitchOpen] = useState(false)
     const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
     const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
@@ -161,6 +176,7 @@ export default function Viewer(props: ViewerProps) {
         tileClicker: props.tileClicker,
         ownershipsGetter: props.ownershipsGetter,
         updatesListener: props.updatesListener,
+        clickBudget: props.clickBudgetSource,
         bonusListener: props.bonusListener,
         bomber: props.bomber,
         shielder: props.shielder,
@@ -225,9 +241,13 @@ export default function Viewer(props: ViewerProps) {
         leaderboard,
         tileDeltas,
         tilesCount,
-        toll,
         anthem: <AnthemControls anthem={anthem} settings={sound.settings} onChange={sound.setSettings}/>,
         standings,
+        race,
+        countryOrder,
+        onCountryOrder: setCountryOrder,
+        guided: boardGuide.guided,
+        onGuided: boardGuide.markGuided,
     }
     const you = {
         account: props.account,
@@ -309,9 +329,7 @@ export default function Viewer(props: ViewerProps) {
         />}
 
         {ready && compact && <>
-            {sheet === "board" && <Sheet title="Leaderboard" onClose={closeSheet}>
-                <BoardPlace {...board} playing/>
-            </Sheet>}
+            {sheet === "board" && <BoardSheet {...board} onClose={closeSheet}/>}
             {sheet === "you" && account.kind === 'ready' && <Sheet title={youLabel(linked)} onClose={closeSheet}>
                 <YouPlace {...you}/>
             </Sheet>}
@@ -355,12 +373,20 @@ export default function Viewer(props: ViewerProps) {
                                                onWear={props.account?.wearTitle}
                                                onClose={() => setUnlocked((queue) => queue.slice(1))}/>}
 
+        {ready && unlocked.length === 0 && reveal.closed && <RoundReveal key={revealKeyOf(reveal.closed)}
+                                                                         closed={reveal.closed}
+                                                                         countryCode={countryState.code}
+                                                                         play={sound.play}
+                                                                         onClose={reveal.dismiss}/>}
+
         {award && <BonusAward reward={award}
                               kept={isFirstWin(bonusGuide.guide, award.kind)}
                               onDone={() => {
                                   bonusGuide.markWon(award.kind)
                                   dismissAward()
                               }}/>}
+
+        {ready && connection === "down" && <ConnectionLost lowered={quiz.state.phase !== 'idle'}/>}
 
         {lastClose && newest === lastClose && <FortifyHint
             key={`close-${lastClose.id}`}

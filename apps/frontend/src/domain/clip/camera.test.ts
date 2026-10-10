@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {blastZoomOf, cameraOf, framingOf, openingOf, screensOf} from "./camera.ts"
+import {cameraOf, framingOf, openingOf, screensOf} from "./camera.ts"
 import {Point} from "./geometry.ts"
 
 const at = (angle: number): Point => ({x: Math.sin(angle), y: 0, z: Math.cos(angle)})
@@ -102,44 +102,5 @@ describe("how far the action moves", () => {
 
     it("is counted in screens up close", () => {
         expect(screensOf(beats((i) => at(-0.5 + i / 100)), 6)).toBeCloseTo(0.95 * 3, 0)
-    })
-})
-
-describe("a blast", () => {
-    const opening = {direction: at(0), zoom: 1.5}
-    const blast = {from: 0.4, to: 0.5, point: at(-0.2), zoom: 7}
-    const script = {close: 3, seconds: 10, pullBack: "atEnd" as const, blasts: [blast]}
-
-    it("takes the camera to it, close, while the clip holds on it", () => {
-        const shot = cameraOf(opening, [], script)(0.45)
-
-        expect(shot.direction.x).toBeCloseTo(Math.sin(-0.2), 2)
-        expect(shot.zoom).toBeGreaterThan(6)
-    })
-
-    it("never takes the opening away: the camera goes to it once the dive is down", () => {
-        const early = {...blast, from: 0, to: 0.08}
-        const camera = cameraOf(opening, [], {...script, blasts: [early]})
-
-        expect(camera(0).zoom).toBeCloseTo(1.5)
-        expect(camera(0.02).zoom).toBeCloseTo(1.5)
-    })
-
-    it("lets it go after", () => {
-        expect(cameraOf(opening, [], script)(0.7).zoom).toBeCloseTo(3)
-    })
-
-    it("still pulls back out at the end when it falls late", () => {
-        const late = {...blast, from: 0.7, to: 0.72}
-        const camera = cameraOf(opening, [], {...script, blasts: [late]})
-
-        expect(camera(0.71).zoom).toBeGreaterThan(6)
-        expect(camera(1).zoom).toBeCloseTo(1.5)
-        expect(camera(1).direction.x).toBeCloseTo(0)
-    })
-
-    it("is a fifth of the screen wide", () => {
-        expect(blastZoomOf(0.016, 0.5625)).toBeCloseTo(0.5625 / 0.08)
-        expect(blastZoomOf(0.001, 0.5625)).toBe(9)
     })
 })

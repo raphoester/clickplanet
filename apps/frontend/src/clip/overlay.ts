@@ -33,8 +33,30 @@ const TIME = new Intl.DateTimeFormat("en-GB", {
 
 const SITE = "https://clickplanet.lol"
 
+const ENGLISH = new Intl.DisplayNames(["en"], {type: "region", style: "short"})
+
+// The game's names are cut to fit its board ("Christmas", "N.Zealand", "Czech Rep."): a clip says the English name they
+// were cut from, from the CLDR data the browser carries. A name the game chose over it stays: "Turkey", "Ivory Coast",
+// "UAE", and its own flags'.
 export function nameOf(code: string): string {
-    return Countries.get(code)?.name ?? code.toUpperCase()
+    const game = Countries.get(code)?.name ?? code.toUpperCase()
+    const english = englishNameOf(code)
+    return english !== undefined && cutFrom(game, english) ? english : game
+}
+
+// ISO's x codes are for private use: CLDR has a test name where the game has Brittany.
+function englishNameOf(code: string): string | undefined {
+    if (!/^[a-wyz][a-z]$/.test(code)) return undefined
+    const name = ENGLISH.of(code.toUpperCase())
+    // "Congo - Kinshasa" names two places to tell them apart; the game's "DR Congo" says it better.
+    return name === undefined || name.includes(" - ") ? undefined : name.replace(/ \(.*\)$/, "")
+}
+
+function cutFrom(game: string, english: string): boolean {
+    if (/[.,]/.test(game)) return true
+    const wordsOf = (name: string) => name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().split(/[^a-z]+/).filter(Boolean)
+    const full = wordsOf(english)
+    return english.length > game.length && wordsOf(game).every((word) => full.some((whole) => whole.startsWith(word)))
 }
 
 // The countries a place is made of; none for a continent.
@@ -43,7 +65,7 @@ function countriesOf(place: Place): string[] {
 }
 
 // The UK, the Netherlands: a name said with its article.
-const SAID_WITH_THE = /^(UK|USA|UAE|Vatican|Gambia)$|(lands|ines|amas|ives|oros|elles)$/
+const SAID_WITH_THE = /^(UK|USA|UAE|Gambia|Middle East)$|(lands|ines|amas|ives|oros|elles|Republic|Territories)$/
 
 function said(name: string): string {
     return SAID_WITH_THE.test(name) ? `the ${name}` : name
@@ -54,7 +76,7 @@ export function placeName(place: Place): string {
 }
 
 function placeSaid(place: Place): string {
-    return "region" in place ? place.region : countriesOf(place).map((country) => said(nameOf(country))).join(" and ")
+    return "region" in place ? said(place.region) : countriesOf(place).map((country) => said(nameOf(country))).join(" and ")
 }
 
 // The flags of a place: its countries', or its continent's own when it has one.
@@ -117,9 +139,9 @@ export function wordsOf(story: Story, headline?: string): Words {
 
     if (story.team !== undefined) {
         return finish({
-            headline: headline ?? `${story.team} STRIKES BACK`.toUpperCase(),
+            headline: headline ?? `${said(story.team)} STRIKES BACK`.toUpperCase(),
             line: undefined,
-            call: `FIGHT FOR ${story.team}`.toUpperCase(),
+            call: `FIGHT FOR ${said(story.team)}`.toUpperCase(),
             callFlags: sides,
             link: SITE,
         }, "Who joins them?")
@@ -147,13 +169,14 @@ export function wordsOf(story: Story, headline?: string): Words {
         }, "Who joins them?")
     }
 
-    const defended = countriesOf(story.place)[0] ?? story.victims[0]
+    const world = "region" in story.place && story.place.region === THE_WORLD
+    const defended = world ? undefined : countriesOf(story.place)[0] ?? story.victims[0]
     return finish({
-        headline: headline ?? (story.kind === "invasion"
-            ? `${attacker} IS INVADING ${place}`
-            : `${attacker} IS ATTACKING ${place}`).toUpperCase(),
+        headline: headline ?? (world ? `${attacker} IS TAKING OVER ${place}`
+            : story.kind === "invasion" ? `${attacker} IS INVADING ${place}`
+                : `${attacker} IS ATTACKING ${place}`).toUpperCase(),
         line: undefined,
-        call: `DEFEND ${place}`.toUpperCase(),
+        call: world ? "FIGHT BACK" : `DEFEND ${place}`.toUpperCase(),
         callFlags: placeFlags(story.place),
         link: defended === undefined ? SITE : `${SITE}/?f=${defended}`,
     }, "Who stops them?")

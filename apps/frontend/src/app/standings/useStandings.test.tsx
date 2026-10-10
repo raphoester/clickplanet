@@ -25,6 +25,7 @@ function streaming() {
             stops.set(countryCode, stop)
             return stop
         }),
+        listenForRace: vi.fn(() => () => {}),
         mySeason: vi.fn(async () => undefined),
     } satisfies StandingsBackend
     const send = (countryCode: string, standings: Standing[]) => act(() => followers.get(countryCode)!(standings))

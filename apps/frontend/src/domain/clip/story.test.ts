@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {TileChange} from "./changes.ts"
-import {castOf, inPlace, placeOf, routOf, sameRout, sameStory, Story, storyOf, THE_WORLD} from "./story.ts"
+import {castOf, inPlace, leadsTheWorld, lossOf, placeOf, routOf, sameRout, sameStory, Story, storyOf, THE_WORLD, widerThan} from "./story.ts"
 
 const REGIONS: Record<string, string> = {
     fr: "Europe",
@@ -48,6 +48,14 @@ describe("the story of a front", () => {
             .toMatchObject({kind: "comeback", attacker: "be", place: {region: "Europe"}})
     })
 
+    it("is an attack when a flag takes its own continent from its neighbours more than from flags from elsewhere", () => {
+        const changes = [...took("pt", "il", 40, 1), ...took("pt", "de", 30, 41), ...took("pt", "es", 30, 71)]
+        const ground = (tile: number) => tile <= 40 ? "fr" : tile <= 70 ? "de" : "es"
+
+        expect(storyOf(changes, ground, (country) => country === "il" ? "Asia" : "Europe"))
+            .toMatchObject({kind: "attack", attacker: "pt", victims: ["il", "de", "es"], place: {region: "Europe"}})
+    })
+
     it("is an attack when a flag takes its own continent from a neighbour", () => {
         const changes = [...took("de", "fr", 40, 1), ...took("de", "fr", 30, 41), ...took("de", "fr", 30, 71)]
         const ground = (tile: number) => tile <= 40 ? "fr" : tile <= 70 ? "gb" : "es"
@@ -75,6 +83,12 @@ describe("the story of a front", () => {
         const changes = [...took("fr", "ps", 50, 1), ...took("ps", "fr", 40, 51)]
 
         expect(storyOf(changes, () => "fr", regionOf)).toMatchObject({kind: "battle", attacker: "fr", rival: "ps"})
+    })
+
+    it("is no battle when the other flag is busy taking a third and only the attacker fights it", () => {
+        const changes = [...took("pt", "pl", 100, 1), ...took("pt", "ro", 40, 101), ...took("ro", "dz", 300, 141), ...took("ro", "pt", 1, 441)]
+
+        expect(storyOf(changes, () => "us", regionOf, "pt")).toMatchObject({rival: undefined, attacker: "pt"})
     })
 
     it("follows the attacker it is told", () => {
@@ -129,6 +143,23 @@ describe("who a story is about", () => {
     })
 })
 
+describe("the flag leading the world", () => {
+    const day = [...took("cx", "fr", 28, 1), ...took("pt", "pl", 12, 101), ...took("dz", "il", 10, 201), ...took("it", undefined, 50, 301)]
+
+    it("took twice as much as any other, though far from a third of all", () => {
+        expect(leadsTheWorld("cx", day.filter(({to}) => to !== "it"))).toBe(true)
+    })
+
+    it("is nobody when another took nearly as much", () => {
+        expect(leadsTheWorld("pt", day.filter(({to}) => to !== "it"))).toBe(false)
+        expect(leadsTheWorld("cx", [...took("cx", "fr", 20, 1), ...took("pt", "pl", 12, 101)])).toBe(false)
+    })
+
+    it("counts empty land taken too", () => {
+        expect(leadsTheWorld("cx", day)).toBe(false)
+    })
+})
+
 describe("a flag thrown out", () => {
     const europe: Story = {
         kind: "comeback", attacker: "de", rival: undefined, victims: ["ps"], place: {region: "Europe"}, taken: 10, team: "Europe",
@@ -167,6 +198,15 @@ describe("a flag thrown out", () => {
         expect(routOf(many, {before: 1000, after: 200}, false)).toMatchObject({kind: "rout", victims: ["ps"]})
     })
 
+    it("is told from scratch around a front nobody leads, never as the front's own story", () => {
+        const front: Story = {kind: "kickout", attacker: "pl", rival: "dz", victims: ["fr", "pt"], place: {country: "fr"}, taken: 900}
+        const loss = lossOf(front, "pt", "fr", {country: "fr"})
+
+        expect(loss).toMatchObject({kind: "invasion", attacker: "fr", rival: undefined, victims: ["pt", "fr"]})
+        expect(routOf(loss, {before: 1110, after: 1004}).kind).toBe("invasion")
+        expect(routOf(loss, {before: 1110, after: 300}).kind).toBe("kickout")
+    })
+
     it("is never one attacker kicking a flag out of its own land", () => {
         const morocco = {...europe, kind: "invasion" as const, attacker: "ma", victims: ["es"], place: {country: "es"}, team: undefined}
 
@@ -194,32 +234,57 @@ describe("the ground of a place", () => {
 
 describe("the same story", () => {
     const name = (place: Story["place"]) => "country" in place ? place.country : "region" in place ? place.region : "both"
+    const continents: Record<string, string> = {fr: "Europe", es: "Europe", de: "Europe", ma: "Africa", sd: "Africa", in: "Asia"}
+    const continentOf = (country: string) => continents[country]
+    const same = (a: Story, b: Story) => sameStory(a, b, name, continentOf)
     const italy = (place: Story["place"]): Story => ({kind: "attack", attacker: "it", rival: undefined, victims: ["de"], place, taken: 10})
 
     it("is one flag beating another, at any scale", () => {
-        expect(sameStory(italy({region: "Europe"}), {...italy({country: "fr"}), kind: "kickout"}, name)).toBe(true)
+        expect(same(italy({region: "Europe"}), {...italy({country: "fr"}), kind: "kickout"})).toBe(true)
+        expect(same(italy({countries: ["fr", "es"]}), italy({country: "es"}))).toBe(true)
+    })
+
+    it("is one flag taking a continent and a country of it, whoever it beat there", () => {
+        expect(same(italy({region: "Europe"}), {...italy({country: "es"}), kind: "invasion", victims: ["ma"]})).toBe(true)
     })
 
     it("is not the same flag beating another flag elsewhere", () => {
-        expect(sameStory(italy({region: "Europe"}), {...italy({country: "es"}), victims: ["ma"]}, name)).toBe(false)
+        expect(same(italy({country: "fr"}), {...italy({country: "es"}), victims: ["ma"]})).toBe(false)
+    })
+
+    it("is a flag's tour of the world beside its stories on each continent", () => {
+        expect(same(italy({region: THE_WORLD}), italy({region: "Europe"}))).toBe(false)
+        expect(same(italy({region: THE_WORLD}), {...italy({region: THE_WORLD}), victims: ["ma"]})).toBe(true)
+    })
+
+    it("is told over the most of the map", () => {
+        expect(widerThan({region: "Europe"}, {country: "de"})).toBe(true)
+        expect(widerThan({region: THE_WORLD}, {region: "Europe"})).toBe(true)
+        expect(widerThan({country: "de"}, {countries: ["de", "pl"]})).toBe(false)
+        expect(widerThan({region: "Asia"}, {region: "Europe"})).toBe(false)
+    })
+
+    it("is not the same flag beating one flag on two continents", () => {
+        expect(same(italy({region: "Africa"}), {...italy({country: "in"}), kind: "kickout"})).toBe(false)
+        expect(same(italy({country: "fr"}), italy({country: "es"}))).toBe(false)
     })
 
     it("is one flag striking back, wherever in one window", () => {
         const back = (place: Story["place"], victim: string): Story => ({...italy(place), kind: "comeback", attacker: "ma", victims: [victim]})
 
-        expect(sameStory(back({country: "ma"}, "gb"), back({region: "Africa"}, "il"), name)).toBe(true)
+        expect(same(back({country: "ma"}, "gb"), back({region: "Africa"}, "il"))).toBe(true)
     })
 
     it("is not a flag losing a continent and its top taker beating it in one country", () => {
         const losing: Story = {...italy({region: "Africa"}), kind: "rout", attacker: "il", victims: ["dz"]}
 
-        expect(sameStory(losing, {...italy({country: "sd"}), kind: "kickout", attacker: "il", victims: ["dz"]}, name)).toBe(false)
+        expect(same(losing, {...italy({country: "sd"}), kind: "kickout", attacker: "il", victims: ["dz"]})).toBe(false)
     })
 
     it("is a battle only when both sides fight over the same place", () => {
         const battle = (place: Story["place"]): Story => ({...italy(place), kind: "battle", rival: "de"})
 
-        expect(sameStory(battle({country: "de"}), battle({country: "de"}), name)).toBe(true)
-        expect(sameStory(battle({country: "de"}), italy({region: "Europe"}), name)).toBe(false)
+        expect(same(battle({country: "de"}), battle({country: "de"}))).toBe(true)
+        expect(same(battle({country: "de"}), italy({region: "Europe"}))).toBe(false)
     })
 })

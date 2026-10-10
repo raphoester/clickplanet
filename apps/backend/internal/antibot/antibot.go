@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/defender"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/hopper"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/migrations"
@@ -27,6 +28,7 @@ import (
 
 type (
 	Click    = detect.Click
+	Point    = detect.Point
 	Report   = detect.Report
 	Sentence = shadowban.Sentence
 
@@ -51,6 +53,7 @@ type Config struct {
 	Cohort    cohortConfig
 	Scraper   scraperConfig
 	Churner   churnerConfig
+	Hopper    hopperConfig
 }
 
 func (c Config) Validate() error {
@@ -113,6 +116,11 @@ type churnerConfig struct {
 	Detector churner.Config
 }
 
+type hopperConfig struct {
+	Enabled  bool
+	Detector hopper.Config
+}
+
 type Observer struct {
 	OnReaction func(delay time.Duration)
 
@@ -131,6 +139,8 @@ type Observer struct {
 	OnScopeAccounts func(accounts int, family string)
 
 	OnRelayLinks func(links int)
+
+	OnHopShare func(share float64)
 
 	OnFlag func(report Report)
 
@@ -296,6 +306,19 @@ func build(
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
 		names = append(names, churner.Name)
+	}
+
+	if config.Hopper.Enabled {
+		onHopShare := observer.OnHopShare
+		if onHopShare == nil {
+			onHopShare = func(float64) {}
+		}
+
+		watchdog := hopper.New(config.Hopper.Detector, clock, onHopShare)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
+		names = append(names, hopper.Name)
 	}
 
 	if len(watchdogs) == 0 {

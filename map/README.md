@@ -162,11 +162,12 @@ equirectangular image, and moves the satellite mosaic's coastline onto it:
 out = photo + (cover - opinion) * (landColour - seaColour)
 ```
 
-`cover` is the tile field at full resolution, so a one-tile island is corrected all the way, and
+`cover` is the tile field at full resolution — a pixel is land when its nearest lattice vertex is a
+tile — so a one-tile island or lake is corrected all the way, and
 `opinion` is what the photo's own colour already says — so the correction is **zero wherever the two
 already agree**, which is most of the globe. The two colours are the photo's own local averages over
 the land and over the water, so nothing is repainted in a palette somebody chose. It took the land
-the photo draws as water from 8,599 lattice vertices to 1,972.
+the photo draws as water from 8,599 lattice vertices to 2,053, and the water it draws as land to 13.
 
 `static/earth/earth-source.jpg` is the mosaic, kept in the repo and **not deployed**;
 `static/earth/earth-<hash>.jpg` is what the globe loads.
@@ -176,7 +177,7 @@ the photo draws as water from 8,599 lattice vertices to 1,972.
 - **225 tiles have no neighbours at all** — single-tile islands. Anything reading adjacency has to
   have an answer for an empty neighbour set. This is not a fault: an island a tile wide is an island
   a tile wide, and there are more of them now because the small ones finally have tiles.
-- **1,972 land vertices are still drawn as water, and 1,171 water vertices as land.** What is left is
+- **2,053 land vertices are still drawn as water, and 13 water vertices as land.** What is left is
   where the photo gives the correction nothing to work with — land and water the same colour under
   cloud or on an ice shelf — and where the audit's own "does this pixel look blue" is stricter than
   an eye is. `npm run map:audit` is where those numbers live.

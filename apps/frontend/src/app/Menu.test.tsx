@@ -3,7 +3,7 @@ import {ReactNode} from "react"
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import Menu from "./Menu.tsx"
+import Menu, {BoardSheet} from "./Menu.tsx"
 import {Countries} from "../domain/countries.ts"
 import type {LeaderboardEntry} from "../domain/leaderboard.ts"
 import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
@@ -15,8 +15,13 @@ import {NameColor} from "../backends/player.ts"
 import {Fronts, PlayerBackend, PlayerError, PlayerInfoBackend, PlayerTitle, TitleDashboard} from "../backends/player.ts"
 import {AcceptedClicks, acceptedClicks} from "./viewer/acceptedClicks.ts"
 import {SETTLE_MS} from "./viewer/useAcceptedClicks.ts"
+import {Race} from "../backends/standings.ts"
 
 const france = Countries.get("fr")!
+const RACE: Race = {
+    round: {number: 5, endsAt: 0, finale: false, standings: [{rank: 1, countryCode: "fr", share: 0.5, points: 25}]},
+    scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}],
+}
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
 
 afterEach(() => {
@@ -100,9 +105,8 @@ describe("Menu", () => {
     }
 
     describe("the leader", () => {
-        const toll = [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}]
         const withLeader = (data: LeaderboardEntry[], anthem?: ReactNode) => render(
-            <Menu country={france} setCountry={vi.fn()} leaderboard={data} tilesCount={1000} toll={toll} anthem={anthem}/>)
+            <Menu country={france} setCountry={vi.fn()} leaderboard={data} tilesCount={1000} anthem={anthem}/>)
 
         it("is drawn in a frame of its own, apart from the table", () => {
             withLeader([entry("jp", 500), entry("fr", 250)])
@@ -113,13 +117,8 @@ describe("Menu", () => {
                 .toEqual(["France"])
         })
 
-        it("says how much slower it refills, from the toll", () => {
+        it("says nothing of the toll, which the dock shows", () => {
             withLeader([entry("jp", 500)])
-            expect(within(screen.getByRole("region", {name: "First: Japan"})).getByText("Refills 4× slower")).toBeDefined()
-        })
-
-        it("says nothing about the toll under its first step", () => {
-            withLeader([entry("jp", 50)])
             expect(screen.queryByText(/slower/)).toBeNull()
         })
 
@@ -136,7 +135,11 @@ describe("Menu", () => {
 
     describe("the players' standings", () => {
         const standings = {
-            backend: {listenForStandings: vi.fn(() => () => {}), mySeason: vi.fn(async () => undefined)},
+            backend: {
+                listenForStandings: vi.fn(() => () => {}),
+                listenForRace: vi.fn(() => () => {}),
+                mySeason: vi.fn(async () => undefined),
+            },
             caller: {linked: false},
             listenForClicks: () => () => {},
             view: "countries" as const,
@@ -153,6 +156,68 @@ describe("Menu", () => {
         it("are not offered when none are wired", () => {
             setup([entry("fr", 500)])
             expect(screen.queryByRole("button", {name: /^Leaderboard/})).toBeNull()
+        })
+
+        it("put the countries' order on the heading's line, and only on the countries", () => {
+            const {rerender} = render(<Menu country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
+                                            standings={standings} race={RACE} onCountryOrder={vi.fn()}/>)
+
+            const heading = button("Leaderboard: Countries").closest(".board-heading")!
+            expect(within(heading as HTMLElement).getByRole("group", {name: "Order"})).toBeDefined()
+
+            rerender(<Menu country={france} setCountry={vi.fn()} leaderboard={[entry("fr", 500)]} tilesCount={1000}
+                           standings={{...standings, view: "players"}} race={RACE} onCountryOrder={vi.fn()}/>)
+            expect(screen.queryByRole("group", {name: "Order"})).toBeNull()
+        })
+    })
+
+    describe("the board's sheet, on a phone", () => {
+        const standings = {
+            backend: {
+                listenForStandings: vi.fn(() => () => {}),
+                listenForRace: vi.fn(() => () => {}),
+                mySeason: vi.fn(async () => undefined),
+            },
+            caller: {linked: false},
+            listenForClicks: () => () => {},
+            view: "countries" as const,
+            onView: vi.fn(),
+        }
+        const sheet = (setCountry = vi.fn()) => {
+            render(<BoardSheet country={france} setCountry={setCountry} leaderboard={[entry("fr", 500), entry("jp", 250)]}
+                               tilesCount={1000} standings={standings} race={RACE} onCountryOrder={vi.fn()} onClose={vi.fn()}/>)
+            return {setCountry, user: userEvent.setup()}
+        }
+        const head = () => document.querySelector(".sheet-head") as HTMLElement
+
+        it("heads itself with the view picked and the order, and keeps its name for a screen reader", () => {
+            sheet()
+
+            expect(within(head()).getByRole("button", {name: "Leaderboard: Countries"})).toBeDefined()
+            expect(within(head()).getByRole("group", {name: "Order"})).toBeDefined()
+            const title = within(head()).getByRole("heading", {name: "Leaderboard"})
+            expect(title.classList.contains("sr-only")).toBe(true)
+            expect(document.querySelector(".sheet-body .board-heading")).toBeNull()
+        })
+
+        it("names the country played for on one line, with no box", () => {
+            sheet()
+
+            const line = screen.getByText("Playing for").closest(".menu-playing")!
+            expect(line.classList.contains("panel-box")).toBe(false)
+            expect(within(line as HTMLElement).getByText("France")).toBeDefined()
+        })
+
+        it("changes the country from that line, and steps back to the board", async () => {
+            const {setCountry, user} = sheet()
+
+            await user.click(button("Change"))
+            expect(within(head()).queryByRole("button", {name: /^Leaderboard:/})).toBeNull()
+            expect(screen.getByRole("region", {name: "Change country"})).toBeDefined()
+
+            await user.click(screen.getByRole("option", {name: /Japan/}))
+            expect(setCountry).toHaveBeenCalledWith(Countries.get("jp"))
+            expect(within(head()).getByRole("button", {name: "Leaderboard: Countries"})).toBeDefined()
         })
     })
 

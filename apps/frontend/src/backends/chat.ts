@@ -26,7 +26,7 @@ export type ChatMessage = {
     reactionsVersion: number
 }
 
-export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | FortifyAnnouncement
+export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | RoundAnnouncement | FortifyAnnouncement
 
 export type BombAnnouncement = {
     kind: "bomb"
@@ -54,6 +54,21 @@ export type MuteAnnouncement = {
     announcedAt: number
     name: string
     seconds: number
+}
+
+export type PodiumPlace = {
+    country: string
+    rank: number
+    points: number
+}
+
+export type RoundAnnouncement = {
+    kind: "round"
+    id: string
+    announcedAt: number
+    number: number
+    finale: boolean
+    podium: PodiumPlace[]
 }
 
 export type ChatHistory = {

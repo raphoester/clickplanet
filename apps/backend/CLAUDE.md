@@ -63,7 +63,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username and `planet` what each country holds. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, and `player` publishes `StatsChanged`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, and `planet` and `chat` hear `AccountDeleted` too.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username and `planet` what each country holds. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, `planet` and `chat` hear `AccountDeleted` too, and `chat` hears `RoundClosed`.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -255,6 +255,7 @@ The events today:
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
 | `chat.v1.AccountMuted{account_id, muted_at, duration}` | `chat`, `mute_usecase/publishing_mute` | after each mute is kept; a refused or failed mute publishes nothing. Never the network it holds | `chat`, which announces it |
 | `player.v1.StatsChanged{account_id}` | `player`, `record_take_usecase/publishing_record_take` and `record_message_usecase/publishing_record_message` | after each take or message is counted on the account's stats; a failed write publishes nothing | `player`, which grants the titles the stats now earn |
+| `seasons.v1.RoundClosed{season, number, finale, ended_at, results}` | `seasons`, `take_snapshot_usecase` | after each round's results are kept; a failed close publishes nothing | `chat`, which announces the podium |
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
@@ -407,7 +408,7 @@ internal/chat/internal/
     usecases/react_usecase/             puts a reaction on or off, publishes the tally — Messages, Board, Publisher, Authors
       muting_react/                     refuses a muted caller before anything else — Mutes
   announcements/                        Announcement, AnnouncementID, Kind (Kinds, Known: announce_usecase refuses
-                                        any other), Bomb and Muted (payloads), the Storage and IDProvider ports,
+                                        any other), Bomb, Muted and Round (payloads), the Storage and IDProvider ports,
                                         the suite and SequentialIDs
     postgres_announcement_store/        Storage, over chat.announcements
     inmemory_announcement_storage/      Storage in a slice — behind the testing tag, tests only
@@ -444,6 +445,7 @@ internal/chat/internal/
   subscribers/                          Timeout
     bomb_landed_subscriber/             planet.v1.BombLanded → announce_usecase, as a Bomb payload
     account_muted_subscriber/           chat.v1.AccountMuted → announce_mute_usecase
+    round_closed_subscriber/            seasons.v1.RoundClosed → announce_usecase, as a Round payload
     account_deleted_subscriber/         auth.v1.AccountDeleted → forget_seen_usecase
     log_subscriber/                     logs an event a subscriber refused (player's, copied)
   migrations/                           the chat schema
@@ -807,10 +809,10 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 #### Announcements
 
 **The chat also says things on its own**: a line between the messages with no sender, which the client draws
-without a bubble. Three kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
-mute an operator gave (see [Mutes](#mutes)), and `fortify`, every landmass of 50 tiles or more a flag fortified
-(`{country, ground, landmass, tiles}`: the client names the landmass from its own table, `ground` for a
-country's main one; see [Fortify](#fortify)).
+without a bubble. Four kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
+mute an operator gave (see [Mutes](#mutes)), `round`, every round of a season that closed, and `fortify`, every
+landmass of 50 tiles or more a flag fortified (`{country, ground, landmass, tiles}`: the client names the landmass
+from its own table, `ground` for a country's main one; see [Fortify](#fortify)).
 
 - **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
   text or reactions, and a message has no kind or payload; sharing a base would make every column of one
@@ -829,6 +831,10 @@ country's main one; see [Fortify](#fortify)).
   payload and `announce_usecase` inserts it, then publishes it on `inprocess_feed`. The announcement's time is
   the event's `landed_at`. **Delivery is at most once**, like every event: a full buffer (256) or a restart loses
   the line, never the bomb.
+- **How a round gets here**: `seasons` publishes `seasons.v1.RoundClosed` once a round's results are kept;
+  `round_closed_subscriber` turns it into a `Round` payload, `{number, finale, podium}`, and `announce_usecase`
+  keeps it. The podium is `announcements.RoundOf`'s rule: the places ranked 3rd or better, ties included. The
+  announcement's time is the round's end, not the minute it closed.
 - **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
   `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
   lists in one by time. **Once the messages fill the window, none is older than the oldest of them**
@@ -1355,19 +1361,19 @@ internal/seasons/internal/
     postgres_contribution_store/  the Store over seasons.contributions
     inmemory_contribution_store/  the same port in a map, behind the testing tag
     usecases/record_take_usecase/  forget_account_usecase/
-      record_take_usecase/marking_record_take/        marks the live boards a take moved, once it is kept
-      forget_account_usecase/marking_forget_account/  marks the live boards that list an account, once it is forgotten
-  rounds/                         Country, Round (Current, Results), Snapshot, Result, Score, Placed (TableOf); the Store
-                                  port (RecordSnapshot, Unclosed, Held, Close) and its contract suite
+  rounds/                         Country, Round (Current, Results, Closed), Snapshot, Result, Closed, Score, Placed
+                                  (TableOf); the Store port (RecordSnapshot, Unclosed, Held, Number, Close) and its
+                                  contract suite
     postgres_round_store/         the Store over seasons.rounds, round_holdings and round_results
     inmemory_round_store/         the same port in maps, behind the testing tag
     rpc_planet_territories/         the snapshot, from planet.v1.InternalService/GetTerritories
-    usecases/take_snapshot_usecase/ closes the rounds that ended, then counts the round in progress; Runner
+    usecases/take_snapshot_usecase/ closes the rounds that ended and publishes each, then counts the round in progress;
+                                  Runner
       log_take_snapshot/            logs each round closed, and a snapshot that failed
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
     get_standings_handler/standings_query/   PostgresQuery: GetStandingsResponse from SQL, named, and the same top as
-                                  a Board with the account of each line, for the live boards — Authors
+                                  a Board, for the live boards — Authors
       rpc_player_authors/         Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
     listen_for_events_handler/    the stream: the view's board, the race, each new one, a heartbeat — Boards, Races,
                                   CountryChecker
@@ -1398,11 +1404,11 @@ internal/seasons/internal/
 - **The reads are queries** (see [Reads are queries](#reads-are-queries)): the write model is `Take`, `Tally` and a `Store` that only records and deletes. Each query reads `seasons.contributions` itself and asks `GetAuthors` through its own `rpc_player_authors`. The module dials the internal listener once, at build, and both adapters share that one `player.v1` client; with no internal listener the boot is refused.
 - **Only a signed-in player is ranked**: every one has a username (see [Player](#player-internalplayer)), and a guest has none. SQL cannot tell them apart, so a query reads the rows and Go skips what `GetAuthors` answers as a guest, or does not answer at all. A tie shares the rank (1, 1, 3).
 - **`GetStandings(country_id)`** (`standings_query`) is the current season's top 10 (`standings_query.Shown`): of every player by its main flag's tiles, or of every player who took tiles for `country_id` by those tiles. Each is rank, name, color, worn title, the flag its tiles are for (the main flag, or `country_id`) and tiles. It needs no token, is a GET (`NO_SIDE_EFFECTS`) and answers `public, max-age=15`. The rows (the main rows, or the country's) come best first, then by account id, 200 at a time from a keyset on `(tiles, account_id)`, with one `GetAuthors` a page, until 10 are named. A country that is not one is `InvalidArgument` (`standings_query.ErrUnknownCountry`); no season is an empty answer. The web client no longer calls it: it stays for clients from before the stream.
-- **`ListenForEvents(country_id)`** is the same top 10, live. It needs no token. The first event is the view's whole `board` (`Board`, the `Standing`s of `GetStandings`), each one after is the whole board again once it changed, and a `heartbeat` comes every `httpServer.streamHeartbeat`. A country that is not one is `InvalidArgument` before anything is followed. **One read per view, whatever the number of streams**: `inprocess_board_feed` keeps, for each view a stream follows, the last board and the accounts on it, and forgets the view when its last stream closes.
-  - **What moves a board.** `marking_record_take` wraps `record_take_usecase` and, once a take is kept, marks the board of every player and the board of the take's flag: a take changes only the taker's tiles for that flag, which only those two boards show. `marking_forget_account` marks every board that lists a deleted account. So a board no take touched is not read.
-  - **When it is read** (`Feed.Refresh`, every 250ms, and at once for a view nobody followed before): a marked board at most once a second (`Every`), and every followed board at least every 15s (`AtLeast`), for what no event here says: a rename, a new color or title, a guest who signed in, the season's end. A board equal to the last one is not sent. Up to 8 views are read at once, each through `standings_query.Board`, one query and one `GetAuthors` a page, as `GetStandings`.
+- **`ListenForEvents(country_id)`** is the same top 10, live. It needs no token. The first event is the view's whole `board` (`Board`, the `Standing`s of `GetStandings`), each one after is the whole board again once it changed, and a `heartbeat` comes every `httpServer.streamHeartbeat`. A country that is not one is `InvalidArgument` before anything is followed. **One read per view, whatever the number of streams**: `inprocess_board_feed` keeps, for each view a stream follows, the last board, and forgets the view when its last stream closes.
+  - **Nothing tells it a board moved.** A read sees every change the same way: a take, a deleted account, a rename, a new color or title, a guest who signed in, the season's end. The standings use cases know nothing of who reads their rows, so the subscribers call them straight.
+  - **When it is read** (`Feed.Refresh`, every 250ms): a view at once when it is first followed, then every 2s (`Every`) on its own clock, so a new view is no reason to read the others. A board equal to the last one is not sent. Up to 8 views are read at once, each through `standings_query.Board`, one query and one `GetAuthors` a page, as `GetStandings`. So a board is at most 2s late, and each followed view costs that read every 2s whether anything moved or not: at most one view per country, and the whole map's.
   - **A slow stream skips to the newest board**: each holds one, and a new one replaces the one it did not take. A board is whole, so nothing is lost.
-  - **A failed read is tried again a second later** and logged (`log_board_reader`), but not when the shutdown cut it. The feed runs under the pool's `cppg.CloseAfter`, so it stops before the pool closes.
+  - **A failed read is tried again on the next read**, 2s later, and logged (`log_board_reader`), but not when the shutdown cut it. The feed runs under the pool's `cppg.CloseAfter`, so it stops before the pool closes.
 - **`GetMySeason(country_id)`** (`my_season_query`) is the caller's main flag, its tiles for it and its rank among every player, and its tiles for `country_id` and its rank on that country's board (`country_tiles`, `country_rank`), and the title it wears, from the `GetAuthors` that tells it is not a guest. A rank is 0 and there is no title for a guest, and every number is 0 for an account with no take this season; the country's are 0 with no `country_id`, or no take for it. A country that is not one is `InvalidArgument` (`my_season_query.ErrUnknownCountry`). It sits behind `seasonsv1controller.NewSessionInterceptor`, always enforcing, on the key `auth` hands over (`seasons_session_checks{verdict}`), and takes the identity token (`cpconnect.Identified`): it only reads. It counts the ranked players above the caller: SQL reads the main rows with more tiles than the caller's main flag, and the country's rows with more than the caller's for it, each 500 at a time and both at once, and costs one `GetAuthors` a page.
 **A country's season score is the points of the rounds it won places in**, counted from the ground it held: the
 standings rank players, the rounds rank countries.
@@ -1422,6 +1428,11 @@ standings rank players, the rounds rank countries.
 - **A round closes on the first snapshot after it ended** (`Store.Unclosed`): its results are written once, in one
   transaction that marks it closed, and a second close changes nothing. Closing does not need a current season, so the
   finale closes after the last season ends. `log_take_snapshot` logs each round closed.
+- **Each round closed is told to the other modules** as `seasons.v1.RoundClosed`: its season, its number
+  (`Store.Number`, the rounds of its season counted before it, as the read side counts them), whether it is the finale,
+  its end and its results. The use case publishes it itself, through its `Publisher` port, once `Close` returned: a
+  round that failed to close is not published, and is closed and published by the next snapshot. The chat announces
+  it — see [Announcements](#announcements).
 - **`rounds.TableOf` ranks the season**: points, then rounds won, then the finale's points. Countries level on all
   three share the rank. The trophy and the titles at the season's end are a later slice; they read the same table.
 - **Kept in `seasons.rounds`** (`season`, `ends_at`, `finale`, `samples`, `map_tiles`, `closed`), **`round_holdings`**
@@ -1429,12 +1440,15 @@ standings rank players, the rounds rank countries.
   rule stays in Go: SQL keeps the sums and what `Results` said.
 - **The race is live on the season stream** (`SeasonEvent.race`), to every stream whatever its view. `race_query` reads
   the round in progress (its number, its end, each country's rank, average share and the points it would score if it
-  ended now) and the season's scores, best first, of every country with points. **One read for every stream**:
+  ended now) and the season's scores, best first, of every country with points. **It also carries the round closed
+  last** (`closed`), in any season, so the finale still shows once its season is over: its number, its end, the
+  countries that scored in it with their average share, and its season's table before and after it, both ranked by
+  `rounds.TableOf`. A client plays the cutoff from it. **One read for every stream**:
   `inprocess_race_feed` reads it when the first stream opens and then every 10s (`Every`) while a stream follows it, and
   sends it only when it changed. **Nothing tells it a snapshot was taken**: the race only changes once a minute, so
   reading on its own clock is at most 10s late, and the snapshot use case knows nothing of who reads its rows. It
   forgets the race when the last stream closes. A failed read is logged (`log_race_reader`) and the next tick reads
-  again. No season is an empty race.
+  again. No season is a race with no round and no scores, and no round closed yet is a race with no `closed`.
 - `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
   and reads the race off the stream.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
@@ -1947,9 +1961,9 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
-**The whole of its API is ten names**, and `internal/antibot/antibot.go` is all
+**The whole of its API is eleven names**, and `internal/antibot/antibot.go` is all
 of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
-`Click`, `Report`, `Sentence`, `Examination` and `Reading` — the types a caller writes down, because it builds one
+`Click`, `Point`, `Report`, `Sentence`, `Examination` and `Reading` — the types a caller writes down, because it builds two
 and is handed the others. A caller hands over the block and the two hooks it wants
 findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
 the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Fetched`, `Listened`, `Flagged`, `Banned`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
@@ -1992,7 +2006,7 @@ afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
 
-#### Eight watchdogs, one jury
+#### Nine watchdogs, one jury
 
 A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
@@ -2004,6 +2018,7 @@ A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 - **`cohort`** — starts, paces and stops in step with other scopes, group after group.
 - **`scraper`** — reads the whole map again and again, which the web app never does.
 - **`churner`** — sheds its guest account for a fresh bank: many new accounts on one scope (`churn`), or one fresh account after another across a carrier's /64s (`relay`).
+- **`hopper`** — aims all over the globe: click after click lands a continent away from the last.
 
 **Every watchdog has two levels, and that is the design.** `Certain` is a reading
 no hand produces and bans on its own. `Suspect` is a reading that would ban real
@@ -2035,7 +2050,8 @@ goes quiet; with nothing left to corroborate it, `metronome` has to reach
 bought for one line of the bot's code. `TestSweepingInARandomOrderStillGetsCaught`
 pins that too. The answer to that is a fourth watchdog, not a looser bound on the
 third: loosening `metronome` to catch it sooner is how the obsessed player gets
-banned.
+banned. `hopper` is one, for shuffled ids that land all over the globe:
+`TestALoopAimingAllOverTheGlobeIsCaughtBeforeTheClockIsSure`.
 
 **Every watchdog sees every click, including the ones a ban is already
 dropping.** A watchdog cut off the moment another one banned the caller would be
@@ -2503,6 +2519,47 @@ watchdog read `clear`: none lived long enough, and `stamina` counts per account.
 - The counter-moves left cost the bank: keep an account past `maxLife`, wait past
   `handoff` between accounts, or draw /64s from unrelated carriers.
 
+**`hopper`: where a caller aims, not when.** A hand paints where it is looking.
+Zoomed out, the globe shows a hemisphere, so a person does jump a continent in a
+second — Canada to Australia, Africa to Brazil — but not often. A loop that picks
+its tiles from anywhere on the map jumps that far on most of its steps (85% for
+tiles drawn evenly over the sphere).
+
+- **A step is two tries in a row by one payer**, `minGap` (100ms) to `maxGap` (30s)
+  apart, and it **hops** when the two tiles are `minAngle` (45°) or more apart. The
+  share of hops over the steps of `trackWindow`, at most `certainSteps` of them,
+  reads `suspect` at `minShare` once there are `minSteps`, and `certain` at
+  `certainShare` once there are `certainSteps`. Zero shares never read; the sweep
+  reports each payer with `minSteps` through `Observer.OnHopShare`, into
+  `click_hop_share`.
+- **Measured before it was set**, over the ledger of 2026-10-06 to 09 (whole
+  seconds, banned accounts included): the worst 40 steps of any account held 10%
+  hops with steps up to 1s apart, 12.5% up to 10s and 17.5% up to 30s. The most
+  restless player made 53 hops in three days, 0.6% of its steps. 20° is too
+  tight: one player's worst 40 steps read 35% at it.
+- **`maxGap` is long because the throttle is.** Production refills a click every
+  2.5s to 20s, so a loop that waits for each refill never clicks twice inside 2s,
+  and people given time to turn the globe still stay where they paint.
+- **`minGap` is the dead network.** Taps held through a stall, or through the
+  Turnstile wait, arrive milliseconds apart however far apart they were made, so a
+  gap that short is no step and a flush counts only its two ends.
+  `TestAFlushOfHeldTapsCountsOnlyItsEnds` pins it.
+- **It reads tries, like the metronome** (`Attempted`): a try the throttle refused
+  was aimed by the same hand. The position comes from the edge —
+  `antibot_attempt_click` asks `clicks.Geography.Position` and sets
+  `Click.Position` — and a try off the map has none and is no step.
+- **It counts the payer, not the scope**, as `stamina` does: two players behind one
+  NAT painting two continents in turn are two hands. With no account there is
+  nothing to tell them apart. `TestPlayersBehindOneAddressAreJudgedApart` pins both.
+  The reading lands on the scope's jury record.
+- **It only reads `Suspect` in production** (`minShare` 0.4, no `certainShare`).
+  No bot seen so far hopped — each painted one area — so this is for the next one,
+  and alone it bans nobody (`TestHoppingAloneBansNobody`). Beside `cadence` it
+  stops the shuffled loop in about two minutes instead of `certainFor`.
+- **A restart stitches nothing**: the evidence keeps the steps, not the last try,
+  so the first try after a boot only starts the next step.
+- The counter-move is to aim near the last tile, which is to paint like a person.
+
 #### The parts that are easy to get wrong
 
 **Three things are deliberately not reactions**, and each is a way to get an
@@ -2528,7 +2585,7 @@ then strike. It is a click: the `retaker` times it as a reaction, and the
 records no take on the tile, and the `defender` records no loss for `Held` and never
 reads it as a retake.
 
-Note that `sequencer` and `metronome` ignore all of it: a bot sweeping ids walks
+Note that `sequencer`, `metronome` and `hopper` ignore all of it: a bot sweeping ids walks
 over tiles it already owns and over ids the handler refuses, and both are part of
 the walk.
 
@@ -2790,7 +2847,7 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
     so a rule that still reads `certain` bans the caller again on its first click after `reflagInterval`, as a
     first offence. **Fix the rule first**, then unban. `InspectPlayer` says which rule it was. Forgetting the
     evidence instead would only put the ban off until the same play reads the same way again, and it would take
-    a forget in each of the eight watchdogs, keyed by scope, by account or by wider prefix. `TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain` pins it.
+    a forget in each of the nine watchdogs, keyed by scope, by account or by wider prefix. `TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain` pins it.
 - **`InspectPlayer(scope | account_id)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`. **An account is read on the scope of its latest take** in the ledger, because the watchdogs judge scopes, with the bans on both; an account with no take inside the retention answers its bans alone and an empty `scope`. It changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `ledger.ParseCaller` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
 - `audit_ban`, `audit_unban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers`, `TopPlayers` and `InspectPlayer` are reads and log nothing.
 
@@ -3088,7 +3145,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto) and [`player/v1/player.proto`](../../proto/player/v1/player.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto) and [`player/v1/player.proto`](../../proto/player/v1/player.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
 `generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
 

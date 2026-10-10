@@ -117,6 +117,16 @@ func (s *Store) Held(ctx context.Context, round rounds.Round) (map[rounds.Countr
 	return held, nil
 }
 
+func (s *Store) Number(ctx context.Context, round rounds.Round) (uint32, error) {
+	var earlier int64
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT count(*) FROM rounds WHERE season = $1 AND ends_at < $2
+	`, int64(round.Season), round.EndsAt).Scan(&earlier); err != nil {
+		return 0, fmt.Errorf("failed to count the rounds before this one: %w", err)
+	}
+	return uint32(earlier + 1), nil //nolint:gosec // a round a day.
+}
+
 func (s *Store) Close(ctx context.Context, round rounds.Round, results []rounds.Result) (err error) {
 	countries := make([]string, 0, len(results))
 	ranks := make([]int64, 0, len(results))

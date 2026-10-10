@@ -1,9 +1,10 @@
 import {ReactNode, useEffect, useId, useRef, useState} from "react";
 import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry, rankOf} from "../domain/leaderboard.ts";
+import {CountryOrder} from "../domain/race.ts";
 import {NO_TILE_DELTAS, TileDeltas} from "../domain/tileDeltas.ts";
-import {TollStep} from "../domain/toll.ts";
-import Leaderboard from "./Leaderboard.tsx";
+import {Race} from "../backends/standings.ts";
+import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx";
 import About from "./About.tsx";
 import CountryPicker from "./CountryPicker.tsx";
 import MenuPanel from "./components/MenuPanel.tsx";
@@ -19,7 +20,8 @@ import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerInfoBackend} from "../backends/player.ts";
 import {youLabel} from "./youLabel.ts"
 import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from "../links.ts"
-import BoardViews, {BoardStandings} from "./standings/BoardViews.tsx"
+import BoardViews, {BoardHeading, BoardStandings} from "./standings/BoardViews.tsx"
+import Sheet from "./hud/Sheet.tsx"
 import {ListenForClicks} from "./viewer/acceptedClicks.ts"
 import "./Menu.css"
 
@@ -31,9 +33,13 @@ export type BoardPlaceProps = {
     leaderboard: LeaderboardEntry[],
     tileDeltas?: TileDeltas,
     tilesCount: number,
-    toll?: readonly TollStep[],
     anthem?: ReactNode,
     standings?: BoardStandings,
+    race?: Race,
+    countryOrder?: CountryOrder,
+    onCountryOrder?: (order: CountryOrder) => void,
+    guided?: boolean,
+    onGuided?: () => void,
 }
 
 export type YouPlaceProps = {
@@ -108,7 +114,7 @@ export default function Menu(props: MenuProps) {
                      role="tabpanel"
                      id={`${tabsId}-panel`}
                      aria-labelledby={`${tabsId}-${shown}`}>
-                    {shown === "board" && <BoardPlace {...props} playing={false}/>}
+                    {shown === "board" && <BoardPlace {...props}/>}
                     {shown === "you" && <YouPlace {...props}/>}
                     {shown === "settings" && <SettingsPlace {...props}/>}
                     {shown === "more" && <MorePlace {...props}/>}
@@ -144,12 +150,13 @@ type PlayingForProps = {
     rank: number | null,
     changeRef: React.Ref<HTMLButtonElement>,
     onChange: () => void,
+    slim?: boolean,
 }
 
-function PlayingFor({country, rank, changeRef, onChange}: PlayingForProps) {
-    return <div className="menu-playing panel-box">
+function PlayingFor({country, rank, changeRef, onChange, slim}: PlayingForProps) {
+    return <div className={slim ? "menu-playing menu-playing--slim" : "menu-playing panel-box"}>
         <div className="menu-playing-what">
-            <span className="menu-label">You’re playing for</span>
+            <span className="menu-label">{slim ? "Playing for" : "You’re playing for"}</span>
             <span className="menu-playing-name">
                 <CountryFlag code={country.code}/>
                 <span className="menu-playing-country">{country.name}</span>
@@ -168,34 +175,61 @@ function PlayingFor({country, rank, changeRef, onChange}: PlayingForProps) {
     </div>
 }
 
-export function BoardPlace(props: BoardPlaceProps & {playing: boolean}) {
-    const picker = usePicker()
-
-    if (props.playing && picker.picking) {
-        return <MenuPanel title="Change country" onClose={picker.close}>
-            <CountryPicker country={props.country} setCountry={(country) => {
-                props.setCountry(country)
-                picker.close()
-            }}/>
-        </MenuPanel>
-    }
-
+export function BoardPlace(props: BoardPlaceProps & {headless?: boolean}) {
+    const order = orderOf(props)
     const countries = <Leaderboard data={props.leaderboard}
                                    deltas={props.tileDeltas ?? NO_TILE_DELTAS}
                                    tilesCount={props.tilesCount}
                                    highlight={props.country}
-                                   toll={props.toll}
-                                   anthem={props.anthem}/>
+                                   anthem={props.anthem}
+                                   race={props.race}
+                                   order={props.countryOrder}
+                                   guided={props.guided}
+                                   onGuided={props.onGuided}/>
 
+    if (props.standings) {
+        return <BoardViews {...props.standings}
+                           country={props.country}
+                           countries={countries}
+                           order={order}
+                           headless={props.headless}/>
+    }
     return <>
-        {props.playing && <PlayingFor country={props.country}
-                                      rank={rankOf(props.leaderboard, props.country)}
-                                      changeRef={picker.opener}
-                                      onChange={picker.open}/>}
-        {props.standings
-            ? <BoardViews {...props.standings} country={props.country} countries={countries}/>
-            : countries}
+        {order && <div className="board-heading">{order}</div>}
+        {countries}
     </>
+}
+
+export function BoardSheet({onClose, ...props}: BoardPlaceProps & {onClose: () => void}) {
+    const picker = usePicker()
+    const standings = props.standings
+    const head = standings && !picker.picking
+        ? <BoardHeading view={standings.view} onView={standings.onView} country={props.country} order={orderOf(props)}/>
+        : undefined
+
+    return <Sheet title="Leaderboard" head={head} className="board-sheet" onClose={onClose}>
+        {picker.picking
+            ? <MenuPanel title="Change country" onClose={picker.close}>
+                <CountryPicker country={props.country} setCountry={(country) => {
+                    props.setCountry(country)
+                    picker.close()
+                }}/>
+            </MenuPanel>
+            : <>
+                <PlayingFor country={props.country}
+                            rank={rankOf(props.leaderboard, props.country)}
+                            changeRef={picker.opener}
+                            onChange={picker.open}
+                            slim/>
+                <BoardPlace {...props} headless={head !== undefined}/>
+            </>}
+    </Sheet>
+}
+
+function orderOf(props: BoardPlaceProps): ReactNode {
+    const onOrder = props.onCountryOrder
+    if (!props.race || !onOrder) return undefined
+    return <OrderSwitch order={props.countryOrder ?? "season"} onOrder={onOrder}/>
 }
 
 export function YouPlace({account: store, linkedMultiplier, playerInfo, listenForClicks}: YouPlaceProps) {

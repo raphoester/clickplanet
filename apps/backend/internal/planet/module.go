@@ -238,7 +238,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			// Outside the shadow ban, or a banned caller would stop seeing 429s and know.
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
 
-			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, clock)
+			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, geography, clock)
 
 			adminBatch := config.TilesStorage.SubscriberBuffer / 4
 			if adminBatch <= 0 {

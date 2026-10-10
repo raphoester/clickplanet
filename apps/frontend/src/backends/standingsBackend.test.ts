@@ -2,15 +2,20 @@ import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
     Board,
+    ClosedRound as ClosedRoundPb,
     GetMySeasonResponse,
     Heartbeat,
+    Race as RacePb,
+    Round as RoundPb,
+    RoundStanding as RoundStandingPb,
+    Score as ScorePb,
     SeasonEvent,
     Standing as StandingPb,
 } from "../gen/grpc/seasons/v1/seasons_pb.ts"
 import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
 import {NameColor} from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {Standing} from "./standings.ts"
+import {Race, Standing} from "./standings.ts"
 import {ConnectStandingsBackend} from "./standingsBackend.ts"
 import {NO_TIMEOUT} from "./transport.ts"
 
@@ -189,5 +194,94 @@ describe("ConnectStandingsBackend.mySeason", () => {
 
     it("passes on a refusal it does not know", async () => {
         await expect(backendWith({getMySeason: refusing(Code.Internal)}).mySeason("")).rejects.toThrow(ConnectError)
+    })
+})
+
+describe("ConnectStandingsBackend.listenForRace", () => {
+    const streaming = (...events: SeasonEvent[]) =>
+        vi.fn<(req: object, options: {signal: AbortSignal, timeoutMs: number}) => AsyncIterable<SeasonEvent>>(
+            () => (async function* () {
+                yield* events
+                await new Promise(() => {})
+            })(),
+        )
+
+    it("follows the whole map's stream, reads each race in numbers, and skips the boards and the heartbeats", async () => {
+        const listenForEvents = streaming(
+            new SeasonEvent({event: {case: "board", value: new Board()}}),
+            new SeasonEvent({event: {case: "heartbeat", value: new Heartbeat()}}),
+            new SeasonEvent({
+                event: {
+                    case: "race", value: new RacePb({
+                        round: new RoundPb({
+                            number: 5,
+                            endsAtUnixMs: 1_792_191_600_000n,
+                            standings: [new RoundStandingPb({rank: 1, countryId: "fr", share: 0.25, points: 25})],
+                        }),
+                        scores: [new ScorePb({rank: 1, countryId: "de", points: 43, roundsWon: 2})],
+                    }),
+                },
+            }),
+            new SeasonEvent({event: {case: "race", value: new RacePb()}}),
+        )
+        const seen: Race[] = []
+
+        const stop = backendWith({listenForEvents}).listenForRace((race) => seen.push(race))
+
+        await vi.waitFor(() => expect(seen).toHaveLength(2))
+        expect(listenForEvents).toHaveBeenCalledWith({countryId: ""}, expect.objectContaining({timeoutMs: NO_TIMEOUT}))
+        expect(seen).toEqual([
+            {
+                round: {
+                    number: 5,
+                    endsAt: 1_792_191_600_000,
+                    finale: false,
+                    standings: [{rank: 1, countryCode: "fr", share: 0.25, points: 25}],
+                },
+                scores: [{rank: 1, countryCode: "de", points: 43, roundsWon: 2}],
+                closed: undefined,
+            },
+            {round: undefined, scores: [], closed: undefined},
+        ])
+        stop()
+    })
+
+    it("reads the round closed last, its results and its season's table before and after it", async () => {
+        const listenForEvents = streaming(new SeasonEvent({
+            event: {
+                case: "race", value: new RacePb({
+                    closed: new ClosedRoundPb({
+                        season: 0,
+                        number: 4,
+                        endedAtUnixMs: 1_792_105_200_000n,
+                        finale: true,
+                        standings: [new RoundStandingPb({rank: 1, countryId: "fr", share: 0.3, points: 75})],
+                        before: [new ScorePb({rank: 1, countryId: "de", points: 43, roundsWon: 2})],
+                        after: [
+                            new ScorePb({rank: 1, countryId: "fr", points: 93, roundsWon: 2}),
+                            new ScorePb({rank: 2, countryId: "de", points: 43, roundsWon: 2}),
+                        ],
+                    }),
+                }),
+            },
+        }))
+        const seen: Race[] = []
+
+        const stop = backendWith({listenForEvents}).listenForRace((race) => seen.push(race))
+
+        await vi.waitFor(() => expect(seen).toHaveLength(1))
+        expect(seen[0].closed).toEqual({
+            season: 0,
+            number: 4,
+            endedAt: 1_792_105_200_000,
+            finale: true,
+            standings: [{rank: 1, countryCode: "fr", share: 0.3, points: 75}],
+            before: [{rank: 1, countryCode: "de", points: 43, roundsWon: 2}],
+            after: [
+                {rank: 1, countryCode: "fr", points: 93, roundsWon: 2},
+                {rank: 2, countryCode: "de", points: 43, roundsWon: 2},
+            ],
+        })
+        stop()
     })
 })

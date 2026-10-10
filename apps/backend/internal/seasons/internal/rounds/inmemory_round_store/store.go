@@ -102,6 +102,22 @@ func (s *Store) Held(_ context.Context, round rounds.Round) (map[rounds.Country]
 	return maps.Clone(at.held), nil
 }
 
+func (s *Store) Number(_ context.Context, round rounds.Round) (uint32, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return 0, s.failWith
+	}
+	number := uint32(1)
+	for _, at := range s.rounds {
+		if at.round.Season == round.Season && at.round.EndsAt.Before(round.EndsAt) {
+			number++
+		}
+	}
+	return number, nil
+}
+
 func (s *Store) Close(_ context.Context, round rounds.Round, results []rounds.Result) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

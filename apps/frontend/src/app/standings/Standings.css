@@ -1,3 +1,30 @@
+/* The view picked and, on the countries' board, its order: one line, which on a phone is the sheet's head. */
+.board-heading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-shrink: 0;
+    min-width: 0;
+    margin-bottom: var(--space-2);
+}
+
+.board-heading .heading-select {
+    min-width: 0;
+}
+
+.board-heading .heading-select-button {
+    margin: 0;
+}
+
+.sheet-title-row > .board-heading {
+    margin-bottom: 0;
+}
+
+.sheet-title-row > .board-heading .heading-select-button {
+    padding-left: 0;
+    font-size: var(--display-m);
+}
+
 .your-season {
     display: flex;
     align-items: center;

@@ -252,6 +252,18 @@ antiBot:
       trackWindow: 1h2m
       sweepInterval: 1m
 
+  hopper:
+    enabled: true
+    detector:
+      minAngle: 45
+      minGap: 100ms
+      maxGap: 30s
+      minSteps: 40
+      minShare: 0.4
+      certainSteps: 200
+      trackWindow: 15m
+      sweepInterval: 1m
+
 chat:
   database:
     host: localhost

@@ -30,6 +30,18 @@ export function spanOf(front: Front, margin: number): {since: number, until: num
     return {since: since - margin, until: until + margin}
 }
 
+// Whether a tile is in a clip's sight: near its front, and on the country's ground when the clip is told on one. A
+// bomb on the same country 6,000 km away would take the camera off the fighting.
+export function inSightOf(
+    front: Front,
+    pointOf: (tile: number) => Point,
+    groundOf: (tile: number) => string | undefined,
+    scope: string | undefined,
+): (tile: number) => boolean {
+    const near = Math.cos(FRONT_RADIANS)
+    return (tile) => dot(pointOf(tile), front.heart) >= near && (scope === undefined || groundOf(tile) === scope)
+}
+
 // Where most tiles changed hands, and every change around it.
 export function frontOf(changes: readonly TileChange[], pointOf: (tile: number) => Point): Front | undefined {
     const heart = densest(changes.map(({tile}) => pointOf(tile)), HEART_RADIANS)

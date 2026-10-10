@@ -89,6 +89,15 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 90*time.Second, churner.Detector.Relay.Handoff)
 	assert.Equal(t, 32, churner.Detector.Relay.V6Bits)
 	assert.Equal(t, 6, churner.Detector.Relay.CertainLinks)
+
+	hopper := config.Planet.AntiBot.Hopper
+	require.True(t, hopper.Enabled)
+	assert.InDelta(t, 45, hopper.Detector.MinAngle, 1e-9)
+	assert.Equal(t, 100*time.Millisecond, hopper.Detector.MinGap)
+	assert.Equal(t, 30*time.Second, hopper.Detector.MaxGap)
+	assert.Equal(t, 40, hopper.Detector.MinSteps)
+	assert.InDelta(t, 0.4, hopper.Detector.MinShare, 1e-9)
+	assert.Zero(t, hopper.Detector.CertainShare, "it only corroborates")
 }
 
 func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {

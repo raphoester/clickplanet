@@ -15,6 +15,7 @@ import {
     ChatSender,
     OutgoingMessage,
     OutgoingReaction,
+    PodiumPlace,
     ReactionCount,
     ReactionsChange,
 } from "./chat.ts";
@@ -35,6 +36,7 @@ import {titleOf} from "./title.ts";
 export function newChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
     return createPromiseClient(ChatService, createConnectTransport({
         baseUrl: config.baseUrl,
+        interceptors: config.interceptors,
         useBinaryFormat: true,
         useHttpGet: true,
         defaultTimeoutMs: config.timeoutMs ?? 5000,
@@ -44,6 +46,7 @@ export function newChatServiceClient(config: Config): PromiseClient<typeof ChatS
 export function newKeepaliveChatServiceClient(config: Config): PromiseClient<typeof ChatService> {
     return createPromiseClient(ChatService, createConnectTransport({
         baseUrl: config.baseUrl,
+        interceptors: config.interceptors,
         useBinaryFormat: true,
         fetch: (input, init) => globalThis.fetch(input, {...init, keepalive: true}),
     }))
@@ -277,9 +280,28 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 landmass: values.landmass,
                 tiles: values.tiles,
             }
+        case "round":
+            if (typeof values.number !== "number" || !(values.number > 0)) return undefined
+            if (!Array.isArray(values.podium)) return undefined
+            return {
+                kind: "round",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                number: values.number,
+                finale: values.finale === true,
+                podium: values.podium.filter(isPodiumPlace),
+            }
         default:
             return undefined
     }
+}
+
+function isPodiumPlace(value: unknown): value is PodiumPlace {
+    if (typeof value !== "object" || value === null) return false
+    const place = value as Record<string, unknown>
+    return typeof place.country === "string" && place.country !== ""
+        && typeof place.rank === "number" && place.rank > 0
+        && typeof place.points === "number" && place.points > 0
 }
 
 function decodedCount(count: ReactionCountPb): ReactionCount {

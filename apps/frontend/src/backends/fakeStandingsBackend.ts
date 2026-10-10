@@ -1,7 +1,7 @@
 import {STANDINGS_SHOWN} from "../domain/standings.ts"
 import {TileClicker} from "./backend.ts"
 import {NameColor, PlayerTitle} from "./player.ts"
-import {MySeason, Standing, StandingsBackend} from "./standings.ts"
+import {ClosedRound, MySeason, Race, RoundStanding, Score, Standing, StandingsBackend} from "./standings.ts"
 
 export type FakePlayer = Pick<Standing, "name" | "color" | "wornTitle"> & {tiles: Record<string, number>}
 
@@ -31,6 +31,16 @@ const PLAYERS: FakePlayer[] = [
     {name: "Noor", color: NameColor.UNSPECIFIED, tiles: {ae: 44, in: 12}},
 ]
 
+const SEASON_POINTS: Record<string, [points: number, roundsWon: number]> = {
+    fr: [61, 2], br: [43, 1], in: [36, 1], nz: [25, 1], es: [18, 0], ru: [12, 0],
+}
+const DAY_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
+const FINALE_TIMES = 3
+const FIRST_DAY = 5
+const MAP_TILES = 262_119
+const DAY_ENDS_AT_UTC_HOUR = 21
+const DAY_MS = 24 * 60 * 60 * 1000
+
 export const MOVE_EVERY_MS = 1_500
 const MOST_PER_MOVE = 40
 
@@ -38,9 +48,16 @@ export class FakeStandingsBackend implements StandingsBackend {
     private readonly taken = new Map<string, number>()
     private readonly players: FakePlayer[]
     private readonly listeners = new Set<() => void>()
+    private readonly season = new Map(Object.entries(SEASON_POINTS).map(([code, [points, roundsWon]]) => [code, {points, roundsWon}]))
+    private day = FIRST_DAY
+    private closed?: ClosedRound
     private timer?: ReturnType<typeof setInterval>
 
-    constructor(players: readonly FakePlayer[] = PLAYERS, private readonly random: () => number = Math.random) {
+    constructor(
+        players: readonly FakePlayer[] = PLAYERS,
+        private readonly random: () => number = Math.random,
+        private readonly now: () => number = Date.now,
+    ) {
         this.players = players.map((player) => ({...player, tiles: {...player.tiles}}))
     }
 
@@ -54,7 +71,14 @@ export class FakeStandingsBackend implements StandingsBackend {
     }
 
     public listenForStandings(countryCode: string, onStandings: (standings: Standing[]) => void): () => void {
-        const send = () => onStandings(this.top(countryCode))
+        return this.listen(() => onStandings(this.top(countryCode)))
+    }
+
+    public listenForRace(onRace: (race: Race) => void): () => void {
+        return this.listen(() => onRace(this.race()))
+    }
+
+    private listen(send: () => void): () => void {
         this.listeners.add(send)
         void Promise.resolve().then(() => {
             if (this.listeners.has(send)) send()
@@ -87,6 +111,65 @@ export class FakeStandingsBackend implements StandingsBackend {
             .slice(0, STANDINGS_SHOWN)
     }
 
+    public closeRound(finale = false): ClosedRound {
+        const before = this.table()
+        const standings = this.standings(finale, () => 0.4 + this.random())
+        for (const standing of standings) {
+            const kept = this.season.get(standing.countryCode) ?? {points: 0, roundsWon: 0}
+            this.season.set(standing.countryCode, {
+                points: kept.points + standing.points,
+                roundsWon: kept.roundsWon + (standing.rank === 1 ? 1 : 0),
+            })
+        }
+        this.closed = {
+            season: 0,
+            number: this.day,
+            endedAt: this.now(),
+            finale,
+            standings: standings.filter((standing) => standing.points > 0),
+            before,
+            after: this.table(),
+        }
+        this.day += 1
+        this.listeners.forEach((send) => send())
+        return this.closed
+    }
+
+    private race(): Race {
+        return {
+            round: {number: this.day, endsAt: dayEndAfter(this.now()), finale: false, standings: this.standings(false, () => 1)},
+            scores: this.table(),
+            closed: this.closed,
+        }
+    }
+
+    private standings(finale: boolean, luck: () => number): RoundStanding[] {
+        const held = new Map(this.taken)
+        for (const player of this.players) {
+            for (const [code, tiles] of Object.entries(player.tiles)) held.set(code, (held.get(code) ?? 0) + tiles)
+        }
+        return [...held]
+            .map(([code, tiles]) => [code, tiles * luck()] as const)
+            .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
+            .map(([countryCode, tiles], i) => ({
+                rank: i + 1,
+                countryCode,
+                share: tiles / MAP_TILES,
+                points: (DAY_POINTS[i] ?? 0) * (finale ? FINALE_TIMES : 1),
+            }))
+    }
+
+    private table(): Score[] {
+        const sorted = [...this.season]
+            .filter(([, kept]) => kept.points > 0)
+            .map(([countryCode, kept]) => ({countryCode, ...kept}))
+            .sort((a, b) => b.points - a.points || b.roundsWon - a.roundsWon || a.countryCode.localeCompare(b.countryCode))
+        return sorted.map((score) => ({
+            ...score,
+            rank: sorted.findIndex((other) => other.points === score.points && other.roundsWon === score.roundsWon) + 1,
+        }))
+    }
+
     public async mySeason(countryCode: string): Promise<MySeason | undefined> {
         const line = lineOf(this.taken, countryCode)
         return {countryCode: line.countryCode || undefined, tiles: line.tiles}
@@ -101,4 +184,10 @@ function lineOf(tiles: ReadonlyMap<string, number>, countryCode: string): {count
         if (count > main.tiles) main = {countryCode: code, tiles: count}
     }
     return main
+}
+
+function dayEndAfter(now: number): number {
+    const end = new Date(now)
+    end.setUTCHours(DAY_ENDS_AT_UTC_HOUR, 0, 0, 0)
+    return end.getTime() > now ? end.getTime() : end.getTime() + DAY_MS
 }
