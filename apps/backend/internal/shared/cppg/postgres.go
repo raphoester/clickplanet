@@ -171,7 +171,7 @@ func applyPoolConfig(db *sql.DB, cfg PoolConfig) {
 
 var schemaName = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
 
-func (p *Postgres) ConnectCtx(ctx context.Context) error {
+func (p *Postgres) Open() error {
 	if err := p.config.Validate(); err != nil {
 		return err
 	}
@@ -183,12 +183,21 @@ func (p *Postgres) ConnectCtx(ctx context.Context) error {
 
 	applyPoolConfig(sqlDB, p.config.Pool)
 
-	if err := sqlDB.PingContext(ctx); err != nil {
-		_ = sqlDB.Close()
-		return fmt.Errorf("ping postgres at %s:%s: %w", p.config.Host, p.config.Port, err)
+	p.sqlClient = sqlDB
+
+	return nil
+}
+
+func (p *Postgres) ConnectCtx(ctx context.Context) error {
+	if err := p.Open(); err != nil {
+		return err
 	}
 
-	p.sqlClient = sqlDB
+	if err := p.sqlClient.PingContext(ctx); err != nil {
+		_ = p.sqlClient.Close()
+		p.sqlClient = nil
+		return fmt.Errorf("ping postgres at %s:%s: %w", p.config.Host, p.config.Port, err)
+	}
 
 	return nil
 }

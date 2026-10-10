@@ -1262,6 +1262,124 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 docker compose exec postgres psql -U clickplanet -c "delete from chat.mutes where account_id = '<account_id>'"
 ```
 
+## 11. Reading production without SSH
+
+Everything above needs the SSH key, and the key is on one laptop. A Claude cloud
+session started from a phone has no key, so it could open a pull request but not
+look at what the pull request is about. The backend's `ops` module gives such a
+session one thing over HTTPS, at `ops.clickplanet.lol`: the answer to one SQL
+statement, read as a role that cannot write.
+
+```bash
+curl -sS https://ops.clickplanet.lol/ops.v1.OpsService/Query \
+  -H 'Content-Type: application/json' \
+  -d '{"statement": "select country, count(*) from planet.tiles group by country order by 2 desc", "limit": 20}'
+```
+
+```json
+{"columns": ["country", "count"], "rows": [["fr", 4120], ["bg", 3987]]}
+```
+
+- `limit` is the most rows answered: 1000 when left out, 20000 at most. An
+  answer also stops at 8 MiB. A cut answer carries `"truncated": true`.
+- A statement postgres refuses is `invalid_argument` with what postgres said. A
+  postgres that cannot be read (a role that cannot sign in, no connection left)
+  is `unavailable`, with why.
+- A value JSON cannot carry exactly comes back as text: a `numeric`, a `uuid`, an
+  `inet`, a time (RFC 3339), a `bytea` (`\x…`), and an integer past 2^53.
+
+**It reads postgres and nothing else.** The journal and Caddy's access log still
+need the key: the backend image has no `journalctl`, and the API does not run as
+root.
+
+### Who gets in
+
+```
+Claude session ── curl, no credential ──▶ Anthropic's proxy, adds the service token
+  ──▶ Cloudflare Access, checks the token and signs the request
+  ──▶ Caddy ──▶ the ops module, checks the signature ──▶ postgres, as ops_reader
+```
+
+The credential is a Cloudflare Access **service token**. It is stored as a
+*network secret* of the Claude cloud environment, which adds it to a request
+after the request has left the session's VM: the session can call
+`ops.clickplanet.lol` and cannot read, print or commit what lets it in.
+
+Access is checked twice, and the second one is not redundant. ufw lets every
+Cloudflare address reach port 443, and that is every Cloudflare customer, not
+this zone. So the module trusts no request for having arrived: it verifies the
+`Cf-Access-Jwt-Assertion` that Access signs, against this team's keys
+(`ops.access.issuer`) and for this application (`ops.access.audience`). Without
+a valid one it answers `unauthenticated` and reads nothing. `api.clickplanet.lol`
+does not route `/ops.v1.OpsService/` at all.
+
+### What keeps it to reading
+
+- **The module's own postgres role.** Every module has its own `database:` block,
+  and this one's user is `ops_reader`: a member of `pg_read_all_data` and nothing
+  else, so a write fails on the privilege whatever the session sets. The game's
+  owner credentials are in other modules' blocks, which this one cannot reach.
+- **`cp-ops-role` makes the role**, from
+  `apps/backend/internal/ops/internal/role/ops_reader.sql`, at every `up`, and
+  sets its password to the `OPS_DB_PASSWORD` secret. Changing the secret is all
+  a rotation takes. The backend's tests run that same file.
+- **One statement a call**, in a read-only transaction, 20 seconds at most, on a
+  connection closed afterwards (`pool.maxIdleConns: 0`), so no lock and no
+  setting outlives it.
+- **One connection** (`pool.maxOpenConns: 1`). Postgres has 20, keeps 3 for the
+  owner, and the other modules' pools add up to 16.
+
+It reads **everything**, though, which is what makes it useful: the addresses
+in the ledger and the chat, and the emails in `auth.identities`. That is what
+psql over SSH always showed. What an answer holds does not go into a commit, a
+test or a pull request, because the repository is public.
+
+Every statement is logged with its caller:
+
+```bash
+journalctl CONTAINER_TAG=cp-backend --since "1 hour ago" -o cat | grep "ops statement"
+```
+
+### It never costs the game its boot
+
+- The module opens its pool without connecting. A role that is missing, or a
+  wrong password, costs a query its answer (`unavailable`) and nothing else.
+- `docker-compose.yaml` does not require `OPS_DB_PASSWORD`. Without it
+  `cp-ops-role` exits and says so, and the rest of the stack comes up.
+- The team's keys are fetched at the first request, not at boot.
+
+What does refuse the boot is `ops.enabled: true` with an empty `audience` or an
+incomplete `database` block, like any other bad setting in `backend.yaml`.
+
+### Turning it on
+
+It ships off (`ops.enabled: false`).
+
+1. **Cloudflare Zero Trust → Access → Service credentials**: a service token.
+   Its client id and secret are shown once.
+2. **Access → Applications**: a self-hosted application on
+   `ops.clickplanet.lol`, with one policy whose action is *Service Auth* and
+   which includes that token and nobody else.
+3. **DNS**: an `ops` A record to the droplet, **proxied**, like `api`.
+4. **The role's password**, as an Actions secret:
+
+   ```bash
+   openssl rand -hex 32 | gh secret set OPS_DB_PASSWORD --repo raphoester/clickplanet
+   ```
+
+5. **`backend.yaml`**: `ops.access.audience` is the application's *Application
+   Audience (AUD) tag*, `ops.access.issuer` the team's address, and
+   `ops.enabled: true`. Neither value is a secret.
+6. **The Claude cloud environment** (claude.ai/code → the environment → *Network
+   secrets*): one secret for the website `ops.clickplanet.lol`, with the
+   headers `CF-Access-Client-Id` and `CF-Access-Client-Secret`, no prefix.
+
+Without the token, Access answers before the box does:
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' https://ops.clickplanet.lol/ops.v1.OpsService/Query -d '{}'
+```
+
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` appended to `.env` on the box, then `docker compose up -d backend`. The next deploy renders `.env` again and drops the pin, so fix forward rather than leaving it.
