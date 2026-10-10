@@ -2662,8 +2662,10 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 
 - **`window.ts` finds the candidates**: for each length from 1 to 24 hours, the busiest stretch of a few places
   far apart, counting the tiles taken from another flag in each 10° cell and the eight around it. Filling empty
-  ground is not war. A window asked for (`--since`, `--until`) is split into its places the same way, so a war
-  next door is a story of its own. **Every scale is searched**: the whole map, and each of the 12 countries whose
+  ground is not war. **A clip is news**: with no window asked for, only the last 12 hours of the replay are searched
+  (`newsSince`), since the busiest stretch of three days is rarely today's and would hide today's from the search;
+  posted a day late, "Christmas Island is taking over the world" is about a flag already thrown out. A window asked
+  for (`--since`, `--until`) is split into its places the same way, so a war next door is a story of its own. **Every scale is searched**: the whole map, and each of the 12 countries whose
   ground changed hands the most (400 tiles or more), on its own ground alone, as `--focus` does. So Germany and
   Romania trading Germany is a story beside the war across Europe it is part of.
 - **`front.ts` finds the front** of a candidate: the point where most tiles changed hands, and every change within
@@ -2715,7 +2717,8 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   the flag across the world. A tour is told beside the flag's stories on each continent, not instead of them.
 - **One story per flag and what it did** (`sameStory`), whatever window or scale found it, told over the most of the
   map (`widerThan`), else the best: one flag taking one place or one inside it, whoever it beat there ("Portugal is
-  invading Germany" is part of "Portugal is attacking Europe"), one flag thrown out of one place, one flag
+  invading Germany" is part of "Portugal is attacking Europe"), one flag thrown out of one place or one inside it, whoever threw it out ("Israel is kicking Christmas
+  Island out of Germany" is part of "Christmas Island gets kicked out of Europe"), one flag
   striking back. Portugal beating France in Africa and in India is two stories. A battle is its two sides in one
   place. `--plan` lists each one dropped with the one it repeats.
 - **A country is said as people say it.** The game's names are cut to fit its board ("Christmas", "N.Zealand", "Czech

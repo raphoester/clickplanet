@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {aroundCell, cellOf} from "./geometry.ts"
-import {candidatesOf, inCandidate, Moment} from "./window.ts"
+import {candidatesOf, inCandidate, Moment, newsSince} from "./window.ts"
 
 const HOUR = 3_600_000
 const paris = cellOf({x: 0.03, y: 0.75, z: 0.66})
@@ -40,5 +40,15 @@ describe("the cells", () => {
     it("wrap round the antimeridian and stop at the poles", () => {
         expect(aroundCell(0)).toHaveLength(6)
         expect(aroundCell(paris)).toHaveLength(9)
+    })
+})
+
+describe("the news", () => {
+    it("is the last 12 hours of a replay, when no window is asked for", () => {
+        expect(newsSince(0, 72 * HOUR)).toBe(60 * HOUR)
+    })
+
+    it("is all of a replay shorter than that", () => {
+        expect(newsSince(70 * HOUR, 72 * HOUR)).toBe(70 * HOUR)
     })
 })
