@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {TileChange} from "./changes.ts"
-import {castOf, inPlace, lossOf, placeOf, routOf, sameRout, sameStory, Story, storyOf, THE_WORLD, widerThan} from "./story.ts"
+import {castOf, inPlace, leadsTheWorld, lossOf, placeOf, routOf, sameRout, sameStory, Story, storyOf, THE_WORLD, widerThan} from "./story.ts"
 
 const REGIONS: Record<string, string> = {
     fr: "Europe",
@@ -140,6 +140,23 @@ describe("who a story is about", () => {
         const around = [...took("il", "ps", 70), ...took("de", "ps", 10, 71), ...took("fr", "ps", 20, 81)]
 
         expect(castOf(comeback("de"), around, continentOf)).toBeUndefined()
+    })
+})
+
+describe("the flag leading the world", () => {
+    const day = [...took("cx", "fr", 28, 1), ...took("pt", "pl", 12, 101), ...took("dz", "il", 10, 201), ...took("it", undefined, 50, 301)]
+
+    it("took twice as much as any other, though far from a third of all", () => {
+        expect(leadsTheWorld("cx", day.filter(({to}) => to !== "it"))).toBe(true)
+    })
+
+    it("is nobody when another took nearly as much", () => {
+        expect(leadsTheWorld("pt", day.filter(({to}) => to !== "it"))).toBe(false)
+        expect(leadsTheWorld("cx", [...took("cx", "fr", 20, 1), ...took("pt", "pl", 12, 101)])).toBe(false)
+    })
+
+    it("counts empty land taken too", () => {
+        expect(leadsTheWorld("cx", day)).toBe(false)
     })
 })
 
