@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {Story} from "../domain/clip/story.ts"
-import {sidesOf, teamFlagOf, wordsOf} from "./overlay.ts"
+import {nameOf, sidesOf, teamFlagOf, wordsOf} from "./overlay.ts"
 
 function story(kind: Story["kind"], place: Story["place"], rival?: string): Story {
     return {kind, attacker: "ps", rival, victims: ["fr", "es"], place, taken: 2593}
@@ -60,6 +60,29 @@ describe("a flag losing land nobody leads the taking of", () => {
     it("is losing a place that is its own", () => {
         expect(wordsOf({...story("rout", {region: "Africa"}), attacker: "il", victims: ["dz"]}).headline)
             .toBe("ALGERIA IS LOSING AFRICA")
+    })
+})
+
+describe("the name of a country", () => {
+    it("is the English name the game's was cut from", () => {
+        expect(nameOf("cx")).toBe("Christmas Island")
+        expect(nameOf("nz")).toBe("New Zealand")
+        expect(nameOf("cz")).toBe("Czechia")
+        expect(nameOf("li")).toBe("Liechtenstein")
+    })
+
+    it("is the game's when the game chose it over the English one", () => {
+        expect(nameOf("tr")).toBe("Turkey")
+        expect(nameOf("ci")).toBe("Ivory Coast")
+        expect(nameOf("ae")).toBe("UAE")
+        expect(nameOf("us")).toBe("USA")
+        expect(nameOf("cd")).toBe("DR Congo")
+        expect(nameOf("xb")).toBe("Brittany")
+    })
+
+    it("tells a small island taking over the world as itself", () => {
+        expect(wordsOf({...story("attack", {region: "the world"}), attacker: "cx"}).headline).toBe("CHRISTMAS ISLAND IS TAKING OVER THE WORLD")
+        expect(wordsOf({...story("battle", {country: "do"}, "cx")}).line).toBe("The battle for the Dominican Republic")
     })
 })
 

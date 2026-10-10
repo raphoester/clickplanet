@@ -16,9 +16,9 @@ import {anthemOf, startOf} from "../domain/clip/music.ts"
 import {ANTHEMS} from "../app/anthem/anthemsAsset.ts"
 import {HIGHLIGHTS} from "./anthemHighlightsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
-import {Candidate, candidatesOf, inCandidate, Window} from "../domain/clip/window.ts"
+import {Candidate, candidatesOf, inCandidate, newsSince, Window} from "../domain/clip/window.ts"
 import {Front, frontOf, FRONT_RADIANS, inSightOf, sameFront, spanOf} from "../domain/clip/front.ts"
-import {castOf, inPlace, lossOf, placeOf, routOf, sameStory, Story, storyOf, THE_WORLD, widerThan} from "../domain/clip/story.ts"
+import {castOf, inPlace, leadsTheWorld, lossOf, placeOf, routOf, sameStory, Story, storyOf, THE_WORLD, widerThan} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
 import {cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
@@ -159,7 +159,7 @@ async function prepare(): Promise<Recording> {
     const aspect = root.clientWidth / root.clientHeight
     const everything = replay.changes()
     const asked = windowParam(replay)
-    const since = asked?.since ?? replay.since
+    const since = asked?.since ?? newsSince(replay.since, replay.until)
     const until = asked?.until ?? replay.until
     // Every scale a story is told at: the whole map, and each country fought over the most, on its own ground.
     const scopes = focus !== undefined ? [focus] : [undefined, ...foughtOver(everything, groundAt, since, until)]
@@ -229,7 +229,7 @@ async function prepare(): Promise<Recording> {
         const around = everything.filter(({at}) => at >= backend.since && at <= backend.until)
         const solidity = solidityAfter(told.attacker, take.front, ownersAfter(backend.opening, backend.changes()))
         const stops = stopsOf(visitsOf(take.front, told.attacker, () => 0), aspect)
-        const skipped = castOf(told, around, regionOf) === undefined ? `${nameOf(told.attacker)} leads nothing across the world`
+        const skipped = !leadsTheWorld(told.attacker, around) ? `${nameOf(told.attacker)} leads nothing across the world`
             : stops.length < 2 ? "one continent, told there"
                 : solidity < SCRIBBLE_BELOW ? "lines drawn on someone else's land, not land taken" : undefined
         return {...take, story: told, backend, solidity, skipped}

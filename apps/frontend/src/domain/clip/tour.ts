@@ -8,8 +8,9 @@ export type Visit = Beat & {region: string | undefined}
 // play, and every tile it took there, which the camera follows while it stays.
 export type Stop = {region: string, shot: Shot, arrival: number, beats: readonly Beat[]}
 
-// A continent is a stop when this much of what the flag took is there.
-const STOP_SHARE = 0.1
+// A continent is a stop when this much of what the flag took is there: Christmas Island took 6% of its day in Oceania,
+// next to its own home, and that is part of its tour.
+const STOP_SHARE = 0.05
 
 const MOST_STOPS = 4
 

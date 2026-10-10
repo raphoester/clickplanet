@@ -42,6 +42,10 @@ const ROUT_LEAST = 300
 
 export const THE_WORLD = "the world"
 
+// The world is too big for a flag to take a third of all taken across it, as on one front: Christmas Island took 28%
+// of it in a day, more than twice the next flag. A flag leads it when it took twice as much as any other.
+const WORLD_LEAD = 2
+
 // heldAtStart: the flag that held most of a country's ground when the story starts.
 export function storyOf(
     changes: readonly TileChange[],
@@ -91,6 +95,13 @@ export function castOf(story: Story, around: readonly TileChange[], regionOf: Re
     return shareOf((flag) => regionOf(flag) === team) >= TEAM_SHARE ? {...story, team} : undefined
 }
 
+export function leadsTheWorld(flag: string, changes: readonly TileChange[]): boolean {
+    const takers = ranked(tally(changes.flatMap(({from, to}) => to === undefined || to === from ? [] : [to])))
+    const own = takers.find(([taker]) => taker === flag)?.[1] ?? 0
+    const next = takers.find(([taker]) => taker !== flag)?.[1] ?? 0
+    return own > 0 && own >= next * WORLD_LEAD
+}
+
 function atWar(changes: readonly TileChange[], one: string, other: string): boolean {
     const between = (from: string, to: string) => changes.filter((change) => change.from === from && change.to === to).length
     const took = (flag: string) => changes.filter(({to}) => to === flag).length
@@ -125,7 +136,7 @@ export function lossOf(told: Story, loser: string, taker: string, place: Place):
 // taking Germany is part of Portugal taking Europe. So are two about one flag thrown out of one place. Battles are told
 // by both sides in their place.
 export function sameStory(a: Story, b: Story, placeName: (place: Place) => string, regionOf: RegionOf): boolean {
-    if (sameRout(a, b, placeName)) return true
+    if (sameRout(a, b, regionOf)) return true
     // A flag thrown out is its story, whoever took its land.
     if (a.kind === "rout" || b.kind === "rout") return false
     if (a.kind === "comeback" && b.kind === "comeback") return a.attacker === b.attacker
@@ -151,10 +162,11 @@ function overlaps(a: Place, b: Place, regionOf: RegionOf): boolean {
     return regions(a).some((region) => regions(b).includes(region))
 }
 
-// Two stories about one flag thrown out of one place are one story.
-export function sameRout(a: Story, b: Story, placeName: (place: Place) => string): boolean {
+// Two stories about one flag thrown out of one place, or of a place and another inside it, are one story, whoever
+// threw it out: Israel kicking Christmas Island out of Germany is part of Christmas Island kicked out of Europe.
+export function sameRout(a: Story, b: Story, regionOf: RegionOf): boolean {
     const thrownOut = (story: Story) => story.kind === "rout" || story.kind === "kickout"
-    return thrownOut(a) && thrownOut(b) && a.victims[0] === b.victims[0] && placeName(a.place) === placeName(b.place)
+    return thrownOut(a) && thrownOut(b) && a.victims[0] === b.victims[0] && overlaps(a.place, b.place, regionOf)
 }
 
 // Whether a country's ground is part of a place.
