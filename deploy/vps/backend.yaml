@@ -87,7 +87,6 @@ antiBot:
       maxMedian: 250ms
       minTiles: 15
       roamMedian: 600ms
-      certainTiles: 30
       trackWindow: 15m
       sweepInterval: 1m
 

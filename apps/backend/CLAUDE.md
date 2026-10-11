@@ -2174,10 +2174,29 @@ band missed the Bulgaria recapture bot of 2026-09-14 from the other side: 62
 retakes on 61 different tiles, median ~280ms, but a p90-p10 of ~750ms, because its
 retakes queue behind the throttle. A player at war is fast only on the tile its
 cursor is already on. So reactions on `minTiles` different tiles with a median at
-or under `roamMedian` read `Suspect` whatever the spread, and `certainTiles` reads
-`Certain`. The ban line names the stronger rule (`reflex` or `roam`) and carries
-`tiles` either way. `TestTheSameSpeedOnAFewTilesIsATileWar` pins the player
-clicking back at a bot; `TestTheRecaptureBotOfSeptember14IsCaught` replays the bot.
+or under `roamMedian` read `Suspect` whatever the spread. The ban line names the
+stronger rule (`reflex` or `roam`) and carries `tiles` either way.
+`TestTheSameSpeedOnAFewTilesIsATileWar` pins the player clicking back at a bot.
+
+- **It only reads `Suspect`, since 2026-10-11.** Production shipped `certainTiles`
+  30, and on 2026-10-10 it banned three accounts behind one address on `roam` alone:
+  31 reactions on 30 tiles, median 540ms. It was two players in a duel by hand. They
+  swept the same two rows of tiles for 13 seconds, each taking back what the other
+  took, and the other side read `roam` too. A chase along a line puts every tile
+  under the cursor, and no bound tells it from the bot. So production sets no
+  `certainTiles`, and `roam` bans only beside another watchdog.
+  `TestAChaseAlongALineBansNobody` replays the duel.
+- **The bot is still banned, by `roam` and `defender` together**, at its fortieth
+  take: `TestTheRecaptureBotOfSeptember14IsCaught` replays it at production's
+  bounds. It needs those 40 takes inside 10 minutes, where 30 tiles in 15 were
+  enough before.
+- **A duel that goes on is banned the same way.** `roam` and `defender` both read
+  retakes, so in a duel they are one behaviour counted twice. At 40 takes in 10
+  minutes with six in ten of them retakes, `defender` reads too, and the two make a
+  ban: the replay run on past its line is banned after about 17 seconds.
+- **It counts the scope, not the payer.** 2 of the 30 tiles were another account's,
+  four minutes before the duel, and two accounts were banned on their next click
+  with no fast retake of their own.
 
 **`sequencer`: the step, not the size of it.** Tile ids come from the
 icosahedron's vertex order and not from a grid of latitudes, so filling in a
