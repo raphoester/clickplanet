@@ -252,22 +252,81 @@ func TestAnUnbanForgetsOnlyTheOffenceItLifts(t *testing.T) {
 	assert.Equal(t, clock.Now().Add(24*time.Hour), sentence.Until)
 }
 
-func TestAnUnbanWithNoRunningBanChangesNothing(t *testing.T) {
+func TestAnUnbanOfAnEndedBanForgetsItsOffenceAndKeepsItsEnd(t *testing.T) {
 	clock := newClock()
 	store := shadowban.NewMemoryStore()
 	banner := bannerOver(t, config(), clock, store)
 
-	banner.Flag("bot")
+	banned, _ := banner.Flag("player")
 	clock.Advance(2 * time.Hour)
+	banner.Unban("player")
+
+	assert.Equal(t, 0, store.Stored()["player"].Offences)
+	assert.Equal(t, banned.Until, store.Stored()["player"].ExpiresAt, "a ban that ended is not moved")
+
+	sentence, accepted := banner.Flag("player")
+	require.True(t, accepted)
+	assert.Equal(t, 1, sentence.Offence, "the next ban starts the ladder where the lifted one did")
+	assert.Equal(t, clock.Now().Add(time.Hour), sentence.Until)
+}
+
+func TestEachUnbanForgetsOneOffence(t *testing.T) {
+	clock := newClock()
+	banner := newBanner(t, config(), clock)
+
+	banner.Ban("player", 0)
+	clock.Advance(2 * time.Hour)
+	banner.Ban("player", 0)
+
+	banner.Unban("player")
+	assert.False(t, banner.Banned("player"))
+	last, found := banner.LastSentence("player")
+	require.True(t, found, "the first offence still counts")
+	assert.Equal(t, 1, last.Offence)
+
+	banner.Unban("player")
+	_, found = banner.LastSentence("player")
+	assert.False(t, found)
+
+	assert.Equal(t, 1, banner.Ban("player", 0).Offence)
+}
+
+func TestAnUnbanWithNoBanChangesNothing(t *testing.T) {
+	clock := newClock()
+	store := shadowban.NewMemoryStore()
+	banner := bannerOver(t, config(), clock, store)
+
+	banner.Flag("lifted")
+	banner.Unban("lifted")
 	before := store.Stored()
 
-	banner.Unban("bot")
+	banner.Unban("lifted")
 	banner.Unban("nobody")
 	banner.Unban("")
 
-	assert.Equal(t, before, store.Stored(), "nothing ran, so nothing is written")
+	assert.Equal(t, before, store.Stored(), "no offence is left, so nothing is written")
+}
 
-	sentence, accepted := banner.Flag("bot")
-	require.True(t, accepted)
-	assert.Equal(t, 2, sentence.Offence, "a ban that already lapsed keeps its offence")
+func TestTheLastSentenceIsTheLatestBanStillCountedRunningOrEnded(t *testing.T) {
+	clock := newClock()
+	banner := newBanner(t, config(), clock)
+
+	_, found := banner.LastSentence("nobody")
+	assert.False(t, found)
+	_, found = banner.LastSentence("")
+	assert.False(t, found)
+
+	banned, _ := banner.Flag("player")
+
+	last, found := banner.LastSentence("player")
+	require.True(t, found)
+	assert.Equal(t, banned, last)
+
+	clock.Advance(2 * time.Hour)
+	_, running := banner.Sentence("player")
+	require.False(t, running)
+
+	last, found = banner.LastSentence("player")
+	require.True(t, found, "an ended ban is still an offence")
+	assert.Equal(t, banned, last)
 }

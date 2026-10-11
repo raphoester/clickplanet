@@ -11,18 +11,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func TestSweepForgetsIdleCallers(t *testing.T) {
+func TestSweepForgetsPayersThatStoppedTrying(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
 	w := New(Config{TrackWindow: time.Minute}, clock, func(float64) {}, func(float64) {}, func(time.Duration) {})
 
 	w.Attempted(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
-	require.Len(t, w.callers, 1)
+	require.Len(t, w.payers, 1)
 
 	clock.Advance(2 * time.Hour)
 	w.sweep()
 
-	assert.Empty(t, w.callers)
+	assert.Empty(t, w.payers)
 }
 
 func TestSweepReportsTheSkewOfAFullWindowOnly(t *testing.T) {
@@ -89,7 +89,7 @@ func TestTheShapeRingIsBounded(t *testing.T) {
 		w.Attempted(detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.Now()})
 	}
 
-	assert.Len(t, w.callers["caller"].shape, 16)
+	assert.Len(t, w.payers[detect.Click{Scope: "caller"}.Payer()].shape, 16)
 }
 
 func TestTheGapRingIsBounded(t *testing.T) {
@@ -102,6 +102,8 @@ func TestTheGapRingIsBounded(t *testing.T) {
 		w.Attempted(detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.Now()})
 	}
 
-	assert.LessOrEqual(t, len(w.callers["caller"].gaps), 8,
+	gaps := w.payers[detect.Click{Scope: "caller"}.Payer()].gaps
+	require.NotEmpty(t, gaps)
+	assert.LessOrEqual(t, len(gaps), 8,
 		"only the gaps a spread needs are kept; how long the run has lasted is two timestamps")
 }

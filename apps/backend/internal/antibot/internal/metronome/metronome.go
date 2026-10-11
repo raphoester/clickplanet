@@ -205,7 +205,7 @@ func New(config Config, clock cptime.Clock, onSkew, onCoherence func(float64), o
 		onSkew:      onSkew,
 		onCoherence: onCoherence,
 		onBusy:      onBusy,
-		callers:     make(map[string]*caller),
+		payers:      make(map[string]*payer),
 		spenders:    make(map[string]*spender),
 	}
 }
@@ -218,14 +218,14 @@ type Watchdog struct {
 	onBusy      func(time.Duration)
 
 	mu       sync.Mutex
-	callers  map[string]*caller
+	payers   map[string]*payer
 	spenders map[string]*spender
 	outage   detect.Outage
 }
 
 var _ detect.Watchdog = (*Watchdog)(nil)
 
-type caller struct {
+type payer struct {
 	lastSeen time.Time
 
 	runStart  time.Time
@@ -257,55 +257,56 @@ func (w *Watchdog) Attempted(click detect.Click) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	c, ok := w.callers[click.Scope]
+	key := click.Payer()
+	p, ok := w.payers[key]
 	if !ok {
-		c = &caller{}
-		w.callers[click.Scope] = c
-		c.restart(click.At)
-		w.tried(c, click.At)
+		p = &payer{}
+		w.payers[key] = p
+		p.restart(click.At)
+		w.tried(p, click.At)
 		return
 	}
 
-	w.tried(c, click.At)
+	w.tried(p, click.At)
 
-	across := w.outage.Across(c.lastSeen, click.At)
-	gap := w.outage.Gap(c.lastSeen, click.At)
-	c.lastSeen = click.At
+	across := w.outage.Across(p.lastSeen, click.At)
+	gap := w.outage.Gap(p.lastSeen, click.At)
+	p.lastSeen = click.At
 
 	if !across && gap >= 0 && gap <= w.config.Shape.MaxGap {
-		c.shape = append(c.shape, gap)
-		if capacity := w.config.Shape.CertainClicks; len(c.shape) > capacity {
-			c.shape = append(c.shape[:0], c.shape[len(c.shape)-capacity:]...)
+		p.shape = append(p.shape, gap)
+		if capacity := w.config.Shape.CertainClicks; len(p.shape) > capacity {
+			p.shape = append(p.shape[:0], p.shape[len(p.shape)-capacity:]...)
 		}
 	}
 
 	if gap < 0 || gap > w.config.MaxGap {
-		c.restart(click.At)
+		p.restart(click.At)
 		return
 	}
 
-	c.runClicks++
+	p.runClicks++
 
 	if across {
-		c.runStart = c.runStart.Add(w.outage.Length())
+		p.runStart = p.runStart.Add(w.outage.Length())
 		return
 	}
 
-	c.gaps = append(c.gaps, gap)
-	if capacity := w.capacity(); len(c.gaps) > capacity {
-		c.gaps = append(c.gaps[:0], c.gaps[len(c.gaps)-capacity:]...)
+	p.gaps = append(p.gaps, gap)
+	if capacity := w.capacity(); len(p.gaps) > capacity {
+		p.gaps = append(p.gaps[:0], p.gaps[len(p.gaps)-capacity:]...)
 	}
 }
 
-func (w *Watchdog) tried(c *caller, at time.Time) {
+func (w *Watchdog) tried(p *payer, at time.Time) {
 	kept := w.config.Clock.kept()
 	if kept == 0 {
 		return
 	}
 
-	c.tries = append(c.tries, at)
-	if len(c.tries) > kept {
-		c.tries = append(c.tries[:0], c.tries[len(c.tries)-kept:]...)
+	p.tries = append(p.tries, at)
+	if len(p.tries) > kept {
+		p.tries = append(p.tries[:0], p.tries[len(p.tries)-kept:]...)
 	}
 }
 
@@ -313,20 +314,20 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	payer := click.Payer()
-	w.spend(payer, click.At)
-	stamina, staminaEvidence := w.stamina(w.spenders[payer])
+	key := click.Payer()
+	w.spend(key, click.At)
+	stamina, staminaEvidence := w.stamina(w.spenders[key])
 
-	c, ok := w.callers[click.Scope]
+	p, ok := w.payers[key]
 	if !ok {
 		return stamina, staminaEvidence
 	}
 
-	verdict, evidence := w.cadence(c)
-	if shape, shapeEvidence := w.shape(c); shape > verdict {
+	verdict, evidence := w.cadence(p)
+	if shape, shapeEvidence := w.shape(p); shape > verdict {
 		verdict, evidence = shape, shapeEvidence
 	}
-	if timer, timerEvidence := w.timer(c); timer > verdict {
+	if timer, timerEvidence := w.timer(p); timer > verdict {
 		verdict, evidence = timer, timerEvidence
 	}
 	if stamina > verdict {
@@ -335,11 +336,11 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 	return verdict, evidence
 }
 
-func (w *Watchdog) spend(payer string, at time.Time) {
-	s, ok := w.spenders[payer]
+func (w *Watchdog) spend(key string, at time.Time) {
+	s, ok := w.spenders[key]
 	if !ok {
 		s = &spender{}
-		w.spenders[payer] = s
+		w.spenders[key] = s
 	}
 	s.lastSeen = at
 
@@ -405,20 +406,20 @@ func (s *spender) forget(before int64) {
 	s.slices = append(s.slices[:0], s.slices[kept:]...)
 }
 
-func (w *Watchdog) cadence(c *caller) (detect.Verdict, detect.Evidence) {
-	if c.runClicks < w.config.MinClicks {
+func (w *Watchdog) cadence(p *payer) (detect.Verdict, detect.Evidence) {
+	if p.runClicks < w.config.MinClicks {
 		return detect.Clear, detect.Evidence{}
 	}
 
-	median, spread := detect.Spread(append([]time.Duration(nil), c.gaps...))
+	median, spread := detect.Spread(append([]time.Duration(nil), p.gaps...))
 	if spread > w.config.MaxSpread {
 		return detect.Clear, detect.Evidence{}
 	}
 
-	sustained := c.lastSeen.Sub(c.runStart)
+	sustained := p.lastSeen.Sub(p.runStart)
 
 	verdict := detect.Suspect
-	if sustained >= w.config.CertainFor && c.runClicks >= w.config.CertainClicks {
+	if sustained >= w.config.CertainFor && p.runClicks >= w.config.CertainClicks {
 		verdict = detect.Certain
 	}
 
@@ -427,23 +428,23 @@ func (w *Watchdog) cadence(c *caller) (detect.Verdict, detect.Evidence) {
 		Fields: []detect.Field{
 			{Key: "spread", Value: spread},
 			{Key: "median", Value: median},
-			{Key: "clicks", Value: c.runClicks},
+			{Key: "clicks", Value: p.runClicks},
 			{Key: "sustained", Value: sustained},
 		},
 	}
 }
 
-func (w *Watchdog) shape(c *caller) (detect.Verdict, detect.Evidence) {
+func (w *Watchdog) shape(p *payer) (detect.Verdict, detect.Evidence) {
 	config := w.config.Shape
 
 	if config.CertainSkew != nil {
-		if s, ok := skewOf(c.shape, config.CertainClicks); ok && s.skew <= *config.CertainSkew {
+		if s, ok := skewOf(p.shape, config.CertainClicks); ok && s.skew <= *config.CertainSkew {
 			return detect.Certain, s.evidence()
 		}
 	}
 
 	if config.MaxSkew != nil {
-		if s, ok := skewOf(c.shape, config.Clicks); ok && s.skew <= *config.MaxSkew {
+		if s, ok := skewOf(p.shape, config.Clicks); ok && s.skew <= *config.MaxSkew {
 			return detect.Suspect, s.evidence()
 		}
 	}
@@ -492,18 +493,18 @@ func (s skewed) evidence() detect.Evidence {
 	}
 }
 
-func (w *Watchdog) timer(c *caller) (detect.Verdict, detect.Evidence) {
+func (w *Watchdog) timer(p *payer) (detect.Verdict, detect.Evidence) {
 	config := w.config.Clock
 
 	if config.CertainCoherence != nil {
-		if b, ok := beatOf(c.tries, config.CertainClicks, config.Period); ok &&
+		if b, ok := beatOf(p.tries, config.CertainClicks, config.Period); ok &&
 			b.coherence >= *config.CertainCoherence && b.span >= config.CertainFor {
 			return detect.Certain, b.evidence()
 		}
 	}
 
 	if config.MinCoherence != nil {
-		if b, ok := beatOf(c.tries, config.Clicks, config.Period); ok && b.coherence >= *config.MinCoherence {
+		if b, ok := beatOf(p.tries, config.Clicks, config.Period); ok && b.coherence >= *config.MinCoherence {
 			return detect.Suspect, b.evidence()
 		}
 	}
@@ -569,11 +570,11 @@ func (w *Watchdog) capacity() int {
 	return w.config.MinClicks
 }
 
-func (c *caller) restart(at time.Time) {
-	c.lastSeen = at
-	c.runStart = at
-	c.runClicks = 1
-	c.gaps = c.gaps[:0]
+func (p *payer) restart(at time.Time) {
+	p.lastSeen = at
+	p.runStart = at
+	p.runClicks = 1
+	p.gaps = p.gaps[:0]
 }
 
 func (w *Watchdog) Run(ctx context.Context) {
@@ -602,25 +603,25 @@ func (w *Watchdog) sweep() {
 	w.mu.Lock()
 
 	cutoff := now.Add(-w.config.TrackWindow)
-	for scope, c := range w.callers {
-		if c.lastSeen.Before(cutoff) {
-			delete(w.callers, scope)
+	for key, p := range w.payers {
+		if p.lastSeen.Before(cutoff) {
+			delete(w.payers, key)
 			continue
 		}
-		if s, ok := skewOf(c.shape, w.config.Shape.Clicks); ok {
+		if s, ok := skewOf(p.shape, w.config.Shape.Clicks); ok {
 			skews = append(skews, s.skew)
 		}
-		if b, ok := beatOf(c.tries, w.config.Clock.Clicks, w.config.Clock.Period); ok {
+		if b, ok := beatOf(p.tries, w.config.Clock.Clicks, w.config.Clock.Period); ok {
 			coherences = append(coherences, b.coherence)
 		}
 	}
 
 	first := w.firstSliceOf(w.sliceOf(now))
 	spentSince := now.Add(-w.config.SweepInterval)
-	for payer, s := range w.spenders {
+	for key, s := range w.spenders {
 		s.forget(first)
 		if len(s.slices) == 0 {
-			delete(w.spenders, payer)
+			delete(w.spenders, key)
 			continue
 		}
 		if !s.lastSeen.Before(spentSince) {

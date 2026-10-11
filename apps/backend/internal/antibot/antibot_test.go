@@ -951,6 +951,27 @@ func TestAnUnbannedAccountStaysUnbannedAfterARestart(t *testing.T) {
 	assert.Equal(t, 1, s.ban("", "a-player", 0).Offence, "the lifted ban is no offence")
 }
 
+func TestAnUnbanAfterTheBanEndedForgetsItsOffence(t *testing.T) {
+	s := newStack(t)
+	defer func() { s.stop() }()
+
+	s.clock.Advance(time.Second)
+	banned := s.ban("", "a-player", 0)
+	s.clock.Advance(2 * time.Hour)
+	require.False(t, s.banned("5.6.7.8", "a-player"))
+
+	last, found, err := s.guard.LastSentence(t.Context(), "", "a-player")
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.Equal(t, banned, last)
+
+	s.unban("", "a-player")
+
+	require.Empty(t, s.errors)
+	assert.Equal(t, 0, s.accountBans.Stored()["a-player"].Offences)
+	assert.Equal(t, 1, s.ban("", "a-player", 0).Offence, "the ended ban is no offence any more")
+}
+
 func staminaBansAlone(config *antibot.Config) {
 	config.Metronome.Detector.Stamina.CertainBusy = 5*time.Hour + 30*time.Minute
 }

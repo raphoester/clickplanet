@@ -32,7 +32,7 @@ func bannedOn(keys ...string) *unbanner {
 	return u
 }
 
-func (u *unbanner) Sentence(_ context.Context, scope, account string) (antibot.Sentence, bool, error) {
+func (u *unbanner) LastSentence(_ context.Context, scope, account string) (antibot.Sentence, bool, error) {
 	sentence, ok := u.banned[scope+account]
 	return sentence, ok, u.failing
 }
@@ -69,7 +69,7 @@ func TestAnAccountIsUnbannedAlone(t *testing.T) {
 	assert.Equal(t, []string{"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}, u.accounts)
 }
 
-func TestACallerWithNoRunningBanIsRefusedAndNothingIsLifted(t *testing.T) {
+func TestACallerWithNoBanToLiftIsRefusedAndNothingIsLifted(t *testing.T) {
 	u := bannedOn()
 
 	_, err := unban_player_usecase.New(u).Execute(t.Context(), unban_player_usecase.In{Scope: "1.2.3.4"})

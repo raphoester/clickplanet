@@ -12,11 +12,11 @@ import (
 
 var (
 	ErrAntiBotOff = errors.New("antiBot is off, so there is no ban to lift")
-	ErrNotBanned  = errors.New("no ban is running on that caller")
+	ErrNotBanned  = errors.New("that caller has no ban to lift")
 )
 
 type Unbanner interface {
-	Sentence(ctx context.Context, scope, account string) (antibot.Sentence, bool, error)
+	LastSentence(ctx context.Context, scope, account string) (antibot.Sentence, bool, error)
 	Unban(ctx context.Context, scope, account string) error
 	Enabled() bool
 }
@@ -51,11 +51,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, fmt.Errorf("cannot unban: %w", err)
 	}
 
-	sentence, banned, err := u.unbanner.Sentence(ctx, caller.Scope, caller.Account)
+	sentence, found, err := u.unbanner.LastSentence(ctx, caller.Scope, caller.Account)
 	if err != nil {
 		return Out{}, fmt.Errorf("failed to read the ban: %w", err)
 	}
-	if !banned {
+	if !found {
 		return Out{}, ErrNotBanned
 	}
 

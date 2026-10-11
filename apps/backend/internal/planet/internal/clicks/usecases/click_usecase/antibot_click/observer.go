@@ -31,7 +31,7 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 
 	gapSkews := factory.NewHistogram(prometheus.HistogramOpts{
 		Name:    "click_gap_skew",
-		Help:    "Skew (p90 + p10 - 2*p50) / (p90 - p10) of a caller's gaps between clicks tried, per caller per sweep",
+		Help:    "Skew (p90 + p10 - 2*p50) / (p90 - p10) of a payer's gaps between clicks tried, per payer per sweep",
 		Buckets: []float64{-0.5, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0},
 	})
 
@@ -43,7 +43,7 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 
 	clockCoherences := factory.NewHistogram(prometheus.HistogramOpts{
 		Name:    "click_clock_coherence",
-		Help:    "How closely a caller's clicks tried keep one beat of the metronome's clock period, 0 to 1, per caller per sweep",
+		Help:    "How closely a payer's clicks tried keep one beat of the metronome's clock period, 0 to 1, per payer per sweep",
 		Buckets: []float64{0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0},
 	})
 

@@ -2104,8 +2104,8 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   tools answer the error instead.
 - **A row is never deleted.** Scopes and accounts are two `Banner`s over two
   tables, each with its own ladder. An offence is forgotten only when an operator
-  lifts its ban (`UnbanPlayer`): the row is written with the ban ended and one
-  offence fewer.
+  lifts its ban (`UnbanPlayer`): the row is written with one offence fewer, and
+  with the ban ended when it was still running.
 - **Evidence is the tile map's pattern.** `evidence.Persistence` is the port,
   `postgres_evidence_store` the adapter, `MemoryPersistence` (behind the `testing`
   tag) the fake. It lives in memory and is flushed every `saveInterval` (1m), with a
@@ -2223,6 +2223,42 @@ throttle and hands every try to `Guard.Attempted`; the metronome records there
 and only judges in `Watch`. It also helps a player: someone spam-clicking into the
 throttle is timed by their own hand, not by the refill rate.
 
+**The run is one payer's, not one scope's, since 2026-10-11.** Keyed on the scope,
+the run of a network was every hand behind it on one stream. On 2026-10-09 that
+banned three accounts: people clicking by hand behind one network, in a tile war.
+Two or three browsers together made 4.5 tries a second, so the gaps were short, and
+a short gap has a small spread: the stream read a median of 204ms and a spread of
+396ms, against `maxSpread` 400ms. Each browser alone read 420 to 640ms. `defender`
+read `suspect`, as it does in a tile war, and two suspects are a ban.
+
+- **It counts the payer**: the account the click token names, or the scope when it
+  names none, as `stamina` and `hopper` do. The reading still lands on the scope's
+  jury record, like every watchdog's.
+- **`shape` and `clock` read the same tries, so they are the payer's too.** The merge
+  worked both ways: a loop behind a busy network was hidden by it. Its neighbours'
+  tries widened its spread, bent the shape of its gaps and blurred where in the
+  second it landed.
+- **A merged run also had no end**: one hand's pause was another hand's click, so a
+  busy network could hold a run past `certainFor` and read `certain` alone.
+- **A try has its payer before the throttle.** The session interceptor reads the
+  token outside the whole click chain, so `antibot_attempt_click` still times every
+  try, and the bot of 2026-09-14 is still caught.
+- **With no account, the hands behind a scope are still one caller**: nothing tells
+  them apart. That is the deprecated mint, and a click with no valid token while
+  `auth.enforce` is off.
+- **A guest that takes a new account starts a new run.** That is `churner`'s to read.
+- `click_gap_skew` and `click_clock_coherence` are each payer's, not each scope's.
+- **The runs are saved by payer.** A section saved before this decodes with no run
+  and keeps its stamina, which was the payer's already.
+- **Known risk: 400ms is close to a hand.** Simulated, a hand at even 300-900ms gaps
+  with no pause over `maxGap` dips under it in 1 run of 12 inside ten minutes, and
+  in 1 of 5 inside thirty. Past `certainFor` one such window reads `certain`: the
+  rule asks that the run lasted, not that its spread held.
+- `TestHandsBehindOneNetworkAreEachJudgedAlone`,
+  `TestALoopBehindABusyNetworkIsSuspectThenCertain` and
+  `TestWithNoAccountANetworkIsStillOneCaller` pin the three cases, and
+  `TestTheHandsBehindOneNetworkOfOctober9AreNotBanned` replays the war.
+
 **That run is the answer to a jittered delay.** A spread test is beatable by
 construction — randomise and the band widens to look human. What is not cheap to
 fake is *stopping*: a person's session has breaks in it. `activeFor` and
@@ -2246,7 +2282,7 @@ hand's gaps are mostly short with a long tail. The rule is the quantile skew
   `maxSkew` 0.25 and `certainSkew` 0.15 caught all 12 in ~12 minutes and no player.
 - **It ships measuring.** `maxSkew` and `certainSkew` are pointers, unset in
   production: 0 is a skew, so leaving a bound out is the only off. The sweep
-  reports every caller with a full window through `Observer.OnGapSkew`, into
+  reports every payer with a full window through `Observer.OnGapSkew`, into
   `click_gap_skew`. Set the bounds from that histogram.
 - **One watchdog, one opinion.** It is a rule of `metronome` and not a watchdog of
   its own because it reads the same gaps: two timing rules in two watchdogs
@@ -2277,7 +2313,7 @@ point of the beat, about 1/√n for a hand.
 - `certainFor` (30m) is for the one human left: somebody tapping along to a
   steady beat keeps it for a song, not for half an hour.
 - **It ships measuring**, like `shape`: `minCoherence` and `certainCoherence` are
-  pointers, unset in production, and the sweep reports each caller with a full
+  pointers, unset in production, and the sweep reports each payer with a full
   window through `Observer.OnClockCoherence`, into `click_clock_coherence`.
 - It is beatable in one line — add a random delay — and then the gaps are a
   random sleep, which is `shape`'s.
@@ -2922,11 +2958,15 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 - **`BanPlayer(scope | account_id, duration)`** is `shadowban.Bans.Ban`, and drops the caller's clicks and bombs alike: the same record, ladder and table as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **An account is banned alone**: the operator named no scope, and a guest that sheds it with a new cookie is a second ban on its scope away. **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
 - **`RevertPlayer(scope | account_id, dry_run)`** gives each tile the caller holds back to what it held before its run, by the rule above. A scope reverts every account's takes on it; an account reverts its takes from every scope. `touched` is the tiles it took, `held` those it still holds. **Only a tile still wearing the scope's paint changes** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks.Pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the caller's takes, so a second run does nothing; an interrupted one forgets nothing and can be run again.
 - **Ban before reverting**: an unbanned player repaints behind the revert.
-- **`UnbanPlayer(scope | account_id)`** lifts a running ban, for a false positive: the ban ends now and its
-  offence is forgotten, so the next ban takes the step the lifted one took. An offence before it still counts:
-  the scope may be shared, and the account may have run a script last week. The row is written before the call
+- **`UnbanPlayer(scope | account_id)`** lifts the caller's latest ban, for a false positive: its offence is
+  forgotten, so the next ban takes the step the lifted one took, and a ban still running ends now. **A ban that
+  already ended is lifted too** (`Record.liftable`): its end is left as it was, and only the offence goes. Until
+  2026-10-11 an ended ban kept its offence, so the people a rule banned by mistake for a day were one flag away
+  from a week. **One call forgets one offence**, the latest: an offence before it still counts, since the scope
+  may be shared and the account may have run a script last week, and a second call forgets that one. The answer is
+  the ban that was lifted (`LastSentence`, read before the change). The row is written before the call
   answers, so a restart keeps the caller unbanned: no restart and no SQL. It lifts the key it is given, so **a guest the jury banned needs two
-  calls**, its account and its scope. No running ban is `NotFound` (`ErrNotBanned`), which a typo or the wrong
+  calls**, its account and its scope. A caller with no offence left is `NotFound` (`ErrNotBanned`), which a typo or the wrong
   half shows loudly; with `antiBot.enabled` false it is `FailedPrecondition`, as `BanPlayer` is.
   - **It does not touch the evidence.** The watchdogs read their own on every click, the dropped ones included,
     so a rule that still reads `certain` bans the caller again on its first click after `reflagInterval`, as a
