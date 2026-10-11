@@ -2706,6 +2706,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   real clock. The overlay is set from JS each frame.
 - **The camera is the clip's** (`GlobeOptions.director`): with one, `createGlobe` turns OrbitControls off and
   aims the camera at the shot it is given every frame. The game passes none.
+- **The counter counts where the headline says**: the tiles each side holds in the story's place (`inPlace`), a
+  country, two, a continent or the world. Not in all that is near its front: "CYPRUS IS KICKING POLAND OUT OF
+  PAKISTAN" showed Poland still holding 675 tiles, its land in India and Iran, when it held 7 in Pakistan.
 - **The text stays where TikTok draws nothing** (`--safe-*` on `#clip` in `clip.css`, measured on a phone): a tall
   phone crops the sides, the tabs cover the top, the buttons run down the right from the middle, and the name and
   the caption cover the bottom. The counter sits left of the buttons, and the call to act in the top half, darkening only that half: the map

@@ -292,8 +292,8 @@ async function prepare(): Promise<Recording> {
     const {front, story, backend, solidity, scope, world} = picked
     const changes = backend.changes().filter(({tile}) => inScope(scope)(tile))
 
-    const reach = Math.cos(FRONT_RADIANS)
-    const inArea = (tile: number) => world || (scope === undefined ? dot(pointAt(tile), front.heart) >= reach : groundAt(tile) === scope)
+    // The counter counts where the headline says: in the story's place, not in all that is near its front.
+    const inArea = (tile: number) => inPlace(story.place, groundAt(tile), regionOf)
 
     const points = front.changes.map(({tile}) => pointAt(tile))
     const wide = framingOf(points, aspect)

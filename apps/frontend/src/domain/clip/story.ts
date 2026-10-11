@@ -169,8 +169,10 @@ export function sameRout(a: Story, b: Story, regionOf: RegionOf): boolean {
     return thrownOut(a) && thrownOut(b) && a.victims[0] === b.victims[0] && overlaps(a.place, b.place, regionOf)
 }
 
-// Whether a country's ground is part of a place.
+// Whether a country's ground is part of a place: what a clip's headline names is where its counter counts, so a flag
+// "kicked out of Pakistan" is not shown holding its land next door.
 export function inPlace(place: Place, ground: string | undefined, regionOf: RegionOf): boolean {
+    if ("region" in place && place.region === THE_WORLD) return true
     if (ground === undefined) return false
     if ("country" in place) return ground === place.country
     if ("countries" in place) return place.countries.includes(ground)

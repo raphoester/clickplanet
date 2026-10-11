@@ -239,6 +239,10 @@ describe("the ground of a place", () => {
         expect(inPlace({region: "Europe"}, "tr", continentOf)).toBe(false)
         expect(inPlace({region: "Europe"}, undefined, continentOf)).toBe(false)
     })
+
+    it("is everywhere, for the world", () => {
+        expect(inPlace({region: THE_WORLD}, "tr", continentOf)).toBe(true)
+    })
 })
 
 describe("the same story", () => {
