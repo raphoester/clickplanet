@@ -62,6 +62,13 @@ type Field struct {
 type Evidence struct {
 	Rule   string
 	Fields []Field
+
+	Accomplices []Accomplice
+}
+
+type Accomplice struct {
+	Account  string
+	SignedIn bool
 }
 
 type Watchdog interface {
@@ -146,9 +153,10 @@ type Examination struct {
 }
 
 type Report struct {
-	Scope   string
-	Account string
-	Flags   int
+	Scope     string
+	Account   string
+	Alongside string
+	Flags     int
 
 	Offence     int
 	BannedUntil time.Time
