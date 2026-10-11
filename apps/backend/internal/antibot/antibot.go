@@ -516,6 +516,14 @@ func (g *Guard) Sentence(ctx context.Context, scope, account string) (Sentence, 
 	return g.banner.Sentence(ctx, shadowban.Caller{Scope: scope, Account: account}) //nolint:wrapcheck // the banner already named what failed.
 }
 
+func (g *Guard) LastSentence(ctx context.Context, scope, account string) (Sentence, bool, error) {
+	if !g.Enabled() {
+		return Sentence{}, false, nil
+	}
+
+	return g.banner.LastSentence(ctx, shadowban.Caller{Scope: scope, Account: account}) //nolint:wrapcheck // the banner already named what failed.
+}
+
 func (g *Guard) Examine(ctx context.Context, scope, account string) (Examination, error) {
 	if !g.Enabled() {
 		return Examination{Scope: scope, Account: account}, nil

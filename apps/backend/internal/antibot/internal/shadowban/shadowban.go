@@ -48,6 +48,10 @@ func (r Record) running(now time.Time) bool {
 	return now.Before(r.ExpiresAt)
 }
 
+func (r Record) liftable(now time.Time) bool {
+	return r.running(now) || r.Offences > 0
+}
+
 func (r Record) sentence() Sentence {
 	return Sentence{Flags: r.Flags, Offence: r.Offences, Until: r.ExpiresAt}
 }
@@ -82,7 +86,9 @@ func (b *Banner) banned(record Record, now time.Time, duration time.Duration) Re
 
 func lifted(record Record, now time.Time) Record {
 	record.Offences = max(record.Offences-1, 0)
-	record.ExpiresAt = now
+	if record.running(now) {
+		record.ExpiresAt = now
+	}
 	return record
 }
 
@@ -141,7 +147,7 @@ func (b *Banner) Unban(ctx context.Context, scope string) error {
 	now := b.clock.Now()
 
 	if err := b.store.Change(ctx, scope, func(record Record, found bool) (Record, bool) {
-		if !found || !record.running(now) {
+		if !found || !record.liftable(now) {
 			return record, false
 		}
 		return lifted(record, now), true
@@ -153,6 +159,18 @@ func (b *Banner) Unban(ctx context.Context, scope string) error {
 }
 
 func (b *Banner) Sentence(ctx context.Context, scope string) (Sentence, bool, error) {
+	return b.sentenceOf(ctx, scope, Record.running)
+}
+
+func (b *Banner) LastSentence(ctx context.Context, scope string) (Sentence, bool, error) {
+	return b.sentenceOf(ctx, scope, Record.liftable)
+}
+
+func (b *Banner) sentenceOf(
+	ctx context.Context,
+	scope string,
+	counted func(Record, time.Time) bool,
+) (Sentence, bool, error) {
 	if scope == "" {
 		return Sentence{}, false, nil
 	}
@@ -161,7 +179,7 @@ func (b *Banner) Sentence(ctx context.Context, scope string) (Sentence, bool, er
 	if err != nil {
 		return Sentence{}, false, fmt.Errorf("failed to read the ban on %q: %w", scope, err)
 	}
-	if !found || !record.running(b.clock.Now()) {
+	if !found || !counted(record, b.clock.Now()) {
 		return Sentence{}, false, nil
 	}
 
