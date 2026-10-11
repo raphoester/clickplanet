@@ -14,6 +14,7 @@ import {authorOf, authorStyle} from "./authorStyle.ts";
 import {RESIZE_EDGES} from "./chatSize.ts";
 import ChatComposer from "./ChatComposer.tsx";
 import ChatLog from "./ChatLog.tsx";
+import DiscordBar from "./DiscordBar.tsx";
 import {useChat} from "./useChat.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
 import {useChatSize} from "./useChatSize.ts";
@@ -203,6 +204,8 @@ export default function ChatPanel(props: ChatPanelProps) {
     const body: ReactNode = view === "online" && players
         ? <div className="chat-players"><PlayersPanel entries={players} onOpenPlayer={props.onOpenPlayer}/></div>
         : <>
+            <DiscordBar/>
+
             <ChatLog messages={messages}
                      announcements={announcements}
                      loading={status === 'loading'}

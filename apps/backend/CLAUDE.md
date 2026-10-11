@@ -2038,7 +2038,7 @@ afternoon; a silent no-op names nothing. It is not permanent (the caller reads
 the map back over the same stream and will notice), but it moves the cost of
 the next round onto them.
 
-#### Nine watchdogs, one jury
+#### Ten watchdogs, one jury
 
 A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 
@@ -2051,6 +2051,7 @@ A `Watchdog` measures one behaviour over one caller and returns a `Verdict`:
 - **`scraper`** — reads the whole map again and again, which the web app never does.
 - **`churner`** — sheds its guest account for a fresh bank: many new accounts on one scope (`churn`), or one fresh account after another across a carrier's /64s (`relay`).
 - **`hopper`** — aims all over the globe: click after click lands a continent away from the last.
+- **`rotator`** — plays several accounts with one hand: they share the same five minutes for hours, and almost never the same second.
 
 **Every watchdog has two levels, and that is the design.** `Certain` is a reading
 no hand produces and bans on its own. `Suspect` is a reading that would ban real
@@ -2205,10 +2206,29 @@ band missed the Bulgaria recapture bot of 2026-09-14 from the other side: 62
 retakes on 61 different tiles, median ~280ms, but a p90-p10 of ~750ms, because its
 retakes queue behind the throttle. A player at war is fast only on the tile its
 cursor is already on. So reactions on `minTiles` different tiles with a median at
-or under `roamMedian` read `Suspect` whatever the spread, and `certainTiles` reads
-`Certain`. The ban line names the stronger rule (`reflex` or `roam`) and carries
-`tiles` either way. `TestTheSameSpeedOnAFewTilesIsATileWar` pins the player
-clicking back at a bot; `TestTheRecaptureBotOfSeptember14IsCaught` replays the bot.
+or under `roamMedian` read `Suspect` whatever the spread. The ban line names the
+stronger rule (`reflex` or `roam`) and carries `tiles` either way.
+`TestTheSameSpeedOnAFewTilesIsATileWar` pins the player clicking back at a bot.
+
+- **It only reads `Suspect`, since 2026-10-11.** Production shipped `certainTiles`
+  30, and on 2026-10-10 it banned three accounts behind one address on `roam` alone:
+  31 reactions on 30 tiles, median 540ms. It was two players in a duel by hand. They
+  swept the same two rows of tiles for 13 seconds, each taking back what the other
+  took, and the other side read `roam` too. A chase along a line puts every tile
+  under the cursor, and no bound tells it from the bot. So production sets no
+  `certainTiles`, and `roam` bans only beside another watchdog.
+  `TestAChaseAlongALineBansNobody` replays the duel.
+- **The bot is still banned, by `roam` and `defender` together**, at its fortieth
+  take: `TestTheRecaptureBotOfSeptember14IsCaught` replays it at production's
+  bounds. It needs those 40 takes inside 10 minutes, where 30 tiles in 15 were
+  enough before.
+- **A duel that goes on is banned the same way.** `roam` and `defender` both read
+  retakes, so in a duel they are one behaviour counted twice. At 40 takes in 10
+  minutes with six in ten of them retakes, `defender` reads too, and the two make a
+  ban: the replay run on past its line is banned after about 17 seconds.
+- **It counts the scope, not the payer.** 2 of the 30 tiles were another account's,
+  four minutes before the duel, and two accounts were banned on their next click
+  with no fast retake of their own.
 
 **`sequencer`: the step, not the size of it.** Tile ids come from the
 icosahedron's vertex order and not from a grid of latitudes, so filling in a
@@ -2592,6 +2612,62 @@ tiles drawn evenly over the sphere).
   so the first try after a boot only starts the next step.
 - The counter-move is to aim near the last tile, which is to paint like a person.
 
+**`rotator`: one hand on several accounts.** The rate limit is per account, and the
+scope's bucket is ten accounts wide, so a second account on the same network doubles
+the clicks. On 2026-10-09 and 10, four of the top five clickers played two or three
+accounts on one scope and changed account each time a bank was empty. They are
+people, not scripts, and every other watchdog read `clear`.
+
+- **The signal is two clocks.** Time is cut in slots of `slot` (5m). Two accounts
+  **share a slot** when each clicked in `minSeconds` (15) different seconds of it. A
+  **shared second** is one both clicked in. One hand shares many slots and almost no
+  second: in the ledger, one group of three shared 101 of 118 slots and 3 of 11,700
+  seconds, and two other groups 62 and 23 slots and no second.
+- **The bound is on what chance gives.** Two people with `a` and `b` active seconds
+  in a slot share about `a·b/slot` of them by chance. A pair is read once that sum,
+  over the slots it shares inside `window` (24h), reaches `minByChance` (90), and it
+  **rotates** when its shared seconds are at most `maxShare` (5%) of it. A share of
+  the active seconds would not do: two slow players share few seconds too.
+- **Set from those numbers.** A household of two shared about 10% of its active
+  seconds and a school of 13 to 21 players about 7%, which is what chance gives two
+  players at their pace; the three groups shared 0.03%, 0 and 0. So people read near
+  1 and one hand under 0.01, and the bound is 20 times under the people.
+- **`minByChance` is what keeps luck out.** Two people who each click in one block
+  of seconds per slot can miss each other for a while. Simulated, the worst such
+  pair, judged at the first moment it can be, reads once in 400 times.
+- **`minSlots` (24) shared slots read `suspect`, `certainSlots` reads `certain`.**
+  Two hours of shared slots, since an hour of turns happens. **Production sets no
+  `certainSlots`**: rotation is a person who cheats the rate limit, and a rule that
+  measured one thing has banned people here before (`stamina`). So it bans only
+  beside another watchdog. `TestTakingTurnsAloneBansNobody` pins it.
+- **It reads tries, like the metronome** (`Attempted`), and judges in `Watch`. A try
+  the throttle refused was made by the same hand, and accepted clicks alone would
+  let one shared bucket space two people apart.
+- **Two guests are never a pair.** The guests behind a scope spend from one bank, so
+  turns buy them nothing. A pair needs one signed-in account: a signed-in account
+  and its guest tab are read.
+- **Same flag only.** The accounts of one hand paint one country, and an account that
+  paints another to dodge this has stopped helping the first.
+- **Each pair is judged alone**, so a trio inside a school is read and no student
+  with it: `TestTurnsInsideASchoolAreReadAndTheSchoolIsNot`.
+- **The reading names the ring.** An account's reading carries the accounts it
+  rotates with (`Evidence.Accomplices`), and a guilty verdict on one falls on all of
+  them: see [the parts that are easy to get wrong](#the-parts-that-are-easy-to-get-wrong).
+  The evidence is the ring's numbers: `accounts`, `sharedSlots`, `sharedSeconds`,
+  `byChance` and `flag`.
+- `click_rotation_share` is each readable pair's shared seconds over what chance
+  gives, once a sweep, for the scopes clicked on since the last one
+  (`Observer.OnRotationShare`). People pile up near 1.
+- **Kept per scope, per account, per slot**, one bit per second: 40 bytes a slot.
+  The section is saved with the slot length, and one saved under another length is
+  dropped on load.
+- **What it does not see**: accounts on two networks, a phone on mobile data and a
+  desktop at home. Those do not share the scope's bucket either. And two people who
+  pass one device back and forth each time a bank is empty read as one hand, which
+  is one more reason it only corroborates.
+- The counter-move is to click with two accounts in the same seconds, which takes two
+  hands or a script, and a script is what the other watchdogs read.
+
 #### The parts that are easy to get wrong
 
 **Three things are deliberately not reactions**, and each is a way to get an
@@ -2701,6 +2777,15 @@ token names (`Click.Account`), and `shadowban.Bans` passes a ban on:
 and `TestABannedGuestWithAFreshCookieIsStillDropped` pin it. The `antibot ban` line
 carries `account`, and `shadowban_flagged` counts running bans on scopes and on
 accounts, so a guest banned on both counts twice.
+
+**A ban on one account of a ring falls on all of it.** The `rotator` names the
+accounts one hand plays (`Evidence.Accomplices`). When a click is guilty and a
+watchdog that fired named accomplices, the jury flags each of them as it flags the
+clicker (`convictsOf`): the account, and its scope too when it is a guest. Each is its
+own `antibot ban` line, with `alongside` set to the account whose click was judged,
+since the opinions on the line are that click's. On 2026-10-09 two accounts of a trio
+were banned and the third played on; `TestTheTrioThatTakesTurnsIsBannedTogether`
+replays it. A lone suspicion passes to nobody.
 
 A scope ban only bites a bot with a stable address — against a residential proxy
 pool it evaporates for exactly the reason the scope's bucket does; the account ban
@@ -2879,7 +2964,7 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
     so a rule that still reads `certain` bans the caller again on its first click after `reflagInterval`, as a
     first offence. **Fix the rule first**, then unban. `InspectPlayer` says which rule it was. Forgetting the
     evidence instead would only put the ban off until the same play reads the same way again, and it would take
-    a forget in each of the nine watchdogs, keyed by scope, by account or by wider prefix. `TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain` pins it.
+    a forget in each of the ten watchdogs, keyed by scope, by account or by wider prefix. `TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain` pins it.
 - **`InspectPlayer(scope | account_id)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`. **An account is read on the scope of its latest take** in the ledger, because the watchdogs judge scopes, with the bans on both; an account with no take inside the retention answers its bans alone and an empty `scope`. It changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `ledger.ParseCaller` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
 - `audit_ban`, `audit_unban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers`, `TopPlayers` and `InspectPlayer` are reads and log nothing.
 
@@ -3138,6 +3223,8 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.catcher.enabled`, `detector.minCatches`, `maxMedian`, `certainMedian` — how many boxes in a row must all be caught, and the median offer-to-claim delay that reads `suspect` then `certain`. Its `trackWindow` must hold `minCatches` boxes at `bonus.maxInterval` plus `bonus.offerTTL`
 - `antiBot.scraper.enabled`, `detector.minMaps`, `certainMaps` — the whole maps read beyond one per stream opened, inside `trackWindow`, that read `suspect` then `certain`
 - `antiBot.scraper.detector.certainOffMap` — the reads off the map, inside `trackWindow`, that read `certain` however little was read; one stray read is forgiven
+- `antiBot.rotator.enabled`, `detector.slot`, `window`, `minSeconds`, `minByChance`, `maxShare` — the length of a slot, how far back slots count, the seconds each account must click in for a pair to share a slot, the shared seconds chance must have given before a pair is read, and the share of them a rotating pair stays under
+- `antiBot.rotator.detector.minSlots`, `certainSlots` — the shared slots that read `suspect` then `certain`; zero never reads, and production sets no `certainSlots`
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `auth.enabled` — off registers nothing, so `auth.v1` and `session.v1` 404 and clicks are judged on address alone
 - `auth.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in

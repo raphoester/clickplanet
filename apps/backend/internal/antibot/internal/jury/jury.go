@@ -8,6 +8,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -129,24 +130,59 @@ func (j *Jury) Inspect(ctx context.Context, click detect.Click) (bool, error) {
 
 	var flagErr error
 	if report, guilty := j.deliberate(click); guilty {
-		sentence, accepted, err := j.banner.Flag(ctx, callerOf(click))
-		flagErr = err
-		if accepted {
-			report.Flags = sentence.Flags
-			report.Offence = sentence.Offence
-			report.BannedUntil = sentence.Until
-			if j.hooks.OnFlag != nil {
-				j.hooks.OnFlag(report)
-			}
-		}
+		flagErr = j.flag(ctx, click, report)
 	}
 
 	banned, err := j.banner.Banned(ctx, callerOf(click))
 	return banned, errors.Join(flagErr, err)
 }
 
+func (j *Jury) flag(ctx context.Context, click detect.Click, report detect.Report) error {
+	var errs []error
+
+	for _, convict := range convictsOf(click, report) {
+		sentence, accepted, err := j.banner.Flag(ctx, convict)
+		errs = append(errs, err)
+		if !accepted || j.hooks.OnFlag == nil {
+			continue
+		}
+
+		passed := report
+		passed.Account = convict.Account
+		if convict.Account != click.Account {
+			passed.Alongside = click.Account
+		}
+		passed.Flags = sentence.Flags
+		passed.Offence = sentence.Offence
+		passed.BannedUntil = sentence.Until
+		j.hooks.OnFlag(passed)
+	}
+
+	return errors.Join(errs...)
+}
+
 func callerOf(click detect.Click) shadowban.Caller {
 	return shadowban.Caller{Scope: click.Scope, Account: click.Account, SignedIn: click.SignedIn}
+}
+
+func convictsOf(click detect.Click, report detect.Report) []shadowban.Caller {
+	convicts := []shadowban.Caller{callerOf(click)}
+	named := cpcolls.NewSet(click.Account)
+
+	for _, opinion := range report.Opinions {
+		if !opinion.Fired() {
+			continue
+		}
+		for _, accomplice := range opinion.Evidence.Accomplices {
+			if named.Contains(accomplice.Account) {
+				continue
+			}
+			named.Add(accomplice.Account)
+			convicts = append(convicts, shadowban.Caller{Scope: click.Scope, Account: accomplice.Account, SignedIn: accomplice.SignedIn})
+		}
+	}
+
+	return convicts
 }
 
 func (j *Jury) Attempted(click detect.Click) {

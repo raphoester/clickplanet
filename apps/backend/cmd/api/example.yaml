@@ -151,7 +151,6 @@ antiBot:
       maxMedian: 250ms
       minTiles: 15
       roamMedian: 600ms
-      certainTiles: 30
       trackWindow: 5m
       sweepInterval: 1m
 
@@ -262,6 +261,17 @@ antiBot:
       minShare: 0.4
       certainSteps: 200
       trackWindow: 15m
+      sweepInterval: 1m
+
+  rotator:
+    enabled: true
+    detector:
+      slot: 5m
+      window: 24h
+      minSeconds: 15
+      minByChance: 90
+      maxShare: 0.05
+      minSlots: 24
       sweepInterval: 1m
 
 chat:

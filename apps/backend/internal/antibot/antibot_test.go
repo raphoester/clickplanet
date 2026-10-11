@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -33,6 +34,7 @@ type stack struct {
 
 	owner   map[uint32]string
 	shields map[uint32]int
+	linked  *cpcolls.Set[string]
 	reports []antibot.Report
 	rises   []string
 	errors  []error
@@ -45,6 +47,7 @@ func newStack(t *testing.T, options ...func(*antibot.Config)) *stack {
 		clock:       cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
 		owner:       map[uint32]string{},
 		shields:     map[uint32]int{},
+		linked:      cpcolls.NewSet[string](),
 		bans:        shadowban.NewMemoryStore(),
 		accountBans: shadowban.NewMemoryStore(),
 		evidence:    evidence.NewMemoryPersistence(),
@@ -130,6 +133,14 @@ func newStack(t *testing.T, options ...func(*antibot.Config)) *stack {
 	config.Hopper.Detector.MinSteps = 40
 	config.Hopper.Detector.MinShare = 0.4
 	config.Hopper.Detector.TrackWindow = 15 * time.Minute
+
+	config.Rotator.Enabled = true
+	config.Rotator.Detector.Slot = 5 * time.Minute
+	config.Rotator.Detector.Window = 24 * time.Hour
+	config.Rotator.Detector.MinSeconds = 15
+	config.Rotator.Detector.MinByChance = 90
+	config.Rotator.Detector.MaxShare = 0.05
+	config.Rotator.Detector.MinSlots = 24
 
 	for _, option := range options {
 		option(&config)
@@ -224,6 +235,7 @@ func (s *stack) clickOn(scope, account string, tile uint32, at antibot.Point, co
 	click := antibot.Click{
 		Scope:    scope,
 		Account:  account,
+		SignedIn: s.linked.Contains(account),
 		Tile:     tile,
 		Position: at,
 		Country:  country,
@@ -493,9 +505,10 @@ func productionRetakes(config *antibot.Config) {
 	config.Defender.Detector.CertainClicks = 200
 	config.Defender.Detector.TrackWindow = 10 * time.Minute
 
+	config.Retaker.Detector.MinReactions = 20
+	config.Retaker.Detector.MaxSpread = 300 * time.Millisecond
 	config.Retaker.Detector.MinTiles = 15
 	config.Retaker.Detector.RoamMedian = 600 * time.Millisecond
-	config.Retaker.Detector.CertainTiles = 30
 	config.Retaker.Detector.TrackWindow = 15 * time.Minute
 }
 
@@ -547,7 +560,47 @@ func TestARecaptureLoopIsCaught(t *testing.T) {
 	}
 
 	require.True(t, dropped)
-	assert.Equal(t, detect.Certain, s.verdicts("loop")["retaker"])
+
+	verdicts := s.verdicts("loop")
+	assert.Equal(t, detect.Suspect, verdicts["retaker"], "fast on every tile it lost, as a hand chasing along a line is")
+	assert.Equal(t, detect.Suspect, verdicts["defender"], "and it takes nothing but what its flag lost")
+}
+
+func TestTheRecaptureBotOfSeptember14IsCaught(t *testing.T) {
+	s := newStack(t, productionRetakes)
+
+	//nolint:gosec // seeded test PRNG
+	random := rand.New(rand.NewPCG(14, 9))
+
+	answers := []int{150, 200, 250, 280, 300, 350, 400, 600, 900, 120}
+
+	var (
+		retakes int
+		dropped bool
+	)
+	for !dropped && retakes < 62 {
+		tile := uint32(120000 + random.IntN(20000))
+		s.owner[tile] = "BG"
+
+		s.clock.Advance(time.Duration(6000+random.IntN(7000)) * time.Millisecond)
+		s.click("raider", tile, "FR")
+
+		s.clock.Advance(time.Duration(answers[retakes%len(answers)]) * time.Millisecond)
+		dropped = s.click("bot", tile, "BG")
+		retakes++
+
+		if retakes%3 == 0 && !dropped {
+			s.clock.Advance(time.Duration(1000+random.IntN(2000)) * time.Millisecond)
+			dropped = s.click("bot", uint32(150000+retakes), "BG")
+		}
+	}
+
+	require.True(t, dropped)
+	assert.Equal(t, 30, retakes, "its fortieth take, where the defender starts to judge: three in four are retakes, the share production measured")
+
+	opinions := s.reports[0].Opinions
+	assert.Contains(t, opinions[0].String(), "suspect roam", "too loose a band for the reflex rule")
+	assert.Contains(t, opinions[3].String(), "suspect defence")
 }
 
 func TestTheReflexBotIsStillCaught(t *testing.T) {
@@ -827,7 +880,7 @@ func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
 	for _, reading := range examination.Readings {
 		watchdogs = append(watchdogs, reading.Watchdog)
 	}
-	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper", "churner", "hopper"}, watchdogs)
+	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper", "churner", "hopper", "rotator"}, watchdogs)
 	assert.False(t, examination.Guilty)
 }
 

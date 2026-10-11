@@ -1155,6 +1155,34 @@ describe("ChatPanel's players", () => {
     })
 })
 
+describe("ChatPanel's Discord bar", () => {
+    const discord = () => screen.queryByRole("link", {name: "Join the Discord"})
+
+    it("sits over the chat, and not over who is online", async () => {
+        const user = userEvent.setup()
+        render(<ChatPanel backend={stubBackend().backend} country={france} players={[]}/>)
+        expect(discord()).not.toBeNull()
+
+        await user.click(screen.getByRole("tab", {name: "0 players online"}))
+        expect(discord()).toBeNull()
+    })
+
+    it("is in the phone's sheet too", () => {
+        render(<ChatPanel backend={stubBackend().backend} country={france} compact open/>)
+        expect(discord()).not.toBeNull()
+    })
+
+    it("stays gone once its cross is pressed, through a fold of the chat", async () => {
+        const {user} = setup(stubBackend().backend)
+
+        await user.click(screen.getByRole("button", {name: "Hide the Discord link"}))
+        await user.click(screen.getByRole("button", {name: "Fold the chat"}))
+        await user.click(screen.getByRole("button", {name: /Chat/}))
+
+        expect(discord()).toBeNull()
+    })
+})
+
 describe("ChatPanel on a phone", () => {
     const phone = (backend: ChatBackend, open: boolean, onOpenChange = vi.fn(), onUnread = vi.fn()) =>
         render(<ChatPanel backend={backend} country={france} compact open={open} onOpenChange={onOpenChange} onUnread={onUnread}/>)
