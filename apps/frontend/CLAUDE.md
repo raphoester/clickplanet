@@ -490,6 +490,12 @@ the unread count up through `onUnread`, for the tab's badge.
 **The chat and who is online share the panel**: with a roster wired, its header
 is two tabs, Chat and "Online · N" (see [Who is playing](#who-is-playing)).
 
+**A Discord bar sits over the log** (`DiscordBar`), on a desktop and in the
+phone's sheet: a link to `DISCORD_INVITE` and a cross. The cross hides it for
+good, kept in `clickplanet-discord-bar` (`useDiscordBar`). **It is a plain
+link**: the privacy page says nothing is sent to Discord before a click, so it
+asks Discord for no member count.
+
 **The open panel is resized from its top edge, its left edge or its top-left
 corner**, and a double-click on one puts the default back (`useChatSize`). Not
 on a phone, where it is a sheet. What the player dragged to is kept

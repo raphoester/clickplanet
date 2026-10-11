@@ -348,6 +348,76 @@
     margin-top: 6px;
 }
 
+.chat-discord {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin: 0 var(--space-1) var(--space-1);
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-m);
+    background: var(--discord);
+    box-shadow: var(--drop-s);
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+
+.chat-discord:has(.chat-discord-link:hover) {
+    filter: brightness(1.12);
+}
+
+.chat-discord:has(.chat-discord-link:active) {
+    transform: translateY(3px);
+    box-shadow: none;
+}
+
+.chat-discord-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 44px;
+    padding-left: var(--space-3);
+    color: var(--text);
+}
+
+.chat-discord-link:hover {
+    text-decoration: none;
+}
+
+.chat-discord-link svg {
+    flex-shrink: 0;
+}
+
+.chat-discord-label {
+    min-width: 0;
+    padding-top: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-display);
+    font-size: var(--display-m);
+    line-height: 1;
+    text-shadow: var(--text-drop);
+}
+
+.chat-discord-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    align-self: stretch;
+    width: 44px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: color-mix(in srgb, var(--text) 75%, var(--discord));
+    cursor: pointer;
+}
+
+.chat-discord-close:hover {
+    color: var(--text);
+}
+
 .chat-log-shell {
     position: relative;
     display: flex;
@@ -923,6 +993,14 @@
     .chat-reaction:not(:disabled):hover,
     .chat-reaction-choice:hover img,
     .chat-reaction-choice:focus-visible img {
+        transform: none;
+    }
+
+    .chat-discord {
+        transition: none;
+    }
+
+    .chat-discord:has(.chat-discord-link:active) {
         transform: none;
     }
 }
