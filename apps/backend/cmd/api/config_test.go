@@ -130,6 +130,15 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.Equal(t, time.Hour, config.Auth.TTL)
 }
 
+func TestTheLocalStackConfigHasTheMapOfTheExampleAndAnInternalListener(t *testing.T) {
+	var example, local Config
+	require.NoError(t, cpconfigs.Load(&example, cpconfigs.FromFile("example.yaml")))
+	require.NoError(t, cpconfigs.Load(&local, cpconfigs.FromFile("../../../../deploy/backend.yaml")))
+
+	assert.Equal(t, example.Planet.GameMap.MaxIndex, local.Planet.GameMap.MaxIndex)
+	assert.NotEmpty(t, local.HTTPServer.InternalBindAddress, "chat, player and seasons dial it while they are built")
+}
+
 func TestTheExampleConfigReachesTheBombSettings(t *testing.T) {
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
