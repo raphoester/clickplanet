@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_ban_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_evidence_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rotator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/scraper"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sequencer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
@@ -54,6 +55,7 @@ type Config struct {
 	Scraper   scraperConfig
 	Churner   churnerConfig
 	Hopper    hopperConfig
+	Rotator   rotatorConfig
 }
 
 func (c Config) Validate() error {
@@ -121,6 +123,11 @@ type hopperConfig struct {
 	Detector hopper.Config
 }
 
+type rotatorConfig struct {
+	Enabled  bool
+	Detector rotator.Config
+}
+
 type Observer struct {
 	OnReaction func(delay time.Duration)
 
@@ -141,6 +148,8 @@ type Observer struct {
 	OnRelayLinks func(links int)
 
 	OnHopShare func(share float64)
+
+	OnRotationShare func(share float64)
 
 	OnFlag func(report Report)
 
@@ -319,6 +328,19 @@ func build(
 		watchdogs = append(watchdogs, watchdog)
 		sections = append(sections, watchdog)
 		names = append(names, hopper.Name)
+	}
+
+	if config.Rotator.Enabled {
+		onRotationShare := observer.OnRotationShare
+		if onRotationShare == nil {
+			onRotationShare = func(float64) {}
+		}
+
+		watchdog := rotator.New(config.Rotator.Detector, clock, onRotationShare)
+		g.runners = append(g.runners, watchdog.Run)
+		watchdogs = append(watchdogs, watchdog)
+		sections = append(sections, watchdog)
+		names = append(names, rotator.Name)
 	}
 
 	if len(watchdogs) == 0 {

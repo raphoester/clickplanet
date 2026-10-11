@@ -98,6 +98,16 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 40, hopper.Detector.MinSteps)
 	assert.InDelta(t, 0.4, hopper.Detector.MinShare, 1e-9)
 	assert.Zero(t, hopper.Detector.CertainShare, "it only corroborates")
+
+	rotator := config.Planet.AntiBot.Rotator
+	require.True(t, rotator.Enabled)
+	assert.Equal(t, 5*time.Minute, rotator.Detector.Slot)
+	assert.Equal(t, 24*time.Hour, rotator.Detector.Window)
+	assert.Equal(t, 15, rotator.Detector.MinSeconds)
+	assert.InDelta(t, 90, rotator.Detector.MinByChance, 1e-9)
+	assert.InDelta(t, 0.05, rotator.Detector.MaxShare, 1e-9)
+	assert.Equal(t, 24, rotator.Detector.MinSlots)
+	assert.Zero(t, rotator.Detector.CertainSlots, "it only corroborates")
 }
 
 func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {

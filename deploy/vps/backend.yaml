@@ -199,6 +199,17 @@ antiBot:
       trackWindow: 15m
       sweepInterval: 1m
 
+  rotator:
+    enabled: true
+    detector:
+      slot: 5m
+      window: 24h
+      minSeconds: 15
+      minByChance: 90
+      maxShare: 0.05
+      minSlots: 24
+      sweepInterval: 1m
+
 bonus:
   minInterval: 4m
   maxInterval: 8m

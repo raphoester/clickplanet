@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -33,6 +34,7 @@ type stack struct {
 
 	owner   map[uint32]string
 	shields map[uint32]int
+	linked  *cpcolls.Set[string]
 	reports []antibot.Report
 	rises   []string
 	errors  []error
@@ -45,6 +47,7 @@ func newStack(t *testing.T, options ...func(*antibot.Config)) *stack {
 		clock:       cptime.NewFixedClock(time.Date(2026, 9, 11, 2, 0, 0, 0, time.UTC)),
 		owner:       map[uint32]string{},
 		shields:     map[uint32]int{},
+		linked:      cpcolls.NewSet[string](),
 		bans:        shadowban.NewMemoryStore(),
 		accountBans: shadowban.NewMemoryStore(),
 		evidence:    evidence.NewMemoryPersistence(),
@@ -130,6 +133,14 @@ func newStack(t *testing.T, options ...func(*antibot.Config)) *stack {
 	config.Hopper.Detector.MinSteps = 40
 	config.Hopper.Detector.MinShare = 0.4
 	config.Hopper.Detector.TrackWindow = 15 * time.Minute
+
+	config.Rotator.Enabled = true
+	config.Rotator.Detector.Slot = 5 * time.Minute
+	config.Rotator.Detector.Window = 24 * time.Hour
+	config.Rotator.Detector.MinSeconds = 15
+	config.Rotator.Detector.MinByChance = 90
+	config.Rotator.Detector.MaxShare = 0.05
+	config.Rotator.Detector.MinSlots = 24
 
 	for _, option := range options {
 		option(&config)
@@ -224,6 +235,7 @@ func (s *stack) clickOn(scope, account string, tile uint32, at antibot.Point, co
 	click := antibot.Click{
 		Scope:    scope,
 		Account:  account,
+		SignedIn: s.linked.Contains(account),
 		Tile:     tile,
 		Position: at,
 		Country:  country,
@@ -827,7 +839,7 @@ func TestExaminingABannedScopeCarriesItsSentence(t *testing.T) {
 	for _, reading := range examination.Readings {
 		watchdogs = append(watchdogs, reading.Watchdog)
 	}
-	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper", "churner", "hopper"}, watchdogs)
+	assert.Equal(t, []string{"retaker", "sequencer", "metronome", "catcher", "cohort", "scraper", "churner", "hopper", "rotator"}, watchdogs)
 	assert.False(t, examination.Guilty)
 }
 
