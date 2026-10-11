@@ -73,11 +73,23 @@ func (b *Bans) Banned(ctx context.Context, caller Caller) (bool, error) {
 }
 
 func (b *Bans) Sentence(ctx context.Context, caller Caller) (Sentence, bool, error) {
-	scope, onScope, err := b.scopes.Sentence(ctx, caller.Scope)
+	return b.sentenceOf(ctx, caller, (*Banner).Sentence)
+}
+
+func (b *Bans) LastSentence(ctx context.Context, caller Caller) (Sentence, bool, error) {
+	return b.sentenceOf(ctx, caller, (*Banner).LastSentence)
+}
+
+func (b *Bans) sentenceOf(
+	ctx context.Context,
+	caller Caller,
+	read func(*Banner, context.Context, string) (Sentence, bool, error),
+) (Sentence, bool, error) {
+	scope, onScope, err := read(b.scopes, ctx, caller.Scope)
 	if err != nil {
 		return Sentence{}, false, err
 	}
-	account, onAccount, err := b.accounts.Sentence(ctx, caller.Account)
+	account, onAccount, err := read(b.accounts, ctx, caller.Account)
 	if err != nil {
 		return Sentence{}, false, err
 	}

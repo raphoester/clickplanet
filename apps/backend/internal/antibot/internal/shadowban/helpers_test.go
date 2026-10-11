@@ -40,6 +40,13 @@ func (b banner) Sentence(scope string) (shadowban.Sentence, bool) {
 	return sentence, running
 }
 
+func (b banner) LastSentence(scope string) (shadowban.Sentence, bool) {
+	b.t.Helper()
+	sentence, found, err := b.inner.LastSentence(b.t.Context(), scope)
+	require.NoError(b.t, err)
+	return sentence, found
+}
+
 func (b banner) Banned(scope string) bool {
 	b.t.Helper()
 	banned, err := b.inner.Banned(b.t.Context(), scope)
@@ -85,6 +92,13 @@ func (b bans) Sentence(caller shadowban.Caller) (shadowban.Sentence, bool) {
 	sentence, running, err := b.inner.Sentence(b.t.Context(), caller)
 	require.NoError(b.t, err)
 	return sentence, running
+}
+
+func (b bans) LastSentence(caller shadowban.Caller) (shadowban.Sentence, bool) {
+	b.t.Helper()
+	sentence, found, err := b.inner.LastSentence(b.t.Context(), caller)
+	require.NoError(b.t, err)
+	return sentence, found
 }
 
 func (b bans) Banned(caller shadowban.Caller) bool {

@@ -1179,7 +1179,8 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 ### Unban a player
 
 For a ban that was a mistake: a rule read a person as a bot, or you banned the
-wrong player. It ends the ban now. There is no restart and no SQL:
+wrong player. It ends the ban now, or forgets a ban that already ended. There is
+no restart and no SQL:
 
 ```bash
 docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --post-data '{"accountId":"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}' http://127.0.0.1:8081/planet.v1.AdminService/UnbanPlayer
@@ -1193,7 +1194,11 @@ docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --pos
   [`InspectPlayer`](#see-how-close-the-antibot-is-to-one-player) shows which
   rule it was. Change the rule and deploy, then unban.
 - **The ban's offence is forgotten**: the next ban takes the same step of the
-  ladder (24h for a first offence). An older offence still counts.
+  ladder (24h for a first offence). This works after the ban ended too, so a
+  player banned by mistake yesterday does not get 7 days at the next flag.
+- **One call forgets one offence**, the latest. An older offence still counts;
+  send the call again to forget it too. The answer gives the offence that was
+  forgotten. A player with no offence left answers `not_found`.
 - **A guest that the jury banned is banned on its account and on its scope.**
   Send two calls, one with `accountId` and one with `scope`. `InspectPlayer` with
   the `accountId` gives the scope of its latest take. A signed-in player is

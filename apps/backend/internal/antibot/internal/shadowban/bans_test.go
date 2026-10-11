@@ -108,3 +108,24 @@ func TestAnUnbanLiftsOnlyTheBanItNames(t *testing.T) {
 	assert.False(t, bans.Banned(guest))
 	assert.Equal(t, 0, bans.Flagged())
 }
+
+func TestTheLastSentenceOfAnAccountIsReadAfterItsBanEnded(t *testing.T) {
+	clock := newClock()
+	bans, _, accounts := newBans(t, clock)
+	player := shadowban.Caller{Account: "player"}
+
+	banned := bans.Ban(player, 0)
+	clock.Advance(2 * time.Hour)
+
+	_, running := bans.Sentence(player)
+	require.False(t, running)
+
+	last, found := bans.LastSentence(player)
+	require.True(t, found)
+	assert.Equal(t, banned, last)
+
+	bans.Unban(player)
+	_, found = bans.LastSentence(player)
+	assert.False(t, found)
+	assert.Equal(t, 0, accounts.Stored()["player"].Offences)
+}
