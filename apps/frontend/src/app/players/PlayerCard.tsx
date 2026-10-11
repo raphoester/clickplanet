@@ -1,4 +1,6 @@
+import {useState} from "react"
 import {PlayerInfo, PlayerInfoBackend, PlayerLine, PlayerTitle} from "../../backends/player.ts"
+import {PlayerReporter} from "../../backends/support.ts"
 import {Countries} from "../../domain/countries.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
@@ -6,6 +8,7 @@ import CountryFlag from "../components/CountryFlag.tsx"
 import Modal from "../components/Modal.tsx"
 import {StatTile, StatTiles} from "../components/StatTiles.tsx"
 import {days} from "../days.ts"
+import ReportPlayerModal from "../support/ReportPlayerModal.tsx"
 import OgStamp from "../titles/OgStamp.tsx"
 import TitleBanner from "../titles/TitleBanner.tsx"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
@@ -23,10 +26,14 @@ const count = new Intl.NumberFormat()
 export type PlayerCardProps = {
     player: PlayerLine
     backend: PlayerInfoBackend
+    // With it the card offers to report the player; `messageId` is the chat message the card was opened from.
+    reporter?: PlayerReporter
+    messageId?: string
     onClose: () => void
 }
 
-export default function PlayerCard({player, backend, onClose}: PlayerCardProps) {
+export default function PlayerCard({player, backend, reporter, messageId, onClose}: PlayerCardProps) {
+    const [reporting, setReporting] = useState(false)
     const state = usePlayerInfo(backend, player)
     const country = Countries.get(player.countryCode)?.name ?? player.countryCode
 
@@ -40,7 +47,18 @@ export default function PlayerCard({player, backend, onClose}: PlayerCardProps) 
     </span>
     const frame = info?.wornTitle ? ` title-frame-${metalOf(info.wornTitle)}` : ""
 
-    return <Modal title={title} className={`player-card${frame}`} onClose={onClose}>
+    if (reporting && reporter) {
+        return <ReportPlayerModal name={player.name}
+                                  messageId={messageId}
+                                  reporter={reporter}
+                                  onClose={() => setReporting(false)}/>
+    }
+
+    const report = reporter && <button type="button" className="player-card-report" onClick={() => setReporting(true)}>
+        Report
+    </button>
+
+    return <Modal title={title} className={`player-card${frame}`} footer={report} onClose={onClose}>
         <div className="player-card-who">
             <span className="player-card-country" role="img" aria-label={country} title={country}>
                 <CountryFlag code={player.countryCode}/>

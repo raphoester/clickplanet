@@ -8,6 +8,8 @@ import "support/v1/support.proto";
 // Unauthenticated: serve only on the loopback admin listener, never the public router.
 service AdminService {
   rpc ListNotes(ListNotesRequest) returns (ListNotesResponse);
+
+  rpc ListReports(ListReportsRequest) returns (ListReportsResponse);
 }
 
 enum NoteKind {
@@ -39,4 +41,28 @@ message Note {
   BugContext context = 6;
   // Only a bug report has one.
   string user_agent = 7;
+}
+
+message ListReportsRequest {
+  // Unset is every report kept.
+  google.protobuf.Timestamp since = 1;
+  // Unset is 100; at most 500.
+  uint32 limit = 2;
+}
+
+message ListReportsResponse {
+  repeated Report reports = 1;
+}
+
+message Report {
+  string id = 1;
+  string reporter_account_id = 2;
+  string reported_account_id = 3;
+  ReportReason reason = 4;
+  string text = 5;
+  string message_id = 6;
+  google.protobuf.Timestamp reported_at = 7;
+  // The name the game shows for each account now; empty for one it can no longer name.
+  string reporter_name = 8;
+  string reported_name = 9;
 }

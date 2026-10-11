@@ -98,29 +98,22 @@ func TestAGuestReportsABugAndTheOperatorReadsItWithThePageAndTheBrowser(t *testi
 	assert.Empty(t, every[1].GetUserAgent())
 }
 
-func TestABugReportNeedsAnAccountAndAText(t *testing.T) {
+func TestANoteNeedsAnAccountAndAText(t *testing.T) {
 	game := startGame(t)
 	guest := game.newPlayer(t)
 
-	anonymous := connect.NewRequest(&supportv1.ReportBugRequest{Text: "the globe is black"})
-	anonymous.Header().Set("X-Real-IP", callerIP)
-	_, err := guest.support().ReportBug(t.Context(), anonymous)
+	suggestion := connect.NewRequest(&supportv1.SuggestFeatureRequest{Text: "a night mode"})
+	suggestion.Header().Set("X-Real-IP", callerIP)
+	_, err := guest.support().SuggestFeature(t.Context(), suggestion)
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 
-	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(guest.reportBug("   ", nil, "")))
-	assert.Empty(t, game.notes(t))
-}
-
-func TestASuggestionNeedsAnAccountAndAText(t *testing.T) {
-	game := startGame(t)
-	guest := game.newPlayer(t)
-
-	anonymous := connect.NewRequest(&supportv1.SuggestFeatureRequest{Text: "a night mode"})
-	anonymous.Header().Set("X-Real-IP", callerIP)
-	_, err := guest.support().SuggestFeature(t.Context(), anonymous)
+	bug := connect.NewRequest(&supportv1.ReportBugRequest{Text: "the globe is black"})
+	bug.Header().Set("X-Real-IP", callerIP)
+	_, err = guest.support().ReportBug(t.Context(), bug)
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(guest.suggest("   ")))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(guest.reportBug("   ", nil, "")))
 	assert.Empty(t, game.notes(t))
 }
 
@@ -135,13 +128,18 @@ func TestAnAddressSendsThreeNotesAtOnceAndACallWithNoSessionSpendsNone(t *testin
 		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	}
 
+	game.namedPlayer(t, "google-ada", "Ada")
+
 	require.NoError(t, guest.suggest("an idea"))
 	require.NoError(t, guest.reportBug("a bug", nil, ""))
-	require.NoError(t, guest.suggest("another idea"))
+	require.NoError(t, guest.reportPlayer("Ada", supportv1.ReportReason_REPORT_REASON_CHEATING, "", ""))
 	assert.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(guest.suggest("one too many")))
-	assert.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(guest.reportBug("one too many", nil, "")),
-		"suggestions and bug reports spend one allowance")
-	assert.Len(t, game.notes(t), 3)
+	assert.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(guest.reportBug("one too many", nil, "")))
+	assert.Equal(t, connect.CodeResourceExhausted,
+		connect.CodeOf(guest.reportPlayer("Ada", supportv1.ReportReason_REPORT_REASON_CHEATING, "", "")),
+		"suggestions, bug reports and player reports spend one allowance")
+	assert.Len(t, game.notes(t), 2)
+	assert.Len(t, game.reports(t), 1)
 }
 
 func TestADeletedAccountLosesItsNotes(t *testing.T) {
@@ -163,11 +161,129 @@ func TestADeletedAccountLosesItsNotes(t *testing.T) {
 	assert.Equal(t, "more flags", notes[0].GetText())
 }
 
-func TestTheOperatorsListIsNotOnThePublicRouter(t *testing.T) {
+func TestTheOperatorsListsAreNotOnThePublicRouter(t *testing.T) {
 	game := startGame(t)
+	public := supportv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL)
 
-	_, err := supportv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).ListNotes(t.Context(),
-		connect.NewRequest(&supportv1.ListNotesRequest{}))
-
+	_, err := public.ListNotes(t.Context(), connect.NewRequest(&supportv1.ListNotesRequest{}))
 	assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
+
+	_, err = public.ListReports(t.Context(), connect.NewRequest(&supportv1.ListReportsRequest{}))
+	assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
+}
+
+func (p *gamer) reportPlayer(name string, reason supportv1.ReportReason, text string, messageID string) error {
+	p.t.Helper()
+
+	req := connect.NewRequest(&supportv1.ReportPlayerRequest{Name: name, Reason: reason, Text: text, MessageId: messageID})
+	p.send(req.Header())
+	if _, err := p.support().ReportPlayer(p.t.Context(), req); err != nil {
+		return fmt.Errorf("ReportPlayer failed: %w", err)
+	}
+	return nil
+}
+
+func (s gameStack) reports(t *testing.T) []*supportv1.Report {
+	t.Helper()
+
+	res, err := supportv1connect.NewAdminServiceClient(http.DefaultClient, s.adminURL).ListReports(t.Context(),
+		connect.NewRequest(&supportv1.ListReportsRequest{}))
+	require.NoError(t, err)
+	return res.Msg.GetReports()
+}
+
+func TestAGuestReportsAPlayerFromAMessageAndTheOperatorReadsWhoAndWhy(t *testing.T) {
+	game := startGame(t)
+	ada := game.namedPlayer(t, "google-ada", "Ada_L")
+	said, err := ada.post()
+	require.NoError(t, err)
+	guest := game.newPlayer(t)
+	asGuest, err := guest.post()
+	require.NoError(t, err)
+
+	require.NoError(t, guest.reportPlayer(" ada_l ", supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE,
+		"  it insults everyone  ", said.GetId()))
+
+	reports := game.reports(t)
+	require.Len(t, reports, 1)
+	assert.Equal(t, guest.account(), reports[0].GetReporterAccountId())
+	assert.Equal(t, asGuest.GetAuthorName(), reports[0].GetReporterName())
+	assert.Equal(t, ada.account(), reports[0].GetReportedAccountId())
+	assert.Equal(t, "Ada_L", reports[0].GetReportedName())
+	assert.Equal(t, supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE, reports[0].GetReason())
+	assert.Equal(t, "it insults everyone", reports[0].GetText())
+	assert.Equal(t, said.GetId(), reports[0].GetMessageId())
+	assert.WithinDuration(t, time.Now(), reports[0].GetReportedAt().AsTime(), time.Minute)
+}
+
+func TestAGuestIsReportedUnderTheNameTheChatShowsForIt(t *testing.T) {
+	game := startGame(t)
+	spammer, reporter := game.newPlayer(t), game.newPlayer(t)
+	said, err := spammer.post()
+	require.NoError(t, err)
+	require.Regexp(t, guestName, said.GetAuthorName())
+
+	require.NoError(t, reporter.reportPlayer(said.GetAuthorName(), supportv1.ReportReason_REPORT_REASON_OTHER, "", ""))
+
+	reports := game.reports(t)
+	require.Len(t, reports, 1)
+	assert.Equal(t, spammer.account(), reports[0].GetReportedAccountId())
+	assert.Equal(t, said.GetAuthorName(), reports[0].GetReportedName())
+	assert.Empty(t, reports[0].GetText())
+	assert.Empty(t, reports[0].GetMessageId())
+}
+
+func TestAReportNeedsAnAccountAReasonAndAPlayerWhoIsNotTheReporter(t *testing.T) {
+	game := startGame(t)
+	ada := game.namedPlayer(t, "google-ada", "Ada_L")
+	game.namedPlayer(t, "google-bob", "Bob")
+
+	anonymous := connect.NewRequest(&supportv1.ReportPlayerRequest{Name: "Bob", Reason: supportv1.ReportReason_REPORT_REASON_CHEATING})
+	anonymous.Header().Set("X-Real-IP", callerIP)
+	_, err := ada.support().ReportPlayer(t.Context(), anonymous)
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+
+	assert.Equal(t, connect.CodeInvalidArgument,
+		connect.CodeOf(ada.reportPlayer("Bob", supportv1.ReportReason_REPORT_REASON_UNSPECIFIED, "", "")))
+	assert.Equal(t, connect.CodeNotFound,
+		connect.CodeOf(ada.reportPlayer("Nobody", supportv1.ReportReason_REPORT_REASON_CHEATING, "", "")))
+	assert.Equal(t, connect.CodeInvalidArgument,
+		connect.CodeOf(ada.reportPlayer("ada_l", supportv1.ReportReason_REPORT_REASON_CHEATING, "", "")), "itself")
+	assert.Empty(t, game.reports(t))
+}
+
+func TestAnAccountReportsAPlayerOnceADay(t *testing.T) {
+	game := startGame(t)
+	ada := game.namedPlayer(t, "google-ada", "Ada_L")
+	game.namedPlayer(t, "google-bob", "Bob")
+	game.namedPlayer(t, "google-cyd", "Cyd")
+
+	require.NoError(t, ada.reportPlayer("Bob", supportv1.ReportReason_REPORT_REASON_CHEATING, "", ""))
+	assert.Equal(t, connect.CodeAlreadyExists,
+		connect.CodeOf(ada.reportPlayer("bob", supportv1.ReportReason_REPORT_REASON_BAD_NAME, "again", "")))
+	require.NoError(t, ada.reportPlayer("Cyd", supportv1.ReportReason_REPORT_REASON_CHEATING, "", ""), "another player")
+
+	assert.Len(t, game.reports(t), 2)
+}
+
+func TestADeletedAccountTakesTheReportsItFiledAndTheReportsAboutIt(t *testing.T) {
+	game := startGame(t)
+	leaving := game.namedPlayer(t, "google-ada", "Ada_L")
+	bob := game.namedPlayer(t, "google-bob", "Bob")
+	cyd := game.namedPlayer(t, "google-cyd", "Cyd")
+	require.NoError(t, leaving.reportPlayer("Bob", supportv1.ReportReason_REPORT_REASON_CHEATING, "", ""))
+	require.NoError(t, bob.reportPlayer("Ada_L", supportv1.ReportReason_REPORT_REASON_BAD_NAME, "", ""))
+	require.NoError(t, cyd.reportPlayer("Bob", supportv1.ReportReason_REPORT_REASON_OTHER, "kept", ""))
+
+	deletion := connect.NewRequest(&authv1.DeleteAccountRequest{})
+	leaving.send(deletion.Header())
+	_, err := authv1connect.NewAuthServiceClient(http.DefaultClient, game.baseURL).DeleteAccount(t.Context(), deletion)
+	require.NoError(t, err)
+
+	var reports []*supportv1.Report
+	require.Eventually(t, func() bool {
+		reports = game.reports(t)
+		return len(reports) == 1
+	}, 5*time.Second, 20*time.Millisecond)
+	assert.Equal(t, "kept", reports[0].GetText())
 }

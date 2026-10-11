@@ -1,10 +1,20 @@
-import {BugContext, SupportBackend, SupportNoSessionError, SupportRateLimitedError, SupportRejectedError} from "./support.ts";
+import {
+    BugContext,
+    PlayerReport,
+    SupportBackend,
+    SupportNoSessionError,
+    SupportRateLimitedError,
+    SupportRejectedError,
+    SupportReportedAlreadyError,
+    SupportUnknownPlayerError,
+} from "./support.ts";
 
-export type FakeSupportRefusal = "rate-limited" | "rejected" | "no-session" | "failed"
+export type FakeSupportRefusal = "rate-limited" | "rejected" | "no-session" | "unknown-player" | "reported-already" | "failed"
 
 export type FakeSupportNote =
     | {kind: "suggestion", text: string}
     | {kind: "bug", text: string, context: BugContext}
+    | {kind: "report", report: PlayerReport}
 
 const ANSWER_DELAY_MS = 400
 
@@ -31,6 +41,11 @@ export class FakeSupportBackend implements SupportBackend {
         this.sent.push({kind: "bug", text, context})
     }
 
+    public async reportPlayer(report: PlayerReport): Promise<void> {
+        await this.answer()
+        this.sent.push({kind: "report", report})
+    }
+
     private async answer(): Promise<void> {
         await new Promise((resolve) => setTimeout(resolve, this.delayMs))
 
@@ -41,6 +56,10 @@ export class FakeSupportBackend implements SupportBackend {
                 throw new SupportRejectedError()
             case "no-session":
                 throw new SupportNoSessionError()
+            case "unknown-player":
+                throw new SupportUnknownPlayerError()
+            case "reported-already":
+                throw new SupportReportedAlreadyError()
             case "failed":
                 throw new Error("the fake support backend failed")
         }

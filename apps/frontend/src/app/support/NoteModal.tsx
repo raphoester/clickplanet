@@ -1,4 +1,4 @@
-import {FormEvent, useEffect, useId, useRef, useState} from "react"
+import {FormEvent, ReactNode, useEffect, useId, useRef, useState} from "react"
 import {countRunes} from "../../backends/chat.ts"
 import {MAX_NOTE_LENGTH} from "../../backends/support.ts"
 import Modal from "../components/Modal.tsx"
@@ -9,6 +9,9 @@ export type NoteModalProps = {
     title: string
     label: string
     placeholder: string
+    // What the form asks before the text. With it the text is optional, and Send waits for `ready`.
+    asked?: ReactNode
+    ready?: boolean
     onSend: (text: string) => Promise<void>
     onClose: () => void
 }
@@ -24,11 +27,15 @@ export default function NoteModal(props: NoteModalProps) {
     const formId = useId()
     const fieldId = useId()
 
-    useEffect(() => box.current?.focus(), [])
+    const textOnly = props.asked === undefined
+    useEffect(() => {
+        if (textOnly) box.current?.focus()
+    }, [textOnly])
 
     const length = countRunes(text.trim())
     const sending = state.kind === "sending"
-    const canSend = !sending && length > 0 && length <= MAX_NOTE_LENGTH
+    const answered = textOnly ? length > 0 : props.ready === true
+    const canSend = !sending && answered && length <= MAX_NOTE_LENGTH
 
     const submit = async (event: FormEvent) => {
         event.preventDefault()
@@ -65,11 +72,12 @@ export default function NoteModal(props: NoteModalProps) {
                   </button>}
                   onClose={props.onClose}>
         <form id={formId} className="support-form" onSubmit={submit} aria-busy={sending}>
+            {props.asked}
             <label className="menu-label" htmlFor={fieldId}>{props.label}</label>
             <textarea id={fieldId}
                       ref={box}
-                      className="field support-text"
-                      rows={6}
+                      className={textOnly ? "field support-text" : "field support-text support-text--short"}
+                      rows={textOnly ? 6 : 3}
                       value={text}
                       readOnly={sending}
                       placeholder={props.placeholder}

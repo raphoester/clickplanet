@@ -18,7 +18,7 @@ import {useAccount} from "./account/useAccount.ts";
 import AccountPanel from "./account/AccountPanel.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerInfoBackend} from "../backends/player.ts";
-import {SupportBackend} from "../backends/support.ts";
+import {BugReporter, FeatureSuggester} from "../backends/support.ts";
 import NoteModal from "./support/NoteModal.tsx";
 import {bugContextOf} from "./support/bugContext.ts";
 import {youLabel} from "./youLabel.ts"
@@ -55,7 +55,7 @@ export type YouPlaceProps = {
 export type MorePlaceProps = {
     onTakePicture?: () => void,
     taking?: boolean,
-    support?: SupportBackend,
+    support?: FeatureSuggester & BugReporter,
     connectionDown?: boolean,
 }
 

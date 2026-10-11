@@ -21,6 +21,61 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ReportReason int32
+
+const (
+	ReportReason_REPORT_REASON_UNSPECIFIED ReportReason = 0
+	ReportReason_REPORT_REASON_CHEATING    ReportReason = 1
+	ReportReason_REPORT_REASON_CHAT_ABUSE  ReportReason = 2
+	ReportReason_REPORT_REASON_BAD_NAME    ReportReason = 3
+	ReportReason_REPORT_REASON_OTHER       ReportReason = 4
+)
+
+// Enum value maps for ReportReason.
+var (
+	ReportReason_name = map[int32]string{
+		0: "REPORT_REASON_UNSPECIFIED",
+		1: "REPORT_REASON_CHEATING",
+		2: "REPORT_REASON_CHAT_ABUSE",
+		3: "REPORT_REASON_BAD_NAME",
+		4: "REPORT_REASON_OTHER",
+	}
+	ReportReason_value = map[string]int32{
+		"REPORT_REASON_UNSPECIFIED": 0,
+		"REPORT_REASON_CHEATING":    1,
+		"REPORT_REASON_CHAT_ABUSE":  2,
+		"REPORT_REASON_BAD_NAME":    3,
+		"REPORT_REASON_OTHER":       4,
+	}
+)
+
+func (x ReportReason) Enum() *ReportReason {
+	p := new(ReportReason)
+	*p = x
+	return p
+}
+
+func (x ReportReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReportReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_support_v1_support_proto_enumTypes[0].Descriptor()
+}
+
+func (ReportReason) Type() protoreflect.EnumType {
+	return &file_support_v1_support_proto_enumTypes[0]
+}
+
+func (x ReportReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReportReason.Descriptor instead.
+func (ReportReason) EnumDescriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{0}
+}
+
 type SuggestFeatureRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
@@ -260,6 +315,113 @@ func (x *BugContext) GetConnectionDown() bool {
 	return false
 }
 
+type ReportPlayerRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The name the game shows for the player: its username, or guest_ and its guest code.
+	Name   string       `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Reason ReportReason `protobuf:"varint,2,opt,name=reason,proto3,enum=support.v1.ReportReason" json:"reason,omitempty"`
+	// Optional.
+	Text string `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	// Optional: the chat message the report is about.
+	MessageId     string `protobuf:"bytes,4,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportPlayerRequest) Reset() {
+	*x = ReportPlayerRequest{}
+	mi := &file_support_v1_support_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportPlayerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportPlayerRequest) ProtoMessage() {}
+
+func (x *ReportPlayerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportPlayerRequest.ProtoReflect.Descriptor instead.
+func (*ReportPlayerRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ReportPlayerRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ReportPlayerRequest) GetReason() ReportReason {
+	if x != nil {
+		return x.Reason
+	}
+	return ReportReason_REPORT_REASON_UNSPECIFIED
+}
+
+func (x *ReportPlayerRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *ReportPlayerRequest) GetMessageId() string {
+	if x != nil {
+		return x.MessageId
+	}
+	return ""
+}
+
+type ReportPlayerResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportPlayerResponse) Reset() {
+	*x = ReportPlayerResponse{}
+	mi := &file_support_v1_support_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportPlayerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportPlayerResponse) ProtoMessage() {}
+
+func (x *ReportPlayerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportPlayerResponse.ProtoReflect.Descriptor instead.
+func (*ReportPlayerResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{6}
+}
+
 var File_support_v1_support_proto protoreflect.FileDescriptor
 
 const file_support_v1_support_proto_rawDesc = "" +
@@ -278,10 +440,24 @@ const file_support_v1_support_proto_rawDesc = "" +
 	"\x05build\x18\x01 \x01(\tR\x05build\x12%\n" +
 	"\x0eviewport_width\x18\x02 \x01(\rR\rviewportWidth\x12'\n" +
 	"\x0fviewport_height\x18\x03 \x01(\rR\x0eviewportHeight\x12'\n" +
-	"\x0fconnection_down\x18\x04 \x01(\bR\x0econnectionDown2\xb3\x01\n" +
+	"\x0fconnection_down\x18\x04 \x01(\bR\x0econnectionDown\"\x8e\x01\n" +
+	"\x13ReportPlayerRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
+	"\x06reason\x18\x02 \x01(\x0e2\x18.support.v1.ReportReasonR\x06reason\x12\x12\n" +
+	"\x04text\x18\x03 \x01(\tR\x04text\x12\x1d\n" +
+	"\n" +
+	"message_id\x18\x04 \x01(\tR\tmessageId\"\x16\n" +
+	"\x14ReportPlayerResponse*\x9c\x01\n" +
+	"\fReportReason\x12\x1d\n" +
+	"\x19REPORT_REASON_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16REPORT_REASON_CHEATING\x10\x01\x12\x1c\n" +
+	"\x18REPORT_REASON_CHAT_ABUSE\x10\x02\x12\x1a\n" +
+	"\x16REPORT_REASON_BAD_NAME\x10\x03\x12\x17\n" +
+	"\x13REPORT_REASON_OTHER\x10\x042\x86\x02\n" +
 	"\x0eSupportService\x12W\n" +
 	"\x0eSuggestFeature\x12!.support.v1.SuggestFeatureRequest\x1a\".support.v1.SuggestFeatureResponse\x12H\n" +
-	"\tReportBug\x12\x1c.support.v1.ReportBugRequest\x1a\x1d.support.v1.ReportBugResponseB\xbb\x01\n" +
+	"\tReportBug\x12\x1c.support.v1.ReportBugRequest\x1a\x1d.support.v1.ReportBugResponse\x12Q\n" +
+	"\fReportPlayer\x12\x1f.support.v1.ReportPlayerRequest\x1a .support.v1.ReportPlayerResponseB\xbb\x01\n" +
 	"\x0ecom.support.v1B\fSupportProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1;supportv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Support.V1\xca\x02\n" +
 	"Support\\V1\xe2\x02\x16Support\\V1\\GPBMetadata\xea\x02\vSupport::V1b\x06proto3"
@@ -298,25 +474,32 @@ func file_support_v1_support_proto_rawDescGZIP() []byte {
 	return file_support_v1_support_proto_rawDescData
 }
 
-var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_support_v1_support_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_support_v1_support_proto_goTypes = []any{
-	(*SuggestFeatureRequest)(nil),  // 0: support.v1.SuggestFeatureRequest
-	(*SuggestFeatureResponse)(nil), // 1: support.v1.SuggestFeatureResponse
-	(*ReportBugRequest)(nil),       // 2: support.v1.ReportBugRequest
-	(*ReportBugResponse)(nil),      // 3: support.v1.ReportBugResponse
-	(*BugContext)(nil),             // 4: support.v1.BugContext
+	(ReportReason)(0),              // 0: support.v1.ReportReason
+	(*SuggestFeatureRequest)(nil),  // 1: support.v1.SuggestFeatureRequest
+	(*SuggestFeatureResponse)(nil), // 2: support.v1.SuggestFeatureResponse
+	(*ReportBugRequest)(nil),       // 3: support.v1.ReportBugRequest
+	(*ReportBugResponse)(nil),      // 4: support.v1.ReportBugResponse
+	(*BugContext)(nil),             // 5: support.v1.BugContext
+	(*ReportPlayerRequest)(nil),    // 6: support.v1.ReportPlayerRequest
+	(*ReportPlayerResponse)(nil),   // 7: support.v1.ReportPlayerResponse
 }
 var file_support_v1_support_proto_depIdxs = []int32{
-	4, // 0: support.v1.ReportBugRequest.context:type_name -> support.v1.BugContext
-	0, // 1: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
-	2, // 2: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
-	1, // 3: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
-	3, // 4: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	5, // 0: support.v1.ReportBugRequest.context:type_name -> support.v1.BugContext
+	0, // 1: support.v1.ReportPlayerRequest.reason:type_name -> support.v1.ReportReason
+	1, // 2: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
+	3, // 3: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
+	6, // 4: support.v1.SupportService.ReportPlayer:input_type -> support.v1.ReportPlayerRequest
+	2, // 5: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
+	4, // 6: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
+	7, // 7: support.v1.SupportService.ReportPlayer:output_type -> support.v1.ReportPlayerResponse
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_support_proto_init() }
@@ -329,13 +512,14 @@ func file_support_v1_support_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_v1_support_proto_rawDesc), len(file_support_v1_support_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   5,
+			NumEnums:      1,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_support_v1_support_proto_goTypes,
 		DependencyIndexes: file_support_v1_support_proto_depIdxs,
+		EnumInfos:         file_support_v1_support_proto_enumTypes,
 		MessageInfos:      file_support_v1_support_proto_msgTypes,
 	}.Build()
 	File_support_v1_support_proto = out.File

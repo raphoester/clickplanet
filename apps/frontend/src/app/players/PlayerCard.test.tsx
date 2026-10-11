@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import {NameColor, PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 import PlayerCard from "./PlayerCard.tsx"
 
@@ -172,5 +173,44 @@ describe("PlayerCard", () => {
                            onClose={() => {}}/>)
         expect(screen.queryByRole("img", {name: "Admin"})).toBeNull()
         expect(await screen.findByRole("img", {name: "Admin"})).toBeDefined()
+    })
+
+    describe("a report", () => {
+        const guestCard = () => backendAnswering(async () => undefined)
+
+        it("is not offered with no reporter wired", () => {
+            render(<PlayerCard player={bo} backend={guestCard()} onClose={() => {}}/>)
+
+            expect(screen.queryByRole("button", {name: "Report"})).toBeNull()
+        })
+
+        it("opens in place of the card, and sends the name on the card with the message it was opened from", async () => {
+            const reporter = {reportPlayer: vi.fn(async () => undefined)}
+            render(<PlayerCard player={bo} backend={guestCard()} reporter={reporter} messageId="message-1" onClose={() => {}}/>)
+            const user = userEvent.setup()
+
+            await user.click(screen.getByRole("button", {name: "Report"}))
+
+            expect(screen.getAllByRole("dialog")).toHaveLength(1)
+            expect(screen.getByRole("dialog", {name: "Report guest_Bo"})).not.toBeNull()
+
+            await user.click(screen.getByRole("radio", {name: "Abuse in the chat"}))
+            await user.click(screen.getByRole("button", {name: "Send"}))
+
+            expect(reporter.reportPlayer).toHaveBeenCalledWith(
+                {name: "guest_Bo", reason: "chat-abuse", text: "", messageId: "message-1"})
+        })
+
+        it("steps back to the card when the report is closed", async () => {
+            const onClose = vi.fn()
+            render(<PlayerCard player={bo} backend={guestCard()} reporter={{reportPlayer: vi.fn()}} onClose={onClose}/>)
+            const user = userEvent.setup()
+
+            await user.click(screen.getByRole("button", {name: "Report"}))
+            await user.keyboard("{Escape}")
+
+            expect(screen.getByRole("dialog", {name: "guest_Bo"})).not.toBeNull()
+            expect(onClose).not.toHaveBeenCalled()
+        })
     })
 })

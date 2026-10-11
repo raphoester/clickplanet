@@ -39,12 +39,16 @@ const (
 	// InternalServiceGetAuthorsProcedure is the fully-qualified name of the InternalService's
 	// GetAuthors RPC.
 	InternalServiceGetAuthorsProcedure = "/player.v1.InternalService/GetAuthors"
+	// InternalServiceFindAccountProcedure is the fully-qualified name of the InternalService's
+	// FindAccount RPC.
+	InternalServiceFindAccountProcedure = "/player.v1.InternalService/FindAccount"
 )
 
 // InternalServiceClient is a client for the player.v1.InternalService service.
 type InternalServiceClient interface {
 	GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error)
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
+	FindAccount(context.Context, *connect.Request[v1.FindAccountRequest]) (*connect.Response[v1.FindAccountResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the player.v1.InternalService service. By
@@ -71,13 +75,21 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		findAccount: connect.NewClient[v1.FindAccountRequest, v1.FindAccountResponse](
+			httpClient,
+			baseURL+InternalServiceFindAccountProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("FindAccount")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getAuthor  *connect.Client[v1.GetAuthorRequest, v1.GetAuthorResponse]
-	getAuthors *connect.Client[v1.GetAuthorsRequest, v1.GetAuthorsResponse]
+	getAuthor   *connect.Client[v1.GetAuthorRequest, v1.GetAuthorResponse]
+	getAuthors  *connect.Client[v1.GetAuthorsRequest, v1.GetAuthorsResponse]
+	findAccount *connect.Client[v1.FindAccountRequest, v1.FindAccountResponse]
 }
 
 // GetAuthor calls player.v1.InternalService.GetAuthor.
@@ -90,10 +102,16 @@ func (c *internalServiceClient) GetAuthors(ctx context.Context, req *connect.Req
 	return c.getAuthors.CallUnary(ctx, req)
 }
 
+// FindAccount calls player.v1.InternalService.FindAccount.
+func (c *internalServiceClient) FindAccount(ctx context.Context, req *connect.Request[v1.FindAccountRequest]) (*connect.Response[v1.FindAccountResponse], error) {
+	return c.findAccount.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the player.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetAuthor(context.Context, *connect.Request[v1.GetAuthorRequest]) (*connect.Response[v1.GetAuthorResponse], error)
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
+	FindAccount(context.Context, *connect.Request[v1.FindAccountRequest]) (*connect.Response[v1.FindAccountResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -116,12 +134,21 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceFindAccountHandler := connect.NewUnaryHandler(
+		InternalServiceFindAccountProcedure,
+		svc.FindAccount,
+		connect.WithSchema(internalServiceMethods.ByName("FindAccount")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/player.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetAuthorProcedure:
 			internalServiceGetAuthorHandler.ServeHTTP(w, r)
 		case InternalServiceGetAuthorsProcedure:
 			internalServiceGetAuthorsHandler.ServeHTTP(w, r)
+		case InternalServiceFindAccountProcedure:
+			internalServiceFindAccountHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -137,4 +164,8 @@ func (UnimplementedInternalServiceHandler) GetAuthor(context.Context, *connect.R
 
 func (UnimplementedInternalServiceHandler) GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.InternalService.GetAuthors is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) FindAccount(context.Context, *connect.Request[v1.FindAccountRequest]) (*connect.Response[v1.FindAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.InternalService.FindAccount is not implemented"))
 }
