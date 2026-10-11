@@ -18,6 +18,8 @@ import {API_BASE_URL} from "./backends/transport.ts"
 import {ConnectionHealth, connectionInterceptor, followBrowser} from "./backends/connection.ts"
 import {FakeStandingsBackend} from "./backends/fakeStandingsBackend.ts"
 import {ConnectStandingsBackend} from "./backends/standingsBackend.ts"
+import {FakeSupportBackend} from "./backends/fakeSupportBackend.ts"
+import {ConnectSupportBackend, newSupportServiceClient} from "./backends/supportBackend.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
 import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
@@ -98,7 +100,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     })
 
     const fakeChat = new FakeChatBackend()
-    Object.assign(window, {fakeChat})
+    const fakeSupport = new FakeSupportBackend()
+    Object.assign(window, {fakeChat, fakeSupport})
     const fakeSeason = new FakeSeasonBackend(SEASON_ZERO)
     const fakeStandings = new FakeStandingsBackend()
     const clicker = fakeStandings.counting(fake)
@@ -127,6 +130,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     playerInfo={fakePresence}
                     season={fakeSeason}
                     standings={fakeStandings}
+                    support={fakeSupport}
                 />
             </SignInGate>
         </StrictMode>,
@@ -137,6 +141,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const season = new ConnectSeasonBackend(newSeasonServiceClient(config))
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
     const standings = new ConnectStandingsBackend(newSeasonServiceClient(config), session)
+    const support = new ConnectSupportBackend(newSupportServiceClient(config), session)
     const account = new AccountStore(new ConnectAccountBackend(authClient, attest), player, session, {
         navigate: (url) => window.location.assign(url),
         remember: rememberSignIn,
@@ -163,6 +168,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     playerInfo={player}
                     season={season}
                     standings={standings}
+                    support={support}
                 />
             </SignInGate>
         </StrictMode>,

@@ -166,6 +166,8 @@ player:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: player}
 seasons:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: seasons}
+support:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: support}
 auth:
   enabled: true
   enforce: true
@@ -320,6 +322,22 @@ func TestTheExampleConfigReachesTheSeasonsBlock(t *testing.T) {
 
 func TestTheSeasonsModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "seasons.database")
+}
+
+func TestTheExampleConfigReachesTheSupportBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "support", config.Support.Database.Schema)
+	assert.Equal(t, 90*24*time.Hour, config.Support.Retention)
+	assert.Equal(t, time.Hour, config.Support.PruneInterval)
+	assert.InDelta(t, 1.0/60, config.Support.RateLimiter.PerSecond, 1e-4, "one a minute")
+	assert.Equal(t, 3, config.Support.RateLimiter.Burst)
+	require.NoError(t, config.Support.Validate())
+}
+
+func TestTheSupportModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "support.database")
 }
 
 func TestSeasonsThatDoNotCountUpAreRefused(t *testing.T) {

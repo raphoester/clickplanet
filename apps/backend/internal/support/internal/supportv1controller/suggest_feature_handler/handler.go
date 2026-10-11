@@ -1,0 +1,45 @@
+package suggest_feature_handler
+
+import (
+	"context"
+	"errors"
+
+	"connectrpc.com/connect"
+
+	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/suggest_feature_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/caller"
+)
+
+type UseCase interface {
+	Execute(ctx context.Context, in suggest_feature_usecase.In) error
+}
+
+func New(useCase UseCase) SuggestFeatureHandler {
+	return SuggestFeatureHandler{useCase: useCase}
+}
+
+type SuggestFeatureHandler struct {
+	useCase UseCase
+}
+
+func (h SuggestFeatureHandler) SuggestFeature(
+	ctx context.Context,
+	req *connect.Request[supportv1.SuggestFeatureRequest],
+) (*connect.Response[supportv1.SuggestFeatureResponse], error) {
+	account, err := caller.AccountOf(ctx)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // already the connect error the caller reads.
+	}
+
+	err = h.useCase.Execute(ctx, suggest_feature_usecase.In{Account: account, Text: req.Msg.GetText()})
+	switch {
+	case errors.Is(err, notes.ErrInvalidText):
+		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidText)
+	case err != nil:
+		return nil, err //nolint:wrapcheck // a storage failure is the error net's to answer.
+	}
+
+	return connect.NewResponse(&supportv1.SuggestFeatureResponse{}), nil
+}

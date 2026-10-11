@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support"
 )
 
 type Config struct {
@@ -25,6 +26,7 @@ type Config struct {
 	Chat    chat.Config
 	Player  player.Config
 	Seasons seasons.Config
+	Support support.Config
 }
 
 func main() {
@@ -59,6 +61,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		chat.NewModule(config.Chat),
 		player.NewModule(config.Player),
 		seasons.NewModule(config.Seasons),
+		support.NewModule(config.Support),
 	}
 }
 
@@ -79,5 +82,6 @@ func (c Config) Validate() error {
 		c.Auth.Validate(),
 		c.Player.Validate(),
 		c.Seasons.Validate(),
+		c.Support.Validate(),
 	)
 }

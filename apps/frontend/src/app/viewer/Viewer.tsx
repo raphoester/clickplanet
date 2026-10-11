@@ -66,6 +66,7 @@ import Sheet from "../hud/Sheet.tsx";
 import StatusBar from "../hud/StatusBar.tsx";
 import TabBar from "../hud/TabBar.tsx";
 import {StandingsBackend} from "../../backends/standings.ts";
+import {SupportBackend} from "../../backends/support.ts";
 import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
 import {useRace} from "../standings/useRace.ts";
 import RoundReveal from "../season/RoundReveal.tsx";
@@ -100,6 +101,7 @@ export type ViewerProps = {
     playerInfo?: PlayerInfoBackend
     season?: SeasonBackend
     standings?: StandingsBackend
+    support?: SupportBackend
 }
 
 export default function Viewer(props: ViewerProps) {
@@ -265,6 +267,7 @@ export default function Viewer(props: ViewerProps) {
             take()
         },
         taking,
+        support: props.support,
     }
     const clicks = <ClicksPanel budget={clickBudget}
                                 countryName={countryState.name}

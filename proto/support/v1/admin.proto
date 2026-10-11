@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package support.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Unauthenticated: serve only on the loopback admin listener, never the public router.
+service AdminService {
+  rpc ListNotes(ListNotesRequest) returns (ListNotesResponse);
+}
+
+enum NoteKind {
+  NOTE_KIND_UNSPECIFIED = 0;
+  NOTE_KIND_SUGGESTION = 1;
+}
+
+message ListNotesRequest {
+  // Unset is every note kept.
+  google.protobuf.Timestamp since = 1;
+  // Unset is 100; at most 500.
+  uint32 limit = 2;
+}
+
+message ListNotesResponse {
+  repeated Note notes = 1;
+}
+
+message Note {
+  string id = 1;
+  NoteKind kind = 2;
+  string account_id = 3;
+  string text = 4;
+  google.protobuf.Timestamp submitted_at = 5;
+}

@@ -25,6 +25,7 @@ export default function App(props: AppProps) {
             playerInfo={props.playerInfo}
             season={props.season}
             standings={props.standings}
+            support={props.support}
         />
     </>
 }

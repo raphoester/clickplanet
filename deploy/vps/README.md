@@ -1272,6 +1272,26 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 docker compose exec postgres psql -U clickplanet -c "delete from chat.mutes where account_id = '<account_id>'"
 ```
 
+### Read what players sent
+
+A player sends a suggestion from the More menu. Read the newest 100:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/support.v1.AdminService/ListNotes
+```
+
+- `{"since":"2026-10-11T00:00:00Z"}` leaves out what was sent before, and
+  `{"limit":500}` asks for more: 500 at most.
+- Each note has its `accountId`. To see the name the game shows for it:
+
+```bash
+docker compose exec postgres psql -U clickplanet -c "select coalesce(p.name, 'guest_' || g.code) as name from (select '<account_id>'::uuid as account_id) a left join player.profiles p using (account_id) left join player.guest_codes g using (account_id)"
+```
+
+- A note is deleted after 90 days (`support.retention`), and at once when its
+  account is deleted.
+- One address sends three, then one a minute (`support.rateLimiter`).
+
 ## Rollback
 
 - **Bad backend build:** `BACKEND_IMAGE=ghcr.io/raphoester/clickplanet-backend:<sha>` appended to `.env` on the box, then `docker compose up -d backend`. The next deploy renders `.env` again and drops the pin, so fix forward rather than leaving it.

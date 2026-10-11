@@ -387,3 +387,21 @@ seasons:
     schema: seasons
     pool:
       maxOpenConns: 2
+
+support:
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: support
+    pool:
+      maxOpenConns: 2
+  retention: 2160h
+  pruneInterval: 1h
+  rateLimiter:
+    perSecond: 0.0167
+    burst: 3
+    sweepInterval: 1m

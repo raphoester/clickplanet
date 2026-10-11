@@ -349,6 +349,30 @@ describe("Menu", () => {
         })
     })
 
+    describe("a suggestion", () => {
+        it("is written from More and sent to the support backend", async () => {
+            const support = {suggestFeature: vi.fn(async () => undefined)}
+            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} support={support}/>)
+            const user = userEvent.setup()
+
+            await user.click(tab("More"))
+            await user.click(button("Suggest a feature"))
+            await user.type(screen.getByRole("textbox", {name: "Your idea"}), "a night mode")
+            await user.click(button("Send"))
+
+            expect(support.suggestFeature).toHaveBeenCalledWith("a night mode")
+            expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
+        })
+
+        it("is not offered when no support backend is wired", async () => {
+            const {user} = setup()
+
+            await user.click(tab("More"))
+
+            expect(screen.queryByRole("button", {name: "Suggest a feature"})).toBeNull()
+        })
+    })
+
     describe("the picture", () => {
         it("is taken from More", async () => {
             const onTakePicture = vi.fn()

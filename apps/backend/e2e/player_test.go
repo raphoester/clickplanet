@@ -29,6 +29,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support"
 )
 
 const mapTiles = 262119
@@ -75,6 +76,8 @@ func startGame(t *testing.T) gameStack {
 	chatConfig.RateLimiter.PerSecond = 100
 	chatConfig.RateLimiter.Burst = 100
 
+	supportConfig := support.Config{Database: postgres.ConfigFor("support")}
+
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -85,7 +88,7 @@ func startGame(t *testing.T) gameStack {
 			Logger: slog.New(slog.DiscardHandler),
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
-				seasons.NewModule(seasonsConfig),
+				seasons.NewModule(seasonsConfig), support.NewModule(supportConfig),
 			},
 		}, public, internal, admin)
 	}()
