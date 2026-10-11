@@ -238,7 +238,6 @@ func productionConfig() retaker.Config {
 		MaxMedian:      250 * time.Millisecond,
 		MinTiles:       15,
 		RoamMedian:     600 * time.Millisecond,
-		CertainTiles:   30,
 		TrackWindow:    15 * time.Minute,
 	}
 }
@@ -253,13 +252,24 @@ func recaptureBot(n int) []time.Duration {
 	return delays
 }
 
-func TestTheRecaptureBotOfSeptember14IsCaught(t *testing.T) {
+func TestTheRecaptureBotOfSeptember14IsOnlySuspect(t *testing.T) {
 	h := newHarness(productionConfig())
 
 	assert.Equal(t, detect.Suspect, h.war("bot", 2000, recaptureBot(20)),
 		"too loose a band for the reflex rule, too fast across twenty tiles for a hand")
 
-	assert.Equal(t, detect.Certain, h.war("bot", 3000, recaptureBot(10)))
+	assert.Equal(t, detect.Suspect, h.war("bot", 3000, recaptureBot(42)),
+		"sixty-two tiles are a chase along a line too, so it takes a second watchdog")
+}
+
+func TestRoamIsCertainOnlyWhereCertainTilesIsSet(t *testing.T) {
+	config := productionConfig()
+	config.CertainTiles = 30
+
+	h := newHarness(config)
+
+	require.Equal(t, detect.Suspect, h.war("bot", 2000, recaptureBot(29)))
+	assert.Equal(t, detect.Certain, h.war("bot", 3000, recaptureBot(1)))
 }
 
 func TestTheSameSpeedOnAFewTilesIsATileWar(t *testing.T) {

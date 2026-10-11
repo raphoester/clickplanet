@@ -493,9 +493,10 @@ func productionRetakes(config *antibot.Config) {
 	config.Defender.Detector.CertainClicks = 200
 	config.Defender.Detector.TrackWindow = 10 * time.Minute
 
+	config.Retaker.Detector.MinReactions = 20
+	config.Retaker.Detector.MaxSpread = 300 * time.Millisecond
 	config.Retaker.Detector.MinTiles = 15
 	config.Retaker.Detector.RoamMedian = 600 * time.Millisecond
-	config.Retaker.Detector.CertainTiles = 30
 	config.Retaker.Detector.TrackWindow = 15 * time.Minute
 }
 
@@ -547,7 +548,47 @@ func TestARecaptureLoopIsCaught(t *testing.T) {
 	}
 
 	require.True(t, dropped)
-	assert.Equal(t, detect.Certain, s.verdicts("loop")["retaker"])
+
+	verdicts := s.verdicts("loop")
+	assert.Equal(t, detect.Suspect, verdicts["retaker"], "fast on every tile it lost, as a hand chasing along a line is")
+	assert.Equal(t, detect.Suspect, verdicts["defender"], "and it takes nothing but what its flag lost")
+}
+
+func TestTheRecaptureBotOfSeptember14IsCaught(t *testing.T) {
+	s := newStack(t, productionRetakes)
+
+	//nolint:gosec // seeded test PRNG
+	random := rand.New(rand.NewPCG(14, 9))
+
+	answers := []int{150, 200, 250, 280, 300, 350, 400, 600, 900, 120}
+
+	var (
+		retakes int
+		dropped bool
+	)
+	for !dropped && retakes < 62 {
+		tile := uint32(120000 + random.IntN(20000))
+		s.owner[tile] = "BG"
+
+		s.clock.Advance(time.Duration(6000+random.IntN(7000)) * time.Millisecond)
+		s.click("raider", tile, "FR")
+
+		s.clock.Advance(time.Duration(answers[retakes%len(answers)]) * time.Millisecond)
+		dropped = s.click("bot", tile, "BG")
+		retakes++
+
+		if retakes%3 == 0 && !dropped {
+			s.clock.Advance(time.Duration(1000+random.IntN(2000)) * time.Millisecond)
+			dropped = s.click("bot", uint32(150000+retakes), "BG")
+		}
+	}
+
+	require.True(t, dropped)
+	assert.Equal(t, 30, retakes, "its fortieth take, where the defender starts to judge: three in four are retakes, the share production measured")
+
+	opinions := s.reports[0].Opinions
+	assert.Contains(t, opinions[0].String(), "suspect roam", "too loose a band for the reflex rule")
+	assert.Contains(t, opinions[3].String(), "suspect defence")
 }
 
 func TestTheReflexBotIsStillCaught(t *testing.T) {
