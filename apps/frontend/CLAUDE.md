@@ -2703,7 +2703,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 - **The recorder owns the clock.** `src/clip/virtualClock.ts` replaces `performance.now` and
   `requestAnimationFrame`, so a frame is drawn only when `window.clip.frame(i)` asks, and a bomb takes its second
   of video however long a frame takes to capture. **No CSS animation or transition on the page**: they run on the
-  real clock. The overlay is set from JS each frame.
+  real clock. The overlay is set from JS each frame, and an animation the globe brings with it (the bomb pointer's
+  pulse) is paused and set to the video's time at every frame. **It owns the dice too**: `main.ts` seeds
+  `Math.random`, so a bomb's debris and its shake are the same in every browser that plays the clip.
 - **The camera is the clip's** (`GlobeOptions.director`): with one, `createGlobe` turns OrbitControls off and
   aims the camera at the shot it is given every frame. The game passes none.
 - **The counter counts where the headline says**: the tiles each side holds in the story's place (`inPlace`), a
@@ -2842,6 +2844,14 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
 headless Chrome at 540×960 at 2×, waits for `window.clip.ready`, then for each frame calls `window.clip.frame(i)`,
 takes a screenshot and pipes it to ffmpeg (libx264, `yuv420p`). It needs ffmpeg and Chrome (`CHROME_PATH`).
+
+**The screenshot is nearly all of a clip's time, so several browsers take them in turn** (`--recorders`, one for
+every 3 cores, 4 at most). The globe draws a frame in 6ms; Chrome takes 0.3s to encode it as a 2.4MB PNG, on one
+core. Each recorder is a Chrome of its own that plays every frame, so all hold the same map, and takes the picture
+of its own only: frames 0, 4, 8 from the first, 1, 5, 9 from the second. They reach ffmpeg in order, and they are
+the frames one recorder would take, since the page's clock and dice are the recorder's (above). On 12 cores a 12s
+clip takes 40s instead of 90s, and a fifth recorder adds nothing. Each one holds the whole replay, 1.8GB for 72
+hours. The 14s before the first frame are the page reading the replay and choosing the story, once per clip.
 
 ## Sound
 

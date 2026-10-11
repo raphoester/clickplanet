@@ -1,6 +1,6 @@
 import {spawn} from "node:child_process"
 import {createReadStream, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync} from "node:fs"
-import {tmpdir} from "node:os"
+import {availableParallelism, tmpdir} from "node:os"
 import {basename, dirname, join, resolve} from "node:path"
 import {fileURLToPath} from "node:url"
 import {createServer} from "vite"
@@ -34,6 +34,7 @@ Everything below is chosen from the replay when left out:
   --headline <text>   the headline
   --hold <s>          how long the opening holds on the whole front before diving in, default 0.3
   --fps <n>           frames a second, default 30
+  --recorders <n>     the browsers taking the frames in turn, default one for every 3 cores, 4 at most
   --headed            show the browser
 
 Writes the video and, beside it, a .txt with the caption. Needs ffmpeg.
@@ -48,6 +49,7 @@ const HEIGHT = 960
 const SCALE = 2
 const MUSIC_FADE_SECONDS = 1.2
 const MUSIC_FADE_IN_SECONDS = 0.05
+const RECORDERS = has("plan") ? 1 : Number(flag("recorders", Math.max(1, Math.min(4, Math.floor(availableParallelism() / 3)))))
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const replayPath = resolve(replay)
@@ -75,38 +77,25 @@ const server = await createServer({
 await server.listen()
 const origin = server.resolvedUrls.local[0]
 
-const PROFILE = mkdtempSync(join(tmpdir(), "clickplanet-clip-"))
-const chrome = spawn(CHROME, [
-    ...(has("headed") ? [] : ["--headless=new"]),
-    "--remote-debugging-port=0",
-    `--user-data-dir=${PROFILE}`,
-    "--no-first-run",
-    "--no-default-browser-check",
-    "--hide-scrollbars",
-    "--force-color-profile=srgb",
-    "--enable-unsafe-swiftshader",
-    "--disable-background-timer-throttling",
-    "--disable-renderer-backgrounding",
-    "--disable-backgrounding-occluded-windows",
-    "about:blank",
-], {stdio: "ignore"})
-
+const launched = []
 let ffmpeg
 const done = async (code) => {
     ffmpeg?.kill()
-    chrome.kill()
+    for (const {chrome} of launched) chrome.kill()
     await server.close()
-    try {
-        rmSync(PROFILE, {recursive: true, force: true, maxRetries: 20, retryDelay: 100})
-    } catch {}
+    for (const {profile} of launched) {
+        try {
+            rmSync(profile, {recursive: true, force: true, maxRetries: 20, retryDelay: 100})
+        } catch {}
+    }
     process.exit(code)
 }
 process.on("SIGINT", () => done(130))
 
-async function debuggerUrl() {
+async function debuggerUrl(profile) {
     for (let i = 0; i < 80; i++) {
         try {
-            const port = readFileSync(join(PROFILE, "DevToolsActivePort"), "utf8").split("\n")[0]
+            const port = readFileSync(join(profile, "DevToolsActivePort"), "utf8").split("\n")[0]
             const targets = await fetch(`http://127.0.0.1:${port}/json/list`).then((r) => r.json())
             const page = targets.find((t) => t.type === "page")
             if (page) return page.webSocketDebuggerUrl
@@ -116,43 +105,84 @@ async function debuggerUrl() {
     throw new Error("Chrome never exposed a debugging target")
 }
 
-const ws = new WebSocket(await debuggerUrl())
-await new Promise((r) => ws.addEventListener("open", r, {once: true}))
+async function openRecorder(speaks) {
+    const profile = mkdtempSync(join(tmpdir(), "clickplanet-clip-"))
+    const chrome = spawn(CHROME, [
+        ...(has("headed") ? [] : ["--headless=new"]),
+        "--remote-debugging-port=0",
+        `--user-data-dir=${profile}`,
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--hide-scrollbars",
+        "--force-color-profile=srgb",
+        "--enable-unsafe-swiftshader",
+        "--disable-background-timer-throttling",
+        "--disable-renderer-backgrounding",
+        "--disable-backgrounding-occluded-windows",
+        "about:blank",
+    ], {stdio: "ignore"})
+    launched.push({chrome, profile})
 
-let lastId = 0
-const pending = new Map()
-let loaded = false
-ws.addEventListener("message", (m) => {
-    const msg = JSON.parse(m.data)
-    if (msg.id && pending.has(msg.id)) {
-        const {resolve, reject} = pending.get(msg.id)
-        pending.delete(msg.id)
-        msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result)
-    } else if (msg.method === "Page.loadEventFired") {
-        loaded = true
-    } else if (msg.method === "Runtime.exceptionThrown") {
-        console.error("page:", msg.params.exceptionDetails.exception?.description ?? msg.params.exceptionDetails.text)
-    } else if (msg.method === "Runtime.consoleAPICalled" && ["error", "warning"].includes(msg.params.type)) {
-        console.error(`page ${msg.params.type}:`, msg.params.args.map((a) => a.value ?? a.description).join(" "))
-    }
-})
-const send = (method, params = {}) => new Promise((resolve, reject) => {
-    const id = ++lastId
-    pending.set(id, {resolve, reject})
-    ws.send(JSON.stringify({id, method, params}))
-})
-const evaluate = async (expression) => {
-    const {result, exceptionDetails} = await send("Runtime.evaluate", {
-        expression, returnByValue: true, awaitPromise: true,
+    const ws = new WebSocket(await debuggerUrl(profile))
+    await new Promise((r) => ws.addEventListener("open", r, {once: true}))
+
+    let lastId = 0
+    const pending = new Map()
+    let loaded = false
+    ws.addEventListener("message", (m) => {
+        const msg = JSON.parse(m.data)
+        if (msg.id && pending.has(msg.id)) {
+            const {resolve, reject} = pending.get(msg.id)
+            pending.delete(msg.id)
+            msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result)
+        } else if (msg.method === "Page.loadEventFired") {
+            loaded = true
+        } else if (!speaks) {
+            return
+        } else if (msg.method === "Runtime.exceptionThrown") {
+            console.error("page:", msg.params.exceptionDetails.exception?.description ?? msg.params.exceptionDetails.text)
+        } else if (msg.method === "Runtime.consoleAPICalled" && ["error", "warning"].includes(msg.params.type)) {
+            console.error(`page ${msg.params.type}:`, msg.params.args.map((a) => a.value ?? a.description).join(" "))
+        }
     })
-    if (exceptionDetails) throw new Error(exceptionDetails.exception?.description ?? exceptionDetails.text)
-    return result.value
+    const send = (method, params = {}) => new Promise((resolve, reject) => {
+        const id = ++lastId
+        pending.set(id, {resolve, reject})
+        ws.send(JSON.stringify({id, method, params}))
+    })
+    const evaluate = async (expression) => {
+        const {result, exceptionDetails} = await send("Runtime.evaluate", {
+            expression, returnByValue: true, awaitPromise: true,
+        })
+        if (exceptionDetails) throw new Error(exceptionDetails.exception?.description ?? exceptionDetails.text)
+        return result.value
+    }
+
+    await send("Page.enable")
+    await send("Runtime.enable")
+    await send("Emulation.setDeviceMetricsOverride", {
+        width: WIDTH, height: HEIGHT, deviceScaleFactor: SCALE, mobile: false,
+    })
+
+    return {
+        async prepare(url) {
+            loaded = false
+            await send("Page.navigate", {url})
+            for (let i = 0; i < 200 && !loaded; i++) await sleep(100)
+            return evaluate("window.clip.ready")
+        },
+        // Every recorder plays every frame, so each holds the same map, and takes the picture of its own only.
+        async shoot(from, frame) {
+            for (let i = from; i <= frame; i++) await evaluate(`window.clip.frame(${i})`)
+            const {data} = await send("Page.captureScreenshot", {format: "png", optimizeForSpeed: true})
+            return Buffer.from(data, "base64")
+        },
+    }
 }
 
 let skippedTold = false
 
-async function record(pick, chosenOut) {
-    loaded = false
+async function record(recorders, pick, chosenOut) {
     const query = new URLSearchParams({fps: flag("fps", "30"), pick: String(pick)})
     for (const name of ["since", "until", "hours", "seconds", "country", "focus", "headline", "hold"]) {
         if (flag(name)) query.set(name, flag(name))
@@ -160,10 +190,7 @@ async function record(pick, chosenOut) {
     for (const name of ["flags", "dive"]) {
         if (has(name)) query.set(name, "")
     }
-    await send("Page.navigate", {url: `${origin}clip.html?${query}`})
-    for (let i = 0; i < 200 && !loaded; i++) await sleep(100)
-
-    const recording = await evaluate("window.clip.ready")
+    const [recording] = await Promise.all(recorders.map((recorder) => recorder.prepare(`${origin}clip.html?${query}`)))
     const out = chosenOut ?? join(dirname(replayPath), `clip-${pick}.mp4`)
     if (!skippedTold) {
         for (const reason of recording.skipped) console.log(`skipped ${reason}`)
@@ -199,10 +226,19 @@ async function record(pick, chosenOut) {
     })
 
     const started = Date.now()
+    const shots = new Map()
+    const shoot = (frame) => {
+        if (frame >= frames) return
+        const shot = recorders[frame % recorders.length].shoot(Math.max(0, frame - recorders.length + 1), frame)
+        shot.catch(() => {})
+        shots.set(frame, shot)
+    }
+    for (let frame = 0; frame < recorders.length; frame++) shoot(frame)
     for (let frame = 0; frame < frames; frame++) {
-        await evaluate(`window.clip.frame(${frame})`)
-        const {data} = await send("Page.captureScreenshot", {format: "png", optimizeForSpeed: true})
-        if (!ffmpeg.stdin.write(Buffer.from(data, "base64"))) {
+        const shot = await shots.get(frame)
+        shots.delete(frame)
+        shoot(frame + recorders.length)
+        if (!ffmpeg.stdin.write(shot)) {
             await new Promise((r) => ffmpeg.stdin.once("drain", r))
         }
         if (frame % (recording.fps * 5) === 0) {
@@ -221,16 +257,12 @@ async function record(pick, chosenOut) {
 }
 
 try {
-    await send("Page.enable")
-    await send("Runtime.enable")
-    await send("Emulation.setDeviceMetricsOverride", {
-        width: WIDTH, height: HEIGHT, deviceScaleFactor: SCALE, mobile: false,
-    })
+    const recorders = await Promise.all(Array.from({length: RECORDERS}, (_, i) => openRecorder(i === 0)))
 
     const first = Number(flag("pick", "1"))
     const last = has("pick") ? first : Number(flag("count", "1"))
     for (let pick = first; pick <= last; pick++) {
-        const recorded = await record(pick, last > first || !has("out") ? undefined : resolve(flag("out")))
+        const recorded = await record(recorders, pick, last > first || !has("out") ? undefined : resolve(flag("out")))
         if (recorded.stories <= pick) break
     }
 } catch (error) {

@@ -25,6 +25,7 @@ import {cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/cli
 import {paceOf, playedAt, timelineFor, timelineOf} from "../domain/clip/pace.ts"
 import {stopsOf, tourOf, tourSecondsOf, Visit} from "../domain/clip/tour.ts"
 import {flagsZoomOf, tilesZoomOf} from "../app/viewer/pointSize.ts"
+import {mulberry32} from "../app/viewer/stars.ts"
 import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, nameOf, placeName, teamFlagOf, wordsOf} from "./overlay.ts"
 
@@ -72,6 +73,8 @@ const PULL_BACKS: Record<Look, PullBack> = {dive: "atEnd", flags: "midway"}
 const WORLD_TAKERS = 3
 
 const clock = installVirtualClock()
+// Several recorders take one clip's frames in turn: each has to draw the same debris and the same shake.
+Math.random = mulberry32(1)
 const params = new URLSearchParams(location.search)
 const fps = Number(params.get("fps") ?? 30)
 
