@@ -18,6 +18,10 @@ func toConnect(err error) error {
 		return connect.NewError(connect.CodeInvalidArgument, messages.ErrInvalidMessage)
 	}
 
+	if errors.Is(err, messages.ErrNotShown) {
+		return connect.NewError(connect.CodeNotFound, messages.ErrNotShown)
+	}
+
 	if errors.Is(err, messages.ErrNoAccount) {
 		return connect.NewError(connect.CodeUnauthenticated, messages.ErrNoAccount)
 	}

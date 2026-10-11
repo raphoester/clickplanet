@@ -45,7 +45,9 @@ func (s *testSuite) build(saver mute_usecase.Saver, ids mutes.IDProvider) *mute_
 }
 
 func (s *testSuite) posted(account messages.AccountID, ip string, id string) {
-	message := messages.NewMessage(messages.MessageID(id), now.Add(-time.Minute), account, "fr", "We target the players")
+	message := messages.Restored(s.T(), messages.Snapshot{
+		ID: messages.MessageID(id), SentAt: now.Add(-time.Minute), Account: account, Country: "fr", Text: "We target the players",
+	})
 	s.Require().NoError(s.messages.Append(context.Background(), messages.NewRecord(message, "browser", ip, "agent")))
 }
 

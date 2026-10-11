@@ -32,6 +32,7 @@ func (h SendMessageHandler) SendMessage(
 		AuthorID:  req.Msg.GetAuthorId(),
 		CountryID: req.Msg.GetCountryId(),
 		Text:      req.Msg.GetText(),
+		ReplyTo:   messages.MessageID(req.Msg.GetReplyToMessageId()),
 		UserAgent: req.Header().Get("User-Agent"),
 	})
 	if err != nil {

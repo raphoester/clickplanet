@@ -37,12 +37,19 @@ func (s *testSuite) SetupTest() {
 
 var start = time.Date(2024, 1, 1, 12, 0, 0, 123_456_000, time.UTC)
 
-func record(text string, at time.Time) messages.Record {
-	return messages.NewRecord(messages.NewMessage(messages.MessageID("id-"+text), at, messages.NoAccount, "fr", text).Named(messages.AuthorOf("Bob", false, 0, 0, messages.Title{})), "some-uuid", "203.0.113.7", "test-agent")
+func (s *testSuite) sent(text string, name string, at time.Time) messages.Message {
+	return messages.Restored(s.T(), messages.Snapshot{
+		ID: messages.MessageID("id-" + text), SentAt: at, Author: messages.AuthorOf(name, false, 0, 0, messages.Title{}),
+		Country: "fr", Text: text,
+	})
+}
+
+func (s *testSuite) keep(message messages.Message) {
+	s.Require().NoError(s.store.Append(context.Background(), messages.NewRecord(message, "some-uuid", "203.0.113.7", "test-agent")))
 }
 
 func (s *testSuite) TestTheSenderIsStored() {
-	s.Require().NoError(s.store.Append(context.Background(), record("hello", start)))
+	s.keep(s.sent("hello", "Bob", start))
 
 	var ip, userAgent, authorID string
 	s.Require().NoError(s.db.QueryRowContext(context.Background(),
@@ -51,15 +58,31 @@ func (s *testSuite) TestTheSenderIsStored() {
 	s.Equal([]string{"203.0.113.7", "test-agent", "some-uuid"}, []string{ip, userAgent, authorID})
 }
 
-func (s *testSuite) TestTheBackfillPrefixesOnlyTheMessagesFromBeforeUsernames() {
+func (s *testSuite) TestOnlyAReplyKeepsTheMessageItRepliesTo() {
 	ctx := context.Background()
+	question := s.sent("hello", "Bob", start)
+	s.keep(question)
+	s.keep(s.sent("reply", "Ada", start.Add(time.Minute)).Answering(question))
+
+	rows, err := s.db.QueryContext(ctx, `SELECT COALESCE(reply_to, 'none') FROM messages ORDER BY seq`)
+	s.Require().NoError(err)
+	defer func() { _ = rows.Close() }()
+
+	var kept []string
+	for rows.Next() {
+		var replyTo string
+		s.Require().NoError(rows.Scan(&replyTo))
+		kept = append(kept, replyTo)
+	}
+	s.Require().NoError(rows.Err())
+	s.Equal([]string{"none", "id-hello"}, kept, "the id alone: what it said is read when the reply is shown")
+}
+
+func (s *testSuite) TestTheBackfillPrefixesOnlyTheMessagesFromBeforeUsernames() {
 	usernames := time.Date(2026, 9, 17, 14, 31, 30, 0, time.UTC)
 
-	guest := record("guest", usernames.Add(-time.Minute))
-	player := messages.NewRecord(record("player", usernames.Add(time.Minute)).Message().
-		Named(messages.AuthorOf("Bob_the_player", false, 0, 0, messages.Title{})), "some-uuid", "203.0.113.7", "test-agent")
-	s.Require().NoError(s.store.Append(ctx, guest))
-	s.Require().NoError(s.store.Append(ctx, player))
+	s.keep(s.sent("guest", "Bob", usernames.Add(-time.Minute)))
+	s.keep(s.sent("player", "Bob_the_player", usernames.Add(time.Minute)))
 
 	s.runMigration("20260917200000_guest_prefix_backfill.up.sql")
 	s.Equal([]string{"guest_Bob", "Bob_the_player"}, s.names())

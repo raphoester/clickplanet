@@ -114,8 +114,26 @@ func (s *testSuite) history(viewer messages.AccountID) *chatv1.GetHistoryRespons
 	return answer
 }
 
+func (s *testSuite) keep(kept messages.Snapshot) {
+	s.Require().NoError(s.messages.Append(s.T().Context(),
+		messages.NewRecord(messages.Restored(s.T(), kept), "browser-1", "203.0.113.7", "test-agent")))
+}
+
 func (s *testSuite) sentAt(text string, account messages.AccountID, at time.Time) {
-	s.Require().NoError(s.messages.Append(s.T().Context(), messages.NewRecord(messages.NewMessage(messages.MessageID(text), at, account, "fr", text), "browser-1", "203.0.113.7", "test-agent")))
+	s.keep(messages.Snapshot{ID: messages.MessageID(text), SentAt: at, Account: account, Country: "fr", Text: text})
+}
+
+func (s *testSuite) repliedAt(text string, account messages.AccountID, at time.Time, replyTo messages.MessageID) {
+	s.keep(messages.Snapshot{
+		ID: messages.MessageID(text), SentAt: at, Account: account, Country: "fr", Text: text,
+		Quote: messages.Quote{MessageID: replyTo},
+	})
+}
+
+func (s *testSuite) legacy(name string, at time.Time) {
+	s.keep(messages.Snapshot{
+		ID: "legacy", SentAt: at, Author: messages.AuthorOf(name, true, 0, 0, messages.Title{}), Country: "fr", Text: "legacy",
+	})
 }
 
 func (s *testSuite) sent(text string, ago time.Duration) {
@@ -235,13 +253,76 @@ func (s *testSuite) TestADeletedAccountIsNoLongerNamed() {
 }
 
 func (s *testSuite) TestAMessageFromBeforeAccountsKeepsTheNameItCarries() {
-	s.Require().NoError(s.messages.Append(s.T().Context(), messages.NewRecord(messages.NewMessage("legacy", now.Add(-time.Hour), messages.NoAccount, "fr", "legacy").Named(messages.AuthorOf("guest_Bob", true, 0, 0, messages.Title{})), "browser-1", "203.0.113.7", "test-agent")))
+	s.legacy("guest_Bob", now.Add(-time.Hour))
 
 	message := s.history(ada).GetMessages()[0]
 
 	s.Equal("guest_Bob", message.GetAuthorName(), "it has no account to read a name from")
 	s.True(message.GetAuthorAdmin())
 	s.Empty(slices.Concat(s.authors.asked...), "and nobody is asked about it")
+}
+
+func (s *testSuite) TestAReplyCarriesWhatTheMessageItRepliesToSaidAndWhoSaidIt() {
+	s.authors.named[bob] = &playerv1.Author{
+		AccountId: bob.String(), Name: "Bob", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 12,
+	}
+	s.sentAt("question", bob, now.Add(-2*time.Hour))
+	s.repliedAt("answer", ada, now.Add(-time.Hour), "question")
+
+	shown := s.history(ada).GetMessages()
+
+	s.Nil(shown[0].GetReplyTo(), "a plain message quotes nothing")
+	s.True(proto.Equal(&chatv1.Quote{
+		MessageId: "question", AuthorName: "Bob", AuthorColor: playerv1.NameColor_NAME_COLOR_TEAL, Text: "question",
+	}, shown[1].GetReplyTo()), "%v", shown[1].GetReplyTo())
+}
+
+func (s *testSuite) TestAReplyStillQuotesAMessageTheWindowLeftOut() {
+	s.sentAt("question", bob, now.Add(-4*time.Hour))
+	s.sent("filler", 3*time.Hour)
+	s.repliedAt("answer", ada, now.Add(-time.Hour), "question")
+
+	answer := s.history(ada)
+
+	s.Equal([]string{"filler", "answer"}, texts(answer))
+	s.Equal("question", answer.GetMessages()[1].GetReplyTo().GetText())
+	s.Equal("Bob", answer.GetMessages()[1].GetReplyTo().GetAuthorName())
+	s.Equal([][]messages.AccountID{{ada, bob}}, s.authors.asked, "the quoted are named in the same ask, each once")
+}
+
+func (s *testSuite) TestAReplyToAMessageThatIsGoneQuotesNothing() {
+	s.sentAt("expired", bob, now.Add(-25*time.Hour))
+	s.repliedAt("late answer", ada, now.Add(-time.Hour), "expired")
+	s.repliedAt("lost answer", ada, now.Add(-time.Minute), "pruned")
+
+	shown := s.history(ada).GetMessages()
+
+	s.Require().Len(shown, 2)
+	for _, message := range shown {
+		s.Nil(message.GetReplyTo(), message.GetText())
+	}
+}
+
+func (s *testSuite) TestTheQuoteOfADeletedAccountIsNoLongerNamed() {
+	gone := messages.AccountID{15: 9}
+	s.sentAt("question", gone, now.Add(-2*time.Hour))
+	s.repliedAt("answer", ada, now.Add(-time.Hour), "question")
+
+	quote := s.history(ada).GetMessages()[1].GetReplyTo()
+
+	s.Equal(history_query.DeletedName, quote.GetAuthorName())
+	s.Equal(playerv1.NameColor_NAME_COLOR_UNSPECIFIED, quote.GetAuthorColor())
+	s.Equal("question", quote.GetText(), "what it said stays")
+}
+
+func (s *testSuite) TestTheQuoteOfAMessageFromBeforeAccountsKeepsTheNameItCarries() {
+	s.legacy("guest_Bob", now.Add(-2*time.Hour))
+	s.repliedAt("answer", ada, now.Add(-time.Hour), "legacy")
+
+	quote := s.history(ada).GetMessages()[1].GetReplyTo()
+
+	s.Equal("guest_Bob", quote.GetAuthorName())
+	s.Equal([][]messages.AccountID{{ada}}, s.authors.asked, "nobody is asked about it")
 }
 
 func (s *testSuite) TestOneAskNamesTheSendersAndThePeopleUnderTheirReactions() {

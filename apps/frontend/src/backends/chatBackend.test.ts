@@ -7,6 +7,7 @@ import {
     ChatMessage as ChatMessagePb,
     Heartbeat,
     MuteRefusal,
+    Quote,
     Reaction,
     ReactionCount,
     ReactionsChanged,
@@ -84,6 +85,19 @@ describe("decodedMessage", () => {
             reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]}],
             reactionsVersion: 3,
         })
+    })
+
+    it("carries the message a reply quotes, and none for a plain message", () => {
+        const reply = proto()
+        reply.replyTo = new Quote({messageId: "message-0", authorName: "Bo", authorColor: NameColor.PINK, text: "who holds the north"})
+
+        expect(decodedMessage(reply).replyTo).toEqual({
+            messageId: "message-0",
+            authorName: "Bo",
+            authorColor: NameColor.PINK,
+            text: "who holds the north",
+        })
+        expect(decodedMessage(proto()).replyTo).toBeUndefined()
     })
 })
 
@@ -304,6 +318,27 @@ describe("ChatServiceBackend.sendMessage", () => {
             countryId: "fr",
             text: "hello",
         }, expect.anything())
+    })
+
+    it("says which message it replies to", async () => {
+        const sendMessage = vi.fn().mockResolvedValue({message: proto()})
+
+        await new ChatServiceBackend({sendMessage} as unknown as PromiseClient<typeof ChatService>, session(), unusedKeepalive)
+            .sendMessage({...outgoing, replyTo: "message-0"})
+
+        expect(sendMessage).toHaveBeenCalledWith({
+            authorId: "author-1",
+            countryId: "fr",
+            text: "hello",
+            replyToMessageId: "message-0",
+        }, expect.anything())
+    })
+
+    it("reads a reply to a message the server no longer shows as gone", async () => {
+        const client = clientThatFails(new ConnectError("not shown", Code.NotFound))
+
+        await expect(new ChatServiceBackend(client, session(), unusedKeepalive)
+            .sendMessage({...outgoing, replyTo: "message-0"})).rejects.toBeInstanceOf(ChatMessageGoneError)
     })
 
     it("sends the click token it holds", async () => {

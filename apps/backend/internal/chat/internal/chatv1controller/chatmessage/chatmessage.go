@@ -10,18 +10,34 @@ import (
 )
 
 func Encode(message messages.Message, counts []reactions.Count, version uint64) *chatv1.ChatMessage {
+	sent := message.TakeSnapshot()
+
 	return &chatv1.ChatMessage{
-		Id:               string(message.ID()),
-		SentAtUnixMs:     message.SentAt().UnixMilli(),
-		AuthorName:       message.Author().Name(),
-		AuthorAdmin:      message.Author().Admin(),
-		AuthorColor:      playerv1.NameColor(message.Author().Color()),
-		AuthorStreak:     message.Author().Streak(),
-		AuthorTitle:      encodedTitle(message.Author().Title()),
-		CountryId:        message.Country(),
-		Text:             message.Text(),
+		Id:               string(sent.ID),
+		SentAtUnixMs:     sent.SentAt.UnixMilli(),
+		AuthorName:       sent.Author.Name(),
+		AuthorAdmin:      sent.Author.Admin(),
+		AuthorColor:      playerv1.NameColor(sent.Author.Color()),
+		AuthorStreak:     sent.Author.Streak(),
+		AuthorTitle:      encodedTitle(sent.Author.Title()),
+		CountryId:        sent.Country,
+		Text:             sent.Text,
 		Reactions:        EncodeCounts(counts),
 		ReactionsVersion: version,
+		ReplyTo:          encodedQuote(sent.Quote),
+	}
+}
+
+func encodedQuote(quote messages.Quote) *chatv1.Quote {
+	if quote.MessageID == "" {
+		return nil
+	}
+
+	return &chatv1.Quote{
+		MessageId:   string(quote.MessageID),
+		AuthorName:  quote.Author.Name(),
+		AuthorColor: playerv1.NameColor(quote.Author.Color()),
+		Text:        quote.Text,
 	}
 }
 

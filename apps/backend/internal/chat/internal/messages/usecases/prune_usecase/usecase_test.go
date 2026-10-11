@@ -34,7 +34,8 @@ func TestAPruneDeletesMessagesReactionsAndAnnouncementsPastRetention(t *testing.
 	announced := inmemory_announcement_storage.New()
 	for _, at := range []time.Time{now.Add(-48 * time.Hour), now.Add(-time.Hour)} {
 		id := messages.MessageID(at.String())
-		require.NoError(t, sent.Append(t.Context(), messages.NewRecord(messages.NewMessage(id, at, messages.NoAccount, "", ""), "", "", "")))
+		require.NoError(t, sent.Append(t.Context(),
+			messages.NewRecord(messages.Restored(t, messages.Snapshot{ID: id, SentAt: at}), "", "", "")))
 		require.NoError(t, given.Save(t.Context(), reactions.On(id, 1, "guest:a", at)))
 		require.NoError(t, announced.Append(t.Context(), announcements.NewAnnouncement(announcements.AnnouncementID(uuid.New()), announcements.KindBomb, at, nil)))
 	}

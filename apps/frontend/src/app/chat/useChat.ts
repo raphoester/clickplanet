@@ -4,6 +4,7 @@ import {
     ChatBackend,
     ChatBlockedError,
     ChatMessage,
+    ChatMessageGoneError,
     ChatMutedError,
     ChatNoSessionError,
     ChatRateLimitedError,
@@ -22,7 +23,7 @@ import {
 
 export type ChatStatus = 'loading' | 'ready' | 'unavailable'
 
-export type ChatSendFailure = 'rate-limited' | 'blocked' | 'muted' | 'rejected' | 'no-session' | 'failed'
+export type ChatSendFailure = 'rate-limited' | 'blocked' | 'muted' | 'rejected' | 'gone' | 'no-session' | 'failed'
 
 export type SeenAtLoad = {
     until: number
@@ -108,8 +109,8 @@ export function useChat({backend, username}: UseChatOptions) {
         }
     }, [backend, receive])
 
-    const send = useCallback(async (message: OutgoingMessage) => {
-        if (!backend) return false
+    const send = useCallback(async (message: OutgoingMessage): Promise<ChatSendFailure | undefined> => {
+        if (!backend) return 'failed'
 
         setFailure(undefined)
 
@@ -117,12 +118,13 @@ export function useChat({backend, username}: UseChatOptions) {
             const sent = await backend.sendMessage(message)
             setMine(current => new Set(current).add(sent.id))
             receive([sent])
-            return true
+            return undefined
         } catch (e) {
             console.error("The message could not be sent", e)
             if (e instanceof ChatMutedError) setMutedUntil(e.until)
-            setFailure(failureOf(e))
-            return false
+            const failed = failureOf(e)
+            setFailure(failed)
+            return failed
         }
     }, [backend, receive])
 
@@ -155,6 +157,7 @@ function failureOf(e: unknown): ChatSendFailure {
     if (e instanceof ChatMutedError) return 'muted'
     if (e instanceof ChatBlockedError) return 'blocked'
     if (e instanceof ChatRejectedError) return 'rejected'
+    if (e instanceof ChatMessageGoneError) return 'gone'
     if (e instanceof ChatNoSessionError) return 'no-session'
     return 'failed'
 }

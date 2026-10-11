@@ -8,6 +8,7 @@ import {
     ChatMessageGoneError,
     ChatMutedError,
     ChatNoSessionError,
+    ChatQuote,
     ChatRateLimitedError,
     ChatReactor,
     ChatRejectedError,
@@ -24,6 +25,7 @@ import {
     ChatEvent,
     ChatMessage as ChatMessagePb,
     MuteRefusal,
+    Quote as QuotePb,
     ReactionCount as ReactionCountPb,
 } from "../gen/grpc/chat/v1/chat_pb.ts";
 import {ChatService} from "../gen/grpc/chat/v1/chat_connect.ts";
@@ -66,6 +68,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
                 authorId: message.authorId,
                 countryId: message.countryCode,
                 text: message.text,
+                replyToMessageId: message.replyTo,
             }, {headers}))
 
             if (!res.message) throw new ChatRejectedError()
@@ -217,6 +220,18 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         text: message.text,
         reactions: message.reactions.map(decodedCount),
         reactionsVersion: Number(message.reactionsVersion),
+        replyTo: decodedQuote(message.replyTo),
+    }
+}
+
+function decodedQuote(quote: QuotePb | undefined): ChatQuote | undefined {
+    if (!quote || quote.messageId === "") return undefined
+
+    return {
+        messageId: quote.messageId,
+        authorName: quote.authorName,
+        authorColor: quote.authorColor,
+        text: quote.text,
     }
 }
 

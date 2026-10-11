@@ -92,7 +92,8 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) sent(id messages.MessageID) {
-	s.Require().NoError(s.messages.Append(context.Background(), messages.NewRecord(messages.NewMessage(id, now.Add(-time.Hour), messages.NoAccount, "", ""), "", "", "")))
+	s.Require().NoError(s.messages.Append(context.Background(),
+		messages.NewRecord(messages.Restored(s.T(), messages.Snapshot{ID: id, SentAt: now.Add(-time.Hour)}), "", "", "")))
 }
 
 func (s *testSuite) reactWith(board react_usecase.Board, in react_usecase.In) (react_usecase.Out, error) {

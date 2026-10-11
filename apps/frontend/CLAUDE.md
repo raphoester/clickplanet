@@ -185,7 +185,8 @@ app/       components
   announcements after a time, for the badge, and `newestAt` is the time of the
   newest line. `nameSentUnder` is
   the name the server gave the latest message this client sent — the only way
-  it learns a guest's name.
+  it learns a guest's name. `quoteOf` is a message as a quote, for the composer
+  and the fake.
 - `authorColor.ts` — `NAME_COLORS`, the 12 a player with a username may pick
   from (`player.v1.NameColor`, one hue each), and `hueOf`, the hue of a pick.
   No pick, or a color this build does not know, has no hue. **Only the hue is
@@ -560,6 +561,8 @@ and the advice is one line:
   muted the account or its network; the composer says until when (the time, or
   the date and time past 20 hours). A muted reaction is undone and says the same
 - `invalid_argument` → `ChatRejectedError`, the server refused the content
+- `not_found` → `ChatMessageGoneError`, the message a reply answers is no longer
+  shown (see [Replies](#replies))
 - `unauthenticated` twice, or no token to be had → `ChatNoSessionError`
 
 The server always runs chat, so there is no "chat is off" error. **A history that
@@ -571,6 +574,38 @@ The composer **clears the box when the send starts, not when it lands**, and put
 the text back only if the box is still empty when a refusal comes in. Clearing on
 success instead wipes whatever was typed while the message was in flight, which
 is exactly what a fast typer does.
+
+#### Replies
+
+A message can answer another one. **The reply is a message in the one thread**,
+with the beginning of what it answers in a small bubble above its balloon
+(`ChatMessage.replyTo`, a `ChatQuote`: the id, the author's name and color, the
+text). The server sends the quote on the message, so a reply still shows it once
+the log has dropped the message it answers.
+
+- **A button beside each balloon starts one** (`.chat-reply-add`, next to the
+  reaction button and shown like it). `ChatPanel` holds the message being
+  answered (`replyingTo`), the composer shows it above the box (`.chat-replying`)
+  and takes the focus, and `OutgoingMessage.replyTo` carries its id. The cross
+  and Escape drop it (`useEscape`, so on a phone Escape drops the reply before it
+  closes the sheet).
+- **`QuoteLine` draws both**, the bubble in the log and the bar over the box. It
+  cuts the text at `QUOTE_MAX_LENGTH` (100) with `truncate`, and the CSS cuts the
+  line where it ends. The name is in its author's color: `.chat-quote` and
+  `.chat-replying` carry `--author-hue` like a message.
+- **One level**: a reply to a reply shows the reply it answers, never a chain.
+- **A reply opens a group** (`startsGroup`), so its head says who answers even in
+  the middle of its author's run.
+- **A quote goes to its message** when the log holds it: a press scrolls the
+  message to the middle and lights its balloon for `SPOTLIGHT_MS` (`jumpTo` in
+  `ChatLog`, which finds the line by `data-message`). With the message gone from
+  the log the quote is plain text.
+- **The reply goes when the send starts and comes back with the text if the
+  message is refused**, like the box. A reply to a message the server no longer
+  shows is `ChatMessageGoneError`: the composer says so and the reply is dropped,
+  so the text can go out as a plain message.
+- In fake mode one opening line is a reply, and every third line after it
+  answers a random earlier one.
 
 #### Reactions
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {act, cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react"
+import {act, cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import ChatPanel from "./ChatPanel.tsx"
 import {CHAT_IDENTITY_STORAGE_KEY} from "./chatIdentity.ts"
@@ -10,6 +10,7 @@ import {
     ChatAnnouncement,
     ChatBackend,
     ChatMessage,
+    ChatMessageGoneError,
     ChatMutedError,
     ChatNoSessionError,
     ChatRateLimitedError,
@@ -952,6 +953,114 @@ describe("ChatPanel reactions", () => {
         await user.keyboard("{Escape}")
 
         expect(screen.queryByRole("group", {name: "Reactions"})).toBeNull()
+    })
+})
+
+describe("ChatPanel replies", () => {
+    beforeEach(() => window.localStorage.setItem(
+        CHAT_IDENTITY_STORAGE_KEY,
+        JSON.stringify({authorId: "author-1"}),
+    ))
+
+    const replying = () => document.querySelector<HTMLElement>(".chat-replying")
+
+    const open = async () => {
+        const stub = stubBackend([message("m1", "who holds the north"), message("m2", "gm", 1_700_000_001_000)])
+        const view = setup(stub.backend)
+        await screen.findByText("who holds the north")
+        return {...stub, ...view}
+    }
+
+    it("sends a reply to the message whose button was pressed, and shows it above the box meanwhile", async () => {
+        const {backend, user} = await open()
+
+        await user.click(within(item("who holds the north")).getByRole("button", {name: "Reply to Ana"}))
+
+        expect(replying()?.textContent).toBe("Replying to Ana who holds the north")
+        expect(document.activeElement).toBe(messageBox())
+
+        await user.type(messageBox(), "we do{Enter}")
+
+        expect(backend.sendMessage).toHaveBeenCalledWith({
+            authorId: "author-1",
+            countryCode: "fr",
+            text: "we do",
+            replyTo: "m1",
+        })
+        await waitFor(() => expect(replying()).toBeNull())
+    })
+
+    it("takes the focus back to the box when the same message is picked again", async () => {
+        const {user} = await open()
+        const reply = within(item("gm")).getByRole("button", {name: "Reply to Ana"})
+
+        await user.click(reply)
+        messageBox().blur()
+        await user.click(reply)
+
+        expect(document.activeElement).toBe(messageBox())
+        expect(replying()?.textContent).toBe("Replying to Ana gm")
+    })
+
+    it("sends a plain message again once the reply is sent", async () => {
+        const {backend, user} = await open()
+        await user.click(within(item("gm")).getByRole("button", {name: "Reply to Ana"}))
+        await user.type(messageBox(), "gm gm{Enter}")
+        await waitFor(() => expect(backend.sendMessage).toHaveBeenCalledTimes(1))
+
+        await user.type(messageBox(), "anyone here{Enter}")
+
+        await waitFor(() => expect(backend.sendMessage).toHaveBeenCalledTimes(2))
+        expect(backend.sendMessage.mock.calls[1][0].replyTo).toBeUndefined()
+    })
+
+    it("answers the last message picked", async () => {
+        const {backend, user} = await open()
+
+        await user.click(within(item("who holds the north")).getByRole("button", {name: "Reply to Ana"}))
+        await user.click(within(item("gm")).getByRole("button", {name: "Reply to Ana"}))
+        await user.type(messageBox(), "gm{Enter}")
+
+        expect(backend.sendMessage.mock.calls[0][0].replyTo).toBe("m2")
+    })
+
+    it("drops the reply from its cross, and from Escape", async () => {
+        const {backend, user} = await open()
+
+        await user.click(within(item("gm")).getByRole("button", {name: "Reply to Ana"}))
+        await user.click(screen.getByRole("button", {name: "Cancel the reply"}))
+        expect(replying()).toBeNull()
+
+        await user.click(within(item("gm")).getByRole("button", {name: "Reply to Ana"}))
+        await user.keyboard("{Escape}")
+        expect(replying()).toBeNull()
+
+        await user.type(messageBox(), "never mind{Enter}")
+        expect(backend.sendMessage.mock.calls[0][0].replyTo).toBeUndefined()
+    })
+
+    it("keeps the reply and the text when the message is refused", async () => {
+        const {backend, user} = await open()
+        backend.sendMessage.mockRejectedValueOnce(new ChatRateLimitedError())
+
+        await user.click(within(item("gm")).getByRole("button", {name: "Reply to Ana"}))
+        await user.type(messageBox(), "gm gm{Enter}")
+
+        await screen.findByRole("alert")
+        expect(replying()?.textContent).toBe("Replying to Ana gm")
+        expect(messageBox()).toHaveProperty("value", "gm gm")
+    })
+
+    it("drops a reply to a message that is gone, says so, and keeps the text", async () => {
+        const {backend, user} = await open()
+        backend.sendMessage.mockRejectedValueOnce(new ChatMessageGoneError())
+
+        await user.click(within(item("gm")).getByRole("button", {name: "Reply to Ana"}))
+        await user.type(messageBox(), "gm gm{Enter}")
+
+        expect((await screen.findByRole("alert")).textContent).toBe("The message you replied to is gone.")
+        expect(replying()).toBeNull()
+        expect(messageBox()).toHaveProperty("value", "gm gm")
     })
 })
 

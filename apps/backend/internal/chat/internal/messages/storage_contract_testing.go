@@ -26,14 +26,23 @@ func (s *StorageContractSuite) SetupTest() {
 
 var contractAccount = AccountID{15: 1}
 
-func contractRecord(text string, at time.Time) Record {
-	return NewRecord(NewMessage(MessageID("id-"+text), at, contractAccount, "fr", text), "some-uuid", "203.0.113.7", "test-agent")
+func (s *StorageContractSuite) message(snapshot Snapshot) Message {
+	message, err := snapshot.Restore()
+	s.Require().NoError(err)
+	return message
+}
+
+func (s *StorageContractSuite) keep(message Message, ip string) {
+	s.Require().NoError(s.storage.Append(context.Background(), NewRecord(message, "some-uuid", ip, "test-agent")))
+}
+
+func (s *StorageContractSuite) sent(text string, at time.Time) Message {
+	return s.message(Snapshot{ID: MessageID("id-" + text), SentAt: at, Account: contractAccount, Country: "fr", Text: text})
 }
 
 func (s *StorageContractSuite) append(texts ...string) {
 	for i, text := range texts {
-		s.Require().NoError(s.storage.Append(context.Background(),
-			contractRecord(text, contractStart.Add(time.Duration(i)*time.Hour))))
+		s.keep(s.sent(text, contractStart.Add(time.Duration(i)*time.Hour)), "203.0.113.7")
 	}
 }
 
@@ -54,8 +63,8 @@ func (s *StorageContractSuite) TestAMessageAppendedIsShown() {
 }
 
 func (s *StorageContractSuite) TestTheNewestIsTheLastAppendedWhateverItsTime() {
-	s.Require().NoError(s.storage.Append(context.Background(), contractRecord("first", contractStart.Add(time.Second))))
-	s.Require().NoError(s.storage.Append(context.Background(), contractRecord("second", contractStart)))
+	s.keep(s.sent("first", contractStart.Add(time.Second)), "203.0.113.7")
+	s.keep(s.sent("second", contractStart), "203.0.113.7")
 
 	s.True(s.shown("second", contractStart, 1))
 	s.False(s.shown("first", contractStart, 1))
@@ -71,6 +80,57 @@ func (s *StorageContractSuite) TestAMessageIsShownOnlyWhileItIsAmongTheNewestInT
 	s.False(s.shown("never-sent", contractStart, 10))
 }
 
+func (s *StorageContractSuite) kept(id MessageID) Snapshot {
+	message, err := s.storage.Message(context.Background(), id, contractStart, 10)
+	s.Require().NoError(err)
+
+	kept := message.TakeSnapshot()
+	s.True(kept.SentAt.Equal(contractStart), "%s was sent at %s", id, kept.SentAt)
+	kept.SentAt = contractStart
+	return kept
+}
+
+func (s *StorageContractSuite) TestAShownMessageIsReadBackAsItWasKept() {
+	s.append("hello")
+
+	s.Equal(Snapshot{ID: "id-hello", SentAt: contractStart, Account: contractAccount, Country: "fr", Text: "hello"},
+		s.kept("id-hello"))
+}
+
+func (s *StorageContractSuite) TestAMessageFromBeforeAccountsIsReadBackUnderTheNameItCarries() {
+	legacy := Snapshot{
+		ID: "id-legacy", SentAt: contractStart, Author: AuthorOf("guest_Bob", true, 0, 0, Title{}), Country: "fr", Text: "legacy",
+	}
+	s.keep(s.message(legacy), "203.0.113.7")
+
+	s.Equal(legacy, s.kept("id-legacy"))
+}
+
+func (s *StorageContractSuite) TestAReplyIsReadBackWithTheIDOfWhatItAnswersAndNothingOfWhatThatSaid() {
+	question := s.sent("question", contractStart).Named(AuthorOf("Ada", false, 0, 0, Title{}))
+	s.keep(s.sent("answer", contractStart).Answering(question), "203.0.113.7")
+
+	s.Equal(Quote{MessageID: "id-question"}, s.kept("id-answer").Quote)
+}
+
+func (s *StorageContractSuite) TestAMessageIsReadOnlyWhileItIsShown() {
+	s.append("old", "middle", "new")
+
+	for text, window := range map[string]struct {
+		since time.Time
+		limit int
+	}{
+		"old":        {contractStart, 2},
+		"middle":     {contractStart.Add(2 * time.Hour), 10},
+		"never-sent": {contractStart, 10},
+	} {
+		_, err := s.storage.Message(context.Background(), MessageID("id-"+text), window.since, window.limit)
+
+		s.Require().ErrorIs(err, ErrNotShown, text)
+		s.False(s.shown(text, window.since, window.limit), "%s: a message nobody may react to is not answered either", text)
+	}
+}
+
 func (s *StorageContractSuite) TestTheLatestAddressIsTheOneTheAccountLastPostedFrom() {
 	other := AccountID{15: 2}
 	for i, sent := range []struct {
@@ -81,8 +141,10 @@ func (s *StorageContractSuite) TestTheLatestAddressIsTheOneTheAccountLastPostedF
 		{contractAccount, "2001:db8:9:9::1"},
 		{other, "198.51.100.1"},
 	} {
-		message := NewMessage(MessageID(fmt.Sprintf("id-%d", i)), contractStart.Add(-time.Duration(i)*time.Minute), sent.account, "fr", "hi")
-		s.Require().NoError(s.storage.Append(context.Background(), NewRecord(message, "some-uuid", sent.ip, "test-agent")))
+		s.keep(s.message(Snapshot{
+			ID: MessageID(fmt.Sprintf("id-%d", i)), SentAt: contractStart.Add(-time.Duration(i) * time.Minute),
+			Account: sent.account, Country: "fr", Text: "hi",
+		}), sent.ip)
 	}
 
 	ip, err := s.storage.LatestAddress(context.Background(), contractAccount)
@@ -100,8 +162,8 @@ func (s *StorageContractSuite) TestAnAccountThatSentNothingHasNoLatestAddress() 
 }
 
 func (s *StorageContractSuite) TestDeleteBeforeRemovesOnlyOlderMessages() {
-	s.Require().NoError(s.storage.Append(context.Background(), contractRecord("ancient", contractStart)))
-	s.Require().NoError(s.storage.Append(context.Background(), contractRecord("recent", contractStart.Add(48*time.Hour))))
+	s.keep(s.sent("ancient", contractStart), "203.0.113.7")
+	s.keep(s.sent("recent", contractStart.Add(48*time.Hour)), "203.0.113.7")
 
 	deleted, err := s.storage.DeleteBefore(context.Background(), contractStart.Add(24*time.Hour))
 	s.Require().NoError(err)

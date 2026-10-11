@@ -49,7 +49,9 @@ func TestACountNobodyIsNamedOnCarriesNoReactors(t *testing.T) {
 }
 
 func TestAMessageCarriesItsAuthorsColorAndStreak(t *testing.T) {
-	encoded := chatmessage.Encode(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", "").Named(messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_PINK), 12, messages.Title{})), nil, 0)
+	encoded := chatmessage.Encode(messages.Restored(t, messages.Snapshot{
+		ID: "message-1", Author: messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_PINK), 12, messages.Title{}),
+	}), nil, 0)
 
 	assert.Equal(t, playerv1.NameColor_NAME_COLOR_PINK, encoded.GetAuthorColor())
 	assert.Equal(t, uint32(12), encoded.GetAuthorStreak())
@@ -58,9 +60,15 @@ func TestAMessageCarriesItsAuthorsColorAndStreak(t *testing.T) {
 func TestAMessageCarriesTheTitleItsAuthorWears(t *testing.T) {
 	settler := messages.TitleOf("settler", "Settler", messages.RankOf("conquest", "Conquest", 1, 5))
 
-	ranked := chatmessage.Encode(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", "").Named(messages.AuthorOf("", false, 0, 0, settler)), nil, 0)
-	standalone := chatmessage.Encode(messages.NewMessage("message-2", time.Time{}, messages.NoAccount, "", "").Named(messages.AuthorOf("", false, 0, 0, messages.TitleOf("og", "OG", messages.Rank{}))), nil, 0)
-	bare := chatmessage.Encode(messages.NewMessage("message-3", time.Time{}, messages.NoAccount, "", ""), nil, 0)
+	og := messages.TitleOf("og", "OG", messages.Rank{})
+
+	ranked := chatmessage.Encode(messages.Restored(t, messages.Snapshot{
+		ID: "message-1", Author: messages.AuthorOf("", false, 0, 0, settler),
+	}), nil, 0)
+	standalone := chatmessage.Encode(messages.Restored(t, messages.Snapshot{
+		ID: "message-2", Author: messages.AuthorOf("", false, 0, 0, og),
+	}), nil, 0)
+	bare := chatmessage.Encode(messages.Restored(t, messages.Snapshot{ID: "message-3"}), nil, 0)
 
 	assert.Equal(t, "settler", ranked.GetAuthorTitle().GetId())
 	assert.Equal(t, "conquest", ranked.GetAuthorTitle().GetRank().GetTrackId())
@@ -68,6 +76,36 @@ func TestAMessageCarriesTheTitleItsAuthorWears(t *testing.T) {
 	assert.Equal(t, "OG", standalone.GetAuthorTitle().GetName())
 	assert.Nil(t, standalone.GetAuthorTitle().GetRank())
 	assert.Nil(t, bare.GetAuthorTitle())
+}
+
+func TestAMessageCarriesWhatItsSnapshotHolds(t *testing.T) {
+	at := time.Date(2026, 10, 11, 12, 0, 0, 123_000_000, time.UTC)
+
+	encoded := chatmessage.Encode(messages.Restored(t, messages.Snapshot{
+		ID: "message-1", SentAt: at, Author: messages.AuthorOf("Ada_L", true, 0, 0, messages.Title{}), Country: "fr", Text: "hello",
+	}), nil, 0)
+
+	assert.Equal(t, "message-1", encoded.GetId())
+	assert.Equal(t, at.UnixMilli(), encoded.GetSentAtUnixMs())
+	assert.Equal(t, "Ada_L", encoded.GetAuthorName())
+	assert.True(t, encoded.GetAuthorAdmin())
+	assert.Equal(t, "fr", encoded.GetCountryId())
+	assert.Equal(t, "hello", encoded.GetText())
+}
+
+func TestAReplyCarriesTheMessageItQuotesAndAPlainMessageNone(t *testing.T) {
+	ada := messages.AuthorOf("Ada_L", true, int32(playerv1.NameColor_NAME_COLOR_PINK), 12, messages.Title{})
+
+	reply := chatmessage.Encode(messages.Restored(t, messages.Snapshot{
+		ID: "message-2", Quote: messages.Quote{MessageID: "message-1", Author: ada, Text: "who holds the north"},
+	}), nil, 0)
+	plain := chatmessage.Encode(messages.Restored(t, messages.Snapshot{ID: "message-3"}), nil, 0)
+
+	assert.Equal(t, "message-1", reply.GetReplyTo().GetMessageId())
+	assert.Equal(t, "Ada_L", reply.GetReplyTo().GetAuthorName())
+	assert.Equal(t, playerv1.NameColor_NAME_COLOR_PINK, reply.GetReplyTo().GetAuthorColor())
+	assert.Equal(t, "who holds the north", reply.GetReplyTo().GetText())
+	assert.Nil(t, plain.GetReplyTo())
 }
 
 func TestOneNameOverTheCapIsCutToo(t *testing.T) {

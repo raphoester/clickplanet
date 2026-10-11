@@ -1,4 +1,4 @@
-import type {ChatAnnouncement, ChatMessage} from "../backends/chat.ts";
+import type {ChatAnnouncement, ChatMessage, ChatQuote} from "../backends/chat.ts";
 
 export const CHAT_LOG_LIMIT = 200
 
@@ -102,6 +102,15 @@ export function nameSentUnder(log: readonly ChatMessage[], sent: ReadonlySet<str
     return undefined
 }
 
+export function quoteOf(message: ChatMessage): ChatQuote {
+    return {
+        messageId: message.id,
+        authorName: message.authorName,
+        authorColor: message.authorColor,
+        text: message.text,
+    }
+}
+
 export const GROUP_WINDOW_MS = 4 * 60_000
 
 export function startsGroup(
@@ -110,6 +119,7 @@ export function startsGroup(
     window: number = GROUP_WINDOW_MS,
 ): boolean {
     if (previous === undefined) return true
+    if (message.replyTo !== undefined) return true
     if (previous.authorName !== message.authorName) return true
     return message.sentAt - previous.sentAt > window
 }

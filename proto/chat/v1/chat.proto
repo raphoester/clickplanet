@@ -60,6 +60,14 @@ message ChatMessage {
   player.v1.NameColor author_color = 10;
   uint32 author_streak = 11;
   player.v1.Title author_title = 12;
+  Quote reply_to = 13;
+}
+
+message Quote {
+  string message_id = 1;
+  string author_name = 2;
+  player.v1.NameColor author_color = 3;
+  string text = 4;
 }
 
 message SendMessageRequest {
@@ -68,6 +76,7 @@ message SendMessageRequest {
   string author_id = 2;
   string country_id = 3;
   string text = 4;
+  string reply_to_message_id = 5;
 }
 
 message SendMessageResponse {

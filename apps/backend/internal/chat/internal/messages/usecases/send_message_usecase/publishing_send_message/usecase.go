@@ -34,10 +34,11 @@ func (d *Decorator) Execute(ctx context.Context, in send_message_usecase.In) (me
 		return message, err //nolint:wrapcheck // a decorator adds an event, not a sentence.
 	}
 
+	sent := message.TakeSnapshot()
 	d.events.Publish(&chatv1.MessageSent{
-		MessageId: string(message.ID()),
-		AccountId: message.Account().String(),
-		SentAt:    timestamppb.New(message.SentAt()),
+		MessageId: string(sent.ID),
+		AccountId: sent.Account.String(),
+		SentAt:    timestamppb.New(sent.SentAt),
 	})
 	return message, nil
 }

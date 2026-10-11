@@ -19,16 +19,16 @@ type Publisher interface {
 	Publish(update feed.Update)
 }
 
-type CountryChecker interface {
-	CheckCountry(country string) bool
-}
-
 type Authors interface {
 	Author(ctx context.Context, account messages.AccountID) (messages.Author, error)
 }
 
 type Drafts interface {
 	Draft(account messages.AccountID, country string, text string) (messages.Message, error)
+}
+
+type Thread interface {
+	Reply(ctx context.Context, draft messages.Message, replyTo messages.MessageID) (messages.Message, error)
 }
 
 const writeTimeout = 5 * time.Second
@@ -38,31 +38,32 @@ type In struct {
 	AuthorID  string
 	CountryID string
 	Text      string
+	ReplyTo   messages.MessageID
 	UserAgent string
 }
 
 func New(
 	appender Appender,
 	publisher Publisher,
-	countryChecker CountryChecker,
 	authors Authors,
 	drafts Drafts,
+	thread Thread,
 ) *UseCase {
 	return &UseCase{
-		appender:       appender,
-		publisher:      publisher,
-		countryChecker: countryChecker,
-		authors:        authors,
-		drafts:         drafts,
+		appender:  appender,
+		publisher: publisher,
+		authors:   authors,
+		drafts:    drafts,
+		thread:    thread,
 	}
 }
 
 type UseCase struct {
-	appender       Appender
-	publisher      Publisher
-	countryChecker CountryChecker
-	authors        Authors
-	drafts         Drafts
+	appender  Appender
+	publisher Publisher
+	authors   Authors
+	drafts    Drafts
+	thread    Thread
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) {
@@ -70,13 +71,14 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 		return messages.Message{}, messages.ErrNoAccount
 	}
 
-	message, err := u.drafts.Draft(in.Account, in.CountryID, in.Text)
+	draft, err := u.drafts.Draft(in.Account, in.CountryID, in.Text)
 	if err != nil {
 		return messages.Message{}, fmt.Errorf("failed to draft the message: %w", err)
 	}
 
-	if !u.countryChecker.CheckCountry(in.CountryID) {
-		return messages.Message{}, fmt.Errorf("%w: invalid country code %q", messages.ErrInvalidMessage, in.CountryID)
+	message, err := u.thread.Reply(ctx, draft, in.ReplyTo)
+	if err != nil {
+		return messages.Message{}, fmt.Errorf("failed to reply: %w", err)
 	}
 
 	ip := cpctx.GetSourceIP(ctx)
