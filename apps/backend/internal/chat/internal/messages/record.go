@@ -7,6 +7,13 @@ type Record struct {
 	userAgent string
 }
 
+type RecordSnapshot struct {
+	Message   Snapshot
+	AuthorID  string
+	IP        string
+	UserAgent string
+}
+
 const (
 	maxAuthorIDLength  = 64
 	maxUserAgentLength = 256
@@ -21,13 +28,14 @@ func NewRecord(message Message, authorID string, ip string, userAgent string) Re
 	}
 }
 
-func (r Record) Message() Message { return r.message }
-
-func (r Record) AuthorID() string { return r.authorID }
-
-func (r Record) IP() string { return r.ip }
-
-func (r Record) UserAgent() string { return r.userAgent }
+func (r Record) TakeSnapshot() RecordSnapshot {
+	return RecordSnapshot{
+		Message:   r.message.TakeSnapshot(),
+		AuthorID:  r.authorID,
+		IP:        r.ip,
+		UserAgent: r.userAgent,
+	}
+}
 
 func truncate(value string, maxBytes int) string {
 	if len(value) <= maxBytes {

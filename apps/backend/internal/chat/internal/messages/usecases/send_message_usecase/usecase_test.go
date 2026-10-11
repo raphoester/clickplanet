@@ -28,7 +28,7 @@ type testSuite struct {
 	appender  *fakeAppender
 	publisher *fakePublisher
 	authors   *fakeAuthors
-	quotes    *fakeQuotes
+	thread    *fakeThread
 	clock     *cptime.FixedClock
 	useCase   *send_message_usecase.UseCase
 }
@@ -38,13 +38,16 @@ var (
 	guest = messages.AccountID{15: 2}
 )
 
+const firstID = messages.MessageID("00000000-0000-0000-0000-000000000001")
+
 func (s *testSuite) SetupTest() {
 	s.appender = &fakeAppender{}
 	s.publisher = &fakePublisher{}
 	s.authors = &fakeAuthors{names: map[messages.AccountID]string{ada: "Ada_L", guest: "guest_0b1c2d"}}
-	s.quotes = &fakeQuotes{shown: map[messages.MessageID]messages.Quote{
-		"parent": messages.QuoteOf("parent", ada, "who holds the north").
-			Named(messages.AuthorOf("Ada_L", false, 0, 0, messages.Title{})),
+	s.thread = &fakeThread{shown: map[messages.MessageID]messages.Message{
+		"parent": messages.Restored(s.T(), messages.Snapshot{
+			ID: "parent", Account: ada, Author: messages.AuthorOf("Ada_L", false, 0, 0, messages.Title{}), Text: "who holds the north",
+		}),
 	}}
 	s.clock = cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	s.useCase = send_message_usecase.New(
@@ -52,12 +55,34 @@ func (s *testSuite) SetupTest() {
 		s.publisher,
 		s.authors,
 		messages.NewDrafts(&messages.SequentialIDs{}, s.clock, messages.NewLimits(0), cpcountries.New()),
-		s.quotes,
+		s.thread,
 	)
 }
 
-func (s *testSuite) send(in send_message_usecase.In) (messages.Message, error) {
-	return s.useCase.Execute(cpctx.AddIPToContext(context.Background(), "1.2.3.4"), in)
+func (s *testSuite) send(in send_message_usecase.In) (messages.Snapshot, error) {
+	message, err := s.useCase.Execute(cpctx.AddIPToContext(context.Background(), "1.2.3.4"), in)
+	return message.TakeSnapshot(), err
+}
+
+func (s *testSuite) kept() []messages.RecordSnapshot {
+	s.appender.mu.Lock()
+	defer s.appender.mu.Unlock()
+
+	kept := make([]messages.RecordSnapshot, 0, len(s.appender.records))
+	for _, record := range s.appender.records {
+		kept = append(kept, record.TakeSnapshot())
+	}
+	return kept
+}
+
+func (s *testSuite) published() []messages.Snapshot {
+	published := make([]messages.Snapshot, 0, len(s.publisher.updates))
+	for _, update := range s.publisher.updates {
+		message, sent := update.Message()
+		s.Require().True(sent)
+		published = append(published, message.TakeSnapshot())
+	}
+	return published
 }
 
 func validIn() send_message_usecase.In {
@@ -71,25 +96,23 @@ func validIn() send_message_usecase.In {
 }
 
 func (s *testSuite) TestNominalCase() {
-	message, err := s.send(validIn())
+	sent, err := s.send(validIn())
 	s.Require().NoError(err)
 
-	s.Equal(messages.MessageID("00000000-0000-0000-0000-000000000001"), message.ID())
-	s.Equal("guest_0b1c2d", message.Author().Name(), "a guest posts under the name the player module gives it")
-	s.Equal("fr", message.Country())
-	s.Equal("hello planet", message.Text())
-	s.Equal(s.clock.Now(), message.SentAt())
+	draft := messages.Snapshot{ID: firstID, SentAt: s.clock.Now(), Account: guest, Country: "fr", Text: "hello planet"}
+	named := draft
+	named.Author = messages.AuthorOf("guest_0b1c2d", false, 0, 0, messages.Title{})
+	s.Equal(named, sent, "a guest posts under the name the player module gives it")
 	s.Equal([]messages.AccountID{guest}, s.authors.asked)
 
-	s.Require().Len(s.appender.records, 1)
-	kept := s.appender.records[0].Message()
-	s.Equal(message.ID(), kept.ID())
-	s.Equal(guest, kept.Account(), "what is kept is who sent it")
-	s.Empty(kept.Author().Name(), "and not a copy of what that account is called")
-	s.Equal("8f14e45f-ea23-4a1b-9c11-0b0d1a2b3c4d", s.appender.records[0].AuthorID())
-	s.Equal("curl/8", s.appender.records[0].UserAgent())
+	s.Equal([]messages.RecordSnapshot{{
+		Message:   draft,
+		AuthorID:  "8f14e45f-ea23-4a1b-9c11-0b0d1a2b3c4d",
+		IP:        "1.2.3.4",
+		UserAgent: "curl/8",
+	}}, s.kept(), "what is kept is who sent it, and not a copy of what that account is called")
 
-	s.Equal([]feed.Update{feed.MessageSent(message)}, s.publisher.updates, "the message goes out once it is kept")
+	s.Equal([]messages.Snapshot{named}, s.published(), "the message goes out once it is kept")
 }
 
 func (s *testSuite) TestEachMessageGetsAnIDOfItsOwn() {
@@ -98,32 +121,33 @@ func (s *testSuite) TestEachMessageGetsAnIDOfItsOwn() {
 	second, err := s.send(validIn())
 	s.Require().NoError(err)
 
-	s.Equal(messages.MessageID("00000000-0000-0000-0000-000000000001"), first.ID())
-	s.Equal(messages.MessageID("00000000-0000-0000-0000-000000000002"), second.ID())
-	s.Require().Len(s.appender.records, 2)
-	s.Equal(first.ID(), s.appender.records[0].Message().ID())
-	s.Equal(second.ID(), s.appender.records[1].Message().ID())
+	s.Equal(firstID, first.ID)
+	s.Equal(messages.MessageID("00000000-0000-0000-0000-000000000002"), second.ID)
+	kept := s.kept()
+	s.Require().Len(kept, 2)
+	s.Equal(first.ID, kept[0].Message.ID)
+	s.Equal(second.ID, kept[1].Message.ID)
 }
 
 func (s *testSuite) TestTheSenderIPIsRecordedButNeverReturned() {
-	message, err := s.send(validIn())
+	sent, err := s.send(validIn())
 	s.Require().NoError(err)
 
-	s.Require().Len(s.appender.records, 1)
-	s.Equal("1.2.3.4", s.appender.records[0].IP())
+	s.Require().Len(s.kept(), 1)
+	s.Equal("1.2.3.4", s.kept()[0].IP)
 
-	s.NotContains(message.Author().Name(), "1.2.3.4")
-	s.NotContains(message.Text(), "1.2.3.4")
+	s.NotContains(sent.Author.Name(), "1.2.3.4")
+	s.NotContains(sent.Text, "1.2.3.4")
 }
 
 func (s *testSuite) TestTheMessageIsCleanedBeforeItIsStored() {
 	in := validIn()
 	in.Text = "hello\tplanet"
 
-	message, err := s.send(in)
+	sent, err := s.send(in)
 	s.Require().NoError(err)
-	s.Equal("hello planet", message.Text())
-	s.Equal("hello planet", s.appender.records[0].Message().Text())
+	s.Equal("hello planet", sent.Text)
+	s.Equal("hello planet", s.kept()[0].Message.Text)
 }
 
 func (s *testSuite) TestAnInvalidTextIsRefusedAndNotStored() {
@@ -131,8 +155,8 @@ func (s *testSuite) TestAnInvalidTextIsRefusedAndNotStored() {
 	in.Text = "   "
 
 	_, err := s.send(in)
-	s.ErrorIs(err, messages.ErrInvalidMessage)
-	s.Empty(s.appender.records)
+	s.Require().ErrorIs(err, messages.ErrInvalidMessage)
+	s.Empty(s.kept())
 }
 
 func (s *testSuite) TestInvalidCountryIsRefused() {
@@ -140,30 +164,32 @@ func (s *testSuite) TestInvalidCountryIsRefused() {
 	in.CountryID = "atlantis"
 
 	_, err := s.send(in)
-	s.ErrorIs(err, messages.ErrInvalidMessage)
-	s.Empty(s.appender.records)
+	s.Require().ErrorIs(err, messages.ErrInvalidMessage)
+	s.Empty(s.kept())
 }
 
-func (s *testSuite) TestAPlainMessageQuotesNothing() {
-	message, err := s.send(validIn())
+func (s *testSuite) TestAPlainMessageAnswersNothing() {
+	sent, err := s.send(validIn())
 	s.Require().NoError(err)
 
-	s.True(message.Quote().Empty())
-	s.True(s.appender.records[0].Message().Quote().Empty())
+	s.Equal(messages.Quote{}, sent.Quote)
+	s.Equal(messages.Quote{}, s.kept()[0].Message.Quote)
 }
 
 func (s *testSuite) TestAReplyIsKeptAndGoesOutWithWhatItQuotes() {
 	in := validIn()
 	in.ReplyTo = "parent"
 
-	message, err := s.send(in)
+	sent, err := s.send(in)
 	s.Require().NoError(err)
 
-	s.Equal(s.quotes.shown["parent"], message.Quote())
-	s.Require().Len(s.appender.records, 1)
-	s.Equal(messages.MessageID("parent"), s.appender.records[0].Message().Quote().ID())
-	s.Equal([]feed.Update{feed.MessageSent(message)}, s.publisher.updates,
-		"everyone watching is shown what it replies to with no second read")
+	quote := messages.Quote{
+		MessageID: "parent", Author: messages.AuthorOf("Ada_L", false, 0, 0, messages.Title{}), Text: "who holds the north",
+	}
+	s.Equal(quote, sent.Quote)
+	s.Require().Len(s.kept(), 1)
+	s.Equal(quote, s.kept()[0].Message.Quote)
+	s.Equal([]messages.Snapshot{sent}, s.published(), "everyone watching is shown what it answers with no second read")
 }
 
 func (s *testSuite) TestAReplyToAMessageThatIsNotShownIsRefusedAndNotStored() {
@@ -174,11 +200,11 @@ func (s *testSuite) TestAReplyToAMessageThatIsNotShownIsRefusedAndNotStored() {
 
 	s.Require().ErrorIs(err, messages.ErrNotShown)
 	s.Empty(s.authors.asked)
-	s.Empty(s.appender.records)
+	s.Empty(s.kept())
 	s.Empty(s.publisher.updates)
 }
 
-func (s *testSuite) TestAnInvalidReplyIsRefusedBeforeItsQuoteIsRead() {
+func (s *testSuite) TestAnInvalidReplyIsRefusedBeforeWhatItAnswersIsRead() {
 	in := validIn()
 	in.ReplyTo = "parent"
 	in.Text = "   "
@@ -186,7 +212,7 @@ func (s *testSuite) TestAnInvalidReplyIsRefusedBeforeItsQuoteIsRead() {
 	_, err := s.send(in)
 
 	s.Require().ErrorIs(err, messages.ErrInvalidMessage)
-	s.Empty(s.quotes.asked)
+	s.Empty(s.thread.asked)
 }
 
 func (s *testSuite) TestStorageFailureFailsTheSend() {
@@ -202,12 +228,12 @@ func (s *testSuite) TestAPlayerWithAUsernamePostsUnderIt() {
 	in := validIn()
 	in.Account = ada
 
-	message, err := s.send(in)
+	sent, err := s.send(in)
 
 	s.Require().NoError(err)
-	s.Equal("Ada_L", message.Author().Name())
-	s.Equal(ada, s.appender.records[0].Message().Account())
-	s.Empty(s.appender.records[0].Message().Author().Name(), "the name is read back from the account, not kept")
+	s.Equal("Ada_L", sent.Author.Name())
+	s.Equal(ada, s.kept()[0].Message.Account)
+	s.Empty(s.kept()[0].Message.Author.Name(), "the name is read back from the account, not kept")
 	s.Equal([]messages.AccountID{ada}, s.authors.asked)
 }
 
@@ -216,11 +242,11 @@ func (s *testSuite) TestAnAdminPostsAsOneAndIsStoredAsOne() {
 	in := validIn()
 	in.Account = ada
 
-	message, err := s.send(in)
+	sent, err := s.send(in)
 
 	s.Require().NoError(err)
-	s.True(message.Author().Admin(), "everyone watching is shown the crown at once")
-	s.False(s.appender.records[0].Message().Author().Admin(),
+	s.True(sent.Author.Admin(), "everyone watching is shown the crown at once")
+	s.False(s.kept()[0].Message.Author.Admin(),
 		"a player that stops being an admin stops looking like one on what it already said")
 }
 
@@ -229,9 +255,9 @@ func (s *testSuite) TestAnAuthorThatCannotBeReadRefusesThePost() {
 
 	_, err := s.send(validIn())
 
-	s.ErrorIs(err, messages.ErrAuthorUnavailable)
+	s.Require().ErrorIs(err, messages.ErrAuthorUnavailable)
 	s.NotErrorIs(err, messages.ErrInvalidMessage)
-	s.Empty(s.appender.records)
+	s.Empty(s.kept())
 }
 
 func (s *testSuite) TestNoAccountIsRefusedBeforeAnythingIsAsked() {
@@ -240,9 +266,9 @@ func (s *testSuite) TestNoAccountIsRefusedBeforeAnythingIsAsked() {
 
 	_, err := s.send(in)
 
-	s.ErrorIs(err, messages.ErrNoAccount)
+	s.Require().ErrorIs(err, messages.ErrNoAccount)
 	s.Empty(s.authors.asked)
-	s.Empty(s.appender.records)
+	s.Empty(s.kept())
 }
 
 type fakeAuthors struct {
@@ -264,21 +290,21 @@ func (f *fakeAuthors) Author(_ context.Context, account messages.AccountID) (mes
 	return messages.AuthorOf(f.names[account], f.admins[account], 0, 0, messages.Title{}), nil
 }
 
-type fakeQuotes struct {
-	shown map[messages.MessageID]messages.Quote
+type fakeThread struct {
+	shown map[messages.MessageID]messages.Message
 	asked []messages.MessageID
 }
 
-func (f *fakeQuotes) Quote(_ context.Context, replyTo messages.MessageID) (messages.Quote, error) {
+func (f *fakeThread) Reply(_ context.Context, draft messages.Message, replyTo messages.MessageID) (messages.Message, error) {
 	f.asked = append(f.asked, replyTo)
 	if replyTo == "" {
-		return messages.Quote{}, nil
+		return draft, nil
 	}
-	quote, shown := f.shown[replyTo]
+	answered, shown := f.shown[replyTo]
 	if !shown {
-		return messages.Quote{}, messages.ErrNotShown
+		return messages.Message{}, messages.ErrNotShown
 	}
-	return quote, nil
+	return draft.Answering(answered), nil
 }
 
 type fakePublisher struct {

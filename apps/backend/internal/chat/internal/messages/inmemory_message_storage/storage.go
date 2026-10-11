@@ -4,6 +4,7 @@ package inmemory_message_storage
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 	"time"
@@ -17,7 +18,7 @@ func New() *Storage {
 
 type Storage struct {
 	mu      sync.Mutex
-	records []messages.Record
+	records []messages.RecordSnapshot
 }
 
 var _ messages.Storage = (*Storage)(nil)
@@ -26,11 +27,11 @@ func (s *Storage) Append(_ context.Context, record messages.Record) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.records = append(s.records, record)
+	s.records = append(s.records, record.TakeSnapshot())
 	return nil
 }
 
-func (s *Storage) Kept() []messages.Message {
+func (s *Storage) Kept() []messages.Snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -41,26 +42,28 @@ func (s *Storage) Shown(_ context.Context, id messages.MessageID, since time.Tim
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return slices.ContainsFunc(s.recent(since, limit), func(message messages.Message) bool {
-		return message.ID() == id
+	return slices.ContainsFunc(s.recent(since, limit), func(message messages.Snapshot) bool {
+		return message.ID == id
 	}), nil
 }
 
-func (s *Storage) Quote(_ context.Context, id messages.MessageID, since time.Time, limit int) (messages.Quote, error) {
+func (s *Storage) Message(_ context.Context, id messages.MessageID, since time.Time, limit int) (messages.Message, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, message := range s.recent(since, limit) {
-		if message.ID() != id {
+	for _, kept := range s.recent(since, limit) {
+		if kept.ID != id {
 			continue
 		}
-		quote := messages.QuoteOf(id, message.Account(), message.Text())
-		if message.Account() == messages.NoAccount {
-			return quote.Named(messages.AuthorOf(message.Author().Name(), false, 0, 0, messages.Title{})), nil
+		// As the table: a kept reply holds the id of the message it answers, not what that one said.
+		kept.Quote = messages.Quote{MessageID: kept.Quote.MessageID}
+		message, err := kept.Restore()
+		if err != nil {
+			return messages.Message{}, fmt.Errorf("failed to restore message %q: %w", id, err)
 		}
-		return quote, nil
+		return message, nil
 	}
-	return messages.Quote{}, messages.ErrNotShown
+	return messages.Message{}, messages.ErrNotShown
 }
 
 func (s *Storage) LatestAddress(_ context.Context, account messages.AccountID) (string, error) {
@@ -68,8 +71,8 @@ func (s *Storage) LatestAddress(_ context.Context, account messages.AccountID) (
 	defer s.mu.Unlock()
 
 	for _, record := range slices.Backward(s.records) {
-		if record.Message().Account() == account {
-			return record.IP(), nil
+		if record.Message.Account == account {
+			return record.IP, nil
 		}
 	}
 	return "", messages.ErrNoMessage
@@ -80,17 +83,17 @@ func (s *Storage) DeleteBefore(_ context.Context, cutoff time.Time) (int64, erro
 	defer s.mu.Unlock()
 
 	before := len(s.records)
-	s.records = slices.DeleteFunc(s.records, func(record messages.Record) bool {
-		return record.Message().SentAt().Before(cutoff)
+	s.records = slices.DeleteFunc(s.records, func(record messages.RecordSnapshot) bool {
+		return record.Message.SentAt.Before(cutoff)
 	})
 	return int64(before - len(s.records)), nil
 }
 
-func (s *Storage) recent(since time.Time, limit int) []messages.Message {
-	var recent []messages.Message
+func (s *Storage) recent(since time.Time, limit int) []messages.Snapshot {
+	var recent []messages.Snapshot
 	for _, record := range s.records {
-		if !record.Message().SentAt().Before(since) {
-			recent = append(recent, record.Message())
+		if !record.Message.SentAt.Before(since) {
+			recent = append(recent, record.Message)
 		}
 	}
 	return recent[max(0, len(recent)-limit):]

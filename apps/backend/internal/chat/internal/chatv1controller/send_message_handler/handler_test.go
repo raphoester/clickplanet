@@ -33,10 +33,22 @@ func (s stubUseCase) Execute(_ context.Context, in send_message_usecase.In) (mes
 		return messages.Message{}, s.err
 	}
 
-	return messages.NewMessage("message-1", time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), messages.NoAccount, in.CountryID, in.Text).
-		Named(messages.AuthorOf("guest_0b1c2d", false, 0, 0, messages.Title{})).
-		Quoting(messages.QuoteOf(in.ReplyTo, messages.NoAccount, "who holds the north").
-			Named(messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_TEAL), 0, messages.Title{}))), nil
+	message, err := messages.Snapshot{
+		ID:      "message-1",
+		SentAt:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		Author:  messages.AuthorOf("guest_0b1c2d", false, 0, 0, messages.Title{}),
+		Country: in.CountryID,
+		Text:    in.Text,
+		Quote: messages.Quote{
+			MessageID: in.ReplyTo,
+			Author:    messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_TEAL), 0, messages.Title{}),
+			Text:      "who holds the north",
+		},
+	}.Restore()
+	if err != nil {
+		return messages.Message{}, fmt.Errorf("failed to restore the stub's message: %w", err)
+	}
+	return message, nil
 }
 
 func send(useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], error) {
@@ -96,7 +108,7 @@ func TestSendMessageReturnsTheStoredMessage(t *testing.T) {
 func TestAReplyToAMessageThatIsNotShownIsNotFound(t *testing.T) {
 	_, err := send(stubUseCase{
 		in:  &send_message_usecase.In{},
-		err: fmt.Errorf("failed to quote the message replied to: %w", messages.ErrNotShown),
+		err: fmt.Errorf("failed to reply: %w", messages.ErrNotShown),
 	})
 
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))

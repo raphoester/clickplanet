@@ -114,14 +114,26 @@ func (s *testSuite) history(viewer messages.AccountID) *chatv1.GetHistoryRespons
 	return answer
 }
 
+func (s *testSuite) keep(kept messages.Snapshot) {
+	s.Require().NoError(s.messages.Append(s.T().Context(),
+		messages.NewRecord(messages.Restored(s.T(), kept), "browser-1", "203.0.113.7", "test-agent")))
+}
+
 func (s *testSuite) sentAt(text string, account messages.AccountID, at time.Time) {
-	s.Require().NoError(s.messages.Append(s.T().Context(), messages.NewRecord(messages.NewMessage(messages.MessageID(text), at, account, "fr", text), "browser-1", "203.0.113.7", "test-agent")))
+	s.keep(messages.Snapshot{ID: messages.MessageID(text), SentAt: at, Account: account, Country: "fr", Text: text})
 }
 
 func (s *testSuite) repliedAt(text string, account messages.AccountID, at time.Time, replyTo messages.MessageID) {
-	reply := messages.NewMessage(messages.MessageID(text), at, account, "fr", text).
-		Quoting(messages.QuoteOf(replyTo, messages.NoAccount, ""))
-	s.Require().NoError(s.messages.Append(s.T().Context(), messages.NewRecord(reply, "browser-1", "203.0.113.7", "test-agent")))
+	s.keep(messages.Snapshot{
+		ID: messages.MessageID(text), SentAt: at, Account: account, Country: "fr", Text: text,
+		Quote: messages.Quote{MessageID: replyTo},
+	})
+}
+
+func (s *testSuite) legacy(name string, at time.Time) {
+	s.keep(messages.Snapshot{
+		ID: "legacy", SentAt: at, Author: messages.AuthorOf(name, true, 0, 0, messages.Title{}), Country: "fr", Text: "legacy",
+	})
 }
 
 func (s *testSuite) sent(text string, ago time.Duration) {
@@ -241,7 +253,7 @@ func (s *testSuite) TestADeletedAccountIsNoLongerNamed() {
 }
 
 func (s *testSuite) TestAMessageFromBeforeAccountsKeepsTheNameItCarries() {
-	s.Require().NoError(s.messages.Append(s.T().Context(), messages.NewRecord(messages.NewMessage("legacy", now.Add(-time.Hour), messages.NoAccount, "fr", "legacy").Named(messages.AuthorOf("guest_Bob", true, 0, 0, messages.Title{})), "browser-1", "203.0.113.7", "test-agent")))
+	s.legacy("guest_Bob", now.Add(-time.Hour))
 
 	message := s.history(ada).GetMessages()[0]
 
@@ -304,7 +316,7 @@ func (s *testSuite) TestTheQuoteOfADeletedAccountIsNoLongerNamed() {
 }
 
 func (s *testSuite) TestTheQuoteOfAMessageFromBeforeAccountsKeepsTheNameItCarries() {
-	s.Require().NoError(s.messages.Append(s.T().Context(), messages.NewRecord(messages.NewMessage("legacy", now.Add(-2*time.Hour), messages.NoAccount, "fr", "legacy").Named(messages.AuthorOf("guest_Bob", true, 0, 0, messages.Title{})), "browser-1", "203.0.113.7", "test-agent")))
+	s.legacy("guest_Bob", now.Add(-2*time.Hour))
 	s.repliedAt("answer", ada, now.Add(-time.Hour), "legacy")
 
 	quote := s.history(ada).GetMessages()[1].GetReplyTo()

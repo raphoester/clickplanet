@@ -34,7 +34,9 @@ func TestSinkFramesAMessage(t *testing.T) {
 	stream := &recorder{}
 
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Update: feed.MessageSent(messages.NewMessage("message-1", time.Time{}, messages.NoAccount, "", "hello").Named(messages.AuthorOf("Bob", false, 0, 0, messages.Title{}))),
+		Update: feed.MessageSent(messages.Restored(t, messages.Snapshot{
+			ID: "message-1", Author: messages.AuthorOf("Bob", false, 0, 0, messages.Title{}), Text: "hello",
+		})),
 	})
 
 	require.NoError(t, err)

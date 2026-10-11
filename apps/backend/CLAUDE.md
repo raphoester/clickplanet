@@ -386,17 +386,18 @@ its edge for the wire. A read is a query under its handler: see [Reads are queri
 
 ```
 internal/chat/internal/
-  messages/                             Message (NewMessage, Named, Quoting), MessageID, Drafts, Quote, Quotes, Record,
-                                        Limits, AccountID, Author, Title, Rank, ErrNoAccount, ErrNotShown, Window, the
-                                        Storage and IDProvider ports, the StorageContractSuite and SequentialIDs
+  messages/                             Message (Snapshot, Restore, TakeSnapshot, Named, Answering), MessageID, Quote,
+                                        Drafts, Thread, Record (RecordSnapshot), Limits, AccountID, Author, Title, Rank,
+                                        ErrNoAccount, ErrNotShown, Window, the Storage and IDProvider ports, the
+                                        StorageContractSuite, SequentialIDs and Restored
     postgres_message_store/             Storage, over chat.messages
     inmemory_message_storage/           Storage in a slice — behind the testing tag, tests only
     rpc_player_authors/                 who an account is, from player.v1.InternalService/GetAuthor(s): one on
                                         each post, the people under a message on each reaction
     log_authors/                        logs a caller, or a page of them, it could not name
     uuid_id_provider/                   IDProvider: a random UUID, as text
-    usecases/send_message_usecase/      drafts, quotes, names, appends, publishes — Appender, Publisher, Authors, Drafts,
-                                        Quotes
+    usecases/send_message_usecase/      drafts, replies, names, appends, publishes — Appender, Publisher, Authors, Drafts,
+                                        Thread
       publishing_send_message/          publishes chat.v1.MessageSent once a message is kept
       muting_send_message/              refuses a muted caller before anything else — Mutes
     usecases/prune_usecase/             deletes past retention, from each table; Runner — Pruner
@@ -452,7 +453,7 @@ internal/chat/internal/
 ```
 
 - **The rules that need no port are in the `messages` root**: `Limits` (runes, UTF-8, control characters), `AccountIDOf` (the context's account, or `cpsession.NoAccount`) and `NewRecord` (truncates the author id and user agent). They are tested there, not through the use case.
-- **Ids are injected** (`messages.IDProvider`, `announcements.IDProvider`, `mutes.IDProvider`), like the clock. Tests use each concept's `SequentialIDs` (behind the tag), so they assert exact ids. `messages.Drafts` holds the ids, the clock, the `Limits` and the country list, and builds a new `Message` from what was sent; `messages.Quotes` holds what a reply needs (see [Replies](#replies)). So `send_message_usecase` stays at five ports. A message id is still a UUID string: `chat.messages.id` is text, with no unique constraint.
+- **Ids are injected** (`messages.IDProvider`, `announcements.IDProvider`, `mutes.IDProvider`), like the clock. Tests use each concept's `SequentialIDs` (behind the tag), so they assert exact ids. `messages.Drafts` holds the ids, the clock, the `Limits` and the country list, and builds a new `Message` from what was sent; `messages.Thread` holds what a reply needs (see [Replies](#replies)). So `send_message_usecase` stays at five ports. A message id is still a UUID string: `chat.messages.id` is text, with no unique constraint.
 - **`send_message_usecase.Config` stays under `chat.Config.Service`**, so the `chat.service.*` keys do not change.
 - **`chatv1controller`'s root tests are about the chain** (error net, blocklist, throttle). Each handler package tests its own mapping.
 
@@ -522,8 +523,7 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   `NewStats`, `NewVisit` to start one; `ProfileOf`, `StatsOf`, `StreakOf`, `AccountOf` to restore one a store or
   another module kept), read through nouns (`Profile.Name()`, `Stats.TilesTaken()`, `Visit.Author()`), and changed
   through builders that answer a copy (`Stats.WithTake`, `Author.Renamed`, `wearing.Author.Wearing`,
-  `Visit.Keyed`). Chat the same: `NewMessage`, `Message.Named` and `Message.Quoting`, `QuoteOf` and `Quote.Named`, `NewRecord`,
-  `NewWindow`, `AuthorOf`,
+  `Visit.Keyed`). Chat the same: `NewRecord`, `NewWindow`, `AuthorOf`,
   `TitleOf`, `RankOf`, `reactions.On` and `Off` for a `Change`, `Tally.Named`, `NewAnnouncement`, `BombOf`, and
   `feed.MessageSent`, `ReactionsChanged` and `Announced` for the three cases of an `Update`. A test outside the
   package compares through those nouns, or through a view of them (`title_test.go`'s `standingView`), since it
@@ -535,6 +535,15 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   `signin.Client`). **A value a browser holds keeps its format**: `aes_flow_sealer` seals a flow and a challenge
   through structs of its own whose keys are the old exported fields, and `format_test.go` opens a cookie sealed in
   that JSON and seals the same JSON back.
+- **A message has no getter: it is read through a snapshot.** `messages.Snapshot` is a plain struct that mirrors
+  the fields of a `Message`, with no behaviour. `Snapshot.Restore()` is the one way to build a message and the one
+  place its invariant is checked (it has an id): `Drafts` and the store both go through it. `Message.TakeSnapshot()`
+  is the one way to read one: the stores write from it, `chatmessage.Encode` and `publishing_send_message` build the
+  wire from it, and a test compares it. What a message does is a method on it (`Named`, `Answering`), so a use case
+  tells it and never asks it. `Record.TakeSnapshot()` is the same for the row a store writes; nothing reads a
+  record back, so it has no `Restore`. Tests build a message with `messages.Restored(t, snapshot)`, behind the tag.
+  **Only `Message` and `Record` follow this so far**: `Author`, `Title`, `Rank` and the other concepts still read
+  through nouns.
 
 ### Adapters
 
@@ -658,8 +667,8 @@ POST /chat.v1.ChatService/SendMessage   [X-Session-Token: required, naming an ac
   → messages/usecases/send_message_usecase: no account is ErrNoAccount (Unauthenticated), then
       who posts (log_authors → rpc_player_authors → player.v1.InternalService/GetAuthor): the account's
       username, or "guest_" and its guest code; stamps id/time
-      for a reply, what it quotes (messages.Quotes: postgres_message_store.Quote, then GetAuthors); a message
-      that is not shown is ErrNotShown (NotFound)
+      for a reply, the message it answers (messages.Thread: postgres_message_store.Message, then GetAuthors);
+      a message that is not shown is ErrNotShown (NotFound)
   → postgres_message_store.Append() [inserts into chat.messages: the account, never a copy of its name;
       for a reply, the id of the message it answers]
   → inprocess_feed.Publish() → every subscriber: one per open ListenForEvents stream
@@ -898,12 +907,16 @@ name and color, its text), which the client draws above the reply.
 - **One level.** A quote is the message answered, never what that one answered: a reply to a reply quotes the
   reply alone.
 - **Only a message in the window can be answered** (`messages.ErrNotShown` → `NotFound`), the rule `React` has.
-  `Storage.Quote` asks the same question as `Shown` and answers the message. The contract suite pins the two
-  against each other, and a parity test against the history.
-- **`messages.Quotes` is the rule**: the storage, the authors, the clock and the window. `Quote(ctx, id)` answers
-  nothing for no id, reads the message, and names its account with `GetAuthors` (a pure read: quoting somebody
-  draws no guest code). An account nobody can name is `messages.DeletedName`; a message from before accounts keeps
-  the name its row carries. A quote nobody could be asked about refuses the post (`ErrAuthorUnavailable`).
+  `Storage.Message` asks the same question as `Shown` and answers the message, restored. The contract suite pins
+  the two against each other, and a parity test against the history.
+- **`messages.Thread` makes the reply**: it holds the storage, the authors, the clock and the window, and the use
+  case calls one method. `Reply(ctx, draft, id)` answers the draft as it is for no id. Otherwise it reads the
+  message answered, names its account with `GetAuthors` (a pure read: answering somebody draws no guest code), and
+  answers `draft.Answering(answered)`. An account nobody can name is `messages.DeletedName`; a message from before
+  accounts keeps the name its row carries. A message nobody could be asked about refuses the post
+  (`ErrAuthorUnavailable`).
+- **`Message.Answering(answered)` is the whole rule on the message**: it takes the id, the author and the text of
+  the other message as its `Quote`. Nothing outside the package reads a field to build one.
 - **The answer and the stream carry the quote**, so everyone watching sees what is answered with no second read.
 - **The history reads it in the same statement** (`history_query`: a lateral join on `reply_to`, bounded by the
   retention and not by the window, so a reply still quotes a message that newer ones pushed out). The quoted

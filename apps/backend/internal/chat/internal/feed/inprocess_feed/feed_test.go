@@ -20,8 +20,9 @@ func newFeed(buffer int) *inprocess_feed.Feed {
 	return inprocess_feed.New(buffer, slog.New(slog.DiscardHandler))
 }
 
-func sent(text string) feed.Update {
-	return feed.MessageSent(messages.NewMessage(messages.MessageID(text), time.Time{}, messages.NoAccount, "", text))
+func sent(t *testing.T, text string) feed.Update {
+	t.Helper()
+	return feed.MessageSent(messages.Restored(t, messages.Snapshot{ID: messages.MessageID(text), Text: text}))
 }
 
 func TestEverySubscriberHearsEveryUpdateInOrder(t *testing.T) {
@@ -32,11 +33,11 @@ func TestEverySubscriberHearsEveryUpdateInOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	tally := feed.ReactionsChanged(reactions.TallyFor("hello", nil, 0))
-	updates.Publish(sent("hello"))
+	updates.Publish(sent(t, "hello"))
 	updates.Publish(tally)
 
 	for _, heard := range []<-chan feed.Update{first, second} {
-		assert.Equal(t, sent("hello"), <-heard)
+		assert.Equal(t, sent(t, "hello"), <-heard)
 		assert.Equal(t, tally, <-heard)
 	}
 }
@@ -66,16 +67,16 @@ func TestASlowSubscriberIsClosedRatherThanHoldingThePublisher(t *testing.T) {
 	require.NoError(t, err)
 
 	for range 10 {
-		updates.Publish(sent("hello"))
+		updates.Publish(sent(t, "hello"))
 
 		update, open := <-reading
 		require.True(t, open, "a subscriber that keeps up is never cut off")
-		assert.Equal(t, sent("hello"), update)
+		assert.Equal(t, sent(t, "hello"), update)
 	}
 
 	update, open := <-slow
 	require.True(t, open)
-	assert.Equal(t, sent("hello"), update)
+	assert.Equal(t, sent(t, "hello"), update)
 	_, open = <-slow
 	assert.False(t, open, "closed, not skipped: its stream ends and the client reads the history again")
 }
@@ -89,7 +90,7 @@ func TestConcurrentUseIsSafe(t *testing.T) {
 	for range 10 {
 		wg.Go(func() {
 			for range 20 {
-				updates.Publish(sent("hello"))
+				updates.Publish(sent(t, "hello"))
 			}
 		})
 	}

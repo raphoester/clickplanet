@@ -35,5 +35,5 @@ func (d Drafts) Draft(account AccountID, country string, text string) (Message, 
 		return Message{}, fmt.Errorf("failed to draw a message id: %w", err)
 	}
 
-	return NewMessage(id, d.clock.Now(), account, country, cleaned), nil
+	return Snapshot{ID: id, SentAt: d.clock.Now(), Account: account, Country: country, Text: cleaned}.Restore()
 }

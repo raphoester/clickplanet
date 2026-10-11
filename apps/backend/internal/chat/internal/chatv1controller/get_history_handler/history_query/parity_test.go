@@ -88,7 +88,7 @@ func (s *testSuite) TestAMessageIsInTheHistoryExactlyWhenItCanBeReactedAndReplie
 				s.Require().NoError(err)
 				s.Equal(reactable, shown.Contains(id), "%s: the history and React must agree on what is shown", id)
 
-				_, err = s.messages.Quote(s.T().Context(), messages.MessageID(id), window.Since(now), window.Size())
+				_, err = s.messages.Message(s.T().Context(), messages.MessageID(id), window.Since(now), window.Size())
 				s.Equal(!errors.Is(err, messages.ErrNotShown), shown.Contains(id),
 					"%s: the history and SendMessage must agree on what is shown", id)
 			}
@@ -150,7 +150,7 @@ func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
 	authors := commandAuthors{query: s.authors}
 	send := send_message_usecase.New(s.messages, silentFeed{}, authors,
 		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpcountries.New()),
-		messages.NewQuotes(s.messages, authors, clock, window))
+		messages.NewThread(s.messages, authors, clock, window))
 
 	answers := map[string]*chatv1.ChatMessage{}
 	for _, in := range []send_message_usecase.In{
@@ -159,7 +159,8 @@ func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
 	} {
 		sent, err := send.Execute(s.T().Context(), in)
 		s.Require().NoError(err)
-		answers[string(sent.ID())] = chatmessage.Encode(sent, nil, 0)
+		answer := chatmessage.Encode(sent, nil, 0)
+		answers[answer.GetId()] = answer
 		clock.Advance(time.Second)
 	}
 
@@ -178,20 +179,15 @@ func (s *testSuite) TestAReplyReadsBackAsSendMessageAnsweredIt() {
 	s.authors.named[bob] = &playerv1.Author{
 		AccountId: bob.String(), Name: "Bob_B", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 12,
 	}
-	for id, parent := range map[messages.MessageID]messages.Message{
-		"named":   messages.NewMessage("named", now.Add(-5*time.Hour), bob, "fr", long),
-		"deleted": messages.NewMessage("deleted", now.Add(-4*time.Hour), gone, "fr", "who holds the north"),
-		"legacy": messages.NewMessage("legacy", now.Add(-3*time.Hour), messages.NoAccount, "fr", "from before accounts").
-			Named(messages.AuthorOf("guest_Bob", true, 0, 0, messages.Title{})),
-	} {
-		s.Require().NoError(s.messages.Append(s.T().Context(), messages.NewRecord(parent, "browser-1", "203.0.113.7", "test-agent")), id)
-	}
+	s.keep(messages.Snapshot{ID: "named", SentAt: now.Add(-5 * time.Hour), Account: bob, Country: "fr", Text: long})
+	s.keep(messages.Snapshot{ID: "deleted", SentAt: now.Add(-4 * time.Hour), Account: gone, Country: "fr", Text: "who holds the north"})
+	s.legacy("guest_Bob", now.Add(-3*time.Hour))
 
 	clock := cptime.NewFixedClock(now.Add(-time.Hour))
 	authors := commandAuthors{query: s.authors}
 	send := send_message_usecase.New(s.messages, silentFeed{}, authors,
 		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpcountries.New()),
-		messages.NewQuotes(s.messages, authors, clock, messages.NewWindow(size, historyRetention)))
+		messages.NewThread(s.messages, authors, clock, messages.NewWindow(size, historyRetention)))
 
 	answers := map[string]*chatv1.ChatMessage{}
 	for _, replyTo := range []messages.MessageID{"named", "deleted", "legacy"} {
@@ -199,8 +195,9 @@ func (s *testSuite) TestAReplyReadsBackAsSendMessageAnsweredIt() {
 			Account: ada, AuthorID: "browser-1", CountryID: "fr", Text: "answer", ReplyTo: replyTo, UserAgent: "test",
 		})
 		s.Require().NoError(err)
-		s.Require().Equal(replyTo, sent.Quote().ID())
-		answers[string(sent.ID())] = chatmessage.Encode(sent, nil, 0)
+		answer := chatmessage.Encode(sent, nil, 0)
+		s.Require().Equal(string(replyTo), answer.GetReplyTo().GetMessageId())
+		answers[answer.GetId()] = answer
 		clock.Advance(time.Second)
 	}
 

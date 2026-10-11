@@ -48,29 +48,45 @@ func (s *Store) Shown(ctx context.Context, id messages.MessageID, since time.Tim
 	return shown, nil
 }
 
-func (s *Store) Quote(ctx context.Context, id messages.MessageID, since time.Time, limit int) (messages.Quote, error) {
+func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.Time, limit int) (messages.Message, error) {
 	var (
+		sentAt  time.Time
 		account uuid.NullUUID
 		name    string
+		admin   bool
+		country string
 		text    string
+		replyTo sql.NullString
 	)
 	err := s.db.QueryRowContext(ctx, `
-		SELECT recent.account_id, recent.name, recent.text FROM (
-			SELECT id, account_id, name, text FROM messages WHERE sent_at >= $2 ORDER BY seq DESC LIMIT $3
+		SELECT recent.sent_at, recent.account_id, recent.name, recent.author_admin, recent.country, recent.text,
+			recent.reply_to
+		FROM (
+			SELECT id, sent_at, account_id, name, author_admin, country, text, reply_to
+			FROM messages WHERE sent_at >= $2 ORDER BY seq DESC LIMIT $3
 		) recent
 		WHERE recent.id = $1
-	`, string(id), since, limit).Scan(&account, &name, &text)
+	`, string(id), since, limit).Scan(&sentAt, &account, &name, &admin, &country, &text, &replyTo)
 	if errors.Is(err, sql.ErrNoRows) {
-		return messages.Quote{}, messages.ErrNotShown
+		return messages.Message{}, messages.ErrNotShown
 	}
 	if err != nil {
-		return messages.Quote{}, fmt.Errorf("failed to read a message to quote: %w", err)
+		return messages.Message{}, fmt.Errorf("failed to read a shown message: %w", err)
 	}
 
-	if !account.Valid {
-		return messages.QuoteOf(id, messages.NoAccount, text).Named(messages.AuthorOf(name, false, 0, 0, messages.Title{})), nil
+	message, err := messages.Snapshot{
+		ID:      id,
+		SentAt:  sentAt.UTC(),
+		Account: messages.AccountID(account.UUID),
+		Author:  messages.AuthorOf(name, admin, 0, 0, messages.Title{}),
+		Country: country,
+		Text:    text,
+		Quote:   messages.Quote{MessageID: messages.MessageID(replyTo.String)},
+	}.Restore()
+	if err != nil {
+		return messages.Message{}, fmt.Errorf("failed to restore message %q: %w", id, err)
 	}
-	return messages.QuoteOf(id, messages.AccountID(account.UUID), text), nil
+	return message, nil
 }
 
 func (s *Store) LatestAddress(ctx context.Context, account messages.AccountID) (string, error) {
@@ -100,23 +116,22 @@ func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, erro
 }
 
 func row(record messages.Record) []any {
-	return []any{
-		string(record.Message().ID()),
-		record.Message().SentAt().UTC(),
-		account(record.Message().Account()),
-		record.Message().Author().Name(),
-		record.Message().Author().Admin(),
-		record.AuthorID(),
-		record.Message().Country(),
-		record.IP(),
-		record.UserAgent(),
-		record.Message().Text(),
-		replyTo(record.Message().Quote()),
-	}
-}
+	kept := record.TakeSnapshot()
+	message := kept.Message
 
-func replyTo(quote messages.Quote) sql.NullString {
-	return sql.NullString{String: string(quote.ID()), Valid: !quote.Empty()}
+	return []any{
+		string(message.ID),
+		message.SentAt.UTC(),
+		account(message.Account),
+		message.Author.Name(),
+		message.Author.Admin(),
+		kept.AuthorID,
+		message.Country,
+		kept.IP,
+		kept.UserAgent,
+		message.Text,
+		sql.NullString{String: string(message.Quote.MessageID), Valid: message.Quote.MessageID != ""},
+	}
 }
 
 func account(id messages.AccountID) uuid.NullUUID {

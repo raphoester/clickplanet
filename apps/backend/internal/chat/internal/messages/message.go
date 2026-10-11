@@ -3,6 +3,7 @@ package messages
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -18,43 +19,70 @@ type Message struct {
 	quote   Quote
 }
 
-func NewMessage(id MessageID, sentAt time.Time, account AccountID, country string, text string) Message {
-	return Message{id: id, sentAt: sentAt, account: account, country: country, text: text}
+type Snapshot struct {
+	ID      MessageID
+	SentAt  time.Time
+	Account AccountID
+	Author  Author
+	Country string
+	Text    string
+	Quote   Quote
 }
 
-func (m Message) ID() MessageID { return m.id }
+type Quote struct {
+	MessageID MessageID
+	Author    Author
+	Text      string
+}
 
-func (m Message) SentAt() time.Time { return m.sentAt }
+func (s Snapshot) Restore() (Message, error) {
+	if s.ID == "" {
+		return Message{}, fmt.Errorf("%w: no id", ErrInvalidMessage)
+	}
 
-func (m Message) Account() AccountID { return m.account }
+	return Message{
+		id:      s.ID,
+		sentAt:  s.SentAt,
+		account: s.Account,
+		author:  s.Author,
+		country: s.Country,
+		text:    s.Text,
+		quote:   s.Quote,
+	}, nil
+}
 
-func (m Message) Author() Author { return m.author }
-
-func (m Message) Country() string { return m.country }
-
-func (m Message) Text() string { return m.text }
-
-func (m Message) Quote() Quote { return m.quote }
+func (m Message) TakeSnapshot() Snapshot {
+	return Snapshot{
+		ID:      m.id,
+		SentAt:  m.sentAt,
+		Account: m.account,
+		Author:  m.author,
+		Country: m.country,
+		Text:    m.text,
+		Quote:   m.quote,
+	}
+}
 
 func (m Message) Named(author Author) Message {
 	m.author = author
 	return m
 }
 
-func (m Message) Quoting(quote Quote) Message {
-	m.quote = quote
+func (m Message) Answering(answered Message) Message {
+	m.quote = Quote{MessageID: answered.id, Author: answered.author, Text: answered.text}
 	return m
 }
 
 var (
 	ErrInvalidMessage = errors.New("invalid chat message")
 	ErrNoMessage      = errors.New("the account sent no message")
+	ErrNotShown       = errors.New("the message is not shown")
 )
 
 type Storage interface {
 	Append(ctx context.Context, record Record) error
 	Shown(ctx context.Context, id MessageID, since time.Time, limit int) (bool, error)
-	Quote(ctx context.Context, id MessageID, since time.Time, limit int) (Quote, error)
+	Message(ctx context.Context, id MessageID, since time.Time, limit int) (Message, error)
 	LatestAddress(ctx context.Context, account AccountID) (string, error)
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
 }

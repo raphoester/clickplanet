@@ -27,8 +27,8 @@ type Drafts interface {
 	Draft(account messages.AccountID, country string, text string) (messages.Message, error)
 }
 
-type Quotes interface {
-	Quote(ctx context.Context, replyTo messages.MessageID) (messages.Quote, error)
+type Thread interface {
+	Reply(ctx context.Context, draft messages.Message, replyTo messages.MessageID) (messages.Message, error)
 }
 
 const writeTimeout = 5 * time.Second
@@ -47,14 +47,14 @@ func New(
 	publisher Publisher,
 	authors Authors,
 	drafts Drafts,
-	quotes Quotes,
+	thread Thread,
 ) *UseCase {
 	return &UseCase{
 		appender:  appender,
 		publisher: publisher,
 		authors:   authors,
 		drafts:    drafts,
-		quotes:    quotes,
+		thread:    thread,
 	}
 }
 
@@ -63,7 +63,7 @@ type UseCase struct {
 	publisher Publisher
 	authors   Authors
 	drafts    Drafts
-	quotes    Quotes
+	thread    Thread
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) {
@@ -76,11 +76,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) (messages.Message, error) 
 		return messages.Message{}, fmt.Errorf("failed to draft the message: %w", err)
 	}
 
-	quote, err := u.quotes.Quote(ctx, in.ReplyTo)
+	message, err := u.thread.Reply(ctx, draft, in.ReplyTo)
 	if err != nil {
-		return messages.Message{}, fmt.Errorf("failed to quote the message replied to: %w", err)
+		return messages.Message{}, fmt.Errorf("failed to reply: %w", err)
 	}
-	message := draft.Quoting(quote)
 
 	ip := cpctx.GetSourceIP(ctx)
 

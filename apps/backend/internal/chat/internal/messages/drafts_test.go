@@ -31,8 +31,10 @@ func TestADraftIsCleanedAndStampedWithAnIDAndTheTime(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t,
-		messages.NewMessage("00000000-0000-0000-0000-000000000001", draftedAt, ada, "fr", "hello planet"),
-		message)
+		messages.Snapshot{
+			ID: "00000000-0000-0000-0000-000000000001", SentAt: draftedAt, Account: ada, Country: "fr", Text: "hello planet",
+		},
+		message.TakeSnapshot())
 }
 
 func TestEachDraftGetsAnIDOfItsOwn(t *testing.T) {
@@ -43,8 +45,8 @@ func TestEachDraftGetsAnIDOfItsOwn(t *testing.T) {
 	second, err := drafting.Draft(ada, "fr", "two")
 	require.NoError(t, err)
 
-	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), first.ID())
-	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000002"), second.ID())
+	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), first.TakeSnapshot().ID)
+	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000002"), second.TakeSnapshot().ID)
 }
 
 func TestAnInvalidTextIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
@@ -55,7 +57,7 @@ func TestAnInvalidTextIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
 
 	message, err := drafting.Draft(ada, "fr", "hello")
 	require.NoError(t, err)
-	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), message.ID())
+	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), message.TakeSnapshot().ID)
 }
 
 func TestAnUnknownCountryIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
@@ -66,7 +68,7 @@ func TestAnUnknownCountryIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
 
 	message, err := drafting.Draft(ada, "fr", "hello")
 	require.NoError(t, err)
-	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), message.ID())
+	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), message.TakeSnapshot().ID)
 }
 
 func TestADraftWithNoIDFails(t *testing.T) {

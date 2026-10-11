@@ -44,13 +44,3 @@ func (u Update) Announcement() (announcements.Announcement, bool) {
 	}
 	return *u.announcement, true
 }
-
-func (u Update) MessageID() messages.MessageID {
-	if u.reactions != nil {
-		return u.reactions.MessageID()
-	}
-	if u.message != nil {
-		return u.message.ID()
-	}
-	return ""
-}
