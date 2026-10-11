@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
@@ -188,6 +189,57 @@ func TestAReactionToNoMessageIsNotFound(t *testing.T) {
 	_, err := game.newPlayer(t).react("no-such-message", chatv1.Reaction_REACTION_SKULL, true)
 
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func (p *gamer) reply(messageID string) (*chatv1.ChatMessage, error) {
+	p.t.Helper()
+
+	req := connect.NewRequest(&chatv1.SendMessageRequest{
+		AuthorId: "browser-1", CountryId: "fr", Text: "answer", ReplyToMessageId: messageID,
+	})
+	p.send(req.Header())
+	res, err := chatv1connect.NewChatServiceClient(http.DefaultClient, p.stack.baseURL).SendMessage(p.t.Context(), req)
+	if err != nil {
+		return nil, fmt.Errorf("SendMessage failed: %w", err)
+	}
+	return res.Msg.GetMessage(), nil
+}
+
+func TestAReplyQuotesTheMessageItAnswersUnderWhoItsAuthorIsNow(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+	_, err := ada.setName("Ada_L")
+	require.NoError(t, err)
+	require.NoError(t, ada.setColor(playerv1.NameColor_NAME_COLOR_TEAL))
+	question, err := ada.post()
+	require.NoError(t, err)
+	bob := game.newPlayer(t)
+
+	answer, err := bob.reply(question.GetId())
+
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(&chatv1.Quote{
+		MessageId: question.GetId(), AuthorName: "Ada_L", AuthorColor: playerv1.NameColor_NAME_COLOR_TEAL, Text: "hello",
+	}, answer.GetReplyTo()), "%v", answer.GetReplyTo())
+
+	_, err = ada.setName("Ada_Lovelace")
+	require.NoError(t, err)
+	history := bob.history()
+	require.Len(t, history, 2)
+	assert.Nil(t, history[0].GetReplyTo())
+	assert.Equal(t, question.GetId(), history[1].GetReplyTo().GetMessageId())
+	assert.Equal(t, "Ada_Lovelace", history[1].GetReplyTo().GetAuthorName(), "a rename shows on what was quoted before it")
+}
+
+func TestAReplyToNoMessageIsNotFoundAndIsNotPosted(t *testing.T) {
+	game := startGame(t)
+	bob := game.newPlayer(t)
+
+	_, err := bob.reply("no-such-message")
+
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	assert.Empty(t, bob.history())
 }
 
 func (p *gamer) markSeen(at time.Time) error {

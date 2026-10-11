@@ -25,8 +25,8 @@ var _ messages.Storage = (*Store)(nil)
 
 func (s *Store) Append(ctx context.Context, record messages.Record) error {
 	if _, err := s.db.ExecContext(ctx, `
-		INSERT INTO messages (id, sent_at, account_id, name, author_admin, author_id, country, ip, user_agent, text)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO messages (id, sent_at, account_id, name, author_admin, author_id, country, ip, user_agent, text, reply_to)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`, row(record)...); err != nil {
 		return fmt.Errorf("failed to insert a message: %w", err)
 	}
@@ -46,6 +46,31 @@ func (s *Store) Shown(ctx context.Context, id messages.MessageID, since time.Tim
 		return false, fmt.Errorf("failed to read whether a message is shown: %w", err)
 	}
 	return shown, nil
+}
+
+func (s *Store) Quote(ctx context.Context, id messages.MessageID, since time.Time, limit int) (messages.Quote, error) {
+	var (
+		account uuid.NullUUID
+		name    string
+		text    string
+	)
+	err := s.db.QueryRowContext(ctx, `
+		SELECT recent.account_id, recent.name, recent.text FROM (
+			SELECT id, account_id, name, text FROM messages WHERE sent_at >= $2 ORDER BY seq DESC LIMIT $3
+		) recent
+		WHERE recent.id = $1
+	`, string(id), since, limit).Scan(&account, &name, &text)
+	if errors.Is(err, sql.ErrNoRows) {
+		return messages.Quote{}, messages.ErrNotShown
+	}
+	if err != nil {
+		return messages.Quote{}, fmt.Errorf("failed to read a message to quote: %w", err)
+	}
+
+	if !account.Valid {
+		return messages.QuoteOf(id, messages.NoAccount, text).Named(messages.AuthorOf(name, false, 0, 0, messages.Title{})), nil
+	}
+	return messages.QuoteOf(id, messages.AccountID(account.UUID), text), nil
 }
 
 func (s *Store) LatestAddress(ctx context.Context, account messages.AccountID) (string, error) {
@@ -86,7 +111,12 @@ func row(record messages.Record) []any {
 		record.IP(),
 		record.UserAgent(),
 		record.Message().Text(),
+		replyTo(record.Message().Quote()),
 	}
+}
+
+func replyTo(quote messages.Quote) sql.NullString {
+	return sql.NullString{String: string(quote.ID()), Valid: !quote.Empty()}
 }
 
 func account(id messages.AccountID) uuid.NullUUID {

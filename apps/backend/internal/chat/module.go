@@ -119,7 +119,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	announce := announce_usecase.New(announcementStore, updates, announcement_ids.Provider{})
 	authors := log_authors.New(rpc_player_authors.New(player), props.Logger)
-	drafts := messages.NewDrafts(message_ids.Provider{}, cptime.SystemClock{}, messages.NewLimits(config.Service.MaxTextLength))
+	drafts := messages.NewDrafts(
+		message_ids.Provider{}, cptime.SystemClock{}, messages.NewLimits(config.Service.MaxTextLength), cpcountries.New())
+	quotes := messages.NewQuotes(messageStore, authors, cptime.SystemClock{}, window)
 
 	bombs, err := cpbootstrap.Subscribe(props.Events, "chat-announcements-bombs", bombLandedBuffer,
 		log_subscriber.New(bomb_landed_subscriber.New(announce), props.Logger))
@@ -176,7 +178,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	chatService := chatv1controller.ChatService{
 		SendMessageHandler: send_message_handler.New(muting_send_message.New(publishing_send_message.New(send_message_usecase.New(
-			messageStore, updates, cpcountries.New(), authors, drafts), props.Events), muteBook)),
+			messageStore, updates, authors, drafts, quotes), props.Events), muteBook)),
 		GetHistoryHandler: get_history_handler.New(history_query.NewPostgresQuery(
 			db, history_authors.New(player), cptime.SystemClock{}, storage.HistorySize, storage.Retention)),
 		ListenForEventsHandler: listen_for_events_handler.New(

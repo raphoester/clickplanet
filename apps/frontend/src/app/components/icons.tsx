@@ -159,6 +159,13 @@ export function AddReactionIcon({size = 16}: IconProps) {
     </svg>
 }
 
+export function ReplyIcon({size = 16}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.2}>
+        <path d="M9.5 6 4.5 11l5 5"/>
+        <path d="M4.5 11H13a6.5 6.5 0 0 1 6.5 6.5V19"/>
+    </svg>
+}
+
 export function TrophyIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
         <path d="M8 20.5h8M12 16.5v4"/>

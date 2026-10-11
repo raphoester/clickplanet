@@ -3,7 +3,9 @@ package history_query_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -60,7 +62,7 @@ func (c commandAuthors) Authors(ctx context.Context, accounts []messages.Account
 	return named, nil
 }
 
-func (s *testSuite) TestAMessageIsInTheHistoryExactlyWhenItCanBeReactedTo() {
+func (s *testSuite) TestAMessageIsInTheHistoryExactlyWhenItCanBeReactedAndRepliedTo() {
 	for name, sends := range map[string][]time.Duration{
 		"fewer than the window holds":   {time.Hour},
 		"more than the window holds":    {4 * time.Hour, 3 * time.Hour, 2 * time.Hour, time.Hour},
@@ -85,6 +87,10 @@ func (s *testSuite) TestAMessageIsInTheHistoryExactlyWhenItCanBeReactedTo() {
 				reactable, err := s.messages.Shown(s.T().Context(), messages.MessageID(id), window.Since(now), window.Size())
 				s.Require().NoError(err)
 				s.Equal(reactable, shown.Contains(id), "%s: the history and React must agree on what is shown", id)
+
+				_, err = s.messages.Quote(s.T().Context(), messages.MessageID(id), window.Since(now), window.Size())
+				s.Equal(!errors.Is(err, messages.ErrNotShown), shown.Contains(id),
+					"%s: the history and SendMessage must agree on what is shown", id)
 			}
 		})
 	}
@@ -141,8 +147,10 @@ func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
 	}
 	s.authors.named[bob] = &playerv1.Author{AccountId: bob.String(), Name: "guest_0b1c2d"}
 	clock := cptime.NewFixedClock(now.Add(-time.Hour).Add(123_456 * time.Microsecond))
-	send := send_message_usecase.New(s.messages, silentFeed{}, cpcountries.New(), commandAuthors{query: s.authors},
-		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0)))
+	authors := commandAuthors{query: s.authors}
+	send := send_message_usecase.New(s.messages, silentFeed{}, authors,
+		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpcountries.New()),
+		messages.NewQuotes(s.messages, authors, clock, window))
 
 	answers := map[string]*chatv1.ChatMessage{}
 	for _, in := range []send_message_usecase.In{
@@ -161,6 +169,54 @@ func (s *testSuite) TestAMessageReadsBackAsSendMessageAnsweredIt() {
 		s.True(proto.Equal(answers[message.GetId()], message), "SendMessage answered %v, the history reads %v",
 			answers[message.GetId()], message)
 	}
+}
+
+func (s *testSuite) TestAReplyReadsBackAsSendMessageAnsweredIt() {
+	const size = 10
+	gone := messages.AccountID{15: 9}
+	long := strings.Repeat("north ", 40)
+	s.authors.named[bob] = &playerv1.Author{
+		AccountId: bob.String(), Name: "Bob_B", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 12,
+	}
+	for id, parent := range map[messages.MessageID]messages.Message{
+		"named":   messages.NewMessage("named", now.Add(-5*time.Hour), bob, "fr", long),
+		"deleted": messages.NewMessage("deleted", now.Add(-4*time.Hour), gone, "fr", "who holds the north"),
+		"legacy": messages.NewMessage("legacy", now.Add(-3*time.Hour), messages.NoAccount, "fr", "from before accounts").
+			Named(messages.AuthorOf("guest_Bob", true, 0, 0, messages.Title{})),
+	} {
+		s.Require().NoError(s.messages.Append(s.T().Context(), messages.NewRecord(parent, "browser-1", "203.0.113.7", "test-agent")), id)
+	}
+
+	clock := cptime.NewFixedClock(now.Add(-time.Hour))
+	authors := commandAuthors{query: s.authors}
+	send := send_message_usecase.New(s.messages, silentFeed{}, authors,
+		messages.NewDrafts(&messages.SequentialIDs{}, clock, messages.NewLimits(0), cpcountries.New()),
+		messages.NewQuotes(s.messages, authors, clock, messages.NewWindow(size, historyRetention)))
+
+	answers := map[string]*chatv1.ChatMessage{}
+	for _, replyTo := range []messages.MessageID{"named", "deleted", "legacy"} {
+		sent, err := send.Execute(s.T().Context(), send_message_usecase.In{
+			Account: ada, AuthorID: "browser-1", CountryID: "fr", Text: "answer", ReplyTo: replyTo, UserAgent: "test",
+		})
+		s.Require().NoError(err)
+		s.Require().Equal(replyTo, sent.Quote().ID())
+		answers[string(sent.ID())] = chatmessage.Encode(sent, nil, 0)
+		clock.Advance(time.Second)
+	}
+
+	history, err := history_query.NewPostgresQuery(s.db, s.authors, cptime.NewFixedClock(now), size, historyRetention).
+		History(s.T().Context(), ada)
+	s.Require().NoError(err)
+	replies := 0
+	for _, message := range history.GetMessages() {
+		answer, sent := answers[message.GetId()]
+		if !sent {
+			continue
+		}
+		replies++
+		s.True(proto.Equal(answer, message), "SendMessage answered %v, the history reads %v", answer, message)
+	}
+	s.Equal(len(answers), replies)
 }
 
 func (s *testSuite) TestEveryKindTheChatAnnouncesIsReadBack() {

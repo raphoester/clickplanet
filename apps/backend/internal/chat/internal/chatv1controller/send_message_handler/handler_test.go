@@ -10,7 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"google.golang.org/protobuf/proto"
+
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
+	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
@@ -30,7 +33,10 @@ func (s stubUseCase) Execute(_ context.Context, in send_message_usecase.In) (mes
 		return messages.Message{}, s.err
 	}
 
-	return messages.NewMessage("message-1", time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), messages.NoAccount, in.CountryID, in.Text).Named(messages.AuthorOf("guest_0b1c2d", false, 0, 0, messages.Title{})), nil
+	return messages.NewMessage("message-1", time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), messages.NoAccount, in.CountryID, in.Text).
+		Named(messages.AuthorOf("guest_0b1c2d", false, 0, 0, messages.Title{})).
+		Quoting(messages.QuoteOf(in.ReplyTo, messages.NoAccount, "who holds the north").
+			Named(messages.AuthorOf("Ada_L", false, int32(playerv1.NameColor_NAME_COLOR_TEAL), 0, messages.Title{}))), nil
 }
 
 func send(useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], error) {
@@ -39,9 +45,10 @@ func send(useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], e
 
 func sendAs(ctx context.Context, useCase stubUseCase) (*connect.Response[chatv1.SendMessageResponse], error) {
 	req := connect.NewRequest(&chatv1.SendMessageRequest{
-		AuthorId:  "some-uuid",
-		CountryId: "fr",
-		Text:      "hello planet",
+		AuthorId:         "some-uuid",
+		CountryId:        "fr",
+		Text:             "hello planet",
+		ReplyToMessageId: "message-0",
 	})
 	req.Header().Set("User-Agent", "curl/8")
 
@@ -58,6 +65,7 @@ func TestSendMessageMapsTheRequest(t *testing.T) {
 		AuthorID:  "some-uuid",
 		CountryID: "fr",
 		Text:      "hello planet",
+		ReplyTo:   "message-0",
 		UserAgent: "curl/8",
 	}, in)
 }
@@ -80,6 +88,18 @@ func TestSendMessageReturnsTheStoredMessage(t *testing.T) {
 	assert.Equal(t, "fr", message.GetCountryId())
 	assert.Equal(t, "hello planet", message.GetText())
 	assert.Equal(t, int64(1704067200000), message.GetSentAtUnixMs())
+	assert.True(t, proto.Equal(&chatv1.Quote{
+		MessageId: "message-0", AuthorName: "Ada_L", AuthorColor: playerv1.NameColor_NAME_COLOR_TEAL, Text: "who holds the north",
+	}, message.GetReplyTo()), "%v", message.GetReplyTo())
+}
+
+func TestAReplyToAMessageThatIsNotShownIsNotFound(t *testing.T) {
+	_, err := send(stubUseCase{
+		in:  &send_message_usecase.In{},
+		err: fmt.Errorf("failed to quote the message replied to: %w", messages.ErrNotShown),
+	})
+
+	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }
 
 func TestARefusedMessageDoesNotLeakWhyItWasRefused(t *testing.T) {

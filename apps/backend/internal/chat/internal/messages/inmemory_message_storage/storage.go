@@ -46,6 +46,23 @@ func (s *Storage) Shown(_ context.Context, id messages.MessageID, since time.Tim
 	}), nil
 }
 
+func (s *Storage) Quote(_ context.Context, id messages.MessageID, since time.Time, limit int) (messages.Quote, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, message := range s.recent(since, limit) {
+		if message.ID() != id {
+			continue
+		}
+		quote := messages.QuoteOf(id, message.Account(), message.Text())
+		if message.Account() == messages.NoAccount {
+			return quote.Named(messages.AuthorOf(message.Author().Name(), false, 0, 0, messages.Title{})), nil
+		}
+		return quote, nil
+	}
+	return messages.Quote{}, messages.ErrNotShown
+}
+
 func (s *Storage) LatestAddress(_ context.Context, account messages.AccountID) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

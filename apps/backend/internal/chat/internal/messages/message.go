@@ -15,6 +15,7 @@ type Message struct {
 	author  Author
 	country string
 	text    string
+	quote   Quote
 }
 
 func NewMessage(id MessageID, sentAt time.Time, account AccountID, country string, text string) Message {
@@ -33,8 +34,15 @@ func (m Message) Country() string { return m.country }
 
 func (m Message) Text() string { return m.text }
 
+func (m Message) Quote() Quote { return m.quote }
+
 func (m Message) Named(author Author) Message {
 	m.author = author
+	return m
+}
+
+func (m Message) Quoting(quote Quote) Message {
+	m.quote = quote
 	return m
 }
 
@@ -46,6 +54,7 @@ var (
 type Storage interface {
 	Append(ctx context.Context, record Record) error
 	Shown(ctx context.Context, id MessageID, since time.Time, limit int) (bool, error)
+	Quote(ctx context.Context, id MessageID, since time.Time, limit int) (Quote, error)
 	LatestAddress(ctx context.Context, account AccountID) (string, error)
 	DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error)
 }

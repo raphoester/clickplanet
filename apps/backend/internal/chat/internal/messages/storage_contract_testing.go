@@ -71,6 +71,43 @@ func (s *StorageContractSuite) TestAMessageIsShownOnlyWhileItIsAmongTheNewestInT
 	s.False(s.shown("never-sent", contractStart, 10))
 }
 
+func (s *StorageContractSuite) TestAShownMessageIsQuotedAsWhoSentItAndWhatItSaid() {
+	s.append("hello")
+
+	quote, err := s.storage.Quote(context.Background(), "id-hello", contractStart, 10)
+	s.Require().NoError(err)
+
+	s.Equal(QuoteOf("id-hello", contractAccount, "hello"), quote)
+}
+
+func (s *StorageContractSuite) TestAMessageFromBeforeAccountsIsQuotedUnderTheNameItCarries() {
+	legacy := NewMessage("id-legacy", contractStart, NoAccount, "fr", "legacy").Named(AuthorOf("guest_Bob", true, 0, 0, Title{}))
+	s.Require().NoError(s.storage.Append(context.Background(), NewRecord(legacy, "some-uuid", "203.0.113.7", "test-agent")))
+
+	quote, err := s.storage.Quote(context.Background(), "id-legacy", contractStart, 10)
+	s.Require().NoError(err)
+
+	s.Equal(QuoteOf("id-legacy", NoAccount, "legacy").Named(AuthorOf("guest_Bob", false, 0, 0, Title{})), quote)
+}
+
+func (s *StorageContractSuite) TestAMessageIsQuotedOnlyWhileItIsShown() {
+	s.append("old", "middle", "new")
+
+	for text, window := range map[string]struct {
+		since time.Time
+		limit int
+	}{
+		"old":        {contractStart, 2},
+		"middle":     {contractStart.Add(2 * time.Hour), 10},
+		"never-sent": {contractStart, 10},
+	} {
+		_, err := s.storage.Quote(context.Background(), MessageID("id-"+text), window.since, window.limit)
+
+		s.Require().ErrorIs(err, ErrNotShown, text)
+		s.False(s.shown(text, window.since, window.limit), "%s: a message nobody may react to is not quoted either", text)
+	}
+}
+
 func (s *StorageContractSuite) TestTheLatestAddressIsTheOneTheAccountLastPostedFrom() {
 	other := AccountID{15: 2}
 	for i, sent := range []struct {

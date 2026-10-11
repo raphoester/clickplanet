@@ -9,6 +9,7 @@ import {
     interleave,
     nameSentUnder,
     newestAt,
+    quoteOf,
     startsGroup,
     unreadSince,
     unseenAfter,
@@ -197,6 +198,27 @@ describe("startsGroup", () => {
 
         expect(startsGroup(first, from("Ana", GROUP_WINDOW_MS))).toBe(false)
         expect(startsGroup(first, from("Ana", GROUP_WINDOW_MS + 1))).toBe(true)
+    })
+
+    it("opens a group on a reply, and lets the same author go on under it", () => {
+        const first = from("Ana", 0)
+        const reply = {...from("Ana", 1_000), replyTo: quoteOf(from("Bo", 0))}
+
+        expect(startsGroup(first, reply)).toBe(true)
+        expect(startsGroup(reply, from("Ana", 2_000))).toBe(false)
+    })
+})
+
+describe("quoteOf", () => {
+    it("is who said a message and all of what it said", () => {
+        const said = {...message("m1", 0), authorName: "Bo", authorColor: NameColor.TEAL, text: "who holds the north"}
+
+        expect(quoteOf(said)).toEqual({
+            messageId: "m1",
+            authorName: "Bo",
+            authorColor: NameColor.TEAL,
+            text: "who holds the north",
+        })
     })
 })
 

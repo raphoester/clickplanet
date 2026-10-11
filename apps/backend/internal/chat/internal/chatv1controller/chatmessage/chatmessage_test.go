@@ -70,6 +70,20 @@ func TestAMessageCarriesTheTitleItsAuthorWears(t *testing.T) {
 	assert.Nil(t, bare.GetAuthorTitle())
 }
 
+func TestAReplyCarriesTheMessageItQuotesAndAPlainMessageNone(t *testing.T) {
+	quote := messages.QuoteOf("message-1", messages.AccountID{15: 1}, "who holds the north").
+		Named(messages.AuthorOf("Ada_L", true, int32(playerv1.NameColor_NAME_COLOR_PINK), 12, messages.Title{}))
+
+	reply := chatmessage.Encode(messages.NewMessage("message-2", time.Time{}, messages.NoAccount, "", "").Quoting(quote), nil, 0)
+	plain := chatmessage.Encode(messages.NewMessage("message-3", time.Time{}, messages.NoAccount, "", ""), nil, 0)
+
+	assert.Equal(t, "message-1", reply.GetReplyTo().GetMessageId())
+	assert.Equal(t, "Ada_L", reply.GetReplyTo().GetAuthorName())
+	assert.Equal(t, playerv1.NameColor_NAME_COLOR_PINK, reply.GetReplyTo().GetAuthorColor())
+	assert.Equal(t, "who holds the north", reply.GetReplyTo().GetText())
+	assert.Nil(t, plain.GetReplyTo())
+}
+
 func TestOneNameOverTheCapIsCutToo(t *testing.T) {
 	names := make([]string, 0, chatmessage.NamedReactors+1)
 	for i := range cap(names) {

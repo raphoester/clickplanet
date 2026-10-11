@@ -22,6 +22,20 @@ func Encode(message messages.Message, counts []reactions.Count, version uint64) 
 		Text:             message.Text(),
 		Reactions:        EncodeCounts(counts),
 		ReactionsVersion: version,
+		ReplyTo:          encodedQuote(message.Quote()),
+	}
+}
+
+func encodedQuote(quote messages.Quote) *chatv1.Quote {
+	if quote.Empty() {
+		return nil
+	}
+
+	return &chatv1.Quote{
+		MessageId:   string(quote.ID()),
+		AuthorName:  quote.Author().Name(),
+		AuthorColor: playerv1.NameColor(quote.Author().Color()),
+		Text:        quote.Text(),
 	}
 }
 

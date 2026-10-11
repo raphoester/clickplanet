@@ -232,6 +232,11 @@ export class ChatMessage extends Message<ChatMessage> {
    */
   authorTitle?: Title;
 
+  /**
+   * @generated from field: chat.v1.Quote reply_to = 13;
+   */
+  replyTo?: Quote;
+
   constructor(data?: PartialMessage<ChatMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -251,6 +256,7 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 10, name: "author_color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 11, name: "author_streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 12, name: "author_title", kind: "message", T: Title },
+    { no: 13, name: "reply_to", kind: "message", T: Quote },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatMessage {
@@ -267,6 +273,61 @@ export class ChatMessage extends Message<ChatMessage> {
 
   static equals(a: ChatMessage | PlainMessage<ChatMessage> | undefined, b: ChatMessage | PlainMessage<ChatMessage> | undefined): boolean {
     return proto3.util.equals(ChatMessage, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.Quote
+ */
+export class Quote extends Message<Quote> {
+  /**
+   * @generated from field: string message_id = 1;
+   */
+  messageId = "";
+
+  /**
+   * @generated from field: string author_name = 2;
+   */
+  authorName = "";
+
+  /**
+   * @generated from field: player.v1.NameColor author_color = 3;
+   */
+  authorColor = NameColor.UNSPECIFIED;
+
+  /**
+   * @generated from field: string text = 4;
+   */
+  text = "";
+
+  constructor(data?: PartialMessage<Quote>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.Quote";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "author_color", kind: "enum", T: proto3.getEnumType(NameColor) },
+    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Quote {
+    return new Quote().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Quote {
+    return new Quote().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Quote {
+    return new Quote().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Quote | PlainMessage<Quote> | undefined, b: Quote | PlainMessage<Quote> | undefined): boolean {
+    return proto3.util.equals(Quote, a, b);
   }
 }
 
@@ -289,6 +350,11 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
    */
   text = "";
 
+  /**
+   * @generated from field: string reply_to_message_id = 5;
+   */
+  replyToMessageId = "";
+
   constructor(data?: PartialMessage<SendMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -300,6 +366,7 @@ export class SendMessageRequest extends Message<SendMessageRequest> {
     { no: 2, name: "author_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "reply_to_message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SendMessageRequest {

@@ -1,5 +1,5 @@
-import {Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {BombAnnouncement, ChatAnnouncement, ChatMessage, FortifyAnnouncement, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
+import {Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
+import {BombAnnouncement, ChatAnnouncement, ChatMessage, ChatQuote, FortifyAnnouncement, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
 import {landmassName} from "../../domain/landmassNames.ts";
 import {PlayerLine} from "../../backends/player.ts";
 import {Countries} from "../../domain/countries.ts";
@@ -7,13 +7,14 @@ import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
 import StreakFlame from "../components/StreakFlame.tsx";
 import TitleBadge from "../titles/TitleBadge.tsx";
-import {ChevronIcon} from "../components/icons.tsx";
+import {ChevronIcon, ReplyIcon} from "../components/icons.tsx";
 import {ChatLogEntry, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
 import {describeBlast} from "../../domain/blast.ts";
 import {describeMute} from "../../domain/mute.ts";
 import {medalOf, roundOverLine} from "../../domain/roundReveal.ts";
 import {truncate} from "../truncate.ts";
-import {authorOf, authorStyle} from "./authorStyle.ts";
+import {authorOf, authorStyle, quoteStyle} from "./authorStyle.ts";
+import QuoteLine from "./QuoteLine.tsx";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
 
 export type ChatLogProps = {
@@ -23,6 +24,7 @@ export type ChatLogProps = {
     flashing?: ReadonlySet<string>
     onOpenPlayer?: (player: PlayerLine) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
+    onReply?: (message: ChatMessage) => void
     seenUntil?: number
     onSeen?: (at: number) => void
     watching?: boolean
@@ -38,6 +40,8 @@ const SEEN_SLACK_PX = 4
 
 const CONTEXT_ABOVE_UNSEEN_PX = 24
 
+const SPOTLIGHT_MS = 1600
+
 const NO_ANNOUNCEMENTS: ChatAnnouncement[] = []
 
 export default function ChatLog(props: ChatLogProps) {
@@ -47,6 +51,9 @@ export default function ChatLog(props: ChatLogProps) {
     const reported = useRef(0)
     const [behind, setBehind] = useState(false)
     const [picking, setPicking] = useState<string | undefined>(undefined)
+    const [spotlit, setSpotlit] = useState<string | undefined>(undefined)
+    const dimming = useRef<number>()
+    const shown = useMemo(() => new Set(props.messages.map(message => message.id)), [props.messages])
     const announcements = props.announcements ?? NO_ANNOUNCEMENTS
     const listed = !props.loading && (props.messages.length > 0 || announcements.length > 0)
     const newest = newestAt(props.messages, announcements)
@@ -119,6 +126,19 @@ export default function ChatLog(props: ChatLogProps) {
 
     const pick = (id: string) => (open: boolean) => setPicking(open ? id : undefined)
 
+    useEffect(() => () => window.clearTimeout(dimming.current), [])
+
+    const jumpTo = (id: string) => {
+        const lines = scroll.current?.querySelectorAll<HTMLElement>("[data-message]") ?? []
+        const line = [...lines].find(line => line.dataset.message === id)
+        if (!line) return
+
+        line.scrollIntoView?.({block: "center"})
+        setSpotlit(id)
+        window.clearTimeout(dimming.current)
+        dimming.current = window.setTimeout(() => setSpotlit(undefined), SPOTLIGHT_MS)
+    }
+
     const jumpToLatest = () => {
         const element = scroll.current
         if (!element) return
@@ -152,10 +172,13 @@ export default function ChatLog(props: ChatLogProps) {
                             : <MessageLine message={entry.message}
                                            previous={entries[index - 1]}
                                            flashing={props.flashing}
+                                           spotlit={spotlit === entry.message.id}
                                            picking={picking}
                                            pick={pick}
+                                           jumpTo={shown.has(entry.message.replyTo?.messageId ?? "") ? jumpTo : undefined}
                                            onOpenPlayer={props.onOpenPlayer}
-                                           onReact={props.onReact}/>}
+                                           onReact={props.onReact}
+                                           onReply={props.onReply}/>}
                     </Fragment>
                 })}
             </ul>
@@ -172,18 +195,22 @@ type MessageLineProps = {
     message: ChatMessage
     previous: ChatLogEntry | undefined
     flashing?: ReadonlySet<string>
+    spotlit: boolean
     picking: string | undefined
     pick: (id: string) => (open: boolean) => void
+    jumpTo?: (id: string) => void
     onOpenPlayer?: (player: PlayerLine) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
+    onReply?: (message: ChatMessage) => void
 }
 
-function MessageLine({message, previous, flashing, picking, pick, ...props}: MessageLineProps) {
+function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpTo, ...props}: MessageLineProps) {
     const author = authorOf(message)
     const opens = startsGroup(previous?.kind === "message" ? previous.message : undefined, message)
 
-    return <li className={messageClass(flashing, message.id, opens)}
+    return <li className={messageClass(flashing, message.id, opens, spotlit)}
                style={authorStyle(author)}
+               data-message={message.id}
                data-at={message.sentAt}>
         {opens && <div className="chat-message-head">
             <span className="chat-message-country"
@@ -211,11 +238,20 @@ function MessageLine({message, previous, flashing, picking, pick, ...props}: Mes
             </time>
         </div>}
 
+        {message.replyTo && <Quote quote={message.replyTo} jumpTo={jumpTo}/>}
+
         <div className="chat-message-line">
             <p className="chat-message-text">{message.text}</p>
             {props.onReact && <AddReactionButton messageId={message.id}
                                                  picking={picking === message.id}
                                                  setPicking={pick(message.id)}/>}
+            {props.onReply && <button type="button"
+                                      className="chat-reply-add"
+                                      aria-label={`Reply to ${message.authorName}`}
+                                      title="Reply"
+                                      onClick={() => props.onReply?.(message)}>
+                <ReplyIcon/>
+            </button>}
         </div>
 
         <ReactionBar messageId={message.id}
@@ -224,6 +260,19 @@ function MessageLine({message, previous, flashing, picking, pick, ...props}: Mes
                      picking={picking === message.id}
                      setPicking={pick(message.id)}/>
     </li>
+}
+
+function Quote({quote, jumpTo}: {quote: ChatQuote, jumpTo?: (id: string) => void}) {
+    const line = <QuoteLine quote={quote} lead="In reply to"/>
+
+    return jumpTo
+        ? <button type="button"
+                  className="chat-quote"
+                  style={quoteStyle(quote)}
+                  onClick={() => jumpTo(quote.messageId)}>
+            {line}
+        </button>
+        : <p className="chat-quote" style={quoteStyle(quote)}>{line}</p>
 }
 
 function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
@@ -306,11 +355,13 @@ function messageClass(
     flashing: ReadonlySet<string> | undefined,
     id: string,
     opens: boolean,
+    spotlit: boolean,
 ): string {
     return [
         "chat-message",
         opens ? "chat-message-opens" : "chat-message-cont",
         flashing?.has(id) && "chat-message-new",
+        spotlit && "chat-message-spotlit",
     ].filter(Boolean).join(" ")
 }
 

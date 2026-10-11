@@ -101,7 +101,7 @@ func (q *PostgresQuery) seenUntil(ctx context.Context, viewer cpsession.AccountI
 }
 
 const inWindow = `
-	SELECT seq, id, sent_at, account_id, name, author_admin, country, text
+	SELECT seq, id, sent_at, account_id, name, author_admin, country, text, reply_to
 	FROM messages
 	WHERE sent_at >= $1
 	ORDER BY seq DESC
@@ -118,9 +118,20 @@ const shownMessages = `
 		shown.author_admin,
 		shown.country,
 		shown.text,
+		COALESCE(quoted.id, ''),
+		quoted.account_id,
+		COALESCE(quoted.name, ''),
+		COALESCE(quoted.text, ''),
 		COALESCE(versions.version, 0),
 		COALESCE(tallies.counts, '[]')
 	FROM shown
+	LEFT JOIN LATERAL (
+		SELECT id, account_id, name, text
+		FROM messages
+		WHERE messages.id = shown.reply_to AND messages.sent_at >= $1
+		ORDER BY seq DESC
+		LIMIT 1
+	) quoted ON true
 	LEFT JOIN reaction_versions versions ON versions.message_id = shown.id
 	LEFT JOIN LATERAL (
 		SELECT json_agg(json_build_object(
@@ -155,8 +166,16 @@ type row struct {
 	admin   bool
 	country string
 	text    string
+	quoted  quoted
 	version uint64
 	counts  []count
+}
+
+type quoted struct {
+	id      string
+	account cpsession.AccountID
+	name    string
+	text    string
 }
 
 type count struct {
@@ -198,18 +217,23 @@ func (q *PostgresQuery) rows(ctx context.Context, since time.Time, viewer cpsess
 	var rows []row
 	for result.Next() {
 		var (
-			each    row
-			account uuid.NullUUID
-			counts  []byte
+			each          row
+			account       uuid.NullUUID
+			quotedAccount uuid.NullUUID
+			counts        []byte
 		)
 		if err := result.Scan(
 			&each.id, &each.sentAt, &account, &each.name, &each.admin, &each.country, &each.text,
+			&each.quoted.id, &quotedAccount, &each.quoted.name, &each.quoted.text,
 			&each.version, &counts,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan a message of the chat history: %w", err)
 		}
 		if account.Valid {
 			each.account = cpsession.AccountID(account.UUID)
+		}
+		if quotedAccount.Valid {
+			each.quoted.account = cpsession.AccountID(quotedAccount.UUID)
 		}
 		if each.counts, err = countsOf(counts); err != nil {
 			return nil, fmt.Errorf("failed to read the reactions to message %q: %w", each.id, err)
@@ -254,6 +278,9 @@ func everyone(rows []row) []cpsession.AccountID {
 		add(row.account)
 	}
 	for _, row := range rows {
+		add(row.quoted.account)
+	}
+	for _, row := range rows {
 		for _, each := range row.counts {
 			for _, account := range each.Accounts {
 				add(cpsession.AccountID(account))
@@ -271,6 +298,7 @@ func messageOf(row row, named map[cpsession.AccountID]*playerv1.Author) *chatv1.
 		Text:             row.text,
 		Reactions:        reactionsOf(row.counts, named),
 		ReactionsVersion: row.version,
+		ReplyTo:          quoteOf(row.quoted, named),
 	}
 
 	if row.account == cpsession.NoAccount {
@@ -291,6 +319,28 @@ func messageOf(row row, named map[cpsession.AccountID]*playerv1.Author) *chatv1.
 	message.AuthorStreak = author.GetStreak()
 	message.AuthorTitle = author.GetWornTitle()
 	return message
+}
+
+func quoteOf(quoted quoted, named map[cpsession.AccountID]*playerv1.Author) *chatv1.Quote {
+	if quoted.id == "" {
+		return nil
+	}
+
+	quote := &chatv1.Quote{MessageId: quoted.id, Text: quoted.text}
+	if quoted.account == cpsession.NoAccount {
+		quote.AuthorName = quoted.name
+		return quote
+	}
+
+	author, known := named[quoted.account]
+	if !known {
+		quote.AuthorName = DeletedName
+		return quote
+	}
+
+	quote.AuthorName = author.GetName()
+	quote.AuthorColor = author.GetColor()
+	return quote
 }
 
 func reactionsOf(counts []count, named map[cpsession.AccountID]*playerv1.Author) []*chatv1.ReactionCount {

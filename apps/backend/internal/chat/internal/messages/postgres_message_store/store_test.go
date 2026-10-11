@@ -51,6 +51,26 @@ func (s *testSuite) TestTheSenderIsStored() {
 	s.Equal([]string{"203.0.113.7", "test-agent", "some-uuid"}, []string{ip, userAgent, authorID})
 }
 
+func (s *testSuite) TestOnlyAReplyKeepsTheMessageItRepliesTo() {
+	ctx := context.Background()
+	reply := record("reply", start.Add(time.Minute)).Message().Quoting(messages.QuoteOf("id-hello", messages.NoAccount, "hello"))
+	s.Require().NoError(s.store.Append(ctx, record("hello", start)))
+	s.Require().NoError(s.store.Append(ctx, messages.NewRecord(reply, "some-uuid", "203.0.113.7", "test-agent")))
+
+	rows, err := s.db.QueryContext(ctx, `SELECT COALESCE(reply_to, 'none') FROM messages ORDER BY seq`)
+	s.Require().NoError(err)
+	defer func() { _ = rows.Close() }()
+
+	var kept []string
+	for rows.Next() {
+		var replyTo string
+		s.Require().NoError(rows.Scan(&replyTo))
+		kept = append(kept, replyTo)
+	}
+	s.Require().NoError(rows.Err())
+	s.Equal([]string{"none", "id-hello"}, kept, "the id alone: what it said is read when the reply is shown")
+}
+
 func (s *testSuite) TestTheBackfillPrefixesOnlyTheMessagesFromBeforeUsernames() {
 	ctx := context.Background()
 	usernames := time.Date(2026, 9, 17, 14, 31, 30, 0, time.UTC)

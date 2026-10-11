@@ -58,6 +58,7 @@ export default function ChatPanel(props: ChatPanelProps) {
     const seeing = isOpen && (view === "chat" || !players) && visible
 
     const [toast, setToast] = useState<ChatMessage>()
+    const [replyingTo, setReplyingTo] = useState<ChatMessage>()
     const [flashing, setFlashing] = useState<ReadonlySet<string>>(NOTHING)
     const bodyId = useId()
     const panel = useRef<HTMLElement>(null)
@@ -161,15 +162,24 @@ export default function ChatPanel(props: ChatPanelProps) {
         }
     }, [messages, mine, displayName, playSound])
 
+    // A copy each time: Reply pressed again on the same message puts the focus back in the box.
+    const onReply = useCallback((message: ChatMessage) => setReplyingTo({...message}), [])
+
     if (status === 'unavailable') return null
 
-    const onSend = (text: string) => {
+    const onSend = async (text: string) => {
+        const target = replyingTo
         const message: OutgoingMessage = {
             authorId: identity.authorId,
             countryCode: props.country.code,
             text,
+            replyTo: target?.id,
         }
-        return send(message)
+
+        setReplyingTo(undefined)
+        const failed = await send(message)
+        if (failed !== undefined && failed !== 'gone') setReplyingTo(current => current ?? target)
+        return failed === undefined
     }
 
     const tabs = players && <div className="chat-tabs" role="tablist" aria-label="Chat">
@@ -202,12 +212,15 @@ export default function ChatPanel(props: ChatPanelProps) {
                      flashing={flashing}
                      onOpenPlayer={props.onOpenPlayer}
                      onReact={(messageId, reaction, on) =>
-                         react({messageId, reaction, on})}/>
+                         react({messageId, reaction, on})}
+                     onReply={onReply}/>
 
             <ChatComposer username={username}
                           guestName={username === undefined ? displayName : undefined}
                           failure={failure}
                           mutedUntil={mutedUntil}
+                          replyingTo={replyingTo}
+                          onCancelReply={() => setReplyingTo(undefined)}
                           onSend={onSend}/>
         </>
 

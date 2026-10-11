@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -22,7 +23,7 @@ type failingIDs struct{}
 func (failingIDs) NewID() (messages.MessageID, error) { return "", errors.New("no entropy") }
 
 func drafts(ids messages.IDProvider) messages.Drafts {
-	return messages.NewDrafts(ids, cptime.NewFixedClock(draftedAt), limits)
+	return messages.NewDrafts(ids, cptime.NewFixedClock(draftedAt), limits, cpcountries.New())
 }
 
 func TestADraftIsCleanedAndStampedWithAnIDAndTheTime(t *testing.T) {
@@ -50,6 +51,17 @@ func TestAnInvalidTextIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
 	drafting := drafts(&messages.SequentialIDs{})
 
 	_, err := drafting.Draft(ada, "fr", "   ")
+	require.ErrorIs(t, err, messages.ErrInvalidMessage)
+
+	message, err := drafting.Draft(ada, "fr", "hello")
+	require.NoError(t, err)
+	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), message.ID())
+}
+
+func TestAnUnknownCountryIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
+	drafting := drafts(&messages.SequentialIDs{})
+
+	_, err := drafting.Draft(ada, "atlantis", "hello")
 	require.ErrorIs(t, err, messages.ErrInvalidMessage)
 
 	message, err := drafting.Draft(ada, "fr", "hello")

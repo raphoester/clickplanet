@@ -24,6 +24,14 @@ export type ChatMessage = {
     text: string
     reactions: ReactionCount[]
     reactionsVersion: number
+    replyTo?: ChatQuote
+}
+
+export type ChatQuote = {
+    messageId: string
+    authorName: string
+    authorColor: NameColor
+    text: string
 }
 
 export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | RoundAnnouncement | FortifyAnnouncement
@@ -100,6 +108,7 @@ export type OutgoingMessage = {
     authorId: string
     countryCode: string
     text: string
+    replyTo?: string
 }
 
 export interface ChatSender {

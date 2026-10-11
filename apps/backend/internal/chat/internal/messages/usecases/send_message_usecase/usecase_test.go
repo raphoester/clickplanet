@@ -12,7 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/usecases/send_message_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -28,6 +28,7 @@ type testSuite struct {
 	appender  *fakeAppender
 	publisher *fakePublisher
 	authors   *fakeAuthors
+	quotes    *fakeQuotes
 	clock     *cptime.FixedClock
 	useCase   *send_message_usecase.UseCase
 }
@@ -41,13 +42,17 @@ func (s *testSuite) SetupTest() {
 	s.appender = &fakeAppender{}
 	s.publisher = &fakePublisher{}
 	s.authors = &fakeAuthors{names: map[messages.AccountID]string{ada: "Ada_L", guest: "guest_0b1c2d"}}
+	s.quotes = &fakeQuotes{shown: map[messages.MessageID]messages.Quote{
+		"parent": messages.QuoteOf("parent", ada, "who holds the north").
+			Named(messages.AuthorOf("Ada_L", false, 0, 0, messages.Title{})),
+	}}
 	s.clock = cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	s.useCase = send_message_usecase.New(
 		s.appender,
 		s.publisher,
-		fakeCountryChecker{known: cpcolls.NewSet("fr", "de")},
 		s.authors,
-		messages.NewDrafts(&messages.SequentialIDs{}, s.clock, messages.NewLimits(0)),
+		messages.NewDrafts(&messages.SequentialIDs{}, s.clock, messages.NewLimits(0), cpcountries.New()),
+		s.quotes,
 	)
 }
 
@@ -139,6 +144,51 @@ func (s *testSuite) TestInvalidCountryIsRefused() {
 	s.Empty(s.appender.records)
 }
 
+func (s *testSuite) TestAPlainMessageQuotesNothing() {
+	message, err := s.send(validIn())
+	s.Require().NoError(err)
+
+	s.True(message.Quote().Empty())
+	s.True(s.appender.records[0].Message().Quote().Empty())
+}
+
+func (s *testSuite) TestAReplyIsKeptAndGoesOutWithWhatItQuotes() {
+	in := validIn()
+	in.ReplyTo = "parent"
+
+	message, err := s.send(in)
+	s.Require().NoError(err)
+
+	s.Equal(s.quotes.shown["parent"], message.Quote())
+	s.Require().Len(s.appender.records, 1)
+	s.Equal(messages.MessageID("parent"), s.appender.records[0].Message().Quote().ID())
+	s.Equal([]feed.Update{feed.MessageSent(message)}, s.publisher.updates,
+		"everyone watching is shown what it replies to with no second read")
+}
+
+func (s *testSuite) TestAReplyToAMessageThatIsNotShownIsRefusedAndNotStored() {
+	in := validIn()
+	in.ReplyTo = "gone"
+
+	_, err := s.send(in)
+
+	s.Require().ErrorIs(err, messages.ErrNotShown)
+	s.Empty(s.authors.asked)
+	s.Empty(s.appender.records)
+	s.Empty(s.publisher.updates)
+}
+
+func (s *testSuite) TestAnInvalidReplyIsRefusedBeforeItsQuoteIsRead() {
+	in := validIn()
+	in.ReplyTo = "parent"
+	in.Text = "   "
+
+	_, err := s.send(in)
+
+	s.Require().ErrorIs(err, messages.ErrInvalidMessage)
+	s.Empty(s.quotes.asked)
+}
+
 func (s *testSuite) TestStorageFailureFailsTheSend() {
 	s.appender.err = errors.New("disk on fire")
 
@@ -214,6 +264,23 @@ func (f *fakeAuthors) Author(_ context.Context, account messages.AccountID) (mes
 	return messages.AuthorOf(f.names[account], f.admins[account], 0, 0, messages.Title{}), nil
 }
 
+type fakeQuotes struct {
+	shown map[messages.MessageID]messages.Quote
+	asked []messages.MessageID
+}
+
+func (f *fakeQuotes) Quote(_ context.Context, replyTo messages.MessageID) (messages.Quote, error) {
+	f.asked = append(f.asked, replyTo)
+	if replyTo == "" {
+		return messages.Quote{}, nil
+	}
+	quote, shown := f.shown[replyTo]
+	if !shown {
+		return messages.Quote{}, messages.ErrNotShown
+	}
+	return quote, nil
+}
+
 type fakePublisher struct {
 	updates []feed.Update
 }
@@ -238,12 +305,4 @@ func (f *fakeAppender) Append(_ context.Context, record messages.Record) error {
 
 	f.records = append(f.records, record)
 	return nil
-}
-
-type fakeCountryChecker struct {
-	known *cpcolls.Set[string]
-}
-
-func (f fakeCountryChecker) CheckCountry(country string) bool {
-	return f.known.Contains(country)
 }
