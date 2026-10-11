@@ -24,6 +24,11 @@ export function installVirtualClock(): VirtualClock {
             const due = waiting
             waiting = new Map()
             for (const callback of due.values()) callback(now)
+            // A CSS animation runs on the real clock: the bomb pointer's pulse is held, and set to the video's time.
+            for (const animation of document.getAnimations()) {
+                animation.pause()
+                animation.currentTime = now
+            }
         },
     }
 }
