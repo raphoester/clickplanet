@@ -13,13 +13,13 @@ var (
 )
 
 type saved struct {
-	Callers  []savedCaller
+	Payers   []savedPayer
 	Slice    int64
 	Spenders []savedSpender
 }
 
-type savedCaller struct {
-	Scope     string
+type savedPayer struct {
+	Payer     string
 	LastSeen  int64
 	RunStart  int64
 	RunClicks int
@@ -43,27 +43,27 @@ func (w *Watchdog) Save() ([]byte, error) {
 	w.mu.Lock()
 
 	s := saved{
-		Callers:  make([]savedCaller, 0, len(w.callers)),
+		Payers:   make([]savedPayer, 0, len(w.payers)),
 		Slice:    int64(w.config.Stamina.Slice),
 		Spenders: make([]savedSpender, 0, len(w.spenders)),
 	}
-	for scope, c := range w.callers {
-		s.Callers = append(s.Callers, savedCaller{
-			Scope:     scope,
-			LastSeen:  evidence.Nanos(c.lastSeen),
-			RunStart:  evidence.Nanos(c.runStart),
-			RunClicks: c.runClicks,
-			Gaps:      nanos(c.gaps),
-			Shape:     nanos(c.shape),
-			Tries:     times(c.tries),
+	for key, p := range w.payers {
+		s.Payers = append(s.Payers, savedPayer{
+			Payer:     key,
+			LastSeen:  evidence.Nanos(p.lastSeen),
+			RunStart:  evidence.Nanos(p.runStart),
+			RunClicks: p.runClicks,
+			Gaps:      nanos(p.gaps),
+			Shape:     nanos(p.shape),
+			Tries:     times(p.tries),
 		})
 	}
-	for payer, sp := range w.spenders {
+	for key, sp := range w.spenders {
 		slices := make([]savedSlice, 0, len(sp.slices))
 		for _, counted := range sp.slices {
 			slices = append(slices, savedSlice{Index: counted.index, Clicks: counted.clicks})
 		}
-		s.Spenders = append(s.Spenders, savedSpender{Payer: payer, LastSeen: evidence.Nanos(sp.lastSeen), Slices: slices})
+		s.Spenders = append(s.Spenders, savedSpender{Payer: key, LastSeen: evidence.Nanos(sp.lastSeen), Slices: slices})
 	}
 
 	w.mu.Unlock()
@@ -77,15 +77,15 @@ func (w *Watchdog) Load(data []byte) error {
 		return err
 	}
 
-	callers := make(map[string]*caller, len(s.Callers))
-	for _, c := range s.Callers {
-		callers[c.Scope] = &caller{
-			lastSeen:  evidence.Time(c.LastSeen),
-			runStart:  evidence.Time(c.RunStart),
-			runClicks: c.RunClicks,
-			gaps:      durations(c.Gaps, w.capacity()),
-			shape:     durations(c.Shape, w.config.Shape.CertainClicks),
-			tries:     instants(c.Tries, w.config.Clock.kept()),
+	payers := make(map[string]*payer, len(s.Payers))
+	for _, p := range s.Payers {
+		payers[p.Payer] = &payer{
+			lastSeen:  evidence.Time(p.LastSeen),
+			runStart:  evidence.Time(p.RunStart),
+			runClicks: p.RunClicks,
+			gaps:      durations(p.Gaps, w.capacity()),
+			shape:     durations(p.Shape, w.config.Shape.CertainClicks),
+			tries:     instants(p.Tries, w.config.Clock.kept()),
 		}
 	}
 
@@ -101,7 +101,7 @@ func (w *Watchdog) Load(data []byte) error {
 	}
 
 	w.mu.Lock()
-	w.callers = callers
+	w.payers = payers
 	w.spenders = spenders
 	w.mu.Unlock()
 
@@ -150,14 +150,14 @@ func (w *Watchdog) Forget(before time.Time) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	for scope, c := range w.callers {
-		if c.lastSeen.Before(before) {
-			delete(w.callers, scope)
+	for key, p := range w.payers {
+		if p.lastSeen.Before(before) {
+			delete(w.payers, key)
 		}
 	}
-	for payer, s := range w.spenders {
+	for key, s := range w.spenders {
 		if s.lastSeen.Before(before) {
-			delete(w.spenders, payer)
+			delete(w.spenders, key)
 		}
 	}
 }
