@@ -19,6 +19,8 @@ const noMint = (): SessionProvider => ({
 
 const clientOf = (suggestFeature: unknown) => ({suggestFeature}) as unknown as PromiseClient<typeof SupportService>
 
+const phone = {build: "play-a1b2c3.js", viewportWidth: 390, viewportHeight: 844, connectionDown: true}
+
 const headersOf = (call: ReturnType<typeof vi.fn>, n = 0) => (call.mock.calls[n][1] as {headers: Headers}).headers
 
 describe("ConnectSupportBackend.suggestFeature", () => {
@@ -78,5 +80,36 @@ describe("ConnectSupportBackend.suggestFeature", () => {
         await expect(new ConnectSupportBackend(clientOf(suggestFeature), session("token-1")).suggestFeature("a night mode"))
             .rejects.toBe(dropped)
         expect(suggestFeature).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("ConnectSupportBackend.reportBug", () => {
+    const backendOf = (reportBug: unknown, provider: SessionProvider) =>
+        new ConnectSupportBackend({reportBug} as unknown as PromiseClient<typeof SupportService>, provider)
+
+    it("sends the text and what the page knows, with the click token", async () => {
+        const reportBug = vi.fn().mockResolvedValue({})
+
+        await backendOf(reportBug, session("token-1")).reportBug("the globe is black", phone)
+
+        expect(reportBug.mock.calls[0][0]).toEqual({text: "the globe is black", context: phone})
+        expect(headersOf(reportBug).get(SESSION_HEADER)).toBe("token-1")
+    })
+
+    it("mints again once when the token is refused, and reads the refusals as a suggestion's", async () => {
+        const refusedOnce = vi.fn()
+            .mockRejectedValueOnce(new ConnectError("no token", Code.Unauthenticated))
+            .mockResolvedValue({})
+        const provider = session("stale", "fresh")
+
+        await backendOf(refusedOnce, provider).reportBug("the globe is black", phone)
+
+        expect(provider.invalidate).toHaveBeenCalledTimes(1)
+        expect(headersOf(refusedOnce, 1).get(SESSION_HEADER)).toBe("fresh")
+
+        const limited = vi.fn().mockRejectedValue(new ConnectError("too many", Code.ResourceExhausted))
+        await expect(backendOf(limited, session("token-1")).reportBug("the globe is black", phone))
+            .rejects.toBeInstanceOf(SupportRateLimitedError)
+        expect(limited).toHaveBeenCalledTimes(1)
     })
 })

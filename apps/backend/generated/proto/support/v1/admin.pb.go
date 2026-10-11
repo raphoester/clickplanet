@@ -27,6 +27,7 @@ type NoteKind int32
 const (
 	NoteKind_NOTE_KIND_UNSPECIFIED NoteKind = 0
 	NoteKind_NOTE_KIND_SUGGESTION  NoteKind = 1
+	NoteKind_NOTE_KIND_BUG         NoteKind = 2
 )
 
 // Enum value maps for NoteKind.
@@ -34,10 +35,12 @@ var (
 	NoteKind_name = map[int32]string{
 		0: "NOTE_KIND_UNSPECIFIED",
 		1: "NOTE_KIND_SUGGESTION",
+		2: "NOTE_KIND_BUG",
 	}
 	NoteKind_value = map[string]int32{
 		"NOTE_KIND_UNSPECIFIED": 0,
 		"NOTE_KIND_SUGGESTION":  1,
+		"NOTE_KIND_BUG":         2,
 	}
 )
 
@@ -73,7 +76,9 @@ type ListNotesRequest struct {
 	// Unset is every note kept.
 	Since *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
 	// Unset is 100; at most 500.
-	Limit         uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Unset is every kind.
+	Kind          NoteKind `protobuf:"varint,3,opt,name=kind,proto3,enum=support.v1.NoteKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -122,6 +127,13 @@ func (x *ListNotesRequest) GetLimit() uint32 {
 	return 0
 }
 
+func (x *ListNotesRequest) GetKind() NoteKind {
+	if x != nil {
+		return x.Kind
+	}
+	return NoteKind_NOTE_KIND_UNSPECIFIED
+}
+
 type ListNotesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Notes         []*Note                `protobuf:"bytes,1,rep,name=notes,proto3" json:"notes,omitempty"`
@@ -167,12 +179,16 @@ func (x *ListNotesResponse) GetNotes() []*Note {
 }
 
 type Note struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Kind          NoteKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=support.v1.NoteKind" json:"kind,omitempty"`
-	AccountId     string                 `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Text          string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
-	SubmittedAt   *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind        NoteKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=support.v1.NoteKind" json:"kind,omitempty"`
+	AccountId   string                 `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Text        string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	SubmittedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`
+	// Only a bug report has one.
+	Context *BugContext `protobuf:"bytes,6,opt,name=context,proto3" json:"context,omitempty"`
+	// Only a bug report has one.
+	UserAgent     string `protobuf:"bytes,7,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -242,27 +258,46 @@ func (x *Note) GetSubmittedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Note) GetContext() *BugContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *Note) GetUserAgent() string {
+	if x != nil {
+		return x.UserAgent
+	}
+	return ""
+}
+
 var File_support_v1_admin_proto protoreflect.FileDescriptor
 
 const file_support_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"\x16support/v1/admin.proto\x12\n" +
-	"support.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"Z\n" +
+	"support.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18support/v1/support.proto\"\x84\x01\n" +
 	"\x10ListNotesRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\rR\x05limit\";\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\x12(\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x14.support.v1.NoteKindR\x04kind\";\n" +
 	"\x11ListNotesResponse\x12&\n" +
-	"\x05notes\x18\x01 \x03(\v2\x10.support.v1.NoteR\x05notes\"\xb2\x01\n" +
+	"\x05notes\x18\x01 \x03(\v2\x10.support.v1.NoteR\x05notes\"\x83\x02\n" +
 	"\x04Note\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12(\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x14.support.v1.NoteKindR\x04kind\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x03 \x01(\tR\taccountId\x12\x12\n" +
 	"\x04text\x18\x04 \x01(\tR\x04text\x12=\n" +
-	"\fsubmitted_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vsubmittedAt*?\n" +
+	"\fsubmitted_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vsubmittedAt\x120\n" +
+	"\acontext\x18\x06 \x01(\v2\x16.support.v1.BugContextR\acontext\x12\x1d\n" +
+	"\n" +
+	"user_agent\x18\a \x01(\tR\tuserAgent*R\n" +
 	"\bNoteKind\x12\x19\n" +
 	"\x15NOTE_KIND_UNSPECIFIED\x10\x00\x12\x18\n" +
-	"\x14NOTE_KIND_SUGGESTION\x10\x012X\n" +
+	"\x14NOTE_KIND_SUGGESTION\x10\x01\x12\x11\n" +
+	"\rNOTE_KIND_BUG\x10\x022X\n" +
 	"\fAdminService\x12H\n" +
 	"\tListNotes\x12\x1c.support.v1.ListNotesRequest\x1a\x1d.support.v1.ListNotesResponseB\xb9\x01\n" +
 	"\x0ecom.support.v1B\n" +
@@ -290,19 +325,22 @@ var file_support_v1_admin_proto_goTypes = []any{
 	(*ListNotesResponse)(nil),     // 2: support.v1.ListNotesResponse
 	(*Note)(nil),                  // 3: support.v1.Note
 	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*BugContext)(nil),            // 5: support.v1.BugContext
 }
 var file_support_v1_admin_proto_depIdxs = []int32{
 	4, // 0: support.v1.ListNotesRequest.since:type_name -> google.protobuf.Timestamp
-	3, // 1: support.v1.ListNotesResponse.notes:type_name -> support.v1.Note
-	0, // 2: support.v1.Note.kind:type_name -> support.v1.NoteKind
-	4, // 3: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
-	1, // 4: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
-	2, // 5: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0, // 1: support.v1.ListNotesRequest.kind:type_name -> support.v1.NoteKind
+	3, // 2: support.v1.ListNotesResponse.notes:type_name -> support.v1.Note
+	0, // 3: support.v1.Note.kind:type_name -> support.v1.NoteKind
+	4, // 4: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
+	5, // 5: support.v1.Note.context:type_name -> support.v1.BugContext
+	1, // 6: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
+	2, // 7: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
+	7, // [7:8] is the sub-list for method output_type
+	6, // [6:7] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_admin_proto_init() }
@@ -310,6 +348,7 @@ func file_support_v1_admin_proto_init() {
 	if File_support_v1_admin_proto != nil {
 		return
 	}
+	file_support_v1_support_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -3,6 +3,7 @@ syntax = "proto3";
 package support.v1;
 
 import "google/protobuf/timestamp.proto";
+import "support/v1/support.proto";
 
 // Unauthenticated: serve only on the loopback admin listener, never the public router.
 service AdminService {
@@ -12,6 +13,7 @@ service AdminService {
 enum NoteKind {
   NOTE_KIND_UNSPECIFIED = 0;
   NOTE_KIND_SUGGESTION = 1;
+  NOTE_KIND_BUG = 2;
 }
 
 message ListNotesRequest {
@@ -19,6 +21,8 @@ message ListNotesRequest {
   google.protobuf.Timestamp since = 1;
   // Unset is 100; at most 500.
   uint32 limit = 2;
+  // Unset is every kind.
+  NoteKind kind = 3;
 }
 
 message ListNotesResponse {
@@ -31,4 +35,8 @@ message Note {
   string account_id = 3;
   string text = 4;
   google.protobuf.Timestamp submitted_at = 5;
+  // Only a bug report has one.
+  BugContext context = 6;
+  // Only a bug report has one.
+  string user_agent = 7;
 }

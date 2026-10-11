@@ -61,8 +61,27 @@ func (s *testSuite) suggested(n byte, account notes.AccountID, text string, at t
 	}
 }
 
+func (s *testSuite) reported(n byte, account notes.AccountID, text string, diagnostics notes.Diagnostics, at time.Time) *supportv1.Note {
+	id := notes.NoteID{15: n}
+	note, err := notes.NewBugReport(id, account, text, diagnostics, at)
+	s.Require().NoError(err)
+	s.Require().NoError(s.notes.Save(s.T().Context(), note))
+
+	return &supportv1.Note{
+		Id:          uuid.UUID(id).String(),
+		Kind:        supportv1.NoteKind_NOTE_KIND_BUG,
+		AccountId:   account.String(),
+		Text:        text,
+		SubmittedAt: timestamppb.New(at),
+	}
+}
+
 func (s *testSuite) read(since time.Time, limit uint32) []*supportv1.Note {
-	answer, err := s.query.Notes(s.T().Context(), since, limit)
+	return s.readKind(since, supportv1.NoteKind_NOTE_KIND_UNSPECIFIED, limit)
+}
+
+func (s *testSuite) readKind(since time.Time, kind supportv1.NoteKind, limit uint32) []*supportv1.Note {
+	answer, err := s.query.Notes(s.T().Context(), since, kind, limit)
 	s.Require().NoError(err)
 	return answer.GetNotes()
 }
@@ -81,6 +100,44 @@ func (s *testSuite) TestEveryNoteComesNewestFirstWithItsAccount() {
 	second := s.suggested(2, bob, "more flags\nand a bigger chat", start.Add(time.Minute))
 
 	s.same([]*supportv1.Note{second, first}, s.read(time.Time{}, 0))
+}
+
+func (s *testSuite) TestABugReportComesWithWhatThePageAndTheBrowserSaid() {
+	phone := s.reported(1, ada, "the globe is black",
+		notes.Diagnostics{
+			Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, ConnectionDown: true, UserAgent: "Mozilla/5.0 (iPhone)",
+		}, start)
+	phone.Context = &supportv1.BugContext{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, ConnectionDown: true}
+	phone.UserAgent = "Mozilla/5.0 (iPhone)"
+	bare := s.reported(2, bob, "nothing happens", notes.Diagnostics{}, start.Add(time.Minute))
+	idea := s.suggested(3, bob, "a night mode", start.Add(2*time.Minute))
+
+	s.same([]*supportv1.Note{idea, bare, phone}, s.read(time.Time{}, 0))
+}
+
+func (s *testSuite) TestAKindAskedForLeavesTheOthersOut() {
+	bug := s.reported(1, ada, "the globe is black", notes.Diagnostics{}, start)
+	idea := s.suggested(2, bob, "a night mode", start.Add(time.Minute))
+
+	s.same([]*supportv1.Note{bug}, s.readKind(time.Time{}, supportv1.NoteKind_NOTE_KIND_BUG, 0))
+	s.same([]*supportv1.Note{idea}, s.readKind(time.Time{}, supportv1.NoteKind_NOTE_KIND_SUGGESTION, 0))
+}
+
+func (s *testSuite) TestAKindThatIsNotOneIsRefused() {
+	_, err := s.query.Notes(s.T().Context(), time.Time{}, supportv1.NoteKind(99), 0)
+
+	s.Require().ErrorIs(err, notes_query.ErrInvalidKind)
+}
+
+func (s *testSuite) TestEveryKindTheStoreKeepsIsRead() {
+	s.suggested(1, ada, "a night mode", start)
+	s.reported(2, ada, "the globe is black", notes.Diagnostics{}, start.Add(time.Minute))
+
+	got := s.read(time.Time{}, 0)
+
+	s.Require().Len(got, 2)
+	s.Equal(supportv1.NoteKind_NOTE_KIND_BUG, got[0].GetKind())
+	s.Equal(supportv1.NoteKind_NOTE_KIND_SUGGESTION, got[1].GetKind())
 }
 
 func (s *testSuite) TestNotesBeforeSinceAreLeftOut() {
@@ -118,7 +175,7 @@ func (s *testSuite) TestAKindTheDatabaseNamesAndTheWireCannotCarryRefusesTheRead
 		uuid.New(), uuid.UUID(ada), start)
 	s.Require().NoError(err)
 
-	_, err = s.query.Notes(s.T().Context(), time.Time{}, 0)
+	_, err = s.query.Notes(s.T().Context(), time.Time{}, supportv1.NoteKind_NOTE_KIND_UNSPECIFIED, 0)
 
 	s.Require().ErrorIs(err, notes_query.ErrUnknownKind)
 }
@@ -127,7 +184,7 @@ func (s *testSuite) TestAFailedReadIsAnError() {
 	ctx, cancel := context.WithCancel(s.T().Context())
 	cancel()
 
-	_, err := s.query.Notes(ctx, time.Time{}, 0)
+	_, err := s.query.Notes(ctx, time.Time{}, supportv1.NoteKind_NOTE_KIND_UNSPECIFIED, 0)
 
 	s.Error(err, "not an empty list")
 }

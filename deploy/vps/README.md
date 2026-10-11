@@ -1274,7 +1274,7 @@ docker compose exec postgres psql -U clickplanet -c "delete from chat.mutes wher
 
 ### Read what players sent
 
-A player sends a suggestion from the More menu. Read the newest 100:
+A player sends a suggestion or a bug report from the More menu. Read the newest 100:
 
 ```bash
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/support.v1.AdminService/ListNotes
@@ -1282,6 +1282,11 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 
 - `{"since":"2026-10-11T00:00:00Z"}` leaves out what was sent before, and
   `{"limit":500}` asks for more: 500 at most.
+- `{"kind":"NOTE_KIND_BUG"}` reads the bug reports alone, and
+  `{"kind":"NOTE_KIND_SUGGESTION"}` the suggestions.
+- A bug report has a `context` and a `userAgent`. `build` is the bundle the page
+  ran, such as `play-RxjtzdfS.js`: compare it with the name the site serves now
+  to see an old tab. `connectionDown` says the page had lost the server.
 - Each note has its `accountId`. To see the name the game shows for it:
 
 ```bash

@@ -13,25 +13,33 @@ type NoteID uuid.UUID
 
 type Kind string
 
-const KindSuggestion Kind = "suggestion"
+const (
+	KindSuggestion Kind = "suggestion"
+	KindBug        Kind = "bug"
+)
 
 func (k Kind) known() bool {
-	return k == KindSuggestion
+	return k == KindSuggestion || k == KindBug
 }
 
 var ErrInvalidNote = errors.New("the note is invalid")
 
 type Note struct {
-	id        NoteID
-	kind      Kind
-	account   AccountID
-	text      string
-	at        time.Time
-	forgotten bool
+	id          NoteID
+	kind        Kind
+	account     AccountID
+	text        string
+	diagnostics Diagnostics
+	at          time.Time
+	forgotten   bool
 }
 
 func NewSuggestion(id NoteID, account AccountID, text string, at time.Time) (Note, error) {
 	return Snapshot{ID: id, Kind: KindSuggestion, Account: account, Text: text, At: at}.Restore()
+}
+
+func NewBugReport(id NoteID, account AccountID, text string, diagnostics Diagnostics, at time.Time) (Note, error) {
+	return Snapshot{ID: id, Kind: KindBug, Account: account, Text: text, Diagnostics: diagnostics, At: at}.Restore()
 }
 
 // A note its account's deletion or its age took away: a storage keeps it no more.
@@ -49,17 +57,20 @@ func AllForgotten(sent []Note) []Note {
 }
 
 func (n Note) TakeSnapshot() Snapshot {
-	return Snapshot{ID: n.id, Kind: n.kind, Account: n.account, Text: n.text, At: n.at, Forgotten: n.forgotten}
+	return Snapshot{
+		ID: n.id, Kind: n.kind, Account: n.account, Text: n.text, Diagnostics: n.diagnostics, At: n.at, Forgotten: n.forgotten,
+	}
 }
 
 // The state of a Note, for a store. It holds no rule: Restore does.
 type Snapshot struct {
-	ID        NoteID
-	Kind      Kind
-	Account   AccountID
-	Text      string
-	At        time.Time
-	Forgotten bool
+	ID          NoteID
+	Kind        Kind
+	Account     AccountID
+	Text        string
+	Diagnostics Diagnostics
+	At          time.Time
+	Forgotten   bool
 }
 
 func (s Snapshot) Restore() (Note, error) {
@@ -74,12 +85,19 @@ func (s Snapshot) Restore() (Note, error) {
 		return Note{}, fmt.Errorf("%w: no time", ErrInvalidNote)
 	}
 
+	diagnostics := s.Diagnostics.cleaned()
+	if s.Kind != KindBug && diagnostics != (Diagnostics{}) {
+		return Note{}, fmt.Errorf("%w: only a bug report has diagnostics", ErrInvalidNote)
+	}
+
 	text, err := TextOf(s.Text)
 	if err != nil {
 		return Note{}, err
 	}
 
-	return Note{id: s.ID, kind: s.Kind, account: s.Account, text: text, at: s.At, forgotten: s.Forgotten}, nil
+	return Note{
+		id: s.ID, kind: s.Kind, account: s.Account, text: text, diagnostics: diagnostics, at: s.At, forgotten: s.Forgotten,
+	}, nil
 }
 
 // A storage finds notes and saves them. It holds no rule: what changes a note is a method of Note.

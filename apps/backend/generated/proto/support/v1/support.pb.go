@@ -101,6 +101,165 @@ func (*SuggestFeatureResponse) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{1}
 }
 
+type ReportBugRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Context       *BugContext            `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportBugRequest) Reset() {
+	*x = ReportBugRequest{}
+	mi := &file_support_v1_support_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportBugRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportBugRequest) ProtoMessage() {}
+
+func (x *ReportBugRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportBugRequest.ProtoReflect.Descriptor instead.
+func (*ReportBugRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ReportBugRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *ReportBugRequest) GetContext() *BugContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+type ReportBugResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportBugResponse) Reset() {
+	*x = ReportBugResponse{}
+	mi := &file_support_v1_support_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportBugResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportBugResponse) ProtoMessage() {}
+
+func (x *ReportBugResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportBugResponse.ProtoReflect.Descriptor instead.
+func (*ReportBugResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{3}
+}
+
+// What the page knows about itself when a bug is reported. The server adds the user agent.
+type BugContext struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The bundle the page runs.
+	Build          string `protobuf:"bytes,1,opt,name=build,proto3" json:"build,omitempty"`
+	ViewportWidth  uint32 `protobuf:"varint,2,opt,name=viewport_width,json=viewportWidth,proto3" json:"viewport_width,omitempty"`
+	ViewportHeight uint32 `protobuf:"varint,3,opt,name=viewport_height,json=viewportHeight,proto3" json:"viewport_height,omitempty"`
+	// The page had lost the server when the report was written.
+	ConnectionDown bool `protobuf:"varint,4,opt,name=connection_down,json=connectionDown,proto3" json:"connection_down,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *BugContext) Reset() {
+	*x = BugContext{}
+	mi := &file_support_v1_support_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BugContext) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BugContext) ProtoMessage() {}
+
+func (x *BugContext) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BugContext.ProtoReflect.Descriptor instead.
+func (*BugContext) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *BugContext) GetBuild() string {
+	if x != nil {
+		return x.Build
+	}
+	return ""
+}
+
+func (x *BugContext) GetViewportWidth() uint32 {
+	if x != nil {
+		return x.ViewportWidth
+	}
+	return 0
+}
+
+func (x *BugContext) GetViewportHeight() uint32 {
+	if x != nil {
+		return x.ViewportHeight
+	}
+	return 0
+}
+
+func (x *BugContext) GetConnectionDown() bool {
+	if x != nil {
+		return x.ConnectionDown
+	}
+	return false
+}
+
 var File_support_v1_support_proto protoreflect.FileDescriptor
 
 const file_support_v1_support_proto_rawDesc = "" +
@@ -109,9 +268,20 @@ const file_support_v1_support_proto_rawDesc = "" +
 	"support.v1\"+\n" +
 	"\x15SuggestFeatureRequest\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\"\x18\n" +
-	"\x16SuggestFeatureResponse2i\n" +
+	"\x16SuggestFeatureResponse\"X\n" +
+	"\x10ReportBugRequest\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x120\n" +
+	"\acontext\x18\x02 \x01(\v2\x16.support.v1.BugContextR\acontext\"\x13\n" +
+	"\x11ReportBugResponse\"\x9b\x01\n" +
+	"\n" +
+	"BugContext\x12\x14\n" +
+	"\x05build\x18\x01 \x01(\tR\x05build\x12%\n" +
+	"\x0eviewport_width\x18\x02 \x01(\rR\rviewportWidth\x12'\n" +
+	"\x0fviewport_height\x18\x03 \x01(\rR\x0eviewportHeight\x12'\n" +
+	"\x0fconnection_down\x18\x04 \x01(\bR\x0econnectionDown2\xb3\x01\n" +
 	"\x0eSupportService\x12W\n" +
-	"\x0eSuggestFeature\x12!.support.v1.SuggestFeatureRequest\x1a\".support.v1.SuggestFeatureResponseB\xbb\x01\n" +
+	"\x0eSuggestFeature\x12!.support.v1.SuggestFeatureRequest\x1a\".support.v1.SuggestFeatureResponse\x12H\n" +
+	"\tReportBug\x12\x1c.support.v1.ReportBugRequest\x1a\x1d.support.v1.ReportBugResponseB\xbb\x01\n" +
 	"\x0ecom.support.v1B\fSupportProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1;supportv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Support.V1\xca\x02\n" +
 	"Support\\V1\xe2\x02\x16Support\\V1\\GPBMetadata\xea\x02\vSupport::V1b\x06proto3"
@@ -128,19 +298,25 @@ func file_support_v1_support_proto_rawDescGZIP() []byte {
 	return file_support_v1_support_proto_rawDescData
 }
 
-var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_support_v1_support_proto_goTypes = []any{
 	(*SuggestFeatureRequest)(nil),  // 0: support.v1.SuggestFeatureRequest
 	(*SuggestFeatureResponse)(nil), // 1: support.v1.SuggestFeatureResponse
+	(*ReportBugRequest)(nil),       // 2: support.v1.ReportBugRequest
+	(*ReportBugResponse)(nil),      // 3: support.v1.ReportBugResponse
+	(*BugContext)(nil),             // 4: support.v1.BugContext
 }
 var file_support_v1_support_proto_depIdxs = []int32{
-	0, // 0: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
-	1, // 1: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	4, // 0: support.v1.ReportBugRequest.context:type_name -> support.v1.BugContext
+	0, // 1: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
+	2, // 2: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
+	1, // 3: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
+	3, // 4: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
+	3, // [3:5] is the sub-list for method output_type
+	1, // [1:3] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_support_proto_init() }
@@ -154,7 +330,7 @@ func file_support_v1_support_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_v1_support_proto_rawDesc), len(file_support_v1_support_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -897,10 +897,12 @@ the other's next announce, at most 30s later.
 
 ### Support
 
-What a player sends the operator, from More: a feature suggestion.
+What a player sends the operator, from More: a feature suggestion or a bug
+report.
 
-- `backends/support.ts` — `FeatureSuggester` (and `SupportBackend`, every
-  support contract together), `MAX_NOTE_LENGTH`, which mirrors the backend's
+- `backends/support.ts` — `FeatureSuggester`, `BugReporter` with its
+  `BugContext` (and `SupportBackend`, every support contract together),
+  `MAX_NOTE_LENGTH`, which mirrors the backend's
   `notes.MaxTextLength`, and the errors. `ConnectSupportBackend`
   (`supportBackend.ts`) implements it over `support.v1.SupportService`;
   `fakeSupportBackend.ts` is the dev stand-in.
@@ -912,15 +914,22 @@ What a player sends the operator, from More: a feature suggestion.
   kept twice, and the text is still in the box.
 - The refusals are `resource_exhausted` → `SupportRateLimitedError` (one address
   sends three, then one a minute) and `invalid_argument` → `SupportRejectedError`.
-- `app/support/NoteModal.tsx` is the one form: a `Modal` with a text box and
-  Send. It opens on the box. The text keeps its lines. A counter shows from 100
+- **A bug report says what the page knows about itself**
+  (`app/support/bugContextOf`): the build, the viewport in CSS pixels, and
+  whether the connection was down, which `Viewer` hands `MorePlace`. The server
+  reads the user agent off the request. **The build is `BUILD`, the file the
+  bundler put `bugContext.ts` in** (`buildOf(import.meta.url)`): `play-<hash>.js`
+  in production, so it names the bundle with no build variable to set, and
+  `bugContext.ts` in dev.
+- `app/support/NoteModal.tsx` is the one form, for both: a `Modal` with a text
+  box and Send. It opens on the box. The text keeps its lines. A counter shows from 100
   characters left. A failure is one line under the box (`sendFailure.ts`), and
   the text stays. Once sent it says so and offers Close.
 - **A click beside it does not close it once something is typed**
   (`stayOnBackdropClick`): the ×, Escape and Close still do.
 - **The modal's scroll fade is off** (`.modal-support`): a field sits at the
   bottom edge of the body, and the fade drew over it.
-- `MorePlace` shows the tile only with a `support` backend wired.
+- `MorePlace` shows the two tiles only with a `support` backend wired.
 
 ### Titles
 

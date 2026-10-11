@@ -21,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/forget_notes_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/prune_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/prune_usecase/log_prune"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/report_bug_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/suggest_feature_usecase"
 	note_ids "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/account_deleted_subscriber"
@@ -28,6 +29,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler/notes_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_bug_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/suggest_feature_handler"
 )
 
@@ -77,6 +79,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	service := supportv1controller.SupportService{
 		SuggestFeatureHandler: suggest_feature_handler.New(suggest_feature_usecase.New(note_ids.Provider{}, clock, noteStore)),
+		ReportBugHandler:      report_bug_handler.New(report_bug_usecase.New(note_ids.Provider{}, clock, noteStore)),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

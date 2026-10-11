@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { BugContext } from "./support_pb.js";
 
 /**
  * @generated from enum support.v1.NoteKind
@@ -19,11 +20,17 @@ export enum NoteKind {
    * @generated from enum value: NOTE_KIND_SUGGESTION = 1;
    */
   SUGGESTION = 1,
+
+  /**
+   * @generated from enum value: NOTE_KIND_BUG = 2;
+   */
+  BUG = 2,
 }
 // Retrieve enum metadata with: proto3.getEnumType(NoteKind)
 proto3.util.setEnumType(NoteKind, "support.v1.NoteKind", [
   { no: 0, name: "NOTE_KIND_UNSPECIFIED" },
   { no: 1, name: "NOTE_KIND_SUGGESTION" },
+  { no: 2, name: "NOTE_KIND_BUG" },
 ]);
 
 /**
@@ -44,6 +51,13 @@ export class ListNotesRequest extends Message<ListNotesRequest> {
    */
   limit = 0;
 
+  /**
+   * Unset is every kind.
+   *
+   * @generated from field: support.v1.NoteKind kind = 3;
+   */
+  kind = NoteKind.UNSPECIFIED;
+
   constructor(data?: PartialMessage<ListNotesRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -54,6 +68,7 @@ export class ListNotesRequest extends Message<ListNotesRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "since", kind: "message", T: Timestamp },
     { no: 2, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(NoteKind) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotesRequest {
@@ -139,6 +154,20 @@ export class Note extends Message<Note> {
    */
   submittedAt?: Timestamp;
 
+  /**
+   * Only a bug report has one.
+   *
+   * @generated from field: support.v1.BugContext context = 6;
+   */
+  context?: BugContext;
+
+  /**
+   * Only a bug report has one.
+   *
+   * @generated from field: string user_agent = 7;
+   */
+  userAgent = "";
+
   constructor(data?: PartialMessage<Note>) {
     super();
     proto3.util.initPartial(data, this);
@@ -152,6 +181,8 @@ export class Note extends Message<Note> {
     { no: 3, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "submitted_at", kind: "message", T: Timestamp },
+    { no: 6, name: "context", kind: "message", T: BugContext },
+    { no: 7, name: "user_agent", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Note {

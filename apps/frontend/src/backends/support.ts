@@ -4,7 +4,18 @@ export interface FeatureSuggester {
     suggestFeature(text: string): Promise<void>
 }
 
-export type SupportBackend = FeatureSuggester
+export type BugContext = {
+    build: string
+    viewportWidth: number
+    viewportHeight: number
+    connectionDown: boolean
+}
+
+export interface BugReporter {
+    reportBug(text: string, context: BugContext): Promise<void>
+}
+
+export type SupportBackend = FeatureSuggester & BugReporter
 
 export class SupportRateLimitedError extends Error {
     constructor(options?: {cause?: unknown}) {

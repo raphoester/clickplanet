@@ -17,6 +17,7 @@ import {Fronts, PlayerBackend, PlayerError, PlayerInfoBackend, PlayerTitle, Titl
 import {AcceptedClicks, acceptedClicks} from "./viewer/acceptedClicks.ts"
 import {SETTLE_MS} from "./viewer/useAcceptedClicks.ts"
 import {Race} from "../backends/standings.ts"
+import {BUILD} from "./support/bugContext.ts"
 
 const france = Countries.get("fr")!
 const RACE: Race = {
@@ -389,9 +390,14 @@ describe("Menu", () => {
         })
     })
 
+    const supportBackend = () => ({
+        suggestFeature: vi.fn(async () => undefined),
+        reportBug: vi.fn(async () => undefined),
+    })
+
     describe("a suggestion", () => {
         it("is written from More and sent to the support backend", async () => {
-            const support = {suggestFeature: vi.fn(async () => undefined)}
+            const support = supportBackend()
             render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} support={support}/>)
             const user = userEvent.setup()
 
@@ -410,6 +416,50 @@ describe("Menu", () => {
             await user.click(tab("More"))
 
             expect(screen.queryByRole("button", {name: "Suggest a feature"})).toBeNull()
+        })
+    })
+
+    describe("a bug report", () => {
+        it("is written from More and sent with what the page knows about itself", async () => {
+            const support = supportBackend()
+            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} support={support}
+                         connectionDown/>)
+            const user = userEvent.setup()
+
+            await user.click(tab("More"))
+            await user.click(button("Report a bug"))
+            await user.type(screen.getByRole("textbox", {name: "What happened"}), "the globe is black")
+            await user.click(button("Send"))
+
+            expect(support.reportBug).toHaveBeenCalledWith("the globe is black", {
+                build: BUILD,
+                viewportWidth: window.innerWidth,
+                viewportHeight: window.innerHeight,
+                connectionDown: true,
+            })
+            expect(support.suggestFeature).not.toHaveBeenCalled()
+            expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
+        })
+
+        it("says the connection was up unless told it was lost", async () => {
+            const support = supportBackend()
+            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} support={support}/>)
+            const user = userEvent.setup()
+
+            await user.click(tab("More"))
+            await user.click(button("Report a bug"))
+            await user.type(screen.getByRole("textbox", {name: "What happened"}), "the globe is black")
+            await user.click(button("Send"))
+
+            expect(support.reportBug.mock.calls[0]).toMatchObject(["the globe is black", {connectionDown: false}])
+        })
+
+        it("is not offered when no support backend is wired", async () => {
+            const {user} = setup()
+
+            await user.click(tab("More"))
+
+            expect(screen.queryByRole("button", {name: "Report a bug"})).toBeNull()
         })
     })
 

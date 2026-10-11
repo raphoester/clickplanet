@@ -1,6 +1,8 @@
 package postgres_note_store_test
 
 import (
+	"database/sql"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -37,7 +39,7 @@ func (s *testSuite) SetupTest() {
 
 func (s *testSuite) kept() []notes.Snapshot {
 	rows, err := s.db.QueryContext(s.T().Context(),
-		`SELECT id, kind, account_id, text, submitted_at FROM notes ORDER BY submitted_at, id`)
+		`SELECT id, kind, account_id, text, diagnostics, submitted_at FROM notes ORDER BY submitted_at, id`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 
@@ -48,15 +50,43 @@ func (s *testSuite) kept() []notes.Snapshot {
 			kind    string
 			account uuid.UUID
 			text    string
+			said    sql.NullString
 			at      time.Time
 		)
-		s.Require().NoError(rows.Scan(&id, &kind, &account, &text, &at))
+		s.Require().NoError(rows.Scan(&id, &kind, &account, &text, &said, &at))
 		kept = append(kept, notes.Snapshot{
-			ID: notes.NoteID(id), Kind: notes.Kind(kind), Account: notes.AccountID(account), Text: text, At: at,
+			ID: notes.NoteID(id), Kind: notes.Kind(kind), Account: notes.AccountID(account), Text: text,
+			Diagnostics: s.diagnosticsOf(said), At: at,
 		})
 	}
 	s.Require().NoError(rows.Err())
 	return kept
+}
+
+func (s *testSuite) diagnosticsOf(stored sql.NullString) notes.Diagnostics {
+	if !stored.Valid {
+		return notes.Diagnostics{}
+	}
+
+	var read struct {
+		Build          string `json:"build"`
+		ViewportWidth  uint32 `json:"viewportWidth"`
+		ViewportHeight uint32 `json:"viewportHeight"`
+		ConnectionDown bool   `json:"connectionDown"`
+		UserAgent      string `json:"userAgent"`
+	}
+	s.Require().NoError(json.Unmarshal([]byte(stored.String), &read))
+	return notes.Diagnostics(read)
+}
+
+func (s *testSuite) TestANoteWithNoDiagnosticsKeepsNone() {
+	note, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.AccountID{15: 1}, "a night mode", time.Now())
+	s.Require().NoError(err)
+	s.Require().NoError(postgres_note_store.New(s.db).Save(s.T().Context(), note))
+
+	var stored sql.NullString
+	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT diagnostics FROM notes`).Scan(&stored))
+	s.False(stored.Valid, "NULL, not an empty object")
 }
 
 func (s *testSuite) TestTheDatabaseRefusesAKindItsTypeDoesNotName() {

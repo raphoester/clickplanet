@@ -11,7 +11,7 @@ import MenuPanel from "./components/MenuPanel.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
 import Modal from "./components/Modal.tsx";
 import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
-import {BulbIcon, CameraIcon, DiscordIcon, HomeIcon, InfoIcon, InstagramIcon, SwapIcon, TikTokIcon} from "./components/icons.tsx";
+import {BugIcon, BulbIcon, CameraIcon, DiscordIcon, HomeIcon, InfoIcon, InstagramIcon, SwapIcon, TikTokIcon} from "./components/icons.tsx";
 import SettingsPlace, {SettingsPlaceProps} from "./settings/SettingsPlace.tsx";
 import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
@@ -20,6 +20,7 @@ import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerInfoBackend} from "../backends/player.ts";
 import {SupportBackend} from "../backends/support.ts";
 import NoteModal from "./support/NoteModal.tsx";
+import {bugContextOf} from "./support/bugContext.ts";
 import {youLabel} from "./youLabel.ts"
 import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from "../links.ts"
 import BoardViews, {BoardHeading, BoardStandings} from "./standings/BoardViews.tsx"
@@ -55,6 +56,7 @@ export type MorePlaceProps = {
     onTakePicture?: () => void,
     taking?: boolean,
     support?: SupportBackend,
+    connectionDown?: boolean,
 }
 
 export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & MorePlaceProps & {
@@ -267,9 +269,9 @@ export function YouPlace({account: store, linkedMultiplier, playerInfo, listenFo
     </>
 }
 
-export function MorePlace({onTakePicture, taking, support}: MorePlaceProps) {
+export function MorePlace({onTakePicture, taking, support, connectionDown}: MorePlaceProps) {
     const [aboutOpen, setAboutOpen] = useState(false)
-    const [suggesting, setSuggesting] = useState(false)
+    const [note, setNote] = useState<"suggestion" | "bug">()
 
     return <>
         <div className="menu-tiles">
@@ -289,9 +291,15 @@ export function MorePlace({onTakePicture, taking, support}: MorePlaceProps) {
             </button>
             {support && <button type="button"
                                 className="panel-box menu-tile"
-                                onClick={() => setSuggesting(true)}>
+                                onClick={() => setNote("suggestion")}>
                 <BulbIcon size={22}/>
                 <span>Suggest a feature</span>
+            </button>}
+            {support && <button type="button"
+                                className="panel-box menu-tile"
+                                onClick={() => setNote("bug")}>
+                <BugIcon size={22}/>
+                <span>Report a bug</span>
             </button>}
             <a href="/#home" className="panel-box menu-tile">
                 <HomeIcon size={22}/>
@@ -326,10 +334,16 @@ export function MorePlace({onTakePicture, taking, support}: MorePlaceProps) {
             <About/>
         </Modal>}
 
-        {suggesting && support && <NoteModal title="Suggest a feature"
-                                             label="Your idea"
-                                             placeholder="What should the game have?"
-                                             onSend={(text) => support.suggestFeature(text)}
-                                             onClose={() => setSuggesting(false)}/>}
+        {note === "suggestion" && support && <NoteModal title="Suggest a feature"
+                                                        label="Your idea"
+                                                        placeholder="What should the game have?"
+                                                        onSend={(text) => support.suggestFeature(text)}
+                                                        onClose={() => setNote(undefined)}/>}
+
+        {note === "bug" && support && <NoteModal title="Report a bug"
+                                                 label="What happened"
+                                                 placeholder="What did you do, and what went wrong?"
+                                                 onSend={(text) => support.reportBug(text, bugContextOf(window, connectionDown === true))}
+                                                 onClose={() => setNote(undefined)}/>}
     </>
 }

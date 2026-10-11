@@ -1,11 +1,10 @@
-import {SupportBackend, SupportNoSessionError, SupportRateLimitedError, SupportRejectedError} from "./support.ts";
+import {BugContext, SupportBackend, SupportNoSessionError, SupportRateLimitedError, SupportRejectedError} from "./support.ts";
 
 export type FakeSupportRefusal = "rate-limited" | "rejected" | "no-session" | "failed"
 
-export type FakeSupportNote = {
-    kind: "suggestion"
-    text: string
-}
+export type FakeSupportNote =
+    | {kind: "suggestion", text: string}
+    | {kind: "bug", text: string, context: BugContext}
 
 const ANSWER_DELAY_MS = 400
 
@@ -25,6 +24,11 @@ export class FakeSupportBackend implements SupportBackend {
     public async suggestFeature(text: string): Promise<void> {
         await this.answer()
         this.sent.push({kind: "suggestion", text})
+    }
+
+    public async reportBug(text: string, context: BugContext): Promise<void> {
+        await this.answer()
+        this.sent.push({kind: "bug", text, context})
     }
 
     private async answer(): Promise<void> {

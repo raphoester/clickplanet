@@ -4,6 +4,8 @@ package support.v1;
 
 service SupportService {
   rpc SuggestFeature(SuggestFeatureRequest) returns (SuggestFeatureResponse);
+
+  rpc ReportBug(ReportBugRequest) returns (ReportBugResponse);
 }
 
 message SuggestFeatureRequest {
@@ -11,3 +13,20 @@ message SuggestFeatureRequest {
 }
 
 message SuggestFeatureResponse {}
+
+message ReportBugRequest {
+  string text = 1;
+  BugContext context = 2;
+}
+
+message ReportBugResponse {}
+
+// What the page knows about itself when a bug is reported. The server adds the user agent.
+message BugContext {
+  // The bundle the page runs.
+  string build = 1;
+  uint32 viewport_width = 2;
+  uint32 viewport_height = 3;
+  // The page had lost the server when the report was written.
+  bool connection_down = 4;
+}

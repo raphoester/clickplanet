@@ -270,6 +270,7 @@ export default function Viewer(props: ViewerProps) {
         },
         taking,
         support: props.support,
+        connectionDown: connection === "down",
     }
     const clicks = <ClicksPanel budget={clickBudget}
                                 countryName={countryState.name}

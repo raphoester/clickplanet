@@ -74,3 +74,138 @@ export class SuggestFeatureResponse extends Message<SuggestFeatureResponse> {
   }
 }
 
+/**
+ * @generated from message support.v1.ReportBugRequest
+ */
+export class ReportBugRequest extends Message<ReportBugRequest> {
+  /**
+   * @generated from field: string text = 1;
+   */
+  text = "";
+
+  /**
+   * @generated from field: support.v1.BugContext context = 2;
+   */
+  context?: BugContext;
+
+  constructor(data?: PartialMessage<ReportBugRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.ReportBugRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "context", kind: "message", T: BugContext },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReportBugRequest {
+    return new ReportBugRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReportBugRequest {
+    return new ReportBugRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReportBugRequest {
+    return new ReportBugRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReportBugRequest | PlainMessage<ReportBugRequest> | undefined, b: ReportBugRequest | PlainMessage<ReportBugRequest> | undefined): boolean {
+    return proto3.util.equals(ReportBugRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.ReportBugResponse
+ */
+export class ReportBugResponse extends Message<ReportBugResponse> {
+  constructor(data?: PartialMessage<ReportBugResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.ReportBugResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReportBugResponse {
+    return new ReportBugResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReportBugResponse {
+    return new ReportBugResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReportBugResponse {
+    return new ReportBugResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReportBugResponse | PlainMessage<ReportBugResponse> | undefined, b: ReportBugResponse | PlainMessage<ReportBugResponse> | undefined): boolean {
+    return proto3.util.equals(ReportBugResponse, a, b);
+  }
+}
+
+/**
+ * What the page knows about itself when a bug is reported. The server adds the user agent.
+ *
+ * @generated from message support.v1.BugContext
+ */
+export class BugContext extends Message<BugContext> {
+  /**
+   * The bundle the page runs.
+   *
+   * @generated from field: string build = 1;
+   */
+  build = "";
+
+  /**
+   * @generated from field: uint32 viewport_width = 2;
+   */
+  viewportWidth = 0;
+
+  /**
+   * @generated from field: uint32 viewport_height = 3;
+   */
+  viewportHeight = 0;
+
+  /**
+   * The page had lost the server when the report was written.
+   *
+   * @generated from field: bool connection_down = 4;
+   */
+  connectionDown = false;
+
+  constructor(data?: PartialMessage<BugContext>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.BugContext";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "build", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "viewport_width", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "viewport_height", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "connection_down", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BugContext {
+    return new BugContext().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BugContext {
+    return new BugContext().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BugContext {
+    return new BugContext().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BugContext | PlainMessage<BugContext> | undefined, b: BugContext | PlainMessage<BugContext> | undefined): boolean {
+    return proto3.util.equals(BugContext, a, b);
+  }
+}
+

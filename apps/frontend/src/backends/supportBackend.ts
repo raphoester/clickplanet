@@ -2,7 +2,14 @@ import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrp
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {SupportService} from "../gen/grpc/support/v1/support_connect.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
-import {FeatureSuggester, SupportNoSessionError, SupportRateLimitedError, SupportRejectedError} from "./support.ts";
+import {
+    BugContext,
+    BugReporter,
+    FeatureSuggester,
+    SupportNoSessionError,
+    SupportRateLimitedError,
+    SupportRejectedError,
+} from "./support.ts";
 import {Config} from "./transport.ts";
 
 export function newSupportServiceClient(config: Config): PromiseClient<typeof SupportService> {
@@ -14,17 +21,25 @@ export function newSupportServiceClient(config: Config): PromiseClient<typeof Su
     }))
 }
 
-export class ConnectSupportBackend implements FeatureSuggester {
+export class ConnectSupportBackend implements FeatureSuggester, BugReporter {
     constructor(
         private client: PromiseClient<typeof SupportService>,
         private readonly session: SessionProvider,
     ) {
     }
 
+    public suggestFeature(text: string): Promise<void> {
+        return this.send((headers) => this.client.suggestFeature({text}, {headers}))
+    }
+
+    public reportBug(text: string, context: BugContext): Promise<void> {
+        return this.send((headers) => this.client.reportBug({text, context}, {headers}))
+    }
+
     // Not retried: a call that landed and lost its answer would be kept twice.
-    public async suggestFeature(text: string): Promise<void> {
+    private async send(call: (headers: Headers) => Promise<unknown>): Promise<void> {
         try {
-            await this.authenticated((headers) => this.client.suggestFeature({text}, {headers}))
+            await this.authenticated(call)
         } catch (e) {
             throw translate(e)
         }
