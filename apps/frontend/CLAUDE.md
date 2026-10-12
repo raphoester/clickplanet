@@ -1007,7 +1007,15 @@ draws it.
   country can score less today than one under it. Ranked by them, two countries at
   0 points swapped against their tiles, which read as a bug (2026-10-08).
   Territory is the order by tiles held now, as the board was. `Viewer` holds the
-  choice. With no race, there is no switch and the board is as it was.
+  choice. With no race, there is no switch and the board is as it was
+  (`shownOrder`). **The rank and the anthem follow the order picked**: the rank
+  beside "playing for" and on the phone's status bar is the country's place in
+  that order (`rankShown` in `Menu`, `rankOf` over `countryLines` in `Viewer`),
+  the shared picture's rank too (see [Sharing the globe](#sharing-the-globe)),
+  and the music is its first country's (see [The leader's
+  anthem](#the-leaders-anthem)). On the map's order alone, the Season board put
+  France 2nd under "France #4", and played Portugal's anthem in Poland's frame
+  (2026-10-12).
 - **On a phone the heading is the sheet's head** (`BoardSheet`, `BoardHeading`):
   the view picked and the order take the place of the "Leaderboard" title, which
   stays for a screen reader, and `BoardViews` is `headless`. Under it "playing
@@ -2631,7 +2639,11 @@ frame. A read one tick later comes back blank. Two consequences worth knowing:
 translucent panel with a scrolling leaderboard in it; what is good to use is a
 poor picture. The badge is drawn from the same numbers the menu is drawn from,
 out of the same flag atlas, in hundredths of the card's shortest edge so it
-reads the same on a phone in portrait as on a wide desktop.
+reads the same on a phone in portrait as on a wide desktop. **Its rank is the
+one the board shows**: `Viewer` hands `shareStats` the lines of the order picked,
+so a card taken under Season carries the season's rank beside the tiles held.
+The season ranks a country with points and no ground, which the card says as
+"RANK #2 · NO TILES"; a country on no board at all is still "NO TILES YET".
 
 **The card carries the mark across the top** — the same logo and wordmark the
 menu header flies — with the link at the other end of that line, and the
@@ -2931,7 +2943,10 @@ message of its own came back, so its first can still ping.
 ### The leader's anthem
 
 The one sound that **is** a file. `src/app/anthem/` plays the national anthem of
-the country leading the map, on a loop, with a player in the leader's frame on the board.
+the country first on the board, in the order picked, on a loop, with a player in
+the leader's frame on the board. So the frame and the music always name one
+country: the season's leader under Season, the country with the most tiles under
+Territory or with no race.
 The recordings are the US Navy Band's (public domain); `npm run anthems` downloads
 them, normalises loudness, trims the silence so the loop has no gap, and writes
 `static/anthems/<code>-<hash>.m4a` plus `anthemsAsset.ts`, which pairs each file
@@ -2944,11 +2959,15 @@ no recording shows the player with its play button off.
   for `HOLD_MS` (15s) before the music follows it. The first leader plays at once,
   so `Viewer` hands `useAnthem` no board until the map is loaded: the board is
   sampled while the batches arrive, and a half-loaded map's leader is not the real one.
+  **The leader of another order plays at once too**: the pick keeps the order it
+  follows, and the hold is for two countries trading first place, not for the
+  player's own switch. A race that arrives after the map is a new order as well
+  (`shownOrder`), so the season's leader does not wait under the map's.
 - `anthemPlayer.ts` — two `<audio>` elements crossfade through Web Audio gain
   nodes. **Not `audio.volume`: iOS ignores it.** A muted or hidden tab fades out
   and pauses rather than streaming silence.
-- `useAnthem.ts` — ties the board and the settings to the player, which is built
-  once, so a tick or a toggle never restarts the music.
+- `useAnthem.ts` — ties the board's lines, their order and the settings to the
+  player, which is built once, so a tick or a toggle never restarts the music.
 - `AnthemControls.tsx` — the player, in the board's frame for the first country (`Leaderboard`'s `anthem`): the anthem's title, then the country. Play and volume write `SoundSettings.anthem`, so
   it and the settings panel never disagree. Pressing play lifts the master switch.
   It plays the country the music follows, which holds first place `HOLD_MS` before

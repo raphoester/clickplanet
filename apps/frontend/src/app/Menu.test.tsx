@@ -6,6 +6,7 @@ import userEvent from "@testing-library/user-event"
 import Menu, {BoardSheet} from "./Menu.tsx"
 import {Countries} from "../domain/countries.ts"
 import type {LeaderboardEntry} from "../domain/leaderboard.ts"
+import type {CountryOrder} from "../domain/race.ts"
 import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
 import {DEFAULT_DISPLAY_SETTINGS} from "../domain/displaySettings.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
@@ -68,6 +69,32 @@ describe("Menu", () => {
 
     it("shows a dash rather than a rank when the country holds no tile", () => {
         setup([entry("jp", 500)])
+        expect(screen.getByLabelText("No rank yet").textContent).toBe("—")
+    })
+
+    it("ranks the country in the order picked, as the board under it does", () => {
+        const menu = (countryOrder: CountryOrder) => <Menu country={france} setCountry={vi.fn()} tilesCount={1000}
+                                                           leaderboard={[entry("jp", 500), entry("fr", 250)]}
+                                                           race={RACE} countryOrder={countryOrder}/>
+
+        const {rerender} = render(menu("season"))
+        expect(screen.getByLabelText("Rank 1").textContent).toBe("#1")
+        expect(screen.getByRole("region", {name: "First: France"})).toBeDefined()
+
+        rerender(menu("territory"))
+        expect(screen.getByLabelText("Rank 2").textContent).toBe("#2")
+        expect(screen.getByRole("region", {name: "First: Japan"})).toBeDefined()
+    })
+
+    it("ranks a country with points and no ground in the season, and not by territory", () => {
+        const menu = (countryOrder: CountryOrder) => <Menu country={france} setCountry={vi.fn()} tilesCount={1000}
+                                                           leaderboard={[entry("jp", 500)]}
+                                                           race={RACE} countryOrder={countryOrder}/>
+
+        const {rerender} = render(menu("season"))
+        expect(screen.getByLabelText("Rank 1").textContent).toBe("#1")
+
+        rerender(menu("territory"))
         expect(screen.getByLabelText("No rank yet").textContent).toBe("—")
     })
 
@@ -206,6 +233,19 @@ describe("Menu", () => {
             const line = screen.getByText("Playing for").closest(".menu-playing")!
             expect(line.classList.contains("panel-box")).toBe(false)
             expect(within(line as HTMLElement).getByText("France")).toBeDefined()
+        })
+
+        it("ranks the country on that line in the order picked", () => {
+            const board = (countryOrder: CountryOrder) => <BoardSheet country={france} setCountry={vi.fn()} tilesCount={1000}
+                                                                      leaderboard={[entry("jp", 500), entry("fr", 250)]}
+                                                                      standings={standings} race={RACE} countryOrder={countryOrder}
+                                                                      onCountryOrder={vi.fn()} onClose={vi.fn()}/>
+
+            const {rerender} = render(board("season"))
+            expect(screen.getByLabelText("Rank 1").textContent).toBe("#1")
+
+            rerender(board("territory"))
+            expect(screen.getByLabelText("Rank 2").textContent).toBe("#2")
         })
 
         it("changes the country from that line, and steps back to the board", async () => {

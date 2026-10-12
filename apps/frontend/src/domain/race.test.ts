@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest"
 import {Race, RoundStanding, Score} from "../backends/standings.ts"
 import {Countries} from "./countries.ts"
 import {LeaderboardEntry} from "./leaderboard.ts"
-import {countryLines} from "./race.ts"
+import {countryLines, shownOrder} from "./race.ts"
 
 const today = (rank: number, countryCode: string, points: number): RoundStanding => ({rank, countryCode, share: 0.1, points})
 const score = (rank: number, countryCode: string, points: number, roundsWon = 0): Score => ({rank, countryCode, points, roundsWon})
@@ -14,6 +14,17 @@ const shown = (lines: ReturnType<typeof countryLines>) =>
 
 const MAP = [held("de", 900), held("fr", 700), held("es", 300), held("bg", 50)]
 const RACE = race(5, [today(1, "de", 25), today(2, "fr", 18), today(3, "es", 15)], [score(1, "fr", 43, 1), score(2, "it", 30, 1)])
+
+describe("shownOrder", () => {
+    it("is the order picked while a race is on, and the season when none was picked", () => {
+        expect(shownOrder(RACE, "territory")).toBe("territory")
+        expect(shownOrder(RACE, undefined)).toBe("season")
+    })
+
+    it("is the territory with no race, whatever was picked", () => {
+        expect(shownOrder(undefined, "season")).toBe("territory")
+    })
+})
 
 describe("countryLines", () => {
     it("keeps the map's order by territory, with each country's points beside its tiles", () => {

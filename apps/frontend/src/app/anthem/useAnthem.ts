@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import {LeaderboardEntry} from "../../domain/leaderboard.ts";
 import {AnthemPick, followLeader, NO_PICK} from "../../domain/anthemLeader.ts";
+import {CountryOrder} from "../../domain/race.ts";
 import {isAnthemAudible, SoundSettings} from "../../domain/soundSettings.ts";
 import {ANTHEMS} from "./anthemsAsset.ts";
 import {AnthemPlayer, createAnthemPlayer} from "./anthemPlayer.ts";
@@ -14,7 +15,7 @@ export type Anthem = {
     player: AnthemPlayer
 }
 
-export function useAnthem(leaderboard: readonly LeaderboardEntry[], settings: SoundSettings): Anthem {
+export function useAnthem(board: readonly LeaderboardEntry[], order: CountryOrder, settings: SoundSettings): Anthem {
     const playerRef = useRef<AnthemPlayer | null>(null)
     if (!playerRef.current) playerRef.current = createAnthemPlayer()
     const player = playerRef.current
@@ -23,19 +24,21 @@ export function useAnthem(leaderboard: readonly LeaderboardEntry[], settings: So
     const [unlocked, setUnlocked] = useState(false)
     const [hidden, setHidden] = useState(() => typeof document !== "undefined" && document.hidden)
 
-    const leader = leaderboard[0]?.country.code
+    const leader = board[0]?.country.code
     const leaderRef = useRef(leader)
     leaderRef.current = leader
+    const orderRef = useRef(order)
+    orderRef.current = order
 
     useEffect(() => {
-        setPick((standing) => followLeader(standing, leader, Date.now()))
-    }, [leader])
+        setPick((standing) => followLeader(standing, leader, order, Date.now()))
+    }, [leader, order])
 
     const waiting = pick.challenger !== undefined
     useEffect(() => {
         if (!waiting) return
         const timer = setInterval(
-            () => setPick((standing) => followLeader(standing, leaderRef.current, Date.now())),
+            () => setPick((standing) => followLeader(standing, leaderRef.current, orderRef.current, Date.now())),
             HOLD_CHECK_MS)
         return () => clearInterval(timer)
     }, [waiting])

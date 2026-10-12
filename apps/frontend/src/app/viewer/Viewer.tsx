@@ -71,7 +71,7 @@ import {useRace} from "../standings/useRace.ts";
 import RoundReveal from "../season/RoundReveal.tsx";
 import {useRoundReveal} from "../season/useRoundReveal.ts";
 import {revealKeyOf} from "../../domain/roundReveal.ts";
-import {CountryOrder} from "../../domain/race.ts";
+import {countryLines, CountryOrder, shownOrder} from "../../domain/race.ts";
 import {acceptedClicks} from "./acceptedClicks.ts";
 import "./Viewer.css"
 
@@ -211,10 +211,12 @@ export default function Viewer(props: ViewerProps) {
         return true
     })
 
-    const anthem = useAnthem(status.state === 'ready' ? leaderboard : NO_LEADERBOARD, sound.settings)
+    const order = shownOrder(race, countryOrder)
+    const lines = countryLines(leaderboard, race, order)
+    const anthem = useAnthem(status.state === 'ready' ? lines : NO_LEADERBOARD, order, sound.settings)
 
     const {shot, taking, take, discard} = useSharePicture(
-        capture, shareStats(leaderboard, countryState))
+        capture, shareStats(lines, countryState))
 
     const openPitch = guest ? () => {
         closeSheet()
@@ -287,7 +289,7 @@ export default function Viewer(props: ViewerProps) {
                                                     onToggle={() => setSeasonOpen((open) => !open)}/>}
 
         {ready && compact && <StatusBar country={countryState}
-                                        rank={rankOf(leaderboard, countryState)}
+                                        rank={rankOf(lines, countryState)}
                                         boardOpen={sheet === "board"}
                                         onOpenBoard={() => toggleSheet("board")}
                                         trailing={season && <SeasonChip season={season}
@@ -353,7 +355,7 @@ export default function Viewer(props: ViewerProps) {
         </>}
 
         {shot && <SharePreview shot={shot}
-                               stats={shareStats(leaderboard, countryState)}
+                               stats={shareStats(lines, countryState)}
                                onClose={discard}/>}
 
         {pitchOpen && guest && props.account && clickBudget?.linkedMultiplier && <SignInPitchModal

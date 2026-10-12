@@ -46,8 +46,7 @@ export function shareFileName(code: string): string {
 export function statsLine(stats: ShareStats): string {
     if (stats.rank === null) return "NO TILES YET"
 
-    const tiles = stats.tiles === 1 ? "1 TILE" : `${grouped.format(stats.tiles)} TILES`
-    return `RANK #${stats.rank} · ${tiles}`
+    return `RANK #${stats.rank} · ${tilesHeld(stats.tiles).toUpperCase()}`
 }
 
 export function shareText(stats: ShareStats): string {
@@ -57,8 +56,13 @@ export function shareText(stats: ShareStats): string {
 function headline({country, rank, tiles}: ShareStats): string {
     if (rank === null) return `${country.name} holds nothing on ClickPlanet yet. Come and claim it.`
 
-    return `${country.name} is #${rank} on ClickPlanet with ${grouped.format(tiles)} ` +
-        `${tiles === 1 ? "tile" : "tiles"}. Come and take them.`
+    return `${country.name} is #${rank} on ClickPlanet with ${tilesHeld(tiles)}. ` +
+        (tiles === 0 ? "Come and claim it." : "Come and take them.")
+}
+
+function tilesHeld(tiles: number): string {
+    if (tiles === 0) return "no tiles"
+    return `${grouped.format(tiles)} ${tiles === 1 ? "tile" : "tiles"}`
 }
 
 const MIN_ASPECT = 9 / 16
