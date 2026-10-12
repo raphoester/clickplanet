@@ -4,10 +4,6 @@ on:
   schedule:
     - cron: '17 0,12 * * *'
   workflow_dispatch:
-  push:
-    branches: [ claude/quizzical-visvesvaraya-950464 ]
-    paths:
-      - '.github/workflows/clips.yml'
 
 permissions:
   contents: read
