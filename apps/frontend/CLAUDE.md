@@ -67,6 +67,9 @@ landmass starts locked to France. `fakeBackend.shareClicks("guests")` (or
 player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
+`fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`, `"failed"`)
+refuses what More sends next, and `fakeSupport.refuse()` takes it again;
+`fakeSupport.sent` is what it took.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` runs chat (it is always on), and the Go server answers
@@ -232,7 +235,8 @@ Beside them: `session.ts` (the click token, see [Sessions](#sessions)),
 `player.ts` — `PlayerBackend`, the player's `Profile`, `PlayerError` and
 `isValidUsername`, the username rule, plus `PresenceBackend` (see [Who is
 playing](#who-is-playing)). `playerBackend.ts` implements both against
-`player.v1.PlayerService`.
+`player.v1.PlayerService`. `support.ts` is what a player sends the operator —
+see [Support](#support).
 
 `transport.ts` holds what both contexts need and neither owns: `retrying`,
 `retryingAtOnce`, `NO_TIMEOUT`, and `openStream`, which follows a
@@ -890,6 +894,33 @@ client whose `fetch` sets `keepalive` (`newKeepalivePlayerServiceClient`), so it
 is still sent after the page is gone. The server takes the account off at once.
 Two tabs of one browser are one account: closing one takes the line off until
 the other's next announce, at most 30s later.
+
+### Support
+
+What a player sends the operator, from More: a feature suggestion.
+
+- `backends/support.ts` — `FeatureSuggester` (and `SupportBackend`, every
+  support contract together), `MAX_NOTE_LENGTH`, which mirrors the backend's
+  `notes.MaxTextLength`, and the errors. `ConnectSupportBackend`
+  (`supportBackend.ts`) implements it over `support.v1.SupportService`;
+  `fakeSupportBackend.ts` is the dev stand-in.
+- **A send carries the click token**, minted when none is held, as a chat
+  message does: a guest sends too. A refused token is dropped and the call made
+  once more with a fresh one; a second refusal, or a mint that failed, is
+  `SupportNoSessionError`.
+- **A send is never retried.** A call that landed and lost its answer would be
+  kept twice, and the text is still in the box.
+- The refusals are `resource_exhausted` → `SupportRateLimitedError` (one address
+  sends three, then one a minute) and `invalid_argument` → `SupportRejectedError`.
+- `app/support/NoteModal.tsx` is the one form: a `Modal` with a text box and
+  Send. It opens on the box. The text keeps its lines. A counter shows from 100
+  characters left. A failure is one line under the box (`sendFailure.ts`), and
+  the text stays. Once sent it says so and offers Close.
+- **A click beside it does not close it once something is typed**
+  (`stayOnBackdropClick`): the ×, Escape and Close still do.
+- **The modal's scroll fade is off** (`.modal-support`): a field sits at the
+  bottom edge of the body, and the fade drew over it.
+- `MorePlace` shows the tile only with a `support` backend wired.
 
 ### Titles
 
@@ -2994,6 +3025,8 @@ the whole `proto` directory, so a new package needs no config change; run
   username and who is playing (`PlayerService`)
 - [`seasons/v1/seasons.proto`](../../proto/seasons/v1/seasons.proto) — the
   current season (`SeasonService`)
+- [`support/v1/support.proto`](../../proto/support/v1/support.proto) — what a
+  player sends the operator (`SupportService`)
 
 `ChatMessage.sentAtUnixMs` is an `int64`, which `protoc-gen-es` gives you as a
 `bigint` — `chatBackend.ts` converts it at the edge so nothing above it deals in

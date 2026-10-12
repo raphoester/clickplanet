@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package support.v1;
+
+service SupportService {
+  rpc SuggestFeature(SuggestFeatureRequest) returns (SuggestFeatureResponse);
+}
+
+message SuggestFeatureRequest {
+  string text = 1;
+}
+
+message SuggestFeatureResponse {}

@@ -1,0 +1,47 @@
+/* A form has a field at its bottom edge: the scroll fade would draw over it. */
+.modal-support .modal-scroll::after {
+    display: none;
+}
+
+.support-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    /* The field's focus ring is drawn outside it, and the modal's body clips. */
+    padding: 3px;
+    text-align: left;
+}
+
+.support-text {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 132px;
+    padding: var(--space-2) var(--space-3);
+    line-height: 1.35;
+    resize: vertical;
+}
+
+.support-counter {
+    align-self: flex-end;
+}
+
+.support-counter-over {
+    color: var(--action-light);
+}
+
+.support-notice {
+    margin: 0;
+    font-size: var(--text-s);
+    color: var(--action-light);
+}
+
+.support-sent {
+    margin: var(--space-2) 0;
+    font-size: var(--text-l);
+    text-align: left;
+}
+
+.support-wide {
+    width: 100%;
+}

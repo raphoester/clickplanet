@@ -66,3 +66,13 @@ seasons:
     dbName: postgres
     sslMode: disable
     schema: seasons
+
+support:
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: support

@@ -360,3 +360,19 @@ seasons:
     schema: seasons
     pool:
       maxOpenConns: 2
+
+support:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: support
+    pool:
+      maxOpenConns: 2
+  retention: 2160h
+  rateLimiter:
+    perSecond: 0.0167
+    burst: 3

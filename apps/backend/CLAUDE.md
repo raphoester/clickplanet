@@ -53,17 +53,18 @@ make dBuild
 
 This is a Go backend for a collaborative map-clicking game. It follows **hexagonal architecture (ports & adapters)**.
 
-### Five bounded contexts, one process
+### Six bounded contexts, one process
 
 - **`internal/planet/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
 - **`internal/auth/`** — who a caller is and what it has to prove before it may click: Turnstile, accounts, the click token. See [Auth](#auth-internalauth).
 - **`internal/player/`** — what the game keeps about one account: the name it chose, the tiles it took, its daily streak. See [Player](#player-internalplayer).
 - **`internal/seasons/`** — the season calendar, each season's player standings and its daily rounds between countries, above the game. See [Seasons](#seasons-internalseasons).
+- **`internal/support/`** — what a player sends the operator: a feature suggestion. See [Support](#support-internalsupport).
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Four do: `planet`, `player`, `chat` and `seasons` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username and `planet` what each country holds. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, `planet` and `chat` hear `AccountDeleted` too, and `chat` hears `RoundClosed`.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Five do: `planet`, `player`, `chat`, `seasons` and `support` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, and `seasons` asks `player` who has a username and `planet` what each country holds. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, `planet`, `chat` and `support` hear `AccountDeleted` too, and `chat` hears `RoundClosed`.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -95,6 +96,7 @@ root package**:
 | `auth` | `Config`, `NewModule`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
 | `player` | `Config`, `NewModule` |
 | `seasons` | `Config`, `NewModule` |
+| `support` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
@@ -176,10 +178,11 @@ return []bootstrap.Module{
 	chat.NewModule(config.Chat),
 	player.NewModule(config.Player),
 	seasons.NewModule(config.Seasons),
+	support.NewModule(config.Support),
 }
 ```
 
-**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet`, `chat`, `player` and `seasons` have no switch and are always on; `auth` has one. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
+**Every module is always listed; a module with a switch reads its own.** `NewModule` sets `Enabled` and `cpbootstrap` skips the ones that are off, so turning auth off is a config change and never an edit here. `planet`, `chat`, `player`, `seasons` and `support` have no switch and are always on; `auth` has one. A disabled module is never built, so its routes are **absent** rather than present and refusing — `/auth.v1.AuthService/` 404s.
 
 #### What two contexts need, without either handing it to the other
 
@@ -200,7 +203,7 @@ return []bootstrap.Module{
 
 | caller | asks | for | through |
 |---|---|---|---|
-| `planet`, `player`, `chat`, `seasons` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | `shared/cpsessionverifier` |
+| `planet`, `player`, `chat`, `seasons`, `support` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | `shared/cpsessionverifier` |
 | `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` and each title award (`StatsChanged`) | `players/rpc_account_reader` |
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
@@ -209,7 +212,7 @@ return []bootstrap.Module{
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts` and on each `GetPlayer` the cache does not answer | `playerv1controller/rpc_planet_fronts` |
 
-A module cannot import another's interior, so the key client all four need is `shared/cpsessionverifier` rather than a copy in each.
+A module cannot import another's interior, so the key client all five need is `shared/cpsessionverifier` rather than a copy in each.
 
 - **Each module's data stays in one place.** The caller holds an address, never the other module's config block, pool, objects or root package. The seed is read by `auth` and nothing else.
 - **`Dial` is the one place that knows the transport is loopback HTTP.** Moving to unix sockets changes the listener and `internalDialer`, and no module.
@@ -249,7 +252,7 @@ The events today:
 | `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats; `seasons`, for the standings |
 | `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
 | `planet.v1.Fortified{country, landmass_id, tiles, ground, fortified_at}` | `planet`, `relay_fortifications_usecase` | each landmass a player's take fortified (see [Fortify](#fortify)) | `chat`, which announces the ones of 50 tiles or more |
-| `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark |
+| `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark; `support`, which deletes the account's notes |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
 | `auth.v1.SignedOut{account_id}` | `auth`, `sign_out_usecase` and `sign_out_everywhere_usecase` | after the session, or every session, is deleted; a cookie with no session publishes nothing | `player`, which takes the account off the roster |
 | `chat.v1.MessageSent{message_id, account_id, sent_at}` | `chat`, `send_message_usecase/publishing_send_message` | after each message is kept; a refused or failed post publishes nothing | `player`, for the stats |
@@ -463,7 +466,7 @@ internal/chat/internal/
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
 (`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
 (`GetTakesByCountry`, `GetTerritories`), auth
-(`GetMe`, `GetAccount`, `GetAccounts`) and seasons (`GetStandings`, `GetMySeason`, the live race) follow this so far. **A command may
+(`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race) and support (`ListNotes`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
 through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
@@ -1068,6 +1071,7 @@ Chat and sessions each have **their own limiter instance** with their own budget
 - `chat.seenLimiter` — one seen mark a second, ten in hand. The client sends one at most every 2s anyway.
 - `auth.rateLimiter` — one mint every 30s, ten in hand, across both `CreateSession` paths. A mint costs a siteverify round trip to a third party, so an unthrottled `CreateSession` is a free way to spend this server's Turnstile quota.
 - `auth.resumeLimiter` — one `ResumeSession` a second, ten in hand. It costs one row read and no third party.
+- `support.rateLimiter` — one note a minute, three in hand. A note is a row the operator reads by hand.
 
 ### VPN blocklist
 
@@ -1131,7 +1135,7 @@ The signature is checked **before** the expiry, so a forger learns nothing about
 - **`CreateSession` mints the click token**, after a Turnstile check: `attested` is set. Nothing else sets it.
 - **`ResumeSession` mints the identity token**, from the cookie alone, with no Turnstile: the same account and linked byte, `attested` clear. It reads the live session the cookie holds and extends it when due, through `accounts.Resumer`, the same object `CreateSession` resumes a session with; a cookie with no live session gets no token, and no guest is started: only a Turnstile check starts one (`accounts.Guests`). It is bound to the address and lives an hour, like the click token, so a client renews it silently.
 - **Each procedure says which it takes.** The session interceptors take `cpconnect.Attested(procedure)` or `cpconnect.Identified(procedure)`, never a bare name, so no procedure takes the weaker token by default. An identity token on an attested procedure is as good as none: the reader puts nobody on the context, and the enforcing interceptor answers `Unauthenticated`, which the client already answers by minting through Turnstile and retrying. The verdict is `unattested` in `click_session_checks` and `player_session_checks`.
-- **What acts is attested**: everything that writes what other players see, or spends or earns something — `Click`, `ClaimBonus`, `DropBomb`, `UseRefill`, `OpenQuiz`, `AnswerQuiz`, `PlaceShield`, `SendMessage`, `React`, `SetName`, `SetColor`, `WearTitle`, `Announce`. **What reads, or writes only the caller's own state, is identified**: `GetBudget`, `GetCharges`, both `ListenForEvents`, `GetHistory`, `MarkSeen`, `GetProfile`, `GetStats`, `GetTitles`, `Leave`, `GetMySeason`.
+- **What acts is attested**: everything that writes what other players see, or spends or earns something — `Click`, `ClaimBonus`, `DropBomb`, `UseRefill`, `OpenQuiz`, `AnswerQuiz`, `PlaceShield`, `SendMessage`, `React`, `SetName`, `SetColor`, `WearTitle`, `Announce`, `SuggestFeature`. **What reads, or writes only the caller's own state, is identified**: `GetBudget`, `GetCharges`, both `ListenForEvents`, `GetHistory`, `MarkSeen`, `GetProfile`, `GetStats`, `GetTitles`, `Leave`, `GetMySeason`.
 - **So "an account on the context" still means "passed Turnstile" for every attested procedure**, and the use cases behind them did not change: a caller the interceptor did not name is refused with the error each already had (`messages.ErrNoAccount`, `ErrNoSession`).
 - **What it opens**: a browser that passed Turnstile once can read as its account for as long as its cookie lives, without passing it again. It cannot act. `TestTheCookieResumesATokenThatNamesThePlayerAndCannotAct` pins both halves over HTTP.
 
@@ -1397,6 +1401,43 @@ internal/player/internal/
 - **The pool closes after the subscribers stop** (`cppg.CloseAfter`), so what they drain from their buffers at shutdown is still written.
 - **No foreign key to `auth.accounts`**: the schemas are each module's own, and the event is how a deletion crosses.
 - **If takes ever outgrow one transaction each**, the subscriber can batch them; nothing else changes.
+
+### Support (`internal/support/`)
+
+**What a player sends the operator.** Today that is a feature suggestion. Always on. It publishes nothing, and asks no module but `auth`, for the click token's key.
+
+```
+internal/support/internal/
+  notes/                            Note (NewSuggestion, Forgotten, TakeSnapshot), Snapshot (Restore), NoteID, Kind, AccountID (AccountIDOf),
+                                    TextOf; the Storage and IDProvider ports, the StorageContractSuite and SequentialIDs
+    postgres_note_store/            Storage, over support.notes
+    inmemory_note_storage/          Storage in a slice of snapshots, with Seed and Kept for a test — behind the testing tag, tests only
+    uuid_id_provider/               IDProvider: a UUIDv7 per note
+    usecases/suggest_feature_usecase/   draws an id, builds a suggestion and keeps it — IDProvider, Saver
+    usecases/forget_notes_usecase/      reads the notes an account sent, forgets them, saves — Notes
+    usecases/prune_usecase/             reads the notes past retention, forgets them, saves; Runner — Notes
+      log_prune/                        logs what a prune deleted
+  supportv1controller/              SupportService and AdminService (bags), the interceptors
+    suggest_feature_handler/
+    list_notes_handler/notes_query/ PostgresQuery: ListNotesResponse straight from SQL
+    caller/                         the account on the context, or Unauthenticated
+  subscribers/                      Timeout
+    account_deleted_subscriber/     auth.v1.AccountDeleted → forget_notes_usecase
+    log_subscriber/                 logs an event a subscriber refused
+  migrations/                       the support schema
+```
+
+- **A note is a text an account sent, and its kind**: `suggestion`. The use case draws the id, builds the note with `notes.NewSuggestion` and saves it. The id is injected (`notes.IDProvider`), like the clock; tests use `notes.SequentialIDs`.
+- **A note has no getter: it has a snapshot.** Nothing asks a note for a field. `notes.Snapshot` is a plain struct that mirrors its private fields and holds no rule. `Note.TakeSnapshot()` hands the state to a store. **`Snapshot.Restore()` is the one place a note's rules are checked**: an id, a known kind, an account, a time (`ErrInvalidNote`), and a text that passes `TextOf` (`ErrInvalidText`). `NewSuggestion` is a snapshot restored, so a note built and a note read back pass the same check. The stores, the test fake and the tests work on snapshots: a test compares `TakeSnapshot()` with a snapshot literal, and no constructor sits behind the `testing` tag. The operator's read does not go through `Note` at all (`notes_query`).
+- **A storage finds and saves, and holds no rule.** `notes.Storage` is two finders (`SentBy` an account, `SentBefore` a time) and one `Save`, which upserts whatever notes it is handed. It has no `DeleteAccount` and no `DeleteBefore`: a change to a note is a method of `Note`, and the use case reads, tells the note, and saves. **`Note.Forgotten()` is the one change a note has**: a copy the storage keeps no more. `Save` removes the row of a forgotten note, as `postgres_charge_store` deletes the row of an empty hand: the adapter writes the state it is given and does not know why it changed. A finder restores each row it reads (`Snapshot.Restore()`), so a row that breaks a rule is an error, not a note.
+- **`notes.TextOf` is the rule on the text**: valid UTF-8, and 1 to 1,000 runes (`MaxTextLength`) once trimmed. **Lines are kept**, which a chat message's are not: `\r\n` and `\r` become `\n`, a tab a space, and every other control character is dropped. The text goes to postgres and to the operator's JSON, so a newline forges nothing. A text that breaks the rule is `InvalidArgument` (`ErrInvalidText`).
+- **The caller is the account in the click token**, a guest's included: `SuggestFeature` is `Attested` behind `supportv1controller.NewSessionInterceptor`, always enforcing (`support_session_checks{verdict}`). A token with no account is `Unauthenticated`.
+- **One limiter for the service**, `support.rateLimiter`: three at once, then one a minute, per address (`cpipscope`). **The session check is outside the limiter**: the client answers a refused token by minting and sending again, and that first try must not cost one of the three. `TestAnAddressSendsThreeNotesAtOnceAndACallWithNoSessionSpendsNone` pins it.
+- **Kept in `support.notes`** (`id`, `kind`, `account_id`, `text`, `submitted_at`), one insert per note (5s timeout), in the module's own block, `support.database`. **`kind` is a postgres enum type, `note_kind`**: the database holds the list of kinds, so a row of another kind cannot exist, typed by hand or written by a bug. A new kind is a value a migration adds to the type. **No address and no user agent**: the account is enough to find a player again, and the limiter holds the address in memory only.
+- **Personal data, so it does not outlive its reason.** Both ways out are the same three steps: read, `Forgotten()`, save. The prune reads the notes sent before `support.retention` (90 days) ago, 500 at a time until none is left, at boot and every `support.pruneInterval`. `auth.v1.AccountDeleted` (`support-notes-accounts`) reads the notes the account sent and forgets them at once.
+- **The operator reads them with `support.v1.AdminService/ListNotes(since, limit)`**, on the admin listener (see [Operator tools](#operator-tools-adminservice)): newest first, 100 unless asked, 500 at most. It is a query (`notes_query`), and a stored kind the wire cannot carry refuses the read (`ErrUnknownKind`): that is a kind a newer migration added to the type, read by an older build. Each note carries its `account_id`, which is what `InspectPlayer`, `BanPlayer` and `Mute` take.
+- **Nothing is pushed.** The module publishes no event and nothing leaves the server: the operator asks.
+- `notes.StorageContractSuite` runs on `inmemory_note_storage` and on postgres. It reads what a store kept, as snapshots, through a `Kept` hook each adapter's test fills, since the write side reads nothing back. Each snapshot read back must restore a note.
 
 ### Seasons (`internal/seasons/`)
 
@@ -2942,7 +2983,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 
 **The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread-shields).
 
-The antibot's evidence is in postgres too, in the `antibot` schema, the same way, and its bans are read and written there on every call — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](#seasons-internalseasons).
+The antibot's evidence is in postgres too, in the `antibot` schema, the same way, and its bans are read and written there on every call — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](#seasons-internalseasons). So are the support module's notes, in the `support` schema — see [Support](#support-internalsupport).
 
 Nothing lives in files any more: the container mounts no state volume.
 
@@ -2950,7 +2991,7 @@ Nothing lives in files any more: the container mounts no state volume.
 
 **A second router, on a loopback listener.** `props.AdminRPC.Mount` is `props.RPC.Mount` for services an operator calls: same builder, same error net, but `cpbootstrap` serves them on `httpServer.adminBindAddress` instead of the public router — logging middleware only, no CORS. Empty serves no admin listener; anything but a loopback `host:port` refuses the boot, both in `ServerConfig.Validate` and again in `Run`, and a port already taken refuses it too. They have no authentication, so loopback is their whole protection, and they are off the router Caddy forwards to on purpose: one Caddyfile edit would otherwise let anybody repaint the map. In production they are reached with `docker compose exec backend wget`; see `deploy/vps/README.md`, "Operator tools".
 
-`planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute` — see [Mutes](#mutes). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+`planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute` — see [Mutes](#mutes); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes` — see [Support](#support-internalsupport). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
@@ -3240,6 +3281,7 @@ The binary never reads inside a block to check it, so a new bound is added in th
 - `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click, plus whatever `bonus` and `antiBot` refuse of their own
 - `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: two switches and no key
 - `chat.Config` — an incomplete `chat.database` block. Every other chat setting has a usable default
+- `support.Config` — an incomplete `support.database` block. Every other support setting has a usable default
 
 There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
 
@@ -3326,10 +3368,13 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `seasons.list` — each season's `number` (0 up), `endsAt` (RFC 3339) and `finale` (a duration); empty is no season
 - `seasons.snapshot.interval` — how often a snapshot of what each country holds is added to the round in progress (default 1m)
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
+- `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment
+- `support.retention`, `support.pruneInterval` — how long a note is kept (default 90 days), and how often the prune runs (1h)
+- `support.rateLimiter.*` — the per-IP throttle on the whole support service, same shape as `rateLimiter` (default one a minute, three in hand)
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto) and [`player/v1/player.proto`](../../proto/player/v1/player.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto), [`player/v1/player.proto`](../../proto/player/v1/player.proto) and [`support/v1/support.proto`](../../proto/support/v1/support.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
 `generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
 
@@ -3339,7 +3384,7 @@ The proto package is the **only** version number: Connect derives each route fro
 
 Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
-**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.RunOn` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire. `RunOn` serves on listeners the test already holds, bound to `127.0.0.1:0`: a port picked free and closed again can be taken by another process before the server binds it. Under `RunOn`, `cpbootstrap` binds nothing, and an address with no held listener fails the boot. `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused; `standings_test.go` boots the game stack with seasons (one season ending in 30 days), clicks as two players with a username and a guest, and reads `GetStandings` and `GetMySeason`; `race_test.go` takes a snapshot every 50ms on that stack and reads the race off the season stream.
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.RunOn` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire. `RunOn` serves on listeners the test already holds, bound to `127.0.0.1:0`: a port picked free and closed again can be taken by another process before the server binds it. Under `RunOn`, `cpbootstrap` binds nothing, and an address with no held listener fails the boot. `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused; `standings_test.go` boots the game stack with seasons (one season ending in 30 days), clicks as two players with a username and a guest, and reads `GetStandings` and `GetMySeason`; `race_test.go` takes a snapshot every 50ms on that stack and reads the race off the season stream; `support_test.go` sends a suggestion as a guest on that stack, reads it on the admin listener, and deletes the account to see it go.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 
