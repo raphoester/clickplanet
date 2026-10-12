@@ -1,0 +1,101 @@
+name: clips
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ claude/quizzical-visvesvaraya-950464 ]
+    paths:
+      - '.github/workflows/clips.yml'
+
+defaults:
+  run:
+    working-directory: apps/frontend
+
+env:
+  CHROME_PATH: /usr/bin/google-chrome
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: fetch the last 12 hours
+        env:
+          CLICKPLANET_SSH: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          eval "$(ssh-agent -s)" > /dev/null
+          ssh-add -q - <<< "$VPS_SSH_KEY"
+          install -m 700 -d ~/.ssh
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
+          time npm run clip:fetch -- --hours 12 --out replay.json
+          ls -l replay.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: replay
+          path: apps/frontend/replay.json
+          retention-days: 1
+
+  measure:
+    needs: fetch
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        take: [ plan, preview, whole ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: install ffmpeg
+        run: |
+          time sudo apt-get update -qq
+          time sudo apt-get install -y -qq --no-install-recommends ffmpeg
+          nproc
+          free -g
+          "$CHROME_PATH" --version
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: replay
+          path: apps/frontend
+
+      - name: plan
+        if: matrix.take == 'plan'
+        run: time npm run clip -- --replay replay.json --plan --count 8
+
+      - name: preview
+        if: matrix.take == 'preview'
+        run: time npm run clip -- --replay replay.json --pick 1 --recorders 1 --preview 3
+
+      - name: whole
+        if: matrix.take == 'whole'
+        run: time npm run clip -- --replay replay.json --pick 1 --recorders 1
+
+      - if: matrix.take != 'plan'
+        run: ls -l clip-1.*
+
+      - if: matrix.take != 'plan'
+        uses: actions/upload-artifact@v4
+        with:
+          name: clip-${{ matrix.take }}
+          path: |
+            apps/frontend/clip-1.mp4
+            apps/frontend/clip-1.txt
+          retention-days: 1
