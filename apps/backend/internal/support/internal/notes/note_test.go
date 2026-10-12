@@ -25,6 +25,12 @@ func TestASuggestionIsANoteOfThatKindWithItsTextCleaned(t *testing.T) {
 	}, note.TakeSnapshot())
 }
 
+func TestASuggestionNeedsTheAccountThatSendsIt(t *testing.T) {
+	_, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.AccountID{}, "a night mode", sentAt)
+
+	require.ErrorIs(t, err, notes.ErrInvalidNote)
+}
+
 func TestASuggestionWithAnInvalidTextCannotBeBuilt(t *testing.T) {
 	_, err := notes.NewSuggestion(notes.NoteID{15: 1}, ada, "   ", sentAt)
 
@@ -47,7 +53,6 @@ func TestASnapshotThatBreaksARuleRestoresNothing(t *testing.T) {
 		"no id":           func(s *notes.Snapshot) { s.ID = notes.NoteID{} },
 		"an unknown kind": func(s *notes.Snapshot) { s.Kind = "praise" },
 		"no kind":         func(s *notes.Snapshot) { s.Kind = "" },
-		"no account":      func(s *notes.Snapshot) { s.Account = notes.AccountID{} },
 		"no time":         func(s *notes.Snapshot) { s.At = time.Time{} },
 	} {
 		snapshot := valid()
@@ -69,19 +74,30 @@ func TestASnapshotWithAnInvalidTextRestoresNothing(t *testing.T) {
 	assert.NotErrorIs(t, err, notes.ErrInvalidNote)
 }
 
-func TestAForgottenNoteSaysSoInItsSnapshotAndKeepsTheRest(t *testing.T) {
+func TestAnAnonymizedNoteKeepsItsTextAndNothingSaysWhoSentIt(t *testing.T) {
 	note, err := valid().Restore()
 	require.NoError(t, err)
 
-	forgotten := note.Forgotten()
+	anonymized := note.Anonymized()
 
 	want := valid()
-	want.Forgotten = true
-	assert.Equal(t, want, forgotten.TakeSnapshot())
-	assert.False(t, note.TakeSnapshot().Forgotten, "the note it was made from is left as it was")
+	want.Account = notes.AccountID{}
+	assert.Equal(t, want, anonymized.TakeSnapshot())
+	assert.Equal(t, valid(), note.TakeSnapshot(), "the note it was made from is left as it was")
+	assert.Equal(t, anonymized, anonymized.Anonymized(), "twice is once")
 }
 
-func TestEveryNoteOfAListIsForgottenInItsOrder(t *testing.T) {
+func TestAnAnonymizedNoteIsRestoredAsItWasKept(t *testing.T) {
+	kept := valid()
+	kept.Account = notes.AccountID{}
+
+	note, err := kept.Restore()
+
+	require.NoError(t, err)
+	assert.Equal(t, kept, note.TakeSnapshot())
+}
+
+func TestEveryNoteOfAListIsAnonymizedInItsOrder(t *testing.T) {
 	first, err := valid().Restore()
 	require.NoError(t, err)
 	other := valid()
@@ -89,10 +105,10 @@ func TestEveryNoteOfAListIsForgottenInItsOrder(t *testing.T) {
 	second, err := other.Restore()
 	require.NoError(t, err)
 
-	forgotten := notes.AllForgotten([]notes.Note{first, second})
+	anonymized := notes.AllAnonymized([]notes.Note{first, second})
 
-	require.Len(t, forgotten, 2)
-	assert.Equal(t, first.Forgotten(), forgotten[0])
-	assert.Equal(t, second.Forgotten(), forgotten[1])
-	assert.Empty(t, notes.AllForgotten(nil))
+	require.Len(t, anonymized, 2)
+	assert.Equal(t, first.Anonymized(), anonymized[0])
+	assert.Equal(t, second.Anonymized(), anonymized[1])
+	assert.Empty(t, notes.AllAnonymized(nil))
 }

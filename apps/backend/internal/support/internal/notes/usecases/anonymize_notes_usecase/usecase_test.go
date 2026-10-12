@@ -1,4 +1,4 @@
-package forget_notes_usecase_test
+package anonymize_notes_usecase_test
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/inmemory_note_storage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/forget_notes_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/anonymize_notes_usecase"
 )
 
 var (
@@ -23,30 +23,34 @@ func suggestion(n byte, account notes.AccountID, text string) notes.Snapshot {
 	return notes.Snapshot{ID: notes.NoteID{15: n}, Kind: notes.KindSuggestion, Account: account, Text: text, At: at}
 }
 
-func TestAForgottenAccountLosesEveryNoteItSentAndTheOthersStay(t *testing.T) {
+func anonymous(n byte, text string) notes.Snapshot {
+	return suggestion(n, notes.AccountID{}, text)
+}
+
+func TestEveryNoteAnAccountSentKeepsItsTextAndLosesItsSenderAndTheOthersAreLeftAlone(t *testing.T) {
 	store := inmemory_note_storage.New()
 	kept := suggestion(2, bob, "more flags")
 	store.Seed(suggestion(1, ada, "a night mode"), kept, suggestion(3, ada, "a day mode"))
 
-	require.NoError(t, forget_notes_usecase.New(store).Execute(t.Context(), ada))
+	require.NoError(t, anonymize_notes_usecase.New(store).Execute(t.Context(), ada))
 
-	assert.Equal(t, []notes.Snapshot{kept}, store.Kept())
+	assert.ElementsMatch(t, []notes.Snapshot{anonymous(1, "a night mode"), kept, anonymous(3, "a day mode")}, store.Kept())
 }
 
-func TestAnAccountThatSentNothingIsForgottenWithNoError(t *testing.T) {
+func TestAnAccountThatSentNothingChangesNothing(t *testing.T) {
 	store := inmemory_note_storage.New()
 	kept := suggestion(1, bob, "more flags")
 	store.Seed(kept)
 
-	require.NoError(t, forget_notes_usecase.New(store).Execute(t.Context(), ada))
+	require.NoError(t, anonymize_notes_usecase.New(store).Execute(t.Context(), ada))
 
 	assert.Equal(t, []notes.Snapshot{kept}, store.Kept())
 }
 
-func TestAFailureToForgetIsAnError(t *testing.T) {
+func TestAFailureToAnonymizeIsAnError(t *testing.T) {
 	store := inmemory_note_storage.New()
 	refused := errors.New("the database is down")
 	store.FailWith(refused)
 
-	assert.ErrorIs(t, forget_notes_usecase.New(store).Execute(t.Context(), ada), refused)
+	assert.ErrorIs(t, anonymize_notes_usecase.New(store).Execute(t.Context(), ada), refused)
 }

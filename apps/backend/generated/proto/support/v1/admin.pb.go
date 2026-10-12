@@ -179,9 +179,10 @@ func (x *ListNotesResponse) GetNotes() []*Note {
 }
 
 type Note struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Kind        NoteKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=support.v1.NoteKind" json:"kind,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind  NoteKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=support.v1.NoteKind" json:"kind,omitempty"`
+	// Empty once the note is anonymized: its account was deleted, or the note is past the retention.
 	AccountId   string                 `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Text        string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
 	SubmittedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`

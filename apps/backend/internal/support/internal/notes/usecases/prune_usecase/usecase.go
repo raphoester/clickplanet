@@ -10,7 +10,7 @@ import (
 )
 
 type Notes interface {
-	SentBefore(ctx context.Context, cutoff time.Time, limit int) ([]notes.Note, error)
+	WithSenderBefore(ctx context.Context, cutoff time.Time, limit int) ([]notes.Note, error)
 	Save(ctx context.Context, notes ...notes.Note) error
 }
 
@@ -41,19 +41,19 @@ func (u *UseCase) Execute(ctx context.Context) (int64, error) {
 
 	cutoff := u.clock.Now().Add(-u.retention)
 
-	var forgotten int64
+	var anonymized int64
 	for {
-		old, err := u.notes.SentBefore(ctx, cutoff, batch)
+		old, err := u.notes.WithSenderBefore(ctx, cutoff, batch)
 		if err != nil {
-			return forgotten, fmt.Errorf("failed to read the notes past retention: %w", err)
+			return anonymized, fmt.Errorf("failed to read the notes past retention: %w", err)
 		}
 		if len(old) == 0 {
-			return forgotten, nil
+			return anonymized, nil
 		}
 
-		if err := u.notes.Save(ctx, notes.AllForgotten(old)...); err != nil {
-			return forgotten, fmt.Errorf("failed to forget the notes past retention: %w", err)
+		if err := u.notes.Save(ctx, notes.AllAnonymized(old)...); err != nil {
+			return anonymized, fmt.Errorf("failed to anonymize the notes past retention: %w", err)
 		}
-		forgotten += int64(len(old))
+		anonymized += int64(len(old))
 	}
 }

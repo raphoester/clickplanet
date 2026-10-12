@@ -14,12 +14,12 @@ import (
 )
 
 type stubExecutor struct {
-	deleted int64
-	err     error
+	count int64
+	err   error
 }
 
 func (s stubExecutor) Execute(context.Context) (int64, error) {
-	return s.deleted, s.err
+	return s.count, s.err
 }
 
 func run(t *testing.T, ctx context.Context, inner stubExecutor) (string, error) {
@@ -30,11 +30,11 @@ func run(t *testing.T, ctx context.Context, inner stubExecutor) (string, error) 
 	return logs.String(), err
 }
 
-func TestAPruneThatDeletedSomethingIsLogged(t *testing.T) {
-	logs, err := run(t, t.Context(), stubExecutor{deleted: 3})
+func TestAPruneThatWentThroughSomethingIsLogged(t *testing.T) {
+	logs, err := run(t, t.Context(), stubExecutor{count: 3})
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, "level=INFO msg=\"pruned the support module\" deleted=3")
+	assert.Contains(t, logs, "level=INFO msg=\"pruned the support module\" count=3")
 }
 
 func TestAnEmptyPruneSaysNothing(t *testing.T) {

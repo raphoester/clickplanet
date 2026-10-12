@@ -140,6 +140,29 @@ func (s *testSuite) TestEveryKindTheStoreKeepsIsRead() {
 	s.Equal(supportv1.NoteKind_NOTE_KIND_SUGGESTION, got[1].GetKind())
 }
 
+func (s *testSuite) TestAnAnonymizedNoteIsReadWithItsTextAndNoAccount() {
+	sent := s.suggested(1, ada, "a night mode", start)
+	note, err := notes.NewSuggestion(notes.NoteID{15: 1}, ada, "a night mode", start)
+	s.Require().NoError(err)
+	s.Require().NoError(s.notes.Save(s.T().Context(), note.Anonymized()))
+
+	sent.AccountId = ""
+	s.same([]*supportv1.Note{sent}, s.read(time.Time{}, 0))
+}
+
+func (s *testSuite) TestAnAnonymizedBugReportIsReadWithWhatThePageSaidAndNoAccount() {
+	said := notes.Diagnostics{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, UserAgent: "Mozilla/5.0 (iPhone)"}
+	sent := s.reported(1, ada, "the globe is black", said, start)
+	note, err := notes.NewBugReport(notes.NoteID{15: 1}, ada, "the globe is black", said, start)
+	s.Require().NoError(err)
+	s.Require().NoError(s.notes.Save(s.T().Context(), note.Anonymized()))
+
+	sent.AccountId = ""
+	sent.Context = &supportv1.BugContext{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844}
+	sent.UserAgent = "Mozilla/5.0 (iPhone)"
+	s.same([]*supportv1.Note{sent}, s.read(time.Time{}, 0))
+}
+
 func (s *testSuite) TestNotesBeforeSinceAreLeftOut() {
 	s.suggested(1, ada, "old", start)
 	atSince := s.suggested(2, ada, "at since", start.Add(time.Hour))

@@ -52,13 +52,6 @@ type diagnostics struct {
 }
 
 func write(ctx context.Context, tx cppg.Querier, kept notes.Snapshot) error {
-	if kept.Forgotten {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM notes WHERE id = $1`, uuid.UUID(kept.ID)); err != nil {
-			return fmt.Errorf("failed to delete a forgotten note: %w", err)
-		}
-		return nil
-	}
-
 	said, err := encoded(kept.Diagnostics)
 	if err != nil {
 		return fmt.Errorf("failed to encode a note's diagnostics: %w", err)
@@ -71,7 +64,7 @@ func write(ctx context.Context, tx cppg.Querier, kept notes.Snapshot) error {
 			kind = EXCLUDED.kind, account_id = EXCLUDED.account_id, text = EXCLUDED.text,
 			diagnostics = EXCLUDED.diagnostics, submitted_at = EXCLUDED.submitted_at
 	`,
-		uuid.UUID(kept.ID), string(kept.Kind), uuid.UUID(kept.Account), kept.Text, said, kept.At.UTC(),
+		uuid.UUID(kept.ID), string(kept.Kind), sender(kept.Account), kept.Text, said, kept.At.UTC(),
 	); err != nil {
 		return fmt.Errorf("failed to upsert a note: %w", err)
 	}
@@ -102,6 +95,11 @@ func decoded(stored sql.NullString) (notes.Diagnostics, error) {
 	return notes.Diagnostics(said), nil
 }
 
+// An anonymized note has no account: NULL.
+func sender(account notes.AccountID) uuid.NullUUID {
+	return uuid.NullUUID{UUID: uuid.UUID(account), Valid: account != notes.AccountID{}}
+}
+
 func (s *Store) SentBy(ctx context.Context, account notes.AccountID) ([]notes.Note, error) {
 	return s.restored(ctx, `
 		SELECT id, kind, account_id, text, diagnostics, submitted_at
@@ -111,11 +109,11 @@ func (s *Store) SentBy(ctx context.Context, account notes.AccountID) ([]notes.No
 	`, uuid.UUID(account))
 }
 
-func (s *Store) SentBefore(ctx context.Context, cutoff time.Time, limit int) ([]notes.Note, error) {
+func (s *Store) WithSenderBefore(ctx context.Context, cutoff time.Time, limit int) ([]notes.Note, error) {
 	return s.restored(ctx, `
 		SELECT id, kind, account_id, text, diagnostics, submitted_at
 		FROM notes
-		WHERE submitted_at < $1
+		WHERE submitted_at < $1 AND account_id IS NOT NULL
 		ORDER BY submitted_at, id
 		LIMIT $2
 	`, cutoff.UTC(), limit)
@@ -131,10 +129,11 @@ func (s *Store) restored(ctx context.Context, query string, args ...any) ([]note
 	var found []notes.Note
 	for rows.Next() {
 		var (
-			id, account uuid.UUID
-			kind, text  string
-			stored      sql.NullString
-			at          time.Time
+			id         uuid.UUID
+			account    uuid.NullUUID
+			kind, text string
+			stored     sql.NullString
+			at         time.Time
 		)
 		if err := rows.Scan(&id, &kind, &account, &text, &stored, &at); err != nil {
 			return nil, fmt.Errorf("failed to read a note: %w", err)
@@ -146,7 +145,7 @@ func (s *Store) restored(ctx context.Context, query string, args ...any) ([]note
 		}
 
 		note, err := notes.Snapshot{
-			ID: notes.NoteID(id), Kind: notes.Kind(kind), Account: notes.AccountID(account), Text: text,
+			ID: notes.NoteID(id), Kind: notes.Kind(kind), Account: notes.AccountID(account.UUID), Text: text,
 			Diagnostics: said, At: at.UTC(),
 		}.Restore()
 		if err != nil {

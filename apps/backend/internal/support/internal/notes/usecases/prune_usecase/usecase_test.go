@@ -22,20 +22,39 @@ func suggestion(n int, at time.Time) notes.Snapshot {
 	}
 }
 
-func TestAPruneForgetsTheNotesPastRetentionAndKeepsTheOthers(t *testing.T) {
-	kept := inmemory_note_storage.New()
-	fresh := suggestion(2, now.Add(-time.Hour))
-	atTheLine := suggestion(3, now.Add(-24*time.Hour))
-	kept.Seed(suggestion(1, now.Add(-48*time.Hour)), fresh, atTheLine)
-
-	forgotten, err := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), kept).Execute(t.Context())
-
-	require.NoError(t, err)
-	assert.Equal(t, int64(1), forgotten)
-	assert.Equal(t, []notes.Snapshot{atTheLine, fresh}, kept.Kept())
+func anonymous(note notes.Snapshot) notes.Snapshot {
+	note.Account = notes.AccountID{}
+	return note
 }
 
-func TestAPruneForgetsMoreNotesThanOneBatchHolds(t *testing.T) {
+func TestAPruneTakesTheSenderOffTheNotesPastRetentionAndLeavesTheOthersAlone(t *testing.T) {
+	kept := inmemory_note_storage.New()
+	old := suggestion(1, now.Add(-48*time.Hour))
+	fresh := suggestion(2, now.Add(-time.Hour))
+	atTheLine := suggestion(3, now.Add(-24*time.Hour))
+	kept.Seed(old, fresh, atTheLine)
+
+	anonymized, err := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), kept).Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), anonymized)
+	assert.Equal(t, []notes.Snapshot{anonymous(old), atTheLine, fresh}, kept.Kept())
+}
+
+func TestASecondPruneFindsNothingLeftToDo(t *testing.T) {
+	kept := inmemory_note_storage.New()
+	kept.Seed(suggestion(1, now.Add(-48*time.Hour)))
+	prune := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), kept)
+	_, err := prune.Execute(t.Context())
+	require.NoError(t, err)
+
+	anonymized, err := prune.Execute(t.Context())
+
+	require.NoError(t, err)
+	assert.Zero(t, anonymized)
+}
+
+func TestAPruneGoesThroughMoreNotesThanOneBatchHolds(t *testing.T) {
 	kept := inmemory_note_storage.New()
 	for n := range 1200 {
 		kept.Seed(suggestion(n+1, now.Add(-48*time.Hour).Add(time.Duration(n)*time.Second)))
@@ -43,11 +62,16 @@ func TestAPruneForgetsMoreNotesThanOneBatchHolds(t *testing.T) {
 	fresh := suggestion(2000, now.Add(-time.Hour))
 	kept.Seed(fresh)
 
-	forgotten, err := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), kept).Execute(t.Context())
+	anonymized, err := prune_usecase.New(24*time.Hour, cptime.NewFixedClock(now), kept).Execute(t.Context())
 
 	require.NoError(t, err)
-	assert.Equal(t, int64(1200), forgotten)
-	assert.Equal(t, []notes.Snapshot{fresh}, kept.Kept())
+	assert.Equal(t, int64(1200), anonymized)
+	after := kept.Kept()
+	require.Len(t, after, 1201)
+	assert.Equal(t, fresh, after[1200])
+	for _, note := range after[:1200] {
+		assert.Equal(t, notes.AccountID{}, note.Account)
+	}
 }
 
 func TestAFailedPruneSaysSo(t *testing.T) {

@@ -38,7 +38,7 @@ type PostgresQuery struct {
 
 const notes = `
 	SELECT
-		id, kind, account_id, text, submitted_at,
+		id, kind, COALESCE(account_id::text, ''), text, submitted_at,
 		diagnostics IS NOT NULL,
 		COALESCE(diagnostics->>'build', ''),
 		COALESCE((diagnostics->>'viewportWidth')::bigint, 0),

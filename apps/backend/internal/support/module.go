@@ -19,7 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/postgres_note_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/forget_notes_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/anonymize_notes_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/prune_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/prune_usecase/log_prune"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/report_bug_usecase"
@@ -85,7 +85,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		props.Logger.With(slog.String("pruned", "reports")))
 
 	noteDeletions, err := cpbootstrap.Subscribe(props.Events, "support-notes-accounts", accountDeletedBuffer,
-		log_subscriber.New(account_deleted_subscriber.New(forget_notes_usecase.New(noteStore)), props.Logger))
+		log_subscriber.New(account_deleted_subscriber.New(anonymize_notes_usecase.New(noteStore)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
