@@ -22,7 +22,7 @@ import (
 const Production = "https://zernio.com/api/v1"
 
 const (
-	maxBodyBytes = 1 << 16
+	maxBodyBytes = 1 << 20
 	platform     = "tiktok"
 	videoType    = "video/mp4"
 	scheduled    = "scheduled"
@@ -30,13 +30,18 @@ const (
 
 type Config struct {
 	APIKey string
+	// Production when empty.
+	BaseURL string
 }
 
-func New(config Config, baseURL string, httpClient *http.Client) (*Service, error) {
+func New(config Config, httpClient *http.Client) (*Service, error) {
 	if config.APIKey == "" {
 		return nil, errors.New("the zernio api key is empty")
 	}
-	return &Service{base: baseURL, key: config.APIKey, http: httpClient}, nil
+	if config.BaseURL == "" {
+		config.BaseURL = Production
+	}
+	return &Service{base: config.BaseURL, key: config.APIKey, http: httpClient}, nil
 }
 
 type Service struct {
@@ -131,7 +136,7 @@ func (s *Service) account(ctx context.Context) (string, error) {
 			IsActive bool   `json:"isActive"`
 		} `json:"accounts"`
 	}
-	if err := s.call(ctx, http.MethodGet, "/accounts?platform="+platform, nil, nil, &listed); err != nil {
+	if err := s.call(ctx, http.MethodGet, "/accounts?excludeHidden=true&platform="+platform, nil, nil, &listed); err != nil {
 		return "", err
 	}
 

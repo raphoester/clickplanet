@@ -79,6 +79,7 @@ func (f *zernioFake) serve(t *testing.T) *httptest.Server {
 		switch call {
 		case "GET /accounts":
 			assert.Equal(t, "tiktok", r.URL.Query().Get("platform"))
+			assert.Equal(t, "true", r.URL.Query().Get("excludeHidden"))
 			f.accounts.write(w)
 		case "POST /media/presign":
 			assert.NoError(t, json.Unmarshal(raw, &f.presigned))
@@ -121,7 +122,7 @@ func schedule(t *testing.T, fake *zernioFake) (posts.PostID, error) {
 	t.Helper()
 
 	server := fake.serve(t)
-	service, err := zernio.New(zernio.Config{APIKey: "the-key"}, server.URL, server.Client())
+	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
 	require.NoError(t, err)
 	return service.Schedule(t.Context(), post(t)) //nolint:wrapcheck // the test reads the service's own error.
 }
@@ -283,7 +284,7 @@ func TestAnErrorNeverSaysTheKey(t *testing.T) {
 }
 
 func TestAnEmptyKeyIsRefusedWhenTheServiceIsBuilt(t *testing.T) {
-	_, err := zernio.New(zernio.Config{}, zernio.Production, http.DefaultClient)
+	_, err := zernio.New(zernio.Config{}, http.DefaultClient)
 
 	require.Error(t, err)
 }
@@ -291,7 +292,7 @@ func TestAnEmptyKeyIsRefusedWhenTheServiceIsBuilt(t *testing.T) {
 func TestAVideoThatIsNotThereIsAnError(t *testing.T) {
 	fake := newFake()
 	server := fake.serve(t)
-	service, err := zernio.New(zernio.Config{APIKey: "the-key"}, server.URL, server.Client())
+	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
 	require.NoError(t, err)
 	clip, err := posts.ClipSnapshot{Pick: 1, Title: "T", Caption: "C", Video: posts.VideoFile(filepath.Join(t.TempDir(), "gone.mp4"))}.Restore()
 	require.NoError(t, err)

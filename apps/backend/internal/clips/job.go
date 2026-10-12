@@ -77,7 +77,7 @@ func Schedule(ctx context.Context, folder string, config Config, summary io.Writ
 	config = config.withDefaults()
 	clock := cptime.SystemClock{}
 
-	service, err := zernio.New(config.Zernio, zernio.Production, &http.Client{Timeout: serviceTimeout})
+	service, err := zernio.New(config.Zernio, &http.Client{Timeout: serviceTimeout})
 	if err != nil {
 		return fmt.Errorf("failed to build the posting service: %w", err)
 	}
