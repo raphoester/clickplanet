@@ -2,10 +2,8 @@ package migrations_test
 
 import (
 	"fmt"
-	"io/fs"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -15,26 +13,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func before(t *testing.T, version string) fs.FS {
-	t.Helper()
-
-	names, err := fs.Glob(migrations.FS, "*.sql")
-	require.NoError(t, err)
-
-	older := fstest.MapFS{}
-	for _, name := range names {
-		if name < version {
-			data, err := fs.ReadFile(migrations.FS, name)
-			require.NoError(t, err)
-			older[name] = &fstest.MapFile{Data: data}
-		}
-	}
-	return older
-}
-
 func TestUnicodeUsernamesCutTheLongNamesAndDeleteTheOnesACutWouldTake(t *testing.T) {
 	server := cppg.StartTestServer(t)
-	db := server.OpenSchema(t, "player", before(t, "20260918190000"))
+	db := server.OpenSchema(t, "player", cppg.MigrationsBefore(t, migrations.FS, "20260918190000"))
 	at := time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 	for i, row := range []struct {
 		name string

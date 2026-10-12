@@ -41,7 +41,7 @@ type PostgresQuery struct {
 
 const me = `
 	SELECT accounts.id,
-	       COALESCE(array_agg(identities.provider ORDER BY identities.linked_at, identities.provider)
+	       COALESCE(array_agg(identities.provider ORDER BY identities.linked_at, identities.provider::text)
 	                FILTER (WHERE identities.provider IS NOT NULL), '{}')
 	FROM sessions
 	JOIN accounts ON accounts.id = sessions.account_id

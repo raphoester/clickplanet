@@ -275,6 +275,8 @@ func withPayload(position ledger.Position, kind, payload string) inmemory_ledger
 
 func (s *testSuite) TestAnEntryOfAnyKindComesBackWithItsPayload() {
 	ctx := context.Background()
+	_, err := s.db.ExecContext(ctx, `ALTER TYPE ledger_event_kind ADD VALUE IF NOT EXISTS 'quake'`)
+	s.Require().NoError(err)
 	quake := withPayload(1, "quake", `{"magnitude": 7}`)
 	quake.Entry.Account = guest
 
@@ -287,6 +289,26 @@ func (s *testSuite) TestAnEntryOfAnyKindComesBackWithItsPayload() {
 	s.JSONEq(`{"magnitude": 7}`, string(takes[1].Entry.Payload))
 	takes[1].Entry.Payload = quake.Entry.Payload
 	s.Equal(quake, takes[1], "the store reads no kind")
+}
+
+func (s *testSuite) TestTheTypeHoldsEveryKindTheLedgerWrites() {
+	kinds := ledger.Kinds()
+	entries := make([]inmemory_ledger_storage.Stored, 0, len(kinds))
+	for _, kind := range kinds {
+		entries = append(entries, withPayload(ledger.Position(len(entries)), kind, `{}`))
+	}
+
+	s.Require().NoError(s.store.Save(context.Background(), changes(0, 0, map[ledger.Caller]ledger.Position{}, entries...)),
+		"a kind the type does not hold stops every flush: add it in a migration")
+}
+
+func (s *testSuite) TestAKindTheTypeDoesNotHoldWritesNothing() {
+	ctx := context.Background()
+
+	s.Require().Error(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{},
+		stored(0, 3, "1.2.3.4", "fr", "", start), withPayload(1, "meteor", `{}`))))
+
+	s.Empty(s.rows())
 }
 
 func (s *testSuite) TestAPayloadIsKeptAsJSONBesideTheTileItIsAbout() {

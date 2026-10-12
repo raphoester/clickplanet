@@ -1,7 +1,9 @@
 package postgres_announcement_store_test
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 
@@ -30,4 +32,11 @@ func (s *testSuite) SetupSuite() {
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 	s.StorageContractSuite.SetupTest()
+}
+
+func (s *testSuite) TestAKindTheTypeDoesNotHoldIsRefused() {
+	meteor := announcements.NewAnnouncement(announcements.AnnouncementID{15: 1}, announcements.Kind("meteor"),
+		time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC), json.RawMessage(`{}`))
+
+	s.Error(s.NewStorage().Append(s.T().Context(), meteor))
 }
