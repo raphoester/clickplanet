@@ -32,6 +32,7 @@ message ListNotesResponse {
 message Note {
   string id = 1;
   NoteKind kind = 2;
+  // Empty once the note is anonymized: its account was deleted, or the note is past the retention.
   string account_id = 3;
   string text = 4;
   google.protobuf.Timestamp submitted_at = 5;

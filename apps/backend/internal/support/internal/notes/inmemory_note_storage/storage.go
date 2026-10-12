@@ -55,9 +55,7 @@ func (s *Storage) Save(_ context.Context, saved ...notes.Note) error {
 	for _, note := range saved {
 		snapshot := note.TakeSnapshot()
 		s.kept = slices.DeleteFunc(s.kept, func(kept notes.Snapshot) bool { return kept.ID == snapshot.ID })
-		if !snapshot.Forgotten {
-			s.kept = append(s.kept, snapshot)
-		}
+		s.kept = append(s.kept, snapshot)
 	}
 	return nil
 }
@@ -69,17 +67,21 @@ func (s *Storage) SentBy(_ context.Context, account notes.AccountID) ([]notes.No
 	if s.err != nil {
 		return nil, s.err
 	}
-	return restored(s.oldestFirst(func(kept notes.Snapshot) bool { return kept.Account == account }))
+	return restored(s.oldestFirst(func(kept notes.Snapshot) bool {
+		return kept.Account == account && account != notes.AccountID{}
+	}))
 }
 
-func (s *Storage) SentBefore(_ context.Context, cutoff time.Time, limit int) ([]notes.Note, error) {
+func (s *Storage) WithSenderBefore(_ context.Context, cutoff time.Time, limit int) ([]notes.Note, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.err != nil {
 		return nil, s.err
 	}
-	old := s.oldestFirst(func(kept notes.Snapshot) bool { return kept.At.Before(cutoff) })
+	old := s.oldestFirst(func(kept notes.Snapshot) bool {
+		return kept.At.Before(cutoff) && kept.Account != notes.AccountID{}
+	})
 	return restored(old[:min(len(old), limit)])
 }
 

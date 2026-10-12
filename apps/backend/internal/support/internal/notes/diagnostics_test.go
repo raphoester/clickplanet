@@ -63,3 +63,20 @@ func TestOnlyABugReportHasDiagnostics(t *testing.T) {
 
 	require.ErrorIs(t, err, notes.ErrInvalidNote)
 }
+
+func TestABugReportNeedsTheAccountThatSendsIt(t *testing.T) {
+	_, err := notes.NewBugReport(notes.NoteID{15: 1}, notes.AccountID{}, "the globe is black", notes.Diagnostics{}, sentAt)
+
+	require.ErrorIs(t, err, notes.ErrInvalidNote)
+}
+
+func TestAnAnonymizedBugReportKeepsItsDiagnostics(t *testing.T) {
+	said := notes.Diagnostics{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, UserAgent: "Mozilla/5.0 (iPhone)"}
+	note, err := notes.NewBugReport(notes.NoteID{15: 1}, ada, "the globe is black", said, sentAt)
+	require.NoError(t, err)
+
+	anonymized := note.Anonymized().TakeSnapshot()
+
+	assert.Equal(t, notes.AccountID{}, anonymized.Account)
+	assert.Equal(t, said, anonymized.Diagnostics)
+}
