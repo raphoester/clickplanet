@@ -22,6 +22,7 @@ npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
 npm run clip:fetch -- --ssh <user@host> --out replay.json  # A replay of the last 72h from production (see "Clips")
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
+npm run clip -- --replay replay.json --shortlist shortlist.json  # Only the list of its stories, as data
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
 npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
@@ -2765,9 +2766,35 @@ card on a phone.
 **A clip is the real globe playing back a war, for TikTok, Shorts and Reels**: 1080×1920, 8.5 to 22s, a headline,
 the map moving under it from the first frame, and the link at the end. `npm run clip` makes them from a replay
 and **chooses everything itself**: the stretch of time, the place, the headline, the camera, the look and the
-length. Each comes with a `.txt` holding the caption to post. `--count 3` makes the three best stories, for a
+length. Each comes with a `.txt` holding the caption to post, for a person, and a `.json` holding the same as data,
+for a program (below). `--count 3` makes the three best stories, for a
 person to pick one; `--plan` prints what they would be and renders nothing, and `--preview 3` renders only the
 first 3 seconds; every choice can be forced (`npm run clip -- --help`).
+
+**Twice a day a workflow posts the best ones with no person and no laptop** (`.github/workflows/clips.yml`, at
+00:17 and 12:17 UTC, or by hand with `workflow_dispatch`). Four jobs:
+
+1. **fetch**: `clip:fetch --hours 12` over SSH, with the deploy's `VPS_*` secrets. It runs no `npm ci`: `fetch.mjs`
+   needs no dependency, so the key to the VPS is in no job that runs one. The replay goes on as an artifact; it is
+   the public stream's data.
+2. **choose**: `npm run clip -- --shortlist shortlist.json`, then the backend's `clips choose` reads it and prints the
+   picks to render, `[1,2]`. None is a quiet half day: the run ends there, green.
+3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
+   draws with SwiftShader, **1.9s a frame** (measured 2026-10-12: a 12s clip in 11.5 minutes, a 22s one would take
+   about 21), the same picture as with a GPU. More recorders do not help there: each one draws every frame.
+4. **schedule**: the backend's `clips schedule` sends each clip to the posting service, for a time hours ahead.
+   **Nothing is ever published at once**: the review is to cancel a clip in the service's dashboard before its time.
+
+What chooses, when a clip goes out, the client of the service and the run's summary are Go, in the backend
+(its CLAUDE.md, "The clips job"). **This app keeps only what needs the browser**, and hands the rest over as data,
+`clips.v1` in the shared `proto/`, written as JSON:
+
+- **`--shortlist <path>`** writes a `Shortlist`: the title of every story worth a clip, best first, so a story's
+  place from 1 is its `--pick`. One page load, no globe, 6s. With no story it is `{}`, not an error.
+- **`clip-<n>.json`** is a `Clip`: its pick, its title (the headline), its caption as it is posted, and its tags as
+  a list for where tags are not part of the text. **The caption is decided here and nowhere else**: the `.txt` and
+  the `.json` hold the same one, credit included (`credited`, `domain/clip/caption.ts`), and the job posts it as it
+  is. The repo is public and so are a run's logs and artifacts: a clip can be watched there before it is out.
 
 - **The replay is the backend's** (`planet.v1.AdminService/GetReplay`, see the backend's CLAUDE.md): the map as it
   was at the start, and every act after it as the live stream sent it. `npm run clip:fetch` asks for the last
@@ -2778,6 +2805,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   builds the globe with `createGlobe` over `backends/replayBackend.ts`, which plays the replay through the same
   decoders as `PlanetBackend` (`updateOf`, `bombOf`, `spreadOf`, `enclosureOf`): tile updates in batches, and a
   bomb, a spread or an enclosure as an effect. `ReplayBackend.cut` opens on the map at a later time.
+- **The page chooses, then records** (`window.clip`, `src/clip/main.ts`): `shortlist` is the stories worth a clip,
+  known before any globe is built, and `record()` builds the globe for the story asked for and answers what the
+  recorder needs. A pick past the last story fails `record()`, never `shortlist`.
 - **The recorder owns the clock.** `src/clip/virtualClock.ts` replaces `performance.now` and
   `requestAnimationFrame`, so a frame is drawn only when `window.clip.frame(i)` asks, and a bomb takes its second
   of video however long a frame takes to capture. **No CSS animation or transition on the page**: they run on the
@@ -2879,7 +2909,8 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   play, vendored by `npm run clip:anthems` into `scripts/clip/anthems/`: the Anthem of Europe (Navy Band too) and
   Palestine's Fida'i, which the Navy Band never recorded, in an instrumental under CC BY 3.0. A recording under a
   licence carries its credit, and the caption of every clip it plays under ends with it. It fades out over the
-  last 1.2s. `--silent` leaves it out, for TikTok and Instagram, where a sound is added when posting.
+  last 1.2s. `--silent` leaves it out, and its credit with it, for TikTok and Instagram, where a sound is added
+  when posting.
 - **An anthem starts on a highlight**, never on its first second: the UK's opens on 11s of drum roll, Algeria's on 7s
   of drums. `highlight.ts` hears a drum roll from a tune (a noisy spectrum, against the band's notes) and ranks the
   notes struck with the band playing on, loudest first, a phrase after a pause counting as louder.
@@ -2920,8 +2951,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds nothing. The last 2.5s are the call to act, and nothing runs past 22s.
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
-headless Chrome at 540×960 at 2×, waits for `window.clip.ready`, then for each frame calls `window.clip.frame(i)`,
-takes a screenshot and pipes it to ffmpeg (libx264, `yuv420p`). It needs ffmpeg and Chrome (`CHROME_PATH`).
+headless Chrome at 540×960 at 2×, waits for `window.clip.record()`, then for each frame calls `window.clip.frame(i)`,
+takes a screenshot and pipes it to ffmpeg (libx264, `yuv420p`). It needs ffmpeg and Chrome (`CHROME_PATH`, which
+the workflow sets: the default is the macOS path).
 
 **The screenshot is nearly all of a clip's time, so several browsers take them in turn** (`--recorders`, one for
 every 3 cores, 4 at most). The globe draws a frame in 6ms; Chrome takes 0.3s to encode it as a 2.4MB PNG, on one
