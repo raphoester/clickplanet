@@ -1,7 +1,7 @@
 import {ReactNode, useEffect, useId, useRef, useState} from "react";
 import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry, rankOf} from "../domain/leaderboard.ts";
-import {CountryOrder} from "../domain/race.ts";
+import {countryLines, CountryOrder, shownOrder} from "../domain/race.ts";
 import {NO_TILE_DELTAS, TileDeltas} from "../domain/tileDeltas.ts";
 import {Race} from "../backends/standings.ts";
 import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx";
@@ -86,7 +86,7 @@ export default function Menu(props: MenuProps) {
         </div>
 
         <PlayingFor country={props.country}
-                    rank={rankOf(props.leaderboard, props.country)}
+                    rank={rankShown(props)}
                     changeRef={picker.opener}
                     onChange={picker.open}/>
 
@@ -217,7 +217,7 @@ export function BoardSheet({onClose, ...props}: BoardPlaceProps & {onClose: () =
             </MenuPanel>
             : <>
                 <PlayingFor country={props.country}
-                            rank={rankOf(props.leaderboard, props.country)}
+                            rank={rankShown(props)}
                             changeRef={picker.opener}
                             onChange={picker.open}
                             slim/>
@@ -229,7 +229,12 @@ export function BoardSheet({onClose, ...props}: BoardPlaceProps & {onClose: () =
 function orderOf(props: BoardPlaceProps): ReactNode {
     const onOrder = props.onCountryOrder
     if (!props.race || !onOrder) return undefined
-    return <OrderSwitch order={props.countryOrder ?? "season"} onOrder={onOrder}/>
+    return <OrderSwitch order={shownOrder(props.race, props.countryOrder)} onOrder={onOrder}/>
+}
+
+function rankShown(props: BoardPlaceProps): number | null {
+    const lines = countryLines(props.leaderboard, props.race, shownOrder(props.race, props.countryOrder))
+    return rankOf(lines, props.country)
 }
 
 export function YouPlace({account: store, linkedMultiplier, playerInfo, listenForClicks}: YouPlaceProps) {

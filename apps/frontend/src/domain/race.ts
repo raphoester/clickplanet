@@ -11,6 +11,10 @@ export type CountryLine = {
     today: number
 }
 
+export function shownOrder(race: Race | undefined, picked: CountryOrder = "season"): CountryOrder {
+    return race ? picked : "territory"
+}
+
 export function countryLines(
     leaderboard: readonly LeaderboardEntry[],
     race: Race | undefined,

@@ -14,8 +14,10 @@ import {
     statsLine,
     withoutSharedFlag,
 } from "./shareCard.ts"
+import {Race} from "../backends/standings.ts"
 import {Countries} from "./countries.ts"
 import {LeaderboardEntry} from "./leaderboard.ts"
+import {countryLines} from "./race.ts"
 
 const france = Countries.get("fr")!
 const japan = Countries.get("jp")!
@@ -70,6 +72,10 @@ describe("what the card says", () => {
     it("says so plainly when the country holds nothing, rather than showing a rank it has not got", () => {
         expect(statsLine({country: france, rank: null, tiles: 0})).toBe("NO TILES YET")
     })
+
+    it("keeps the rank of a country that the season ranks with no ground", () => {
+        expect(statsLine({country: france, rank: 2, tiles: 0})).toBe("RANK #2 · NO TILES")
+    })
 })
 
 describe("the text that rides with the image", () => {
@@ -82,12 +88,26 @@ describe("the text that rides with the image", () => {
         expect(shareText({country: japan, rank: null, tiles: 0}))
             .toBe("Japan holds nothing on ClickPlanet yet. Come and claim it. https://clickplanet.lol/?f=jp")
     })
+
+    it("offers no tiles to take from a country ranked with none", () => {
+        expect(shareText({country: france, rank: 2, tiles: 0}))
+            .toBe("France is #2 on ClickPlanet with no tiles. Come and claim it. https://clickplanet.lol/?f=fr")
+    })
 })
 
 describe("reading the player's standing off the board", () => {
     it("takes the rank from the row's place and the count from the row", () => {
         expect(shareStats([entry("jp", 500), entry("fr", 250)], france))
             .toEqual({country: france, rank: 2, tiles: 250})
+    })
+
+    it("ranks by the order of the board it is given, the season's as well", () => {
+        const race: Race = {scores: [{rank: 1, countryCode: "fr", points: 43, roundsWon: 1}, {rank: 2, countryCode: "it", points: 30, roundsWon: 0}]}
+        const season = countryLines([entry("jp", 500), entry("fr", 250)], race, "season")
+
+        expect(shareStats(season, france)).toEqual({country: france, rank: 1, tiles: 250})
+        expect(shareStats(season, japan)).toEqual({country: japan, rank: 3, tiles: 500})
+        expect(shareStats(season, Countries.get("it")!)).toEqual({country: Countries.get("it")!, rank: 2, tiles: 0})
     })
 
     it("reports no rank for a country that is not on the board at all", () => {

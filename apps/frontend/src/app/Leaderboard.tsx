@@ -3,7 +3,7 @@ import {PointerEvent, ReactNode, useEffect, useId, useRef, useState} from "react
 import {Race} from "../backends/standings.ts";
 import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry} from "../domain/leaderboard.ts";
-import {CountryLine, countryLines, CountryOrder} from "../domain/race.ts";
+import {CountryLine, countryLines, CountryOrder, shownOrder} from "../domain/race.ts";
 import {Figure, FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts";
 import {DELTA_HOLD_MS, NO_TILE_DELTAS, signed, TileDelta, TileDeltas} from "../domain/tileDeltas.ts";
 import {truncate} from "./truncate.ts";
@@ -36,8 +36,7 @@ export default function Leaderboard(props: LeaderboardProps) {
     const titleId = useId()
     const deltas = props.deltas ?? NO_TILE_DELTAS
     const race = props.race
-    const order = race ? props.order ?? "season" : "territory"
-    const [leader, ...rest] = countryLines(props.data, race, order)
+    const [leader, ...rest] = countryLines(props.data, race, shownOrder(race, props.order))
     const [shown, setShown] = useState<Shown>()
     const [guiding, setGuiding] = useState(false)
 

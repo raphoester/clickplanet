@@ -146,7 +146,8 @@ feature goes in one of them; there is no fifth panel and no new fold.
 - **A panel is as tall as what it holds**, up to the screen, and scrolls inside.
 - **A line holds two things at most.** A third goes where it fits, a place.
 - **The leader's frame holds the anthem**: the music is the leader's, so the
-  player is on the board, not on the globe.
+  player is on the board, not on the globe. The music follows the order picked,
+  so the frame never holds another country's anthem.
 
 ## Motion
 
