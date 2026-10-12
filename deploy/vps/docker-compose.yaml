@@ -105,6 +105,34 @@ services:
       options:
         tag: cp-metrics-poller
 
+  ops-role:
+    image: postgres:16-alpine
+    container_name: cp-ops-role
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
+      # Not required: a deploy of the game must not fail on a secret only ops reads.
+      OPS_DB_PASSWORD: ${OPS_DB_PASSWORD:-}
+    volumes:
+      # The directory, not the file: a file bind mount keeps the old inode after git pull.
+      - ../../apps/backend/internal/ops/internal/role:/role:ro
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        [ -n "$$OPS_DB_PASSWORD" ] || { echo "OPS_DB_PASSWORD is unset: ops_reader is left as it was"; exit 1; }
+        psql -q -h postgres -U clickplanet -d clickplanet -v ON_ERROR_STOP=1 -f /role/ops_reader.sql
+        echo "ALTER ROLE ops_reader PASSWORD :'password'" \
+          | psql -q -h postgres -U clickplanet -d clickplanet -v ON_ERROR_STOP=1 -v password="$$OPS_DB_PASSWORD"
+    logging:
+      driver: journald
+      options:
+        tag: cp-ops-role
+
 volumes:
   caddy_data:
   caddy_config:

@@ -40,6 +40,20 @@ func TestACompleteConfigIsValid(t *testing.T) {
 	require.NoError(t, cppg.Config{Host: "h", Port: "5432", User: "u", DBName: "d", SSLMode: "disable", Schema: "planet"}.Validate())
 }
 
+func TestAnOpenedClientReachesPostgresAtItsFirstQueryNotBefore(t *testing.T) {
+	nowhere := cppg.New(cppg.Config{Host: "127.0.0.1", Port: "1", User: "u", DBName: "d", SSLMode: "disable", Schema: "public"})
+
+	require.NoError(t, nowhere.Open())
+	t.Cleanup(func() { _ = nowhere.Close() })
+
+	_, err := nowhere.ExecContext(t.Context(), `SELECT 1`)
+	require.Error(t, err)
+}
+
+func TestAnIncompleteConfigIsRefusedAtTheOpen(t *testing.T) {
+	require.ErrorContains(t, cppg.New(cppg.Config{Host: "postgres"}).Open(), "is empty")
+}
+
 func TestEachSchemaHoldsItsOwnTablesAndMigrationHistory(t *testing.T) {
 	migrations := fstest.MapFS{
 		"1_create_things.up.sql":   {Data: []byte(`CREATE TABLE things (id integer PRIMARY KEY)`)},

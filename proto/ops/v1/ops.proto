@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package ops.v1;
+
+import "google/protobuf/struct.proto";
+
+service OpsService {
+  rpc Query(QueryRequest) returns (QueryResponse);
+}
+
+message QueryRequest {
+  string statement = 1;
+  uint32 limit = 2;
+}
+
+message QueryResponse {
+  repeated string columns = 1;
+  repeated google.protobuf.ListValue rows = 2;
+  bool truncated = 3;
+}

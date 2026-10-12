@@ -21,6 +21,7 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 - `proto/session/v1/session.proto` — the deprecated mint (`SessionService`), served by the same auth module until no client calls it
 - `proto/player/v1/player.proto` — a player's name, color, stats, titles and the countries it plays for and against, and who is playing (`PlayerService`); the colors themselves are `NameColor` in `color.proto`, and a title is `Title` in `title.proto`, which `chat.proto` and `seasons.proto` import too
 - `proto/seasons/v1/seasons.proto` — when the current season ends and its finale starts, who leads it, and the countries' daily rounds (`SeasonService`)
+- `proto/ops/v1/ops.proto` — one SQL statement, read as a role that cannot write, for an operator Cloudflare Access let in (`OpsService`); the frontend generates it without using it
 
 Beside them, `internal.proto` is what one backend module asks another (`auth.v1`, `player.v1`, `planet.v1`), and `events.proto` is what one tells the others in process (`planet.v1.TileTaken`, `auth.v1.AccountDeleted`). Neither is on the public router; the frontend generates both without using them.
 
@@ -100,6 +101,20 @@ It is a script rather than a root `Makefile` target on purpose — see
 `deploy/docker-compose.yaml` runs backend + frontend together using locally built Docker images. Build each app's image first (`apps/frontend`'s `npm run dBuild`, `apps/backend`'s `make dBuild`), then `cd deploy && docker compose up`.
 
 The stack includes a **postgres**: the backend keeps the whole tile map in process and writes what changed to postgres every second. The ledger and the bonus charges each account holds go there too, the antibot keeps its evidence there in its own schema and reads and writes its bans there directly, the chat reads and writes its messages, reactions and when each account last saw it there directly, and broadcasts a write only once it is kept, the player module reads and writes profiles and stats there on every call, and the seasons module keeps each season's standings and its rounds there. See [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) for the durability tradeoff and the full config schema.
+
+## Reading production
+
+A session with no SSH key reads production's postgres through `https://ops.clickplanet.lol`: one SQL statement a call, as a role that cannot write. The session's cloud environment adds the credential on the way out, so a plain `curl` works where the environment holds it and is refused where it does not — there is no token to look for.
+
+```bash
+curl -sS https://ops.clickplanet.lol/ops.v1.OpsService/Query \
+  -H 'Content-Type: application/json' \
+  -d '{"statement": "select count(*) from planet.tiles"}'
+```
+
+Each module keeps its tables in a schema of its own (`planet`, `antibot`, `chat`, `auth`, `player`, `seasons`), so a table is always written with its schema. [`deploy/vps/README.md`](deploy/vps/README.md#11-reading-production-without-ssh) has the limits and how it is kept to reading. The journal and Caddy's access log are not behind it: they still need SSH.
+
+**What an answer holds stays out of the repository**, which is public: no player's address, account id or email in code, a test, a commit message or a pull request.
 
 ## Independence of the two apps
 
