@@ -18,10 +18,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/schedule_clips_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/schedule_clips_usecase/log_schedule_clips"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/zernio"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/file_replay_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/ssh_replay_source"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase/log_fetch_replay"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Config struct {
+	Replay ReplayConfig
+
 	PerRun  int
 	Review  time.Duration
 	Spacing time.Duration
@@ -29,7 +36,18 @@ type Config struct {
 	Zernio zernio.Config
 }
 
+type ReplayConfig struct {
+	// user@host of the machine the backend runs on.
+	SSH  string
+	Span time.Duration
+	// Zero is now.
+	Until time.Time
+}
+
 const (
+	// The ledger keeps this much in memory: a replay cannot reach further back.
+	defaultSpan = 72 * time.Hour
+
 	defaultPerRun  = 2
 	defaultReview  = 4 * time.Hour
 	defaultSpacing = 2 * time.Hour
@@ -41,6 +59,9 @@ const (
 var defaultBackoff = posts.Backoff{time.Minute, 5 * time.Minute, 15 * time.Minute}
 
 func (c Config) withDefaults() Config {
+	if c.Replay.Span == 0 {
+		c.Replay.Span = defaultSpan
+	}
 	if c.PerRun <= 0 {
 		c.PerRun = defaultPerRun
 	}
@@ -51,6 +72,23 @@ func (c Config) withDefaults() Config {
 		c.Spacing = defaultSpacing
 	}
 	return c
+}
+
+func Fetch(ctx context.Context, out string, config Config, logger *slog.Logger) error {
+	config = config.withDefaults()
+
+	source, err := ssh_replay_source.New(config.Replay.SSH, ssh_replay_source.OpenSSH)
+	if err != nil {
+		return fmt.Errorf("failed to build the source of the replay: %w", err)
+	}
+
+	fetch := log_fetch_replay.New(fetch_replay_usecase.New(
+		replays.Request{Span: config.Replay.Span, Until: config.Replay.Until},
+		cptime.SystemClock{}, source, file_replay_store.Store(out),
+	), logger)
+
+	_, err = fetch.Execute(ctx)
+	return err
 }
 
 func Choose(ctx context.Context, shortlist string, config Config, picks io.Writer, logger *slog.Logger) error {

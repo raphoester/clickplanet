@@ -45,10 +45,14 @@ func TestChoosePrintsAnEmptyListOnAQuietHalfDay(t *testing.T) {
 }
 
 func TestACommandItDoesNotKnowOrWithAPartMissingSaysHowToCallIt(t *testing.T) {
+	t.Setenv(hostVariable, "")
 	for name, args := range map[string][]string{
 		"nothing":               {},
 		"an unknown command":    {"publish"},
 		"choose, no shortlist":  {"choose"},
+		"fetch, no file":        {"fetch", "-ssh", "deploy@vps.example"},
+		"fetch, no host":        {"fetch", "-out", "replay.json"},
+		"fetch, a wrong time":   {"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-until", "yesterday"},
 		"schedule, no folder":   {"schedule"},
 		"choose, a wrong count": {"choose", "-shortlist", "shortlist.json", "-count", "two"},
 	} {
@@ -61,6 +65,16 @@ func TestACommandItDoesNotKnowOrWithAPartMissingSaysHowToCallIt(t *testing.T) {
 			assert.Empty(t, out.String())
 		})
 	}
+}
+
+func TestFetchReadsTheHostFromTheEnvironmentWhenNoFlagNamesIt(t *testing.T) {
+	t.Setenv(hostVariable, "deploy@vps.example")
+	var out bytes.Buffer
+
+	err := run(t.Context(), []string{"fetch", "-out", filepath.Join(t.TempDir(), "replay.json"), "-hours", "-1"}, &out)
+
+	require.ErrorContains(t, err, "it spans no time")
+	assert.NotContains(t, err.Error(), "usage:")
 }
 
 func TestScheduleWithNoKeyFailsBeforeItSendsAnything(t *testing.T) {

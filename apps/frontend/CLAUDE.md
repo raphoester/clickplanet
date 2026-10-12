@@ -20,7 +20,6 @@ npm run borderLines # Trace the countries' outlines onto the tile lattice (see "
 npm run earth      # Cut the globe's texture from the tile field (see "The globe's texture")
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
-npm run clip:fetch -- --ssh <user@host> --out replay.json  # A replay of the last 72h from production (see "Clips")
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
 npm run clip -- --replay replay.json --shortlist shortlist.json  # Only the list of its stories, as data
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
@@ -2774,9 +2773,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 **Twice a day a workflow posts the best ones with no person and no laptop** (`.github/workflows/clips.yml`, at
 00:17 and 12:17 UTC, or by hand with `workflow_dispatch`). Four jobs:
 
-1. **fetch**: `clip:fetch --hours 12` over SSH, with the deploy's `VPS_*` secrets. It runs no `npm ci`: `fetch.mjs`
-   needs no dependency, so the key to the VPS is in no job that runs one. The replay goes on as an artifact; it is
-   the public stream's data.
+1. **fetch**: the backend's `clips fetch -hours 12` over SSH, with the deploy's `VPS_*` secrets. The job runs no
+   npm at all, so the key to the VPS is in no job that installs this app's dependencies. The replay goes on as an
+   artifact; it is the public stream's data.
 2. **choose**: `npm run clip -- --shortlist shortlist.json`, then the backend's `clips choose` reads it and prints the
    picks to render, `[1,2]`. None is a quiet half day: the run ends there, green.
 3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
@@ -2798,8 +2797,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   is. The repo is public and so are a run's logs and artifacts: a clip can be watched there before it is out.
 
 - **The replay is the backend's** (`planet.v1.AdminService/GetReplay`, see the backend's CLAUDE.md): the map as it
-  was at the start, and every act after it as the live stream sent it. `npm run clip:fetch` asks for the last
-  72 hours over SSH (`--ssh`, or `CLICKPLANET_SSH`); `npm run clip:record` follows the public stream for a few
+  was at the start, and every act after it as the live stream sent it. The backend's job asks for the last
+  72 hours over SSH (`cd ../backend && go run ./cmd/clips fetch -out ../frontend/replay.json`, with `-ssh` or
+  `CLICKPLANET_SSH`: it needs no browser, so it is Go); `npm run clip:record` follows the public stream for a few
   minutes instead, to try the generator without the operator tool.
 - **It is the game's own globe**, so a clip shows exactly what a player sees: `clip.html` is a page of its own,
   served by `npm run dev` and **left out of the build** (it is not in `rollupOptions.input`). `src/clip/main.ts`

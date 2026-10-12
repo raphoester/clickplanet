@@ -49,6 +49,7 @@ make disposable-domains
 make dBuild
 
 # The clips job, as the clips workflow runs it (see "The clips job")
+go run ./cmd/clips fetch -ssh <user@host> -out ../frontend/replay.json
 go run ./cmd/clips choose -shortlist ../frontend/shortlist.json
 ZERNIO_API_KEY=... go run ./cmd/clips schedule -clips ../frontend/clips
 ```
@@ -106,7 +107,7 @@ root package**:
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
-| `clips` | `Config`, `Choose`, `Schedule` |
+| `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
@@ -3089,15 +3090,20 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 
 **Twice a day a workflow makes the best clips of the last 12 hours and schedules them on TikTok**
 (`.github/workflows/clips.yml`; the frontend's CLAUDE.md, "Clips", has the four jobs and how a clip is made). The
-frontend's generator needs a browser, so it stays there. **Everything else is here**: which clips, when each goes
-out, the client of the posting service, the retries and the run's summary. The two meet in files:
-`clips.v1.Shortlist` and `clips.v1.Clip` (`proto/clips/v1/clips.proto`), which the generator writes as JSON.
+frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
+which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
+meet in files: the replay this job saves for the generator, and `clips.v1.Shortlist` and `clips.v1.Clip`
+(`proto/clips/v1/clips.proto`), which the generator writes as JSON.
 
 ```
+clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -shortlist <shortlist.json> [-count 2]
 clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 ```
 
+- **`fetch` saves a replay**: it asks the production backend's operator tool for one
+  ([`GetReplay`](#getreplay)), over SSH, and writes the answer as it came. `CLICKPLANET_SSH` stands in for `-ssh`.
+  With no `-hours` it is 72: the ledger keeps that much in memory, and a replay cannot reach further back.
 - **`choose` prints the picks to render**, as a JSON array on the standard output (`[1,2]`, or `[]` on a quiet half
   day): the workflow makes one render job of each. The log goes to the standard error. A pick is a story's place
   in the shortlist, from 1 (`posts.Pick`): what the generator's `--pick` takes.
@@ -3105,11 +3111,28 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   service, and adds a table to the summary: each clip, its time, and whether it is scheduled. It exits 1 when a
   clip was not scheduled, when the folder holds none, or when the summary cannot be written. A clip refused does
   not stop the next one.
-- **`cmd/clips/main.go` reads flags and `ZERNIO_API_KEY`, and builds nothing**: `clips.Choose` and
-  `clips.Schedule` (`internal/clips/job.go`) wire the objects, as a `module.go` does. Flags and not `cpconfigs`:
-  the job has four settings and one secret, and a workflow passes them on the command line.
+- **`cmd/clips/main.go` reads flags, `CLICKPLANET_SSH` and `ZERNIO_API_KEY`, and builds nothing**: `clips.Fetch`,
+  `clips.Choose` and `clips.Schedule` (`internal/clips/job.go`) wire the objects, as a `module.go` does. Flags
+  and not `cpconfigs`: the job has a few settings and one secret, and a workflow passes them on the command line.
 
-**`internal/clips/internal/posts/` is the domain**, with no file, no HTTP and no clock of its own:
+**`internal/clips/internal/replays/` is the fetch**, a concept of its own beside `posts`:
+
+- **`Request.Window(now)`** is which stretch: `Span` back from `Until`, or from now when no end is asked for. A
+  span of nothing or less is refused before anything is asked of the backend.
+- **`ssh_replay_source` runs the `ssh` program**, as the operator does by hand (`deploy/vps/README.md`, "Get a
+  replay for a clip"): `ssh -- <host> "cd … && docker compose exec -T backend wget … GetReplay"`. Not an SSH
+  library: the program brings the agent, the config and the known hosts of whoever runs it, a laptop or the
+  workflow. **`--` ends ssh's options**, so a host that starts with a dash is a host and never
+  `-oProxyCommand=…`. The body is two times the adapter formats itself, so nothing a shell reads goes between
+  its single quotes.
+- **What comes back is checked before it is kept**: it has to read as a `planet.v1.GetReplayResponse` with its
+  window, unknown fields dropped. A 502 page or an empty answer fails the fetch here, not three jobs later in a
+  browser. The file holds the answer byte for byte, never a re-encoding: the generator reads the backend's JSON.
+- **An ssh that fails says what it complained of** (`Permission denied (publickey)`), from its standard error.
+  In the workflow the host is a secret, which Actions masks in the log.
+- Its test runs a fake `ssh`, a shell script that keeps its arguments. No test runs the real one.
+
+**`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
 
 - **`Shortlist.Best(count)`** is which clips: the first `count` stories, all of them when there are fewer. 2 a run
   (`Config.PerRun`).

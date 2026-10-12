@@ -10,18 +10,25 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
 )
 
 const usage = `usage:
+  clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
   clips choose -shortlist <shortlist.json> [-count 2]
   clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 
-choose prints the picks of the stories to render, as a JSON array. schedule sends every clip of the folder to the
-posting service, each for its time, and needs ZERNIO_API_KEY.`
+fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
+the ledger keeps 72 hours in memory, so a replay cannot reach further back. choose prints the picks of the stories
+to render, as a JSON array. schedule sends every clip of the folder to the posting service, each for its time, and
+needs ZERNIO_API_KEY.`
 
-const keyVariable = "ZERNIO_API_KEY"
+const (
+	keyVariable  = "ZERNIO_API_KEY"
+	hostVariable = "CLICKPLANET_SSH"
+)
 
 var errArguments = errors.New("wrong arguments")
 
@@ -43,6 +50,8 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{}))
 
 	switch args[0] {
+	case "fetch":
+		return fetch(ctx, args[1:], logger)
 	case "choose":
 		return choose(ctx, args[1:], out, logger)
 	case "schedule":
@@ -50,6 +59,31 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 	default:
 		return fmt.Errorf("%w\n%s", errArguments, usage)
 	}
+}
+
+func fetch(ctx context.Context, args []string, logger *slog.Logger) error {
+	flags := flag.NewFlagSet("fetch", flag.ContinueOnError)
+	out := flags.String("out", "", "the file the replay is written to")
+	hours := flags.Float64("hours", 0, "how long the replay is")
+	var config clips.Config
+	flags.StringVar(&config.Replay.SSH, "ssh", os.Getenv(hostVariable), "user@host of the machine the backend runs on")
+	flags.Func("until", "when the replay ends, default now", func(value string) error {
+		until, err := time.Parse(time.RFC3339, value)
+		config.Replay.Until = until
+		return err //nolint:wrapcheck // the flag set says which flag and which value.
+	})
+	if err := flags.Parse(args); err != nil {
+		return fmt.Errorf("%w\n%s", err, usage)
+	}
+	if *out == "" || config.Replay.SSH == "" {
+		return fmt.Errorf("%w\n%s", errArguments, usage)
+	}
+	config.Replay.Span = time.Duration(*hours * float64(time.Hour))
+
+	if err := clips.Fetch(ctx, *out, config, logger); err != nil {
+		return fmt.Errorf("failed to fetch the replay: %w", err)
+	}
+	return nil
 }
 
 func choose(ctx context.Context, args []string, out io.Writer, logger *slog.Logger) error {

@@ -1084,8 +1084,8 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 ### Get a replay for a clip
 
 The map as it was at `since`, and every act on it until `until` (unset: now). The
-frontend's `npm run clip:fetch` sends this over SSH and saves the answer, which
-`npm run clip` turns into a video:
+backend's `go run ./cmd/clips fetch` sends this over SSH and saves the answer, which
+the frontend's `npm run clip` turns into a video:
 
 ```bash
 docker compose exec -T backend wget -qO- --header 'Content-Type: application/json' --post-data '{"since":"2026-10-06T00:00:00Z","until":"2026-10-07T00:00:00Z"}' http://127.0.0.1:8081/planet.v1.AdminService/GetReplay > replay.json
