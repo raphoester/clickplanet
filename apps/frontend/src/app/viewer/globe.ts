@@ -5,6 +5,7 @@ import {graphicsOf} from "./graphics.ts";
 import {loadPointGeometryData} from "./points.ts";
 import {GpuPicker} from "./gpuPicking.ts";
 import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
+import {GraphicsReport, graphicsReportOf} from "./graphicsReport.ts";
 import {TileField} from "./tileField.ts";
 import {BorderField, countryOfTile, loadBorders} from "./borderField.ts";
 import {createBorderLines, loadBorderLines} from "./borderLines.ts";
@@ -183,6 +184,7 @@ export type Globe = {
     setSwitch(name: keyof Switches, on: boolean): void
     setClickHue(hue: number | undefined): void
     capture(): Promise<CapturedFrame>
+    graphics(): GraphicsReport
     dispose(): void
 }
 
@@ -887,6 +889,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             captureRequests.push({resolve, reject})
             invalidate()
         }),
+        graphics: () => graphicsReportOf(renderer.getContext()),
         dispose: () => {
             lifetime.abort()
 

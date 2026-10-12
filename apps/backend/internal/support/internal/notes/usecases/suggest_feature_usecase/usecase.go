@@ -14,8 +14,9 @@ type Saver interface {
 }
 
 type In struct {
-	Account notes.AccountID
-	Text    string
+	Account     notes.AccountID
+	Text        string
+	Diagnostics notes.Diagnostics
 }
 
 const writeTimeout = 5 * time.Second
@@ -36,7 +37,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("failed to draw a note id: %w", err)
 	}
 
-	note, err := notes.NewSuggestion(id, in.Account, in.Text, u.clock.Now())
+	note, err := notes.NewSuggestion(id, in.Account, in.Text, in.Diagnostics, u.clock.Now())
 	if err != nil {
 		return fmt.Errorf("cannot take the suggestion: %w", err)
 	}

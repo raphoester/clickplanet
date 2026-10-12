@@ -1,18 +1,26 @@
 export const MAX_NOTE_LENGTH = 1000
 
-export interface FeatureSuggester {
-    suggestFeature(text: string): Promise<void>
-}
-
-export type BugContext = {
+export type PageContext = {
     build: string
     viewportWidth: number
     viewportHeight: number
+    pixelRatio: number
     connectionDown: boolean
+    gpuVendor: string
+    gpuRenderer: string
+    webglVersion: string
+    maxTextureSize: number
+    contextLost: boolean
+    cores: number
+    memoryGb: number
+}
+
+export interface FeatureSuggester {
+    suggestFeature(text: string, context: PageContext): Promise<void>
 }
 
 export interface BugReporter {
-    reportBug(text: string, context: BugContext): Promise<void>
+    reportBug(text: string, context: PageContext): Promise<void>
 }
 
 export type SupportBackend = FeatureSuggester & BugReporter

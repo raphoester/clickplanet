@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { BugContext } from "./support_pb.js";
+import { PageContext } from "./support_pb.js";
 
 /**
  * @generated from enum support.v1.NoteKind
@@ -157,15 +157,13 @@ export class Note extends Message<Note> {
   submittedAt?: Timestamp;
 
   /**
-   * Only a bug report has one.
+   * What the page said of itself. Every note has one; a note sent before they were kept has an empty one.
    *
-   * @generated from field: support.v1.BugContext context = 6;
+   * @generated from field: support.v1.PageContext context = 6;
    */
-  context?: BugContext;
+  context?: PageContext;
 
   /**
-   * Only a bug report has one.
-   *
    * @generated from field: string user_agent = 7;
    */
   userAgent = "";
@@ -183,7 +181,7 @@ export class Note extends Message<Note> {
     { no: 3, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "submitted_at", kind: "message", T: Timestamp },
-    { no: 6, name: "context", kind: "message", T: BugContext },
+    { no: 6, name: "context", kind: "message", T: PageContext },
     { no: 7, name: "user_agent", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 

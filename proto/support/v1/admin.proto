@@ -36,8 +36,7 @@ message Note {
   string account_id = 3;
   string text = 4;
   google.protobuf.Timestamp submitted_at = 5;
-  // Only a bug report has one.
-  BugContext context = 6;
-  // Only a bug report has one.
+  // What the page said of itself. Every note has one; a note sent before they were kept has an empty one.
+  PageContext context = 6;
   string user_agent = 7;
 }

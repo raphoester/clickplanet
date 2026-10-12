@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
@@ -36,21 +37,20 @@ type PostgresQuery struct {
 	db cppg.Querier
 }
 
+// diagnostics holds the JSON names of support.v1.PageContext, and the user agent beside them.
 const notes = `
 	SELECT
 		id, kind, COALESCE(account_id::text, ''), text, submitted_at,
-		diagnostics IS NOT NULL,
-		COALESCE(diagnostics->>'build', ''),
-		COALESCE((diagnostics->>'viewportWidth')::bigint, 0),
-		COALESCE((diagnostics->>'viewportHeight')::bigint, 0),
-		COALESCE((diagnostics->>'connectionDown')::boolean, false),
-		COALESCE(diagnostics->>'userAgent', '')
+		diagnostics, COALESCE(diagnostics->>'userAgent', '')
 	FROM notes
 	WHERE ($1::timestamptz IS NULL OR submitted_at >= $1)
 		AND ($2::note_kind IS NULL OR kind = $2)
 	ORDER BY submitted_at DESC, id DESC
 	LIMIT $3
 `
+
+// A key this build does not know is one a newer build wrote: the rest of the note is still read.
+var kept = protojson.UnmarshalOptions{DiscardUnknown: true}
 
 // A zero since is every note kept, and an unspecified kind every kind; a zero limit is DefaultLimit, and none
 // passes MaxLimit.
@@ -72,15 +72,16 @@ func (q *PostgresQuery) Notes(
 	answer := &supportv1.ListNotesResponse{}
 	for rows.Next() {
 		var (
-			note      = &supportv1.Note{}
-			page      = &supportv1.BugContext{}
-			stored    string
-			at        time.Time
-			diagnosed bool
+			note   = &supportv1.Note{Context: &supportv1.PageContext{}}
+			stored string
+			said   []byte
+			at     time.Time
 		)
-		if err := rows.Scan(&note.Id, &stored, &note.AccountId, &note.Text, &at, &diagnosed,
-			&page.Build, &page.ViewportWidth, &page.ViewportHeight, &page.ConnectionDown, &note.UserAgent); err != nil {
+		if err := rows.Scan(&note.Id, &stored, &note.AccountId, &note.Text, &at, &said, &note.UserAgent); err != nil {
 			return nil, fmt.Errorf("failed to read a note: %w", err)
+		}
+		if err := kept.Unmarshal(said, note.Context); err != nil {
+			return nil, fmt.Errorf("failed to decode the diagnostics of the note %s: %w", note.GetId(), err)
 		}
 
 		known, ok := kinds[stored]
@@ -89,9 +90,6 @@ func (q *PostgresQuery) Notes(
 		}
 		note.Kind = known
 		note.SubmittedAt = timestamppb.New(at)
-		if diagnosed {
-			note.Context = page
-		}
 		answer.Notes = append(answer.Notes, note)
 	}
 	if err := rows.Err(); err != nil {

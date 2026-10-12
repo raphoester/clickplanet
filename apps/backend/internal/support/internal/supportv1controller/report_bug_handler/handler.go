@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/report_bug_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/caller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/pagecontext"
 )
 
 type UseCase interface {
@@ -33,17 +34,10 @@ func (h ReportBugHandler) ReportBug(
 		return nil, err //nolint:wrapcheck // already the connect error the caller reads.
 	}
 
-	page := req.Msg.GetContext()
 	err = h.useCase.Execute(ctx, report_bug_usecase.In{
-		Account: account,
-		Text:    req.Msg.GetText(),
-		Diagnostics: notes.Diagnostics{
-			Build:          page.GetBuild(),
-			ViewportWidth:  page.GetViewportWidth(),
-			ViewportHeight: page.GetViewportHeight(),
-			ConnectionDown: page.GetConnectionDown(),
-			UserAgent:      req.Header().Get("User-Agent"),
-		},
+		Account:     account,
+		Text:        req.Msg.GetText(),
+		Diagnostics: pagecontext.Diagnostics(req.Msg.GetContext(), req.Header()),
 	})
 	switch {
 	case errors.Is(err, notes.ErrInvalidText):

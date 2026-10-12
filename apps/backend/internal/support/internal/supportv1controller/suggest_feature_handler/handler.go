@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/suggest_feature_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/caller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/pagecontext"
 )
 
 type UseCase interface {
@@ -33,7 +34,11 @@ func (h SuggestFeatureHandler) SuggestFeature(
 		return nil, err //nolint:wrapcheck // already the connect error the caller reads.
 	}
 
-	err = h.useCase.Execute(ctx, suggest_feature_usecase.In{Account: account, Text: req.Msg.GetText()})
+	err = h.useCase.Execute(ctx, suggest_feature_usecase.In{
+		Account:     account,
+		Text:        req.Msg.GetText(),
+		Diagnostics: pagecontext.Diagnostics(req.Msg.GetContext(), req.Header()),
+	})
 	switch {
 	case errors.Is(err, notes.ErrInvalidText):
 		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidText)

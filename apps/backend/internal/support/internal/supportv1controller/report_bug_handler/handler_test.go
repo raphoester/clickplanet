@@ -49,7 +49,7 @@ func TestTheTextThePageAndTheBrowserAreHandedOn(t *testing.T) {
 
 	err := report(asAda(t), useCase, &supportv1.ReportBugRequest{
 		Text:    "the globe is black",
-		Context: &supportv1.BugContext{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, ConnectionDown: true},
+		Context: &supportv1.PageContext{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, ConnectionDown: true},
 	}, "Mozilla/5.0 (iPhone)")
 	require.NoError(t, err)
 

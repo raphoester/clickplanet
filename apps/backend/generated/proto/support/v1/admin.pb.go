@@ -186,10 +186,9 @@ type Note struct {
 	AccountId   string                 `protobuf:"bytes,3,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Text        string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
 	SubmittedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`
-	// Only a bug report has one.
-	Context *BugContext `protobuf:"bytes,6,opt,name=context,proto3" json:"context,omitempty"`
-	// Only a bug report has one.
-	UserAgent     string `protobuf:"bytes,7,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
+	// What the page said of itself. Every note has one; a note sent before they were kept has an empty one.
+	Context       *PageContext `protobuf:"bytes,6,opt,name=context,proto3" json:"context,omitempty"`
+	UserAgent     string       `protobuf:"bytes,7,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -259,7 +258,7 @@ func (x *Note) GetSubmittedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *Note) GetContext() *BugContext {
+func (x *Note) GetContext() *PageContext {
 	if x != nil {
 		return x.Context
 	}
@@ -284,15 +283,15 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\x05limit\x18\x02 \x01(\rR\x05limit\x12(\n" +
 	"\x04kind\x18\x03 \x01(\x0e2\x14.support.v1.NoteKindR\x04kind\";\n" +
 	"\x11ListNotesResponse\x12&\n" +
-	"\x05notes\x18\x01 \x03(\v2\x10.support.v1.NoteR\x05notes\"\x83\x02\n" +
+	"\x05notes\x18\x01 \x03(\v2\x10.support.v1.NoteR\x05notes\"\x84\x02\n" +
 	"\x04Note\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12(\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x14.support.v1.NoteKindR\x04kind\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x03 \x01(\tR\taccountId\x12\x12\n" +
 	"\x04text\x18\x04 \x01(\tR\x04text\x12=\n" +
-	"\fsubmitted_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vsubmittedAt\x120\n" +
-	"\acontext\x18\x06 \x01(\v2\x16.support.v1.BugContextR\acontext\x12\x1d\n" +
+	"\fsubmitted_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vsubmittedAt\x121\n" +
+	"\acontext\x18\x06 \x01(\v2\x17.support.v1.PageContextR\acontext\x12\x1d\n" +
 	"\n" +
 	"user_agent\x18\a \x01(\tR\tuserAgent*R\n" +
 	"\bNoteKind\x12\x19\n" +
@@ -326,7 +325,7 @@ var file_support_v1_admin_proto_goTypes = []any{
 	(*ListNotesResponse)(nil),     // 2: support.v1.ListNotesResponse
 	(*Note)(nil),                  // 3: support.v1.Note
 	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
-	(*BugContext)(nil),            // 5: support.v1.BugContext
+	(*PageContext)(nil),           // 5: support.v1.PageContext
 }
 var file_support_v1_admin_proto_depIdxs = []int32{
 	4, // 0: support.v1.ListNotesRequest.since:type_name -> google.protobuf.Timestamp
@@ -334,7 +333,7 @@ var file_support_v1_admin_proto_depIdxs = []int32{
 	3, // 2: support.v1.ListNotesResponse.notes:type_name -> support.v1.Note
 	0, // 3: support.v1.Note.kind:type_name -> support.v1.NoteKind
 	4, // 4: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
-	5, // 5: support.v1.Note.context:type_name -> support.v1.BugContext
+	5, // 5: support.v1.Note.context:type_name -> support.v1.PageContext
 	1, // 6: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
 	2, // 7: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
 	7, // [7:8] is the sub-list for method output_type

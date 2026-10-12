@@ -67,6 +67,7 @@ import StatusBar from "../hud/StatusBar.tsx";
 import TabBar from "../hud/TabBar.tsx";
 import {StandingsBackend} from "../../backends/standings.ts";
 import {SupportBackend} from "../../backends/support.ts";
+import {pageContextOf} from "../support/pageContext.ts";
 import {BoardStandings, BoardView} from "../standings/BoardViews.tsx";
 import {useRace} from "../standings/useRace.ts";
 import RoundReveal from "../season/RoundReveal.tsx";
@@ -153,6 +154,7 @@ export default function Viewer(props: ViewerProps) {
         tileDeltas,
         tilesCount,
         capture,
+        graphics,
         refusals,
         vpnBlocked,
         dismissVPNBlocked,
@@ -270,7 +272,7 @@ export default function Viewer(props: ViewerProps) {
         },
         taking,
         support: props.support,
-        connectionDown: connection === "down",
+        pageContext: () => pageContextOf(window, graphics(), connection === "down"),
     }
     const clicks = <ClicksPanel budget={clickBudget}
                                 countryName={countryState.name}

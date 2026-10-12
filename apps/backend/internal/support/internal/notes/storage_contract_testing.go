@@ -79,22 +79,31 @@ func (s *StorageContractSuite) TestASavedNoteIsKeptAsItWas() {
 	s.same([]Snapshot{note})
 }
 
-func (s *StorageContractSuite) TestABugReportIsKeptWithItsDiagnosticsAndFoundWithThem() {
-	phone := Snapshot{
-		ID: contractID("phone"), Kind: KindBug, Account: contractAda, Text: "the globe is black", At: contractStart,
-		Diagnostics: Diagnostics{
-			Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, ConnectionDown: true, UserAgent: "Mozilla/5.0 (iPhone)",
-		},
+var contractPhone = Diagnostics{
+	Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, PixelRatio: 2.63, ConnectionDown: true,
+	UserAgent: "Mozilla/5.0 (iPhone)", GPUVendor: "Apple Inc.", GPURenderer: "Apple GPU",
+	WebGLVersion: "WebGL 2.0 (OpenGL ES 3.0)", MaxTextureSize: 4096, ContextLost: true, Cores: 6, MemoryGB: 0.5,
+}
+
+func (s *StorageContractSuite) TestANoteOfEitherKindIsKeptWithItsDiagnosticsAndFoundWithThem() {
+	bug := Snapshot{
+		ID: contractID("bug"), Kind: KindBug, Account: contractAda, Text: "the globe is black", At: contractStart,
+		Diagnostics: contractPhone,
+	}
+	idea := Snapshot{
+		ID: contractID("idea"), Kind: KindSuggestion, Account: contractAda, Text: "a night mode", At: contractStart.Add(time.Minute),
+		Diagnostics: contractPhone,
 	}
 	bare := Snapshot{
-		ID: contractID("bare"), Kind: KindBug, Account: contractAda, Text: "nothing happens", At: contractStart.Add(time.Minute),
+		ID: contractID("bare"), Kind: KindBug, Account: contractAda, Text: "nothing happens", At: contractStart.Add(2 * time.Minute),
 	}
 
-	s.Require().NoError(s.save(phone))
+	s.Require().NoError(s.save(bug))
+	s.Require().NoError(s.save(idea))
 	s.Require().NoError(s.save(bare))
 
-	s.same([]Snapshot{phone, bare})
-	s.Equal([]Snapshot{phone, bare}, s.snapshots(s.storage.SentBy(s.T().Context(), contractAda)))
+	s.same([]Snapshot{bug, idea, bare})
+	s.Equal([]Snapshot{bug, idea, bare}, s.snapshots(s.storage.SentBy(s.T().Context(), contractAda)))
 }
 
 func (s *StorageContractSuite) snapshots(found []Note, err error) []Snapshot {
@@ -152,17 +161,17 @@ func (s *StorageContractSuite) TestAnAnonymizedNoteIsKeptWithItsTextAndNoSender(
 	s.Equal("a suggestion called sent", s.Kept(s.storage)[0].Text)
 }
 
-func (s *StorageContractSuite) TestAnAnonymizedBugReportKeepsItsDiagnostics() {
+func (s *StorageContractSuite) TestAnAnonymizedNoteKeepsItsDiagnostics() {
 	phone := Snapshot{
 		ID: contractID("phone"), Kind: KindBug, Account: contractAda, Text: "the globe is black", At: contractStart,
-		Diagnostics: Diagnostics{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, UserAgent: "Mozilla/5.0 (iPhone)"},
+		Diagnostics: contractPhone,
 	}
 	s.Require().NoError(s.save(phone))
 
 	anonymized := s.anonymized(phone)
 
 	s.same([]Snapshot{anonymized})
-	s.Equal(phone.Diagnostics, s.Kept(s.storage)[0].Diagnostics)
+	s.Equal(contractPhone, s.Kept(s.storage)[0].Diagnostics)
 }
 
 func (s *StorageContractSuite) TestANoteSavedWithNoSenderFromTheStartIsKeptToo() {

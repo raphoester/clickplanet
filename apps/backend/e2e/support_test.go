@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
@@ -23,15 +24,22 @@ func (p *gamer) support() supportv1connect.SupportServiceClient {
 func (p *gamer) suggest(text string) error {
 	p.t.Helper()
 
-	req := connect.NewRequest(&supportv1.SuggestFeatureRequest{Text: text})
+	return p.suggestFrom(text, nil, "")
+}
+
+func (p *gamer) suggestFrom(text string, page *supportv1.PageContext, userAgent string) error {
+	p.t.Helper()
+
+	req := connect.NewRequest(&supportv1.SuggestFeatureRequest{Text: text, Context: page})
 	p.send(req.Header())
+	req.Header().Set("User-Agent", userAgent)
 	if _, err := p.support().SuggestFeature(p.t.Context(), req); err != nil {
 		return fmt.Errorf("SuggestFeature failed: %w", err)
 	}
 	return nil
 }
 
-func (p *gamer) reportBug(text string, page *supportv1.BugContext, userAgent string) error {
+func (p *gamer) reportBug(text string, page *supportv1.PageContext, userAgent string) error {
 	p.t.Helper()
 
 	req := connect.NewRequest(&supportv1.ReportBugRequest{Text: text, Context: page})
@@ -72,30 +80,30 @@ func TestAGuestSuggestsAFeatureAndTheOperatorReadsItUnderItsAccount(t *testing.T
 	assert.WithinDuration(t, time.Now(), notes[0].GetSubmittedAt().AsTime(), time.Minute)
 }
 
-func TestAGuestReportsABugAndTheOperatorReadsItWithThePageAndTheBrowser(t *testing.T) {
+func TestAGuestReportsABugAndTheOperatorReadsItWithThePageTheGraphicsAndTheBrowser(t *testing.T) {
 	game := startGame(t)
 	guest := game.newPlayer(t)
-	require.NoError(t, guest.suggest("a night mode"))
+	page := &supportv1.PageContext{
+		Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, ConnectionDown: true, PixelRatio: 3,
+		GpuVendor: "Apple Inc.", GpuRenderer: "Apple GPU", WebglVersion: "WebGL 2.0", MaxTextureSize: 4096,
+		ContextLost: true, Cores: 6, MemoryGb: 4,
+	}
+	require.NoError(t, guest.suggestFrom("a night mode", page, "Mozilla/5.0 (iPhone)"))
 
-	require.NoError(t, guest.reportBug("the globe is black",
-		&supportv1.BugContext{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, ConnectionDown: true},
-		"Mozilla/5.0 (iPhone)"))
+	require.NoError(t, guest.reportBug("the globe is black", page, "Mozilla/5.0 (iPhone)"))
 
 	bugs := game.notesOf(t, supportv1.NoteKind_NOTE_KIND_BUG)
 	require.Len(t, bugs, 1)
 	assert.Equal(t, supportv1.NoteKind_NOTE_KIND_BUG, bugs[0].GetKind())
 	assert.Equal(t, guest.account(), bugs[0].GetAccountId())
 	assert.Equal(t, "the globe is black", bugs[0].GetText())
-	assert.Equal(t, "play-a1b2c3.js", bugs[0].GetContext().GetBuild())
-	assert.Equal(t, uint32(390), bugs[0].GetContext().GetViewportWidth())
-	assert.Equal(t, uint32(844), bugs[0].GetContext().GetViewportHeight())
-	assert.True(t, bugs[0].GetContext().GetConnectionDown())
+	assert.True(t, proto.Equal(page, bugs[0].GetContext()), "want %v, got %v", page, bugs[0].GetContext())
 	assert.Equal(t, "Mozilla/5.0 (iPhone)", bugs[0].GetUserAgent())
 
 	every := game.notes(t)
 	require.Len(t, every, 2)
-	assert.Nil(t, every[1].GetContext(), "a suggestion has no context")
-	assert.Empty(t, every[1].GetUserAgent())
+	assert.True(t, proto.Equal(page, every[1].GetContext()), "a suggestion says the same of its page")
+	assert.Equal(t, "Mozilla/5.0 (iPhone)", every[1].GetUserAgent())
 }
 
 func TestABugReportNeedsAnAccountAndAText(t *testing.T) {

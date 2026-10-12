@@ -1,7 +1,7 @@
 package postgres_note_store_test
 
 import (
-	"database/sql"
+	"bytes"
 	"encoding/json"
 	"testing"
 	"time"
@@ -50,7 +50,7 @@ func (s *testSuite) kept() []notes.Snapshot {
 			kind    string
 			account uuid.NullUUID
 			text    string
-			said    sql.NullString
+			said    []byte
 			at      time.Time
 		)
 		s.Require().NoError(rows.Scan(&id, &kind, &account, &text, &said, &at))
@@ -63,34 +63,48 @@ func (s *testSuite) kept() []notes.Snapshot {
 	return kept
 }
 
-func (s *testSuite) diagnosticsOf(stored sql.NullString) notes.Diagnostics {
-	if !stored.Valid {
-		return notes.Diagnostics{}
-	}
-
+func (s *testSuite) diagnosticsOf(stored []byte) notes.Diagnostics {
 	var read struct {
-		Build          string `json:"build"`
-		ViewportWidth  uint32 `json:"viewportWidth"`
-		ViewportHeight uint32 `json:"viewportHeight"`
-		ConnectionDown bool   `json:"connectionDown"`
-		UserAgent      string `json:"userAgent"`
+		Build          string  `json:"build"`
+		ViewportWidth  uint32  `json:"viewportWidth"`
+		ViewportHeight uint32  `json:"viewportHeight"`
+		PixelRatio     float64 `json:"pixelRatio"`
+		ConnectionDown bool    `json:"connectionDown"`
+		UserAgent      string  `json:"userAgent"`
+		GPUVendor      string  `json:"gpuVendor"`
+		GPURenderer    string  `json:"gpuRenderer"`
+		WebGLVersion   string  `json:"webglVersion"`
+		MaxTextureSize uint32  `json:"maxTextureSize"`
+		ContextLost    bool    `json:"contextLost"`
+		Cores          uint32  `json:"cores"`
+		MemoryGB       float64 `json:"memoryGb"`
 	}
-	s.Require().NoError(json.Unmarshal([]byte(stored.String), &read))
+	decoder := json.NewDecoder(bytes.NewReader(stored))
+	decoder.DisallowUnknownFields()
+	s.Require().NoError(decoder.Decode(&read), "a key the store writes that this test does not know")
 	return notes.Diagnostics(read)
 }
 
-func (s *testSuite) TestANoteWithNoDiagnosticsKeepsNone() {
-	note, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.AccountID{15: 1}, "a night mode", time.Now())
+func (s *testSuite) TestANoteWhosePageSaidNothingKeepsAnObjectOfEmptyValues() {
+	note, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.AccountID{15: 1}, "a night mode", notes.Diagnostics{}, time.Now())
 	s.Require().NoError(err)
 	s.Require().NoError(postgres_note_store.New(s.db).Save(s.T().Context(), note))
 
-	var stored sql.NullString
-	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT diagnostics FROM notes`).Scan(&stored))
-	s.False(stored.Valid, "NULL, not an empty object")
+	var build string
+	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT diagnostics->>'build' FROM notes`).Scan(&build))
+	s.Empty(build, "the key is there, with nothing in it")
+}
+
+func (s *testSuite) TestTheDatabaseRefusesANoteWithNoDiagnostics() {
+	_, err := s.db.ExecContext(s.T().Context(),
+		`INSERT INTO notes (id, kind, account_id, text, submitted_at) VALUES ($1, 'suggestion', $2, 'by hand', now())`,
+		uuid.New(), uuid.New())
+
+	s.Require().ErrorContains(err, "diagnostics")
 }
 
 func (s *testSuite) TestAnAnonymizedNoteHasNoAccountInTheTable() {
-	note, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.AccountID{15: 1}, "a night mode", time.Now())
+	note, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.AccountID{15: 1}, "a night mode", notes.Diagnostics{}, time.Now())
 	s.Require().NoError(err)
 	store := postgres_note_store.New(s.db)
 	s.Require().NoError(store.Save(s.T().Context(), note))
@@ -104,7 +118,7 @@ func (s *testSuite) TestAnAnonymizedNoteHasNoAccountInTheTable() {
 
 func (s *testSuite) TestTheDatabaseRefusesAKindItsTypeDoesNotName() {
 	_, err := s.db.ExecContext(s.T().Context(),
-		`INSERT INTO notes (id, kind, account_id, text, submitted_at) VALUES ($1, 'complaint', $2, 'by hand', now())`,
+		`INSERT INTO notes (id, kind, account_id, text, diagnostics, submitted_at) VALUES ($1, 'complaint', $2, 'by hand', '{}', now())`,
 		uuid.New(), uuid.New())
 
 	s.Require().ErrorContains(err, "note_kind")
