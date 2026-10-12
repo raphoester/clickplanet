@@ -53,6 +53,11 @@ export class SuggestFeatureRequest extends Message<SuggestFeatureRequest> {
    */
   text = "";
 
+  /**
+   * @generated from field: support.v1.PageContext context = 2;
+   */
+  context?: PageContext;
+
   constructor(data?: PartialMessage<SuggestFeatureRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -62,6 +67,7 @@ export class SuggestFeatureRequest extends Message<SuggestFeatureRequest> {
   static readonly typeName = "support.v1.SuggestFeatureRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "context", kind: "message", T: PageContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SuggestFeatureRequest {
@@ -122,9 +128,9 @@ export class ReportBugRequest extends Message<ReportBugRequest> {
   text = "";
 
   /**
-   * @generated from field: support.v1.BugContext context = 2;
+   * @generated from field: support.v1.PageContext context = 2;
    */
-  context?: BugContext;
+  context?: PageContext;
 
   constructor(data?: PartialMessage<ReportBugRequest>) {
     super();
@@ -135,7 +141,7 @@ export class ReportBugRequest extends Message<ReportBugRequest> {
   static readonly typeName = "support.v1.ReportBugRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "context", kind: "message", T: BugContext },
+    { no: 2, name: "context", kind: "message", T: PageContext },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReportBugRequest {
@@ -187,11 +193,11 @@ export class ReportBugResponse extends Message<ReportBugResponse> {
 }
 
 /**
- * What the page knows about itself when a bug is reported. The server adds the user agent.
+ * What the page knows about itself and its device when a note is sent. The server adds the user agent.
  *
- * @generated from message support.v1.BugContext
+ * @generated from message support.v1.PageContext
  */
-export class BugContext extends Message<BugContext> {
+export class PageContext extends Message<PageContext> {
   /**
    * The bundle the page runs.
    *
@@ -210,40 +216,98 @@ export class BugContext extends Message<BugContext> {
   viewportHeight = 0;
 
   /**
-   * The page had lost the server when the report was written.
+   * The page had lost the server when the note was written.
    *
    * @generated from field: bool connection_down = 4;
    */
   connectionDown = false;
 
-  constructor(data?: PartialMessage<BugContext>) {
+  /**
+   * Device pixels per CSS pixel.
+   *
+   * @generated from field: double pixel_ratio = 5;
+   */
+  pixelRatio = 0;
+
+  /**
+   * The graphics card as WebGL names it; a page cannot read chrome://gpu.
+   *
+   * @generated from field: string gpu_vendor = 6;
+   */
+  gpuVendor = "";
+
+  /**
+   * @generated from field: string gpu_renderer = 7;
+   */
+  gpuRenderer = "";
+
+  /**
+   * @generated from field: string webgl_version = 8;
+   */
+  webglVersion = "";
+
+  /**
+   * @generated from field: uint32 max_texture_size = 9;
+   */
+  maxTextureSize = 0;
+
+  /**
+   * The globe had lost its WebGL context when the note was written.
+   *
+   * @generated from field: bool context_lost = 10;
+   */
+  contextLost = false;
+
+  /**
+   * Logical processors, as the browser reports them.
+   *
+   * @generated from field: uint32 cores = 11;
+   */
+  cores = 0;
+
+  /**
+   * Device memory in GiB, as the browser reports it; 0 where it does not.
+   *
+   * @generated from field: double memory_gb = 12;
+   */
+  memoryGb = 0;
+
+  constructor(data?: PartialMessage<PageContext>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "support.v1.BugContext";
+  static readonly typeName = "support.v1.PageContext";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "build", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "viewport_width", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "viewport_height", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "connection_down", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "pixel_ratio", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 6, name: "gpu_vendor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "gpu_renderer", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "webgl_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "max_texture_size", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "context_lost", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 11, name: "cores", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 12, name: "memory_gb", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BugContext {
-    return new BugContext().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PageContext {
+    return new PageContext().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BugContext {
-    return new BugContext().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PageContext {
+    return new PageContext().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BugContext {
-    return new BugContext().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PageContext {
+    return new PageContext().fromJsonString(jsonString, options);
   }
 
-  static equals(a: BugContext | PlainMessage<BugContext> | undefined, b: BugContext | PlainMessage<BugContext> | undefined): boolean {
-    return proto3.util.equals(BugContext, a, b);
+  static equals(a: PageContext | PlainMessage<PageContext> | undefined, b: PageContext | PlainMessage<PageContext> | undefined): boolean {
+    return proto3.util.equals(PageContext, a, b);
   }
 }
 

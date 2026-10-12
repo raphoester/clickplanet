@@ -1284,9 +1284,11 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
   `{"limit":500}` asks for more: 500 at most.
 - `{"kind":"NOTE_KIND_BUG"}` reads the bug reports alone, and
   `{"kind":"NOTE_KIND_SUGGESTION"}` the suggestions.
-- A bug report has a `context` and a `userAgent`. `build` is the bundle the page
+- Every note has a `context` and a `userAgent`. `build` is the bundle the page
   ran, such as `play-RxjtzdfS.js`: compare it with the name the site serves now
   to see an old tab. `connectionDown` says the page had lost the server.
+  `gpuRenderer` and `gpuVendor` name the graphics card, and `contextLost` says
+  the globe had lost its WebGL context: that is a black globe.
 - Each note has its `accountId`. To see the name the game shows for it:
 
 ```bash
@@ -1295,7 +1297,7 @@ docker compose exec postgres psql -U clickplanet -c "select coalesce(p.name, 'gu
 
 - A note loses its account after 90 days (`support.retention`), and at once
   when its account is deleted. The text stays, and `accountId` is then empty:
-  nothing says who sent it. A bug report keeps its `context` and `userAgent`.
+  nothing says who sent it. The note keeps its `context` and `userAgent`.
 - One address sends three, then one a minute (`support.rateLimiter`).
 
 ### Read the reports of players

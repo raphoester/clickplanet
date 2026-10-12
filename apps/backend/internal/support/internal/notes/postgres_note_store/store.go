@@ -2,7 +2,6 @@ package postgres_note_store
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -42,17 +41,25 @@ func (s *Store) Save(ctx context.Context, saved ...notes.Note) error {
 	return nil
 }
 
-// The keys are the stored format: notes_query reads them in SQL.
+// The keys are the stored format, and the JSON names of support.v1.PageContext: notes_query reads them as one.
 type diagnostics struct {
-	Build          string `json:"build"`
-	ViewportWidth  uint32 `json:"viewportWidth"`
-	ViewportHeight uint32 `json:"viewportHeight"`
-	ConnectionDown bool   `json:"connectionDown"`
-	UserAgent      string `json:"userAgent"`
+	Build          string  `json:"build"`
+	ViewportWidth  uint32  `json:"viewportWidth"`
+	ViewportHeight uint32  `json:"viewportHeight"`
+	PixelRatio     float64 `json:"pixelRatio"`
+	ConnectionDown bool    `json:"connectionDown"`
+	UserAgent      string  `json:"userAgent"`
+	GPUVendor      string  `json:"gpuVendor"`
+	GPURenderer    string  `json:"gpuRenderer"`
+	WebGLVersion   string  `json:"webglVersion"`
+	MaxTextureSize uint32  `json:"maxTextureSize"`
+	ContextLost    bool    `json:"contextLost"`
+	Cores          uint32  `json:"cores"`
+	MemoryGB       float64 `json:"memoryGb"`
 }
 
 func write(ctx context.Context, tx cppg.Querier, kept notes.Snapshot) error {
-	said, err := encoded(kept.Diagnostics)
+	said, err := json.Marshal(diagnostics(kept.Diagnostics))
 	if err != nil {
 		return fmt.Errorf("failed to encode a note's diagnostics: %w", err)
 	}
@@ -64,35 +71,11 @@ func write(ctx context.Context, tx cppg.Querier, kept notes.Snapshot) error {
 			kind = EXCLUDED.kind, account_id = EXCLUDED.account_id, text = EXCLUDED.text,
 			diagnostics = EXCLUDED.diagnostics, submitted_at = EXCLUDED.submitted_at
 	`,
-		uuid.UUID(kept.ID), string(kept.Kind), sender(kept.Account), kept.Text, said, kept.At.UTC(),
+		uuid.UUID(kept.ID), string(kept.Kind), sender(kept.Account), kept.Text, string(said), kept.At.UTC(),
 	); err != nil {
 		return fmt.Errorf("failed to upsert a note: %w", err)
 	}
 	return nil
-}
-
-func encoded(said notes.Diagnostics) (sql.NullString, error) {
-	if said == (notes.Diagnostics{}) {
-		return sql.NullString{}, nil
-	}
-
-	payload, err := json.Marshal(diagnostics(said))
-	if err != nil {
-		return sql.NullString{}, err
-	}
-	return sql.NullString{String: string(payload), Valid: true}, nil
-}
-
-func decoded(stored sql.NullString) (notes.Diagnostics, error) {
-	if !stored.Valid {
-		return notes.Diagnostics{}, nil
-	}
-
-	var said diagnostics
-	if err := json.Unmarshal([]byte(stored.String), &said); err != nil {
-		return notes.Diagnostics{}, err
-	}
-	return notes.Diagnostics(said), nil
 }
 
 // An anonymized note has no account: NULL.
@@ -132,21 +115,21 @@ func (s *Store) restored(ctx context.Context, query string, args ...any) ([]note
 			id         uuid.UUID
 			account    uuid.NullUUID
 			kind, text string
-			stored     sql.NullString
+			stored     []byte
 			at         time.Time
 		)
 		if err := rows.Scan(&id, &kind, &account, &text, &stored, &at); err != nil {
 			return nil, fmt.Errorf("failed to read a note: %w", err)
 		}
 
-		said, err := decoded(stored)
-		if err != nil {
+		var said diagnostics
+		if err := json.Unmarshal(stored, &said); err != nil {
 			return nil, fmt.Errorf("failed to decode the diagnostics of the note %s: %w", id, err)
 		}
 
 		note, err := notes.Snapshot{
 			ID: notes.NoteID(id), Kind: notes.Kind(kind), Account: notes.AccountID(account.UUID), Text: text,
-			Diagnostics: said, At: at.UTC(),
+			Diagnostics: notes.Diagnostics(said), At: at.UTC(),
 		}.Restore()
 		if err != nil {
 			return nil, fmt.Errorf("failed to restore the note %s: %w", id, err)

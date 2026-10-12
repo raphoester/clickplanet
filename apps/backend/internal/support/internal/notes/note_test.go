@@ -17,7 +17,7 @@ func valid() notes.Snapshot {
 }
 
 func TestASuggestionIsANoteOfThatKindWithItsTextCleaned(t *testing.T) {
-	note, err := notes.NewSuggestion(notes.NoteID{15: 1}, ada, "  a night mode\tplease  ", sentAt)
+	note, err := notes.NewSuggestion(notes.NoteID{15: 1}, ada, "  a night mode\tplease  ", notes.Diagnostics{}, sentAt)
 
 	require.NoError(t, err)
 	assert.Equal(t, notes.Snapshot{
@@ -26,13 +26,13 @@ func TestASuggestionIsANoteOfThatKindWithItsTextCleaned(t *testing.T) {
 }
 
 func TestASuggestionNeedsTheAccountThatSendsIt(t *testing.T) {
-	_, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.AccountID{}, "a night mode", sentAt)
+	_, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.AccountID{}, "a night mode", notes.Diagnostics{}, sentAt)
 
 	require.ErrorIs(t, err, notes.ErrInvalidNote)
 }
 
 func TestASuggestionWithAnInvalidTextCannotBeBuilt(t *testing.T) {
-	_, err := notes.NewSuggestion(notes.NoteID{15: 1}, ada, "   ", sentAt)
+	_, err := notes.NewSuggestion(notes.NoteID{15: 1}, ada, "   ", notes.Diagnostics{}, sentAt)
 
 	require.ErrorIs(t, err, notes.ErrInvalidText)
 }

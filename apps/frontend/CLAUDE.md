@@ -902,9 +902,9 @@ the other's next announce, at most 30s later.
 What a player sends the operator: a feature suggestion or a bug report, from
 More, and a report of another player, from that player's card.
 
-- `backends/support.ts` — `FeatureSuggester`, `BugReporter` with its
-  `BugContext`, `PlayerReporter` with its `PlayerReport` and `ReportReason`
-  (and `SupportBackend`, every support contract together),
+- `backends/support.ts` — `FeatureSuggester` and `BugReporter`, the
+  `PageContext` both send, `PlayerReporter` with its `PlayerReport` and
+  `ReportReason` (and `SupportBackend`, every support contract together),
   `MAX_NOTE_LENGTH`, which mirrors the backend's
   `notes.MaxTextLength`, and the errors. `ConnectSupportBackend`
   (`supportBackend.ts`) implements it over `support.v1.SupportService`;
@@ -920,13 +920,21 @@ More, and a report of another player, from that player's card.
   A player report has two more: `not_found` → `SupportUnknownPlayerError` (the
   name is nobody's now) and `already_exists` → `SupportReportedAlreadyError`
   (one account reports one player once a day).
-- **A bug report says what the page knows about itself**
-  (`app/support/bugContextOf`): the build, the viewport in CSS pixels, and
-  whether the connection was down, which `Viewer` hands `MorePlace`. The server
-  reads the user agent off the request. **The build is `BUILD`, the file the
-  bundler put `bugContext.ts` in** (`buildOf(import.meta.url)`): `play-<hash>.js`
-  in production, so it names the bundle with no build variable to set, and
-  `bugContext.ts` in dev.
+- **A note says what the page knows about itself, a suggestion as a bug report**
+  (`app/support/pageContextOf`): the build, the viewport in CSS pixels and the
+  pixel ratio, whether the connection was down, the cores and the memory the
+  browser reports, and what WebGL says of the graphics card. `Viewer` hands
+  `MorePlace` a `pageContext()` that is read when the note is sent, not when the
+  form opens. The server reads the user agent off the request.
+- **The graphics card comes from the globe's own WebGL context**
+  (`viewer/graphicsReport.ts`, through `Globe.graphics()`): the unmasked vendor
+  and renderer when the browser gives them, its own names otherwise, the WebGL
+  version, the largest texture, and whether the context is lost. A page cannot
+  read `chrome://gpu`; this is what it can read of it. No second context is
+  made to ask: a phone has few to give.
+- **The build is `BUILD`, the file the bundler put `pageContext.ts` in**
+  (`buildOf(import.meta.url)`): `play-<hash>.js` in production, so it names the
+  bundle with no build variable to set, and `pageContext.ts` in dev.
 - `app/support/NoteModal.tsx` is the one form, for both: a `Modal` with a text
   box and Send. It opens on the box. The text keeps its lines. A counter shows from 100
   characters left. A failure is one line under the box (`sendFailure.ts`), and

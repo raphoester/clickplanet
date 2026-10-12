@@ -4,9 +4,9 @@ import {SupportService} from "../gen/grpc/support/v1/support_connect.ts";
 import {ReportReason as ReportReasonPb} from "../gen/grpc/support/v1/support_pb.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
 import {
-    BugContext,
     BugReporter,
     FeatureSuggester,
+    PageContext,
     PlayerReport,
     PlayerReporter,
     ReportReason,
@@ -41,11 +41,11 @@ export class ConnectSupportBackend implements FeatureSuggester, BugReporter, Pla
     ) {
     }
 
-    public suggestFeature(text: string): Promise<void> {
-        return this.send((headers) => this.client.suggestFeature({text}, {headers}))
+    public suggestFeature(text: string, context: PageContext): Promise<void> {
+        return this.send((headers) => this.client.suggestFeature({text, context}, {headers}))
     }
 
-    public reportBug(text: string, context: BugContext): Promise<void> {
+    public reportBug(text: string, context: PageContext): Promise<void> {
         return this.send((headers) => this.client.reportBug({text, context}, {headers}))
     }
 

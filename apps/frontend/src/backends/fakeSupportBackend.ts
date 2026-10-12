@@ -1,5 +1,5 @@
 import {
-    BugContext,
+    PageContext,
     PlayerReport,
     SupportBackend,
     SupportNoSessionError,
@@ -12,8 +12,7 @@ import {
 export type FakeSupportRefusal = "rate-limited" | "rejected" | "no-session" | "unknown-player" | "reported-already" | "failed"
 
 export type FakeSupportNote =
-    | {kind: "suggestion", text: string}
-    | {kind: "bug", text: string, context: BugContext}
+    | {kind: "suggestion" | "bug", text: string, context: PageContext}
     | {kind: "report", report: PlayerReport}
 
 const ANSWER_DELAY_MS = 400
@@ -31,12 +30,12 @@ export class FakeSupportBackend implements SupportBackend {
         return refusal ? `the next sends are refused: ${refusal}` : "the next sends go through"
     }
 
-    public async suggestFeature(text: string): Promise<void> {
+    public async suggestFeature(text: string, context: PageContext): Promise<void> {
         await this.answer()
-        this.sent.push({kind: "suggestion", text})
+        this.sent.push({kind: "suggestion", text, context})
     }
 
-    public async reportBug(text: string, context: BugContext): Promise<void> {
+    public async reportBug(text: string, context: PageContext): Promise<void> {
         await this.answer()
         this.sent.push({kind: "bug", text, context})
     }

@@ -46,33 +46,46 @@ func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 }
 
-func (s *testSuite) suggested(n byte, account notes.AccountID, text string, at time.Time) *supportv1.Note {
-	id := notes.NoteID{15: n}
-	note, err := notes.NewSuggestion(id, account, text, at)
-	s.Require().NoError(err)
-	s.Require().NoError(s.notes.Save(s.T().Context(), note))
-
-	return &supportv1.Note{
-		Id:          uuid.UUID(id).String(),
-		Kind:        supportv1.NoteKind_NOTE_KIND_SUGGESTION,
-		AccountId:   account.String(),
-		Text:        text,
-		SubmittedAt: timestamppb.New(at),
-	}
+var phone = notes.Diagnostics{
+	Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, PixelRatio: 2.63, ConnectionDown: true,
+	UserAgent: "Mozilla/5.0 (iPhone)", GPUVendor: "Apple Inc.", GPURenderer: "Apple GPU",
+	WebGLVersion: "WebGL 2.0 (OpenGL ES 3.0)", MaxTextureSize: 4096, ContextLost: true, Cores: 6, MemoryGB: 0.5,
 }
 
-func (s *testSuite) reported(n byte, account notes.AccountID, text string, diagnostics notes.Diagnostics, at time.Time) *supportv1.Note {
-	id := notes.NoteID{15: n}
-	note, err := notes.NewBugReport(id, account, text, diagnostics, at)
+func (s *testSuite) suggested(n byte, account notes.AccountID, text string, at time.Time) *supportv1.Note {
+	return s.suggestedFrom(n, account, text, notes.Diagnostics{}, at)
+}
+
+func (s *testSuite) suggestedFrom(n byte, account notes.AccountID, text string, said notes.Diagnostics, at time.Time) *supportv1.Note {
+	note, err := notes.NewSuggestion(notes.NoteID{15: n}, account, text, said, at)
 	s.Require().NoError(err)
+	return s.kept(note, supportv1.NoteKind_NOTE_KIND_SUGGESTION)
+}
+
+func (s *testSuite) reported(n byte, account notes.AccountID, text string, said notes.Diagnostics, at time.Time) *supportv1.Note {
+	note, err := notes.NewBugReport(notes.NoteID{15: n}, account, text, said, at)
+	s.Require().NoError(err)
+	return s.kept(note, supportv1.NoteKind_NOTE_KIND_BUG)
+}
+
+func (s *testSuite) kept(note notes.Note, kind supportv1.NoteKind) *supportv1.Note {
 	s.Require().NoError(s.notes.Save(s.T().Context(), note))
 
+	sent := note.TakeSnapshot()
+	said := sent.Diagnostics
 	return &supportv1.Note{
-		Id:          uuid.UUID(id).String(),
-		Kind:        supportv1.NoteKind_NOTE_KIND_BUG,
-		AccountId:   account.String(),
-		Text:        text,
-		SubmittedAt: timestamppb.New(at),
+		Id:          uuid.UUID(sent.ID).String(),
+		Kind:        kind,
+		AccountId:   sent.Account.String(),
+		Text:        sent.Text,
+		SubmittedAt: timestamppb.New(sent.At),
+		UserAgent:   said.UserAgent,
+		Context: &supportv1.PageContext{
+			Build: said.Build, ViewportWidth: said.ViewportWidth, ViewportHeight: said.ViewportHeight,
+			ConnectionDown: said.ConnectionDown, PixelRatio: said.PixelRatio,
+			GpuVendor: said.GPUVendor, GpuRenderer: said.GPURenderer, WebglVersion: said.WebGLVersion,
+			MaxTextureSize: said.MaxTextureSize, ContextLost: said.ContextLost, Cores: said.Cores, MemoryGb: said.MemoryGB,
+		},
 	}
 }
 
@@ -102,17 +115,31 @@ func (s *testSuite) TestEveryNoteComesNewestFirstWithItsAccount() {
 	s.same([]*supportv1.Note{second, first}, s.read(time.Time{}, 0))
 }
 
-func (s *testSuite) TestABugReportComesWithWhatThePageAndTheBrowserSaid() {
-	phone := s.reported(1, ada, "the globe is black",
-		notes.Diagnostics{
-			Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, ConnectionDown: true, UserAgent: "Mozilla/5.0 (iPhone)",
-		}, start)
-	phone.Context = &supportv1.BugContext{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, ConnectionDown: true}
-	phone.UserAgent = "Mozilla/5.0 (iPhone)"
+func (s *testSuite) TestEveryNoteComesWithEverythingThePageAndTheBrowserSaid() {
+	bug := s.reported(1, ada, "the globe is black", phone, start)
 	bare := s.reported(2, bob, "nothing happens", notes.Diagnostics{}, start.Add(time.Minute))
-	idea := s.suggested(3, bob, "a night mode", start.Add(2*time.Minute))
+	idea := s.suggestedFrom(3, bob, "a night mode", phone, start.Add(2*time.Minute))
 
-	s.same([]*supportv1.Note{idea, bare, phone}, s.read(time.Time{}, 0))
+	got := s.read(time.Time{}, 0)
+
+	s.same([]*supportv1.Note{idea, bare, bug}, got)
+	s.Equal("Apple GPU", got[0].GetContext().GetGpuRenderer())
+	s.NotNil(got[1].GetContext(), "a note whose page said nothing has a context, with nothing in it")
+}
+
+func (s *testSuite) TestANoteKeptBeforeADiagnosticOrWithOneThisBuildDoesNotKnowIsStillRead() {
+	_, err := s.db.ExecContext(s.T().Context(), `
+		INSERT INTO notes (id, kind, account_id, text, diagnostics, submitted_at)
+		VALUES ($1, 'bug', $2, 'the globe is black', '{"build": "play-a1b2c3.js", "userAgent": "Mozilla/5.0", "frameRate": 12}', $3)
+	`, uuid.UUID{15: 1}, uuid.UUID(ada), start)
+	s.Require().NoError(err)
+
+	got := s.read(time.Time{}, 0)
+
+	s.Require().Len(got, 1)
+	s.Equal("play-a1b2c3.js", got[0].GetContext().GetBuild())
+	s.Equal("Mozilla/5.0", got[0].GetUserAgent())
+	s.Empty(got[0].GetContext().GetGpuRenderer())
 }
 
 func (s *testSuite) TestAKindAskedForLeavesTheOthersOut() {
@@ -140,26 +167,13 @@ func (s *testSuite) TestEveryKindTheStoreKeepsIsRead() {
 	s.Equal(supportv1.NoteKind_NOTE_KIND_SUGGESTION, got[1].GetKind())
 }
 
-func (s *testSuite) TestAnAnonymizedNoteIsReadWithItsTextAndNoAccount() {
-	sent := s.suggested(1, ada, "a night mode", start)
-	note, err := notes.NewSuggestion(notes.NoteID{15: 1}, ada, "a night mode", start)
+func (s *testSuite) TestAnAnonymizedNoteIsReadWithItsTextItsDiagnosticsAndNoAccount() {
+	sent := s.reported(1, ada, "the globe is black", phone, start)
+	note, err := notes.NewBugReport(notes.NoteID{15: 1}, ada, "the globe is black", phone, start)
 	s.Require().NoError(err)
 	s.Require().NoError(s.notes.Save(s.T().Context(), note.Anonymized()))
 
 	sent.AccountId = ""
-	s.same([]*supportv1.Note{sent}, s.read(time.Time{}, 0))
-}
-
-func (s *testSuite) TestAnAnonymizedBugReportIsReadWithWhatThePageSaidAndNoAccount() {
-	said := notes.Diagnostics{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, UserAgent: "Mozilla/5.0 (iPhone)"}
-	sent := s.reported(1, ada, "the globe is black", said, start)
-	note, err := notes.NewBugReport(notes.NoteID{15: 1}, ada, "the globe is black", said, start)
-	s.Require().NoError(err)
-	s.Require().NoError(s.notes.Save(s.T().Context(), note.Anonymized()))
-
-	sent.AccountId = ""
-	sent.Context = &supportv1.BugContext{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844}
-	sent.UserAgent = "Mozilla/5.0 (iPhone)"
 	s.same([]*supportv1.Note{sent}, s.read(time.Time{}, 0))
 }
 
@@ -181,7 +195,7 @@ func (s *testSuite) TestTheLimitKeepsTheNewest() {
 func (s *testSuite) TestNoLimitIsTheDefaultAndNoLimitPassesTheMost() {
 	for n := range notes_query.MaxLimit + 5 {
 		_, err := s.db.ExecContext(s.T().Context(),
-			`INSERT INTO notes (id, kind, account_id, text, submitted_at) VALUES ($1, 'suggestion', $2, 'one of many', $3)`,
+			`INSERT INTO notes (id, kind, account_id, text, diagnostics, submitted_at) VALUES ($1, 'suggestion', $2, 'one of many', '{}', $3)`,
 			uuid.New(), uuid.UUID(ada), start.Add(time.Duration(n)*time.Second))
 		s.Require().NoError(err)
 	}
@@ -194,7 +208,7 @@ func (s *testSuite) TestAKindTheDatabaseNamesAndTheWireCannotCarryRefusesTheRead
 	_, err := s.db.ExecContext(s.T().Context(), `ALTER TYPE note_kind ADD VALUE IF NOT EXISTS 'praise'`)
 	s.Require().NoError(err)
 	_, err = s.db.ExecContext(s.T().Context(),
-		`INSERT INTO notes (id, kind, account_id, text, submitted_at) VALUES ($1, 'praise', $2, 'nice game', $3)`,
+		`INSERT INTO notes (id, kind, account_id, text, diagnostics, submitted_at) VALUES ($1, 'praise', $2, 'nice game', '{}', $3)`,
 		uuid.New(), uuid.UUID(ada), start)
 	s.Require().NoError(err)
 

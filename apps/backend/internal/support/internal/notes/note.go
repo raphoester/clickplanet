@@ -33,8 +33,8 @@ type Note struct {
 	at          time.Time
 }
 
-func NewSuggestion(id NoteID, account AccountID, text string, at time.Time) (Note, error) {
-	return sent(Snapshot{ID: id, Kind: KindSuggestion, Account: account, Text: text, At: at})
+func NewSuggestion(id NoteID, account AccountID, text string, diagnostics Diagnostics, at time.Time) (Note, error) {
+	return sent(Snapshot{ID: id, Kind: KindSuggestion, Account: account, Text: text, Diagnostics: diagnostics, At: at})
 }
 
 func NewBugReport(id NoteID, account AccountID, text string, diagnostics Diagnostics, at time.Time) (Note, error) {
@@ -88,17 +88,14 @@ func (s Snapshot) Restore() (Note, error) {
 		return Note{}, fmt.Errorf("%w: no time", ErrInvalidNote)
 	}
 
-	diagnostics := s.Diagnostics.cleaned()
-	if s.Kind != KindBug && diagnostics != (Diagnostics{}) {
-		return Note{}, fmt.Errorf("%w: only a bug report has diagnostics", ErrInvalidNote)
-	}
-
 	text, err := TextOf(s.Text)
 	if err != nil {
 		return Note{}, err
 	}
 
-	return Note{id: s.ID, kind: s.Kind, account: s.Account, text: text, diagnostics: diagnostics, at: s.At}, nil
+	return Note{
+		id: s.ID, kind: s.Kind, account: s.Account, text: text, diagnostics: s.Diagnostics.cleaned(), at: s.At,
+	}, nil
 }
 
 // A storage finds notes and saves them. It holds no rule: what changes a note is a method of Note.

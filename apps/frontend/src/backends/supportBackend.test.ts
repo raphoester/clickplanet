@@ -26,17 +26,30 @@ const noMint = (): SessionProvider => ({
 
 const clientOf = (suggestFeature: unknown) => ({suggestFeature}) as unknown as PromiseClient<typeof SupportService>
 
-const phone = {build: "play-a1b2c3.js", viewportWidth: 390, viewportHeight: 844, connectionDown: true}
+const phone = {
+    build: "play-a1b2c3.js",
+    viewportWidth: 390,
+    viewportHeight: 844,
+    pixelRatio: 3,
+    connectionDown: true,
+    gpuVendor: "Apple Inc.",
+    gpuRenderer: "Apple GPU",
+    webglVersion: "WebGL 2.0",
+    maxTextureSize: 4096,
+    contextLost: false,
+    cores: 6,
+    memoryGb: 4,
+}
 
 const headersOf = (call: ReturnType<typeof vi.fn>, n = 0) => (call.mock.calls[n][1] as {headers: Headers}).headers
 
 describe("ConnectSupportBackend.suggestFeature", () => {
-    it("sends the text with the click token", async () => {
+    it("sends the text and what the page knows, with the click token", async () => {
         const suggestFeature = vi.fn().mockResolvedValue({})
 
-        await new ConnectSupportBackend(clientOf(suggestFeature), session("token-1")).suggestFeature("a night mode")
+        await new ConnectSupportBackend(clientOf(suggestFeature), session("token-1")).suggestFeature("a night mode", phone)
 
-        expect(suggestFeature.mock.calls[0][0]).toEqual({text: "a night mode"})
+        expect(suggestFeature.mock.calls[0][0]).toEqual({text: "a night mode", context: phone})
         expect(headersOf(suggestFeature).get(SESSION_HEADER)).toBe("token-1")
     })
 
@@ -46,7 +59,7 @@ describe("ConnectSupportBackend.suggestFeature", () => {
             .mockResolvedValue({})
         const provider = session("stale", "fresh")
 
-        await new ConnectSupportBackend(clientOf(suggestFeature), provider).suggestFeature("a night mode")
+        await new ConnectSupportBackend(clientOf(suggestFeature), provider).suggestFeature("a night mode", phone)
 
         expect(provider.invalidate).toHaveBeenCalledTimes(1)
         expect(suggestFeature).toHaveBeenCalledTimes(2)
@@ -56,7 +69,7 @@ describe("ConnectSupportBackend.suggestFeature", () => {
     it("gives up on a second refusal, with no third call", async () => {
         const suggestFeature = vi.fn().mockRejectedValue(new ConnectError("no token", Code.Unauthenticated))
 
-        await expect(new ConnectSupportBackend(clientOf(suggestFeature), session("token-1")).suggestFeature("a night mode"))
+        await expect(new ConnectSupportBackend(clientOf(suggestFeature), session("token-1")).suggestFeature("a night mode", phone))
             .rejects.toBeInstanceOf(SupportNoSessionError)
         expect(suggestFeature).toHaveBeenCalledTimes(2)
     })
@@ -64,7 +77,7 @@ describe("ConnectSupportBackend.suggestFeature", () => {
     it("sends nothing when no token can be minted", async () => {
         const suggestFeature = vi.fn()
 
-        await expect(new ConnectSupportBackend(clientOf(suggestFeature), noMint()).suggestFeature("a night mode"))
+        await expect(new ConnectSupportBackend(clientOf(suggestFeature), noMint()).suggestFeature("a night mode", phone))
             .rejects.toBeInstanceOf(SupportNoSessionError)
         expect(suggestFeature).not.toHaveBeenCalled()
     })
@@ -75,7 +88,7 @@ describe("ConnectSupportBackend.suggestFeature", () => {
     ])("reads the server's refusal %s as its own error", async (code, expected) => {
         const suggestFeature = vi.fn().mockRejectedValue(new ConnectError("refused", code))
 
-        await expect(new ConnectSupportBackend(clientOf(suggestFeature), session("token-1")).suggestFeature("a night mode"))
+        await expect(new ConnectSupportBackend(clientOf(suggestFeature), session("token-1")).suggestFeature("a night mode", phone))
             .rejects.toBeInstanceOf(expected)
         expect(suggestFeature).toHaveBeenCalledTimes(1)
     })
@@ -84,7 +97,7 @@ describe("ConnectSupportBackend.suggestFeature", () => {
         const dropped = new ConnectError("the connection dropped", Code.Unavailable)
         const suggestFeature = vi.fn().mockRejectedValue(dropped)
 
-        await expect(new ConnectSupportBackend(clientOf(suggestFeature), session("token-1")).suggestFeature("a night mode"))
+        await expect(new ConnectSupportBackend(clientOf(suggestFeature), session("token-1")).suggestFeature("a night mode", phone))
             .rejects.toBe(dropped)
         expect(suggestFeature).toHaveBeenCalledTimes(1)
     })

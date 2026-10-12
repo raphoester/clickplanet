@@ -18,9 +18,10 @@ import {useAccount} from "./account/useAccount.ts";
 import AccountPanel from "./account/AccountPanel.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerInfoBackend} from "../backends/player.ts";
-import {BugReporter, FeatureSuggester} from "../backends/support.ts";
+import {BugReporter, FeatureSuggester, PageContext} from "../backends/support.ts";
 import NoteModal from "./support/NoteModal.tsx";
-import {bugContextOf} from "./support/bugContext.ts";
+import {pageContextOf} from "./support/pageContext.ts";
+import {NO_GRAPHICS} from "./viewer/graphicsReport.ts";
 import {youLabel} from "./youLabel.ts"
 import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from "../links.ts"
 import BoardViews, {BoardHeading, BoardStandings} from "./standings/BoardViews.tsx"
@@ -56,7 +57,7 @@ export type MorePlaceProps = {
     onTakePicture?: () => void,
     taking?: boolean,
     support?: FeatureSuggester & BugReporter,
-    connectionDown?: boolean,
+    pageContext?: () => PageContext,
 }
 
 export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & MorePlaceProps & {
@@ -269,7 +270,9 @@ export function YouPlace({account: store, linkedMultiplier, playerInfo, listenFo
     </>
 }
 
-export function MorePlace({onTakePicture, taking, support, connectionDown}: MorePlaceProps) {
+const pageAlone = () => pageContextOf(window, NO_GRAPHICS, false)
+
+export function MorePlace({onTakePicture, taking, support, pageContext = pageAlone}: MorePlaceProps) {
     const [aboutOpen, setAboutOpen] = useState(false)
     const [note, setNote] = useState<"suggestion" | "bug">()
 
@@ -337,13 +340,13 @@ export function MorePlace({onTakePicture, taking, support, connectionDown}: More
         {note === "suggestion" && support && <NoteModal title="Suggest a feature"
                                                         label="Your idea"
                                                         placeholder="What should the game have?"
-                                                        onSend={(text) => support.suggestFeature(text)}
+                                                        onSend={(text) => support.suggestFeature(text, pageContext())}
                                                         onClose={() => setNote(undefined)}/>}
 
         {note === "bug" && support && <NoteModal title="Report a bug"
                                                  label="What happened"
                                                  placeholder="What did you do, and what went wrong?"
-                                                 onSend={(text) => support.reportBug(text, bugContextOf(window, connectionDown === true))}
+                                                 onSend={(text) => support.reportBug(text, pageContext())}
                                                  onClose={() => setNote(undefined)}/>}
     </>
 }

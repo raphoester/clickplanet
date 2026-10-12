@@ -54,6 +54,17 @@ func (s *testSuite) TestASuggestionIsKeptCleanedWithAnIDAndTheTimeUnderItsAccoun
 	}}, s.notes.Kept())
 }
 
+func (s *testSuite) TestASuggestionIsKeptWithWhatThePageSaid() {
+	said := notes.Diagnostics{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, GPURenderer: "Apple GPU"}
+
+	err := s.useCase.Execute(s.T().Context(), suggest_feature_usecase.In{Account: ada, Text: "a night mode", Diagnostics: said})
+
+	s.Require().NoError(err)
+	s.Equal([]notes.Snapshot{{
+		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, Text: "a night mode", Diagnostics: said, At: now,
+	}}, s.notes.Kept())
+}
+
 func (s *testSuite) TestEachSuggestionGetsAnIDOfItsOwn() {
 	s.Require().NoError(s.suggest(s.useCase, "one"))
 	s.Require().NoError(s.suggest(s.useCase, "two"))
