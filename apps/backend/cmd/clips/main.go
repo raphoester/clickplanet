@@ -27,7 +27,7 @@ var errArguments = errors.New("wrong arguments")
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	err := run(ctx, os.Args[1:])
+	err := run(ctx, os.Args[1:], os.Stdout)
 	stop()
 
 	if err != nil {
@@ -36,7 +36,7 @@ func main() {
 	}
 }
 
-func run(ctx context.Context, args []string) error {
+func run(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 {
 		return fmt.Errorf("%w\n%s", errArguments, usage)
 	}
@@ -44,15 +44,15 @@ func run(ctx context.Context, args []string) error {
 
 	switch args[0] {
 	case "choose":
-		return choose(ctx, args[1:], logger)
+		return choose(ctx, args[1:], out, logger)
 	case "schedule":
-		return schedule(ctx, args[1:], logger)
+		return schedule(ctx, args[1:], out, logger)
 	default:
 		return fmt.Errorf("%w\n%s", errArguments, usage)
 	}
 }
 
-func choose(ctx context.Context, args []string, logger *slog.Logger) error {
+func choose(ctx context.Context, args []string, out io.Writer, logger *slog.Logger) error {
 	flags := flag.NewFlagSet("choose", flag.ContinueOnError)
 	shortlist := flags.String("shortlist", "", "the file the generator's --shortlist wrote")
 	var config clips.Config
@@ -64,13 +64,13 @@ func choose(ctx context.Context, args []string, logger *slog.Logger) error {
 		return fmt.Errorf("%w\n%s", errArguments, usage)
 	}
 
-	if err := clips.Choose(ctx, *shortlist, config, os.Stdout, logger); err != nil {
+	if err := clips.Choose(ctx, *shortlist, config, out, logger); err != nil {
 		return fmt.Errorf("failed to choose the clips of the run: %w", err)
 	}
 	return nil
 }
 
-func schedule(ctx context.Context, args []string, logger *slog.Logger) error {
+func schedule(ctx context.Context, args []string, out io.Writer, logger *slog.Logger) error {
 	flags := flag.NewFlagSet("schedule", flag.ContinueOnError)
 	folder := flags.String("clips", "", "the folder the clips were rendered in")
 	summary := flags.String("summary", "", "the file the summary of the run is added to, default the standard output")
@@ -85,7 +85,7 @@ func schedule(ctx context.Context, args []string, logger *slog.Logger) error {
 	}
 	config.Zernio.APIKey = os.Getenv(keyVariable)
 
-	page, closePage, err := summaryPage(*summary)
+	page, closePage, err := summaryPage(*summary, out)
 	if err != nil {
 		return err
 	}
@@ -97,9 +97,9 @@ func schedule(ctx context.Context, args []string, logger *slog.Logger) error {
 	return nil
 }
 
-func summaryPage(path string) (io.Writer, func(), error) {
+func summaryPage(path string, out io.Writer) (io.Writer, func(), error) {
 	if path == "" {
-		return os.Stdout, func() {}, nil
+		return out, func() {}, nil
 	}
 
 	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600) //nolint:gosec // the file the operator of the job named.
