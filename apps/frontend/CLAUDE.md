@@ -2780,8 +2780,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 2. **choose**: `npm run clip -- --shortlist shortlist.json`, then the backend's `clips choose` reads it and prints the
    picks to render, `[1,2]`. None is a quiet half day: the run ends there, green.
 3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
-   draws with SwiftShader, **1.9s a frame** (measured 2026-10-12: a 12s clip in 11.5 minutes, a 22s one would take
-   about 21), the same picture as with a GPU. More recorders do not help there: each one draws every frame.
+   draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
+   clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
+   recorders do not help there: each one draws every frame.
 4. **schedule**: the backend's `clips schedule` sends each clip to the posting service, for a time hours ahead.
    **Nothing is ever published at once**: the review is to cancel a clip in the service's dashboard before its time.
 
