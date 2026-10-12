@@ -470,9 +470,11 @@ func (s *testSuite) TestAReactionTheProtoDoesNotNameIsAnError() {
 }
 
 func (s *testSuite) TestAnAnnouncementOfAKindNobodyKnowsIsAnError() {
+	_, err := s.db.ExecContext(s.T().Context(), `ALTER TYPE announcement_kind ADD VALUE IF NOT EXISTS 'meteor'`)
+	s.Require().NoError(err)
 	s.announced(latest, announcements.Kind("meteor"), now.Add(-time.Hour))
 
-	_, err := s.query().History(s.T().Context(), ada)
+	_, err = s.query().History(s.T().Context(), ada)
 
 	s.ErrorIs(err, history_query.ErrUnknownKind)
 }

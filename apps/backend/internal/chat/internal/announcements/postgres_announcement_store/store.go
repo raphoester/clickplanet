@@ -24,7 +24,7 @@ var _ announcements.Storage = (*Store)(nil)
 func (s *Store) Append(ctx context.Context, announcement announcements.Announcement) error {
 	if _, err := s.db.ExecContext(ctx, `
 		INSERT INTO announcements (id, kind, payload, announced_at)
-		VALUES ($1, $2, $3, $4)
+		VALUES ($1, $2::announcement_kind, $3, $4)
 	`,
 		uuid.UUID(announcement.ID()), string(announcement.Kind()), string(announcement.Payload()), announcement.At().UTC(),
 	); err != nil {

@@ -50,6 +50,17 @@ func (s *testSuite) TestAnUnverifiedEmailIsStoredAsNull() {
 	s.False(email.Valid)
 }
 
+func (s *testSuite) TestAProviderTheTypeDoesNotHoldIsRefused() {
+	ctx := s.T().Context()
+	identity := accounts.NewIdentity("github", accounts.ClaimOf("gh", "", false), accounts.AccountID{15: 1}, start)
+	linked := accounts.LinkedSession(identity.Account(), accounts.TokenOf("a-token"), lifetime, start)
+
+	s.Require().Error(s.NewStore().SaveSignIn(ctx, accounts.NewSignIn(linked).WithNewAccount().WithIdentity(identity)))
+
+	_, err := s.store.Account(ctx, identity.Account())
+	s.ErrorIs(err, accounts.ErrAccountNotFound, "the sign-in is one transaction")
+}
+
 func (s *testSuite) TestTheTokenItselfIsNeverStored() {
 	s.Require().NoError(s.store.CreateGuest(s.T().Context(),
 		accounts.GuestSession(accounts.AccountID{15: 1}, accounts.TokenOf("a-token"), lifetime, start)))

@@ -99,7 +99,7 @@ func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accou
 
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT provider, subject, account_id, COALESCE(email, ''), email_verified, linked_at
-		FROM identities WHERE account_id = $1 ORDER BY linked_at, provider
+		FROM identities WHERE account_id = $1 ORDER BY linked_at, provider::text
 	`, uuid.UUID(account))
 	if err != nil {
 		return nil, fmt.Errorf("failed to select the account's identities: %w", err)
@@ -123,7 +123,7 @@ func (s *Store) Account(ctx context.Context, account accounts.AccountID) (*accou
 func (s *Store) Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error) {
 	identity, err := scanIdentity(s.db.QueryRowContext(ctx, `
 		SELECT provider, subject, account_id, COALESCE(email, ''), email_verified, linked_at
-		FROM identities WHERE provider = $1 AND subject = $2
+		FROM identities WHERE provider = $1::identity_provider AND subject = $2
 	`, provider, subject))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, accounts.ErrIdentityNotFound
@@ -136,7 +136,7 @@ func (s *Store) AccountOfEmail(ctx context.Context, address string) (*accounts.A
 	err := s.db.QueryRowContext(ctx, `
 		SELECT account_id FROM identities
 		WHERE email_verified AND lower(email) = lower($1)
-		ORDER BY linked_at, provider LIMIT 1
+		ORDER BY linked_at, provider::text LIMIT 1
 	`, address).Scan(&account)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, accounts.ErrAccountNotFound
@@ -233,7 +233,8 @@ func insertIdentity(ctx context.Context, tx *sql.Tx, identity *accounts.Identity
 	}
 
 	result, err := tx.ExecContext(ctx, `
-		INSERT INTO identities (provider, subject, account_id, email, email_verified, linked_at) VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO identities (provider, subject, account_id, email, email_verified, linked_at)
+		VALUES ($1::identity_provider, $2, $3, $4, $5, $6)
 		ON CONFLICT (provider, subject) DO NOTHING
 	`, identity.Provider(), identity.Subject(), uuid.UUID(identity.Account()), email, identity.EmailVerified(), identity.LinkedAt().UTC())
 	if err != nil {

@@ -3,7 +3,6 @@ package migrations_test
 import (
 	"io/fs"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -18,18 +17,7 @@ const remapTiles = "20260921120000"
 func before(t *testing.T, version string) fs.FS {
 	t.Helper()
 
-	names, err := fs.Glob(migrations.FS, "*.sql")
-	require.NoError(t, err)
-
-	older := fstest.MapFS{}
-	for _, name := range names {
-		if name < version {
-			data, err := fs.ReadFile(migrations.FS, name)
-			require.NoError(t, err)
-			older[name] = &fstest.MapFile{Data: data}
-		}
-	}
-	return older
+	return cppg.MigrationsBefore(t, migrations.FS, version)
 }
 
 var moved = map[int]int{1: 1, 90: 89, 415: 415, 416: 418, 417: 420, 257947: 262119}
@@ -143,7 +131,7 @@ func TestEveryTakeKeptBeforeTheEventsIsATake(t *testing.T) {
 		 VALUES (0, 1, NULL, 'fr', '', $1), (1, 2, '203.0.113.7', 'fr', 'de', $1)`, at)
 	require.NoError(t, err)
 
-	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+	require.NoError(t, db.Migrate(t.Context(), before(t, ledgerEventKind)))
 
 	assert.Equal(t, []int{2}, scan(t, db,
 		`SELECT count(*) FROM ledger_events WHERE kind = 'take' AND payload IS NULL`))
@@ -157,7 +145,7 @@ func TestEveryTakeKeptBeforeTheEventsIsATake(t *testing.T) {
 }
 
 func TestTheEventsGoBackToTakesWithoutTheBombs(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, ledgerEventKind))
 	at := time.Date(2026, 10, 6, 12, 0, 0, 0, time.UTC)
 	_, err := db.ExecContext(t.Context(),
 		`INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, payload)
@@ -170,6 +158,33 @@ func TestTheEventsGoBackToTakesWithoutTheBombs(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, []int{0}, scan(t, db, `SELECT position FROM ledger_takes`))
+}
+
+const ledgerEventKind = "20261012120000"
+
+func TestEveryEventKeptBeforeTheTypeKeepsItsKind(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, ledgerEventKind))
+	at := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
+	kinds := []string{"take", "strike", "spread", "enclose", "bomb", "shield", "fortify"}
+	insert := `INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at)
+		VALUES ($1, $2, 1, NULL, 'fr', '', $3)`
+	for position, kind := range kinds {
+		_, err := db.ExecContext(t.Context(), insert, position, kind, at)
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	for position, kind := range kinds {
+		var kept string
+		require.NoError(t, db.QueryRowContext(t.Context(),
+			`SELECT kind FROM ledger_events WHERE position = $1`, position).Scan(&kept))
+		assert.Equal(t, kind, kept)
+	}
+	_, err := db.ExecContext(t.Context(), insert, len(kinds), "quake", at)
+	require.Error(t, err, "a kind is a value of the type before an event has it")
+	_, err = db.ExecContext(t.Context(), insert, len(kinds), "", at)
+	require.Error(t, err, "an event still has a kind")
 }
 
 func keys(m map[int]int) []int {

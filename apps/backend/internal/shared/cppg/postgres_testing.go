@@ -9,6 +9,7 @@ import (
 	"net"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/stretchr/testify/require"
@@ -58,6 +59,23 @@ func (s *TestServer) OpenSchema(t testing.TB, schema string, migrations fs.FS) *
 	t.Cleanup(func() { _ = client.Close() })
 
 	return client
+}
+
+func MigrationsBefore(t testing.TB, migrations fs.FS, version string) fs.FS {
+	t.Helper()
+
+	names, err := fs.Glob(migrations, "*.sql")
+	require.NoError(t, err)
+
+	older := fstest.MapFS{}
+	for _, name := range names {
+		if name < version {
+			data, err := fs.ReadFile(migrations, name)
+			require.NoError(t, err)
+			older[name] = &fstest.MapFile{Data: data}
+		}
+	}
+	return older
 }
 
 func startContainer(ctx context.Context) (testcontainers.Container, error) {
