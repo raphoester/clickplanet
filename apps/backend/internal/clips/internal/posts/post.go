@@ -36,9 +36,7 @@ type Service interface {
 	Schedule(ctx context.Context, post Post) (PostID, error)
 }
 
-// The service did not take the post now, and may take it later.
 type BusyError struct {
-	// Zero when the service did not say how long to wait.
 	RetryAfter time.Duration
 	Reason     string
 }

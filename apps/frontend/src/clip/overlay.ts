@@ -12,7 +12,6 @@ export type Words = {
     link: string
     // What to post with the clip: links in a caption cannot be clicked, so the site is plain text.
     caption: string
-    // The tags the caption ends with.
     tags: string[]
 }
 

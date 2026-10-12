@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// When the clips of a run go out: the best one a review from now, each next one a spacing later.
 type Cadence struct {
 	Review  time.Duration
 	Spacing time.Duration

@@ -10,14 +10,12 @@ import (
 var ErrUnsent = errors.New("a clip was not scheduled")
 
 type Outcome struct {
-	Title string
-	At    time.Time
-	// Empty when the post did not go through.
+	Title   string
+	At      time.Time
 	Post    PostID
 	Failure string
 }
 
-// What a run did with each of its clips, best first.
 type Report []Outcome
 
 func (r Report) With(post Post, id PostID, failure error) Report {

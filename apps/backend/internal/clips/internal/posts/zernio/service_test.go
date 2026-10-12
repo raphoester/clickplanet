@@ -27,7 +27,6 @@ const (
 
 var at = time.Date(2026, 10, 12, 16, 40, 0, 0, time.UTC)
 
-// What the fake of zernio was asked, and what it answers to each call.
 type zernioFake struct {
 	accounts answer
 	presign  answer

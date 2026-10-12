@@ -14,10 +14,9 @@ type Pause interface {
 	Wait(ctx context.Context, d time.Duration) error
 }
 
-// The wait before each new try of a post the service was too busy to take.
 type Backoff []time.Duration
 
-// failed: the tries made so far. asked: how long the service said to wait.
+// failed: the tries made so far, from 1.
 func (b Backoff) Wait(failed int, asked time.Duration) (time.Duration, bool) {
 	if failed < 1 || failed > len(b) || asked > b[len(b)-1] {
 		return 0, false

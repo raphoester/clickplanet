@@ -21,7 +21,6 @@ const (
 
 var decoder = protojson.UnmarshalOptions{DiscardUnknown: true}
 
-// The file the generator's --shortlist wrote.
 type ShortlistFile string
 
 func (f ShortlistFile) Shortlist(_ context.Context) (posts.Shortlist, error) {
@@ -42,7 +41,6 @@ func (f ShortlistFile) Shortlist(_ context.Context) (posts.Shortlist, error) {
 	return posts.ShortlistOf(titles), nil
 }
 
-// The folder the generator rendered its clips in: for each one, a video and what to post with it.
 type Folder string
 
 var ErrNoVideo = errors.New("a clip has no video beside it")

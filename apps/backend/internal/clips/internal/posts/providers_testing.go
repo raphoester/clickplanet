@@ -9,7 +9,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// A pause that takes no time: it moves the clock instead, and keeps what it was asked to wait.
 type RecordedPause struct {
 	clock  *cptime.FixedClock
 	Waited []time.Duration
@@ -27,7 +26,6 @@ func (p *RecordedPause) Wait(_ context.Context, d time.Duration) error {
 	return nil
 }
 
-// A service that answers each call with the next of its scripted errors, then takes every post.
 type ScriptedService struct {
 	refusals  []error
 	Scheduled []PostSnapshot

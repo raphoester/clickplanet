@@ -29,8 +29,7 @@ const (
 )
 
 type Config struct {
-	APIKey string
-	// Production when empty.
+	APIKey  string
 	BaseURL string
 }
 

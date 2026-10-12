@@ -22,11 +22,8 @@ import (
 )
 
 type Config struct {
-	// How many clips a run schedules, the best stories first.
-	PerRun int
-	// How long before the first clip of a run goes out: the time left to cancel it.
-	Review time.Duration
-	// Between two clips of one run.
+	PerRun  int
+	Review  time.Duration
 	Spacing time.Duration
 
 	Zernio zernio.Config
@@ -56,7 +53,6 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-// Writes the picks of the stories to render as a JSON array, best first: none when no story is worth a clip.
 func Choose(ctx context.Context, shortlist string, config Config, picks io.Writer, logger *slog.Logger) error {
 	config = config.withDefaults()
 
@@ -72,7 +68,6 @@ func Choose(ctx context.Context, shortlist string, config Config, picks io.Write
 	return nil
 }
 
-// Schedules every clip rendered in the folder, and writes what became of each one in the summary.
 func Schedule(ctx context.Context, folder string, config Config, summary io.Writer, logger *slog.Logger) error {
 	config = config.withDefaults()
 	clock := cptime.SystemClock{}

@@ -1,6 +1,6 @@
 package posts
 
-// The place of a story among those worth a clip, from 1: what the generator's --pick takes.
+// From 1: what the generator's --pick takes.
 type Pick int
 
 type Story struct {
@@ -8,7 +8,6 @@ type Story struct {
 	Title string
 }
 
-// The stories worth a clip, best first.
 type Shortlist []Story
 
 func ShortlistOf(titles []string) Shortlist {

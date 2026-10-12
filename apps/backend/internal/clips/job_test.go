@@ -28,7 +28,6 @@ type sentPost struct {
 	} `json:"mediaItems"`
 }
 
-// A zernio that takes every post, and keeps what it was sent.
 func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 	t.Helper()
 
