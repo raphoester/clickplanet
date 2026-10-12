@@ -13,27 +13,40 @@ type NoteID uuid.UUID
 
 type Kind string
 
-const KindSuggestion Kind = "suggestion"
+const (
+	KindSuggestion Kind = "suggestion"
+	KindBug        Kind = "bug"
+)
 
 func (k Kind) known() bool {
-	return k == KindSuggestion
+	return k == KindSuggestion || k == KindBug
 }
 
 var ErrInvalidNote = errors.New("the note is invalid")
 
 type Note struct {
-	id      NoteID
-	kind    Kind
-	account AccountID
-	text    string
-	at      time.Time
+	id          NoteID
+	kind        Kind
+	account     AccountID
+	text        string
+	diagnostics Diagnostics
+	at          time.Time
 }
 
-func NewSuggestion(id NoteID, account AccountID, text string, at time.Time) (Note, error) {
-	if account == (AccountID{}) {
+func NewSuggestion(id NoteID, account AccountID, text string, diagnostics Diagnostics, at time.Time) (Note, error) {
+	return sent(Snapshot{ID: id, Kind: KindSuggestion, Account: account, Text: text, Diagnostics: diagnostics, At: at})
+}
+
+func NewBugReport(id NoteID, account AccountID, text string, diagnostics Diagnostics, at time.Time) (Note, error) {
+	return sent(Snapshot{ID: id, Kind: KindBug, Account: account, Text: text, Diagnostics: diagnostics, At: at})
+}
+
+// A note sent has a sender. A note read back may have none: it was anonymized.
+func sent(note Snapshot) (Note, error) {
+	if note.Account == (AccountID{}) {
 		return Note{}, fmt.Errorf("%w: no account", ErrInvalidNote)
 	}
-	return Snapshot{ID: id, Kind: KindSuggestion, Account: account, Text: text, At: at}.Restore()
+	return note.Restore()
 }
 
 // The note with nothing that says who sent it: the text stays.
@@ -51,7 +64,7 @@ func AllAnonymized(sent []Note) []Note {
 }
 
 func (n Note) TakeSnapshot() Snapshot {
-	return Snapshot{ID: n.id, Kind: n.kind, Account: n.account, Text: n.text, At: n.at}
+	return Snapshot{ID: n.id, Kind: n.kind, Account: n.account, Text: n.text, Diagnostics: n.diagnostics, At: n.at}
 }
 
 // The state of a Note, for a store. It holds no rule: Restore does.
@@ -59,9 +72,10 @@ type Snapshot struct {
 	ID   NoteID
 	Kind Kind
 	// Zero once the note is anonymized.
-	Account AccountID
-	Text    string
-	At      time.Time
+	Account     AccountID
+	Text        string
+	Diagnostics Diagnostics
+	At          time.Time
 }
 
 func (s Snapshot) Restore() (Note, error) {
@@ -79,7 +93,9 @@ func (s Snapshot) Restore() (Note, error) {
 		return Note{}, err
 	}
 
-	return Note{id: s.ID, kind: s.Kind, account: s.Account, text: text, at: s.At}, nil
+	return Note{
+		id: s.ID, kind: s.Kind, account: s.Account, text: text, diagnostics: s.Diagnostics.cleaned(), at: s.At,
+	}, nil
 }
 
 // A storage finds notes and saves them. It holds no rule: what changes a note is a method of Note.

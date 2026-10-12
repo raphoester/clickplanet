@@ -36,11 +36,15 @@ const (
 	// SupportServiceSuggestFeatureProcedure is the fully-qualified name of the SupportService's
 	// SuggestFeature RPC.
 	SupportServiceSuggestFeatureProcedure = "/support.v1.SupportService/SuggestFeature"
+	// SupportServiceReportBugProcedure is the fully-qualified name of the SupportService's ReportBug
+	// RPC.
+	SupportServiceReportBugProcedure = "/support.v1.SupportService/ReportBug"
 )
 
 // SupportServiceClient is a client for the support.v1.SupportService service.
 type SupportServiceClient interface {
 	SuggestFeature(context.Context, *connect.Request[v1.SuggestFeatureRequest]) (*connect.Response[v1.SuggestFeatureResponse], error)
+	ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error)
 }
 
 // NewSupportServiceClient constructs a client for the support.v1.SupportService service. By
@@ -60,12 +64,19 @@ func NewSupportServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(supportServiceMethods.ByName("SuggestFeature")),
 			connect.WithClientOptions(opts...),
 		),
+		reportBug: connect.NewClient[v1.ReportBugRequest, v1.ReportBugResponse](
+			httpClient,
+			baseURL+SupportServiceReportBugProcedure,
+			connect.WithSchema(supportServiceMethods.ByName("ReportBug")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // supportServiceClient implements SupportServiceClient.
 type supportServiceClient struct {
 	suggestFeature *connect.Client[v1.SuggestFeatureRequest, v1.SuggestFeatureResponse]
+	reportBug      *connect.Client[v1.ReportBugRequest, v1.ReportBugResponse]
 }
 
 // SuggestFeature calls support.v1.SupportService.SuggestFeature.
@@ -73,9 +84,15 @@ func (c *supportServiceClient) SuggestFeature(ctx context.Context, req *connect.
 	return c.suggestFeature.CallUnary(ctx, req)
 }
 
+// ReportBug calls support.v1.SupportService.ReportBug.
+func (c *supportServiceClient) ReportBug(ctx context.Context, req *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error) {
+	return c.reportBug.CallUnary(ctx, req)
+}
+
 // SupportServiceHandler is an implementation of the support.v1.SupportService service.
 type SupportServiceHandler interface {
 	SuggestFeature(context.Context, *connect.Request[v1.SuggestFeatureRequest]) (*connect.Response[v1.SuggestFeatureResponse], error)
+	ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error)
 }
 
 // NewSupportServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -91,10 +108,18 @@ func NewSupportServiceHandler(svc SupportServiceHandler, opts ...connect.Handler
 		connect.WithSchema(supportServiceMethods.ByName("SuggestFeature")),
 		connect.WithHandlerOptions(opts...),
 	)
+	supportServiceReportBugHandler := connect.NewUnaryHandler(
+		SupportServiceReportBugProcedure,
+		svc.ReportBug,
+		connect.WithSchema(supportServiceMethods.ByName("ReportBug")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/support.v1.SupportService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SupportServiceSuggestFeatureProcedure:
 			supportServiceSuggestFeatureHandler.ServeHTTP(w, r)
+		case SupportServiceReportBugProcedure:
+			supportServiceReportBugHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -106,4 +131,8 @@ type UnimplementedSupportServiceHandler struct{}
 
 func (UnimplementedSupportServiceHandler) SuggestFeature(context.Context, *connect.Request[v1.SuggestFeatureRequest]) (*connect.Response[v1.SuggestFeatureResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.SupportService.SuggestFeature is not implemented"))
+}
+
+func (UnimplementedSupportServiceHandler) ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.SupportService.ReportBug is not implemented"))
 }

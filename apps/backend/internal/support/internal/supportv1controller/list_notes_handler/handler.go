@@ -2,15 +2,17 @@ package list_notes_handler
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"connectrpc.com/connect"
 
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler/notes_query"
 )
 
 type Query interface {
-	Notes(ctx context.Context, since time.Time, limit uint32) (*supportv1.ListNotesResponse, error)
+	Notes(ctx context.Context, since time.Time, kind supportv1.NoteKind, limit uint32) (*supportv1.ListNotesResponse, error)
 }
 
 func New(query Query) ListNotesHandler {
@@ -30,8 +32,11 @@ func (h ListNotesHandler) ListNotes(
 		since = asked.AsTime()
 	}
 
-	notes, err := h.query.Notes(ctx, since, req.Msg.GetLimit())
-	if err != nil {
+	notes, err := h.query.Notes(ctx, since, req.Msg.GetKind(), req.Msg.GetLimit())
+	switch {
+	case errors.Is(err, notes_query.ErrInvalidKind):
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	case err != nil:
 		return nil, err //nolint:wrapcheck // the error net answers it.
 	}
 	return connect.NewResponse(notes), nil
