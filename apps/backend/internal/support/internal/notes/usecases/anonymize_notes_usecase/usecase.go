@@ -1,4 +1,4 @@
-package forget_notes_usecase
+package anonymize_notes_usecase
 
 import (
 	"context"
@@ -26,8 +26,8 @@ func (u *UseCase) Execute(ctx context.Context, account notes.AccountID) error {
 		return fmt.Errorf("failed to read the notes the account sent: %w", err)
 	}
 
-	if err := u.notes.Save(ctx, notes.AllForgotten(sent)...); err != nil {
-		return fmt.Errorf("failed to forget the account's notes: %w", err)
+	if err := u.notes.Save(ctx, notes.AllAnonymized(sent)...); err != nil {
+		return fmt.Errorf("failed to anonymize the notes the account sent: %w", err)
 	}
 	return nil
 }

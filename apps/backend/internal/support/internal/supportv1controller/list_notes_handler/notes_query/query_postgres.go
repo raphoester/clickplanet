@@ -33,7 +33,7 @@ type PostgresQuery struct {
 }
 
 const notes = `
-	SELECT id, kind, account_id, text, submitted_at
+	SELECT id, kind, COALESCE(account_id::text, ''), text, submitted_at
 	FROM notes
 	WHERE $1::timestamptz IS NULL OR submitted_at >= $1
 	ORDER BY submitted_at DESC, id DESC

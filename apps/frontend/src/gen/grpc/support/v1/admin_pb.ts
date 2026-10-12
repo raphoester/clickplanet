@@ -125,6 +125,8 @@ export class Note extends Message<Note> {
   kind = NoteKind.UNSPECIFIED;
 
   /**
+   * Empty once the note is anonymized: its account was deleted, or the note is past the retention.
+   *
    * @generated from field: string account_id = 3;
    */
   accountId = "";

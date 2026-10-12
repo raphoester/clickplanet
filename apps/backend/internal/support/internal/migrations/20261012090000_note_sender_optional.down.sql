@@ -1,0 +1,3 @@
+DELETE FROM notes WHERE account_id IS NULL;
+
+ALTER TABLE notes ALTER COLUMN account_id SET NOT NULL;

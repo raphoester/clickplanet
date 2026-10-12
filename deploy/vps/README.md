@@ -1288,8 +1288,9 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 docker compose exec postgres psql -U clickplanet -c "select coalesce(p.name, 'guest_' || g.code) as name from (select '<account_id>'::uuid as account_id) a left join player.profiles p using (account_id) left join player.guest_codes g using (account_id)"
 ```
 
-- A note is deleted after 90 days (`support.retention`), and at once when its
-  account is deleted.
+- A note loses its account after 90 days (`support.retention`), and at once
+  when its account is deleted. The text stays, and `accountId` is then empty:
+  nothing says who sent it.
 - One address sends three, then one a minute (`support.rateLimiter`).
 
 ## Rollback
