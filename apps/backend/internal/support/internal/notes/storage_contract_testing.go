@@ -114,24 +114,38 @@ func (s *StorageContractSuite) TestSavingNothingIsNotAnError() {
 	s.Require().NoError(s.storage.Save(s.T().Context()))
 }
 
-func (s *StorageContractSuite) TestAForgottenNoteIsKeptNoMoreAndTheOthersStay() {
-	gone := s.saved("gone", contractAda, contractStart)
-	kept := s.saved("kept", contractAda, contractStart.Add(time.Minute))
-	note, err := gone.Restore()
+func (s *StorageContractSuite) anonymized(snapshot Snapshot) Snapshot {
+	note, err := snapshot.Restore()
 	s.Require().NoError(err)
 
-	s.Require().NoError(s.storage.Save(s.T().Context(), note.Forgotten()))
+	s.Require().NoError(s.storage.Save(s.T().Context(), note.Anonymized()))
 
-	s.same([]Snapshot{kept})
+	snapshot.Account = AccountID{}
+	return snapshot
 }
 
-func (s *StorageContractSuite) TestForgettingANoteThatWasNeverKeptIsNotAnError() {
-	note, err := s.suggestion("never kept", contractAda, contractStart).Restore()
-	s.Require().NoError(err)
+func (s *StorageContractSuite) TestAnAnonymizedNoteIsKeptWithItsTextAndNoSender() {
+	sent := s.saved("sent", contractAda, contractStart)
+	kept := s.saved("kept", contractAda, contractStart.Add(time.Minute))
 
-	s.Require().NoError(s.storage.Save(s.T().Context(), note.Forgotten()))
+	anonymized := s.anonymized(sent)
 
-	s.Empty(s.Kept(s.storage))
+	s.same([]Snapshot{anonymized, kept})
+	s.Equal("a suggestion called sent", s.Kept(s.storage)[0].Text)
+}
+
+func (s *StorageContractSuite) TestANoteSavedWithNoSenderFromTheStartIsKeptToo() {
+	anonymized := s.anonymized(s.suggestion("never kept before", contractAda, contractStart))
+
+	s.same([]Snapshot{anonymized})
+}
+
+func (s *StorageContractSuite) TestAnAnonymizedNoteIsSentByNobody() {
+	s.anonymized(s.saved("sent", contractAda, contractStart))
+	kept := s.saved("kept", contractAda, contractStart.Add(time.Minute))
+
+	s.Equal([]Snapshot{kept}, s.snapshots(s.storage.SentBy(s.T().Context(), contractAda)))
+	s.Empty(s.snapshots(s.storage.SentBy(s.T().Context(), AccountID{})))
 }
 
 func (s *StorageContractSuite) TestTheNotesAnAccountSentComeOldestFirstAndNobodyElses() {
@@ -143,12 +157,19 @@ func (s *StorageContractSuite) TestTheNotesAnAccountSentComeOldestFirstAndNobody
 	s.Empty(s.snapshots(s.storage.SentBy(s.T().Context(), AccountID{15: 9})))
 }
 
-func (s *StorageContractSuite) TestTheNotesSentBeforeATimeComeOldestFirstUpToTheLimit() {
+func (s *StorageContractSuite) TestTheNotesWithASenderBeforeATimeComeOldestFirstUpToTheLimit() {
 	old := s.saved("old", contractAda, contractStart)
 	older := s.saved("older", contractBob, contractStart.Add(-time.Hour))
 	s.saved("at the cutoff", contractAda, contractStart.Add(time.Hour))
 	s.saved("later", contractBob, contractStart.Add(2*time.Hour))
 
-	s.Equal([]Snapshot{older, old}, s.snapshots(s.storage.SentBefore(s.T().Context(), contractStart.Add(time.Hour), 10)))
-	s.Equal([]Snapshot{older}, s.snapshots(s.storage.SentBefore(s.T().Context(), contractStart.Add(time.Hour), 1)))
+	s.Equal([]Snapshot{older, old}, s.snapshots(s.storage.WithSenderBefore(s.T().Context(), contractStart.Add(time.Hour), 10)))
+	s.Equal([]Snapshot{older}, s.snapshots(s.storage.WithSenderBefore(s.T().Context(), contractStart.Add(time.Hour), 1)))
+}
+
+func (s *StorageContractSuite) TestANoteWithNoSenderIsNotAmongTheNotesWithOne() {
+	s.anonymized(s.saved("oldest", contractAda, contractStart.Add(-2*time.Hour)))
+	old := s.saved("old", contractBob, contractStart)
+
+	s.Equal([]Snapshot{old}, s.snapshots(s.storage.WithSenderBefore(s.T().Context(), contractStart.Add(time.Hour), 10)))
 }

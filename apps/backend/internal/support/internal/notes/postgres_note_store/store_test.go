@@ -46,17 +46,30 @@ func (s *testSuite) kept() []notes.Snapshot {
 		var (
 			id      uuid.UUID
 			kind    string
-			account uuid.UUID
+			account uuid.NullUUID
 			text    string
 			at      time.Time
 		)
 		s.Require().NoError(rows.Scan(&id, &kind, &account, &text, &at))
 		kept = append(kept, notes.Snapshot{
-			ID: notes.NoteID(id), Kind: notes.Kind(kind), Account: notes.AccountID(account), Text: text, At: at,
+			ID: notes.NoteID(id), Kind: notes.Kind(kind), Account: notes.AccountID(account.UUID), Text: text, At: at,
 		})
 	}
 	s.Require().NoError(rows.Err())
 	return kept
+}
+
+func (s *testSuite) TestAnAnonymizedNoteHasNoAccountInTheTable() {
+	note, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.AccountID{15: 1}, "a night mode", time.Now())
+	s.Require().NoError(err)
+	store := postgres_note_store.New(s.db)
+	s.Require().NoError(store.Save(s.T().Context(), note))
+
+	s.Require().NoError(store.Save(s.T().Context(), note.Anonymized()))
+
+	var named bool
+	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT account_id IS NOT NULL FROM notes`).Scan(&named))
+	s.False(named, "NULL, not an account of zeros")
 }
 
 func (s *testSuite) TestTheDatabaseRefusesAKindItsTypeDoesNotName() {

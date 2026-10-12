@@ -85,7 +85,7 @@ func TestAnAddressSendsThreeNotesAtOnceAndACallWithNoSessionSpendsNone(t *testin
 	assert.Len(t, game.notes(t), 3)
 }
 
-func TestADeletedAccountLosesItsNotes(t *testing.T) {
+func TestADeletedAccountsNotesKeepTheirTextAndNoLongerNameIt(t *testing.T) {
 	game := startGame(t)
 	leaving, staying := game.newPlayer(t), game.newPlayer(t)
 	require.NoError(t, leaving.suggest("a night mode"))
@@ -96,12 +96,14 @@ func TestADeletedAccountLosesItsNotes(t *testing.T) {
 	_, err := authv1connect.NewAuthServiceClient(http.DefaultClient, game.baseURL).DeleteAccount(t.Context(), deletion)
 	require.NoError(t, err)
 
-	var notes []*supportv1.Note
+	senders := map[string]string{}
 	require.Eventually(t, func() bool {
-		notes = game.notes(t)
-		return len(notes) == 1
+		for _, note := range game.notes(t) {
+			senders[note.GetText()] = note.GetAccountId()
+		}
+		return senders["a night mode"] == ""
 	}, 5*time.Second, 20*time.Millisecond)
-	assert.Equal(t, "more flags", notes[0].GetText())
+	assert.Equal(t, map[string]string{"a night mode": "", "more flags": staying.account()}, senders)
 }
 
 func TestTheOperatorsListIsNotOnThePublicRouter(t *testing.T) {

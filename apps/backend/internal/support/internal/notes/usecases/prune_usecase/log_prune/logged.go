@@ -19,15 +19,15 @@ type Logged struct {
 var _ prune_usecase.Executor = (*Logged)(nil)
 
 func (l *Logged) Execute(ctx context.Context) (int64, error) {
-	deleted, err := l.inner.Execute(ctx)
+	anonymized, err := l.inner.Execute(ctx)
 
 	switch {
 	case err != nil && ctx.Err() == nil:
 		l.logger.Error("failed to prune the support module, retrying next tick",
-			slog.Int64("deleted", deleted), slog.Any("error", err))
-	case deleted > 0:
-		l.logger.Info("pruned the support module", slog.Int64("deleted", deleted))
+			slog.Int64("anonymized", anonymized), slog.Any("error", err))
+	case anonymized > 0:
+		l.logger.Info("pruned the support module", slog.Int64("anonymized", anonymized))
 	}
 
-	return deleted, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
+	return anonymized, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
 }
