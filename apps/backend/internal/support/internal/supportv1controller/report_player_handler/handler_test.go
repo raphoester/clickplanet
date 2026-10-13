@@ -19,7 +19,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_player_handler"
 )
 
-var ada = reports.AccountID{15: 1}
+var (
+	ada = reports.AccountID{15: 1}
+	bob = reports.AccountID{15: 2}
+)
 
 type stubUseCase struct {
 	err   error
@@ -48,18 +51,18 @@ func TestTheReportReachesTheUseCaseUnderTheCallersAccount(t *testing.T) {
 	useCase := &stubUseCase{}
 
 	err := report(asAda(t), useCase, &supportv1.ReportPlayerRequest{
-		Name: "guest_a1b2c3", Reason: supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE, Text: "it insults everyone", MessageId: "message-1",
+		AccountId: bob.String(), Reason: supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE, Text: "it insults everyone", MessageId: "message-1",
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, []report_player_usecase.In{{
-		Reporter: ada, Name: "guest_a1b2c3",
+		Reporter: ada, Reported: bob,
 		Complaint: reports.Complaint{Reason: reports.ReasonChatAbuse, Text: "it insults everyone", Message: "message-1"},
 	}}, useCase.asked)
 }
 
 func reportOf(complaint reports.Complaint) error {
-	_, err := reports.NewReport(reports.ReportID{15: 1}, ada, reports.AccountID{15: 2}, complaint, time.Now(), nil)
+	_, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob, complaint, time.Now(), nil)
 	return err //nolint:wrapcheck // the tests read the domain's own error.
 }
 
@@ -70,7 +73,7 @@ func TestEveryReasonTheProtoNamesIsOneTheDomainKnows(t *testing.T) {
 		}
 		useCase := &stubUseCase{}
 
-		require.NoError(t, report(asAda(t), useCase, &supportv1.ReportPlayerRequest{Reason: supportv1.ReportReason(number)}))
+		require.NoError(t, report(asAda(t), useCase, &supportv1.ReportPlayerRequest{AccountId: bob.String(), Reason: supportv1.ReportReason(number)}))
 
 		assert.NoError(t, reportOf(useCase.asked[0].Complaint), name)
 	}
@@ -80,7 +83,7 @@ func TestNoReasonAndAReasonTheProtoDoesNotNameAreOnesTheDomainRefuses(t *testing
 	for _, reason := range []supportv1.ReportReason{supportv1.ReportReason_REPORT_REASON_UNSPECIFIED, 99} {
 		useCase := &stubUseCase{}
 
-		require.NoError(t, report(asAda(t), useCase, &supportv1.ReportPlayerRequest{Reason: reason}))
+		require.NoError(t, report(asAda(t), useCase, &supportv1.ReportPlayerRequest{AccountId: bob.String(), Reason: reason}))
 
 		assert.ErrorIs(t, reportOf(useCase.asked[0].Complaint), reports.ErrUnknownReason, reason.String())
 	}
@@ -89,10 +92,21 @@ func TestNoReasonAndAReasonTheProtoDoesNotNameAreOnesTheDomainRefuses(t *testing
 func TestACallerWithNoAccountIsRefusedBeforeTheUseCase(t *testing.T) {
 	useCase := &stubUseCase{}
 
-	err := report(t.Context(), useCase, &supportv1.ReportPlayerRequest{Name: "guest_a1b2c3"})
+	err := report(t.Context(), useCase, &supportv1.ReportPlayerRequest{AccountId: bob.String()})
 
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	assert.Empty(t, useCase.asked)
+}
+
+func TestAnIDThatIsNotAnAccountIsRefusedBeforeTheUseCase(t *testing.T) {
+	for _, id := range []string{"", "guest_a1b2c3", "00000000-0000-0000-0000-000000000000"} {
+		useCase := &stubUseCase{}
+
+		err := report(asAda(t), useCase, &supportv1.ReportPlayerRequest{AccountId: id})
+
+		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), id)
+		assert.Empty(t, useCase.asked, id)
+	}
 }
 
 func TestTheRefusalsHaveTheirCodes(t *testing.T) {
@@ -100,18 +114,18 @@ func TestTheRefusalsHaveTheirCodes(t *testing.T) {
 		reports.ErrUnknownReason:   connect.CodeInvalidArgument,
 		notes.ErrInvalidText:       connect.CodeInvalidArgument,
 		reports.ErrOwnAccount:      connect.CodeInvalidArgument,
-		reports.ErrNoPlayer:        connect.CodeNotFound,
 		reports.ErrReportedAlready: connect.CodeAlreadyExists,
 	} {
-		err := report(asAda(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", refusal)}, &supportv1.ReportPlayerRequest{})
+		err := report(asAda(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", refusal)},
+			&supportv1.ReportPlayerRequest{AccountId: bob.String()})
 
 		assert.Equal(t, want, connect.CodeOf(err), "%v", refusal)
 	}
 }
 
 func TestAFailureIsLeftToTheErrorNet(t *testing.T) {
-	err := report(asAda(t), &stubUseCase{err: errors.New("the player module is down")}, &supportv1.ReportPlayerRequest{})
+	err := report(asAda(t), &stubUseCase{err: errors.New("postgres is down")}, &supportv1.ReportPlayerRequest{AccountId: bob.String()})
 
-	assert.ErrorContains(t, err, "the player module is down")
+	assert.ErrorContains(t, err, "postgres is down")
 	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

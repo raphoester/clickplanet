@@ -136,15 +136,15 @@ func TestAnAddressSendsThreeNotesAtOnceAndACallWithNoSessionSpendsNone(t *testin
 		require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	}
 
-	game.namedPlayer(t, "google-ada", "Ada")
+	ada := game.namedPlayer(t, "google-ada", "Ada")
 
 	require.NoError(t, guest.suggest("an idea"))
 	require.NoError(t, guest.reportBug("a bug", nil, ""))
-	require.NoError(t, guest.reportPlayer("Ada", supportv1.ReportReason_REPORT_REASON_CHEATING, "", ""))
+	require.NoError(t, guest.reportPlayer(ada.account(), supportv1.ReportReason_REPORT_REASON_CHEATING, "", ""))
 	assert.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(guest.suggest("one too many")))
 	assert.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(guest.reportBug("one too many", nil, "")))
 	assert.Equal(t, connect.CodeResourceExhausted,
-		connect.CodeOf(guest.reportPlayer("Ada", supportv1.ReportReason_REPORT_REASON_CHEATING, "", "")),
+		connect.CodeOf(guest.reportPlayer(ada.account(), supportv1.ReportReason_REPORT_REASON_CHEATING, "", "")),
 		"suggestions, bug reports and player reports spend one allowance")
 	assert.Len(t, game.notes(t), 2)
 	assert.Len(t, game.reports(t), 1)
@@ -182,10 +182,10 @@ func TestTheOperatorsListsAreNotOnThePublicRouter(t *testing.T) {
 	assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
 }
 
-func (p *gamer) reportPlayer(name string, reason supportv1.ReportReason, text string, messageID string) error {
+func (p *gamer) reportPlayer(account string, reason supportv1.ReportReason, text string, messageID string) error {
 	p.t.Helper()
 
-	req := connect.NewRequest(&supportv1.ReportPlayerRequest{Name: name, Reason: reason, Text: text, MessageId: messageID})
+	req := connect.NewRequest(&supportv1.ReportPlayerRequest{AccountId: account, Reason: reason, Text: text, MessageId: messageID})
 	p.send(req.Header())
 	if _, err := p.support().ReportPlayer(p.t.Context(), req); err != nil {
 		return fmt.Errorf("ReportPlayer failed: %w", err)
@@ -202,16 +202,17 @@ func (s gameStack) reports(t *testing.T) []*supportv1.Report {
 	return res.Msg.GetReports()
 }
 
-func TestAGuestReportsAPlayerFromAMessageAndTheOperatorReadsWhoAndWhy(t *testing.T) {
+func TestAGuestReportsAPlayerByTheAccountItsMessageCarriesAndTheOperatorReadsWhoAndWhy(t *testing.T) {
 	game := startGame(t)
 	ada := game.namedPlayer(t, "google-ada", "Ada_L")
 	said, err := ada.post()
 	require.NoError(t, err)
+	require.Equal(t, ada.account(), said.GetAuthorAccountId(), "the message says whose it is")
 	guest := game.newPlayer(t)
 	asGuest, err := guest.post()
 	require.NoError(t, err)
 
-	require.NoError(t, guest.reportPlayer(" ada_l ", supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE,
+	require.NoError(t, guest.reportPlayer(said.GetAuthorAccountId(), supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE,
 		"  it insults everyone  ", said.GetId()))
 
 	reports := game.reports(t)
@@ -226,14 +227,14 @@ func TestAGuestReportsAPlayerFromAMessageAndTheOperatorReadsWhoAndWhy(t *testing
 	assert.WithinDuration(t, time.Now(), reports[0].GetCreatedAt().AsTime(), time.Minute)
 }
 
-func TestAGuestIsReportedUnderTheNameTheChatShowsForIt(t *testing.T) {
+func TestAGuestIsReportedByTheAccountItsMessageCarries(t *testing.T) {
 	game := startGame(t)
 	spammer, reporter := game.newPlayer(t), game.newPlayer(t)
 	said, err := spammer.post()
 	require.NoError(t, err)
 	require.Regexp(t, guestName, said.GetAuthorName())
 
-	require.NoError(t, reporter.reportPlayer(said.GetAuthorName(), supportv1.ReportReason_REPORT_REASON_OTHER, "", ""))
+	require.NoError(t, reporter.reportPlayer(said.GetAuthorAccountId(), supportv1.ReportReason_REPORT_REASON_OTHER, "", ""))
 
 	reports := game.reports(t)
 	require.Len(t, reports, 1)
@@ -243,35 +244,56 @@ func TestAGuestIsReportedUnderTheNameTheChatShowsForIt(t *testing.T) {
 	assert.Empty(t, reports[0].GetMessageId())
 }
 
+func TestAReportFollowsThePlayerWhoRenamedAndNotWhoeverTookTheName(t *testing.T) {
+	game := startGame(t)
+	offender := game.namedPlayer(t, "google-ada", "Ada_L")
+	said, err := offender.post()
+	require.NoError(t, err)
+	_, err = offender.setName("Somebody_Else")
+	require.NoError(t, err)
+	bystander := game.namedPlayer(t, "google-bob", "Ada_L")
+	reporter := game.newPlayer(t)
+
+	require.NoError(t, reporter.reportPlayer(said.GetAuthorAccountId(), supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE, "", said.GetId()))
+
+	reports := game.reports(t)
+	require.Len(t, reports, 1)
+	assert.Equal(t, offender.account(), reports[0].GetReportedAccountId())
+	assert.NotEqual(t, bystander.account(), reports[0].GetReportedAccountId())
+	assert.Equal(t, "Somebody_Else", reports[0].GetReportedName())
+}
+
 func TestAReportNeedsAnAccountAReasonAndAPlayerWhoIsNotTheReporter(t *testing.T) {
 	game := startGame(t)
 	ada := game.namedPlayer(t, "google-ada", "Ada_L")
-	game.namedPlayer(t, "google-bob", "Bob")
+	bob := game.namedPlayer(t, "google-bob", "Bob")
 
-	anonymous := connect.NewRequest(&supportv1.ReportPlayerRequest{Name: "Bob", Reason: supportv1.ReportReason_REPORT_REASON_CHEATING})
+	anonymous := connect.NewRequest(&supportv1.ReportPlayerRequest{
+		AccountId: bob.account(), Reason: supportv1.ReportReason_REPORT_REASON_CHEATING,
+	})
 	anonymous.Header().Set("X-Real-IP", callerIP)
 	_, err := ada.support().ReportPlayer(t.Context(), anonymous)
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 
 	assert.Equal(t, connect.CodeInvalidArgument,
-		connect.CodeOf(ada.reportPlayer("Bob", supportv1.ReportReason_REPORT_REASON_UNSPECIFIED, "", "")))
-	assert.Equal(t, connect.CodeNotFound,
-		connect.CodeOf(ada.reportPlayer("Nobody", supportv1.ReportReason_REPORT_REASON_CHEATING, "", "")))
+		connect.CodeOf(ada.reportPlayer(bob.account(), supportv1.ReportReason_REPORT_REASON_UNSPECIFIED, "", "")))
 	assert.Equal(t, connect.CodeInvalidArgument,
-		connect.CodeOf(ada.reportPlayer("ada_l", supportv1.ReportReason_REPORT_REASON_CHEATING, "", "")), "itself")
+		connect.CodeOf(ada.reportPlayer("Bob", supportv1.ReportReason_REPORT_REASON_CHEATING, "", "")), "a name is not an account")
+	assert.Equal(t, connect.CodeInvalidArgument,
+		connect.CodeOf(ada.reportPlayer(ada.account(), supportv1.ReportReason_REPORT_REASON_CHEATING, "", "")), "itself")
 	assert.Empty(t, game.reports(t))
 }
 
 func TestAnAccountReportsAPlayerOnceADay(t *testing.T) {
 	game := startGame(t)
 	ada := game.namedPlayer(t, "google-ada", "Ada_L")
-	game.namedPlayer(t, "google-bob", "Bob")
-	game.namedPlayer(t, "google-cyd", "Cyd")
+	bob := game.namedPlayer(t, "google-bob", "Bob")
+	cyd := game.namedPlayer(t, "google-cyd", "Cyd")
 
-	require.NoError(t, ada.reportPlayer("Bob", supportv1.ReportReason_REPORT_REASON_CHEATING, "", ""))
+	require.NoError(t, ada.reportPlayer(bob.account(), supportv1.ReportReason_REPORT_REASON_CHEATING, "", ""))
 	assert.Equal(t, connect.CodeAlreadyExists,
-		connect.CodeOf(ada.reportPlayer("bob", supportv1.ReportReason_REPORT_REASON_BAD_NAME, "again", "")))
-	require.NoError(t, ada.reportPlayer("Cyd", supportv1.ReportReason_REPORT_REASON_CHEATING, "", ""), "another player")
+		connect.CodeOf(ada.reportPlayer(bob.account(), supportv1.ReportReason_REPORT_REASON_BAD_NAME, "again", "")))
+	require.NoError(t, ada.reportPlayer(cyd.account(), supportv1.ReportReason_REPORT_REASON_CHEATING, "", ""), "another player")
 
 	assert.Len(t, game.reports(t), 2)
 }
@@ -281,9 +303,9 @@ func TestADeletedAccountTakesTheReportsItFiledAndTheReportsAboutIt(t *testing.T)
 	leaving := game.namedPlayer(t, "google-ada", "Ada_L")
 	bob := game.namedPlayer(t, "google-bob", "Bob")
 	cyd := game.namedPlayer(t, "google-cyd", "Cyd")
-	require.NoError(t, leaving.reportPlayer("Bob", supportv1.ReportReason_REPORT_REASON_CHEATING, "", ""))
-	require.NoError(t, bob.reportPlayer("Ada_L", supportv1.ReportReason_REPORT_REASON_BAD_NAME, "", ""))
-	require.NoError(t, cyd.reportPlayer("Bob", supportv1.ReportReason_REPORT_REASON_OTHER, "kept", ""))
+	require.NoError(t, leaving.reportPlayer(bob.account(), supportv1.ReportReason_REPORT_REASON_CHEATING, "", ""))
+	require.NoError(t, bob.reportPlayer(leaving.account(), supportv1.ReportReason_REPORT_REASON_BAD_NAME, "", ""))
+	require.NoError(t, cyd.reportPlayer(bob.account(), supportv1.ReportReason_REPORT_REASON_OTHER, "kept", ""))
 
 	deletion := connect.NewRequest(&authv1.DeleteAccountRequest{})
 	leaving.send(deletion.Header())

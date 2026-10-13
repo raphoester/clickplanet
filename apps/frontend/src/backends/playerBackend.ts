@@ -176,9 +176,9 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
         return () => stop()
     }
 
-    public async playerInfo(name: string): Promise<PlayerInfo | undefined> {
+    public async playerInfo(accountId: string): Promise<PlayerInfo | undefined> {
         try {
-            const res = await retrying(() => this.client.getPlayer({name}), "GetPlayer")
+            const res = await retrying(() => this.client.getPlayer({accountId}), "GetPlayer")
             return playerInfoOf(res.player)
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.NotFound) return undefined
@@ -218,6 +218,7 @@ function profileOf(profile: ProfilePb | undefined): Profile {
 function rosterEntryOf(entry: RosterEntryPb): RosterEntry {
     return {
         key: entry.key,
+        accountId: entry.accountId,
         name: entry.name,
         countryCode: entry.countryId,
         guest: entry.guest,

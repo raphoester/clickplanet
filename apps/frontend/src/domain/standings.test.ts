@@ -6,7 +6,7 @@ import {boardWith, liveSeason, NO_TAKES, STANDINGS_SHOWN, takenCount, takesSince
 const takes = (entries: Record<string, number>) => new Map(Object.entries(entries))
 
 const standing = (rank: number, name: string, tiles: number): Standing =>
-    ({rank, name, color: NameColor.UNSPECIFIED, countryCode: "fr", tiles})
+    ({rank, accountId: `account-${name}`, name, color: NameColor.UNSPECIFIED, countryCode: "fr", tiles})
 
 const lines = (board: {listed: Standing[], below?: Standing}) => ({
     listed: board.listed.map((s) => `${s.rank} ${s.name} ${s.tiles}`),
@@ -72,6 +72,18 @@ describe("boardWith", () => {
         const board = boardWith(TOP.slice(0, 3), standing(3, "p3", 950))
 
         expect(lines(board)).toEqual({listed: ["1 p1 1000", "2 p3 950", "3 p2 900"], below: undefined})
+    })
+
+    it("takes the caller's row for the same account, whatever name the board still shows", () => {
+        const renamed = {...standing(3, "p3_new", 950), accountId: "account-p3"}
+
+        expect(lines(boardWith(TOP.slice(0, 3), renamed))).toEqual({listed: ["1 p1 1000", "2 p3_new 950", "3 p2 900"], below: undefined})
+    })
+
+    it("keeps the row of another account that holds the caller's name", () => {
+        const caller = {...standing(4, "p3", 850), accountId: "account-caller"}
+
+        expect(lines(boardWith(TOP.slice(0, 3), caller)).listed).toEqual(["1 p1 1000", "2 p2 900", "3 p3 850", "4 p3 800"])
     })
 
     it("lets the caller share the rank of a tie, after the others", () => {

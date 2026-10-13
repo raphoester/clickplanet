@@ -48,13 +48,16 @@ export default function PlayerCard({player, backend, reporter, messageId, onClos
     const frame = info?.wornTitle ? ` title-frame-${metalOf(info.wornTitle)}` : ""
 
     if (reporting && reporter) {
-        return <ReportPlayerModal name={player.name}
+        return <ReportPlayerModal accountId={player.accountId}
+                                  name={player.name}
                                   messageId={messageId}
                                   reporter={reporter}
                                   onClose={() => setReporting(false)}/>
     }
 
-    const report = reporter && <button type="button" className="player-card-report" onClick={() => setReporting(true)}>
+    const report = reporter && player.accountId !== "" && <button type="button"
+                                                                  className="player-card-report"
+                                                                  onClick={() => setReporting(true)}>
         Report
     </button>
 
@@ -67,7 +70,7 @@ export default function PlayerCard({player, backend, reporter, messageId, onClos
         </div>
 
         {state.kind === "loading" && <p className="player-card-note" role="status">Loading…</p>}
-        {state.kind === "missing" && <p className="player-card-note">No player holds this name now.</p>}
+        {state.kind === "missing" && <p className="player-card-note">This player is gone.</p>}
         {state.kind === "failed" && <p className="player-card-note">The stats could not be loaded.</p>}
         {info?.wornTitle && <TitleBanner title={info.wornTitle}/>}
         {info && <PlayerTitles titles={info.titles}/>}

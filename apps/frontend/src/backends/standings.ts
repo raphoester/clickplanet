@@ -2,6 +2,7 @@ import {NameColor, PlayerTitle} from "./player.ts"
 
 export type Standing = {
     rank: number
+    accountId: string
     name: string
     color: NameColor
     countryCode: string

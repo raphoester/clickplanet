@@ -5,11 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/unicode/norm"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
@@ -31,7 +34,7 @@ type Fronts interface {
 	Fronts(ctx context.Context, account cpsession.AccountID) (*playerv1.GetFrontsResponse, error)
 }
 
-var ErrNoPlayer = errors.New("no player has this name")
+var ErrNoPlayer = errors.New("no such player")
 
 const shownFronts = 3
 
@@ -65,10 +68,22 @@ const player = `
 	FROM profiles
 	LEFT JOIN stats ON stats.account_id = profiles.account_id
 	LEFT JOIN worn_titles ON worn_titles.account_id = profiles.account_id
-	WHERE profiles.name_folded = $1
 `
 
-func (q *PostgresQuery) Player(ctx context.Context, name string) (*playerv1.GetPlayerResponse, error) {
+const (
+	playerOfAccount = player + `WHERE profiles.account_id = $1`
+	playerNamed     = player + `WHERE profiles.name_folded = $1`
+)
+
+func (q *PostgresQuery) Player(ctx context.Context, account cpsession.AccountID) (*playerv1.GetPlayerResponse, error) {
+	return q.answer(ctx, playerOfAccount, uuid.UUID(account))
+}
+
+func (q *PostgresQuery) PlayerNamed(ctx context.Context, name string) (*playerv1.GetPlayerResponse, error) {
+	return q.answer(ctx, playerNamed, folded(name))
+}
+
+func (q *PostgresQuery) answer(ctx context.Context, statement string, key any) (*playerv1.GetPlayerResponse, error) {
 	var (
 		account uuid.UUID
 		color   int32
@@ -76,7 +91,7 @@ func (q *PostgresQuery) Player(ctx context.Context, name string) (*playerv1.GetP
 		held    []string
 		answer  = &playerv1.Player{Stats: &playerv1.Stats{}}
 	)
-	err := q.db.QueryRowContext(ctx, player, playerread.FoldedName(name), q.clock.Now().UTC().Format(time.DateOnly)).Scan(
+	err := q.db.QueryRowContext(ctx, statement, key, q.clock.Now().UTC().Format(time.DateOnly)).Scan(
 		&account, &answer.Name, &answer.Admin, &color,
 		&answer.Stats.TilesTaken, &answer.Stats.StreakCurrent, &answer.Stats.StreakBest, &answer.Stats.StreakLastDay,
 		&choice, pq.Array(&held),
@@ -122,4 +137,9 @@ func (q *PostgresQuery) Player(ctx context.Context, name string) (*playerv1.GetP
 
 func topOf(countries []*playerv1.CountryTiles) []*playerv1.CountryTiles {
 	return countries[:min(len(countries), shownFronts)]
+}
+
+// The same fold the profile was kept under, or a name typed in another case finds nobody.
+func folded(name string) string {
+	return norm.NFKC.String(cases.Fold().String(norm.NFKD.String(strings.Trim(norm.NFC.String(name), " "))))
 }

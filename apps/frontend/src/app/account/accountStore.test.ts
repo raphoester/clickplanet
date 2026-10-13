@@ -92,7 +92,7 @@ describe("AccountStore", () => {
 
             await store.load()
 
-            expect(store.state()).toEqual({kind: "ready", offered: [], me: {linked: ["google"]}})
+            expect(store.state()).toEqual({kind: "ready", offered: [], me: {linked: ["google"]}, accountId: "account-1"})
         })
 
         it("shows a guest when the account cannot be read", async () => {
@@ -324,7 +324,7 @@ describe("AccountStore", () => {
             await store.deleteAccount()
 
             expect(session.invalidate).not.toHaveBeenCalled()
-            expect(store.state()).toEqual({kind: "ready", offered: ["google"], me: {linked: ["google"]}, failure: "failed"})
+            expect(store.state()).toEqual({kind: "ready", offered: ["google"], me: {linked: ["google"]}, accountId: "account-1", failure: "failed"})
         })
 
         it("hides the section after signing out when sign-in is off", async () => {
@@ -345,7 +345,7 @@ describe("AccountStore", () => {
             await store.load()
 
             await vi.waitFor(() => expect(store.state()).toEqual({
-                kind: "ready", offered: ["google"], me: {linked: ["google"]}, username: "ana", color: NameColor.UNSPECIFIED,
+                kind: "ready", offered: ["google"], me: {linked: ["google"]}, accountId: "account-1", username: "ana", color: NameColor.UNSPECIFIED,
             }))
             expect(player.profile).toHaveBeenCalledTimes(1)
         })
@@ -389,7 +389,7 @@ describe("AccountStore", () => {
             await store.load()
             await vi.waitFor(() => expect(player.profile).toHaveBeenCalled())
 
-            expect(store.state()).toEqual({kind: "ready", offered: ["google"], me: {linked: ["google"]}})
+            expect(store.state()).toEqual({kind: "ready", offered: ["google"], me: {linked: ["google"]}, accountId: "account-1"})
         })
 
         it("drops a read that lands after the player signed out", async () => {
@@ -445,7 +445,7 @@ describe("AccountStore", () => {
                 await saving
 
                 expect(store.state()).toEqual({
-                    kind: "ready", offered: ["google"], me: {linked: ["google"]}, username: "Ana",
+                    kind: "ready", offered: ["google"], me: {linked: ["google"]}, accountId: "account-1", username: "Ana",
                 })
             })
 
@@ -459,7 +459,7 @@ describe("AccountStore", () => {
                 await store.setUsername("bo")
 
                 expect(store.state()).toEqual({
-                    kind: "ready", offered: ["google"], me: {linked: ["google"]}, username: "ana", color: NameColor.UNSPECIFIED,
+                    kind: "ready", offered: ["google"], me: {linked: ["google"]}, accountId: "account-1", username: "ana", color: NameColor.UNSPECIFIED,
                     nameFailure: "taken",
                 })
             })
@@ -570,7 +570,7 @@ describe("AccountStore", () => {
             await saving
 
             expect(store.state()).toEqual({
-                kind: "ready", offered: ["google"], me: {linked: ["google"]}, username: "ana", color: NameColor.PINK,
+                kind: "ready", offered: ["google"], me: {linked: ["google"]}, accountId: "account-1", username: "ana", color: NameColor.PINK,
             })
         })
 
@@ -670,7 +670,7 @@ describe("AccountStore", () => {
 
             expect(backend.completeEmailSignIn).toHaveBeenCalledWith("123456")
             expect(session.invalidate).toHaveBeenCalled()
-            expect(store.state()).toEqual({kind: "ready", offered: ["google", "email"], me: {linked: ["email"]}})
+            expect(store.state()).toEqual({kind: "ready", offered: ["google", "email"], me: {linked: ["email"]}, accountId: "account-1"})
         })
 
         it("keeps the code step for a wrong code", async () => {

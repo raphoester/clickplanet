@@ -8,18 +8,22 @@ export type PlayerInfoState =
     | {kind: "failed"}
     | {kind: "ready", info: PlayerInfo}
 
-export function usePlayerInfo(backend: PlayerInfoBackend, player: PlayerLine): PlayerInfoState {
-    const [state, setState] = useState<PlayerInfoState>(() => player.guest ? {kind: "guest"} : {kind: "loading"})
+export function usePlayerInfo(
+    backend: PlayerInfoBackend,
+    {accountId, guest}: Pick<PlayerLine, "accountId" | "guest">,
+): PlayerInfoState {
+    const [state, setState] = useState<PlayerInfoState>(() => unasked(accountId, guest) ?? {kind: "loading"})
 
     useEffect(() => {
-        if (player.guest) {
-            setState({kind: "guest"})
+        const known = unasked(accountId, guest)
+        if (known) {
+            setState(known)
             return
         }
 
         let stale = false
         setState({kind: "loading"})
-        backend.playerInfo(player.name).then(
+        backend.playerInfo(accountId).then(
             (info) => {
                 if (!stale) setState(info ? {kind: "ready", info} : {kind: "missing"})
             },
@@ -32,7 +36,13 @@ export function usePlayerInfo(backend: PlayerInfoBackend, player: PlayerLine): P
         return () => {
             stale = true
         }
-    }, [backend, player.name, player.guest])
+    }, [backend, accountId, guest])
 
     return state
+}
+
+function unasked(accountId: string, guest: boolean): PlayerInfoState | undefined {
+    if (guest) return {kind: "guest"}
+    if (accountId === "") return {kind: "missing"}
+    return undefined
 }

@@ -723,8 +723,8 @@ describe("Menu", () => {
 
         it("shows a signed-in player its own stats on its progress", async () => {
             const playerInfo = {
-                playerInfo: vi.fn(async (name: string) => ({
-                    name, tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
+                playerInfo: vi.fn(async () => ({
+                    name: "ana", tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
                     color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
                 })),
             }
@@ -734,13 +734,13 @@ describe("Menu", () => {
             await user.click(await screen.findByRole("tab", {name: "You"}))
 
             expect(await screen.findByText("14,212")).toBeDefined()
-            expect(playerInfo.playerInfo).toHaveBeenCalledWith("ana")
+            expect(playerInfo.playerInfo).toHaveBeenCalledWith("account-1")
         })
 
         it("counts the tiles a player takes into its stats at once, and reads its titles again once its clicks settle", async () => {
             const playerInfo = {
-                playerInfo: vi.fn(async (name: string) => ({
-                    name, tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
+                playerInfo: vi.fn(async () => ({
+                    name: "ana", tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
                     color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
                 })),
             }

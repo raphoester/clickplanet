@@ -393,14 +393,14 @@ func (x *PageContext) GetMemoryGb() float64 {
 }
 
 type ReportPlayerRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The name the game shows for the player: its username, or guest_ and its guest code.
-	Name   string       `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Reason ReportReason `protobuf:"varint,2,opt,name=reason,proto3,enum=support.v1.ReportReason" json:"reason,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Reason ReportReason           `protobuf:"varint,2,opt,name=reason,proto3,enum=support.v1.ReportReason" json:"reason,omitempty"`
 	// Optional.
 	Text string `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
 	// Optional: the chat message the report is about.
-	MessageId     string `protobuf:"bytes,4,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	MessageId string `protobuf:"bytes,4,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	// The account reported, as a chat message, a roster line or a standing carries it.
+	AccountId     string `protobuf:"bytes,5,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -435,13 +435,6 @@ func (*ReportPlayerRequest) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ReportPlayerRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
 func (x *ReportPlayerRequest) GetReason() ReportReason {
 	if x != nil {
 		return x.Reason
@@ -459,6 +452,13 @@ func (x *ReportPlayerRequest) GetText() string {
 func (x *ReportPlayerRequest) GetMessageId() string {
 	if x != nil {
 		return x.MessageId
+	}
+	return ""
+}
+
+func (x *ReportPlayerRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
 	}
 	return ""
 }
@@ -528,13 +528,14 @@ const file_support_v1_support_proto_rawDesc = "" +
 	"\fcontext_lost\x18\n" +
 	" \x01(\bR\vcontextLost\x12\x14\n" +
 	"\x05cores\x18\v \x01(\rR\x05cores\x12\x1b\n" +
-	"\tmemory_gb\x18\f \x01(\x01R\bmemoryGb\"\x8e\x01\n" +
-	"\x13ReportPlayerRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
+	"\tmemory_gb\x18\f \x01(\x01R\bmemoryGb\"\xa5\x01\n" +
+	"\x13ReportPlayerRequest\x120\n" +
 	"\x06reason\x18\x02 \x01(\x0e2\x18.support.v1.ReportReasonR\x06reason\x12\x12\n" +
 	"\x04text\x18\x03 \x01(\tR\x04text\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x04 \x01(\tR\tmessageId\"\x16\n" +
+	"message_id\x18\x04 \x01(\tR\tmessageId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x05 \x01(\tR\taccountIdJ\x04\b\x01\x10\x02R\x04name\"\x16\n" +
 	"\x14ReportPlayerResponse*\x9c\x01\n" +
 	"\fReportReason\x12\x1d\n" +
 	"\x19REPORT_REASON_UNSPECIFIED\x10\x00\x12\x1a\n" +

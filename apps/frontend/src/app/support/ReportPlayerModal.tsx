@@ -5,6 +5,8 @@ import Choices, {Choice} from "./Choices.tsx"
 import NoteModal from "./NoteModal.tsx"
 
 export type ReportPlayerModalProps = {
+    accountId: string
+    // Shown in the title only: the report names the account.
     name: string
     messageId?: string
     reporter: PlayerReporter
@@ -20,11 +22,11 @@ const REASONS: Choice<ReportReason>[] = [
     {value: "other", label: "Something else"},
 ]
 
-export default function ReportPlayerModal({name, messageId, reporter, onClose}: ReportPlayerModalProps) {
+export default function ReportPlayerModal({accountId, name, messageId, reporter, onClose}: ReportPlayerModalProps) {
     const [reason, setReason] = useState<ReportReason>()
 
     const send = async (text: string) => {
-        if (reason) await reporter.reportPlayer({name, reason, text, messageId})
+        if (reason) await reporter.reportPlayer({accountId, reason, text, messageId})
     }
 
     return <NoteModal title={`Report ${truncate(name, NAME_MAX_LENGTH)}`}

@@ -12,7 +12,7 @@ import {
     OutgoingMessage,
     OutgoingReaction,
 } from '../../backends/chat.ts';
-import {addAnnouncements, addMessages, nameSentUnder, newestAt} from '../../domain/chatLog.ts';
+import {accountSentUnder, addAnnouncements, addMessages, nameSentUnder, newestAt} from '../../domain/chatLog.ts';
 import {
     applyReactionsAnswer,
     applyReactionsChange,
@@ -32,12 +32,13 @@ export type SeenAtLoad = {
 
 export type UseChatOptions = {
     backend?: ChatBackend
+    accountId?: string
     username?: string
 }
 
 const NOTHING_SENT: ReadonlySet<string> = new Set()
 
-export function useChat({backend, username}: UseChatOptions) {
+export function useChat({backend, accountId, username}: UseChatOptions) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [announcements, setAnnouncements] = useState<ChatAnnouncement[]>([])
     const [status, setStatus] = useState<ChatStatus>(backend ? 'loading' : 'unavailable')
@@ -47,6 +48,9 @@ export function useChat({backend, username}: UseChatOptions) {
     const [seenAtLoad, setSeenAtLoad] = useState<SeenAtLoad>()
 
     const displayName = username ?? nameSentUnder(messages, mine)
+    const ownAccount = accountId ?? accountSentUnder(messages, mine)
+    const own = useCallback((message: ChatMessage) =>
+        mine.has(message.id) || (ownAccount !== undefined && message.authorAccountId === ownAccount), [mine, ownAccount])
 
     const named = useRef(displayName)
     named.current = displayName
@@ -149,7 +153,7 @@ export function useChat({backend, username}: UseChatOptions) {
         }
     }, [backend])
 
-    return {messages, announcements, mine, displayName, seenAtLoad, status, failure, mutedUntil, send, react}
+    return {messages, announcements, mine, own, displayName, seenAtLoad, status, failure, mutedUntil, send, react}
 }
 
 function failureOf(e: unknown): ChatSendFailure {

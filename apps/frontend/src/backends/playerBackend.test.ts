@@ -343,10 +343,12 @@ const failingWith = (error: ConnectError) => (): AsyncIterable<PlayerEventPb> =>
 
 describe("ConnectPlayerBackend live roster", () => {
     const entryPb = new RosterEntryPb({
-        key: "k1", name: "ana", countryId: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12, wornTitle: settlerPb,
+        key: "k1", accountId: "account-ana", name: "ana", countryId: "fr", guest: false, admin: true, color: NameColor.PINK,
+        streak: 12, wornTitle: settlerPb,
     })
     const ana = {
-        key: "k1", name: "ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12, wornTitle: settler,
+        key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK,
+        streak: 12, wornTitle: settler,
     }
 
     afterEach(() => vi.useRealTimers())
@@ -426,7 +428,7 @@ describe("ConnectPlayerBackend live roster", () => {
 })
 
 describe("ConnectPlayerBackend player info", () => {
-    it("reads a player by name without a token, and maps it", async () => {
+    it("reads a player by its account id without a token, and maps it", async () => {
         const session = sessionOf("token-1")
         const getPlayer = vi.fn(async () => ({
             player: new PlayerPb({
@@ -442,7 +444,7 @@ describe("ConnectPlayerBackend player info", () => {
             }),
         }))
 
-        expect(await backendWith({getPlayer}, session).playerInfo("ana")).toEqual({
+        expect(await backendWith({getPlayer}, session).playerInfo("account-1")).toEqual({
             name: "Ana", tilesTaken: 1234, streakCurrent: 3, streakBest: 7, createdAt: 1_788_000_000_000, admin: true,
             color: NameColor.VIOLET,
             titles: [{id: "og", name: "OG"}, settler],
@@ -450,22 +452,22 @@ describe("ConnectPlayerBackend player info", () => {
             playsFor: [{countryCode: "fr", tiles: 1200}, {countryCode: "be", tiles: 34}],
             playsAgainst: [{countryCode: "de", tiles: 900}],
         })
-        expect(getPlayer).toHaveBeenCalledWith({name: "ana"})
+        expect(getPlayer).toHaveBeenCalledWith({accountId: "account-1"})
         expect(session.token).not.toHaveBeenCalled()
     })
 
     it("leaves out a creation date the server does not know", async () => {
         const getPlayer = vi.fn(async () => ({player: new PlayerPb({name: "Ana", stats: new StatsPb()})}))
 
-        expect((await backendWith({getPlayer}).playerInfo("Ana"))?.createdAt).toBeUndefined()
+        expect((await backendWith({getPlayer}).playerInfo("account-1"))?.createdAt).toBeUndefined()
     })
 
-    it("answers undefined for a name no player holds", async () => {
-        expect(await backendWith({getPlayer: refusing(Code.NotFound)}).playerInfo("Bob")).toBeUndefined()
+    it("answers undefined for an account with no card", async () => {
+        expect(await backendWith({getPlayer: refusing(Code.NotFound)}).playerInfo("account-2")).toBeUndefined()
     })
 
     it("reports any other failure as it is", async () => {
-        const error = await backendWith({getPlayer: refusing(Code.Internal)}).playerInfo("Ana").catch((e) => e)
+        const error = await backendWith({getPlayer: refusing(Code.Internal)}).playerInfo("account-1").catch((e) => e)
 
         expect(error).toBeInstanceOf(ConnectError)
     })

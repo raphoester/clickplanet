@@ -48,6 +48,7 @@ const headersOf = (call: unknown) =>
 const proto = () => new ChatMessagePb({
     id: "message-1",
     sentAtUnixMs: BigInt(1_700_000_000_000),
+    authorAccountId: "account-ana",
     authorName: "Ana",
     authorAdmin: true,
     authorColor: NameColor.TEAL,
@@ -75,6 +76,7 @@ describe("decodedMessage", () => {
         expect(decodedMessage(proto())).toEqual({
             id: "message-1",
             sentAt: 1_700_000_000_000,
+            authorAccountId: "account-ana",
             authorName: "Ana",
             authorAdmin: true,
             authorColor: NameColor.TEAL,

@@ -22,6 +22,7 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 - `proto/player/v1/player.proto` — a player's name, color, stats, titles and the countries it plays for and against, and who is playing (`PlayerService`); the colors themselves are `NameColor` in `color.proto`, and a title is `Title` in `title.proto`, which `chat.proto` and `seasons.proto` import too
 - `proto/seasons/v1/seasons.proto` — when the current season ends and its finale starts, who leads it, and the countries' daily rounds (`SeasonService`)
 - `proto/support/v1/support.proto` — what a player sends the operator: a feature suggestion, a bug report or a report of another player (`SupportService`)
+- `proto/clips/v1/clips.proto` — what the frontend's clip generator hands the backend's job that posts its clips: the stories worth a clip, and what to post with each one. No service: both are written as JSON files in one workflow run
 
 Beside them, `internal.proto` is what one backend module asks another (`auth.v1`, `player.v1`, `planet.v1`), and `events.proto` is what one tells the others in process (`planet.v1.TileTaken`, `auth.v1.AccountDeleted`). Neither is on the public router; the frontend generates both without using them.
 

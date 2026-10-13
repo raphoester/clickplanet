@@ -4,7 +4,7 @@ import {NameColor} from "../backends/player.ts"
 import {applyRosterEvent, rosterGroups} from "./roster.ts"
 
 const entry = (name: string, guest: boolean, key = name): RosterEntry =>
-    ({key, name, countryCode: "fr", guest, admin: false, color: NameColor.UNSPECIFIED, streak: 0})
+    ({key, accountId: `account-${name}`, name, countryCode: "fr", guest, admin: false, color: NameColor.UNSPECIFIED, streak: 0})
 
 describe("rosterGroups", () => {
     it("puts players with a username in one group and guests in the other", () => {

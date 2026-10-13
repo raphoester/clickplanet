@@ -1,3 +1,4 @@
+import {fakeAccountId} from "./fakeAccounts.ts"
 import {NEWS_FROM_TILES} from "../domain/fortify.ts"
 import {TIKTOK_PROFILE} from "../links.ts"
 import {
@@ -84,6 +85,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             this.publish({
                 id: UUIDv4(),
                 sentAt: Date.now() - (CHATTERS.length - index) * 60_000,
+                authorAccountId: fakeAccountId(chatter.name),
                 authorName: chatter.name,
                 authorAdmin: chatter.admin,
                 authorColor: chatter.color,
@@ -106,6 +108,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             this.publish({
                 id: UUIDv4(),
                 sentAt: Date.now(),
+                authorAccountId: fakeAccountId(chatter.name),
                 authorName: chatter.name,
                 authorAdmin: chatter.admin,
                 authorColor: chatter.color,
@@ -145,6 +148,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         const sent: ChatMessage = {
             id: UUIDv4(),
             sentAt: Date.now(),
+            authorAccountId: fakeAccountId(OWN_GUEST_NAME),
             authorName: OWN_GUEST_NAME,
             authorAdmin: false,
             authorColor: NameColor.UNSPECIFIED,

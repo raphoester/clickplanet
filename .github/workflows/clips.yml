@@ -1,0 +1,163 @@
+name: clips
+
+on:
+  schedule:
+    - cron: '17 0,12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clips
+
+env:
+  CHROME_PATH: /usr/bin/google-chrome
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      # No npm here: the VPS key is in no job that installs the frontend's dependencies.
+      - name: fetch the last 12 hours
+        working-directory: apps/backend
+        env:
+          CLICKPLANET_SSH: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          eval "$(ssh-agent -s)" > /dev/null
+          ssh-add -q - <<< "$VPS_SSH_KEY"
+          install -m 700 -d ~/.ssh
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
+          go run ./cmd/clips fetch -hours 12 -out "$GITHUB_WORKSPACE/replay.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: replay
+          path: replay.json
+          retention-days: 1
+
+  choose:
+    needs: fetch
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      picks: ${{ steps.choose.outputs.picks }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      - run: npm ci
+        working-directory: apps/frontend
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: replay
+          path: apps/frontend
+
+      - name: list the stories worth a clip
+        working-directory: apps/frontend
+        run: npm run clip -- --replay replay.json --shortlist shortlist.json
+
+      - name: choose the clips of the run
+        id: choose
+        working-directory: apps/backend
+        run: |
+          picks=$(go run ./cmd/clips choose -shortlist ../frontend/shortlist.json)
+          echo "picks=$picks" >> "$GITHUB_OUTPUT"
+
+      - if: steps.choose.outputs.picks == '[]'
+        run: echo "No story worth a clip in the last 12 hours." >> "$GITHUB_STEP_SUMMARY"
+
+  render:
+    needs: choose
+    if: needs.choose.outputs.picks != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        pick: ${{ fromJSON(needs.choose.outputs.picks) }}
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: replay
+          path: apps/frontend
+
+      # One recorder: with no GPU each one draws every frame, so a second one adds nothing.
+      - name: render the clip
+        env:
+          PICK: ${{ matrix.pick }}
+        run: npm run clip -- --replay replay.json --pick "$PICK" --recorders 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clip-${{ matrix.pick }}
+          path: |
+            apps/frontend/clip-${{ matrix.pick }}.mp4
+            apps/frontend/clip-${{ matrix.pick }}.json
+          if-no-files-found: error
+          retention-days: 3
+
+  schedule:
+    needs: [ choose, render ]
+    # A clip that failed to render fails the run, and the ones that rendered still go out.
+    if: ${{ !cancelled() && needs.choose.result == 'success' && needs.choose.outputs.picks != '[]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: clip-*
+          path: clips
+          merge-multiple: true
+
+      - name: schedule the clips on TikTok
+        working-directory: apps/backend
+        env:
+          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+        run: go run ./cmd/clips schedule -clips "$GITHUB_WORKSPACE/clips" -summary "$GITHUB_STEP_SUMMARY"

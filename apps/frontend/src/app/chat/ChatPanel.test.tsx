@@ -26,9 +26,12 @@ const france = Countries.get("fr")!
 
 const OWN_GUEST = "guest_c0ffee"
 
+const OWN_ACCOUNT = "account-own"
+
 const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMessage => ({
     id,
     sentAt,
+    authorAccountId: "account-ana",
     authorName: "Ana",
     authorAdmin: false,
     authorColor: NameColor.UNSPECIFIED,
@@ -71,6 +74,7 @@ function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncemen
         sendMessage: vi.fn(async (outgoing) => ({
             id: `sent-${outgoing.text}`,
             sentAt: 1_700_000_100_000,
+            authorAccountId: OWN_ACCOUNT,
             authorName: OWN_GUEST,
             countryCode: outgoing.countryCode,
             text: outgoing.text,
@@ -87,8 +91,8 @@ function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncemen
     }
 }
 
-const setup = (backend?: ChatBackend, username?: string) => ({
-    ...render(<ChatPanel backend={backend} country={france} username={username}/>),
+const setup = (backend?: ChatBackend, username?: string, accountId?: string) => ({
+    ...render(<ChatPanel backend={backend} country={france} username={username} accountId={accountId}/>),
     user: userEvent.setup(),
 })
 
@@ -104,12 +108,16 @@ beforeEach(() => window.localStorage.clear())
 afterEach(cleanup)
 
 describe("ChatPanel sound", () => {
-    const withSound = (backend: ChatBackend, username?: string) => {
+    const withSound = (backend: ChatBackend, username?: string, accountId?: string) => {
         const playSound = vi.fn()
         return {
             playSound,
             user: userEvent.setup(),
-            ...render(<ChatPanel backend={backend} country={france} playSound={playSound} username={username}/>),
+            ...render(<ChatPanel backend={backend}
+                                 country={france}
+                                 playSound={playSound}
+                                 username={username}
+                                 accountId={accountId}/>),
         }
     }
 
@@ -136,29 +144,49 @@ describe("ChatPanel sound", () => {
         expect(playSound).not.toHaveBeenCalled()
     })
 
-    it("stays quiet for a guest's own message whose broadcast comes first, once its name is known", async () => {
+    it("stays quiet for a guest's own message whose broadcast comes first, once its account is known", async () => {
         const {backend, broadcast} = stubBackend()
         const {playSound, user} = withSound(backend)
         await screen.findByText("Nobody has said anything yet. Go on.")
         await send(user, "first")
         await screen.findByText("first")
 
-        broadcast({...message("sent-hello", "hello", 1_700_000_200_000), authorName: OWN_GUEST})
+        broadcast({...message("sent-hello", "hello", 1_700_000_200_000), authorAccountId: OWN_ACCOUNT, authorName: OWN_GUEST})
         await screen.findByText("hello")
         await send(user, "hello")
 
         expect(playSound).not.toHaveBeenCalled()
     })
 
-    it("stays quiet for your own message under your username", async () => {
+    it("stays quiet for your own message sent from another device", async () => {
+        const {backend, broadcast} = stubBackend([message("old", "from before")])
+        const {playSound} = withSound(backend, "ana_1", OWN_ACCOUNT)
+        await screen.findByText("from before")
+
+        broadcast({...message("live", "hello", 1_700_000_050_000), authorAccountId: OWN_ACCOUNT, authorName: "ana_1"})
+        await screen.findByText("hello")
+
+        expect(playSound).not.toHaveBeenCalled()
+    })
+
+    it("pings for another account, even under the name this player holds", async () => {
+        const {backend, broadcast} = stubBackend([message("old", "from before")])
+        const {playSound} = withSound(backend, "ana_1", OWN_ACCOUNT)
+        await screen.findByText("from before")
+
+        broadcast({...message("live", "hello", 1_700_000_050_000), authorAccountId: "account-other", authorName: "ana_1"})
+
+        await waitFor(() => expect(playSound).toHaveBeenCalledWith("chat"))
+    })
+
+    it("pings for a message with no account, even under the name this player holds", async () => {
         const {backend, broadcast} = stubBackend([message("old", "from before")])
         const {playSound} = withSound(backend, "ana_1")
         await screen.findByText("from before")
 
-        broadcast({...message("live", "hello", 1_700_000_050_000), authorName: "ana_1"})
-        await screen.findByText("hello")
+        broadcast({...message("live", "hello", 1_700_000_050_000), authorAccountId: "", authorName: "ana_1"})
 
-        expect(playSound).not.toHaveBeenCalled()
+        await waitFor(() => expect(playSound).toHaveBeenCalledWith("chat"))
     })
 
     it("pings for another guest", async () => {
@@ -666,10 +694,17 @@ describe("ChatPanel's seen mark", () => {
 
         it("does not count what the player said itself on another visit", async () => {
             const {backend} = stubBackend([message("a", "mine, from my phone", T + 1_000)], [], T)
-            setup(backend, "Ana")
+            setup(backend, "Ana", "account-ana")
             await waitFor(() => expect(backend.getHistory).toHaveBeenCalled())
 
             expect(screen.queryByLabelText(/new message/)).toBeNull()
+        })
+
+        it("counts what another account said under the name the player holds", async () => {
+            const {backend} = stubBackend([message("a", "not mine", T + 1_000)], [], T)
+            setup(backend, "Ana", OWN_ACCOUNT)
+
+            expect(await screen.findByLabelText("1 new message")).toBeDefined()
         })
 
         it("counts nothing on a first visit, and keeps a mark for the next one", async () => {
@@ -1118,8 +1153,8 @@ describe("ChatPanel on a desktop", () => {
 
 describe("ChatPanel's players", () => {
     const players = [
-        {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
-        {key: "k2", name: "guest_b0b0b0", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+        {key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+        {key: "k2", accountId: "account-b0b", name: "guest_b0b0b0", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
     ]
 
     it("shows who is online beside the chat, and goes back to it", async () => {

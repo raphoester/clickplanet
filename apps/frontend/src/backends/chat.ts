@@ -15,6 +15,7 @@ export function countRunes(value: string): number {
 export type ChatMessage = {
     id: string
     sentAt: number
+    authorAccountId: string
     authorName: string
     authorAdmin: boolean
     authorColor: NameColor

@@ -2,7 +2,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {PlayerReport, SupportReportedAlreadyError, SupportUnknownPlayerError} from "../../backends/support.ts"
+import {PlayerReport, SupportRejectedError, SupportReportedAlreadyError} from "../../backends/support.ts"
 import ReportPlayerModal from "./ReportPlayerModal.tsx"
 
 afterEach(() => {
@@ -12,7 +12,8 @@ afterEach(() => {
 
 function setup(reportPlayer: (report: PlayerReport) => Promise<void> = vi.fn(async () => undefined), messageId?: string) {
     const onClose = vi.fn()
-    render(<ReportPlayerModal name="guest_a1b2c3" messageId={messageId} reporter={{reportPlayer}} onClose={onClose}/>)
+    render(<ReportPlayerModal accountId="account-1" name="guest_a1b2c3" messageId={messageId} reporter={{reportPlayer}}
+                              onClose={onClose}/>)
     return {reportPlayer, onClose, user: userEvent.setup()}
 }
 
@@ -38,7 +39,7 @@ describe("ReportPlayerModal", () => {
         expect(reason("Cheating or a bot").getAttribute("aria-checked")).toBe("true")
         await user.click(send())
 
-        expect(reportPlayer).toHaveBeenCalledWith({name: "guest_a1b2c3", reason: "cheating", text: "", messageId: undefined})
+        expect(reportPlayer).toHaveBeenCalledWith({accountId: "account-1", reason: "cheating", text: "", messageId: undefined})
         expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
     })
 
@@ -51,11 +52,11 @@ describe("ReportPlayerModal", () => {
         await user.click(send())
 
         expect(reportPlayer).toHaveBeenCalledWith(
-            {name: "guest_a1b2c3", reason: "chat-abuse", text: "it insults everyone", messageId: "message-1"})
+            {accountId: "account-1", reason: "chat-abuse", text: "it insults everyone", messageId: "message-1"})
     })
 
     it.each([
-        [new SupportUnknownPlayerError(), "No player holds this name now."],
+        [new SupportRejectedError(), "That was refused."],
         [new SupportReportedAlreadyError(), "You already reported this player today."],
     ])("says why %s refused it, and keeps the form", async (refusal, notice) => {
         const {user} = setup(vi.fn(async () => {

@@ -45,8 +45,17 @@ make vpn-lists
 # Refresh the vendored disposable email domains from upstream, then commit them
 make disposable-domains
 
+# Refresh the vendored Zernio OpenAPI document from upstream, then regenerate the client from it; commit both
+make zernio-spec
+make zernio
+
 # Build Docker image
 make dBuild
+
+# The clips job, as the clips workflow runs it (see "The clips job")
+go run ./cmd/clips fetch -ssh <user@host> -out ../frontend/replay.json
+go run ./cmd/clips choose -shortlist ../frontend/shortlist.json
+ZERNIO_API_KEY=... go run ./cmd/clips schedule -clips ../frontend/clips
 ```
 
 ## Architecture
@@ -64,7 +73,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 They share the process, the transport and the country list, and **nothing else**. None imports another; each owns its own domain types, its own proto package, its own storage adapter (where it has one) and its own edge.
 
-**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Five do: `planet`, `player`, `chat`, `seasons` and `support` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, `seasons` asks `player` who has a username and `planet` what each country holds, and `support` asks `player` whose name a report is about. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, `planet`, `chat` and `support` hear `AccountDeleted` too, and `chat` hears `RoundClosed`.
+**A module never calls another module's code or reads its data in its own stack trace.** When one needs an answer from another it asks over Connect, on a loopback listener — see [Calling another module](#calling-another-module). Five do: `planet`, `player`, `chat`, `seasons` and `support` take the click token's verifying key from `auth`, `player` asks `auth` whether an account is linked and `planet` which countries an account took tiles for and from, `chat` asks `player` who posts: the username, or the guest code, `seasons` asks `player` who has a username and `planet` what each country holds, and `support` asks `player` how to name the accounts of a report. When one only has to say that something happened, it publishes an event in process and never learns who listens — see [Telling other modules what happened](#telling-other-modules-what-happened). `planet` publishes `TileTaken`, `auth` publishes `AccountDeleted`, `SignedIn` and `SignedOut`, `chat` publishes `MessageSent` and `AccountMuted`, `player` publishes `StatsChanged`, and `seasons` publishes `RoundClosed`; `player` hears all six but `AccountMuted`, which `chat` hears itself, `seasons` hears `TileTaken` and `AccountDeleted`, `planet`, `chat` and `support` hear `AccountDeleted` too, and `chat` hears `RoundClosed`.
 
 Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
 is click allowance, and what carries them is the planet stream. A context of
@@ -76,6 +85,10 @@ composing it — the clicks edge does, the way it gates on `auth`. It is not a
 shared package because "is this caller a bot" is the business this game is in,
 while `shared` is for things that would read the same in any other program.
 `planet` → `antibot` is the only module-to-module import in the backend.
+
+**`internal/clips/` is not a context of the server either: it is a job, with a binary of its own** (`cmd/clips`).
+It shares no process, no config and no data with the six, and imports only `shared`. See [The clips
+job](#the-clips-job-internalclips-cmdclips).
 
 #### A module publishes its root package and hides the rest
 
@@ -98,6 +111,7 @@ root package**:
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
+| `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Pick`, `Report` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
@@ -147,6 +161,54 @@ class OutputPipe {
 
 The auth module follows this. Code outside it has not been checked against the rule yet: fix a name when you touch the code, not in a sweep.
 
+### A command's `run` is a table of contents
+
+**Every CLI tool splits its `main` into named stages with one job each.** The top-level `run` names the stages and wires them together, and does nothing else:
+
+```go
+// Good
+func run(ctx context.Context, logger *slog.Logger) error {
+    flags, err := parseFlags()
+    if err != nil {
+        return err
+    }
+    results, err := doWork(ctx, flags, ...)
+    if err != nil {
+        return err
+    }
+    ok := displayResults(results)
+    if !ok {
+        return fmt.Errorf("one or more checks failed")
+    }
+    return nil
+}
+
+// Bad: one run that parses, executes and prints inline
+func run(logger *slog.Logger) error {
+    servicePath := flag.String(...)
+    flag.Parse()
+    // ... business logic ...
+    // ... printing ...
+    anyFailed := false
+    // ...
+}
+```
+
+- **`parseFlags` returns a typed config struct** (`FlagsConfig`). A raw `*string` flag value is never an argument of a function downstream.
+- **A work function returns values.** It does not write into a variable of an outer scope. The body of a goroutine is ideally one assignment: `results[i] = doOneUnit(...)`.
+- **A display function returns a `bool`, or a status.** It owns the output, not the propagation of errors: the caller decides what to do with what it answers.
+- **A signature is honest**: a function that can fail returns an `error`, and one that cannot does not.
+- **Package `main` stays thin: `main`, `run`, and nothing that does the work of a stage.** The stages live in packages of their own. A parser or a table that sits in `main` beside `run` is the monolith again, in three files.
+- **A dispatch names every value it acts on, and anything else is an error.** No `default:` that runs a command: a value nobody expected then does the last thing in the list, and here that is posting.
+
+**`cmd/clips` follows it** (see [The clips job](#the-clips-job-internalclips-cmdclips)): `flags.Parse` in `cmd/clips/internal/flags`, the work in `internal/clips/job.go`, `display.Picks` and `display.Report` in `cmd/clips/internal/display`. `main.go` is `main`, `run`, the dispatch and one short function per command. What it settled:
+
+- **With subcommands, `run` parses, then picks the command**, and each command is its own short list of stages: work, then display. The dispatch has a `case` per command and fails on any other (`errUnknownCommand`), though the parser already refused it.
+- **The parser and the display are the tool's own, under `cmd/clips/internal/`**: Go keeps them out of reach of everything but this command, and they import the module, never the reverse.
+- **A display that writes can fail**, so it answers an `error` beside its `bool`: `display.Report(summaryFile, out, report) (bool, error)`. The `bool` is still what the report says (every clip is scheduled), and the `error` only that the summary could not be written.
+
+`cmd/api` is a server, not a tool: its `run` loads the config and hands the modules to `cpbootstrap`.
+
 ### The composite layer
 
 Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`, `internal/player/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
@@ -167,7 +229,7 @@ A module never sees the router, the signal handler or another module's objects. 
 
 **Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger and the antibot's evidence all flush from their runners, after the closers, once the server has stopped taking writes.
 
-**`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules. It builds no objects, derives nothing, and reads inside no block.
+**`cmd/api/main.go` is the composition root, and the server's only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules. It builds no objects, derives nothing, and reads inside no block.
 
 **The aggregation is the whole of it — a flat slice, no branches, no dependencies threaded through:**
 
@@ -210,7 +272,7 @@ return []bootstrap.Module{
 | `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
 | `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute) | `rounds/rpc_planet_territories` |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
-| `support` | `player.v1.InternalService/FindAccount` | the account the game shows under a name, on each `ReportPlayer` | `reports/rpc_player_accounts` |
+| `support` | `player.v1.InternalService/GetAuthors` | the name of both accounts of each report of a page, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of each account a page of reports names, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts` and on each `GetPlayer` the cache does not answer | `playerv1controller/rpc_planet_fronts` |
 
@@ -264,7 +326,7 @@ The events today:
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
-**`cmd/api`** is the only binary: `main.go` is the composition root, about 85 lines of config and a module list, and `cpbootstrap` is the rest.
+**`cmd/api`** is the server, and the only binary the image holds: `main.go` is the composition root, about 85 lines of config and a module list, and `cpbootstrap` is the rest. **`cmd/clips`** is the other binary, a job a workflow runs with `go run` — see [The clips job](#the-clips-job-internalclips-cmdclips).
 
 It runs as **one container beside a postgres**: the tile map lives in process, and postgres is where it is kept between boots — see [Durability](#durability). There is no cache and no second API process.
 
@@ -466,7 +528,7 @@ internal/chat/internal/
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `FindAccount`, `GetRoster`), planet
+(`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
 (`GetTakesByCountry`, `GetTerritories`), auth
 (`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
@@ -802,6 +864,8 @@ Chat is a separate bounded context, not a feature of the tile game: it shares th
 **Identity: a username, or a guest code, and always an account.** `SendMessage` reads the click token (`chatv1controller.NewSessionInterceptor`, over `cpconnect.NewSessionReaderInterceptor`, on the key `auth` hands over the internal listener). **A sender with no token, a bad one or a token with no account is refused** with `Unauthenticated` (`messages.ErrNoAccount`) before anything is asked. Every browser that passed Turnstile has an account, a guest one until it signs in, so the web client mints for a post as it does for a click. **The name is the player module's**, asked of `player.v1.InternalService/GetAuthor` on every post: the account's username, or `guest_` and the account's guest code (see [Player](#player-internalplayer)). Nobody types a guest's name, so no guest can pass for a player or for another guest. **A post the player module could not answer for is refused** with `Unavailable` (`messages.ErrAuthorUnavailable`): no answer within a second, or an error. `log_authors`, a decorator around the adapter, logs it at Error. Messages sent before usernames existed got the prefix from migration `20260917200000_guest_prefix_backfill`, and messages sent before guest codes keep the name a guest typed then, until the retention drops them.
 
 **A message is kept as an account, not as a copy of a name.** `chat.messages.account_id` is who sent it; the name, the crown, the color, the streak and the title worn are read from the player module when the message is *shown*, never stored beside it. That is what makes a rename show on everything its player ever said, and a deleted account stop being named at all — a frozen copy could do neither, and the copy outliving the account it named was a small privacy hole of its own.
+
+**The wire says whose a message is**: `ChatMessage.author_account_id`, on the post's answer, on the stream and in the history. It is empty for a message kept before accounts and for an account that was deleted: nobody is there to open a card of, or to report. A client that has to say which player it means (`ReportPlayer`) sends this id, never the name.
 
 - **The history names a whole window in one ask.** `history_query` collects the distinct accounts of the rows it read and asks `player.v1.InternalService/GetAuthors` once, however many messages each of them sent. An account that says fifty things costs one lookup, not fifty. **A history nobody could be named in is refused** rather than shown anonymous.
 - **`SendMessage` still asks `GetAuthor` for one**, because what it publishes has to go out named: everyone already watching is shown who is talking without a second read. That call is also the one that gives a guest its code, which is why the read path uses `GetAuthors` instead — it draws no code, so showing the chat never writes.
@@ -1291,18 +1355,17 @@ internal/player/internal/
     usecases/announce_usecase/  listen_for_events_usecase/  move_visit_usecase/  forget_visit_usecase/
   playerv1controller/               PlayerService and InternalService (bags), the session interceptor
     get_profile_handler/  set_name_handler/  set_color_handler/  get_stats_handler/  get_author_handler/  get_player_handler/
-    get_authors_handler/  get_titles_handler/  wear_title_handler/  get_fronts_handler/  find_account_handler/
+    get_authors_handler/  get_titles_handler/  wear_title_handler/  get_fronts_handler/
     announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
     get_profile_handler/profile_query/  get_stats_handler/stats_query/  get_player_handler/player_query/
     get_titles_handler/titles_query/  get_authors_handler/authors_query/   PostgresQuery: the response straight from SQL
-    find_account_handler/account_query/   PostgresQuery: the account shown under a name
     get_roster_handler/roster_query/    MemoryQuery: the roster, from its Lines port
       inmemory_roster/              Lines from the visits in memory (presence.RosterOf)
     inprocess_title_catalog/        the Titles port of three queries: shown, worn and each track, from titles.Catalog
     rpc_planet_fronts/              the countries played for and against, from planet.v1.InternalService/GetTakesByCountry:
                                     GetFronts' port, and GetPlayer's through caching_fronts/
       caching_fronts/               one answer per account for 30s
-    playerread/                     what the queries share and that knows only the wire: KeptColor, Career, FoldedName
+    playerread/                     what the queries share and that knows only the wire: KeptColor, Career
     caller/                         the account on the context, or Unauthenticated
     playermessage/                  Profile, Title and the roster lines as player.v1 messages, for the commands and the adapters
   subscribers/                      the edge for events, as the controller is for the wire
@@ -1321,7 +1384,7 @@ internal/player/internal/
   - **One script** (`oneScript`): the letters' scripts, Common and Inherited left out, are one, or a mix UTS #39 calls *highly restrictive* — Latin with Han, Hiragana and Katakana; with Han and Bopomofo; or with Han and Hangul. So `Adа` (Cyrillic `а`) and `guеst_x` are refused.
   - **Not starting with `guest_` once folded** (`Name.Folded`), which the chat puts before every guest's name. Folded, so `ＧＵＥＳＴ_x` and `gueſt_x` are refused too.
 
-  A name that breaks a rule is `InvalidArgument` (`ErrInvalidName`). The name keeps the case it was typed in. `GetPlayer` runs the same rule on the name it is asked for, so `" Ada "` finds `Ada`.
+  A name that breaks a rule is `InvalidArgument` (`ErrInvalidName`). The name keeps the case it was typed in. `GetPlayer`'s deprecated lookup by name (below) runs the same rule on the name it is asked for, so `" Ada "` finds `Ada`.
 - **`SetColor` picks the color a username is drawn in**, from `player.v1.NameColor`: the proto enum is the list,
   as `chat.v1.Reaction` is for reactions, and the number is what is stored, so a value is never renumbered or
   reused. `playermessage.ColorOf` refuses a number the proto does not name (`InvalidArgument`, `ErrInvalidColor`);
@@ -1341,10 +1404,9 @@ internal/player/internal/
 - **A guest code names an account that chose no username**: 6 lowercase hex characters (`players.GuestCode`), shown as `guest_` and the code (`players.DisplayNameOf`). It is drawn by `random_code_generator` the first time the account is shown (`players.GuestCodes.Assign`), kept in `player.guest_codes`, and deleted with the account, which frees it. **It is unique**: the table's `guest_codes_code_key` refuses a code another account holds, the store answers `ErrGuestCodeTaken`, and `Assign` draws again, up to 10 times (`ErrNoFreeGuestCode`). An account keeps its first code: a second save for it changes nothing, so two first announces at once leave one code. **It does not change with the network**, unlike the address, and says nothing about the account or the address. A linked account with no username keeps the code it had as a guest until it picks a name.
 - **`InternalService/GetAuthor(account_id)`** is for the chat: the name the game shows for the account (`players.AuthorOf`: the username, or `guest_` and the code), `admin`, `color`, `streak`, the current streak as of today in UTC, and `worn_title` (`Author.Shown`, over the rule of `Stats.AsOf`, which `Streak.AsOf` now holds). **A guest shows no streak and wears no title**: `Author.Shown` answers 0 for an account with no username, as the crown is only ever a username's, and `wearing.AuthorOf` drops the title, which `get_author_usecase` then does not read. Its stats still count, and show once it picks a name. **`get_author_usecase` gives a guest its code the first time it is asked** (`Assign`, then read again), and the roster's announce and move use the same use case, so the chat and the roster always show one name for one account. An empty id, or one that is not an account, is `InvalidArgument`: the chat refuses a sender with no account before asking.
 - **`InternalService/GetAuthors(account_ids)`** is the same question about a page of accounts, for a caller showing many people at once — the chat naming a whole history, the seasons ranking a page of players. Each author also says `guest` for an account with no username, which the standings never rank. **It is a pure read**: unlike `GetAuthor` it draws nobody a guest code, so a read path never writes. That is the whole reason the two exist side by side; `GetAuthor` belongs where somebody is about to be *made* visible, `GetAuthors` where somebody is merely being shown. One statement (`authors_query`: an `unnest` of the ids left-joined onto `profiles`, `guest_codes`, `stats` and `worn_titles`, with each account's titles held) answers the page, in the order asked; the SQL names a guest `guest_` and its code and shows it no streak and no title, as `GetAuthor` does, reads each streak as of today, and the catalog adapter answers the title worn; a repeated id is answered once, and **an account it cannot name — never shown, or deleted — is left out** rather than failing the call, so the caller decides what stands in its place. An id that is not an account is still `InvalidArgument`: a caller holding one has a bug.
-- **`InternalService/FindAccount(name)`** is `GetAuthors` backwards, for the support module: the account the game shows under a name. A username is found ignoring case, through `playerread.FoldedName` on the unique index on `name_folded`, as `GetPlayer` finds it. A guest's name is `guest_` and its code, exactly as shown, read from `player.guest_codes`. **An account that took a username is still found under its guest name**: its code row stays, and a card opened before the rename still names the same person. A name no account is shown under is `NotFound` (`account_query.ErrNoAccount`). It is a pure read, `NO_SIDE_EFFECTS`, answered `no-store`. **It is on the internal listener only**: the public wire never answers an account id for a name. A parity test (`account_query`) names accounts with `authors_query` and asks for each name back.
 - **The tag is private.** `players.TagOf` (SHA-256 of `player.tagSalt`, a NUL and the address, cut to 6 hex characters) is kept on a roster visit so the storage can cap the visits of one address, and never leaves the server.
 - **Who is playing is `presence`, in memory only.** A client calls **`Announce(country_id)`** with its click token when it gets one, when its flag or name changes, and every 30s. A visit counts for `presence.TTL` (90s), so a hidden tab whose timers fire once a minute stays on; the prune runs every 5s. A restart empties it, and clients fill it again within one interval. **`Leave`** takes the caller off at once: a client sends it with `keepalive` when its page closes. **`GetRoster`** needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=5`; it stays for clients from before the stream.
-  - **`ListenForEvents` is the roster, live.** It needs no token. With one, the same stream also carries the titles its account earns (see the titles below). The first event is the whole roster (`roster`, in `GetRoster`'s order); each one after is a line that joined or changed (`entry`), or the key of one that left (`left`); `heartbeat` every `httpServer.streamHeartbeat`. **A line's `key` is the storage's**: a counter handed to an account's first visit, kept by every later announce, `Move` and `Rename`, so a sign-in renames one line rather than adding one. It says nothing about the account. `Storage.Subscribe` answers the roster and registers the subscriber under one lock, so nothing is lost between the two, and every change is published under that lock, in order. An announce that changes nothing on the line (name, flag, guest, admin, color, streak, title) publishes nothing, unless the visit had gone stale. **A subscriber `SubscriberBuffer` (256) changes behind is closed, not skipped**: a skipped change would leave its roster wrong for good, and the stream ends, reconnects and starts from a whole roster.
+  - **`ListenForEvents` is the roster, live.** It needs no token. With one, the same stream also carries the titles its account earns (see the titles below). The first event is the whole roster (`roster`, in `GetRoster`'s order); each one after is a line that joined or changed (`entry`), or the key of one that left (`left`); `heartbeat` every `httpServer.streamHeartbeat`. **A line's `key` is the storage's**: a counter handed to an account's first visit, kept by every later announce, `Move` and `Rename`, so a sign-in renames one line rather than adding one. It says nothing about the account; **the line's `account_id` does**, so a client can say which player it means with an id and never with a name. `Storage.Subscribe` answers the roster and registers the subscriber under one lock, so nothing is lost between the two, and every change is published under that lock, in order. An announce that changes nothing on the line (name, flag, guest, admin, color, streak, title) publishes nothing, unless the visit had gone stale. **A subscriber `SubscriberBuffer` (256) changes behind is closed, not skipped**: a skipped change would leave its roster wrong for good, and the stream ends, reconnects and starts from a whole roster.
   - **One entry per account**, so the tabs of one browser and the devices of one signed-in player are one line. A visitor who never got a click token is not listed: announcing must not cost a Turnstile mint.
   - **Named as the chat names a sender**, by the same use case (`get_author_usecase`): the username, or `guest_` and the guest code, with its color, its streak and the title it wears. All four are read on every announce, so a streak extended today shows within 30s. **`WearTitle` shows the new title at once** (`dressing_wear_title`, `Storage.Wear`), as `SetName` does a name. **No address, and no hash of one, is on a line.**
   - **Sorted**: players with a username first, then guests; each group by name ignoring case, then by key.
@@ -1359,11 +1421,14 @@ internal/player/internal/
   ssh deploy@YOUR_IP
   cd /opt/clickplanet/deploy/vps
   docker compose exec postgres psql -U clickplanet -c \
-    "UPDATE player.profiles SET admin = true WHERE name = 'TheUsername'"
+    "SELECT account_id, name FROM player.profiles WHERE name = 'TheUsername'"
+  docker compose exec postgres psql -U clickplanet -c \
+    "UPDATE player.profiles SET admin = true WHERE account_id = '<account_id>'"
   ```
 
-  An account with no username has no profile row, so it cannot be one: pick the name first.
-- **`GetPlayer(name)` is what anybody may know about a player with a username**: the name as typed, its color, the stats as of today, the countries it plays for and against (see the fronts below), and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **It never answers the account id.** The name is found ignoring case (`player_query`, on the unique index on `name_folded`). A name no account holds is `NotFound` (`player_query.ErrNoPlayer`), and so is one no account may hold, a guest's included: it is folded and looked up like any other, and finds nobody. A guest has no username, so it has no answer here: the client shows its name and flag only. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which now also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
+  **Two steps, and the write names the account.** A name is a handle: a rename frees it, and another account can take it between the moment you read it and the moment you write. So read the id, check it is the player you mean, and act on the id. An account with no username has no profile row, so it cannot be one: pick the name first.
+- **`GetPlayer(account_id)` is what anybody may know about a player with a username**: the name it holds now, its color, the stats as of today, the countries it plays for and against (see the fronts below), and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **The account id is the only thing that names a player**: a chat message, a roster line and a standing each carry it, so a card opened from one is the card of that account, whatever it is called now. A name cannot do that: a rename frees it, and the next account to take it would get the first one's card. **It never answers the account id**: the caller holds it. An id that is not an account is `InvalidArgument` (`players.AccountIDOf`). An account with no profile row is `NotFound` (`player_query.ErrNoPlayer`): one that never existed, a deleted one, **and a guest**. A guest has an id now, and still no card: it shows no streak and wears no title anywhere else, and the card is what a username gives. The client shows a guest's name and flag only, and does not ask. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which now also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
+  - **`GetPlayerRequest.name` is deprecated, and still read when `account_id` is empty**, for a page loaded before the client sent an id: it sends a name and nothing else. `PlayerNamed` finds the name ignoring case, on the unique index on `name_folded`; a name no account holds is `NotFound`, and so is one no account may hold, a guest's included. The web client sends the account id and never the name. **It goes once this backend and this frontend are both deployed**: the field becomes `reserved`, and `PlayerNamed`, `folded`, the fold's parity test and the e2e test for it go with it. A request with neither is `InvalidArgument`.
 - **A title is an object, not a row of thresholds.** **Titles are a concept of their own** (`titles/`), beside `players` and `presence`, with their own `Store` port, contract suite and adapters. `titles` imports `players` (an account, its `Stats`), never the other way, so a player's stats know nothing of titles: `player_query` puts the two together, as chat's history query puts a message and its author together. Each title is its own type implementing `titles.Title`: `ID()` (what the store keeps), `Name()` (what the card shows) and `EarnedBy(career)`, which is free to hold any rule. A `titles.Career` is the account's `Stats` and its `players.Account`: whether it is `Linked` and its `CreatedAt`, as auth says (a guest with no date when auth does not know it). **A guest earns no title**: `Catalog.EarnedBy` answers nothing for a career whose account is not linked, whatever the titles say, so neither the worker nor the reconciliation writes a row for one. A guest has no username, so nobody could see its titles anyway; once it signs in, its next take earns them on its whole career, OG included. `catalog_test.go` pins each threshold, and that each id is unique and fits the table's `CHECK`. A rule that needs more than a `Career` holds widens `Career`, and whoever builds one.
   - **Most titles are ranks on a track.** A `titles.Track` is an id, a name, its ranks in order, and `Progress(career)`, the number its ranks are measured on; a `titles.Rank` is a title with a `Threshold()`. `Conquest` is `Settler`, `Raider`, `Warlord`, `Conqueror` and `Warmaster` (100, 1,000, 10,000, 100,000 and 1,000,000 tiles taken; its progress is the tiles taken). `Devotion` is `Loyal`, `Devoted` and `Unbroken` (a best streak of 7, 30 and 100 days, so a broken streak keeps its rank; its progress is the streak now). `Chatter` is `Talker`, `Chatterbox`, `Socialite` and `Icon` (10, 30, 100 and 1,000 messages sent; its progress is the messages sent). `OG` stands alone: an account made before 2026-11-01 UTC (a zero date is not). `titles.NewCatalog()` is the standalone titles and the tracks, in the order they are shown. **A new rank is a type added to its track**, a new track a type listed in the catalog: no migration, no proto change. `Conquest`'s names are army words, and a rank past `Warmaster` keeps to them (`Grand Warmaster`, then `Supreme Warmaster`); `Chatter`'s are social words. The client draws a medal per id and the initial for an id it does not know, so a new title shows before the client has its art.
   - **Only the highest rank of each track is shown.** `Catalog.Shown(held)` is the standalone titles held, then the highest rank held of each track, each as a `Standing`: the title and its `Place` (track, rank number, how many ranks). A lower rank stays held, so a stricter rule or a reconciliation never has to give one back.
@@ -1408,7 +1473,7 @@ internal/player/internal/
 
 ### Support (`internal/support/`)
 
-**What a player sends the operator.** Today that is a feature suggestion, a bug report, or a report of another player. Always on. It publishes nothing. It asks `auth` for the click token's key, and `player` whose name a report is about.
+**What a player sends the operator.** Today that is a feature suggestion, a bug report, or a report of another player. Always on. It publishes nothing. It asks `auth` for the click token's key, and `player` how to name the accounts of a report when the operator reads it.
 
 ```
 internal/support/internal/
@@ -1425,14 +1490,12 @@ internal/support/internal/
                                         Runner, which runs each prune — Notes
       log_prune/                        logs how many a prune went through
   reports/                          Report (NewReport, Forgotten, TakeSnapshot), Snapshot (Restore), Complaint, ReportID, Reason,
-                                    ShownName (ShownNameOf), MessageID; the Storage and IDProvider ports, the StorageContractSuite
+                                    MessageID; the Storage and IDProvider ports, the StorageContractSuite
                                     and SequentialIDs
     postgres_report_store/          Storage, over support.reports
     inmemory_report_storage/        Storage in a slice of snapshots, with Seed and Kept for a test — behind the testing tag, tests only
     uuid_id_provider/               IDProvider: a UUIDv7 per report
-    rpc_player_accounts/            the account shown under a name, from player.v1.InternalService/FindAccount
-    usecases/report_player_usecase/     finds the account, reads what was filed, draws an id, builds the report, keeps it —
-                                        Accounts, IDProvider, Reports
+    usecases/report_player_usecase/     reads what was filed, draws an id, builds the report, keeps it — IDProvider, Reports
     usecases/forget_reports_usecase/    reads the reports that name an account, forgets them, saves — Reports
     usecases/prune_reports_usecase/     reads the reports past retention, forgets them, saves — Reports
   supportv1controller/              SupportService and AdminService (bags), the interceptors
@@ -1468,19 +1531,19 @@ internal/support/internal/
 
 **A report is a concept of its own** (`reports/`), not a third kind of note: it names a second account, it has a reason, and it can be abused. `reports` imports `notes` (the account, the rule on a text), never the other way.
 
-- **`ReportPlayer(name, reason, text, message_id)`**. The client names the player by **the name the game shows**: a username, or `guest_` and a guest code. It holds nothing else: no account id is on the public wire. `rpc_player_accounts` asks `player.v1.InternalService/FindAccount` for the account (2s timeout). A name nobody is shown under is `NotFound` (`ErrNoPlayer`); a failure to ask is the error net's `internal`, never "no player".
+- **`ReportPlayer(account_id, reason, text, message_id)`**. **A report names the account, never a name.** A name is unique at one instant, but a rename frees it and another account can take it, so a report by name could land on the wrong player. The client holds the id: it is on each line a card opens from (`ChatMessage.author_account_id`, `RosterEntry.account_id`, `Standing.account_id`). The handler parses it (`notes.AccountIDOf`); what is not an account id is `InvalidArgument`. **Nothing checks that the account exists**: the module does not know which accounts do, and a report of nobody is a row the operator reads with no name. `TestAReportFollowsThePlayerWhoRenamedAndNotWhoeverTookTheName` pins the reason.
 - **A report is kept as two accounts, not as a copy of a name**, as a chat message is. So a rename does not lose who was reported, and `ListReports` names both as the game shows them when it is read.
 - **A report has no getter either: it has a snapshot**, as a note does. `reports.Snapshot` mirrors its fields; `Report.TakeSnapshot()` hands them to a store; **`Snapshot.Restore()` is the one place the rules of one report are checked**, and `NewReport` is a snapshot restored, then checked against the reports before it.
 - **Its storage finds and saves**, as a note's does. `reports.Storage` is three finders (`FiledBy` a reporter about a player, `Naming` an account, `FiledBefore` a time) and one `Save` that upserts what it is handed. A finder restores each row it reads.
 - **A report is forgotten, where a note is anonymized.** `Report.Forgotten()` marks it, and `Save` removes the row of a forgotten report: nothing of it is kept. A report names two accounts and its text is about the second one, so blanking an account would leave a text about a player. This is where the two stores differ: a note's store deletes nothing.
 - **What the reporter says is `reports.Complaint`**: plain data, a part of the snapshot, which the handler fills from the request. `Restore` checks it: the reason is one of `cheating`, `chat_abuse`, `bad_name` and `other` (`ErrUnknownReason`; the proto's `ReportReason` is the list, and the handler maps it); the text is optional, and a text given follows `notes.TextOf`; the message id is the chat's, cut of control characters, and dropped past 64 characters. **The message id is not checked against the chat**: it is a pointer for the operator, who reads the message there.
-- **The use case only orders five steps**: the name (`ShownNameOf` refuses an empty one and one past 32 characters before anybody is asked), the ask to `player`, the read of what the reporter already filed about that player, the id, then `NewReport` and the save. **A complaint is checked when the report is built, after the ask**: a report's rules live in `Restore` alone, so a bad reason costs one loopback read before it is refused. The service's limiter bounds that.
+- **The use case only orders four steps**: the read of what the reporter already filed about that account, the id, then `NewReport` and the save. A report's rules live in `Restore` alone, the complaint's included.
 - **No report of oneself** (`ErrOwnAccount`, `InvalidArgument`): `Restore` refuses it, so no report of oneself exists to be kept.
 - **One account reports one player once a UTC day** (`ErrReportedAlready`, `AlreadyExists`), **and `NewReport` is where that is decided**: the use case hands it what the reporter already filed about the player (`FiledBy`), and a report of the same day among them refuses the new one. **The database holds no part of the rule**: no day column, no unique constraint, and a storage keeps two reports of one day if it is handed them. So two reports sent at the very same moment can both be kept. That is accepted: a report does nothing by itself, and the service's limiter lets an address send three.
 - **A report does nothing by itself, and nothing counts reports.** No mute, no ban, no score. A guest account is free to make and countries are rivals here, so a threshold would be a weapon. The operator reads a report, then uses the tools it already has.
 - **Kept in `support.reports`** (`id`, `reporter_account_id`, `reported_account_id`, `reason`, `text`, `message_id`, `created_at`; migration `20261012110000_reports`), with no address. **`reason` is a postgres enum type, `report_reason`**, as a note's kind is: a new reason is a value a migration adds to the type.
 - **`AdminService/ListReports(since, limit)`**, as `ListNotes`: newest first, 100 unless asked, 500 at most. `reports_query` reads the rows, then asks `GetAuthors` once for everyone they name, reporters and reported together. An account nobody can name any more has an empty name. **Reports nobody could be named in are refused**, as a chat history is. A stored reason the wire cannot carry refuses the read (`ErrUnknownReason`: a reason a newer migration added to the type, read by an older build). `reported_account_id` is what `InspectPlayer`, `BanPlayer` and `Mute` take.
-- With no internal listener the boot is refused: the module dials it once, at build, for `player`.
+- With no internal listener the boot is refused: the module dials it once, at build, for `player`, which names the accounts in `ListReports`.
 - `reports.StorageContractSuite` runs on `inmemory_report_storage` and on postgres, through the same `Kept` hook of snapshots.
 
 ### Seasons (`internal/seasons/`)
@@ -1538,7 +1601,7 @@ internal/seasons/internal/
 - **`auth.v1.AccountDeleted`** (`seasons-standings-accounts`) deletes the account's rows in every season.
 - **The reads are queries** (see [Reads are queries](#reads-are-queries)): the write model is `Take`, `Tally` and a `Store` that only records and deletes. Each query reads `seasons.contributions` itself and asks `GetAuthors` through its own `rpc_player_authors`. The module dials the internal listener once, at build, and both adapters share that one `player.v1` client; with no internal listener the boot is refused.
 - **Only a signed-in player is ranked**: every one has a username (see [Player](#player-internalplayer)), and a guest has none. SQL cannot tell them apart, so a query reads the rows and Go skips what `GetAuthors` answers as a guest, or does not answer at all. A tie shares the rank (1, 1, 3).
-- **`GetStandings(country_id)`** (`standings_query`) is the current season's top 10 (`standings_query.Shown`): of every player by its main flag's tiles, or of every player who took tiles for `country_id` by those tiles. Each is rank, name, color, worn title, the flag its tiles are for (the main flag, or `country_id`) and tiles. It needs no token, is a GET (`NO_SIDE_EFFECTS`) and answers `public, max-age=15`. The rows (the main rows, or the country's) come best first, then by account id, 200 at a time from a keyset on `(tiles, account_id)`, with one `GetAuthors` a page, until 10 are named. A country that is not one is `InvalidArgument` (`standings_query.ErrUnknownCountry`); no season is an empty answer. The web client no longer calls it: it stays for clients from before the stream.
+- **`GetStandings(country_id)`** (`standings_query`) is the current season's top 10 (`standings_query.Shown`): of every player by its main flag's tiles, or of every player who took tiles for `country_id` by those tiles. Each is rank, account id, name, color, worn title, the flag its tiles are for (the main flag, or `country_id`) and tiles. It needs no token, is a GET (`NO_SIDE_EFFECTS`) and answers `public, max-age=15`. The rows (the main rows, or the country's) come best first, then by account id, 200 at a time from a keyset on `(tiles, account_id)`, with one `GetAuthors` a page, until 10 are named. A country that is not one is `InvalidArgument` (`standings_query.ErrUnknownCountry`); no season is an empty answer. The web client no longer calls it: it stays for clients from before the stream.
 - **`ListenForEvents(country_id)`** is the same top 10, live. It needs no token. The first event is the view's whole `board` (`Board`, the `Standing`s of `GetStandings`), each one after is the whole board again once it changed, and a `heartbeat` comes every `httpServer.streamHeartbeat`. A country that is not one is `InvalidArgument` before anything is followed. **One read per view, whatever the number of streams**: `inprocess_board_feed` keeps, for each view a stream follows, the last board, and forgets the view when its last stream closes.
   - **Nothing tells it a board moved.** A read sees every change the same way: a take, a deleted account, a rename, a new color or title, a guest who signed in, the season's end. The standings use cases know nothing of who reads their rows, so the subscribers call them straight.
   - **When it is read** (`Feed.Refresh`, every 250ms): a view at once when it is first followed, then every 2s (`Every`) on its own clock, so a new view is no reason to read the others. A board equal to the last one is not sent. Up to 8 views are read at once, each through `standings_query.Board`, one query and one `GetAuthors` a page, as `GetStandings`. So a board is at most 2s late, and each followed view costs that read every 2s whether anything moved or not: at most one view per country, and the whole map's.
@@ -3118,9 +3181,133 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 - **`InspectPlayer(scope | account_id)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`. **An account is read on the scope of its latest take** in the ledger, because the watchdogs judge scopes, with the bans on both; an account with no take inside the retention answers its bans alone and an empty `scope`. It changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `ledger.ParseCaller` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
 - `audit_ban`, `audit_unban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers`, `TopPlayers` and `InspectPlayer` are reads and log nothing.
 
+### The clips job (`internal/clips/`, `cmd/clips`)
+
+**Twice a day a workflow makes the best clips of the last 12 hours and schedules them on TikTok**
+(`.github/workflows/clips.yml`; the frontend's CLAUDE.md, "Clips", has the four jobs and how a clip is made). The
+frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
+which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
+meet in files: the replay this job saves for the generator, and `clips.v1.Shortlist` and `clips.v1.Clip`
+(`proto/clips/v1/clips.proto`), which the generator writes as JSON.
+
+```
+clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
+clips choose -shortlist <shortlist.json> [-count 2]
+clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
+```
+
+- **`fetch` saves a replay**: it asks the production backend's operator tool for one
+  ([`GetReplay`](#getreplay)), over SSH, and writes the answer as it came. `CLICKPLANET_SSH` stands in for `-ssh`.
+  With no `-hours` it is 72: the ledger keeps that much in memory, and a replay cannot reach further back.
+- **`choose` prints the picks to render**, as a JSON array on the standard output (`[1,2]`, or `[]` on a quiet half
+  day): the workflow makes one render job of each. The log goes to the standard error. A pick is a story's place
+  in the shortlist, from 1 (`posts.Pick`): what the generator's `--pick` takes.
+- **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the posting
+  service, and adds a table to the summary: each clip, its time, and whether it is scheduled. It exits 1 when a
+  clip was not scheduled, when the folder holds none, or when the summary cannot be written. A clip refused does
+  not stop the next one.
+- **`cmd/clips` is three stages, and `run` only names them**: parse, work, display (see [A command's `run` is a
+  table of contents](#a-commands-run-is-a-table-of-contents)). `main.go` holds no stage.
+  - **`flags.Parse`** (`cmd/clips/internal/flags`) answers one typed `flags.Config`: the command, its files, and
+    the job's `clips.Config` with `CLICKPLANET_SSH` and `ZERNIO_API_KEY` read into it. No flag pointer leaves it.
+    Flags and not `cpconfigs`: the job has a few settings and one secret, and a workflow passes them on the
+    command line.
+  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks) and
+    `clips.Schedule` (the `Report`), in `internal/clips/job.go`, which wires the objects as a `module.go` does.
+    A clip the service refused is in the report, not in the error: the error is for a run that could not be
+    made at all.
+  - **The display owns the output and says how it went** (`cmd/clips/internal/display`): `display.Picks`
+    writes the array, `display.Report` writes the table, to the summary file when one is named, and answers
+    whether every clip is scheduled. It does not turn that into an error: `schedule` in `main.go` decides, and
+    exits 1 on `errUnsent`.
+  - **The dispatch acts on `fetch`, `choose` and `schedule`, and on nothing else**: any other command is
+    `errUnknownCommand`, and nothing is fetched, printed or posted.
+
+**`internal/clips/internal/replays/` is the fetch**, a concept of its own beside `posts`:
+
+- **`Request.Window(now)`** is which stretch: `Span` back from `Until`, or from now when no end is asked for. A
+  span of nothing or less is refused before anything is asked of the backend.
+- **`ssh_replay_source` runs the `ssh` program**, as the operator does by hand (`deploy/vps/README.md`, "Get a
+  replay for a clip"): `ssh -- <host> "cd … && docker compose exec -T backend wget … GetReplay"`. Not an SSH
+  library: the program brings the agent, the config and the known hosts of whoever runs it, a laptop or the
+  workflow. **`--` ends ssh's options**, so a host that starts with a dash is a host and never
+  `-oProxyCommand=…`. The body is two times the adapter formats itself, so nothing a shell reads goes between
+  its single quotes.
+- **What comes back is checked before it is kept**: it has to read as a `planet.v1.GetReplayResponse` with its
+  window, unknown fields dropped. A 502 page or an empty answer fails the fetch here, not three jobs later in a
+  browser. The file holds the answer byte for byte, never a re-encoding: the generator reads the backend's JSON.
+- **An ssh that fails says what it complained of** (`Permission denied (publickey)`), from its standard error.
+  In the workflow the host is a secret, which Actions masks in the log.
+- Its test runs a fake `ssh`, a shell script that keeps its arguments. No test runs the real one.
+
+**`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
+
+- **`Shortlist.Best(count)`** is which clips: the first `count` stories, all of them when there are fewer. 2 a run
+  (`Config.PerRun`).
+- **`Cadence.Posts(clips, now)`** is when: the best clip a `Review` from now (4 hours), each next one a `Spacing`
+  later (2 hours), on a whole minute and never sooner than the review. So a run at 12:17 UTC that renders in 20
+  minutes posts near 16:40 and 18:40.
+- **Review is opt-out, so nothing is ever sent for a time too close.** `Post.Reviewable(now)` is false under an hour
+  ahead (`leastReview`), and `Sender` then refuses the post (`ErrNoTimeToReview`) rather than send it: nobody could
+  cancel it, and the service publishes a time already past **at once**. It is checked before every try, since a
+  wait eats the review.
+- **`Sender` tries again only when the service is busy**: an adapter answers a `*BusyError` for "not now" (a rate
+  limit, a server error, no answer) and any other error for "no" (a refused caption, a wrong key). `Backoff` waits
+  1, 5 then 15 minutes, or as long as the service said when that is longer; a service that asks for longer than
+  the longest wait fails the post at once. `Pause` is the wait, so a test takes no time (`RecordedPause` moves the
+  fixed clock instead).
+- **`Service` is the posting service, one method**: `Schedule(ctx, post) (PostID, error)`. Its contract is in two
+  lines on it: for the post's time and never sooner, and a post scheduled twice is one post there.
+- `Clip` and `Post` have no getter: an adapter reads `TakeSnapshot()`, and a `ClipSnapshot` the generator left a
+  part out of does not `Restore()`. `Report` is what became of each clip, for the display and the log;
+  `Complete()` is whether every one is scheduled.
+
+**`posts/zernio/` is the one package that knows the service** (Zernio, chosen 2026-10-12 over upload-post: its
+free tier has TikTok and the whole API). A change of service is that package, its line in `job.go`, the variable
+`main.go` reads the key from, and the client below.
+
+- **The HTTP client is generated, not written, and lives in `shared/cpzernio`** with all that makes it:
+  `client.gen.go`, by oapi-codegen (pinned in the `Makefile`) from Zernio's own OpenAPI document, vendored
+  beside it as `openapi.json`. `make zernio-spec` fetches the document Zernio builds its SDKs from, `make zernio`
+  generates. `oapi-codegen.yaml` names the three operations the job calls, so the client holds those and the
+  types they reach, not the 631 paths of the document; `overlay.yaml` drops its webhooks. The adapter keeps what
+  no document says: which account, the upload, the idempotency key, and which answer is "busy".
+- **Not Zernio's official Go SDK** (`github.com/zernio-dev/zernio-go`, looked at on 2026-10-13, v0.1.969). It is
+  alive: a bot regenerates it from the same document several times a day, and its one maintainer fixed a
+  critical bug in a day. But **it refuses any answer with a field it does not know** (`DisallowUnknownFields` in
+  the generated models), and Zernio ships its API several times a day. Run against a fake: `ListAccounts` fails
+  on one added field, and `CreatePost` fails on the 201 of the document's own example, **after the post was
+  made**, the bug its issue 4 reported in August. A pinned version breaks when the API grows; ours ignores what
+  it does not know, and two tests pin that (`…FieldsAddedLater…`). It is also 36 MB of Go in one package.
+- **Four calls a clip**: `GET /v1/accounts?platform=tiktok`, `POST /v1/media/presign`, a `PUT` of the video to
+  the address that answers (the storage, not the API: raw HTTP, and no key), then `POST /v1/posts` with
+  `scheduledFor`. **Never `publishNow`.**
+- **It posts to the one connected TikTok account**, and refuses to guess between two: no account id is configured.
+  An account per country will need one.
+- **`Idempotency-Key` is the SHA-256 of the video**, so a run made again, or a try after a timeout, is the same
+  post there and not a second one. Zernio matches on the key alone, so the video uploaded again under a new
+  address is still the same post.
+- **A post counts only when Zernio keeps it as `scheduled`.** Any other status is a failure, `published` included:
+  that would be a clip that went out with no review.
+- **Busy** is a 429, a 5xx, a 409 `idempotency_conflict` (the try before is still in flight) and a request that
+  got no answer, with `Retry-After` when sent. Every other answer is final, the 409 for content already posted
+  too.
+- **The logs of a public repo are public.** The key goes in the `Authorization` header of the calls to Zernio
+  and never to the storage, and **an error never carries a URL**: the address a video is uploaded to is a
+  credential for an hour, and Go's `url.Error` prints it. `unreachable` keeps the cause and drops the address;
+  a test pins it.
+- **What the job cannot see: a post TikTok refuses at its time**, hours after the run ended. Zernio shows it in
+  its dashboard, as failed.
+- The tests run it against `httptest`, with the requests and the answers of Zernio's OpenAPI document.
+
+`posts/generator_output/` reads the generator's files (`protojson`, unknown fields dropped, so the generator can
+add one first), and both use cases log in a decorator
+(`log_choose_clips`, `log_schedule_clips`), as does the service (`log_service`: each try the service did not take,
+which is what explains a step that waited 20 minutes).
+
 ### Shared (`internal/shared/`)
 
-Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)), `cpcolls` (collections).
+Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)), `cpcolls` (collections), `cpzernio` (the client of the posting service).
 
 **Every package here is prefixed `cp`, and a new one must be.** A call site reads
 `cptime.SystemClock{}` or `cpctx.GetSourceIP(ctx)`, so the prefix says the
@@ -3158,6 +3345,7 @@ The siteverify client it is fed by is **not** here. `turnstile` sat here on the 
 `cpcountries` is the ISO country list both the tile game and the chat validate against. `cpipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `cpratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 
 `cpipscope` decides what a scope's bucket is keyed on, and every throttle goes through it. Over IPv4 that is the address; over IPv6 it is the surrounding **/64**, because the smallest allocation a subscriber receives is a /64 and most receive far more — a bucket per v6 address is one the same line walks out of by picking its next address, turning one home connection into thousands of callers with a throttle each. The session token binds to the same unit, so the address a token is valid for and the address that spends a budget cannot diverge. Blocking deliberately does **not** use it: the VPN and datacenter lists are precise prefixes already, and widening a hit to the surrounding /64 would refuse neighbours who are not on them.
+`cpzernio` is Zernio's HTTP API as Go: a generated client, the vendored OpenAPI document it is generated from, and the two files that configure the generation, all in the one directory, as `cpipblock` keeps its lists in `cpdata`. **Nothing in it is written by hand but the two config files**: `make zernio-spec` refreshes `openapi.json`, `make zernio` writes `client.gen.go`. It knows nothing of clips or of this game, which is why it is here and not in the module: the clips job's `posts/zernio` adapter is its one caller today, and holds everything that is ours (see [The clips job](#the-clips-job-internalclips-cmdclips)). The linters, gofumpt and `make deadcode` leave `client.gen.go` alone by its generated header, not by its path.
 `cpcolls` holds the collections the standard library does not — today `Set[T]`. **A set is a `*cpcolls.Set`, never a map.** A `map[T]struct{}` or a `map[T]bool` written `m[k] = true` fails `make lint`: a ruleguard rule in `tools/ruleguard/rules.go`, run by gocritic, reports both everywhere but in `cpcolls` itself. A nil `*Set` reads as empty, like a nil map, so a lookup in a map of sets needs no `ok` check.
 
 ### Map geography
@@ -3418,7 +3606,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto), [`player/v1/player.proto`](../../proto/player/v1/player.proto) and [`support/v1/support.proto`](../../proto/support/v1/support.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto), [`player/v1/player.proto`](../../proto/player/v1/player.proto) and [`support/v1/support.proto`](../../proto/support/v1/support.proto); [`clips/v1/clips.proto`](../../proto/clips/v1/clips.proto) has no service, only the two messages the clip generator writes for [the clips job](#the-clips-job-internalclips-cmdclips). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
 `generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
 
