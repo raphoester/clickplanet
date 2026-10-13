@@ -1,3 +1,4 @@
+import {fakeAccountId} from "./fakeAccounts.ts"
 import {STANDINGS_SHOWN} from "../domain/standings.ts"
 import {TileClicker} from "./backend.ts"
 import {NameColor, PlayerTitle} from "./player.ts"
@@ -103,7 +104,11 @@ export class FakeStandingsBackend implements StandingsBackend {
 
     private top(countryCode: string): Standing[] {
         const sorted = this.players
-            .map(({tiles, ...player}) => ({...player, ...lineOf(new Map(Object.entries(tiles)), countryCode)}))
+            .map(({tiles, ...player}) => ({
+                ...player,
+                accountId: fakeAccountId(player.name),
+                ...lineOf(new Map(Object.entries(tiles)), countryCode),
+            }))
             .filter((line) => line.tiles > 0)
             .sort((a, b) => b.tiles - a.tiles)
         return sorted

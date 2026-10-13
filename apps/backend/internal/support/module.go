@@ -26,7 +26,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/suggest_feature_usecase"
 	note_ids "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/postgres_report_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/rpc_player_accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/usecases/forget_reports_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/usecases/prune_reports_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/usecases/report_player_usecase"
@@ -63,7 +62,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the support module asks the player module whose name a report is about: %w", err)
+		return fmt.Errorf("the support module asks the player module how to name the accounts of a report: %w", err)
 	}
 	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
 
@@ -109,7 +108,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		SuggestFeatureHandler: suggest_feature_handler.New(suggest_feature_usecase.New(note_ids.Provider{}, clock, noteStore)),
 		ReportBugHandler:      report_bug_handler.New(report_bug_usecase.New(note_ids.Provider{}, clock, noteStore)),
 		ReportPlayerHandler: report_player_handler.New(report_player_usecase.New(
-			rpc_player_accounts.New(player), report_ids.Provider{}, clock, reportStore)),
+			report_ids.Provider{}, clock, reportStore)),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

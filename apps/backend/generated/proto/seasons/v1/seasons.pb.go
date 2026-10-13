@@ -258,6 +258,7 @@ type Standing struct {
 	CountryId     string                 `protobuf:"bytes,4,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	Tiles         uint64                 `protobuf:"varint,5,opt,name=tiles,proto3" json:"tiles,omitempty"`
 	WornTitle     *v1.Title              `protobuf:"bytes,6,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
+	AccountId     string                 `protobuf:"bytes,7,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -332,6 +333,13 @@ func (x *Standing) GetWornTitle() *v1.Title {
 		return x.WornTitle
 	}
 	return nil
+}
+
+func (x *Standing) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
 }
 
 type GetMySeasonRequest struct {
@@ -1058,7 +1066,7 @@ const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\"J\n" +
 	"\x14GetStandingsResponse\x122\n" +
-	"\tstandings\x18\x01 \x03(\v2\x14.seasons.v1.StandingR\tstandings\"\xc4\x01\n" +
+	"\tstandings\x18\x01 \x03(\v2\x14.seasons.v1.StandingR\tstandings\"\xe3\x01\n" +
 	"\bStanding\x12\x12\n" +
 	"\x04rank\x18\x01 \x01(\rR\x04rank\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12*\n" +
@@ -1067,7 +1075,9 @@ const file_seasons_v1_seasons_proto_rawDesc = "" +
 	"country_id\x18\x04 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x05tiles\x18\x05 \x01(\x04R\x05tiles\x12/\n" +
 	"\n" +
-	"worn_title\x18\x06 \x01(\v2\x10.player.v1.TitleR\twornTitle\"3\n" +
+	"worn_title\x18\x06 \x01(\v2\x10.player.v1.TitleR\twornTitle\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\a \x01(\tR\taccountId\"3\n" +
 	"\x12GetMySeasonRequest\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\"\xe4\x01\n" +

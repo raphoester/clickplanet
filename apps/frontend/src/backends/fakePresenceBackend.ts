@@ -1,3 +1,4 @@
+import {fakeAccountId} from "./fakeAccounts.ts"
 import {OWN_GUEST_NAME} from "./fakeChatBackend.ts"
 import {compareRosterEntries} from "../domain/roster.ts"
 import {
@@ -58,14 +59,14 @@ function shownTitles(tilesTaken: number, streakBest: number, createdAt: number):
 }
 
 const PLAYERS: RosterEntry[] = [
-    {key: "1", name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12},
-    {key: "2", name: "kiran_07", countryCode: "in", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 3},
-    {key: "3", name: "Mateus", countryCode: "br", guest: false, admin: false, color: NameColor.TEAL, streak: 1},
-    {key: "4", name: "zoe_nz", countryCode: "nz", guest: false, admin: false, color: NameColor.VIOLET, streak: 41},
-    {key: "5", name: "guest_91aa3d", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
-    {key: "6", name: "guest_aa1290", countryCode: "jp", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
-    {key: "7", name: "guest_3b7f02", countryCode: "us", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
-    {key: "8", name: "guest_7e21c9", countryCode: "ng", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+    {key: "1", accountId: fakeAccountId("Ana"), name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12},
+    {key: "2", accountId: fakeAccountId("kiran_07"), name: "kiran_07", countryCode: "in", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 3},
+    {key: "3", accountId: fakeAccountId("Mateus"), name: "Mateus", countryCode: "br", guest: false, admin: false, color: NameColor.TEAL, streak: 1},
+    {key: "4", accountId: fakeAccountId("zoe_nz"), name: "zoe_nz", countryCode: "nz", guest: false, admin: false, color: NameColor.VIOLET, streak: 41},
+    {key: "5", accountId: fakeAccountId("guest_91aa3d"), name: "guest_91aa3d", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+    {key: "6", accountId: fakeAccountId("guest_aa1290"), name: "guest_aa1290", countryCode: "jp", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+    {key: "7", accountId: fakeAccountId("guest_3b7f02"), name: "guest_3b7f02", countryCode: "us", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+    {key: "8", accountId: fakeAccountId("guest_7e21c9"), name: "guest_7e21c9", countryCode: "ng", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
 ]
 
 export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
@@ -135,8 +136,8 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         if (this.own && now - this.own.at < 90_000) {
             const {countryCode} = this.own.presence
             entries.push({
-                key: OWN_KEY, name: OWN_GUEST_NAME, countryCode, guest: true, admin: false,
-                color: NameColor.UNSPECIFIED, streak: 0,
+                key: OWN_KEY, accountId: fakeAccountId(OWN_GUEST_NAME), name: OWN_GUEST_NAME, countryCode,
+                guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0,
             })
         }
 

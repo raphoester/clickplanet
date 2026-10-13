@@ -932,8 +932,7 @@ More, and a report of another player, from that player's card.
   kept twice, and the text is still in the box.
 - The refusals are `resource_exhausted` → `SupportRateLimitedError` (one address
   sends three, then one a minute) and `invalid_argument` → `SupportRejectedError`.
-  A player report has two more: `not_found` → `SupportUnknownPlayerError` (the
-  name is nobody's now) and `already_exists` → `SupportReportedAlreadyError`
+  A player report has one more: `already_exists` → `SupportReportedAlreadyError`
   (one account reports one player once a day).
 - **A note says what the page knows about itself, a suggestion as a bug report**
   (`app/support/pageContextOf`): the build, the viewport in CSS pixels and the
@@ -967,14 +966,23 @@ More, and a report of another player, from that player's card.
 - **`ReportPlayerModal` is `NoteModal` with a question before the text**
   (`asked`): a `radiogroup` of the four reasons, then the details, which are
   optional. Send waits for a reason (`ready`). It opens on the first reason.
-- **The report names the player by the name on the card**, which is all the
-  client holds: the server finds the account. **A card opened from a chat
-  message carries that message's id**: `ChatLog` hands it as the second
-  argument of `onOpenPlayer`, `Viewer` keeps it with the open card, and the
-  report sends it. A card opened from the roster or the board has none.
-- **No Report on the player's own card**, when the name is the account's
-  username. A guest does not know its own name here, so its own card has the
-  button, and the server refuses the report.
+- **The report names the account, never the name.** A name can change hands,
+  so a report by name could land on another player. `PlayerLine.accountId` is on
+  every line a card opens from: a chat message (`authorAccountId`), a roster
+  entry and a standing carry it off the wire. `ReportPlayerModal` takes the
+  `accountId` to send and the `name` for its title only. **A line with no
+  account id has no Report**: the author of a message kept before accounts, or
+  whose account is deleted.
+- **A card opened from a chat message carries that message's id**: `ChatLog`
+  hands it as the second argument of `onOpenPlayer`, `Viewer` keeps it with the
+  open card, and the report sends it. A card opened from the roster or the
+  board has none.
+- **No Report on the player's own card**, told by account id: `AccountStore`
+  keeps the `accountId` of a signed-in player from its profile. A guest's is
+  not read here, so its own card has the button, and the server refuses the
+  report.
+- The fakes name one account per name (`backends/fakeAccounts.ts`), so a fake
+  chat message, roster line and standing agree on who a player is.
 
 ### Titles
 

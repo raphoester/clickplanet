@@ -20,6 +20,7 @@ import {NameColor} from "../backends/player.ts"
 const message = (id: string, sentAt: number): ChatMessage => ({
     id,
     sentAt,
+    authorAccountId: "account-ana",
     authorName: "Ana",
     authorAdmin: false,
     authorColor: NameColor.UNSPECIFIED,

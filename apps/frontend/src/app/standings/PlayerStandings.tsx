@@ -48,6 +48,7 @@ function ownLine(caller: Caller, mine: MySeason | undefined): Standing | undefin
 
     return {
         rank: mine.rank,
+        accountId: caller.accountId ?? "",
         name: caller.username,
         color: caller.color ?? NameColor.UNSPECIFIED,
         countryCode: mine.countryCode,
@@ -136,6 +137,7 @@ function StandingRow({standing, you, onOpenPlayer}: StandingRowProps) {
 
 function playerOf(standing: Standing): PlayerLine {
     return {
+        accountId: standing.accountId,
         name: standing.name,
         countryCode: standing.countryCode,
         guest: false,

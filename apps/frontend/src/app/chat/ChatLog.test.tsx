@@ -11,7 +11,7 @@ import {NameColor} from "../../backends/player.ts"
 afterEach(cleanup)
 
 const message = (id: string, authorName: string, countryCode: string): ChatMessage =>
-    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
+    ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorAccountId: `account-${authorName}`, authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
 
 describe("ChatLog", () => {
     it("opens the author of a message from its name with the message, and tells a guest by its prefix", async () => {
@@ -24,8 +24,8 @@ describe("ChatLog", () => {
         await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
 
         expect(onOpenPlayer.mock.calls).toEqual([
-            [{name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}, "1"],
-            [{name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}, "2"],
+            [{accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}, "1"],
+            [{accountId: "account-guest_Bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}, "2"],
         ])
     })
 
@@ -51,7 +51,8 @@ describe("ChatLog", () => {
         expect(screen.getAllByRole("img", {name: "Admin"})).toHaveLength(1)
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
         expect(onOpenPlayer).toHaveBeenCalledWith({
-            name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.UNSPECIFIED, streak: 0,
+            accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.UNSPECIFIED,
+            streak: 0,
         }, "1")
     })
 

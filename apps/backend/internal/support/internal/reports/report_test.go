@@ -115,18 +115,6 @@ func TestAMessageIDIsCleanedAndOneTooLongIsDropped(t *testing.T) {
 	assert.Equal(t, reports.NoMessage, dropped.Message)
 }
 
-func TestAShownNameIsTrimmedAndOneNoPlayerCanShowIsRefused(t *testing.T) {
-	name, err := reports.ShownNameOf("  guest_a1b2c3 ")
-	require.NoError(t, err)
-	assert.Equal(t, reports.ShownName("guest_a1b2c3"), name)
-
-	for _, value := range []string{"", "   ", strings.Repeat("a", 33)} {
-		_, err := reports.ShownNameOf(value)
-
-		require.ErrorIs(t, err, reports.ErrNoPlayer, value)
-	}
-}
-
 func earlier(t *testing.T, reporter reports.AccountID, about reports.AccountID, at time.Time) reports.Report {
 	t.Helper()
 

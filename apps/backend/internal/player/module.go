@@ -34,8 +34,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/find_account_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/find_account_handler/account_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler/authors_query"
@@ -271,9 +269,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	internalService := playerv1controller.InternalService{
-		GetAuthorHandler:   get_author_handler.New(authors),
-		GetAuthorsHandler:  get_authors_handler.New(authors_query.NewPostgresQuery(db, titleCards, clock)),
-		FindAccountHandler: find_account_handler.New(account_query.NewPostgresQuery(db)),
+		GetAuthorHandler:  get_author_handler.New(authors),
+		GetAuthorsHandler: get_authors_handler.New(authors_query.NewPostgresQuery(db, titleCards, clock)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewInternalServiceHandler(internalService, options...)

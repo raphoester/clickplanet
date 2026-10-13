@@ -211,6 +211,7 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
     return {
         id: message.id,
         sentAt: Number(message.sentAtUnixMs),
+        authorAccountId: message.authorAccountId,
         authorName: message.authorName,
         authorAdmin: message.authorAdmin,
         authorColor: message.authorColor,

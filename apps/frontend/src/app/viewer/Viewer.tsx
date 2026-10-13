@@ -114,6 +114,7 @@ export default function Viewer(props: ViewerProps) {
     const display = useDisplaySettings()
     const account = useAccount(props.account)
     const username = account.kind === 'ready' ? account.username : undefined
+    const ownAccountId = account.kind === 'ready' ? account.accountId : undefined
     const color = account.kind === 'ready' ? account.color : undefined
 
     usePresence(props.presence, {countryCode: countryState.code, username, color})
@@ -235,7 +236,7 @@ export default function Viewer(props: ViewerProps) {
     const held = leaderboard.find((entry) => entry.country.code === countryState.code)?.tiles ?? 0
     const standings: BoardStandings | undefined = props.standings && {
         backend: props.standings,
-        caller: {username, color, linked},
+        caller: {accountId: ownAccountId, username, color, linked},
         listenForClicks: accepted.listenForClicks,
         onSignIn: clickBudget?.linkedMultiplier ? openPitch : undefined,
         onOpenPlayer,
@@ -372,10 +373,10 @@ export default function Viewer(props: ViewerProps) {
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
 
-        {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.player.name}
+        {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.player.accountId || openPlayer.player.name}
                                                        player={openPlayer.player}
                                                        backend={props.playerInfo}
-                                                       reporter={openPlayer.player.name === username ? undefined : props.support}
+                                                       reporter={openPlayer.player.accountId === ownAccountId ? undefined : props.support}
                                                        messageId={openPlayer.messageId}
                                                        onClose={() => setOpenPlayer(undefined)}/>}
 

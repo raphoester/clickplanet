@@ -59,6 +59,7 @@ func (v Visit) For(account players.AccountID, author wearing.Author) Visit {
 
 type Entry struct {
 	key     Key
+	account players.AccountID
 	name    string
 	country string
 	guest   bool
@@ -71,6 +72,7 @@ type Entry struct {
 func EntryOf(visit Visit) Entry {
 	return Entry{
 		key:     visit.key,
+		account: visit.account,
 		name:    visit.author.Name(),
 		country: visit.country,
 		guest:   visit.author.Guest(),
@@ -82,6 +84,8 @@ func EntryOf(visit Visit) Entry {
 }
 
 func (e Entry) Key() Key { return e.key }
+
+func (e Entry) Account() players.AccountID { return e.account }
 
 func (e Entry) Name() string { return e.name }
 

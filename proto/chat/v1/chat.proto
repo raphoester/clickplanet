@@ -61,6 +61,8 @@ message ChatMessage {
   uint32 author_streak = 11;
   player.v1.Title author_title = 12;
   Quote reply_to = 13;
+  // Empty for a message kept before accounts, and for an account that was deleted.
+  string author_account_id = 14;
 }
 
 message Quote {

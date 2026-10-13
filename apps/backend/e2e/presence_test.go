@@ -191,6 +191,7 @@ func TestTheStreamSendsTheRosterThenEachJoinRenameAndLeave(t *testing.T) {
 	require.NotNil(t, roster)
 	require.Len(t, roster.GetEntries(), 1)
 	assert.Regexp(t, guestName, roster.GetEntries()[0].GetName())
+	assert.Equal(t, bob.account(), roster.GetEntries()[0].GetAccountId())
 	bobKey := roster.GetEntries()[0].GetKey()
 	assert.NotEmpty(t, bobKey)
 

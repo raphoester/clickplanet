@@ -21,95 +21,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type FindAccountRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The name the game shows for a player: its username, or guest_ and its guest code.
-	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FindAccountRequest) Reset() {
-	*x = FindAccountRequest{}
-	mi := &file_player_v1_internal_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FindAccountRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FindAccountRequest) ProtoMessage() {}
-
-func (x *FindAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_internal_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FindAccountRequest.ProtoReflect.Descriptor instead.
-func (*FindAccountRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_internal_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *FindAccountRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-type FindAccountResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FindAccountResponse) Reset() {
-	*x = FindAccountResponse{}
-	mi := &file_player_v1_internal_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FindAccountResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FindAccountResponse) ProtoMessage() {}
-
-func (x *FindAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_internal_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FindAccountResponse.ProtoReflect.Descriptor instead.
-func (*FindAccountResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_internal_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *FindAccountResponse) GetAccountId() string {
-	if x != nil {
-		return x.AccountId
-	}
-	return ""
-}
-
 type GetAuthorRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
@@ -119,7 +30,7 @@ type GetAuthorRequest struct {
 
 func (x *GetAuthorRequest) Reset() {
 	*x = GetAuthorRequest{}
-	mi := &file_player_v1_internal_proto_msgTypes[2]
+	mi := &file_player_v1_internal_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -131,7 +42,7 @@ func (x *GetAuthorRequest) String() string {
 func (*GetAuthorRequest) ProtoMessage() {}
 
 func (x *GetAuthorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_internal_proto_msgTypes[2]
+	mi := &file_player_v1_internal_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -144,7 +55,7 @@ func (x *GetAuthorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAuthorRequest.ProtoReflect.Descriptor instead.
 func (*GetAuthorRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_internal_proto_rawDescGZIP(), []int{2}
+	return file_player_v1_internal_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GetAuthorRequest) GetAccountId() string {
@@ -167,7 +78,7 @@ type GetAuthorResponse struct {
 
 func (x *GetAuthorResponse) Reset() {
 	*x = GetAuthorResponse{}
-	mi := &file_player_v1_internal_proto_msgTypes[3]
+	mi := &file_player_v1_internal_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -179,7 +90,7 @@ func (x *GetAuthorResponse) String() string {
 func (*GetAuthorResponse) ProtoMessage() {}
 
 func (x *GetAuthorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_internal_proto_msgTypes[3]
+	mi := &file_player_v1_internal_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -192,7 +103,7 @@ func (x *GetAuthorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAuthorResponse.ProtoReflect.Descriptor instead.
 func (*GetAuthorResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_internal_proto_rawDescGZIP(), []int{3}
+	return file_player_v1_internal_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetAuthorResponse) GetName() string {
@@ -239,7 +150,7 @@ type GetAuthorsRequest struct {
 
 func (x *GetAuthorsRequest) Reset() {
 	*x = GetAuthorsRequest{}
-	mi := &file_player_v1_internal_proto_msgTypes[4]
+	mi := &file_player_v1_internal_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -251,7 +162,7 @@ func (x *GetAuthorsRequest) String() string {
 func (*GetAuthorsRequest) ProtoMessage() {}
 
 func (x *GetAuthorsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_internal_proto_msgTypes[4]
+	mi := &file_player_v1_internal_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -264,7 +175,7 @@ func (x *GetAuthorsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAuthorsRequest.ProtoReflect.Descriptor instead.
 func (*GetAuthorsRequest) Descriptor() ([]byte, []int) {
-	return file_player_v1_internal_proto_rawDescGZIP(), []int{4}
+	return file_player_v1_internal_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetAuthorsRequest) GetAccountIds() []string {
@@ -283,7 +194,7 @@ type GetAuthorsResponse struct {
 
 func (x *GetAuthorsResponse) Reset() {
 	*x = GetAuthorsResponse{}
-	mi := &file_player_v1_internal_proto_msgTypes[5]
+	mi := &file_player_v1_internal_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -295,7 +206,7 @@ func (x *GetAuthorsResponse) String() string {
 func (*GetAuthorsResponse) ProtoMessage() {}
 
 func (x *GetAuthorsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_internal_proto_msgTypes[5]
+	mi := &file_player_v1_internal_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -308,7 +219,7 @@ func (x *GetAuthorsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAuthorsResponse.ProtoReflect.Descriptor instead.
 func (*GetAuthorsResponse) Descriptor() ([]byte, []int) {
-	return file_player_v1_internal_proto_rawDescGZIP(), []int{5}
+	return file_player_v1_internal_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetAuthorsResponse) GetAuthors() []*Author {
@@ -333,7 +244,7 @@ type Author struct {
 
 func (x *Author) Reset() {
 	*x = Author{}
-	mi := &file_player_v1_internal_proto_msgTypes[6]
+	mi := &file_player_v1_internal_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -345,7 +256,7 @@ func (x *Author) String() string {
 func (*Author) ProtoMessage() {}
 
 func (x *Author) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_internal_proto_msgTypes[6]
+	mi := &file_player_v1_internal_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -358,7 +269,7 @@ func (x *Author) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Author.ProtoReflect.Descriptor instead.
 func (*Author) Descriptor() ([]byte, []int) {
-	return file_player_v1_internal_proto_rawDescGZIP(), []int{6}
+	return file_player_v1_internal_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Author) GetAccountId() string {
@@ -414,12 +325,7 @@ var File_player_v1_internal_proto protoreflect.FileDescriptor
 
 const file_player_v1_internal_proto_rawDesc = "" +
 	"\n" +
-	"\x18player/v1/internal.proto\x12\tplayer.v1\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\"(\n" +
-	"\x12FindAccountRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"4\n" +
-	"\x13FindAccountResponse\x12\x1d\n" +
-	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\";\n" +
+	"\x18player/v1/internal.proto\x12\tplayer.v1\x1a\x15player/v1/color.proto\x1a\x15player/v1/title.proto\";\n" +
 	"\x10GetAuthorRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountIdJ\x04\b\x02\x10\x03R\x02ip\"\xbd\x01\n" +
@@ -444,12 +350,11 @@ const file_player_v1_internal_proto_rawDesc = "" +
 	"\x06streak\x18\x05 \x01(\rR\x06streak\x12/\n" +
 	"\n" +
 	"worn_title\x18\x06 \x01(\v2\x10.player.v1.TitleR\twornTitle\x12\x14\n" +
-	"\x05guest\x18\a \x01(\bR\x05guest2\xfc\x01\n" +
+	"\x05guest\x18\a \x01(\bR\x05guest2\xa9\x01\n" +
 	"\x0fInternalService\x12F\n" +
 	"\tGetAuthor\x12\x1b.player.v1.GetAuthorRequest\x1a\x1c.player.v1.GetAuthorResponse\x12N\n" +
 	"\n" +
-	"GetAuthors\x12\x1c.player.v1.GetAuthorsRequest\x1a\x1d.player.v1.GetAuthorsResponse\"\x03\x90\x02\x01\x12Q\n" +
-	"\vFindAccount\x12\x1d.player.v1.FindAccountRequest\x1a\x1e.player.v1.FindAccountResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
+	"GetAuthors\x12\x1c.player.v1.GetAuthorsRequest\x1a\x1d.player.v1.GetAuthorsResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
 	"\rcom.player.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +
 	"Player::V1b\x06proto3"
 
@@ -465,32 +370,28 @@ func file_player_v1_internal_proto_rawDescGZIP() []byte {
 	return file_player_v1_internal_proto_rawDescData
 }
 
-var file_player_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_player_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_player_v1_internal_proto_goTypes = []any{
-	(*FindAccountRequest)(nil),  // 0: player.v1.FindAccountRequest
-	(*FindAccountResponse)(nil), // 1: player.v1.FindAccountResponse
-	(*GetAuthorRequest)(nil),    // 2: player.v1.GetAuthorRequest
-	(*GetAuthorResponse)(nil),   // 3: player.v1.GetAuthorResponse
-	(*GetAuthorsRequest)(nil),   // 4: player.v1.GetAuthorsRequest
-	(*GetAuthorsResponse)(nil),  // 5: player.v1.GetAuthorsResponse
-	(*Author)(nil),              // 6: player.v1.Author
-	(NameColor)(0),              // 7: player.v1.NameColor
-	(*Title)(nil),               // 8: player.v1.Title
+	(*GetAuthorRequest)(nil),   // 0: player.v1.GetAuthorRequest
+	(*GetAuthorResponse)(nil),  // 1: player.v1.GetAuthorResponse
+	(*GetAuthorsRequest)(nil),  // 2: player.v1.GetAuthorsRequest
+	(*GetAuthorsResponse)(nil), // 3: player.v1.GetAuthorsResponse
+	(*Author)(nil),             // 4: player.v1.Author
+	(NameColor)(0),             // 5: player.v1.NameColor
+	(*Title)(nil),              // 6: player.v1.Title
 }
 var file_player_v1_internal_proto_depIdxs = []int32{
-	7, // 0: player.v1.GetAuthorResponse.color:type_name -> player.v1.NameColor
-	8, // 1: player.v1.GetAuthorResponse.worn_title:type_name -> player.v1.Title
-	6, // 2: player.v1.GetAuthorsResponse.authors:type_name -> player.v1.Author
-	7, // 3: player.v1.Author.color:type_name -> player.v1.NameColor
-	8, // 4: player.v1.Author.worn_title:type_name -> player.v1.Title
-	2, // 5: player.v1.InternalService.GetAuthor:input_type -> player.v1.GetAuthorRequest
-	4, // 6: player.v1.InternalService.GetAuthors:input_type -> player.v1.GetAuthorsRequest
-	0, // 7: player.v1.InternalService.FindAccount:input_type -> player.v1.FindAccountRequest
-	3, // 8: player.v1.InternalService.GetAuthor:output_type -> player.v1.GetAuthorResponse
-	5, // 9: player.v1.InternalService.GetAuthors:output_type -> player.v1.GetAuthorsResponse
-	1, // 10: player.v1.InternalService.FindAccount:output_type -> player.v1.FindAccountResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
+	5, // 0: player.v1.GetAuthorResponse.color:type_name -> player.v1.NameColor
+	6, // 1: player.v1.GetAuthorResponse.worn_title:type_name -> player.v1.Title
+	4, // 2: player.v1.GetAuthorsResponse.authors:type_name -> player.v1.Author
+	5, // 3: player.v1.Author.color:type_name -> player.v1.NameColor
+	6, // 4: player.v1.Author.worn_title:type_name -> player.v1.Title
+	0, // 5: player.v1.InternalService.GetAuthor:input_type -> player.v1.GetAuthorRequest
+	2, // 6: player.v1.InternalService.GetAuthors:input_type -> player.v1.GetAuthorsRequest
+	1, // 7: player.v1.InternalService.GetAuthor:output_type -> player.v1.GetAuthorResponse
+	3, // 8: player.v1.InternalService.GetAuthors:output_type -> player.v1.GetAuthorsResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
 	5, // [5:5] is the sub-list for extension type_name
 	5, // [5:5] is the sub-list for extension extendee
 	0, // [0:5] is the sub-list for field type_name
@@ -509,7 +410,7 @@ func file_player_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_internal_proto_rawDesc), len(file_player_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
