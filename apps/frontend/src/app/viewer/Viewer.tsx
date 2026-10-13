@@ -330,6 +330,7 @@ export default function Viewer(props: ViewerProps) {
             backend={props.chatBackend}
             country={countryState}
             playSound={sound.play}
+            accountId={ownAccountId}
             username={username}
             onOpenPlayer={onOpenPlayer}
             players={roster.kind === 'ready' ? roster.entries : undefined}
@@ -373,7 +374,7 @@ export default function Viewer(props: ViewerProps) {
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
 
-        {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.player.accountId || openPlayer.player.name}
+        {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.player.accountId}
                                                        player={openPlayer.player}
                                                        backend={props.playerInfo}
                                                        reporter={openPlayer.player.accountId === ownAccountId ? undefined : props.support}

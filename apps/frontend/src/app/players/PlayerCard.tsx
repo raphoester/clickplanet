@@ -70,7 +70,7 @@ export default function PlayerCard({player, backend, reporter, messageId, onClos
         </div>
 
         {state.kind === "loading" && <p className="player-card-note" role="status">Loading…</p>}
-        {state.kind === "missing" && <p className="player-card-note">No player holds this name now.</p>}
+        {state.kind === "missing" && <p className="player-card-note">This player is gone.</p>}
         {state.kind === "failed" && <p className="player-card-note">The stats could not be loaded.</p>}
         {info?.wornTitle && <TitleBanner title={info.wornTitle}/>}
         {info && <PlayerTitles titles={info.titles}/>}

@@ -4,7 +4,7 @@ import {NameColor} from "../backends/player.ts"
 import {messageParts, textParts} from "./chatLinks.ts"
 
 const message = (authorName: string, text: string): ChatMessage =>
-    ({id: "1", sentAt: 0, authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode: "fr", text, reactions: [], reactionsVersion: 0})
+    ({id: "1", sentAt: 0, authorAccountId: "", authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode: "fr", text, reactions: [], reactionsVersion: 0})
 
 describe("textParts", () => {
     it("leaves a text with no address as one part", () => {

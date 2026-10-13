@@ -42,7 +42,8 @@ const FULL = [
 const FULL_FRENCH = Array.from({length: 10}, (_, i) => standing(i + 1, `fr_${i + 1}`, "fr", 500 - i * 40))
 
 const GUEST: Caller = {linked: false}
-const ZED: Caller = {linked: true, username: "Zed", color: NameColor.GREEN}
+const MATEUS: Caller = {linked: true, accountId: "account-Mateus", username: "Mateus", color: NameColor.TEAL}
+const ZED: Caller = {linked: true, accountId: "account-Zed", username: "Zed", color: NameColor.GREEN}
 
 type Mine = (countryCode: string) => MySeason
 
@@ -200,13 +201,33 @@ describe("BoardViews", () => {
 
     it("marks the caller's own row when it is in the top 10, and adds no line under it", async () => {
         const mine = season({countryCode: "br", tiles: 1512, rank: 2})
-        await shown({backend: backendOf(mine), caller: {linked: true, username: "Mateus", color: NameColor.TEAL}, view: "players"})
+        await shown({backend: backendOf(mine), caller: MATEUS, view: "players"})
 
         const marked = rows().filter((row) => row.getAttribute("aria-current") === "true")
         expect(marked).toHaveLength(1)
         expect(within(marked[0]).getByText("Mateus")).toBeDefined()
         expect(marked[0].querySelector(".coin-you")!.textContent).toBe("2")
         expect(rows()).toHaveLength(3)
+    })
+
+    it("marks the row of the caller's account, whatever name the board still shows for it", async () => {
+        const mine = season({countryCode: "br", tiles: 1512, rank: 2})
+        await shown({backend: backendOf(mine), caller: {...MATEUS, username: "Mateus_new"}, view: "players"})
+
+        const marked = rows().filter((row) => row.getAttribute("aria-current") === "true")
+        expect(marked).toHaveLength(1)
+        expect(within(marked[0]).getByText("Mateus_new")).toBeDefined()
+        expect(rows()).toHaveLength(3)
+    })
+
+    it("does not take another account for the caller because it holds the caller's name", async () => {
+        const mine = season({countryCode: "br", tiles: 20, rank: 4})
+        await shown({backend: backendOf(mine), caller: {...MATEUS, accountId: "account-caller"}, view: "players"})
+
+        const marked = rows().filter((row) => row.getAttribute("aria-current") === "true")
+        expect(marked).toHaveLength(1)
+        expect(marked[0].querySelector(".coin-you")!.textContent).toBe("4")
+        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "kiran_07", "1512"], ["2", "Mateus", "1512"], ["4", "Mateus", "20"]])
     })
 
     it("marks nothing for a guest", async () => {
@@ -270,7 +291,7 @@ describe("BoardViews", () => {
     it("counts each tile the caller takes into its row and its season at once", async () => {
         const clicks = acceptedClicks()
         const mine = season({countryCode: "br", tiles: 1512, rank: 2})
-        await shown({backend: backendOf(mine), caller: {linked: true, username: "Mateus", color: NameColor.TEAL}, view: "players", clicks})
+        await shown({backend: backendOf(mine), caller: MATEUS, view: "players", clicks})
 
         await act(() => clicks.record({country: "br", took: true}))
 
