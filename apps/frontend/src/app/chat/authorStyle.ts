@@ -21,6 +21,7 @@ export function quoteStyle(quote: ChatQuote): CSSProperties {
 
 export function authorOf(message: ChatMessage): PlayerLine {
     return {
+        accountId: message.authorAccountId,
         name: message.authorName,
         countryCode: message.countryCode,
         guest: message.authorName.startsWith(GUEST_PREFIX),

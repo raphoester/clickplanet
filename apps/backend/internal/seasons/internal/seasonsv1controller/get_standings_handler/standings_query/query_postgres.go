@@ -92,6 +92,7 @@ func (q *PostgresQuery) top(ctx context.Context, country string) ([]*seasonsv1.S
 			}
 			top = append(top, &seasonsv1.Standing{
 				Rank:      rankAfter(top, line.tiles),
+				AccountId: line.account.String(),
 				Name:      author.GetName(),
 				Color:     author.GetColor(),
 				CountryId: line.country,

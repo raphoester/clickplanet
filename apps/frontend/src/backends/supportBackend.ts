@@ -1,6 +1,7 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {SupportService} from "../gen/grpc/support/v1/support_connect.ts";
+import {ReportReason as ReportReasonPb} from "../gen/grpc/support/v1/support_pb.ts";
 import {putFile, PutFile} from "./putFile.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
 import {
@@ -8,10 +9,13 @@ import {
     AttachmentUpload,
     NO_ATTACHMENTS,
     PageContext,
+    PlayerReport,
+    ReportReason,
     SupportBackend,
     SupportNoSessionError,
     SupportRateLimitedError,
     SupportRejectedError,
+    SupportReportedAlreadyError,
     UploadOptions,
 } from "./support.ts";
 import {Config, retrying} from "./transport.ts";
@@ -25,7 +29,12 @@ export function newSupportServiceClient(config: Config): PromiseClient<typeof Su
     }))
 }
 
-type Sent = {uploads: {url: string}[]}
+const REASONS: Record<ReportReason, ReportReasonPb> = {
+    "cheating": ReportReasonPb.CHEATING,
+    "chat-abuse": ReportReasonPb.CHAT_ABUSE,
+    "bad-name": ReportReasonPb.BAD_NAME,
+    "other": ReportReasonPb.OTHER,
+}
 
 export class ConnectSupportBackend implements SupportBackend {
     constructor(
@@ -35,14 +44,14 @@ export class ConnectSupportBackend implements SupportBackend {
     ) {
     }
 
-    public suggestFeature(text: string, context: PageContext, attachments: Blob[] = []): Promise<AttachmentUpload[]> {
-        return this.send((headers) =>
-            this.client.suggestFeature({text, context, attachments: declared(attachments)}, {headers}))
+    public async suggestFeature(text: string, context: PageContext, attachments: Blob[] = []): Promise<AttachmentUpload[]> {
+        return uploadsOf(await this.send((headers) =>
+            this.client.suggestFeature({text, context, attachments: declared(attachments)}, {headers})))
     }
 
-    public reportBug(text: string, context: PageContext, attachments: Blob[] = []): Promise<AttachmentUpload[]> {
-        return this.send((headers) =>
-            this.client.reportBug({text, context, attachments: declared(attachments)}, {headers}))
+    public async reportBug(text: string, context: PageContext, attachments: Blob[] = []): Promise<AttachmentUpload[]> {
+        return uploadsOf(await this.send((headers) =>
+            this.client.reportBug({text, context, attachments: declared(attachments)}, {headers})))
     }
 
     // A server from before attachments has no such procedure: it takes none.
@@ -64,11 +73,19 @@ export class ConnectSupportBackend implements SupportBackend {
         return this.put(upload.url, file, options)
     }
 
+    public async reportPlayer(report: PlayerReport): Promise<void> {
+        await this.send((headers) => this.client.reportPlayer({
+            accountId: report.accountId,
+            reason: REASONS[report.reason],
+            text: report.text,
+            messageId: report.messageId ?? "",
+        }, {headers}))
+    }
+
     // Not retried: a call that landed and lost its answer would be kept twice.
-    private async send(call: (headers: Headers) => Promise<Sent>): Promise<AttachmentUpload[]> {
+    private async send<T>(call: (headers: Headers) => Promise<T>): Promise<T> {
         try {
-            const sent = await this.authenticated(call)
-            return sent.uploads.map(({url}) => ({url}))
+            return await this.authenticated(call)
         } catch (e) {
             throw translate(e)
         }
@@ -103,6 +120,10 @@ function declared(attachments: Blob[]) {
     return attachments.map((file) => ({contentType: file.type, sizeBytes: BigInt(file.size)}))
 }
 
+function uploadsOf(sent: {uploads: {url: string}[]}): AttachmentUpload[] {
+    return sent.uploads.map(({url}) => ({url}))
+}
+
 function translate(e: unknown): unknown {
     if (!(e instanceof ConnectError)) return e
 
@@ -111,6 +132,8 @@ function translate(e: unknown): unknown {
             return new SupportRateLimitedError({cause: e})
         case Code.InvalidArgument:
             return new SupportRejectedError({cause: e})
+        case Code.AlreadyExists:
+            return new SupportReportedAlreadyError({cause: e})
         case Code.Unauthenticated:
             return new SupportNoSessionError({cause: e})
         default:

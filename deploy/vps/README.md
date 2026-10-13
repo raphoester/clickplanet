@@ -1085,8 +1085,8 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 ### Get a replay for a clip
 
 The map as it was at `since`, and every act on it until `until` (unset: now). The
-frontend's `npm run clip:fetch` sends this over SSH and saves the answer, which
-`npm run clip` turns into a video:
+backend's `go run ./cmd/clips fetch` sends this over SSH and saves the answer, which
+the frontend's `npm run clip` turns into a video:
 
 ```bash
 docker compose exec -T backend wget -qO- --header 'Content-Type: application/json' --post-data '{"since":"2026-10-06T00:00:00Z","until":"2026-10-07T00:00:00Z"}' http://127.0.0.1:8081/planet.v1.AdminService/GetReplay > replay.json
@@ -1311,6 +1311,35 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 ```
 
 - The files of a note are deleted when it loses its account.
+
+### Read the reports of players
+
+A player reports another from the player's card: a reason, and sometimes a text
+and the chat message. **A report does nothing by itself.** Read the newest 100:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/support.v1.AdminService/ListReports
+```
+
+- `since` and `limit` work as for the notes.
+- Each report names two accounts, with the name the game shows for each now:
+  `reporterAccountId` and `reportedAccountId`. A name is empty when the account
+  can no longer be named.
+- `reason` is `REPORT_REASON_CHEATING`, `REPORT_REASON_CHAT_ABUSE`,
+  `REPORT_REASON_BAD_NAME` or `REPORT_REASON_OTHER`.
+- **To act**, give `reportedAccountId` to the tools above: `InspectPlayer` and
+  `BanPlayer` for a cheater, `Mute` for the chat.
+- A report from a chat message has its `messageId`. To read the message:
+
+```bash
+docker compose exec postgres psql -U clickplanet -c "select sent_at, text from chat.messages where id = '<message_id>'"
+```
+
+- One account reports one player once a day (UTC). Many reports of one player
+  are many accounts, or many days.
+- A guest account is free to make. Do not count reports: read them.
+- A report is deleted after 90 days, and at once when the reporter or the
+  player reported is deleted.
 
 ## 11. Photos and videos on a note
 

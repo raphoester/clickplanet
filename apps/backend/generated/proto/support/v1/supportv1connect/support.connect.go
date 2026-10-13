@@ -39,6 +39,9 @@ const (
 	// SupportServiceReportBugProcedure is the fully-qualified name of the SupportService's ReportBug
 	// RPC.
 	SupportServiceReportBugProcedure = "/support.v1.SupportService/ReportBug"
+	// SupportServiceReportPlayerProcedure is the fully-qualified name of the SupportService's
+	// ReportPlayer RPC.
+	SupportServiceReportPlayerProcedure = "/support.v1.SupportService/ReportPlayer"
 	// SupportServiceGetAttachmentRulesProcedure is the fully-qualified name of the SupportService's
 	// GetAttachmentRules RPC.
 	SupportServiceGetAttachmentRulesProcedure = "/support.v1.SupportService/GetAttachmentRules"
@@ -48,6 +51,7 @@ const (
 type SupportServiceClient interface {
 	SuggestFeature(context.Context, *connect.Request[v1.SuggestFeatureRequest]) (*connect.Response[v1.SuggestFeatureResponse], error)
 	ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error)
+	ReportPlayer(context.Context, *connect.Request[v1.ReportPlayerRequest]) (*connect.Response[v1.ReportPlayerResponse], error)
 	GetAttachmentRules(context.Context, *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error)
 }
 
@@ -74,6 +78,12 @@ func NewSupportServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(supportServiceMethods.ByName("ReportBug")),
 			connect.WithClientOptions(opts...),
 		),
+		reportPlayer: connect.NewClient[v1.ReportPlayerRequest, v1.ReportPlayerResponse](
+			httpClient,
+			baseURL+SupportServiceReportPlayerProcedure,
+			connect.WithSchema(supportServiceMethods.ByName("ReportPlayer")),
+			connect.WithClientOptions(opts...),
+		),
 		getAttachmentRules: connect.NewClient[v1.GetAttachmentRulesRequest, v1.GetAttachmentRulesResponse](
 			httpClient,
 			baseURL+SupportServiceGetAttachmentRulesProcedure,
@@ -88,6 +98,7 @@ func NewSupportServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 type supportServiceClient struct {
 	suggestFeature     *connect.Client[v1.SuggestFeatureRequest, v1.SuggestFeatureResponse]
 	reportBug          *connect.Client[v1.ReportBugRequest, v1.ReportBugResponse]
+	reportPlayer       *connect.Client[v1.ReportPlayerRequest, v1.ReportPlayerResponse]
 	getAttachmentRules *connect.Client[v1.GetAttachmentRulesRequest, v1.GetAttachmentRulesResponse]
 }
 
@@ -101,6 +112,11 @@ func (c *supportServiceClient) ReportBug(ctx context.Context, req *connect.Reque
 	return c.reportBug.CallUnary(ctx, req)
 }
 
+// ReportPlayer calls support.v1.SupportService.ReportPlayer.
+func (c *supportServiceClient) ReportPlayer(ctx context.Context, req *connect.Request[v1.ReportPlayerRequest]) (*connect.Response[v1.ReportPlayerResponse], error) {
+	return c.reportPlayer.CallUnary(ctx, req)
+}
+
 // GetAttachmentRules calls support.v1.SupportService.GetAttachmentRules.
 func (c *supportServiceClient) GetAttachmentRules(ctx context.Context, req *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error) {
 	return c.getAttachmentRules.CallUnary(ctx, req)
@@ -110,6 +126,7 @@ func (c *supportServiceClient) GetAttachmentRules(ctx context.Context, req *conn
 type SupportServiceHandler interface {
 	SuggestFeature(context.Context, *connect.Request[v1.SuggestFeatureRequest]) (*connect.Response[v1.SuggestFeatureResponse], error)
 	ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error)
+	ReportPlayer(context.Context, *connect.Request[v1.ReportPlayerRequest]) (*connect.Response[v1.ReportPlayerResponse], error)
 	GetAttachmentRules(context.Context, *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error)
 }
 
@@ -132,6 +149,12 @@ func NewSupportServiceHandler(svc SupportServiceHandler, opts ...connect.Handler
 		connect.WithSchema(supportServiceMethods.ByName("ReportBug")),
 		connect.WithHandlerOptions(opts...),
 	)
+	supportServiceReportPlayerHandler := connect.NewUnaryHandler(
+		SupportServiceReportPlayerProcedure,
+		svc.ReportPlayer,
+		connect.WithSchema(supportServiceMethods.ByName("ReportPlayer")),
+		connect.WithHandlerOptions(opts...),
+	)
 	supportServiceGetAttachmentRulesHandler := connect.NewUnaryHandler(
 		SupportServiceGetAttachmentRulesProcedure,
 		svc.GetAttachmentRules,
@@ -145,6 +168,8 @@ func NewSupportServiceHandler(svc SupportServiceHandler, opts ...connect.Handler
 			supportServiceSuggestFeatureHandler.ServeHTTP(w, r)
 		case SupportServiceReportBugProcedure:
 			supportServiceReportBugHandler.ServeHTTP(w, r)
+		case SupportServiceReportPlayerProcedure:
+			supportServiceReportPlayerHandler.ServeHTTP(w, r)
 		case SupportServiceGetAttachmentRulesProcedure:
 			supportServiceGetAttachmentRulesHandler.ServeHTTP(w, r)
 		default:
@@ -162,6 +187,10 @@ func (UnimplementedSupportServiceHandler) SuggestFeature(context.Context, *conne
 
 func (UnimplementedSupportServiceHandler) ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.SupportService.ReportBug is not implemented"))
+}
+
+func (UnimplementedSupportServiceHandler) ReportPlayer(context.Context, *connect.Request[v1.ReportPlayerRequest]) (*connect.Response[v1.ReportPlayerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.SupportService.ReportPlayer is not implemented"))
 }
 
 func (UnimplementedSupportServiceHandler) GetAttachmentRules(context.Context, *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error) {

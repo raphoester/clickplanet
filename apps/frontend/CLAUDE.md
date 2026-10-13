@@ -20,8 +20,8 @@ npm run borderLines # Trace the countries' outlines onto the tile lattice (see "
 npm run earth      # Cut the globe's texture from the tile field (see "The globe's texture")
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
-npm run clip:fetch -- --ssh <user@host> --out replay.json  # A replay of the last 72h from production (see "Clips")
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
+npm run clip -- --replay replay.json --shortlist shortlist.json  # Only the list of its stories, as data
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
 npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
@@ -67,8 +67,9 @@ landmass starts locked to France. `fakeBackend.shareClicks("guests")` (or
 player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
-`fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`, `"failed"`)
-refuses what More sends next, `fakeSupport.refuse("upload-failed")` keeps the note
+`fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
+`"reported-already"`, `"failed"`) refuses what More and a player's card send
+next, `fakeSupport.refuse("upload-failed")` keeps the note
 and fails each of its files half way up, and `fakeSupport.refuse()` takes it all
 again; `fakeSupport.sent` is what it took, with the files of each note and which
 were uploaded. `fakeSupport.rules.maxPerNote = 0` is a server that takes no file.
@@ -190,8 +191,11 @@ app/       components
   announcements after a time, for the badge, and `newestAt` is the time of the
   newest line. `nameSentUnder` is
   the name the server gave the latest message this client sent — the only way
-  it learns a guest's name. `quoteOf` is a message as a quote, for the composer
-  and the fake.
+  it learns a guest's name, and only ever shown. `accountSentUnder` is that
+  message's account: how a guest's client learns which account it is.
+  `startsGroup` says where a new author's run begins: another account, or the
+  same account under a new name. `quoteOf` is a message as a quote, for the
+  composer and the fake.
 - `authorColor.ts` — `NAME_COLORS`, the 12 a player with a username may pick
   from (`player.v1.NameColor`, one hue each), and `hueOf`, the hue of a pick.
   No pick, or a color this build does not know, has no hue. **Only the hue is
@@ -526,11 +530,29 @@ composer's bound, not a defence — the server sanitizes and rejects on its own.
 and says so; React escaping is what makes that safe, so never reach for
 `dangerouslySetInnerHTML` here.
 
+**An address in a message is a link** (`domain/chatLinks.ts`): `messageParts`
+cuts the text into text and links, and `ChatLog` draws each link as an `<a>`
+that opens a new tab with `rel="noopener noreferrer nofollow ugc"`.
+
+- **Only `http://` and `https://`, written in full.** A bare `clickplanet.lol`
+  stays text: telling a domain from two words and a dot needs a list of TLDs.
+- **A guest's address stays text.** A guest account is free, and a private tab
+  is a new one, so a mute does not stop a guest who posts links.
+- **An address with a user name is not linked**: `https://clickplanet.lol@evil.example`
+  reads as this site and opens the other one.
+- The punctuation that ends a sentence, and a bracket the address did not open,
+  are left out of the link.
+- **Only the balloon links.** The quote of a reply, the folded header's line and
+  the phone's peek are buttons, so they show the text.
+
 **The server names every sender; the client sends no name.** A player with a
 username posts under it. Every other account is a guest, shown as `guest_` and a
 6-hex code the server drew once for that account (`guest_a1b2c3`, `GUEST_PREFIX`)
 — no username starts with the prefix, so a guest cannot pass for a player, and
-no two accounts share a code, so a name is one account. **Nothing about the
+no two accounts share a code. **A name is one account at one moment only**: a
+rename frees it and another account can take it, so nothing here tells a
+player by its name. `ChatMessage.authorAccountId` does (empty for a message
+kept before accounts, and for a deleted account). **Nothing about the
 sender's address is public**: the `#tag` beside every name is gone from the wire.
 The composer asks nobody for a name; its foot reads "as <username>", or for a
 guest "as a guest" until its first message comes back, then the name the server
@@ -546,10 +568,15 @@ does — chatting before the first click costs a Turnstile check. A token the
 server refuses is dropped and the call made once more with a fresh one (a
 refused call posted nothing, so this cannot post twice); a second refusal, or a
 mint that failed, is `ChatNoSessionError`, and nothing is sent. `Viewer` reads
-the username off the `AccountStore` and hands it to `ChatPanel`, for the
-composer's foot and the sound. "Your own message never pings" checks the ids in
-`mine` and the name: the username, or a guest's name once `nameSentUnder` knows
-it. A guest's very first message can ping if its broadcast beats the answer.
+the username and the account id off the `AccountStore` and hands both to
+`ChatPanel`: the name for the composer's foot, the id to tell the player's own
+messages. **A message is yours when its id is in `mine`, or its
+`authorAccountId` is your account** (`useChat`'s `own`): the id the
+`AccountStore` read from the profile of a signed-in player, or, for a guest,
+the account of the last message it sent (`accountSentUnder`). The badge, the
+peek and the sound all ask `own`. Never the name: another account can hold the
+name you left, and its messages are not yours. A guest's very first message
+can ping if its broadcast beats the answer.
 
 **`sendMessage` is the one call that is not wrapped in `retrying`.** A retry
 after a connection dropped mid-request would post the message twice, visibly, to
@@ -601,7 +628,8 @@ the log has dropped the message it answers.
   `.chat-replying` carry `--author-hue` like a message.
 - **One level**: a reply to a reply shows the reply it answers, never a chain.
 - **A reply opens a group** (`startsGroup`), so its head says who answers even in
-  the middle of its author's run.
+  the middle of its author's run. So does another account, and the same
+  account under a new name: a run is one `authorAccountId` under one name.
 - **A quote goes to its message** when the log holds it: a press scrolls the
   message to the middle and lights its balloon for `SPOTLIGHT_MS` (`jumpTo` in
   `ChatLog`, which finds the line by `data-message`). With the message gone from
@@ -832,7 +860,11 @@ The server says so: `ChatMessage.authorAdmin`, `RosterEntry.admin` and
 once it lands. In fake mode, Ana is the admin.
 
 **A name opens a player card**, in the roster, on a chat message and on the
-season's board (`app/players/PlayerCard.tsx`, a `Modal`). `Viewer` holds the one
+season's board (`app/players/PlayerCard.tsx`, a `Modal`). **The card is read by
+the line's `accountId`, never by its name** (`PlayerInfoBackend.playerInfo`,
+`GetPlayerRequest.account_id`): the name is what the card shows, and a name
+that changed hands would open another player's card. The card can report
+its player: see [Support](#support). `Viewer` holds the one
 card open and hands `onOpenPlayer` to `ChatPanel` → `ChatLog` and `PlayersPanel`,
 and to the board's `BoardStandings`;
 without a `PlayerInfoBackend` wired the names are plain text. The card shows the
@@ -851,12 +883,16 @@ are the player's total, not the season's (see the backend's CLAUDE.md, Player),
 so the top one explains the flag beside its name on the Players board. Two
 columns on a desktop, which is why the card is 440px wide; one under the other
 on a phone. The fake gives its players titles and countries of its own over
-their fake stats and creation date. **A guest's card asks nothing**: a guest has no
-username, so there is nothing to look up, and the card shows the name and the
-flag alone. It says nothing to the viewer, who may well be signed in. The chat tells
-a guest by `GUEST_PREFIX`, which no username starts with. `GetPlayer` needs no
-token and goes out as a GET, like `GetRoster`; `NotFound` (renamed, or the
-account is gone) reads as `undefined`. `usePlayerInfo` reads it once per card.
+their fake stats and creation date. **A guest's card asks nothing**: a guest has an
+account id, but the server keeps a card for a username only, so the card shows
+the name and the flag alone. It says nothing to the viewer, who may well be signed in. The chat tells
+a guest by `GUEST_PREFIX`, which no username starts with: that is a class of
+names the server reserves, not one account. **A line with no account id asks
+nothing either** (a message kept before accounts, or of a deleted account) and
+reads "This player is gone." `GetPlayer` needs no
+token and goes out as a GET, like `GetRoster`; `NotFound` (the account is
+gone) reads as `undefined`, and shows the same line. `usePlayerInfo` reads it
+once per account. `Viewer` keys the card by the account id.
 Escape closes the card and leaves the roster open: `useEscape` does nothing
 while a modal dialog is on the page.
 
@@ -899,12 +935,13 @@ the other's next announce, at most 30s later.
 
 ### Support
 
-What a player sends the operator, from More: a feature suggestion or a bug
-report.
+What a player sends the operator: a feature suggestion or a bug report, from
+More, and a report of another player, from that player's card.
 
 - `backends/support.ts` — `FeatureSuggester` and `BugReporter`, the
   `PageContext` both send, `AttachmentRulesReader` and `AttachmentUploader` for
-  the files (and `SupportBackend`, every support contract together),
+  the files, `PlayerReporter` with its `PlayerReport` and `ReportReason` (and
+  `SupportBackend`, every support contract together),
   `MAX_NOTE_LENGTH`, which mirrors the backend's
   `notes.MaxTextLength`, and the errors. `ConnectSupportBackend`
   (`supportBackend.ts`) implements it over `support.v1.SupportService`;
@@ -917,6 +954,8 @@ report.
   kept twice, and the text is still in the box.
 - The refusals are `resource_exhausted` → `SupportRateLimitedError` (one address
   sends three, then one a minute) and `invalid_argument` → `SupportRejectedError`.
+  A player report has one more: `already_exists` → `SupportReportedAlreadyError`
+  (one account reports one player once a day).
 - **A note says what the page knows about itself, a suggestion as a bug report**
   (`app/support/pageContextOf`): the build, the viewport in CSS pixels and the
   pixel ratio, whether the connection was down, the cores and the memory the
@@ -940,7 +979,34 @@ report.
   (`stayOnBackdropClick`): the ×, Escape and Close still do.
 - **The modal's scroll fade is off** (`.modal-support`): a field sits at the
   bottom edge of the body, and the fade drew over it.
-- `MorePlace` shows the two tiles only with a `support` backend wired.
+- `MorePlace` shows the two tiles only with a `support` backend wired. It asks
+  for `FeatureSuggester & BugReporter` and the two contracts of the files, not
+  the whole `SupportBackend`.
+- **A player is reported from its card.** With a `reporter` wired, `PlayerCard`
+  has a Report button in its footer, clear of the body's scroll fade. A press
+  shows `ReportPlayerModal` **in place of the card**, not over it: two modals
+  would both close on one Escape. Closing the report steps back to the card.
+- **`ReportPlayerModal` is `NoteModal` with a question before the text**
+  (`asked`): a `radiogroup` of the four reasons, then the details, which are
+  optional. Send waits for a reason (`ready`). It opens on the first reason. It
+  hands the form no `files`, so a report of a player takes none.
+- **The report names the account, never the name.** A name can change hands,
+  so a report by name could land on another player. `PlayerLine.accountId` is on
+  every line a card opens from: a chat message (`authorAccountId`), a roster
+  entry and a standing carry it off the wire. `ReportPlayerModal` takes the
+  `accountId` to send and the `name` for its title only. **A line with no
+  account id has no Report**: the author of a message kept before accounts, or
+  whose account is deleted.
+- **A card opened from a chat message carries that message's id**: `ChatLog`
+  hands it as the second argument of `onOpenPlayer`, `Viewer` keeps it with the
+  open card, and the report sends it. A card opened from the roster or the
+  board has none.
+- **No Report on the player's own card**, told by account id: `AccountStore`
+  keeps the `accountId` of a signed-in player from its profile. A guest's is
+  not read here, so its own card has the button, and the server refuses the
+  report.
+- The fakes name one account per name (`backends/fakeAccounts.ts`), so a fake
+  chat message, roster line and standing agree on who a player is.
 
 **A note carries photos and videos**, a suggestion as a bug report. See the
 backend's CLAUDE.md (Support) for where they are kept.
@@ -1014,7 +1080,9 @@ is the player's own view.
   had two lists longer than the screen under the titles. `useFronts` reads
   `GetFronts` (`AccountStore.fronts`) at the same moments, and a failed read
   shows nothing. What is open stays open through these reads, and closes when
-  the tab is left. Tiles taken counts each take at once
+  the tab is left. The stats are the player's own card, read by the
+  `accountId` the `AccountStore` keeps (`OwnStats`), and shown once the account
+  has a username. Tiles taken counts each take at once
   (`useOwnTakes`): `GetPlayer` is cached 10s, so it is read only once.
 - **The unlock moment is live.** The player stream carries `titleEarned` to a
   stream opened with this player's token. `useRoster` hands it to `Viewer`, which
@@ -1154,7 +1222,11 @@ draws it.
   tiles, and the ranks, wait for the next read.
 - **The caller's row is drawn from that count** (`boardWith`): it climbs into
   the top 10 and pushes the last out, its rank counted among the rows it passes,
-  and the rank in "Your season" follows it. The other rows move with the
+  and the rank in "Your season" follows it. **The caller's row is the one with
+  its `accountId`** (`Caller.accountId`, from the `AccountStore`): `boardWith`
+  replaces that row, `PlayerStandings` marks it, and the rows are keyed by it.
+  A row that only shares the caller's name is another player's. With no
+  account id read yet there is no own row. The other rows move with the
   stream: a `TileUpdate` does not say who took the tile.
 - **The caller's own line.** "Your season" sits over the table and shows only
   the board on screen: on Players the season's tiles and, with a username, the
@@ -2820,19 +2892,50 @@ card on a phone.
 **A clip is the real globe playing back a war, for TikTok, Shorts and Reels**: 1080×1920, 8.5 to 22s, a headline,
 the map moving under it from the first frame, and the link at the end. `npm run clip` makes them from a replay
 and **chooses everything itself**: the stretch of time, the place, the headline, the camera, the look and the
-length. Each comes with a `.txt` holding the caption to post. `--count 3` makes the three best stories, for a
+length. Each comes with a `.txt` holding the caption to post, for a person, and a `.json` holding the same as data,
+for a program (below). `--count 3` makes the three best stories, for a
 person to pick one; `--plan` prints what they would be and renders nothing, and `--preview 3` renders only the
 first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 
+**Twice a day a workflow posts the best ones with no person and no laptop** (`.github/workflows/clips.yml`, at
+00:17 and 12:17 UTC, or by hand with `workflow_dispatch`). Four jobs:
+
+1. **fetch**: the backend's `clips fetch -hours 12` over SSH, with the deploy's `VPS_*` secrets. The job runs no
+   npm at all, so the key to the VPS is in no job that installs this app's dependencies. The replay goes on as an
+   artifact; it is the public stream's data.
+2. **choose**: `npm run clip -- --shortlist shortlist.json`, then the backend's `clips choose` reads it and prints the
+   picks to render, `[1,2]`. None is a quiet half day: the run ends there, green.
+3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
+   draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
+   clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
+   recorders do not help there: each one draws every frame.
+4. **schedule**: the backend's `clips schedule` sends each clip to the posting service, for a time hours ahead.
+   **Nothing is ever published at once**: the review is to cancel a clip in the service's dashboard before its time.
+
+What chooses, when a clip goes out, the client of the service and the run's summary are Go, in the backend
+(its CLAUDE.md, "The clips job"). **This app keeps only what needs the browser**, and hands the rest over as data,
+`clips.v1` in the shared `proto/`, written as JSON:
+
+- **`--shortlist <path>`** writes a `Shortlist`: the title of every story worth a clip, best first, so a story's
+  place from 1 is its `--pick`. One page load, no globe, 6s. With no story it is `{}`, not an error.
+- **`clip-<n>.json`** is a `Clip`: its pick, its title (the headline), its caption as it is posted, and its tags as
+  a list for where tags are not part of the text. **The caption is decided here and nowhere else**: the `.txt` and
+  the `.json` hold the same one, credit included (`credited`, `domain/clip/caption.ts`), and the job posts it as it
+  is. The repo is public and so are a run's logs and artifacts: a clip can be watched there before it is out.
+
 - **The replay is the backend's** (`planet.v1.AdminService/GetReplay`, see the backend's CLAUDE.md): the map as it
-  was at the start, and every act after it as the live stream sent it. `npm run clip:fetch` asks for the last
-  72 hours over SSH (`--ssh`, or `CLICKPLANET_SSH`); `npm run clip:record` follows the public stream for a few
+  was at the start, and every act after it as the live stream sent it. The backend's job asks for the last
+  72 hours over SSH (`cd ../backend && go run ./cmd/clips fetch -out ../frontend/replay.json`, with `-ssh` or
+  `CLICKPLANET_SSH`: it needs no browser, so it is Go); `npm run clip:record` follows the public stream for a few
   minutes instead, to try the generator without the operator tool.
 - **It is the game's own globe**, so a clip shows exactly what a player sees: `clip.html` is a page of its own,
   served by `npm run dev` and **left out of the build** (it is not in `rollupOptions.input`). `src/clip/main.ts`
   builds the globe with `createGlobe` over `backends/replayBackend.ts`, which plays the replay through the same
   decoders as `PlanetBackend` (`updateOf`, `bombOf`, `spreadOf`, `enclosureOf`): tile updates in batches, and a
   bomb, a spread or an enclosure as an effect. `ReplayBackend.cut` opens on the map at a later time.
+- **The page chooses, then records** (`window.clip`, `src/clip/main.ts`): `shortlist` is the stories worth a clip,
+  known before any globe is built, and `record()` builds the globe for the story asked for and answers what the
+  recorder needs. A pick past the last story fails `record()`, never `shortlist`.
 - **The recorder owns the clock.** `src/clip/virtualClock.ts` replaces `performance.now` and
   `requestAnimationFrame`, so a frame is drawn only when `window.clip.frame(i)` asks, and a bomb takes its second
   of video however long a frame takes to capture. **No CSS animation or transition on the page**: they run on the
@@ -2934,7 +3037,8 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   play, vendored by `npm run clip:anthems` into `scripts/clip/anthems/`: the Anthem of Europe (Navy Band too) and
   Palestine's Fida'i, which the Navy Band never recorded, in an instrumental under CC BY 3.0. A recording under a
   licence carries its credit, and the caption of every clip it plays under ends with it. It fades out over the
-  last 1.2s. `--silent` leaves it out, for TikTok and Instagram, where a sound is added when posting.
+  last 1.2s. `--silent` leaves it out, and its credit with it, for TikTok and Instagram, where a sound is added
+  when posting.
 - **An anthem starts on a highlight**, never on its first second: the UK's opens on 11s of drum roll, Algeria's on 7s
   of drums. `highlight.ts` hears a drum roll from a tune (a noisy spectrum, against the band's notes) and ranks the
   notes struck with the band playing on, loudest first, a phrase after a pause counting as louder.
@@ -2975,8 +3079,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
   crosses up close (`screensOf`, on the camera's smoothed path), up to 15s. A bomb adds nothing. The last 2.5s are the call to act, and nothing runs past 22s.
 
 **`scripts/clip/render.mjs` is the recorder**: it starts Vite, serves the replay at `/__clip/replay.json`, opens
-headless Chrome at 540×960 at 2×, waits for `window.clip.ready`, then for each frame calls `window.clip.frame(i)`,
-takes a screenshot and pipes it to ffmpeg (libx264, `yuv420p`). It needs ffmpeg and Chrome (`CHROME_PATH`).
+headless Chrome at 540×960 at 2×, waits for `window.clip.record()`, then for each frame calls `window.clip.frame(i)`,
+takes a screenshot and pipes it to ffmpeg (libx264, `yuv420p`). It needs ffmpeg and Chrome (`CHROME_PATH`, which
+the workflow sets: the default is the macOS path).
 
 **The screenshot is nearly all of a clip's time, so several browsers take them in turn** (`--recorders`, one for
 every 3 cores, 4 at most). The globe draws a frame in 6ms; Chrome takes 0.3s to encode it as a 2.4MB PNG, on one
@@ -3022,8 +3127,8 @@ the last 3s and a broadcast on one of them, for the same country, is taken as
 ours. They have no switch of their own: `switchOf` puts them under the tile
 click's;
 the chat in `ChatPanel` for a message that is not yours. **Your own message is
-filtered on your name as well as on `mine`**: its broadcast can arrive before
-the send answer that fills `mine` in. A guest's name is only known once a
+filtered on your account as well as on `mine`**: its broadcast can arrive before
+the send answer that fills `mine` in. A guest's account is only known once a
 message of its own came back, so its first can still ping.
 
 ### The leader's anthem

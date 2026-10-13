@@ -48,12 +48,12 @@ export type Board = {
 export function boardWith(standings: readonly Standing[], own: Standing | undefined): Board {
     if (!own) return {listed: [...standings]}
 
-    const others = standings.filter((standing) => standing.name !== own.name)
+    const others = standings.filter((standing) => standing.accountId !== own.accountId)
     const at = others.findIndex((standing) => standing.tiles < own.tiles)
     const merged = at === -1 ? [...others, own] : [...others.slice(0, at), own, ...others.slice(at)]
     const listed = ranked(merged).slice(0, STANDINGS_SHOWN)
 
-    return listed.some((standing) => standing.name === own.name) ? {listed} : {listed, below: own}
+    return listed.some((standing) => standing.accountId === own.accountId) ? {listed} : {listed, below: own}
 }
 
 function ranked(standings: Standing[]): Standing[] {

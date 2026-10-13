@@ -1,5 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {
+    accountSentUnder,
     addAnnouncements,
     addMessages,
     CHAT_LOG_LIMIT,
@@ -20,6 +21,7 @@ import {NameColor} from "../backends/player.ts"
 const message = (id: string, sentAt: number): ChatMessage => ({
     id,
     sentAt,
+    authorAccountId: "account-ana",
     authorName: "Ana",
     authorAdmin: false,
     authorColor: NameColor.UNSPECIFIED,
@@ -171,9 +173,33 @@ describe("nameSentUnder", () => {
     })
 })
 
+describe("accountSentUnder", () => {
+    const log = [
+        {...message("a", 1), authorAccountId: "account-bo"},
+        {...message("b", 2), authorAccountId: "account-guest"},
+        {...message("c", 3), authorAccountId: "account-own"},
+        {...message("d", 4), authorAccountId: ""},
+    ]
+
+    it("is the account of the latest message this client sent", () => {
+        expect(accountSentUnder(log, new Set(["b"]))).toBe("account-guest")
+        expect(accountSentUnder(log, new Set(["b", "c"]))).toBe("account-own")
+    })
+
+    it("skips a sent message that carries no account", () => {
+        expect(accountSentUnder(log, new Set(["c", "d"]))).toBe("account-own")
+        expect(accountSentUnder(log, new Set(["d"]))).toBeUndefined()
+    })
+
+    it("is unknown until a message was sent, and once it left the log", () => {
+        expect(accountSentUnder(log, new Set())).toBeUndefined()
+        expect(accountSentUnder(log, new Set(["gone"]))).toBeUndefined()
+    })
+})
+
 describe("startsGroup", () => {
     const from = (author: string, sentAt: number): ChatMessage =>
-        ({...message("x", sentAt), authorName: author})
+        ({...message("x", sentAt), authorAccountId: `account-${author}`, authorName: author})
 
     it("opens a group on the first message there is", () => {
         expect(startsGroup(undefined, from("Ana", 0))).toBe(true)
@@ -191,6 +217,28 @@ describe("startsGroup", () => {
         const bo = from("Bo", 1_000)
 
         expect(startsGroup(ana, bo)).toBe(true)
+    })
+
+    it("opens a group when another account speaks under the same name", () => {
+        const ana = from("Ana", 0)
+        const other = {...from("Ana", 1_000), authorAccountId: "account-other"}
+
+        expect(startsGroup(ana, other)).toBe(true)
+        expect(startsGroup(ana, {...from("Ana", 1_000), authorAccountId: ""})).toBe(true)
+    })
+
+    it("opens a group when the same account speaks under a new name", () => {
+        const ana = from("Ana", 0)
+        const renamed = {...from("Ana", 1_000), authorName: "Ana_Lovelace"}
+
+        expect(startsGroup(ana, renamed)).toBe(true)
+    })
+
+    it("keeps together the messages of one name that carry no account", () => {
+        const first = {...from("[deleted]", 0), authorAccountId: ""}
+        const next = {...from("[deleted]", 1_000), authorAccountId: ""}
+
+        expect(startsGroup(first, next)).toBe(false)
     })
 
     it("opens a group again after a long enough silence", () => {

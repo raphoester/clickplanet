@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import {NameColor, PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 import PlayerCard from "./PlayerCard.tsx"
 
@@ -9,10 +10,10 @@ afterEach(() => {
     vi.restoreAllMocks()
 })
 
-const ana: PlayerLine = {name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
-const bo: PlayerLine = {name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
+const ana: PlayerLine = {accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
+const bo: PlayerLine = {accountId: "account-bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
 
-const backendAnswering = (answer: () => Promise<PlayerInfo | undefined>) =>
+const backendAnswering = (answer: (accountId: string) => Promise<PlayerInfo | undefined>) =>
     ({playerInfo: vi.fn(answer)}) satisfies PlayerInfoBackend
 
 const stat = (label: string) => screen.getByText(label).nextElementSibling?.textContent
@@ -35,7 +36,7 @@ describe("PlayerCard", () => {
         expect(stat("Streak")).toBe("1 day")
         expect(stat("Best streak")).toBe("7 days")
         expect(stat("Playing since")).toBe(new Intl.DateTimeFormat(undefined, {dateStyle: "medium"}).format(Date.UTC(2026, 8, 1, 12)))
-        expect(backend.playerInfo).toHaveBeenCalledWith("Ana")
+        expect(backend.playerInfo).toHaveBeenCalledWith("account-ana")
     })
 
     it("leaves out a creation date the server does not know", async () => {
@@ -108,10 +109,32 @@ describe("PlayerCard", () => {
         expect(backend.playerInfo).not.toHaveBeenCalled()
     })
 
-    it("says so when no player holds the name any more", async () => {
+    it("says so when the account has no card any more", async () => {
         render(<PlayerCard player={ana} backend={backendAnswering(async () => undefined)} onClose={() => {}}/>)
 
-        expect(await screen.findByText("No player holds this name now.")).toBeDefined()
+        expect(await screen.findByText("This player is gone.")).toBeDefined()
+    })
+
+    it("asks nothing for a player with no account id, and says it is gone", () => {
+        const backend = backendAnswering(async () => undefined)
+        render(<PlayerCard player={{...ana, accountId: "", name: "[deleted]"}} backend={backend} onClose={() => {}}/>)
+
+        expect(screen.getByText("This player is gone.")).toBeDefined()
+        expect(backend.playerInfo).not.toHaveBeenCalled()
+    })
+
+    it("reads the card again when it is given another account under the same name", async () => {
+        const backend = backendAnswering(async (accountId: string) => ({
+            name: "Ana", tilesTaken: accountId === "account-ana" ? 1 : 2, streakCurrent: 0, streakBest: 0, admin: false,
+            color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
+        }))
+        const {rerender} = render(<PlayerCard player={ana} backend={backend} onClose={() => {}}/>)
+        await screen.findByText("Tiles taken")
+
+        rerender(<PlayerCard player={{...ana, accountId: "account-other"}} backend={backend} onClose={() => {}}/>)
+
+        await vi.waitFor(() => expect(backend.playerInfo).toHaveBeenLastCalledWith("account-other"))
+        expect(backend.playerInfo).toHaveBeenCalledTimes(2)
     })
 
     it("says so when the stats cannot be read", async () => {
@@ -172,5 +195,51 @@ describe("PlayerCard", () => {
                            onClose={() => {}}/>)
         expect(screen.queryByRole("img", {name: "Admin"})).toBeNull()
         expect(await screen.findByRole("img", {name: "Admin"})).toBeDefined()
+    })
+
+    describe("a report", () => {
+        const guestCard = () => backendAnswering(async () => undefined)
+
+        it("is not offered with no reporter wired", () => {
+            render(<PlayerCard player={bo} backend={guestCard()} onClose={() => {}}/>)
+
+            expect(screen.queryByRole("button", {name: "Report"})).toBeNull()
+        })
+
+        it("is not offered for a player line with no account", () => {
+            render(<PlayerCard player={{...bo, accountId: ""}} backend={guestCard()} reporter={{reportPlayer: vi.fn()}}
+                               onClose={() => {}}/>)
+
+            expect(screen.queryByRole("button", {name: "Report"})).toBeNull()
+        })
+
+        it("opens in place of the card, and sends the account on the card with the message it was opened from", async () => {
+            const reporter = {reportPlayer: vi.fn(async () => undefined)}
+            render(<PlayerCard player={bo} backend={guestCard()} reporter={reporter} messageId="message-1" onClose={() => {}}/>)
+            const user = userEvent.setup()
+
+            await user.click(screen.getByRole("button", {name: "Report"}))
+
+            expect(screen.getAllByRole("dialog")).toHaveLength(1)
+            expect(screen.getByRole("dialog", {name: "Report guest_Bo"})).not.toBeNull()
+
+            await user.click(screen.getByRole("radio", {name: "Abuse in the chat"}))
+            await user.click(screen.getByRole("button", {name: "Send"}))
+
+            expect(reporter.reportPlayer).toHaveBeenCalledWith(
+                {accountId: "account-bo", reason: "chat-abuse", text: "", messageId: "message-1"})
+        })
+
+        it("steps back to the card when the report is closed", async () => {
+            const onClose = vi.fn()
+            render(<PlayerCard player={bo} backend={guestCard()} reporter={{reportPlayer: vi.fn()}} onClose={onClose}/>)
+            const user = userEvent.setup()
+
+            await user.click(screen.getByRole("button", {name: "Report"}))
+            await user.keyboard("{Escape}")
+
+            expect(screen.getByRole("dialog", {name: "guest_Bo"})).not.toBeNull()
+            expect(onClose).not.toHaveBeenCalled()
+        })
     })
 })

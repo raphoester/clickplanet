@@ -18,7 +18,7 @@ import {useAccount} from "./account/useAccount.ts";
 import AccountPanel from "./account/AccountPanel.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerInfoBackend} from "../backends/player.ts";
-import {PageContext, SupportBackend} from "../backends/support.ts";
+import {AttachmentRulesReader, AttachmentUploader, BugReporter, FeatureSuggester, PageContext} from "../backends/support.ts";
 import NoteModal from "./support/NoteModal.tsx";
 import {pageContextOf} from "./support/pageContext.ts";
 import {NO_GRAPHICS} from "./viewer/graphicsReport.ts";
@@ -56,7 +56,7 @@ export type YouPlaceProps = {
 export type MorePlaceProps = {
     onTakePicture?: () => void,
     taking?: boolean,
-    support?: SupportBackend,
+    support?: FeatureSuggester & BugReporter & AttachmentRulesReader & AttachmentUploader,
     pageContext?: () => PageContext,
 }
 

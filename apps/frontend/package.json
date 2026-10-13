@@ -13,7 +13,6 @@
     "mobile": "node scripts/mobile.mjs",
     "clip": "node scripts/clip/render.mjs",
     "clip:record": "vite-node scripts/clip/record.ts --",
-    "clip:fetch": "node scripts/clip/fetch.mjs",
     "clip:anthems": "node scripts/clip/anthems.mjs && npm run clip:highlights",
     "clip:highlights": "vite-node scripts/clip/highlights.ts",
     "preview": "vite preview",

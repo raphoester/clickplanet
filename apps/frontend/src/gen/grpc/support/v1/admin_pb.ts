@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
-import { PageContext } from "./support_pb.js";
+import { PageContext, ReportReason } from "./support_pb.js";
 
 /**
  * @generated from enum support.v1.NoteKind
@@ -258,6 +258,177 @@ export class NoteAttachment extends Message<NoteAttachment> {
 
   static equals(a: NoteAttachment | PlainMessage<NoteAttachment> | undefined, b: NoteAttachment | PlainMessage<NoteAttachment> | undefined): boolean {
     return proto3.util.equals(NoteAttachment, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.ListReportsRequest
+ */
+export class ListReportsRequest extends Message<ListReportsRequest> {
+  /**
+   * Unset is every report kept.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 1;
+   */
+  since?: Timestamp;
+
+  /**
+   * Unset is 100; at most 500.
+   *
+   * @generated from field: uint32 limit = 2;
+   */
+  limit = 0;
+
+  constructor(data?: PartialMessage<ListReportsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.ListReportsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "since", kind: "message", T: Timestamp },
+    { no: 2, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListReportsRequest {
+    return new ListReportsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListReportsRequest {
+    return new ListReportsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListReportsRequest {
+    return new ListReportsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListReportsRequest | PlainMessage<ListReportsRequest> | undefined, b: ListReportsRequest | PlainMessage<ListReportsRequest> | undefined): boolean {
+    return proto3.util.equals(ListReportsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.ListReportsResponse
+ */
+export class ListReportsResponse extends Message<ListReportsResponse> {
+  /**
+   * @generated from field: repeated support.v1.Report reports = 1;
+   */
+  reports: Report[] = [];
+
+  constructor(data?: PartialMessage<ListReportsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.ListReportsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reports", kind: "message", T: Report, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListReportsResponse {
+    return new ListReportsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListReportsResponse {
+    return new ListReportsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListReportsResponse {
+    return new ListReportsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListReportsResponse | PlainMessage<ListReportsResponse> | undefined, b: ListReportsResponse | PlainMessage<ListReportsResponse> | undefined): boolean {
+    return proto3.util.equals(ListReportsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.Report
+ */
+export class Report extends Message<Report> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string reporter_account_id = 2;
+   */
+  reporterAccountId = "";
+
+  /**
+   * @generated from field: string reported_account_id = 3;
+   */
+  reportedAccountId = "";
+
+  /**
+   * @generated from field: support.v1.ReportReason reason = 4;
+   */
+  reason = ReportReason.UNSPECIFIED;
+
+  /**
+   * @generated from field: string text = 5;
+   */
+  text = "";
+
+  /**
+   * @generated from field: string message_id = 6;
+   */
+  messageId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 7;
+   */
+  createdAt?: Timestamp;
+
+  /**
+   * The name the game shows for each account now; empty for one it can no longer name.
+   *
+   * @generated from field: string reporter_name = 8;
+   */
+  reporterName = "";
+
+  /**
+   * @generated from field: string reported_name = 9;
+   */
+  reportedName = "";
+
+  constructor(data?: PartialMessage<Report>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.Report";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "reporter_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "reported_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "reason", kind: "enum", T: proto3.getEnumType(ReportReason) },
+    { no: 5, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "created_at", kind: "message", T: Timestamp },
+    { no: 8, name: "reporter_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "reported_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Report {
+    return new Report().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Report {
+    return new Report().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Report {
+    return new Report().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Report | PlainMessage<Report> | undefined, b: Report | PlainMessage<Report> | undefined): boolean {
+    return proto3.util.equals(Report, a, b);
   }
 }
 

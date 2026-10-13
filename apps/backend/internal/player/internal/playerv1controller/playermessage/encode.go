@@ -52,6 +52,7 @@ func Titles(standings []titles.Standing) []*playerv1.Title {
 func RosterEntry(entry presence.Entry) *playerv1.RosterEntry {
 	return &playerv1.RosterEntry{
 		Key:       string(entry.Key()),
+		AccountId: entry.Account().String(),
 		Name:      entry.Name(),
 		CountryId: entry.Country(),
 		Guest:     entry.Guest(),

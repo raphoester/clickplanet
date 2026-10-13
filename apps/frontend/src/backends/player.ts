@@ -81,6 +81,8 @@ export type Presence = {
 }
 
 export type PlayerLine = {
+    // Empty for the author of a chat message kept before accounts, or whose account is deleted.
+    accountId: string
     name: string
     countryCode: string
     guest: boolean
@@ -157,5 +159,5 @@ export type CountryTiles = {
 }
 
 export interface PlayerInfoBackend {
-    playerInfo(name: string): Promise<PlayerInfo | undefined>
+    playerInfo(accountId: string): Promise<PlayerInfo | undefined>
 }

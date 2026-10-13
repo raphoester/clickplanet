@@ -1,6 +1,8 @@
 import "../tokens.css"
 import "./clip.css"
 import * as THREE from "three"
+import type {JsonValue} from "@bufbuild/protobuf"
+import {Clip, Shortlist} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {GetReplayResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {ReplayBackend} from "../backends/replayBackend.ts"
 import {createGlobe} from "../app/viewer/globe.ts"
@@ -13,6 +15,7 @@ import {foughtOver, losersOf, ownersAfter, ranked as rankedBy, takersFrom, tally
 import {cellOf, dot, meanOf, Point, pointOf} from "../domain/clip/geometry.ts"
 import {SCRIBBLE_BELOW, solidityOf} from "../domain/clip/solidity.ts"
 import {anthemOf, startOf} from "../domain/clip/music.ts"
+import {credited} from "../domain/clip/caption.ts"
 import {ANTHEMS} from "../app/anthem/anthemsAsset.ts"
 import {HIGHLIGHTS} from "./anthemHighlightsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
@@ -47,12 +50,18 @@ export type Recording = {
     call: string
     link: string
     caption: string
+    // What to post with the clip, as a clips.v1.Clip.
+    clip: JsonValue
 }
 
 export type Recorder = {
-    ready: Promise<Recording>
+    // The stories worth a clip, as a clips.v1.Shortlist.
+    shortlist: Promise<JsonValue>
+    record(): Promise<Recording>
     frame(index: number): void
 }
+
+type Chosen = {shortlist: JsonValue, record(): Promise<Recording>}
 
 declare global {
     interface Window {
@@ -139,7 +148,7 @@ function windowParam(replay: ReplayBackend): Window | undefined {
     }
 }
 
-async function prepare(): Promise<Recording> {
+async function choose(): Promise<Chosen> {
     const textures = texturesLoaded()
     const root = document.getElementById("clip")
     const stage = document.getElementById("clip-globe")
@@ -287,125 +296,137 @@ async function prepare(): Promise<Recording> {
         }),
     ]
 
-    const pick = numberParam("pick") ?? 1
-    const picked = worth[pick - 1]
-    if (!picked) {
-        throw new Error([`no story number ${pick}: this replay has ${worth.length} worth a clip`, ...skipped].join("\n  skipped "))
-    }
-    const {front, story, backend, solidity, scope, world} = picked
-    const changes = backend.changes().filter(({tile}) => inScope(scope)(tile))
+    const record = async (): Promise<Recording> => {
+        const pick = numberParam("pick") ?? 1
+        const picked = worth[pick - 1]
+        if (!picked) {
+            throw new Error([`no story number ${pick}: this replay has ${worth.length} worth a clip`, ...skipped].join("\n  skipped "))
+        }
+        const {front, story, backend, solidity, scope, world} = picked
+        const changes = backend.changes().filter(({tile}) => inScope(scope)(tile))
 
-    // The counter counts where the headline says: in the story's place, not in all that is near its front.
-    const inArea = (tile: number) => inPlace(story.place, groundAt(tile), regionOf)
+        // The counter counts where the headline says: in the story's place, not in all that is near its front.
+        const inArea = (tile: number) => inPlace(story.place, groundAt(tile), regionOf)
 
-    const points = front.changes.map(({tile}) => pointAt(tile))
-    const wide = framingOf(points, aspect)
-    const touched = front.changes.map(({tile}) => tile)
-    const flips = flipsOf(borders.assignment, backend.opening, changes, touched)
-    const look = lookParam() ?? lookOf(flips, wide.zoom)
-    const first = openingOf(wide)
+        const points = front.changes.map(({tile}) => pointAt(tile))
+        const wide = framingOf(points, aspect)
+        const touched = front.changes.map(({tile}) => tile)
+        const flips = flipsOf(borders.assignment, backend.opening, changes, touched)
+        const look = lookParam() ?? lookOf(flips, wide.zoom)
+        const first = openingOf(wide)
 
-    const inSight = world ? () => true : inSightOf(front, pointAt, groundAt, scope)
-    const drops = backend.drops().filter(({drop}) => drop.tile !== undefined && inSight(drop.tile))
-    const close = Math.max(first.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH)
-    const screens = screensOf(front.changes.map(({tile}, i) => ({share: i / front.changes.length, point: pointAt(tile)})), close)
-    const pace = paceOf(front.changes.map(({at}) => at), backend.since, backend.until)
-    const stops = world ? stopsOf(visitsOf(front, story.attacker, pace.shareOf), aspect) : []
-    const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds")) : timelineOf(screens, numberParam("seconds"))
-    const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending, flagsZoomOf(root.clientHeight))
-        : cameraOf(first, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
-            close,
-            seconds: timeline.seconds - timeline.ending,
-            pullBack: PULL_BACKS[look],
-            hold: numberParam("hold"),
+        const inSight = world ? () => true : inSightOf(front, pointAt, groundAt, scope)
+        const drops = backend.drops().filter(({drop}) => drop.tile !== undefined && inSight(drop.tile))
+        const close = Math.max(first.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH)
+        const screens = screensOf(front.changes.map(({tile}, i) => ({share: i / front.changes.length, point: pointAt(tile)})), close)
+        const pace = paceOf(front.changes.map(({at}) => at), backend.since, backend.until)
+        const stops = world ? stopsOf(visitsOf(front, story.attacker, pace.shareOf), aspect) : []
+        const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds")) : timelineOf(screens, numberParam("seconds"))
+        const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending, flagsZoomOf(root.clientHeight))
+            : cameraOf(first, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
+                close,
+                seconds: timeline.seconds - timeline.ending,
+                pullBack: PULL_BACKS[look],
+                hold: numberParam("hold"),
+            })
+
+        // A continent striking back together is counted as one side.
+        const team = teamFlagOf(story)
+        const sideOf = (owner: string) => team !== undefined && regionOf(owner) === story.team ? team : owner
+        const owners = new Map([...backend.opening].filter(([tile]) => inArea(tile)))
+        const held = new Map<string, number>()
+        for (const owner of owners.values()) held.set(sideOf(owner), (held.get(sideOf(owner)) ?? 0) + 1)
+        const opening = new Map(held)
+        const own = (tile: number, owner: string | undefined) => {
+            if (!inArea(tile)) return
+            const was = owners.get(tile)
+            if (was !== undefined) held.set(sideOf(was), (held.get(sideOf(was)) ?? 0) - 1)
+            if (owner === undefined) owners.delete(tile)
+            else {
+                owners.set(tile, owner)
+                held.set(sideOf(owner), (held.get(sideOf(owner)) ?? 0) + 1)
+            }
+        }
+        backend.listenForUpdates((update) => own(update.tile, update.newCountry))
+        backend.listenForBombs((drop) => drop.cleared.forEach((tile) => own(tile, undefined)))
+
+        const words = wordsOf(story, params.get("headline") ?? undefined)
+        const overlay = createOverlay(root, story, words, opening)
+        const music = params.has("silent") ? undefined : musicOf(story, timeline.seconds)
+        const caption = credited(words.caption, music?.credit)
+
+        let played = 0
+        await createGlobe({
+            tileClicker: {clickTile: () => Promise.resolve()},
+            ownershipsGetter: backend,
+            updatesListener: backend,
+            bonusListener: backend,
+            bomber: backend,
+            container: stage,
+            country: Countries.get(story.attacker) ?? {code: story.attacker, name: story.attacker},
+            mapView: "flags",
+            rendering: "sharp",
+            director: () => camera(played),
+            onLeaderboardChange: () => {},
+            onLoadProgress: () => {},
+            onRateLimited: () => {},
+            onVPNBlocked: () => {},
+            onSessionUnavailable: () => {},
+            onBonusTaken: () => {},
+            onBonusWon: () => {},
+            onCharges: () => {},
+            onRules: () => {},
+            onSwitchesChange: () => {},
+            onBombDropped: () => {},
+            onArmedChange: () => {},
+            signal: new AbortController().signal,
         })
 
-    // A continent striking back together is counted as one side.
-    const team = teamFlagOf(story)
-    const sideOf = (owner: string) => team !== undefined && regionOf(owner) === story.team ? team : owner
-    const owners = new Map([...backend.opening].filter(([tile]) => inArea(tile)))
-    const held = new Map<string, number>()
-    for (const owner of owners.values()) held.set(sideOf(owner), (held.get(sideOf(owner)) ?? 0) + 1)
-    const opening = new Map(held)
-    const own = (tile: number, owner: string | undefined) => {
-        if (!inArea(tile)) return
-        const was = owners.get(tile)
-        if (was !== undefined) held.set(sideOf(was), (held.get(sideOf(was)) ?? 0) - 1)
-        if (owner === undefined) owners.delete(tile)
-        else {
-            owners.set(tile, owner)
-            held.set(sideOf(owner), (held.get(sideOf(owner)) ?? 0) + 1)
+        await textures()
+        await document.fonts.ready
+        for (let i = 0; i < WARM_UP_FRAMES; i++) clock.advance(1000 / fps)
+
+        frame = (index) => {
+            const seconds = index / fps
+            played = playedAt(timeline, seconds)
+            const replayAt = pace.timeAt(played)
+            backend.advanceTo(replayAt)
+            clock.advance(1000 / fps)
+
+            const ending = timeline.seconds - timeline.ending
+            overlay.show({replayAt, played, held, ending: Math.min(1, Math.max(0, (seconds - ending) / 0.5))})
+        }
+
+        return {
+            pick,
+            stories: worth.length,
+            frames: Math.round(timeline.seconds * fps),
+            fps,
+            seconds: timeline.seconds,
+            since: new Date(backend.since).toISOString(),
+            until: new Date(backend.until).toISOString(),
+            look: world ? `tour of ${stops.map(({region}) => region).join(", ")}, ${drops.length} ${drops.length === 1 ? "bomb" : "bombs"}, `
+                + `solidity ${solidity.toFixed(2)}`
+                : `${look} (front framed at zoom ${wide.zoom.toFixed(1)}), ${drops.length} ${drops.length === 1 ? "bomb" : "bombs"}, `
+                + `action crosses ${screens.toFixed(1)} screens, solidity ${solidity.toFixed(2)}, ${flipsLine(flips)}`,
+            skipped,
+            place: placeName(story.place),
+            headline: words.headline,
+            line: words.line ?? "",
+            call: words.call,
+            link: words.link,
+            caption,
+            clip: new Clip({pick, title: words.headline, caption, tags: words.tags}).toJson(),
+            music,
         }
     }
-    backend.listenForUpdates((update) => own(update.tile, update.newCountry))
-    backend.listenForBombs((drop) => drop.cleared.forEach((tile) => own(tile, undefined)))
 
-    const words = wordsOf(story, params.get("headline") ?? undefined)
-    const overlay = createOverlay(root, story, words, opening)
-
-    let played = 0
-    await createGlobe({
-        tileClicker: {clickTile: () => Promise.resolve()},
-        ownershipsGetter: backend,
-        updatesListener: backend,
-        bonusListener: backend,
-        bomber: backend,
-        container: stage,
-        country: Countries.get(story.attacker) ?? {code: story.attacker, name: story.attacker},
-        mapView: "flags",
-        rendering: "sharp",
-        director: () => camera(played),
-        onLeaderboardChange: () => {},
-        onLoadProgress: () => {},
-        onRateLimited: () => {},
-        onVPNBlocked: () => {},
-        onSessionUnavailable: () => {},
-        onBonusTaken: () => {},
-        onBonusWon: () => {},
-        onCharges: () => {},
-        onRules: () => {},
-        onSwitchesChange: () => {},
-        onBombDropped: () => {},
-        onArmedChange: () => {},
-        signal: new AbortController().signal,
-    })
-
-    await textures()
-    await document.fonts.ready
-    for (let i = 0; i < WARM_UP_FRAMES; i++) clock.advance(1000 / fps)
-
-    frame = (index) => {
-        const seconds = index / fps
-        played = playedAt(timeline, seconds)
-        const replayAt = pace.timeAt(played)
-        backend.advanceTo(replayAt)
-        clock.advance(1000 / fps)
-
-        const ending = timeline.seconds - timeline.ending
-        overlay.show({replayAt, played, held, ending: Math.min(1, Math.max(0, (seconds - ending) / 0.5))})
-    }
-
-    return {
-        pick,
-        stories: worth.length,
-        frames: Math.round(timeline.seconds * fps),
-        fps,
-        seconds: timeline.seconds,
-        since: new Date(backend.since).toISOString(),
-        until: new Date(backend.until).toISOString(),
-        look: world ? `tour of ${stops.map(({region}) => region).join(", ")}, ${drops.length} ${drops.length === 1 ? "bomb" : "bombs"}, `
-            + `solidity ${solidity.toFixed(2)}`
-            : `${look} (front framed at zoom ${wide.zoom.toFixed(1)}), ${drops.length} ${drops.length === 1 ? "bomb" : "bombs"}, `
-            + `action crosses ${screens.toFixed(1)} screens, solidity ${solidity.toFixed(2)}, ${flipsLine(flips)}`,
-        skipped,
-        place: placeName(story.place),
-        headline: words.headline,
-        line: words.line ?? "",
-        call: words.call,
-        link: words.link,
-        caption: words.caption,
-        music: musicOf(story, timeline.seconds),
-    }
+    return {shortlist: new Shortlist({stories: worth.map(({story}) => ({title: wordsOf(story).headline}))}).toJson(), record}
 }
 
-window.clip = {ready: prepare(), frame: (index) => frame(index)}
+const chosen = choose()
+window.clip = {
+    shortlist: chosen.then(({shortlist}) => shortlist),
+    record: () => chosen.then(({record}) => record()),
+    frame: (index) => frame(index),
+}

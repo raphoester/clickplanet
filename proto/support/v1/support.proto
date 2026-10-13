@@ -7,6 +7,8 @@ service SupportService {
 
   rpc ReportBug(ReportBugRequest) returns (ReportBugResponse);
 
+  rpc ReportPlayer(ReportPlayerRequest) returns (ReportPlayerResponse);
+
   rpc GetAttachmentRules(GetAttachmentRulesRequest) returns (GetAttachmentRulesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -76,3 +78,25 @@ message PageContext {
   // Device memory in GiB, as the browser reports it; 0 where it does not.
   double memory_gb = 12;
 }
+
+enum ReportReason {
+  REPORT_REASON_UNSPECIFIED = 0;
+  REPORT_REASON_CHEATING = 1;
+  REPORT_REASON_CHAT_ABUSE = 2;
+  REPORT_REASON_BAD_NAME = 3;
+  REPORT_REASON_OTHER = 4;
+}
+
+message ReportPlayerRequest {
+  reserved 1;
+  reserved "name";
+  ReportReason reason = 2;
+  // Optional.
+  string text = 3;
+  // Optional: the chat message the report is about.
+  string message_id = 4;
+  // The account reported, as a chat message, a roster line or a standing carries it.
+  string account_id = 5;
+}
+
+message ReportPlayerResponse {}

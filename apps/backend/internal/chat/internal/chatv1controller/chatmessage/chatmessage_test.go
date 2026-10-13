@@ -81,16 +81,29 @@ func TestAMessageCarriesTheTitleItsAuthorWears(t *testing.T) {
 func TestAMessageCarriesWhatItsSnapshotHolds(t *testing.T) {
 	at := time.Date(2026, 10, 11, 12, 0, 0, 123_000_000, time.UTC)
 
+	ada := messages.AccountID{15: 1}
+
 	encoded := chatmessage.Encode(messages.Restored(t, messages.Snapshot{
-		ID: "message-1", SentAt: at, Author: messages.AuthorOf("Ada_L", true, 0, 0, messages.Title{}), Country: "fr", Text: "hello",
+		ID: "message-1", SentAt: at, Account: ada, Author: messages.AuthorOf("Ada_L", true, 0, 0, messages.Title{}),
+		Country: "fr", Text: "hello",
 	}), nil, 0)
 
 	assert.Equal(t, "message-1", encoded.GetId())
 	assert.Equal(t, at.UnixMilli(), encoded.GetSentAtUnixMs())
+	assert.Equal(t, ada.String(), encoded.GetAuthorAccountId())
 	assert.Equal(t, "Ada_L", encoded.GetAuthorName())
 	assert.True(t, encoded.GetAuthorAdmin())
 	assert.Equal(t, "fr", encoded.GetCountryId())
 	assert.Equal(t, "hello", encoded.GetText())
+}
+
+func TestAMessageWithNoAccountCarriesNoAccountID(t *testing.T) {
+	encoded := chatmessage.Encode(messages.Restored(t, messages.Snapshot{
+		ID: "message-1", SentAt: time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC),
+		Author: messages.AuthorOf("guest_Bob", false, 0, 0, messages.Title{}), Country: "fr", Text: "hello",
+	}), nil, 0)
+
+	assert.Empty(t, encoded.GetAuthorAccountId(), "not an id of zeros")
 }
 
 func TestAReplyCarriesTheMessageItQuotesAndAPlainMessageNone(t *testing.T) {

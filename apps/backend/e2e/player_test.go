@@ -287,7 +287,7 @@ func TestAUsernameAnotherPlayerHoldsIsAlreadyExists(t *testing.T) {
 	assert.NoError(t, err, "a player sets its own name again in another case")
 }
 
-func TestAnybodyReadsAPlayerByItsUsernameWithNoToken(t *testing.T) {
+func TestAnybodyReadsAPlayerByItsAccountWithNoToken(t *testing.T) {
 	game := startGame(t)
 	before := time.Now().Add(-time.Second)
 	ada := game.newPlayer(t)
@@ -298,7 +298,7 @@ func TestAnybodyReadsAPlayerByItsUsernameWithNoToken(t *testing.T) {
 	require.Eventually(t, func() bool { return ada.stats().GetTilesTaken() == 1 }, 5*time.Second, 20*time.Millisecond)
 
 	anybody := playerv1connect.NewPlayerServiceClient(http.DefaultClient, game.baseURL, connect.WithHTTPGet())
-	res, err := anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "ada_l"}))
+	res, err := anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{AccountId: ada.account()}))
 
 	require.NoError(t, err)
 	player := res.Msg.GetPlayer()
@@ -307,7 +307,52 @@ func TestAnybodyReadsAPlayerByItsUsernameWithNoToken(t *testing.T) {
 	assert.Equal(t, uint32(1), player.GetStats().GetStreakCurrent())
 	assert.WithinRange(t, time.UnixMilli(player.GetCreatedAtUnixMs()), before, time.Now(), "auth says when the guest was made")
 
-	_, err = anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "Bob"}))
+	guest := game.newPlayer(t)
+	guest.click(2, "fr")
+	_, err = anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{AccountId: guest.account()}))
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err), "a guest has no card")
+
+	_, err = anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{AccountId: "Ada_L"}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "a name is not an id")
+}
+
+func TestAPlayerKeepsItsCardWhenAnotherTakesTheNameItLeft(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+	_, err := ada.setName("Ada_L")
+	require.NoError(t, err)
+	ada.click(1, "fr")
+	require.Eventually(t, func() bool { return ada.stats().GetTilesTaken() == 1 }, 5*time.Second, 20*time.Millisecond)
+	_, err = ada.setName("Ada_Lovelace")
+	require.NoError(t, err)
+	bob := game.newPlayer(t)
+	bob.link("google-bob")
+	_, err = bob.setName("Ada_L")
+	require.NoError(t, err)
+
+	anybody := playerv1connect.NewPlayerServiceClient(http.DefaultClient, game.baseURL, connect.WithHTTPGet())
+	res, err := anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{AccountId: ada.account()}))
+
+	require.NoError(t, err)
+	assert.Equal(t, "Ada_Lovelace", res.Msg.GetPlayer().GetName())
+	assert.Equal(t, uint64(1), res.Msg.GetPlayer().GetStats().GetTilesTaken())
+}
+
+func TestAClientFromBeforeAccountIDsStillReadsAPlayerByItsUsername(t *testing.T) {
+	game := startGame(t)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+	_, err := ada.setName("Ada_L")
+	require.NoError(t, err)
+
+	anybody := playerv1connect.NewPlayerServiceClient(http.DefaultClient, game.baseURL, connect.WithHTTPGet())
+	res, err := anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "ada_l"})) //nolint:staticcheck // the field stays until no client sends it.
+
+	require.NoError(t, err)
+	assert.Equal(t, "Ada_L", res.Msg.GetPlayer().GetName())
+
+	_, err = anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "Bob"})) //nolint:staticcheck // the field stays until no client sends it.
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }
 
@@ -341,7 +386,7 @@ func TestAPlayerReadsEveryCountryItPlaysAgainstAndAnybodyTheTopThree(t *testing.
 	}, 5*time.Second, 20*time.Millisecond, "a tile nobody held is against nobody")
 
 	anybody := playerv1connect.NewPlayerServiceClient(http.DefaultClient, game.baseURL, connect.WithHTTPGet())
-	res, err := anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "Bob_B"}))
+	res, err := anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{AccountId: bob.account()}))
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(&playerv1.Player{
 		PlaysFor:     []*playerv1.CountryTiles{{CountryId: "de", Tiles: 5}},

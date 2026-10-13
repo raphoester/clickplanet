@@ -12,6 +12,7 @@ require (
 	github.com/knadh/koanf/providers/file v1.1.2
 	github.com/knadh/koanf/v2 v2.1.2
 	github.com/lib/pq v1.12.3
+	github.com/oapi-codegen/runtime v1.7.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23
 	github.com/stretchr/testify v1.11.1
@@ -25,6 +26,7 @@ require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

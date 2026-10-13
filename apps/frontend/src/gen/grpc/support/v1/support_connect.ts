@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAttachmentRulesRequest, GetAttachmentRulesResponse, ReportBugRequest, ReportBugResponse, SuggestFeatureRequest, SuggestFeatureResponse } from "./support_pb.js";
+import { GetAttachmentRulesRequest, GetAttachmentRulesResponse, ReportBugRequest, ReportBugResponse, ReportPlayerRequest, ReportPlayerResponse, SuggestFeatureRequest, SuggestFeatureResponse } from "./support_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -28,6 +28,15 @@ export const SupportService = {
       name: "ReportBug",
       I: ReportBugRequest,
       O: ReportBugResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc support.v1.SupportService.ReportPlayer
+     */
+    reportPlayer: {
+      name: "ReportPlayer",
+      I: ReportPlayerRequest,
+      O: ReportPlayerResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -116,8 +116,11 @@ func TestPlayersWithAUsernameAreRankedByTheirMainFlagAndOnTheBoardOfEveryFlagThe
 		assert.EventuallyWithT(t, func(c *assert.CollectT) {
 			standings := game.standings(t, country)
 			top := []*seasonsv1.Standing{
-				{Rank: 1, Name: "Ada", Color: playerv1.NameColor_NAME_COLOR_PINK, CountryId: "fr", Tiles: 2, WornTitle: ada.worn()},
-				{Rank: 2, Name: "Cyd", CountryId: "fr", Tiles: 1, WornTitle: cyd.worn()},
+				{
+					Rank: 1, AccountId: ada.account(), Name: "Ada", Color: playerv1.NameColor_NAME_COLOR_PINK,
+					CountryId: "fr", Tiles: 2, WornTitle: ada.worn(),
+				},
+				{Rank: 2, AccountId: cyd.account(), Name: "Cyd", CountryId: "fr", Tiles: 1, WornTitle: cyd.worn()},
 			}
 			require.Len(c, standings, len(top), country)
 			for i := range top {
@@ -128,7 +131,8 @@ func TestPlayersWithAUsernameAreRankedByTheirMainFlagAndOnTheBoardOfEveryFlagThe
 	de := game.standings(t, "de")
 	require.Len(t, de, 1)
 	assert.True(t, proto.Equal(&seasonsv1.Standing{
-		Rank: 1, Name: "Ada", Color: playerv1.NameColor_NAME_COLOR_PINK, CountryId: "de", Tiles: 1, WornTitle: ada.worn(),
+		Rank: 1, AccountId: ada.account(), Name: "Ada", Color: playerv1.NameColor_NAME_COLOR_PINK, CountryId: "de", Tiles: 1,
+		WornTitle: ada.worn(),
 	}, de[0]), de[0])
 }
 

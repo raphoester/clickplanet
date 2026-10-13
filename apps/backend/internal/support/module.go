@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1/supportv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -27,13 +28,22 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/report_bug_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/suggest_feature_usecase"
 	note_ids "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/uuid_id_provider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/postgres_report_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/usecases/forget_reports_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/usecases/prune_reports_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/usecases/report_player_usecase"
+	report_ids "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/get_attachment_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler/notes_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler/reports_query"
+	report_authors "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler/reports_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_bug_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/suggest_feature_handler"
 )
 
@@ -56,6 +66,12 @@ func NewModule(config Config) cpbootstrap.Module {
 func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
 
+	internal, baseURL, err := props.Internal.Dial()
+	if err != nil {
+		return fmt.Errorf("the support module asks the player module how to name the accounts of a report: %w", err)
+	}
+	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
+
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
 		return fmt.Errorf("failed to connect the support module to postgres: %w", err)
@@ -66,6 +82,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	noteStore := postgres_note_store.New(db)
+	reportStore := postgres_report_store.New(db)
 
 	bucket, err := s3_attachment_bucket.New(config.Attachments.bucket(), config.Attachments.lifetimes(), clock,
 		&http.Client{Timeout: bucketTimeout})
@@ -75,7 +92,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	rules := config.Attachments.rules()
 
-	prune := log_prune.New(prune_usecase.New(config.Retention, clock, noteStore, bucket), props.Logger)
+	notePrune := log_prune.New(prune_usecase.New(config.Retention, clock, noteStore, bucket),
+		props.Logger.With(slog.String("pruned", "notes")))
+	reportPrune := log_prune.New(prune_reports_usecase.New(config.Retention, clock, reportStore),
+		props.Logger.With(slog.String("pruned", "reports")))
 
 	noteDeletions, err := cpbootstrap.Subscribe(props.Events, "support-notes-accounts", accountDeletedBuffer,
 		log_subscriber.New(account_deleted_subscriber.New(anonymize_notes_usecase.New(noteStore, bucket)), props.Logger))
@@ -84,9 +104,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
+	reportDeletions, err := cpbootstrap.Subscribe(props.Events, "support-reports-accounts", accountDeletedBuffer,
+		log_subscriber.New(account_deleted_subscriber.New(forget_reports_usecase.New(reportStore)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+	}
+
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		prune_usecase.NewRunner(config.PruneInterval, prune), noteDeletions))
+		prune_usecase.NewRunner(config.PruneInterval, notePrune, reportPrune), noteDeletions, reportDeletions))
 
 	limiter := cpratelimit.New("support-limiter", config.RateLimiter, clock)
 	props.Runners.Add(limiter)
@@ -96,6 +123,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			suggest_feature_usecase.New(note_ids.Provider{}, clock, rules, noteStore, bucket)),
 		ReportBugHandler: report_bug_handler.New(
 			report_bug_usecase.New(note_ids.Provider{}, clock, rules, noteStore, bucket)),
+		ReportPlayerHandler: report_player_handler.New(report_player_usecase.New(
+			report_ids.Provider{}, clock, reportStore)),
 		GetAttachmentRulesHandler: get_attachment_rules_handler.New(rules),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
@@ -109,7 +138,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	adminService := supportv1controller.AdminService{
-		ListNotesHandler: list_notes_handler.New(notes_query.NewPostgresQuery(db, bucket)),
+		ListNotesHandler:   list_notes_handler.New(notes_query.NewPostgresQuery(db, bucket)),
+		ListReportsHandler: list_reports_handler.New(reports_query.NewPostgresQuery(db, report_authors.New(player))),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return supportv1connect.NewAdminServiceHandler(adminService, options...)

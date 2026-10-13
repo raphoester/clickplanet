@@ -727,6 +727,7 @@ type RosterEntry struct {
 	Color         NameColor              `protobuf:"varint,7,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
 	Streak        uint32                 `protobuf:"varint,8,opt,name=streak,proto3" json:"streak,omitempty"`
 	WornTitle     *Title                 `protobuf:"bytes,9,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
+	AccountId     string                 `protobuf:"bytes,10,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -815,6 +816,13 @@ func (x *RosterEntry) GetWornTitle() *Title {
 		return x.WornTitle
 	}
 	return nil
+}
+
+func (x *RosterEntry) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
 }
 
 type ListenForEventsRequest struct {
@@ -1108,8 +1116,12 @@ func (*Heartbeat) Descriptor() ([]byte, []int) {
 }
 
 type GetPlayerRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Read only when account_id is empty: a client loaded before account_id sends nothing else.
+	//
+	// Deprecated: Marked as deprecated in player/v1/player.proto.
+	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	AccountId     string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1144,9 +1156,17 @@ func (*GetPlayerRequest) Descriptor() ([]byte, []int) {
 	return file_player_v1_player_proto_rawDescGZIP(), []int{22}
 }
 
+// Deprecated: Marked as deprecated in player/v1/player.proto.
 func (x *GetPlayerRequest) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *GetPlayerRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
 	}
 	return ""
 }
@@ -1839,7 +1859,7 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\rLeaveResponse\"\x12\n" +
 	"\x10GetRosterRequest\"E\n" +
 	"\x11GetRosterResponse\x120\n" +
-	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"\xfe\x01\n" +
+	"\aentries\x18\x01 \x03(\v2\x16.player.v1.RosterEntryR\aentries\"\x9d\x02\n" +
 	"\vRosterEntry\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
@@ -1850,7 +1870,10 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\x05color\x18\a \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12\x16\n" +
 	"\x06streak\x18\b \x01(\rR\x06streak\x12/\n" +
 	"\n" +
-	"worn_title\x18\t \x01(\v2\x10.player.v1.TitleR\twornTitleJ\x04\b\x02\x10\x03R\x03tag\"\x18\n" +
+	"worn_title\x18\t \x01(\v2\x10.player.v1.TitleR\twornTitle\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\n" +
+	" \x01(\tR\taccountIdJ\x04\b\x02\x10\x03R\x03tag\"\x18\n" +
 	"\x16ListenForEventsRequest\"\x93\x02\n" +
 	"\vPlayerEvent\x12+\n" +
 	"\x06roster\x18\x01 \x01(\v2\x11.player.v1.RosterH\x00R\x06roster\x12.\n" +
@@ -1864,9 +1887,11 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\n" +
 	"PlayerLeft\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\"\v\n" +
-	"\tHeartbeat\"&\n" +
-	"\x10GetPlayerRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\">\n" +
+	"\tHeartbeat\"I\n" +
+	"\x10GetPlayerRequest\x12\x16\n" +
+	"\x04name\x18\x01 \x01(\tB\x02\x18\x01R\x04name\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\">\n" +
 	"\x11GetPlayerResponse\x12)\n" +
 	"\x06player\x18\x01 \x01(\v2\x11.player.v1.PlayerR\x06player\"\x82\x03\n" +
 	"\x06Player\x12\x12\n" +

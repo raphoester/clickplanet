@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package clips.v1;
+
+message Shortlist {
+  // Best first: a story's place, from 1, is what the generator's --pick takes.
+  repeated Story stories = 1;
+}
+
+message Story {
+  string title = 1;
+}
+
+message Clip {
+  uint32 pick = 1;
+  string title = 2;
+  // Ready to post: its tags and the credit of its music are in it.
+  string caption = 3;
+  repeated string tags = 4;
+}

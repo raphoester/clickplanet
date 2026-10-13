@@ -25,8 +25,9 @@ export type ChatPanelProps = {
     backend?: ChatBackend
     country: Country
     playSound?: PlaySound
+    accountId?: string
     username?: string
-    onOpenPlayer?: (player: PlayerLine) => void
+    onOpenPlayer?: (player: PlayerLine, messageId?: string) => void
     players?: readonly RosterEntry[]
     compact?: boolean
     open?: boolean
@@ -65,9 +66,9 @@ export default function ChatPanel(props: ChatPanelProps) {
     const panel = useRef<HTMLElement>(null)
     const {startResize, resetSize} = useChatSize(panel)
 
-    const {username} = props
-    const {messages, announcements, mine, displayName, seenAtLoad, status, failure, mutedUntil, send, react} =
-        useChat({backend: props.backend, username})
+    const {accountId, username} = props
+    const {messages, announcements, mine, own, displayName, seenAtLoad, status, failure, mutedUntil, send, react} =
+        useChat({backend: props.backend, accountId, username})
     const identity = useChatIdentity()
     const markSeen = useSeenMark(props.backend, seenAtLoad?.kept ? seenAtLoad.until : 0)
     const [seenLater, setSeenLater] = useState(0)
@@ -103,8 +104,7 @@ export default function ChatPanel(props: ChatPanelProps) {
         markSeen(at)
     }, [markSeen])
 
-    const unread = seenUntil === undefined ? 0 : unseenAfter(messages, announcements, seenUntil,
-        message => mine.has(message.id) || message.authorName === displayName)
+    const unread = seenUntil === undefined ? 0 : unseenAfter(messages, announcements, seenUntil, own)
 
     useEffect(() => {
         const last = messages[messages.length - 1]
@@ -129,9 +129,9 @@ export default function ChatPanel(props: ChatPanelProps) {
         if (seenUntil === undefined || !last || last.id === newestId.current) return
         newestId.current = last.id
 
-        if (seeing || last.sentAt <= seenUntil || mine.has(last.id) || last.authorName === displayName) return
+        if (seeing || last.sentAt <= seenUntil || own(last)) return
         setToast(last)
-    }, [seenUntil, messages, seeing, mine, displayName])
+    }, [seenUntil, messages, seeing, own])
 
     useEffect(() => {
         if (!toast) return
@@ -157,11 +157,9 @@ export default function ChatPanel(props: ChatPanelProps) {
         const fresh = messages.slice(messages.length - idsSince(messages, lastHeard.current).length)
         lastHeard.current = last
 
-        // The name check too: an own message's broadcast can land before `mine` holds its id.
-        if (fresh.some(message => !mine.has(message.id) && message.authorName !== displayName)) {
-            playSound?.('chat')
-        }
-    }, [messages, mine, displayName, playSound])
+        // By account too: an own message's broadcast can land before `mine` holds its id.
+        if (fresh.some(message => !own(message))) playSound?.('chat')
+    }, [messages, own, playSound])
 
     // A copy each time: Reply pressed again on the same message puts the focus back in the box.
     const onReply = useCallback((message: ChatMessage) => setReplyingTo({...message}), [])

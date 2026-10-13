@@ -2,23 +2,23 @@ import {
     AttachmentRules,
     AttachmentUpload,
     PageContext,
+    PlayerReport,
     SupportBackend,
     SupportNoSessionError,
     SupportRateLimitedError,
     SupportRejectedError,
+    SupportReportedAlreadyError,
     UploadOptions,
 } from "./support.ts";
 
-export type FakeSupportRefusal = "rate-limited" | "rejected" | "no-session" | "failed" | "upload-failed"
+export type FakeSupportRefusal = "rate-limited" | "rejected" | "no-session" | "reported-already" | "failed" | "upload-failed"
 
-export type FakeSupportNote = {
-    kind: "suggestion" | "bug"
-    text: string
-    context: PageContext
-    attachments: Blob[]
-    // The place in attachments of each file that was uploaded.
-    uploaded: number[]
-}
+type FakeNoteKind = "suggestion" | "bug"
+
+// uploaded: the place in attachments of each file that went up.
+export type FakeSupportNote =
+    | {kind: FakeNoteKind, text: string, context: PageContext, attachments: Blob[], uploaded: number[]}
+    | {kind: "report", report: PlayerReport}
 
 const ANSWER_DELAY_MS = 400
 const UPLOAD_STEPS = 8
@@ -68,16 +68,20 @@ export class FakeSupportBackend implements SupportBackend {
             if (this.refusal === "upload-failed" && step === UPLOAD_STEPS / 2) throw new Error("the fake upload failed")
             onProgress?.(step / UPLOAD_STEPS)
         }
-        this.sent[note].uploaded.push(place)
+        const kept = this.sent[note]
+        if (kept.kind !== "report") kept.uploaded.push(place)
     }
 
-    private async keep(
-        kind: FakeSupportNote["kind"], text: string, context: PageContext, attachments: Blob[],
-    ): Promise<AttachmentUpload[]> {
+    private async keep(kind: FakeNoteKind, text: string, context: PageContext, attachments: Blob[]): Promise<AttachmentUpload[]> {
         await this.answer()
 
         const note = this.sent.push({kind, text, context, attachments, uploaded: []}) - 1
         return attachments.map((_, place) => ({url: `fake://${note}/${place}`}))
+    }
+
+    public async reportPlayer(report: PlayerReport): Promise<void> {
+        await this.answer()
+        this.sent.push({kind: "report", report})
     }
 
     private async answer(): Promise<void> {
@@ -90,6 +94,8 @@ export class FakeSupportBackend implements SupportBackend {
                 throw new SupportRejectedError()
             case "no-session":
                 throw new SupportNoSessionError()
+            case "reported-already":
+                throw new SupportReportedAlreadyError()
             case "failed":
                 throw new Error("the fake support backend failed")
         }

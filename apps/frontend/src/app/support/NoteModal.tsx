@@ -1,4 +1,4 @@
-import {FormEvent, useEffect, useId, useRef, useState} from "react"
+import {FormEvent, ReactNode, useEffect, useId, useRef, useState} from "react"
 import {countRunes} from "../../backends/chat.ts"
 import {
     AttachmentRulesReader,
@@ -19,9 +19,13 @@ export type NoteModalProps = {
     title: string
     label: string
     placeholder: string
-    // Without it the form takes a text alone.
+    // What the form asks before the text. With it the text is optional, and Send waits for `ready`.
+    asked?: ReactNode
+    ready?: boolean
+    // Without it the form takes no file.
     files?: NoteFiles
-    onSend: (text: string, attachments: File[]) => Promise<AttachmentUpload[]>
+    // Answers where each file goes, in order; nothing when it takes no file.
+    onSend: (text: string, attachments: File[]) => Promise<AttachmentUpload[] | void>
     onClose: () => void
 }
 
@@ -45,7 +49,10 @@ export default function NoteModal(props: NoteModalProps) {
     const fieldId = useId()
     const source = props.files
 
-    useEffect(() => box.current?.focus(), [])
+    const textOnly = props.asked === undefined
+    useEffect(() => {
+        if (textOnly) box.current?.focus()
+    }, [textOnly])
 
     // Made here and not once per component: StrictMode runs the cleanup once before the form is ever used.
     useEffect(() => {
@@ -66,7 +73,8 @@ export default function NoteModal(props: NoteModalProps) {
 
     const length = countRunes(text.trim())
     const sending = state.kind === "sending"
-    const canSend = !sending && length > 0 && length <= MAX_NOTE_LENGTH
+    const answered = textOnly ? length > 0 : props.ready === true
+    const canSend = !sending && answered && length <= MAX_NOTE_LENGTH
 
     const pick = (picked: File[]) => {
         const choice = withPicked(files, picked, rules)
@@ -114,7 +122,7 @@ export default function NoteModal(props: NoteModalProps) {
 
         setState({kind: "sending"})
         try {
-            tickets.current = await props.onSend(text.trim(), files)
+            tickets.current = await props.onSend(text.trim(), files) ?? []
         } catch (e) {
             const failure = sendFailureOf(e)
             if (failure === "failed") console.error("could not send to the support service", e)
@@ -151,11 +159,12 @@ export default function NoteModal(props: NoteModalProps) {
                   </button>}
                   onClose={props.onClose}>
         <form id={formId} className="support-form" onSubmit={submit} aria-busy={sending}>
+            {props.asked}
             <label className="menu-label" htmlFor={fieldId}>{props.label}</label>
             <textarea id={fieldId}
                       ref={box}
-                      className="field support-text"
-                      rows={6}
+                      className={textOnly ? "field support-text" : "field support-text support-text--short"}
+                      rows={textOnly ? 6 : 3}
                       value={text}
                       readOnly={sending}
                       placeholder={props.placeholder}
