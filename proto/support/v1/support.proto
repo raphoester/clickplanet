@@ -56,13 +56,15 @@ enum ReportReason {
 }
 
 message ReportPlayerRequest {
-  // The account reported, as a chat message, a roster line or a standing carries it.
-  string account_id = 1;
+  reserved 1;
+  reserved "name";
   ReportReason reason = 2;
   // Optional.
   string text = 3;
   // Optional: the chat message the report is about.
   string message_id = 4;
+  // The account reported, as a chat message, a roster line or a standing carries it.
+  string account_id = 5;
 }
 
 message ReportPlayerResponse {}
