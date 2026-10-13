@@ -14,7 +14,7 @@ const message = (id: string, authorName: string, countryCode: string): ChatMessa
     ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
 
 describe("ChatLog", () => {
-    it("opens the author of a message from its name, and tells a guest by its prefix", async () => {
+    it("opens the author of a message from its name with the message, and tells a guest by its prefix", async () => {
         const onOpenPlayer = vi.fn()
         render(<ChatLog loading={false}
                         onOpenPlayer={onOpenPlayer}
@@ -24,8 +24,8 @@ describe("ChatLog", () => {
         await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
 
         expect(onOpenPlayer.mock.calls).toEqual([
-            [{name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}],
-            [{name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}],
+            [{name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}, "1"],
+            [{name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}, "2"],
         ])
     })
 
@@ -52,7 +52,7 @@ describe("ChatLog", () => {
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
         expect(onOpenPlayer).toHaveBeenCalledWith({
             name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.UNSPECIFIED, streak: 0,
-        })
+        }, "1")
     })
 
     it("lights a flame beside a streak of three days or more, and keeps it on the player it opens", async () => {
@@ -64,7 +64,7 @@ describe("ChatLog", () => {
         expect(screen.getAllByRole("img", {name: /streak/})).toHaveLength(1)
         expect(screen.getByRole("img", {name: "12-day streak"}).textContent).toBe("12")
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({streak: 12}))
+        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({streak: 12}), "1")
     })
 
     it("shows the title its author wears beside the name, and keeps it on the player it opens", async () => {
@@ -77,7 +77,7 @@ describe("ChatLog", () => {
         expect(screen.getAllByRole("img", {name: "Warlord"})).toHaveLength(1)
         expect(screen.getByRole("img", {name: "Warlord"}).querySelector(".title-emblem")).not.toBeNull()
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({wornTitle: warlord}))
+        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({wornTitle: warlord}), "1")
     })
 
     it("paints a name in the color its player chose, and grey with none or as a guest", () => {

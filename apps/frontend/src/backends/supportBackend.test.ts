@@ -2,7 +2,14 @@ import {describe, expect, it, vi} from "vitest"
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
 import {SupportService} from "../gen/grpc/support/v1/support_connect.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {SupportNoSessionError, SupportRateLimitedError, SupportRejectedError} from "./support.ts"
+import {
+    SupportNoSessionError,
+    SupportRateLimitedError,
+    SupportRejectedError,
+    SupportReportedAlreadyError,
+    SupportUnknownPlayerError,
+} from "./support.ts"
+import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 import {ConnectSupportBackend} from "./supportBackend.ts"
 
 const session = (...tokens: string[]): SessionProvider => {
@@ -124,5 +131,47 @@ describe("ConnectSupportBackend.reportBug", () => {
         await expect(backendOf(limited, session("token-1")).reportBug("the globe is black", phone))
             .rejects.toBeInstanceOf(SupportRateLimitedError)
         expect(limited).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("ConnectSupportBackend.reportPlayer", () => {
+    const backendOf = (reportPlayer: unknown) =>
+        new ConnectSupportBackend({reportPlayer} as unknown as PromiseClient<typeof SupportService>, session("token-1"))
+
+    it("sends the name, the reason and the message, with the click token", async () => {
+        const reportPlayer = vi.fn().mockResolvedValue({})
+
+        await backendOf(reportPlayer).reportPlayer(
+            {name: "guest_a1b2c3", reason: "chat-abuse", text: "it insults everyone", messageId: "message-1"})
+
+        expect(reportPlayer.mock.calls[0][0]).toEqual(
+            {name: "guest_a1b2c3", reason: ReportReason.CHAT_ABUSE, text: "it insults everyone", messageId: "message-1"})
+        expect(headersOf(reportPlayer).get(SESSION_HEADER)).toBe("token-1")
+    })
+
+    it.each([
+        ["cheating", ReportReason.CHEATING],
+        ["chat-abuse", ReportReason.CHAT_ABUSE],
+        ["bad-name", ReportReason.BAD_NAME],
+        ["other", ReportReason.OTHER],
+    ] as const)("sends %s as the reason the proto names, and no message as none", async (reason, wire) => {
+        const reportPlayer = vi.fn().mockResolvedValue({})
+
+        await backendOf(reportPlayer).reportPlayer({name: "Ana", reason, text: ""})
+
+        expect(reportPlayer.mock.calls[0][0]).toEqual({name: "Ana", reason: wire, text: "", messageId: ""})
+    })
+
+    it.each([
+        [Code.NotFound, SupportUnknownPlayerError],
+        [Code.AlreadyExists, SupportReportedAlreadyError],
+        [Code.InvalidArgument, SupportRejectedError],
+        [Code.ResourceExhausted, SupportRateLimitedError],
+    ])("reads the server's refusal %s as its own error", async (code, expected) => {
+        const reportPlayer = vi.fn().mockRejectedValue(new ConnectError("refused", code))
+
+        await expect(backendOf(reportPlayer).reportPlayer({name: "Ana", reason: "other", text: ""}))
+            .rejects.toBeInstanceOf(expected)
+        expect(reportPlayer).toHaveBeenCalledTimes(1)
     })
 })

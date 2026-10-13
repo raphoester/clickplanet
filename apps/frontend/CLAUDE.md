@@ -67,8 +67,9 @@ landmass starts locked to France. `fakeBackend.shareClicks("guests")` (or
 player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
-`fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`, `"failed"`)
-refuses what More sends next, and `fakeSupport.refuse()` takes it again;
+`fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
+`"unknown-player"`, `"reported-already"`, `"failed"`) refuses what More and a
+player's card send next, and `fakeSupport.refuse()` takes it again;
 `fakeSupport.sent` is what it took.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
@@ -830,7 +831,8 @@ The server says so: `ChatMessage.authorAdmin`, `RosterEntry.admin` and
 once it lands. In fake mode, Ana is the admin.
 
 **A name opens a player card**, in the roster, on a chat message and on the
-season's board (`app/players/PlayerCard.tsx`, a `Modal`). `Viewer` holds the one
+season's board (`app/players/PlayerCard.tsx`, a `Modal`). The card can report
+its player: see [Support](#support). `Viewer` holds the one
 card open and hands `onOpenPlayer` to `ChatPanel` → `ChatLog` and `PlayersPanel`,
 and to the board's `BoardStandings`;
 without a `PlayerInfoBackend` wired the names are plain text. The card shows the
@@ -897,11 +899,12 @@ the other's next announce, at most 30s later.
 
 ### Support
 
-What a player sends the operator, from More: a feature suggestion or a bug
-report.
+What a player sends the operator: a feature suggestion or a bug report, from
+More, and a report of another player, from that player's card.
 
 - `backends/support.ts` — `FeatureSuggester` and `BugReporter`, the
-  `PageContext` both send (and `SupportBackend`, every support contract together),
+  `PageContext` both send, `PlayerReporter` with its `PlayerReport` and
+  `ReportReason` (and `SupportBackend`, every support contract together),
   `MAX_NOTE_LENGTH`, which mirrors the backend's
   `notes.MaxTextLength`, and the errors. `ConnectSupportBackend`
   (`supportBackend.ts`) implements it over `support.v1.SupportService`;
@@ -914,6 +917,9 @@ report.
   kept twice, and the text is still in the box.
 - The refusals are `resource_exhausted` → `SupportRateLimitedError` (one address
   sends three, then one a minute) and `invalid_argument` → `SupportRejectedError`.
+  A player report has two more: `not_found` → `SupportUnknownPlayerError` (the
+  name is nobody's now) and `already_exists` → `SupportReportedAlreadyError`
+  (one account reports one player once a day).
 - **A note says what the page knows about itself, a suggestion as a bug report**
   (`app/support/pageContextOf`): the build, the viewport in CSS pixels and the
   pixel ratio, whether the connection was down, the cores and the memory the
@@ -937,7 +943,23 @@ report.
   (`stayOnBackdropClick`): the ×, Escape and Close still do.
 - **The modal's scroll fade is off** (`.modal-support`): a field sits at the
   bottom edge of the body, and the fade drew over it.
-- `MorePlace` shows the two tiles only with a `support` backend wired.
+- `MorePlace` shows the two tiles only with a `support` backend wired. It asks
+  for `FeatureSuggester & BugReporter`, not the whole `SupportBackend`.
+- **A player is reported from its card.** With a `reporter` wired, `PlayerCard`
+  has a Report button in its footer, clear of the body's scroll fade. A press
+  shows `ReportPlayerModal` **in place of the card**, not over it: two modals
+  would both close on one Escape. Closing the report steps back to the card.
+- **`ReportPlayerModal` is `NoteModal` with a question before the text**
+  (`asked`): a `radiogroup` of the four reasons, then the details, which are
+  optional. Send waits for a reason (`ready`). It opens on the first reason.
+- **The report names the player by the name on the card**, which is all the
+  client holds: the server finds the account. **A card opened from a chat
+  message carries that message's id**: `ChatLog` hands it as the second
+  argument of `onOpenPlayer`, `Viewer` keeps it with the open card, and the
+  report sends it. A card opened from the roster or the board has none.
+- **No Report on the player's own card**, when the name is the account's
+  username. A guest does not know its own name here, so its own card has the
+  button, and the server refuses the report.
 
 ### Titles
 

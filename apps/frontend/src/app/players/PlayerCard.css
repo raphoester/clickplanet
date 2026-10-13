@@ -106,6 +106,25 @@
     text-underline-offset: 3px;
 }
 
+.player-card-report {
+    display: block;
+    margin-left: auto;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-s);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.player-card-report:hover,
+.player-card-report:focus-visible {
+    color: var(--text);
+}
+
 @media only screen and (max-width: 768px) {
     .modal:has(.player-card) {
         align-items: flex-end;
