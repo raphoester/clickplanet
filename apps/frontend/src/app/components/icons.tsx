@@ -79,10 +79,10 @@ export function SearchIcon({size = 20}: IconProps) {
     </svg>
 }
 
-export function HomeIcon({size = 22}: IconProps) {
+export function MailIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
-        <path d="M3.5 11 12 4l8.5 7"/>
-        <path d="M6 9.5V20h4.5v-5.5h3V20H18V9.5"/>
+        <rect x="3" y="5.5" width="18" height="13" rx="2.5"/>
+        <path d="m4 8 8 5.5L20 8"/>
     </svg>
 }
 
@@ -91,28 +91,6 @@ export function InfoIcon({size = 22}: IconProps) {
         <circle cx="12" cy="12" r="8.5"/>
         <path d="M12 11v5.5"/>
         <path d="M12 7.5h.01"/>
-    </svg>
-}
-
-export function BulbIcon({size = 22}: IconProps) {
-    return <svg {...base(size)} strokeWidth={2}>
-        <path d="M9 17.5h6"/>
-        <path d="M10 20.5h4"/>
-        <path d="M8.5 14.5a6 6 0 1 1 7 0c-.6.5-1 1.2-1 2v1h-5v-1c0-.8-.4-1.5-1-2Z"/>
-    </svg>
-}
-
-export function BugIcon({size = 22}: IconProps) {
-    return <svg {...base(size)} strokeWidth={2}>
-        <path d="M9.5 7a2.5 2.5 0 0 1 5 0"/>
-        <rect x="7.5" y="7" width="9" height="12.5" rx="4.5"/>
-        <path d="M12 11.5v8"/>
-        <path d="M7.5 11.5H4"/>
-        <path d="M20 11.5h-3.5"/>
-        <path d="M7.5 15H3.5"/>
-        <path d="M20.5 15h-4"/>
-        <path d="M9 4.5 7.5 3"/>
-        <path d="M15 4.5 16.5 3"/>
     </svg>
 }
 
@@ -210,14 +188,6 @@ export function SettingsIcon({size = 22}: IconProps) {
         <path d="M4 17h2"/>
         <path d="M12 17h8"/>
         <circle cx="9" cy="17" r="2.6"/>
-    </svg>
-}
-
-export function MoreIcon({size = 22}: IconProps) {
-    return <svg {...base(size)} fill="currentColor" strokeWidth={1}>
-        <circle cx="5" cy="12" r="1.8"/>
-        <circle cx="12" cy="12" r="1.8"/>
-        <circle cx="19" cy="12" r="1.8"/>
     </svg>
 }
 

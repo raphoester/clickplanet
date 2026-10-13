@@ -13,35 +13,35 @@ afterEach(() => {
 })
 
 describe("TabBar", () => {
-    it("offers the board, the chat, the account, the settings and More, in that order", () => {
-        render(<TabBar onOpen={vi.fn()} chat unread={0} you="player" settings/>)
-        expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Chat", "You", "Settings", "More"])
+    it("offers the board, the chat, the account, Share and the settings, in that order", () => {
+        render(<TabBar onOpen={vi.fn()} chat unread={0} you="player"/>)
+        expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Chat", "You", "Share", "Settings"])
     })
 
     it("names the account Sign in for a guest", () => {
-        render(<TabBar onOpen={vi.fn()} chat unread={0} you="guest" settings/>)
+        render(<TabBar onOpen={vi.fn()} chat unread={0} you="guest"/>)
         expect(screen.getByRole("button", {name: "Sign in"})).toBeDefined()
     })
 
     it("leaves out what is not wired", () => {
-        render(<TabBar onOpen={vi.fn()} chat={false} unread={0} settings={false}/>)
-        expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "More"])
+        render(<TabBar onOpen={vi.fn()} chat={false} unread={0}/>)
+        expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Share", "Settings"])
     })
 
     it("counts what the chat missed", () => {
-        render(<TabBar onOpen={vi.fn()} chat unread={3} settings/>)
+        render(<TabBar onOpen={vi.fn()} chat unread={3}/>)
         expect(screen.getByRole("button", {name: "Chat, 3 new messages"}).textContent).toBe("Chat3")
     })
 
     it("says which sheet is open, and opens the one pressed", () => {
         const onOpen = vi.fn()
-        render(<TabBar open="board" onOpen={onOpen} chat unread={0} settings/>)
+        render(<TabBar open="board" onOpen={onOpen} chat unread={0}/>)
 
         expect(screen.getByRole("button", {name: "Board"}).getAttribute("aria-expanded")).toBe("true")
-        expect(screen.getByRole("button", {name: "More"}).getAttribute("aria-expanded")).toBe("false")
+        expect(screen.getByRole("button", {name: "Share"}).getAttribute("aria-expanded")).toBe("false")
 
-        fireEvent.click(screen.getByRole("button", {name: "More"}))
-        expect(onOpen).toHaveBeenCalledWith("more")
+        fireEvent.click(screen.getByRole("button", {name: "Share"}))
+        expect(onOpen).toHaveBeenCalledWith("share")
     })
 })
 
@@ -56,7 +56,7 @@ describe("Sheet", () => {
 
     it("closes on its × and on Escape", () => {
         const onClose = vi.fn()
-        render(<Sheet title="More" onClose={onClose}><p>tiles</p></Sheet>)
+        render(<Sheet title="Share" onClose={onClose}><p>tiles</p></Sheet>)
 
         fireEvent.click(screen.getByRole("button", {name: "Close"}))
         fireEvent.keyDown(document, {key: "Escape"})

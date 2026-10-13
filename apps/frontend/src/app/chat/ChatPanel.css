@@ -402,6 +402,21 @@
     text-shadow: var(--text-drop);
 }
 
+.chat-discord-other {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    align-self: stretch;
+    width: 40px;
+    color: var(--text);
+}
+
+.chat-discord-other:hover {
+    color: var(--text);
+    background: color-mix(in srgb, var(--ink) 18%, transparent);
+}
+
 .chat-discord-close {
     display: flex;
     align-items: center;

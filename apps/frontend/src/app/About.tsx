@@ -1,4 +1,12 @@
+import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from "../links.ts"
+import {DiscordIcon, InstagramIcon, TikTokIcon} from "./components/icons.tsx"
 import "./About.css"
+
+const FOLLOW = [
+    {name: "Discord", href: DISCORD_INVITE, icon: <DiscordIcon size={20}/>},
+    {name: "TikTok", href: TIKTOK_PROFILE, icon: <TikTokIcon size={20}/>},
+    {name: "Instagram", href: INSTAGRAM_PROFILE, icon: <InstagramIcon size={20}/>},
+]
 
 export default function About() {
     return <>
@@ -7,6 +15,16 @@ export default function About() {
         <p>ClickPlanet is a virtual battleground where you conquer territories for a country, click after
             click. Out-click rival nations, and dominate the map. Every territory is yours, until someone
             takes it back!</p>
+        <div className="about-social">
+            {FOLLOW.map((place) => <a key={place.name}
+                                      className="button button-mini about-follow"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      href={place.href}
+                                      aria-label={place.name}>
+                {place.icon}
+            </a>)}
+        </div>
         <div className="about-author">
             <p className="menu-label">Created by</p>
             <div className="center-align">

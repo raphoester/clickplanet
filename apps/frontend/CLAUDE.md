@@ -68,7 +68,7 @@ player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
-`"unknown-player"`, `"reported-already"`, `"failed"`) refuses what More and a
+`"unknown-player"`, `"reported-already"`, `"failed"`) refuses what Settings and a
 player's card send next, and `fakeSupport.refuse()` takes it again;
 `fakeSupport.sent` is what it took.
 
@@ -453,16 +453,26 @@ this is where each zone lives. `Viewer` composes them, and `useCompact`
 | **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end | `Menu`'s header and "playing for", `SeasonChip` at the top centre |
 | **Moments** | under the status bar (`--status-bottom`) | under the season chip |
 | **Play** | the dock (`ClickBudgetMeter` + `Inventory`) above the tab bar, the chat's peek above it | the dock at the bottom centre |
-| **Places** | `hud/TabBar` (Board, Chat, Sign in / You, Settings, More), each a `hud/Sheet` | `Menu`'s tabs (Board, You, Settings, More) on the left, the chat on the right |
+| **Places** | `hud/TabBar` (Board, Chat, Sign in / You, Share, Settings), each a `hud/Sheet` | `Menu`'s tabs (Board, You, Share, Settings) on the left, the chat on the right |
 
-- **One sheet at a time on a phone.** `Viewer` holds which (`sheet`): the four
+- **One sheet at a time on a phone.** `Viewer` holds which (`sheet`): the five
   tabs, and the season and "Your clicks", which the status bar and the dock open.
   A tab pressed again closes it. The sheets are the same places the desktop
-  shows: `BoardPlace`, `YouPlace` and `MorePlace` in `Menu.tsx`, `SettingsPlace`,
+  shows: `BoardPlace` and `YouPlace` in `Menu.tsx`, `SharePlace`, `SettingsPlace`,
   `SeasonDetails`, `ClicksPanel`, and the chat's own sheet.
+- **A tab opens a place, and no tab is an action.** The camera is a tile in
+  Share, not a tab of its own.
+- **There is no More.** It held eight tiles of four kinds, and each new feature
+  with no home went there. Each kind has a home now: the picture and the recruit
+  link in Share (see [Sharing the globe](#sharing-the-globe)), the feedback form
+  and About at the foot of Settings, Discord, TikTok and Instagram in the chat's
+  bar and in About. A new entry goes to the place of its kind.
 - **Settings is every switch the player keeps**: the display (`useDisplaySettings`,
   `domain/displaySettings.ts`, in `clickplanet-display-settings`) and the sound.
-  More is for things to do, not things to set.
+  **Its foot is Feedback and About** (`.settings-foot`), and it is always
+  there: with nothing to set the place still holds About. The foot is
+  `position: sticky`: the switches are longer than a phone's sheet, and a foot
+  that scrolled with them was under the fold.
 - **A sheet sits above the tab bar** and is as tall as what it holds, up to the
   room under the status bar; the chat's is that tall always, for its log to
   scroll. It covers the dock: a sheet is for reading, the dock for playing.
@@ -497,7 +507,8 @@ the unread count up through `onUnread`, for the tab's badge.
 is two tabs, Chat and "Online · N" (see [Who is playing](#who-is-playing)).
 
 **A Discord bar sits over the log** (`DiscordBar`), on a desktop and in the
-phone's sheet: a link to `DISCORD_INVITE` and a cross. The cross hides it for
+phone's sheet: a link to `DISCORD_INVITE`, then TikTok and Instagram as two
+icons, and a cross. The cross hides all of it for
 `DISCORD_BAR_RETURNS_AFTER_MS` (20 hours), from the time of the press kept in
 `clickplanet-discord-bar` (`discordBar.ts`, `useDiscordBar`). **20 hours and
 not 24**, so a player who comes back at the same hour each day finds it again
@@ -915,7 +926,7 @@ the other's next announce, at most 30s later.
 ### Support
 
 What a player sends the operator: a feature suggestion or a bug report, from
-More, and a report of another player, from that player's card.
+the foot of Settings, and a report of another player, from that player's card.
 
 - `backends/support.ts` — `FeatureSuggester` and `BugReporter`, the
   `PageContext` both send, `PlayerReporter` with its `PlayerReport` and
@@ -939,7 +950,7 @@ More, and a report of another player, from that player's card.
   (`app/support/pageContextOf`): the build, the viewport in CSS pixels and the
   pixel ratio, whether the connection was down, the cores and the memory the
   browser reports, and what WebGL says of the graphics card. `Viewer` hands
-  `MorePlace` a `pageContext()` that is read when the note is sent, not when the
+  `SettingsPlace` a `pageContext()` that is read when the note is sent, not when the
   form opens. The server reads the user agent off the request.
 - **The graphics card comes from the globe's own WebGL context**
   (`viewer/graphicsReport.ts`, through `Globe.graphics()`): the unmasked vendor
@@ -950,23 +961,32 @@ More, and a report of another player, from that player's card.
 - **The build is `BUILD`, the file the bundler put `pageContext.ts` in**
   (`buildOf(import.meta.url)`): `play-<hash>.js` in production, so it names the
   bundle with no build variable to set, and `pageContext.ts` in dev.
-- `app/support/NoteModal.tsx` is the one form, for both: a `Modal` with a text
-  box and Send. It opens on the box. The text keeps its lines. A counter shows from 100
+- `app/support/NoteModal.tsx` is the one form, for all three: a `Modal` with a text
+  box and Send. It opens on its first control. The text keeps its lines. A counter shows from 100
   characters left. A failure is one line under the box (`sendFailure.ts`), and
-  the text stays. Once sent it says so and offers Close.
+  the text stays. Once sent it says so and offers Close. A question before the
+  text is `asked`, and Send waits for `ready`; `optional` lets the text stay
+  empty, and makes the box short.
+- **`FeedbackModal` is the one entry for an idea and for a bug**, opened by the
+  Feedback tile ("Send feedback" wrapped on a phone 360px wide): `NoteModal`
+  with "It is" before the text, a `radiogroup` of An idea and A bug (`Choices`,
+  which the player report draws its reasons with too). The pick names the box
+  and decides the call: `suggestFeature` or `reportBug`. Send waits for the pick
+  and for the text, and the text stays when the pick changes. Two tiles for the
+  two calls were one tile too many in a place of eight.
 - **A click beside it does not close it once something is typed**
   (`stayOnBackdropClick`): the ×, Escape and Close still do.
 - **The modal's scroll fade is off** (`.modal-support`): a field sits at the
   bottom edge of the body, and the fade drew over it.
-- `MorePlace` shows the two tiles only with a `support` backend wired. It asks
+- `SettingsPlace` shows Feedback only with a `support` backend wired. It asks
   for `FeatureSuggester & BugReporter`, not the whole `SupportBackend`.
 - **A player is reported from its card.** With a `reporter` wired, `PlayerCard`
   has a Report button in its footer, clear of the body's scroll fade. A press
   shows `ReportPlayerModal` **in place of the card**, not over it: two modals
   would both close on one Escape. Closing the report steps back to the card.
 - **`ReportPlayerModal` is `NoteModal` with a question before the text**
-  (`asked`): a `radiogroup` of the four reasons, then the details, which are
-  optional. Send waits for a reason (`ready`). It opens on the first reason.
+  (`asked`): `Choices` of the four reasons, then the details, which are
+  `optional`. Send waits for a reason (`ready`). It opens on the first reason.
 - **The report names the player by the name on the card**, which is all the
   client holds: the server finds the account. **A card opened from a chat
   message carries that message's id**: `ChatLog` hands it as the second
@@ -2682,18 +2702,39 @@ A landmass is a row of the borders blob's table, which `BorderField` already rea
 ## Sharing the globe
 
 The game's own map is the marketing material, so the globe can be photographed
-and the picture taken out of the browser. `src/app/share/` holds it:
-the "Take a picture" tile under More (`MorePlace` in `Menu.tsx`) takes the shot,
+and the picture taken out of the browser, and a player can hand out a link that
+brings a newcomer in under its flag. `src/app/share/` holds both:
+`SharePlace.tsx` is the Share place, a tab of the menu and of the phone's tab
+bar. Its "Take a picture" tile takes the shot,
 `takePicture.ts` captures and composes it,
 `drawShareCard.ts` draws the card, `SharePreview.tsx` shows it, `ShareActions
 .tsx` is the row of buttons under it and `deliverShare.ts` is what they do.
 `useSharePicture.ts` holds the one picture there is at a time.
 `src/domain/shareCard.ts` holds everything decided before a pixel is drawn.
 
-**The camera is a tile under More, not a button on the globe.** It used to sit
+**The camera is a tile in Share, not a button on the globe.** It used to sit
 on the canvas, bottom-left, beside its subject; it was one of six things over
 the globe on a phone, and it is pressed rarely. On a phone the press closes the
 sheet first, so the globe is what the preview shows the player framed.
+
+**The recruit link is under it** (`RecruitLink.tsx`): "Recruit for France", the
+link `clickplanet.lol/?f=fr` of the country played (`shareLabel`), and one
+button. The link needs nothing new: `?f=` is the flag a shared picture already
+carries, and a newcomer who opens it plays for that country.
+
+- **A phone gets its share sheet, a desktop a copy** (`linkDeliveryOffered`,
+  `deliverLink` in `deliverShare.ts`). The sheet takes the link and the sentence
+  apart (`shareHeadline`), so no target shows the link twice; a copy is the link
+  alone. A sheet that fails copies; a sheet the player closed does nothing.
+- **A refused clipboard falls back to copying a selection**
+  (`document.execCommand`): an in-app browser, which is where a link from
+  TikTok or Discord opens, often refuses the clipboard API.
+- **The link is on its own line, the button under it.** Side by side, the link
+  was cut on a phone 360px wide, and "Copied!" is wider than "Copy link".
+- **The link is text, not a field**: `user-select: all`, so a press selects the
+  whole of it where nothing else copies.
+- `useDelivery.ts` is the button's states for this and for the picture's
+  buttons: working, done for 2.5s, failed, and a closed sheet is no outcome.
 
 **Its label never changes.** What answers the press is the preview opening.
 Working is said by the tile dimming (`aria-busy`, disabled).
@@ -3206,7 +3247,7 @@ under a week of cache, so a retake gets a new name. The section links (`#how`,
 directly is sent to the game like any other hash but `#home`.
 
 **The Discord invite and the TikTok and Instagram profiles are written once, in
-`src/links.ts`.** The menu's More tab imports them; `vite.config.ts` hands them
+`src/links.ts`.** The chat's bar and About import them; `vite.config.ts` hands them
 to the plain pages, which write `%DISCORD_INVITE%`, `%TIKTOK_PROFILE%` and
 `%INSTAGRAM_PROFILE%` (Vite's own HTML replacement, fed through `define`).
 `links.test.ts` fails on one of them pasted into a page.

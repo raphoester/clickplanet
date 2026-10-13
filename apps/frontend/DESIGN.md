@@ -139,10 +139,12 @@ feature goes in one of them; there is no fifth panel and no new fold.
 | **Status** | Who you play for, its rank, the season's clock: chips that are read at a glance | Phone: the top bar. Desktop: the menu's head, the season at the top centre |
 | **Moments** | Something that just happened: the quiz, a bomb, a caught box. One at a time, then gone | Under the status zone |
 | **Play** | What every click needs: the clicks left, the slowdown, the five bonuses | One bar, at the bottom |
-| **Places** | Everything read or set: the board, the chat, the account, the settings, More. One open at a time | Phone: tabs at the bottom, each a sheet. Desktop: the menu's tabs on the left, the chat on the right |
+| **Places** | Everything read or set: the board, the chat, the account, sharing, the settings. One open at a time | Phone: tabs at the bottom, each a sheet. Desktop: the menu's tabs on the left, the chat on the right |
 
 - **Ask in this order.** A moment? Moments. Needed on every click? Play, and that
   is rare. Anything else is a place, or a line inside one.
+- **A place holds one kind of thing, and there is no place for the rest.** A
+  "More" drawer was tried: it filled with whatever had no home.
 - **A panel is as tall as what it holds**, up to the screen, and scrolls inside.
 - **A line holds two things at most.** A third goes where it fits, a place.
 - **The leader's frame holds the anthem**: the music is the leader's, so the

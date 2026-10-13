@@ -32,6 +32,10 @@
     margin-top: 10px;
 }
 
+.about-follow svg {
+    margin-top: -3px;
+}
+
 .about-social b {
     font-weight: normal;
 }
