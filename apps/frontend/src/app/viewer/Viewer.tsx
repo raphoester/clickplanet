@@ -24,7 +24,7 @@ import Quiz from "../quiz/Quiz.tsx";
 import {useQuiz} from "../quiz/useQuiz.ts";
 import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
-import Menu, {BoardSheet, MenuTab, MorePlace, YouPlace} from "../Menu.tsx";
+import Menu, {BoardSheet, MenuTab, YouPlace} from "../Menu.tsx";
 import {youLabel} from "../youLabel.ts";
 import BonusAward from "../components/BonusAward.tsx";
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx";
@@ -35,6 +35,7 @@ import {useBoardGuide} from "../useBoardGuide.ts";
 import {isFirstWin} from "../../domain/bonusGuide.ts";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
+import SharePlace from "../share/SharePlace.tsx";
 import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
 import {shareStats} from "../../domain/shareCard.ts";
@@ -82,7 +83,7 @@ const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 // After the wave has run over the land.
 const FORTIFY_CARD_DELAY_MS = 1600
 
-type SheetName = "board" | "chat" | "you" | "settings" | "more" | "season" | "clicks"
+type SheetName = "board" | "chat" | "you" | "share" | "settings" | "season" | "clicks"
 
 export type ViewerProps = {
     sharedCountry?: Country
@@ -222,8 +223,8 @@ export default function Viewer(props: ViewerProps) {
     const lines = countryLines(leaderboard, race, order)
     const anthem = useAnthem(status.state === 'ready' ? lines : NO_LEADERBOARD, order, sound.settings)
 
-    const {shot, taking, take, discard} = useSharePicture(
-        capture, shareStats(lines, countryState))
+    const stats = shareStats(lines, countryState)
+    const {shot, taking, take, discard} = useSharePicture(capture, stats)
 
     const openPitch = guest ? () => {
         closeSheet()
@@ -264,16 +265,16 @@ export default function Viewer(props: ViewerProps) {
         playerInfo: props.playerInfo,
         listenForClicks: accepted.listenForClicks,
     }
-    const settings = {
-        display: {settings: display.settings, onChange: display.setSettings},
-        sound: {settings: sound.settings, onChange: sound.setSettings, preview: sound.preview},
-    }
-    const more = {
+    const share = {
         onTakePicture: () => {
             closeSheet()
             take()
         },
         taking,
+    }
+    const settings = {
+        display: {settings: display.settings, onChange: display.setSettings},
+        sound: {settings: sound.settings, onChange: sound.setSettings, preview: sound.preview},
         support: props.support,
         pageContext: () => pageContextOf(window, graphics(), connection === "down"),
     }
@@ -290,7 +291,7 @@ export default function Viewer(props: ViewerProps) {
 
         {!ready && <StatusCard status={status}/>}
 
-        {ready && !compact && <Menu {...board} {...you} {...settings} {...more} tab={menuTab} onTab={setMenuTab}/>}
+        {ready && !compact && <Menu {...board} {...you} {...share} {...settings} tab={menuTab} onTab={setMenuTab}/>}
 
         {ready && !compact && season && <SeasonChip season={season}
                                                     compact={false}
@@ -345,11 +346,11 @@ export default function Viewer(props: ViewerProps) {
             {sheet === "you" && account.kind === 'ready' && <Sheet title={youLabel(linked)} onClose={closeSheet}>
                 <YouPlace {...you}/>
             </Sheet>}
+            {sheet === "share" && <Sheet title="Share" onClose={closeSheet}>
+                <SharePlace stats={stats} {...share}/>
+            </Sheet>}
             {sheet === "settings" && <Sheet title="Settings" onClose={closeSheet}>
                 <SettingsPlace {...settings}/>
-            </Sheet>}
-            {sheet === "more" && <Sheet title="More" onClose={closeSheet}>
-                <MorePlace {...more}/>
             </Sheet>}
             {sheet === "season" && season && <Sheet title={`Season ${season.number}`} onClose={closeSheet}>
                 <SeasonDetails season={season}/>
@@ -360,12 +361,11 @@ export default function Viewer(props: ViewerProps) {
                     onOpen={toggleSheet}
                     chat={props.chatBackend !== undefined}
                     unread={unread}
-                    you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
-                    settings/>
+                    you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}/>
         </>}
 
         {shot && <SharePreview shot={shot}
-                               stats={shareStats(lines, countryState)}
+                               stats={stats}
                                onClose={discard}/>}
 
         {pitchOpen && guest && props.account && clickBudget?.linkedMultiplier && <SignInPitchModal

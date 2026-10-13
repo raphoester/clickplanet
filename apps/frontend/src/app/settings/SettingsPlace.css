@@ -2,5 +2,14 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding-bottom: var(--space-5);
+}
+
+/* The list is longer than a phone's sheet: the foot stays in view while it scrolls. */
+.settings-foot {
+    position: sticky;
+    bottom: 0;
+    padding: var(--space-2) 0 var(--space-1);
+    background: var(--panel);
+    /* A sheet's body has padding under the foot, and the list would show in it. */
+    box-shadow: 0 var(--space-4) 0 var(--panel);
 }

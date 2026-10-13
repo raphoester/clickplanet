@@ -1275,7 +1275,7 @@ docker compose exec postgres psql -U clickplanet -c "delete from chat.mutes wher
 
 ### Read what players sent
 
-A player sends a suggestion or a bug report from the More menu. Read the newest 100:
+A player sends a suggestion or a bug report from Feedback, in Settings. Read the newest 100:
 
 ```bash
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/support.v1.AdminService/ListNotes
@@ -1392,9 +1392,9 @@ change `endpoint` to `https://<region>.digitaloceanspaces.com` and `region` to
    so it is not a secret), set `support.attachments.enabled: true`, and deploy.
    An empty key or secret refuses the boot.
 
-To check it: the boot logs `support built ... attachments=true`, the bug form
-shows **Add photos or videos**, and a picture sent from it opens from the
-`url` `ListNotes` prints.
+To check it: the boot logs `support built ... attachments=true`, the Feedback
+form in Settings shows **Add photos or videos**, and a picture sent from it
+opens from the `url` `ListNotes` prints.
 
 - **A link is only good for the file it was signed for**: its type and its
   exact size. A player cannot use one to upload something else or something

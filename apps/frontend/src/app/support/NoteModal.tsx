@@ -19,9 +19,10 @@ export type NoteModalProps = {
     title: string
     label: string
     placeholder: string
-    // What the form asks before the text. With it the text is optional, and Send waits for `ready`.
+    // What the form asks before the text. With it Send waits for `ready`.
     asked?: ReactNode
     ready?: boolean
+    optional?: boolean
     // Without it the form takes no file.
     files?: NoteFiles
     // Answers where each file goes, in order; nothing when it takes no file.
@@ -44,15 +45,14 @@ export default function NoteModal(props: NoteModalProps) {
     const [refusal, setRefusal] = useState<Refusal>()
     const tickets = useRef<AttachmentUpload[]>([])
     const closing = useRef<AbortController>()
-    const box = useRef<HTMLTextAreaElement>(null)
+    const form = useRef<HTMLFormElement>(null)
     const formId = useId()
     const fieldId = useId()
     const source = props.files
 
-    const textOnly = props.asked === undefined
     useEffect(() => {
-        if (textOnly) box.current?.focus()
-    }, [textOnly])
+        form.current?.querySelector<HTMLElement>("button, textarea")?.focus()
+    }, [])
 
     // Made here and not once per component: StrictMode runs the cleanup once before the form is ever used.
     useEffect(() => {
@@ -73,7 +73,7 @@ export default function NoteModal(props: NoteModalProps) {
 
     const length = countRunes(text.trim())
     const sending = state.kind === "sending"
-    const answered = textOnly ? length > 0 : props.ready === true
+    const answered = (props.optional === true || length > 0) && (props.asked === undefined || props.ready === true)
     const canSend = !sending && answered && length <= MAX_NOTE_LENGTH
 
     const pick = (picked: File[]) => {
@@ -158,13 +158,12 @@ export default function NoteModal(props: NoteModalProps) {
                       Send
                   </button>}
                   onClose={props.onClose}>
-        <form id={formId} className="support-form" onSubmit={submit} aria-busy={sending}>
+        <form id={formId} ref={form} className="support-form" onSubmit={submit} aria-busy={sending}>
             {props.asked}
             <label className="menu-label" htmlFor={fieldId}>{props.label}</label>
             <textarea id={fieldId}
-                      ref={box}
-                      className={textOnly ? "field support-text" : "field support-text support-text--short"}
-                      rows={textOnly ? 6 : 3}
+                      className={props.optional ? "field support-text support-text--short" : "field support-text"}
+                      rows={props.optional ? 3 : 6}
                       value={text}
                       readOnly={sending}
                       placeholder={props.placeholder}

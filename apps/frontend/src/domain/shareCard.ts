@@ -50,10 +50,10 @@ export function statsLine(stats: ShareStats): string {
 }
 
 export function shareText(stats: ShareStats): string {
-    return `${headline(stats)} ${shareUrl(stats.country.code)}`
+    return `${shareHeadline(stats)} ${shareUrl(stats.country.code)}`
 }
 
-function headline({country, rank, tiles}: ShareStats): string {
+export function shareHeadline({country, rank, tiles}: ShareStats): string {
     if (rank === null) return `${country.name} holds nothing on ClickPlanet yet. Come and claim it.`
 
     return `${country.name} is #${rank} on ClickPlanet with ${tilesHeld(tiles)}. ` +

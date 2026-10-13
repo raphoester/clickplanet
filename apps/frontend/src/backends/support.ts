@@ -62,7 +62,10 @@ export interface PlayerReporter {
     reportPlayer(report: PlayerReport): Promise<void>
 }
 
-export type SupportBackend = FeatureSuggester & BugReporter & PlayerReporter & AttachmentRulesReader & AttachmentUploader
+// What the feedback form asks for: a note of either kind, and its files.
+export type FeedbackBackend = FeatureSuggester & BugReporter & AttachmentRulesReader & AttachmentUploader
+
+export type SupportBackend = FeedbackBackend & PlayerReporter
 
 export class SupportRateLimitedError extends Error {
     constructor(options?: {cause?: unknown}) {

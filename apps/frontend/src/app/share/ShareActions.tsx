@@ -1,6 +1,7 @@
-import {useEffect, useRef, useState} from "react";
+import {useState} from "react";
 import {CopyIcon, DownloadIcon, ShareIcon} from "../components/icons.tsx";
 import {deliveriesOffered, deliverShare, ShareDelivery, ShareOutcome} from "./deliverShare.ts";
+import {DeliveryState, useDelivery} from "./useDelivery.ts";
 import "./ShareActions.css"
 
 export type ShareActionsProps = {
@@ -8,41 +9,11 @@ export type ShareActionsProps = {
     text: string
 }
 
-type ShareState =
-    | {kind: "idle"}
-    | {kind: "working", delivery: ShareDelivery}
-    | {kind: "done", delivery: ShareDelivery, outcome: ShareOutcome}
-    | {kind: "failed", delivery: ShareDelivery}
-
-const SETTLE_MS = 2_500
+type ShareState = DeliveryState<ShareDelivery, ShareOutcome>
 
 export default function ShareActions({file, text}: ShareActionsProps) {
     const [deliveries] = useState(deliveriesOffered)
-    const [state, setState] = useState<ShareState>({kind: "idle"})
-    const settling = useRef<number | undefined>(undefined)
-
-    useEffect(() => () => window.clearTimeout(settling.current), [])
-
-    const run = async (delivery: ShareDelivery) => {
-        window.clearTimeout(settling.current)
-        setState({kind: "working", delivery})
-
-        const next = await attempt(delivery)
-        setState(next)
-        if (next.kind === "idle") return
-
-        settling.current = window.setTimeout(() => setState({kind: "idle"}), SETTLE_MS)
-    }
-
-    const attempt = async (delivery: ShareDelivery): Promise<ShareState> => {
-        try {
-            const outcome = await deliverShare(delivery, file, text)
-            return outcome === "cancelled" ? {kind: "idle"} : {kind: "done", delivery, outcome}
-        } catch (error) {
-            console.error(`Failed to deliver the picture (${delivery})`, error)
-            return {kind: "failed", delivery}
-        }
-    }
+    const {state, run} = useDelivery((delivery: ShareDelivery) => deliverShare(delivery, file, text))
 
     return <div className="share-actions">
         {deliveries.map((delivery) =>
@@ -94,7 +65,7 @@ function resting(delivery: ShareDelivery): string {
     }
 }
 
-function outcomeLabel(outcome: ShareOutcome): string {
+function outcomeLabel(outcome: Exclude<ShareOutcome, "cancelled">): string {
     switch (outcome) {
         case "shared":
             return "Shared!"
@@ -102,7 +73,5 @@ function outcomeLabel(outcome: ShareOutcome): string {
             return "Copied!"
         case "downloaded":
             return "Saved!"
-        default:
-            return "Share"
     }
 }

@@ -11,7 +11,6 @@ import {DEFAULT_SOUND_SETTINGS} from "../domain/soundSettings.ts"
 import {DEFAULT_DISPLAY_SETTINGS} from "../domain/displaySettings.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
-import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from "../links.ts"
 import {NameColor} from "../backends/player.ts"
 import {Fronts, PlayerBackend, PlayerError, PlayerInfoBackend, PlayerTitle, TitleDashboard} from "../backends/player.ts"
 import {AcceptedClicks, acceptedClicks} from "./viewer/acceptedClicks.ts"
@@ -100,38 +99,20 @@ describe("Menu", () => {
         expect(screen.getByLabelText("No rank yet").textContent).toBe("—")
     })
 
-    it("offers the board and More, and the account only when there is one", () => {
+    it("offers the board, Share and the settings, and the account only when there is one", () => {
         setup()
-        expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "More"])
+        expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "Share", "Settings"])
     })
 
     it("swaps the board for the place picked, in the same panel", async () => {
         const {user} = setup([entry("fr", 500)])
 
-        await user.click(tab("More"))
+        await user.click(tab("Settings"))
 
-        expect(tab("More").getAttribute("aria-selected")).toBe("true")
+        expect(tab("Settings").getAttribute("aria-selected")).toBe("true")
         expect(board()).toBeNull()
         expect(button("About")).toBeDefined()
     })
-
-    it("links Home to the home page, which does not send the player back", async () => {
-        const {user} = setup()
-        await user.click(tab("More"))
-        expect(screen.getByRole("link", {name: "Home page"}).getAttribute("href")).toBe("/#home")
-    })
-
-    for (const [name, href] of Object.entries({Discord: DISCORD_INVITE, TikTok: TIKTOK_PROFILE, Instagram: INSTAGRAM_PROFILE})) {
-        it(`links ${name} from links.ts, in a new tab`, async () => {
-            const {user} = setup()
-            await user.click(tab("More"))
-
-            const link = screen.getByRole("link", {name})
-            expect(link.getAttribute("href")).toBe(href)
-            expect(link.getAttribute("target")).toBe("_blank")
-            expect(link.getAttribute("rel")).toBe("noopener noreferrer")
-        })
-    }
 
     describe("the leader", () => {
         const withLeader = (data: LeaderboardEntry[], anthem?: ReactNode) => render(
@@ -346,7 +327,7 @@ describe("Menu", () => {
 
     describe("About", () => {
         const openAbout = async (user: ReturnType<typeof userEvent.setup>) => {
-            await user.click(tab("More"))
+            await user.click(tab("Settings"))
             await user.click(button("About"))
         }
 
@@ -413,41 +394,36 @@ describe("Menu", () => {
         memoryGb: 4,
     }
 
-    describe("a suggestion", () => {
-        it("is written from More and sent with what the page knows about itself", async () => {
+    describe("feedback", () => {
+        const withSupport = (pageContext?: () => typeof phone) => {
             const support = supportBackend()
             render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} support={support}
-                         pageContext={() => phone}/>)
-            const user = userEvent.setup()
+                         pageContext={pageContext}/>)
+            return {support, user: userEvent.setup()}
+        }
 
-            await user.click(tab("More"))
-            await user.click(button("Suggest a feature"))
-            await user.type(screen.getByRole("textbox", {name: "Your idea"}), "a night mode")
+        const write = async (user: ReturnType<typeof userEvent.setup>, kind: string, label: string, text: string) => {
+            await user.click(tab("Settings"))
+            await user.click(button("Feedback"))
+            await user.click(screen.getByRole("radio", {name: kind}))
+            await user.type(screen.getByRole("textbox", {name: label}), text)
+        }
+
+        it("is an idea written from Settings and sent with what the page knows about itself", async () => {
+            const {support, user} = withSupport(() => phone)
+
+            await write(user, "An idea", "Your idea", "a night mode")
             await user.click(button("Send"))
 
             expect(support.suggestFeature).toHaveBeenCalledWith("a night mode", phone, [])
+            expect(support.reportBug).not.toHaveBeenCalled()
             expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
         })
 
-        it("is not offered when no support backend is wired", async () => {
-            const {user} = setup()
+        it("is a bug written from Settings and sent with what the page knows about itself", async () => {
+            const {support, user} = withSupport(() => phone)
 
-            await user.click(tab("More"))
-
-            expect(screen.queryByRole("button", {name: "Suggest a feature"})).toBeNull()
-        })
-    })
-
-    describe("a bug report", () => {
-        it("is written from More and sent with what the page knows about itself", async () => {
-            const support = supportBackend()
-            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} support={support}
-                         pageContext={() => phone}/>)
-            const user = userEvent.setup()
-
-            await user.click(tab("More"))
-            await user.click(button("Report a bug"))
-            await user.type(screen.getByRole("textbox", {name: "What happened"}), "the globe is black")
+            await write(user, "A bug", "What happened", "the globe is black")
             await user.click(button("Send"))
 
             expect(support.reportBug).toHaveBeenCalledWith("the globe is black", phone, [])
@@ -455,16 +431,11 @@ describe("Menu", () => {
             expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
         })
 
-        it("reads the context when the report is sent, not when the form opens", async () => {
-            const support = supportBackend()
+        it("reads the context when it is sent, not when the form opens", async () => {
             let connectionDown = false
-            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} support={support}
-                         pageContext={() => ({...phone, connectionDown})}/>)
-            const user = userEvent.setup()
+            const {support, user} = withSupport(() => ({...phone, connectionDown}))
 
-            await user.click(tab("More"))
-            await user.click(button("Report a bug"))
-            await user.type(screen.getByRole("textbox", {name: "What happened"}), "the globe is black")
+            await write(user, "A bug", "What happened", "the globe is black")
             connectionDown = true
             await user.click(button("Send"))
 
@@ -472,13 +443,9 @@ describe("Menu", () => {
         })
 
         it("says what the page alone knows when nothing tells it more", async () => {
-            const support = supportBackend()
-            render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} support={support}/>)
-            const user = userEvent.setup()
+            const {support, user} = withSupport()
 
-            await user.click(tab("More"))
-            await user.click(button("Report a bug"))
-            await user.type(screen.getByRole("textbox", {name: "What happened"}), "the globe is black")
+            await write(user, "A bug", "What happened", "the globe is black")
             await user.click(button("Send"))
 
             expect(support.reportBug.mock.calls[0]).toMatchObject(["the globe is black", {
@@ -493,33 +460,51 @@ describe("Menu", () => {
         it("is not offered when no support backend is wired", async () => {
             const {user} = setup()
 
-            await user.click(tab("More"))
+            await user.click(tab("Settings"))
 
-            expect(screen.queryByRole("button", {name: "Report a bug"})).toBeNull()
+            expect(screen.queryByRole("button", {name: "Feedback"})).toBeNull()
+            expect(button("About")).toBeDefined()
         })
     })
 
-    describe("the picture", () => {
-        it("is taken from More", async () => {
+    describe("Share", () => {
+        it("takes the picture", async () => {
             const onTakePicture = vi.fn()
             render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} onTakePicture={onTakePicture}/>)
             const user = userEvent.setup()
 
-            await user.click(tab("More"))
+            await user.click(tab("Share"))
             await user.click(button("Take a picture"))
 
             expect(onTakePicture).toHaveBeenCalledTimes(1)
         })
 
-        it("refuses a second press while one is being drawn, and keeps its label", async () => {
+        it("refuses a second press while a picture is being drawn, and keeps its label", async () => {
             render(<Menu country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000} onTakePicture={vi.fn()} taking/>)
             const user = userEvent.setup()
 
-            await user.click(tab("More"))
+            await user.click(tab("Share"))
 
             const take = button("Take a picture")
             expect(take).toHaveProperty("disabled", true)
             expect(take.getAttribute("aria-busy")).toBe("true")
+        })
+
+        it("offers no picture when nothing can take one", async () => {
+            const {user} = setup()
+
+            await user.click(tab("Share"))
+
+            expect(screen.queryByRole("button", {name: "Take a picture"})).toBeNull()
+        })
+
+        it("recruits for the country played, with its link", async () => {
+            const {user} = setup([entry("fr", 500)])
+
+            await user.click(tab("Share"))
+
+            expect(screen.getByText("Recruit for France")).toBeDefined()
+            expect(screen.getByText("clickplanet.lol/?f=fr")).toBeDefined()
         })
     })
 
@@ -536,20 +521,23 @@ describe("Menu", () => {
 
         const toggle = (name: string) => screen.getByRole("switch", {name}) as HTMLInputElement
 
-        it("has its own tab, between the account and More", () => {
+        it("has the last tab, after Share", () => {
             withSettings()
-            expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "Settings", "More"])
+            expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "Share", "Settings"])
         })
 
-        it("offers no settings tab without anything to set", () => {
-            setup()
-            expect(screen.queryByRole("tab", {name: "Settings"})).toBeNull()
+        it("keeps its tab with nothing to set, for About", async () => {
+            const {user} = setup()
+
+            await user.click(tab("Settings"))
+
+            expect(screen.queryByRole("switch")).toBeNull()
+            expect(button("About")).toBeDefined()
         })
 
-        it("leaves the sound out of More", async () => {
+        it("leaves the sound out of Share", async () => {
             const {user} = withSettings()
-            await user.click(tab("More"))
-            expect(screen.queryByRole("button", {name: "Sound"})).toBeNull()
+            await user.click(tab("Share"))
             expect(screen.queryByRole("switch")).toBeNull()
         })
 
@@ -643,11 +631,11 @@ describe("Menu", () => {
             return {...view, backend, player, navigate, user, openSettings}
         }
 
-        it("puts the account between the board and More", async () => {
+        it("puts the account between the board and Share", async () => {
             withAccount(["google"], {linked: ["google"]}, "ana")
 
             await screen.findByRole("tab", {name: "You"})
-            expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "You", "More"])
+            expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "You", "Share", "Settings"])
         })
 
         it("offers no sign-in without an account store", () => {

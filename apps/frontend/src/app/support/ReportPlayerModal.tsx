@@ -1,6 +1,7 @@
-import {useEffect, useId, useRef, useState} from "react"
+import {useState} from "react"
 import {PlayerReporter, ReportReason} from "../../backends/support.ts"
 import {truncate} from "../truncate.ts"
+import Choices, {Choice} from "./Choices.tsx"
 import NoteModal from "./NoteModal.tsx"
 
 export type ReportPlayerModalProps = {
@@ -14,19 +15,15 @@ export type ReportPlayerModalProps = {
 
 const NAME_MAX_LENGTH = 24
 
-const REASONS: {reason: ReportReason, label: string}[] = [
-    {reason: "cheating", label: "Cheating or a bot"},
-    {reason: "chat-abuse", label: "Abuse in the chat"},
-    {reason: "bad-name", label: "Offensive name"},
-    {reason: "other", label: "Something else"},
+const REASONS: Choice<ReportReason>[] = [
+    {value: "cheating", label: "Cheating or a bot"},
+    {value: "chat-abuse", label: "Abuse in the chat"},
+    {value: "bad-name", label: "Offensive name"},
+    {value: "other", label: "Something else"},
 ]
 
 export default function ReportPlayerModal({accountId, name, messageId, reporter, onClose}: ReportPlayerModalProps) {
     const [reason, setReason] = useState<ReportReason>()
-    const first = useRef<HTMLButtonElement>(null)
-    const labelId = useId()
-
-    useEffect(() => first.current?.focus(), [])
 
     const send = async (text: string) => {
         if (reason) await reporter.reportPlayer({accountId, reason, text, messageId})
@@ -35,21 +32,9 @@ export default function ReportPlayerModal({accountId, name, messageId, reporter,
     return <NoteModal title={`Report ${truncate(name, NAME_MAX_LENGTH)}`}
                       label="Details"
                       placeholder="Optional"
-                      asked={<div className="support-reasons">
-                          <span className="menu-label" id={labelId}>Why</span>
-                          <div className="support-reason-options" role="radiogroup" aria-labelledby={labelId}>
-                              {REASONS.map((option, i) => <button key={option.reason}
-                                                                  ref={i === 0 ? first : undefined}
-                                                                  type="button"
-                                                                  role="radio"
-                                                                  aria-checked={option.reason === reason}
-                                                                  className="panel-box support-reason"
-                                                                  onClick={() => setReason(option.reason)}>
-                                  {option.label}
-                              </button>)}
-                          </div>
-                      </div>}
+                      asked={<Choices label="Why" options={REASONS} picked={reason} onPick={setReason}/>}
                       ready={reason !== undefined}
+                      optional
                       onSend={send}
                       onClose={onClose}/>
 }

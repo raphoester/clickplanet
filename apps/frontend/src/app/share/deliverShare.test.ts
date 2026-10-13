@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {deliveriesOffered, deliverShare} from "./deliverShare.ts"
+import {deliveriesOffered, deliverLink, deliverShare, linkDeliveryOffered} from "./deliverShare.ts"
 
 const image = () => new File([new Uint8Array([1, 2, 3])], "clickplanet-fr.png", {type: "image/png"})
 const TEXT = "France is #2 on ClickPlanet. https://clickplanet.lol/?f=fr"
+const LINK = "https://clickplanet.lol/?f=fr"
+const HEADLINE = "France is #2 on ClickPlanet."
 
 type Navigatorish = {
     share?: unknown
@@ -38,8 +40,15 @@ function downloads() {
     return vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {})
 }
 
+function selectionCopy(copies: boolean) {
+    const execCommand = vi.fn().mockReturnValue(copies)
+    Object.defineProperty(document, "execCommand", {value: execCommand, configurable: true, writable: true})
+    return execCommand
+}
+
 afterEach(() => {
     browser({})
+    Reflect.deleteProperty(document, "execCommand")
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
 })
@@ -136,5 +145,86 @@ describe("delivering the share image", () => {
 
         expect(await deliverShare("download", image(), TEXT)).toBe("downloaded")
         expect(click).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("what a browser is offered for a link", () => {
+    it("gives a phone its share sheet", () => {
+        phone(true)
+        browser({share: vi.fn()})
+
+        expect(linkDeliveryOffered()).toBe("sheet")
+    })
+
+    it("copies on a desktop, whatever it claims it can share", () => {
+        phone(false)
+        browser({share: vi.fn()})
+
+        expect(linkDeliveryOffered()).toBe("copy")
+    })
+
+    it("copies on a phone with no share sheet", () => {
+        phone(true)
+        browser({})
+
+        expect(linkDeliveryOffered()).toBe("copy")
+    })
+})
+
+describe("delivering the link", () => {
+    it("hands the link and the sentence to the share sheet, apart", async () => {
+        const share = vi.fn().mockResolvedValue(undefined)
+        browser({share})
+
+        expect(await deliverLink("sheet", LINK, HEADLINE)).toBe("shared")
+        expect(share).toHaveBeenCalledWith({title: "ClickPlanet", text: HEADLINE, url: LINK})
+    })
+
+    it("stops when the player closes the sheet, instead of copying behind their back", async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined)
+        browser({share: vi.fn().mockRejectedValue(new DOMException("cancelled", "AbortError")), clipboard: {writeText}})
+
+        expect(await deliverLink("sheet", LINK, HEADLINE)).toBe("cancelled")
+        expect(writeText).not.toHaveBeenCalled()
+    })
+
+    it("copies the link when the sheet itself fails", async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined)
+        browser({share: vi.fn().mockRejectedValue(new Error("the sheet fell over")), clipboard: {writeText}})
+
+        expect(await deliverLink("sheet", LINK, HEADLINE)).toBe("copied")
+        expect(writeText).toHaveBeenCalledWith(LINK)
+    })
+
+    it("copies the link alone, with no sentence around it", async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined)
+        browser({clipboard: {writeText}})
+
+        expect(await deliverLink("copy", LINK, HEADLINE)).toBe("copied")
+        expect(writeText).toHaveBeenCalledWith(LINK)
+    })
+
+    it("copies a selection where the clipboard is refused, and leaves nothing on the page", async () => {
+        const execCommand = selectionCopy(true)
+        browser({clipboard: {writeText: vi.fn().mockRejectedValue(new Error("denied"))}})
+
+        expect(await deliverLink("copy", LINK, HEADLINE)).toBe("copied")
+        expect(execCommand).toHaveBeenCalledWith("copy")
+        expect(document.querySelector("textarea")).toBeNull()
+    })
+
+    it("copies a selection in a browser with no clipboard at all", async () => {
+        selectionCopy(true)
+        browser({})
+
+        expect(await deliverLink("copy", LINK, HEADLINE)).toBe("copied")
+    })
+
+    it("says a copy that nothing would take failed", async () => {
+        selectionCopy(false)
+        browser({clipboard: {writeText: vi.fn().mockRejectedValue(new Error("denied"))}})
+
+        await expect(deliverLink("copy", LINK, HEADLINE)).rejects.toThrow()
+        expect(document.querySelector("textarea")).toBeNull()
     })
 })
