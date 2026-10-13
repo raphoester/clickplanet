@@ -9,6 +9,7 @@ import StreakFlame from "../components/StreakFlame.tsx";
 import TitleBadge from "../titles/TitleBadge.tsx";
 import {ChevronIcon, ReplyIcon} from "../components/icons.tsx";
 import {ChatLogEntry, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
+import {messageParts} from "../../domain/chatLinks.ts";
 import {describeBlast} from "../../domain/blast.ts";
 import {describeMute} from "../../domain/mute.ts";
 import {medalOf, roundOverLine} from "../../domain/roundReveal.ts";
@@ -241,7 +242,11 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
         {message.replyTo && <Quote quote={message.replyTo} jumpTo={jumpTo}/>}
 
         <div className="chat-message-line">
-            <p className="chat-message-text">{message.text}</p>
+            <p className="chat-message-text">
+                {messageParts(message).map((part, index) => part.kind === "link"
+                    ? <a key={index} href={part.href} target="_blank" rel="noopener noreferrer nofollow ugc">{part.text}</a>
+                    : <Fragment key={index}>{part.text}</Fragment>)}
+            </p>
             {props.onReact && <AddReactionButton messageId={message.id}
                                                  picking={picking === message.id}
                                                  setPicking={pick(message.id)}/>}
