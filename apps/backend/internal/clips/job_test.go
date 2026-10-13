@@ -69,7 +69,7 @@ func rendered(t *testing.T, folder string, pick int, title string) {
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.mp4", pick)), []byte(title), 0o600))
 }
 
-func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndSaysSoInTheSummary(t *testing.T) {
+func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing.T) {
 	var posts []sentPost
 	server := zernio(t, &posts)
 	folder := t.TempDir()
@@ -78,10 +78,10 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndSaysSoInTheSummary(t *tes
 	var config clips.Config
 	config.Zernio.APIKey = "the-key"
 	config.Zernio.BaseURL = server.URL
-	var summary, logs bytes.Buffer
+	var logs bytes.Buffer
 	before := time.Now()
 
-	err := clips.Schedule(t.Context(), folder, config, &summary, slog.New(slog.NewTextHandler(&logs, nil)))
+	report, err := clips.Schedule(t.Context(), folder, config, slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
 	require.Len(t, posts, 2)
@@ -98,13 +98,17 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndSaysSoInTheSummary(t *tes
 	assert.False(t, first.Before(before.Add(4*time.Hour)))
 	assert.Equal(t, 2*time.Hour, second.Sub(first))
 
-	assert.Contains(t, summary.String(), "| KOSOVO IS ATTACKING THE MIDDLE EAST | "+first.UTC().Format("Mon 2 Jan, 15:04 UTC")+" | scheduled |")
-	assert.Contains(t, summary.String(), "| FRANCE IS ATTACKING EUROPE | "+second.UTC().Format("Mon 2 Jan, 15:04 UTC")+" | scheduled |")
+	require.Len(t, report, 2)
+	assert.Equal(t, "KOSOVO IS ATTACKING THE MIDDLE EAST", report[0].Title)
+	assert.Equal(t, clips.Report{{Title: "FRANCE IS ATTACKING EUROPE", At: report[1].At, Post: "post-2"}}, report[1:])
+	assert.True(t, first.Equal(report[0].At))
+	assert.True(t, second.Equal(report[1].At))
+	assert.True(t, report.Complete())
 	assert.Contains(t, logs.String(), `msg="scheduled a clip" clip="KOSOVO IS ATTACKING THE MIDDLE EAST"`)
-	assert.NotContains(t, logs.String()+summary.String(), "the-key")
+	assert.NotContains(t, logs.String(), "the-key")
 }
 
-func TestARunThatZernioRefusesFailsAndTheSummarySaysWhy(t *testing.T) {
+func TestARunThatZernioRefusesReportsWhyForEachClip(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = fmt.Fprint(w, `{"error":"Invalid API key"}`)
@@ -115,23 +119,25 @@ func TestARunThatZernioRefusesFailsAndTheSummarySaysWhy(t *testing.T) {
 	var config clips.Config
 	config.Zernio.APIKey = "the-key"
 	config.Zernio.BaseURL = server.URL
-	var summary, logs bytes.Buffer
+	var logs bytes.Buffer
 
-	err := clips.Schedule(t.Context(), folder, config, &summary, slog.New(slog.NewTextHandler(&logs, nil)))
+	report, err := clips.Schedule(t.Context(), folder, config, slog.New(slog.NewTextHandler(&logs, nil)))
 
-	require.ErrorContains(t, err, "1 of 1")
-	assert.Contains(t, summary.String(), "**not scheduled**: zernio answered 401 to GET /accounts")
+	require.NoError(t, err)
+	require.Len(t, report, 1)
+	assert.False(t, report.Complete())
+	assert.Contains(t, report[0].Failure, "zernio answered 401 to GET /accounts")
 	assert.Contains(t, logs.String(), `level=ERROR msg="failed to schedule a clip"`)
 }
 
-func TestChoosingWritesThePicksOfTheBestStories(t *testing.T) {
+func TestChoosingGivesThePicksOfTheBestStories(t *testing.T) {
 	shortlist := filepath.Join(t.TempDir(), "shortlist.json")
 	require.NoError(t, os.WriteFile(shortlist, []byte(`{"stories":[{"title":"BEST"},{"title":"SECOND"},{"title":"THIRD"}]}`), 0o600))
-	var picks, logs bytes.Buffer
+	var logs bytes.Buffer
 
-	err := clips.Choose(t.Context(), shortlist, clips.Config{}, &picks, slog.New(slog.NewTextHandler(&logs, nil)))
+	picks, err := clips.Choose(t.Context(), shortlist, clips.Config{}, slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
-	assert.JSONEq(t, "[1,2]", picks.String())
+	assert.Equal(t, []clips.Pick{1, 2}, picks)
 	assert.Contains(t, logs.String(), `msg="chose a story" pick=2 title=SECOND`)
 }

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 )
@@ -21,14 +20,13 @@ func TestAReportSaysWhatBecameOfEachClip(t *testing.T) {
 		{Title: "BEST", At: planned[0].TakeSnapshot().At, Post: "post-1"},
 		{Title: "SECOND", At: planned[1].TakeSnapshot().At, Failure: "the caption is too long"},
 	}, report)
-	require.ErrorIs(t, report.UnsentError(), posts.ErrUnsent)
-	assert.ErrorContains(t, report.UnsentError(), "1 of 2")
+	assert.False(t, report.Complete())
 }
 
-func TestARunThatScheduledEveryClipHasNothingUnsent(t *testing.T) {
+func TestARunThatScheduledEveryClipIsComplete(t *testing.T) {
 	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now)
 
-	require.NoError(t, posts.Report{}.With(planned[0], "post-1", nil).UnsentError())
+	assert.True(t, posts.Report{}.With(planned[0], "post-1", nil).Complete())
 }
 
 func TestAddingToAReportLeavesItAsItWas(t *testing.T) {

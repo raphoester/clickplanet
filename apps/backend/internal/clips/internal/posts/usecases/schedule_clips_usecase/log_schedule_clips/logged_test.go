@@ -43,10 +43,9 @@ func TestAScheduledClipIsLoggedWithItsTimeAndItsPost(t *testing.T) {
 func TestAClipThatWasNotScheduledIsLoggedAsAnErrorWithWhy(t *testing.T) {
 	logs, err := run(t, stubExecutor{
 		report: posts.Report{{Title: "FRANCE IS ATTACKING EUROPE", At: at, Failure: "the caption is too long"}},
-		err:    posts.ErrUnsent,
 	})
 
-	require.ErrorIs(t, err, posts.ErrUnsent)
+	require.NoError(t, err)
 	assert.Contains(t, logs, `level=ERROR msg="failed to schedule a clip" clip="FRANCE IS ATTACKING EUROPE"`)
 	assert.Contains(t, logs, `failure="the caption is too long"`)
 }

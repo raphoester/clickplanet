@@ -107,7 +107,7 @@ root package**:
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
-| `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule` |
+| `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Pick`, `Report` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
@@ -3119,9 +3119,17 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   service, and adds a table to the summary: each clip, its time, and whether it is scheduled. It exits 1 when a
   clip was not scheduled, when the folder holds none, or when the summary cannot be written. A clip refused does
   not stop the next one.
-- **`cmd/clips/main.go` reads flags, `CLICKPLANET_SSH` and `ZERNIO_API_KEY`, and builds nothing**: `clips.Fetch`,
-  `clips.Choose` and `clips.Schedule` (`internal/clips/job.go`) wire the objects, as a `module.go` does. Flags
-  and not `cpconfigs`: the job has a few settings and one secret, and a workflow passes them on the command line.
+- **`cmd/clips` is three stages, and `run` only names them**: parse, work, display.
+  - **`parseFlags`** (`flags.go`) answers one typed `FlagsConfig`: the command, its files, and the job's
+    `clips.Config` with `CLICKPLANET_SSH` and `ZERNIO_API_KEY` read into it. No flag pointer leaves it. Flags and
+    not `cpconfigs`: the job has a few settings and one secret, and a workflow passes them on the command line.
+  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks) and
+    `clips.Schedule` (the `Report`), in `internal/clips/job.go`, which wires the objects as a `module.go` does.
+    A clip the service refused is in the report, not in the error: the error is for a run that could not be
+    made at all.
+  - **The display owns the output and says how it went** (`display.go`): `displayPicks` writes the array,
+    `displayReport` writes the table and answers whether every clip is scheduled. It does not turn that into
+    an error: `scheduleClips` decides, and exits 1 on `errUnsent`.
 
 **`internal/clips/internal/replays/` is the fetch**, a concept of its own beside `posts`:
 
@@ -3159,7 +3167,8 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 - **`Service` is the posting service, one method**: `Schedule(ctx, post) (PostID, error)`. Its contract is in two
   lines on it: for the post's time and never sooner, and a post scheduled twice is one post there.
 - `Clip` and `Post` have no getter: an adapter reads `TakeSnapshot()`, and a `ClipSnapshot` the generator left a
-  part out of does not `Restore()`. `Report` is what became of each clip, for the summary and the log.
+  part out of does not `Restore()`. `Report` is what became of each clip, for the display and the log;
+  `Complete()` is whether every one is scheduled.
 
 **`posts/zernio/` is the one file that knows the service** (Zernio, chosen 2026-10-12 over upload-post: its free
 tier has TikTok and the whole API). A change of service is that package, its line in `job.go` and the variable
@@ -3186,7 +3195,7 @@ tier has TikTok and the whole API). A change of service is that package, its lin
 - The tests run it against `httptest`, with the requests and the answers of Zernio's OpenAPI document.
 
 `posts/generator_output/` reads the generator's files (`protojson`, unknown fields dropped, so the generator can
-add one first), `posts/markdown_summary/` writes the table, and both use cases log in a decorator
+add one first), and both use cases log in a decorator
 (`log_choose_clips`, `log_schedule_clips`), as does the service (`log_service`: each try the service did not take,
 which is what explains a step that waited 20 minutes).
 

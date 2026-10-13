@@ -2,9 +2,7 @@ package clips
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"time"
@@ -12,7 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/generator_output"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/log_service"
-	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/markdown_summary"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/choose_clips_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/choose_clips_usecase/log_choose_clips"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/schedule_clips_usecase"
@@ -24,6 +21,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase/log_fetch_replay"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
+)
+
+type (
+	Pick   = posts.Pick
+	Report = posts.Report
 )
 
 type Config struct {
@@ -91,37 +93,33 @@ func Fetch(ctx context.Context, out string, config Config, logger *slog.Logger) 
 	return err
 }
 
-func Choose(ctx context.Context, shortlist string, config Config, picks io.Writer, logger *slog.Logger) error {
+func Choose(ctx context.Context, shortlist string, config Config, logger *slog.Logger) ([]Pick, error) {
 	config = config.withDefaults()
 
 	choose := log_choose_clips.New(choose_clips_usecase.New(generator_output.ShortlistFile(shortlist), config.PerRun), logger)
 
 	chosen, err := choose.Execute(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if err := json.NewEncoder(picks).Encode(chosen.Picks()); err != nil {
-		return fmt.Errorf("failed to write the picks: %w", err)
-	}
-	return nil
+	return chosen.Picks(), nil
 }
 
-func Schedule(ctx context.Context, folder string, config Config, summary io.Writer, logger *slog.Logger) error {
+func Schedule(ctx context.Context, folder string, config Config, logger *slog.Logger) (Report, error) {
 	config = config.withDefaults()
 	clock := cptime.SystemClock{}
 
 	service, err := zernio.New(config.Zernio, &http.Client{Timeout: serviceTimeout})
 	if err != nil {
-		return fmt.Errorf("failed to build the posting service: %w", err)
+		return nil, fmt.Errorf("failed to build the posting service: %w", err)
 	}
 	sender := posts.NewSender(log_service.New(service, logger), defaultBackoff, posts.SystemPause{}, clock)
 
 	schedule := log_schedule_clips.New(schedule_clips_usecase.New(
 		generator_output.Folder(folder),
 		posts.Cadence{Review: config.Review, Spacing: config.Spacing},
-		clock, sender, markdown_summary.New(summary),
+		clock, sender,
 	), logger)
 
-	_, err = schedule.Execute(ctx)
-	return err
+	return schedule.Execute(ctx)
 }

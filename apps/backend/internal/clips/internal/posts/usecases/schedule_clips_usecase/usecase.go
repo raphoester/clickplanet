@@ -19,17 +19,13 @@ type Sender interface {
 	Send(ctx context.Context, post posts.Post) (posts.PostID, error)
 }
 
-type Summary interface {
-	Write(report posts.Report) error
-}
-
 type Executor interface {
-	// The report says what became of each clip, also when a clip was not scheduled and the error says so.
+	// A clip the service refused is in the report, not in the error.
 	Execute(ctx context.Context) (posts.Report, error)
 }
 
-func New(clips Clips, cadence posts.Cadence, clock cptime.Clock, sender Sender, summary Summary) *UseCase {
-	return &UseCase{clips: clips, cadence: cadence, clock: clock, sender: sender, summary: summary}
+func New(clips Clips, cadence posts.Cadence, clock cptime.Clock, sender Sender) *UseCase {
+	return &UseCase{clips: clips, cadence: cadence, clock: clock, sender: sender}
 }
 
 type UseCase struct {
@@ -37,7 +33,6 @@ type UseCase struct {
 	cadence posts.Cadence
 	clock   cptime.Clock
 	sender  Sender
-	summary Summary
 }
 
 var _ Executor = (*UseCase)(nil)
@@ -56,9 +51,5 @@ func (u *UseCase) Execute(ctx context.Context) (posts.Report, error) {
 		id, err := u.sender.Send(ctx, post)
 		report = report.With(post, id, err)
 	}
-
-	if err := u.summary.Write(report); err != nil {
-		return report, fmt.Errorf("failed to write the summary of the run: %w", err)
-	}
-	return report, report.UnsentError() //nolint:wrapcheck // a pure delegation: the report already named what failed.
+	return report, nil
 }
