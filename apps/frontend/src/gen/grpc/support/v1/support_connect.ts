@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { SuggestFeatureRequest, SuggestFeatureResponse } from "./support_pb.js";
+import { ReportBugRequest, ReportBugResponse, SuggestFeatureRequest, SuggestFeatureResponse } from "./support_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -19,6 +19,15 @@ export const SupportService = {
       name: "SuggestFeature",
       I: SuggestFeatureRequest,
       O: SuggestFeatureResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc support.v1.SupportService.ReportBug
+     */
+    reportBug: {
+      name: "ReportBug",
+      I: ReportBugRequest,
+      O: ReportBugResponse,
       kind: MethodKind.Unary,
     },
   }

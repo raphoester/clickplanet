@@ -30,9 +30,13 @@ func (s *stubUseCase) Execute(_ context.Context, in suggest_feature_usecase.In) 
 }
 
 func suggest(ctx context.Context, useCase *stubUseCase, text string) error {
-	_, err := suggest_feature_handler.New(useCase).SuggestFeature(ctx,
-		connect.NewRequest(&supportv1.SuggestFeatureRequest{Text: text}))
-	if err != nil {
+	return send(ctx, useCase, &supportv1.SuggestFeatureRequest{Text: text}, "")
+}
+
+func send(ctx context.Context, useCase *stubUseCase, msg *supportv1.SuggestFeatureRequest, userAgent string) error {
+	req := connect.NewRequest(msg)
+	req.Header().Set("User-Agent", userAgent)
+	if _, err := suggest_feature_handler.New(useCase).SuggestFeature(ctx, req); err != nil {
 		return fmt.Errorf("SuggestFeature failed: %w", err)
 	}
 	return nil
@@ -44,12 +48,30 @@ func asAda(t *testing.T) context.Context {
 	return cpctx.AddAccountToContext(t.Context(), ada.String())
 }
 
-func TestTheCallersAccountAndTheTextAreHandedOn(t *testing.T) {
+func TestTheCallersAccountTheTextThePageAndTheBrowserAreHandedOn(t *testing.T) {
 	useCase := &stubUseCase{}
 
-	require.NoError(t, suggest(asAda(t), useCase, "a night mode"))
+	err := send(asAda(t), useCase, &supportv1.SuggestFeatureRequest{
+		Text:    "a night mode",
+		Context: &supportv1.PageContext{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, GpuRenderer: "Apple GPU"},
+	}, "Mozilla/5.0 (iPhone)")
+	require.NoError(t, err)
 
-	assert.Equal(t, []suggest_feature_usecase.In{{Account: ada, Text: "a night mode"}}, useCase.asked)
+	assert.Equal(t, []suggest_feature_usecase.In{{
+		Account: ada,
+		Text:    "a night mode",
+		Diagnostics: notes.Diagnostics{
+			Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, GPURenderer: "Apple GPU", UserAgent: "Mozilla/5.0 (iPhone)",
+		},
+	}}, useCase.asked)
+}
+
+func TestASuggestionWithNoContextKeepsTheBrowserAlone(t *testing.T) {
+	useCase := &stubUseCase{}
+
+	require.NoError(t, send(asAda(t), useCase, &supportv1.SuggestFeatureRequest{Text: "a night mode"}, "Mozilla/5.0"))
+
+	assert.Equal(t, notes.Diagnostics{UserAgent: "Mozilla/5.0"}, useCase.asked[0].Diagnostics)
 }
 
 func TestACallerWithNoAccountIsRefusedBeforeTheUseCase(t *testing.T) {

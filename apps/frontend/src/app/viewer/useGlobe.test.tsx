@@ -24,9 +24,10 @@ const backends = () => ({
 function fakeGlobe(): Globe & {
     setCountry: ReturnType<typeof vi.fn>,
     capture: ReturnType<typeof vi.fn>,
+    graphics: ReturnType<typeof vi.fn>,
     dispose: ReturnType<typeof vi.fn>,
 } {
-    return {tilesCount: 257_948, setCountry: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), capture: vi.fn(), dispose: vi.fn()}
+    return {tilesCount: 257_948, setCountry: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
 }
 
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {
@@ -301,6 +302,26 @@ describe("useGlobe", () => {
         renderHook()
 
         await expect(latest.capture()).rejects.toThrow()
+    })
+
+    it("asks the globe that is running what WebGL says of the card", async () => {
+        const globe = fakeGlobe()
+        const card = {vendor: "Apple Inc.", renderer: "Apple GPU", version: "WebGL 2.0", maxTextureSize: 4096, contextLost: false}
+        globe.graphics.mockReturnValue(card)
+        createGlobe.mockResolvedValue(globe)
+
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        expect(latest.graphics()).toBe(card)
+    })
+
+    it("says nothing of the card before there is a globe", () => {
+        createGlobe.mockReturnValue(new Promise(() => {}))
+
+        renderHook()
+
+        expect(latest.graphics()).toEqual({vendor: "", renderer: "", version: "", maxTextureSize: 0, contextLost: false})
     })
 
     it("does nothing until the container element exists", () => {

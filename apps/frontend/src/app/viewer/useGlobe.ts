@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {createGlobe, Globe} from './globe.ts';
 import {CapturedFrame} from './capture.ts';
+import {GraphicsReport, NO_GRAPHICS} from './graphicsReport.ts';
 import {Country} from '../../domain/countries.ts';
 import {MapView, Rendering} from '../../domain/displaySettings.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
@@ -177,6 +178,8 @@ export function useGlobe(options: UseGlobeOptions) {
         return globe.capture()
     }, [])
 
+    const graphics = useCallback((): GraphicsReport => globeRef.current?.graphics() ?? NO_GRAPHICS, [])
+
     const dismissAward = useCallback(() => setAward(undefined), [])
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!bombArmed), [bombArmed])
     const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !switches[name]), [switches])
@@ -190,6 +193,7 @@ export function useGlobe(options: UseGlobeOptions) {
         tileDeltas,
         tilesCount,
         capture,
+        graphics,
         refusals,
         vpnBlocked,
         dismissVPNBlocked: () => setVPNBlocked(false),

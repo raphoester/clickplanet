@@ -897,10 +897,12 @@ the other's next announce, at most 30s later.
 
 ### Support
 
-What a player sends the operator, from More: a feature suggestion.
+What a player sends the operator, from More: a feature suggestion or a bug
+report.
 
-- `backends/support.ts` — `FeatureSuggester` (and `SupportBackend`, every
-  support contract together), `MAX_NOTE_LENGTH`, which mirrors the backend's
+- `backends/support.ts` — `FeatureSuggester` and `BugReporter`, the
+  `PageContext` both send (and `SupportBackend`, every support contract together),
+  `MAX_NOTE_LENGTH`, which mirrors the backend's
   `notes.MaxTextLength`, and the errors. `ConnectSupportBackend`
   (`supportBackend.ts`) implements it over `support.v1.SupportService`;
   `fakeSupportBackend.ts` is the dev stand-in.
@@ -912,15 +914,30 @@ What a player sends the operator, from More: a feature suggestion.
   kept twice, and the text is still in the box.
 - The refusals are `resource_exhausted` → `SupportRateLimitedError` (one address
   sends three, then one a minute) and `invalid_argument` → `SupportRejectedError`.
-- `app/support/NoteModal.tsx` is the one form: a `Modal` with a text box and
-  Send. It opens on the box. The text keeps its lines. A counter shows from 100
+- **A note says what the page knows about itself, a suggestion as a bug report**
+  (`app/support/pageContextOf`): the build, the viewport in CSS pixels and the
+  pixel ratio, whether the connection was down, the cores and the memory the
+  browser reports, and what WebGL says of the graphics card. `Viewer` hands
+  `MorePlace` a `pageContext()` that is read when the note is sent, not when the
+  form opens. The server reads the user agent off the request.
+- **The graphics card comes from the globe's own WebGL context**
+  (`viewer/graphicsReport.ts`, through `Globe.graphics()`): the unmasked vendor
+  and renderer when the browser gives them, its own names otherwise, the WebGL
+  version, the largest texture, and whether the context is lost. A page cannot
+  read `chrome://gpu`; this is what it can read of it. No second context is
+  made to ask: a phone has few to give.
+- **The build is `BUILD`, the file the bundler put `pageContext.ts` in**
+  (`buildOf(import.meta.url)`): `play-<hash>.js` in production, so it names the
+  bundle with no build variable to set, and `pageContext.ts` in dev.
+- `app/support/NoteModal.tsx` is the one form, for both: a `Modal` with a text
+  box and Send. It opens on the box. The text keeps its lines. A counter shows from 100
   characters left. A failure is one line under the box (`sendFailure.ts`), and
   the text stays. Once sent it says so and offers Close.
 - **A click beside it does not close it once something is typed**
   (`stayOnBackdropClick`): the ×, Escape and Close still do.
 - **The modal's scroll fade is off** (`.modal-support`): a field sits at the
   bottom edge of the body, and the fade drew over it.
-- `MorePlace` shows the tile only with a `support` backend wired.
+- `MorePlace` shows the two tiles only with a `support` backend wired.
 
 ### Titles
 

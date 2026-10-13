@@ -24,6 +24,7 @@ const (
 type SuggestFeatureRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Context       *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -65,6 +66,13 @@ func (x *SuggestFeatureRequest) GetText() string {
 	return ""
 }
 
+func (x *SuggestFeatureRequest) GetContext() *PageContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
 type SuggestFeatureResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -101,17 +109,267 @@ func (*SuggestFeatureResponse) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{1}
 }
 
+type ReportBugRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Context       *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportBugRequest) Reset() {
+	*x = ReportBugRequest{}
+	mi := &file_support_v1_support_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportBugRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportBugRequest) ProtoMessage() {}
+
+func (x *ReportBugRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportBugRequest.ProtoReflect.Descriptor instead.
+func (*ReportBugRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ReportBugRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *ReportBugRequest) GetContext() *PageContext {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+type ReportBugResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportBugResponse) Reset() {
+	*x = ReportBugResponse{}
+	mi := &file_support_v1_support_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportBugResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportBugResponse) ProtoMessage() {}
+
+func (x *ReportBugResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportBugResponse.ProtoReflect.Descriptor instead.
+func (*ReportBugResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{3}
+}
+
+// What the page knows about itself and its device when a note is sent. The server adds the user agent.
+type PageContext struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The bundle the page runs.
+	Build          string `protobuf:"bytes,1,opt,name=build,proto3" json:"build,omitempty"`
+	ViewportWidth  uint32 `protobuf:"varint,2,opt,name=viewport_width,json=viewportWidth,proto3" json:"viewport_width,omitempty"`
+	ViewportHeight uint32 `protobuf:"varint,3,opt,name=viewport_height,json=viewportHeight,proto3" json:"viewport_height,omitempty"`
+	// The page had lost the server when the note was written.
+	ConnectionDown bool `protobuf:"varint,4,opt,name=connection_down,json=connectionDown,proto3" json:"connection_down,omitempty"`
+	// Device pixels per CSS pixel.
+	PixelRatio float64 `protobuf:"fixed64,5,opt,name=pixel_ratio,json=pixelRatio,proto3" json:"pixel_ratio,omitempty"`
+	// The graphics card as WebGL names it; a page cannot read chrome://gpu.
+	GpuVendor      string `protobuf:"bytes,6,opt,name=gpu_vendor,json=gpuVendor,proto3" json:"gpu_vendor,omitempty"`
+	GpuRenderer    string `protobuf:"bytes,7,opt,name=gpu_renderer,json=gpuRenderer,proto3" json:"gpu_renderer,omitempty"`
+	WebglVersion   string `protobuf:"bytes,8,opt,name=webgl_version,json=webglVersion,proto3" json:"webgl_version,omitempty"`
+	MaxTextureSize uint32 `protobuf:"varint,9,opt,name=max_texture_size,json=maxTextureSize,proto3" json:"max_texture_size,omitempty"`
+	// The globe had lost its WebGL context when the note was written.
+	ContextLost bool `protobuf:"varint,10,opt,name=context_lost,json=contextLost,proto3" json:"context_lost,omitempty"`
+	// Logical processors, as the browser reports them.
+	Cores uint32 `protobuf:"varint,11,opt,name=cores,proto3" json:"cores,omitempty"`
+	// Device memory in GiB, as the browser reports it; 0 where it does not.
+	MemoryGb      float64 `protobuf:"fixed64,12,opt,name=memory_gb,json=memoryGb,proto3" json:"memory_gb,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PageContext) Reset() {
+	*x = PageContext{}
+	mi := &file_support_v1_support_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PageContext) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PageContext) ProtoMessage() {}
+
+func (x *PageContext) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PageContext.ProtoReflect.Descriptor instead.
+func (*PageContext) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PageContext) GetBuild() string {
+	if x != nil {
+		return x.Build
+	}
+	return ""
+}
+
+func (x *PageContext) GetViewportWidth() uint32 {
+	if x != nil {
+		return x.ViewportWidth
+	}
+	return 0
+}
+
+func (x *PageContext) GetViewportHeight() uint32 {
+	if x != nil {
+		return x.ViewportHeight
+	}
+	return 0
+}
+
+func (x *PageContext) GetConnectionDown() bool {
+	if x != nil {
+		return x.ConnectionDown
+	}
+	return false
+}
+
+func (x *PageContext) GetPixelRatio() float64 {
+	if x != nil {
+		return x.PixelRatio
+	}
+	return 0
+}
+
+func (x *PageContext) GetGpuVendor() string {
+	if x != nil {
+		return x.GpuVendor
+	}
+	return ""
+}
+
+func (x *PageContext) GetGpuRenderer() string {
+	if x != nil {
+		return x.GpuRenderer
+	}
+	return ""
+}
+
+func (x *PageContext) GetWebglVersion() string {
+	if x != nil {
+		return x.WebglVersion
+	}
+	return ""
+}
+
+func (x *PageContext) GetMaxTextureSize() uint32 {
+	if x != nil {
+		return x.MaxTextureSize
+	}
+	return 0
+}
+
+func (x *PageContext) GetContextLost() bool {
+	if x != nil {
+		return x.ContextLost
+	}
+	return false
+}
+
+func (x *PageContext) GetCores() uint32 {
+	if x != nil {
+		return x.Cores
+	}
+	return 0
+}
+
+func (x *PageContext) GetMemoryGb() float64 {
+	if x != nil {
+		return x.MemoryGb
+	}
+	return 0
+}
+
 var File_support_v1_support_proto protoreflect.FileDescriptor
 
 const file_support_v1_support_proto_rawDesc = "" +
 	"\n" +
 	"\x18support/v1/support.proto\x12\n" +
-	"support.v1\"+\n" +
+	"support.v1\"^\n" +
 	"\x15SuggestFeatureRequest\x12\x12\n" +
-	"\x04text\x18\x01 \x01(\tR\x04text\"\x18\n" +
-	"\x16SuggestFeatureResponse2i\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x121\n" +
+	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\"\x18\n" +
+	"\x16SuggestFeatureResponse\"Y\n" +
+	"\x10ReportBugRequest\x12\x12\n" +
+	"\x04text\x18\x01 \x01(\tR\x04text\x121\n" +
+	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\"\x13\n" +
+	"\x11ReportBugResponse\"\xa4\x03\n" +
+	"\vPageContext\x12\x14\n" +
+	"\x05build\x18\x01 \x01(\tR\x05build\x12%\n" +
+	"\x0eviewport_width\x18\x02 \x01(\rR\rviewportWidth\x12'\n" +
+	"\x0fviewport_height\x18\x03 \x01(\rR\x0eviewportHeight\x12'\n" +
+	"\x0fconnection_down\x18\x04 \x01(\bR\x0econnectionDown\x12\x1f\n" +
+	"\vpixel_ratio\x18\x05 \x01(\x01R\n" +
+	"pixelRatio\x12\x1d\n" +
+	"\n" +
+	"gpu_vendor\x18\x06 \x01(\tR\tgpuVendor\x12!\n" +
+	"\fgpu_renderer\x18\a \x01(\tR\vgpuRenderer\x12#\n" +
+	"\rwebgl_version\x18\b \x01(\tR\fwebglVersion\x12(\n" +
+	"\x10max_texture_size\x18\t \x01(\rR\x0emaxTextureSize\x12!\n" +
+	"\fcontext_lost\x18\n" +
+	" \x01(\bR\vcontextLost\x12\x14\n" +
+	"\x05cores\x18\v \x01(\rR\x05cores\x12\x1b\n" +
+	"\tmemory_gb\x18\f \x01(\x01R\bmemoryGb2\xb3\x01\n" +
 	"\x0eSupportService\x12W\n" +
-	"\x0eSuggestFeature\x12!.support.v1.SuggestFeatureRequest\x1a\".support.v1.SuggestFeatureResponseB\xbb\x01\n" +
+	"\x0eSuggestFeature\x12!.support.v1.SuggestFeatureRequest\x1a\".support.v1.SuggestFeatureResponse\x12H\n" +
+	"\tReportBug\x12\x1c.support.v1.ReportBugRequest\x1a\x1d.support.v1.ReportBugResponseB\xbb\x01\n" +
 	"\x0ecom.support.v1B\fSupportProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1;supportv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Support.V1\xca\x02\n" +
 	"Support\\V1\xe2\x02\x16Support\\V1\\GPBMetadata\xea\x02\vSupport::V1b\x06proto3"
@@ -128,19 +386,26 @@ func file_support_v1_support_proto_rawDescGZIP() []byte {
 	return file_support_v1_support_proto_rawDescData
 }
 
-var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_support_v1_support_proto_goTypes = []any{
 	(*SuggestFeatureRequest)(nil),  // 0: support.v1.SuggestFeatureRequest
 	(*SuggestFeatureResponse)(nil), // 1: support.v1.SuggestFeatureResponse
+	(*ReportBugRequest)(nil),       // 2: support.v1.ReportBugRequest
+	(*ReportBugResponse)(nil),      // 3: support.v1.ReportBugResponse
+	(*PageContext)(nil),            // 4: support.v1.PageContext
 }
 var file_support_v1_support_proto_depIdxs = []int32{
-	0, // 0: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
-	1, // 1: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	4, // 0: support.v1.SuggestFeatureRequest.context:type_name -> support.v1.PageContext
+	4, // 1: support.v1.ReportBugRequest.context:type_name -> support.v1.PageContext
+	0, // 2: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
+	2, // 3: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
+	1, // 4: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
+	3, // 5: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
+	4, // [4:6] is the sub-list for method output_type
+	2, // [2:4] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_support_proto_init() }
@@ -154,7 +419,7 @@ func file_support_v1_support_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_v1_support_proto_rawDesc), len(file_support_v1_support_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
