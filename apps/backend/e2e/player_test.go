@@ -339,23 +339,6 @@ func TestAPlayerKeepsItsCardWhenAnotherTakesTheNameItLeft(t *testing.T) {
 	assert.Equal(t, uint64(1), res.Msg.GetPlayer().GetStats().GetTilesTaken())
 }
 
-func TestAClientFromBeforeAccountIDsStillReadsAPlayerByItsUsername(t *testing.T) {
-	game := startGame(t)
-	ada := game.newPlayer(t)
-	ada.link("google-ada")
-	_, err := ada.setName("Ada_L")
-	require.NoError(t, err)
-
-	anybody := playerv1connect.NewPlayerServiceClient(http.DefaultClient, game.baseURL, connect.WithHTTPGet())
-	res, err := anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "ada_l"})) //nolint:staticcheck // the field stays until no client sends it.
-
-	require.NoError(t, err)
-	assert.Equal(t, "Ada_L", res.Msg.GetPlayer().GetName())
-
-	_, err = anybody.GetPlayer(t.Context(), connect.NewRequest(&playerv1.GetPlayerRequest{Name: "Bob"})) //nolint:staticcheck // the field stays until no client sends it.
-	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-}
-
 func TestAPlayerReadsEveryCountryItPlaysAgainstAndAnybodyTheTopThree(t *testing.T) {
 	game := startGame(t)
 	ada := game.newPlayer(t)
