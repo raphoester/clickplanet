@@ -84,8 +84,20 @@ function capitalsByCountry(places, countries) {
         else if (name) capitals.set(code, {name, worldCity: properties.worldcity === 1})
     }
 
+    for (const [code, name] of CAPITALS_MOVED) {
+        if (capitals.get(code)) capitals.set(code, {name, worldCity: false})
+    }
+
     return capitals
 }
+
+// Capitals that moved or were renamed after the pinned Natural Earth snapshot was cut. The pin
+// cannot move for them, since moving it renumbers every tile, so the generator corrects them here.
+const CAPITALS_MOVED = new Map([
+    ["bi", "Gitega"], // the political capital since 2019; Bujumbura stays the economic one
+    ["gq", "Ciudad de la Paz"], // Decree-Law 1/2026, January 2026
+    ["kz", "Astana"], // renamed back from Nur-Sultan in September 2022
+])
 
 function text(value) {
     const string = String(value ?? "").trim().replace(/\s+/g, " ")
