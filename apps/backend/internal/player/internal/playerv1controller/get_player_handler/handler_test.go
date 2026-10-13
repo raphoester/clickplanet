@@ -20,16 +20,10 @@ type stubQuery struct {
 	answer *playerv1.GetPlayerResponse
 	err    error
 	asked  []players.AccountID
-	named  []string
 }
 
 func (s *stubQuery) Player(_ context.Context, account players.AccountID) (*playerv1.GetPlayerResponse, error) {
 	s.asked = append(s.asked, account)
-	return s.answer, s.err
-}
-
-func (s *stubQuery) PlayerNamed(_ context.Context, name string) (*playerv1.GetPlayerResponse, error) {
-	s.named = append(s.named, name)
 	return s.answer, s.err
 }
 
@@ -52,30 +46,8 @@ func TestThePlayerIsTheQuerysAndMayBeCached(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []players.AccountID{ada}, query.asked)
-	assert.Empty(t, query.named)
 	assert.True(t, proto.Equal(query.answer, res.Msg))
 	assert.Equal(t, "public, max-age=10", res.Header().Get("Cache-Control"))
-}
-
-func TestAnAccountIsAskedForWhateverNameComesWithIt(t *testing.T) {
-	query := &stubQuery{answer: &playerv1.GetPlayerResponse{}}
-
-	_, err := getPlayer(t, query, &playerv1.GetPlayerRequest{AccountId: ada.String(), Name: "Bob"})
-
-	require.NoError(t, err)
-	assert.Equal(t, []players.AccountID{ada}, query.asked)
-	assert.Empty(t, query.named)
-}
-
-func TestAClientFromBeforeAccountIDsIsAnsweredByName(t *testing.T) {
-	query := &stubQuery{answer: &playerv1.GetPlayerResponse{Player: &playerv1.Player{Name: "Ada_L"}}}
-
-	res, err := getPlayer(t, query, &playerv1.GetPlayerRequest{Name: "ada_l"})
-
-	require.NoError(t, err)
-	assert.Equal(t, []string{"ada_l"}, query.named)
-	assert.Empty(t, query.asked)
-	assert.True(t, proto.Equal(query.answer, res.Msg))
 }
 
 func TestAnIDThatIsNotAnAccountIsRefused(t *testing.T) {
@@ -86,7 +58,6 @@ func TestAnIDThatIsNotAnAccountIsRefused(t *testing.T) {
 
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "%q", id)
 		assert.Empty(t, query.asked, "%q", id)
-		assert.Empty(t, query.named, "%q", id)
 	}
 }
 

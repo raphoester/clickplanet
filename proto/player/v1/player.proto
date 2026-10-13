@@ -128,8 +128,8 @@ message PlayerLeft {
 message Heartbeat {}
 
 message GetPlayerRequest {
-  // Read only when account_id is empty: a client loaded before account_id sends nothing else.
-  string name = 1 [deprecated = true];
+  reserved 1;
+  reserved "name";
   string account_id = 2;
 }
 

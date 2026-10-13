@@ -94,12 +94,6 @@ func (s *testSuite) player(account players.AccountID) *playerv1.Player {
 	return answer.GetPlayer()
 }
 
-func (s *testSuite) playerNamed(name string) *playerv1.Player {
-	answer, err := s.query().PlayerNamed(s.T().Context(), name)
-	s.Require().NoError(err)
-	return answer.GetPlayer()
-}
-
 func (s *testSuite) TestAPlayerIsFoundByItsAccount() {
 	s.Require().NoError(s.players.RecordTake(s.T().Context(), ada, monday.Add(-24*time.Hour)))
 	s.Require().NoError(s.players.RecordTake(s.T().Context(), ada, monday))
@@ -137,21 +131,6 @@ func (s *testSuite) TestAnAccountWithNoUsernameIsNoPlayer() {
 		_, err := s.query().Player(s.T().Context(), account)
 
 		s.ErrorIs(err, player_query.ErrNoPlayer, "%s", account)
-	}
-}
-
-func (s *testSuite) TestAPlayerIsFoundByItsNameInAnyCase() {
-	s.Require().NoError(s.players.RecordTake(s.T().Context(), ada, monday.Add(-24*time.Hour)))
-	s.Require().NoError(s.players.RecordTake(s.T().Context(), ada, monday))
-
-	s.True(proto.Equal(s.player(ada), s.playerNamed("aDA_l")))
-}
-
-func (s *testSuite) TestANameOfAnyScriptIsFoundByItsFold() {
-	for i, pair := range [][2]string{{"Straße", "STRASSE"}, {"Ａｄａ", "ada"}, {"Жанна", "жАННА"}} {
-		s.named(players.AccountID{14: 1, 15: byte(i)}, players.Name(pair[0]))
-
-		s.Equal(pair[0], s.playerNamed(pair[1]).GetName(), "%q finds %q", pair[1], pair[0])
 	}
 }
 
@@ -242,24 +221,6 @@ func (s *testSuite) TestTheStreakIsReadAsOfToday() {
 	s.Equal(uint32(1), stats.GetStreakBest())
 }
 
-func (s *testSuite) TestANameNobodyHoldsIsNoProfile() {
-	s.named(ada, "Ada_Lovelace")
-
-	for _, name := range []string{"Bob", "Ada_L"} {
-		_, err := s.query().PlayerNamed(s.T().Context(), name)
-
-		s.ErrorIs(err, player_query.ErrNoPlayer, "%q: a rename frees the old name", name)
-	}
-}
-
-func (s *testSuite) TestANameNoAccountMayHoldFindsNobody() {
-	for _, name := range []string{"", "guest_Ada", "a  b", "Ada!"} {
-		_, err := s.query().PlayerNamed(s.T().Context(), name)
-
-		s.ErrorIs(err, player_query.ErrNoPlayer, "%q", name)
-	}
-}
-
 func (s *testSuite) TestAnAccountAuthNoLongerKnowsHasNoCreationDate() {
 	bob := players.AccountID{15: 2}
 	s.named(bob, "Bob")
@@ -292,37 +253,4 @@ func (s *testSuite) TestAnAuthFailureIsAnError() {
 
 	s.Require().ErrorIs(err, s.accounts.err)
 	s.NotErrorIs(err, player_query.ErrNoPlayer)
-}
-
-func (s *testSuite) TestANameIsFoundExactlyWhenTheDomainFoldsItToANameKept() {
-	kept := []players.Name{"Ada_L", "Straße", "Émile", "Ａｄａ", "Жанна", "東京タワー", "Ada L"}
-	for i, name := range kept[1:] {
-		s.named(players.AccountID{14: 2, 15: byte(i)}, name)
-	}
-	typed := []string{
-		"Ada_L", "ada_l", " ADA_L ", "STRASSE", "strasse", "Strasse", "straße", " Straße  ", "E\u0301MILE", "émile",
-		"EMILE", "ada", "ａｄａ", "ＡＤＡ", "жАННА", "ЖАННА", "東京タワー", " Ada L ", "ada l", "ada  l", "\u00a0Ada L",
-		"A\u200bda L", "Ada\u00adL", "Ada!", "", "   ", "guest_ada", "ＧＵＥＳＴ_ada", "Ada_L\u0301", "ada_ｌ", "ＡＤＡ_Ｌ",
-	}
-
-	for _, value := range typed {
-		var want players.Name
-		if name, err := players.NameOf(value); err == nil {
-			for _, k := range kept {
-				if k.Folded() == name.Folded() {
-					want = k
-				}
-			}
-		}
-
-		answer, err := s.query().PlayerNamed(s.T().Context(), value)
-
-		if want == "" {
-			s.ErrorIs(err, player_query.ErrNoPlayer, "%q", value)
-			continue
-		}
-		if s.NoError(err, "%q", value) {
-			s.Equal(string(want), answer.GetPlayer().GetName(), "%q", value)
-		}
-	}
 }

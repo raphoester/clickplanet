@@ -16,7 +16,6 @@ const maxAge = 10
 
 type Query interface {
 	Player(ctx context.Context, account players.AccountID) (*playerv1.GetPlayerResponse, error)
-	PlayerNamed(ctx context.Context, name string) (*playerv1.GetPlayerResponse, error)
 }
 
 func New(query Query) GetPlayerHandler {
@@ -47,11 +46,6 @@ func (h GetPlayerHandler) GetPlayer(
 }
 
 func (h GetPlayerHandler) player(ctx context.Context, req *playerv1.GetPlayerRequest) (*playerv1.GetPlayerResponse, error) {
-	name := req.GetName() //nolint:staticcheck // a client loaded before account_id sends a name alone.
-	if req.GetAccountId() == "" && name != "" {
-		return h.query.PlayerNamed(ctx, name) //nolint:wrapcheck // GetPlayer answers it.
-	}
-
 	account, err := players.AccountIDOf(req.GetAccountId())
 	if err != nil {
 		return nil, err //nolint:wrapcheck // GetPlayer answers it.
