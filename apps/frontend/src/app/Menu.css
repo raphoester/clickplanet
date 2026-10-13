@@ -140,50 +140,6 @@
     flex: 0 1 auto;
 }
 
-.menu-tiles {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-}
-
-.menu-tile {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 56px;
-    padding: 0 var(--space-3);
-    box-shadow: var(--drop-s);
-    color: var(--text);
-    font-family: var(--font-text);
-    font-weight: 600;
-    font-size: var(--text-m);
-    text-align: left;
-    text-decoration: none;
-    cursor: pointer;
-    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
-}
-
-.menu-tile svg {
-    flex-shrink: 0;
-    color: var(--text-soft);
-}
-
-.menu-tile:hover {
-    color: var(--text);
-    text-decoration: none;
-    filter: brightness(1.12);
-}
-
-.menu-tile:active:not(:disabled) {
-    transform: translateY(3px);
-    box-shadow: none;
-}
-
-.menu-tile:disabled {
-    cursor: progress;
-    opacity: 0.6;
-}
-
 .sheet .menu-playing-name {
     font-size: var(--display-m);
 }
@@ -228,14 +184,4 @@
 .board-sheet .leaderboard::after {
     position: sticky;
     margin-top: -36px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .menu-tile {
-        transition: none;
-    }
-
-    .menu-tile:active:not(:disabled) {
-        transform: none;
-    }
 }

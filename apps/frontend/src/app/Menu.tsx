@@ -5,31 +5,25 @@ import {countryLines, CountryOrder, shownOrder} from "../domain/race.ts";
 import {NO_TILE_DELTAS, TileDeltas} from "../domain/tileDeltas.ts";
 import {Race} from "../backends/standings.ts";
 import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx";
-import About from "./About.tsx";
 import CountryPicker from "./CountryPicker.tsx";
 import MenuPanel from "./components/MenuPanel.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
-import Modal from "./components/Modal.tsx";
-import BuyMeACoffee from "./components/BuyMeACoffee.tsx";
-import {BugIcon, BulbIcon, CameraIcon, DiscordIcon, HomeIcon, InfoIcon, InstagramIcon, SwapIcon, TikTokIcon} from "./components/icons.tsx";
+import {SwapIcon} from "./components/icons.tsx";
 import SettingsPlace, {SettingsPlaceProps} from "./settings/SettingsPlace.tsx";
 import {AccountStore} from "./account/accountStore.ts";
 import {useAccount} from "./account/useAccount.ts";
 import AccountPanel from "./account/AccountPanel.tsx";
 import DeleteAccountModal from "./account/DeleteAccountModal.tsx";
 import {PlayerInfoBackend} from "../backends/player.ts";
-import {BugReporter, FeatureSuggester, PageContext} from "../backends/support.ts";
-import NoteModal from "./support/NoteModal.tsx";
-import {pageContextOf} from "./support/pageContext.ts";
-import {NO_GRAPHICS} from "./viewer/graphicsReport.ts";
+import {shareStats} from "../domain/shareCard.ts";
+import SharePlace, {SharePlaceProps} from "./share/SharePlace.tsx";
 import {youLabel} from "./youLabel.ts"
-import {DISCORD_INVITE, INSTAGRAM_PROFILE, TIKTOK_PROFILE} from "../links.ts"
 import BoardViews, {BoardHeading, BoardStandings} from "./standings/BoardViews.tsx"
 import Sheet from "./hud/Sheet.tsx"
 import {ListenForClicks} from "./viewer/acceptedClicks.ts"
 import "./Menu.css"
 
-export type MenuTab = "board" | "you" | "settings" | "more"
+export type MenuTab = "board" | "you" | "share" | "settings"
 
 export type BoardPlaceProps = {
     country: Country,
@@ -53,14 +47,7 @@ export type YouPlaceProps = {
     listenForClicks?: ListenForClicks,
 }
 
-export type MorePlaceProps = {
-    onTakePicture?: () => void,
-    taking?: boolean,
-    support?: FeatureSuggester & BugReporter,
-    pageContext?: () => PageContext,
-}
-
-export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & MorePlaceProps & {
+export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & Omit<SharePlaceProps, "stats"> & {
     tab?: MenuTab,
     onTab?: (tab: MenuTab) => void,
 }
@@ -76,8 +63,8 @@ export default function Menu(props: MenuProps) {
     const tabs: {id: MenuTab, label: string}[] = [
         {id: "board", label: "Board"},
         ...account.kind === "ready" ? [{id: "you" as const, label: youLabel(account.me.linked.length > 0)}] : [],
-        ...props.display || props.sound ? [{id: "settings" as const, label: "Settings"}] : [],
-        {id: "more", label: "More"},
+        {id: "share", label: "Share"},
+        {id: "settings", label: "Settings"},
     ]
     const shown = tabs.some((t) => t.id === tab) ? tab : "board"
 
@@ -122,8 +109,10 @@ export default function Menu(props: MenuProps) {
                      aria-labelledby={`${tabsId}-${shown}`}>
                     {shown === "board" && <BoardPlace {...props}/>}
                     {shown === "you" && <YouPlace {...props}/>}
+                    {shown === "share" && <SharePlace stats={shareStats(linesShown(props), props.country)}
+                                                      onTakePicture={props.onTakePicture}
+                                                      taking={props.taking}/>}
                     {shown === "settings" && <SettingsPlace {...props}/>}
-                    {shown === "more" && <MorePlace {...props}/>}
                 </div>
             </>}
     </aside>
@@ -238,9 +227,12 @@ function orderOf(props: BoardPlaceProps): ReactNode {
     return <OrderSwitch order={shownOrder(props.race, props.countryOrder)} onOrder={onOrder}/>
 }
 
+function linesShown(props: BoardPlaceProps) {
+    return countryLines(props.leaderboard, props.race, shownOrder(props.race, props.countryOrder))
+}
+
 function rankShown(props: BoardPlaceProps): number | null {
-    const lines = countryLines(props.leaderboard, props.race, shownOrder(props.race, props.countryOrder))
-    return rankOf(lines, props.country)
+    return rankOf(linesShown(props), props.country)
 }
 
 export function YouPlace({account: store, linkedMultiplier, playerInfo, listenForClicks}: YouPlaceProps) {
@@ -267,86 +259,5 @@ export function YouPlace({account: store, linkedMultiplier, playerInfo, listenFo
             busy={account.busy === "deleteAccount"}
             onConfirm={() => void deleteAccount()}
             onClose={() => setConfirmingDelete(false)}/>}
-    </>
-}
-
-const pageAlone = () => pageContextOf(window, NO_GRAPHICS, false)
-
-export function MorePlace({onTakePicture, taking, support, pageContext = pageAlone}: MorePlaceProps) {
-    const [aboutOpen, setAboutOpen] = useState(false)
-    const [note, setNote] = useState<"suggestion" | "bug">()
-
-    return <>
-        <div className="menu-tiles">
-            {onTakePicture && <button type="button"
-                                      className="panel-box menu-tile"
-                                      aria-busy={taking}
-                                      disabled={taking}
-                                      onClick={onTakePicture}>
-                <CameraIcon size={22}/>
-                <span>Take a picture</span>
-            </button>}
-            <button type="button"
-                    className="panel-box menu-tile"
-                    onClick={() => setAboutOpen(true)}>
-                <InfoIcon size={22}/>
-                <span>About</span>
-            </button>
-            {support && <button type="button"
-                                className="panel-box menu-tile"
-                                onClick={() => setNote("suggestion")}>
-                <BulbIcon size={22}/>
-                <span>Suggest a feature</span>
-            </button>}
-            {support && <button type="button"
-                                className="panel-box menu-tile"
-                                onClick={() => setNote("bug")}>
-                <BugIcon size={22}/>
-                <span>Report a bug</span>
-            </button>}
-            <a href="/#home" className="panel-box menu-tile">
-                <HomeIcon size={22}/>
-                <span>Home page</span>
-            </a>
-            <a href={DISCORD_INVITE}
-               target="_blank"
-               rel="noopener noreferrer"
-               className="panel-box menu-tile">
-                <DiscordIcon size={22}/>
-                <span>Discord</span>
-            </a>
-            <a href={TIKTOK_PROFILE}
-               target="_blank"
-               rel="noopener noreferrer"
-               className="panel-box menu-tile">
-                <TikTokIcon size={22}/>
-                <span>TikTok</span>
-            </a>
-            <a href={INSTAGRAM_PROFILE}
-               target="_blank"
-               rel="noopener noreferrer"
-               className="panel-box menu-tile">
-                <InstagramIcon size={22}/>
-                <span>Instagram</span>
-            </a>
-        </div>
-
-        {aboutOpen && <Modal title="About ClickPlanet"
-                             footer={<BuyMeACoffee/>}
-                             onClose={() => setAboutOpen(false)}>
-            <About/>
-        </Modal>}
-
-        {note === "suggestion" && support && <NoteModal title="Suggest a feature"
-                                                        label="Your idea"
-                                                        placeholder="What should the game have?"
-                                                        onSend={(text) => support.suggestFeature(text, pageContext())}
-                                                        onClose={() => setNote(undefined)}/>}
-
-        {note === "bug" && support && <NoteModal title="Report a bug"
-                                                 label="What happened"
-                                                 placeholder="What did you do, and what went wrong?"
-                                                 onSend={(text) => support.reportBug(text, pageContext())}
-                                                 onClose={() => setNote(undefined)}/>}
     </>
 }

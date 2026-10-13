@@ -11,6 +11,10 @@ export type ShareOutcome =
     | "copied"
     | "downloaded"
 
+export type LinkDelivery = "sheet" | "copy"
+
+export type LinkOutcome = Exclude<ShareOutcome, "downloaded">
+
 export function deliveriesOffered(): ShareDelivery[] {
     // Desktop share sheets pass canShare({files}) and then some targets drop the image.
     if (isPhone() && takesFilesThroughShareSheet()) return ["sheet"]
@@ -42,6 +46,19 @@ export async function deliverShare(
     }
 }
 
+export function linkDeliveryOffered(): LinkDelivery {
+    return isPhone() && !!navigator.share ? "sheet" : "copy"
+}
+
+export async function deliverLink(delivery: LinkDelivery, url: string, text: string): Promise<LinkOutcome> {
+    switch (delivery) {
+        case "sheet":
+            return await offerLinkToShareSheet(url, text) ?? copyLink(url)
+        case "copy":
+            return copyLink(url)
+    }
+}
+
 function isPhone(): boolean {
     return window.matchMedia?.("(pointer: coarse)").matches ?? false
 }
@@ -67,6 +84,50 @@ async function offerToShareSheet(file: File, text: string): Promise<ShareOutcome
     } catch (error) {
         if (isAbort(error)) return "cancelled"
         return undefined
+    }
+}
+
+async function offerLinkToShareSheet(url: string, text: string): Promise<LinkOutcome | undefined> {
+    try {
+        await navigator.share({title: "ClickPlanet", text, url})
+        return "shared"
+    } catch (error) {
+        if (isAbort(error)) return "cancelled"
+        return undefined
+    }
+}
+
+async function copyLink(url: string): Promise<LinkOutcome> {
+    if (!await writeToClipboard(url)) {
+        throw new Error("the clipboard would not take the link")
+    }
+    return "copied"
+}
+
+async function writeToClipboard(text: string): Promise<boolean> {
+    try {
+        await navigator.clipboard.writeText(text)
+        return true
+    } catch {
+        // An in-app browser often refuses the clipboard API and still copies a selection.
+        return copySelected(text)
+    }
+}
+
+function copySelected(text: string): boolean {
+    const box = document.createElement("textarea")
+    box.value = text
+    box.readOnly = true
+    box.style.position = "fixed"
+    box.style.opacity = "0"
+    document.body.appendChild(box)
+    box.select()
+    try {
+        return document.execCommand("copy")
+    } catch {
+        return false
+    } finally {
+        box.remove()
     }
 }
 

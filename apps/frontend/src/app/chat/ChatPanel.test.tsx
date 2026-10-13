@@ -1210,7 +1210,7 @@ describe("ChatPanel's Discord bar", () => {
     it("stays gone once its cross is pressed, through a fold of the chat", async () => {
         const {user} = setup(stubBackend().backend)
 
-        await user.click(screen.getByRole("button", {name: "Hide the Discord link"}))
+        await user.click(screen.getByRole("button", {name: "Hide the links"}))
         await user.click(screen.getByRole("button", {name: "Fold the chat"}))
         await user.click(screen.getByRole("button", {name: /Chat/}))
 
