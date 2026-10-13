@@ -1,4 +1,5 @@
 import {NEWS_FROM_TILES} from "../domain/fortify.ts"
+import {TIKTOK_PROFILE} from "../links.ts"
 import {
     ChatAnnouncement,
     ChatBlockedError,
@@ -43,7 +44,7 @@ const WARLORD: PlayerTitle = {id: "warlord", name: "Warlord", rank: {trackId: "c
 const CHATTERS: {name: string, country: string, admin: boolean, color: NameColor, streak: number, title?: PlayerTitle, text: string, answers?: number}[] = [
     {name: "Ana", country: "fr", admin: true, color: NameColor.PINK, streak: 12, title: WARLORD, text: "who keeps taking Brittany"},
     {name: "guest_91aa3d", country: "de", admin: false, color: NameColor.UNSPECIFIED, streak: 0, text: "we hold the north 💪", answers: 0},
-    {name: "kiran_07", country: "in", admin: false, color: NameColor.UNSPECIFIED, streak: 3, title: {id: "og", name: "OG"}, text: "gm everyone"},
+    {name: "kiran_07", country: "in", admin: false, color: NameColor.UNSPECIFIED, streak: 3, title: {id: "og", name: "OG"}, text: `gm everyone, clips on ${TIKTOK_PROFILE}`},
     {name: "guest_aa1290", country: "jp", admin: false, color: NameColor.UNSPECIFIED, streak: 0, text: "the pacific is ours"},
 ]
 

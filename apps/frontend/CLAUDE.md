@@ -525,6 +525,21 @@ composer's bound, not a defence — the server sanitizes and rejects on its own.
 and says so; React escaping is what makes that safe, so never reach for
 `dangerouslySetInnerHTML` here.
 
+**An address in a message is a link** (`domain/chatLinks.ts`): `messageParts`
+cuts the text into text and links, and `ChatLog` draws each link as an `<a>`
+that opens a new tab with `rel="noopener noreferrer nofollow ugc"`.
+
+- **Only `http://` and `https://`, written in full.** A bare `clickplanet.lol`
+  stays text: telling a domain from two words and a dot needs a list of TLDs.
+- **A guest's address stays text.** A guest account is free, and a private tab
+  is a new one, so a mute does not stop a guest who posts links.
+- **An address with a user name is not linked**: `https://clickplanet.lol@evil.example`
+  reads as this site and opens the other one.
+- The punctuation that ends a sentence, and a bracket the address did not open,
+  are left out of the link.
+- **Only the balloon links.** The quote of a reply, the folded header's line and
+  the phone's peek are buttons, so they show the text.
+
 **The server names every sender; the client sends no name.** A player with a
 username posts under it. Every other account is a guest, shown as `guest_` and a
 6-hex code the server drew once for that account (`guest_a1b2c3`, `GUEST_PREFIX`)
