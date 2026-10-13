@@ -891,14 +891,6 @@ export class Heartbeat extends Message<Heartbeat> {
  */
 export class GetPlayerRequest extends Message<GetPlayerRequest> {
   /**
-   * Read only when account_id is empty: a client loaded before account_id sends nothing else.
-   *
-   * @generated from field: string name = 1 [deprecated = true];
-   * @deprecated
-   */
-  name = "";
-
-  /**
    * @generated from field: string account_id = 2;
    */
   accountId = "";
@@ -911,7 +903,6 @@ export class GetPlayerRequest extends Message<GetPlayerRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "player.v1.GetPlayerRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 

@@ -1116,12 +1116,8 @@ func (*Heartbeat) Descriptor() ([]byte, []int) {
 }
 
 type GetPlayerRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Read only when account_id is empty: a client loaded before account_id sends nothing else.
-	//
-	// Deprecated: Marked as deprecated in player/v1/player.proto.
-	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	AccountId     string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1154,14 +1150,6 @@ func (x *GetPlayerRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetPlayerRequest.ProtoReflect.Descriptor instead.
 func (*GetPlayerRequest) Descriptor() ([]byte, []int) {
 	return file_player_v1_player_proto_rawDescGZIP(), []int{22}
-}
-
-// Deprecated: Marked as deprecated in player/v1/player.proto.
-func (x *GetPlayerRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
 }
 
 func (x *GetPlayerRequest) GetAccountId() string {
@@ -1887,11 +1875,10 @@ const file_player_v1_player_proto_rawDesc = "" +
 	"\n" +
 	"PlayerLeft\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\"\v\n" +
-	"\tHeartbeat\"I\n" +
-	"\x10GetPlayerRequest\x12\x16\n" +
-	"\x04name\x18\x01 \x01(\tB\x02\x18\x01R\x04name\x12\x1d\n" +
+	"\tHeartbeat\"=\n" +
+	"\x10GetPlayerRequest\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x02 \x01(\tR\taccountId\">\n" +
+	"account_id\x18\x02 \x01(\tR\taccountIdJ\x04\b\x01\x10\x02R\x04name\">\n" +
 	"\x11GetPlayerResponse\x12)\n" +
 	"\x06player\x18\x01 \x01(\v2\x11.player.v1.PlayerR\x06player\"\x82\x03\n" +
 	"\x06Player\x12\x12\n" +
