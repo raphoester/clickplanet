@@ -144,8 +144,8 @@ export class FakePresenceBackend implements PresenceBackend, PlayerInfoBackend {
         return entries.sort(compareRosterEntries)
     }
 
-    public async playerInfo(name: string): Promise<PlayerInfo | undefined> {
-        const player = PLAYERS.find((p) => !p.guest && p.name.toLowerCase() === name.toLowerCase())
+    public async playerInfo(accountId: string): Promise<PlayerInfo | undefined> {
+        const player = PLAYERS.find((p) => !p.guest && p.accountId === accountId)
         if (!player) return undefined
 
         const career = this.career(player)

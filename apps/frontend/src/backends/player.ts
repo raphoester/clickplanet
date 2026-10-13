@@ -159,5 +159,5 @@ export type CountryTiles = {
 }
 
 export interface PlayerInfoBackend {
-    playerInfo(name: string): Promise<PlayerInfo | undefined>
+    playerInfo(accountId: string): Promise<PlayerInfo | undefined>
 }

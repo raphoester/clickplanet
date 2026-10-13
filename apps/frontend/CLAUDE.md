@@ -189,8 +189,11 @@ app/       components
   announcements after a time, for the badge, and `newestAt` is the time of the
   newest line. `nameSentUnder` is
   the name the server gave the latest message this client sent — the only way
-  it learns a guest's name. `quoteOf` is a message as a quote, for the composer
-  and the fake.
+  it learns a guest's name, and only ever shown. `accountSentUnder` is that
+  message's account: how a guest's client learns which account it is.
+  `startsGroup` says where a new author's run begins: another account, or the
+  same account under a new name. `quoteOf` is a message as a quote, for the
+  composer and the fake.
 - `authorColor.ts` — `NAME_COLORS`, the 12 a player with a username may pick
   from (`player.v1.NameColor`, one hue each), and `hueOf`, the hue of a pick.
   No pick, or a color this build does not know, has no hue. **Only the hue is
@@ -544,7 +547,10 @@ that opens a new tab with `rel="noopener noreferrer nofollow ugc"`.
 username posts under it. Every other account is a guest, shown as `guest_` and a
 6-hex code the server drew once for that account (`guest_a1b2c3`, `GUEST_PREFIX`)
 — no username starts with the prefix, so a guest cannot pass for a player, and
-no two accounts share a code, so a name is one account. **Nothing about the
+no two accounts share a code. **A name is one account at one moment only**: a
+rename frees it and another account can take it, so nothing here tells a
+player by its name. `ChatMessage.authorAccountId` does (empty for a message
+kept before accounts, and for a deleted account). **Nothing about the
 sender's address is public**: the `#tag` beside every name is gone from the wire.
 The composer asks nobody for a name; its foot reads "as <username>", or for a
 guest "as a guest" until its first message comes back, then the name the server
@@ -560,10 +566,15 @@ does — chatting before the first click costs a Turnstile check. A token the
 server refuses is dropped and the call made once more with a fresh one (a
 refused call posted nothing, so this cannot post twice); a second refusal, or a
 mint that failed, is `ChatNoSessionError`, and nothing is sent. `Viewer` reads
-the username off the `AccountStore` and hands it to `ChatPanel`, for the
-composer's foot and the sound. "Your own message never pings" checks the ids in
-`mine` and the name: the username, or a guest's name once `nameSentUnder` knows
-it. A guest's very first message can ping if its broadcast beats the answer.
+the username and the account id off the `AccountStore` and hands both to
+`ChatPanel`: the name for the composer's foot, the id to tell the player's own
+messages. **A message is yours when its id is in `mine`, or its
+`authorAccountId` is your account** (`useChat`'s `own`): the id the
+`AccountStore` read from the profile of a signed-in player, or, for a guest,
+the account of the last message it sent (`accountSentUnder`). The badge, the
+peek and the sound all ask `own`. Never the name: another account can hold the
+name you left, and its messages are not yours. A guest's very first message
+can ping if its broadcast beats the answer.
 
 **`sendMessage` is the one call that is not wrapped in `retrying`.** A retry
 after a connection dropped mid-request would post the message twice, visibly, to
@@ -615,7 +626,8 @@ the log has dropped the message it answers.
   `.chat-replying` carry `--author-hue` like a message.
 - **One level**: a reply to a reply shows the reply it answers, never a chain.
 - **A reply opens a group** (`startsGroup`), so its head says who answers even in
-  the middle of its author's run.
+  the middle of its author's run. So does another account, and the same
+  account under a new name: a run is one `authorAccountId` under one name.
 - **A quote goes to its message** when the log holds it: a press scrolls the
   message to the middle and lights its balloon for `SPOTLIGHT_MS` (`jumpTo` in
   `ChatLog`, which finds the line by `data-message`). With the message gone from
@@ -846,7 +858,10 @@ The server says so: `ChatMessage.authorAdmin`, `RosterEntry.admin` and
 once it lands. In fake mode, Ana is the admin.
 
 **A name opens a player card**, in the roster, on a chat message and on the
-season's board (`app/players/PlayerCard.tsx`, a `Modal`). The card can report
+season's board (`app/players/PlayerCard.tsx`, a `Modal`). **The card is read by
+the line's `accountId`, never by its name** (`PlayerInfoBackend.playerInfo`,
+`GetPlayerRequest.account_id`): the name is what the card shows, and a name
+that changed hands would open another player's card. The card can report
 its player: see [Support](#support). `Viewer` holds the one
 card open and hands `onOpenPlayer` to `ChatPanel` → `ChatLog` and `PlayersPanel`,
 and to the board's `BoardStandings`;
@@ -866,12 +881,16 @@ are the player's total, not the season's (see the backend's CLAUDE.md, Player),
 so the top one explains the flag beside its name on the Players board. Two
 columns on a desktop, which is why the card is 440px wide; one under the other
 on a phone. The fake gives its players titles and countries of its own over
-their fake stats and creation date. **A guest's card asks nothing**: a guest has no
-username, so there is nothing to look up, and the card shows the name and the
-flag alone. It says nothing to the viewer, who may well be signed in. The chat tells
-a guest by `GUEST_PREFIX`, which no username starts with. `GetPlayer` needs no
-token and goes out as a GET, like `GetRoster`; `NotFound` (renamed, or the
-account is gone) reads as `undefined`. `usePlayerInfo` reads it once per card.
+their fake stats and creation date. **A guest's card asks nothing**: a guest has an
+account id, but the server keeps a card for a username only, so the card shows
+the name and the flag alone. It says nothing to the viewer, who may well be signed in. The chat tells
+a guest by `GUEST_PREFIX`, which no username starts with: that is a class of
+names the server reserves, not one account. **A line with no account id asks
+nothing either** (a message kept before accounts, or of a deleted account) and
+reads "This player is gone." `GetPlayer` needs no
+token and goes out as a GET, like `GetRoster`; `NotFound` (the account is
+gone) reads as `undefined`, and shows the same line. `usePlayerInfo` reads it
+once per account. `Viewer` keys the card by the account id.
 Escape closes the card and leaves the roster open: `useEscape` does nothing
 while a modal dialog is on the page.
 
@@ -1021,7 +1040,9 @@ is the player's own view.
   had two lists longer than the screen under the titles. `useFronts` reads
   `GetFronts` (`AccountStore.fronts`) at the same moments, and a failed read
   shows nothing. What is open stays open through these reads, and closes when
-  the tab is left. Tiles taken counts each take at once
+  the tab is left. The stats are the player's own card, read by the
+  `accountId` the `AccountStore` keeps (`OwnStats`), and shown once the account
+  has a username. Tiles taken counts each take at once
   (`useOwnTakes`): `GetPlayer` is cached 10s, so it is read only once.
 - **The unlock moment is live.** The player stream carries `titleEarned` to a
   stream opened with this player's token. `useRoster` hands it to `Viewer`, which
@@ -1161,7 +1182,11 @@ draws it.
   tiles, and the ranks, wait for the next read.
 - **The caller's row is drawn from that count** (`boardWith`): it climbs into
   the top 10 and pushes the last out, its rank counted among the rows it passes,
-  and the rank in "Your season" follows it. The other rows move with the
+  and the rank in "Your season" follows it. **The caller's row is the one with
+  its `accountId`** (`Caller.accountId`, from the `AccountStore`): `boardWith`
+  replaces that row, `PlayerStandings` marks it, and the rows are keyed by it.
+  A row that only shares the caller's name is another player's. With no
+  account id read yet there is no own row. The other rows move with the
   stream: a `TileUpdate` does not say who took the tile.
 - **The caller's own line.** "Your season" sits over the table and shows only
   the board on screen: on Players the season's tiles and, with a username, the
@@ -3062,8 +3087,8 @@ the last 3s and a broadcast on one of them, for the same country, is taken as
 ours. They have no switch of their own: `switchOf` puts them under the tile
 click's;
 the chat in `ChatPanel` for a message that is not yours. **Your own message is
-filtered on your name as well as on `mine`**: its broadcast can arrive before
-the send answer that fills `mine` in. A guest's name is only known once a
+filtered on your account as well as on `mine`**: its broadcast can arrive before
+the send answer that fills `mine` in. A guest's account is only known once a
 message of its own came back, so its first can still ping.
 
 ### The leader's anthem

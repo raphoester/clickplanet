@@ -74,6 +74,18 @@ describe("boardWith", () => {
         expect(lines(board)).toEqual({listed: ["1 p1 1000", "2 p3 950", "3 p2 900"], below: undefined})
     })
 
+    it("takes the caller's row for the same account, whatever name the board still shows", () => {
+        const renamed = {...standing(3, "p3_new", 950), accountId: "account-p3"}
+
+        expect(lines(boardWith(TOP.slice(0, 3), renamed))).toEqual({listed: ["1 p1 1000", "2 p3_new 950", "3 p2 900"], below: undefined})
+    })
+
+    it("keeps the row of another account that holds the caller's name", () => {
+        const caller = {...standing(4, "p3", 850), accountId: "account-caller"}
+
+        expect(lines(boardWith(TOP.slice(0, 3), caller)).listed).toEqual(["1 p1 1000", "2 p2 900", "3 p3 850", "4 p3 800"])
+    })
+
     it("lets the caller share the rank of a tie, after the others", () => {
         const board = boardWith(TOP.slice(0, 3), standing(3, "p3", 900))
 

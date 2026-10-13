@@ -25,10 +25,10 @@ export type PlayerStandingsProps = {
 export default function PlayerStandings(props: PlayerStandingsProps) {
     const standings = useStandings(props.backend, props.countryCode)
     const mine = useMySeason(props.backend, props.caller, props.listenForClicks, props.countryCode)
-    const name = props.caller.username
+    const {accountId} = props.caller
     const own = ownLine(props.caller, mine)
     const board = standings && boardWith(standings, own)
-    const listedRank = board?.listed.find((standing) => standing.name === name)?.rank
+    const listedRank = board?.listed.find((standing) => standing.accountId === accountId)?.rank
 
     return <>
         <YourSeason mine={withRank(mine, own && listedRank)}
@@ -37,18 +37,19 @@ export default function PlayerStandings(props: PlayerStandingsProps) {
                     onSignIn={props.onSignIn}/>
         {board && <StandingsTable label={props.label}
                                   standings={board.listed}
-                                  name={name}
+                                  accountId={accountId}
                                   own={board.below}
                                   onOpenPlayer={props.onOpenPlayer}/>}
     </>
 }
 
 function ownLine(caller: Caller, mine: MySeason | undefined): Standing | undefined {
-    if (caller.username === undefined || mine?.countryCode === undefined || mine.rank === undefined) return undefined
+    if (caller.accountId === undefined || caller.username === undefined) return undefined
+    if (mine?.countryCode === undefined || mine.rank === undefined) return undefined
 
     return {
         rank: mine.rank,
-        accountId: caller.accountId ?? "",
+        accountId: caller.accountId,
         name: caller.username,
         color: caller.color ?? NameColor.UNSPECIFIED,
         countryCode: mine.countryCode,
@@ -68,12 +69,12 @@ function withRank(mine: MySeason | undefined, rank: number | undefined): MySeaso
 type StandingsTableProps = {
     label: string
     standings: readonly Standing[]
-    name?: string
+    accountId?: string
     own?: Standing
     onOpenPlayer?: (player: PlayerLine) => void
 }
 
-function StandingsTable({label, standings, name, own, onOpenPlayer}: StandingsTableProps) {
+function StandingsTable({label, standings, accountId, own, onOpenPlayer}: StandingsTableProps) {
     if (standings.length === 0 && !own) return <p className="standings-empty">Nobody yet.</p>
 
     return <table className="leaderboard-table standings-table" aria-label={label}>
@@ -85,9 +86,9 @@ function StandingsTable({label, standings, name, own, onOpenPlayer}: StandingsTa
         </tr>
         </thead>
         <tbody>
-        {standings.map((standing) => <StandingRow key={standing.name}
+        {standings.map((standing) => <StandingRow key={standing.accountId}
                                                   standing={standing}
-                                                  you={name !== undefined && standing.name === name}
+                                                  you={standing.accountId === accountId}
                                                   onOpenPlayer={onOpenPlayer}/>)}
         {own && <>
             <tr className="standings-gap" aria-hidden="true">

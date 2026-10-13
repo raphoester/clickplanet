@@ -102,6 +102,13 @@ export function nameSentUnder(log: readonly ChatMessage[], sent: ReadonlySet<str
     return undefined
 }
 
+export function accountSentUnder(log: readonly ChatMessage[], sent: ReadonlySet<string>): string | undefined {
+    for (let i = log.length - 1; i >= 0; i--) {
+        if (sent.has(log[i].id) && log[i].authorAccountId !== "") return log[i].authorAccountId
+    }
+    return undefined
+}
+
 export function quoteOf(message: ChatMessage): ChatQuote {
     return {
         messageId: message.id,
@@ -120,7 +127,7 @@ export function startsGroup(
 ): boolean {
     if (previous === undefined) return true
     if (message.replyTo !== undefined) return true
-    if (previous.authorName !== message.authorName) return true
+    if (previous.authorAccountId !== message.authorAccountId || previous.authorName !== message.authorName) return true
     return message.sentAt - previous.sentAt > window
 }
 

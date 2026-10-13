@@ -1,6 +1,6 @@
 import {useEffect, useId, useState} from "react"
 import {Me} from "../../backends/account.ts"
-import {Fronts, NameColor, PlayerInfoBackend, TitleDashboard} from "../../backends/player.ts"
+import {Fronts, PlayerInfoBackend, TitleDashboard} from "../../backends/player.ts"
 import TitleBanner from "../titles/TitleBanner.tsx"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import TrackPath from "../titles/TrackPath.tsx"
@@ -65,7 +65,7 @@ function useFronts(store: AccountStore, me: Me, listenForClicks: ListenForClicks
 export type ProgressTabProps = {
     store: AccountStore
     me: Me
-    stats?: {backend: PlayerInfoBackend, name: string, accountId: string}
+    stats?: {backend: PlayerInfoBackend, accountId: string}
     listenForClicks?: ListenForClicks
 }
 
@@ -123,14 +123,11 @@ export default function ProgressTab({store, me, stats, listenForClicks}: Progres
 type OwnStatsProps = {
     backend: PlayerInfoBackend
     accountId: string
-    name: string
     listenForClicks?: ListenForClicks
 }
 
-function OwnStats({backend, accountId, name, listenForClicks}: OwnStatsProps) {
-    const state = usePlayerInfo(backend, {
-        accountId, name, countryCode: "", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0,
-    })
+function OwnStats({backend, accountId, listenForClicks}: OwnStatsProps) {
+    const state = usePlayerInfo(backend, {accountId, guest: false})
     const takes = useOwnTakes(listenForClicks)
     if (state.kind !== "ready") return null
     return <PlayerStats info={{...state.info, tilesTaken: state.info.tilesTaken + takenCount(takes)}}/>
