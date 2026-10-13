@@ -1,0 +1,15 @@
+package: cpzernio
+generate:
+  models: true
+  client: true
+output: internal/shared/cpzernio/client.gen.go
+compatibility:
+  always-prefix-enum-values: true
+output-options:
+  include-operation-ids:
+    - listAccounts
+    - getMediaPresignedUrl
+    - createPost
+  generate-types-for-anonymous-schemas: true
+  overlay:
+    path: internal/shared/cpzernio/overlay.yaml

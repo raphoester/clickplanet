@@ -20,6 +20,7 @@ if (!replay || has("help")) {
   --count <n>         the n best stories, one clip each, default 1
   --pick <n>          only the n-th best story
   --plan              print what each clip would be, and make none
+  --shortlist <path>  write the stories worth a clip, best first, as JSON (clips.v1.Shortlist), and make none
   --silent            no anthem under the clip, for a sound added where it is posted
   --preview <s>       only the first s seconds of each clip
 
@@ -37,7 +38,7 @@ Everything below is chosen from the replay when left out:
   --recorders <n>     the browsers taking the frames in turn, default one for every 3 cores, 4 at most
   --headed            show the browser
 
-Writes the video and, beside it, a .txt with the caption. Needs ffmpeg.
+Writes the video and, beside it, a .txt with the caption and a .json with what to post (clips.v1.Clip). Needs ffmpeg.
 CHROME_PATH overrides the browser binary.`)
     process.exit(1)
 }
@@ -49,7 +50,7 @@ const HEIGHT = 960
 const SCALE = 2
 const MUSIC_FADE_SECONDS = 1.2
 const MUSIC_FADE_IN_SECONDS = 0.05
-const RECORDERS = has("plan") ? 1 : Number(flag("recorders", Math.max(1, Math.min(4, Math.floor(availableParallelism() / 3)))))
+const RECORDERS = has("plan") || has("shortlist") ? 1 : Number(flag("recorders", Math.max(1, Math.min(4, Math.floor(availableParallelism() / 3)))))
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const replayPath = resolve(replay)
@@ -164,12 +165,20 @@ async function openRecorder(speaks) {
         width: WIDTH, height: HEIGHT, deviceScaleFactor: SCALE, mobile: false,
     })
 
+    const open = async (url) => {
+        loaded = false
+        await send("Page.navigate", {url})
+        for (let i = 0; i < 200 && !loaded; i++) await sleep(100)
+    }
+
     return {
         async prepare(url) {
-            loaded = false
-            await send("Page.navigate", {url})
-            for (let i = 0; i < 200 && !loaded; i++) await sleep(100)
-            return evaluate("window.clip.ready")
+            await open(url)
+            return evaluate("window.clip.record()")
+        },
+        async shortlist(url) {
+            await open(url)
+            return evaluate("window.clip.shortlist")
         },
         // Every recorder plays every frame, so each holds the same map, and takes the picture of its own only.
         async shoot(from, frame) {
@@ -182,15 +191,19 @@ async function openRecorder(speaks) {
 
 let skippedTold = false
 
-async function record(recorders, pick, chosenOut) {
+function pageOf(pick) {
     const query = new URLSearchParams({fps: flag("fps", "30"), pick: String(pick)})
     for (const name of ["since", "until", "hours", "seconds", "country", "focus", "headline", "hold"]) {
         if (flag(name)) query.set(name, flag(name))
     }
-    for (const name of ["flags", "dive"]) {
+    for (const name of ["flags", "dive", "silent"]) {
         if (has(name)) query.set(name, "")
     }
-    const [recording] = await Promise.all(recorders.map((recorder) => recorder.prepare(`${origin}clip.html?${query}`)))
+    return `${origin}clip.html?${query}`
+}
+
+async function record(recorders, pick, chosenOut) {
+    const [recording] = await Promise.all(recorders.map((recorder) => recorder.prepare(pageOf(pick))))
     const out = chosenOut ?? join(dirname(replayPath), `clip-${pick}.mp4`)
     if (!skippedTold) {
         for (const reason of recording.skipped) console.log(`skipped ${reason}`)
@@ -207,7 +220,7 @@ async function record(recorders, pick, chosenOut) {
     if (has("plan")) return recording
 
     const frames = has("preview") ? Math.min(recording.frames, Math.round(Number(flag("preview")) * recording.fps)) : recording.frames
-    const music = has("silent") ? undefined : recording.music
+    const music = recording.music
     const fadeFrom = Math.max(0, frames / recording.fps - MUSIC_FADE_SECONDS)
     ffmpeg = spawn("ffmpeg", [
         "-y", "-loglevel", "error",
@@ -251,13 +264,22 @@ async function record(recorders, pick, chosenOut) {
     ffmpeg = undefined
 
     const caption = out.replace(/\.mp4$/, "") + ".txt"
-    writeFileSync(caption, recording.caption + (music?.credit ? `\n🎵 ${music.credit}` : "") + "\n")
-    console.log(`  saved ${out} and ${basename(caption)}`)
+    writeFileSync(caption, recording.caption + "\n")
+    const clip = out.replace(/\.mp4$/, "") + ".json"
+    writeFileSync(clip, JSON.stringify(recording.clip, null, 2) + "\n")
+    console.log(`  saved ${out}, ${basename(caption)} and ${basename(clip)}`)
     return recording
 }
 
 try {
     const recorders = await Promise.all(Array.from({length: RECORDERS}, (_, i) => openRecorder(i === 0)))
+
+    if (has("shortlist")) {
+        const shortlist = await recorders[0].shortlist(pageOf(1))
+        writeFileSync(resolve(flag("shortlist")), JSON.stringify(shortlist, null, 2) + "\n")
+        console.log(`${shortlist.stories?.length ?? 0} stories worth a clip, in ${flag("shortlist")}`)
+        await done(0)
+    }
 
     const first = Number(flag("pick", "1"))
     const last = has("pick") ? first : Number(flag("count", "1"))

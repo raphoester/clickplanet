@@ -146,6 +146,11 @@ describe("the caption", () => {
         expect(wordsOf(story("attack", {region: "the world"})).caption).toMatch(/#map$/)
     })
 
+    it("comes with its tags as a list, for where tags are not part of the text", () => {
+        expect(wordsOf({...story("invasion", {countries: ["eg", "tr"]}), attacker: "il"}).tags)
+            .toEqual(["#clickplanet", "#pixelwars", "#rplace", "#wplace", "#map", "#egypt", "#turkey"])
+    })
+
     it("says a flag taking land on every continent at once is taking over the world, and asks to fight back", () => {
         const words = wordsOf({...story("attack", {region: "the world"}), attacker: "pt"})
 

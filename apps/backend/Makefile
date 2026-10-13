@@ -1,4 +1,4 @@
-.PHONY: proto map quiz test lint lint-ci tidy check-format check-quiz setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains metrics
+.PHONY: proto map quiz test lint lint-ci tidy check-format check-quiz setup-tools deadcode dBuild dRun dRm vpn-lists disposable-domains zernio zernio-spec metrics
 
 TEST_TAG := testing
 
@@ -139,6 +139,20 @@ DISPOSABLE_DOMAINS_FILE := internal/auth/internal/signin/embedded_disposable_dom
 disposable-domains:
 	@curl -sSf $(DISPOSABLE_DOMAINS_URL) -o $(DISPOSABLE_DOMAINS_FILE)
 	@wc -l $(DISPOSABLE_DOMAINS_FILE)
+
+OAPI_CODEGEN := go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.0
+ZERNIO_SPEC_URL := https://zernio.com/openapi.json
+ZERNIO_DIR := internal/shared/cpzernio
+ZERNIO_SPEC := $(ZERNIO_DIR)/openapi.json
+
+zernio-spec:
+	@command -v jq >/dev/null || { echo "zernio-spec needs jq" >&2; exit 1; }
+	@curl -sSf $(ZERNIO_SPEC_URL) -o $(ZERNIO_SPEC)
+	@jq -r '"zernio api " + .info.version' $(ZERNIO_SPEC)
+
+zernio:
+	@$(OAPI_CODEGEN) -config $(ZERNIO_DIR)/oapi-codegen.yaml $(ZERNIO_SPEC)
+	@ls $(ZERNIO_DIR)/client.gen.go
 
 METRIC ?= .
 
