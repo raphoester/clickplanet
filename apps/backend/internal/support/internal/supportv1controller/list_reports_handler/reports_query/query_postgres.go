@@ -44,10 +44,10 @@ type PostgresQuery struct {
 }
 
 const reports = `
-	SELECT id, reporter_account_id, reported_account_id, reason, text, message_id, reported_at
+	SELECT id, reporter_account_id, reported_account_id, reason, text, message_id, created_at
 	FROM reports
-	WHERE $1::timestamptz IS NULL OR reported_at >= $1
-	ORDER BY reported_at DESC, id DESC
+	WHERE $1::timestamptz IS NULL OR created_at >= $1
+	ORDER BY created_at DESC, id DESC
 	LIMIT $2
 `
 
@@ -102,7 +102,7 @@ func (q *PostgresQuery) rows(ctx context.Context, since time.Time, limit uint32)
 		}
 		report.Reason = known
 		report.ReporterAccountId, report.ReportedAccountId = reporter.String(), reported.String()
-		report.ReportedAt = timestamppb.New(at)
+		report.CreatedAt = timestamppb.New(at)
 		read = append(read, row{report: report, reporter: cpsession.AccountID(reporter), reported: cpsession.AccountID(reported)})
 	}
 	if err := found.Err(); err != nil {

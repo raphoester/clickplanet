@@ -321,9 +321,9 @@ export class Report extends Message<Report> {
   messageId = "";
 
   /**
-   * @generated from field: google.protobuf.Timestamp reported_at = 7;
+   * @generated from field: google.protobuf.Timestamp created_at = 7;
    */
-  reportedAt?: Timestamp;
+  createdAt?: Timestamp;
 
   /**
    * The name the game shows for each account now; empty for one it can no longer name.
@@ -351,7 +351,7 @@ export class Report extends Message<Report> {
     { no: 4, name: "reason", kind: "enum", T: proto3.getEnumType(ReportReason) },
     { no: 5, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 7, name: "reported_at", kind: "message", T: Timestamp },
+    { no: 7, name: "created_at", kind: "message", T: Timestamp },
     { no: 8, name: "reporter_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 9, name: "reported_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);

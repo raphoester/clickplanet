@@ -13,22 +13,22 @@ import (
 )
 
 var (
-	ada        = reports.AccountID{15: 1}
-	bob        = reports.AccountID{15: 2}
-	reportedAt = time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
+	ada       = reports.AccountID{15: 1}
+	bob       = reports.AccountID{15: 2}
+	createdAt = time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
 )
 
 func valid() reports.Snapshot {
 	return reports.Snapshot{
 		ID: reports.ReportID{15: 1}, Reporter: ada, Reported: bob,
-		Complaint: reports.Complaint{Reason: reports.ReasonCheating}, At: reportedAt,
+		Complaint: reports.Complaint{Reason: reports.ReasonCheating}, At: createdAt,
 	}
 }
 
 func complaintKept(t *testing.T, said reports.Complaint) reports.Complaint {
 	t.Helper()
 
-	report, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob, said, reportedAt, nil)
+	report, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob, said, createdAt, nil)
 	require.NoError(t, err)
 	return report.TakeSnapshot().Complaint
 }
@@ -36,11 +36,11 @@ func complaintKept(t *testing.T, said reports.Complaint) reports.Complaint {
 func TestAReportIsBuiltFromWhoReportsWhoIsReportedAndTheComplaint(t *testing.T) {
 	said := reports.Complaint{Reason: reports.ReasonChatAbuse, Text: "it insults everyone", Message: "message-1"}
 
-	report, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob, said, reportedAt, nil)
+	report, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob, said, createdAt, nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, reports.Snapshot{
-		ID: reports.ReportID{15: 1}, Reporter: ada, Reported: bob, Complaint: said, At: reportedAt,
+		ID: reports.ReportID{15: 1}, Reporter: ada, Reported: bob, Complaint: said, At: createdAt,
 	}, report.TakeSnapshot())
 }
 
@@ -56,7 +56,7 @@ func TestASnapshotRestoresTheReportItWasTakenFrom(t *testing.T) {
 }
 
 func TestAReportOfOneselfCannotBeBuilt(t *testing.T) {
-	_, err := reports.NewReport(reports.ReportID{15: 1}, ada, ada, reports.Complaint{Reason: reports.ReasonCheating}, reportedAt, nil)
+	_, err := reports.NewReport(reports.ReportID{15: 1}, ada, ada, reports.Complaint{Reason: reports.ReasonCheating}, createdAt, nil)
 
 	require.ErrorIs(t, err, reports.ErrOwnAccount)
 }
@@ -82,7 +82,7 @@ func TestEveryReasonIsKnownAndNothingElse(t *testing.T) {
 		assert.Equal(t, reason, complaintKept(t, reports.Complaint{Reason: reason}).Reason)
 	}
 	for _, reason := range []reports.Reason{"", "boring", "CHEATING"} {
-		_, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob, reports.Complaint{Reason: reason}, reportedAt, nil)
+		_, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob, reports.Complaint{Reason: reason}, createdAt, nil)
 
 		require.ErrorIs(t, err, reports.ErrUnknownReason, string(reason))
 	}
@@ -102,7 +102,7 @@ func TestAComplaintNeedsNeitherATextNorAMessage(t *testing.T) {
 
 func TestAComplaintWithATextTooLongIsRefused(t *testing.T) {
 	_, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob,
-		reports.Complaint{Reason: reports.ReasonOther, Text: strings.Repeat("a", notes.MaxTextLength+1)}, reportedAt, nil)
+		reports.Complaint{Reason: reports.ReasonOther, Text: strings.Repeat("a", notes.MaxTextLength+1)}, createdAt, nil)
 
 	require.ErrorIs(t, err, notes.ErrInvalidText)
 }
@@ -158,15 +158,15 @@ func TestAnAccountReportsAPlayerOnceAUTCDay(t *testing.T) {
 func TestOnlyTheSameReporterAboutTheSamePlayerIsARepeat(t *testing.T) {
 	eve := reports.AccountID{15: 3}
 
-	require.NoError(t, again(reportedAt,
-		earlier(t, eve, bob, reportedAt), earlier(t, ada, eve, reportedAt), earlier(t, bob, ada, reportedAt)))
-	require.ErrorIs(t, again(reportedAt, earlier(t, eve, bob, reportedAt), earlier(t, ada, bob, reportedAt)),
+	require.NoError(t, again(createdAt,
+		earlier(t, eve, bob, createdAt), earlier(t, ada, eve, createdAt), earlier(t, bob, ada, createdAt)))
+	require.ErrorIs(t, again(createdAt, earlier(t, eve, bob, createdAt), earlier(t, ada, bob, createdAt)),
 		reports.ErrReportedAlready)
 }
 
 func TestAReportThatBreaksARuleIsRefusedBeforeItIsARepeat(t *testing.T) {
-	_, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob, reports.Complaint{Reason: "boring"}, reportedAt,
-		[]reports.Report{earlier(t, ada, bob, reportedAt)})
+	_, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob, reports.Complaint{Reason: "boring"}, createdAt,
+		[]reports.Report{earlier(t, ada, bob, createdAt)})
 
 	require.ErrorIs(t, err, reports.ErrUnknownReason)
 }

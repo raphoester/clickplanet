@@ -378,7 +378,7 @@ type Report struct {
 	Reason            ReportReason           `protobuf:"varint,4,opt,name=reason,proto3,enum=support.v1.ReportReason" json:"reason,omitempty"`
 	Text              string                 `protobuf:"bytes,5,opt,name=text,proto3" json:"text,omitempty"`
 	MessageId         string                 `protobuf:"bytes,6,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	ReportedAt        *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=reported_at,json=reportedAt,proto3" json:"reported_at,omitempty"`
+	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// The name the game shows for each account now; empty for one it can no longer name.
 	ReporterName  string `protobuf:"bytes,8,opt,name=reporter_name,json=reporterName,proto3" json:"reporter_name,omitempty"`
 	ReportedName  string `protobuf:"bytes,9,opt,name=reported_name,json=reportedName,proto3" json:"reported_name,omitempty"`
@@ -458,9 +458,9 @@ func (x *Report) GetMessageId() string {
 	return ""
 }
 
-func (x *Report) GetReportedAt() *timestamppb.Timestamp {
+func (x *Report) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.ReportedAt
+		return x.CreatedAt
 	}
 	return nil
 }
@@ -505,7 +505,7 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\rR\x05limit\"C\n" +
 	"\x13ListReportsResponse\x12,\n" +
-	"\areports\x18\x01 \x03(\v2\x12.support.v1.ReportR\areports\"\xe4\x02\n" +
+	"\areports\x18\x01 \x03(\v2\x12.support.v1.ReportR\areports\"\xe2\x02\n" +
 	"\x06Report\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12.\n" +
 	"\x13reporter_account_id\x18\x02 \x01(\tR\x11reporterAccountId\x12.\n" +
@@ -513,9 +513,9 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\x06reason\x18\x04 \x01(\x0e2\x18.support.v1.ReportReasonR\x06reason\x12\x12\n" +
 	"\x04text\x18\x05 \x01(\tR\x04text\x12\x1d\n" +
 	"\n" +
-	"message_id\x18\x06 \x01(\tR\tmessageId\x12;\n" +
-	"\vreported_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"reportedAt\x12#\n" +
+	"message_id\x18\x06 \x01(\tR\tmessageId\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12#\n" +
 	"\rreporter_name\x18\b \x01(\tR\freporterName\x12#\n" +
 	"\rreported_name\x18\t \x01(\tR\freportedName*R\n" +
 	"\bNoteKind\x12\x19\n" +
@@ -566,7 +566,7 @@ var file_support_v1_admin_proto_depIdxs = []int32{
 	7,  // 6: support.v1.ListReportsRequest.since:type_name -> google.protobuf.Timestamp
 	6,  // 7: support.v1.ListReportsResponse.reports:type_name -> support.v1.Report
 	9,  // 8: support.v1.Report.reason:type_name -> support.v1.ReportReason
-	7,  // 9: support.v1.Report.reported_at:type_name -> google.protobuf.Timestamp
+	7,  // 9: support.v1.Report.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 10: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
 	4,  // 11: support.v1.AdminService.ListReports:input_type -> support.v1.ListReportsRequest
 	2,  // 12: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse

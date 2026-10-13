@@ -223,7 +223,7 @@ func TestAGuestReportsAPlayerFromAMessageAndTheOperatorReadsWhoAndWhy(t *testing
 	assert.Equal(t, supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE, reports[0].GetReason())
 	assert.Equal(t, "it insults everyone", reports[0].GetText())
 	assert.Equal(t, said.GetId(), reports[0].GetMessageId())
-	assert.WithinDuration(t, time.Now(), reports[0].GetReportedAt().AsTime(), time.Minute)
+	assert.WithinDuration(t, time.Now(), reports[0].GetCreatedAt().AsTime(), time.Minute)
 }
 
 func TestAGuestIsReportedUnderTheNameTheChatShowsForIt(t *testing.T) {

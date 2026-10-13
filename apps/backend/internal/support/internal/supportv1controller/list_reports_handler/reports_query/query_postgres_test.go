@@ -85,7 +85,7 @@ func (s *testSuite) reported(n byte, reporter, about reports.AccountID, complain
 		ReportedAccountId: about.String(),
 		Text:              complaint.Text,
 		MessageId:         string(complaint.Message),
-		ReportedAt:        timestamppb.New(at),
+		CreatedAt:         timestamppb.New(at),
 		ReporterName:      s.names.shown[reporter],
 		ReportedName:      s.names.shown[about],
 	}
@@ -157,7 +157,7 @@ func (s *testSuite) TestReportsBeforeSinceAreLeftOutAndTheLimitKeepsTheNewest() 
 func (s *testSuite) TestNoLimitIsTheDefaultAndNoLimitPassesTheMost() {
 	for n := range reports_query.MaxLimit + 5 {
 		_, err := s.db.ExecContext(s.T().Context(), `
-			INSERT INTO reports (id, reporter_account_id, reported_account_id, reason, text, message_id, reported_at)
+			INSERT INTO reports (id, reporter_account_id, reported_account_id, reason, text, message_id, created_at)
 			VALUES ($1, $2, $3, 'other', '', '', $4)
 		`, uuid.New(), uuid.New(), uuid.UUID(bob), start.Add(time.Duration(n)*time.Second))
 		s.Require().NoError(err)
@@ -171,7 +171,7 @@ func (s *testSuite) TestAReasonTheDatabaseNamesAndTheWireCannotCarryRefusesTheRe
 	_, err := s.db.ExecContext(s.T().Context(), `ALTER TYPE report_reason ADD VALUE IF NOT EXISTS 'boring'`)
 	s.Require().NoError(err)
 	_, err = s.db.ExecContext(s.T().Context(), `
-		INSERT INTO reports (id, reporter_account_id, reported_account_id, reason, text, message_id, reported_at)
+		INSERT INTO reports (id, reporter_account_id, reported_account_id, reason, text, message_id, created_at)
 		VALUES ($1, $2, $3, 'boring', '', '', $4)
 	`, uuid.New(), uuid.UUID(ada), uuid.UUID(bob), start)
 	s.Require().NoError(err)

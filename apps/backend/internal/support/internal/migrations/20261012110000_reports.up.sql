@@ -7,10 +7,10 @@ CREATE TABLE reports (
     reason              report_reason NOT NULL,
     text                text          NOT NULL,
     message_id          text          NOT NULL,
-    reported_at         timestamptz   NOT NULL
+    created_at          timestamptz   NOT NULL
 );
 
-CREATE INDEX reports_reported_at ON reports (reported_at);
+CREATE INDEX reports_created_at ON reports (created_at);
 
 CREATE INDEX reports_reporter ON reports (reporter_account_id, reported_account_id);
 

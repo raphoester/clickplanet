@@ -37,8 +37,8 @@ func (s *testSuite) SetupTest() {
 
 func (s *testSuite) kept() []reports.Snapshot {
 	rows, err := s.db.QueryContext(s.T().Context(), `
-		SELECT id, reporter_account_id, reported_account_id, reason, text, message_id, reported_at
-		FROM reports ORDER BY reported_at, id
+		SELECT id, reporter_account_id, reported_account_id, reason, text, message_id, created_at
+		FROM reports ORDER BY created_at, id
 	`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
@@ -62,7 +62,7 @@ func (s *testSuite) kept() []reports.Snapshot {
 
 func (s *testSuite) TestTheDatabaseRefusesAReasonItsTypeDoesNotName() {
 	_, err := s.db.ExecContext(s.T().Context(), `
-		INSERT INTO reports (id, reporter_account_id, reported_account_id, reason, text, message_id, reported_at)
+		INSERT INTO reports (id, reporter_account_id, reported_account_id, reason, text, message_id, created_at)
 		VALUES ($1, $2, $3, 'rude', '', '', now())
 	`, uuid.New(), uuid.New(), uuid.New())
 

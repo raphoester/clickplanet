@@ -61,7 +61,7 @@ message Report {
   ReportReason reason = 4;
   string text = 5;
   string message_id = 6;
-  google.protobuf.Timestamp reported_at = 7;
+  google.protobuf.Timestamp created_at = 7;
   // The name the game shows for each account now; empty for one it can no longer name.
   string reporter_name = 8;
   string reported_name = 9;
