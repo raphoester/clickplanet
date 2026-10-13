@@ -2,4 +2,5 @@ package subscribers
 
 import "time"
 
-const Timeout = 5 * time.Second
+// Not 5s as elsewhere: an account's notes may carry files, and each is one call to the bucket.
+const Timeout = 30 * time.Second

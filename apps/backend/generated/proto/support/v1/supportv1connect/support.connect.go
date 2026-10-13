@@ -39,12 +39,16 @@ const (
 	// SupportServiceReportBugProcedure is the fully-qualified name of the SupportService's ReportBug
 	// RPC.
 	SupportServiceReportBugProcedure = "/support.v1.SupportService/ReportBug"
+	// SupportServiceGetAttachmentRulesProcedure is the fully-qualified name of the SupportService's
+	// GetAttachmentRules RPC.
+	SupportServiceGetAttachmentRulesProcedure = "/support.v1.SupportService/GetAttachmentRules"
 )
 
 // SupportServiceClient is a client for the support.v1.SupportService service.
 type SupportServiceClient interface {
 	SuggestFeature(context.Context, *connect.Request[v1.SuggestFeatureRequest]) (*connect.Response[v1.SuggestFeatureResponse], error)
 	ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error)
+	GetAttachmentRules(context.Context, *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error)
 }
 
 // NewSupportServiceClient constructs a client for the support.v1.SupportService service. By
@@ -70,13 +74,21 @@ func NewSupportServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(supportServiceMethods.ByName("ReportBug")),
 			connect.WithClientOptions(opts...),
 		),
+		getAttachmentRules: connect.NewClient[v1.GetAttachmentRulesRequest, v1.GetAttachmentRulesResponse](
+			httpClient,
+			baseURL+SupportServiceGetAttachmentRulesProcedure,
+			connect.WithSchema(supportServiceMethods.ByName("GetAttachmentRules")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // supportServiceClient implements SupportServiceClient.
 type supportServiceClient struct {
-	suggestFeature *connect.Client[v1.SuggestFeatureRequest, v1.SuggestFeatureResponse]
-	reportBug      *connect.Client[v1.ReportBugRequest, v1.ReportBugResponse]
+	suggestFeature     *connect.Client[v1.SuggestFeatureRequest, v1.SuggestFeatureResponse]
+	reportBug          *connect.Client[v1.ReportBugRequest, v1.ReportBugResponse]
+	getAttachmentRules *connect.Client[v1.GetAttachmentRulesRequest, v1.GetAttachmentRulesResponse]
 }
 
 // SuggestFeature calls support.v1.SupportService.SuggestFeature.
@@ -89,10 +101,16 @@ func (c *supportServiceClient) ReportBug(ctx context.Context, req *connect.Reque
 	return c.reportBug.CallUnary(ctx, req)
 }
 
+// GetAttachmentRules calls support.v1.SupportService.GetAttachmentRules.
+func (c *supportServiceClient) GetAttachmentRules(ctx context.Context, req *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error) {
+	return c.getAttachmentRules.CallUnary(ctx, req)
+}
+
 // SupportServiceHandler is an implementation of the support.v1.SupportService service.
 type SupportServiceHandler interface {
 	SuggestFeature(context.Context, *connect.Request[v1.SuggestFeatureRequest]) (*connect.Response[v1.SuggestFeatureResponse], error)
 	ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error)
+	GetAttachmentRules(context.Context, *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error)
 }
 
 // NewSupportServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -114,12 +132,21 @@ func NewSupportServiceHandler(svc SupportServiceHandler, opts ...connect.Handler
 		connect.WithSchema(supportServiceMethods.ByName("ReportBug")),
 		connect.WithHandlerOptions(opts...),
 	)
+	supportServiceGetAttachmentRulesHandler := connect.NewUnaryHandler(
+		SupportServiceGetAttachmentRulesProcedure,
+		svc.GetAttachmentRules,
+		connect.WithSchema(supportServiceMethods.ByName("GetAttachmentRules")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/support.v1.SupportService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SupportServiceSuggestFeatureProcedure:
 			supportServiceSuggestFeatureHandler.ServeHTTP(w, r)
 		case SupportServiceReportBugProcedure:
 			supportServiceReportBugHandler.ServeHTTP(w, r)
+		case SupportServiceGetAttachmentRulesProcedure:
+			supportServiceGetAttachmentRulesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -135,4 +162,8 @@ func (UnimplementedSupportServiceHandler) SuggestFeature(context.Context, *conne
 
 func (UnimplementedSupportServiceHandler) ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.SupportService.ReportBug is not implemented"))
+}
+
+func (UnimplementedSupportServiceHandler) GetAttachmentRules(context.Context, *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.SupportService.GetAttachmentRules is not implemented"))
 }

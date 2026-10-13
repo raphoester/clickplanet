@@ -2,7 +2,7 @@ import {describe, expect, it, vi} from "vitest"
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
 import {SupportService} from "../gen/grpc/support/v1/support_connect.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
-import {SupportNoSessionError, SupportRateLimitedError, SupportRejectedError} from "./support.ts"
+import {NO_ATTACHMENTS, SupportNoSessionError, SupportRateLimitedError, SupportRejectedError} from "./support.ts"
 import {ConnectSupportBackend} from "./supportBackend.ts"
 
 const session = (...tokens: string[]): SessionProvider => {
@@ -38,18 +38,18 @@ const headersOf = (call: ReturnType<typeof vi.fn>, n = 0) => (call.mock.calls[n]
 
 describe("ConnectSupportBackend.suggestFeature", () => {
     it("sends the text and what the page knows, with the click token", async () => {
-        const suggestFeature = vi.fn().mockResolvedValue({})
+        const suggestFeature = vi.fn().mockResolvedValue({uploads: []})
 
         await new ConnectSupportBackend(clientOf(suggestFeature), session("token-1")).suggestFeature("a night mode", phone)
 
-        expect(suggestFeature.mock.calls[0][0]).toEqual({text: "a night mode", context: phone})
+        expect(suggestFeature.mock.calls[0][0]).toEqual({text: "a night mode", context: phone, attachments: []})
         expect(headersOf(suggestFeature).get(SESSION_HEADER)).toBe("token-1")
     })
 
     it("mints again and sends once more when the token is refused", async () => {
         const suggestFeature = vi.fn()
             .mockRejectedValueOnce(new ConnectError("no token", Code.Unauthenticated))
-            .mockResolvedValue({})
+            .mockResolvedValue({uploads: []})
         const provider = session("stale", "fresh")
 
         await new ConnectSupportBackend(clientOf(suggestFeature), provider).suggestFeature("a night mode", phone)
@@ -101,18 +101,18 @@ describe("ConnectSupportBackend.reportBug", () => {
         new ConnectSupportBackend({reportBug} as unknown as PromiseClient<typeof SupportService>, provider)
 
     it("sends the text and what the page knows, with the click token", async () => {
-        const reportBug = vi.fn().mockResolvedValue({})
+        const reportBug = vi.fn().mockResolvedValue({uploads: []})
 
         await backendOf(reportBug, session("token-1")).reportBug("the globe is black", phone)
 
-        expect(reportBug.mock.calls[0][0]).toEqual({text: "the globe is black", context: phone})
+        expect(reportBug.mock.calls[0][0]).toEqual({text: "the globe is black", context: phone, attachments: []})
         expect(headersOf(reportBug).get(SESSION_HEADER)).toBe("token-1")
     })
 
     it("mints again once when the token is refused, and reads the refusals as a suggestion's", async () => {
         const refusedOnce = vi.fn()
             .mockRejectedValueOnce(new ConnectError("no token", Code.Unauthenticated))
-            .mockResolvedValue({})
+            .mockResolvedValue({uploads: []})
         const provider = session("stale", "fresh")
 
         await backendOf(refusedOnce, provider).reportBug("the globe is black", phone)
@@ -124,5 +124,73 @@ describe("ConnectSupportBackend.reportBug", () => {
         await expect(backendOf(limited, session("token-1")).reportBug("the globe is black", phone))
             .rejects.toBeInstanceOf(SupportRateLimitedError)
         expect(limited).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("ConnectSupportBackend with attachments", () => {
+    const screenshot = new Blob(["a screenshot"], {type: "image/png"})
+    const recording = new Blob(["a screen recording"], {type: "video/mp4"})
+    const uploads = [{url: "https://bucket.example/a/0"}, {url: "https://bucket.example/a/1"}]
+
+    it.each(["suggestFeature", "reportBug"] as const)("%s says the type and the size of each file, and answers where each goes", async (procedure) => {
+        const call = vi.fn().mockResolvedValue({uploads})
+        const backend = new ConnectSupportBackend({[procedure]: call} as unknown as PromiseClient<typeof SupportService>, session("token-1"))
+
+        const answered = await backend[procedure]("the globe is black", phone, [screenshot, recording])
+
+        expect(call.mock.calls[0][0].attachments).toEqual([
+            {contentType: "image/png", sizeBytes: 12n},
+            {contentType: "video/mp4", sizeBytes: 18n},
+        ])
+        expect(answered).toEqual(uploads)
+    })
+
+    it("puts a file at the place it was given, and passes on how far it is", async () => {
+        const put = vi.fn(async () => undefined)
+        const onProgress = vi.fn()
+        const backend = new ConnectSupportBackend(clientOf(vi.fn()), session("token-1"), put)
+
+        await backend.uploadAttachment(uploads[1], recording, {onProgress})
+
+        expect(put).toHaveBeenCalledWith("https://bucket.example/a/1", recording, {onProgress})
+    })
+
+    it("fails the upload the bucket refused", async () => {
+        const refused = new Error("the upload was answered 403")
+        const backend = new ConnectSupportBackend(clientOf(vi.fn()), session("token-1"), vi.fn(async () => {
+            throw refused
+        }))
+
+        await expect(backend.uploadAttachment(uploads[0], screenshot)).rejects.toBe(refused)
+    })
+})
+
+describe("ConnectSupportBackend.attachmentRules", () => {
+    const backendOf = (getAttachmentRules: unknown) =>
+        new ConnectSupportBackend({getAttachmentRules} as unknown as PromiseClient<typeof SupportService>, session("token-1"))
+
+    it("reads what a note may carry, with no token", async () => {
+        const getAttachmentRules = vi.fn().mockResolvedValue({
+            maxPerNote: 10, maxBytes: 52428800n, contentTypes: ["image/png", "video/mp4"],
+        })
+        const provider = session("token-1")
+
+        const rules = await new ConnectSupportBackend(
+            {getAttachmentRules} as unknown as PromiseClient<typeof SupportService>, provider).attachmentRules()
+
+        expect(rules).toEqual({maxPerNote: 10, maxBytes: 52428800, contentTypes: ["image/png", "video/mp4"]})
+        expect(provider.token).not.toHaveBeenCalled()
+    })
+
+    it("reads a server from before attachments as one that takes none", async () => {
+        const getAttachmentRules = vi.fn().mockRejectedValue(new ConnectError("no such procedure", Code.Unimplemented))
+
+        expect(await backendOf(getAttachmentRules).attachmentRules()).toEqual(NO_ATTACHMENTS)
+    })
+
+    it("fails on any other answer", async () => {
+        const broken = new ConnectError("internal error", Code.Internal)
+
+        await expect(backendOf(vi.fn().mockRejectedValue(broken)).attachmentRules()).rejects.toBe(broken)
     })
 })

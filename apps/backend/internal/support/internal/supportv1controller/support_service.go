@@ -2,6 +2,7 @@ package supportv1controller
 
 import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1/supportv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/get_attachment_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_bug_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/suggest_feature_handler"
@@ -10,6 +11,7 @@ import (
 type SupportService struct {
 	suggest_feature_handler.SuggestFeatureHandler
 	report_bug_handler.ReportBugHandler
+	get_attachment_rules_handler.GetAttachmentRulesHandler
 }
 
 var _ supportv1connect.SupportServiceHandler = SupportService{}

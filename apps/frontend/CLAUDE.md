@@ -68,8 +68,10 @@ player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`, `"failed"`)
-refuses what More sends next, and `fakeSupport.refuse()` takes it again;
-`fakeSupport.sent` is what it took.
+refuses what More sends next, `fakeSupport.refuse("upload-failed")` keeps the note
+and fails each of its files half way up, and `fakeSupport.refuse()` takes it all
+again; `fakeSupport.sent` is what it took, with the files of each note and which
+were uploaded. `fakeSupport.rules.maxPerNote = 0` is a server that takes no file.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` runs chat (it is always on), and the Go server answers
@@ -901,7 +903,8 @@ What a player sends the operator, from More: a feature suggestion or a bug
 report.
 
 - `backends/support.ts` — `FeatureSuggester` and `BugReporter`, the
-  `PageContext` both send (and `SupportBackend`, every support contract together),
+  `PageContext` both send, `AttachmentRulesReader` and `AttachmentUploader` for
+  the files (and `SupportBackend`, every support contract together),
   `MAX_NOTE_LENGTH`, which mirrors the backend's
   `notes.MaxTextLength`, and the errors. `ConnectSupportBackend`
   (`supportBackend.ts`) implements it over `support.v1.SupportService`;
@@ -938,6 +941,41 @@ report.
 - **The modal's scroll fade is off** (`.modal-support`): a field sits at the
   bottom edge of the body, and the fade drew over it.
 - `MorePlace` shows the two tiles only with a `support` backend wired.
+
+**A note carries photos and videos**, a suggestion as a bug report. See the
+backend's CLAUDE.md (Support) for where they are kept.
+
+- **The server says what a note may carry.** The form reads `attachmentRules()`
+  when it opens (`GetAttachmentRules`, no token): the most files, the most bytes
+  of one, and the content types. The picker shows only once they say one file or
+  more, so a server with no bucket, an older server (it answers
+  `unimplemented`) and a read that failed all give the plain form. No limit is
+  written on this side.
+- **The note first, the files after.** A send declares the type and the size of
+  each file and is answered one `AttachmentUpload` per file, in order: a link
+  signed for that type and that size. The form then sends each file to its link,
+  one at a time. So the text is kept even when a video fails on a phone.
+- **`putFile` is one `PUT` straight to the bucket**, over `XMLHttpRequest`:
+  `fetch` says nothing while a body goes up, and a 50 MB video on a phone needs a
+  bar. It sets the `Content-Type` the link was signed for; with another one the
+  bucket refuses the file. It is not a Connect call, so it has no token, no
+  retry and no `connectionInterceptor`.
+- `domain/attachments.ts` — `withPicked`, what the rules take of the files just
+  picked, and the first refusal as one line (`refusalLine`): too many, too big,
+  not a photo or a video. `sizeLine` writes a size.
+- `app/support/Attachments.tsx` — `AttachmentPicker` (the button, a hidden file
+  input with the server's types as `accept`, the list with a thumbnail, the size
+  and a remove button) and `UploadList` (each file's bar, then its mark). **A
+  picture pasted into the text is a file too.** A photo the browser cannot draw
+  (HEIC outside Safari) gets the plain mark.
+- **Once the note is kept the form says so and shows the files going up.** The
+  footer is "Uploading…" until the last one lands, and a click beside the form
+  does not close it. A file that did not upload is marked, the line says how
+  many, and "Try again" sends those alone to the same links.
+- **Closing the form calls the uploads off** (an `AbortController` made in an
+  effect). Made once per component, React's StrictMode aborted it before the
+  form was ever used, and every upload in `npm run dev` stopped at 0%.
+- The fake uploads in eight steps, so the bar moves in dev.
 
 ### Titles
 
@@ -3131,9 +3169,11 @@ crawler reads it as it is. The Workers asset handler serves it at `/privacy`
 (`html_handling` drops the extension) and `nginx.conf` does the same with
 `$uri.html`; `npm run dev` serves it at both `/privacy` and `/privacy.html`. **It states
 retention periods, so it goes stale when the backend's do**: `ledger.retention`,
-`antiBot.evidence.retention`, `chat.storage.retention` and
+`antiBot.evidence.retention`, `chat.storage.retention`, `support.retention` and
 `auth.sessions.guestTTL` in `deploy/vps/backend.yaml`, and `roll_keep_for` in
-the Caddyfile. Change one, change the page and its date.
+the Caddyfile. Change one, change the page and its date. **It names who keeps
+the photos and videos of a note** (Cloudflare, for an R2 bucket): another
+`support.attachments.bucket.endpoint` changes that line too.
 
 **Its "Google user data" section is what Google's brand verification reads**:
 what we ask Google for, why, that nobody else gets it, and the Limited Use

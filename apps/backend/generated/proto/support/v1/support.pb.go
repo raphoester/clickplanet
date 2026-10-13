@@ -25,6 +25,7 @@ type SuggestFeatureRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
 	Context       *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	Attachments   []*Attachment          `protobuf:"bytes,3,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -73,8 +74,17 @@ func (x *SuggestFeatureRequest) GetContext() *PageContext {
 	return nil
 }
 
+func (x *SuggestFeatureRequest) GetAttachments() []*Attachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
 type SuggestFeatureResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One per attachment of the request, in its order.
+	Uploads       []*Upload `protobuf:"bytes,1,rep,name=uploads,proto3" json:"uploads,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -109,10 +119,18 @@ func (*SuggestFeatureResponse) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{1}
 }
 
+func (x *SuggestFeatureResponse) GetUploads() []*Upload {
+	if x != nil {
+		return x.Uploads
+	}
+	return nil
+}
+
 type ReportBugRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
 	Context       *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	Attachments   []*Attachment          `protobuf:"bytes,3,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -161,8 +179,17 @@ func (x *ReportBugRequest) GetContext() *PageContext {
 	return nil
 }
 
+func (x *ReportBugRequest) GetAttachments() []*Attachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
 type ReportBugResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One per attachment of the request, in its order.
+	Uploads       []*Upload `protobuf:"bytes,1,rep,name=uploads,proto3" json:"uploads,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -197,6 +224,208 @@ func (*ReportBugResponse) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{3}
 }
 
+func (x *ReportBugResponse) GetUploads() []*Upload {
+	if x != nil {
+		return x.Uploads
+	}
+	return nil
+}
+
+// A photo or a video the page uploads once its note is kept.
+type Attachment struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ContentType   string                 `protobuf:"bytes,1,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	SizeBytes     uint64                 `protobuf:"varint,2,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Attachment) Reset() {
+	*x = Attachment{}
+	mi := &file_support_v1_support_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Attachment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Attachment) ProtoMessage() {}
+
+func (x *Attachment) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Attachment.ProtoReflect.Descriptor instead.
+func (*Attachment) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Attachment) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *Attachment) GetSizeBytes() uint64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+type Upload struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Takes one PUT of the file, with the Content-Type and the size the attachment was declared with.
+	Url           string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Upload) Reset() {
+	*x = Upload{}
+	mi := &file_support_v1_support_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Upload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Upload) ProtoMessage() {}
+
+func (x *Upload) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Upload.ProtoReflect.Descriptor instead.
+func (*Upload) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *Upload) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type GetAttachmentRulesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAttachmentRulesRequest) Reset() {
+	*x = GetAttachmentRulesRequest{}
+	mi := &file_support_v1_support_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAttachmentRulesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAttachmentRulesRequest) ProtoMessage() {}
+
+func (x *GetAttachmentRulesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAttachmentRulesRequest.ProtoReflect.Descriptor instead.
+func (*GetAttachmentRulesRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{6}
+}
+
+type GetAttachmentRulesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 0: this server takes no attachment.
+	MaxPerNote    uint32   `protobuf:"varint,1,opt,name=max_per_note,json=maxPerNote,proto3" json:"max_per_note,omitempty"`
+	MaxBytes      uint64   `protobuf:"varint,2,opt,name=max_bytes,json=maxBytes,proto3" json:"max_bytes,omitempty"`
+	ContentTypes  []string `protobuf:"bytes,3,rep,name=content_types,json=contentTypes,proto3" json:"content_types,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAttachmentRulesResponse) Reset() {
+	*x = GetAttachmentRulesResponse{}
+	mi := &file_support_v1_support_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAttachmentRulesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAttachmentRulesResponse) ProtoMessage() {}
+
+func (x *GetAttachmentRulesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAttachmentRulesResponse.ProtoReflect.Descriptor instead.
+func (*GetAttachmentRulesResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetAttachmentRulesResponse) GetMaxPerNote() uint32 {
+	if x != nil {
+		return x.MaxPerNote
+	}
+	return 0
+}
+
+func (x *GetAttachmentRulesResponse) GetMaxBytes() uint64 {
+	if x != nil {
+		return x.MaxBytes
+	}
+	return 0
+}
+
+func (x *GetAttachmentRulesResponse) GetContentTypes() []string {
+	if x != nil {
+		return x.ContentTypes
+	}
+	return nil
+}
+
 // What the page knows about itself and its device when a note is sent. The server adds the user agent.
 type PageContext struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -225,7 +454,7 @@ type PageContext struct {
 
 func (x *PageContext) Reset() {
 	*x = PageContext{}
-	mi := &file_support_v1_support_proto_msgTypes[4]
+	mi := &file_support_v1_support_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -237,7 +466,7 @@ func (x *PageContext) String() string {
 func (*PageContext) ProtoMessage() {}
 
 func (x *PageContext) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_support_proto_msgTypes[4]
+	mi := &file_support_v1_support_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -250,7 +479,7 @@ func (x *PageContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PageContext.ProtoReflect.Descriptor instead.
 func (*PageContext) Descriptor() ([]byte, []int) {
-	return file_support_v1_support_proto_rawDescGZIP(), []int{4}
+	return file_support_v1_support_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PageContext) GetBuild() string {
@@ -342,15 +571,32 @@ var File_support_v1_support_proto protoreflect.FileDescriptor
 const file_support_v1_support_proto_rawDesc = "" +
 	"\n" +
 	"\x18support/v1/support.proto\x12\n" +
-	"support.v1\"^\n" +
+	"support.v1\"\x98\x01\n" +
 	"\x15SuggestFeatureRequest\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x121\n" +
-	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\"\x18\n" +
-	"\x16SuggestFeatureResponse\"Y\n" +
+	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\x128\n" +
+	"\vattachments\x18\x03 \x03(\v2\x16.support.v1.AttachmentR\vattachments\"F\n" +
+	"\x16SuggestFeatureResponse\x12,\n" +
+	"\auploads\x18\x01 \x03(\v2\x12.support.v1.UploadR\auploads\"\x93\x01\n" +
 	"\x10ReportBugRequest\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x121\n" +
-	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\"\x13\n" +
-	"\x11ReportBugResponse\"\xa4\x03\n" +
+	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\x128\n" +
+	"\vattachments\x18\x03 \x03(\v2\x16.support.v1.AttachmentR\vattachments\"A\n" +
+	"\x11ReportBugResponse\x12,\n" +
+	"\auploads\x18\x01 \x03(\v2\x12.support.v1.UploadR\auploads\"N\n" +
+	"\n" +
+	"Attachment\x12!\n" +
+	"\fcontent_type\x18\x01 \x01(\tR\vcontentType\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x02 \x01(\x04R\tsizeBytes\"\x1a\n" +
+	"\x06Upload\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\"\x1b\n" +
+	"\x19GetAttachmentRulesRequest\"\x80\x01\n" +
+	"\x1aGetAttachmentRulesResponse\x12 \n" +
+	"\fmax_per_note\x18\x01 \x01(\rR\n" +
+	"maxPerNote\x12\x1b\n" +
+	"\tmax_bytes\x18\x02 \x01(\x04R\bmaxBytes\x12#\n" +
+	"\rcontent_types\x18\x03 \x03(\tR\fcontentTypes\"\xa4\x03\n" +
 	"\vPageContext\x12\x14\n" +
 	"\x05build\x18\x01 \x01(\tR\x05build\x12%\n" +
 	"\x0eviewport_width\x18\x02 \x01(\rR\rviewportWidth\x12'\n" +
@@ -366,10 +612,11 @@ const file_support_v1_support_proto_rawDesc = "" +
 	"\fcontext_lost\x18\n" +
 	" \x01(\bR\vcontextLost\x12\x14\n" +
 	"\x05cores\x18\v \x01(\rR\x05cores\x12\x1b\n" +
-	"\tmemory_gb\x18\f \x01(\x01R\bmemoryGb2\xb3\x01\n" +
+	"\tmemory_gb\x18\f \x01(\x01R\bmemoryGb2\x9d\x02\n" +
 	"\x0eSupportService\x12W\n" +
 	"\x0eSuggestFeature\x12!.support.v1.SuggestFeatureRequest\x1a\".support.v1.SuggestFeatureResponse\x12H\n" +
-	"\tReportBug\x12\x1c.support.v1.ReportBugRequest\x1a\x1d.support.v1.ReportBugResponseB\xbb\x01\n" +
+	"\tReportBug\x12\x1c.support.v1.ReportBugRequest\x1a\x1d.support.v1.ReportBugResponse\x12h\n" +
+	"\x12GetAttachmentRules\x12%.support.v1.GetAttachmentRulesRequest\x1a&.support.v1.GetAttachmentRulesResponse\"\x03\x90\x02\x01B\xbb\x01\n" +
 	"\x0ecom.support.v1B\fSupportProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1;supportv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Support.V1\xca\x02\n" +
 	"Support\\V1\xe2\x02\x16Support\\V1\\GPBMetadata\xea\x02\vSupport::V1b\x06proto3"
@@ -386,26 +633,36 @@ func file_support_v1_support_proto_rawDescGZIP() []byte {
 	return file_support_v1_support_proto_rawDescData
 }
 
-var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_support_v1_support_proto_goTypes = []any{
-	(*SuggestFeatureRequest)(nil),  // 0: support.v1.SuggestFeatureRequest
-	(*SuggestFeatureResponse)(nil), // 1: support.v1.SuggestFeatureResponse
-	(*ReportBugRequest)(nil),       // 2: support.v1.ReportBugRequest
-	(*ReportBugResponse)(nil),      // 3: support.v1.ReportBugResponse
-	(*PageContext)(nil),            // 4: support.v1.PageContext
+	(*SuggestFeatureRequest)(nil),      // 0: support.v1.SuggestFeatureRequest
+	(*SuggestFeatureResponse)(nil),     // 1: support.v1.SuggestFeatureResponse
+	(*ReportBugRequest)(nil),           // 2: support.v1.ReportBugRequest
+	(*ReportBugResponse)(nil),          // 3: support.v1.ReportBugResponse
+	(*Attachment)(nil),                 // 4: support.v1.Attachment
+	(*Upload)(nil),                     // 5: support.v1.Upload
+	(*GetAttachmentRulesRequest)(nil),  // 6: support.v1.GetAttachmentRulesRequest
+	(*GetAttachmentRulesResponse)(nil), // 7: support.v1.GetAttachmentRulesResponse
+	(*PageContext)(nil),                // 8: support.v1.PageContext
 }
 var file_support_v1_support_proto_depIdxs = []int32{
-	4, // 0: support.v1.SuggestFeatureRequest.context:type_name -> support.v1.PageContext
-	4, // 1: support.v1.ReportBugRequest.context:type_name -> support.v1.PageContext
-	0, // 2: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
-	2, // 3: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
-	1, // 4: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
-	3, // 5: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	8, // 0: support.v1.SuggestFeatureRequest.context:type_name -> support.v1.PageContext
+	4, // 1: support.v1.SuggestFeatureRequest.attachments:type_name -> support.v1.Attachment
+	5, // 2: support.v1.SuggestFeatureResponse.uploads:type_name -> support.v1.Upload
+	8, // 3: support.v1.ReportBugRequest.context:type_name -> support.v1.PageContext
+	4, // 4: support.v1.ReportBugRequest.attachments:type_name -> support.v1.Attachment
+	5, // 5: support.v1.ReportBugResponse.uploads:type_name -> support.v1.Upload
+	0, // 6: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
+	2, // 7: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
+	6, // 8: support.v1.SupportService.GetAttachmentRules:input_type -> support.v1.GetAttachmentRulesRequest
+	1, // 9: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
+	3, // 10: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
+	7, // 11: support.v1.SupportService.GetAttachmentRules:output_type -> support.v1.GetAttachmentRulesResponse
+	9, // [9:12] is the sub-list for method output_type
+	6, // [6:9] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_support_proto_init() }
@@ -419,7 +676,7 @@ func file_support_v1_support_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_v1_support_proto_rawDesc), len(file_support_v1_support_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

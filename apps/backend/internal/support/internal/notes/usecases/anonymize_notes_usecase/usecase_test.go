@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/inmemory_attachment_bucket"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/inmemory_note_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/anonymize_notes_usecase"
 )
@@ -32,7 +33,7 @@ func TestEveryNoteAnAccountSentKeepsItsTextAndLosesItsSenderAndTheOthersAreLeftA
 	kept := suggestion(2, bob, "more flags")
 	store.Seed(suggestion(1, ada, "a night mode"), kept, suggestion(3, ada, "a day mode"))
 
-	require.NoError(t, anonymize_notes_usecase.New(store).Execute(t.Context(), ada))
+	require.NoError(t, anonymize_notes_usecase.New(store, inmemory_attachment_bucket.New()).Execute(t.Context(), ada))
 
 	assert.ElementsMatch(t, []notes.Snapshot{anonymous(1, "a night mode"), kept, anonymous(3, "a day mode")}, store.Kept())
 }
@@ -42,9 +43,41 @@ func TestAnAccountThatSentNothingChangesNothing(t *testing.T) {
 	kept := suggestion(1, bob, "more flags")
 	store.Seed(kept)
 
-	require.NoError(t, anonymize_notes_usecase.New(store).Execute(t.Context(), ada))
+	require.NoError(t, anonymize_notes_usecase.New(store, inmemory_attachment_bucket.New()).Execute(t.Context(), ada))
 
 	assert.Equal(t, []notes.Snapshot{kept}, store.Kept())
+}
+
+var files = []notes.Attachment{{MediaType: notes.MediaPNG, Size: 400}, {MediaType: notes.MediaMP4, Size: 9000}}
+
+func carrying(note notes.Snapshot) notes.Snapshot {
+	note.Attachments = files
+	return note
+}
+
+func TestTheFilesOfEveryNoteAnAccountSentAreDeletedAndNoOther(t *testing.T) {
+	store, bucket := inmemory_note_storage.New(), inmemory_attachment_bucket.New()
+	another := carrying(suggestion(2, bob, "more flags"))
+	store.Seed(carrying(suggestion(1, ada, "a night mode")), another, suggestion(3, ada, "a day mode"))
+
+	require.NoError(t, anonymize_notes_usecase.New(store, bucket).Execute(t.Context(), ada))
+
+	assert.Equal(t, []string{
+		inmemory_attachment_bucket.URL(notes.NoteID{15: 1}, 0), inmemory_attachment_bucket.URL(notes.NoteID{15: 1}, 1),
+	}, bucket.Deleted())
+	assert.ElementsMatch(t, []notes.Snapshot{anonymous(1, "a night mode"), another, anonymous(3, "a day mode")}, store.Kept())
+}
+
+func TestANoteWhoseFilesCannotBeDeletedKeepsItsSenderToBeFoundAgain(t *testing.T) {
+	store, bucket := inmemory_note_storage.New(), inmemory_attachment_bucket.New()
+	sent := carrying(suggestion(1, ada, "a night mode"))
+	store.Seed(sent)
+	down := errors.New("the bucket is down")
+	bucket.FailWith(down)
+
+	require.ErrorIs(t, anonymize_notes_usecase.New(store, bucket).Execute(t.Context(), ada), down)
+
+	assert.Equal(t, []notes.Snapshot{sent}, store.Kept())
 }
 
 func TestAFailureToAnonymizeIsAnError(t *testing.T) {
@@ -52,5 +85,5 @@ func TestAFailureToAnonymizeIsAnError(t *testing.T) {
 	refused := errors.New("the database is down")
 	store.FailWith(refused)
 
-	assert.ErrorIs(t, anonymize_notes_usecase.New(store).Execute(t.Context(), ada), refused)
+	assert.ErrorIs(t, anonymize_notes_usecase.New(store, inmemory_attachment_bucket.New()).Execute(t.Context(), ada), refused)
 }

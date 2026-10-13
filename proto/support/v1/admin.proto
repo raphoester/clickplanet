@@ -39,4 +39,13 @@ message Note {
   // What the page said of itself. Every note has one; a note sent before they were kept has an empty one.
   PageContext context = 6;
   string user_agent = 7;
+  // None once the note is anonymized: the files go with the sender.
+  repeated NoteAttachment attachments = 8;
+}
+
+message NoteAttachment {
+  string content_type = 1;
+  uint64 size_bytes = 2;
+  // Good for a short time. It answers 404 when the page never uploaded the file.
+  string url = 3;
 }

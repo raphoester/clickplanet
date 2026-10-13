@@ -15,15 +15,41 @@ export type PageContext = {
     memoryGb: number
 }
 
+export type AttachmentRules = {
+    maxPerNote: number
+    maxBytes: number
+    contentTypes: string[]
+}
+
+export const NO_ATTACHMENTS: AttachmentRules = {maxPerNote: 0, maxBytes: 0, contentTypes: []}
+
+export type AttachmentUpload = {
+    url: string
+}
+
+export type UploadOptions = {
+    onProgress?: (fraction: number) => void
+    signal?: AbortSignal
+}
+
+// Both answer one upload per attachment, in its order: the note is kept first, and its files go up after.
 export interface FeatureSuggester {
-    suggestFeature(text: string, context: PageContext): Promise<void>
+    suggestFeature(text: string, context: PageContext, attachments?: Blob[]): Promise<AttachmentUpload[]>
 }
 
 export interface BugReporter {
-    reportBug(text: string, context: PageContext): Promise<void>
+    reportBug(text: string, context: PageContext, attachments?: Blob[]): Promise<AttachmentUpload[]>
 }
 
-export type SupportBackend = FeatureSuggester & BugReporter
+export interface AttachmentRulesReader {
+    attachmentRules(): Promise<AttachmentRules>
+}
+
+export interface AttachmentUploader {
+    uploadAttachment(upload: AttachmentUpload, file: Blob, options?: UploadOptions): Promise<void>
+}
+
+export type SupportBackend = FeatureSuggester & BugReporter & AttachmentRulesReader & AttachmentUploader
 
 export class SupportRateLimitedError extends Error {
     constructor(options?: {cause?: unknown}) {

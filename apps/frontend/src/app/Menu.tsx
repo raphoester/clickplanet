@@ -340,13 +340,15 @@ export function MorePlace({onTakePicture, taking, support, pageContext = pageAlo
         {note === "suggestion" && support && <NoteModal title="Suggest a feature"
                                                         label="Your idea"
                                                         placeholder="What should the game have?"
-                                                        onSend={(text) => support.suggestFeature(text, pageContext())}
+                                                        files={support}
+                                                        onSend={(text, files) => support.suggestFeature(text, pageContext(), files)}
                                                         onClose={() => setNote(undefined)}/>}
 
         {note === "bug" && support && <NoteModal title="Report a bug"
                                                  label="What happened"
                                                  placeholder="What did you do, and what went wrong?"
-                                                 onSend={(text) => support.reportBug(text, pageContext())}
+                                                 files={support}
+                                                 onSend={(text, files) => support.reportBug(text, pageContext(), files)}
                                                  onClose={() => setNote(undefined)}/>}
     </>
 }

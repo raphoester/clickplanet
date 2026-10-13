@@ -23,14 +23,19 @@ const (
 	batch   = 500
 )
 
-func New(retention time.Duration, clock cptime.Clock, kept Notes) *UseCase {
-	return &UseCase{retention: retention, clock: clock, notes: kept}
+type Attachments interface {
+	Delete(ctx context.Context, of ...notes.Note) error
+}
+
+func New(retention time.Duration, clock cptime.Clock, kept Notes, attachments Attachments) *UseCase {
+	return &UseCase{retention: retention, clock: clock, notes: kept, attachments: attachments}
 }
 
 type UseCase struct {
-	retention time.Duration
-	clock     cptime.Clock
-	notes     Notes
+	retention   time.Duration
+	clock       cptime.Clock
+	notes       Notes
+	attachments Attachments
 }
 
 var _ Executor = (*UseCase)(nil)
@@ -49,6 +54,11 @@ func (u *UseCase) Execute(ctx context.Context) (int64, error) {
 		}
 		if len(old) == 0 {
 			return anonymized, nil
+		}
+
+		// Before the save: a note that still carries its files is found again, files with no note are not.
+		if err := u.attachments.Delete(ctx, old...); err != nil {
+			return anonymized, fmt.Errorf("failed to delete the files of the notes past retention: %w", err)
 		}
 
 		if err := u.notes.Save(ctx, notes.AllAnonymized(old)...); err != nil {

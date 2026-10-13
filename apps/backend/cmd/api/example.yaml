@@ -405,3 +405,16 @@ support:
     perSecond: 0.0167
     burst: 3
     sweepInterval: 1m
+  attachments:
+    # Off: a note takes no file and the bucket below is not read. On, any S3-compatible bucket does.
+    enabled: false
+    maxPerNote: 10
+    maxBytes: 52428800
+    uploadTTL: 30m
+    linkTTL: 1h
+    bucket:
+      endpoint: https://ACCOUNT_ID.r2.cloudflarestorage.com
+      region: auto
+      name: clickplanet-support
+      accessKeyId: ""
+      secretAccessKey: ""

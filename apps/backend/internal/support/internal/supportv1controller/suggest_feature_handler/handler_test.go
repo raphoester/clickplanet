@@ -20,13 +20,14 @@ import (
 var ada = notes.AccountID{15: 1}
 
 type stubUseCase struct {
+	out   suggest_feature_usecase.Out
 	err   error
 	asked []suggest_feature_usecase.In
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in suggest_feature_usecase.In) error {
+func (s *stubUseCase) Execute(_ context.Context, in suggest_feature_usecase.In) (suggest_feature_usecase.Out, error) {
 	s.asked = append(s.asked, in)
-	return s.err
+	return s.out, s.err
 }
 
 func suggest(ctx context.Context, useCase *stubUseCase, text string) error {
@@ -34,12 +35,20 @@ func suggest(ctx context.Context, useCase *stubUseCase, text string) error {
 }
 
 func send(ctx context.Context, useCase *stubUseCase, msg *supportv1.SuggestFeatureRequest, userAgent string) error {
+	_, err := answered(ctx, useCase, msg, userAgent)
+	return err
+}
+
+func answered(
+	ctx context.Context, useCase *stubUseCase, msg *supportv1.SuggestFeatureRequest, userAgent string,
+) (*supportv1.SuggestFeatureResponse, error) {
 	req := connect.NewRequest(msg)
 	req.Header().Set("User-Agent", userAgent)
-	if _, err := suggest_feature_handler.New(useCase).SuggestFeature(ctx, req); err != nil {
-		return fmt.Errorf("SuggestFeature failed: %w", err)
+	res, err := suggest_feature_handler.New(useCase).SuggestFeature(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("SuggestFeature failed: %w", err)
 	}
-	return nil
+	return res.Msg, nil
 }
 
 func asAda(t *testing.T) context.Context {
@@ -64,6 +73,26 @@ func TestTheCallersAccountTheTextThePageAndTheBrowserAreHandedOn(t *testing.T) {
 			Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, GPURenderer: "Apple GPU", UserAgent: "Mozilla/5.0 (iPhone)",
 		},
 	}}, useCase.asked)
+}
+
+func TestTheFilesAreHandedOnAndEachUploadLinkIsAnsweredInItsOrder(t *testing.T) {
+	useCase := &stubUseCase{out: suggest_feature_usecase.Out{UploadURLs: []string{"https://bucket.example/a/0"}}}
+
+	res, err := answered(asAda(t), useCase, &supportv1.SuggestFeatureRequest{
+		Text:        "a night mode",
+		Attachments: []*supportv1.Attachment{{ContentType: "image/png", SizeBytes: 400}},
+	}, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, []notes.Attachment{{MediaType: notes.MediaPNG, Size: 400}}, useCase.asked[0].Attachments)
+	require.Len(t, res.GetUploads(), 1)
+	assert.Equal(t, "https://bucket.example/a/0", res.GetUploads()[0].GetUrl())
+}
+
+func TestFilesTheRulesDoNotTakeAreTheCallersFault(t *testing.T) {
+	err := suggest(asAda(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", notes.ErrInvalidAttachment)}, "a night mode")
+
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
 func TestASuggestionWithNoContextKeepsTheBrowserAlone(t *testing.T) {

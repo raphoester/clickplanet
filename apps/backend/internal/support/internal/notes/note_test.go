@@ -87,6 +87,20 @@ func TestAnAnonymizedNoteKeepsItsTextAndNothingSaysWhoSentIt(t *testing.T) {
 	assert.Equal(t, anonymized, anonymized.Anonymized(), "twice is once")
 }
 
+func TestAnAnonymizedNoteLosesItsFilesWithItsSender(t *testing.T) {
+	carrying := valid()
+	carrying.Attachments = []notes.Attachment{{MediaType: notes.MediaPNG, Size: 400}, {MediaType: notes.MediaMP4, Size: 9000}}
+	note, err := carrying.Restore()
+	require.NoError(t, err)
+
+	anonymized := note.Anonymized()
+
+	want := valid()
+	want.Account = notes.AccountID{}
+	assert.Equal(t, want, anonymized.TakeSnapshot())
+	assert.Equal(t, carrying, note.TakeSnapshot(), "the note it was made from keeps its files")
+}
+
 func TestAnAnonymizedNoteIsRestoredAsItWasKept(t *testing.T) {
 	kept := valid()
 	kept.Account = notes.AccountID{}

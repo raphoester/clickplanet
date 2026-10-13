@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReportBugRequest, ReportBugResponse, SuggestFeatureRequest, SuggestFeatureResponse } from "./support_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { GetAttachmentRulesRequest, GetAttachmentRulesResponse, ReportBugRequest, ReportBugResponse, SuggestFeatureRequest, SuggestFeatureResponse } from "./support_pb.js";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * @generated from service support.v1.SupportService
@@ -29,6 +29,16 @@ export const SupportService = {
       I: ReportBugRequest,
       O: ReportBugResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc support.v1.SupportService.GetAttachmentRules
+     */
+    getAttachmentRules: {
+      name: "GetAttachmentRules",
+      I: GetAttachmentRulesRequest,
+      O: GetAttachmentRulesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 import { PageContext } from "./support_pb.js";
 
 /**
@@ -168,6 +168,13 @@ export class Note extends Message<Note> {
    */
   userAgent = "";
 
+  /**
+   * None once the note is anonymized: the files go with the sender.
+   *
+   * @generated from field: repeated support.v1.NoteAttachment attachments = 8;
+   */
+  attachments: NoteAttachment[] = [];
+
   constructor(data?: PartialMessage<Note>) {
     super();
     proto3.util.initPartial(data, this);
@@ -183,6 +190,7 @@ export class Note extends Message<Note> {
     { no: 5, name: "submitted_at", kind: "message", T: Timestamp },
     { no: 6, name: "context", kind: "message", T: PageContext },
     { no: 7, name: "user_agent", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "attachments", kind: "message", T: NoteAttachment, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Note {
@@ -199,6 +207,57 @@ export class Note extends Message<Note> {
 
   static equals(a: Note | PlainMessage<Note> | undefined, b: Note | PlainMessage<Note> | undefined): boolean {
     return proto3.util.equals(Note, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.NoteAttachment
+ */
+export class NoteAttachment extends Message<NoteAttachment> {
+  /**
+   * @generated from field: string content_type = 1;
+   */
+  contentType = "";
+
+  /**
+   * @generated from field: uint64 size_bytes = 2;
+   */
+  sizeBytes = protoInt64.zero;
+
+  /**
+   * Good for a short time. It answers 404 when the page never uploaded the file.
+   *
+   * @generated from field: string url = 3;
+   */
+  url = "";
+
+  constructor(data?: PartialMessage<NoteAttachment>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.NoteAttachment";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "size_bytes", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 3, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NoteAttachment {
+    return new NoteAttachment().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NoteAttachment {
+    return new NoteAttachment().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NoteAttachment {
+    return new NoteAttachment().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NoteAttachment | PlainMessage<NoteAttachment> | undefined, b: NoteAttachment | PlainMessage<NoteAttachment> | undefined): boolean {
+    return proto3.util.equals(NoteAttachment, a, b);
   }
 }
 

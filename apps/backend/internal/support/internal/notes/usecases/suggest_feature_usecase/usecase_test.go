@@ -9,6 +9,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/inmemory_attachment_bucket"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/inmemory_note_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/suggest_feature_usecase"
 )
@@ -18,8 +19,10 @@ func TestRunSuite(t *testing.T) {
 }
 
 var (
-	now = time.Date(2026, 10, 11, 20, 0, 0, 0, time.UTC)
-	ada = notes.AccountID{15: 1}
+	now   = time.Date(2026, 10, 11, 20, 0, 0, 0, time.UTC)
+	ada   = notes.AccountID{15: 1}
+	rules = notes.AttachmentRules{MaxPerNote: 2, MaxBytes: 1000}
+	files = []notes.Attachment{{MediaType: notes.MediaPNG, Size: 400}, {MediaType: notes.MediaMP4, Size: 1000}}
 )
 
 type failingIDs struct{}
@@ -30,20 +33,24 @@ type testSuite struct {
 	suite.Suite
 
 	notes   *inmemory_note_storage.Storage
+	bucket  *inmemory_attachment_bucket.Bucket
 	useCase *suggest_feature_usecase.UseCase
 }
 
 func (s *testSuite) SetupTest() {
 	s.notes = inmemory_note_storage.New()
+	s.bucket = inmemory_attachment_bucket.New()
 	s.useCase = s.build(&notes.SequentialIDs{})
 }
 
 func (s *testSuite) build(ids notes.IDProvider) *suggest_feature_usecase.UseCase {
-	return suggest_feature_usecase.New(ids, cptime.NewFixedClock(now), s.notes)
+	return suggest_feature_usecase.New(ids, cptime.NewFixedClock(now), rules, s.notes, s.bucket)
 }
 
 func (s *testSuite) suggest(useCase *suggest_feature_usecase.UseCase, text string) error {
-	return useCase.Execute(s.T().Context(), suggest_feature_usecase.In{Account: ada, Text: text})
+	out, err := useCase.Execute(s.T().Context(), suggest_feature_usecase.In{Account: ada, Text: text})
+	s.Empty(out.UploadURLs, "no file, no link")
+	return err
 }
 
 func (s *testSuite) TestASuggestionIsKeptCleanedWithAnIDAndTheTimeUnderItsAccount() {
@@ -57,12 +64,46 @@ func (s *testSuite) TestASuggestionIsKeptCleanedWithAnIDAndTheTimeUnderItsAccoun
 func (s *testSuite) TestASuggestionIsKeptWithWhatThePageSaid() {
 	said := notes.Diagnostics{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, GPURenderer: "Apple GPU"}
 
-	err := s.useCase.Execute(s.T().Context(), suggest_feature_usecase.In{Account: ada, Text: "a night mode", Diagnostics: said})
+	_, err := s.useCase.Execute(s.T().Context(), suggest_feature_usecase.In{Account: ada, Text: "a night mode", Diagnostics: said})
 
 	s.Require().NoError(err)
 	s.Equal([]notes.Snapshot{{
 		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, Text: "a night mode", Diagnostics: said, At: now,
 	}}, s.notes.Kept())
+}
+
+func (s *testSuite) TestASuggestionIsKeptWithItsFilesAndAnswersOneUploadLinkEachInTheirOrder() {
+	out, err := s.useCase.Execute(s.T().Context(),
+		suggest_feature_usecase.In{Account: ada, Text: "a night mode", Attachments: files})
+	s.Require().NoError(err)
+
+	s.Equal([]string{
+		inmemory_attachment_bucket.URL(notes.NoteID{15: 1}, 0), inmemory_attachment_bucket.URL(notes.NoteID{15: 1}, 1),
+	}, out.UploadURLs)
+	s.Equal([]notes.Snapshot{{
+		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, Text: "a night mode", Attachments: files, At: now,
+	}}, s.notes.Kept())
+}
+
+func (s *testSuite) TestFilesTheRulesDoNotTakeAreRefusedAndNothingIsKept() {
+	tooBig := []notes.Attachment{{MediaType: notes.MediaMP4, Size: 1001}}
+
+	_, err := s.useCase.Execute(s.T().Context(),
+		suggest_feature_usecase.In{Account: ada, Text: "a night mode", Attachments: tooBig})
+
+	s.Require().ErrorIs(err, notes.ErrInvalidAttachment)
+	s.Empty(s.notes.Kept())
+}
+
+func (s *testSuite) TestASuggestionWhoseUploadLinksCannotBeMadeIsNotKept() {
+	cause := errors.New("no bucket")
+	s.bucket.FailWith(cause)
+
+	_, err := s.useCase.Execute(s.T().Context(),
+		suggest_feature_usecase.In{Account: ada, Text: "a night mode", Attachments: files})
+
+	s.Require().ErrorIs(err, cause)
+	s.Empty(s.notes.Kept())
 }
 
 func (s *testSuite) TestEachSuggestionGetsAnIDOfItsOwn() {

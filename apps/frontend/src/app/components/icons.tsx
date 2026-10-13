@@ -102,6 +102,25 @@ export function BulbIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function ClipIcon({size = 18}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.2}>
+        <path d="M20 11.5 12.2 19.3a5 5 0 0 1-7.1-7.1l8.2-8.2a3.4 3.4 0 0 1 4.8 4.8l-8.1 8.1a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4"/>
+    </svg>
+}
+
+export function FilmIcon({size = 20}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/>
+        <path d="M10 9.2v5.6l4.8-2.8z"/>
+    </svg>
+}
+
+export function CheckIcon({size = 16}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.8}>
+        <path d="M5 12.5 10 17.5 19 7.5"/>
+    </svg>
+}
+
 export function BugIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
         <path d="M9.5 7a2.5 2.5 0 0 1 5 0"/>

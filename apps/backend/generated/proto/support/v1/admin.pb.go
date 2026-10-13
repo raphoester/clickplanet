@@ -187,8 +187,10 @@ type Note struct {
 	Text        string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
 	SubmittedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`
 	// What the page said of itself. Every note has one; a note sent before they were kept has an empty one.
-	Context       *PageContext `protobuf:"bytes,6,opt,name=context,proto3" json:"context,omitempty"`
-	UserAgent     string       `protobuf:"bytes,7,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
+	Context   *PageContext `protobuf:"bytes,6,opt,name=context,proto3" json:"context,omitempty"`
+	UserAgent string       `protobuf:"bytes,7,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
+	// None once the note is anonymized: the files go with the sender.
+	Attachments   []*NoteAttachment `protobuf:"bytes,8,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -272,6 +274,74 @@ func (x *Note) GetUserAgent() string {
 	return ""
 }
 
+func (x *Note) GetAttachments() []*NoteAttachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
+type NoteAttachment struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	ContentType string                 `protobuf:"bytes,1,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	SizeBytes   uint64                 `protobuf:"varint,2,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	// Good for a short time. It answers 404 when the page never uploaded the file.
+	Url           string `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NoteAttachment) Reset() {
+	*x = NoteAttachment{}
+	mi := &file_support_v1_admin_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NoteAttachment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NoteAttachment) ProtoMessage() {}
+
+func (x *NoteAttachment) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NoteAttachment.ProtoReflect.Descriptor instead.
+func (*NoteAttachment) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *NoteAttachment) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *NoteAttachment) GetSizeBytes() uint64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *NoteAttachment) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
 var File_support_v1_admin_proto protoreflect.FileDescriptor
 
 const file_support_v1_admin_proto_rawDesc = "" +
@@ -283,7 +353,7 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\x05limit\x18\x02 \x01(\rR\x05limit\x12(\n" +
 	"\x04kind\x18\x03 \x01(\x0e2\x14.support.v1.NoteKindR\x04kind\";\n" +
 	"\x11ListNotesResponse\x12&\n" +
-	"\x05notes\x18\x01 \x03(\v2\x10.support.v1.NoteR\x05notes\"\x84\x02\n" +
+	"\x05notes\x18\x01 \x03(\v2\x10.support.v1.NoteR\x05notes\"\xc2\x02\n" +
 	"\x04Note\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12(\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x14.support.v1.NoteKindR\x04kind\x12\x1d\n" +
@@ -293,7 +363,13 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\fsubmitted_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vsubmittedAt\x121\n" +
 	"\acontext\x18\x06 \x01(\v2\x17.support.v1.PageContextR\acontext\x12\x1d\n" +
 	"\n" +
-	"user_agent\x18\a \x01(\tR\tuserAgent*R\n" +
+	"user_agent\x18\a \x01(\tR\tuserAgent\x12<\n" +
+	"\vattachments\x18\b \x03(\v2\x1a.support.v1.NoteAttachmentR\vattachments\"d\n" +
+	"\x0eNoteAttachment\x12!\n" +
+	"\fcontent_type\x18\x01 \x01(\tR\vcontentType\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x02 \x01(\x04R\tsizeBytes\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url*R\n" +
 	"\bNoteKind\x12\x19\n" +
 	"\x15NOTE_KIND_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14NOTE_KIND_SUGGESTION\x10\x01\x12\x11\n" +
@@ -318,29 +394,31 @@ func file_support_v1_admin_proto_rawDescGZIP() []byte {
 }
 
 var file_support_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_support_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_support_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_support_v1_admin_proto_goTypes = []any{
 	(NoteKind)(0),                 // 0: support.v1.NoteKind
 	(*ListNotesRequest)(nil),      // 1: support.v1.ListNotesRequest
 	(*ListNotesResponse)(nil),     // 2: support.v1.ListNotesResponse
 	(*Note)(nil),                  // 3: support.v1.Note
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
-	(*PageContext)(nil),           // 5: support.v1.PageContext
+	(*NoteAttachment)(nil),        // 4: support.v1.NoteAttachment
+	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
+	(*PageContext)(nil),           // 6: support.v1.PageContext
 }
 var file_support_v1_admin_proto_depIdxs = []int32{
-	4, // 0: support.v1.ListNotesRequest.since:type_name -> google.protobuf.Timestamp
+	5, // 0: support.v1.ListNotesRequest.since:type_name -> google.protobuf.Timestamp
 	0, // 1: support.v1.ListNotesRequest.kind:type_name -> support.v1.NoteKind
 	3, // 2: support.v1.ListNotesResponse.notes:type_name -> support.v1.Note
 	0, // 3: support.v1.Note.kind:type_name -> support.v1.NoteKind
-	4, // 4: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
-	5, // 5: support.v1.Note.context:type_name -> support.v1.PageContext
-	1, // 6: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
-	2, // 7: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	5, // 4: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
+	6, // 5: support.v1.Note.context:type_name -> support.v1.PageContext
+	4, // 6: support.v1.Note.attachments:type_name -> support.v1.NoteAttachment
+	1, // 7: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
+	2, // 8: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_admin_proto_init() }
@@ -355,7 +433,7 @@ func file_support_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_v1_admin_proto_rawDesc), len(file_support_v1_admin_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -6,21 +6,53 @@ service SupportService {
   rpc SuggestFeature(SuggestFeatureRequest) returns (SuggestFeatureResponse);
 
   rpc ReportBug(ReportBugRequest) returns (ReportBugResponse);
+
+  rpc GetAttachmentRules(GetAttachmentRulesRequest) returns (GetAttachmentRulesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message SuggestFeatureRequest {
   string text = 1;
   PageContext context = 2;
+  repeated Attachment attachments = 3;
 }
 
-message SuggestFeatureResponse {}
+message SuggestFeatureResponse {
+  // One per attachment of the request, in its order.
+  repeated Upload uploads = 1;
+}
 
 message ReportBugRequest {
   string text = 1;
   PageContext context = 2;
+  repeated Attachment attachments = 3;
 }
 
-message ReportBugResponse {}
+message ReportBugResponse {
+  // One per attachment of the request, in its order.
+  repeated Upload uploads = 1;
+}
+
+// A photo or a video the page uploads once its note is kept.
+message Attachment {
+  string content_type = 1;
+  uint64 size_bytes = 2;
+}
+
+message Upload {
+  // Takes one PUT of the file, with the Content-Type and the size the attachment was declared with.
+  string url = 1;
+}
+
+message GetAttachmentRulesRequest {}
+
+message GetAttachmentRulesResponse {
+  // 0: this server takes no attachment.
+  uint32 max_per_note = 1;
+  uint64 max_bytes = 2;
+  repeated string content_types = 3;
+}
 
 // What the page knows about itself and its device when a note is sent. The server adds the user agent.
 message PageContext {

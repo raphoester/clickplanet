@@ -148,6 +148,7 @@ func (s *StorageContractSuite) anonymized(snapshot Snapshot) Snapshot {
 	s.Require().NoError(s.storage.Save(s.T().Context(), note.Anonymized()))
 
 	snapshot.Account = AccountID{}
+	snapshot.Attachments = nil
 	return snapshot
 }
 

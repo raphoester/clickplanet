@@ -2,6 +2,8 @@ package notes_query_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -27,7 +29,16 @@ type testSuite struct {
 
 	db    *cppg.Postgres
 	notes *postgres_note_store.Store
+	links *stubLinks
 	query *notes_query.PostgresQuery
+}
+
+type stubLinks struct {
+	err error
+}
+
+func (l *stubLinks) ViewURL(note string, position int) (string, error) {
+	return fmt.Sprintf("https://bucket.example/%s/%d", note, position), l.err
 }
 
 var (
@@ -39,11 +50,13 @@ var (
 func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "support", migrations.FS)
 	s.notes = postgres_note_store.New(s.db)
-	s.query = notes_query.NewPostgresQuery(s.db)
+	s.links = &stubLinks{}
+	s.query = notes_query.NewPostgresQuery(s.db, s.links)
 }
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
+	s.links.err = nil
 }
 
 var phone = notes.Diagnostics{
@@ -73,7 +86,15 @@ func (s *testSuite) kept(note notes.Note, kind supportv1.NoteKind) *supportv1.No
 
 	sent := note.TakeSnapshot()
 	said := sent.Diagnostics
+	attachments := make([]*supportv1.NoteAttachment, 0, len(sent.Attachments))
+	for position, file := range sent.Attachments {
+		attachments = append(attachments, &supportv1.NoteAttachment{
+			ContentType: string(file.MediaType), SizeBytes: uint64(file.Size), //nolint:gosec // a size a test wrote.
+			Url: fmt.Sprintf("https://bucket.example/%s/%d", uuid.UUID(sent.ID), position),
+		})
+	}
 	return &supportv1.Note{
+		Attachments: attachments,
 		Id:          uuid.UUID(sent.ID).String(),
 		Kind:        kind,
 		AccountId:   sent.Account.String(),
@@ -125,6 +146,50 @@ func (s *testSuite) TestEveryNoteComesWithEverythingThePageAndTheBrowserSaid() {
 	s.same([]*supportv1.Note{idea, bare, bug}, got)
 	s.Equal("Apple GPU", got[0].GetContext().GetGpuRenderer())
 	s.NotNil(got[1].GetContext(), "a note whose page said nothing has a context, with nothing in it")
+}
+
+var files = []notes.Attachment{{MediaType: notes.MediaMP4, Size: 48_000_000}, {MediaType: notes.MediaPNG, Size: 120_000}}
+
+func (s *testSuite) carrying(n byte, account notes.AccountID, text string, at time.Time) notes.Note {
+	note, err := notes.NewBugReport(notes.NoteID{15: n}, account, text, notes.Diagnostics{}, at)
+	s.Require().NoError(err)
+	note, err = note.Attaching(files, notes.AttachmentRules{MaxPerNote: 2, MaxBytes: 50_000_000})
+	s.Require().NoError(err)
+	return note
+}
+
+func (s *testSuite) TestANoteComesWithEachOfItsFilesInOrderAndALinkToItAndTheOthersWithNone() {
+	bare := s.suggested(1, ada, "a night mode", start)
+	bug := s.kept(s.carrying(2, bob, "the globe is black", start.Add(time.Minute)), supportv1.NoteKind_NOTE_KIND_BUG)
+
+	got := s.read(time.Time{}, 0)
+
+	s.same([]*supportv1.Note{bug, bare}, got)
+	s.Require().Len(got[0].GetAttachments(), 2)
+	s.Equal("video/mp4", got[0].GetAttachments()[0].GetContentType())
+	s.Equal(uint64(48_000_000), got[0].GetAttachments()[0].GetSizeBytes())
+	s.Equal("https://bucket.example/00000000-0000-0000-0000-000000000002/1", got[0].GetAttachments()[1].GetUrl())
+	s.Empty(got[1].GetAttachments())
+}
+
+func (s *testSuite) TestAnAnonymizedNoteIsReadWithNoFile() {
+	sent := s.carrying(1, ada, "the globe is black", start)
+	s.Require().NoError(s.notes.Save(s.T().Context(), sent))
+	s.Require().NoError(s.notes.Save(s.T().Context(), sent.Anonymized()))
+
+	got := s.read(time.Time{}, 0)
+
+	s.Require().Len(got, 1)
+	s.Empty(got[0].GetAttachments())
+}
+
+func (s *testSuite) TestALinkThatCannotBeMadeRefusesTheRead() {
+	s.Require().NoError(s.notes.Save(s.T().Context(), s.carrying(1, ada, "the globe is black", start)))
+	s.links.err = errors.New("no bucket")
+
+	_, err := s.query.Notes(s.T().Context(), time.Time{}, supportv1.NoteKind_NOTE_KIND_UNSPECIFIED, 0)
+
+	s.Require().ErrorIs(err, s.links.err)
 }
 
 func (s *testSuite) TestANoteKeptBeforeADiagnosticOrWithOneThisBuildDoesNotKnowIsStillRead() {

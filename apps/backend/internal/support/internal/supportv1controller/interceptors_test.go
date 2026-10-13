@@ -114,3 +114,17 @@ func TestEveryProcedureNeedsATokenMintedAfterACheck(t *testing.T) {
 		require.False(t, ran, procedure)
 	}
 }
+
+func TestThePageAsksWhatItMayAttachWithNoSessionAndSpendsNothing(t *testing.T) {
+	limiter := &fakeLimiter{allow: false}
+	session := NewSessionInterceptor(tokenVerifier{}, cptime.SystemClock{}, prometheus.NewRegistry())
+
+	_, ran, err := run(t.Context(), session, supportv1connect.SupportServiceGetAttachmentRulesProcedure, "")
+	require.NoError(t, err)
+	require.True(t, ran)
+
+	_, ran, err = run(t.Context(), NewRateLimitInterceptor(limiter), supportv1connect.SupportServiceGetAttachmentRulesProcedure, "")
+	require.NoError(t, err)
+	require.True(t, ran)
+	require.Empty(t, limiter.keys)
+}

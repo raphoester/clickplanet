@@ -20,22 +20,31 @@ import (
 var ada = notes.AccountID{15: 1}
 
 type stubUseCase struct {
+	out   report_bug_usecase.Out
 	err   error
 	asked []report_bug_usecase.In
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in report_bug_usecase.In) error {
+func (s *stubUseCase) Execute(_ context.Context, in report_bug_usecase.In) (report_bug_usecase.Out, error) {
 	s.asked = append(s.asked, in)
-	return s.err
+	return s.out, s.err
 }
 
 func report(ctx context.Context, useCase *stubUseCase, msg *supportv1.ReportBugRequest, userAgent string) error {
+	_, err := answered(ctx, useCase, msg, userAgent)
+	return err
+}
+
+func answered(
+	ctx context.Context, useCase *stubUseCase, msg *supportv1.ReportBugRequest, userAgent string,
+) (*supportv1.ReportBugResponse, error) {
 	req := connect.NewRequest(msg)
 	req.Header().Set("User-Agent", userAgent)
-	if _, err := report_bug_handler.New(useCase).ReportBug(ctx, req); err != nil {
-		return fmt.Errorf("ReportBug failed: %w", err)
+	res, err := report_bug_handler.New(useCase).ReportBug(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("ReportBug failed: %w", err)
 	}
-	return nil
+	return res.Msg, nil
 }
 
 func asAda(t *testing.T) context.Context {
@@ -60,6 +69,39 @@ func TestTheTextThePageAndTheBrowserAreHandedOn(t *testing.T) {
 			Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, ConnectionDown: true, UserAgent: "Mozilla/5.0 (iPhone)",
 		},
 	}}, useCase.asked)
+}
+
+func TestTheFilesAreHandedOnAndEachUploadLinkIsAnsweredInItsOrder(t *testing.T) {
+	useCase := &stubUseCase{out: report_bug_usecase.Out{UploadURLs: []string{"https://bucket.example/a/0", "https://bucket.example/a/1"}}}
+
+	res, err := answered(asAda(t), useCase, &supportv1.ReportBugRequest{
+		Text: "the globe is black",
+		Attachments: []*supportv1.Attachment{
+			{ContentType: "image/png", SizeBytes: 400}, {ContentType: "video/mp4", SizeBytes: 9000},
+		},
+	}, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, []notes.Attachment{
+		{MediaType: notes.MediaPNG, Size: 400}, {MediaType: notes.MediaMP4, Size: 9000},
+	}, useCase.asked[0].Attachments)
+	require.Len(t, res.GetUploads(), 2)
+	assert.Equal(t, "https://bucket.example/a/0", res.GetUploads()[0].GetUrl())
+	assert.Equal(t, "https://bucket.example/a/1", res.GetUploads()[1].GetUrl())
+}
+
+func TestAReportWithNoFileAnswersNoUpload(t *testing.T) {
+	res, err := answered(asAda(t), &stubUseCase{}, &supportv1.ReportBugRequest{Text: "the globe is black"}, "")
+
+	require.NoError(t, err)
+	assert.Empty(t, res.GetUploads())
+}
+
+func TestFilesTheRulesDoNotTakeAreTheCallersFault(t *testing.T) {
+	err := report(asAda(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", notes.ErrInvalidAttachment)},
+		&supportv1.ReportBugRequest{Text: "the globe is black"}, "")
+
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
 func TestAReportWithNoContextKeepsTheBrowserAlone(t *testing.T) {

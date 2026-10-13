@@ -39,6 +39,7 @@ type gameStack struct {
 	adminURL string
 	fakes    auth.FakeProviders
 	postgres *cppg.TestServer
+	bucket   *fakeBucket
 }
 
 func startGame(t *testing.T) gameStack {
@@ -76,7 +77,14 @@ func startGame(t *testing.T) gameStack {
 	chatConfig.RateLimiter.PerSecond = 100
 	chatConfig.RateLimiter.Burst = 100
 
+	bucket := startBucket(t)
 	supportConfig := support.Config{Database: postgres.ConfigFor("support")}
+	supportConfig.Attachments.Enabled = true
+	supportConfig.Attachments.Bucket.Endpoint = bucket.url
+	supportConfig.Attachments.Bucket.Region = "auto"
+	supportConfig.Attachments.Bucket.Name = "support"
+	supportConfig.Attachments.Bucket.AccessKeyID = "the-key-id"
+	supportConfig.Attachments.Bucket.SecretAccessKey = "the-secret-key"
 
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
 
@@ -101,6 +109,7 @@ func startGame(t *testing.T) gameStack {
 
 	return gameStack{
 		baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes, postgres: postgres,
+		bucket: bucket,
 	}
 }
 
