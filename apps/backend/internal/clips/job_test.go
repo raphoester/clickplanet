@@ -35,18 +35,19 @@ func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, err := io.ReadAll(r.Body)
 		assert.NoError(t, err)
+		w.Header().Set("Content-Type", "application/json")
 
 		switch r.Method + " " + r.URL.Path {
-		case "GET /accounts":
+		case "GET /v1/accounts":
 			_, _ = fmt.Fprint(w, `{"accounts":[{"_id":"acc-1","platform":"tiktok","isActive":true}]}`)
-		case "POST /media/presign":
+		case "POST /v1/media/presign":
 			var asked struct {
 				Filename string `json:"filename"`
 			}
 			assert.NoError(t, json.Unmarshal(raw, &asked))
 			_, _ = fmt.Fprintf(w, `{"uploadUrl":%q,"publicUrl":%q}`, server.URL+"/storage/"+asked.Filename, "https://media.example/"+asked.Filename)
 		case "PUT /storage/clip-1.mp4", "PUT /storage/clip-2.mp4":
-		case "POST /posts":
+		case "POST /v1/posts":
 			var post sentPost
 			assert.NoError(t, json.Unmarshal(raw, &post))
 			*posts = append(*posts, post)
@@ -110,6 +111,7 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 
 func TestARunThatZernioRefusesReportsWhyForEachClip(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = fmt.Fprint(w, `{"error":"Invalid API key"}`)
 	}))
@@ -126,7 +128,7 @@ func TestARunThatZernioRefusesReportsWhyForEachClip(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, report, 1)
 	assert.False(t, report.Complete())
-	assert.Contains(t, report[0].Failure, "zernio answered 401 to GET /accounts")
+	assert.Contains(t, report[0].Failure, "zernio answered 401 to the list of accounts: Invalid API key")
 	assert.Contains(t, logs.String(), `level=ERROR msg="failed to schedule a clip"`)
 }
 

@@ -1,0 +1,15 @@
+package: zernioapi
+generate:
+  models: true
+  client: true
+output: generated/zernioapi/client.gen.go
+compatibility:
+  always-prefix-enum-values: true
+output-options:
+  include-operation-ids:
+    - listAccounts
+    - getMediaPresignedUrl
+    - createPost
+  generate-types-for-anonymous-schemas: true
+  overlay:
+    path: zernio/overlay.yaml

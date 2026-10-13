@@ -16,16 +16,17 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/generated/zernioapi"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 )
 
-const Production = "https://zernio.com/api/v1"
+const Production = "https://zernio.com/api"
 
 const (
-	maxBodyBytes = 1 << 20
-	platform     = "tiktok"
-	videoType    = "video/mp4"
-	scheduled    = "scheduled"
+	maxBodyBytes = 1 << 16
+	platform     = string(zernioapi.SocialAccountPlatformTiktok)
+	everyone     = "PUBLIC_TO_EVERYONE"
+	inFlight     = "idempotency_conflict"
 )
 
 type Config struct {
@@ -40,12 +41,21 @@ func New(config Config, httpClient *http.Client) (*Service, error) {
 	if config.BaseURL == "" {
 		config.BaseURL = Production
 	}
-	return &Service{base: config.BaseURL, key: config.APIKey, http: httpClient}, nil
+
+	api, err := zernioapi.NewClientWithResponses(config.BaseURL, zernioapi.WithHTTPClient(httpClient),
+		zernioapi.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
+			req.Header.Set("Authorization", "Bearer "+config.APIKey)
+			return nil
+		}))
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the zernio client: %w", err)
+	}
+	return &Service{api: api, http: httpClient}, nil
 }
 
 type Service struct {
-	base string
-	key  string
+	api *zernioapi.ClientWithResponses
+	// For the upload alone: the storage is not zernio's API, and the key never goes there.
 	http *http.Client
 }
 
@@ -71,78 +81,69 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.PostID, 
 	// The same video is the same post: a run made again does not post it twice.
 	key := sha256.Sum256(video)
 
-	var created created
-	err = s.call(ctx, http.MethodPost, "/posts", map[string]string{"Idempotency-Key": hex.EncodeToString(key[:])}, createPost{
-		Title:        snapshot.Title,
-		Content:      snapshot.Caption,
-		MediaItems:   []mediaItem{{Type: "video", URL: media}},
-		Platforms:    []target{{Platform: platform, AccountID: account}},
-		ScheduledFor: snapshot.At.UTC().Format(time.RFC3339),
-		TikTok: tiktokSettings{
-			PrivacyLevel: "PUBLIC_TO_EVERYONE", AllowComment: true, AllowDuet: true, AllowStitch: true,
-			ContentPreviewConfirmed: true, ExpressConsentGiven: true,
-		},
-	}, &created)
+	answer, err := s.api.CreatePostWithResponse(ctx,
+		&zernioapi.CreatePostParams{IdempotencyKey: new(hex.EncodeToString(key[:]))},
+		zernioapi.CreatePostJSONRequestBody{
+			Title:        &snapshot.Title,
+			Content:      &snapshot.Caption,
+			MediaItems:   &[]zernioapi.MediaItem{{Type: new(zernioapi.MediaItemTypeVideo), Url: &media}},
+			Platforms:    &[]zernioapi.CreatePostJSONBody_Platforms{{Platform: platform, AccountId: account}},
+			ScheduledFor: new(snapshot.At.UTC()),
+			TiktokSettings: &zernioapi.TikTokPlatformData{
+				PrivacyLevel: new(everyone), AllowComment: new(true), AllowDuet: new(true), AllowStitch: new(true),
+				ContentPreviewConfirmed: new(true), ExpressConsentGiven: new(true),
+			},
+		})
+	if err != nil {
+		return "", unreachable(err)
+	}
+
+	kept, err := keptPost(answer)
 	if err != nil {
 		return "", err
 	}
-	if created.Post.ID == "" || created.Post.Status != scheduled {
-		return "", fmt.Errorf("zernio kept the post as %q, not %q", created.Post.Status, scheduled)
+	if kept.UnderscoreId == nil || kept.Status == nil || *kept.Status != zernioapi.PostStatusScheduled {
+		return "", fmt.Errorf("zernio kept the post as %q, not %q", status(kept), zernioapi.PostStatusScheduled)
 	}
-	return posts.PostID(created.Post.ID), nil
+	return posts.PostID(*kept.UnderscoreId), nil
 }
 
-type createPost struct {
-	Title        string         `json:"title"`
-	Content      string         `json:"content"`
-	MediaItems   []mediaItem    `json:"mediaItems"`
-	Platforms    []target       `json:"platforms"`
-	ScheduledFor string         `json:"scheduledFor"`
-	TikTok       tiktokSettings `json:"tiktokSettings"`
+// A 201 is a new post, and a 200 the post an earlier try with the same key already made.
+func keptPost(answer *zernioapi.CreatePostResponse) (zernioapi.Post, error) {
+	switch {
+	case answer.JSON201 != nil && answer.JSON201.Post != nil:
+		return *answer.JSON201.Post, nil
+	case answer.JSON200 != nil:
+		replayed, err := answer.JSON200.AsPostCreateResponse()
+		if err != nil || replayed.Post == nil {
+			return zernioapi.Post{}, errors.New("zernio answered 200 to the post with no post in it")
+		}
+		return *replayed.Post, nil
+	default:
+		return zernioapi.Post{}, refusal(answer.HTTPResponse, answer.Body, "the post")
+	}
 }
 
-type mediaItem struct {
-	Type string `json:"type"`
-	URL  string `json:"url"`
-}
-
-type target struct {
-	Platform  string `json:"platform"`
-	AccountID string `json:"accountId"`
-}
-
-type tiktokSettings struct {
-	PrivacyLevel            string `json:"privacyLevel"`
-	AllowComment            bool   `json:"allowComment"`
-	AllowDuet               bool   `json:"allowDuet"`
-	AllowStitch             bool   `json:"allowStitch"`
-	ContentPreviewConfirmed bool   `json:"contentPreviewConfirmed"`
-	ExpressConsentGiven     bool   `json:"expressConsentGiven"`
-}
-
-type created struct {
-	Post struct {
-		ID     string `json:"_id"`
-		Status string `json:"status"`
-	} `json:"post"`
+func status(post zernioapi.Post) zernioapi.PostStatus {
+	if post.Status == nil {
+		return ""
+	}
+	return *post.Status
 }
 
 func (s *Service) account(ctx context.Context) (string, error) {
-	var listed struct {
-		Accounts []struct {
-			ID       string `json:"_id"`
-			Platform string `json:"platform"`
-			IsActive bool   `json:"isActive"`
-		} `json:"accounts"`
+	answer, err := s.api.ListAccountsWithResponse(ctx, &zernioapi.ListAccountsParams{Platform: new(platform), ExcludeHidden: new(true)})
+	if err != nil {
+		return "", unreachable(err)
 	}
-	if err := s.call(ctx, http.MethodGet, "/accounts?excludeHidden=true&platform="+platform, nil, nil, &listed); err != nil {
-		return "", err
+	if answer.JSON200 == nil {
+		return "", refusal(answer.HTTPResponse, answer.Body, "the list of accounts")
 	}
 
 	var connected []string
-	for _, account := range listed.Accounts {
-		if account.Platform == platform && account.IsActive {
-			connected = append(connected, account.ID)
+	for _, account := range answer.JSON200.Accounts {
+		if string(account.Platform) == platform && account.IsActive {
+			connected = append(connected, account.UnderscoreId)
 		}
 	}
 	if len(connected) != 1 {
@@ -152,87 +153,48 @@ func (s *Service) account(ctx context.Context) (string, error) {
 }
 
 func (s *Service) upload(ctx context.Context, name string, video []byte) (string, error) {
-	var presigned struct {
-		UploadURL string `json:"uploadUrl"`
-		PublicURL string `json:"publicUrl"`
-	}
-	err := s.call(ctx, http.MethodPost, "/media/presign", nil,
-		map[string]any{"filename": name, "contentType": videoType, "size": len(video)}, &presigned)
+	answer, err := s.api.GetMediaPresignedUrlWithResponse(ctx, zernioapi.GetMediaPresignedUrlJSONRequestBody{
+		Filename: name, ContentType: zernioapi.MediaContentTypeVideomp4, Size: new(len(video)),
+	})
 	if err != nil {
-		return "", err
+		return "", unreachable(err)
 	}
-	if presigned.UploadURL == "" || presigned.PublicURL == "" {
+	if answer.JSON200 == nil {
+		return "", refusal(answer.HTTPResponse, answer.Body, "the address to upload the video to")
+	}
+	if answer.JSON200.UploadUrl == nil || answer.JSON200.PublicUrl == nil {
 		return "", errors.New("zernio gave no address to upload the video to")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, presigned.UploadURL, bytes.NewReader(video))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, *answer.JSON200.UploadUrl, bytes.NewReader(video))
 	if err != nil {
 		return "", errors.New("zernio gave an address to upload the video to that is not a URL")
 	}
-	req.Header.Set("Content-Type", videoType)
+	req.Header.Set("Content-Type", string(zernioapi.MediaContentTypeVideomp4))
 
 	res, err := s.http.Do(req)
 	if err != nil {
 		return "", unreachable(err)
 	}
 	defer func() { _ = res.Body.Close() }()
-	_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, maxBodyBytes))
+	said, _ := io.ReadAll(io.LimitReader(res.Body, maxBodyBytes))
 
 	if res.StatusCode/100 != 2 {
-		return "", refusal(res, "the upload of the video", false)
+		return "", refusal(res, said, "the upload of the video")
 	}
-	return presigned.PublicURL, nil
+	return *answer.JSON200.PublicUrl, nil
 }
 
-func (s *Service) call(ctx context.Context, method, path string, headers map[string]string, body, answer any) error {
-	var sent io.Reader
-	if body != nil {
-		encoded, err := json.Marshal(body)
-		if err != nil {
-			return fmt.Errorf("failed to encode the request: %w", err)
-		}
-		sent = bytes.NewReader(encoded)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, s.base+path, sent)
-	if err != nil {
-		return fmt.Errorf("failed to build the request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+s.key)
-	req.Header.Set("Content-Type", "application/json")
-	for name, value := range headers {
-		req.Header.Set(name, value)
-	}
-
-	res, err := s.http.Do(req)
-	if err != nil {
-		return unreachable(err)
-	}
-	defer func() { _ = res.Body.Close() }()
-
-	raw, err := io.ReadAll(io.LimitReader(res.Body, maxBodyBytes))
-	if err != nil {
-		return unreachable(err)
-	}
-
-	var failure struct {
+// Busy for what zernio may take later: a rate limit, a server error, a try made while the one before it is in flight.
+func refusal(res *http.Response, body []byte, what string) error {
+	var said struct {
 		Error string `json:"error"`
 		Code  string `json:"code"`
 	}
-	if res.StatusCode/100 != 2 {
-		_ = json.Unmarshal(raw, &failure)
-		// A try made while the one before it is still in flight: that one's answer comes after the wait.
-		return refusal(res, fmt.Sprintf("%s %s: %s", method, path, failure.Error), failure.Code == "idempotency_conflict")
-	}
-	if err := json.Unmarshal(raw, answer); err != nil {
-		return fmt.Errorf("zernio answered %d to %s %s with a body that is not JSON: %w", res.StatusCode, method, path, err)
-	}
-	return nil
-}
+	_ = json.Unmarshal(body, &said)
 
-func refusal(res *http.Response, what string, inFlight bool) error {
-	reason := fmt.Sprintf("zernio answered %d to %s", res.StatusCode, what)
-	if !inFlight && res.StatusCode != http.StatusTooManyRequests && res.StatusCode/100 != 5 {
+	reason := fmt.Sprintf("zernio answered %d to %s: %s", res.StatusCode, what, said.Error)
+	if said.Code != inFlight && res.StatusCode != http.StatusTooManyRequests && res.StatusCode/100 != 5 {
 		return errors.New(reason)
 	}
 

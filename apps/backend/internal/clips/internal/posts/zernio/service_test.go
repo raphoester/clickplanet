@@ -76,11 +76,11 @@ func (f *zernioFake) serve(t *testing.T) *httptest.Server {
 		assert.NoError(t, err)
 
 		switch call {
-		case "GET /accounts":
+		case "GET /v1/accounts":
 			assert.Equal(t, "tiktok", r.URL.Query().Get("platform"))
 			assert.Equal(t, "true", r.URL.Query().Get("excludeHidden"))
 			f.accounts.write(w)
-		case "POST /media/presign":
+		case "POST /v1/media/presign":
 			assert.NoError(t, json.Unmarshal(raw, &f.presigned))
 			if f.presign.status != 0 {
 				f.presign.write(w)
@@ -92,7 +92,7 @@ func (f *zernioFake) serve(t *testing.T) *httptest.Server {
 		case "PUT /storage/clip-1.mp4":
 			f.uploaded = raw
 			f.upload.write(w)
-		case "POST /posts":
+		case "POST /v1/posts":
 			assert.NoError(t, json.Unmarshal(raw, &f.sent))
 			f.posts.write(w)
 		default:
@@ -133,7 +133,7 @@ func TestAClipIsUploadedThenScheduledOnTheOneTikTokAccount(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.PostID("post-1"), id)
-	assert.Equal(t, []string{"GET /accounts", "POST /media/presign", "PUT /storage/clip-1.mp4", "POST /posts"}, fake.calls)
+	assert.Equal(t, []string{"GET /v1/accounts", "POST /v1/media/presign", "PUT /storage/clip-1.mp4", "POST /v1/posts"}, fake.calls)
 	assert.Equal(t, map[string]any{"filename": "clip-1.mp4", "contentType": "video/mp4", "size": float64(9)}, fake.presigned)
 	assert.Equal(t, []byte("the video"), fake.uploaded)
 	assert.Equal(t, "video/mp4", fake.headers["PUT /storage/clip-1.mp4"].Get("Content-Type"))
@@ -156,7 +156,7 @@ func TestTheKeyGoesToZernioAndNeverToTheStorage(t *testing.T) {
 	_, err := schedule(t, fake)
 
 	require.NoError(t, err)
-	for _, call := range []string{"GET /accounts", "POST /media/presign", "POST /posts"} {
+	for _, call := range []string{"GET /v1/accounts", "POST /v1/media/presign", "POST /v1/posts"} {
 		assert.Equal(t, "Bearer the-key", fake.headers[call].Get("Authorization"), call)
 	}
 	assert.Empty(t, fake.headers["PUT /storage/clip-1.mp4"].Get("Authorization"))
@@ -172,9 +172,32 @@ func TestTheSameVideoIsSentUnderTheSameKeySoARunMadeAgainPostsItOnce(t *testing.
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.PostID("post-1"), id)
-	key := first.headers["POST /posts"].Get("Idempotency-Key")
+	key := first.headers["POST /v1/posts"].Get("Idempotency-Key")
 	assert.Len(t, key, 2*sha256.Size)
-	assert.Equal(t, key, second.headers["POST /posts"].Get("Idempotency-Key"))
+	assert.Equal(t, key, second.headers["POST /v1/posts"].Get("Idempotency-Key"))
+}
+
+func TestAnAnswerWithFieldsAddedLaterIsStillRead(t *testing.T) {
+	fake := newFake()
+	fake.accounts = answer{status: http.StatusOK, body: `{"accounts":[{"_id":"acc-1","platform":"tiktok","profileId":"p-1","isActive":true,"addedLater":1}],"hasAnalyticsAccess":false,"addedLater":1}`}
+	fake.posts = answer{status: http.StatusCreated, body: `{"post":{"_id":"post-1","status":"scheduled","addedLater":1,` +
+		`"platforms":[{"platform":"tiktok","status":"pending","addedLater":1,` +
+		`"accountId":{"_id":"acc-1","platform":"tiktok","username":"@clickplanet","isActive":true,"addedLater":1}}]},"addedLater":1}`}
+
+	id, err := schedule(t, fake)
+
+	require.NoError(t, err)
+	assert.Equal(t, posts.PostID("post-1"), id)
+}
+
+func TestTheSamePostAnsweredAgainWithFieldsAddedLaterIsStillRead(t *testing.T) {
+	fake := newFake()
+	fake.posts = answer{status: http.StatusOK, body: `{"post":{"_id":"post-1","status":"scheduled","addedLater":1},"message":"Post already exists (idempotent retry)","addedLater":1}`}
+
+	id, err := schedule(t, fake)
+
+	require.NoError(t, err)
+	assert.Equal(t, posts.PostID("post-1"), id)
 }
 
 func TestAPostZernioDidNotKeepAsScheduledIsAFailure(t *testing.T) {
@@ -227,7 +250,7 @@ func TestARefusalIsAnErrorThatSaysWhyAndIsNotBusy(t *testing.T) {
 			var busy *posts.BusyError
 			require.Error(t, err)
 			assert.NotErrorAs(t, err, &busy)
-			assert.ErrorContains(t, err, fmt.Sprintf("zernio answered %d to POST /posts: ", refused.status))
+			assert.ErrorContains(t, err, fmt.Sprintf("zernio answered %d to the post: ", refused.status))
 		})
 	}
 }
@@ -245,7 +268,7 @@ func TestNoTikTokAccountOrMoreThanOneIsRefusedBeforeAnyUpload(t *testing.T) {
 			_, err := schedule(t, fake)
 
 			require.ErrorContains(t, err, "exactly one")
-			assert.Equal(t, []string{"GET /accounts"}, fake.calls)
+			assert.Equal(t, []string{"GET /v1/accounts"}, fake.calls)
 		})
 	}
 }
@@ -257,7 +280,7 @@ func TestAFailedUploadSchedulesNothing(t *testing.T) {
 	_, err := schedule(t, fake)
 
 	require.ErrorContains(t, err, "zernio answered 403 to the upload of the video")
-	assert.NotContains(t, fake.calls, "POST /posts")
+	assert.NotContains(t, fake.calls, "POST /v1/posts")
 }
 
 func TestAnUploadThatCannotBeReachedIsBusyAndNeverSaysItsAddress(t *testing.T) {

@@ -45,6 +45,10 @@ make vpn-lists
 # Refresh the vendored disposable email domains from upstream, then commit them
 make disposable-domains
 
+# Refresh the vendored Zernio OpenAPI document from upstream, then regenerate the client from it; commit both
+make zernio-spec
+make zernio
+
 # Build Docker image
 make dBuild
 
@@ -3223,12 +3227,26 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   part out of does not `Restore()`. `Report` is what became of each clip, for the display and the log;
   `Complete()` is whether every one is scheduled.
 
-**`posts/zernio/` is the one file that knows the service** (Zernio, chosen 2026-10-12 over upload-post: its free
-tier has TikTok and the whole API). A change of service is that package, its line in `job.go` and the variable
-`main.go` reads the key from.
+**`posts/zernio/` is the one package that knows the service** (Zernio, chosen 2026-10-12 over upload-post: its
+free tier has TikTok and the whole API). A change of service is that package, its line in `job.go`, the variable
+`main.go` reads the key from, and the client below.
 
-- **Four calls a clip**: `GET /accounts?platform=tiktok`, `POST /media/presign`, a `PUT` of the video to the
-  address that answers, then `POST /posts` with `scheduledFor`. **Never `publishNow`.**
+- **The HTTP client is generated, not written**: `generated/zernioapi/client.gen.go`, by oapi-codegen (pinned in
+  the `Makefile`) from Zernio's own OpenAPI document, vendored as `zernio/openapi.json`. `make zernio-spec`
+  fetches the document Zernio builds its SDKs from, `make zernio` generates. `zernio/oapi-codegen.yaml` names the
+  three operations the job calls, so the client holds those and the types they reach, not the 631 paths of the
+  document; `zernio/overlay.yaml` drops its webhooks. The adapter keeps what no document says: which account,
+  the upload, the idempotency key, and which answer is "busy".
+- **Not Zernio's official Go SDK** (`github.com/zernio-dev/zernio-go`, looked at on 2026-10-13, v0.1.969). It is
+  alive: a bot regenerates it from the same document several times a day, and its one maintainer fixed a
+  critical bug in a day. But **it refuses any answer with a field it does not know** (`DisallowUnknownFields` in
+  the generated models), and Zernio ships its API several times a day. Run against a fake: `ListAccounts` fails
+  on one added field, and `CreatePost` fails on the 201 of the document's own example, **after the post was
+  made**, the bug its issue 4 reported in August. A pinned version breaks when the API grows; ours ignores what
+  it does not know, and two tests pin that (`…FieldsAddedLater…`). It is also 36 MB of Go in one package.
+- **Four calls a clip**: `GET /v1/accounts?platform=tiktok`, `POST /v1/media/presign`, a `PUT` of the video to
+  the address that answers (the storage, not the API: raw HTTP, and no key), then `POST /v1/posts` with
+  `scheduledFor`. **Never `publishNow`.**
 - **It posts to the one connected TikTok account**, and refuses to guess between two: no account id is configured.
   An account per country will need one.
 - **`Idempotency-Key` is the SHA-256 of the video**, so a run made again, or a try after a timeout, is the same
@@ -3554,7 +3572,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 
 API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto), [`player/v1/player.proto`](../../proto/player/v1/player.proto) and [`support/v1/support.proto`](../../proto/support/v1/support.proto); [`clips/v1/clips.proto`](../../proto/clips/v1/clips.proto) has no service, only the two messages the clip generator writes for [the clips job](#the-clips-job-internalclips-cmdclips). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
-`generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
+`generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). `generated/zernioapi` is the one thing there that comes from outside the repo: the client of the posting service, from the vendored `zernio/openapi.json` via `make zernio` — see [The clips job](#the-clips-job-internalclips-cmdclips). Nothing in there is edited by hand; run the target.
 
 The proto package is the **only** version number: Connect derives each route from it, and the controller and connect package names follow — `planet.v1` gives `planetv1controller` and `planetv1connect`, `chat.v1` gives `chatv1controller` and `chatv1connect`. There is no gRPC here — Connect serves the service definitions over ordinary HTTP/1.1 POSTs (and h2c, for clients that want it).
 
