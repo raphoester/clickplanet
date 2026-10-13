@@ -93,6 +93,21 @@ describe("ChatLog", () => {
         expect(cy.style.getPropertyValue("--author-chroma")).toBe("0")
     })
 
+    it("links an address a player wrote, in a new tab, and leaves a guest's as text", () => {
+        const linked = {...message("1", "Ana", "fr"), text: "see https://clickplanet.lol/play now"}
+        const plain = {...message("2", "guest_a1b2c3", "de"), text: "see https://other.example"}
+        render(<ChatLog loading={false} messages={[linked, plain]}/>)
+
+        const links = screen.getAllByRole("link")
+        expect(links).toHaveLength(1)
+        expect(links[0].textContent).toBe("https://clickplanet.lol/play")
+        expect(links[0].getAttribute("href")).toBe("https://clickplanet.lol/play")
+        expect(links[0].getAttribute("target")).toBe("_blank")
+        expect(links[0].getAttribute("rel")).toBe("noopener noreferrer nofollow ugc")
+        expect(links[0].closest(".chat-message-text")!.textContent).toBe("see https://clickplanet.lol/play now")
+        expect(screen.getByText("see https://other.example")).toBeDefined()
+    })
+
     describe("a reply", () => {
         const question = {...message("1", "Ana", "fr"), text: "who holds the north", authorColor: NameColor.TEAL}
         const answer = {...message("2", "Bo", "de"), text: "we do", replyTo: quoteOf(question)}
