@@ -1,0 +1,7 @@
+overlay: 1.0.0
+info:
+  title: What the clips job does not use
+  version: 1.0.0
+actions:
+  - target: $.webhooks
+    remove: true

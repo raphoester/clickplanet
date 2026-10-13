@@ -45,8 +45,17 @@ make vpn-lists
 # Refresh the vendored disposable email domains from upstream, then commit them
 make disposable-domains
 
+# Refresh the vendored Zernio OpenAPI document from upstream, then regenerate the client from it; commit both
+make zernio-spec
+make zernio
+
 # Build Docker image
 make dBuild
+
+# The clips job, as the clips workflow runs it (see "The clips job")
+go run ./cmd/clips fetch -ssh <user@host> -out ../frontend/replay.json
+go run ./cmd/clips choose -shortlist ../frontend/shortlist.json
+ZERNIO_API_KEY=... go run ./cmd/clips schedule -clips ../frontend/clips
 ```
 
 ## Architecture
@@ -77,6 +86,10 @@ shared package because "is this caller a bot" is the business this game is in,
 while `shared` is for things that would read the same in any other program.
 `planet` → `antibot` is the only module-to-module import in the backend.
 
+**`internal/clips/` is not a context of the server either: it is a job, with a binary of its own** (`cmd/clips`).
+It shares no process, no config and no data with the six, and imports only `shared`. See [The clips
+job](#the-clips-job-internalclips-cmdclips).
+
 #### A module publishes its root package and hides the rest
 
 Every module's interior lives behind **its own `internal/`** — `internal/planet/internal/clicks`,
@@ -98,6 +111,7 @@ root package**:
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
+| `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Pick`, `Report` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
@@ -147,6 +161,54 @@ class OutputPipe {
 
 The auth module follows this. Code outside it has not been checked against the rule yet: fix a name when you touch the code, not in a sweep.
 
+### A command's `run` is a table of contents
+
+**Every CLI tool splits its `main` into named stages with one job each.** The top-level `run` names the stages and wires them together, and does nothing else:
+
+```go
+// Good
+func run(ctx context.Context, logger *slog.Logger) error {
+    flags, err := parseFlags()
+    if err != nil {
+        return err
+    }
+    results, err := doWork(ctx, flags, ...)
+    if err != nil {
+        return err
+    }
+    ok := displayResults(results)
+    if !ok {
+        return fmt.Errorf("one or more checks failed")
+    }
+    return nil
+}
+
+// Bad: one run that parses, executes and prints inline
+func run(logger *slog.Logger) error {
+    servicePath := flag.String(...)
+    flag.Parse()
+    // ... business logic ...
+    // ... printing ...
+    anyFailed := false
+    // ...
+}
+```
+
+- **`parseFlags` returns a typed config struct** (`FlagsConfig`). A raw `*string` flag value is never an argument of a function downstream.
+- **A work function returns values.** It does not write into a variable of an outer scope. The body of a goroutine is ideally one assignment: `results[i] = doOneUnit(...)`.
+- **A display function returns a `bool`, or a status.** It owns the output, not the propagation of errors: the caller decides what to do with what it answers.
+- **A signature is honest**: a function that can fail returns an `error`, and one that cannot does not.
+- **Package `main` stays thin: `main`, `run`, and nothing that does the work of a stage.** The stages live in packages of their own. A parser or a table that sits in `main` beside `run` is the monolith again, in three files.
+- **A dispatch names every value it acts on, and anything else is an error.** No `default:` that runs a command: a value nobody expected then does the last thing in the list, and here that is posting.
+
+**`cmd/clips` follows it** (see [The clips job](#the-clips-job-internalclips-cmdclips)): `flags.Parse` in `cmd/clips/internal/flags`, the work in `internal/clips/job.go`, `display.Picks` and `display.Report` in `cmd/clips/internal/display`. `main.go` is `main`, `run`, the dispatch and one short function per command. What it settled:
+
+- **With subcommands, `run` parses, then picks the command**, and each command is its own short list of stages: work, then display. The dispatch has a `case` per command and fails on any other (`errUnknownCommand`), though the parser already refused it.
+- **The parser and the display are the tool's own, under `cmd/clips/internal/`**: Go keeps them out of reach of everything but this command, and they import the module, never the reverse.
+- **A display that writes can fail**, so it answers an `error` beside its `bool`: `display.Report(summaryFile, out, report) (bool, error)`. The `bool` is still what the report says (every clip is scheduled), and the `error` only that the summary could not be written.
+
+`cmd/api` is a server, not a tool: its `run` loads the config and hands the modules to `cpbootstrap`.
+
 ### The composite layer
 
 Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`, `internal/player/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
@@ -167,7 +229,7 @@ A module never sees the router, the signal handler or another module's objects. 
 
 **Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger and the antibot's evidence all flush from their runners, after the closers, once the server has stopped taking writes.
 
-**`cmd/api/main.go` is the composition root, and it is the only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules. It builds no objects, derives nothing, and reads inside no block.
+**`cmd/api/main.go` is the composition root, and the server's only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules. It builds no objects, derives nothing, and reads inside no block.
 
 **The aggregation is the whole of it — a flat slice, no branches, no dependencies threaded through:**
 
@@ -264,7 +326,7 @@ The events today:
 
 Adding a context that callers talk to means a `proto/<name>/v1`, an `internal/<name>/` with a `module.go`, and one line in the slice. Connect derives the route from the proto package, so there is no prefix to allocate and no router to edit.
 
-**`cmd/api`** is the only binary: `main.go` is the composition root, about 85 lines of config and a module list, and `cpbootstrap` is the rest.
+**`cmd/api`** is the server, and the only binary the image holds: `main.go` is the composition root, about 85 lines of config and a module list, and `cpbootstrap` is the rest. **`cmd/clips`** is the other binary, a job a workflow runs with `go run` — see [The clips job](#the-clips-job-internalclips-cmdclips).
 
 It runs as **one container beside a postgres**: the tile map lives in process, and postgres is where it is kept between boots — see [Durability](#durability). There is no cache and no second API process.
 
@@ -3119,9 +3181,133 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 - **`InspectPlayer(scope | account_id)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`. **An account is read on the scope of its latest take** in the ledger, because the watchdogs judge scopes, with the bans on both; an account with no take inside the retention answers its bans alone and an empty `scope`. It changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `ledger.ParseCaller` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
 - `audit_ban`, `audit_unban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers`, `TopPlayers` and `InspectPlayer` are reads and log nothing.
 
+### The clips job (`internal/clips/`, `cmd/clips`)
+
+**Twice a day a workflow makes the best clips of the last 12 hours and schedules them on TikTok**
+(`.github/workflows/clips.yml`; the frontend's CLAUDE.md, "Clips", has the four jobs and how a clip is made). The
+frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
+which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
+meet in files: the replay this job saves for the generator, and `clips.v1.Shortlist` and `clips.v1.Clip`
+(`proto/clips/v1/clips.proto`), which the generator writes as JSON.
+
+```
+clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
+clips choose -shortlist <shortlist.json> [-count 2]
+clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
+```
+
+- **`fetch` saves a replay**: it asks the production backend's operator tool for one
+  ([`GetReplay`](#getreplay)), over SSH, and writes the answer as it came. `CLICKPLANET_SSH` stands in for `-ssh`.
+  With no `-hours` it is 72: the ledger keeps that much in memory, and a replay cannot reach further back.
+- **`choose` prints the picks to render**, as a JSON array on the standard output (`[1,2]`, or `[]` on a quiet half
+  day): the workflow makes one render job of each. The log goes to the standard error. A pick is a story's place
+  in the shortlist, from 1 (`posts.Pick`): what the generator's `--pick` takes.
+- **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the posting
+  service, and adds a table to the summary: each clip, its time, and whether it is scheduled. It exits 1 when a
+  clip was not scheduled, when the folder holds none, or when the summary cannot be written. A clip refused does
+  not stop the next one.
+- **`cmd/clips` is three stages, and `run` only names them**: parse, work, display (see [A command's `run` is a
+  table of contents](#a-commands-run-is-a-table-of-contents)). `main.go` holds no stage.
+  - **`flags.Parse`** (`cmd/clips/internal/flags`) answers one typed `flags.Config`: the command, its files, and
+    the job's `clips.Config` with `CLICKPLANET_SSH` and `ZERNIO_API_KEY` read into it. No flag pointer leaves it.
+    Flags and not `cpconfigs`: the job has a few settings and one secret, and a workflow passes them on the
+    command line.
+  - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks) and
+    `clips.Schedule` (the `Report`), in `internal/clips/job.go`, which wires the objects as a `module.go` does.
+    A clip the service refused is in the report, not in the error: the error is for a run that could not be
+    made at all.
+  - **The display owns the output and says how it went** (`cmd/clips/internal/display`): `display.Picks`
+    writes the array, `display.Report` writes the table, to the summary file when one is named, and answers
+    whether every clip is scheduled. It does not turn that into an error: `schedule` in `main.go` decides, and
+    exits 1 on `errUnsent`.
+  - **The dispatch acts on `fetch`, `choose` and `schedule`, and on nothing else**: any other command is
+    `errUnknownCommand`, and nothing is fetched, printed or posted.
+
+**`internal/clips/internal/replays/` is the fetch**, a concept of its own beside `posts`:
+
+- **`Request.Window(now)`** is which stretch: `Span` back from `Until`, or from now when no end is asked for. A
+  span of nothing or less is refused before anything is asked of the backend.
+- **`ssh_replay_source` runs the `ssh` program**, as the operator does by hand (`deploy/vps/README.md`, "Get a
+  replay for a clip"): `ssh -- <host> "cd … && docker compose exec -T backend wget … GetReplay"`. Not an SSH
+  library: the program brings the agent, the config and the known hosts of whoever runs it, a laptop or the
+  workflow. **`--` ends ssh's options**, so a host that starts with a dash is a host and never
+  `-oProxyCommand=…`. The body is two times the adapter formats itself, so nothing a shell reads goes between
+  its single quotes.
+- **What comes back is checked before it is kept**: it has to read as a `planet.v1.GetReplayResponse` with its
+  window, unknown fields dropped. A 502 page or an empty answer fails the fetch here, not three jobs later in a
+  browser. The file holds the answer byte for byte, never a re-encoding: the generator reads the backend's JSON.
+- **An ssh that fails says what it complained of** (`Permission denied (publickey)`), from its standard error.
+  In the workflow the host is a secret, which Actions masks in the log.
+- Its test runs a fake `ssh`, a shell script that keeps its arguments. No test runs the real one.
+
+**`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
+
+- **`Shortlist.Best(count)`** is which clips: the first `count` stories, all of them when there are fewer. 2 a run
+  (`Config.PerRun`).
+- **`Cadence.Posts(clips, now)`** is when: the best clip a `Review` from now (4 hours), each next one a `Spacing`
+  later (2 hours), on a whole minute and never sooner than the review. So a run at 12:17 UTC that renders in 20
+  minutes posts near 16:40 and 18:40.
+- **Review is opt-out, so nothing is ever sent for a time too close.** `Post.Reviewable(now)` is false under an hour
+  ahead (`leastReview`), and `Sender` then refuses the post (`ErrNoTimeToReview`) rather than send it: nobody could
+  cancel it, and the service publishes a time already past **at once**. It is checked before every try, since a
+  wait eats the review.
+- **`Sender` tries again only when the service is busy**: an adapter answers a `*BusyError` for "not now" (a rate
+  limit, a server error, no answer) and any other error for "no" (a refused caption, a wrong key). `Backoff` waits
+  1, 5 then 15 minutes, or as long as the service said when that is longer; a service that asks for longer than
+  the longest wait fails the post at once. `Pause` is the wait, so a test takes no time (`RecordedPause` moves the
+  fixed clock instead).
+- **`Service` is the posting service, one method**: `Schedule(ctx, post) (PostID, error)`. Its contract is in two
+  lines on it: for the post's time and never sooner, and a post scheduled twice is one post there.
+- `Clip` and `Post` have no getter: an adapter reads `TakeSnapshot()`, and a `ClipSnapshot` the generator left a
+  part out of does not `Restore()`. `Report` is what became of each clip, for the display and the log;
+  `Complete()` is whether every one is scheduled.
+
+**`posts/zernio/` is the one package that knows the service** (Zernio, chosen 2026-10-12 over upload-post: its
+free tier has TikTok and the whole API). A change of service is that package, its line in `job.go`, the variable
+`main.go` reads the key from, and the client below.
+
+- **The HTTP client is generated, not written, and lives in `shared/cpzernio`** with all that makes it:
+  `client.gen.go`, by oapi-codegen (pinned in the `Makefile`) from Zernio's own OpenAPI document, vendored
+  beside it as `openapi.json`. `make zernio-spec` fetches the document Zernio builds its SDKs from, `make zernio`
+  generates. `oapi-codegen.yaml` names the three operations the job calls, so the client holds those and the
+  types they reach, not the 631 paths of the document; `overlay.yaml` drops its webhooks. The adapter keeps what
+  no document says: which account, the upload, the idempotency key, and which answer is "busy".
+- **Not Zernio's official Go SDK** (`github.com/zernio-dev/zernio-go`, looked at on 2026-10-13, v0.1.969). It is
+  alive: a bot regenerates it from the same document several times a day, and its one maintainer fixed a
+  critical bug in a day. But **it refuses any answer with a field it does not know** (`DisallowUnknownFields` in
+  the generated models), and Zernio ships its API several times a day. Run against a fake: `ListAccounts` fails
+  on one added field, and `CreatePost` fails on the 201 of the document's own example, **after the post was
+  made**, the bug its issue 4 reported in August. A pinned version breaks when the API grows; ours ignores what
+  it does not know, and two tests pin that (`…FieldsAddedLater…`). It is also 36 MB of Go in one package.
+- **Four calls a clip**: `GET /v1/accounts?platform=tiktok`, `POST /v1/media/presign`, a `PUT` of the video to
+  the address that answers (the storage, not the API: raw HTTP, and no key), then `POST /v1/posts` with
+  `scheduledFor`. **Never `publishNow`.**
+- **It posts to the one connected TikTok account**, and refuses to guess between two: no account id is configured.
+  An account per country will need one.
+- **`Idempotency-Key` is the SHA-256 of the video**, so a run made again, or a try after a timeout, is the same
+  post there and not a second one. Zernio matches on the key alone, so the video uploaded again under a new
+  address is still the same post.
+- **A post counts only when Zernio keeps it as `scheduled`.** Any other status is a failure, `published` included:
+  that would be a clip that went out with no review.
+- **Busy** is a 429, a 5xx, a 409 `idempotency_conflict` (the try before is still in flight) and a request that
+  got no answer, with `Retry-After` when sent. Every other answer is final, the 409 for content already posted
+  too.
+- **The logs of a public repo are public.** The key goes in the `Authorization` header of the calls to Zernio
+  and never to the storage, and **an error never carries a URL**: the address a video is uploaded to is a
+  credential for an hour, and Go's `url.Error` prints it. `unreachable` keeps the cause and drops the address;
+  a test pins it.
+- **What the job cannot see: a post TikTok refuses at its time**, hours after the run ended. Zernio shows it in
+  its dashboard, as failed.
+- The tests run it against `httptest`, with the requests and the answers of Zernio's OpenAPI document.
+
+`posts/generator_output/` reads the generator's files (`protojson`, unknown fields dropped, so the generator can
+add one first), and both use cases log in a decorator
+(`log_choose_clips`, `log_schedule_clips`), as does the service (`log_service`: each try the service did not take,
+which is what explains a step that waited 20 minutes).
+
 ### Shared (`internal/shared/`)
 
-Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)), `cpcolls` (collections).
+Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)), `cpcolls` (collections), `cpzernio` (the client of the posting service).
 
 **Every package here is prefixed `cp`, and a new one must be.** A call site reads
 `cptime.SystemClock{}` or `cpctx.GetSourceIP(ctx)`, so the prefix says the
@@ -3159,6 +3345,7 @@ The siteverify client it is fed by is **not** here. `turnstile` sat here on the 
 `cpcountries` is the ISO country list both the tile game and the chat validate against. `cpipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `cpratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 
 `cpipscope` decides what a scope's bucket is keyed on, and every throttle goes through it. Over IPv4 that is the address; over IPv6 it is the surrounding **/64**, because the smallest allocation a subscriber receives is a /64 and most receive far more — a bucket per v6 address is one the same line walks out of by picking its next address, turning one home connection into thousands of callers with a throttle each. The session token binds to the same unit, so the address a token is valid for and the address that spends a budget cannot diverge. Blocking deliberately does **not** use it: the VPN and datacenter lists are precise prefixes already, and widening a hit to the surrounding /64 would refuse neighbours who are not on them.
+`cpzernio` is Zernio's HTTP API as Go: a generated client, the vendored OpenAPI document it is generated from, and the two files that configure the generation, all in the one directory, as `cpipblock` keeps its lists in `cpdata`. **Nothing in it is written by hand but the two config files**: `make zernio-spec` refreshes `openapi.json`, `make zernio` writes `client.gen.go`. It knows nothing of clips or of this game, which is why it is here and not in the module: the clips job's `posts/zernio` adapter is its one caller today, and holds everything that is ours (see [The clips job](#the-clips-job-internalclips-cmdclips)). The linters, gofumpt and `make deadcode` leave `client.gen.go` alone by its generated header, not by its path.
 `cpcolls` holds the collections the standard library does not — today `Set[T]`. **A set is a `*cpcolls.Set`, never a map.** A `map[T]struct{}` or a `map[T]bool` written `m[k] = true` fails `make lint`: a ruleguard rule in `tools/ruleguard/rules.go`, run by gocritic, reports both everywhere but in `cpcolls` itself. A nil `*Set` reads as empty, like a nil map, so a lookup in a map of sets needs no `ok` check.
 
 ### Map geography
@@ -3419,7 +3606,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 
 ### Protobuf
 
-API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto), [`player/v1/player.proto`](../../proto/player/v1/player.proto) and [`support/v1/support.proto`](../../proto/support/v1/support.proto). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
+API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto), [`player/v1/player.proto`](../../proto/player/v1/player.proto) and [`support/v1/support.proto`](../../proto/support/v1/support.proto); [`clips/v1/clips.proto`](../../proto/clips/v1/clips.proto) has no service, only the two messages the clip generator writes for [the clips job](#the-clips-job-internalclips-cmdclips). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
 `generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
 

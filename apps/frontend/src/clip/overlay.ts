@@ -12,6 +12,7 @@ export type Words = {
     link: string
     // What to post with the clip: links in a caption cannot be clicked, so the site is plain text.
     caption: string
+    tags: string[]
 }
 
 export type Moment = {
@@ -118,9 +119,10 @@ export function wordsOf(story: Story, headline?: string): Words {
     const tags = [...TAGS, ...placeTags]
     const sides = sidesOf(story)
     // The caption asks what the call at the end asks.
-    const finish = (words: Omit<Words, "caption">, question: string): Words => ({
+    const finish = (words: Omit<Words, "caption" | "tags">, question: string): Words => ({
         ...words,
         caption: `${words.headline}. ${question} 👇\nclickplanet.lol\n${tags.join(" ")}`,
+        tags,
     })
 
     if (story.kind === "rout") {
