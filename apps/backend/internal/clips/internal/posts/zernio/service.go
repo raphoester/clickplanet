@@ -16,15 +16,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/generated/zernioapi"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpzernio"
 )
 
 const Production = "https://zernio.com/api"
 
 const (
 	maxBodyBytes = 1 << 16
-	platform     = string(zernioapi.SocialAccountPlatformTiktok)
+	platform     = string(cpzernio.SocialAccountPlatformTiktok)
 	everyone     = "PUBLIC_TO_EVERYONE"
 	inFlight     = "idempotency_conflict"
 )
@@ -42,8 +42,8 @@ func New(config Config, httpClient *http.Client) (*Service, error) {
 		config.BaseURL = Production
 	}
 
-	api, err := zernioapi.NewClientWithResponses(config.BaseURL, zernioapi.WithHTTPClient(httpClient),
-		zernioapi.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
+	api, err := cpzernio.NewClientWithResponses(config.BaseURL, cpzernio.WithHTTPClient(httpClient),
+		cpzernio.WithRequestEditorFn(func(_ context.Context, req *http.Request) error {
 			req.Header.Set("Authorization", "Bearer "+config.APIKey)
 			return nil
 		}))
@@ -54,7 +54,7 @@ func New(config Config, httpClient *http.Client) (*Service, error) {
 }
 
 type Service struct {
-	api *zernioapi.ClientWithResponses
+	api *cpzernio.ClientWithResponses
 	// For the upload alone: the storage is not zernio's API, and the key never goes there.
 	http *http.Client
 }
@@ -82,14 +82,14 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.PostID, 
 	key := sha256.Sum256(video)
 
 	answer, err := s.api.CreatePostWithResponse(ctx,
-		&zernioapi.CreatePostParams{IdempotencyKey: new(hex.EncodeToString(key[:]))},
-		zernioapi.CreatePostJSONRequestBody{
+		&cpzernio.CreatePostParams{IdempotencyKey: new(hex.EncodeToString(key[:]))},
+		cpzernio.CreatePostJSONRequestBody{
 			Title:        &snapshot.Title,
 			Content:      &snapshot.Caption,
-			MediaItems:   &[]zernioapi.MediaItem{{Type: new(zernioapi.MediaItemTypeVideo), Url: &media}},
-			Platforms:    &[]zernioapi.CreatePostJSONBody_Platforms{{Platform: platform, AccountId: account}},
+			MediaItems:   &[]cpzernio.MediaItem{{Type: new(cpzernio.MediaItemTypeVideo), Url: &media}},
+			Platforms:    &[]cpzernio.CreatePostJSONBody_Platforms{{Platform: platform, AccountId: account}},
 			ScheduledFor: new(snapshot.At.UTC()),
-			TiktokSettings: &zernioapi.TikTokPlatformData{
+			TiktokSettings: &cpzernio.TikTokPlatformData{
 				PrivacyLevel: new(everyone), AllowComment: new(true), AllowDuet: new(true), AllowStitch: new(true),
 				ContentPreviewConfirmed: new(true), ExpressConsentGiven: new(true),
 			},
@@ -102,29 +102,29 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.PostID, 
 	if err != nil {
 		return "", err
 	}
-	if kept.UnderscoreId == nil || kept.Status == nil || *kept.Status != zernioapi.PostStatusScheduled {
-		return "", fmt.Errorf("zernio kept the post as %q, not %q", status(kept), zernioapi.PostStatusScheduled)
+	if kept.UnderscoreId == nil || kept.Status == nil || *kept.Status != cpzernio.PostStatusScheduled {
+		return "", fmt.Errorf("zernio kept the post as %q, not %q", status(kept), cpzernio.PostStatusScheduled)
 	}
 	return posts.PostID(*kept.UnderscoreId), nil
 }
 
 // A 201 is a new post, and a 200 the post an earlier try with the same key already made.
-func keptPost(answer *zernioapi.CreatePostResponse) (zernioapi.Post, error) {
+func keptPost(answer *cpzernio.CreatePostResponse) (cpzernio.Post, error) {
 	switch {
 	case answer.JSON201 != nil && answer.JSON201.Post != nil:
 		return *answer.JSON201.Post, nil
 	case answer.JSON200 != nil:
 		replayed, err := answer.JSON200.AsPostCreateResponse()
 		if err != nil || replayed.Post == nil {
-			return zernioapi.Post{}, errors.New("zernio answered 200 to the post with no post in it")
+			return cpzernio.Post{}, errors.New("zernio answered 200 to the post with no post in it")
 		}
 		return *replayed.Post, nil
 	default:
-		return zernioapi.Post{}, refusal(answer.HTTPResponse, answer.Body, "the post")
+		return cpzernio.Post{}, refusal(answer.HTTPResponse, answer.Body, "the post")
 	}
 }
 
-func status(post zernioapi.Post) zernioapi.PostStatus {
+func status(post cpzernio.Post) cpzernio.PostStatus {
 	if post.Status == nil {
 		return ""
 	}
@@ -132,7 +132,7 @@ func status(post zernioapi.Post) zernioapi.PostStatus {
 }
 
 func (s *Service) account(ctx context.Context) (string, error) {
-	answer, err := s.api.ListAccountsWithResponse(ctx, &zernioapi.ListAccountsParams{Platform: new(platform), ExcludeHidden: new(true)})
+	answer, err := s.api.ListAccountsWithResponse(ctx, &cpzernio.ListAccountsParams{Platform: new(platform), ExcludeHidden: new(true)})
 	if err != nil {
 		return "", unreachable(err)
 	}
@@ -153,8 +153,8 @@ func (s *Service) account(ctx context.Context) (string, error) {
 }
 
 func (s *Service) upload(ctx context.Context, name string, video []byte) (string, error) {
-	answer, err := s.api.GetMediaPresignedUrlWithResponse(ctx, zernioapi.GetMediaPresignedUrlJSONRequestBody{
-		Filename: name, ContentType: zernioapi.MediaContentTypeVideomp4, Size: new(len(video)),
+	answer, err := s.api.GetMediaPresignedUrlWithResponse(ctx, cpzernio.GetMediaPresignedUrlJSONRequestBody{
+		Filename: name, ContentType: cpzernio.MediaContentTypeVideomp4, Size: new(len(video)),
 	})
 	if err != nil {
 		return "", unreachable(err)
@@ -170,7 +170,7 @@ func (s *Service) upload(ctx context.Context, name string, video []byte) (string
 	if err != nil {
 		return "", errors.New("zernio gave an address to upload the video to that is not a URL")
 	}
-	req.Header.Set("Content-Type", string(zernioapi.MediaContentTypeVideomp4))
+	req.Header.Set("Content-Type", string(cpzernio.MediaContentTypeVideomp4))
 
 	res, err := s.http.Do(req)
 	if err != nil {

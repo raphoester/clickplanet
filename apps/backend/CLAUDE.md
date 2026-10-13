@@ -3265,12 +3265,12 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 free tier has TikTok and the whole API). A change of service is that package, its line in `job.go`, the variable
 `main.go` reads the key from, and the client below.
 
-- **The HTTP client is generated, not written**: `generated/zernioapi/client.gen.go`, by oapi-codegen (pinned in
-  the `Makefile`) from Zernio's own OpenAPI document, vendored as `zernio/openapi.json`. `make zernio-spec`
-  fetches the document Zernio builds its SDKs from, `make zernio` generates. `zernio/oapi-codegen.yaml` names the
-  three operations the job calls, so the client holds those and the types they reach, not the 631 paths of the
-  document; `zernio/overlay.yaml` drops its webhooks. The adapter keeps what no document says: which account,
-  the upload, the idempotency key, and which answer is "busy".
+- **The HTTP client is generated, not written, and lives in `shared/cpzernio`** with all that makes it:
+  `client.gen.go`, by oapi-codegen (pinned in the `Makefile`) from Zernio's own OpenAPI document, vendored
+  beside it as `openapi.json`. `make zernio-spec` fetches the document Zernio builds its SDKs from, `make zernio`
+  generates. `oapi-codegen.yaml` names the three operations the job calls, so the client holds those and the
+  types they reach, not the 631 paths of the document; `overlay.yaml` drops its webhooks. The adapter keeps what
+  no document says: which account, the upload, the idempotency key, and which answer is "busy".
 - **Not Zernio's official Go SDK** (`github.com/zernio-dev/zernio-go`, looked at on 2026-10-13, v0.1.969). It is
   alive: a bot regenerates it from the same document several times a day, and its one maintainer fixed a
   critical bug in a day. But **it refuses any answer with a field it does not know** (`DisallowUnknownFields` in
@@ -3306,7 +3306,7 @@ which is what explains a step that waited 20 minutes).
 
 ### Shared (`internal/shared/`)
 
-Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)), `cpcolls` (collections).
+Shared infrastructure: `cpbootstrap` (the composite layer), `cpcountries`, `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware, formats), `cpprom` (Prometheus), `cptime`, `cpctx`, `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres — see [Durability](#durability)), `cpcolls` (collections), `cpzernio` (the client of the posting service).
 
 **Every package here is prefixed `cp`, and a new one must be.** A call site reads
 `cptime.SystemClock{}` or `cpctx.GetSourceIP(ctx)`, so the prefix says the
@@ -3344,6 +3344,7 @@ The siteverify client it is fed by is **not** here. `turnstile` sat here on the 
 `cpcountries` is the ISO country list both the tile game and the chat validate against. `cpipblock` is the VPN prefix set — see [VPN blocklist](#vpn-blocklist). `cpratelimit` is a keyed token bucket held in this process, like the tile map it protects — with one API instance, a shared counter would buy nothing. Its `Run` loop periodically forgets the buckets that have refilled to capacity, which is free: such a bucket holds exactly what a freshly created one would, and without it the map would keep an entry per address that ever clicked.
 
 `cpipscope` decides what a scope's bucket is keyed on, and every throttle goes through it. Over IPv4 that is the address; over IPv6 it is the surrounding **/64**, because the smallest allocation a subscriber receives is a /64 and most receive far more — a bucket per v6 address is one the same line walks out of by picking its next address, turning one home connection into thousands of callers with a throttle each. The session token binds to the same unit, so the address a token is valid for and the address that spends a budget cannot diverge. Blocking deliberately does **not** use it: the VPN and datacenter lists are precise prefixes already, and widening a hit to the surrounding /64 would refuse neighbours who are not on them.
+`cpzernio` is Zernio's HTTP API as Go: a generated client, the vendored OpenAPI document it is generated from, and the two files that configure the generation, all in the one directory, as `cpipblock` keeps its lists in `cpdata`. **Nothing in it is written by hand but the two config files**: `make zernio-spec` refreshes `openapi.json`, `make zernio` writes `client.gen.go`. It knows nothing of clips or of this game, which is why it is here and not in the module: the clips job's `posts/zernio` adapter is its one caller today, and holds everything that is ours (see [The clips job](#the-clips-job-internalclips-cmdclips)). The linters, gofumpt and `make deadcode` leave `client.gen.go` alone by its generated header, not by its path.
 `cpcolls` holds the collections the standard library does not — today `Set[T]`. **A set is a `*cpcolls.Set`, never a map.** A `map[T]struct{}` or a `map[T]bool` written `m[k] = true` fails `make lint`: a ruleguard rule in `tools/ruleguard/rules.go`, run by gocritic, reports both everywhere but in `cpcolls` itself. A nil `*Set` reads as empty, like a nil map, so a lookup in a map of sets needs no `ok` check.
 
 ### Map geography
@@ -3606,7 +3607,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 
 API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto), [`player/v1/player.proto`](../../proto/player/v1/player.proto) and [`support/v1/support.proto`](../../proto/support/v1/support.proto); [`clips/v1/clips.proto`](../../proto/clips/v1/clips.proto) has no service, only the two messages the clip generator writes for [the clips job](#the-clips-job-internalclips-cmdclips). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
-`generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). `generated/zernioapi` is the one thing there that comes from outside the repo: the client of the posting service, from the vendored `zernio/openapi.json` via `make zernio` — see [The clips job](#the-clips-job-internalclips-cmdclips). Nothing in there is edited by hand; run the target.
+`generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
 
 The proto package is the **only** version number: Connect derives each route from it, and the controller and connect package names follow — `planet.v1` gives `planetv1controller` and `planetv1connect`, `chat.v1` gives `chatv1controller` and `chatv1connect`. There is no gRPC here — Connect serves the service definitions over ordinary HTTP/1.1 POSTs (and h2c, for clients that want it).
 

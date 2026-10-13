@@ -142,7 +142,8 @@ disposable-domains:
 
 OAPI_CODEGEN := go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.8.0
 ZERNIO_SPEC_URL := https://zernio.com/openapi.json
-ZERNIO_SPEC := zernio/openapi.json
+ZERNIO_DIR := internal/shared/cpzernio
+ZERNIO_SPEC := $(ZERNIO_DIR)/openapi.json
 
 zernio-spec:
 	@command -v jq >/dev/null || { echo "zernio-spec needs jq" >&2; exit 1; }
@@ -150,8 +151,8 @@ zernio-spec:
 	@jq -r '"zernio api " + .info.version' $(ZERNIO_SPEC)
 
 zernio:
-	@$(OAPI_CODEGEN) -config zernio/oapi-codegen.yaml $(ZERNIO_SPEC)
-	@ls generated/zernioapi/client.gen.go
+	@$(OAPI_CODEGEN) -config $(ZERNIO_DIR)/oapi-codegen.yaml $(ZERNIO_SPEC)
+	@ls $(ZERNIO_DIR)/client.gen.go
 
 METRIC ?= .
 

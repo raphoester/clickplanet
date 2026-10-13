@@ -1,8 +1,8 @@
-package: zernioapi
+package: cpzernio
 generate:
   models: true
   client: true
-output: generated/zernioapi/client.gen.go
+output: internal/shared/cpzernio/client.gen.go
 compatibility:
   always-prefix-enum-values: true
 output-options:
@@ -12,4 +12,4 @@ output-options:
     - createPost
   generate-types-for-anonymous-schemas: true
   overlay:
-    path: zernio/overlay.yaml
+    path: internal/shared/cpzernio/overlay.yaml
