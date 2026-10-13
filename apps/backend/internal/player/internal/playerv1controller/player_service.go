@@ -3,7 +3,6 @@ package playerv1controller
 import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/find_account_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_fronts_handler"
@@ -41,7 +40,6 @@ var _ playerv1connect.PlayerServiceHandler = PlayerService{}
 type InternalService struct {
 	get_author_handler.GetAuthorHandler
 	get_authors_handler.GetAuthorsHandler
-	find_account_handler.FindAccountHandler
 }
 
 var _ playerv1connect.InternalServiceHandler = InternalService{}

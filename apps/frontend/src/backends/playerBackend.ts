@@ -218,6 +218,7 @@ function profileOf(profile: ProfilePb | undefined): Profile {
 function rosterEntryOf(entry: RosterEntryPb): RosterEntry {
     return {
         key: entry.key,
+        accountId: entry.accountId,
         name: entry.name,
         countryCode: entry.countryId,
         guest: entry.guest,

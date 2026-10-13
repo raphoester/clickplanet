@@ -3,18 +3,9 @@ package playerread
 import (
 	"errors"
 	"fmt"
-	"strings"
-
-	"golang.org/x/text/cases"
-	"golang.org/x/text/unicode/norm"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 )
-
-// The same fold a profile is kept under (Name.Folded), or a name typed in another case finds nobody.
-func FoldedName(name string) string {
-	return norm.NFKC.String(cases.Fold().String(norm.NFKD.String(strings.Trim(norm.NFC.String(name), " "))))
-}
 
 var ErrUnknownColor = errors.New("a kept color the proto does not name")
 

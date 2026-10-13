@@ -233,6 +233,11 @@ export class Standing extends Message<Standing> {
    */
   wornTitle?: Title;
 
+  /**
+   * @generated from field: string account_id = 7;
+   */
+  accountId = "";
+
   constructor(data?: PartialMessage<Standing>) {
     super();
     proto3.util.initPartial(data, this);
@@ -247,6 +252,7 @@ export class Standing extends Message<Standing> {
     { no: 4, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "tiles", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
     { no: 6, name: "worn_title", kind: "message", T: Title },
+    { no: 7, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Standing {

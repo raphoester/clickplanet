@@ -15,6 +15,7 @@ func Encode(message messages.Message, counts []reactions.Count, version uint64) 
 	return &chatv1.ChatMessage{
 		Id:               string(sent.ID),
 		SentAtUnixMs:     sent.SentAt.UnixMilli(),
+		AuthorAccountId:  accountOf(sent.Account),
 		AuthorName:       sent.Author.Name(),
 		AuthorAdmin:      sent.Author.Admin(),
 		AuthorColor:      playerv1.NameColor(sent.Author.Color()),
@@ -26,6 +27,13 @@ func Encode(message messages.Message, counts []reactions.Count, version uint64) 
 		ReactionsVersion: version,
 		ReplyTo:          encodedQuote(sent.Quote),
 	}
+}
+
+func accountOf(account messages.AccountID) string {
+	if account == messages.NoAccount {
+		return ""
+	}
+	return account.String()
 }
 
 func encodedQuote(quote messages.Quote) *chatv1.Quote {

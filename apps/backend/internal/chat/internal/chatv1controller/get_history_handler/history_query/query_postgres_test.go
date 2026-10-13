@@ -221,6 +221,7 @@ func (s *testSuite) TestEachMessageIsNamedByWhoItsAccountIsNow() {
 	s.sent("two", time.Hour)
 
 	for _, message := range s.history(ada).GetMessages() {
+		s.Equal(ada.String(), message.GetAuthorAccountId(), message.GetText())
 		s.Equal("Ada Lovelace", message.GetAuthorName(), message.GetText())
 		s.True(message.GetAuthorAdmin(), message.GetText())
 		s.Equal(playerv1.NameColor_NAME_COLOR_TEAL, message.GetAuthorColor(), message.GetText())
@@ -245,6 +246,7 @@ func (s *testSuite) TestADeletedAccountIsNoLongerNamed() {
 	message := s.history(ada).GetMessages()[0]
 
 	s.Equal(history_query.DeletedName, message.GetAuthorName(), "showing the old name would undo the deletion")
+	s.Empty(message.GetAuthorAccountId(), "nobody is there to open a card of, or to report")
 	s.False(message.GetAuthorAdmin())
 	s.Equal(playerv1.NameColor_NAME_COLOR_UNSPECIFIED, message.GetAuthorColor())
 	s.Zero(message.GetAuthorStreak())
@@ -258,6 +260,7 @@ func (s *testSuite) TestAMessageFromBeforeAccountsKeepsTheNameItCarries() {
 	message := s.history(ada).GetMessages()[0]
 
 	s.Equal("guest_Bob", message.GetAuthorName(), "it has no account to read a name from")
+	s.Empty(message.GetAuthorAccountId())
 	s.True(message.GetAuthorAdmin())
 	s.Empty(slices.Concat(s.authors.asked...), "and nobody is asked about it")
 }

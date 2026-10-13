@@ -5,11 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/unicode/norm"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
@@ -77,7 +80,7 @@ func (q *PostgresQuery) Player(ctx context.Context, account cpsession.AccountID)
 }
 
 func (q *PostgresQuery) PlayerNamed(ctx context.Context, name string) (*playerv1.GetPlayerResponse, error) {
-	return q.answer(ctx, playerNamed, playerread.FoldedName(name))
+	return q.answer(ctx, playerNamed, folded(name))
 }
 
 func (q *PostgresQuery) answer(ctx context.Context, statement string, key any) (*playerv1.GetPlayerResponse, error) {
@@ -134,4 +137,9 @@ func (q *PostgresQuery) answer(ctx context.Context, statement string, key any) (
 
 func topOf(countries []*playerv1.CountryTiles) []*playerv1.CountryTiles {
 	return countries[:min(len(countries), shownFronts)]
+}
+
+// The same fold the profile was kept under, or a name typed in another case finds nobody.
+func folded(name string) string {
+	return norm.NFKC.String(cases.Fold().String(norm.NFKD.String(strings.Trim(norm.NFC.String(name), " "))))
 }

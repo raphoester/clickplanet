@@ -195,8 +195,10 @@ type ChatMessage struct {
 	AuthorStreak     uint32                 `protobuf:"varint,11,opt,name=author_streak,json=authorStreak,proto3" json:"author_streak,omitempty"`
 	AuthorTitle      *v1.Title              `protobuf:"bytes,12,opt,name=author_title,json=authorTitle,proto3" json:"author_title,omitempty"`
 	ReplyTo          *Quote                 `protobuf:"bytes,13,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Empty for a message kept before accounts, and for an account that was deleted.
+	AuthorAccountId string `protobuf:"bytes,14,opt,name=author_account_id,json=authorAccountId,proto3" json:"author_account_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ChatMessage) Reset() {
@@ -311,6 +313,13 @@ func (x *ChatMessage) GetReplyTo() *Quote {
 		return x.ReplyTo
 	}
 	return nil
+}
+
+func (x *ChatMessage) GetAuthorAccountId() string {
+	if x != nil {
+		return x.AuthorAccountId
+	}
+	return ""
 }
 
 type Quote struct {
@@ -1148,7 +1157,7 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\breaction\x18\x01 \x01(\x0e2\x11.chat.v1.ReactionR\breaction\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\rR\x05count\x12\x12\n" +
 	"\x04mine\x18\x03 \x01(\bR\x04mine\x12\x1a\n" +
-	"\breactors\x18\x04 \x03(\tR\breactors\"\xee\x03\n" +
+	"\breactors\x18\x04 \x03(\tR\breactors\"\x9a\x04\n" +
 	"\vChatMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1f\n" +
@@ -1164,7 +1173,8 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	" \x01(\x0e2\x14.player.v1.NameColorR\vauthorColor\x12#\n" +
 	"\rauthor_streak\x18\v \x01(\rR\fauthorStreak\x123\n" +
 	"\fauthor_title\x18\f \x01(\v2\x10.player.v1.TitleR\vauthorTitle\x12)\n" +
-	"\breply_to\x18\r \x01(\v2\x0e.chat.v1.QuoteR\areplyToJ\x04\b\x04\x10\x05R\n" +
+	"\breply_to\x18\r \x01(\v2\x0e.chat.v1.QuoteR\areplyTo\x12*\n" +
+	"\x11author_account_id\x18\x0e \x01(\tR\x0fauthorAccountIdJ\x04\b\x04\x10\x05R\n" +
 	"author_tag\"\x94\x01\n" +
 	"\x05Quote\x12\x1d\n" +
 	"\n" +

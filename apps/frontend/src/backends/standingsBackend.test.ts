@@ -63,11 +63,13 @@ describe("ConnectStandingsBackend.listenForStandings", () => {
     it("reads each board the stream sends, in numbers, and skips the heartbeats", async () => {
         const listenForEvents = streaming(
             board(
-                new StandingPb({rank: 1, name: "Ana", color: NameColor.PINK, countryId: "fr", tiles: 1_204n}),
-                new StandingPb({rank: 2, name: "kiran_07", countryId: "in", tiles: 12n}),
+                new StandingPb({rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.PINK, countryId: "fr", tiles: 1_204n}),
+                new StandingPb({rank: 2, accountId: "account-kiran", name: "kiran_07", countryId: "in", tiles: 12n}),
             ),
             heartbeat,
-            board(new StandingPb({rank: 1, name: "Mateus", color: NameColor.TEAL, countryId: "br", tiles: 1_300n})),
+            board(new StandingPb({
+                rank: 1, accountId: "account-mateus", name: "Mateus", color: NameColor.TEAL, countryId: "br", tiles: 1_300n,
+            })),
         )
         const seen: unknown[] = []
 
@@ -76,10 +78,10 @@ describe("ConnectStandingsBackend.listenForStandings", () => {
         await vi.waitFor(() => expect(seen).toHaveLength(2))
         expect(seen).toEqual([
             [
-                {rank: 1, name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 1_204},
-                {rank: 2, name: "kiran_07", color: NameColor.UNSPECIFIED, countryCode: "in", tiles: 12},
+                {rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 1_204},
+                {rank: 2, accountId: "account-kiran", name: "kiran_07", color: NameColor.UNSPECIFIED, countryCode: "in", tiles: 12},
             ],
-            [{rank: 1, name: "Mateus", color: NameColor.TEAL, countryCode: "br", tiles: 1_300}],
+            [{rank: 1, accountId: "account-mateus", name: "Mateus", color: NameColor.TEAL, countryCode: "br", tiles: 1_300}],
         ])
         stop()
     })

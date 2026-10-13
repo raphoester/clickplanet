@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -22,7 +21,6 @@ type ReportID uuid.UUID
 var (
 	ErrInvalidReport   = errors.New("the report is invalid")
 	ErrUnknownReason   = errors.New("not a reason to report a player")
-	ErrNoPlayer        = errors.New("no player is shown under this name")
 	ErrOwnAccount      = errors.New("a player cannot report itself")
 	ErrReportedAlready = errors.New("this account already reported this player today")
 )
@@ -43,19 +41,6 @@ func (r Reason) known() bool {
 	default:
 		return false
 	}
-}
-
-const maxShownNameLength = 32
-
-// The name the game shows for a player: a username, or guest_ and a guest code. Whose it is, the player module says.
-type ShownName string
-
-func ShownNameOf(value string) (ShownName, error) {
-	name := strings.TrimSpace(value)
-	if name == "" || utf8.RuneCountInString(name) > maxShownNameLength {
-		return "", fmt.Errorf("%w: %q", ErrNoPlayer, value)
-	}
-	return ShownName(name), nil
 }
 
 const maxMessageIDLength = 64

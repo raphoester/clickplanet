@@ -61,7 +61,9 @@ export default function AccountPanel(props: AccountPanelProps) {
             {tab === "progress"
                 ? <ProgressTab store={props.store}
                                me={props.state.me}
-                               stats={props.playerInfo && name ? {backend: props.playerInfo, name} : undefined}
+                               stats={props.playerInfo && name
+                                   ? {backend: props.playerInfo, name, accountId: props.state.accountId ?? ""}
+                                   : undefined}
                                listenForClicks={props.listenForClicks}/>
                 : <AccountSettings {...props}/>}
         </div>

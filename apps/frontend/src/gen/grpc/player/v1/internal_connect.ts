@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { FindAccountRequest, FindAccountResponse, GetAuthorRequest, GetAuthorResponse, GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
+import { GetAuthorRequest, GetAuthorResponse, GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -28,16 +28,6 @@ export const InternalService = {
       name: "GetAuthors",
       I: GetAuthorsRequest,
       O: GetAuthorsResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
-    },
-    /**
-     * @generated from rpc player.v1.InternalService.FindAccount
-     */
-    findAccount: {
-      name: "FindAccount",
-      I: FindAccountRequest,
-      O: FindAccountResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

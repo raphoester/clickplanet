@@ -10,8 +10,8 @@ afterEach(() => {
     vi.restoreAllMocks()
 })
 
-const ana: PlayerLine = {name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
-const bo: PlayerLine = {name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
+const ana: PlayerLine = {accountId: "account-ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
+const bo: PlayerLine = {accountId: "account-bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
 
 const backendAnswering = (answer: () => Promise<PlayerInfo | undefined>) =>
     ({playerInfo: vi.fn(answer)}) satisfies PlayerInfoBackend
@@ -184,7 +184,14 @@ describe("PlayerCard", () => {
             expect(screen.queryByRole("button", {name: "Report"})).toBeNull()
         })
 
-        it("opens in place of the card, and sends the name on the card with the message it was opened from", async () => {
+        it("is not offered for a player line with no account", () => {
+            render(<PlayerCard player={{...bo, accountId: ""}} backend={guestCard()} reporter={{reportPlayer: vi.fn()}}
+                               onClose={() => {}}/>)
+
+            expect(screen.queryByRole("button", {name: "Report"})).toBeNull()
+        })
+
+        it("opens in place of the card, and sends the account on the card with the message it was opened from", async () => {
             const reporter = {reportPlayer: vi.fn(async () => undefined)}
             render(<PlayerCard player={bo} backend={guestCard()} reporter={reporter} messageId="message-1" onClose={() => {}}/>)
             const user = userEvent.setup()
@@ -198,7 +205,7 @@ describe("PlayerCard", () => {
             await user.click(screen.getByRole("button", {name: "Send"}))
 
             expect(reporter.reportPlayer).toHaveBeenCalledWith(
-                {name: "guest_Bo", reason: "chat-abuse", text: "", messageId: "message-1"})
+                {accountId: "account-bo", reason: "chat-abuse", text: "", messageId: "message-1"})
         })
 
         it("steps back to the card when the report is closed", async () => {

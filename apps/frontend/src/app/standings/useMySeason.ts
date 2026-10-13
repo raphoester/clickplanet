@@ -6,6 +6,7 @@ import {ListenForClicks} from "../viewer/acceptedClicks.ts"
 import {useOwnTakes, useReadsAfterClicks} from "../viewer/useAcceptedClicks.ts"
 
 export type Caller = {
+    accountId?: string
     username?: string
     color?: NameColor
     linked: boolean

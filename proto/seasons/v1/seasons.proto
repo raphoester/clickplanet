@@ -46,6 +46,7 @@ message Standing {
   string country_id = 4;
   uint64 tiles = 5;
   player.v1.Title worn_title = 6;
+  string account_id = 7;
 }
 
 message GetMySeasonRequest {

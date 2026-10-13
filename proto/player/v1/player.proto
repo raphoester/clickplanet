@@ -102,6 +102,7 @@ message RosterEntry {
   NameColor color = 7;
   uint32 streak = 8;
   Title worn_title = 9;
+  string account_id = 10;
 }
 
 message ListenForEventsRequest {}

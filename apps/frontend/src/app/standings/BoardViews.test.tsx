@@ -18,7 +18,7 @@ const france = Countries.get("fr")!
 const germany = Countries.get("de")!
 
 const standing = (rank: number, name: string, countryCode: string, tiles: number, color = NameColor.UNSPECIFIED): Standing =>
-    ({rank, name, color, countryCode, tiles})
+    ({rank, accountId: `account-${name}`, name, color, countryCode, tiles})
 
 const WARLORD: PlayerTitle = {id: "warlord", name: "Warlord", rank: {trackId: "conquest", trackName: "Conquest", number: 3, count: 5}}
 const DEVOTED: PlayerTitle = {id: "devoted", name: "Devoted", rank: {trackId: "devotion", trackName: "Devotion", number: 2, count: 3}}
@@ -312,7 +312,8 @@ describe("BoardViews", () => {
         await user.click(within(rows()[0]).getByRole("button", {name: "Ana"}))
 
         expect(onOpenPlayer).toHaveBeenCalledWith({
-            name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.PINK, streak: 0, wornTitle: WARLORD,
+            accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.PINK, streak: 0,
+            wornTitle: WARLORD,
         })
     })
 

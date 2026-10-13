@@ -638,6 +638,11 @@ export class RosterEntry extends Message<RosterEntry> {
    */
   wornTitle?: Title;
 
+  /**
+   * @generated from field: string account_id = 10;
+   */
+  accountId = "";
+
   constructor(data?: PartialMessage<RosterEntry>) {
     super();
     proto3.util.initPartial(data, this);
@@ -654,6 +659,7 @@ export class RosterEntry extends Message<RosterEntry> {
     { no: 7, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 8, name: "streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 9, name: "worn_title", kind: "message", T: Title },
+    { no: 10, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RosterEntry {

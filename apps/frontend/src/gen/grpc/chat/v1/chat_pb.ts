@@ -237,6 +237,13 @@ export class ChatMessage extends Message<ChatMessage> {
    */
   replyTo?: Quote;
 
+  /**
+   * Empty for a message kept before accounts, and for an account that was deleted.
+   *
+   * @generated from field: string author_account_id = 14;
+   */
+  authorAccountId = "";
+
   constructor(data?: PartialMessage<ChatMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -257,6 +264,7 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 11, name: "author_streak", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 12, name: "author_title", kind: "message", T: Title },
     { no: 13, name: "reply_to", kind: "message", T: Quote },
+    { no: 14, name: "author_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatMessage {
