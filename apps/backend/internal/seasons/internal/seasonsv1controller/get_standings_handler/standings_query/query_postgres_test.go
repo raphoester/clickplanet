@@ -131,6 +131,8 @@ func (s *testSuite) TestTheTopIsTheTenBestPlayersWithAUsername() {
 	s.Equal("1 player_1 fr 19", lines(res)[0])
 	s.Equal("10 player_10 fr 10", lines(res)[9])
 	s.Equal(playerv1.NameColor_NAME_COLOR_RED, res.GetStandings()[0].GetColor())
+	s.Equal(account(1).String(), res.GetStandings()[0].GetAccountId())
+	s.Equal(account(10).String(), res.GetStandings()[9].GetAccountId())
 }
 
 func (s *testSuite) TestPlayersWithAsManyTilesShareARank() {

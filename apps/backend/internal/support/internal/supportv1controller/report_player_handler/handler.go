@@ -41,9 +41,14 @@ func (h ReportPlayerHandler) ReportPlayer(
 		return nil, err //nolint:wrapcheck // already the connect error the caller reads.
 	}
 
+	reported, err := notes.AccountIDOf(req.Msg.GetAccountId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidAccount)
+	}
+
 	err = h.useCase.Execute(ctx, report_player_usecase.In{
 		Reporter: account,
-		Name:     req.Msg.GetName(),
+		Reported: reported,
 		Complaint: reports.Complaint{
 			Reason:  reasons[req.Msg.GetReason()],
 			Text:    req.Msg.GetText(),
@@ -57,8 +62,6 @@ func (h ReportPlayerHandler) ReportPlayer(
 		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidText)
 	case errors.Is(err, reports.ErrOwnAccount):
 		return nil, connect.NewError(connect.CodeInvalidArgument, reports.ErrOwnAccount)
-	case errors.Is(err, reports.ErrNoPlayer):
-		return nil, connect.NewError(connect.CodeNotFound, reports.ErrNoPlayer)
 	case errors.Is(err, reports.ErrReportedAlready):
 		return nil, connect.NewError(connect.CodeAlreadyExists, reports.ErrReportedAlready)
 	case err != nil:

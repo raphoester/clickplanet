@@ -313,6 +313,7 @@ func messageOf(row row, named map[cpsession.AccountID]*playerv1.Author) *chatv1.
 		return message
 	}
 
+	message.AuthorAccountId = row.account.String()
 	message.AuthorName = author.GetName()
 	message.AuthorAdmin = author.GetAdmin()
 	message.AuthorColor = author.GetColor()

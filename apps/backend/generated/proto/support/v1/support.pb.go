@@ -394,9 +394,9 @@ func (x *PageContext) GetMemoryGb() float64 {
 
 type ReportPlayerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The name the game shows for the player: its username, or guest_ and its guest code.
-	Name   string       `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Reason ReportReason `protobuf:"varint,2,opt,name=reason,proto3,enum=support.v1.ReportReason" json:"reason,omitempty"`
+	// The account reported, as a chat message, a roster line or a standing carries it.
+	AccountId string       `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Reason    ReportReason `protobuf:"varint,2,opt,name=reason,proto3,enum=support.v1.ReportReason" json:"reason,omitempty"`
 	// Optional.
 	Text string `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
 	// Optional: the chat message the report is about.
@@ -435,9 +435,9 @@ func (*ReportPlayerRequest) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ReportPlayerRequest) GetName() string {
+func (x *ReportPlayerRequest) GetAccountId() string {
 	if x != nil {
-		return x.Name
+		return x.AccountId
 	}
 	return ""
 }
@@ -528,9 +528,10 @@ const file_support_v1_support_proto_rawDesc = "" +
 	"\fcontext_lost\x18\n" +
 	" \x01(\bR\vcontextLost\x12\x14\n" +
 	"\x05cores\x18\v \x01(\rR\x05cores\x12\x1b\n" +
-	"\tmemory_gb\x18\f \x01(\x01R\bmemoryGb\"\x8e\x01\n" +
-	"\x13ReportPlayerRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
+	"\tmemory_gb\x18\f \x01(\x01R\bmemoryGb\"\x99\x01\n" +
+	"\x13ReportPlayerRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x120\n" +
 	"\x06reason\x18\x02 \x01(\x0e2\x18.support.v1.ReportReasonR\x06reason\x12\x12\n" +
 	"\x04text\x18\x03 \x01(\tR\x04text\x12\x1d\n" +
 	"\n" +

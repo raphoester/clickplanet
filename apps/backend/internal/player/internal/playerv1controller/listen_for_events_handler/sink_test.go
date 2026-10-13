@@ -42,7 +42,7 @@ func TestEachFrameIsItsCaseOfTheEnvelope(t *testing.T) {
 	conqueror, _ := titles.NewCatalog().StandingOf("conqueror")
 	require.NoError(t, sink.SendTitleEarned(conqueror))
 
-	entry := &playerv1.RosterEntry{Key: "k1", Name: "Ada_L", CountryId: "fr"}
+	entry := &playerv1.RosterEntry{Key: "k1", AccountId: players.AccountID{15: 1}.String(), Name: "Ada_L", CountryId: "fr"}
 	want := []*playerv1.PlayerEvent{
 		{Event: &playerv1.PlayerEvent_Roster{Roster: &playerv1.Roster{Entries: []*playerv1.RosterEntry{entry}}}},
 		{Event: &playerv1.PlayerEvent_Entry{Entry: entry}},

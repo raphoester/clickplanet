@@ -316,11 +316,11 @@ export class PageContext extends Message<PageContext> {
  */
 export class ReportPlayerRequest extends Message<ReportPlayerRequest> {
   /**
-   * The name the game shows for the player: its username, or guest_ and its guest code.
+   * The account reported, as a chat message, a roster line or a standing carries it.
    *
-   * @generated from field: string name = 1;
+   * @generated from field: string account_id = 1;
    */
-  name = "";
+  accountId = "";
 
   /**
    * @generated from field: support.v1.ReportReason reason = 2;
@@ -349,7 +349,7 @@ export class ReportPlayerRequest extends Message<ReportPlayerRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "support.v1.ReportPlayerRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "reason", kind: "enum", T: proto3.getEnumType(ReportReason) },
     { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },

@@ -14,7 +14,6 @@ import {
     SupportRateLimitedError,
     SupportRejectedError,
     SupportReportedAlreadyError,
-    SupportUnknownPlayerError,
 } from "./support.ts";
 import {Config} from "./transport.ts";
 
@@ -51,7 +50,7 @@ export class ConnectSupportBackend implements FeatureSuggester, BugReporter, Pla
 
     public reportPlayer(report: PlayerReport): Promise<void> {
         return this.send((headers) => this.client.reportPlayer({
-            name: report.name,
+            accountId: report.accountId,
             reason: REASONS[report.reason],
             text: report.text,
             messageId: report.messageId ?? "",
@@ -100,8 +99,6 @@ function translate(e: unknown): unknown {
             return new SupportRateLimitedError({cause: e})
         case Code.InvalidArgument:
             return new SupportRejectedError({cause: e})
-        case Code.NotFound:
-            return new SupportUnknownPlayerError({cause: e})
         case Code.AlreadyExists:
             return new SupportReportedAlreadyError({cause: e})
         case Code.Unauthenticated:

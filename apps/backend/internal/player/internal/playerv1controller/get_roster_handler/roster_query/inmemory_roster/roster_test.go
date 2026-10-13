@@ -37,7 +37,9 @@ func TestTheRosterIsTheFreshVisitsAsOfTheClock(t *testing.T) {
 
 	clock.Advance(presence.TTL)
 
-	assertLines(t, []*playerv1.RosterEntry{{Key: "2", Name: "Bob", CountryId: "de"}}, inmemory_roster.New(visits, clock).Lines())
+	assertLines(t, []*playerv1.RosterEntry{
+		{Key: "2", AccountId: players.AccountID{15: 2}.String(), Name: "Bob", CountryId: "de"},
+	}, inmemory_roster.New(visits, clock).Lines())
 }
 
 func TestEachLineSaysWhoIsPlayingAndPlayersComeBeforeGuests(t *testing.T) {
@@ -50,9 +52,10 @@ func TestEachLineSaysWhoIsPlayingAndPlayersComeBeforeGuests(t *testing.T) {
 
 	assertLines(t, []*playerv1.RosterEntry{
 		{
-			Key: "2", Name: "Zed", CountryId: "de", Admin: true, Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 4,
+			Key: "2", AccountId: players.AccountID{15: 2}.String(), Name: "Zed", CountryId: "de", Admin: true,
+			Color: playerv1.NameColor_NAME_COLOR_TEAL, Streak: 4,
 			WornTitle: &playerv1.Title{Id: "og", Name: "OG"},
 		},
-		{Key: "1", Name: "guest_a1b2c3", CountryId: "fr", Guest: true},
+		{Key: "1", AccountId: players.AccountID{15: 1}.String(), Name: "guest_a1b2c3", CountryId: "fr", Guest: true},
 	}, inmemory_roster.New(visits, clock).Lines())
 }

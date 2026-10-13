@@ -56,8 +56,8 @@ enum ReportReason {
 }
 
 message ReportPlayerRequest {
-  // The name the game shows for the player: its username, or guest_ and its guest code.
-  string name = 1;
+  // The account reported, as a chat message, a roster line or a standing carries it.
+  string account_id = 1;
   ReportReason reason = 2;
   // Optional.
   string text = 3;

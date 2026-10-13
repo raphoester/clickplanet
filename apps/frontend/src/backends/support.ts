@@ -26,7 +26,7 @@ export interface BugReporter {
 export type ReportReason = "cheating" | "chat-abuse" | "bad-name" | "other"
 
 export type PlayerReport = {
-    name: string
+    accountId: string
     reason: ReportReason
     text: string
     messageId?: string
@@ -56,13 +56,6 @@ export class SupportNoSessionError extends Error {
     constructor(options?: {cause?: unknown}) {
         super("no session to reach the support service with", options)
         this.name = "SupportNoSessionError"
-    }
-}
-
-export class SupportUnknownPlayerError extends Error {
-    constructor(options?: {cause?: unknown}) {
-        super("no player is shown under this name", options)
-        this.name = "SupportUnknownPlayerError"
     }
 }
 

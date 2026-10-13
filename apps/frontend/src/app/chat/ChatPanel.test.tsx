@@ -29,6 +29,7 @@ const OWN_GUEST = "guest_c0ffee"
 const message = (id: string, text: string, sentAt = 1_700_000_000_000): ChatMessage => ({
     id,
     sentAt,
+    authorAccountId: "account-ana",
     authorName: "Ana",
     authorAdmin: false,
     authorColor: NameColor.UNSPECIFIED,
@@ -1118,8 +1119,8 @@ describe("ChatPanel on a desktop", () => {
 
 describe("ChatPanel's players", () => {
     const players = [
-        {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
-        {key: "k2", name: "guest_b0b0b0", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+        {key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
+        {key: "k2", accountId: "account-b0b", name: "guest_b0b0b0", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
     ]
 
     it("shows who is online beside the chat, and goes back to it", async () => {

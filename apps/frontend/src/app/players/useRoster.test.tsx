@@ -5,8 +5,8 @@ import {NameColor, PlayerTitle, PresenceBackend, RosterEntry, RosterEvent} from 
 import {SETTLE_MS} from "../../domain/presence.ts"
 import {RosterState, useRoster} from "./useRoster.ts"
 
-const ana: RosterEntry = {key: "k1", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
-const bo: RosterEntry = {key: "k2", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
+const ana: RosterEntry = {key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
+const bo: RosterEntry = {key: "k2", accountId: "account-bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}
 
 let latest: RosterState
 

@@ -6,10 +6,9 @@ import {
     SupportRateLimitedError,
     SupportRejectedError,
     SupportReportedAlreadyError,
-    SupportUnknownPlayerError,
 } from "./support.ts";
 
-export type FakeSupportRefusal = "rate-limited" | "rejected" | "no-session" | "unknown-player" | "reported-already" | "failed"
+export type FakeSupportRefusal = "rate-limited" | "rejected" | "no-session" | "reported-already" | "failed"
 
 export type FakeSupportNote =
     | {kind: "suggestion" | "bug", text: string, context: PageContext}
@@ -55,8 +54,6 @@ export class FakeSupportBackend implements SupportBackend {
                 throw new SupportRejectedError()
             case "no-session":
                 throw new SupportNoSessionError()
-            case "unknown-player":
-                throw new SupportUnknownPlayerError()
             case "reported-already":
                 throw new SupportReportedAlreadyError()
             case "failed":

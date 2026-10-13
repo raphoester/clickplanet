@@ -5,11 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/unicode/norm"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
@@ -76,7 +79,7 @@ func (q *PostgresQuery) Player(ctx context.Context, name string) (*playerv1.GetP
 		held    []string
 		answer  = &playerv1.Player{Stats: &playerv1.Stats{}}
 	)
-	err := q.db.QueryRowContext(ctx, player, playerread.FoldedName(name), q.clock.Now().UTC().Format(time.DateOnly)).Scan(
+	err := q.db.QueryRowContext(ctx, player, folded(name), q.clock.Now().UTC().Format(time.DateOnly)).Scan(
 		&account, &answer.Name, &answer.Admin, &color,
 		&answer.Stats.TilesTaken, &answer.Stats.StreakCurrent, &answer.Stats.StreakBest, &answer.Stats.StreakLastDay,
 		&choice, pq.Array(&held),
@@ -122,4 +125,9 @@ func (q *PostgresQuery) Player(ctx context.Context, name string) (*playerv1.GetP
 
 func topOf(countries []*playerv1.CountryTiles) []*playerv1.CountryTiles {
 	return countries[:min(len(countries), shownFronts)]
+}
+
+// The same fold the profile was kept under, or a name typed in another case finds nobody.
+func folded(name string) string {
+	return norm.NFKC.String(cases.Fold().String(norm.NFKD.String(strings.Trim(norm.NFC.String(name), " "))))
 }

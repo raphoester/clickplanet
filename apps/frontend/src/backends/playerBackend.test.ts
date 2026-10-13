@@ -343,10 +343,12 @@ const failingWith = (error: ConnectError) => (): AsyncIterable<PlayerEventPb> =>
 
 describe("ConnectPlayerBackend live roster", () => {
     const entryPb = new RosterEntryPb({
-        key: "k1", name: "ana", countryId: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12, wornTitle: settlerPb,
+        key: "k1", accountId: "account-ana", name: "ana", countryId: "fr", guest: false, admin: true, color: NameColor.PINK,
+        streak: 12, wornTitle: settlerPb,
     })
     const ana = {
-        key: "k1", name: "ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK, streak: 12, wornTitle: settler,
+        key: "k1", accountId: "account-ana", name: "ana", countryCode: "fr", guest: false, admin: true, color: NameColor.PINK,
+        streak: 12, wornTitle: settler,
     }
 
     afterEach(() => vi.useRealTimers())

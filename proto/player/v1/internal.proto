@@ -11,19 +11,6 @@ service InternalService {
   rpc GetAuthors(GetAuthorsRequest) returns (GetAuthorsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-
-  rpc FindAccount(FindAccountRequest) returns (FindAccountResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
-  }
-}
-
-message FindAccountRequest {
-  // The name the game shows for a player: its username, or guest_ and its guest code.
-  string name = 1;
-}
-
-message FindAccountResponse {
-  string account_id = 1;
 }
 
 message GetAuthorRequest {

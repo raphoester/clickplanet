@@ -5,8 +5,8 @@ import {NameColor} from "../../backends/player.ts"
 import {Standing, StandingsBackend} from "../../backends/standings.ts"
 import {useStandings} from "./useStandings.ts"
 
-const ana: Standing = {rank: 1, name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 40}
-const kofi: Standing = {rank: 1, name: "Kofi", color: NameColor.GREEN, countryCode: "gh", tiles: 12}
+const ana: Standing = {rank: 1, accountId: "account-ana", name: "Ana", color: NameColor.PINK, countryCode: "fr", tiles: 40}
+const kofi: Standing = {rank: 1, accountId: "account-kofi", name: "Kofi", color: NameColor.GREEN, countryCode: "gh", tiles: 12}
 
 let latest: readonly Standing[] | undefined
 

@@ -6,7 +6,7 @@ import {boardWith, liveSeason, NO_TAKES, STANDINGS_SHOWN, takenCount, takesSince
 const takes = (entries: Record<string, number>) => new Map(Object.entries(entries))
 
 const standing = (rank: number, name: string, tiles: number): Standing =>
-    ({rank, name, color: NameColor.UNSPECIFIED, countryCode: "fr", tiles})
+    ({rank, accountId: `account-${name}`, name, color: NameColor.UNSPECIFIED, countryCode: "fr", tiles})
 
 const lines = (board: {listed: Standing[], below?: Standing}) => ({
     listed: board.listed.map((s) => `${s.rank} ${s.name} ${s.tiles}`),
