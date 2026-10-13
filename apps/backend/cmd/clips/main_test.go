@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/cmd/clips/internal/flags"
 )
 
 func shortlist(t *testing.T, written string) string {
@@ -44,6 +47,29 @@ func TestChoosePrintsAnEmptyListOnAQuietHalfDay(t *testing.T) {
 	assert.Equal(t, "[]\n", out.String())
 }
 
+func TestACommandNoStageIsWrittenForIsAnErrorAndDoesNothing(t *testing.T) {
+	t.Setenv(flags.KeyVariable, "the-key")
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
+	folder := t.TempDir()
+
+	for _, command := range []string{"", "publish", "Schedule"} {
+		var out bytes.Buffer
+		parsed := flags.Config{
+			Command:    flags.Command(command),
+			ReplayFile: filepath.Join(folder, "replay.json"), ShortlistFile: filepath.Join(folder, "shortlist.json"),
+			ClipsFolder: folder, SummaryFile: filepath.Join(folder, "summary.md"),
+		}
+
+		err := runCommand(t.Context(), parsed, &out, slog.New(slog.DiscardHandler))
+
+		require.ErrorIs(t, err, errUnknownCommand, command)
+		assert.Empty(t, out.String())
+	}
+	left, err := os.ReadDir(folder)
+	require.NoError(t, err)
+	assert.Empty(t, left)
+}
+
 func TestACommandCalledWrongPrintsNothingAndSaysHowToCallIt(t *testing.T) {
 	var out bytes.Buffer
 
@@ -54,7 +80,7 @@ func TestACommandCalledWrongPrintsNothingAndSaysHowToCallIt(t *testing.T) {
 }
 
 func TestAFetchOfNoTimeIsRefusedBeforeAnythingIsAskedOfTheBackend(t *testing.T) {
-	t.Setenv(hostVariable, "deploy@vps.example")
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
 	var out bytes.Buffer
 
 	err := run(t.Context(), []string{"fetch", "-out", filepath.Join(t.TempDir(), "replay.json"), "-hours", "-1"}, &out)
@@ -64,7 +90,7 @@ func TestAFetchOfNoTimeIsRefusedBeforeAnythingIsAskedOfTheBackend(t *testing.T) 
 }
 
 func TestScheduleWithNoKeyFailsBeforeItSendsAnything(t *testing.T) {
-	t.Setenv(keyVariable, "")
+	t.Setenv(flags.KeyVariable, "")
 	var out bytes.Buffer
 
 	err := run(t.Context(), []string{"schedule", "-clips", t.TempDir()}, &out)
@@ -74,7 +100,7 @@ func TestScheduleWithNoKeyFailsBeforeItSendsAnything(t *testing.T) {
 }
 
 func TestScheduleWithNoClipInTheFolderFails(t *testing.T) {
-	t.Setenv(keyVariable, "the-key")
+	t.Setenv(flags.KeyVariable, "the-key")
 	var out bytes.Buffer
 
 	err := run(t.Context(), []string{"schedule", "-clips", t.TempDir()}, &out)

@@ -1,4 +1,4 @@
-package main
+package display_test
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/cmd/clips/internal/display"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
 )
 
@@ -25,7 +26,7 @@ func (brokenPage) Write([]byte) (int, error) {
 func TestThePicksAreAJSONArrayOnOneLine(t *testing.T) {
 	var out bytes.Buffer
 
-	require.NoError(t, displayPicks(&out, []clips.Pick{1, 2}))
+	require.NoError(t, display.Picks(&out, []clips.Pick{1, 2}))
 
 	assert.Equal(t, "[1,2]\n", out.String())
 }
@@ -33,19 +34,19 @@ func TestThePicksAreAJSONArrayOnOneLine(t *testing.T) {
 func TestNoPickIsAnEmptyArrayNeverNull(t *testing.T) {
 	var out bytes.Buffer
 
-	require.NoError(t, displayPicks(&out, []clips.Pick{}))
+	require.NoError(t, display.Picks(&out, []clips.Pick{}))
 
 	assert.Equal(t, "[]\n", out.String())
 }
 
 func TestPicksThatCannotBeWrittenAreAnError(t *testing.T) {
-	require.Error(t, displayPicks(brokenPage{}, []clips.Pick{1}))
+	require.Error(t, display.Picks(brokenPage{}, []clips.Pick{1}))
 }
 
 func TestTheReportIsATableOfEachClipItsTimeAndWhatBecameOfIt(t *testing.T) {
-	var page bytes.Buffer
+	var out bytes.Buffer
 
-	scheduled, err := displayReport(&page, clips.Report{
+	scheduled, err := display.Report("", &out, clips.Report{
 		{Title: "KOSOVO IS ATTACKING THE MIDDLE EAST", At: at, Post: "post-1"},
 		{Title: "FRANCE IS ATTACKING EUROPE", At: at.Add(2 * time.Hour), Failure: "zernio answered 400 to POST /posts: a | b\nc"},
 	})
@@ -56,61 +57,56 @@ func TestTheReportIsATableOfEachClipItsTimeAndWhatBecameOfIt(t *testing.T) {
 |---|---|---|
 | KOSOVO IS ATTACKING THE MIDDLE EAST | Mon 12 Oct, 16:40 UTC | scheduled |
 | FRANCE IS ATTACKING EUROPE | Mon 12 Oct, 18:40 UTC | **not scheduled**: zernio answered 400 to POST /posts: a \| b c |
-`, page.String())
+`, out.String())
 }
 
 func TestAReportWithEveryClipScheduledSaysSo(t *testing.T) {
-	var page bytes.Buffer
+	var out bytes.Buffer
 
-	scheduled, err := displayReport(&page, clips.Report{{Title: "T", At: at, Post: "post-1"}})
+	scheduled, err := display.Report("", &out, clips.Report{{Title: "T", At: at, Post: "post-1"}})
 
 	require.NoError(t, err)
 	assert.True(t, scheduled)
 }
 
 func TestATimeIsSaidInUTCWhateverItsZone(t *testing.T) {
-	var page bytes.Buffer
+	var out bytes.Buffer
 	sofia := time.FixedZone("EEST", 3*60*60)
 
-	_, err := displayReport(&page, clips.Report{{Title: "T", At: at.In(sofia), Post: "post-1"}})
+	_, err := display.Report("", &out, clips.Report{{Title: "T", At: at.In(sofia), Post: "post-1"}})
 
 	require.NoError(t, err)
-	assert.Contains(t, page.String(), "| Mon 12 Oct, 16:40 UTC |")
+	assert.Contains(t, out.String(), "| Mon 12 Oct, 16:40 UTC |")
 }
 
 func TestAReportThatCannotBeWrittenIsAnErrorAndNotScheduled(t *testing.T) {
-	scheduled, err := displayReport(brokenPage{}, clips.Report{{Title: "T", At: at, Post: "post-1"}})
+	scheduled, err := display.Report("", brokenPage{}, clips.Report{{Title: "T", At: at, Post: "post-1"}})
 
 	require.Error(t, err)
 	assert.False(t, scheduled)
 }
 
-func TestTheSummaryIsAddedToItsFileAndIsTheStandardOutputWhenNoFileIsNamed(t *testing.T) {
+func TestTheReportIsAddedToTheSummaryFileWhenOneIsNamedAndNothingIsPrinted(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "summary.md")
 	require.NoError(t, os.WriteFile(path, []byte("what the workflow wrote before\n"), 0o600))
 	var out bytes.Buffer
 
-	page, closePage, err := openSummary(path, &out)
-	require.NoError(t, err)
-	_, err = displayReport(page, clips.Report{{Title: "T", At: at, Post: "post-1"}})
-	require.NoError(t, err)
-	closePage()
+	scheduled, err := display.Report(path, &out, clips.Report{{Title: "T", At: at, Post: "post-1"}})
 
+	require.NoError(t, err)
+	assert.True(t, scheduled)
 	written, err := os.ReadFile(path) //nolint:gosec // the file the test wrote.
 	require.NoError(t, err)
 	assert.Contains(t, string(written), "what the workflow wrote before\n| Clip |")
 	assert.Empty(t, out.String())
-
-	unnamed, closeUnnamed, err := openSummary("", &out)
-	require.NoError(t, err)
-	defer closeUnnamed()
-	assert.Same(t, &out, unnamed)
 }
 
-func TestASummaryFileThatCannotBeOpenedIsAnError(t *testing.T) {
+func TestASummaryFileThatCannotBeOpenedIsAnErrorAndNotScheduled(t *testing.T) {
 	var out bytes.Buffer
 
-	_, _, err := openSummary(filepath.Join(t.TempDir(), "no-such-folder", "summary.md"), &out)
+	scheduled, err := display.Report(filepath.Join(t.TempDir(), "no-such-folder", "summary.md"), &out, clips.Report{{Title: "T", At: at, Post: "post-1"}})
 
 	require.Error(t, err)
+	assert.False(t, scheduled)
+	assert.Empty(t, out.String())
 }

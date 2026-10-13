@@ -194,11 +194,14 @@ func run(logger *slog.Logger) error {
 - **A work function returns values.** It does not write into a variable of an outer scope. The body of a goroutine is ideally one assignment: `results[i] = doOneUnit(...)`.
 - **A display function returns a `bool`, or a status.** It owns the output, not the propagation of errors: the caller decides what to do with what it answers.
 - **A signature is honest**: a function that can fail returns an `error`, and one that cannot does not.
+- **Package `main` stays thin: `main`, `run`, and nothing that does the work of a stage.** The stages live in packages of their own. A parser or a table that sits in `main` beside `run` is the monolith again, in three files.
+- **A dispatch names every value it acts on, and anything else is an error.** No `default:` that runs a command: a value nobody expected then does the last thing in the list, and here that is posting.
 
-**`cmd/clips` follows it** (see [The clips job](#the-clips-job-internalclips-cmdclips)): `parseFlags` in `flags.go`, the work in `internal/clips/job.go`, the display in `display.go`. Two things it settled:
+**`cmd/clips` follows it** (see [The clips job](#the-clips-job-internalclips-cmdclips)): `flags.Parse` in `cmd/clips/internal/flags`, the work in `internal/clips/job.go`, `display.Picks` and `display.Report` in `cmd/clips/internal/display`. `main.go` is `main`, `run`, the dispatch and one short function per command. What it settled:
 
-- **With subcommands, `run` parses, then picks the command**, and each command is its own short list of stages: work, then display.
-- **A display that writes can fail**, so it answers an `error` beside its `bool`: `displayReport(page, report) (bool, error)`. The `bool` is still what the report says (every clip is scheduled), and the `error` only that the page could not be written.
+- **With subcommands, `run` parses, then picks the command**, and each command is its own short list of stages: work, then display. The dispatch has a `case` per command and fails on any other (`errUnknownCommand`), though the parser already refused it.
+- **The parser and the display are the tool's own, under `cmd/clips/internal/`**: Go keeps them out of reach of everything but this command, and they import the module, never the reverse.
+- **A display that writes can fail**, so it answers an `error` beside its `bool`: `display.Report(summaryFile, out, report) (bool, error)`. The `bool` is still what the report says (every clip is scheduled), and the `error` only that the summary could not be written.
 
 `cmd/api` is a server, not a tool: its `run` loads the config and hands the modules to `cpbootstrap`.
 
@@ -3164,17 +3167,22 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   service, and adds a table to the summary: each clip, its time, and whether it is scheduled. It exits 1 when a
   clip was not scheduled, when the folder holds none, or when the summary cannot be written. A clip refused does
   not stop the next one.
-- **`cmd/clips` is three stages, and `run` only names them**: parse, work, display.
-  - **`parseFlags`** (`flags.go`) answers one typed `FlagsConfig`: the command, its files, and the job's
-    `clips.Config` with `CLICKPLANET_SSH` and `ZERNIO_API_KEY` read into it. No flag pointer leaves it. Flags and
-    not `cpconfigs`: the job has a few settings and one secret, and a workflow passes them on the command line.
+- **`cmd/clips` is three stages, and `run` only names them**: parse, work, display (see [A command's `run` is a
+  table of contents](#a-commands-run-is-a-table-of-contents)). `main.go` holds no stage.
+  - **`flags.Parse`** (`cmd/clips/internal/flags`) answers one typed `flags.Config`: the command, its files, and
+    the job's `clips.Config` with `CLICKPLANET_SSH` and `ZERNIO_API_KEY` read into it. No flag pointer leaves it.
+    Flags and not `cpconfigs`: the job has a few settings and one secret, and a workflow passes them on the
+    command line.
   - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks) and
     `clips.Schedule` (the `Report`), in `internal/clips/job.go`, which wires the objects as a `module.go` does.
     A clip the service refused is in the report, not in the error: the error is for a run that could not be
     made at all.
-  - **The display owns the output and says how it went** (`display.go`): `displayPicks` writes the array,
-    `displayReport` writes the table and answers whether every clip is scheduled. It does not turn that into
-    an error: `scheduleClips` decides, and exits 1 on `errUnsent`.
+  - **The display owns the output and says how it went** (`cmd/clips/internal/display`): `display.Picks`
+    writes the array, `display.Report` writes the table, to the summary file when one is named, and answers
+    whether every clip is scheduled. It does not turn that into an error: `schedule` in `main.go` decides, and
+    exits 1 on `errUnsent`.
+  - **The dispatch acts on `fetch`, `choose` and `schedule`, and on nothing else**: any other command is
+    `errUnknownCommand`, and nothing is fetched, printed or posted.
 
 **`internal/clips/internal/replays/` is the fetch**, a concept of its own beside `posts`:
 

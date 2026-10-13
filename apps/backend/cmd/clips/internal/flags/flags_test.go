@@ -1,4 +1,4 @@
-package main
+package flags_test
 
 import (
 	"testing"
@@ -7,13 +7,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/cmd/clips/internal/flags"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
 )
 
 func TestFetchFlagsSayWhichReplayAndWhereItGoes(t *testing.T) {
-	t.Setenv(hostVariable, "")
+	t.Setenv(flags.HostVariable, "")
 
-	flags, err := parseFlags([]string{
+	parsed, err := flags.Parse([]string{
 		"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-hours", "1.5", "-until", "2026-10-12T12:00:00Z",
 	})
 
@@ -22,15 +23,15 @@ func TestFetchFlagsSayWhichReplayAndWhereItGoes(t *testing.T) {
 	job.Replay.SSH = "deploy@vps.example"
 	job.Replay.Span = 90 * time.Minute
 	job.Replay.Until = time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
-	assert.Equal(t, FlagsConfig{Command: fetchCommand, ReplayFile: "replay.json", Job: job}, flags)
+	assert.Equal(t, flags.Config{Command: flags.Fetch, ReplayFile: "replay.json", Job: job}, parsed)
 }
 
 func TestFetchTakesItsHostFromTheEnvironmentAndAFlagWinsOverIt(t *testing.T) {
-	t.Setenv(hostVariable, "deploy@vps.example")
+	t.Setenv(flags.HostVariable, "deploy@vps.example")
 
-	fromEnvironment, err := parseFlags([]string{"fetch", "-out", "replay.json"})
+	fromEnvironment, err := flags.Parse([]string{"fetch", "-out", "replay.json"})
 	require.NoError(t, err)
-	fromFlag, err := parseFlags([]string{"fetch", "-out", "replay.json", "-ssh", "me@other.example"})
+	fromFlag, err := flags.Parse([]string{"fetch", "-out", "replay.json", "-ssh", "me@other.example"})
 	require.NoError(t, err)
 
 	assert.Equal(t, "deploy@vps.example", fromEnvironment.Job.Replay.SSH)
@@ -40,31 +41,32 @@ func TestFetchTakesItsHostFromTheEnvironmentAndAFlagWinsOverIt(t *testing.T) {
 }
 
 func TestChooseFlagsSayWhichShortlistAndHowManyClips(t *testing.T) {
-	flags, err := parseFlags([]string{"choose", "-shortlist", "shortlist.json", "-count", "3"})
+	parsed, err := flags.Parse([]string{"choose", "-shortlist", "shortlist.json", "-count", "3"})
 
 	require.NoError(t, err)
-	assert.Equal(t, FlagsConfig{Command: chooseCommand, ShortlistFile: "shortlist.json", Job: clips.Config{PerRun: 3}}, flags)
+	assert.Equal(t, flags.Config{Command: flags.Choose, ShortlistFile: "shortlist.json", Job: clips.Config{PerRun: 3}}, parsed)
 }
 
 func TestScheduleFlagsSayWhichClipsWhenAndWhereTheSummaryGoes(t *testing.T) {
-	t.Setenv(keyVariable, "the-key")
+	t.Setenv(flags.KeyVariable, "the-key")
 
-	flags, err := parseFlags([]string{"schedule", "-clips", "clips", "-review", "3h", "-spacing", "30m", "-summary", "summary.md"})
+	parsed, err := flags.Parse([]string{"schedule", "-clips", "clips", "-review", "3h", "-spacing", "30m", "-summary", "summary.md"})
 
 	require.NoError(t, err)
 	var job clips.Config
 	job.Review = 3 * time.Hour
 	job.Spacing = 30 * time.Minute
 	job.Zernio.APIKey = "the-key"
-	assert.Equal(t, FlagsConfig{Command: scheduleCommand, ClipsFolder: "clips", SummaryFile: "summary.md", Job: job}, flags)
+	assert.Equal(t, flags.Config{Command: flags.Schedule, ClipsFolder: "clips", SummaryFile: "summary.md", Job: job}, parsed)
 }
 
 func TestFlagsWithAPartMissingOrWrongSayHowToCallTheCommand(t *testing.T) {
-	t.Setenv(hostVariable, "")
+	t.Setenv(flags.HostVariable, "")
 
 	for name, args := range map[string][]string{
 		"nothing":               {},
 		"an unknown command":    {"publish"},
+		"a command in capitals": {"Schedule", "-clips", "clips"},
 		"fetch, no file":        {"fetch", "-ssh", "deploy@vps.example"},
 		"fetch, no host":        {"fetch", "-out", "replay.json"},
 		"fetch, a wrong time":   {"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-until", "yesterday"},
@@ -75,10 +77,18 @@ func TestFlagsWithAPartMissingOrWrongSayHowToCallTheCommand(t *testing.T) {
 		"schedule, a wrong gap": {"schedule", "-clips", "clips", "-spacing", "soon"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			flags, err := parseFlags(args)
+			parsed, err := flags.Parse(args)
 
 			require.ErrorContains(t, err, "usage:")
-			assert.Equal(t, FlagsConfig{}, flags)
+			assert.Equal(t, flags.Config{}, parsed)
 		})
 	}
+}
+
+func TestAMissingPartIsToldApartFromAFlagThatDoesNotParse(t *testing.T) {
+	_, missing := flags.Parse([]string{"choose"})
+	_, unparsed := flags.Parse([]string{"choose", "-shortlist", "shortlist.json", "-count", "two"})
+
+	require.ErrorIs(t, missing, flags.ErrArguments)
+	require.NotErrorIs(t, unparsed, flags.ErrArguments)
 }
