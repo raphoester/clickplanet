@@ -157,6 +157,51 @@ class OutputPipe {
 
 The auth module follows this. Code outside it has not been checked against the rule yet: fix a name when you touch the code, not in a sweep.
 
+### A command's `run` is a table of contents
+
+**Every CLI tool splits its `main` into named stages with one job each.** The top-level `run` names the stages and wires them together, and does nothing else:
+
+```go
+// Good
+func run(ctx context.Context, logger *slog.Logger) error {
+    flags, err := parseFlags()
+    if err != nil {
+        return err
+    }
+    results, err := doWork(ctx, flags, ...)
+    if err != nil {
+        return err
+    }
+    ok := displayResults(results)
+    if !ok {
+        return fmt.Errorf("one or more checks failed")
+    }
+    return nil
+}
+
+// Bad: one run that parses, executes and prints inline
+func run(logger *slog.Logger) error {
+    servicePath := flag.String(...)
+    flag.Parse()
+    // ... business logic ...
+    // ... printing ...
+    anyFailed := false
+    // ...
+}
+```
+
+- **`parseFlags` returns a typed config struct** (`FlagsConfig`). A raw `*string` flag value is never an argument of a function downstream.
+- **A work function returns values.** It does not write into a variable of an outer scope. The body of a goroutine is ideally one assignment: `results[i] = doOneUnit(...)`.
+- **A display function returns a `bool`, or a status.** It owns the output, not the propagation of errors: the caller decides what to do with what it answers.
+- **A signature is honest**: a function that can fail returns an `error`, and one that cannot does not.
+
+**`cmd/clips` follows it** (see [The clips job](#the-clips-job-internalclips-cmdclips)): `parseFlags` in `flags.go`, the work in `internal/clips/job.go`, the display in `display.go`. Two things it settled:
+
+- **With subcommands, `run` parses, then picks the command**, and each command is its own short list of stages: work, then display.
+- **A display that writes can fail**, so it answers an `error` beside its `bool`: `displayReport(page, report) (bool, error)`. The `bool` is still what the report says (every clip is scheduled), and the `error` only that the page could not be written.
+
+`cmd/api` is a server, not a tool: its `run` loads the config and hands the modules to `cpbootstrap`.
+
 ### The composite layer
 
 Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`, `internal/player/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
