@@ -499,6 +499,17 @@
     overflow-wrap: anywhere;
 }
 
+.chat-message-text a,
+.chat-message-text a:hover {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.chat-message-text a:hover {
+    text-decoration-thickness: 2px;
+}
+
 .chat-message:not(:has(+ .chat-message-cont)) .chat-message-text::before,
 .chat-message:not(:has(+ .chat-message-cont)) .chat-message-text::after {
     content: "";

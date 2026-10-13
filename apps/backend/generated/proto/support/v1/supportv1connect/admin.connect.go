@@ -35,11 +35,15 @@ const (
 const (
 	// AdminServiceListNotesProcedure is the fully-qualified name of the AdminService's ListNotes RPC.
 	AdminServiceListNotesProcedure = "/support.v1.AdminService/ListNotes"
+	// AdminServiceListReportsProcedure is the fully-qualified name of the AdminService's ListReports
+	// RPC.
+	AdminServiceListReportsProcedure = "/support.v1.AdminService/ListReports"
 )
 
 // AdminServiceClient is a client for the support.v1.AdminService service.
 type AdminServiceClient interface {
 	ListNotes(context.Context, *connect.Request[v1.ListNotesRequest]) (*connect.Response[v1.ListNotesResponse], error)
+	ListReports(context.Context, *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the support.v1.AdminService service. By default, it
@@ -59,12 +63,19 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("ListNotes")),
 			connect.WithClientOptions(opts...),
 		),
+		listReports: connect.NewClient[v1.ListReportsRequest, v1.ListReportsResponse](
+			httpClient,
+			baseURL+AdminServiceListReportsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListReports")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	listNotes *connect.Client[v1.ListNotesRequest, v1.ListNotesResponse]
+	listNotes   *connect.Client[v1.ListNotesRequest, v1.ListNotesResponse]
+	listReports *connect.Client[v1.ListReportsRequest, v1.ListReportsResponse]
 }
 
 // ListNotes calls support.v1.AdminService.ListNotes.
@@ -72,9 +83,15 @@ func (c *adminServiceClient) ListNotes(ctx context.Context, req *connect.Request
 	return c.listNotes.CallUnary(ctx, req)
 }
 
+// ListReports calls support.v1.AdminService.ListReports.
+func (c *adminServiceClient) ListReports(ctx context.Context, req *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error) {
+	return c.listReports.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the support.v1.AdminService service.
 type AdminServiceHandler interface {
 	ListNotes(context.Context, *connect.Request[v1.ListNotesRequest]) (*connect.Response[v1.ListNotesResponse], error)
+	ListReports(context.Context, *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -90,10 +107,18 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("ListNotes")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceListReportsHandler := connect.NewUnaryHandler(
+		AdminServiceListReportsProcedure,
+		svc.ListReports,
+		connect.WithSchema(adminServiceMethods.ByName("ListReports")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/support.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceListNotesProcedure:
 			adminServiceListNotesHandler.ServeHTTP(w, r)
+		case AdminServiceListReportsProcedure:
+			adminServiceListReportsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -105,4 +130,8 @@ type UnimplementedAdminServiceHandler struct{}
 
 func (UnimplementedAdminServiceHandler) ListNotes(context.Context, *connect.Request[v1.ListNotesRequest]) (*connect.Response[v1.ListNotesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.ListNotes is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListReports(context.Context, *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.ListReports is not implemented"))
 }

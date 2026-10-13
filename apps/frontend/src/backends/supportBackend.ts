@@ -1,14 +1,20 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {SupportService} from "../gen/grpc/support/v1/support_connect.ts";
+import {ReportReason as ReportReasonPb} from "../gen/grpc/support/v1/support_pb.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
 import {
     BugReporter,
     FeatureSuggester,
     PageContext,
+    PlayerReport,
+    PlayerReporter,
+    ReportReason,
     SupportNoSessionError,
     SupportRateLimitedError,
     SupportRejectedError,
+    SupportReportedAlreadyError,
+    SupportUnknownPlayerError,
 } from "./support.ts";
 import {Config} from "./transport.ts";
 
@@ -21,7 +27,14 @@ export function newSupportServiceClient(config: Config): PromiseClient<typeof Su
     }))
 }
 
-export class ConnectSupportBackend implements FeatureSuggester, BugReporter {
+const REASONS: Record<ReportReason, ReportReasonPb> = {
+    "cheating": ReportReasonPb.CHEATING,
+    "chat-abuse": ReportReasonPb.CHAT_ABUSE,
+    "bad-name": ReportReasonPb.BAD_NAME,
+    "other": ReportReasonPb.OTHER,
+}
+
+export class ConnectSupportBackend implements FeatureSuggester, BugReporter, PlayerReporter {
     constructor(
         private client: PromiseClient<typeof SupportService>,
         private readonly session: SessionProvider,
@@ -34,6 +47,15 @@ export class ConnectSupportBackend implements FeatureSuggester, BugReporter {
 
     public reportBug(text: string, context: PageContext): Promise<void> {
         return this.send((headers) => this.client.reportBug({text, context}, {headers}))
+    }
+
+    public reportPlayer(report: PlayerReport): Promise<void> {
+        return this.send((headers) => this.client.reportPlayer({
+            name: report.name,
+            reason: REASONS[report.reason],
+            text: report.text,
+            messageId: report.messageId ?? "",
+        }, {headers}))
     }
 
     // Not retried: a call that landed and lost its answer would be kept twice.
@@ -78,6 +100,10 @@ function translate(e: unknown): unknown {
             return new SupportRateLimitedError({cause: e})
         case Code.InvalidArgument:
             return new SupportRejectedError({cause: e})
+        case Code.NotFound:
+            return new SupportUnknownPlayerError({cause: e})
+        case Code.AlreadyExists:
+            return new SupportReportedAlreadyError({cause: e})
         case Code.Unauthenticated:
             return new SupportNoSessionError({cause: e})
         default:

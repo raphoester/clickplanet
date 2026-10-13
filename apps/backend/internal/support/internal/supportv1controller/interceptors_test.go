@@ -67,6 +67,7 @@ func run(ctx context.Context, interceptor connect.Interceptor, procedure string,
 var procedures = []string{
 	supportv1connect.SupportServiceSuggestFeatureProcedure,
 	supportv1connect.SupportServiceReportBugProcedure,
+	supportv1connect.SupportServiceReportPlayerProcedure,
 }
 
 func TestEveryProcedureIsThrottledOnTheSourceAddress(t *testing.T) {

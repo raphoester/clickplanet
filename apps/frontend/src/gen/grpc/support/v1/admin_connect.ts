@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ListNotesRequest, ListNotesResponse } from "./admin_pb.js";
+import { ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -21,6 +21,15 @@ export const AdminService = {
       name: "ListNotes",
       I: ListNotesRequest,
       O: ListNotesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc support.v1.AdminService.ListReports
+     */
+    listReports: {
+      name: "ListReports",
+      I: ListReportsRequest,
+      O: ListReportsResponse,
       kind: MethodKind.Unary,
     },
   }

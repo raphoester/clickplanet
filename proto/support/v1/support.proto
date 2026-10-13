@@ -6,6 +6,8 @@ service SupportService {
   rpc SuggestFeature(SuggestFeatureRequest) returns (SuggestFeatureResponse);
 
   rpc ReportBug(ReportBugRequest) returns (ReportBugResponse);
+
+  rpc ReportPlayer(ReportPlayerRequest) returns (ReportPlayerResponse);
 }
 
 message SuggestFeatureRequest {
@@ -44,3 +46,23 @@ message PageContext {
   // Device memory in GiB, as the browser reports it; 0 where it does not.
   double memory_gb = 12;
 }
+
+enum ReportReason {
+  REPORT_REASON_UNSPECIFIED = 0;
+  REPORT_REASON_CHEATING = 1;
+  REPORT_REASON_CHAT_ABUSE = 2;
+  REPORT_REASON_BAD_NAME = 3;
+  REPORT_REASON_OTHER = 4;
+}
+
+message ReportPlayerRequest {
+  // The name the game shows for the player: its username, or guest_ and its guest code.
+  string name = 1;
+  ReportReason reason = 2;
+  // Optional.
+  string text = 3;
+  // Optional: the chat message the report is about.
+  string message_id = 4;
+}
+
+message ReportPlayerResponse {}

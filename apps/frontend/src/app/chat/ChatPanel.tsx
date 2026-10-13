@@ -26,7 +26,7 @@ export type ChatPanelProps = {
     country: Country
     playSound?: PlaySound
     username?: string
-    onOpenPlayer?: (player: PlayerLine) => void
+    onOpenPlayer?: (player: PlayerLine, messageId?: string) => void
     players?: readonly RosterEntry[]
     compact?: boolean
     open?: boolean
