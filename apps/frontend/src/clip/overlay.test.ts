@@ -1,7 +1,6 @@
 import {describe, expect, it} from "vitest"
-import {Story} from "../domain/clip/story.ts"
-import {sidesOf, teamFlagOf} from "../domain/clip/story.ts"
-import {nameOf, wordsOf} from "./overlay.ts"
+import {sidesOf, Story, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
+import {hashtagsOf, nameOf, wordsOf} from "./overlay.ts"
 
 function story(kind: Story["kind"], place: Story["place"], rival?: string): Story {
     return {kind, attacker: "ps", rival, victims: ["fr", "es"], place, taken: 2593}
@@ -23,7 +22,6 @@ describe("a place of two countries", () => {
 
         expect(words.headline).toBe("ISRAEL IS INVADING EGYPT AND TURKEY")
         expect(words.callFlags).toEqual(["eg", "tr"])
-        expect(words.caption).toMatch(/#map #egypt #turkey$/)
     })
 })
 
@@ -51,7 +49,6 @@ describe("a flag losing land nobody leads the taking of", () => {
         expect(words.headline).toBe("PALESTINE GETS KICKED OUT OF SOUTH AMERICA")
         expect(words.call).toBe("FIGHT FOR PALESTINE")
         expect(words.callFlags).toEqual(["ps"])
-        expect(words.caption).toMatch(/Who saves them\? 👇/)
     })
 
     it("is falling when the land it loses is its own country", () => {
@@ -93,7 +90,6 @@ describe("names said with their article", () => {
 
         expect(words.headline).toBe("THE UK IS KICKING ISRAEL OUT OF NORWAY AND SWEDEN")
         expect(wordsOf(story("battle", {country: "gb"}, "nl")).line).toBe("The battle for the UK")
-        expect(wordsOf(story("battle", {country: "gb"}, "nl")).caption).toMatch(/#uk$/)
     })
 
     it("say the Middle East, a part of Asia, and tag it bare", () => {
@@ -101,7 +97,6 @@ describe("names said with their article", () => {
 
         expect(words.headline).toBe("ALGERIA IS ATTACKING THE MIDDLE EAST")
         expect(words.call).toBe("DEFEND THE MIDDLE EAST")
-        expect(words.caption).toMatch(/#middleeast$/)
         expect(wordsOf({...story("comeback", {region: "Middle East"}), team: "Middle East"}).headline).toBe("THE MIDDLE EAST STRIKES BACK")
     })
 })
@@ -113,7 +108,6 @@ describe("a continent striking back together", () => {
         expect(words.headline).toBe("EUROPE STRIKES BACK")
         expect(words.call).toBe("FIGHT FOR EUROPE")
         expect(words.callFlags).toEqual(["eu"])
-        expect(words.caption).toMatch(/^EUROPE STRIKES BACK\. Who joins them\? 👇\n/)
     })
 })
 
@@ -129,29 +123,72 @@ describe("the line under the headline", () => {
     })
 })
 
-describe("the caption", () => {
-    it("asks a question, names the site as text, and tags the place but not the attacker", () => {
-        expect(wordsOf(story("invasion", {country: "tr"})).caption).toBe(
-            "PALESTINE IS INVADING TURKEY. Who stops them? 👇\nclickplanet.lol\n#clickplanet #pixelwars #rplace #wplace #map #turkey")
+describe("the teasers of a caption", () => {
+    it("say the headline another way, as the posts written by hand did", () => {
+        expect(wordsOf({...story("kickout", {country: "kz"}), attacker: "ps", victims: ["ro"]}).teasers)
+            .toContain("PALESTINE TAKES KAZAKHSTAN FROM ROMANIA")
+        expect(wordsOf({...story("invasion", {country: "cn"}), attacker: "hr", victims: ["fr"]}).teasers)
+            .toContain("CROATIA INVADES CHINA AND KICKS OUT FRANCE")
+        expect(wordsOf({...story("rout", {region: "Europe"}), attacker: "de", victims: ["cx"], team: "Europe"}).teasers)
+            .toContain("GENERATIONAL DOWNFALL OF CHRISTMAS ISLAND")
+        expect(wordsOf({...story("attack", {region: "Europe"}), attacker: "cx"}).teasers)
+            .toContain("CHRISTMAS ISLAND TAKES OVER EUROPE")
     })
 
-    it("asks who joins a flag striking back, as its call asks to fight for it", () => {
-        expect(wordsOf(story("comeback", {region: "Europe"})).caption).toMatch(/^PALESTINE STRIKES BACK\. Who joins them\? 👇\n/)
+    it("tell a country throwing a flag out of its own land as taking it back", () => {
+        expect(wordsOf({...story("rout", {country: "it"}), attacker: "it", victims: ["pt"]}).teasers)
+            .toEqual(["ITALY RETAKES ITS LAND FROM PORTUGAL", "GENERATIONAL DOWNFALL OF PORTUGAL"])
     })
 
-    it("asks to pick a side in a battle", () => {
-        expect(wordsOf(story("battle", {country: "fr"}, "nl")).caption).toMatch(/^PALESTINE VS THE NETHERLANDS\. Pick a side 👇\n/)
+    it("name no victim an invasion did not kick out of somewhere else", () => {
+        expect(wordsOf({...story("invasion", {country: "fr"}), victims: ["fr"]}).teasers)
+            .toEqual(["PALESTINE INVADES FRANCE", "FRANCE IS UNDER ATTACK FROM PALESTINE"])
     })
 
-    it("tags no place for the world", () => {
-        expect(wordsOf(story("attack", {region: "the world"})).caption).toMatch(/#map$/)
+    it("are never the headline, whatever the story", () => {
+        const stories: Story[] = [
+            story("invasion", {country: "tr"}), story("attack", {region: "Europe"}), story("attack", {region: "the world"}),
+            story("comeback", {country: "ps"}), story("comeback", {region: "Europe"}), story("battle", {country: "fr"}, "nl"),
+            {...story("kickout", {country: "au"}), attacker: "fr", victims: ["pl"]},
+            {...story("rout", {region: "Europe"}), victims: ["ps"], team: "Europe"},
+            {...story("rout", {country: "dz"}), victims: ["dz"]}, {...story("rout", {region: "Africa"}), victims: ["dz"]},
+            {...story("comeback", {region: "Europe"}), attacker: "de", team: "Europe"},
+        ]
+        for (const told of stories) {
+            const words = wordsOf(told)
+            expect(words.teasers.length).toBeGreaterThanOrEqual(2)
+            expect(words.teasers).not.toContain(words.headline)
+            for (const teaser of words.teasers) expect(teaser).toBe(teaser.toUpperCase())
+        }
     })
 
-    it("comes with its tags as a list, for where tags are not part of the text", () => {
-        expect(wordsOf({...story("invasion", {countries: ["eg", "tr"]}), attacker: "il"}).tags)
-            .toEqual(["#clickplanet", "#pixelwars", "#rplace", "#wplace", "#map", "#egypt", "#turkey"])
+    it("keep the article of a name", () => {
+        expect(wordsOf(story("battle", {country: "gb"}, "nl")).teasers).toContain("WAR FOR THE UK: PALESTINE VS THE NETHERLANDS")
+    })
+})
+
+describe("the hashtags of a story", () => {
+    it("name every flag of the story and the countries of its place, once each", () => {
+        expect(hashtagsOf({...story("invasion", {countries: ["eg", "tr"]}), attacker: "il", victims: ["eg", "fr"]})).toEqual({
+            countries: [{code: "eg", tag: "egypt"}, {code: "tr", tag: "turkey"}, {code: "il", tag: "israel"}, {code: "fr", tag: "france"}],
+            continent: "africa",
+        })
     })
 
+    it("are said bare, the way people write them", () => {
+        expect(hashtagsOf({...story("battle", {country: "gb"}, "nl"), victims: []}).countries.map(({tag}) => tag))
+            .toEqual(["uk", "palestine", "netherlands"])
+        expect(hashtagsOf({...story("attack", {region: "Middle East"}), attacker: "cx", victims: []}))
+            .toEqual({countries: [{code: "cx", tag: "christmasisland"}], continent: "middleeast"})
+    })
+
+    it("leave out a continent's own flag, and the world", () => {
+        expect(hashtagsOf({...story("rout", {region: THE_WORLD}), attacker: "eu", victims: ["ps"], team: "Europe"}))
+            .toEqual({countries: [{code: "ps", tag: "palestine"}], continent: undefined})
+    })
+})
+
+describe("a tour of the world", () => {
     it("says a flag taking land on every continent at once is taking over the world, and asks to fight back", () => {
         const words = wordsOf({...story("attack", {region: "the world"}), attacker: "pt"})
 
@@ -159,6 +196,7 @@ describe("the caption", () => {
         expect(words.call).toBe("FIGHT BACK")
         expect(words.callFlags).toEqual([])
         expect(words.link).toBe("https://clickplanet.lol")
+        expect(words.teasers).toEqual(["PORTUGAL TAKES OVER THE WORLD", "NOBODY CAN STOP PORTUGAL"])
     })
 })
 

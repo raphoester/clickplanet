@@ -23,7 +23,7 @@ func times(planned []posts.Post) map[string]time.Time {
 func TestTheBestClipGoesOutAReviewFromNowAndEachNextOneASpacingLater(t *testing.T) {
 	now := time.Date(2026, 10, 12, 12, 40, 0, 0, time.UTC)
 
-	planned := cadence.Posts([]posts.Clip{clip(t, 2, "SECOND"), clip(t, 1, "BEST"), clip(t, 3, "THIRD")}, now)
+	planned := cadence.Posts([]posts.Clip{clip(t, 2, "SECOND"), clip(t, 1, "BEST"), clip(t, 3, "THIRD")}, now, posts.LoadedDice(0))
 
 	assert.Equal(t, map[string]time.Time{
 		"BEST":   time.Date(2026, 10, 12, 16, 40, 0, 0, time.UTC),
@@ -36,18 +36,18 @@ func TestTheBestClipGoesOutAReviewFromNowAndEachNextOneASpacingLater(t *testing.
 func TestAPostGoesOutOnAWholeMinuteNeverSoonerThanTheReview(t *testing.T) {
 	now := time.Date(2026, 10, 12, 12, 40, 27, 500, time.UTC)
 
-	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now)
+	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
 
 	assert.Equal(t, time.Date(2026, 10, 12, 16, 41, 0, 0, time.UTC), planned[0].TakeSnapshot().At)
 }
 
 func TestNoClipIsNoPost(t *testing.T) {
-	assert.Empty(t, cadence.Posts(nil, time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)))
+	assert.Empty(t, cadence.Posts(nil, time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC), posts.LoadedDice(0)))
 }
 
 func TestAPostIsReviewableWhileItsTimeIsAnHourAway(t *testing.T) {
 	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
-	post := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now)[0]
+	post := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))[0]
 
 	assert.True(t, post.Reviewable(now))
 	assert.True(t, post.Reviewable(now.Add(3*time.Hour)))

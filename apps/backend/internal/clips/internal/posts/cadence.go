@@ -10,7 +10,8 @@ type Cadence struct {
 	Spacing time.Duration
 }
 
-func (c Cadence) Posts(clips []Clip, now time.Time) []Post {
+// Each with its time and its words: a teaser and a call picked at random, so their variants can be compared.
+func (c Cadence) Posts(clips []Clip, now time.Time, dice Dice) []Post {
 	ranked := slices.SortedFunc(slices.Values(clips), func(a, b Clip) int { return int(a.pick - b.pick) })
 
 	first := now.Add(c.Review).Truncate(time.Minute)
@@ -20,7 +21,7 @@ func (c Cadence) Posts(clips []Clip, now time.Time) []Post {
 
 	posts := make([]Post, 0, len(ranked))
 	for i, clip := range ranked {
-		posts = append(posts, Post{clip: clip, at: first.Add(time.Duration(i) * c.Spacing)})
+		posts = append(posts, Post{clip: clip, at: first.Add(time.Duration(i) * c.Spacing), wording: wordingOf(clip, dice)})
 	}
 	return posts
 }

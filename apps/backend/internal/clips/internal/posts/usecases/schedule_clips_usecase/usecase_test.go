@@ -3,6 +3,7 @@ package schedule_clips_usecase_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,7 +38,7 @@ func key(title string) posts.StoryKey {
 func clip(t *testing.T, pick posts.Pick, title string) posts.Clip {
 	t.Helper()
 
-	restored, err := posts.ClipSnapshot{Pick: pick, Title: title, Caption: title + " 👇", Key: key(title), Video: "clip.mp4"}.Restore()
+	restored, err := posts.ClipSnapshot{Pick: pick, Title: title, Teasers: []string{title + " 1", title + " 2"}, Key: key(title), Video: "clip.mp4"}.Restore()
 	require.NoError(t, err)
 	return restored
 }
@@ -51,7 +52,7 @@ func scheduling(clips folder, refusals ...error) run {
 	clock := cptime.NewFixedClock(now)
 	service := posts.NewScriptedService(refusals...)
 	sender := posts.NewSender(service, posts.Backoff{time.Minute}, posts.NewRecordedPause(clock), clock)
-	return run{service: service, usecase: schedule_clips_usecase.New(clips, cadence, clock, sender)}
+	return run{service: service, usecase: schedule_clips_usecase.New(clips, cadence, clock, posts.LoadedDice(1), sender)}
 }
 
 func TestEachRenderedClipIsScheduledBestFirstAndTheReportSaysSo(t *testing.T) {
@@ -65,10 +66,11 @@ func TestEachRenderedClipIsScheduledBestFirstAndTheReportSaysSo(t *testing.T) {
 		{Title: "SECOND", At: second, Post: "post-SECOND"},
 	}, report)
 	assert.True(t, report.Complete())
-	assert.Equal(t, []posts.PostSnapshot{
-		{Title: "BEST", Caption: "BEST 👇", Key: key("BEST"), Video: "clip.mp4", At: first},
-		{Title: "SECOND", Caption: "SECOND 👇", Key: key("SECOND"), Video: "clip.mp4", At: second},
-	}, r.service.Scheduled)
+	require.Len(t, r.service.Scheduled, 2)
+	assert.Equal(t, []string{"BEST", "SECOND"}, []string{r.service.Scheduled[0].Title, r.service.Scheduled[1].Title})
+	assert.Equal(t, []time.Time{first, second}, []time.Time{r.service.Scheduled[0].At, r.service.Scheduled[1].At})
+	assert.True(t, strings.HasPrefix(r.service.Scheduled[0].Caption, "BEST 2 | CLICKPLANET\n"))
+	assert.Equal(t, "browser", r.service.Scheduled[0].CallToAction)
 }
 
 func TestAClipTheServiceRefusesIsInTheReportAndTheOthersStillGoOut(t *testing.T) {

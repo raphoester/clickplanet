@@ -12,8 +12,9 @@ type PostID string
 const leastReview = time.Hour
 
 type Post struct {
-	clip Clip
-	at   time.Time
+	clip    Clip
+	at      time.Time
+	wording wording
 }
 
 func (p Post) Reviewable(now time.Time) bool {
@@ -21,12 +22,16 @@ func (p Post) Reviewable(now time.Time) bool {
 }
 
 func (p Post) TakeSnapshot() PostSnapshot {
-	return PostSnapshot{Title: p.clip.title, Caption: p.clip.caption, Key: p.clip.key, Video: p.clip.video, At: p.at}
+	return PostSnapshot{
+		Title: p.clip.title, Caption: p.wording.caption(p.clip), CallToAction: p.wording.call.ID,
+		Key: p.clip.key, Video: p.clip.video, At: p.at,
+	}
 }
 
 type PostSnapshot struct {
-	Title   string
-	Caption string
+	Title        string
+	Caption      string
+	CallToAction string
 	// Kept with the post, so a later run knows the story is told.
 	Key   StoryKey
 	Video VideoFile

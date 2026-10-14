@@ -15,7 +15,6 @@ import {foughtOver, losersOf, ownersAfter, ranked as rankedBy, takersFrom, tally
 import {cellOf, dot, meanOf, Point, pointOf} from "../domain/clip/geometry.ts"
 import {SCRIBBLE_BELOW, solidityOf} from "../domain/clip/solidity.ts"
 import {anthemOf, startOf} from "../domain/clip/music.ts"
-import {credited} from "../domain/clip/caption.ts"
 import {ANTHEMS} from "../app/anthem/anthemsAsset.ts"
 import {HIGHLIGHTS} from "./anthemHighlightsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
@@ -30,7 +29,7 @@ import {stopsOf, tourOf, tourSecondsOf, Visit} from "../domain/clip/tour.ts"
 import {flagsZoomOf, tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {mulberry32} from "../app/viewer/stars.ts"
 import {installVirtualClock} from "./virtualClock.ts"
-import {createOverlay, nameOf, placeName, wordsOf} from "./overlay.ts"
+import {createOverlay, hashtagsOf, nameOf, placeName, wordsOf} from "./overlay.ts"
 
 export type Recording = {
     pick: number
@@ -49,7 +48,7 @@ export type Recording = {
     line: string
     call: string
     link: string
-    caption: string
+    teasers: string[]
     // What to post with the clip, as a clips.v1.Clip.
     clip: JsonValue
 }
@@ -353,7 +352,7 @@ async function choose(): Promise<Chosen> {
         const words = wordsOf(story, params.get("headline") ?? undefined)
         const overlay = createOverlay(root, story, words, opening)
         const music = params.has("silent") ? undefined : musicOf(story, timeline.seconds)
-        const caption = credited(words.caption, music?.credit)
+        const hashtags = hashtagsOf(story)
 
         let played = 0
         await createGlobe({
@@ -415,8 +414,11 @@ async function choose(): Promise<Chosen> {
             line: words.line ?? "",
             call: words.call,
             link: words.link,
-            caption,
-            clip: new Clip({pick, title: words.headline, caption, tags: words.tags, key: storyKeyOf(story, regionOf)}).toJson(),
+            teasers: words.teasers,
+            clip: new Clip({
+                pick, title: words.headline, key: storyKeyOf(story, regionOf), teasers: words.teasers,
+                countries: hashtags.countries, continentTag: hashtags.continent ?? "", credit: music?.credit ?? "",
+            }).toJson(),
             music,
         }
     }

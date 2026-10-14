@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -79,8 +80,8 @@ func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 func rendered(t *testing.T, folder string, pick int, title, flag string) {
 	t.Helper()
 
-	clip := fmt.Sprintf(`{"pick": %d, "title": %q, "caption": %q, "tags": ["#clickplanet"], "key": {"flag": %q, "continent": "Africa"}}`,
-		pick, title, title+" 👇\n#clickplanet", flag)
+	clip := fmt.Sprintf(`{"pick": %d, "title": %q, "teasers": [%q], "key": {"flag": %q, "continent": "Africa"}, "continentTag": "africa"}`,
+		pick, title, "SAID ANOTHER WAY: "+title, flag)
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.json", pick)), []byte(clip), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.mp4", pick)), []byte(title), 0o600))
 }
@@ -102,8 +103,12 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 	require.NoError(t, err)
 	require.Len(t, posts, 2)
 	assert.Equal(t, "KOSOVO IS ATTACKING THE MIDDLE EAST", posts[0].Title)
-	assert.Equal(t, map[string]string{"storyFlag": "xk", "storyContinent": "Africa"}, posts[0].Metadata)
-	assert.Equal(t, "KOSOVO IS ATTACKING THE MIDDLE EAST 👇\n#clickplanet", posts[0].Content)
+	assert.Equal(t, "xk", posts[0].Metadata["storyFlag"])
+	assert.Equal(t, "Africa", posts[0].Metadata["storyContinent"])
+	assert.NotEmpty(t, posts[0].Metadata["callToAction"])
+	assert.True(t, strings.HasPrefix(posts[0].Content, "SAID ANOTHER WAY: KOSOVO IS ATTACKING THE MIDDLE EAST | CLICKPLANET\n"))
+	assert.Contains(t, posts[0].Content, "👉 clickplanet.lol\n#clickplanet ")
+	assert.True(t, strings.HasSuffix(posts[0].Content, " #africa"))
 	assert.Equal(t, "https://media.example/clip-1.mp4", posts[0].MediaItems[0].URL)
 	assert.Equal(t, "FRANCE IS ATTACKING EUROPE", posts[1].Title)
 

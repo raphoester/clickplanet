@@ -2,8 +2,17 @@ package posts
 
 import (
 	"context"
+	"math/rand/v2"
 	"time"
 )
+
+type SystemDice struct{}
+
+var _ Dice = SystemDice{}
+
+func (SystemDice) IntN(n int) int {
+	return rand.IntN(n) //nolint:gosec // the words of a post, not a secret.
+}
 
 type SystemPause struct{}
 

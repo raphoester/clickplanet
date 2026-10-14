@@ -10,7 +10,7 @@ import (
 )
 
 func TestAReportSaysWhatBecameOfEachClip(t *testing.T) {
-	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now)
+	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
 
 	report := posts.Report{}.
 		With(planned[0], "post-1", nil).
@@ -24,13 +24,13 @@ func TestAReportSaysWhatBecameOfEachClip(t *testing.T) {
 }
 
 func TestARunThatScheduledEveryClipIsComplete(t *testing.T) {
-	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now)
+	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
 
 	assert.True(t, posts.Report{}.With(planned[0], "post-1", nil).Complete())
 }
 
 func TestAddingToAReportLeavesItAsItWas(t *testing.T) {
-	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now)
+	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
 	first := posts.Report{}.With(planned[0], "post-1", nil)
 
 	_ = first.With(planned[1], "post-2", nil)

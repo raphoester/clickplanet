@@ -46,3 +46,12 @@ func (s *ScriptedService) Schedule(_ context.Context, post Post) (PostID, error)
 	s.Scheduled = append(s.Scheduled, post.TakeSnapshot())
 	return PostID("post-" + post.clip.title), nil
 }
+
+// A dice that always shows the same face.
+type LoadedDice int
+
+var _ Dice = LoadedDice(0)
+
+func (d LoadedDice) IntN(n int) int {
+	return int(d) % n
+}

@@ -24,14 +24,15 @@ type Executor interface {
 	Execute(ctx context.Context) (posts.Report, error)
 }
 
-func New(clips Clips, cadence posts.Cadence, clock cptime.Clock, sender Sender) *UseCase {
-	return &UseCase{clips: clips, cadence: cadence, clock: clock, sender: sender}
+func New(clips Clips, cadence posts.Cadence, clock cptime.Clock, dice posts.Dice, sender Sender) *UseCase {
+	return &UseCase{clips: clips, cadence: cadence, clock: clock, dice: dice, sender: sender}
 }
 
 type UseCase struct {
 	clips   Clips
 	cadence posts.Cadence
 	clock   cptime.Clock
+	dice    posts.Dice
 	sender  Sender
 }
 
@@ -47,7 +48,7 @@ func (u *UseCase) Execute(ctx context.Context) (posts.Report, error) {
 	}
 
 	report := posts.Report{}
-	for _, post := range u.cadence.Posts(rendered, u.clock.Now()) {
+	for _, post := range u.cadence.Posts(rendered, u.clock.Now(), u.dice) {
 		id, err := u.sender.Send(ctx, post)
 		report = report.With(post, id, err)
 	}

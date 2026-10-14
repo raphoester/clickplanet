@@ -11,7 +11,8 @@ import (
 
 func rendered(pick posts.Pick, title string) posts.ClipSnapshot {
 	return posts.ClipSnapshot{
-		Pick: pick, Title: title, Caption: title + ". Who stops them? 👇\nclickplanet.lol\n#clickplanet",
+		Pick: pick, Title: title, Teasers: []string{"ALGERIA TAKES " + title, "ALGERIA INVADES " + title},
+		Countries: []posts.TaggedCountry{{Code: "dz", Tag: "algeria"}}, ContinentTag: "africa",
 		Key: posts.StoryKey{Flag: "dz", Continent: title}, Video: posts.VideoFile("clip-" + title + ".mp4"),
 	}
 }
@@ -35,12 +36,14 @@ func TestAClipIsWhatTheGeneratorWrote(t *testing.T) {
 
 func TestAClipWithAPartMissingIsRefused(t *testing.T) {
 	for name, broken := range map[string]func(*posts.ClipSnapshot){
-		"no pick":    func(s *posts.ClipSnapshot) { s.Pick = 0 },
-		"no title":   func(s *posts.ClipSnapshot) { s.Title = "" },
-		"no caption": func(s *posts.ClipSnapshot) { s.Caption = "" },
-		"no flag":    func(s *posts.ClipSnapshot) { s.Key.Flag = "" },
-		"no place":   func(s *posts.ClipSnapshot) { s.Key.Continent = "" },
-		"no video":   func(s *posts.ClipSnapshot) { s.Video = "" },
+		"no pick":     func(s *posts.ClipSnapshot) { s.Pick = 0 },
+		"no title":    func(s *posts.ClipSnapshot) { s.Title = "" },
+		"no teaser":   func(s *posts.ClipSnapshot) { s.Teasers = nil },
+		"a blank one": func(s *posts.ClipSnapshot) { s.Teasers = []string{"ALGERIA TAKES AFRICA", ""} },
+		"no tag":      func(s *posts.ClipSnapshot) { s.Countries = []posts.TaggedCountry{{Code: "dz"}} },
+		"no flag":     func(s *posts.ClipSnapshot) { s.Key.Flag = "" },
+		"no place":    func(s *posts.ClipSnapshot) { s.Key.Continent = "" },
+		"no video":    func(s *posts.ClipSnapshot) { s.Video = "" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			written := rendered(1, "FRANCE IS ATTACKING EUROPE")
