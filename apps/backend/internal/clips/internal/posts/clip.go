@@ -9,25 +9,41 @@ type VideoFile string
 
 var ErrInvalidClip = errors.New("the clip is invalid")
 
+type TaggedCountry struct {
+	Code string
+	// With no #: "uk", "christmasisland".
+	Tag string
+}
+
 type Clip struct {
-	pick    Pick
-	title   string
-	caption string
-	key     StoryKey
-	video   VideoFile
+	pick         Pick
+	title        string
+	key          StoryKey
+	teasers      []string
+	countries    []TaggedCountry
+	continentTag string
+	attribution  string
+	video        VideoFile
 }
 
 func (c Clip) TakeSnapshot() ClipSnapshot {
-	return ClipSnapshot{Pick: c.pick, Title: c.title, Caption: c.caption, Key: c.key, Video: c.video}
+	return ClipSnapshot{
+		Pick: c.pick, Title: c.title, Key: c.key, Teasers: c.teasers, Countries: c.countries,
+		ContinentTag: c.continentTag, Attribution: c.attribution, Video: c.video,
+	}
 }
 
 type ClipSnapshot struct {
 	Pick  Pick
 	Title string
-	// Ready to post: its tags are in it.
-	Caption string
-	Key     StoryKey
-	Video   VideoFile
+	Key   StoryKey
+	// The headline said in other words: the caption opens with one of them.
+	Teasers      []string
+	Countries    []TaggedCountry
+	ContinentTag string
+	// What the licence of the clip's music asks the caption to say; empty when none.
+	Attribution string
+	Video       VideoFile
 }
 
 func (s ClipSnapshot) Restore() (Clip, error) {
@@ -36,12 +52,25 @@ func (s ClipSnapshot) Restore() (Clip, error) {
 		return Clip{}, fmt.Errorf("%w: no pick", ErrInvalidClip)
 	case s.Title == "":
 		return Clip{}, fmt.Errorf("%w: no title", ErrInvalidClip)
-	case s.Caption == "":
-		return Clip{}, fmt.Errorf("%w: no caption", ErrInvalidClip)
+	case len(s.Teasers) == 0:
+		return Clip{}, fmt.Errorf("%w: no teaser", ErrInvalidClip)
 	case !s.Key.known():
 		return Clip{}, fmt.Errorf("%w: no story key", ErrInvalidClip)
 	case s.Video == "":
 		return Clip{}, fmt.Errorf("%w: no video", ErrInvalidClip)
 	}
-	return Clip{pick: s.Pick, title: s.Title, caption: s.Caption, key: s.Key, video: s.Video}, nil
+	for _, teaser := range s.Teasers {
+		if teaser == "" {
+			return Clip{}, fmt.Errorf("%w: an empty teaser", ErrInvalidClip)
+		}
+	}
+	for _, country := range s.Countries {
+		if country.Code == "" || country.Tag == "" {
+			return Clip{}, fmt.Errorf("%w: a country with no code or no tag", ErrInvalidClip)
+		}
+	}
+	return Clip{
+		pick: s.Pick, title: s.Title, key: s.Key, teasers: s.Teasers, countries: s.Countries,
+		continentTag: s.ContinentTag, attribution: s.Attribution, video: s.Video,
+	}, nil
 }

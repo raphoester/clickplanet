@@ -32,6 +32,7 @@ const (
 
 	flagKey      = "storyFlag"
 	continentKey = "storyContinent"
+	callKey      = "callToAction"
 	// Four posts a day: a page this long holds two days of them and more.
 	pageOfPosts = 500
 )
@@ -96,7 +97,9 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.PostID, 
 			MediaItems:   &[]cpzernio.MediaItem{{Type: new(cpzernio.MediaItemTypeVideo), Url: &media}},
 			Platforms:    &[]cpzernio.CreatePostJSONBody_Platforms{{Platform: platform, AccountId: account}},
 			ScheduledFor: new(snapshot.At.UTC()),
-			Metadata:     &map[string]any{flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent},
+			Metadata: &map[string]any{
+				flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent, callKey: snapshot.CallToAction,
+			},
 			TiktokSettings: &cpzernio.TikTokPlatformData{
 				PrivacyLevel: new(everyone), AllowComment: new(true), AllowDuet: new(true), AllowStitch: new(true),
 				ContentPreviewConfirmed: new(true), ExpressConsentGiven: new(true),

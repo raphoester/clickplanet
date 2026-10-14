@@ -36,7 +36,7 @@ func send(t *testing.T, refusals ...error) sending {
 	pause := posts.NewRecordedPause(clock)
 	return sending{
 		service: service, pause: pause,
-		post:   cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now)[0],
+		post:   cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))[0],
 		sender: posts.NewSender(service, backoff, pause, clock),
 	}
 }
@@ -106,7 +106,7 @@ func TestAnyOtherRefusalIsNotTriedAgain(t *testing.T) {
 func TestAPostTooCloseToItsTimeIsNeverSent(t *testing.T) {
 	clock := cptime.NewFixedClock(now.Add(3*time.Hour + time.Minute))
 	service := posts.NewScriptedService()
-	post := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now)[0]
+	post := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))[0]
 
 	_, err := posts.NewSender(service, backoff, posts.NewRecordedPause(clock), clock).Send(t.Context(), post)
 
@@ -117,7 +117,7 @@ func TestAPostTooCloseToItsTimeIsNeverSent(t *testing.T) {
 func TestAWaitThatEatsTheReviewStopsTheTries(t *testing.T) {
 	clock := cptime.NewFixedClock(now.Add(3*time.Hour - 30*time.Second))
 	service := posts.NewScriptedService(busy(0))
-	post := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now)[0]
+	post := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))[0]
 
 	_, err := posts.NewSender(service, backoff, posts.NewRecordedPause(clock), clock).Send(t.Context(), post)
 

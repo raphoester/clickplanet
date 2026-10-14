@@ -13,12 +13,26 @@ message Story {
 }
 
 message Clip {
+  reserved 3, 4;
+  reserved "caption", "tags";
+
   uint32 pick = 1;
   string title = 2;
-  // Ready to post: its tags and the credit of its music are in it.
-  string caption = 3;
-  repeated string tags = 4;
   StoryKey key = 5;
+  // The headline said in other words: the job writes the caption, and picks one.
+  repeated string teasers = 6;
+  // Every flag of the story that is a country, and its place's countries.
+  repeated TaggedCountry countries = 7;
+  // With no #: "europe", "middleeast"; empty for the world.
+  string continent_tag = 8;
+  // What the licence of the clip's music asks the caption to say; empty when none.
+  string credit = 9;
+}
+
+message TaggedCountry {
+  string code = 1;
+  // With no #: "uk", "christmasisland".
+  string tag = 2;
 }
 
 // Two stories with one key are one story told twice, whatever their headlines.

@@ -23,7 +23,6 @@ import (
 const (
 	oneAccount = `{"accounts":[{"_id":"acc-1","platform":"tiktok","isActive":true}]}`
 	kept       = `{"post":{"_id":"post-1","status":"scheduled","scheduledFor":"2026-10-12T16:40:00Z"},"message":"Post scheduled successfully"}`
-	caption    = "FRANCE IS ATTACKING EUROPE. Who stops them? 👇\nclickplanet.lol\n#clickplanet #europe"
 )
 
 var at = time.Date(2026, 10, 12, 16, 40, 0, 0, time.UTC)
@@ -118,11 +117,12 @@ func post(t *testing.T) posts.Post {
 	video := filepath.Join(t.TempDir(), "clip-1.mp4")
 	require.NoError(t, os.WriteFile(video, []byte("the video"), 0o600))
 	clip, err := posts.ClipSnapshot{
-		Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Caption: caption, Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}, Video: posts.VideoFile(video),
+		Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Teasers: []string{"FRANCE TAKES OVER EUROPE"}, Countries: []posts.TaggedCountry{{Code: "fr", Tag: "france"}},
+		ContinentTag: "europe", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}, Video: posts.VideoFile(video),
 	}.Restore()
 	require.NoError(t, err)
 
-	planned := posts.Cadence{Review: 4 * time.Hour}.Posts([]posts.Clip{clip}, at.Add(-4*time.Hour))
+	planned := posts.Cadence{Review: 4 * time.Hour}.Posts([]posts.Clip{clip}, at.Add(-4*time.Hour), posts.LoadedDice(0))
 	require.Equal(t, at, planned[0].TakeSnapshot().At)
 	return planned[0]
 }
@@ -149,11 +149,11 @@ func TestAClipIsUploadedThenScheduledOnTheOneTikTokAccount(t *testing.T) {
 	assert.Equal(t, "video/mp4", fake.headers["PUT /storage/clip-1.mp4"].Get("Content-Type"))
 	assert.Equal(t, map[string]any{
 		"title":        "FRANCE IS ATTACKING EUROPE",
-		"content":      caption,
+		"content":      post(t).TakeSnapshot().Caption,
 		"mediaItems":   []any{map[string]any{"type": "video", "url": "https://media.example/clip-1.mp4"}},
 		"platforms":    []any{map[string]any{"platform": "tiktok", "accountId": "acc-1"}},
 		"scheduledFor": "2026-10-12T16:40:00Z",
-		"metadata":     map[string]any{"storyFlag": "fr", "storyContinent": "Europe"},
+		"metadata":     map[string]any{"storyFlag": "fr", "storyContinent": "Europe", "callToAction": "join-the-battle"},
 		"tiktokSettings": map[string]any{
 			"privacyLevel": "PUBLIC_TO_EVERYONE", "allowComment": true, "allowDuet": true, "allowStitch": true,
 			"contentPreviewConfirmed": true, "expressConsentGiven": true,
@@ -328,11 +328,11 @@ func TestAVideoThatIsNotThereIsAnError(t *testing.T) {
 	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
 	require.NoError(t, err)
 	clip, err := posts.ClipSnapshot{
-		Pick: 1, Title: "T", Caption: "C", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}, Video: posts.VideoFile(filepath.Join(t.TempDir(), "gone.mp4")),
+		Pick: 1, Title: "T", Teasers: []string{"T2"}, Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}, Video: posts.VideoFile(filepath.Join(t.TempDir(), "gone.mp4")),
 	}.Restore()
 	require.NoError(t, err)
 
-	_, err = service.Schedule(t.Context(), posts.Cadence{Review: 4 * time.Hour}.Posts([]posts.Clip{clip}, at)[0])
+	_, err = service.Schedule(t.Context(), posts.Cadence{Review: 4 * time.Hour}.Posts([]posts.Clip{clip}, at, posts.LoadedDice(0))[0])
 
 	require.ErrorContains(t, err, "failed to read the video")
 	assert.Empty(t, fake.calls)

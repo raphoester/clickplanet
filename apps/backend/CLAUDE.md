@@ -3253,9 +3253,23 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
-- **`Cadence.Posts(clips, now)`** is when: the best clip a `Review` from now (4 hours), each next one a `Spacing`
-  later (2 hours), on a whole minute and never sooner than the review. So a run at 12:17 UTC that renders in 20
-  minutes posts near 16:40 and 18:40.
+- **`Cadence.Posts(clips, now, dice)`** is when: the best clip a `Review` from now (4 hours), each next one a
+  `Spacing` later (2 hours), on a whole minute and never sooner than the review. So a run at 12:17 UTC that renders
+  in 20 minutes posts near 16:40 and 18:40. It also rolls each post's words (`Dice`, `SystemDice`), so no post
+  exists without them.
+- **The caption is written here** (`caption.go`), from what the generator gives (its teasers, the countries with
+  their hashtags, the continent's, the music's credit), since the platform is the job's business:
+  ```
+  ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET
+  Play for free 👉 clickplanet.lol
+  #clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral #europe #italy #portugal #portugaltiktok🇵🇹
+  ```
+  A teaser and a call to act are picked at random, the call from `callsToAction`, and **the call's id is kept in
+  the post's Zernio metadata** (`callToAction`), so the calls can be compared on the posts' numbers. A caption
+  link cannot be clicked on TikTok, so a call is compared by how its posts do, not by visits. The music's credit,
+  when its licence asks for one, comes before the tags. Then the game's tags, the continent's, each country's, and
+  one TikTok community tag for the flag the clip is about (`#usatiktok🇺🇸`; an ISO private-use code such as `xk`
+  has no flag emoji).
 - **Review is opt-out, so nothing is ever sent for a time too close.** `Post.Reviewable(now)` is false under an hour
   ahead (`leastReview`), and `Sender` then refuses the post (`ErrNoTimeToReview`) rather than send it: nobody could
   cancel it, and the service publishes a time already past **at once**. It is checked before every try, since a

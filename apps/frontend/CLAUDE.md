@@ -20,7 +20,7 @@ npm run borderLines # Trace the countries' outlines onto the tile lattice (see "
 npm run earth      # Cut the globe's texture from the tile field (see "The globe's texture")
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
-npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
+npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos with what to post
 npm run clip -- --replay replay.json --shortlist shortlist.json  # Only the list of its stories, as data
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
@@ -2893,8 +2893,8 @@ card on a phone.
 **A clip is the real globe playing back a war, for TikTok, Shorts and Reels**: 1080×1920, 8.5 to 22s, a headline,
 the map moving under it from the first frame, and the link at the end. `npm run clip` makes them from a replay
 and **chooses everything itself**: the stretch of time, the place, the headline, the camera, the look and the
-length. Each comes with a `.txt` holding the caption to post, for a person, and a `.json` holding the same as data,
-for a program (below). `--count 3` makes the three best stories, for a
+length. Each comes with a `.json` holding what to post with it, as data for the job that posts it (below), and a
+`.txt` with its teasers, one a line, for a person. `--count 3` makes the three best stories, for a
 person to pick one; `--plan` prints what they would be and renders nothing, and `--preview 3` renders only the
 first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 
@@ -2926,10 +2926,11 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   BACK" and "ALGERIA VS FRANCE" are one key. The flag is the first of `sidesOf`: the loser of a rout, a continent's
   own flag when it strikes back together. The continent is the place's (Asia's parts as the headlines name them,
   `the world` for a tour), else its first country's, else that country.
-- **`clip-<n>.json`** is a `Clip`: its pick, its title (the headline), its caption as it is posted, its tags as
-  a list for where tags are not part of the text, and its key, which the job keeps with the post. **The caption is decided here and nowhere else**: the `.txt` and
-  the `.json` hold the same one, credit included (`credited`, `domain/clip/caption.ts`), and the job posts it as it
-  is. The repo is public and so are a run's logs and artifacts: a clip can be watched there before it is out.
+- **`clip-<n>.json`** is a `Clip`: its pick, its title (the headline), its key, which the job keeps with the post,
+  and **the words of its caption that need the story**: its teasers, its countries with their hashtags, its
+  continent's hashtag, and the credit of its music. **The job writes the caption** from them (the backend's
+  CLAUDE.md, "The clips job"): this app has the names, the job has the platform. The repo is public and so are a
+  run's logs and artifacts: a clip can be watched there before it is out.
 
 - **The replay is the backend's** (`planet.v1.AdminService/GetReplay`, see the backend's CLAUDE.md): the map as it
   was at the start, and every act after it as the live stream sent it. The backend's job asks for the last
@@ -3033,10 +3034,15 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   Republic". Tags keep them bare.
 - **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
   France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
-  The caption is the headline and the question its call to act asks ("Who stops them?" to defend, "Who joins
-  them?" to fight for a flag striking back, "Pick a side"), the site as plain text (a caption's
-  link cannot be clicked) and the account's tags with the place's. Never the attacker's: a flag's tag can be a
-  political feed.
+- **The caption never repeats the headline** (`teasers` in `wordsOf`): the clip already shows it, and the
+  posts written by hand read better. Each kind of story says it two ways, which the job picks between: "PALESTINE
+  IS KICKING ROMANIA OUT OF KAZAKHSTAN" is "PALESTINE TAKES KAZAKHSTAN FROM ROMANIA", an invasion that threw
+  another flag out "CROATIA INVADES CHINA AND KICKS OUT FRANCE", a flag thrown out "GENERATIONAL DOWNFALL OF
+  CHRISTMAS ISLAND", and a country throwing a flag out of its own land "ITALY RETAKES ITS LAND FROM PORTUGAL".
+  A test checks that no kind ever gives the headline back.
+- **The hashtags are every flag of the story and the countries of its place** (`hashtagsOf`), bare
+  (`#christmasisland`, `#uk`), and the place's continent. Palestine and Israel included: the user chose it on
+  2026-10-14, though a flag's tag can be a political feed. A continent's own flag is not a country and has none.
 - **`music.ts` picks the anthem under the clip**, since YouTube Shorts cannot add a sound to an upload: the anthem
   of whoever makes the moves, the leading flag's, else the other side's in a battle, or the continent's when a
   continent strikes back. Never a loser's, but for a flag thrown out by many flags none of which leads ("ALGERIA IS

@@ -126,7 +126,7 @@ func Schedule(ctx context.Context, folder string, config Config, logger *slog.Lo
 	schedule := log_schedule_clips.New(schedule_clips_usecase.New(
 		generator_output.Folder(folder),
 		posts.Cadence{Review: config.Review, Spacing: config.Spacing},
-		clock, sender,
+		clock, posts.SystemDice{}, sender,
 	), logger)
 
 	return schedule.Execute(ctx)
