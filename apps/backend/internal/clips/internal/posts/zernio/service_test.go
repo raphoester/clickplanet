@@ -347,11 +347,12 @@ func told(t *testing.T, fake *zernioFake, since time.Time) ([]posts.Telling, err
 	return service.Told(t.Context(), since) //nolint:wrapcheck // the test reads the service's own error.
 }
 
-func TestTheStoriesToldAreThoseOfThePostsWithAKey(t *testing.T) {
+func TestTheStoriesToldAreThoseOfThePostsWithAKeyOnEveryPlatform(t *testing.T) {
 	fake := newFake()
 	fake.listed = answer{status: http.StatusOK, body: `{"posts":[` +
 		`{"_id":"p-1","status":"scheduled","scheduledFor":"2026-10-14T05:15:00Z","metadata":{"storyFlag":"dz","storyContinent":"Africa","usageCounted":true}},` +
-		`{"_id":"p-2","status":"published","scheduledFor":"2026-10-13T21:09:00.000Z","metadata":{"storyFlag":"ps","storyContinent":"Central Asia"},"addedLater":1},` +
+		`{"_id":"p-2","status":"published","scheduledFor":"2026-10-13T21:09:00.000Z","metadata":{"storyFlag":"ps","storyContinent":"Central Asia"},"addedLater":1,` +
+		`"platforms":[{"platform":"instagram","status":"published"}]},` +
 		`{"_id":"p-3","status":"published","scheduledFor":"2026-10-13T20:00:00Z","content":"a post made by hand"},` +
 		`{"_id":"p-4","status":"cancelled","scheduledFor":"2026-10-13T23:09:00Z","metadata":{"storyFlag":"pt","storyContinent":"Europe"}}` +
 		`],"pagination":{"page":1}}`}
@@ -364,7 +365,7 @@ func TestTheStoriesToldAreThoseOfThePostsWithAKey(t *testing.T) {
 		{Key: posts.StoryKey{Flag: "ps", Continent: "Central Asia"}, At: time.Date(2026, 10, 13, 21, 9, 0, 0, time.UTC)},
 		{Key: posts.StoryKey{Flag: "pt", Continent: "Europe"}, At: time.Date(2026, 10, 13, 23, 9, 0, 0, time.UTC)},
 	}, tellings)
-	assert.Equal(t, url.Values{"fromDate": {"2026-10-13"}, "platform": {"tiktok"}, "limit": {"500"}}, fake.queries["GET /v1/posts"])
+	assert.Equal(t, url.Values{"fromDate": {"2026-10-13"}, "limit": {"500"}}, fake.queries["GET /v1/posts"])
 	assert.Equal(t, "Bearer the-key", fake.headers["GET /v1/posts"].Get("Authorization"))
 }
 
