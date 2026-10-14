@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,8 +33,10 @@ type zernioFake struct {
 	presign  answer
 	upload   answer
 	posts    answer
+	listed   answer
 
 	calls     []string
+	queries   map[string]url.Values
 	headers   map[string]http.Header
 	uploaded  []byte
 	sent      map[string]any
@@ -60,7 +63,9 @@ func newFake() *zernioFake {
 		accounts: answer{status: http.StatusOK, body: oneAccount},
 		upload:   answer{status: http.StatusOK},
 		posts:    answer{status: http.StatusCreated, body: kept},
+		listed:   answer{status: http.StatusOK, body: `{"posts":[]}`},
 		headers:  map[string]http.Header{},
+		queries:  map[string]url.Values{},
 	}
 }
 
@@ -72,6 +77,7 @@ func (f *zernioFake) serve(t *testing.T) *httptest.Server {
 		call := r.Method + " " + r.URL.Path
 		f.calls = append(f.calls, call)
 		f.headers[call] = r.Header.Clone()
+		f.queries[call] = r.URL.Query()
 		raw, err := io.ReadAll(r.Body)
 		assert.NoError(t, err)
 
@@ -92,6 +98,8 @@ func (f *zernioFake) serve(t *testing.T) *httptest.Server {
 		case "PUT /storage/clip-1.mp4":
 			f.uploaded = raw
 			f.upload.write(w)
+		case "GET /v1/posts":
+			f.listed.write(w)
 		case "POST /v1/posts":
 			assert.NoError(t, json.Unmarshal(raw, &f.sent))
 			f.posts.write(w)
@@ -109,7 +117,9 @@ func post(t *testing.T) posts.Post {
 
 	video := filepath.Join(t.TempDir(), "clip-1.mp4")
 	require.NoError(t, os.WriteFile(video, []byte("the video"), 0o600))
-	clip, err := posts.ClipSnapshot{Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Caption: caption, Video: posts.VideoFile(video)}.Restore()
+	clip, err := posts.ClipSnapshot{
+		Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Caption: caption, Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}, Video: posts.VideoFile(video),
+	}.Restore()
 	require.NoError(t, err)
 
 	planned := posts.Cadence{Review: 4 * time.Hour}.Posts([]posts.Clip{clip}, at.Add(-4*time.Hour))
@@ -143,6 +153,7 @@ func TestAClipIsUploadedThenScheduledOnTheOneTikTokAccount(t *testing.T) {
 		"mediaItems":   []any{map[string]any{"type": "video", "url": "https://media.example/clip-1.mp4"}},
 		"platforms":    []any{map[string]any{"platform": "tiktok", "accountId": "acc-1"}},
 		"scheduledFor": "2026-10-12T16:40:00Z",
+		"metadata":     map[string]any{"storyFlag": "fr", "storyContinent": "Europe"},
 		"tiktokSettings": map[string]any{
 			"privacyLevel": "PUBLIC_TO_EVERYONE", "allowComment": true, "allowDuet": true, "allowStitch": true,
 			"contentPreviewConfirmed": true, "expressConsentGiven": true,
@@ -316,11 +327,62 @@ func TestAVideoThatIsNotThereIsAnError(t *testing.T) {
 	server := fake.serve(t)
 	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
 	require.NoError(t, err)
-	clip, err := posts.ClipSnapshot{Pick: 1, Title: "T", Caption: "C", Video: posts.VideoFile(filepath.Join(t.TempDir(), "gone.mp4"))}.Restore()
+	clip, err := posts.ClipSnapshot{
+		Pick: 1, Title: "T", Caption: "C", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}, Video: posts.VideoFile(filepath.Join(t.TempDir(), "gone.mp4")),
+	}.Restore()
 	require.NoError(t, err)
 
 	_, err = service.Schedule(t.Context(), posts.Cadence{Review: 4 * time.Hour}.Posts([]posts.Clip{clip}, at)[0])
 
 	require.ErrorContains(t, err, "failed to read the video")
 	assert.Empty(t, fake.calls)
+}
+
+func told(t *testing.T, fake *zernioFake, since time.Time) ([]posts.Telling, error) {
+	t.Helper()
+
+	server := fake.serve(t)
+	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
+	require.NoError(t, err)
+	return service.Told(t.Context(), since) //nolint:wrapcheck // the test reads the service's own error.
+}
+
+func TestTheStoriesToldAreThoseOfThePostsWithAKeyOnEveryPlatform(t *testing.T) {
+	fake := newFake()
+	fake.listed = answer{status: http.StatusOK, body: `{"posts":[` +
+		`{"_id":"p-1","status":"scheduled","scheduledFor":"2026-10-14T05:15:00Z","metadata":{"storyFlag":"dz","storyContinent":"Africa","usageCounted":true}},` +
+		`{"_id":"p-2","status":"published","scheduledFor":"2026-10-13T21:09:00.000Z","metadata":{"storyFlag":"ps","storyContinent":"Central Asia"},"addedLater":1,` +
+		`"platforms":[{"platform":"instagram","status":"published"}]},` +
+		`{"_id":"p-3","status":"published","scheduledFor":"2026-10-13T20:00:00Z","content":"a post made by hand"},` +
+		`{"_id":"p-4","status":"cancelled","scheduledFor":"2026-10-13T23:09:00Z","metadata":{"storyFlag":"pt","storyContinent":"Europe"}}` +
+		`],"pagination":{"page":1}}`}
+
+	tellings, err := told(t, fake, time.Date(2026, 10, 13, 0, 57, 0, 0, time.UTC))
+
+	require.NoError(t, err)
+	assert.Equal(t, []posts.Telling{
+		{Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}, At: time.Date(2026, 10, 14, 5, 15, 0, 0, time.UTC)},
+		{Key: posts.StoryKey{Flag: "ps", Continent: "Central Asia"}, At: time.Date(2026, 10, 13, 21, 9, 0, 0, time.UTC)},
+		{Key: posts.StoryKey{Flag: "pt", Continent: "Europe"}, At: time.Date(2026, 10, 13, 23, 9, 0, 0, time.UTC)},
+	}, tellings)
+	assert.Equal(t, url.Values{"fromDate": {"2026-10-13"}, "limit": {"500"}}, fake.queries["GET /v1/posts"])
+	assert.Equal(t, "Bearer the-key", fake.headers["GET /v1/posts"].Get("Authorization"))
+}
+
+func TestAListOfPostsZernioRefusesIsAnError(t *testing.T) {
+	fake := newFake()
+	fake.listed = answer{status: http.StatusUnauthorized, body: `{"error":"Invalid API key"}`}
+
+	_, err := told(t, fake, at)
+
+	require.ErrorContains(t, err, "zernio answered 401 to the list of posts: Invalid API key")
+}
+
+func TestAListOfPostsWithNoPostsInItIsAnError(t *testing.T) {
+	fake := newFake()
+	fake.listed = answer{status: http.StatusOK, body: `{}`}
+
+	_, err := told(t, fake, at)
+
+	require.Error(t, err)
 }

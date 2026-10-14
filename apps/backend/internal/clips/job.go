@@ -56,6 +56,7 @@ const (
 
 	// A 22s clip is about 80 MB to upload.
 	serviceTimeout = 10 * time.Minute
+	historyTimeout = time.Minute
 )
 
 var defaultBackoff = posts.Backoff{time.Minute, 5 * time.Minute, 15 * time.Minute}
@@ -96,13 +97,20 @@ func Fetch(ctx context.Context, out string, config Config, logger *slog.Logger) 
 func Choose(ctx context.Context, shortlist string, config Config, logger *slog.Logger) ([]Pick, error) {
 	config = config.withDefaults()
 
-	choose := log_choose_clips.New(choose_clips_usecase.New(generator_output.ShortlistFile(shortlist), config.PerRun), logger)
+	history, err := zernio.New(config.Zernio, &http.Client{Timeout: historyTimeout})
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the posting service: %w", err)
+	}
 
-	chosen, err := choose.Execute(ctx)
+	choose := log_choose_clips.New(choose_clips_usecase.New(
+		generator_output.ShortlistFile(shortlist), history, cptime.SystemClock{}, config.PerRun,
+	), logger)
+
+	choice, err := choose.Execute(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return chosen.Picks(), nil
+	return choice.Chosen.Picks(), nil
 }
 
 func Schedule(ctx context.Context, folder string, config Config, logger *slog.Logger) (Report, error) {

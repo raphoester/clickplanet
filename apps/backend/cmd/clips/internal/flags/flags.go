@@ -17,8 +17,8 @@ const usage = `usage:
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
 the ledger keeps 72 hours in memory, so a replay cannot reach further back. choose prints the picks of the stories
-to render, as a JSON array. schedule sends every clip of the folder to the posting service, each for its time, and
-needs ZERNIO_API_KEY.`
+to render, as a JSON array, and skips a story the posting service holds a post of from the last day. schedule
+sends every clip of the folder to the posting service, each for its time. Both need ZERNIO_API_KEY.`
 
 type Command string
 
@@ -92,6 +92,7 @@ func parseFetch(args []string) (Config, error) {
 
 func parseChoose(args []string) (Config, error) {
 	parsed := Config{Command: Choose}
+	parsed.Job.Zernio.APIKey = os.Getenv(KeyVariable)
 
 	flags := flag.NewFlagSet(string(Choose), flag.ContinueOnError)
 	flags.StringVar(&parsed.ShortlistFile, "shortlist", "", "the file the generator's --shortlist wrote")

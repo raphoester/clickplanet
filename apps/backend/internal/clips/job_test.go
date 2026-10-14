@@ -20,12 +20,20 @@ import (
 )
 
 type sentPost struct {
-	Title        string `json:"title"`
-	Content      string `json:"content"`
-	ScheduledFor string `json:"scheduledFor"`
+	Title        string            `json:"title"`
+	Content      string            `json:"content"`
+	ScheduledFor string            `json:"scheduledFor"`
+	Metadata     map[string]string `json:"metadata"`
 	MediaItems   []struct {
 		URL string `json:"url"`
 	} `json:"mediaItems"`
+}
+
+type keptPost struct {
+	ID           string            `json:"_id"`
+	Status       string            `json:"status"`
+	ScheduledFor string            `json:"scheduledFor"`
+	Metadata     map[string]string `json:"metadata"`
 }
 
 func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
@@ -53,6 +61,12 @@ func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 			*posts = append(*posts, post)
 			w.WriteHeader(http.StatusCreated)
 			_, _ = fmt.Fprintf(w, `{"post":{"_id":"post-%d","status":"scheduled"}}`, len(*posts))
+		case "GET /v1/posts":
+			kept := make([]keptPost, 0, len(*posts))
+			for i, post := range *posts {
+				kept = append(kept, keptPost{ID: fmt.Sprintf("post-%d", i+1), Status: "scheduled", ScheduledFor: post.ScheduledFor, Metadata: post.Metadata})
+			}
+			assert.NoError(t, json.NewEncoder(w).Encode(map[string]any{"posts": kept}))
 		default:
 			t.Errorf("zernio was asked %s %s", r.Method, r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
@@ -62,10 +76,11 @@ func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 	return server
 }
 
-func rendered(t *testing.T, folder string, pick int, title string) {
+func rendered(t *testing.T, folder string, pick int, title, flag string) {
 	t.Helper()
 
-	clip := fmt.Sprintf(`{"pick": %d, "title": %q, "caption": %q, "tags": ["#clickplanet"]}`, pick, title, title+" 👇\n#clickplanet")
+	clip := fmt.Sprintf(`{"pick": %d, "title": %q, "caption": %q, "tags": ["#clickplanet"], "key": {"flag": %q, "continent": "Africa"}}`,
+		pick, title, title+" 👇\n#clickplanet", flag)
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.json", pick)), []byte(clip), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.mp4", pick)), []byte(title), 0o600))
 }
@@ -74,8 +89,8 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 	var posts []sentPost
 	server := zernio(t, &posts)
 	folder := t.TempDir()
-	rendered(t, folder, 2, "FRANCE IS ATTACKING EUROPE")
-	rendered(t, folder, 1, "KOSOVO IS ATTACKING THE MIDDLE EAST")
+	rendered(t, folder, 2, "FRANCE IS ATTACKING EUROPE", "fr")
+	rendered(t, folder, 1, "KOSOVO IS ATTACKING THE MIDDLE EAST", "xk")
 	var config clips.Config
 	config.Zernio.APIKey = "the-key"
 	config.Zernio.BaseURL = server.URL
@@ -87,6 +102,7 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 	require.NoError(t, err)
 	require.Len(t, posts, 2)
 	assert.Equal(t, "KOSOVO IS ATTACKING THE MIDDLE EAST", posts[0].Title)
+	assert.Equal(t, map[string]string{"storyFlag": "xk", "storyContinent": "Africa"}, posts[0].Metadata)
 	assert.Equal(t, "KOSOVO IS ATTACKING THE MIDDLE EAST 👇\n#clickplanet", posts[0].Content)
 	assert.Equal(t, "https://media.example/clip-1.mp4", posts[0].MediaItems[0].URL)
 	assert.Equal(t, "FRANCE IS ATTACKING EUROPE", posts[1].Title)
@@ -117,7 +133,7 @@ func TestARunThatZernioRefusesReportsWhyForEachClip(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 	folder := t.TempDir()
-	rendered(t, folder, 1, "KOSOVO IS ATTACKING THE MIDDLE EAST")
+	rendered(t, folder, 1, "KOSOVO IS ATTACKING THE MIDDLE EAST", "xk")
 	var config clips.Config
 	config.Zernio.APIKey = "the-key"
 	config.Zernio.BaseURL = server.URL
@@ -132,14 +148,46 @@ func TestARunThatZernioRefusesReportsWhyForEachClip(t *testing.T) {
 	assert.Contains(t, logs.String(), `level=ERROR msg="failed to schedule a clip"`)
 }
 
-func TestChoosingGivesThePicksOfTheBestStories(t *testing.T) {
-	shortlist := filepath.Join(t.TempDir(), "shortlist.json")
-	require.NoError(t, os.WriteFile(shortlist, []byte(`{"stories":[{"title":"BEST"},{"title":"SECOND"},{"title":"THIRD"}]}`), 0o600))
+func shortlist(t *testing.T) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "shortlist.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"stories":[`+
+		`{"title":"ALGERIA STRIKES BACK","key":{"flag":"dz","continent":"Africa"}},`+
+		`{"title":"ALGERIA VS FRANCE","key":{"flag":"dz","continent":"Africa"}},`+
+		`{"title":"PALESTINE IS KICKING ROMANIA OUT OF KAZAKHSTAN","key":{"flag":"ps","continent":"Central Asia"}},`+
+		`{"title":"FRANCE IS ATTACKING EUROPE","key":{"flag":"fr","continent":"Europe"}}]}`), 0o600))
+	return path
+}
+
+func configFor(server *httptest.Server) clips.Config {
+	var config clips.Config
+	config.Zernio.APIKey = "the-key"
+	config.Zernio.BaseURL = server.URL
+	return config
+}
+
+func TestChoosingGivesTheBestStoriesOfDifferentFlagsOrContinents(t *testing.T) {
+	var posts []sentPost
 	var logs bytes.Buffer
 
-	picks, err := clips.Choose(t.Context(), shortlist, clips.Config{}, slog.New(slog.NewTextHandler(&logs, nil)))
+	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(zernio(t, &posts)), slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
-	assert.Equal(t, []clips.Pick{1, 2}, picks)
-	assert.Contains(t, logs.String(), `msg="chose a story" pick=2 title=SECOND`)
+	assert.Equal(t, []clips.Pick{1, 3}, picks)
+	assert.Contains(t, logs.String(), `msg="skipped a story told already" pick=2 title="ALGERIA VS FRANCE"`)
+}
+
+func TestAStoryOneRunScheduledIsNotChosenByTheNext(t *testing.T) {
+	var posts []sentPost
+	server := zernio(t, &posts)
+	folder := t.TempDir()
+	rendered(t, folder, 1, "ALGERIA STRIKES BACK", "dz")
+	_, err := clips.Schedule(t.Context(), folder, configFor(server), slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(server), slog.New(slog.DiscardHandler))
+
+	require.NoError(t, err)
+	assert.Equal(t, []clips.Pick{3, 4}, picks)
 }

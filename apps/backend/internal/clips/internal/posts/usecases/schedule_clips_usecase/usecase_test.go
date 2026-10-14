@@ -30,10 +30,14 @@ func (f folder) Rendered(context.Context) ([]posts.Clip, error) {
 	return f.clips, f.err
 }
 
+func key(title string) posts.StoryKey {
+	return posts.StoryKey{Flag: "dz", Continent: title}
+}
+
 func clip(t *testing.T, pick posts.Pick, title string) posts.Clip {
 	t.Helper()
 
-	restored, err := posts.ClipSnapshot{Pick: pick, Title: title, Caption: title + " 👇", Video: "clip.mp4"}.Restore()
+	restored, err := posts.ClipSnapshot{Pick: pick, Title: title, Caption: title + " 👇", Key: key(title), Video: "clip.mp4"}.Restore()
 	require.NoError(t, err)
 	return restored
 }
@@ -62,8 +66,8 @@ func TestEachRenderedClipIsScheduledBestFirstAndTheReportSaysSo(t *testing.T) {
 	}, report)
 	assert.True(t, report.Complete())
 	assert.Equal(t, []posts.PostSnapshot{
-		{Title: "BEST", Caption: "BEST 👇", Video: "clip.mp4", At: first},
-		{Title: "SECOND", Caption: "SECOND 👇", Video: "clip.mp4", At: second},
+		{Title: "BEST", Caption: "BEST 👇", Key: key("BEST"), Video: "clip.mp4", At: first},
+		{Title: "SECOND", Caption: "SECOND 👇", Key: key("SECOND"), Video: "clip.mp4", At: second},
 	}, r.service.Scheduled)
 }
 

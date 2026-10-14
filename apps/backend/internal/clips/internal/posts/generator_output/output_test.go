@@ -16,10 +16,18 @@ const (
 	writtenShortlist = `{
   "stories": [
     {
-      "title": "KOSOVO IS ATTACKING THE MIDDLE EAST"
+      "title": "KOSOVO IS ATTACKING THE MIDDLE EAST",
+      "key": {
+        "flag": "xk",
+        "continent": "Middle East"
+      }
     },
     {
-      "title": "FRANCE IS ATTACKING EUROPE"
+      "title": "FRANCE IS ATTACKING EUROPE",
+      "key": {
+        "flag": "fr",
+        "continent": "Europe"
+      }
     }
   ]
 }
@@ -35,7 +43,11 @@ const (
     "#wplace",
     "#map",
     "#europe"
-  ]
+  ],
+  "key": {
+    "flag": "fr",
+    "continent": "Europe"
+  }
 }
 `
 )
@@ -55,8 +67,8 @@ func TestAShortlistIsTheStoriesTheGeneratorWroteBestFirst(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.Shortlist{
-		{Pick: 1, Title: "KOSOVO IS ATTACKING THE MIDDLE EAST"},
-		{Pick: 2, Title: "FRANCE IS ATTACKING EUROPE"},
+		{Pick: 1, Title: "KOSOVO IS ATTACKING THE MIDDLE EAST", Key: posts.StoryKey{Flag: "xk", Continent: "Middle East"}},
+		{Pick: 2, Title: "FRANCE IS ATTACKING EUROPE", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}},
 	}, shortlist)
 }
 
@@ -93,6 +105,7 @@ func TestAFolderGivesEachClipWithItsVideo(t *testing.T) {
 		Pick:    2,
 		Title:   "FRANCE IS ATTACKING EUROPE",
 		Caption: "FRANCE IS ATTACKING EUROPE. Who stops them? 👇\nclickplanet.lol\n#clickplanet #pixelwars #rplace #wplace #map #europe",
+		Key:     posts.StoryKey{Flag: "fr", Continent: "Europe"},
 		Video:   posts.VideoFile(video),
 	}, clips[0].TakeSnapshot())
 }

@@ -2946,8 +2946,10 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 1. **fetch**: the backend's `clips fetch -hours 12` over SSH, with the deploy's `VPS_*` secrets. The job runs no
    npm at all, so the key to the VPS is in no job that installs this app's dependencies. The replay goes on as an
    artifact; it is the public stream's data.
-2. **choose**: `npm run clip -- --shortlist shortlist.json`, then the backend's `clips choose` reads it and prints the
-   picks to render, `[1,2]`. None is a quiet half day: the run ends there, green.
+2. **shortlist** and **choose**: `npm run clip -- --shortlist shortlist.json`, then, in a job of its own (it holds
+   the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, `[1,2]`.
+   **It skips a story told in the last day**, by its key below: on Oct 13–14 two runs posted three clips of
+   Algeria in Africa. None is a quiet half day: the run ends there, green.
 3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
    draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
    clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
@@ -2959,10 +2961,15 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 (its CLAUDE.md, "The clips job"). **This app keeps only what needs the browser**, and hands the rest over as data,
 `clips.v1` in the shared `proto/`, written as JSON:
 
-- **`--shortlist <path>`** writes a `Shortlist`: the title of every story worth a clip, best first, so a story's
-  place from 1 is its `--pick`. One page load, no globe, 6s. With no story it is `{}`, not an error.
-- **`clip-<n>.json`** is a `Clip`: its pick, its title (the headline), its caption as it is posted, and its tags as
-  a list for where tags are not part of the text. **The caption is decided here and nowhere else**: the `.txt` and
+- **`--shortlist <path>`** writes a `Shortlist`: the title and the key of every story worth a clip, best first, so
+  a story's place from 1 is its `--pick`. One page load, no globe, 6s. With no story it is `{}`, not an error.
+- **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
+  flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. "ALGERIA STRIKES
+  BACK" and "ALGERIA VS FRANCE" are one key. The flag is the first of `sidesOf`: the loser of a rout, a continent's
+  own flag when it strikes back together. The continent is the place's (Asia's parts as the headlines name them,
+  `the world` for a tour), else its first country's, else that country.
+- **`clip-<n>.json`** is a `Clip`: its pick, its title (the headline), its caption as it is posted, its tags as
+  a list for where tags are not part of the text, and its key, which the job keeps with the post. **The caption is decided here and nowhere else**: the `.txt` and
   the `.json` hold the same one, credit included (`credited`, `domain/clip/caption.ts`), and the job posts it as it
   is. The repo is public and so are a run's logs and artifacts: a clip can be watched there before it is out.
 

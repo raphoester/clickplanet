@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"time"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpzernio"
 )
@@ -27,6 +29,11 @@ const (
 	platform     = string(cpzernio.SocialAccountPlatformTiktok)
 	everyone     = "PUBLIC_TO_EVERYONE"
 	inFlight     = "idempotency_conflict"
+
+	flagKey      = "storyFlag"
+	continentKey = "storyContinent"
+	// Four posts a day: a page this long holds two days of them and more.
+	pageOfPosts = 500
 )
 
 type Config struct {
@@ -89,6 +96,7 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.PostID, 
 			MediaItems:   &[]cpzernio.MediaItem{{Type: new(cpzernio.MediaItemTypeVideo), Url: &media}},
 			Platforms:    &[]cpzernio.CreatePostJSONBody_Platforms{{Platform: platform, AccountId: account}},
 			ScheduledFor: new(snapshot.At.UTC()),
+			Metadata:     &map[string]any{flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent},
 			TiktokSettings: &cpzernio.TikTokPlatformData{
 				PrivacyLevel: new(everyone), AllowComment: new(true), AllowDuet: new(true), AllowStitch: new(true),
 				ContentPreviewConfirmed: new(true), ExpressConsentGiven: new(true),
@@ -106,6 +114,38 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.PostID, 
 		return "", fmt.Errorf("zernio kept the post as %q, not %q", status(kept), cpzernio.PostStatusScheduled)
 	}
 	return posts.PostID(*kept.UnderscoreId), nil
+}
+
+// The posts made by hand carry no story key, and are left out.
+func (s *Service) Told(ctx context.Context, since time.Time) ([]posts.Telling, error) {
+	answer, err := s.api.ListPostsWithResponse(ctx, &cpzernio.ListPostsParams{
+		FromDate: &openapi_types.Date{Time: since.UTC()}, Limit: new(pageOfPosts),
+	})
+	if err != nil {
+		return nil, unreachable(err)
+	}
+	if answer.JSON200 == nil || answer.JSON200.Posts == nil {
+		return nil, refusal(answer.HTTPResponse, answer.Body, "the list of posts")
+	}
+
+	told := make([]posts.Telling, 0, len(*answer.JSON200.Posts))
+	for _, post := range *answer.JSON200.Posts {
+		key, keyed := keyOf(post)
+		if !keyed || post.ScheduledFor == nil {
+			continue
+		}
+		told = append(told, posts.Telling{Key: key, At: *post.ScheduledFor})
+	}
+	return told, nil
+}
+
+func keyOf(post cpzernio.Post) (posts.StoryKey, bool) {
+	if post.Metadata == nil {
+		return posts.StoryKey{}, false
+	}
+	flag, _ := (*post.Metadata)[flagKey].(string)
+	continent, _ := (*post.Metadata)[continentKey].(string)
+	return posts.StoryKey{Flag: flag, Continent: continent}, flag != "" && continent != ""
 }
 
 // A 201 is a new post, and a 200 the post an earlier try with the same key already made.

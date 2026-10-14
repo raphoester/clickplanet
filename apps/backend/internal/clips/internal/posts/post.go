@@ -21,14 +21,16 @@ func (p Post) Reviewable(now time.Time) bool {
 }
 
 func (p Post) TakeSnapshot() PostSnapshot {
-	return PostSnapshot{Title: p.clip.title, Caption: p.clip.caption, Video: p.clip.video, At: p.at}
+	return PostSnapshot{Title: p.clip.title, Caption: p.clip.caption, Key: p.clip.key, Video: p.clip.video, At: p.at}
 }
 
 type PostSnapshot struct {
 	Title   string
 	Caption string
-	Video   VideoFile
-	At      time.Time
+	// Kept with the post, so a later run knows the story is told.
+	Key   StoryKey
+	Video VideoFile
+	At    time.Time
 }
 
 type Service interface {

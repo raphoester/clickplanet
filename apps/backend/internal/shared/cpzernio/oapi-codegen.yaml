@@ -10,6 +10,7 @@ output-options:
     - listAccounts
     - getMediaPresignedUrl
     - createPost
+    - listPosts
   generate-types-for-anonymous-schemas: true
   overlay:
     path: internal/shared/cpzernio/overlay.yaml

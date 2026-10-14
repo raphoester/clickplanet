@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {Story} from "../domain/clip/story.ts"
-import {nameOf, sidesOf, teamFlagOf, wordsOf} from "./overlay.ts"
+import {sidesOf, teamFlagOf} from "../domain/clip/story.ts"
+import {nameOf, wordsOf} from "./overlay.ts"
 
 function story(kind: Story["kind"], place: Story["place"], rival?: string): Story {
     return {kind, attacker: "ps", rival, victims: ["fr", "es"], place, taken: 2593}
