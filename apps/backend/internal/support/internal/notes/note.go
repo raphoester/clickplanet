@@ -61,10 +61,9 @@ func (n Note) Attaching(files []Attachment, rules AttachmentRules) (Note, error)
 	return attached.Restore()
 }
 
-// The note with nothing that says who sent it: the text stays, the files go, since a picture can show its sender.
+// The note with nothing that says who sent it: the text and the files stay.
 func (n Note) Anonymized() Note {
 	n.account = AccountID{}
-	n.attachments = nil
 	return n
 }
 
@@ -91,7 +90,7 @@ type Snapshot struct {
 	Account     AccountID
 	Text        string
 	Diagnostics Diagnostics
-	// In the order they were sent. None once the note is anonymized.
+	// In the order they were sent.
 	Attachments []Attachment
 	At          time.Time
 }

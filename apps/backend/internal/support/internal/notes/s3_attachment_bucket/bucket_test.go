@@ -73,7 +73,7 @@ func (s *testSuite) SetupSuite() {
 }
 
 func (s *testSuite) bucketOf(config s3_attachment_bucket.Config, clock cptime.Clock) *s3_attachment_bucket.Bucket {
-	bucket, err := s3_attachment_bucket.New(config, lifetimes, clock, http.DefaultClient)
+	bucket, err := s3_attachment_bucket.New(config, lifetimes, clock)
 	s.Require().NoError(err)
 	return bucket
 }
@@ -168,29 +168,6 @@ func (s *testSuite) TestTheViewLinkOfAFileThatWasNeverUploadedAnswersNotFound() 
 	s.Equal(http.StatusNotFound, status)
 }
 
-func (s *testSuite) TestDeletingTakesEveryFileOfTheNotesAndLeavesTheOthers() {
-	first, second, kept := s.uploaded(png, mp4), s.uploaded(png), s.uploaded(png)
-
-	s.Require().NoError(s.bucket.Delete(s.T().Context(), first, second))
-
-	for _, note := range []notes.Note{first, second} {
-		for position := range note.TakeSnapshot().Attachments {
-			status, _, _ := s.view(note, position)
-			s.Equal(http.StatusNotFound, status)
-		}
-	}
-	status, _, _ := s.view(kept, 0)
-	s.Equal(http.StatusOK, status)
-}
-
-func (s *testSuite) TestDeletingAFileThatWasNeverUploadedOrIsAlreadyGoneIsNoError() {
-	never, gone := s.carrying(png, mp4), s.uploaded(png)
-	s.Require().NoError(s.bucket.Delete(s.T().Context(), gone))
-
-	s.Require().NoError(s.bucket.Delete(s.T().Context(), never, gone))
-	s.Require().NoError(s.bucket.Delete(s.T().Context()))
-}
-
 func (s *testSuite) TestALinkPastItsTimeIsRefused() {
 	late := s.bucketOf(s.config, cptime.NewFixedClock(time.Now().Add(-time.Hour)))
 	note := s.carrying(png)
@@ -200,7 +177,7 @@ func (s *testSuite) TestALinkPastItsTimeIsRefused() {
 	s.Equal(http.StatusForbidden, s.put(links[0], "image/png", png))
 }
 
-func (s *testSuite) TestABucketWithAnotherSecretUploadsViewsAndDeletesNothing() {
+func (s *testSuite) TestABucketWithAnotherSecretUploadsAndViewsNothing() {
 	note := s.uploaded(png)
 	wrong := s.config
 	wrong.SecretAccessKey = "another-secret"
@@ -216,15 +193,4 @@ func (s *testSuite) TestABucketWithAnotherSecretUploadsViewsAndDeletesNothing() 
 	s.Require().NoError(err)
 	s.Require().NoError(res.Body.Close())
 	s.Equal(http.StatusForbidden, res.StatusCode)
-
-	s.Require().ErrorContains(stranger.Delete(s.T().Context(), note), "403")
-	status, _, _ := s.view(note, 0)
-	s.Equal(http.StatusOK, status, "the file is still there")
-}
-
-func (s *testSuite) TestABucketThatCannotBeReachedDeletesNothingAndSaysSo() {
-	away := s.config
-	away.Endpoint = "http://127.0.0.1:1"
-
-	s.Require().ErrorContains(s.bucketOf(away, cptime.SystemClock{}).Delete(s.T().Context(), s.carrying(png)), "reach the bucket")
 }

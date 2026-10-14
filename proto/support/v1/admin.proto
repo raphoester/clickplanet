@@ -41,7 +41,6 @@ message Note {
   // What the page said of itself. Every note has one; a note sent before they were kept has an empty one.
   PageContext context = 6;
   string user_agent = 7;
-  // None once the note is anonymized: the files go with the sender.
   repeated NoteAttachment attachments = 8;
 }
 

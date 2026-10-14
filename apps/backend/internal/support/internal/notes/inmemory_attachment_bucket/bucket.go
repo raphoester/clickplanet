@@ -3,7 +3,6 @@
 package inmemory_attachment_bucket
 
 import (
-	"context"
 	"fmt"
 	"sync"
 
@@ -17,9 +16,8 @@ func New() *Bucket {
 }
 
 type Bucket struct {
-	mu      sync.Mutex
-	deleted []string
-	err     error
+	mu  sync.Mutex
+	err error
 }
 
 func (b *Bucket) FailWith(err error) {
@@ -41,27 +39,6 @@ func (b *Bucket) UploadURLs(note notes.Note) ([]string, error) {
 		return nil, b.err
 	}
 	return urls(note), nil
-}
-
-func (b *Bucket) Delete(_ context.Context, of ...notes.Note) error {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if b.err != nil {
-		return b.err
-	}
-	for _, note := range of {
-		b.deleted = append(b.deleted, urls(note)...)
-	}
-	return nil
-}
-
-// Every file a Delete was asked for, in the order asked.
-func (b *Bucket) Deleted() []string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	return append([]string(nil), b.deleted...)
 }
 
 func urls(note notes.Note) []string {

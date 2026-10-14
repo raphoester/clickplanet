@@ -39,7 +39,6 @@ type gameStack struct {
 	adminURL string
 	fakes    auth.FakeProviders
 	postgres *cppg.TestServer
-	bucket   *fakeBucket
 }
 
 func startGame(t *testing.T) gameStack {
@@ -109,7 +108,6 @@ func startGame(t *testing.T) gameStack {
 
 	return gameStack{
 		baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes, postgres: postgres,
-		bucket: bucket,
 	}
 }
 

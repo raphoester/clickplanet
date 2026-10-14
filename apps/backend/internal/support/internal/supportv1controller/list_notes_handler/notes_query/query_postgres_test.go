@@ -172,7 +172,7 @@ func (s *testSuite) TestANoteComesWithEachOfItsFilesInOrderAndALinkToItAndTheOth
 	s.Empty(got[1].GetAttachments())
 }
 
-func (s *testSuite) TestAnAnonymizedNoteIsReadWithNoFile() {
+func (s *testSuite) TestAnAnonymizedNoteIsReadWithItsFilesAndNoAccount() {
 	sent := s.carrying(1, ada, "the globe is black", start)
 	s.Require().NoError(s.notes.Save(s.T().Context(), sent))
 	s.Require().NoError(s.notes.Save(s.T().Context(), sent.Anonymized()))
@@ -180,7 +180,8 @@ func (s *testSuite) TestAnAnonymizedNoteIsReadWithNoFile() {
 	got := s.read(time.Time{}, 0)
 
 	s.Require().Len(got, 1)
-	s.Empty(got[0].GetAttachments())
+	s.Empty(got[0].GetAccountId())
+	s.Len(got[0].GetAttachments(), len(files))
 }
 
 func (s *testSuite) TestALinkThatCannotBeMadeRefusesTheRead() {

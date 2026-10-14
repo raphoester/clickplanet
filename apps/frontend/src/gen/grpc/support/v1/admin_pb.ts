@@ -169,8 +169,6 @@ export class Note extends Message<Note> {
   userAgent = "";
 
   /**
-   * None once the note is anonymized: the files go with the sender.
-   *
    * @generated from field: repeated support.v1.NoteAttachment attachments = 8;
    */
   attachments: NoteAttachment[] = [];

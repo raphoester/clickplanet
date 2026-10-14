@@ -51,8 +51,6 @@ const moduleName = "support"
 
 const accountDeletedBuffer = 256
 
-const bucketTimeout = 10 * time.Second
-
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
@@ -84,21 +82,20 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	noteStore := postgres_note_store.New(db)
 	reportStore := postgres_report_store.New(db)
 
-	bucket, err := s3_attachment_bucket.New(config.Attachments.bucket(), config.Attachments.lifetimes(), clock,
-		&http.Client{Timeout: bucketTimeout})
+	bucket, err := s3_attachment_bucket.New(config.Attachments.bucket(), config.Attachments.lifetimes(), clock)
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to build the bucket of the attachments: %w", err)
 	}
 	rules := config.Attachments.rules()
 
-	notePrune := log_prune.New(prune_usecase.New(config.Retention, clock, noteStore, bucket),
+	notePrune := log_prune.New(prune_usecase.New(config.Retention, clock, noteStore),
 		props.Logger.With(slog.String("pruned", "notes")))
 	reportPrune := log_prune.New(prune_reports_usecase.New(config.Retention, clock, reportStore),
 		props.Logger.With(slog.String("pruned", "reports")))
 
 	noteDeletions, err := cpbootstrap.Subscribe(props.Events, "support-notes-accounts", accountDeletedBuffer,
-		log_subscriber.New(account_deleted_subscriber.New(anonymize_notes_usecase.New(noteStore, bucket)), props.Logger))
+		log_subscriber.New(account_deleted_subscriber.New(anonymize_notes_usecase.New(noteStore)), props.Logger))
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)

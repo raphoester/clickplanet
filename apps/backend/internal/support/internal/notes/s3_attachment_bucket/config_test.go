@@ -2,7 +2,6 @@ package s3_attachment_bucket_test
 
 import (
 	"fmt"
-	"net/http"
 	"net/url"
 	"testing"
 	"time"
@@ -39,7 +38,7 @@ func bucketOf(t *testing.T, config s3_attachment_bucket.Config) *s3_attachment_b
 	t.Helper()
 
 	bucket, err := s3_attachment_bucket.New(config,
-		s3_attachment_bucket.Lifetimes{Upload: 30 * time.Minute, View: time.Hour}, cptime.NewFixedClock(noon), http.DefaultClient)
+		s3_attachment_bucket.Lifetimes{Upload: 30 * time.Minute, View: time.Hour}, cptime.NewFixedClock(noon))
 	require.NoError(t, err)
 	return bucket
 }
@@ -58,7 +57,7 @@ func TestAWholeConfigIsValidAndEachMissingPartIsNamed(t *testing.T) {
 		broken(&config)
 
 		require.ErrorContains(t, config.Validate(), name)
-		_, err := s3_attachment_bucket.New(config, s3_attachment_bucket.Lifetimes{}, cptime.SystemClock{}, http.DefaultClient)
+		_, err := s3_attachment_bucket.New(config, s3_attachment_bucket.Lifetimes{}, cptime.SystemClock{})
 		require.Error(t, err, name)
 	}
 }
@@ -143,11 +142,9 @@ func TestWithNoBucketSetANoteWithNoFileIsServedAndEveryLinkIsAnError(t *testing.
 	links, err := none.UploadURLs(noteWith(t))
 	require.NoError(t, err)
 	assert.Empty(t, links)
-	require.NoError(t, none.Delete(t.Context(), noteWith(t)))
 
 	_, err = none.UploadURLs(carrying)
 	require.ErrorIs(t, err, s3_attachment_bucket.ErrNoBucket)
 	_, err = none.ViewURL("0199d0f0-0000-7000-8000-000000000001", 0)
 	require.ErrorIs(t, err, s3_attachment_bucket.ErrNoBucket)
-	require.ErrorIs(t, none.Delete(t.Context(), carrying), s3_attachment_bucket.ErrNoBucket)
 }

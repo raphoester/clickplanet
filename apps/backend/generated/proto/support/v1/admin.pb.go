@@ -187,9 +187,8 @@ type Note struct {
 	Text        string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
 	SubmittedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=submitted_at,json=submittedAt,proto3" json:"submitted_at,omitempty"`
 	// What the page said of itself. Every note has one; a note sent before they were kept has an empty one.
-	Context   *PageContext `protobuf:"bytes,6,opt,name=context,proto3" json:"context,omitempty"`
-	UserAgent string       `protobuf:"bytes,7,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
-	// None once the note is anonymized: the files go with the sender.
+	Context       *PageContext      `protobuf:"bytes,6,opt,name=context,proto3" json:"context,omitempty"`
+	UserAgent     string            `protobuf:"bytes,7,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
 	Attachments   []*NoteAttachment `protobuf:"bytes,8,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

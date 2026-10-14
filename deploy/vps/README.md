@@ -1310,7 +1310,7 @@ docker compose exec postgres psql -U clickplanet -c "select coalesce(p.name, 'gu
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"kind":"NOTE_KIND_BUG"}' http://127.0.0.1:8081/support.v1.AdminService/ListNotes | jq -r '.notes[] | select(.attachments) | .text, (.attachments[] | "  \(.contentType) \(.url)")'
 ```
 
-- The files of a note are deleted when it loses its account.
+- A note keeps its files when it loses its account, as it keeps its text.
 
 ### Read the reports of players
 
@@ -1353,7 +1353,7 @@ on a link the backend signs, and `ListNotes` gives you a link to each.
 charge for downloads, and is on the account that already serves the site. **Any
 S3-compatible bucket works**: for DigitalOcean Spaces ($5 a month for 250 GB),
 change `endpoint` to `https://<region>.digitaloceanspaces.com` and `region` to
-`us-east-1`, and do steps 2 to 4 in its control panel.
+`us-east-1`, and do steps 2 and 3 in its control panel.
 
 1. Turn R2 on for the account in the dashboard (**R2 object storage**), then
    make the bucket:
@@ -1369,25 +1369,17 @@ change `endpoint` to `https://<region>.digitaloceanspaces.com` and `region` to
    printf '%s' '{"rules":[{"allowed":{"origins":["https://clickplanet.lol"],"methods":["PUT"],"headers":["content-type"]},"maxAgeSeconds":3600}]}' > /tmp/cors.json && npx wrangler r2 bucket cors set clickplanet-support --file /tmp/cors.json
    ```
 
-3. Delete what is older than the notes' retention. The backend deletes a
-   note's files itself; this rule is for a file uploaded after its note lost
-   them:
-
-   ```bash
-   npx wrangler r2 bucket lifecycle add clickplanet-support older-than-the-retention --expire-days 100
-   ```
-
-4. In the dashboard, **R2 object storage → Manage API tokens → Create**: an
+3. In the dashboard, **R2 object storage → Manage API tokens → Create**: an
    **Object Read & Write** token for the `clickplanet-support` bucket alone. It
    shows an **Access Key ID** and a **Secret Access Key**, once.
-5. Put the secret in the Actions secrets. `backend.yaml` already names it
+4. Put the secret in the Actions secrets. `backend.yaml` already names it
    (`env://SUPPORT_BUCKET_SECRET`):
 
    ```bash
    read -rsp 'Secret Access Key: ' s && echo && printf '%s' "$s" | gh secret set SUPPORT_BUCKET_SECRET --repo raphoester/clickplanet && unset s
    ```
 
-6. In `backend.yaml`, write the Access Key ID in
+5. In `backend.yaml`, write the Access Key ID in
    `support.attachments.bucket.accessKeyId` (it is in every link the page gets,
    so it is not a secret), set `support.attachments.enabled: true`, and deploy.
    An empty key or secret refuses the boot.
@@ -1401,8 +1393,11 @@ opens from the `url` `ListNotes` prints.
   bigger than `support.attachments.maxBytes` (50 MiB).
 - **This was tested on an S3 server, not on R2 itself.** If every upload
   answers 403, compare `region` and the key with the token.
+- **Nothing deletes a file**, not even when its note loses its account. The
+  bucket only grows: R2's free 10 GB hold 200 files at the 50 MB limit, and
+  each GB past it costs $0.015 a month.
 - **Switch it off only once no note carries a file**: with no bucket,
-  `ListNotes` and the prune fail on a note that does.
+  `ListNotes` fails on a note that does.
 - The privacy page says Cloudflare stores these files. With another provider,
   change that line.
 

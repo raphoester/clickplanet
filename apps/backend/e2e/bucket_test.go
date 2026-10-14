@@ -55,17 +55,7 @@ func (b *fakeBucket) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", file.contentType)
 		_, _ = w.Write(file.body)
-	case http.MethodDelete:
-		delete(b.files, r.URL.Path)
-		w.WriteHeader(http.StatusNoContent)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
-}
-
-func (b *fakeBucket) kept() int {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	return len(b.files)
 }

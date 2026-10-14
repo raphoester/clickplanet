@@ -148,7 +148,6 @@ func (s *StorageContractSuite) anonymized(snapshot Snapshot) Snapshot {
 	s.Require().NoError(s.storage.Save(s.T().Context(), note.Anonymized()))
 
 	snapshot.Account = AccountID{}
-	snapshot.Attachments = nil
 	return snapshot
 }
 
@@ -173,6 +172,61 @@ func (s *StorageContractSuite) TestAnAnonymizedNoteKeepsItsDiagnostics() {
 
 	s.same([]Snapshot{anonymized})
 	s.Equal(contractPhone, s.Kept(s.storage)[0].Diagnostics)
+}
+
+var contractFiles = []Attachment{
+	{MediaType: MediaPNG, Size: 120_000},
+	{MediaType: MediaMP4, Size: 48_000_000},
+	{MediaType: MediaPNG, Size: 90_000},
+}
+
+func (s *StorageContractSuite) withFiles(name string, files []Attachment, at time.Time) Snapshot {
+	snapshot := s.suggestion(name, contractAda, at)
+	snapshot.Attachments = files
+	return snapshot
+}
+
+func (s *StorageContractSuite) TestANoteIsKeptWithItsAttachmentsInTheirOrderAndFoundWithThem() {
+	carrying := s.withFiles("carrying", contractFiles, contractStart)
+	bare := s.saved("bare", contractAda, contractStart.Add(time.Minute))
+
+	s.Require().NoError(s.save(carrying))
+
+	s.same([]Snapshot{carrying, bare})
+	s.Equal([]Snapshot{carrying, bare}, s.snapshots(s.storage.SentBy(s.T().Context(), contractAda)))
+	s.Equal([]Snapshot{carrying, bare},
+		s.snapshots(s.storage.WithSenderBefore(s.T().Context(), contractStart.Add(time.Hour), 10)))
+}
+
+func (s *StorageContractSuite) TestAnAttachmentOfEveryMediaTypeIsKept() {
+	files := make([]Attachment, 0, len(MediaTypes()))
+	for n, media := range MediaTypes() {
+		files = append(files, Attachment{MediaType: media, Size: int64(n + 1)})
+	}
+	every := s.withFiles("every", files, contractStart)
+
+	s.Require().NoError(s.save(every))
+
+	s.same([]Snapshot{every})
+}
+
+func (s *StorageContractSuite) TestANoteSavedAgainKeepsTheAttachmentsItHasNowAndNoOther() {
+	s.Require().NoError(s.save(s.withFiles("edited", contractFiles, contractStart)))
+	fewer := s.withFiles("edited", []Attachment{{MediaType: MediaWebM, Size: 7}}, contractStart)
+
+	s.Require().NoError(s.save(fewer))
+
+	s.same([]Snapshot{fewer})
+}
+
+func (s *StorageContractSuite) TestAnAnonymizedNoteKeepsItsAttachments() {
+	sent := s.withFiles("sent", contractFiles, contractStart)
+	s.Require().NoError(s.save(sent))
+
+	anonymized := s.anonymized(sent)
+
+	s.Equal(contractFiles, anonymized.Attachments)
+	s.same([]Snapshot{anonymized})
 }
 
 func (s *StorageContractSuite) TestANoteSavedWithNoSenderFromTheStartIsKeptToo() {

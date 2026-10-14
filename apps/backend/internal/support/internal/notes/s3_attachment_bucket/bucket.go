@@ -1,29 +1,20 @@
 package s3_attachment_bucket
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/google/uuid"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 )
 
 var ErrNoBucket = errors.New("no bucket is set for the attachments")
-
-const (
-	deleteTTL     = time.Minute
-	deletesAtOnce = 8
-	maxBodyBytes  = 1 << 10
-)
 
 type Config struct {
 	Endpoint        string
@@ -71,8 +62,8 @@ type Lifetimes struct {
 }
 
 // An empty config builds a bucket every link of which is ErrNoBucket: the module that takes no attachment asks for none.
-func New(config Config, lifetimes Lifetimes, clock cptime.Clock, httpClient *http.Client) (*Bucket, error) {
-	bucket := &Bucket{lifetimes: lifetimes, clock: clock, http: httpClient}
+func New(config Config, lifetimes Lifetimes, clock cptime.Clock) (*Bucket, error) {
+	bucket := &Bucket{lifetimes: lifetimes, clock: clock}
 	if config == (Config{}) {
 		return bucket, nil
 	}
@@ -99,7 +90,6 @@ type Bucket struct {
 	credentials credentials
 	lifetimes   Lifetimes
 	clock       cptime.Clock
-	http        *http.Client
 }
 
 func (b *Bucket) UploadURLs(note notes.Note) ([]string, error) {
@@ -121,46 +111,6 @@ func (b *Bucket) UploadURLs(note notes.Note) ([]string, error) {
 
 func (b *Bucket) ViewURL(note string, position int) (string, error) {
 	return b.link(http.MethodGet, note, position, b.lifetimes.View, nil)
-}
-
-// A file that was never uploaded is not an error.
-func (b *Bucket) Delete(ctx context.Context, of ...notes.Note) error {
-	group, ctx := errgroup.WithContext(ctx)
-	group.SetLimit(deletesAtOnce)
-
-	for _, note := range of {
-		kept := note.TakeSnapshot()
-		for position := range kept.Attachments {
-			group.Go(func() error {
-				return b.delete(ctx, uuid.UUID(kept.ID).String(), position)
-			})
-		}
-	}
-	return group.Wait() //nolint:wrapcheck // delete named what failed.
-}
-
-func (b *Bucket) delete(ctx context.Context, note string, position int) error {
-	link, err := b.link(http.MethodDelete, note, position, deleteTTL, nil)
-	if err != nil {
-		return err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, link, nil)
-	if err != nil {
-		return fmt.Errorf("failed to build the request that deletes the attachment %d of the note %s: %w", position, note, err)
-	}
-	res, err := b.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to reach the bucket to delete the attachment %d of the note %s: %w", position, note, err)
-	}
-	defer func() { _ = res.Body.Close() }()
-
-	if res.StatusCode/100 == 2 || res.StatusCode == http.StatusNotFound {
-		return nil
-	}
-	said, _ := io.ReadAll(io.LimitReader(res.Body, maxBodyBytes))
-	return fmt.Errorf("the bucket answered %d to the deletion of the attachment %d of the note %s: %s",
-		res.StatusCode, position, note, said)
 }
 
 func (b *Bucket) link(method string, note string, position int, ttl time.Duration, headers map[string]string) (string, error) {

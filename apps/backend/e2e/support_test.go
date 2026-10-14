@@ -180,32 +180,29 @@ func TestFilesTheRulesDoNotTakeAreRefusedAndNoNoteIsKept(t *testing.T) {
 	assert.Empty(t, game.notes(t))
 }
 
-func TestADeletedAccountsFilesAreDeletedAndTheOthersAreKept(t *testing.T) {
+func TestADeletedAccountsNotesKeepTheirFilesAndNoLongerNameIt(t *testing.T) {
 	game := startGame(t)
-	leaving, staying := game.newPlayer(t), game.newPlayer(t)
+	leaving := game.newPlayer(t)
 	left, err := leaving.reportBugWith("the globe is black", screenshot, recording)
 	require.NoError(t, err)
 	upload(t, left[0], screenshot)
 	upload(t, left[1], recording)
-	stayed, err := staying.reportBugWith("the chat is slow", screenshot)
-	require.NoError(t, err)
-	upload(t, stayed[0], screenshot)
-	require.Equal(t, 3, game.bucket.kept())
 
 	deletion := connect.NewRequest(&authv1.DeleteAccountRequest{})
 	leaving.send(deletion.Header())
 	_, err = authv1connect.NewAuthServiceClient(http.DefaultClient, game.baseURL).DeleteAccount(t.Context(), deletion)
 	require.NoError(t, err)
 
-	files := map[string]int{}
 	require.Eventually(t, func() bool {
-		for _, note := range game.notes(t) {
-			files[note.GetText()] = len(note.GetAttachments())
-		}
-		return files["the globe is black"] == 0
+		return game.notes(t)[0].GetAccountId() == ""
 	}, 5*time.Second, 20*time.Millisecond)
-	assert.Equal(t, map[string]int{"the globe is black": 0, "the chat is slow": 1}, files)
-	assert.Equal(t, 1, game.bucket.kept())
+	kept := game.notes(t)[0].GetAttachments()
+	require.Len(t, kept, 2)
+	for n, sent := range []file{screenshot, recording} {
+		status, got := opened(t, kept[n])
+		assert.Equal(t, http.StatusOK, status)
+		assert.Equal(t, sent, got)
+	}
 }
 
 func (s gameStack) notes(t *testing.T) []*supportv1.Note {
