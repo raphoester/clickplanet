@@ -21,7 +21,7 @@ import {HIGHLIGHTS} from "./anthemHighlightsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
 import {Candidate, candidatesOf, inCandidate, newsSince, Window} from "../domain/clip/window.ts"
 import {Front, frontOf, FRONT_RADIANS, inSightOf, sameFront, spanOf} from "../domain/clip/front.ts"
-import {castOf, inPlace, leadsTheWorld, lossOf, placeOf, routOf, sameStory, Story, storyOf, THE_WORLD, widerThan} from "../domain/clip/story.ts"
+import {castOf, inPlace, leadsTheWorld, lossOf, placeOf, routOf, sameStory, Story, storyKeyOf, storyOf, teamFlagOf, THE_WORLD, widerThan} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
 import {cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
@@ -30,7 +30,7 @@ import {stopsOf, tourOf, tourSecondsOf, Visit} from "../domain/clip/tour.ts"
 import {flagsZoomOf, tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {mulberry32} from "../app/viewer/stars.ts"
 import {installVirtualClock} from "./virtualClock.ts"
-import {createOverlay, nameOf, placeName, teamFlagOf, wordsOf} from "./overlay.ts"
+import {createOverlay, nameOf, placeName, wordsOf} from "./overlay.ts"
 
 export type Recording = {
     pick: number
@@ -416,12 +416,17 @@ async function choose(): Promise<Chosen> {
             call: words.call,
             link: words.link,
             caption,
-            clip: new Clip({pick, title: words.headline, caption, tags: words.tags}).toJson(),
+            clip: new Clip({pick, title: words.headline, caption, tags: words.tags, key: storyKeyOf(story, regionOf)}).toJson(),
             music,
         }
     }
 
-    return {shortlist: new Shortlist({stories: worth.map(({story}) => ({title: wordsOf(story).headline}))}).toJson(), record}
+    return {
+        shortlist: new Shortlist({
+            stories: worth.map(({story}) => ({title: wordsOf(story).headline, key: storyKeyOf(story, regionOf)})),
+        }).toJson(),
+        record,
+    }
 }
 
 const chosen = choose()

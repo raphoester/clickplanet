@@ -9,6 +9,7 @@ message Shortlist {
 
 message Story {
   string title = 1;
+  StoryKey key = 2;
 }
 
 message Clip {
@@ -17,4 +18,13 @@ message Clip {
   // Ready to post: its tags and the credit of its music are in it.
   string caption = 3;
   repeated string tags = 4;
+  StoryKey key = 5;
+}
+
+// Two stories with one key are one story told twice, whatever their headlines.
+message StoryKey {
+  // The country code of the flag the clip is about: the loser when a flag is thrown out.
+  string flag = 1;
+  // As the headlines name it: "Africa", "Middle East", "the world".
+  string continent = 2;
 }

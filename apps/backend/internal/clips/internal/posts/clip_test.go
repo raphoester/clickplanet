@@ -12,7 +12,7 @@ import (
 func rendered(pick posts.Pick, title string) posts.ClipSnapshot {
 	return posts.ClipSnapshot{
 		Pick: pick, Title: title, Caption: title + ". Who stops them? 👇\nclickplanet.lol\n#clickplanet",
-		Video: posts.VideoFile("clip-" + title + ".mp4"),
+		Key: posts.StoryKey{Flag: "dz", Continent: title}, Video: posts.VideoFile("clip-" + title + ".mp4"),
 	}
 }
 
@@ -38,6 +38,8 @@ func TestAClipWithAPartMissingIsRefused(t *testing.T) {
 		"no pick":    func(s *posts.ClipSnapshot) { s.Pick = 0 },
 		"no title":   func(s *posts.ClipSnapshot) { s.Title = "" },
 		"no caption": func(s *posts.ClipSnapshot) { s.Caption = "" },
+		"no flag":    func(s *posts.ClipSnapshot) { s.Key.Flag = "" },
+		"no place":   func(s *posts.ClipSnapshot) { s.Key.Continent = "" },
 		"no video":   func(s *posts.ClipSnapshot) { s.Video = "" },
 	} {
 		t.Run(name, func(t *testing.T) {

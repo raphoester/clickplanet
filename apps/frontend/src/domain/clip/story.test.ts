@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {TileChange} from "./changes.ts"
-import {castOf, inPlace, leadsTheWorld, lossOf, placeOf, routOf, sameRout, sameStory, Story, storyOf, THE_WORLD, widerThan} from "./story.ts"
+import {castOf, inPlace, leadsTheWorld, lossOf, placeOf, routOf, sameRout, sameStory, Story, storyKeyOf, storyOf, THE_WORLD, widerThan} from "./story.ts"
 
 const REGIONS: Record<string, string> = {
     fr: "Europe",
@@ -8,6 +8,9 @@ const REGIONS: Record<string, string> = {
     gb: "Europe",
     es: "Europe",
     br: "South America",
+    za: "Africa",
+    eg: "Africa",
+    tr: "Middle East",
 }
 const regionOf = (country: string) => REGIONS[country]
 
@@ -301,5 +304,43 @@ describe("the same story", () => {
 
         expect(same(battle({country: "de"}), battle({country: "de"}))).toBe(true)
         expect(same(battle({country: "de"}), italy({region: "Europe"}))).toBe(false)
+    })
+})
+
+describe("the key of a story", () => {
+    const told = (kind: Story["kind"], place: Story["place"], more: Partial<Story> = {}): Story =>
+        ({kind, attacker: "dz", rival: undefined, victims: ["fr"], place, taken: 900, ...more})
+
+    it("is the same for one flag on one continent, whatever the headline says", () => {
+        const strikesBack = storyKeyOf(told("comeback", {region: "Africa"}), regionOf)
+        const battle = storyKeyOf(told("battle", {country: "za"}, {rival: "fr"}), regionOf)
+        const invasion = storyKeyOf(told("invasion", {countries: ["za", "eg"]}), regionOf)
+
+        expect(strikesBack).toEqual({flag: "dz", continent: "Africa"})
+        expect(battle).toEqual(strikesBack)
+        expect(invasion).toEqual(strikesBack)
+    })
+
+    it("is another story on another continent", () => {
+        expect(storyKeyOf(told("invasion", {country: "fr"}), regionOf)).toEqual({flag: "dz", continent: "Europe"})
+        expect(storyKeyOf(told("invasion", {countries: ["tr", "eg"]}), regionOf)).toEqual({flag: "dz", continent: "Middle East"})
+    })
+
+    it("is about the flag thrown out, not the flags that threw it out", () => {
+        expect(storyKeyOf(told("rout", {region: "Europe"}, {victims: ["ps"], team: "Europe"}), regionOf))
+            .toEqual({flag: "ps", continent: "Europe"})
+    })
+
+    it("is about a continent's own flag when it strikes back together", () => {
+        expect(storyKeyOf(told("comeback", {region: "Europe"}, {attacker: "de", team: "Europe"}), regionOf))
+            .toEqual({flag: "eu", continent: "Europe"})
+    })
+
+    it("is told on the world for a tour of it", () => {
+        expect(storyKeyOf(told("attack", {region: THE_WORLD}, {attacker: "pt"}), regionOf)).toEqual({flag: "pt", continent: THE_WORLD})
+    })
+
+    it("is told on the country itself when no continent is known for it", () => {
+        expect(storyKeyOf(told("invasion", {country: "xb"}), regionOf)).toEqual({flag: "dz", continent: "xb"})
     })
 })

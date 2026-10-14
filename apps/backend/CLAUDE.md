@@ -3198,8 +3198,9 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   ([`GetReplay`](#getreplay)), over SSH, and writes the answer as it came. `CLICKPLANET_SSH` stands in for `-ssh`.
   With no `-hours` it is 72: the ledger keeps that much in memory, and a replay cannot reach further back.
 - **`choose` prints the picks to render**, as a JSON array on the standard output (`[1,2]`, or `[]` on a quiet half
-  day): the workflow makes one render job of each. The log goes to the standard error. A pick is a story's place
-  in the shortlist, from 1 (`posts.Pick`): what the generator's `--pick` takes.
+  day): the workflow makes one render job of each. The log goes to the standard error, with each story skipped as
+  told. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's `--pick` takes.
+  It needs `ZERNIO_API_KEY`, to read what was told.
 - **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the posting
   service, and adds a table to the summary: each clip, its time, and whether it is scheduled. It exits 1 when a
   clip was not scheduled, when the folder holds none, or when the summary cannot be written. A clip refused does
@@ -3240,8 +3241,17 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
 
-- **`Shortlist.Best(count)`** is which clips: the first `count` stories, all of them when there are fewer. 2 a run
-  (`Config.PerRun`).
+- **`Shortlist.Best(count, told, now)`** is which clips: the first `count` stories, all of them when there are
+  fewer, 2 a run (`Config.PerRun`), **but never a story told already**: one whose `StoryKey` (a flag and a
+  continent, from the generator) a post holds that goes out within the last day or later (`ToldSince`), or that a
+  better story of the same run took. The keys and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS
+  FRANCE" are one story, and on Oct 13–14 two runs posted it three times. It answers a `Choice`: the stories chosen,
+  and the ones skipped (`Retold`), which the log shows. A story with no key is refused when the shortlist is read.
+- **What was told is Zernio's post list, not a table of ours**: each post keeps its key in its Zernio `metadata`
+  (`storyFlag`, `storyContinent`, never published), and `choose` lists the posts of the last day back
+  (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
+  counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
+  nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
 - **`Cadence.Posts(clips, now)`** is when: the best clip a `Review` from now (4 hours), each next one a `Spacing`
   later (2 hours), on a whole minute and never sooner than the review. So a run at 12:17 UTC that renders in 20
   minutes posts near 16:40 and 18:40.

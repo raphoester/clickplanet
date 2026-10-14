@@ -69,6 +69,7 @@ func (x *Shortlist) GetStories() []*Story {
 type Story struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Title         string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
+	Key           *StoryKey              `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -110,13 +111,21 @@ func (x *Story) GetTitle() string {
 	return ""
 }
 
+func (x *Story) GetKey() *StoryKey {
+	if x != nil {
+		return x.Key
+	}
+	return nil
+}
+
 type Clip struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Pick  uint32                 `protobuf:"varint,1,opt,name=pick,proto3" json:"pick,omitempty"`
 	Title string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	// Ready to post: its tags and the credit of its music are in it.
-	Caption       string   `protobuf:"bytes,3,opt,name=caption,proto3" json:"caption,omitempty"`
-	Tags          []string `protobuf:"bytes,4,rep,name=tags,proto3" json:"tags,omitempty"`
+	Caption       string    `protobuf:"bytes,3,opt,name=caption,proto3" json:"caption,omitempty"`
+	Tags          []string  `protobuf:"bytes,4,rep,name=tags,proto3" json:"tags,omitempty"`
+	Key           *StoryKey `protobuf:"bytes,5,opt,name=key,proto3" json:"key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -179,20 +188,87 @@ func (x *Clip) GetTags() []string {
 	return nil
 }
 
+func (x *Clip) GetKey() *StoryKey {
+	if x != nil {
+		return x.Key
+	}
+	return nil
+}
+
+// Two stories with one key are one story told twice, whatever their headlines.
+type StoryKey struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The country code of the flag the clip is about: the loser when a flag is thrown out.
+	Flag string `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
+	// As the headlines name it: "Africa", "Middle East", "the world".
+	Continent     string `protobuf:"bytes,2,opt,name=continent,proto3" json:"continent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StoryKey) Reset() {
+	*x = StoryKey{}
+	mi := &file_clips_v1_clips_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StoryKey) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StoryKey) ProtoMessage() {}
+
+func (x *StoryKey) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_clips_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StoryKey.ProtoReflect.Descriptor instead.
+func (*StoryKey) Descriptor() ([]byte, []int) {
+	return file_clips_v1_clips_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *StoryKey) GetFlag() string {
+	if x != nil {
+		return x.Flag
+	}
+	return ""
+}
+
+func (x *StoryKey) GetContinent() string {
+	if x != nil {
+		return x.Continent
+	}
+	return ""
+}
+
 var File_clips_v1_clips_proto protoreflect.FileDescriptor
 
 const file_clips_v1_clips_proto_rawDesc = "" +
 	"\n" +
 	"\x14clips/v1/clips.proto\x12\bclips.v1\"6\n" +
 	"\tShortlist\x12)\n" +
-	"\astories\x18\x01 \x03(\v2\x0f.clips.v1.StoryR\astories\"\x1d\n" +
+	"\astories\x18\x01 \x03(\v2\x0f.clips.v1.StoryR\astories\"C\n" +
 	"\x05Story\x12\x14\n" +
-	"\x05title\x18\x01 \x01(\tR\x05title\"^\n" +
+	"\x05title\x18\x01 \x01(\tR\x05title\x12$\n" +
+	"\x03key\x18\x02 \x01(\v2\x12.clips.v1.StoryKeyR\x03key\"\x84\x01\n" +
 	"\x04Clip\x12\x12\n" +
 	"\x04pick\x18\x01 \x01(\rR\x04pick\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
 	"\acaption\x18\x03 \x01(\tR\acaption\x12\x12\n" +
-	"\x04tags\x18\x04 \x03(\tR\x04tagsB\xab\x01\n" +
+	"\x04tags\x18\x04 \x03(\tR\x04tags\x12$\n" +
+	"\x03key\x18\x05 \x01(\v2\x12.clips.v1.StoryKeyR\x03key\"<\n" +
+	"\bStoryKey\x12\x12\n" +
+	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x1c\n" +
+	"\tcontinent\x18\x02 \x01(\tR\tcontinentB\xab\x01\n" +
 	"\fcom.clips.v1B\n" +
 	"ClipsProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1;clipsv1\xa2\x02\x03CXX\xaa\x02\bClips.V1\xca\x02\bClips\\V1\xe2\x02\x14Clips\\V1\\GPBMetadata\xea\x02\tClips::V1b\x06proto3"
 
@@ -208,19 +284,22 @@ func file_clips_v1_clips_proto_rawDescGZIP() []byte {
 	return file_clips_v1_clips_proto_rawDescData
 }
 
-var file_clips_v1_clips_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_clips_v1_clips_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_clips_v1_clips_proto_goTypes = []any{
 	(*Shortlist)(nil), // 0: clips.v1.Shortlist
 	(*Story)(nil),     // 1: clips.v1.Story
 	(*Clip)(nil),      // 2: clips.v1.Clip
+	(*StoryKey)(nil),  // 3: clips.v1.StoryKey
 }
 var file_clips_v1_clips_proto_depIdxs = []int32{
 	1, // 0: clips.v1.Shortlist.stories:type_name -> clips.v1.Story
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	3, // 1: clips.v1.Story.key:type_name -> clips.v1.StoryKey
+	3, // 2: clips.v1.Clip.key:type_name -> clips.v1.StoryKey
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_clips_v1_clips_proto_init() }
@@ -234,7 +313,7 @@ func file_clips_v1_clips_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clips_v1_clips_proto_rawDesc), len(file_clips_v1_clips_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

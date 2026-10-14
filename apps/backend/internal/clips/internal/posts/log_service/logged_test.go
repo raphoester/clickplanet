@@ -16,7 +16,9 @@ import (
 func schedule(t *testing.T, inner *posts.ScriptedService) (string, posts.PostID, error) {
 	t.Helper()
 
-	clip, err := posts.ClipSnapshot{Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Caption: "C", Video: "clip-1.mp4"}.Restore()
+	clip, err := posts.ClipSnapshot{
+		Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Caption: "C", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}, Video: "clip-1.mp4",
+	}.Restore()
 	require.NoError(t, err)
 	post := posts.Cadence{Review: 4 * time.Hour}.Posts([]posts.Clip{clip}, time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC))[0]
 

@@ -1509,6 +1509,87 @@ func (e ListAccountsParamsOrder) Valid() bool {
 	}
 }
 
+// Defines values for ListPostsParamsSource.
+const (
+	ListPostsParamsSourceExternal ListPostsParamsSource = "external"
+	ListPostsParamsSourceZernio   ListPostsParamsSource = "zernio"
+)
+
+// Valid indicates whether the value is a known member of the ListPostsParamsSource enum.
+func (e ListPostsParamsSource) Valid() bool {
+	switch e {
+	case ListPostsParamsSourceExternal:
+		return true
+	case ListPostsParamsSourceZernio:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPostsParamsStatus.
+const (
+	ListPostsParamsStatusCancelled  ListPostsParamsStatus = "cancelled"
+	ListPostsParamsStatusDraft      ListPostsParamsStatus = "draft"
+	ListPostsParamsStatusFailed     ListPostsParamsStatus = "failed"
+	ListPostsParamsStatusPartial    ListPostsParamsStatus = "partial"
+	ListPostsParamsStatusPublished  ListPostsParamsStatus = "published"
+	ListPostsParamsStatusPublishing ListPostsParamsStatus = "publishing"
+	ListPostsParamsStatusScheduled  ListPostsParamsStatus = "scheduled"
+)
+
+// Valid indicates whether the value is a known member of the ListPostsParamsStatus enum.
+func (e ListPostsParamsStatus) Valid() bool {
+	switch e {
+	case ListPostsParamsStatusCancelled:
+		return true
+	case ListPostsParamsStatusDraft:
+		return true
+	case ListPostsParamsStatusFailed:
+		return true
+	case ListPostsParamsStatusPartial:
+		return true
+	case ListPostsParamsStatusPublished:
+		return true
+	case ListPostsParamsStatusPublishing:
+		return true
+	case ListPostsParamsStatusScheduled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListPostsParamsSortBy.
+const (
+	ListPostsParamsSortByCreatedAsc    ListPostsParamsSortBy = "created-asc"
+	ListPostsParamsSortByCreatedDesc   ListPostsParamsSortBy = "created-desc"
+	ListPostsParamsSortByPlatform      ListPostsParamsSortBy = "platform"
+	ListPostsParamsSortByScheduledAsc  ListPostsParamsSortBy = "scheduled-asc"
+	ListPostsParamsSortByScheduledDesc ListPostsParamsSortBy = "scheduled-desc"
+	ListPostsParamsSortByStatus        ListPostsParamsSortBy = "status"
+)
+
+// Valid indicates whether the value is a known member of the ListPostsParamsSortBy enum.
+func (e ListPostsParamsSortBy) Valid() bool {
+	switch e {
+	case ListPostsParamsSortByCreatedAsc:
+		return true
+	case ListPostsParamsSortByCreatedDesc:
+		return true
+	case ListPostsParamsSortByPlatform:
+		return true
+	case ListPostsParamsSortByScheduledAsc:
+		return true
+	case ListPostsParamsSortByScheduledDesc:
+		return true
+	case ListPostsParamsSortByStatus:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreatePost403JSONResponseBodyCode.
 const (
 	CreatePost403JSONResponseBodyCodeACCOUNTDISCONNECTED         CreatePost403JSONResponseBodyCode = "ACCOUNT_DISCONNECTED"
@@ -2578,6 +2659,12 @@ type PostPublishIncompleteResponse_PlatformResults struct {
 	Status string `json:"status"`
 }
 
+// PostsListResponse defines model for PostsListResponse.
+type PostsListResponse struct {
+	Pagination *Pagination `json:"pagination,omitempty"`
+	Posts      *[]Post     `json:"posts,omitempty"`
+}
+
 // Profile defines model for Profile.
 type Profile struct {
 	UnderscoreId *string `json:"_id,omitempty"`
@@ -3376,6 +3463,9 @@ type YouTubePlatformData struct {
 // YouTubePlatformDataVisibility Video visibility: public (default, anyone can watch), unlisted (link only), private (invite only)
 type YouTubePlatformDataVisibility string
 
+// PageParam defines model for PageParam.
+type PageParam = int
+
 // BadRequest Canonical error envelope. `error` is the human-readable message; `type`,
 // `code`, `param`, `platform`, and `platformError` are top-level siblings
 // for programmatic handling. For upstream platform failures (`type:
@@ -3493,6 +3583,65 @@ type GetMediaPresignedUrl200JSONResponseBody struct {
 	// UploadUrl Presigned URL to PUT your file to (expires in 1 hour)
 	UploadUrl *string `json:"uploadUrl,omitempty"`
 }
+
+// ListPostsParams defines parameters for ListPosts.
+type ListPostsParams struct {
+	// Page Page number (1-based)
+	Page *PageParam `form:"page,omitempty" json:"page,omitempty"`
+
+	// Limit Page size. Values above the maximum return 400 rather than being clamped.
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Offset Row offset. Takes precedence over page when both are sent; the response pagination.page is derived from it.
+	Offset *int `form:"offset,omitempty" json:"offset,omitempty"`
+
+	// Source Which collection to read. `zernio` (default) returns posts authored through Zernio. `external` returns posts synced from the platform (existing/historical posts that were published outside Zernio). Combine with `accountId` and paginate via `page`/`limit` to walk the full synced history (we keep up to the last ~12 months per account).
+	Source   *ListPostsParamsSource `form:"source,omitempty" json:"source,omitempty"`
+	Status   *ListPostsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	Platform *string                `form:"platform,omitempty" json:"platform,omitempty"`
+
+	// ProfileId Filter posts to a specific profile (24-char hex ObjectId). Omit it, or send `all` or an empty value, to list posts across every profile.
+	ProfileId *string `form:"profileId,omitempty" json:"profileId,omitempty"`
+
+	// CreatedBy Filter posts to those created by a specific team user (24-char hex ObjectId).
+	CreatedBy *string `form:"createdBy,omitempty" json:"createdBy,omitempty"`
+
+	// FromDate Zero-padded YYYY-MM-DD, or a full ISO 8601 datetime. An empty value means no date filter; any other malformed value returns 400. The same name the other date-window filters use (ads, analytics).
+	FromDate *openapi_types.Date `form:"fromDate,omitempty" json:"fromDate,omitempty"`
+
+	// ToDate Zero-padded YYYY-MM-DD, or a full ISO 8601 datetime. An empty value means no date filter; any other malformed value returns 400. The same name the other date-window filters use (ads, analytics).
+	ToDate *openapi_types.Date `form:"toDate,omitempty" json:"toDate,omitempty"`
+
+	// DateFrom Alias of fromDate, kept for existing callers
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	DateFrom *openapi_types.Date `form:"dateFrom,omitempty" json:"dateFrom,omitempty"`
+
+	// DateTo Alias of toDate, kept for existing callers
+	// Deprecated: this property has been marked as deprecated upstream, but no `x-deprecated-reason` was set
+	DateTo        *openapi_types.Date `form:"dateTo,omitempty" json:"dateTo,omitempty"`
+	IncludeHidden *bool               `form:"includeHidden,omitempty" json:"includeHidden,omitempty"`
+
+	// Search Search posts by text content.
+	Search *string `form:"search,omitempty" json:"search,omitempty"`
+
+	// Tags Comma-separated tags (at most 20). Returns only posts carrying every listed tag, matched exactly and case-sensitively against the tags set when the post was created. An empty value means no tag filter. `tag` is accepted as an alias.
+	Tags *string `form:"tags,omitempty" json:"tags,omitempty"`
+
+	// SortBy Sort order for results.
+	SortBy *ListPostsParamsSortBy `form:"sortBy,omitempty" json:"sortBy,omitempty"`
+
+	// AccountId Filter posts to those published via a specific account (24-char hex ObjectId).
+	AccountId *string `form:"accountId,omitempty" json:"accountId,omitempty"`
+}
+
+// ListPostsParamsSource defines parameters for ListPosts.
+type ListPostsParamsSource string
+
+// ListPostsParamsStatus defines parameters for ListPosts.
+type ListPostsParamsStatus string
+
+// ListPostsParamsSortBy defines parameters for ListPosts.
+type ListPostsParamsSortBy string
 
 // CreatePostJSONBody defines parameters for CreatePost.
 type CreatePostJSONBody struct {
@@ -4722,6 +4871,13 @@ type ClientInterface interface {
 	// Corresponds with POST /v1/media/presign (the `GetMediaPresignedUrl` operationId).
 	GetMediaPresignedUrl(ctx context.Context, body GetMediaPresignedUrlJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListPosts List posts
+	//
+	// Returns a paginated list of posts. Published posts include platformPostUrl with the public URL on each platform. A query parameter that is not listed here returns 400 naming it and the accepted parameters, so a misspelled filter never silently returns the unfiltered list.
+	//
+	// Corresponds with GET /v1/posts (the `ListPosts` operationId).
+	ListPosts(ctx context.Context, params *ListPostsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CreatePostWithBody Create post
 	//
 	// Create a post, and optionally publish it in the same request. A post published immediately (`publishNow: true`) comes back with `platformPostUrl` in the response.
@@ -4878,6 +5034,23 @@ func (c *Client) GetMediaPresignedUrlWithBody(ctx context.Context, contentType s
 // Corresponds with POST /v1/media/presign (the `GetMediaPresignedUrl` operationId).
 func (c *Client) GetMediaPresignedUrl(ctx context.Context, body GetMediaPresignedUrlJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetMediaPresignedUrlRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPosts List posts
+//
+// Returns a paginated list of posts. Published posts include platformPostUrl with the public URL on each platform. A query parameter that is not listed here returns 400 naming it and the accepted parameters, so a misspelled filter never silently returns the unfiltered list.
+//
+// Corresponds with GET /v1/posts (the `ListPosts` operationId).
+func (c *Client) ListPosts(ctx context.Context, params *ListPostsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPostsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -5278,6 +5451,252 @@ func NewGetMediaPresignedUrlRequestWithBody(server string, contentType string, b
 	return req, nil
 }
 
+// NewListPostsRequest constructs an http.Request for the ListPosts method
+func NewListPostsRequest(server string, params *ListPostsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/posts")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Page != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "page", *params.Page, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Limit != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "limit", *params.Limit, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Offset != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "offset", *params.Offset, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Source != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "source", *params.Source, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Status != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "status", *params.Status, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Platform != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "platform", *params.Platform, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.ProfileId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "profileId", *params.ProfileId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.CreatedBy != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "createdBy", *params.CreatedBy, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.FromDate != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "fromDate", *params.FromDate, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.ToDate != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "toDate", *params.ToDate, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.DateFrom != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "dateFrom", *params.DateFrom, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.DateTo != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "dateTo", *params.DateTo, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "date"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.IncludeHidden != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "includeHidden", *params.IncludeHidden, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Search != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "search", *params.Search, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Tags != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "tags", *params.Tags, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.SortBy != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "sortBy", *params.SortBy, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.AccountId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "accountId", *params.AccountId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewCreatePostRequest calls the generic CreatePost builder with application/json body
 func NewCreatePostRequest(server string, params *CreatePostParams, body CreatePostJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -5416,6 +5835,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /v1/media/presign (the `GetMediaPresignedUrl` operationId).
 	GetMediaPresignedUrlWithResponse(ctx context.Context, body GetMediaPresignedUrlJSONRequestBody, reqEditors ...RequestEditorFn) (*GetMediaPresignedUrlResponse, error)
+
+	// ListPostsWithResponse List posts
+	//
+	// Returns a paginated list of posts. Published posts include platformPostUrl with the public URL on each platform. A query parameter that is not listed here returns 400 naming it and the accepted parameters, so a misspelled filter never silently returns the unfiltered list.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /v1/posts (the `ListPosts` operationId).
+	ListPostsWithResponse(ctx context.Context, params *ListPostsParams, reqEditors ...RequestEditorFn) (*ListPostsResponse, error)
 
 	// CreatePostWithBodyWithResponse Create post
 	//
@@ -5650,6 +6078,61 @@ func (r GetMediaPresignedUrlResponse) ContentType() string {
 	return ""
 }
 
+type ListPostsResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostsListResponse
+	// JSON400 the response for an HTTP 400 `application/json` response
+	JSON400 *BadRequest
+	// JSON401 the response for an HTTP 401 `application/json` response
+	JSON401 *Unauthorized
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPostsResponse) GetJSON200() *PostsListResponse {
+	return r.JSON200
+}
+
+// GetJSON400 returns the response for an HTTP 400 `application/json` response
+func (r ListPostsResponse) GetJSON400() *BadRequest {
+	return r.JSON400
+}
+
+// GetJSON401 returns the response for an HTTP 401 `application/json` response
+func (r ListPostsResponse) GetJSON401() *Unauthorized {
+	return r.JSON401
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPostsResponse) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPostsResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPostsResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPostsResponse) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // CreatePostResponse429Headers the declared response headers of an HTTP 429 response for CreatePost
 type CreatePostResponse429Headers struct {
 	RetryAfter          *int
@@ -5795,6 +6278,21 @@ func (c *ClientWithResponses) GetMediaPresignedUrlWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseGetMediaPresignedUrlResponse(rsp)
+}
+
+// ListPostsWithResponse List posts
+//
+// Returns a paginated list of posts. Published posts include platformPostUrl with the public URL on each platform. A query parameter that is not listed here returns 400 naming it and the accepted parameters, so a misspelled filter never silently returns the unfiltered list.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /v1/posts (the `ListPosts` operationId).
+func (c *ClientWithResponses) ListPostsWithResponse(ctx context.Context, params *ListPostsParams, reqEditors ...RequestEditorFn) (*ListPostsResponse, error) {
+	rsp, err := c.ListPosts(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPostsResponse(rsp)
 }
 
 // CreatePostWithBodyWithResponse Create post
@@ -6000,6 +6498,46 @@ func ParseGetMediaPresignedUrlResponse(rsp *http.Response) (*GetMediaPresignedUr
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
 		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Unauthorized
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON401 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPostsResponse parses an HTTP response from a ListPostsWithResponse call
+func ParseListPostsResponse(rsp *http.Response) (*ListPostsResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPostsResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostsListResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest BadRequest
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

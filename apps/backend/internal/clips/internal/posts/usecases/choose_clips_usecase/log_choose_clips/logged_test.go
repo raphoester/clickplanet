@@ -15,12 +15,12 @@ import (
 )
 
 type stubExecutor struct {
-	chosen posts.Shortlist
+	choice posts.Choice
 	err    error
 }
 
-func (s stubExecutor) Execute(context.Context) (posts.Shortlist, error) {
-	return s.chosen, s.err
+func (s stubExecutor) Execute(context.Context) (posts.Choice, error) {
+	return s.choice, s.err
 }
 
 func run(t *testing.T, inner stubExecutor) (string, error) {
@@ -31,12 +31,22 @@ func run(t *testing.T, inner stubExecutor) (string, error) {
 	return logs.String(), err
 }
 
-func TestEachChosenStoryIsLoggedWithItsPick(t *testing.T) {
-	logs, err := run(t, stubExecutor{chosen: posts.ShortlistOf([]string{"BEST", "SECOND"})})
+func TestEachChosenStoryIsLoggedWithItsPickAndKey(t *testing.T) {
+	logs, err := run(t, stubExecutor{choice: posts.Choice{Chosen: posts.Shortlist{
+		{Pick: 1, Title: "BEST", Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}},
+	}}})
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, `msg="chose a story" pick=1 title=BEST`)
-	assert.Contains(t, logs, `msg="chose a story" pick=2 title=SECOND`)
+	assert.Contains(t, logs, `msg="chose a story" pick=1 title=BEST flag=dz continent=Africa`)
+}
+
+func TestEachStorySkippedAsToldIsLogged(t *testing.T) {
+	logs, err := run(t, stubExecutor{choice: posts.Choice{Retold: posts.Shortlist{
+		{Pick: 1, Title: "ALGERIA VS FRANCE", Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}},
+	}}})
+
+	require.NoError(t, err)
+	assert.Contains(t, logs, `msg="skipped a story told already" pick=1 title="ALGERIA VS FRANCE" flag=dz continent=Africa`)
 }
 
 func TestAQuietHalfDayIsLoggedAsSuch(t *testing.T) {

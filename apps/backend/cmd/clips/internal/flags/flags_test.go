@@ -40,11 +40,15 @@ func TestFetchTakesItsHostFromTheEnvironmentAndAFlagWinsOverIt(t *testing.T) {
 	assert.Equal(t, "me@other.example", fromFlag.Job.Replay.SSH)
 }
 
-func TestChooseFlagsSayWhichShortlistAndHowManyClips(t *testing.T) {
+func TestChooseFlagsSayWhichShortlistHowManyClipsAndTheKeyToReadWhatWasTold(t *testing.T) {
+	t.Setenv(flags.KeyVariable, "the-key")
+
 	parsed, err := flags.Parse([]string{"choose", "-shortlist", "shortlist.json", "-count", "3"})
 
 	require.NoError(t, err)
-	assert.Equal(t, flags.Config{Command: flags.Choose, ShortlistFile: "shortlist.json", Job: clips.Config{PerRun: 3}}, parsed)
+	job := clips.Config{PerRun: 3}
+	job.Zernio.APIKey = "the-key"
+	assert.Equal(t, flags.Config{Command: flags.Choose, ShortlistFile: "shortlist.json", Job: job}, parsed)
 }
 
 func TestScheduleFlagsSayWhichClipsWhenAndWhereTheSummaryGoes(t *testing.T) {

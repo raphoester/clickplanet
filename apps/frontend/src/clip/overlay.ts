@@ -1,5 +1,5 @@
 import {Countries} from "../domain/countries.ts"
-import {inPlace, Place, Story, THE_WORLD} from "../domain/clip/story.ts"
+import {inPlace, Place, sidesOf, Story, THE_WORLD} from "../domain/clip/story.ts"
 import {flagOfContinent, regionOf} from "../domain/regions.ts"
 
 export type Words = {
@@ -92,22 +92,6 @@ const TAGS = ["#clickplanet", "#pixelwars", "#rplace", "#wplace", "#map"]
 
 function tagOf(name: string): string {
     return `#${name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")}`
-}
-
-// The flag a continent striking back together is counted and shown under.
-export function teamFlagOf(story: Story): string | undefined {
-    return story.team === undefined ? undefined : flagOfContinent(story.team) ?? story.attacker
-}
-
-// The flags a story is between: the attacker, and whoever it fights or kicks out. A continent striking back
-// together is its own flag, or its leading one's when it has none.
-export function sidesOf(story: Story): string[] {
-    const team = teamFlagOf(story)
-    if (story.kind === "rout") return team === undefined ? [story.victims[0]] : [story.victims[0], team]
-    if (team !== undefined) return [team]
-    if (story.kind === "battle" && story.rival !== undefined) return [story.attacker, story.rival]
-    if (story.kind === "kickout" && story.victims.length > 0) return [story.attacker, story.victims[0]]
-    return [story.attacker]
 }
 
 export function wordsOf(story: Story, headline?: string): Words {
