@@ -119,7 +119,7 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.PostID, 
 // The posts made by hand carry no story key, and are left out.
 func (s *Service) Told(ctx context.Context, since time.Time) ([]posts.Telling, error) {
 	answer, err := s.api.ListPostsWithResponse(ctx, &cpzernio.ListPostsParams{
-		FromDate: &openapi_types.Date{Time: since.UTC()}, Platform: new(platform), Limit: new(pageOfPosts),
+		FromDate: &openapi_types.Date{Time: since.UTC()}, Limit: new(pageOfPosts),
 	})
 	if err != nil {
 		return nil, unreachable(err)

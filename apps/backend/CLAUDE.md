@@ -3248,7 +3248,8 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   FRANCE" are one story, and on Oct 13–14 two runs posted it three times. It answers a `Choice`: the stories chosen,
   and the ones skipped (`Retold`), which the log shows. A story with no key is refused when the shortlist is read.
 - **What was told is Zernio's post list, not a table of ours**: each post keeps its key in its Zernio `metadata`
-  (`storyFlag`, `storyContinent`, never published), and `choose` lists the posts of the last day back
+  (`storyFlag`, `storyContinent`, never published), and `choose` lists the posts of the last day back, on every
+  platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
   (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
