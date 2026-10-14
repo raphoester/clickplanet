@@ -34,11 +34,11 @@ func (f ShortlistFile) Shortlist(_ context.Context) (posts.Shortlist, error) {
 		return nil, fmt.Errorf("the shortlist %s is not a clips.v1.Shortlist: %w", string(f), err)
 	}
 
-	titles := make([]string, 0, len(written.GetStories()))
+	stories := make([]posts.Story, 0, len(written.GetStories()))
 	for _, story := range written.GetStories() {
-		titles = append(titles, story.GetTitle())
+		stories = append(stories, posts.Story{Title: story.GetTitle(), Key: keyOf(story.GetKey())})
 	}
-	return posts.ShortlistOf(titles), nil
+	return posts.ShortlistOf(stories...) //nolint:wrapcheck // a pure delegation: the domain already named what is wrong.
 }
 
 type Folder string
@@ -69,7 +69,8 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 		}
 
 		clip, err := posts.ClipSnapshot{
-			Pick: posts.Pick(written.GetPick()), Title: written.GetTitle(), Caption: written.GetCaption(), Video: posts.VideoFile(video),
+			Pick: posts.Pick(written.GetPick()), Title: written.GetTitle(), Caption: written.GetCaption(),
+			Key: keyOf(written.GetKey()), Video: posts.VideoFile(video),
 		}.Restore()
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)
@@ -77,4 +78,8 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 		clips = append(clips, clip)
 	}
 	return clips, nil
+}
+
+func keyOf(written *clipsv1.StoryKey) posts.StoryKey {
+	return posts.StoryKey{Flag: written.GetFlag(), Continent: written.GetContinent()}
 }

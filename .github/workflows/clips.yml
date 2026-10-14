@@ -46,12 +46,10 @@ jobs:
           path: replay.json
           retention-days: 1
 
-  choose:
+  shortlist:
     needs: fetch
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    outputs:
-      picks: ${{ steps.choose.outputs.picks }}
     steps:
       - uses: actions/checkout@v4
 
@@ -60,11 +58,6 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: apps/frontend/package-lock.json
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: apps/backend/go.mod
-          cache-dependency-path: apps/backend/go.sum
 
       - run: npm ci
         working-directory: apps/frontend
@@ -78,15 +71,42 @@ jobs:
         working-directory: apps/frontend
         run: npm run clip -- --replay replay.json --shortlist shortlist.json
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shortlist
+          path: apps/frontend/shortlist.json
+          retention-days: 1
+
+  # Its own job: the Zernio key is in no job that installs the frontend's dependencies.
+  choose:
+    needs: shortlist
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      picks: ${{ steps.choose.outputs.picks }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: shortlist
+
       - name: choose the clips of the run
         id: choose
         working-directory: apps/backend
+        env:
+          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
         run: |
-          picks=$(go run ./cmd/clips choose -shortlist ../frontend/shortlist.json)
+          picks=$(go run ./cmd/clips choose -shortlist "$GITHUB_WORKSPACE/shortlist.json")
           echo "picks=$picks" >> "$GITHUB_OUTPUT"
 
       - if: steps.choose.outputs.picks == '[]'
-        run: echo "No story worth a clip in the last 12 hours." >> "$GITHUB_STEP_SUMMARY"
+        run: echo "No new story worth a clip in the last 12 hours." >> "$GITHUB_STEP_SUMMARY"
 
   render:
     needs: choose

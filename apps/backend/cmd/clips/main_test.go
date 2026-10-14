@@ -13,38 +13,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/cmd/clips/internal/flags"
 )
 
-func shortlist(t *testing.T, written string) string {
-	t.Helper()
-
-	path := filepath.Join(t.TempDir(), "shortlist.json")
-	require.NoError(t, os.WriteFile(path, []byte(written), 0o600))
-	return path
-}
-
-func TestChoosePrintsThePicksOfTheBestTwoStoriesAndNothingElse(t *testing.T) {
+func TestChooseWithNoKeyFailsBeforeItAsksTheServiceAnything(t *testing.T) {
+	t.Setenv(flags.KeyVariable, "")
 	var out bytes.Buffer
-	stories := shortlist(t, `{"stories":[{"title":"BEST"},{"title":"SECOND"},{"title":"THIRD"}]}`)
+	stories := filepath.Join(t.TempDir(), "shortlist.json")
+	require.NoError(t, os.WriteFile(stories, []byte(`{"stories":[{"title":"BEST","key":{"flag":"dz","continent":"Africa"}}]}`), 0o600))
 
-	require.NoError(t, run(t.Context(), []string{"choose", "-shortlist", stories}, &out))
+	err := run(t.Context(), []string{"choose", "-shortlist", stories}, &out)
 
-	assert.Equal(t, "[1,2]\n", out.String())
-}
-
-func TestChooseTakesAsManyAsItIsAskedFor(t *testing.T) {
-	var out bytes.Buffer
-	stories := shortlist(t, `{"stories":[{"title":"BEST"},{"title":"SECOND"},{"title":"THIRD"}]}`)
-
-	require.NoError(t, run(t.Context(), []string{"choose", "-shortlist", stories, "-count", "1"}, &out))
-
-	assert.Equal(t, "[1]\n", out.String())
-}
-
-func TestChoosePrintsAnEmptyListOnAQuietHalfDay(t *testing.T) {
-	var out bytes.Buffer
-
-	require.NoError(t, run(t.Context(), []string{"choose", "-shortlist", shortlist(t, "{}")}, &out))
-
-	assert.Equal(t, "[]\n", out.String())
+	require.ErrorContains(t, err, "the zernio api key is empty")
+	assert.Empty(t, out.String())
 }
 
 func TestACommandNoStageIsWrittenForIsAnErrorAndDoesNothing(t *testing.T) {

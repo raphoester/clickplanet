@@ -54,6 +54,11 @@ export class Story extends Message<Story> {
    */
   title = "";
 
+  /**
+   * @generated from field: clips.v1.StoryKey key = 2;
+   */
+  key?: StoryKey;
+
   constructor(data?: PartialMessage<Story>) {
     super();
     proto3.util.initPartial(data, this);
@@ -63,6 +68,7 @@ export class Story extends Message<Story> {
   static readonly typeName = "clips.v1.Story";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "key", kind: "message", T: StoryKey },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Story {
@@ -108,6 +114,11 @@ export class Clip extends Message<Clip> {
    */
   tags: string[] = [];
 
+  /**
+   * @generated from field: clips.v1.StoryKey key = 5;
+   */
+  key?: StoryKey;
+
   constructor(data?: PartialMessage<Clip>) {
     super();
     proto3.util.initPartial(data, this);
@@ -120,6 +131,7 @@ export class Clip extends Message<Clip> {
     { no: 2, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "caption", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "tags", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 5, name: "key", kind: "message", T: StoryKey },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Clip {
@@ -136,6 +148,55 @@ export class Clip extends Message<Clip> {
 
   static equals(a: Clip | PlainMessage<Clip> | undefined, b: Clip | PlainMessage<Clip> | undefined): boolean {
     return proto3.util.equals(Clip, a, b);
+  }
+}
+
+/**
+ * Two stories with one key are one story told twice, whatever their headlines.
+ *
+ * @generated from message clips.v1.StoryKey
+ */
+export class StoryKey extends Message<StoryKey> {
+  /**
+   * The country code of the flag the clip is about: the loser when a flag is thrown out.
+   *
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * As the headlines name it: "Africa", "Middle East", "the world".
+   *
+   * @generated from field: string continent = 2;
+   */
+  continent = "";
+
+  constructor(data?: PartialMessage<StoryKey>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.StoryKey";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "continent", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StoryKey {
+    return new StoryKey().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): StoryKey {
+    return new StoryKey().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): StoryKey {
+    return new StoryKey().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: StoryKey | PlainMessage<StoryKey> | undefined, b: StoryKey | PlainMessage<StoryKey> | undefined): boolean {
+    return proto3.util.equals(StoryKey, a, b);
   }
 }
 

@@ -19,18 +19,28 @@ type Logged struct {
 
 var _ choose_clips_usecase.Executor = (*Logged)(nil)
 
-func (l *Logged) Execute(ctx context.Context) (posts.Shortlist, error) {
-	chosen, err := l.inner.Execute(ctx)
-
-	switch {
-	case err != nil:
-	case len(chosen) == 0:
-		l.logger.Info("no story is worth a clip")
-	default:
-		for _, story := range chosen {
-			l.logger.Info("chose a story", slog.Int("pick", int(story.Pick)), slog.String("title", story.Title))
-		}
+func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
+	choice, err := l.inner.Execute(ctx)
+	if err != nil {
+		return choice, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
 	}
 
-	return chosen, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
+	for _, story := range choice.Retold {
+		l.logger.Info("skipped a story told already", attributesOf(story)...)
+	}
+	if len(choice.Chosen) == 0 {
+		l.logger.Info("no story is worth a clip")
+	}
+	for _, story := range choice.Chosen {
+		l.logger.Info("chose a story", attributesOf(story)...)
+	}
+
+	return choice, nil
+}
+
+func attributesOf(story posts.Story) []any {
+	return []any{
+		slog.Int("pick", int(story.Pick)), slog.String("title", story.Title),
+		slog.String("flag", story.Key.Flag), slog.String("continent", story.Key.Continent),
+	}
 }

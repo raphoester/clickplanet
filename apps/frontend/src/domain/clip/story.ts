@@ -1,3 +1,4 @@
+import {flagOfContinent} from "../regions.ts"
 import {ranked, tally, TileChange} from "./changes.ts"
 
 export type Place = {country: string} | {countries: [string, string]} | {region: string}
@@ -45,6 +46,34 @@ export const THE_WORLD = "the world"
 // The world is too big for a flag to take a third of all taken across it, as on one front: Christmas Island took 28%
 // of it in a day, more than twice the next flag. A flag leads it when it took twice as much as any other.
 const WORLD_LEAD = 2
+
+// The flag a continent striking back together is counted and shown under.
+export function teamFlagOf(story: Story): string | undefined {
+    return story.team === undefined ? undefined : flagOfContinent(story.team) ?? story.attacker
+}
+
+// The flags a story is between: the attacker, and whoever it fights or kicks out. A continent striking back
+// together is its own flag, or its leading one's when it has none.
+export function sidesOf(story: Story): string[] {
+    const team = teamFlagOf(story)
+    if (story.kind === "rout") return team === undefined ? [story.victims[0]] : [story.victims[0], team]
+    if (team !== undefined) return [team]
+    if (story.kind === "battle" && story.rival !== undefined) return [story.attacker, story.rival]
+    if (story.kind === "kickout" && story.victims.length > 0) return [story.attacker, story.victims[0]]
+    return [story.attacker]
+}
+
+// Two stories with one key are one story told twice, whatever their headlines.
+export type StoryKey = {flag: string, continent: string}
+
+export function storyKeyOf(story: Story, regionOf: RegionOf): StoryKey {
+    const place = story.place
+    const country = "country" in place ? place.country : "countries" in place ? place.countries[0] : undefined
+    return {
+        flag: sidesOf(story)[0],
+        continent: "region" in place ? place.region : country === undefined ? THE_WORLD : regionOf(country) ?? country,
+    }
+}
 
 // heldAtStart: the flag that held most of a country's ground when the story starts.
 export function storyOf(
