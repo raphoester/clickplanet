@@ -67,8 +67,21 @@ func TestALinkThatLastsLongerThanABucketTakesIsRefused(t *testing.T) {
 	}
 
 	config := validConfig()
-	config.Attachments.UploadTTL, config.Attachments.LinkTTL = week, week
+	config.Attachments.UploadTTL, config.Attachments.LinkTTL, config.Attachments.KeepUnsent = week, week, 2*week
 	require.NoError(t, config.Validate())
+}
+
+func TestAnUnsentFileIsKeptLongerThanItsLinkWorks(t *testing.T) {
+	config := validConfig()
+	config.Attachments.UploadTTL = 2 * time.Hour
+	config.Attachments.KeepUnsent = 2 * time.Hour
+
+	require.ErrorContains(t, config.Validate(), "support.attachments.keepUnsent")
+
+	config.Attachments.KeepUnsent = 0
+	require.NoError(t, config.Validate(), "a day, by default")
+	config.Attachments.UploadTTL = 25 * time.Hour
+	require.ErrorContains(t, config.Validate(), "support.attachments.keepUnsent")
 }
 
 func TestAnIncompleteDatabaseIsRefusedWhateverTheAttachments(t *testing.T) {

@@ -11,10 +11,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/create_upload_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/attachment"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/uploads"
 )
 
 type UseCase interface {
-	Execute(in create_upload_usecase.In) (create_upload_usecase.Out, error)
+	Execute(ctx context.Context, in create_upload_usecase.In) (create_upload_usecase.Out, error)
 }
 
 func New(useCase UseCase) CreateUploadHandler {
@@ -26,16 +27,18 @@ type CreateUploadHandler struct {
 }
 
 func (h CreateUploadHandler) CreateUpload(
-	_ context.Context,
+	ctx context.Context,
 	req *connect.Request[supportv1.CreateUploadRequest],
 ) (*connect.Response[supportv1.CreateUploadResponse], error) {
-	out, err := h.useCase.Execute(create_upload_usecase.In{
+	out, err := h.useCase.Execute(ctx, create_upload_usecase.In{
 		MediaType: notes.MediaType(req.Msg.GetContentType()),
 		Size:      int64(min(req.Msg.GetSizeBytes(), math.MaxInt64)), //nolint:gosec // capped on this line.
 	})
 	switch {
 	case errors.Is(err, notes.ErrInvalidAttachment):
 		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidAttachment)
+	case errors.Is(err, uploads.ErrShelfFull):
+		return nil, connect.NewError(connect.CodeResourceExhausted, uploads.ErrShelfFull)
 	case err != nil:
 		return nil, err //nolint:wrapcheck // the error net answers it.
 	}

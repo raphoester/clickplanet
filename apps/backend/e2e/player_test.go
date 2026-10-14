@@ -44,6 +44,12 @@ type gameStack struct {
 func startGame(t *testing.T) gameStack {
 	t.Helper()
 
+	return startGameWith(t, func(*support.Config) {})
+}
+
+func startGameWith(t *testing.T, adjust func(*support.Config)) gameStack {
+	t.Helper()
+
 	postgres := cppg.StartTestServer(t)
 	secret, _ := cpsession.TestKeyPair()
 	public, internal, admin := listen(t), listen(t), listen(t)
@@ -84,8 +90,7 @@ func startGame(t *testing.T) gameStack {
 	supportConfig.Attachments.Bucket.Name = "support"
 	supportConfig.Attachments.Bucket.AccessKeyID = "the-key-id"
 	supportConfig.Attachments.Bucket.SecretAccessKey = "the-secret-key"
-	supportConfig.UploadLimiter.PerSecond = 100
-	supportConfig.UploadLimiter.Burst = 100
+	adjust(&supportConfig)
 
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
 

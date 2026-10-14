@@ -68,6 +68,14 @@ type AttachmentRules struct {
 	MaxBytes   int64
 }
 
+// The rules a page is told while the bucket has room bytes left: no file once it is full, none bigger than the room.
+func (r AttachmentRules) Within(room int64) AttachmentRules {
+	if room <= 0 {
+		return AttachmentRules{}
+	}
+	return AttachmentRules{MaxPerNote: r.MaxPerNote, MaxBytes: min(r.MaxBytes, room)}
+}
+
 // Whether a file may be uploaded to be attached: the rules of one file, before any note.
 func (r AttachmentRules) UploadError(file Attachment) error {
 	if r.MaxPerNote == 0 {

@@ -380,6 +380,7 @@ support:
     enabled: false
     maxPerNote: 10
     maxBytes: 52428800
+    maxStoredBytes: 9663676416
     bucket:
       endpoint: https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com
       region: auto

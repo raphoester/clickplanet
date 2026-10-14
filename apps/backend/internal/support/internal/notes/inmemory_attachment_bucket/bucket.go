@@ -68,3 +68,16 @@ func (b *Bucket) Attachments(_ context.Context, ids ...notes.AttachmentID) ([]no
 	}
 	return files, nil
 }
+
+func (b *Bucket) Delete(_ context.Context, ids ...notes.AttachmentID) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.err != nil {
+		return b.err
+	}
+	for _, id := range ids {
+		delete(b.files, id)
+	}
+	return nil
+}

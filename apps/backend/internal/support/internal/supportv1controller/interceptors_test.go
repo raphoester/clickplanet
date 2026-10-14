@@ -148,21 +148,75 @@ func TestAnUploadNeedsATokenMintedAfterACheck(t *testing.T) {
 	require.False(t, ran)
 }
 
-func TestAnUploadSpendsTheUploadBudgetAndANoteDoesNot(t *testing.T) {
-	ctx := cpctx.AddIPToContext(t.Context(), "1.2.3.4")
-	notes, uploads := &fakeLimiter{allow: false}, &fakeLimiter{allow: false}
+// Two a day.
+func dailyLimiter() *cpratelimit.Limiter {
+	return cpratelimit.New("daily", cpratelimit.Config{Burst: 2, PerSecond: 2.0 / 86400},
+		cptime.NewFixedClock(time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)))
+}
 
-	_, ran, err := run(ctx, NewRateLimitInterceptor(notes), supportv1connect.SupportServiceCreateUploadProcedure, "")
+func caller(ctx context.Context, account string, ip string) context.Context {
+	return cpctx.AddAccountToContext(cpctx.AddIPToContext(ctx, ip), account)
+}
+
+func TestADaysAllowanceIsTheAccountsOnEveryAddressAndTheAddresssForEveryAccount(t *testing.T) {
+	interceptor := NewNoteLimitInterceptor(dailyLimiter())
+	sent := func(account string, ip string) error {
+		_, _, err := run(caller(t.Context(), account, ip), interceptor, supportv1connect.SupportServiceReportBugProcedure, "")
+		return err
+	}
+
+	require.NoError(t, sent("ada", "1.2.3.4"))
+	require.NoError(t, sent("ada", "1.2.3.4"))
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(sent("ada", "5.6.7.8")), "the account's, on another address")
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(sent("bob", "1.2.3.4")), "the address's, for another account")
+
+	require.NoError(t, sent("bob", "5.6.7.8"), "a refusal spent nothing of the address")
+	require.NoError(t, sent("eve", "5.6.7.8"))
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(sent("zoe", "5.6.7.8")))
+}
+
+func TestTheNotesOfADayAreSuggestionsAndBugReportsAndTheFilesAreUploads(t *testing.T) {
+	limiter := dailyLimiter()
+	notes, uploads := NewNoteLimitInterceptor(limiter), NewUploadLimitInterceptor(limiter)
+	ctx := caller(t.Context(), "ada", "1.2.3.4")
+
+	for _, procedure := range []string{
+		supportv1connect.SupportServiceReportPlayerProcedure,
+		supportv1connect.SupportServiceCreateUploadProcedure,
+		supportv1connect.SupportServiceGetAttachmentRulesProcedure,
+	} {
+		_, ran, err := run(ctx, notes, procedure, "")
+		require.NoError(t, err, procedure)
+		require.True(t, ran, procedure)
+	}
+	for _, procedure := range []string{
+		supportv1connect.SupportServiceSuggestFeatureProcedure,
+		supportv1connect.SupportServiceReportBugProcedure,
+		supportv1connect.SupportServiceReportPlayerProcedure,
+	} {
+		_, ran, err := run(ctx, uploads, procedure, "")
+		require.NoError(t, err, procedure)
+		require.True(t, ran, procedure)
+	}
+
+	_, _, err := run(ctx, notes, supportv1connect.SupportServiceSuggestFeatureProcedure, "")
 	require.NoError(t, err)
-	require.True(t, ran)
-	require.Empty(t, notes.keys)
-
-	_, ran, err = run(ctx, NewUploadRateLimitInterceptor(uploads), supportv1connect.SupportServiceCreateUploadProcedure, "")
+	_, _, err = run(ctx, notes, supportv1connect.SupportServiceReportBugProcedure, "")
+	require.NoError(t, err)
+	_, ran, err := run(ctx, notes, supportv1connect.SupportServiceSuggestFeatureProcedure, "")
 	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
+	require.ErrorIs(t, err, ErrTooManyNotes)
 	require.False(t, ran)
-	require.Equal(t, []string{"1.2.3.4"}, uploads.keys)
+}
 
-	_, ran, err = run(ctx, NewUploadRateLimitInterceptor(uploads), supportv1connect.SupportServiceReportBugProcedure, "")
-	require.NoError(t, err)
-	require.True(t, ran)
+func TestACallerWithNoAccountSpendsTheAddresssAllowanceAlone(t *testing.T) {
+	interceptor := NewUploadLimitInterceptor(dailyLimiter())
+	ctx := cpctx.AddIPToContext(t.Context(), "1.2.3.4")
+
+	for range 2 {
+		_, _, err := run(ctx, interceptor, supportv1connect.SupportServiceCreateUploadProcedure, "")
+		require.NoError(t, err)
+	}
+	_, _, err := run(ctx, interceptor, supportv1connect.SupportServiceCreateUploadProcedure, "")
+	require.ErrorIs(t, err, ErrTooManyUploads)
 }

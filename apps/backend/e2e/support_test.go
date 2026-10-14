@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1/supportv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support"
 )
 
 func (p *gamer) support() supportv1connect.SupportServiceClient {
@@ -501,4 +502,53 @@ func TestADeletedAccountTakesTheReportsItFiledAndTheReportsAboutIt(t *testing.T)
 		return len(reports) == 1
 	}, 5*time.Second, 20*time.Millisecond)
 	assert.Equal(t, "kept", reports[0].GetText())
+}
+
+func rulesOf(t *testing.T, game gameStack) *supportv1.GetAttachmentRulesResponse {
+	t.Helper()
+
+	res, err := supportv1connect.NewSupportServiceClient(http.DefaultClient, game.baseURL).GetAttachmentRules(t.Context(),
+		connect.NewRequest(&supportv1.GetAttachmentRulesRequest{}))
+	require.NoError(t, err)
+	return res.Msg
+}
+
+func TestAnAddressSendsTenNotesADayWhicheverAccountSendsThem(t *testing.T) {
+	game := startGameWith(t, func(config *support.Config) {
+		config.RateLimiter.Burst = 100
+		config.RateLimiter.PerSecond = 100
+	})
+	first, second := game.newPlayer(t), game.newPlayer(t)
+
+	for range 6 {
+		require.NoError(t, first.suggest("an idea"))
+	}
+	for range 4 {
+		require.NoError(t, second.reportBug("a bug", nil, ""))
+	}
+
+	assert.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(second.suggest("one too many")))
+	assert.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(first.reportBug("one too many", nil, "")))
+	assert.Len(t, game.notes(t), 10)
+}
+
+func TestTheBucketTakesNoMoreBytesThanItsShelfAndThePageIsToldSo(t *testing.T) {
+	game := startGameWith(t, func(config *support.Config) { config.Attachments.MaxStoredBytes = 50 })
+	guest := game.newPlayer(t)
+
+	assert.Equal(t, uint64(50), rulesOf(t, game).GetMaxBytes())
+
+	guest.uploaded(screenshot, recording)
+	assert.Equal(t, uint64(20), rulesOf(t, game).GetMaxBytes(), "an unsent file takes its room too")
+
+	_, err := guest.createUpload(recording)
+	require.NoError(t, err)
+	_, err = guest.createUpload(screenshot)
+	assert.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
+
+	_, err = guest.createUpload(file{contentType: "image/png", body: []byte("ab")})
+	require.NoError(t, err)
+	full := rulesOf(t, game)
+	assert.Zero(t, full.GetMaxPerNote(), "a full bucket takes no file")
+	assert.Zero(t, full.GetMaxBytes())
 }

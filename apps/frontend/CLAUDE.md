@@ -966,7 +966,9 @@ the foot of Settings, and a report of another player, from that player's card.
 - **A send is never retried.** A call that landed and lost its answer would be
   kept twice, and the text is still in the box.
 - The refusals are `resource_exhausted` → `SupportRateLimitedError` (one address
-  sends three, then one a minute) and `invalid_argument` → `SupportRejectedError`.
+  sends three, then one a minute; an account and an address send ten notes and a
+  hundred files a day; and the bucket is full) and `invalid_argument` →
+  `SupportRejectedError`. The line says "Try again later": the wait can be a day.
   A player report has one more: `already_exists` → `SupportReportedAlreadyError`
   (one account reports one player once a day).
 - **A note says what the page knows about itself, a suggestion as a bug report**
@@ -1036,7 +1038,8 @@ the pick. See the backend's CLAUDE.md (Support) for where they are kept.
 
 - **The server says what a note may carry.** The form reads `attachmentRules()`
   when it opens (`GetAttachmentRules`, no token): the most files, the most bytes
-  of one, and the content types. The picker shows only once they say one file or
+  of one, and the content types. The most bytes shrink to the room the bucket has
+  left, and a full bucket takes no file, so the picker goes away. The picker shows only once they say one file or
   more, so a server with no bucket, an older server (it answers
   `unimplemented`) and a read that failed all give the plain form. No limit is
   written on this side.

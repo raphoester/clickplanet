@@ -1,6 +1,7 @@
 package create_upload_handler_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -14,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/create_upload_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/uploads"
 )
 
 type stubUseCase struct {
@@ -22,7 +24,7 @@ type stubUseCase struct {
 	asked []create_upload_usecase.In
 }
 
-func (s *stubUseCase) Execute(in create_upload_usecase.In) (create_upload_usecase.Out, error) {
+func (s *stubUseCase) Execute(_ context.Context, in create_upload_usecase.In) (create_upload_usecase.Out, error) {
 	s.asked = append(s.asked, in)
 	return s.out, s.err
 }
@@ -70,4 +72,11 @@ func TestALinkThatCannotBeMadeIsLeftToTheErrorNet(t *testing.T) {
 
 	assert.ErrorContains(t, err, "no bucket")
 	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
+}
+
+func TestAFullBucketIsExhaustedNotTheCallersFault(t *testing.T) {
+	_, err := create(t, &stubUseCase{err: fmt.Errorf("wrapped: %w", uploads.ErrShelfFull)},
+		&supportv1.CreateUploadRequest{ContentType: "image/png", SizeBytes: 10})
+
+	assert.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
 }

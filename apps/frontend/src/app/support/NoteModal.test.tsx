@@ -84,7 +84,7 @@ describe("NoteModal", () => {
     })
 
     it.each([
-        [new SupportRateLimitedError(), "You sent too many. Try again in a few minutes."],
+        [new SupportRateLimitedError(), "You sent too many. Try again later."],
         [new SupportRejectedError(), "That was refused."],
         [new SupportNoSessionError(), "Could not start a session. Try again in a moment."],
     ])("says why %s refused it, and keeps the text", async (refusal, notice) => {
@@ -341,7 +341,7 @@ describe("NoteModal's files", () => {
         await user.click(send())
         await act(async () => landings[0].fail(new SupportRateLimitedError()))
 
-        expect(screen.getByRole("alert").textContent).toBe("You sent too many. Try again in a few minutes.")
+        expect(screen.getByRole("alert").textContent).toBe("You sent too many. Try again later.")
         expect(onSend).not.toHaveBeenCalled()
         expect(attached()).toHaveLength(1)
     })
@@ -357,7 +357,7 @@ describe("NoteModal's files", () => {
         await user.click(send())
         await act(async () => landings[0].land("first"))
 
-        expect(screen.getByRole("alert").textContent).toBe("You sent too many. Try again in a few minutes.")
+        expect(screen.getByRole("alert").textContent).toBe("You sent too many. Try again later.")
 
         await user.click(send())
 

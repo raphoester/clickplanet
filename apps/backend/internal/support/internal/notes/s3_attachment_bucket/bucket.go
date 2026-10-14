@@ -159,6 +159,43 @@ func (b *Bucket) attachment(ctx context.Context, id notes.AttachmentID) (notes.A
 	return notes.Attachment{ID: id, MediaType: notes.MediaType(res.Header.Get("Content-Type")), Size: size}, nil
 }
 
+// Deletes the files, a few at once. A file the bucket does not hold is deleted already.
+func (b *Bucket) Delete(ctx context.Context, ids ...notes.AttachmentID) error {
+	group, ctx := errgroup.WithContext(ctx)
+	group.SetLimit(readsAtOnce)
+
+	for _, id := range ids {
+		group.Go(func() error {
+			return b.delete(ctx, id)
+		})
+	}
+	return group.Wait() //nolint:wrapcheck // delete named what failed.
+}
+
+func (b *Bucket) delete(ctx context.Context, id notes.AttachmentID) error {
+	link, err := b.link(http.MethodDelete, id.String(), readTTL, nil)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, link, nil)
+	if err != nil {
+		return fmt.Errorf("failed to build the request that deletes the file %s: %w", id, err)
+	}
+	res, err := b.http.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to reach the bucket to delete the file %s: %w", id, err)
+	}
+	_ = res.Body.Close()
+
+	switch res.StatusCode {
+	case http.StatusOK, http.StatusNoContent, http.StatusNotFound:
+		return nil
+	default:
+		return fmt.Errorf("the bucket answered %d to the deletion of the file %s", res.StatusCode, id)
+	}
+}
+
 func (b *Bucket) link(method string, attachment string, ttl time.Duration, headers map[string]string) (string, error) {
 	if b.origin == "" {
 		return "", ErrNoBucket

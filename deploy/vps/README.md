@@ -1299,7 +1299,8 @@ docker compose exec postgres psql -U clickplanet -c "select coalesce(p.name, 'gu
 - A note loses its account after 90 days (`support.retention`), and at once
   when its account is deleted. The text stays, and `accountId` is then empty:
   nothing says who sent it. The note keeps its `context` and `userAgent`.
-- One address sends three, then one a minute (`support.rateLimiter`).
+- One address sends three, then one a minute (`support.rateLimiter`), and ten
+  suggestions and bug reports a day, as does one account (`support.noteLimiter`).
 - A note lists its `attachments`: each has a `contentType`, a `sizeBytes` and a
   `url`. **Open the `url` in a browser**: it is good for one hour
   (`support.attachments.linkTTL`), so run the command again for a fresh one.
@@ -1358,14 +1359,14 @@ change `endpoint` to `https://<region>.digitaloceanspaces.com` and `region` to
 `us-east-1`, and do steps 2 and 3 in its control panel.
 
 1. Turn R2 on for the account in the dashboard (**R2 object storage**), then
-   make the bucket:
+   make the bucket. **Done on 2026-10-14**, in Western Europe:
 
    ```bash
    npx wrangler r2 bucket create clickplanet-support
    ```
 
 2. Let the site upload to it. Without this rule the browser blocks every
-   upload:
+   upload. **Done on 2026-10-14** too:
 
    ```bash
    printf '%s' '{"rules":[{"allowed":{"origins":["https://clickplanet.lol"],"methods":["PUT"],"headers":["content-type"]},"maxAgeSeconds":3600}]}' > /tmp/cors.json && npx wrangler r2 bucket cors set clickplanet-support --file /tmp/cors.json
@@ -1395,12 +1396,27 @@ opens from the `url` `ListNotes` prints.
   bigger than `support.attachments.maxBytes` (50 MiB).
 - **This was tested on an S3 server, not on R2 itself.** If every upload
   answers 403, compare `region` and the key with the token.
-- **Nothing deletes a file**, not even when its note loses its account. The
-  bucket only grows: R2's free 10 GB hold 200 files at the 50 MB limit, and
-  each GB past it costs $0.015 a month.
-- **A file uploaded and never sent stays too**: a player who closes the form,
-  or whose note is refused, leaves files no note names. One address uploads 10
-  files at once, then one every 6 seconds (`support.uploadLimiter`).
+- **The bucket holds 9 GiB at most** (`support.attachments.maxStoredBytes`),
+  under R2's free 10 GB, so storage costs nothing. A file is counted from the
+  moment its link is signed. Past it, the Feedback form shows no picker, and an
+  upload is refused. To see what it holds:
+
+  ```bash
+  docker compose exec postgres psql -U clickplanet -c "select count(*), pg_size_pretty(sum(size_bytes)) from support.uploads"
+  ```
+
+- **Nothing deletes a file a note names**, not even when its note loses its
+  account. Once those fill the 9 GiB, players can attach no more until you
+  delete some or raise the cap (each GB past 10 costs $0.015 a month).
+- **A file no note names is deleted after a day**
+  (`support.attachments.keepUnsent`): a player who closed the form, or whose
+  note was refused. Its room is free again.
+- **One account and one address upload 100 files a day**
+  (`support.uploadLimiter`), and send 10 notes a day.
+- **The request fees are the one cost the app cannot cap**: R2 charges each
+  write past a million a month ($4.50 a million), and an upload link works for
+  10 minutes. Cloudflare has no spending limit on R2, so look at the bucket's
+  operations in the dashboard if the bill moves.
 - **Switch it off only once no note carries a file**: with no bucket,
   `ListNotes` fails on a note that does.
 - The privacy page says Cloudflare stores these files. With another provider,

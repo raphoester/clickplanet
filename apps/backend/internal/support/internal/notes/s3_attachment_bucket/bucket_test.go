@@ -161,6 +161,31 @@ func (s *testSuite) TestAFileThatWasNeverUploadedIsNotHeld() {
 	s.Equal(http.StatusNotFound, status)
 }
 
+func (s *testSuite) TestADeletedFileIsGoneAndTheOthersStay() {
+	photo, video := s.uploaded(notes.MediaPNG, png), s.uploaded(notes.MediaMP4, mp4)
+
+	s.Require().NoError(s.bucket.Delete(s.T().Context(), photo.ID, fileOf(notes.MediaGIF, png).ID))
+
+	_, err := s.bucket.Attachments(s.T().Context(), photo.ID)
+	s.Require().ErrorIs(err, notes.ErrNotUploaded)
+	held, err := s.bucket.Attachments(s.T().Context(), video.ID)
+	s.Require().NoError(err)
+	s.Equal([]notes.Attachment{video}, held)
+	s.Require().NoError(s.bucket.Delete(s.T().Context(), photo.ID), "a file deleted twice is deleted")
+}
+
+func (s *testSuite) TestABucketWithAnotherSecretDeletesNothing() {
+	photo := s.uploaded(notes.MediaPNG, png)
+	wrong := s.config
+	wrong.SecretAccessKey = "another-secret"
+
+	err := s.bucketOf(wrong, cptime.SystemClock{}).Delete(s.T().Context(), photo.ID)
+
+	s.Require().ErrorContains(err, "403")
+	_, err = s.bucket.Attachments(s.T().Context(), photo.ID)
+	s.Require().NoError(err)
+}
+
 func (s *testSuite) TestALinkPastItsTimeIsRefused() {
 	late := s.bucketOf(s.config, cptime.NewFixedClock(time.Now().Add(-time.Hour)))
 	link, err := late.UploadURL(fileOf(notes.MediaPNG, png))

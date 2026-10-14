@@ -131,6 +131,8 @@ func TestWithNoBucketSetEveryLinkAndEveryReadIsAnError(t *testing.T) {
 	require.ErrorIs(t, err, s3_attachment_bucket.ErrNoBucket)
 	_, err = none.Attachments(t.Context(), file.ID)
 	require.ErrorIs(t, err, s3_attachment_bucket.ErrNoBucket)
+	require.ErrorIs(t, none.Delete(t.Context(), file.ID), s3_attachment_bucket.ErrNoBucket)
+	require.NoError(t, none.Delete(t.Context()), "no file asked, nothing to ask the bucket")
 
 	held, err := none.Attachments(t.Context())
 	require.NoError(t, err)
