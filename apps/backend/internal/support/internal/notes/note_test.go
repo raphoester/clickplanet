@@ -89,7 +89,10 @@ func TestAnAnonymizedNoteKeepsItsTextAndNothingSaysWhoSentIt(t *testing.T) {
 
 func TestAnAnonymizedNoteKeepsItsFiles(t *testing.T) {
 	carrying := valid()
-	carrying.Attachments = []notes.Attachment{{MediaType: notes.MediaPNG, Size: 400}, {MediaType: notes.MediaMP4, Size: 9000}}
+	carrying.Attachments = []notes.Attachment{
+		{ID: notes.AttachmentID{15: 1}, MediaType: notes.MediaPNG, Size: 400},
+		{ID: notes.AttachmentID{15: 2}, MediaType: notes.MediaMP4, Size: 9000},
+	}
 	note, err := carrying.Restore()
 	require.NoError(t, err)
 

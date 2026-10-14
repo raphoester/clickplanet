@@ -23,6 +23,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/postgres_note_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/s3_attachment_bucket"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/anonymize_notes_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/create_upload_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/prune_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/prune_usecase/log_prune"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/report_bug_usecase"
@@ -36,6 +37,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/get_attachment_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler/notes_query"
@@ -50,6 +52,8 @@ import (
 const moduleName = "support"
 
 const accountDeletedBuffer = 256
+
+const bucketTimeout = 4 * time.Second
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -82,7 +86,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	noteStore := postgres_note_store.New(db)
 	reportStore := postgres_report_store.New(db)
 
-	bucket, err := s3_attachment_bucket.New(config.Attachments.bucket(), config.Attachments.lifetimes(), clock)
+	bucket, err := s3_attachment_bucket.New(config.Attachments.bucket(), config.Attachments.lifetimes(), clock,
+		&http.Client{Timeout: bucketTimeout})
 	if err != nil {
 		_ = db.Close()
 		return fmt.Errorf("failed to build the bucket of the attachments: %w", err)
@@ -114,6 +119,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	limiter := cpratelimit.New("support-limiter", config.RateLimiter, clock)
 	props.Runners.Add(limiter)
+	uploadLimiter := cpratelimit.New("support-upload-limiter", config.UploadLimiter, clock)
+	props.Runners.Add(uploadLimiter)
 
 	service := supportv1controller.SupportService{
 		SuggestFeatureHandler: suggest_feature_handler.New(
@@ -123,6 +130,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		ReportPlayerHandler: report_player_handler.New(report_player_usecase.New(
 			report_ids.Provider{}, clock, reportStore)),
 		GetAttachmentRulesHandler: get_attachment_rules_handler.New(rules),
+		CreateUploadHandler:       create_upload_handler.New(create_upload_usecase.New(note_ids.Provider{}, rules, bucket)),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -130,6 +138,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	},
 		supportv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
 		supportv1controller.NewRateLimitInterceptor(limiter),
+		supportv1controller.NewUploadRateLimitInterceptor(uploadLimiter),
 	); err != nil {
 		return fmt.Errorf("failed to mount support.v1.SupportService: %w", err)
 	}
@@ -156,7 +165,8 @@ type Config struct {
 	Retention     time.Duration
 	PruneInterval time.Duration
 
-	RateLimiter cpratelimit.Config
+	RateLimiter   cpratelimit.Config
+	UploadLimiter cpratelimit.Config
 
 	Attachments AttachmentsConfig
 }
@@ -208,6 +218,11 @@ const (
 
 const defaultPerSecond = 1.0 / 60
 
+const (
+	defaultUploadBurst      = 10
+	defaultUploadsPerSecond = 1.0 / 6
+)
+
 func (c Config) withDefaults() Config {
 	if c.Retention <= 0 {
 		c.Retention = defaultRetention
@@ -220,6 +235,12 @@ func (c Config) withDefaults() Config {
 	}
 	if c.RateLimiter.Burst <= 0 {
 		c.RateLimiter.Burst = defaultBurst
+	}
+	if c.UploadLimiter.PerSecond <= 0 {
+		c.UploadLimiter.PerSecond = defaultUploadsPerSecond
+	}
+	if c.UploadLimiter.Burst <= 0 {
+		c.UploadLimiter.Burst = defaultUploadBurst
 	}
 	if c.Attachments.MaxPerNote <= 0 {
 		c.Attachments.MaxPerNote = defaultMaxPerNote

@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"sync"
 	"testing"
 )
@@ -47,14 +48,17 @@ func (b *fakeBucket) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		b.files[r.URL.Path] = storedFile{contentType: r.Header.Get("Content-Type"), body: body}
-	case http.MethodGet:
+	case http.MethodGet, http.MethodHead:
 		file, kept := b.files[r.URL.Path]
 		if !kept {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		w.Header().Set("Content-Type", file.contentType)
-		_, _ = w.Write(file.body)
+		w.Header().Set("Content-Length", strconv.Itoa(len(file.body)))
+		if r.Method == http.MethodGet {
+			_, _ = w.Write(file.body)
+		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}

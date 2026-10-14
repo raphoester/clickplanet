@@ -23,22 +23,18 @@ export type AttachmentRules = {
 
 export const NO_ATTACHMENTS: AttachmentRules = {maxPerNote: 0, maxBytes: 0, contentTypes: []}
 
-export type AttachmentUpload = {
-    url: string
-}
-
 export type UploadOptions = {
     onProgress?: (fraction: number) => void
     signal?: AbortSignal
 }
 
-// Both answer one upload per attachment, in its order: the note is kept first, and its files go up after.
+// Each attachment id is a file already uploaded through AttachmentUploader.
 export interface FeatureSuggester {
-    suggestFeature(text: string, context: PageContext, attachments?: Blob[]): Promise<AttachmentUpload[]>
+    suggestFeature(text: string, context: PageContext, attachmentIds?: string[]): Promise<void>
 }
 
 export interface BugReporter {
-    reportBug(text: string, context: PageContext, attachments?: Blob[]): Promise<AttachmentUpload[]>
+    reportBug(text: string, context: PageContext, attachmentIds?: string[]): Promise<void>
 }
 
 export interface AttachmentRulesReader {
@@ -46,7 +42,8 @@ export interface AttachmentRulesReader {
 }
 
 export interface AttachmentUploader {
-    uploadAttachment(upload: AttachmentUpload, file: Blob, options?: UploadOptions): Promise<void>
+    // Answers the id a note names the file by, once it is up.
+    uploadAttachment(file: Blob, options?: UploadOptions): Promise<string>
 }
 
 export type ReportReason = "cheating" | "chat-abuse" | "bad-name" | "other"

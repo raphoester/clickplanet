@@ -59,9 +59,11 @@ export class SuggestFeatureRequest extends Message<SuggestFeatureRequest> {
   context?: PageContext;
 
   /**
-   * @generated from field: repeated support.v1.Attachment attachments = 3;
+   * Each one from CreateUpload, and uploaded before the note is sent.
+   *
+   * @generated from field: repeated string attachment_ids = 3;
    */
-  attachments: Attachment[] = [];
+  attachmentIds: string[] = [];
 
   constructor(data?: PartialMessage<SuggestFeatureRequest>) {
     super();
@@ -73,7 +75,7 @@ export class SuggestFeatureRequest extends Message<SuggestFeatureRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "context", kind: "message", T: PageContext },
-    { no: 3, name: "attachments", kind: "message", T: Attachment, repeated: true },
+    { no: 3, name: "attachment_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SuggestFeatureRequest {
@@ -97,13 +99,6 @@ export class SuggestFeatureRequest extends Message<SuggestFeatureRequest> {
  * @generated from message support.v1.SuggestFeatureResponse
  */
 export class SuggestFeatureResponse extends Message<SuggestFeatureResponse> {
-  /**
-   * One per attachment of the request, in its order.
-   *
-   * @generated from field: repeated support.v1.Upload uploads = 1;
-   */
-  uploads: Upload[] = [];
-
   constructor(data?: PartialMessage<SuggestFeatureResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -112,7 +107,6 @@ export class SuggestFeatureResponse extends Message<SuggestFeatureResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "support.v1.SuggestFeatureResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "uploads", kind: "message", T: Upload, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SuggestFeatureResponse {
@@ -147,9 +141,11 @@ export class ReportBugRequest extends Message<ReportBugRequest> {
   context?: PageContext;
 
   /**
-   * @generated from field: repeated support.v1.Attachment attachments = 3;
+   * Each one from CreateUpload, and uploaded before the note is sent.
+   *
+   * @generated from field: repeated string attachment_ids = 3;
    */
-  attachments: Attachment[] = [];
+  attachmentIds: string[] = [];
 
   constructor(data?: PartialMessage<ReportBugRequest>) {
     super();
@@ -161,7 +157,7 @@ export class ReportBugRequest extends Message<ReportBugRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "context", kind: "message", T: PageContext },
-    { no: 3, name: "attachments", kind: "message", T: Attachment, repeated: true },
+    { no: 3, name: "attachment_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReportBugRequest {
@@ -185,13 +181,6 @@ export class ReportBugRequest extends Message<ReportBugRequest> {
  * @generated from message support.v1.ReportBugResponse
  */
 export class ReportBugResponse extends Message<ReportBugResponse> {
-  /**
-   * One per attachment of the request, in its order.
-   *
-   * @generated from field: repeated support.v1.Upload uploads = 1;
-   */
-  uploads: Upload[] = [];
-
   constructor(data?: PartialMessage<ReportBugResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -200,7 +189,6 @@ export class ReportBugResponse extends Message<ReportBugResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "support.v1.ReportBugResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "uploads", kind: "message", T: Upload, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReportBugResponse {
@@ -221,11 +209,9 @@ export class ReportBugResponse extends Message<ReportBugResponse> {
 }
 
 /**
- * A photo or a video the page uploads once its note is kept.
- *
- * @generated from message support.v1.Attachment
+ * @generated from message support.v1.CreateUploadRequest
  */
-export class Attachment extends Message<Attachment> {
+export class CreateUploadRequest extends Message<CreateUploadRequest> {
   /**
    * @generated from field: string content_type = 1;
    */
@@ -236,71 +222,79 @@ export class Attachment extends Message<Attachment> {
    */
   sizeBytes = protoInt64.zero;
 
-  constructor(data?: PartialMessage<Attachment>) {
+  constructor(data?: PartialMessage<CreateUploadRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "support.v1.Attachment";
+  static readonly typeName = "support.v1.CreateUploadRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "size_bytes", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Attachment {
-    return new Attachment().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateUploadRequest {
+    return new CreateUploadRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Attachment {
-    return new Attachment().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateUploadRequest {
+    return new CreateUploadRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Attachment {
-    return new Attachment().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateUploadRequest {
+    return new CreateUploadRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: Attachment | PlainMessage<Attachment> | undefined, b: Attachment | PlainMessage<Attachment> | undefined): boolean {
-    return proto3.util.equals(Attachment, a, b);
+  static equals(a: CreateUploadRequest | PlainMessage<CreateUploadRequest> | undefined, b: CreateUploadRequest | PlainMessage<CreateUploadRequest> | undefined): boolean {
+    return proto3.util.equals(CreateUploadRequest, a, b);
   }
 }
 
 /**
- * @generated from message support.v1.Upload
+ * @generated from message support.v1.CreateUploadResponse
  */
-export class Upload extends Message<Upload> {
+export class CreateUploadResponse extends Message<CreateUploadResponse> {
   /**
-   * Takes one PUT of the file, with the Content-Type and the size the attachment was declared with.
+   * What a note names the file by.
    *
-   * @generated from field: string url = 1;
+   * @generated from field: string attachment_id = 1;
+   */
+  attachmentId = "";
+
+  /**
+   * Takes one PUT of the file, with the Content-Type and the size the request declared.
+   *
+   * @generated from field: string url = 2;
    */
   url = "";
 
-  constructor(data?: PartialMessage<Upload>) {
+  constructor(data?: PartialMessage<CreateUploadResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "support.v1.Upload";
+  static readonly typeName = "support.v1.CreateUploadResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "attachment_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Upload {
-    return new Upload().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateUploadResponse {
+    return new CreateUploadResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Upload {
-    return new Upload().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateUploadResponse {
+    return new CreateUploadResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Upload {
-    return new Upload().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateUploadResponse {
+    return new CreateUploadResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: Upload | PlainMessage<Upload> | undefined, b: Upload | PlainMessage<Upload> | undefined): boolean {
-    return proto3.util.equals(Upload, a, b);
+  static equals(a: CreateUploadResponse | PlainMessage<CreateUploadResponse> | undefined, b: CreateUploadResponse | PlainMessage<CreateUploadResponse> | undefined): boolean {
+    return proto3.util.equals(CreateUploadResponse, a, b);
   }
 }
 

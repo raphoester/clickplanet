@@ -1,5 +1,5 @@
 import {useState} from "react"
-import {AttachmentUpload, FeedbackBackend, PageContext} from "../../backends/support.ts"
+import {FeedbackBackend, PageContext} from "../../backends/support.ts"
 import Choices, {Choice} from "./Choices.tsx"
 import NoteModal from "./NoteModal.tsx"
 
@@ -29,14 +29,14 @@ export default function FeedbackModal({support, pageContext, onClose}: FeedbackM
     const [kind, setKind] = useState<Kind>()
     const writing = kind ? WRITING[kind] : UNPICKED
 
-    const send = async (text: string, files: File[]): Promise<AttachmentUpload[]> => {
+    const send = async (text: string, attachmentIds: string[]) => {
         switch (kind) {
             case "idea":
-                return support.suggestFeature(text, pageContext(), files)
+                return support.suggestFeature(text, pageContext(), attachmentIds)
             case "bug":
-                return support.reportBug(text, pageContext(), files)
+                return support.reportBug(text, pageContext(), attachmentIds)
             case undefined:
-                return []
+                return
         }
     }
 

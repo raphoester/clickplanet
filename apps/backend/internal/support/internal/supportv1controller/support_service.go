@@ -2,6 +2,7 @@ package supportv1controller
 
 import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1/supportv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/get_attachment_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler"
@@ -15,6 +16,7 @@ type SupportService struct {
 	report_bug_handler.ReportBugHandler
 	report_player_handler.ReportPlayerHandler
 	get_attachment_rules_handler.GetAttachmentRulesHandler
+	create_upload_handler.CreateUploadHandler
 }
 
 var _ supportv1connect.SupportServiceHandler = SupportService{}

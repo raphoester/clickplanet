@@ -1,15 +1,9 @@
 import {FormEvent, ReactNode, useEffect, useId, useRef, useState} from "react"
 import {countRunes} from "../../backends/chat.ts"
-import {
-    AttachmentRulesReader,
-    AttachmentUpload,
-    AttachmentUploader,
-    MAX_NOTE_LENGTH,
-    NO_ATTACHMENTS,
-} from "../../backends/support.ts"
+import {AttachmentRulesReader, AttachmentUploader, MAX_NOTE_LENGTH, NO_ATTACHMENTS} from "../../backends/support.ts"
 import {Refusal, refusalLine, withPicked} from "../../domain/attachments.ts"
 import Modal from "../components/Modal.tsx"
-import {AttachmentPicker, Upload, UploadList} from "./Attachments.tsx"
+import {AttachmentPicker, Going} from "./Attachments.tsx"
 import {SendFailure, sendFailureOf, SEND_FAILURES} from "./sendFailure.ts"
 import "./Support.css"
 
@@ -25,17 +19,18 @@ export type NoteModalProps = {
     optional?: boolean
     // Without it the form takes no file.
     files?: NoteFiles
-    // Answers where each file goes, in order; nothing when it takes no file.
-    onSend: (text: string, attachments: File[]) => Promise<AttachmentUpload[] | void>
+    // Called once every file is up, with the id of each, in order.
+    onSend: (text: string, attachmentIds: string[]) => Promise<void>
     onClose: () => void
 }
 
 const COUNTER_SHOWS_FROM = MAX_NOTE_LENGTH - 100
 
 type State =
-    | {kind: "writing", failure?: SendFailure}
+    | {kind: "writing", failure?: SendFailure, notUploaded?: string}
+    | {kind: "uploading", going: Going}
     | {kind: "sending"}
-    | {kind: "sent", uploads: Upload[], uploading: boolean}
+    | {kind: "sent"}
 
 export default function NoteModal(props: NoteModalProps) {
     const [text, setText] = useState("")
@@ -43,7 +38,7 @@ export default function NoteModal(props: NoteModalProps) {
     const [rules, setRules] = useState(NO_ATTACHMENTS)
     const [files, setFiles] = useState<File[]>([])
     const [refusal, setRefusal] = useState<Refusal>()
-    const tickets = useRef<AttachmentUpload[]>([])
+    const uploaded = useRef(new Map<File, string>())
     const closing = useRef<AbortController>()
     const form = useRef<HTMLFormElement>(null)
     const formId = useId()
@@ -72,9 +67,9 @@ export default function NoteModal(props: NoteModalProps) {
     }, [source])
 
     const length = countRunes(text.trim())
-    const sending = state.kind === "sending"
+    const busy = state.kind === "uploading" || state.kind === "sending"
     const answered = (props.optional === true || length > 0) && (props.asked === undefined || props.ready === true)
-    const canSend = !sending && answered && length <= MAX_NOTE_LENGTH
+    const canSend = !busy && answered && length <= MAX_NOTE_LENGTH
 
     const pick = (picked: File[]) => {
         const choice = withPicked(files, picked, rules)
@@ -82,94 +77,86 @@ export default function NoteModal(props: NoteModalProps) {
         setRefusal(choice.refusal)
     }
 
-    const upload = async (from: Upload[]) => {
-        const signal = closing.current?.signal
-        if (signal?.aborted) return
+    // One file after the other; a file already up is not sent again.
+    const uploadAll = async (signal?: AbortSignal): Promise<string[] | undefined> => {
+        const ids: string[] = []
+        for (const [place, file] of files.entries()) {
+            const kept = uploaded.current.get(file)
+            if (kept) {
+                ids.push(kept)
+                continue
+            }
 
-        let uploads = from.map((sent): Upload => sent.status === "failed" ? {...sent, status: "waiting", fraction: 0} : sent)
-        const show = (uploading: boolean) => setState({kind: "sent", uploads, uploading})
-        const change = (place: number, changed: Partial<Upload>) => {
-            uploads = uploads.map((sent, n) => n === place ? {...sent, ...changed} : sent)
-            show(true)
-        }
-
-        show(uploads.some((sent) => sent.status !== "done"))
-        for (const place of uploads.keys()) {
-            if (uploads[place].status === "done") continue
-
-            change(place, {status: "going"})
+            setState({kind: "uploading", going: {place, fraction: 0}})
             try {
-                const ticket = tickets.current[place]
-                if (!source || !ticket) throw new Error("the server gave no place to upload the file to")
-
-                await source.uploadAttachment(ticket, uploads[place].file, {
+                if (!source) throw new Error("this form takes no file")
+                const id = await source.uploadAttachment(file, {
                     signal,
-                    onProgress: (fraction) => change(place, {fraction}),
+                    onProgress: (fraction) => setState({kind: "uploading", going: {place, fraction}}),
                 })
-                change(place, {status: "done", fraction: 1})
+                uploaded.current.set(file, id)
+                ids.push(id)
             } catch (e) {
-                if (signal?.aborted) return
-                console.error("could not upload an attachment", e)
-                change(place, {status: "failed"})
+                if (signal?.aborted) return undefined
+                const failure = sendFailureOf(e)
+                if (failure === "failed") console.error("could not upload an attachment", e)
+                setState(failure === "failed" ? {kind: "writing", notUploaded: file.name} : {kind: "writing", failure})
+                return undefined
             }
         }
-        show(false)
+        return ids
     }
 
     const submit = async (event: FormEvent) => {
         event.preventDefault()
         if (!canSend) return
 
+        const signal = closing.current?.signal
+        const ids = await uploadAll(signal)
+        if (!ids || signal?.aborted) return
+
         setState({kind: "sending"})
         try {
-            tickets.current = await props.onSend(text.trim(), files) ?? []
+            await props.onSend(text.trim(), ids)
+            setState({kind: "sent"})
         } catch (e) {
             const failure = sendFailureOf(e)
             if (failure === "failed") console.error("could not send to the support service", e)
             setState({kind: "writing", failure})
-            return
         }
-        await upload(files.map((file) => ({file, status: "waiting", fraction: 0})))
     }
 
     if (state.kind === "sent") {
-        const failed = state.uploads.filter((sent) => sent.status === "failed").length
-
         return <Modal title={props.title}
                       className="modal-support"
-                      stayOnBackdropClick={state.uploading}
-                      footer={<SentFooter uploading={state.uploading}
-                                          failed={failed}
-                                          onRetry={() => void upload(state.uploads)}
-                                          onClose={props.onClose}/>}
+                      footer={<button type="button" className="button support-wide" onClick={props.onClose}>Close</button>}
                       onClose={props.onClose}>
-            <p className="support-sent" role="status">{sentLine(state.uploading, failed)}</p>
-            {state.uploads.length > 0 && <UploadList uploads={state.uploads}/>}
+            <p className="support-sent" role="status">Sent. Thank you!</p>
         </Modal>
     }
 
     return <Modal title={props.title}
                   className="modal-support"
-                  stayOnBackdropClick={sending || length > 0 || files.length > 0}
+                  stayOnBackdropClick={busy || length > 0 || files.length > 0}
                   footer={<button type="submit"
                                   form={formId}
                                   className="button button-action support-wide"
                                   disabled={!canSend}>
-                      Send
+                      {state.kind === "uploading" ? `Uploading ${state.going.place + 1} of ${files.length}…` : "Send"}
                   </button>}
                   onClose={props.onClose}>
-        <form id={formId} ref={form} className="support-form" onSubmit={submit} aria-busy={sending}>
+        <form id={formId} ref={form} className="support-form" onSubmit={submit} aria-busy={busy}>
             {props.asked}
             <label className="menu-label" htmlFor={fieldId}>{props.label}</label>
             <textarea id={fieldId}
                       className={props.optional ? "field support-text support-text--short" : "field support-text"}
                       rows={props.optional ? 3 : 6}
                       value={text}
-                      readOnly={sending}
+                      readOnly={busy}
                       placeholder={props.placeholder}
                       onPaste={(e) => {
                           const pasted = Array.from(e.clipboardData.files)
-                          if (pasted.length === 0 || rules.maxPerNote === 0 || sending) return
+                          if (pasted.length === 0 || rules.maxPerNote === 0 || busy) return
 
                           e.preventDefault()
                           pick(pasted)
@@ -181,38 +168,19 @@ export default function NoteModal(props: NoteModalProps) {
                 </span>}
             {rules.maxPerNote > 0 && <AttachmentPicker rules={rules}
                                                        files={files}
-                                                       disabled={sending}
+                                                       disabled={busy}
+                                                       uploaded={(file) => uploaded.current.has(file)}
+                                                       going={state.kind === "uploading" ? state.going : undefined}
                                                        onPick={pick}
                                                        onRemove={(place) => {
                                                            setFiles(files.filter((_, n) => n !== place))
                                                            setRefusal(undefined)
                                                        }}/>}
             {refusal && <p className="support-notice" role="alert">{refusalLine(refusal)}</p>}
+            {state.kind === "writing" && state.notUploaded &&
+                <p className="support-notice" role="alert">{state.notUploaded} could not be uploaded. Try again.</p>}
             {state.kind === "writing" && state.failure &&
                 <p className="support-notice" role="alert">{SEND_FAILURES[state.failure]}</p>}
         </form>
     </Modal>
-}
-
-function sentLine(uploading: boolean, failed: number): string {
-    if (uploading) return "Sent. Uploading your files…"
-    if (failed === 1) return "Sent, but 1 file did not upload."
-    if (failed > 1) return `Sent, but ${failed} files did not upload.`
-    return "Sent. Thank you!"
-}
-
-type SentFooterProps = {
-    uploading: boolean
-    failed: number
-    onRetry: () => void
-    onClose: () => void
-}
-
-function SentFooter({uploading, failed, onRetry, onClose}: SentFooterProps) {
-    if (uploading) return <button type="button" className="button support-wide" disabled>Uploading…</button>
-
-    return <div className="support-actions">
-        {failed > 0 && <button type="button" className="button button-action support-wide" onClick={onRetry}>Try again</button>}
-        <button type="button" className="button support-wide" onClick={onClose}>Close</button>
-    </div>
 }

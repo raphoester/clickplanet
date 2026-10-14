@@ -76,12 +76,6 @@
     width: 100%;
 }
 
-.support-actions {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-}
-
 .support-files {
     display: flex;
     flex-direction: column;
@@ -171,12 +165,6 @@
 .support-file-done {
     display: flex;
     color: var(--gold);
-}
-
-.support-file-failed {
-    font-size: var(--text-xs);
-    font-weight: 600;
-    color: var(--action-light);
 }
 
 .support-file-track {

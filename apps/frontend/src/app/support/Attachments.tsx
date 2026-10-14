@@ -3,15 +3,22 @@ import {AttachmentRules} from "../../backends/support.ts"
 import {isPhoto, sizeLine} from "../../domain/attachments.ts"
 import {CheckIcon, ClipIcon, CloseIcon, FilmIcon} from "../components/icons.tsx"
 
+export type Going = {
+    place: number
+    fraction: number
+}
+
 export type AttachmentPickerProps = {
     rules: AttachmentRules
     files: File[]
     disabled: boolean
+    uploaded: (file: File) => boolean
+    going?: Going
     onPick: (picked: File[]) => void
     onRemove: (place: number) => void
 }
 
-export function AttachmentPicker({rules, files, disabled, onPick, onRemove}: AttachmentPickerProps) {
+export function AttachmentPicker({rules, files, disabled, uploaded, going, onPick, onRemove}: AttachmentPickerProps) {
     const input = useRef<HTMLInputElement>(null)
 
     return <div className="support-files">
@@ -19,7 +26,7 @@ export function AttachmentPicker({rules, files, disabled, onPick, onRemove}: Att
             {files.map((file, place) => <li key={place} className="panel-box support-file">
                 <FileThumb file={file}/>
                 <span className="support-file-name">{file.name}</span>
-                <span className="menu-label support-file-mark">{sizeLine(file.size)}</span>
+                <FileMark file={file} uploaded={uploaded(file)} going={going?.place === place ? going.fraction : undefined}/>
                 <button type="button"
                         className="support-file-remove"
                         aria-label={`Remove ${file.name}`}
@@ -49,41 +56,23 @@ export function AttachmentPicker({rules, files, disabled, onPick, onRemove}: Att
     </div>
 }
 
-export type Upload = {
-    file: File
-    status: "waiting" | "going" | "done" | "failed"
-    fraction: number
-}
-
-export function UploadList({uploads}: {uploads: Upload[]}) {
-    return <ul className="support-file-list" aria-label="Files">
-        {uploads.map((upload, place) => <li key={place} className="panel-box support-file">
-            <FileThumb file={upload.file}/>
-            <span className="support-file-name">{upload.file.name}</span>
-            <UploadMark upload={upload}/>
-            {upload.status === "going" && <span className="support-file-track"
-                                               role="progressbar"
-                                               aria-label={`Uploading ${upload.file.name}`}
-                                               aria-valuemin={0}
-                                               aria-valuemax={100}
-                                               aria-valuenow={Math.round(upload.fraction * 100)}>
-                <span style={{width: `${upload.fraction * 100}%`}}/>
-            </span>}
-        </li>)}
-    </ul>
-}
-
-function UploadMark({upload}: {upload: Upload}) {
-    switch (upload.status) {
-        case "waiting":
-            return null
-        case "going":
-            return <span className="menu-label support-file-mark">{Math.round(upload.fraction * 100)}%</span>
-        case "done":
-            return <span className="support-file-mark support-file-done" role="img" aria-label="Uploaded"><CheckIcon/></span>
-        case "failed":
-            return <span className="support-file-mark support-file-failed">Not uploaded</span>
+function FileMark({file, uploaded, going}: {file: File, uploaded: boolean, going?: number}) {
+    if (going !== undefined) {
+        const percent = Math.round(going * 100)
+        return <>
+            <span className="menu-label support-file-mark">{percent}%</span>
+            <span className="support-file-track"
+                  role="progressbar"
+                  aria-label={`Uploading ${file.name}`}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={percent}>
+                <span style={{width: `${percent}%`}}/>
+            </span>
+        </>
     }
+    if (uploaded) return <span className="support-file-mark support-file-done" role="img" aria-label="Uploaded"><CheckIcon/></span>
+    return <span className="menu-label support-file-mark">{sizeLine(file.size)}</span>
 }
 
 function FileThumb({file}: {file: File}) {

@@ -373,10 +373,10 @@ describe("Menu", () => {
     })
 
     const supportBackend = () => ({
-        suggestFeature: vi.fn(async () => []),
-        reportBug: vi.fn(async () => []),
+        suggestFeature: vi.fn(async () => undefined),
+        reportBug: vi.fn(async () => undefined),
         attachmentRules: vi.fn(async () => NO_ATTACHMENTS),
-        uploadAttachment: vi.fn(async () => undefined),
+        uploadAttachment: vi.fn(async () => "file"),
     })
 
     const phone = {

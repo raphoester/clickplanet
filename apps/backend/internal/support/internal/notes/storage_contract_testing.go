@@ -175,9 +175,9 @@ func (s *StorageContractSuite) TestAnAnonymizedNoteKeepsItsDiagnostics() {
 }
 
 var contractFiles = []Attachment{
-	{MediaType: MediaPNG, Size: 120_000},
-	{MediaType: MediaMP4, Size: 48_000_000},
-	{MediaType: MediaPNG, Size: 90_000},
+	{ID: AttachmentID{15: 1}, MediaType: MediaPNG, Size: 120_000},
+	{ID: AttachmentID{15: 2}, MediaType: MediaMP4, Size: 48_000_000},
+	{ID: AttachmentID{15: 3}, MediaType: MediaPNG, Size: 90_000},
 }
 
 func (s *StorageContractSuite) withFiles(name string, files []Attachment, at time.Time) Snapshot {
@@ -201,7 +201,7 @@ func (s *StorageContractSuite) TestANoteIsKeptWithItsAttachmentsInTheirOrderAndF
 func (s *StorageContractSuite) TestAnAttachmentOfEveryMediaTypeIsKept() {
 	files := make([]Attachment, 0, len(MediaTypes()))
 	for n, media := range MediaTypes() {
-		files = append(files, Attachment{MediaType: media, Size: int64(n + 1)})
+		files = append(files, Attachment{ID: AttachmentID{14: 1, 15: byte(n)}, MediaType: media, Size: int64(n + 1)})
 	}
 	every := s.withFiles("every", files, contractStart)
 
@@ -212,7 +212,7 @@ func (s *StorageContractSuite) TestAnAttachmentOfEveryMediaTypeIsKept() {
 
 func (s *StorageContractSuite) TestANoteSavedAgainKeepsTheAttachmentsItHasNowAndNoOther() {
 	s.Require().NoError(s.save(s.withFiles("edited", contractFiles, contractStart)))
-	fewer := s.withFiles("edited", []Attachment{{MediaType: MediaWebM, Size: 7}}, contractStart)
+	fewer := s.withFiles("edited", []Attachment{{ID: AttachmentID{15: 9}, MediaType: MediaWebM, Size: 7}}, contractStart)
 
 	s.Require().NoError(s.save(fewer))
 

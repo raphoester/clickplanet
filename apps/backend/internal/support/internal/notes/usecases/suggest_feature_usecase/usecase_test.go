@@ -22,7 +22,10 @@ var (
 	now   = time.Date(2026, 10, 11, 20, 0, 0, 0, time.UTC)
 	ada   = notes.AccountID{15: 1}
 	rules = notes.AttachmentRules{MaxPerNote: 2, MaxBytes: 1000}
-	files = []notes.Attachment{{MediaType: notes.MediaPNG, Size: 400}, {MediaType: notes.MediaMP4, Size: 1000}}
+	files = []notes.Attachment{
+		{ID: notes.AttachmentID{0: 0xa, 15: 1}, MediaType: notes.MediaPNG, Size: 400},
+		{ID: notes.AttachmentID{0: 0xa, 15: 2}, MediaType: notes.MediaMP4, Size: 1000},
+	}
 )
 
 type failingIDs struct{}
@@ -48,9 +51,7 @@ func (s *testSuite) build(ids notes.IDProvider) *suggest_feature_usecase.UseCase
 }
 
 func (s *testSuite) suggest(useCase *suggest_feature_usecase.UseCase, text string) error {
-	out, err := useCase.Execute(s.T().Context(), suggest_feature_usecase.In{Account: ada, Text: text})
-	s.Empty(out.UploadURLs, "no file, no link")
-	return err
+	return useCase.Execute(s.T().Context(), suggest_feature_usecase.In{Account: ada, Text: text})
 }
 
 func (s *testSuite) TestASuggestionIsKeptCleanedWithAnIDAndTheTimeUnderItsAccount() {
@@ -64,7 +65,7 @@ func (s *testSuite) TestASuggestionIsKeptCleanedWithAnIDAndTheTimeUnderItsAccoun
 func (s *testSuite) TestASuggestionIsKeptWithWhatThePageSaid() {
 	said := notes.Diagnostics{Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, GPURenderer: "Apple GPU"}
 
-	_, err := s.useCase.Execute(s.T().Context(), suggest_feature_usecase.In{Account: ada, Text: "a night mode", Diagnostics: said})
+	err := s.useCase.Execute(s.T().Context(), suggest_feature_usecase.In{Account: ada, Text: "a night mode", Diagnostics: said})
 
 	s.Require().NoError(err)
 	s.Equal([]notes.Snapshot{{
@@ -72,37 +73,35 @@ func (s *testSuite) TestASuggestionIsKeptWithWhatThePageSaid() {
 	}}, s.notes.Kept())
 }
 
-func (s *testSuite) TestASuggestionIsKeptWithItsFilesAndAnswersOneUploadLinkEachInTheirOrder() {
-	out, err := s.useCase.Execute(s.T().Context(),
-		suggest_feature_usecase.In{Account: ada, Text: "a night mode", Attachments: files})
+func (s *testSuite) TestASuggestionIsKeptWithTheFilesTheBucketHolds() {
+	s.bucket.Put(files...)
+
+	err := s.useCase.Execute(s.T().Context(), suggest_feature_usecase.In{
+		Account: ada, Text: "a night mode", Attachments: []notes.AttachmentID{files[0].ID, files[1].ID},
+	})
 	s.Require().NoError(err)
 
-	s.Equal([]string{
-		inmemory_attachment_bucket.URL(notes.NoteID{15: 1}, 0), inmemory_attachment_bucket.URL(notes.NoteID{15: 1}, 1),
-	}, out.UploadURLs)
 	s.Equal([]notes.Snapshot{{
 		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, Text: "a night mode", Attachments: files, At: now,
 	}}, s.notes.Kept())
 }
 
-func (s *testSuite) TestFilesTheRulesDoNotTakeAreRefusedAndNothingIsKept() {
-	tooBig := []notes.Attachment{{MediaType: notes.MediaMP4, Size: 1001}}
+func (s *testSuite) TestAFileTheBucketDoesNotHoldIsRefusedAndNothingIsKept() {
+	err := s.useCase.Execute(s.T().Context(),
+		suggest_feature_usecase.In{Account: ada, Text: "a night mode", Attachments: []notes.AttachmentID{files[0].ID}})
 
-	_, err := s.useCase.Execute(s.T().Context(),
-		suggest_feature_usecase.In{Account: ada, Text: "a night mode", Attachments: tooBig})
-
-	s.Require().ErrorIs(err, notes.ErrInvalidAttachment)
+	s.Require().ErrorIs(err, notes.ErrNotUploaded)
 	s.Empty(s.notes.Kept())
 }
 
-func (s *testSuite) TestASuggestionWhoseUploadLinksCannotBeMadeIsNotKept() {
-	cause := errors.New("no bucket")
-	s.bucket.FailWith(cause)
+func (s *testSuite) TestFilesTheRulesDoNotTakeAreRefusedAndNothingIsKept() {
+	tooBig := notes.Attachment{ID: notes.AttachmentID{0: 0xa, 15: 9}, MediaType: notes.MediaMP4, Size: 1001}
+	s.bucket.Put(tooBig)
 
-	_, err := s.useCase.Execute(s.T().Context(),
-		suggest_feature_usecase.In{Account: ada, Text: "a night mode", Attachments: files})
+	err := s.useCase.Execute(s.T().Context(),
+		suggest_feature_usecase.In{Account: ada, Text: "a night mode", Attachments: []notes.AttachmentID{tooBig.ID}})
 
-	s.Require().ErrorIs(err, cause)
+	s.Require().ErrorIs(err, notes.ErrInvalidAttachment)
 	s.Empty(s.notes.Kept())
 }
 

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAttachmentRulesRequest, GetAttachmentRulesResponse, ReportBugRequest, ReportBugResponse, ReportPlayerRequest, ReportPlayerResponse, SuggestFeatureRequest, SuggestFeatureResponse } from "./support_pb.js";
+import { CreateUploadRequest, CreateUploadResponse, GetAttachmentRulesRequest, GetAttachmentRulesResponse, ReportBugRequest, ReportBugResponse, ReportPlayerRequest, ReportPlayerResponse, SuggestFeatureRequest, SuggestFeatureResponse } from "./support_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -48,6 +48,15 @@ export const SupportService = {
       O: GetAttachmentRulesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc support.v1.SupportService.CreateUpload
+     */
+    createUpload: {
+      name: "CreateUpload",
+      I: CreateUploadRequest,
+      O: CreateUploadResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

@@ -3,7 +3,6 @@ package notes_query_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -37,8 +36,8 @@ type stubLinks struct {
 	err error
 }
 
-func (l *stubLinks) ViewURL(note string, position int) (string, error) {
-	return fmt.Sprintf("https://bucket.example/%s/%d", note, position), l.err
+func (l *stubLinks) ViewURL(attachment string) (string, error) {
+	return "https://bucket.example/" + attachment, l.err
 }
 
 var (
@@ -87,10 +86,10 @@ func (s *testSuite) kept(note notes.Note, kind supportv1.NoteKind) *supportv1.No
 	sent := note.TakeSnapshot()
 	said := sent.Diagnostics
 	attachments := make([]*supportv1.NoteAttachment, 0, len(sent.Attachments))
-	for position, file := range sent.Attachments {
+	for _, file := range sent.Attachments {
 		attachments = append(attachments, &supportv1.NoteAttachment{
 			ContentType: string(file.MediaType), SizeBytes: uint64(file.Size), //nolint:gosec // a size a test wrote.
-			Url: fmt.Sprintf("https://bucket.example/%s/%d", uuid.UUID(sent.ID), position),
+			Url: "https://bucket.example/" + file.ID.String(),
 		})
 	}
 	return &supportv1.Note{
@@ -148,7 +147,10 @@ func (s *testSuite) TestEveryNoteComesWithEverythingThePageAndTheBrowserSaid() {
 	s.NotNil(got[1].GetContext(), "a note whose page said nothing has a context, with nothing in it")
 }
 
-var files = []notes.Attachment{{MediaType: notes.MediaMP4, Size: 48_000_000}, {MediaType: notes.MediaPNG, Size: 120_000}}
+var files = []notes.Attachment{
+	{ID: notes.AttachmentID{0: 0xa, 15: 1}, MediaType: notes.MediaMP4, Size: 48_000_000},
+	{ID: notes.AttachmentID{0: 0xa, 15: 2}, MediaType: notes.MediaPNG, Size: 120_000},
+}
 
 func (s *testSuite) carrying(n byte, account notes.AccountID, text string, at time.Time) notes.Note {
 	note, err := notes.NewBugReport(notes.NoteID{15: n}, account, text, notes.Diagnostics{}, at)
@@ -168,7 +170,7 @@ func (s *testSuite) TestANoteComesWithEachOfItsFilesInOrderAndALinkToItAndTheOth
 	s.Require().Len(got[0].GetAttachments(), 2)
 	s.Equal("video/mp4", got[0].GetAttachments()[0].GetContentType())
 	s.Equal(uint64(48_000_000), got[0].GetAttachments()[0].GetSizeBytes())
-	s.Equal("https://bucket.example/00000000-0000-0000-0000-000000000002/1", got[0].GetAttachments()[1].GetUrl())
+	s.Equal("https://bucket.example/0a000000-0000-0000-0000-000000000002", got[0].GetAttachments()[1].GetUrl())
 	s.Empty(got[1].GetAttachments())
 }
 

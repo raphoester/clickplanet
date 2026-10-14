@@ -45,6 +45,9 @@ const (
 	// SupportServiceGetAttachmentRulesProcedure is the fully-qualified name of the SupportService's
 	// GetAttachmentRules RPC.
 	SupportServiceGetAttachmentRulesProcedure = "/support.v1.SupportService/GetAttachmentRules"
+	// SupportServiceCreateUploadProcedure is the fully-qualified name of the SupportService's
+	// CreateUpload RPC.
+	SupportServiceCreateUploadProcedure = "/support.v1.SupportService/CreateUpload"
 )
 
 // SupportServiceClient is a client for the support.v1.SupportService service.
@@ -53,6 +56,7 @@ type SupportServiceClient interface {
 	ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error)
 	ReportPlayer(context.Context, *connect.Request[v1.ReportPlayerRequest]) (*connect.Response[v1.ReportPlayerResponse], error)
 	GetAttachmentRules(context.Context, *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error)
+	CreateUpload(context.Context, *connect.Request[v1.CreateUploadRequest]) (*connect.Response[v1.CreateUploadResponse], error)
 }
 
 // NewSupportServiceClient constructs a client for the support.v1.SupportService service. By
@@ -91,6 +95,12 @@ func NewSupportServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		createUpload: connect.NewClient[v1.CreateUploadRequest, v1.CreateUploadResponse](
+			httpClient,
+			baseURL+SupportServiceCreateUploadProcedure,
+			connect.WithSchema(supportServiceMethods.ByName("CreateUpload")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -100,6 +110,7 @@ type supportServiceClient struct {
 	reportBug          *connect.Client[v1.ReportBugRequest, v1.ReportBugResponse]
 	reportPlayer       *connect.Client[v1.ReportPlayerRequest, v1.ReportPlayerResponse]
 	getAttachmentRules *connect.Client[v1.GetAttachmentRulesRequest, v1.GetAttachmentRulesResponse]
+	createUpload       *connect.Client[v1.CreateUploadRequest, v1.CreateUploadResponse]
 }
 
 // SuggestFeature calls support.v1.SupportService.SuggestFeature.
@@ -122,12 +133,18 @@ func (c *supportServiceClient) GetAttachmentRules(ctx context.Context, req *conn
 	return c.getAttachmentRules.CallUnary(ctx, req)
 }
 
+// CreateUpload calls support.v1.SupportService.CreateUpload.
+func (c *supportServiceClient) CreateUpload(ctx context.Context, req *connect.Request[v1.CreateUploadRequest]) (*connect.Response[v1.CreateUploadResponse], error) {
+	return c.createUpload.CallUnary(ctx, req)
+}
+
 // SupportServiceHandler is an implementation of the support.v1.SupportService service.
 type SupportServiceHandler interface {
 	SuggestFeature(context.Context, *connect.Request[v1.SuggestFeatureRequest]) (*connect.Response[v1.SuggestFeatureResponse], error)
 	ReportBug(context.Context, *connect.Request[v1.ReportBugRequest]) (*connect.Response[v1.ReportBugResponse], error)
 	ReportPlayer(context.Context, *connect.Request[v1.ReportPlayerRequest]) (*connect.Response[v1.ReportPlayerResponse], error)
 	GetAttachmentRules(context.Context, *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error)
+	CreateUpload(context.Context, *connect.Request[v1.CreateUploadRequest]) (*connect.Response[v1.CreateUploadResponse], error)
 }
 
 // NewSupportServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -162,6 +179,12 @@ func NewSupportServiceHandler(svc SupportServiceHandler, opts ...connect.Handler
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	supportServiceCreateUploadHandler := connect.NewUnaryHandler(
+		SupportServiceCreateUploadProcedure,
+		svc.CreateUpload,
+		connect.WithSchema(supportServiceMethods.ByName("CreateUpload")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/support.v1.SupportService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SupportServiceSuggestFeatureProcedure:
@@ -172,6 +195,8 @@ func NewSupportServiceHandler(svc SupportServiceHandler, opts ...connect.Handler
 			supportServiceReportPlayerHandler.ServeHTTP(w, r)
 		case SupportServiceGetAttachmentRulesProcedure:
 			supportServiceGetAttachmentRulesHandler.ServeHTTP(w, r)
+		case SupportServiceCreateUploadProcedure:
+			supportServiceCreateUploadHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -195,4 +220,8 @@ func (UnimplementedSupportServiceHandler) ReportPlayer(context.Context, *connect
 
 func (UnimplementedSupportServiceHandler) GetAttachmentRules(context.Context, *connect.Request[v1.GetAttachmentRulesRequest]) (*connect.Response[v1.GetAttachmentRulesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.SupportService.GetAttachmentRules is not implemented"))
+}
+
+func (UnimplementedSupportServiceHandler) CreateUpload(context.Context, *connect.Request[v1.CreateUploadRequest]) (*connect.Response[v1.CreateUploadResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.SupportService.CreateUpload is not implemented"))
 }

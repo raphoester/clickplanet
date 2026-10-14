@@ -1,6 +1,7 @@
 package s3_attachment_bucket
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -8,13 +9,18 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 )
 
 var ErrNoBucket = errors.New("no bucket is set for the attachments")
+
+const (
+	readTTL     = time.Minute
+	readsAtOnce = 8
+)
 
 type Config struct {
 	Endpoint        string
@@ -62,8 +68,8 @@ type Lifetimes struct {
 }
 
 // An empty config builds a bucket every link of which is ErrNoBucket: the module that takes no attachment asks for none.
-func New(config Config, lifetimes Lifetimes, clock cptime.Clock) (*Bucket, error) {
-	bucket := &Bucket{lifetimes: lifetimes, clock: clock}
+func New(config Config, lifetimes Lifetimes, clock cptime.Clock, httpClient *http.Client) (*Bucket, error) {
+	bucket := &Bucket{lifetimes: lifetimes, clock: clock, http: httpClient}
 	if config == (Config{}) {
 		return bucket, nil
 	}
@@ -90,35 +96,75 @@ type Bucket struct {
 	credentials credentials
 	lifetimes   Lifetimes
 	clock       cptime.Clock
+	http        *http.Client
 }
 
-func (b *Bucket) UploadURLs(note notes.Note) ([]string, error) {
-	kept := note.TakeSnapshot()
+func (b *Bucket) UploadURL(file notes.Attachment) (string, error) {
+	return b.link(http.MethodPut, file.ID.String(), b.lifetimes.Upload, map[string]string{
+		"content-type":   string(file.MediaType),
+		"content-length": strconv.FormatInt(file.Size, 10),
+	})
+}
 
-	links := make([]string, 0, len(kept.Attachments))
-	for position, file := range kept.Attachments {
-		link, err := b.link(http.MethodPut, uuid.UUID(kept.ID).String(), position, b.lifetimes.Upload, map[string]string{
-			"content-type":   string(file.MediaType),
-			"content-length": strconv.FormatInt(file.Size, 10),
+func (b *Bucket) ViewURL(attachment string) (string, error) {
+	return b.link(http.MethodGet, attachment, b.lifetimes.View, nil)
+}
+
+// What the bucket holds under each id, in their order: the type and the size the upload link signed.
+func (b *Bucket) Attachments(ctx context.Context, ids ...notes.AttachmentID) ([]notes.Attachment, error) {
+	files := make([]notes.Attachment, len(ids))
+	group, ctx := errgroup.WithContext(ctx)
+	group.SetLimit(readsAtOnce)
+
+	for n, id := range ids {
+		group.Go(func() error {
+			file, err := b.attachment(ctx, id)
+			files[n] = file
+			return err
 		})
-		if err != nil {
-			return nil, err
-		}
-		links = append(links, link)
 	}
-	return links, nil
+	if err := group.Wait(); err != nil {
+		return nil, err //nolint:wrapcheck // attachment named what failed.
+	}
+	return files, nil
 }
 
-func (b *Bucket) ViewURL(note string, position int) (string, error) {
-	return b.link(http.MethodGet, note, position, b.lifetimes.View, nil)
+func (b *Bucket) attachment(ctx context.Context, id notes.AttachmentID) (notes.Attachment, error) {
+	link, err := b.link(http.MethodHead, id.String(), readTTL, nil)
+	if err != nil {
+		return notes.Attachment{}, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, link, nil)
+	if err != nil {
+		return notes.Attachment{}, fmt.Errorf("failed to build the request that reads the file %s: %w", id, err)
+	}
+	res, err := b.http.Do(req)
+	if err != nil {
+		return notes.Attachment{}, fmt.Errorf("failed to reach the bucket to read the file %s: %w", id, err)
+	}
+	_ = res.Body.Close()
+
+	switch {
+	case res.StatusCode == http.StatusNotFound:
+		return notes.Attachment{}, fmt.Errorf("%w: %s", notes.ErrNotUploaded, id)
+	case res.StatusCode != http.StatusOK:
+		return notes.Attachment{}, fmt.Errorf("the bucket answered %d to the read of the file %s", res.StatusCode, id)
+	}
+
+	size, err := strconv.ParseInt(res.Header.Get("Content-Length"), 10, 64)
+	if err != nil {
+		return notes.Attachment{}, fmt.Errorf("the bucket gave the file %s no size: %w", id, err)
+	}
+	return notes.Attachment{ID: id, MediaType: notes.MediaType(res.Header.Get("Content-Type")), Size: size}, nil
 }
 
-func (b *Bucket) link(method string, note string, position int, ttl time.Duration, headers map[string]string) (string, error) {
+func (b *Bucket) link(method string, attachment string, ttl time.Duration, headers map[string]string) (string, error) {
 	if b.origin == "" {
 		return "", ErrNoBucket
 	}
 
-	path := "/" + escaped(b.name) + "/" + escaped(note) + "/" + strconv.Itoa(position)
+	path := "/" + escaped(b.name) + "/" + escaped(attachment)
 	query := b.credentials.signedQuery(request{
 		method: method, host: b.host, path: path, headers: headers, at: b.clock.Now(), ttl: ttl,
 	})

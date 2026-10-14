@@ -1,38 +1,46 @@
 package attachment_test
 
 import (
-	"math"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/attachment"
 )
 
-func TestEachFileARequestDeclaresIsHandedOnInItsOrder(t *testing.T) {
-	declared := attachment.Declared([]*supportv1.Attachment{
-		{ContentType: "video/mp4", SizeBytes: 9000}, {ContentType: "image/png", SizeBytes: 400}, {ContentType: "text/html"},
-	})
+var (
+	first  = uuid.MustParse("6f1c2c64-6a4a-4b0e-9f43-2f0d7c1b5a01")
+	second = uuid.MustParse("6f1c2c64-6a4a-4b0e-9f43-2f0d7c1b5a02")
+)
 
-	assert.Equal(t, []notes.Attachment{
-		{MediaType: notes.MediaMP4, Size: 9000}, {MediaType: notes.MediaPNG, Size: 400}, {MediaType: "text/html"},
-	}, declared)
-	assert.Empty(t, attachment.Declared(nil))
+func TestEachIDARequestNamesIsHandedOnInItsOrder(t *testing.T) {
+	ids, err := attachment.IDs([]string{second.String(), first.String()})
+
+	require.NoError(t, err)
+	assert.Equal(t, []notes.AttachmentID{notes.AttachmentID(second), notes.AttachmentID(first)}, ids)
 }
 
-func TestASizeNoFileHasStaysTooBigAndNeverTurnsNegative(t *testing.T) {
-	declared := attachment.Declared([]*supportv1.Attachment{{ContentType: "video/mp4", SizeBytes: math.MaxUint64}})
+func TestNoIDIsNoAttachment(t *testing.T) {
+	ids, err := attachment.IDs(nil)
 
-	assert.Equal(t, int64(math.MaxInt64), declared[0].Size)
+	require.NoError(t, err)
+	assert.Empty(t, ids)
 }
 
-func TestEachLinkIsAnUploadInItsOrder(t *testing.T) {
-	uploads := attachment.Uploads([]string{"https://bucket.example/a/0", "https://bucket.example/a/1"})
+func TestAnIDThatIsNotOneIsRefused(t *testing.T) {
+	for _, sent := range []string{"", "a file", uuid.Nil.String()} {
+		_, err := attachment.IDs([]string{first.String(), sent})
 
-	assert.Len(t, uploads, 2)
-	assert.Equal(t, "https://bucket.example/a/0", uploads[0].GetUrl())
-	assert.Equal(t, "https://bucket.example/a/1", uploads[1].GetUrl())
-	assert.Empty(t, attachment.Uploads(nil))
+		require.ErrorIs(t, err, notes.ErrInvalidAttachment, sent)
+	}
+}
+
+func TestAnUploadIsAnsweredWithItsIDAndItsLink(t *testing.T) {
+	answer := attachment.Uploaded(notes.AttachmentID(first), "https://bucket.example/6f1c")
+
+	assert.Equal(t, first.String(), answer.GetAttachmentId())
+	assert.Equal(t, "https://bucket.example/6f1c", answer.GetUrl())
 }

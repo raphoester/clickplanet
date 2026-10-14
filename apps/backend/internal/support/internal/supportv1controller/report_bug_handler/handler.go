@@ -15,7 +15,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in report_bug_usecase.In) (report_bug_usecase.Out, error)
+	Execute(ctx context.Context, in report_bug_usecase.In) error
 }
 
 func New(useCase UseCase) ReportBugHandler {
@@ -35,20 +35,27 @@ func (h ReportBugHandler) ReportBug(
 		return nil, err //nolint:wrapcheck // already the connect error the caller reads.
 	}
 
-	out, err := h.useCase.Execute(ctx, report_bug_usecase.In{
+	files, err := attachment.IDs(req.Msg.GetAttachmentIds())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidAttachment)
+	}
+
+	err = h.useCase.Execute(ctx, report_bug_usecase.In{
 		Account:     account,
 		Text:        req.Msg.GetText(),
 		Diagnostics: pagecontext.Diagnostics(req.Msg.GetContext(), req.Header()),
-		Attachments: attachment.Declared(req.Msg.GetAttachments()),
+		Attachments: files,
 	})
 	switch {
 	case errors.Is(err, notes.ErrInvalidText):
 		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidText)
 	case errors.Is(err, notes.ErrInvalidAttachment):
 		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidAttachment)
+	case errors.Is(err, notes.ErrNotUploaded):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, notes.ErrNotUploaded)
 	case err != nil:
 		return nil, err //nolint:wrapcheck // a storage failure is the error net's to answer.
 	}
 
-	return connect.NewResponse(&supportv1.ReportBugResponse{Uploads: attachment.Uploads(out.UploadURLs)}), nil
+	return connect.NewResponse(&supportv1.ReportBugResponse{}), nil
 }

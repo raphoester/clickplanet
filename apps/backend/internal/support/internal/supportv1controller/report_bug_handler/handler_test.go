@@ -20,14 +20,13 @@ import (
 var ada = notes.AccountID{15: 1}
 
 type stubUseCase struct {
-	out   report_bug_usecase.Out
 	err   error
 	asked []report_bug_usecase.In
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in report_bug_usecase.In) (report_bug_usecase.Out, error) {
+func (s *stubUseCase) Execute(_ context.Context, in report_bug_usecase.In) error {
 	s.asked = append(s.asked, in)
-	return s.out, s.err
+	return s.err
 }
 
 func report(ctx context.Context, useCase *stubUseCase, msg *supportv1.ReportBugRequest, userAgent string) error {
@@ -71,30 +70,32 @@ func TestTheTextThePageAndTheBrowserAreHandedOn(t *testing.T) {
 	}}, useCase.asked)
 }
 
-func TestTheFilesAreHandedOnAndEachUploadLinkIsAnsweredInItsOrder(t *testing.T) {
-	useCase := &stubUseCase{out: report_bug_usecase.Out{UploadURLs: []string{"https://bucket.example/a/0", "https://bucket.example/a/1"}}}
+func TestTheFilesAreHandedOnByIDInTheirOrder(t *testing.T) {
+	useCase := &stubUseCase{}
 
-	res, err := answered(asAda(t), useCase, &supportv1.ReportBugRequest{
-		Text: "the globe is black",
-		Attachments: []*supportv1.Attachment{
-			{ContentType: "image/png", SizeBytes: 400}, {ContentType: "video/mp4", SizeBytes: 9000},
-		},
+	_, err := answered(asAda(t), useCase, &supportv1.ReportBugRequest{
+		Text:          "the globe is black",
+		AttachmentIds: []string{"0a000000-0000-0000-0000-000000000002", "0a000000-0000-0000-0000-000000000001"},
 	}, "")
 	require.NoError(t, err)
 
-	assert.Equal(t, []notes.Attachment{
-		{MediaType: notes.MediaPNG, Size: 400}, {MediaType: notes.MediaMP4, Size: 9000},
-	}, useCase.asked[0].Attachments)
-	require.Len(t, res.GetUploads(), 2)
-	assert.Equal(t, "https://bucket.example/a/0", res.GetUploads()[0].GetUrl())
-	assert.Equal(t, "https://bucket.example/a/1", res.GetUploads()[1].GetUrl())
+	assert.Equal(t, []notes.AttachmentID{{0: 0xa, 15: 2}, {0: 0xa, 15: 1}}, useCase.asked[0].Attachments)
 }
 
-func TestAReportWithNoFileAnswersNoUpload(t *testing.T) {
-	res, err := answered(asAda(t), &stubUseCase{}, &supportv1.ReportBugRequest{Text: "the globe is black"}, "")
+func TestAnAttachmentIDThatIsNotOneIsRefusedBeforeTheUseCase(t *testing.T) {
+	useCase := &stubUseCase{}
 
-	require.NoError(t, err)
-	assert.Empty(t, res.GetUploads())
+	_, err := answered(asAda(t), useCase, &supportv1.ReportBugRequest{Text: "the globe is black", AttachmentIds: []string{"a file"}}, "")
+
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	assert.Empty(t, useCase.asked)
+}
+
+func TestAFileThatWasNotUploadedIsAPreconditionTheCallerMissed(t *testing.T) {
+	_, err := answered(asAda(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", notes.ErrNotUploaded)},
+		&supportv1.ReportBugRequest{Text: "the globe is black"}, "")
+
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 }
 
 func TestFilesTheRulesDoNotTakeAreTheCallersFault(t *testing.T) {

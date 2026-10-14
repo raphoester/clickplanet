@@ -129,3 +129,40 @@ func TestThePageAsksWhatItMayAttachWithNoSessionAndSpendsNothing(t *testing.T) {
 	require.True(t, ran)
 	require.Empty(t, limiter.keys)
 }
+
+func TestAnUploadNeedsATokenMintedAfterACheck(t *testing.T) {
+	ada := cpsession.AccountID{15: 1}
+	attested := NewSessionInterceptor(
+		tokenVerifier{claims: cpsession.Claims{ID: "a-mint", Account: ada, Attested: true}},
+		cptime.SystemClock{}, prometheus.NewRegistry())
+	identified := NewSessionInterceptor(
+		tokenVerifier{claims: cpsession.Claims{ID: "a-resume", Account: ada}},
+		cptime.SystemClock{}, prometheus.NewRegistry())
+
+	_, ran, err := run(t.Context(), attested, supportv1connect.SupportServiceCreateUploadProcedure, "a-click-token")
+	require.NoError(t, err)
+	require.True(t, ran)
+
+	_, ran, err = run(t.Context(), identified, supportv1connect.SupportServiceCreateUploadProcedure, "an-identity-token")
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.False(t, ran)
+}
+
+func TestAnUploadSpendsTheUploadBudgetAndANoteDoesNot(t *testing.T) {
+	ctx := cpctx.AddIPToContext(t.Context(), "1.2.3.4")
+	notes, uploads := &fakeLimiter{allow: false}, &fakeLimiter{allow: false}
+
+	_, ran, err := run(ctx, NewRateLimitInterceptor(notes), supportv1connect.SupportServiceCreateUploadProcedure, "")
+	require.NoError(t, err)
+	require.True(t, ran)
+	require.Empty(t, notes.keys)
+
+	_, ran, err = run(ctx, NewUploadRateLimitInterceptor(uploads), supportv1connect.SupportServiceCreateUploadProcedure, "")
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
+	require.False(t, ran)
+	require.Equal(t, []string{"1.2.3.4"}, uploads.keys)
+
+	_, ran, err = run(ctx, NewUploadRateLimitInterceptor(uploads), supportv1connect.SupportServiceReportBugProcedure, "")
+	require.NoError(t, err)
+	require.True(t, ran)
+}

@@ -58,30 +58,46 @@ type file struct {
 	body        []byte
 }
 
-func declared(files []file) []*supportv1.Attachment {
-	attachments := make([]*supportv1.Attachment, 0, len(files))
-	for _, sent := range files {
-		attachments = append(attachments, &supportv1.Attachment{ContentType: sent.contentType, SizeBytes: uint64(len(sent.body))})
-	}
-	return attachments
-}
-
-func (p *gamer) reportBugWith(text string, files ...file) ([]*supportv1.Upload, error) {
+func (p *gamer) createUpload(sent file) (*supportv1.CreateUploadResponse, error) {
 	p.t.Helper()
 
-	req := connect.NewRequest(&supportv1.ReportBugRequest{Text: text, Attachments: declared(files)})
+	req := connect.NewRequest(&supportv1.CreateUploadRequest{ContentType: sent.contentType, SizeBytes: uint64(len(sent.body))})
 	p.send(req.Header())
-	res, err := p.support().ReportBug(p.t.Context(), req)
+	res, err := p.support().CreateUpload(p.t.Context(), req)
 	if err != nil {
-		return nil, fmt.Errorf("ReportBug failed: %w", err)
+		return nil, fmt.Errorf("CreateUpload failed: %w", err)
 	}
-	return res.Msg.GetUploads(), nil
+	return res.Msg, nil
 }
 
-func upload(t *testing.T, to *supportv1.Upload, sent file) {
+func (p *gamer) uploaded(files ...file) []string {
+	p.t.Helper()
+
+	ids := make([]string, 0, len(files))
+	for _, sent := range files {
+		upload, err := p.createUpload(sent)
+		require.NoError(p.t, err)
+		put(p.t, upload.GetUrl(), sent)
+		ids = append(ids, upload.GetAttachmentId())
+	}
+	return ids
+}
+
+func (p *gamer) reportBugWith(text string, ids ...string) error {
+	p.t.Helper()
+
+	req := connect.NewRequest(&supportv1.ReportBugRequest{Text: text, AttachmentIds: ids})
+	p.send(req.Header())
+	if _, err := p.support().ReportBug(p.t.Context(), req); err != nil {
+		return fmt.Errorf("ReportBug failed: %w", err)
+	}
+	return nil
+}
+
+func put(t *testing.T, link string, sent file) {
 	t.Helper()
 
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodPut, to.GetUrl(), bytes.NewReader(sent.body))
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPut, link, bytes.NewReader(sent.body))
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", sent.contentType)
 	res, err := http.DefaultClient.Do(req)
@@ -121,27 +137,19 @@ func TestThePageIsToldWhatANoteCarriesWithNoSession(t *testing.T) {
 	assert.Contains(t, res.Msg.GetContentTypes(), "video/quicktime")
 }
 
-func TestAGuestReportsABugWithFilesUploadsThemAndTheOperatorOpensThem(t *testing.T) {
+func TestAGuestUploadsItsFilesThenReportsABugAndTheOperatorOpensThem(t *testing.T) {
 	game := startGame(t)
 	guest := game.newPlayer(t)
 
-	uploads, err := guest.reportBugWith("the globe is black", screenshot, recording)
-	require.NoError(t, err)
-	require.Len(t, uploads, 2)
+	require.NoError(t, guest.reportBugWith("the globe is black", guest.uploaded(screenshot, recording)...))
 
 	bugs := game.notes(t)
 	require.Len(t, bugs, 1)
-	require.Len(t, bugs[0].GetAttachments(), 2, "the note says what it carries before a byte is uploaded")
+	require.Len(t, bugs[0].GetAttachments(), 2)
 	assert.Equal(t, "image/png", bugs[0].GetAttachments()[0].GetContentType())
 	assert.Equal(t, uint64(len(recording.body)), bugs[0].GetAttachments()[1].GetSizeBytes())
-	status, _ := opened(t, bugs[0].GetAttachments()[0])
-	assert.Equal(t, http.StatusNotFound, status, "not uploaded yet")
-
-	upload(t, uploads[0], screenshot)
-	upload(t, uploads[1], recording)
-
 	for n, sent := range []file{screenshot, recording} {
-		status, got := opened(t, game.notes(t)[0].GetAttachments()[n])
+		status, got := opened(t, bugs[0].GetAttachments()[n])
 		assert.Equal(t, http.StatusOK, status)
 		assert.Equal(t, sent, got)
 	}
@@ -151,46 +159,67 @@ func TestASuggestionCarriesFilesAsABugReportDoes(t *testing.T) {
 	game := startGame(t)
 	guest := game.newPlayer(t)
 
-	req := connect.NewRequest(&supportv1.SuggestFeatureRequest{Text: "a night mode", Attachments: declared([]file{screenshot})})
+	req := connect.NewRequest(&supportv1.SuggestFeatureRequest{Text: "a night mode", AttachmentIds: guest.uploaded(screenshot)})
 	guest.send(req.Header())
-	res, err := guest.support().SuggestFeature(t.Context(), req)
+	_, err := guest.support().SuggestFeature(t.Context(), req)
 	require.NoError(t, err)
-	require.Len(t, res.Msg.GetUploads(), 1)
-	upload(t, res.Msg.GetUploads()[0], screenshot)
 
 	status, got := opened(t, game.notes(t)[0].GetAttachments()[0])
 	assert.Equal(t, http.StatusOK, status)
 	assert.Equal(t, screenshot, got)
 }
 
-func TestFilesTheRulesDoNotTakeAreRefusedAndNoNoteIsKept(t *testing.T) {
+func TestANoteNamingAFileThatWasNeverUploadedIsRefusedAndNotKept(t *testing.T) {
+	game := startGame(t)
+	guest := game.newPlayer(t)
+	sent := guest.uploaded(screenshot)
+	never, err := guest.createUpload(recording)
+	require.NoError(t, err)
+
+	err = guest.reportBugWith("the globe is black", sent[0], never.GetAttachmentId())
+
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	assert.Empty(t, game.notes(t))
+}
+
+func TestAFileTheRulesDoNotTakeGetsNoUploadLink(t *testing.T) {
 	game := startGame(t)
 	guest := game.newPlayer(t)
 
+	_, err := guest.createUpload(file{contentType: "text/html", body: []byte("<script>")})
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "not a photo or a video")
+
+	_, err = guest.createUpload(file{contentType: "image/png"})
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "an empty file")
+
+	anonymous := connect.NewRequest(&supportv1.CreateUploadRequest{ContentType: "image/png", SizeBytes: 10})
+	anonymous.Header().Set("X-Real-IP", callerIP)
+	_, err = guest.support().CreateUpload(t.Context(), anonymous)
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err), "no session")
+}
+
+func TestOneFileTooManyIsRefusedAndNoNoteIsKept(t *testing.T) {
+	game := startGame(t)
+	guest := game.newPlayer(t)
 	eleven := make([]file, 11)
 	for n := range eleven {
 		eleven[n] = screenshot
 	}
-	_, err := guest.reportBugWith("the globe is black", eleven...)
-	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "one file too many")
 
-	_, err = guest.reportBugWith("the globe is black", file{contentType: "text/html", body: []byte("<script>")})
-	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "not a photo or a video")
+	err := guest.reportBugWith("the globe is black", guest.uploaded(eleven...)...)
 
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	assert.Empty(t, game.notes(t))
 }
 
 func TestADeletedAccountsNotesKeepTheirFilesAndNoLongerNameIt(t *testing.T) {
 	game := startGame(t)
 	leaving := game.newPlayer(t)
-	left, err := leaving.reportBugWith("the globe is black", screenshot, recording)
-	require.NoError(t, err)
-	upload(t, left[0], screenshot)
-	upload(t, left[1], recording)
+	require.NoError(t, leaving.reportBugWith("the globe is black", leaving.uploaded(screenshot, recording)...))
 
 	deletion := connect.NewRequest(&authv1.DeleteAccountRequest{})
 	leaving.send(deletion.Header())
-	_, err = authv1connect.NewAuthServiceClient(http.DefaultClient, game.baseURL).DeleteAccount(t.Context(), deletion)
+	_, err := authv1connect.NewAuthServiceClient(http.DefaultClient, game.baseURL).DeleteAccount(t.Context(), deletion)
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {

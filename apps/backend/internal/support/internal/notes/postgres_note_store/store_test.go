@@ -69,7 +69,7 @@ func (s *testSuite) kept() []notes.Snapshot {
 
 func (s *testSuite) attachmentsOf(note notes.NoteID) []notes.Attachment {
 	rows, err := s.db.QueryContext(s.T().Context(),
-		`SELECT position, media_type, size_bytes FROM attachments WHERE note_id = $1 ORDER BY position`, uuid.UUID(note))
+		`SELECT position, id, media_type, size_bytes FROM attachments WHERE note_id = $1 ORDER BY position`, uuid.UUID(note))
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 
@@ -77,12 +77,13 @@ func (s *testSuite) attachmentsOf(note notes.NoteID) []notes.Attachment {
 	for rows.Next() {
 		var (
 			position int
+			id       uuid.UUID
 			media    string
 			size     int64
 		)
-		s.Require().NoError(rows.Scan(&position, &media, &size))
+		s.Require().NoError(rows.Scan(&position, &id, &media, &size))
 		s.Require().Equal(len(files), position, "the positions count up from 0 with no gap")
-		files = append(files, notes.Attachment{MediaType: notes.MediaType(media), Size: size})
+		files = append(files, notes.Attachment{ID: notes.AttachmentID(id), MediaType: notes.MediaType(media), Size: size})
 	}
 	s.Require().NoError(rows.Err())
 	return files
@@ -147,8 +148,8 @@ func (s *testSuite) TestTheDatabaseRefusesAMediaTypeItsTypeDoesNotName() {
 	s.Require().NoError(postgres_note_store.New(s.db).Save(s.T().Context(), note))
 
 	_, err = s.db.ExecContext(s.T().Context(),
-		`INSERT INTO attachments (note_id, position, media_type, size_bytes) VALUES ($1, 0, 'image/svg+xml', 1)`,
-		uuid.UUID{15: 1})
+		`INSERT INTO attachments (note_id, position, id, media_type, size_bytes) VALUES ($1, 0, $2, 'image/svg+xml', 1)`,
+		uuid.UUID{15: 1}, uuid.New())
 
 	s.Require().ErrorContains(err, "media_type")
 }

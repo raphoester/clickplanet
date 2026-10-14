@@ -3,6 +3,7 @@ package notes_test
 import (
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -11,8 +12,8 @@ import (
 
 var (
 	rules = notes.AttachmentRules{MaxPerNote: 3, MaxBytes: 1000}
-	photo = notes.Attachment{MediaType: notes.MediaPNG, Size: 400}
-	video = notes.Attachment{MediaType: notes.MediaMP4, Size: 1000}
+	photo = notes.Attachment{ID: notes.AttachmentID{15: 1}, MediaType: notes.MediaPNG, Size: 400}
+	video = notes.Attachment{ID: notes.AttachmentID{15: 2}, MediaType: notes.MediaMP4, Size: 1000}
 )
 
 func sent(t *testing.T) notes.Note {
@@ -21,6 +22,12 @@ func sent(t *testing.T) notes.Note {
 	note, err := valid().Restore()
 	require.NoError(t, err)
 	return note
+}
+
+func photoNumbered(n byte) notes.Attachment {
+	file := photo
+	file.ID = notes.AttachmentID{14: 1, 15: n}
+	return file
 }
 
 func TestANoteCarriesTheFilesAttachedToItInTheirOrder(t *testing.T) {
@@ -47,13 +54,13 @@ func TestANoteWithNothingAttachedIsTheNoteItWas(t *testing.T) {
 }
 
 func TestTheRulesRefuseOneFileTooManyAndOneByteTooMany(t *testing.T) {
-	big := notes.Attachment{MediaType: notes.MediaMP4, Size: 1001}
+	big := notes.Attachment{ID: notes.AttachmentID{15: 9}, MediaType: notes.MediaMP4, Size: 1001}
 
 	for name, refused := range map[string]struct {
 		files []notes.Attachment
 		rules notes.AttachmentRules
 	}{
-		"four files":                {files: []notes.Attachment{photo, photo, photo, photo}, rules: rules},
+		"four files":                {files: []notes.Attachment{photoNumbered(1), photoNumbered(2), photoNumbered(3), photoNumbered(4)}, rules: rules},
 		"a file too big":            {files: []notes.Attachment{photo, big}, rules: rules},
 		"a file when none is taken": {files: []notes.Attachment{photo}, rules: notes.AttachmentRules{}},
 	} {
@@ -62,16 +69,17 @@ func TestTheRulesRefuseOneFileTooManyAndOneByteTooMany(t *testing.T) {
 		require.ErrorIs(t, err, notes.ErrInvalidAttachment, name)
 	}
 
-	_, err := sent(t).Attaching([]notes.Attachment{photo, video, photo}, rules)
+	_, err := sent(t).Attaching([]notes.Attachment{photo, video, photoNumbered(3)}, rules)
 	require.NoError(t, err, "three files, one of them at the limit")
 }
 
-func TestAFileOfAnUnknownTypeOrOfNoSizeIsNoAttachment(t *testing.T) {
+func TestAFileWithNoIDOfAnUnknownTypeOrOfNoSizeIsNoAttachment(t *testing.T) {
 	for name, file := range map[string]notes.Attachment{
-		"a drawing that can run scripts": {MediaType: "image/svg+xml", Size: 10},
-		"no type":                        {Size: 10},
-		"no size":                        {MediaType: notes.MediaPNG},
-		"a size below zero":              {MediaType: notes.MediaPNG, Size: -1},
+		"no id":                          {MediaType: notes.MediaPNG, Size: 10},
+		"a drawing that can run scripts": {ID: notes.AttachmentID{15: 1}, MediaType: "image/svg+xml", Size: 10},
+		"no type":                        {ID: notes.AttachmentID{15: 1}, Size: 10},
+		"no size":                        {ID: notes.AttachmentID{15: 1}, MediaType: notes.MediaPNG},
+		"a size below zero":              {ID: notes.AttachmentID{15: 1}, MediaType: notes.MediaPNG, Size: -1},
 	} {
 		_, err := sent(t).Attaching([]notes.Attachment{file}, rules)
 		require.ErrorIs(t, err, notes.ErrInvalidAttachment, name)
@@ -80,17 +88,53 @@ func TestAFileOfAnUnknownTypeOrOfNoSizeIsNoAttachment(t *testing.T) {
 		kept.Attachments = []notes.Attachment{file}
 		_, err = kept.Restore()
 		require.ErrorIs(t, err, notes.ErrInvalidAttachment, name)
+
+		require.ErrorIs(t, rules.UploadError(file), notes.ErrInvalidAttachment, name)
 	}
+}
+
+func TestOneFileIsAttachedOnceToANote(t *testing.T) {
+	_, err := sent(t).Attaching([]notes.Attachment{photo, video, photo}, rules)
+
+	require.ErrorIs(t, err, notes.ErrInvalidAttachment)
 }
 
 func TestANoteKeptWithMoreThanTheRulesNowTakeIsStillRestored(t *testing.T) {
 	kept := valid()
-	kept.Attachments = []notes.Attachment{{MediaType: notes.MediaMP4, Size: 1 << 40}, photo, photo, photo, photo}
+	kept.Attachments = []notes.Attachment{
+		{ID: notes.AttachmentID{15: 9}, MediaType: notes.MediaMP4, Size: 1 << 40},
+		photoNumbered(1), photoNumbered(2), photoNumbered(3), photoNumbered(4),
+	}
 
 	note, err := kept.Restore()
 
 	require.NoError(t, err)
 	assert.Equal(t, kept, note.TakeSnapshot())
+}
+
+func TestAFileIsUploadedWhenTheRulesWouldTakeItInANote(t *testing.T) {
+	require.NoError(t, rules.UploadError(photo))
+	require.NoError(t, rules.UploadError(video), "a file at the limit")
+
+	bigger := video
+	bigger.Size++
+	require.ErrorIs(t, rules.UploadError(bigger), notes.ErrInvalidAttachment)
+	require.ErrorIs(t, notes.AttachmentRules{}.UploadError(photo), notes.ErrInvalidAttachment, "a server that takes no file")
+}
+
+func TestAnAttachmentIDIsReadFromItsText(t *testing.T) {
+	id := uuid.New()
+
+	read, err := notes.AttachmentIDOf(id.String())
+
+	require.NoError(t, err)
+	assert.Equal(t, notes.AttachmentID(id), read)
+	assert.Equal(t, id.String(), read.String())
+
+	for _, text := range []string{"", "a file", uuid.Nil.String()} {
+		_, err := notes.AttachmentIDOf(text)
+		require.ErrorIs(t, err, notes.ErrInvalidAttachment, text)
+	}
 }
 
 func TestEveryMediaTypeIsAPhotoOrAVideoAndTheListIsACopy(t *testing.T) {

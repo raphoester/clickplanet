@@ -25,7 +25,10 @@ var (
 		Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, ConnectionDown: true, UserAgent: "Mozilla/5.0 (iPhone)",
 	}
 	rules = notes.AttachmentRules{MaxPerNote: 2, MaxBytes: 1000}
-	files = []notes.Attachment{{MediaType: notes.MediaPNG, Size: 400}, {MediaType: notes.MediaMP4, Size: 1000}}
+	files = []notes.Attachment{
+		{ID: notes.AttachmentID{0: 0xa, 15: 1}, MediaType: notes.MediaPNG, Size: 400},
+		{ID: notes.AttachmentID{0: 0xa, 15: 2}, MediaType: notes.MediaMP4, Size: 1000},
+	}
 )
 
 type failingIDs struct{}
@@ -51,59 +54,71 @@ func (s *testSuite) build(ids notes.IDProvider) *report_bug_usecase.UseCase {
 }
 
 func (s *testSuite) TestABugReportIsKeptCleanedWithAnIDTheTimeAndItsDiagnostics() {
-	out, err := s.useCase.Execute(s.T().Context(),
+	err := s.useCase.Execute(s.T().Context(),
 		report_bug_usecase.In{Account: ada, Text: "  the globe is black  ", Diagnostics: phone})
 	s.Require().NoError(err)
 
-	s.Empty(out.UploadURLs, "no file, no link")
 	s.Equal([]notes.Snapshot{{
 		ID: notes.NoteID{15: 1}, Kind: notes.KindBug, Account: ada, Text: "the globe is black", Diagnostics: phone, At: now,
 	}}, s.notes.Kept())
 }
 
-func (s *testSuite) TestABugReportIsKeptWithItsFilesAndAnswersOneUploadLinkEachInTheirOrder() {
-	out, err := s.useCase.Execute(s.T().Context(),
-		report_bug_usecase.In{Account: ada, Text: "the globe is black", Attachments: files})
+func (s *testSuite) TestABugReportIsKeptWithTheFilesTheBucketHoldsInTheOrderNamed() {
+	s.bucket.Put(files...)
+
+	err := s.useCase.Execute(s.T().Context(),
+		report_bug_usecase.In{Account: ada, Text: "the globe is black", Attachments: []notes.AttachmentID{files[1].ID, files[0].ID}})
 	s.Require().NoError(err)
 
-	s.Equal([]string{
-		inmemory_attachment_bucket.URL(notes.NoteID{15: 1}, 0), inmemory_attachment_bucket.URL(notes.NoteID{15: 1}, 1),
-	}, out.UploadURLs)
 	s.Equal([]notes.Snapshot{{
-		ID: notes.NoteID{15: 1}, Kind: notes.KindBug, Account: ada, Text: "the globe is black", Attachments: files, At: now,
+		ID: notes.NoteID{15: 1}, Kind: notes.KindBug, Account: ada, Text: "the globe is black",
+		Attachments: []notes.Attachment{files[1], files[0]}, At: now,
 	}}, s.notes.Kept())
 }
 
-func (s *testSuite) TestFilesTheRulesDoNotTakeAreRefusedAndNothingIsKept() {
-	tooMany := append(append([]notes.Attachment{}, files...), files[0])
+func (s *testSuite) TestAFileTheBucketDoesNotHoldIsRefusedAndNothingIsKept() {
+	s.bucket.Put(files[0])
 
-	_, err := s.useCase.Execute(s.T().Context(),
-		report_bug_usecase.In{Account: ada, Text: "the globe is black", Attachments: tooMany})
+	err := s.useCase.Execute(s.T().Context(),
+		report_bug_usecase.In{Account: ada, Text: "the globe is black", Attachments: []notes.AttachmentID{files[0].ID, files[1].ID}})
+
+	s.Require().ErrorIs(err, notes.ErrNotUploaded)
+	s.Empty(s.notes.Kept())
+}
+
+func (s *testSuite) TestFilesTheRulesDoNotTakeAreRefusedAndNothingIsKept() {
+	third := notes.Attachment{ID: notes.AttachmentID{0: 0xa, 15: 3}, MediaType: notes.MediaPNG, Size: 10}
+	s.bucket.Put(append(append([]notes.Attachment{}, files...), third)...)
+
+	err := s.useCase.Execute(s.T().Context(), report_bug_usecase.In{
+		Account: ada, Text: "the globe is black", Attachments: []notes.AttachmentID{files[0].ID, files[1].ID, third.ID},
+	})
 
 	s.Require().ErrorIs(err, notes.ErrInvalidAttachment)
 	s.Empty(s.notes.Kept())
 }
 
-func (s *testSuite) TestABugReportWhoseUploadLinksCannotBeMadeIsNotKept() {
-	cause := errors.New("no bucket")
+func (s *testSuite) TestABugReportWhoseFilesCannotBeReadIsNotKept() {
+	s.bucket.Put(files...)
+	cause := errors.New("the bucket is down")
 	s.bucket.FailWith(cause)
 
-	_, err := s.useCase.Execute(s.T().Context(),
-		report_bug_usecase.In{Account: ada, Text: "the globe is black", Attachments: files})
+	err := s.useCase.Execute(s.T().Context(),
+		report_bug_usecase.In{Account: ada, Text: "the globe is black", Attachments: []notes.AttachmentID{files[0].ID}})
 
 	s.Require().ErrorIs(err, cause)
 	s.Empty(s.notes.Kept())
 }
 
 func (s *testSuite) TestAnInvalidTextIsRefusedAndNothingIsKept() {
-	_, err := s.useCase.Execute(s.T().Context(), report_bug_usecase.In{Account: ada, Text: "   ", Diagnostics: phone})
+	err := s.useCase.Execute(s.T().Context(), report_bug_usecase.In{Account: ada, Text: "   ", Diagnostics: phone})
 
 	s.Require().ErrorIs(err, notes.ErrInvalidText)
 	s.Empty(s.notes.Kept())
 }
 
 func (s *testSuite) TestABugReportWithNoIDIsNotKept() {
-	_, err := s.build(failingIDs{}).Execute(s.T().Context(), report_bug_usecase.In{Account: ada, Text: "the globe is black"})
+	err := s.build(failingIDs{}).Execute(s.T().Context(), report_bug_usecase.In{Account: ada, Text: "the globe is black"})
 
 	s.Require().Error(err)
 	s.NotErrorIs(err, notes.ErrInvalidText)
@@ -114,7 +129,7 @@ func (s *testSuite) TestABugReportThatCannotBeKeptFails() {
 	cause := errors.New("postgres is down")
 	s.notes.FailWith(cause)
 
-	_, err := s.useCase.Execute(s.T().Context(), report_bug_usecase.In{Account: ada, Text: "the globe is black"})
+	err := s.useCase.Execute(s.T().Context(), report_bug_usecase.In{Account: ada, Text: "the globe is black"})
 
 	s.Require().ErrorIs(err, cause)
 }

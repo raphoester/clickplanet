@@ -1,6 +1,5 @@
 import {
     AttachmentRules,
-    AttachmentUpload,
     PageContext,
     PlayerReport,
     SupportBackend,
@@ -15,9 +14,8 @@ export type FakeSupportRefusal = "rate-limited" | "rejected" | "no-session" | "r
 
 type FakeNoteKind = "suggestion" | "bug"
 
-// uploaded: the place in attachments of each file that went up.
 export type FakeSupportNote =
-    | {kind: FakeNoteKind, text: string, context: PageContext, attachments: Blob[], uploaded: number[]}
+    | {kind: FakeNoteKind, text: string, context: PageContext, attachmentIds: string[]}
     | {kind: "report", report: PlayerReport}
 
 const ANSWER_DELAY_MS = 400
@@ -35,6 +33,9 @@ const FAKE_RULES: AttachmentRules = {
 export class FakeSupportBackend implements SupportBackend {
     public readonly sent: FakeSupportNote[] = []
 
+    // A file's id is fake-file- and its place here.
+    public readonly uploaded: Blob[] = []
+
     public rules: AttachmentRules = FAKE_RULES
 
     private refusal?: FakeSupportRefusal
@@ -47,36 +48,31 @@ export class FakeSupportBackend implements SupportBackend {
         return refusal ? `the next sends are refused: ${refusal}` : "the next sends go through"
     }
 
-    public suggestFeature(text: string, context: PageContext, attachments: Blob[] = []): Promise<AttachmentUpload[]> {
-        return this.keep("suggestion", text, context, attachments)
+    public suggestFeature(text: string, context: PageContext, attachmentIds: string[] = []): Promise<void> {
+        return this.keep("suggestion", text, context, attachmentIds)
     }
 
-    public reportBug(text: string, context: PageContext, attachments: Blob[] = []): Promise<AttachmentUpload[]> {
-        return this.keep("bug", text, context, attachments)
+    public reportBug(text: string, context: PageContext, attachmentIds: string[] = []): Promise<void> {
+        return this.keep("bug", text, context, attachmentIds)
     }
 
     public async attachmentRules(): Promise<AttachmentRules> {
         return this.rules
     }
 
-    public async uploadAttachment(upload: AttachmentUpload, _file: Blob, {onProgress, signal}: UploadOptions = {}): Promise<void> {
-        const [note, place] = upload.url.replace("fake://", "").split("/").map(Number)
-
+    public async uploadAttachment(file: Blob, {onProgress, signal}: UploadOptions = {}): Promise<string> {
         for (let step = 1; step <= UPLOAD_STEPS; step++) {
             await new Promise((resolve) => setTimeout(resolve, this.delayMs / 2))
             if (signal?.aborted) throw new Error("the upload was called off")
             if (this.refusal === "upload-failed" && step === UPLOAD_STEPS / 2) throw new Error("the fake upload failed")
             onProgress?.(step / UPLOAD_STEPS)
         }
-        const kept = this.sent[note]
-        if (kept.kind !== "report") kept.uploaded.push(place)
+        return `fake-file-${this.uploaded.push(file) - 1}`
     }
 
-    private async keep(kind: FakeNoteKind, text: string, context: PageContext, attachments: Blob[]): Promise<AttachmentUpload[]> {
+    private async keep(kind: FakeNoteKind, text: string, context: PageContext, attachmentIds: string[]): Promise<void> {
         await this.answer()
-
-        const note = this.sent.push({kind, text, context, attachments, uploaded: []}) - 1
-        return attachments.map((_, place) => ({url: `fake://${note}/${place}`}))
+        this.sent.push({kind, text, context, attachmentIds})
     }
 
     public async reportPlayer(report: PlayerReport): Promise<void> {

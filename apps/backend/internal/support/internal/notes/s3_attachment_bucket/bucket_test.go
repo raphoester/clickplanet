@@ -42,7 +42,6 @@ type testSuite struct {
 
 	config s3_attachment_bucket.Config
 	bucket *s3_attachment_bucket.Bucket
-	notes  byte
 }
 
 func (s *testSuite) SetupSuite() {
@@ -73,28 +72,13 @@ func (s *testSuite) SetupSuite() {
 }
 
 func (s *testSuite) bucketOf(config s3_attachment_bucket.Config, clock cptime.Clock) *s3_attachment_bucket.Bucket {
-	bucket, err := s3_attachment_bucket.New(config, lifetimes, clock)
+	bucket, err := s3_attachment_bucket.New(config, lifetimes, clock, http.DefaultClient)
 	s.Require().NoError(err)
 	return bucket
 }
 
-func (s *testSuite) carrying(files ...[]byte) notes.Note {
-	s.notes++
-	snapshot := notes.Snapshot{
-		ID: notes.NoteID(uuid.New()), Kind: notes.KindBug, Account: notes.AccountID{15: s.notes},
-		Text: "the globe is black", At: time.Now(),
-	}
-	for n, file := range files {
-		media := notes.MediaPNG
-		if n%2 == 1 {
-			media = notes.MediaMP4
-		}
-		snapshot.Attachments = append(snapshot.Attachments, notes.Attachment{MediaType: media, Size: int64(len(file))})
-	}
-
-	note, err := snapshot.Restore()
-	s.Require().NoError(err)
-	return note
+func fileOf(media notes.MediaType, body []byte) notes.Attachment {
+	return notes.Attachment{ID: notes.AttachmentID(uuid.New()), MediaType: media, Size: int64(len(body))}
 }
 
 func (s *testSuite) put(link string, contentType string, body []byte) int {
@@ -108,8 +92,8 @@ func (s *testSuite) put(link string, contentType string, body []byte) int {
 	return res.StatusCode
 }
 
-func (s *testSuite) view(note notes.Note, position int) (int, string, []byte) {
-	link, err := s.bucket.ViewURL(uuid.UUID(note.TakeSnapshot().ID).String(), position)
+func (s *testSuite) view(file notes.Attachment) (int, string, []byte) {
+	link, err := s.bucket.ViewURL(file.ID.String())
 	s.Require().NoError(err)
 
 	req, err := http.NewRequestWithContext(s.T().Context(), http.MethodGet, link, nil)
@@ -123,74 +107,95 @@ func (s *testSuite) view(note notes.Note, position int) (int, string, []byte) {
 	return res.StatusCode, res.Header.Get("Content-Type"), body
 }
 
-func (s *testSuite) uploaded(files ...[]byte) notes.Note {
-	note := s.carrying(files...)
-	links, err := s.bucket.UploadURLs(note)
+func (s *testSuite) uploaded(media notes.MediaType, body []byte) notes.Attachment {
+	file := fileOf(media, body)
+	link, err := s.bucket.UploadURL(file)
 	s.Require().NoError(err)
-	s.Require().Len(links, len(files))
-
-	for n, file := range files {
-		s.Require().Equal(http.StatusOK, s.put(links[n], string(note.TakeSnapshot().Attachments[n].MediaType), file))
-	}
-	return note
+	s.Require().Equal(http.StatusOK, s.put(link, string(media), body))
+	return file
 }
 
-func (s *testSuite) TestEachFileGoesUpThroughItsLinkAndComesBackThroughItsViewLink() {
-	note := s.uploaded(png, mp4)
+func (s *testSuite) TestAFileGoesUpThroughItsLinkAndComesBackThroughItsViewLink() {
+	photo, video := s.uploaded(notes.MediaPNG, png), s.uploaded(notes.MediaMP4, mp4)
 
-	status, contentType, body := s.view(note, 0)
+	status, contentType, body := s.view(photo)
 	s.Equal(http.StatusOK, status)
 	s.Equal("image/png", contentType)
 	s.Equal(png, body)
 
-	status, contentType, body = s.view(note, 1)
+	status, contentType, body = s.view(video)
 	s.Equal(http.StatusOK, status)
 	s.Equal("video/mp4", contentType)
 	s.Equal(mp4, body)
 }
 
-func (s *testSuite) TestALinkTakesNoOtherSizeAndNoOtherTypeThanItsAttachment() {
-	note := s.carrying(png)
-	links, err := s.bucket.UploadURLs(note)
+func (s *testSuite) TestALinkTakesNoOtherSizeAndNoOtherTypeThanItsFile() {
+	file := fileOf(notes.MediaPNG, png)
+	link, err := s.bucket.UploadURL(file)
 	s.Require().NoError(err)
 
-	s.Equal(http.StatusForbidden, s.put(links[0], "image/png", append(bytes.Clone(png), '!')), "one byte more")
-	s.Equal(http.StatusForbidden, s.put(links[0], "image/png", png[:len(png)-1]), "one byte less")
-	s.Equal(http.StatusForbidden, s.put(links[0], "text/html", png), "another type")
+	s.Equal(http.StatusForbidden, s.put(link, "image/png", append(bytes.Clone(png), '!')), "one byte more")
+	s.Equal(http.StatusForbidden, s.put(link, "image/png", png[:len(png)-1]), "one byte less")
+	s.Equal(http.StatusForbidden, s.put(link, "text/html", png), "another type")
 
-	status, _, _ := s.view(note, 0)
+	status, _, _ := s.view(file)
 	s.Equal(http.StatusNotFound, status, "nothing was kept")
 }
 
-func (s *testSuite) TestTheViewLinkOfAFileThatWasNeverUploadedAnswersNotFound() {
-	status, _, _ := s.view(s.carrying(png), 0)
+func (s *testSuite) TestTheBucketSaysTheTypeAndTheSizeOfEachFileItHoldsInTheOrderAsked() {
+	photo, video := s.uploaded(notes.MediaPNG, png), s.uploaded(notes.MediaMP4, mp4)
 
+	held, err := s.bucket.Attachments(s.T().Context(), video.ID, photo.ID)
+
+	s.Require().NoError(err)
+	s.Equal([]notes.Attachment{video, photo}, held)
+}
+
+func (s *testSuite) TestAFileThatWasNeverUploadedIsNotHeld() {
+	photo := s.uploaded(notes.MediaPNG, png)
+
+	_, err := s.bucket.Attachments(s.T().Context(), photo.ID, fileOf(notes.MediaMP4, mp4).ID)
+
+	s.Require().ErrorIs(err, notes.ErrNotUploaded)
+	status, _, _ := s.view(fileOf(notes.MediaPNG, png))
 	s.Equal(http.StatusNotFound, status)
 }
 
 func (s *testSuite) TestALinkPastItsTimeIsRefused() {
 	late := s.bucketOf(s.config, cptime.NewFixedClock(time.Now().Add(-time.Hour)))
-	note := s.carrying(png)
-	links, err := late.UploadURLs(note)
+	link, err := late.UploadURL(fileOf(notes.MediaPNG, png))
 	s.Require().NoError(err)
 
-	s.Equal(http.StatusForbidden, s.put(links[0], "image/png", png))
+	s.Equal(http.StatusForbidden, s.put(link, "image/png", png))
 }
 
-func (s *testSuite) TestABucketWithAnotherSecretUploadsAndViewsNothing() {
-	note := s.uploaded(png)
+func (s *testSuite) TestABucketWithAnotherSecretUploadsViewsAndReadsNothing() {
+	photo := s.uploaded(notes.MediaPNG, png)
 	wrong := s.config
 	wrong.SecretAccessKey = "another-secret"
 	stranger := s.bucketOf(wrong, cptime.SystemClock{})
 
-	links, err := stranger.UploadURLs(note)
+	link, err := stranger.UploadURL(fileOf(notes.MediaPNG, png))
 	s.Require().NoError(err)
-	s.Equal(http.StatusForbidden, s.put(links[0], "image/png", png))
+	s.Equal(http.StatusForbidden, s.put(link, "image/png", png))
 
-	link, err := stranger.ViewURL(uuid.UUID(note.TakeSnapshot().ID).String(), 0)
+	view, err := stranger.ViewURL(photo.ID.String())
 	s.Require().NoError(err)
-	res, err := http.Get(link) //nolint:noctx,gosec // a link this test just made.
+	res, err := http.Get(view) //nolint:noctx,gosec // a link this test just made.
 	s.Require().NoError(err)
 	s.Require().NoError(res.Body.Close())
 	s.Equal(http.StatusForbidden, res.StatusCode)
+
+	_, err = stranger.Attachments(s.T().Context(), photo.ID)
+	s.Require().ErrorContains(err, "403")
+	s.Require().NotErrorIs(err, notes.ErrNotUploaded)
+}
+
+func (s *testSuite) TestABucketThatCannotBeReachedSaysSo() {
+	away := s.config
+	away.Endpoint = "http://127.0.0.1:1"
+
+	_, err := s.bucketOf(away, cptime.SystemClock{}).Attachments(s.T().Context(), fileOf(notes.MediaPNG, png).ID)
+
+	s.Require().ErrorContains(err, "reach the bucket")
 }

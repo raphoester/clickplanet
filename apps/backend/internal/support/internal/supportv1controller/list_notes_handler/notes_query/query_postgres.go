@@ -31,7 +31,7 @@ var kinds = map[string]supportv1.NoteKind{
 }
 
 type Links interface {
-	ViewURL(note string, position int) (string, error)
+	ViewURL(attachment string) (string, error)
 }
 
 func NewPostgresQuery(db cppg.Querier, links Links) *PostgresQuery {
@@ -49,7 +49,7 @@ const notes = `
 		id, kind, COALESCE(account_id::text, ''), text, submitted_at,
 		diagnostics, COALESCE(diagnostics->>'userAgent', ''),
 		COALESCE((
-			SELECT json_agg(json_build_object('contentType', media_type, 'sizeBytes', size_bytes) ORDER BY position)
+			SELECT json_agg(json_build_object('id', id, 'contentType', media_type, 'sizeBytes', size_bytes) ORDER BY position)
 			FROM attachments
 			WHERE note_id = notes.id
 		), '[]')
@@ -114,6 +114,7 @@ func (q *PostgresQuery) Notes(
 }
 
 type attachment struct {
+	ID          string `json:"id"`
 	ContentType string `json:"contentType"`
 	SizeBytes   uint64 `json:"sizeBytes"`
 }
@@ -125,10 +126,10 @@ func (q *PostgresQuery) attachments(note string, stored []byte) ([]*supportv1.No
 	}
 
 	var attachments []*supportv1.NoteAttachment
-	for position, file := range files {
-		link, err := q.links.ViewURL(note, position)
+	for _, file := range files {
+		link, err := q.links.ViewURL(file.ID)
 		if err != nil {
-			return nil, fmt.Errorf("failed to make the link to the attachment %d of the note %s: %w", position, note, err)
+			return nil, fmt.Errorf("failed to make the link to the attachment %s of the note %s: %w", file.ID, note, err)
 		}
 		attachments = append(attachments, &supportv1.NoteAttachment{
 			ContentType: file.ContentType, SizeBytes: file.SizeBytes, Url: link,

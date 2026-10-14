@@ -69,10 +69,11 @@ close nothing, for the bubble that says so, and `closeShapes(true)` puts it back
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
 `"reported-already"`, `"failed"`) refuses what Settings and a player's card
-send next, `fakeSupport.refuse("upload-failed")` keeps the note
-and fails each of its files half way up, and `fakeSupport.refuse()` takes it all
-again; `fakeSupport.sent` is what it took, with the files of each note and which
-were uploaded. `fakeSupport.rules.maxPerNote = 0` is a server that takes no file.
+send next, `fakeSupport.refuse("upload-failed")` fails each file half way up,
+and `fakeSupport.refuse()` takes it all again; `fakeSupport.sent` is what it
+took, with the ids of each note's files, and `fakeSupport.uploaded` the files
+behind those ids (`fake-file-<n>` is its place there).
+`fakeSupport.rules.maxPerNote = 0` is a server that takes no file.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` runs chat (it is always on), and the Go server answers
@@ -1039,10 +1040,13 @@ the pick. See the backend's CLAUDE.md (Support) for where they are kept.
   more, so a server with no bucket, an older server (it answers
   `unimplemented`) and a read that failed all give the plain form. No limit is
   written on this side.
-- **The note first, the files after.** A send declares the type and the size of
-  each file and is answered one `AttachmentUpload` per file, in order: a link
-  signed for that type and that size. The form then sends each file to its link,
-  one at a time. So the text is kept even when a video fails on a phone.
+- **The files first, the note after.** Send uploads each file in turn, then
+  sends the note with the id of every one (`attachmentIds`): a note never
+  reaches the operator without the files that explain it. `uploadAttachment`
+  is two calls: `CreateUpload` (the type and the size, with the click token)
+  answers an id and a link signed for that type and that size, and the file is
+  put there. The server checks each id is in the bucket before it keeps the
+  note.
 - **`putFile` is one `PUT` straight to the bucket**, over `XMLHttpRequest`:
   `fetch` says nothing while a body goes up, and a 50 MB video on a phone needs a
   bar. It sets the `Content-Type` the link was signed for; with another one the
@@ -1053,16 +1057,20 @@ the pick. See the backend's CLAUDE.md (Support) for where they are kept.
   not a photo or a video. `sizeLine` writes a size.
 - `app/support/Attachments.tsx` — `AttachmentPicker` (the button, a hidden file
   input with the server's types as `accept`, the list with a thumbnail, the size
-  and a remove button) and `UploadList` (each file's bar, then its mark). **A
-  picture pasted into the text is a file too.** A photo the browser cannot draw
-  (HEIC outside Safari) gets the plain mark.
-- **Once the note is kept the form says so and shows the files going up.** The
-  footer is "Uploading…" until the last one lands, and a click beside the form
-  does not close it. A file that did not upload is marked, the line says how
-  many, and "Try again" sends those alone to the same links.
-- **Closing the form calls the uploads off** (an `AbortController` made in an
-  effect). Made once per component, React's StrictMode aborted it before the
-  form was ever used, and every upload in `npm run dev` stopped at 0%.
+  and a remove button), each with its bar while it goes up and a tick once it
+  is up. **A picture pasted into the text is a file too.** A photo the browser
+  cannot draw (HEIC outside Safari) gets the plain mark.
+- **The form shows each file going up.** The footer is "Uploading 2 of 3…", the
+  text is read-only, the files cannot be taken off, and a click beside the form
+  does not close it. A file that did not upload stops the send and is named in
+  one line; Send again goes on from it. **A file already up is not sent again**
+  (`NoteModal` keeps each one's id), on a failed upload or a refused note
+  alike.
+- **Closing the form calls the upload off and sends nothing** (an
+  `AbortController` made in an effect). Made once per component, React's
+  StrictMode aborted it before the form was ever used, and every upload in
+  `npm run dev` stopped at 0%. A file already up stays in the bucket, named by
+  no note.
 - The fake uploads in eight steps, so the bar moves in dev.
 
 ### Titles

@@ -77,10 +77,11 @@ func (ReportReason) EnumDescriptor() ([]byte, []int) {
 }
 
 type SuggestFeatureRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
-	Context       *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
-	Attachments   []*Attachment          `protobuf:"bytes,3,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Text    string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Context *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	// Each one from CreateUpload, and uploaded before the note is sent.
+	AttachmentIds []string `protobuf:"bytes,3,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -129,17 +130,15 @@ func (x *SuggestFeatureRequest) GetContext() *PageContext {
 	return nil
 }
 
-func (x *SuggestFeatureRequest) GetAttachments() []*Attachment {
+func (x *SuggestFeatureRequest) GetAttachmentIds() []string {
 	if x != nil {
-		return x.Attachments
+		return x.AttachmentIds
 	}
 	return nil
 }
 
 type SuggestFeatureResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// One per attachment of the request, in its order.
-	Uploads       []*Upload `protobuf:"bytes,1,rep,name=uploads,proto3" json:"uploads,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -174,18 +173,12 @@ func (*SuggestFeatureResponse) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SuggestFeatureResponse) GetUploads() []*Upload {
-	if x != nil {
-		return x.Uploads
-	}
-	return nil
-}
-
 type ReportBugRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
-	Context       *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
-	Attachments   []*Attachment          `protobuf:"bytes,3,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Text    string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Context *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	// Each one from CreateUpload, and uploaded before the note is sent.
+	AttachmentIds []string `protobuf:"bytes,3,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -234,17 +227,15 @@ func (x *ReportBugRequest) GetContext() *PageContext {
 	return nil
 }
 
-func (x *ReportBugRequest) GetAttachments() []*Attachment {
+func (x *ReportBugRequest) GetAttachmentIds() []string {
 	if x != nil {
-		return x.Attachments
+		return x.AttachmentIds
 	}
 	return nil
 }
 
 type ReportBugResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// One per attachment of the request, in its order.
-	Uploads       []*Upload `protobuf:"bytes,1,rep,name=uploads,proto3" json:"uploads,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -279,15 +270,7 @@ func (*ReportBugResponse) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ReportBugResponse) GetUploads() []*Upload {
-	if x != nil {
-		return x.Uploads
-	}
-	return nil
-}
-
-// A photo or a video the page uploads once its note is kept.
-type Attachment struct {
+type CreateUploadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ContentType   string                 `protobuf:"bytes,1,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
 	SizeBytes     uint64                 `protobuf:"varint,2,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
@@ -295,20 +278,20 @@ type Attachment struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Attachment) Reset() {
-	*x = Attachment{}
+func (x *CreateUploadRequest) Reset() {
+	*x = CreateUploadRequest{}
 	mi := &file_support_v1_support_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Attachment) String() string {
+func (x *CreateUploadRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Attachment) ProtoMessage() {}
+func (*CreateUploadRequest) ProtoMessage() {}
 
-func (x *Attachment) ProtoReflect() protoreflect.Message {
+func (x *CreateUploadRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_support_v1_support_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -320,47 +303,49 @@ func (x *Attachment) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Attachment.ProtoReflect.Descriptor instead.
-func (*Attachment) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateUploadRequest.ProtoReflect.Descriptor instead.
+func (*CreateUploadRequest) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *Attachment) GetContentType() string {
+func (x *CreateUploadRequest) GetContentType() string {
 	if x != nil {
 		return x.ContentType
 	}
 	return ""
 }
 
-func (x *Attachment) GetSizeBytes() uint64 {
+func (x *CreateUploadRequest) GetSizeBytes() uint64 {
 	if x != nil {
 		return x.SizeBytes
 	}
 	return 0
 }
 
-type Upload struct {
+type CreateUploadResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Takes one PUT of the file, with the Content-Type and the size the attachment was declared with.
-	Url           string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// What a note names the file by.
+	AttachmentId string `protobuf:"bytes,1,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`
+	// Takes one PUT of the file, with the Content-Type and the size the request declared.
+	Url           string `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Upload) Reset() {
-	*x = Upload{}
+func (x *CreateUploadResponse) Reset() {
+	*x = CreateUploadResponse{}
 	mi := &file_support_v1_support_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Upload) String() string {
+func (x *CreateUploadResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Upload) ProtoMessage() {}
+func (*CreateUploadResponse) ProtoMessage() {}
 
-func (x *Upload) ProtoReflect() protoreflect.Message {
+func (x *CreateUploadResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_support_v1_support_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -372,12 +357,19 @@ func (x *Upload) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Upload.ProtoReflect.Descriptor instead.
-func (*Upload) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateUploadResponse.ProtoReflect.Descriptor instead.
+func (*CreateUploadResponse) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *Upload) GetUrl() string {
+func (x *CreateUploadResponse) GetAttachmentId() string {
+	if x != nil {
+		return x.AttachmentId
+	}
+	return ""
+}
+
+func (x *CreateUploadResponse) GetUrl() string {
 	if x != nil {
 		return x.Url
 	}
@@ -733,26 +725,24 @@ var File_support_v1_support_proto protoreflect.FileDescriptor
 const file_support_v1_support_proto_rawDesc = "" +
 	"\n" +
 	"\x18support/v1/support.proto\x12\n" +
-	"support.v1\"\x98\x01\n" +
+	"support.v1\"\x85\x01\n" +
 	"\x15SuggestFeatureRequest\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x121\n" +
-	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\x128\n" +
-	"\vattachments\x18\x03 \x03(\v2\x16.support.v1.AttachmentR\vattachments\"F\n" +
-	"\x16SuggestFeatureResponse\x12,\n" +
-	"\auploads\x18\x01 \x03(\v2\x12.support.v1.UploadR\auploads\"\x93\x01\n" +
+	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\x12%\n" +
+	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\"\x18\n" +
+	"\x16SuggestFeatureResponse\"\x80\x01\n" +
 	"\x10ReportBugRequest\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x121\n" +
-	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\x128\n" +
-	"\vattachments\x18\x03 \x03(\v2\x16.support.v1.AttachmentR\vattachments\"A\n" +
-	"\x11ReportBugResponse\x12,\n" +
-	"\auploads\x18\x01 \x03(\v2\x12.support.v1.UploadR\auploads\"N\n" +
-	"\n" +
-	"Attachment\x12!\n" +
+	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\x12%\n" +
+	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\"\x13\n" +
+	"\x11ReportBugResponse\"W\n" +
+	"\x13CreateUploadRequest\x12!\n" +
 	"\fcontent_type\x18\x01 \x01(\tR\vcontentType\x12\x1d\n" +
 	"\n" +
-	"size_bytes\x18\x02 \x01(\x04R\tsizeBytes\"\x1a\n" +
-	"\x06Upload\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url\"\x1b\n" +
+	"size_bytes\x18\x02 \x01(\x04R\tsizeBytes\"M\n" +
+	"\x14CreateUploadResponse\x12#\n" +
+	"\rattachment_id\x18\x01 \x01(\tR\fattachmentId\x12\x10\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\"\x1b\n" +
 	"\x19GetAttachmentRulesRequest\"\x80\x01\n" +
 	"\x1aGetAttachmentRulesResponse\x12 \n" +
 	"\fmax_per_note\x18\x01 \x01(\rR\n" +
@@ -788,12 +778,13 @@ const file_support_v1_support_proto_rawDesc = "" +
 	"\x16REPORT_REASON_CHEATING\x10\x01\x12\x1c\n" +
 	"\x18REPORT_REASON_CHAT_ABUSE\x10\x02\x12\x1a\n" +
 	"\x16REPORT_REASON_BAD_NAME\x10\x03\x12\x17\n" +
-	"\x13REPORT_REASON_OTHER\x10\x042\xf0\x02\n" +
+	"\x13REPORT_REASON_OTHER\x10\x042\xc3\x03\n" +
 	"\x0eSupportService\x12W\n" +
 	"\x0eSuggestFeature\x12!.support.v1.SuggestFeatureRequest\x1a\".support.v1.SuggestFeatureResponse\x12H\n" +
 	"\tReportBug\x12\x1c.support.v1.ReportBugRequest\x1a\x1d.support.v1.ReportBugResponse\x12Q\n" +
 	"\fReportPlayer\x12\x1f.support.v1.ReportPlayerRequest\x1a .support.v1.ReportPlayerResponse\x12h\n" +
-	"\x12GetAttachmentRules\x12%.support.v1.GetAttachmentRulesRequest\x1a&.support.v1.GetAttachmentRulesResponse\"\x03\x90\x02\x01B\xbb\x01\n" +
+	"\x12GetAttachmentRules\x12%.support.v1.GetAttachmentRulesRequest\x1a&.support.v1.GetAttachmentRulesResponse\"\x03\x90\x02\x01\x12Q\n" +
+	"\fCreateUpload\x12\x1f.support.v1.CreateUploadRequest\x1a .support.v1.CreateUploadResponseB\xbb\x01\n" +
 	"\x0ecom.support.v1B\fSupportProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1;supportv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Support.V1\xca\x02\n" +
 	"Support\\V1\xe2\x02\x16Support\\V1\\GPBMetadata\xea\x02\vSupport::V1b\x06proto3"
@@ -818,8 +809,8 @@ var file_support_v1_support_proto_goTypes = []any{
 	(*SuggestFeatureResponse)(nil),     // 2: support.v1.SuggestFeatureResponse
 	(*ReportBugRequest)(nil),           // 3: support.v1.ReportBugRequest
 	(*ReportBugResponse)(nil),          // 4: support.v1.ReportBugResponse
-	(*Attachment)(nil),                 // 5: support.v1.Attachment
-	(*Upload)(nil),                     // 6: support.v1.Upload
+	(*CreateUploadRequest)(nil),        // 5: support.v1.CreateUploadRequest
+	(*CreateUploadResponse)(nil),       // 6: support.v1.CreateUploadResponse
 	(*GetAttachmentRulesRequest)(nil),  // 7: support.v1.GetAttachmentRulesRequest
 	(*GetAttachmentRulesResponse)(nil), // 8: support.v1.GetAttachmentRulesResponse
 	(*PageContext)(nil),                // 9: support.v1.PageContext
@@ -828,25 +819,23 @@ var file_support_v1_support_proto_goTypes = []any{
 }
 var file_support_v1_support_proto_depIdxs = []int32{
 	9,  // 0: support.v1.SuggestFeatureRequest.context:type_name -> support.v1.PageContext
-	5,  // 1: support.v1.SuggestFeatureRequest.attachments:type_name -> support.v1.Attachment
-	6,  // 2: support.v1.SuggestFeatureResponse.uploads:type_name -> support.v1.Upload
-	9,  // 3: support.v1.ReportBugRequest.context:type_name -> support.v1.PageContext
-	5,  // 4: support.v1.ReportBugRequest.attachments:type_name -> support.v1.Attachment
-	6,  // 5: support.v1.ReportBugResponse.uploads:type_name -> support.v1.Upload
-	0,  // 6: support.v1.ReportPlayerRequest.reason:type_name -> support.v1.ReportReason
-	1,  // 7: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
-	3,  // 8: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
-	10, // 9: support.v1.SupportService.ReportPlayer:input_type -> support.v1.ReportPlayerRequest
-	7,  // 10: support.v1.SupportService.GetAttachmentRules:input_type -> support.v1.GetAttachmentRulesRequest
-	2,  // 11: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
-	4,  // 12: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
-	11, // 13: support.v1.SupportService.ReportPlayer:output_type -> support.v1.ReportPlayerResponse
-	8,  // 14: support.v1.SupportService.GetAttachmentRules:output_type -> support.v1.GetAttachmentRulesResponse
-	11, // [11:15] is the sub-list for method output_type
-	7,  // [7:11] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	9,  // 1: support.v1.ReportBugRequest.context:type_name -> support.v1.PageContext
+	0,  // 2: support.v1.ReportPlayerRequest.reason:type_name -> support.v1.ReportReason
+	1,  // 3: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
+	3,  // 4: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
+	10, // 5: support.v1.SupportService.ReportPlayer:input_type -> support.v1.ReportPlayerRequest
+	7,  // 6: support.v1.SupportService.GetAttachmentRules:input_type -> support.v1.GetAttachmentRulesRequest
+	5,  // 7: support.v1.SupportService.CreateUpload:input_type -> support.v1.CreateUploadRequest
+	2,  // 8: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
+	4,  // 9: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
+	11, // 10: support.v1.SupportService.ReportPlayer:output_type -> support.v1.ReportPlayerResponse
+	8,  // 11: support.v1.SupportService.GetAttachmentRules:output_type -> support.v1.GetAttachmentRulesResponse
+	6,  // 12: support.v1.SupportService.CreateUpload:output_type -> support.v1.CreateUploadResponse
+	8,  // [8:13] is the sub-list for method output_type
+	3,  // [3:8] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_support_proto_init() }

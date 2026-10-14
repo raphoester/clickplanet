@@ -58,7 +58,10 @@ func TestAFailureToAnonymizeIsAnError(t *testing.T) {
 func TestANoteKeepsItsFilesWhenItLosesItsSender(t *testing.T) {
 	store := inmemory_note_storage.New()
 	sent := suggestion(1, ada, "a night mode")
-	sent.Attachments = []notes.Attachment{{MediaType: notes.MediaPNG, Size: 400}, {MediaType: notes.MediaMP4, Size: 9000}}
+	sent.Attachments = []notes.Attachment{
+		{ID: notes.AttachmentID{15: 1}, MediaType: notes.MediaPNG, Size: 400},
+		{ID: notes.AttachmentID{15: 2}, MediaType: notes.MediaMP4, Size: 9000},
+	}
 	store.Seed(sent)
 
 	require.NoError(t, anonymize_notes_usecase.New(store).Execute(t.Context(), ada))

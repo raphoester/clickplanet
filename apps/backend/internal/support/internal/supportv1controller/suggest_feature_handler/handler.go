@@ -15,7 +15,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in suggest_feature_usecase.In) (suggest_feature_usecase.Out, error)
+	Execute(ctx context.Context, in suggest_feature_usecase.In) error
 }
 
 func New(useCase UseCase) SuggestFeatureHandler {
@@ -35,20 +35,27 @@ func (h SuggestFeatureHandler) SuggestFeature(
 		return nil, err //nolint:wrapcheck // already the connect error the caller reads.
 	}
 
-	out, err := h.useCase.Execute(ctx, suggest_feature_usecase.In{
+	files, err := attachment.IDs(req.Msg.GetAttachmentIds())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidAttachment)
+	}
+
+	err = h.useCase.Execute(ctx, suggest_feature_usecase.In{
 		Account:     account,
 		Text:        req.Msg.GetText(),
 		Diagnostics: pagecontext.Diagnostics(req.Msg.GetContext(), req.Header()),
-		Attachments: attachment.Declared(req.Msg.GetAttachments()),
+		Attachments: files,
 	})
 	switch {
 	case errors.Is(err, notes.ErrInvalidText):
 		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidText)
 	case errors.Is(err, notes.ErrInvalidAttachment):
 		return nil, connect.NewError(connect.CodeInvalidArgument, notes.ErrInvalidAttachment)
+	case errors.Is(err, notes.ErrNotUploaded):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, notes.ErrNotUploaded)
 	case err != nil:
 		return nil, err //nolint:wrapcheck // a storage failure is the error net's to answer.
 	}
 
-	return connect.NewResponse(&supportv1.SuggestFeatureResponse{Uploads: attachment.Uploads(out.UploadURLs)}), nil
+	return connect.NewResponse(&supportv1.SuggestFeatureResponse{}), nil
 }

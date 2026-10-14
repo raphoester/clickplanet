@@ -12,39 +12,38 @@ service SupportService {
   rpc GetAttachmentRules(GetAttachmentRulesRequest) returns (GetAttachmentRulesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  rpc CreateUpload(CreateUploadRequest) returns (CreateUploadResponse);
 }
 
 message SuggestFeatureRequest {
   string text = 1;
   PageContext context = 2;
-  repeated Attachment attachments = 3;
+  // Each one from CreateUpload, and uploaded before the note is sent.
+  repeated string attachment_ids = 3;
 }
 
-message SuggestFeatureResponse {
-  // One per attachment of the request, in its order.
-  repeated Upload uploads = 1;
-}
+message SuggestFeatureResponse {}
 
 message ReportBugRequest {
   string text = 1;
   PageContext context = 2;
-  repeated Attachment attachments = 3;
+  // Each one from CreateUpload, and uploaded before the note is sent.
+  repeated string attachment_ids = 3;
 }
 
-message ReportBugResponse {
-  // One per attachment of the request, in its order.
-  repeated Upload uploads = 1;
-}
+message ReportBugResponse {}
 
-// A photo or a video the page uploads once its note is kept.
-message Attachment {
+message CreateUploadRequest {
   string content_type = 1;
   uint64 size_bytes = 2;
 }
 
-message Upload {
-  // Takes one PUT of the file, with the Content-Type and the size the attachment was declared with.
-  string url = 1;
+message CreateUploadResponse {
+  // What a note names the file by.
+  string attachment_id = 1;
+  // Takes one PUT of the file, with the Content-Type and the size the request declared.
+  string url = 2;
 }
 
 message GetAttachmentRulesRequest {}

@@ -84,6 +84,8 @@ func startGame(t *testing.T) gameStack {
 	supportConfig.Attachments.Bucket.Name = "support"
 	supportConfig.Attachments.Bucket.AccessKeyID = "the-key-id"
 	supportConfig.Attachments.Bucket.SecretAccessKey = "the-secret-key"
+	supportConfig.UploadLimiter.PerSecond = 100
+	supportConfig.UploadLimiter.Burst = 100
 
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
 

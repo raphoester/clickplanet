@@ -87,12 +87,12 @@ func attach(ctx context.Context, tx cppg.Querier, note notes.NoteID, files []not
 
 	for position, file := range files {
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO attachments (note_id, position, media_type, size_bytes)
-			VALUES ($1, $2, $3, $4)
+			INSERT INTO attachments (note_id, position, id, media_type, size_bytes)
+			VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (note_id, position) DO UPDATE SET
-				media_type = EXCLUDED.media_type, size_bytes = EXCLUDED.size_bytes
+				id = EXCLUDED.id, media_type = EXCLUDED.media_type, size_bytes = EXCLUDED.size_bytes
 		`,
-			uuid.UUID(note), position, string(file.MediaType), file.Size,
+			uuid.UUID(note), position, uuid.UUID(file.ID), string(file.MediaType), file.Size,
 		); err != nil {
 			return fmt.Errorf("failed to upsert an attachment: %w", err)
 		}
@@ -103,7 +103,9 @@ func attach(ctx context.Context, tx cppg.Querier, note notes.NoteID, files []not
 func attachments(read []attachment) []notes.Attachment {
 	files := make([]notes.Attachment, 0, len(read))
 	for _, file := range read {
-		files = append(files, notes.Attachment{MediaType: notes.MediaType(file.MediaType), Size: file.Size})
+		files = append(files, notes.Attachment{
+			ID: notes.AttachmentID(file.ID), MediaType: notes.MediaType(file.MediaType), Size: file.Size,
+		})
 	}
 	return files
 }
@@ -114,14 +116,15 @@ func sender(account notes.AccountID) uuid.NullUUID {
 }
 
 type attachment struct {
-	MediaType string `json:"mediaType"`
-	Size      int64  `json:"size"`
+	ID        uuid.UUID `json:"id"`
+	MediaType string    `json:"mediaType"`
+	Size      int64     `json:"size"`
 }
 
 const columns = `
 	id, kind, account_id, text, diagnostics, submitted_at,
 	COALESCE((
-		SELECT json_agg(json_build_object('mediaType', media_type, 'size', size_bytes) ORDER BY position)
+		SELECT json_agg(json_build_object('id', id, 'mediaType', media_type, 'size', size_bytes) ORDER BY position)
 		FROM attachments
 		WHERE note_id = notes.id
 	), '[]')

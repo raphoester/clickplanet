@@ -5,7 +5,6 @@ import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/
 import userEvent from "@testing-library/user-event"
 import {
     AttachmentRules,
-    AttachmentUpload,
     MAX_NOTE_LENGTH,
     NO_ATTACHMENTS,
     SupportNoSessionError,
@@ -26,9 +25,9 @@ afterEach(() => {
     vi.restoreAllMocks()
 })
 
-type Send = (text: string, attachments: File[]) => Promise<AttachmentUpload[]>
+type Send = (text: string, attachmentIds: string[]) => Promise<void>
 
-function setup(onSend: Send = vi.fn(async () => []), files?: NoteFiles) {
+function setup(onSend: Send = vi.fn(async () => undefined), files?: NoteFiles) {
     const onClose = vi.fn()
     render(<NoteModal title="Suggest a feature"
                       label="Your idea"
@@ -67,8 +66,8 @@ describe("NoteModal", () => {
 
     it("sends nothing while one send is in flight", async () => {
         let land = () => {}
-        const onSend = vi.fn(() => new Promise<AttachmentUpload[]>((resolve) => {
-            land = () => resolve([])
+        const onSend = vi.fn(() => new Promise<void>((resolve) => {
+            land = () => resolve()
         }))
         const {user} = setup(onSend)
 
@@ -145,7 +144,13 @@ const rules: AttachmentRules = {maxPerNote: 3, maxBytes: 1000, contentTypes: ["i
 const screenshot = new File(["a screenshot"], "screen.png", {type: "image/png"})
 const recording = new File(["a screen recording"], "clip.mp4", {type: "video/mp4"})
 
-type Landing = {land: () => void, fail: () => void, progress: (fraction: number) => void, signal?: AbortSignal}
+type Landing = {
+    file: Blob
+    land: (id: string) => void
+    fail: (e?: Error) => void
+    progress: (fraction: number) => void
+    signal?: AbortSignal
+}
 
 function bucket(read: AttachmentRules | Error = rules) {
     const landings: Landing[] = []
@@ -154,10 +159,11 @@ function bucket(read: AttachmentRules | Error = rules) {
             if (read instanceof Error) throw read
             return read
         }),
-        uploadAttachment: vi.fn((_: AttachmentUpload, __: Blob, options?: UploadOptions) => new Promise<void>((resolve, reject) => {
+        uploadAttachment: vi.fn((file: Blob, options?: UploadOptions) => new Promise<string>((resolve, reject) => {
             landings.push({
+                file,
                 land: resolve,
-                fail: () => reject(new Error("the upload was answered 403")),
+                fail: (e = new Error("the upload was answered 403")) => reject(e),
                 progress: (fraction) => options?.onProgress?.(fraction),
                 signal: options?.signal,
             })
@@ -166,13 +172,10 @@ function bucket(read: AttachmentRules | Error = rules) {
     return {files, landings}
 }
 
-const sending = (...urls: string[]): Send => vi.fn(async () => urls.map((url) => ({url})))
-
 const addButton = () => screen.findByRole("button", {name: "Add photos or videos"}) as Promise<HTMLButtonElement>
 const input = () => document.querySelector("input[type=file]") as HTMLInputElement
 const attached = () => within(screen.getByRole("list", {name: "Attached files"})).getAllByRole("listitem")
-const uploads = () => within(screen.getByRole("list", {name: "Files"})).getAllByRole("listitem")
-const status = () => screen.getByRole("status").textContent
+const footer = () => screen.getByRole("button", {name: /^(Send|Uploading)/}) as HTMLButtonElement
 
 async function writeWith(user: ReturnType<typeof userEvent.setup>, ...picked: File[]) {
     await addButton()
@@ -275,100 +278,116 @@ describe("NoteModal's files", () => {
         expect(screen.queryByRole("list", {name: "Attached files"})).toBeNull()
     })
 
-    it("sends the note with its files, then uploads each one where the server said, in order", async () => {
+    it("uploads each file in turn, then sends the note with every one of them", async () => {
         const {files, landings} = bucket()
-        const onSend = sending("https://bucket.example/a/0", "https://bucket.example/a/1")
+        const onSend = vi.fn(async () => undefined)
         const {user} = setup(onSend, files)
 
         await writeWith(user, screenshot, recording)
         await user.click(send())
 
-        expect(onSend).toHaveBeenCalledWith("the globe is black", [screenshot, recording])
-        expect(status()).toBe("Sent. Uploading your files…")
         expect(files.uploadAttachment).toHaveBeenCalledTimes(1)
-        expect(files.uploadAttachment.mock.calls[0].slice(0, 2)).toEqual([{url: "https://bucket.example/a/0"}, screenshot])
-        expect((screen.getByRole("button", {name: "Uploading…"}) as HTMLButtonElement).disabled).toBe(true)
+        expect(landings[0].file).toBe(screenshot)
+        expect(footer().textContent).toBe("Uploading 1 of 2…")
+        expect(footer().disabled).toBe(true)
+        expect(box().readOnly).toBe(true)
+        expect(onSend).not.toHaveBeenCalled()
 
         await act(async () => landings[0].progress(0.5))
         expect(screen.getByRole("progressbar", {name: "Uploading screen.png"}).getAttribute("aria-valuenow")).toBe("50")
 
-        await act(async () => landings[0].land())
-        expect(files.uploadAttachment.mock.calls[1].slice(0, 2)).toEqual([{url: "https://bucket.example/a/1"}, recording])
-        expect(within(uploads()[0]).getByRole("img", {name: "Uploaded"})).not.toBeNull()
+        await act(async () => landings[0].land("first"))
+        expect(landings[1].file).toBe(recording)
+        expect(footer().textContent).toBe("Uploading 2 of 2…")
+        expect(within(attached()[0]).getByRole("img", {name: "Uploaded"})).not.toBeNull()
+        expect(onSend).not.toHaveBeenCalled()
 
-        await act(async () => landings[1].land())
-        expect(status()).toBe("Sent. Thank you!")
-        expect(screen.queryByRole("progressbar")).toBeNull()
-        expect(screen.getAllByRole("button", {name: "Close"}).at(-1)).not.toBeUndefined()
+        await act(async () => landings[1].land("second"))
+        expect(onSend).toHaveBeenCalledWith("the globe is black", ["first", "second"])
+        expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
     })
 
-    it("uploads nothing when the note itself was refused, and keeps the files", async () => {
-        const {files} = bucket()
-        const {user} = setup(vi.fn(async () => {
-            throw new SupportRateLimitedError()
-        }), files)
+    it("says which file did not upload, sends nothing, and goes on from it", async () => {
+        const logged = vi.spyOn(console, "error").mockImplementation(() => {})
+        const {files, landings} = bucket()
+        const onSend = vi.fn(async () => undefined)
+        const {user} = setup(onSend, files)
+
+        await writeWith(user, screenshot, recording)
+        await user.click(send())
+        await act(async () => landings[0].land("first"))
+        await act(async () => landings[1].fail())
+
+        expect(screen.getByRole("alert").textContent).toBe("clip.mp4 could not be uploaded. Try again.")
+        expect(onSend).not.toHaveBeenCalled()
+        expect(logged).toHaveBeenCalledTimes(1)
+        expect(footer().disabled).toBe(false)
+
+        await user.click(send())
+
+        expect(files.uploadAttachment).toHaveBeenCalledTimes(3)
+        expect(landings[2].file).toBe(recording)
+
+        await act(async () => landings[2].land("second"))
+        expect(onSend).toHaveBeenCalledWith("the globe is black", ["first", "second"])
+    })
+
+    it("says why the server would not take a file, and keeps them all", async () => {
+        const {files, landings} = bucket()
+        const onSend = vi.fn(async () => undefined)
+        const {user} = setup(onSend, files)
 
         await writeWith(user, screenshot)
         await user.click(send())
+        await act(async () => landings[0].fail(new SupportRateLimitedError()))
 
         expect(screen.getByRole("alert").textContent).toBe("You sent too many. Try again in a few minutes.")
-        expect(files.uploadAttachment).not.toHaveBeenCalled()
+        expect(onSend).not.toHaveBeenCalled()
         expect(attached()).toHaveLength(1)
     })
 
-    it("says which file did not upload, and tries that one again alone", async () => {
-        const logged = vi.spyOn(console, "error").mockImplementation(() => {})
+    it("sends again a note that was refused with the files already up", async () => {
         const {files, landings} = bucket()
-        const {user} = setup(sending("https://bucket.example/a/0", "https://bucket.example/a/1"), files)
-
-        await writeWith(user, screenshot, recording)
-        await user.click(send())
-        await act(async () => landings[0].land())
-        await act(async () => landings[1].fail())
-
-        expect(status()).toBe("Sent, but 1 file did not upload.")
-        expect(uploads()[1].textContent).toBe("clip.mp4Not uploaded")
-        expect(logged).toHaveBeenCalledTimes(1)
-
-        await user.click(screen.getByRole("button", {name: "Try again"}))
-
-        expect(files.uploadAttachment).toHaveBeenCalledTimes(3)
-        expect(files.uploadAttachment.mock.calls[2].slice(0, 2)).toEqual([{url: "https://bucket.example/a/1"}, recording])
-
-        await act(async () => landings[2].land())
-        expect(status()).toBe("Sent. Thank you!")
-        expect(screen.queryByRole("button", {name: "Try again"})).toBeNull()
-    })
-
-    it("counts every file that did not upload", async () => {
-        vi.spyOn(console, "error").mockImplementation(() => {})
-        const {files, landings} = bucket()
-        const {user} = setup(sending("https://bucket.example/a/0", "https://bucket.example/a/1"), files)
-
-        await writeWith(user, screenshot, recording)
-        await user.click(send())
-        await act(async () => landings[0].fail())
-        await act(async () => landings[1].fail())
-
-        expect(status()).toBe("Sent, but 2 files did not upload.")
-    })
-
-    it("counts as not uploaded a file the server gave no place for", async () => {
-        vi.spyOn(console, "error").mockImplementation(() => {})
-        const {files} = bucket()
-        const {user} = setup(sending(), files)
+        const onSend = vi.fn()
+            .mockRejectedValueOnce(new SupportRateLimitedError())
+            .mockResolvedValueOnce(undefined)
+        const {user} = setup(onSend, files)
 
         await writeWith(user, screenshot)
         await user.click(send())
+        await act(async () => landings[0].land("first"))
 
-        expect(status()).toBe("Sent, but 1 file did not upload.")
-        expect(files.uploadAttachment).not.toHaveBeenCalled()
+        expect(screen.getByRole("alert").textContent).toBe("You sent too many. Try again in a few minutes.")
+
+        await user.click(send())
+
+        expect(files.uploadAttachment).toHaveBeenCalledTimes(1)
+        expect(onSend).toHaveBeenLastCalledWith("the globe is black", ["first"])
+        expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
     })
 
-    it("calls the uploads off when it is closed, and says nothing more", async () => {
+    it("sends a file taken off after it went up with nothing", async () => {
+        const {files, landings} = bucket()
+        const onSend = vi.fn()
+            .mockRejectedValueOnce(new SupportRejectedError())
+            .mockResolvedValueOnce(undefined)
+        const {user} = setup(onSend, files)
+
+        await writeWith(user, screenshot, recording)
+        await user.click(send())
+        await act(async () => landings[0].land("first"))
+        await act(async () => landings[1].land("second"))
+        await user.click(screen.getByRole("button", {name: "Remove screen.png"}))
+        await user.click(send())
+
+        expect(onSend).toHaveBeenLastCalledWith("the globe is black", ["second"])
+    })
+
+    it("calls the upload off when it is closed, and sends nothing", async () => {
         const logged = vi.spyOn(console, "error").mockImplementation(() => {})
         const {files, landings} = bucket()
-        const {user} = setup(sending("https://bucket.example/a/0", "https://bucket.example/a/1"), files)
+        const onSend = vi.fn(async () => undefined)
+        const {user} = setup(onSend, files)
         await writeWith(user, screenshot, recording)
         await user.click(send())
 
@@ -377,33 +396,32 @@ describe("NoteModal's files", () => {
 
         await act(async () => landings[0].fail())
         expect(files.uploadAttachment).toHaveBeenCalledTimes(1)
+        expect(onSend).not.toHaveBeenCalled()
         expect(logged).not.toHaveBeenCalled()
     })
 
-    it("uploads nothing when it was closed while the note was on its way", async () => {
-        const {files} = bucket()
-        let land = () => {}
-        const onSend = vi.fn(() => new Promise<AttachmentUpload[]>((resolve) => {
-            land = () => resolve([{url: "https://bucket.example/a/0"}])
-        }))
+    it("sends nothing when it was closed as the last file landed", async () => {
+        const {files, landings} = bucket()
+        const onSend = vi.fn(async () => undefined)
         const {user} = setup(onSend, files)
         await writeWith(user, screenshot)
         await user.click(send())
 
         cleanup()
-        await act(async () => land())
+        await act(async () => landings[0].land("first"))
 
-        expect(files.uploadAttachment).not.toHaveBeenCalled()
+        expect(onSend).not.toHaveBeenCalled()
     })
 
     it("still uploads when React mounts it twice, as it does in development", async () => {
         const {files, landings} = bucket()
+        const onSend = vi.fn(async () => undefined)
         render(<StrictMode>
             <NoteModal title="Report a bug"
                        label="Your idea"
                        placeholder=""
                        files={files}
-                       onSend={sending("https://bucket.example/a/0")}
+                       onSend={onSend}
                        onClose={vi.fn()}/>
         </StrictMode>)
         const user = userEvent.setup()
@@ -412,13 +430,13 @@ describe("NoteModal's files", () => {
         await user.click(send())
 
         expect(landings[0].signal?.aborted).toBe(false)
-        await act(async () => landings[0].land())
-        expect(status()).toBe("Sent. Thank you!")
+        await act(async () => landings[0].land("first"))
+        expect(onSend).toHaveBeenCalledWith("the globe is black", ["first"])
     })
 
     it("does not close on a click beside it once a file is picked, or while files go up", async () => {
         const {files, landings} = bucket()
-        const {onClose, user} = setup(sending("https://bucket.example/a/0"), files)
+        const {onClose, user} = setup(undefined, files)
         const backdrop = () => document.querySelector(".modal")!
 
         await addButton()
@@ -431,7 +449,7 @@ describe("NoteModal's files", () => {
         await user.click(backdrop())
         expect(onClose).not.toHaveBeenCalled()
 
-        await act(async () => landings[0].land())
+        await act(async () => landings[0].land("first"))
         await user.click(backdrop())
         expect(onClose).toHaveBeenCalledTimes(1)
     })

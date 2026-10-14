@@ -2,6 +2,7 @@ package s3_attachment_bucket_test
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
@@ -21,24 +22,16 @@ var (
 		AccessKeyID: "the-key-id", SecretAccessKey: "the-secret-key",
 	}
 	noon = time.Date(2026, 10, 13, 12, 0, 0, 0, time.UTC)
-	note = notes.NoteID(uuid.MustParse("0199d0f0-0000-7000-8000-000000000001"))
+	file = notes.Attachment{
+		ID: notes.AttachmentID(uuid.MustParse("6f1c2c64-6a4a-4b0e-9f43-2f0d7c1b5a01")), MediaType: notes.MediaPNG, Size: 400,
+	}
 )
-
-func noteWith(t *testing.T, files ...notes.Attachment) notes.Note {
-	t.Helper()
-
-	kept, err := notes.Snapshot{
-		ID: note, Kind: notes.KindBug, Account: notes.AccountID{15: 1}, Text: "the globe is black", At: noon, Attachments: files,
-	}.Restore()
-	require.NoError(t, err)
-	return kept
-}
 
 func bucketOf(t *testing.T, config s3_attachment_bucket.Config) *s3_attachment_bucket.Bucket {
 	t.Helper()
 
 	bucket, err := s3_attachment_bucket.New(config,
-		s3_attachment_bucket.Lifetimes{Upload: 30 * time.Minute, View: time.Hour}, cptime.NewFixedClock(noon))
+		s3_attachment_bucket.Lifetimes{Upload: 30 * time.Minute, View: time.Hour}, cptime.NewFixedClock(noon), http.DefaultClient)
 	require.NoError(t, err)
 	return bucket
 }
@@ -57,7 +50,7 @@ func TestAWholeConfigIsValidAndEachMissingPartIsNamed(t *testing.T) {
 		broken(&config)
 
 		require.ErrorContains(t, config.Validate(), name)
-		_, err := s3_attachment_bucket.New(config, s3_attachment_bucket.Lifetimes{}, cptime.SystemClock{})
+		_, err := s3_attachment_bucket.New(config, s3_attachment_bucket.Lifetimes{}, cptime.SystemClock{}, http.DefaultClient)
 		require.Error(t, err, name)
 	}
 }
@@ -88,63 +81,58 @@ func TestTheSecretIsNotInWhatAConfigPrints(t *testing.T) {
 	assert.NotContains(t, printed, "the-secret-key")
 }
 
-func TestAnUploadLinkNamesTheNoteAndThePlaceAndSignsTheTypeAndTheSize(t *testing.T) {
-	links, err := bucketOf(t, whole).UploadURLs(noteWith(t,
-		notes.Attachment{MediaType: notes.MediaPNG, Size: 400}, notes.Attachment{MediaType: notes.MediaMP4, Size: 9000}))
+func TestAnUploadLinkNamesTheFileAndSignsItsTypeAndItsSize(t *testing.T) {
+	link, err := bucketOf(t, whole).UploadURL(file)
 	require.NoError(t, err)
-	require.Len(t, links, 2)
 
-	for position, link := range links {
-		parsed, err := url.Parse(link)
-		require.NoError(t, err)
-		assert.Equal(t, "https", parsed.Scheme)
-		assert.Equal(t, "account.r2.example", parsed.Host)
-		assert.Equal(t, fmt.Sprintf("/support/0199d0f0-0000-7000-8000-000000000001/%d", position), parsed.Path)
-		assert.Equal(t, "content-length;content-type;host", parsed.Query().Get("X-Amz-SignedHeaders"))
-		assert.Equal(t, "1800", parsed.Query().Get("X-Amz-Expires"))
-		assert.Equal(t, "20261013T120000Z", parsed.Query().Get("X-Amz-Date"))
-		assert.Equal(t, "the-key-id/20261013/auto/s3/aws4_request", parsed.Query().Get("X-Amz-Credential"))
-		assert.Len(t, parsed.Query().Get("X-Amz-Signature"), 64)
-		assert.NotContains(t, link, "the-secret-key")
-	}
-	assert.NotEqual(t, links[0], links[1])
+	parsed, err := url.Parse(link)
+	require.NoError(t, err)
+	assert.Equal(t, "https", parsed.Scheme)
+	assert.Equal(t, "account.r2.example", parsed.Host)
+	assert.Equal(t, "/support/6f1c2c64-6a4a-4b0e-9f43-2f0d7c1b5a01", parsed.Path)
+	assert.Equal(t, "content-length;content-type;host", parsed.Query().Get("X-Amz-SignedHeaders"))
+	assert.Equal(t, "1800", parsed.Query().Get("X-Amz-Expires"))
+	assert.Equal(t, "20261013T120000Z", parsed.Query().Get("X-Amz-Date"))
+	assert.Equal(t, "the-key-id/20261013/auto/s3/aws4_request", parsed.Query().Get("X-Amz-Credential"))
+	assert.Len(t, parsed.Query().Get("X-Amz-Signature"), 64)
+	assert.NotContains(t, link, "the-secret-key")
+
+	bigger := file
+	bigger.Size++
+	other, err := bucketOf(t, whole).UploadURL(bigger)
+	require.NoError(t, err)
+	assert.NotEqual(t, link, other, "the size is in the signature")
 }
 
 func TestAViewLinkIsOfTheSameFileAsTheUploadLinkAndLastsItsOwnTime(t *testing.T) {
 	bucket := bucketOf(t, whole)
-	uploads, err := bucket.UploadURLs(noteWith(t, notes.Attachment{MediaType: notes.MediaPNG, Size: 400}))
+	upload, err := bucket.UploadURL(file)
 	require.NoError(t, err)
 
-	view, err := bucket.ViewURL("0199d0f0-0000-7000-8000-000000000001", 0)
+	view, err := bucket.ViewURL(file.ID.String())
 	require.NoError(t, err)
 
-	upload, err := url.Parse(uploads[0])
+	uploadLink, err := url.Parse(upload)
 	require.NoError(t, err)
-	parsed, err := url.Parse(view)
+	viewLink, err := url.Parse(view)
 	require.NoError(t, err)
-	assert.Equal(t, upload.Path, parsed.Path)
-	assert.Equal(t, upload.Host, parsed.Host)
-	assert.Equal(t, "host", parsed.Query().Get("X-Amz-SignedHeaders"))
-	assert.Equal(t, "3600", parsed.Query().Get("X-Amz-Expires"))
+	assert.Equal(t, uploadLink.Path, viewLink.Path)
+	assert.Equal(t, uploadLink.Host, viewLink.Host)
+	assert.Equal(t, "host", viewLink.Query().Get("X-Amz-SignedHeaders"))
+	assert.Equal(t, "3600", viewLink.Query().Get("X-Amz-Expires"))
 }
 
-func TestANoteWithNoFileHasNoLink(t *testing.T) {
-	links, err := bucketOf(t, whole).UploadURLs(noteWith(t))
-
-	require.NoError(t, err)
-	assert.Empty(t, links)
-}
-
-func TestWithNoBucketSetANoteWithNoFileIsServedAndEveryLinkIsAnError(t *testing.T) {
+func TestWithNoBucketSetEveryLinkAndEveryReadIsAnError(t *testing.T) {
 	none := bucketOf(t, s3_attachment_bucket.Config{})
-	carrying := noteWith(t, notes.Attachment{MediaType: notes.MediaPNG, Size: 400})
 
-	links, err := none.UploadURLs(noteWith(t))
+	_, err := none.UploadURL(file)
+	require.ErrorIs(t, err, s3_attachment_bucket.ErrNoBucket)
+	_, err = none.ViewURL(file.ID.String())
+	require.ErrorIs(t, err, s3_attachment_bucket.ErrNoBucket)
+	_, err = none.Attachments(t.Context(), file.ID)
+	require.ErrorIs(t, err, s3_attachment_bucket.ErrNoBucket)
+
+	held, err := none.Attachments(t.Context())
 	require.NoError(t, err)
-	assert.Empty(t, links)
-
-	_, err = none.UploadURLs(carrying)
-	require.ErrorIs(t, err, s3_attachment_bucket.ErrNoBucket)
-	_, err = none.ViewURL("0199d0f0-0000-7000-8000-000000000001", 0)
-	require.ErrorIs(t, err, s3_attachment_bucket.ErrNoBucket)
+	assert.Empty(t, held, "no file asked, nothing to ask the bucket")
 }

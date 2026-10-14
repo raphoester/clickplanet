@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
-import {cleanup, render, screen, waitFor, within} from "@testing-library/react"
+import {cleanup, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {AttachmentRules, AttachmentUpload, NO_ATTACHMENTS, PageContext} from "../../backends/support.ts"
+import {AttachmentRules, NO_ATTACHMENTS, PageContext} from "../../backends/support.ts"
 import FeedbackModal from "./FeedbackModal.tsx"
 
 const PAGE: PageContext = {
@@ -33,15 +33,13 @@ afterEach(() => {
 
 const TAKES_FILES: AttachmentRules = {maxPerNote: 10, maxBytes: 1000, contentTypes: ["image/png", "video/mp4"]}
 
-const uploadsOf = async (_: string, __: PageContext, files: Blob[] = []): Promise<AttachmentUpload[]> =>
-    files.map((___, place) => ({url: `https://bucket.example/a/${place}`}))
-
 function setup(rules: AttachmentRules = NO_ATTACHMENTS) {
+    const uploaded: Blob[] = []
     const support = {
-        suggestFeature: vi.fn(uploadsOf),
-        reportBug: vi.fn(uploadsOf),
+        suggestFeature: vi.fn(async () => undefined),
+        reportBug: vi.fn(async () => undefined),
         attachmentRules: vi.fn(async () => rules),
-        uploadAttachment: vi.fn(async () => undefined),
+        uploadAttachment: vi.fn(async (file: Blob) => `file-${uploaded.push(file) - 1}`),
     }
     const onClose = vi.fn()
     render(<FeedbackModal support={support} pageContext={() => PAGE} onClose={onClose}/>)
@@ -125,7 +123,7 @@ describe("FeedbackModal", () => {
     it.each([
         ["A bug", "What happened", "reportBug"],
         ["An idea", "Your idea", "suggestFeature"],
-    ] as const)("sends %s with the files picked, then uploads each one where the server said", async (option, label, procedure) => {
+    ] as const)("uploads the files picked for %s, then sends it with them", async (option, label, procedure) => {
         const {support, user} = setup(TAKES_FILES)
         const screenshot = new File(["a screenshot"], "screen.png", {type: "image/png"})
         const recording = new File(["a screen recording"], "clip.mp4", {type: "video/mp4"})
@@ -136,12 +134,8 @@ describe("FeedbackModal", () => {
         await user.type(box(label), "the globe is black")
         await user.click(send())
 
-        expect(support[procedure]).toHaveBeenCalledWith("the globe is black", PAGE, [screenshot, recording])
         await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!"))
-        expect(support.uploadAttachment.mock.calls.map((call) => call.slice(0, 2))).toEqual([
-            [{url: "https://bucket.example/a/0"}, screenshot],
-            [{url: "https://bucket.example/a/1"}, recording],
-        ])
-        expect(within(screen.getByRole("list", {name: "Files"})).getAllByRole("img", {name: "Uploaded"})).toHaveLength(2)
+        expect(support.uploadAttachment.mock.calls.map((call) => call[0])).toEqual([screenshot, recording])
+        expect(support[procedure]).toHaveBeenCalledWith("the globe is black", PAGE, ["file-0", "file-1"])
     })
 })

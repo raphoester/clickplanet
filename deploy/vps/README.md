@@ -1302,8 +1302,8 @@ docker compose exec postgres psql -U clickplanet -c "select coalesce(p.name, 'gu
 - One address sends three, then one a minute (`support.rateLimiter`).
 - A note lists its `attachments`: each has a `contentType`, a `sizeBytes` and a
   `url`. **Open the `url` in a browser**: it is good for one hour
-  (`support.attachments.linkTTL`), so run the command again for a fresh one. A
-  `url` that answers 404 is a file the player's page never uploaded. To print
+  (`support.attachments.linkTTL`), so run the command again for a fresh one.
+  Every file a note lists was in the bucket when the note was kept. To print
   the links alone:
 
 ```bash
@@ -1347,7 +1347,9 @@ Off in `backend.yaml` (`support.attachments.enabled: false`). A player adds up
 to 10 photos or videos to a suggestion or a bug report. They are not kept on
 the droplet: its disk is 25 GB, and you read notes on a loopback listener, where
 no browser can open a video. The page sends each file straight to an S3 bucket,
-on a link the backend signs, and `ListNotes` gives you a link to each.
+on a link the backend signs, then sends the note naming them. The backend reads
+each file back from the bucket before it keeps the note, and `ListNotes` gives
+you a link to each.
 
 `backend.yaml` names a Cloudflare R2 bucket: R2 is free up to 10 GB, has no
 charge for downloads, and is on the account that already serves the site. **Any
@@ -1396,6 +1398,9 @@ opens from the `url` `ListNotes` prints.
 - **Nothing deletes a file**, not even when its note loses its account. The
   bucket only grows: R2's free 10 GB hold 200 files at the 50 MB limit, and
   each GB past it costs $0.015 a month.
+- **A file uploaded and never sent stays too**: a player who closes the form,
+  or whose note is refused, leaves files no note names. One address uploads 10
+  files at once, then one every 6 seconds (`support.uploadLimiter`).
 - **Switch it off only once no note carries a file**: with no bucket,
   `ListNotes` fails on a note that does.
 - The privacy page says Cloudflare stores these files. With another provider,

@@ -15,6 +15,8 @@ import (
 var (
 	ErrNoSession   = errors.New("the support service requires a session; call auth.v1.AuthService/CreateSession first")
 	ErrTooManySent = errors.New("too many sent to the support service")
+
+	ErrTooManyUploads = errors.New("too many files uploaded to the support service")
 )
 
 func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Clock, registerer prometheus.Registerer) connect.Interceptor {
@@ -32,6 +34,7 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		cpconnect.Attested(supportv1connect.SupportServiceSuggestFeatureProcedure),
 		cpconnect.Attested(supportv1connect.SupportServiceReportBugProcedure),
 		cpconnect.Attested(supportv1connect.SupportServiceReportPlayerProcedure),
+		cpconnect.Attested(supportv1connect.SupportServiceCreateUploadProcedure),
 	)
 }
 
@@ -41,4 +44,9 @@ func NewRateLimitInterceptor(limiter cpconnect.Limiter) connect.Interceptor {
 		supportv1connect.SupportServiceReportBugProcedure,
 		supportv1connect.SupportServiceReportPlayerProcedure,
 	)
+}
+
+// Uploads have a budget of their own: a note of ten files asks for ten links at once.
+func NewUploadRateLimitInterceptor(limiter cpconnect.Limiter) connect.Interceptor {
+	return cpconnect.NewRateLimitInterceptor(limiter, ErrTooManyUploads, supportv1connect.SupportServiceCreateUploadProcedure)
 }

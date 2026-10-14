@@ -20,14 +20,13 @@ import (
 var ada = notes.AccountID{15: 1}
 
 type stubUseCase struct {
-	out   suggest_feature_usecase.Out
 	err   error
 	asked []suggest_feature_usecase.In
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in suggest_feature_usecase.In) (suggest_feature_usecase.Out, error) {
+func (s *stubUseCase) Execute(_ context.Context, in suggest_feature_usecase.In) error {
 	s.asked = append(s.asked, in)
-	return s.out, s.err
+	return s.err
 }
 
 func suggest(ctx context.Context, useCase *stubUseCase, text string) error {
@@ -75,18 +74,32 @@ func TestTheCallersAccountTheTextThePageAndTheBrowserAreHandedOn(t *testing.T) {
 	}}, useCase.asked)
 }
 
-func TestTheFilesAreHandedOnAndEachUploadLinkIsAnsweredInItsOrder(t *testing.T) {
-	useCase := &stubUseCase{out: suggest_feature_usecase.Out{UploadURLs: []string{"https://bucket.example/a/0"}}}
+func TestTheFilesAreHandedOnByIDInTheirOrder(t *testing.T) {
+	useCase := &stubUseCase{}
 
-	res, err := answered(asAda(t), useCase, &supportv1.SuggestFeatureRequest{
-		Text:        "a night mode",
-		Attachments: []*supportv1.Attachment{{ContentType: "image/png", SizeBytes: 400}},
+	_, err := answered(asAda(t), useCase, &supportv1.SuggestFeatureRequest{
+		Text:          "a night mode",
+		AttachmentIds: []string{"0a000000-0000-0000-0000-000000000002", "0a000000-0000-0000-0000-000000000001"},
 	}, "")
 	require.NoError(t, err)
 
-	assert.Equal(t, []notes.Attachment{{MediaType: notes.MediaPNG, Size: 400}}, useCase.asked[0].Attachments)
-	require.Len(t, res.GetUploads(), 1)
-	assert.Equal(t, "https://bucket.example/a/0", res.GetUploads()[0].GetUrl())
+	assert.Equal(t, []notes.AttachmentID{{0: 0xa, 15: 2}, {0: 0xa, 15: 1}}, useCase.asked[0].Attachments)
+}
+
+func TestAnAttachmentIDThatIsNotOneIsRefusedBeforeTheUseCase(t *testing.T) {
+	useCase := &stubUseCase{}
+
+	_, err := answered(asAda(t), useCase, &supportv1.SuggestFeatureRequest{Text: "a night mode", AttachmentIds: []string{"a file"}}, "")
+
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	assert.Empty(t, useCase.asked)
+}
+
+func TestAFileThatWasNotUploadedIsAPreconditionTheCallerMissed(t *testing.T) {
+	_, err := answered(asAda(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", notes.ErrNotUploaded)},
+		&supportv1.SuggestFeatureRequest{Text: "a night mode"}, "")
+
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 }
 
 func TestFilesTheRulesDoNotTakeAreTheCallersFault(t *testing.T) {

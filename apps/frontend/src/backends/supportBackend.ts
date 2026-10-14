@@ -6,7 +6,6 @@ import {putFile, PutFile} from "./putFile.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
 import {
     AttachmentRules,
-    AttachmentUpload,
     NO_ATTACHMENTS,
     PageContext,
     PlayerReport,
@@ -44,14 +43,12 @@ export class ConnectSupportBackend implements SupportBackend {
     ) {
     }
 
-    public async suggestFeature(text: string, context: PageContext, attachments: Blob[] = []): Promise<AttachmentUpload[]> {
-        return uploadsOf(await this.send((headers) =>
-            this.client.suggestFeature({text, context, attachments: declared(attachments)}, {headers})))
+    public async suggestFeature(text: string, context: PageContext, attachmentIds: string[] = []): Promise<void> {
+        await this.send((headers) => this.client.suggestFeature({text, context, attachmentIds}, {headers}))
     }
 
-    public async reportBug(text: string, context: PageContext, attachments: Blob[] = []): Promise<AttachmentUpload[]> {
-        return uploadsOf(await this.send((headers) =>
-            this.client.reportBug({text, context, attachments: declared(attachments)}, {headers})))
+    public async reportBug(text: string, context: PageContext, attachmentIds: string[] = []): Promise<void> {
+        await this.send((headers) => this.client.reportBug({text, context, attachmentIds}, {headers}))
     }
 
     // A server from before attachments has no such procedure: it takes none.
@@ -69,8 +66,11 @@ export class ConnectSupportBackend implements SupportBackend {
         }
     }
 
-    public uploadAttachment(upload: AttachmentUpload, file: Blob, options?: UploadOptions): Promise<void> {
-        return this.put(upload.url, file, options)
+    public async uploadAttachment(file: Blob, options?: UploadOptions): Promise<string> {
+        const upload = await this.send((headers) =>
+            this.client.createUpload({contentType: file.type, sizeBytes: BigInt(file.size)}, {headers}))
+        await this.put(upload.url, file, options)
+        return upload.attachmentId
     }
 
     public async reportPlayer(report: PlayerReport): Promise<void> {
@@ -114,14 +114,6 @@ export class ConnectSupportBackend implements SupportBackend {
         if (token) headers.set(SESSION_HEADER, token)
         return headers
     }
-}
-
-function declared(attachments: Blob[]) {
-    return attachments.map((file) => ({contentType: file.type, sizeBytes: BigInt(file.size)}))
-}
-
-function uploadsOf(sent: {uploads: {url: string}[]}): AttachmentUpload[] {
-    return sent.uploads.map(({url}) => ({url}))
 }
 
 function translate(e: unknown): unknown {
