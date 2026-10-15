@@ -35,9 +35,12 @@ func (h SetNameHandler) SetName(
 	}
 
 	profile, err := h.useCase.Execute(ctx, set_name_usecase.In{Account: account, Name: req.Msg.GetName()})
+	var tooSoon players.RenameRefusal
 	switch {
 	case errors.Is(err, players.ErrInvalidName):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	case errors.As(err, &tooSoon):
+		return nil, refusal(tooSoon)
 	case errors.Is(err, players.ErrNameTaken):
 		return nil, connect.NewError(connect.CodeAlreadyExists, players.ErrNameTaken)
 	case errors.Is(err, players.ErrNotLinked):
@@ -47,4 +50,12 @@ func (h SetNameHandler) SetName(
 	}
 
 	return connect.NewResponse(&playerv1.SetNameResponse{Profile: playermessage.Profile(profile)}), nil
+}
+
+func refusal(tooSoon players.RenameRefusal) *connect.Error {
+	refused := connect.NewError(connect.CodeResourceExhausted, players.ErrRenamedTooSoon)
+	if detail, err := connect.NewErrorDetail(&playerv1.RenameRefusal{RenamableAtUnixMs: tooSoon.Until.UnixMilli()}); err == nil {
+		refused.AddDetail(detail)
+	}
+	return refused
 }

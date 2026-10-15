@@ -45,7 +45,7 @@ func setup(t *testing.T, author players.Author) (*dressing_wear_title.Dressing, 
 }
 
 func TestAWornTitleShowsOnTheRosterAtOnce(t *testing.T) {
-	dressing, visits := setup(t, players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada", time.Time{}, false, 0), players.Streak{}))
+	dressing, visits := setup(t, players.NamedAuthor(players.ProfileSnapshot{Name: "Ada"}.Restore(), players.Streak{}))
 
 	worn, err := dressing.Execute(t.Context(), ada, "og")
 
@@ -56,7 +56,7 @@ func TestAWornTitleShowsOnTheRosterAtOnce(t *testing.T) {
 }
 
 func TestARefusedTitleChangesNothingOnTheRoster(t *testing.T) {
-	dressing, visits := setup(t, players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada", time.Time{}, false, 0), players.Streak{}))
+	dressing, visits := setup(t, players.NamedAuthor(players.ProfileSnapshot{Name: "Ada"}.Restore(), players.Streak{}))
 
 	_, err := dressing.Execute(t.Context(), ada, "warmaster")
 

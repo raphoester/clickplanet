@@ -20,7 +20,7 @@ import (
 var start = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 
 func named(name players.Name, admin bool, color players.Color, streak players.Streak) players.Author {
-	return players.NamedAuthor(players.ProfileOf(players.AccountID{}, name, time.Time{}, admin, color), streak)
+	return players.NamedAuthor(players.ProfileSnapshot{Name: name, Admin: admin, Color: color}.Restore(), streak)
 }
 
 func assertLines(t *testing.T, want []*playerv1.RosterEntry, got []*playerv1.RosterEntry) {

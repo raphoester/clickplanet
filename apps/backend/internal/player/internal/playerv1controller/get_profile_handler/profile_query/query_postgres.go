@@ -2,7 +2,9 @@ package profile_query
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -12,26 +14,32 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
-	return &PostgresQuery{db: db}
+type Renames interface {
+	RenamableAt(chosenAt time.Time) int64
+}
+
+func NewPostgresQuery(db cppg.Querier, renames Renames) *PostgresQuery {
+	return &PostgresQuery{db: db, renames: renames}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db      cppg.Querier
+	renames Renames
 }
 
 const profile = `
-	SELECT COALESCE(profiles.name, ''), COALESCE(profiles.color, 0)
+	SELECT COALESCE(profiles.name, ''), COALESCE(profiles.color, 0), profiles.name_chosen_at
 	FROM (SELECT $1::uuid AS account_id) asked
 	LEFT JOIN profiles ON profiles.account_id = asked.account_id
 `
 
 func (q *PostgresQuery) Profile(ctx context.Context, account cpsession.AccountID) (*playerv1.GetProfileResponse, error) {
 	var (
-		name  string
-		color int32
+		name     string
+		color    int32
+		chosenAt sql.NullTime
 	)
-	if err := q.db.QueryRowContext(ctx, profile, uuid.UUID(account)).Scan(&name, &color); err != nil {
+	if err := q.db.QueryRowContext(ctx, profile, uuid.UUID(account)).Scan(&name, &color, &chosenAt); err != nil {
 		return nil, fmt.Errorf("failed to read the profile: %w", err)
 	}
 
@@ -40,8 +48,13 @@ func (q *PostgresQuery) Profile(ctx context.Context, account cpsession.AccountID
 		return nil, fmt.Errorf("failed to read the profile's color: %w", err)
 	}
 
+	var chosen time.Time
+	if chosenAt.Valid {
+		chosen = chosenAt.Time
+	}
+
 	return &playerv1.GetProfileResponse{
-		Profile: &playerv1.Profile{AccountId: account.String(), Name: name},
+		Profile: &playerv1.Profile{AccountId: account.String(), Name: name, RenamableAtUnixMs: q.renames.RenamableAt(chosen)},
 		Color:   kept,
 	}, nil
 }

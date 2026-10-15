@@ -15,7 +15,7 @@ import (
 var now = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 
 func named(name players.Name, admin bool) wearing.Author {
-	profile := players.ProfileOf(players.AccountID{}, name, time.Time{}, admin, 0)
+	profile := players.ProfileSnapshot{Name: name, Admin: admin}.Restore()
 	return wearing.AuthorOf(players.NamedAuthor(profile, players.Streak{}), titles.Standing{})
 }
 
@@ -127,7 +127,7 @@ func names(roster []presence.Entry) []string {
 }
 
 func TestALineCarriesTheColorAndTheStreakItWasAnnouncedWith(t *testing.T) {
-	ada := players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 3), players.StreakOf(12, players.DayOf(now)))
+	ada := players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L", Color: 3}.Restore(), players.StreakOf(12, players.DayOf(now)))
 
 	entry := presence.EntryOf(visit("1", wearing.AuthorOf(ada, titles.Standing{}), "fr", now))
 
@@ -144,7 +144,7 @@ func TestALineCarriesTheTitleItsPlayerWears(t *testing.T) {
 
 func TestARenamedLineKeepsItsMarkColorStreakAndTitle(t *testing.T) {
 	og, _ := titles.NewCatalog().StandingOf("og")
-	ada := players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada", time.Time{}, true, 3), players.StreakOf(4, players.DayOf(now)))
+	ada := players.NamedAuthor(players.ProfileSnapshot{Name: "Ada", Admin: true, Color: 3}.Restore(), players.StreakOf(4, players.DayOf(now)))
 
 	entry := presence.EntryOf(visit("1", wearing.AuthorOf(ada, og).Renamed("Ada_L"), "fr", now))
 

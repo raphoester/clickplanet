@@ -128,6 +128,8 @@ function AccountSettings({state, store, onDelete, linkedMultiplier}: AccountPane
 // maxLength counts UTF-16 units; the username rule counts code points.
 const MAX_INPUT_LENGTH = MAX_USERNAME_LENGTH * 2
 
+const renameDate = new Intl.DateTimeFormat(undefined, {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"})
+
 function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
     const current = state.username ?? ""
     const [draft, setDraft] = useState(current)
@@ -135,8 +137,10 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
     const hintId = useId()
 
     const name = usernameOf(draft)
-    const blocked = state.busy !== undefined || state.naming === true
+    const waiting = state.renamableAt !== undefined && state.renamableAt > Date.now() ? state.renamableAt : undefined
+    const blocked = state.busy !== undefined || state.naming === true || waiting !== undefined
     const canSave = !blocked && name !== current && isValidUsername(name)
+    const failure = state.nameFailure === "tooSoon" && waiting !== undefined ? undefined : state.nameFailure
 
     const submit = (event: FormEvent) => {
         event.preventDefault()
@@ -158,6 +162,7 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
                    maxLength={MAX_INPUT_LENGTH}
                    placeholder="Pick a username"
                    aria-describedby={hintId}
+                   disabled={waiting !== undefined}
                    onChange={(e) => setDraft(e.target.value)}/>
             <button type="submit"
                     className="button button-mini button-secondary account-name-save"
@@ -166,9 +171,11 @@ function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
             </button>
         </div>
         <p className="account-name-hint" id={hintId}>
-            {MIN_USERNAME_LENGTH}–{MAX_USERNAME_LENGTH} letters, digits, spaces or _. Shown in the chat.
+            {waiting === undefined
+                ? `${MIN_USERNAME_LENGTH}–${MAX_USERNAME_LENGTH} letters, digits, spaces or _. Shown in the chat.`
+                : `You can change it on ${renameDate.format(waiting)}.`}
         </p>
-        {state.nameFailure && <p className="account-failure" role="alert">{usernameMessageOf(state.nameFailure)}</p>}
+        {failure && <p className="account-failure" role="alert">{usernameMessageOf(failure)}</p>}
     </form>
 }
 

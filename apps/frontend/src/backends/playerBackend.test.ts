@@ -6,6 +6,7 @@ import {
     PlayerEvent as PlayerEventPb,
     PlayerLeft as PlayerLeftPb,
     Profile as ProfilePb,
+    RenameRefusal as RenameRefusalPb,
     Roster as RosterPb,
     RosterEntry as RosterEntryPb,
     Stats as StatsPb,
@@ -14,7 +15,7 @@ import {
     Track as TrackPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
 import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/player/v1/title_pb.ts"
-import {isValidUsername, NameColor, PlayerError, PlayerTitle, RosterEvent, usernameOf} from "./player.ts"
+import {isValidUsername, NameColor, PlayerError, PlayerTitle, RenameTooSoonError, RosterEvent, usernameOf} from "./player.ts"
 import {ConnectPlayerBackend} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
 
@@ -183,6 +184,25 @@ describe("ConnectPlayerBackend", () => {
         expect(await backend.setName("Ana")).toEqual({accountId: "account-1", name: "Ana"})
         expect(setName).toHaveBeenCalledWith({name: "Ana"}, expect.anything())
         expect(headersOf(setName).headers.get(SESSION_HEADER)).toBe("token-1")
+    })
+
+    it("answers when the name may change again", async () => {
+        const setName = vi.fn(async () => ({
+            profile: new ProfilePb({accountId: "account-1", name: "Ana", renamableAtUnixMs: BigInt(1_700_000_000_000)}),
+        }))
+
+        expect(await backendWith({setName}).setName("Ana"))
+            .toEqual({accountId: "account-1", name: "Ana", renamableAt: 1_700_000_000_000})
+    })
+
+    it("reads a change refused as too soon with when one is allowed", async () => {
+        const setName = vi.fn().mockRejectedValue(new ConnectError("too soon", Code.ResourceExhausted, undefined,
+            [new RenameRefusalPb({renamableAtUnixMs: BigInt(1_700_000_000_000)})]))
+
+        const error = await backendWith({setName}).setName("Ana").catch((e) => e)
+
+        expect(error).toBeInstanceOf(RenameTooSoonError)
+        expect(error).toMatchObject({failure: "tooSoon", renamableAt: 1_700_000_000_000})
     })
 
     it("sends a refused call once more with a fresh session", async () => {

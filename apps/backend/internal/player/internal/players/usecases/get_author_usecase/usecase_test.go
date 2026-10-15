@@ -57,7 +57,7 @@ func TestAnAccountWithAUsernameIsAnsweredWithIt(t *testing.T) {
 	author, err := useCase(store(t)).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), titles.Standing{}), author)
+	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), titles.Standing{}), author)
 }
 
 func TestAnAdminIsSaidToBeOne(t *testing.T) {
@@ -67,7 +67,7 @@ func TestAnAdminIsSaidToBeOne(t *testing.T) {
 	author, err := useCase(admins).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, true, 0), players.Streak{}), titles.Standing{}), author)
+	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L", Admin: true}.Restore(), players.Streak{}), titles.Standing{}), author)
 }
 
 func TestAGuestIsGivenACodeOnceAndKeepsIt(t *testing.T) {

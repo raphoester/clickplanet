@@ -54,7 +54,7 @@ func TestSigningInToAKnownAccountShowsItsUsernameInPlaceOfTheGuest(t *testing.T)
 	err := useCase(store, visits).Execute(t.Context(), guest, ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, []presence.Visit{guestVisit().For(ada, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), titles.Standing{}))}, keyless(visits.Visits()))
+	assert.Equal(t, []presence.Visit{guestVisit().For(ada, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), titles.Standing{}))}, keyless(visits.Visits()))
 }
 
 func TestSigningInToANewAccountShowsItsOwnGuestCode(t *testing.T) {

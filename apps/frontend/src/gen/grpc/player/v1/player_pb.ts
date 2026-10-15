@@ -22,6 +22,11 @@ export class Profile extends Message<Profile> {
    */
   name = "";
 
+  /**
+   * @generated from field: int64 renamable_at_unix_ms = 3;
+   */
+  renamableAtUnixMs = protoInt64.zero;
+
   constructor(data?: PartialMessage<Profile>) {
     super();
     proto3.util.initPartial(data, this);
@@ -32,6 +37,7 @@ export class Profile extends Message<Profile> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "renamable_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Profile {
@@ -196,6 +202,43 @@ export class SetNameResponse extends Message<SetNameResponse> {
 
   static equals(a: SetNameResponse | PlainMessage<SetNameResponse> | undefined, b: SetNameResponse | PlainMessage<SetNameResponse> | undefined): boolean {
     return proto3.util.equals(SetNameResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.RenameRefusal
+ */
+export class RenameRefusal extends Message<RenameRefusal> {
+  /**
+   * @generated from field: int64 renamable_at_unix_ms = 1;
+   */
+  renamableAtUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<RenameRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.RenameRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "renamable_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RenameRefusal {
+    return new RenameRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RenameRefusal {
+    return new RenameRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RenameRefusal {
+    return new RenameRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RenameRefusal | PlainMessage<RenameRefusal> | undefined, b: RenameRefusal | PlainMessage<RenameRefusal> | undefined): boolean {
+    return proto3.util.equals(RenameRefusal, a, b);
   }
 }
 

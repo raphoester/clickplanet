@@ -6,24 +6,48 @@ type Profile struct {
 	account   AccountID
 	name      Name
 	updatedAt time.Time
+	choice    NameChoice
 	admin     bool
 	color     Color
 }
 
 func NewProfile(account AccountID, name Name, at time.Time) Profile {
-	return Profile{account: account, name: name, updatedAt: at}
+	return ProfileSnapshot{Account: account, Name: name, UpdatedAt: at}.Restore()
 }
 
-func ProfileOf(account AccountID, name Name, updatedAt time.Time, admin bool, color Color) Profile {
-	return Profile{account: account, name: name, updatedAt: updatedAt, admin: admin, color: color}
+func Unnamed(account AccountID) Profile {
+	return ProfileSnapshot{Account: account}.Restore()
 }
 
-func (p Profile) Account() AccountID { return p.account }
+func (p Profile) Renamed(name Name, at time.Time) (Profile, error) {
+	if err := p.choice.RenameError(at); err != nil {
+		return Profile{}, err
+	}
 
-func (p Profile) Name() Name { return p.name }
+	p.name = name
+	p.updatedAt = at
+	p.choice = NameChoice{at: at}
+	return p, nil
+}
 
-func (p Profile) UpdatedAt() time.Time { return p.updatedAt }
+func (p Profile) TakeSnapshot() ProfileSnapshot {
+	return ProfileSnapshot{
+		Account: p.account, Name: p.name, UpdatedAt: p.updatedAt, ChosenAt: p.choice.at, Admin: p.admin, Color: p.color,
+	}
+}
 
-func (p Profile) Admin() bool { return p.admin }
+type ProfileSnapshot struct {
+	Account   AccountID
+	Name      Name
+	UpdatedAt time.Time
+	ChosenAt  time.Time
+	Admin     bool
+	Color     Color
+}
 
-func (p Profile) Color() Color { return p.color }
+func (s ProfileSnapshot) Restore() Profile {
+	return Profile{
+		account: s.Account, name: s.Name, updatedAt: s.UpdatedAt, choice: NameChosenAt(s.ChosenAt), admin: s.Admin,
+		color: s.Color,
+	}
+}

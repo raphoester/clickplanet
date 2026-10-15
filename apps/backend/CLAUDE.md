@@ -587,10 +587,11 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   `GetAccount` and against the linked flag the click token carries (`accounts_query/parity_test.go`). A rule a parity
   test does not cover is a rule that can drift.
 - **So the domain has no exported fields.** A player domain type is built by a constructor (`NewProfile`,
-  `NewStats`, `NewVisit` to start one; `ProfileOf`, `StatsOf`, `StreakOf`, `AccountOf` to restore one a store or
-  another module kept), read through nouns (`Profile.Name()`, `Stats.TilesTaken()`, `Visit.Author()`), and changed
-  through builders that answer a copy (`Stats.WithTake`, `Author.Renamed`, `wearing.Author.Wearing`,
-  `Visit.Keyed`). Chat the same: `NewRecord`, `NewWindow`, `AuthorOf`,
+  `NewStats`, `NewVisit` to start one; `StatsOf`, `StreakOf`, `AccountOf` to restore one a store or
+  another module kept), read through nouns (`Stats.TilesTaken()`, `Visit.Author()`), and changed
+  through builders that answer a copy (`Stats.WithTake`, `Profile.Renamed`, `Author.Renamed`, `wearing.Author.Wearing`,
+  `Visit.Keyed`). `players.Profile` has no getter: a store and the wire read it through `ProfileSnapshot`
+  (`TakeSnapshot`, `Restore`), as chat's `Message` below. Chat the same: `NewRecord`, `NewWindow`, `AuthorOf`,
   `TitleOf`, `RankOf`, `reactions.On` and `Off` for a `Change`, `Tally.Named`, `NewAnnouncement`, `BombOf`, and
   `feed.MessageSent`, `ReactionsChanged` and `Announced` for the three cases of an `Update`. A test outside the
   package compares through those nouns, or through a view of them (`title_test.go`'s `standingView`), since it
@@ -1317,8 +1318,9 @@ internal/auth/internal/
 
 ```
 internal/player/internal/
-  players/                          AccountID, Name (NameOf), GuestCode (GuestCodes, DisplayNameOf), Author (AuthorOf), Tag (TagOf), Profile,
-                                    Color, Stats, Streak, Day; the Store port and its contract suite
+  players/                          AccountID, Name (NameOf), GuestCode (GuestCodes, DisplayNameOf), Author (AuthorOf), Tag (TagOf), Profile
+                                    (ProfileSnapshot, Unnamed, Renamed), NameChoice (the rename rule), Color, Stats, Streak, Day; the Store
+                                    port and its contract suite
     postgres_player_store/          the Store over player.profiles, player.guest_codes and player.stats
     random_code_generator/          draws guest codes from crypto/rand
     random_name_generator/          draws a username for a signed-in account: an adjective, an animal, two digits
@@ -1361,6 +1363,7 @@ internal/player/internal/
     get_roster_handler/roster_query/    MemoryQuery: the roster, from its Lines port
       inmemory_roster/              Lines from the visits in memory (presence.RosterOf)
     inprocess_title_catalog/        the Titles port of three queries: shown, worn and each track, from titles.Catalog
+    inprocess_rename_rule/          GetProfile's Renames port: when a name may change again, from players.NameChoice
     rpc_planet_fronts/              the countries played for and against, from planet.v1.InternalService/GetTakesByCountry:
                                     GetFronts' port, and GetPlayer's through caching_fronts/
       caching_fronts/               one answer per account for 30s
@@ -1375,7 +1378,7 @@ internal/player/internal/
 ```
 
 - **The caller is the account in the click token.** Every call but `GetRoster`, `GetPlayer` and `ListenForEvents` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, on the key `auth` hands over the internal listener, as `planet` does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
-- **`GetProfile`** answers the account id and its name, empty when none was chosen, and its color. **`GetFronts`**
+- **`GetProfile`** answers the account id and its name, empty when none was chosen, when the name may change again, and its color. **`GetFronts`**
   answers every country the caller plays for and against (see the fronts below). **`GetStats`** answers `tiles_taken`, `streak_current`, `streak_best` and `streak_last_day` (YYYY-MM-DD).
 - **`SetName` chooses a username.** `players.NameOf` is the rule. It puts the name in **NFC** and cuts the spaces (U+0020) at its ends — the same text, as it shows — and changes nothing else. Then:
   - **3 to 15 characters, counted in code points after NFC**, as postgres' `char_length` counts, so both agree. A letter with a combining mark NFC cannot compose counts two.
@@ -1384,6 +1387,11 @@ internal/player/internal/
   - **Not starting with `guest_` once folded** (`Name.Folded`), which the chat puts before every guest's name. Folded, so `ＧＵＥＳＴ_x` and `gueſt_x` are refused too.
 
   A name that breaks a rule is `InvalidArgument` (`ErrInvalidName`). The name keeps the case it was typed in.
+- **A player changes its name at most once every 30 days**, so a name chosen to pass for another player has to be kept. `Profile.Renamed` applies `players.NameChoice`: the time the player last chose its name, plus 30 days, is the earliest next choice. A change sooner, by a nanosecond too, is `players.RenameRefusal` (`ErrRenamedTooSoon`), which `SetName` answers as `ResourceExhausted` with a `player.v1.RenameRefusal` detail: `renamable_at_unix_ms`. The use case checks it after the name and the link, and before the save.
+  - **The first name a player picks is free**: an account with no profile (`players.Unnamed`) and a name given at sign-in (`CreateProfile`, which keeps no choice time) start no wait. Every `SetName` that is kept starts it again, the same name in another case too; a refused one (invalid, taken, too soon) does not.
+  - **The time is `profiles.name_chosen_at`** (migration `20261015120000_name_chosen_at`), NULL until the player chooses. The migration gave the names kept before it no time, so each player's next change is free. `SaveProfile` writes it with the name.
+  - **`Profile.renamable_at_unix_ms`** (0 when the name may change now) is on `SetName`'s answer and on `GetProfile`'s. `profile_query` reads the time in SQL and asks the rule through its `Renames` port (`inprocess_rename_rule`), so the 30 days are only in `NameChoice`.
+  - Two `SetName` calls at the same moment can both pass the rule: the last one saved wins, and the wait starts from it.
 - **`SetColor` picks the color a username is drawn in**, from `player.v1.NameColor`: the proto enum is the list,
   as `chat.v1.Reaction` is for reactions, and the number is what is stored, so a value is never renumbered or
   reused. `playermessage.ColorOf` refuses a number the proto does not name (`InvalidArgument`, `ErrInvalidColor`);

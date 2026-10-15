@@ -2,6 +2,7 @@ package playermessage
 
 import (
 	"fmt"
+	"time"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
@@ -10,7 +11,18 @@ import (
 )
 
 func Profile(profile players.Profile) *playerv1.Profile {
-	return &playerv1.Profile{AccountId: profile.Account().String(), Name: string(profile.Name())}
+	kept := profile.TakeSnapshot()
+	return &playerv1.Profile{
+		AccountId: kept.Account.String(), Name: string(kept.Name), RenamableAtUnixMs: RenamableAt(kept.ChosenAt),
+	}
+}
+
+func RenamableAt(chosenAt time.Time) int64 {
+	at := players.NameChosenAt(chosenAt).RenamableAt()
+	if at.IsZero() {
+		return 0
+	}
+	return at.UnixMilli()
 }
 
 func Color(color players.Color) playerv1.NameColor {
