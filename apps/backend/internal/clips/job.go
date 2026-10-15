@@ -9,6 +9,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/generator_output"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/log_history"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/log_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/choose_clips_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/choose_clips_usecase/log_choose_clips"
@@ -103,7 +104,7 @@ func Choose(ctx context.Context, shortlist string, config Config, logger *slog.L
 	}
 
 	choose := log_choose_clips.New(choose_clips_usecase.New(
-		generator_output.ShortlistFile(shortlist), history, cptime.SystemClock{}, config.PerRun,
+		generator_output.ShortlistFile(shortlist), log_history.New(history, logger), cptime.SystemClock{}, config.PerRun,
 	), logger)
 
 	choice, err := choose.Execute(ctx)
