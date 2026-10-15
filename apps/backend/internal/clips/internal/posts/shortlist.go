@@ -28,8 +28,13 @@ type Story struct {
 }
 
 type Telling struct {
-	Key StoryKey
-	At  time.Time
+	Key   StoryKey
+	At    time.Time
+	Title string
+	// As the service says it: scheduled, published, failed...
+	State string
+	// Why a platform did not take it; empty when none refused it.
+	Failure string
 }
 
 const retelling = 24 * time.Hour

@@ -350,20 +350,36 @@ func told(t *testing.T, fake *zernioFake, since time.Time) ([]posts.Telling, err
 func TestTheStoriesToldAreThoseOfThePostsWithAKeyOnEveryPlatform(t *testing.T) {
 	fake := newFake()
 	fake.listed = answer{status: http.StatusOK, body: `{"posts":[` +
-		`{"_id":"p-1","status":"scheduled","scheduledFor":"2026-10-14T05:15:00Z","metadata":{"storyFlag":"dz","storyContinent":"Africa","usageCounted":true}},` +
-		`{"_id":"p-2","status":"published","scheduledFor":"2026-10-13T21:09:00.000Z","metadata":{"storyFlag":"ps","storyContinent":"Central Asia"},"addedLater":1,` +
-		`"platforms":[{"platform":"instagram","status":"published"}]},` +
+		`{"_id":"p-1","title":"ALGERIA IS INVADING LIBYA","status":"scheduled","scheduledFor":"2026-10-14T05:15:00Z",` +
+		`"metadata":{"storyFlag":"dz","storyContinent":"Africa","usageCounted":true}},` +
+		`{"_id":"p-2","title":"PALESTINE IS KICKING ROMANIA OUT OF KAZAKHSTAN","status":"published","scheduledFor":"2026-10-13T21:09:00.000Z",` +
+		`"metadata":{"storyFlag":"ps","storyContinent":"Central Asia"},"addedLater":1,"platforms":[{"platform":"instagram","status":"published"}]},` +
 		`{"_id":"p-3","status":"published","scheduledFor":"2026-10-13T20:00:00Z","content":"a post made by hand"},` +
-		`{"_id":"p-4","status":"cancelled","scheduledFor":"2026-10-13T23:09:00Z","metadata":{"storyFlag":"pt","storyContinent":"Europe"}}` +
+		`{"_id":"p-4","status":"cancelled","scheduledFor":"2026-10-13T23:09:00Z","metadata":{"storyFlag":"pt","storyContinent":"Europe"}},` +
+		`{"_id":"p-5","title":"FRANCE IS KICKING MOROCCO OUT OF LIBYA","status":"failed","scheduledFor":"2026-10-14T07:15:00Z",` +
+		`"metadata":{"storyFlag":"fr","storyContinent":"Africa"},"platforms":[` +
+		`{"platform":"tiktok","status":"failed","errorMessage":"TikTok creator has reached the daily posting limit."},` +
+		`{"platform":"instagram","status":"published"}]}` +
 		`],"pagination":{"page":1}}`}
 
 	tellings, err := told(t, fake, time.Date(2026, 10, 13, 0, 57, 0, 0, time.UTC))
 
 	require.NoError(t, err)
 	assert.Equal(t, []posts.Telling{
-		{Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}, At: time.Date(2026, 10, 14, 5, 15, 0, 0, time.UTC)},
-		{Key: posts.StoryKey{Flag: "ps", Continent: "Central Asia"}, At: time.Date(2026, 10, 13, 21, 9, 0, 0, time.UTC)},
-		{Key: posts.StoryKey{Flag: "pt", Continent: "Europe"}, At: time.Date(2026, 10, 13, 23, 9, 0, 0, time.UTC)},
+		{
+			Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}, At: time.Date(2026, 10, 14, 5, 15, 0, 0, time.UTC),
+			Title: "ALGERIA IS INVADING LIBYA", State: "scheduled",
+		},
+		{
+			Key: posts.StoryKey{Flag: "ps", Continent: "Central Asia"}, At: time.Date(2026, 10, 13, 21, 9, 0, 0, time.UTC),
+			Title: "PALESTINE IS KICKING ROMANIA OUT OF KAZAKHSTAN", State: "published",
+		},
+		{Key: posts.StoryKey{Flag: "pt", Continent: "Europe"}, At: time.Date(2026, 10, 13, 23, 9, 0, 0, time.UTC), State: "cancelled"},
+		{
+			Key: posts.StoryKey{Flag: "fr", Continent: "Africa"}, At: time.Date(2026, 10, 14, 7, 15, 0, 0, time.UTC),
+			Title: "FRANCE IS KICKING MOROCCO OUT OF LIBYA", State: "failed",
+			Failure: "tiktok: TikTok creator has reached the daily posting limit.",
+		},
 	}, tellings)
 	assert.Equal(t, url.Values{"fromDate": {"2026-10-13"}, "limit": {"500"}}, fake.queries["GET /v1/posts"])
 	assert.Equal(t, "Bearer the-key", fake.headers["GET /v1/posts"].Get("Authorization"))

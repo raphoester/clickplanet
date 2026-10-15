@@ -3327,14 +3327,16 @@ free tier has TikTok and the whole API). A change of service is that package, it
   and never to the storage, and **an error never carries a URL**: the address a video is uploaded to is a
   credential for an hour, and Go's `url.Error` prints it. `unreachable` keeps the cause and drops the address;
   a test pins it.
-- **What the job cannot see: a post TikTok refuses at its time**, hours after the run ended. Zernio shows it in
-  its dashboard, as failed.
+- **A post TikTok refuses at its time is seen by the next run**, hours after its own ended: the history `choose`
+  reads holds each post's state and each platform's error, and `log_history` logs every post of the last day,
+  a refused one as a warning with why (`a post of the last day was refused … failure="tiktok: …"`).
 - The tests run it against `httptest`, with the requests and the answers of Zernio's OpenAPI document.
 
 `posts/generator_output/` reads the generator's files (`protojson`, unknown fields dropped, so the generator can
 add one first), and both use cases log in a decorator
-(`log_choose_clips`, `log_schedule_clips`), as does the service (`log_service`: each try the service did not take,
-which is what explains a step that waited 20 minutes).
+(`log_choose_clips`, `log_schedule_clips`), as do the service (`log_service`: each try the service did not take,
+which is what explains a step that waited 20 minutes) and the history (`log_history`: how each post of the last day
+went).
 
 ### Shared (`internal/shared/`)
 

@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
@@ -137,9 +138,32 @@ func (s *Service) Told(ctx context.Context, since time.Time) ([]posts.Telling, e
 		if !keyed || post.ScheduledFor == nil {
 			continue
 		}
-		told = append(told, posts.Telling{Key: key, At: *post.ScheduledFor})
+		told = append(told, posts.Telling{
+			Key: key, At: *post.ScheduledFor, Title: valueOf(post.Title), State: string(valueOf(post.Status)), Failure: failureOf(post),
+		})
 	}
 	return told, nil
+}
+
+func failureOf(post cpzernio.Post) string {
+	if post.Platforms == nil {
+		return ""
+	}
+	var failures []string
+	for _, target := range *post.Platforms {
+		if message := valueOf(target.ErrorMessage); message != "" {
+			failures = append(failures, valueOf(target.Platform)+": "+message)
+		}
+	}
+	return strings.Join(failures, "; ")
+}
+
+func valueOf[T any](pointer *T) T {
+	if pointer == nil {
+		var zero T
+		return zero
+	}
+	return *pointer
 }
 
 func keyOf(post cpzernio.Post) (posts.StoryKey, bool) {
