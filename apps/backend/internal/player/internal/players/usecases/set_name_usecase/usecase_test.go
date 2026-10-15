@@ -35,7 +35,7 @@ func TestTheNameIsKeptAsTyped(t *testing.T) {
 		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada_L"})
 
 	require.NoError(t, err)
-	want := players.NewProfile(ada, "Ada_L", now)
+	want := players.ProfileSnapshot{Account: ada, Name: "Ada_L", UpdatedAt: now, ChosenAt: now}.Restore()
 	assert.Equal(t, want, profile)
 	stored, err := store.Profile(t.Context(), ada)
 	require.NoError(t, err)
@@ -53,7 +53,7 @@ func TestAnInvalidNameChangesNothingAndAsksNobody(t *testing.T) {
 	assert.Zero(t, accounts.Asked())
 	stored, err := store.Profile(t.Context(), ada)
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("Ada"), stored.Name())
+	assert.Equal(t, players.Name("Ada"), stored.TakeSnapshot().Name)
 }
 
 func TestAGuestIsNotLinkedAndKeepsNoName(t *testing.T) {
@@ -81,14 +81,58 @@ func TestANameAnotherPlayerHoldsIsTaken(t *testing.T) {
 
 func TestAPlayerSetsItsOwnNameAgainInAnotherCase(t *testing.T) {
 	store, accounts := setUp()
-	useCase := set_name_usecase.New(store, accounts, cptime.NewFixedClock(now))
+	clock := cptime.NewFixedClock(now)
+	useCase := set_name_usecase.New(store, accounts, clock)
 	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "ada"})
 	require.NoError(t, err)
+	clock.Advance(30 * 24 * time.Hour)
 
 	profile, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "ADA"})
 
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("ADA"), profile.Name())
+	assert.Equal(t, players.Name("ADA"), profile.TakeSnapshot().Name)
+}
+
+func TestAGivenNameIsChangedAtOnce(t *testing.T) {
+	store, accounts := setUp()
+	require.NoError(t, store.CreateProfile(t.Context(), players.NewProfile(ada, "BraveFox42", now)))
+
+	profile, err := set_name_usecase.New(store, accounts, cptime.NewFixedClock(now)).
+		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
+
+	require.NoError(t, err)
+	assert.Equal(t, players.Name("Ada"), profile.TakeSnapshot().Name)
+}
+
+func TestAChangeOnDay29IsRefusedAndKeepsTheName(t *testing.T) {
+	store, accounts := setUp()
+	clock := cptime.NewFixedClock(now)
+	useCase := set_name_usecase.New(store, accounts, clock)
+	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
+	require.NoError(t, err)
+	clock.Advance(29 * 24 * time.Hour)
+
+	_, err = useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada_L"})
+
+	var refusal players.RenameRefusal
+	require.ErrorAs(t, err, &refusal)
+	assert.Equal(t, now.Add(30*24*time.Hour), refusal.Until)
+	stored, err := store.Profile(t.Context(), ada)
+	require.NoError(t, err)
+	assert.Equal(t, players.Name("Ada"), stored.TakeSnapshot().Name)
+}
+
+func TestANameAnotherPlayerHoldsStartsNoWait(t *testing.T) {
+	store, accounts := setUp()
+	useCase := set_name_usecase.New(store, accounts, cptime.NewFixedClock(now))
+	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
+	require.NoError(t, err)
+	_, err = useCase.Execute(t.Context(), set_name_usecase.In{Account: bob, Name: "ada"})
+	require.ErrorIs(t, err, players.ErrNameTaken)
+
+	_, err = useCase.Execute(t.Context(), set_name_usecase.In{Account: bob, Name: "Bob"})
+
+	require.NoError(t, err)
 }
 
 func TestAFailureToAskAuthIsNotAGuest(t *testing.T) {

@@ -23,7 +23,7 @@ func TestASignedOutAccountLeavesTheRoster(t *testing.T) {
 	account, err := players.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
 	require.NoError(t, err)
 	visits := inmemory_visit_storage.New(cptime.NewFixedClock(now))
-	visits.Record(presence.NewVisit(account, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), titles.Standing{}), "aaaaaa", "fr", now))
+	visits.Record(presence.NewVisit(account, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), titles.Standing{}), "aaaaaa", "fr", now))
 
 	err = signed_out_subscriber.New(forget_visit_usecase.New(visits)).Handle(t.Context(), &authv1.SignedOut{AccountId: account.String()})
 

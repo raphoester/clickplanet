@@ -56,12 +56,12 @@ func TestEveryLinkedAccountWithNoNameIsNamedAndNoOtherOne(t *testing.T) {
 	assert.Equal(t, 1, named)
 	profile, err := f.store.Profile(t.Context(), players.AccountID{15: 1})
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("BraveFox42"), profile.Name())
+	assert.Equal(t, players.Name("BraveFox42"), profile.TakeSnapshot().Name)
 	_, err = f.store.Profile(t.Context(), players.AccountID{15: 2})
 	require.ErrorIs(t, err, players.ErrNoProfile, "a guest is not named")
 	profile, err = f.store.Profile(t.Context(), players.AccountID{15: 3})
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("Ada"), profile.Name())
+	assert.Equal(t, players.Name("Ada"), profile.TakeSnapshot().Name)
 }
 
 func TestASecondRunNamesNobody(t *testing.T) {

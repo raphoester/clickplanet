@@ -1511,8 +1511,9 @@ Discord or a code sent to an email address keeps that account on every device.
   sends the click token with every call, and a call refused `unauthenticated` is
   sent once more with a fresh session, as a click is. `invalid_argument` →
   `invalid`, `already_exists` → `taken`, `permission_denied` → `guest`, a second
-  `unauthenticated` → `notSignedIn`, anything else (a mint that failed included)
-  → `failed`. Only `GetProfile` is retried.
+  `unauthenticated` → `notSignedIn`, a `RenameRefusal` detail →
+  `RenameTooSoonError` (`tooSoon`, with `renamableAt`), anything else (a mint
+  that failed included) → `failed`. Only `GetProfile` is retried.
 - `app/account/accountStore.ts` — `AccountStore`, the section's state machine:
   `loading`, `hidden`, or `ready` with the offered providers, the linked ones,
   the action in flight and the last failure, and the username with its own save
@@ -1583,7 +1584,12 @@ One part is the server's alone: JavaScript cannot name a character's script, so
 the client refuses only Latin, Greek and Cyrillic mixed (the lookalikes), and a
 name mixing other scripts comes back `invalid`. The server is the
 authority and alone knows what is taken. The chat shows it (see [Live
-chat](#live-chat)). **It is read after the account, not with it**: `GetProfile`
+chat](#live-chat)). **A name changes at most once every 30 days**, a name given
+at sign-in aside (the backend's CLAUDE.md, Player). `GetProfile` and `SetName`
+answer when it may change again (`Profile.renamableAt`), and so does a refusal
+(`RenameTooSoonError`); `AccountStore` keeps it, and until then the form is
+disabled and its hint says the date and time instead of the rule. The client
+never counts the 30 days itself. **It is read after the account, not with it**: `GetProfile`
 needs a click token, which can mean a mint, so the section shows as soon as
 `GetMe` answers and the name follows. Only a linked account reads it — a guest
 has none and should not mint to learn that — and a failed read leaves the name

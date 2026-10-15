@@ -111,7 +111,7 @@ func TestAShowcaseIsWhatTheCatalogShowsOfTheTitlesHeldAndTheOneWorn(t *testing.T
 }
 
 func TestAnAuthorWearsItsTitleUnlessItIsAGuest(t *testing.T) {
-	named := players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada", time.Time{}, false, 0), players.Streak{})
+	named := players.NamedAuthor(players.ProfileSnapshot{Name: "Ada"}.Restore(), players.Streak{})
 	guest := players.GuestAuthor("a1b2c3", players.Streak{})
 
 	dressed := wearing.AuthorOf(named, standing("mid"))

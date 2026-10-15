@@ -63,7 +63,7 @@ func (s *StoreContractSuite) TestCreatingAProfileForAnAccountThatHasOneChangesNo
 
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(Name("Ada"), profile.Name())
+	s.Equal(Name("Ada"), profile.TakeSnapshot().Name)
 }
 
 func (s *StoreContractSuite) TestCreatingAProfileWithANameAnotherHoldsIsNameTaken() {
@@ -88,12 +88,29 @@ func (s *StoreContractSuite) TestASavedProfileReadsBackAndASecondReplacesIt() {
 	s.Equal(renamed, profile)
 }
 
+func (s *StoreContractSuite) TestWhenThePlayerChoseItsNameReadsBack() {
+	chosen, err := Unnamed(AccountID{15: 1}).Renamed("Ada", contractAt)
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), chosen))
+
+	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(chosen, profile)
+
+	again, err := profile.Renamed("Ada_L", contractAt.Add(renameEvery))
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.SaveProfile(s.T().Context(), again))
+	profile, err = s.store.Profile(s.T().Context(), AccountID{15: 1})
+	s.Require().NoError(err)
+	s.Equal(again, profile)
+}
+
 func (s *StoreContractSuite) TestANewProfileIsNotAnAdmin() {
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
 
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.False(profile.Admin())
+	s.False(profile.TakeSnapshot().Admin)
 }
 
 func (s *StoreContractSuite) TestAnAdminIsReadAndARenameKeepsIt() {
@@ -105,8 +122,8 @@ func (s *StoreContractSuite) TestAnAdminIsReadAndARenameKeepsIt() {
 
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.True(profile.Admin())
-	s.Equal(Name("Ada_L"), profile.Name())
+	s.True(profile.TakeSnapshot().Admin)
+	s.Equal(Name("Ada_L"), profile.TakeSnapshot().Name)
 }
 
 func (s *StoreContractSuite) TestEachTakeIsCountedByTheDomainsRule() {
@@ -206,7 +223,7 @@ func (s *StoreContractSuite) TestAnAccountSavesItsOwnNameInAnotherCase() {
 
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(Name("ADA_L"), profile.Name())
+	s.Equal(Name("ADA_L"), profile.TakeSnapshot().Name)
 }
 
 func (s *StoreContractSuite) TestARenameFreesTheOldName() {
@@ -317,7 +334,7 @@ func (s *StoreContractSuite) TestAColorIsReadAndARenameKeepsIt() {
 
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(Color(3), profile.Color())
+	s.Equal(Color(3), profile.TakeSnapshot().Color)
 }
 
 func (s *StoreContractSuite) TestAColorCanBeTakenBack() {
@@ -327,5 +344,5 @@ func (s *StoreContractSuite) TestAColorCanBeTakenBack() {
 
 	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
 	s.Require().NoError(err)
-	s.Equal(Color(0), profile.Color())
+	s.Equal(Color(0), profile.TakeSnapshot().Color)
 }

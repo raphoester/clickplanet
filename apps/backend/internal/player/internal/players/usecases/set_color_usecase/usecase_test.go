@@ -32,7 +32,7 @@ func TestAPlayerWithAUsernameKeepsTheColorItChose(t *testing.T) {
 
 	profile, err := colors.Profile(t.Context(), ada)
 	require.NoError(t, err)
-	assert.Equal(t, players.Color(4), profile.Color())
+	assert.Equal(t, players.Color(4), profile.TakeSnapshot().Color)
 }
 
 func TestAnAccountWithNoUsernameIsRefused(t *testing.T) {

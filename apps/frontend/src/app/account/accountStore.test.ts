@@ -1,6 +1,16 @@
 import {describe, expect, it, vi} from "vitest"
 import {AccountBackend, AuthError, AuthFailure, Me, Provider} from "../../backends/account.ts"
-import {ColoredProfile, Fronts, NameColor, PlayerBackend, PlayerError, PlayerFailure, Profile, TitleDashboard} from "../../backends/player.ts"
+import {
+    ColoredProfile,
+    Fronts,
+    NameColor,
+    PlayerBackend,
+    PlayerError,
+    PlayerFailure,
+    Profile,
+    RenameTooSoonError,
+    TitleDashboard,
+} from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
 import {AccountStore} from "./accountStore.ts"
 
@@ -383,6 +393,16 @@ describe("AccountStore", () => {
             expect(store.state()).toEqual({kind: "ready", offered: ["google"], me: {linked: ["google"]}})
         })
 
+        it("comes with when it may change again", async () => {
+            const player = fakePlayer("ana")
+            player.profile.mockResolvedValue({accountId: "account-1", name: "ana", color: NameColor.UNSPECIFIED, renamableAt: 1_700_000_000_000})
+            const {store} = setup(linked(), player)
+
+            await store.load()
+
+            await vi.waitFor(() => expect(store.state()).toMatchObject({username: "ana", renamableAt: 1_700_000_000_000}))
+        })
+
         it("is none while the player has not chosen one", async () => {
             const {store, player} = setup(linked(), fakePlayer(""))
 
@@ -462,6 +482,29 @@ describe("AccountStore", () => {
                     kind: "ready", offered: ["google"], me: {linked: ["google"]}, accountId: "account-1", username: "ana", color: NameColor.UNSPECIFIED,
                     nameFailure: "taken",
                 })
+            })
+
+            it("keeps when the name it stored may change again", async () => {
+                const player = fakePlayer()
+                player.setName.mockResolvedValue({accountId: "account-1", name: "Ana", renamableAt: 1_700_000_000_000})
+                const {store} = setup(linked(), player)
+                await store.load()
+
+                await store.setUsername("Ana")
+
+                expect(store.state()).toMatchObject({username: "Ana", renamableAt: 1_700_000_000_000})
+            })
+
+            it("keeps when a change refused as too soon is allowed", async () => {
+                const player = fakePlayer("ana")
+                player.setName.mockRejectedValue(new RenameTooSoonError(1_700_000_000_000))
+                const {store} = setup(linked(), player)
+                await store.load()
+                await vi.waitFor(() => expect(store.state()).toMatchObject({username: "ana"}))
+
+                await store.setUsername("bo")
+
+                expect(store.state()).toMatchObject({username: "ana", nameFailure: "tooSoon", renamableAt: 1_700_000_000_000})
             })
 
             it("clears the last refusal when the next save starts", async () => {

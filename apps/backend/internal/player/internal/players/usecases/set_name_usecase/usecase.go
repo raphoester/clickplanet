@@ -10,6 +10,7 @@ import (
 )
 
 type Profiles interface {
+	Profile(ctx context.Context, account players.AccountID) (players.Profile, error)
 	SaveProfile(ctx context.Context, profile players.Profile) error
 }
 
@@ -46,7 +47,19 @@ func (u *UseCase) Execute(ctx context.Context, in In) (players.Profile, error) {
 		return players.Profile{}, players.ErrNotLinked
 	}
 
-	profile := players.NewProfile(in.Account, name, u.clock.Now())
+	current, err := u.profiles.Profile(ctx, in.Account)
+	if errors.Is(err, players.ErrNoProfile) {
+		current, err = players.Unnamed(in.Account), nil
+	}
+	if err != nil {
+		return players.Profile{}, fmt.Errorf("failed to read the profile: %w", err)
+	}
+
+	profile, err := current.Renamed(name, u.clock.Now())
+	if err != nil {
+		return players.Profile{}, err //nolint:wrapcheck // the handler maps the domain's refusal.
+	}
+
 	err = u.profiles.SaveProfile(ctx, profile)
 	if errors.Is(err, players.ErrNameTaken) {
 		return players.Profile{}, err //nolint:wrapcheck // the handler maps the port's sentinel.

@@ -1,5 +1,14 @@
 import {AccountBackend, AuthFailure, failureOf, Intent, Me, OAuthProvider, Provider, PROVIDERS} from "../../backends/account.ts"
-import {Fronts, NameColor, PlayerBackend, PlayerFailure, playerFailureOf, PlayerTitle, TitleDashboard} from "../../backends/player.ts"
+import {
+    Fronts,
+    NameColor,
+    PlayerBackend,
+    PlayerFailure,
+    playerFailureOf,
+    PlayerTitle,
+    RenameTooSoonError,
+    TitleDashboard,
+} from "../../backends/player.ts"
 import {SessionProvider} from "../../backends/session.ts"
 
 export type AccountAction = "signIn" | "link" | "sendCode" | "checkCode" | "signOut" | "signOutEverywhere" | "deleteAccount"
@@ -18,6 +27,7 @@ export type AccountState =
         code?: PendingCode
         accountId?: string
         username?: string
+        renamableAt?: number
         naming?: true
         nameFailure?: PlayerFailure
         color?: NameColor
@@ -105,7 +115,7 @@ export class AccountStore {
             this.refused(ready, "email", failureOf(e))
             return
         }
-        this.settle(ready.offered, ready.me, {accountId: ready.accountId, username: ready.username, color: ready.color, code: {address, intent}})
+        this.settle(ready.offered, ready.me, {...named(ready), code: {address, intent}})
     }
 
     public async checkCode(code: string): Promise<void> {
@@ -128,7 +138,7 @@ export class AccountStore {
     public cancelCode(): void {
         const ready = this.current
         if (ready.kind !== "ready" || ready.busy || !ready.code) return
-        this.settle(ready.offered, ready.me, {accountId: ready.accountId, username: ready.username, color: ready.color})
+        this.settle(ready.offered, ready.me, named(ready))
     }
 
     private refused(ready: Ready, provider: Provider, failure: AuthFailure, code?: PendingCode) {
@@ -140,7 +150,7 @@ export class AccountStore {
             this.settle(offered, {linked: []}, {failure})
             return
         }
-        this.settle(offered, ready.me, {failure, accountId: ready.accountId, username: ready.username, color: ready.color, code})
+        this.settle(offered, ready.me, {...named(ready), failure, code})
     }
 
     public async leaveFor(provider: OAuthProvider, intent: Intent): Promise<void> {
@@ -176,7 +186,7 @@ export class AccountStore {
         } catch (e) {
             const failure = failureOf(e)
             if (failure !== "notSignedIn") {
-                this.settle(ready.offered, ready.me, {failure, accountId: ready.accountId, username: ready.username, color: ready.color})
+                this.settle(ready.offered, ready.me, {...named(ready), failure})
                 return
             }
         }
@@ -196,10 +206,14 @@ export class AccountStore {
         try {
             const profile = await this.player.setName(name)
             if (generation !== this.generation) return
-            this.set({...kept(ready), accountId: profile.accountId || undefined, username: profile.name || undefined})
+            this.set({
+                ...kept(ready), accountId: profile.accountId || undefined, username: profile.name || undefined,
+                renamableAt: profile.renamableAt,
+            })
         } catch (e) {
             if (generation !== this.generation) return
-            this.set({...kept(ready), nameFailure: playerFailureOf(e)})
+            const renamableAt = e instanceof RenameTooSoonError ? e.renamableAt : ready.renamableAt
+            this.set({...kept(ready), nameFailure: playerFailureOf(e), renamableAt})
         }
     }
 
@@ -224,11 +238,13 @@ export class AccountStore {
         let accountId: string | undefined
         let name: string
         let color: NameColor
+        let renamableAt: number | undefined
         try {
             const profile = await this.player.profile()
             accountId = profile.accountId || undefined
             name = profile.name
             color = profile.color
+            renamableAt = profile.renamableAt
         } catch {
             return
         }
@@ -239,7 +255,7 @@ export class AccountStore {
             this.set({...ready, accountId})
             return
         }
-        this.set({...ready, accountId, username: name, color})
+        this.set({...ready, accountId, username: name, color, renamableAt})
     }
 
     private begin(action: AccountAction) {
@@ -253,7 +269,9 @@ export class AccountStore {
     private settle(
         offered: Provider[],
         me: Me,
-        extra: {failure?: AuthFailure, accountId?: string, username?: string, color?: NameColor, code?: PendingCode} = {},
+        extra: {
+            failure?: AuthFailure, accountId?: string, username?: string, renamableAt?: number, color?: NameColor, code?: PendingCode
+        } = {},
     ) {
         const ordered = PROVIDERS.filter((p) => offered.includes(p))
         if (ordered.length === 0 && me.linked.length === 0) {
@@ -264,8 +282,9 @@ export class AccountStore {
         const accountId = linked ? extra.accountId : undefined
         const username = linked ? extra.username : undefined
         const color = linked && username !== undefined ? extra.color : undefined
+        const renamableAt = linked && username !== undefined ? extra.renamableAt : undefined
         const code = ordered.includes("email") ? extra.code : undefined
-        this.set({kind: "ready", offered: ordered, me, failure: extra.failure, accountId, username, color, code})
+        this.set({kind: "ready", offered: ordered, me, failure: extra.failure, accountId, username, renamableAt, color, code})
     }
 
     private set(state: AccountState) {
@@ -275,8 +294,9 @@ export class AccountStore {
 }
 
 function kept(ready: Ready): Ready {
-    return {
-        kind: "ready", offered: ready.offered, me: ready.me, accountId: ready.accountId, username: ready.username,
-        color: ready.color, code: ready.code,
-    }
+    return {kind: "ready", offered: ready.offered, me: ready.me, ...named(ready), code: ready.code}
+}
+
+function named(ready: Ready) {
+    return {accountId: ready.accountId, username: ready.username, renamableAt: ready.renamableAt, color: ready.color}
 }

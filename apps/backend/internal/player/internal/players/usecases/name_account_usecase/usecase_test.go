@@ -30,8 +30,8 @@ func TestANamelessAccountIsGivenAGeneratedName(t *testing.T) {
 	profile, err := useCase(store).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("BraveFox42"), profile.Name())
-	assert.True(t, now.Equal(profile.UpdatedAt()))
+	assert.Equal(t, players.Name("BraveFox42"), profile.TakeSnapshot().Name)
+	assert.True(t, now.Equal(profile.TakeSnapshot().UpdatedAt))
 }
 
 func TestAnAccountWithANameKeepsIt(t *testing.T) {
@@ -41,7 +41,7 @@ func TestAnAccountWithANameKeepsIt(t *testing.T) {
 	profile, err := useCase(store).Execute(t.Context(), ada)
 
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("Ada"), profile.Name())
+	assert.Equal(t, players.Name("Ada"), profile.TakeSnapshot().Name)
 }
 
 func TestAFailureToNameIsAnError(t *testing.T) {

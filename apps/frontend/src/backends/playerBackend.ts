@@ -6,6 +6,7 @@ import {
     Player as PlayerPb,
     PlayerEvent as PlayerEventPb,
     Profile as ProfilePb,
+    RenameRefusal,
     RosterEntry as RosterEntryPb,
     Track as TrackPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
@@ -23,6 +24,7 @@ import {
     Presence,
     PresenceBackend,
     Profile,
+    RenameTooSoonError,
     RosterEntry,
     RosterEvent,
     TitleDashboard,
@@ -197,6 +199,8 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
                 return await call(await this.headers())
             }
         } catch (e) {
+            const tooSoon = e instanceof ConnectError ? e.findDetails(RenameRefusal)[0] : undefined
+            if (tooSoon) throw new RenameTooSoonError(Number(tooSoon.renamableAtUnixMs), {cause: e})
             const failure = e instanceof ConnectError ? FAILURES[e.code] : undefined
             throw new PlayerError(failure ?? "failed", {cause: e})
         }
@@ -212,7 +216,8 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
 }
 
 function profileOf(profile: ProfilePb | undefined): Profile {
-    return {accountId: profile?.accountId ?? "", name: profile?.name ?? ""}
+    const renamableAt = Number(profile?.renamableAtUnixMs ?? 0)
+    return {accountId: profile?.accountId ?? "", name: profile?.name ?? "", renamableAt: renamableAt > 0 ? renamableAt : undefined}
 }
 
 function rosterEntryOf(entry: RosterEntryPb): RosterEntry {

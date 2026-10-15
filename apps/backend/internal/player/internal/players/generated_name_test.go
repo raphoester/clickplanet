@@ -23,8 +23,8 @@ func TestAssignGivesANamelessAccountAGeneratedName(t *testing.T) {
 
 	profile, err := store.Profile(t.Context(), players.AccountID{15: 1})
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("BraveFox42"), profile.Name(), "a second Assign draws nothing")
-	assert.True(t, namedAt.Equal(profile.UpdatedAt()))
+	assert.Equal(t, players.Name("BraveFox42"), profile.TakeSnapshot().Name, "a second Assign draws nothing")
+	assert.True(t, namedAt.Equal(profile.TakeSnapshot().UpdatedAt))
 }
 
 func TestAssignLeavesAChosenNameAlone(t *testing.T) {
@@ -36,7 +36,7 @@ func TestAssignLeavesAChosenNameAlone(t *testing.T) {
 
 	profile, err := store.Profile(t.Context(), players.AccountID{15: 1})
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("Ada"), profile.Name())
+	assert.Equal(t, players.Name("Ada"), profile.TakeSnapshot().Name)
 }
 
 func TestAssignDrawsAgainWhenTheNameIsTaken(t *testing.T) {
@@ -49,7 +49,7 @@ func TestAssignDrawsAgainWhenTheNameIsTaken(t *testing.T) {
 
 	profile, err := store.Profile(t.Context(), players.AccountID{15: 2})
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("IronOwl55"), profile.Name())
+	assert.Equal(t, players.Name("IronOwl55"), profile.TakeSnapshot().Name)
 }
 
 func TestAssignDrawsTenTimesAtMost(t *testing.T) {
