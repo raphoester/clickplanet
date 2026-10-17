@@ -86,10 +86,6 @@ shared package because "is this caller a bot" is the business this game is in,
 while `shared` is for things that would read the same in any other program.
 `planet` → `antibot` is the only module-to-module import in the backend.
 
-**`internal/admingate/` is not a context either: it is what `main` puts in front of the admin services on the
-admin listener** — the admin page's origin, who calls (asked of `auth`), and a line per call. See [Operator
-tools](#operator-tools-adminservice).
-
 **`internal/clips/` is not a context of the server either: it is a job, with a binary of its own** (`cmd/clips`).
 It shares no process, no config and no data with the six, and imports only `shared`. See [The clips
 job](#the-clips-job-internalclips-cmdclips).
@@ -110,7 +106,7 @@ root package**:
 |---|---|
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `StorageConfig`, `NewModule` |
-| `auth` | `Config`, `NewModule`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
+| `auth` | `Config`, `NewModule`, `AdminGateConfig`, `NewAdminGate`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
 | `player` | `Config`, `NewModule` |
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
@@ -233,7 +229,7 @@ A module never sees the router, the signal handler or another module's objects. 
 
 **Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the console, admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger and the antibot's evidence all flush from their runners, after the closers, once the server has stopped taking writes.
 
-**`cmd/api/main.go` is the composition root, and the server's only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does three things: load the config, build the admin gate (`internal/admingate`, see [Operator tools](#operator-tools-adminservice)), and list the modules. It builds no other object, derives nothing, and reads inside no block.
+**`cmd/api/main.go` is the composition root, and the server's only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does three things: load the config, build the admin gate (`auth.NewAdminGate`, see [Operator tools](#operator-tools-adminservice)), and list the modules. It builds no other object, derives nothing, and reads inside no block.
 
 **The aggregation is the whole of it — a flat slice, no branches, no dependencies threaded through:**
 
@@ -278,7 +274,7 @@ return []bootstrap.Module{
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of both accounts of each report of a page, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of each account a page of reports names, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
-| `admingate` (not a module) | `auth.v1.InternalService/GetOperator` | who calls the admin listener, and whether that account operates, on each admin call | `admission/rpc_auth_operators` |
+| `auth`'s admin gate, which `main` builds | `auth.v1.InternalService/GetOperator` | who calls the admin listener, and whether that account operates, on each admin call | `admingate/admission/rpc_operators` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts` and on each `GetPlayer` the cache does not answer | `playerv1controller/rpc_planet_fronts` |
 
 A module cannot import another's interior, so the key client all five need is `shared/cpsessionverifier` rather than a copy in each.
@@ -1252,6 +1248,12 @@ internal/auth/internal/
     get_account_handler/account_query/     PostgresQuery: GetAccountResponse, for another module
     get_accounts_handler/accounts_query/   PostgresQuery: GetAccountsResponse, a page at once
     get_operator_handler/operator_query/   PostgresQuery: GetOperatorResponse, the cookie's live session if it operates
+  admingate/                               what the admin listener sits behind; NewAdminGate builds it, main injects it
+    admission/                             Page (the admin page's origin), Visit, Operator, the refusals
+      rpc_operators/                       who operates, from InternalService/GetOperator
+      usecases/admit_usecase/              the origin, then who calls — and log_admit/, which logs each refusal
+    guard/                                 the interceptor: a refusal's code, the operator on the context
+      log_calls/                           one line per admitted call
   sessionv1controller/                     deprecated SessionService
     operator_query/                        PostgresQuery: the cookie's live session, its account and whether it operates
     log_refusals/                          logs each caller it refused
@@ -3157,15 +3159,17 @@ interceptors inside the error net (`rpcRoutes.mountBehind`). `cpbootstrap` knows
 An address with an empty gate, or a gate holding a nil, refuses the boot: the admin services have no authentication
 of their own. Empty serves no admin listener.
 
-**`internal/admingate` is the gate, and `cmd/api` builds it** from `adminGate.origin` and the internal listener's
-address. No origin is no admin page, and so no gate.
+**The gate is auth's (`internal/auth/internal/admingate`), and `cmd/api` builds it** with `auth.NewAdminGate`,
+from `auth.adminGate.origin` and the internal listener's address, since it runs outside the module: it asks auth
+who calls over the internal listener, as another module would. No origin is no admin page, and so no gate; an
+origin with auth off refuses the boot.
 
 - **The admin page's origin alone** (`admission.Page`): a call whose `Origin` is another, or none, is
   `permission_denied` before anything is asked. The game page holds the same cookie on the same site, so this is
   what keeps a script injected there from riding an operator's session. Scripts on the box use the loopback
   listener. The router answers CORS for that origin alone, with credentials.
 - **Then who calls**: `admit_usecase` asks `auth.v1.InternalService/GetOperator` with the cookie
-  (`rpc_auth_operators`, 2s), and `guard` maps the answer: no session `unauthenticated`, anybody but an operator
+  (`rpc_operators`, 2s), and `guard` maps the answer: no session `unauthenticated`, anybody but an operator
   `permission_denied`. `log_admit` logs each refusal (`admin call refused`), with its origin and never the cookie.
 - **A line per admitted call** (`log_calls`, inside the guard): `admin call` with the operator's account id, the
   procedure, the request as JSON and the code, reads included. The audit decorators say what a call did; this line
@@ -3686,7 +3690,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `httpServer.startupTimeout` — how long building every module may take, the loads included (default 1m). A boot that passes it fails, and the container's restart policy boots it again. See [Durability](#durability) for why it is not 5s.
 - `httpServer.consoleBindAddress` — where the operator services listen for a shell on the box, with no session (see [Operator tools](#operator-tools-adminservice)); empty serves none, and a non-loopback address refuses the boot
 - `httpServer.adminBindAddress` — where the admin services listen again, behind the admin gate, for the admin page (see [Operator tools](#operator-tools-adminservice)); empty serves none, and set with no gate refuses the boot
-- `adminGate.origin` — the admin page's exact origin, the only one the gate answers; empty builds no gate. In production it comes from `ADMIN_ORIGIN`
+- `auth.adminGate.origin` — the admin page's exact origin, the only one the gate answers; empty builds no gate, and set with `auth.enabled` false refuses the boot. In production it comes from `ADMIN_ORIGIN`
 - `httpServer.internalBindAddress` — where the services other modules call listen (see [Calling another module](#calling-another-module)); empty serves none, a caller that dials it then fails, and a non-loopback address refuses the boot
 - `httpServer.allowedOrigin` — the frontend's exact origin (`scheme://host[:port]`, no path). The public router answers CORS for it alone, with `Access-Control-Allow-Credentials: true`, so the `cp_sid` cookie travels on the web client's mint. **Empty, `*` or anything that is not an origin refuses the boot**: a browser drops a credentialed answer that allows every origin, so a wrong value would only show up as every mint starting a new guest. In production it comes from `FRONTEND_ORIGIN`, the value the Caddyfile allows, which sets the same headers and overwrites these.
 - `gameMap.maxIndex` — total number of tiles

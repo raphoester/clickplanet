@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/admission"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission"
 )
 
 func TestOnlyTheAdminPagesOriginMayCall(t *testing.T) {

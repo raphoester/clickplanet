@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
@@ -28,8 +27,6 @@ type Config struct {
 	Player  player.Config
 	Seasons seasons.Config
 	Support support.Config
-
-	AdminGate admingate.Config
 }
 
 func main() {
@@ -50,7 +47,7 @@ func run(ctx context.Context) error {
 	}))
 	logger.Debug("config", slog.Any("config", config))
 
-	gate, err := admingate.New(config.AdminGate, config.HTTPServer.InternalBindAddress, logger)
+	gate, err := auth.NewAdminGate(config.Auth.AdminGate, config.HTTPServer.InternalBindAddress, logger)
 	if err != nil {
 		return fmt.Errorf("failed to build the admin gate: %w", err)
 	}
@@ -92,6 +89,5 @@ func (c Config) Validate() error {
 		c.Player.Validate(),
 		c.Seasons.Validate(),
 		c.Support.Validate(),
-		c.AdminGate.Validate(),
 	)
 }

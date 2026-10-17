@@ -1,4 +1,4 @@
-package rpc_auth_operators_test
+package rpc_operators_test
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/admission"
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/admission/rpc_auth_operators"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission/rpc_operators"
 )
 
 type auth map[string]error
@@ -27,7 +27,7 @@ func (a auth) GetOperator(
 }
 
 func TestAuthsAnswerIsTheOperatorOrTheReasonItIsNot(t *testing.T) {
-	operators := rpc_auth_operators.New(auth{
+	operators := rpc_operators.New(auth{
 		"":              connect.NewError(connect.CodeUnauthenticated, errors.New("no session")),
 		"cp_sid=player": connect.NewError(connect.CodePermissionDenied, errors.New("a player")),
 		"cp_sid=down":   connect.NewError(connect.CodeUnavailable, errors.New("auth is down")),

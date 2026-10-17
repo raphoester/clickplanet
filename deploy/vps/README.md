@@ -994,7 +994,7 @@ admin.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* → Ca
   and the admin page uses that session: the `cp_sid` cookie of
   `api.clickplanet.lol`, which the browser sends to it from `admin.clickplanet.lol`
   since both are one site.
-- **Only the admin page may call** (`adminGate.origin`, from `ADMIN_ORIGIN` in
+- **Only the admin page may call** (`auth.adminGate.origin`, from `ADMIN_ORIGIN` in
   `env.public`). The game page holds the same cookie, so a call from any other
   origin, or with none, is `permission_denied` before the session is read: a
   script injected in the chat cannot use an operator's session. A script on the

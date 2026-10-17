@@ -5,7 +5,7 @@ httpServer:
   startupTimeout: 1m
   consoleBindAddress: 127.0.0.1:8081
   internalBindAddress: 127.0.0.1:8082
-  # Behind the adminGate below: set, it needs adminGate.origin and auth.enabled.
+  # Behind the admin gate: set, it needs auth.adminGate.origin.
   adminBindAddress: ""
   allowedOrigin: http://localhost:5173
 gameMap:
@@ -308,6 +308,9 @@ chat:
 
 auth:
   enabled: false
+  # The admin page's origin, e.g. http://localhost:5174, with auth on: empty builds no admin gate.
+  adminGate:
+    origin: ""
   enforce: false
   secret: ""
   ttl: 1h
@@ -407,6 +410,3 @@ support:
     perSecond: 0.0167
     burst: 3
     sweepInterval: 1m
-
-adminGate:
-  origin: http://localhost:5174

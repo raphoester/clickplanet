@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/guard"
 )
 
 // Inside the guard: one line per call it let through, with who made it and what it asked, reads included.

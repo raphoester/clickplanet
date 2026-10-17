@@ -20,7 +20,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
@@ -86,7 +85,7 @@ func startGame(t *testing.T) gameStack {
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
 
 	logger := slog.New(slog.DiscardHandler)
-	gate, err := admingate.New(admingate.Config{Origin: adminOrigin}, server.InternalBindAddress, logger)
+	gate, err := auth.NewAdminGate(auth.AdminGateConfig{Origin: adminOrigin}, server.InternalBindAddress, logger)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(t.Context())

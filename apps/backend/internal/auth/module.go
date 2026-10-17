@@ -301,6 +301,8 @@ type Config struct {
 	Email EmailConfig
 
 	Prune prune_guests_usecase.Config
+
+	AdminGate AdminGateConfig
 }
 
 type EmailConfig struct {
@@ -338,6 +340,9 @@ func (c Config) withDefaults() Config {
 
 func (c Config) Validate() error {
 	if !c.Enabled {
+		if c.AdminGate.Origin != "" {
+			return errors.New("auth.adminGate.origin is set and auth is off: the admin gate could admit nobody")
+		}
 		return nil
 	}
 
@@ -345,7 +350,7 @@ func (c Config) Validate() error {
 	if err := c.Database.Validate(); err != nil {
 		databaseErr = fmt.Errorf("auth.database: %w", err)
 	}
-	return errors.Join(c.SignerConfig.Validate(), databaseErr, c.pruneError(), c.signInError(), c.emailError())
+	return errors.Join(c.SignerConfig.Validate(), databaseErr, c.pruneError(), c.signInError(), c.emailError(), c.AdminGate.Validate())
 }
 
 func (c Config) pruneError() error {
