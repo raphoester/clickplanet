@@ -12,7 +12,7 @@ import (
 
 const usage = `usage:
   clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-  clips choose -shortlist <shortlist.json> [-count 2]
+  clips choose -shortlist <shortlist.json> [-count 6]
   clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
