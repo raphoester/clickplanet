@@ -3261,7 +3261,7 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   and the ones skipped (`Retold`), which the log shows. A story with no key is refused when the shortlist is read.
 - **6 a run, because the finder is not what runs short.** Replayed over Oct 14–17, a 12-hour window held 5 to 11
   stories of different keys, and the rule above let about 10 a day out; 2 a run posted 4. Six is the most the
-  `Cadence` below fits between two runs: the sixth goes out 14 hours after a run starts, and the next run's first
+  `Plan` below fits between two runs: the sixth goes out 14 hours after a run starts, and the next run's first
   16 hours after it. A seventh would go out together with that one.
 - **What was told is Zernio's post list, not a table of ours**: each post keeps its key in its Zernio `metadata`
   (`storyFlag`, `storyContinent`, never published), and `choose` lists the posts of the last day back, on every
