@@ -15,7 +15,7 @@ the root `CLAUDE.md`, "Independence of the apps").
 ## Commands
 
 ```bash
-npm run dev        # Vite on http://localhost:5174, the backend's adminGate.origin
+npm run dev        # Vite on http://localhost:5174: set it as the backend's auth.adminGate.origin
 npm run build      # TypeScript check + Vite bundle → /dist
 npm test           # vitest, once
 npm run lint       # ESLint
@@ -50,8 +50,9 @@ npm run proto      # Regenerate src/gen/grpc from the shared ../../proto
 The page needs a backend with auth on and an admin listener:
 
 1. In a copy of `apps/backend/cmd/api/example.yaml`: `httpServer.adminBindAddress: 127.0.0.1:8083`,
-   `adminGate.origin: http://localhost:5174` (already there), `auth.enabled: true`, an `auth.secret` (`openssl rand -hex 32`) and `auth.email.enabled: true`. Email
-   delivery `log` puts the sign-in code in the server log. Postgres on `localhost:5432`.
+   `auth.adminGate.origin: http://localhost:5174`, `auth.enabled: true`, an `auth.secret`
+   (`openssl rand -hex 32`) and `auth.email.enabled: true`. Email delivery `log` puts the sign-in code in the
+   server log. Postgres on `localhost:5432`.
 2. Sign in with an email in the game (`apps/frontend`, `VITE_API_BASE_URL=http://localhost:8080`). A guest is never
    an operator.
 3. `UPDATE auth.accounts SET operator = true WHERE id = '<account id>'` in psql.

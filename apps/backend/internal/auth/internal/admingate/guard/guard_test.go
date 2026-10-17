@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/admission"
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/guard"
 )
 
 const procedure = "/test.v1.AdminService/Do"

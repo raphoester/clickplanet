@@ -14,9 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/admission"
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/guard"
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/guard/log_calls"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/guard/log_calls"
 )
 
 const procedure = "/test.v1.AdminService/Do"

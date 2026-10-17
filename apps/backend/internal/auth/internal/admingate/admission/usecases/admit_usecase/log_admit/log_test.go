@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/admission"
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/admission/usecases/admit_usecase/log_admit"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission/usecases/admit_usecase/log_admit"
 )
 
 type stubUseCase struct {

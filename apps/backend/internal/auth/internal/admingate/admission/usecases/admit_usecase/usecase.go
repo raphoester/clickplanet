@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/admission"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission"
 )
 
 type Operators interface {

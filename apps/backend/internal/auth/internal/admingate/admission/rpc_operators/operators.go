@@ -1,4 +1,4 @@
-package rpc_auth_operators
+package rpc_operators
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/admingate/internal/admission"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission"
 )
 
 const askTimeout = 2 * time.Second
