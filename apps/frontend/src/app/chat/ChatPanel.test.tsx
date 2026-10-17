@@ -1103,7 +1103,7 @@ describe("ChatPanel reports", () => {
     const theirs = message("m1", "you all suck")
     const mine = {...message("m2", "no u", 1_700_000_001_000), authorAccountId: OWN_ACCOUNT, authorName: "ana_1"}
 
-    it("sends a message reported as abuse in the chat, by its own id, and marks it reported", async () => {
+    it("reports a message from its flag, with the details, by its own id, and marks it reported", async () => {
         const {backend} = stubBackend([theirs, mine])
         const reportPlayer = vi.fn(async () => undefined)
         render(<ChatPanel backend={backend} country={france} username="ana_1" accountId={OWN_ACCOUNT} reporter={{reportPlayer}}/>)
@@ -1112,13 +1112,20 @@ describe("ChatPanel reports", () => {
 
         expect(within(item("no u")).queryByRole("button", {name: /^Report/})).toBeNull()
         await user.click(within(item("you all suck")).getByRole("button", {name: "Report this message from Ana"}))
-        await user.click(within(item("you all suck")).getByRole("button", {name: "Confirm the report of this message from Ana"}))
+        const dialog = screen.getByRole("dialog", {name: "Report a message"})
+        expect(within(dialog).getByText("you all suck")).toBeDefined()
 
-        expect(reportPlayer.mock.calls).toEqual([[{accountId: "account-ana", reason: "chat-abuse", text: "", messageId: "m1"}]])
-        expect(await within(item("you all suck")).findByRole("img", {name: "Reported"})).toBeDefined()
+        await user.type(within(dialog).getByRole("textbox", {name: "Details"}), "every day")
+        await user.click(within(dialog).getByRole("button", {name: "Send"}))
+
+        expect(reportPlayer.mock.calls).toEqual([[{accountId: "account-ana", reason: "chat-abuse", text: "every day", messageId: "m1"}]])
+        expect((await within(dialog).findByRole("status")).textContent).toBe("Sent. Thank you!")
+        await user.click(within(dialog).getByText("Close"))
+        expect(screen.queryByRole("dialog")).toBeNull()
+        expect(within(item("you all suck")).getByRole("img", {name: "Reported"})).toBeDefined()
     })
 
-    it("asks no more on Escape, and keeps the phone's sheet open", async () => {
+    it("closes the report on Escape, and keeps the phone's sheet open", async () => {
         const {backend} = stubBackend([theirs])
         const onOpenChange = vi.fn()
         render(<ChatPanel backend={backend} country={france} compact open onOpenChange={onOpenChange} reporter={{reportPlayer: vi.fn()}}/>)
@@ -1128,7 +1135,7 @@ describe("ChatPanel reports", () => {
         await user.click(within(item("you all suck")).getByRole("button", {name: "Report this message from Ana"}))
         await user.keyboard("{Escape}")
 
-        expect(within(item("you all suck")).getByRole("button", {name: "Report this message from Ana"})).toBeDefined()
+        expect(screen.queryByRole("dialog", {name: "Report a message"})).toBeNull()
         expect(onOpenChange).not.toHaveBeenCalled()
     })
 })

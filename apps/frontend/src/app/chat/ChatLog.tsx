@@ -7,7 +7,7 @@ import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
 import StreakFlame from "../components/StreakFlame.tsx";
 import TitleBadge from "../titles/TitleBadge.tsx";
-import {ChevronIcon, ReplyIcon} from "../components/icons.tsx";
+import {ChevronIcon, ReplyIcon, ReportIcon} from "../components/icons.tsx";
 import {ChatLogEntry, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
 import {messageParts} from "../../domain/chatLinks.ts";
 import {describeBlast} from "../../domain/blast.ts";
@@ -17,7 +17,6 @@ import {truncate} from "../truncate.ts";
 import {authorOf, authorStyle, quoteStyle} from "./authorStyle.ts";
 import QuoteLine from "./QuoteLine.tsx";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
-import ReportMessageButton from "./ReportMessageButton.tsx";
 
 export type ChatLogProps = {
     messages: ChatMessage[]
@@ -27,7 +26,7 @@ export type ChatLogProps = {
     onOpenPlayer?: (player: PlayerLine) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
-    onReport?: (message: ChatMessage) => Promise<void>
+    onReport?: (message: ChatMessage) => void
     reported?: ReadonlySet<string>
     own?: (message: ChatMessage) => boolean
     seenUntil?: number
@@ -209,7 +208,7 @@ type MessageLineProps = {
     onOpenPlayer?: (player: PlayerLine) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
-    onReport?: (message: ChatMessage) => Promise<void>
+    onReport?: (message: ChatMessage) => void
     reported: boolean
 }
 
@@ -265,9 +264,17 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                                       onClick={() => props.onReply?.(message)}>
                 <ReplyIcon/>
             </button>}
-            {props.onReport && <ReportMessageButton message={message}
-                                                    reported={props.reported}
-                                                    onReport={props.onReport}/>}
+            {props.onReport && (props.reported
+                ? <span className="chat-report-add chat-report-done" role="img" aria-label="Reported" title="Reported">
+                    <ReportIcon/>
+                </span>
+                : <button type="button"
+                          className="chat-report-add"
+                          aria-label={`Report this message from ${message.authorName}`}
+                          title="Report"
+                          onClick={() => props.onReport?.(message)}>
+                    <ReportIcon/>
+                </button>)}
         </div>
 
         <ReactionBar messageId={message.id}

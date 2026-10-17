@@ -1017,17 +1017,16 @@ the foot of Settings, and a report of another player, from that player's card.
   name is only on the first message of its author's run: the report of an
   insult sent after "hi" pointed to "hi".
 - **Every chat message has a Report button of its own**, beside react and reply
-  (`ReportMessageButton`, `.chat-report-add`, shown like them). **No form**: the
-  message is what is reported, so the reason is abuse in the chat and there is
-  nothing to ask. The first press turns the flag into a red "Report" pill in
-  place, and the second sends the message's own id. Escape (`useEscape`, so a
-  phone's sheet stays open), a press elsewhere or `ARMED_MS` (4s) turns it back:
-  the flag sits beside reply, and a slip of a thumb is not a report. A message
-  sent is a filled flag, kept in `ChatPanel` (`reported`) so a phone's sheet
-  closed and opened again still shows it. A refusal is a `Bubble` with the
-  line of `sendFailure.ts`, and the flag asks again. None on the player's own
-  messages (`useChat`'s `own`) or on a message with no account; none without a
-  `support` backend wired.
+  (`.chat-report-add`, shown like them). It opens `ReportMessageModal`, held by
+  `ChatPanel`: `NoteModal` with the message quoted, its author and its text, and
+  optional details. **No reason is asked**: the message is what is reported, so
+  it is abuse in the chat; the reasons are the card's, about a player. It sends
+  the message's own id. A message sent is a filled flag, kept in `ChatPanel`
+  (`reported`) so a phone's sheet closed and opened again still shows it. A pill
+  that armed on the first press and sent on the second was tried: it covered
+  the reply and reaction buttons, and left no room for details. None on the
+  player's own messages (`useChat`'s `own`) or on a message with no account;
+  none without a `support` backend wired.
 - **No Report on the player's own card**, told by account id: `AccountStore`
   keeps the `accountId` of a signed-in player from its profile. A guest's is
   not read here, so its own card has the button, and the server refuses the

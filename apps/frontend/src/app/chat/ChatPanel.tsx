@@ -15,6 +15,7 @@ import {authorOf, authorStyle} from "./authorStyle.ts";
 import {RESIZE_EDGES} from "./chatSize.ts";
 import ChatComposer from "./ChatComposer.tsx";
 import ChatLog from "./ChatLog.tsx";
+import ReportMessageModal from "../support/ReportMessageModal.tsx";
 import DiscordBar from "./DiscordBar.tsx";
 import {useChat} from "./useChat.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
@@ -65,6 +66,7 @@ export default function ChatPanel(props: ChatPanelProps) {
     const [replyingTo, setReplyingTo] = useState<ChatMessage>()
     const [flashing, setFlashing] = useState<ReadonlySet<string>>(NOTHING)
     const [reported, setReported] = useState<ReadonlySet<string>>(NOTHING)
+    const [reporting, setReporting] = useState<ChatMessage>()
     const bodyId = useId()
     const panel = useRef<HTMLElement>(null)
     const {startResize, resetSize} = useChatSize(panel)
@@ -168,10 +170,8 @@ export default function ChatPanel(props: ChatPanelProps) {
     const onReply = useCallback((message: ChatMessage) => setReplyingTo({...message}), [])
 
     const {reporter} = props
-    const onReport = useCallback(async (message: ChatMessage) => {
-        await reporter?.reportPlayer({accountId: message.authorAccountId, reason: "chat-abuse", text: "", messageId: message.id})
-        setReported(current => new Set([...current, message.id]))
-    }, [reporter])
+    const onReported = useCallback((message: ChatMessage) =>
+        setReported(current => new Set([...current, message.id])), [])
 
     if (status === 'unavailable') return null
 
@@ -224,7 +224,7 @@ export default function ChatPanel(props: ChatPanelProps) {
                      onReact={(messageId, reaction, on) =>
                          react({messageId, reaction, on})}
                      onReply={onReply}
-                     onReport={reporter && onReport}
+                     onReport={reporter && setReporting}
                      reported={reported}
                      own={own}/>
 
@@ -235,6 +235,12 @@ export default function ChatPanel(props: ChatPanelProps) {
                           replyingTo={replyingTo}
                           onCancelReply={() => setReplyingTo(undefined)}
                           onSend={onSend}/>
+
+            {reporting && reporter && <ReportMessageModal key={reporting.id}
+                                                          message={reporting}
+                                                          reporter={reporter}
+                                                          onSent={onReported}
+                                                          onClose={() => setReporting(undefined)}/>}
         </>
 
     if (props.compact) {
