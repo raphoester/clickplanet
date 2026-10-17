@@ -34,6 +34,7 @@ const (
 
 	flagKey      = "storyFlag"
 	continentKey = "storyContinent"
+	countriesKey = "storyCountries"
 	callKey      = "callToAction"
 	// Four posts a day: a page this long holds the week the choice reads, and more.
 	pageOfPosts = 500
@@ -106,7 +107,8 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.Schedule
 			Platforms:    &targets,
 			ScheduledFor: new(snapshot.At.UTC()),
 			Metadata: &map[string]any{
-				flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent, callKey: snapshot.CallToAction,
+				flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent, countriesKey: snapshot.Countries,
+				callKey: snapshot.CallToAction,
 			},
 			Tags: tagsOf(snapshot, accounts),
 		})
@@ -205,7 +207,8 @@ func (s *Service) Told(ctx context.Context, since time.Time) ([]posts.Telling, e
 			continue
 		}
 		told = append(told, posts.Telling{
-			Key: key, At: *post.ScheduledFor, Title: valueOf(post.Title), State: string(valueOf(post.Status)), Failure: failureOf(post),
+			Key: key, Countries: countriesOf(post), At: *post.ScheduledFor, Title: valueOf(post.Title),
+			State: string(valueOf(post.Status)), Failure: failureOf(post),
 		})
 	}
 	return told, nil
@@ -239,6 +242,20 @@ func keyOf(post cpzernio.Post) (posts.StoryKey, bool) {
 	flag, _ := (*post.Metadata)[flagKey].(string)
 	continent, _ := (*post.Metadata)[continentKey].(string)
 	return posts.StoryKey{Flag: flag, Continent: continent}, flag != "" && continent != ""
+}
+
+func countriesOf(post cpzernio.Post) []string {
+	if post.Metadata == nil {
+		return nil
+	}
+	kept, _ := (*post.Metadata)[countriesKey].([]any)
+	var countries []string
+	for _, value := range kept {
+		if country, ok := value.(string); ok && country != "" {
+			countries = append(countries, country)
+		}
+	}
+	return countries
 }
 
 // A 201 is a new post, and a 200 the post an earlier try with the same key already made.

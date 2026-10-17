@@ -1,3 +1,4 @@
+import {Countries} from "../countries.ts"
 import {flagOfContinent} from "../regions.ts"
 import {ranked, tally, TileChange} from "./changes.ts"
 
@@ -73,6 +74,14 @@ export function storyKeyOf(story: Story, regionOf: RegionOf): StoryKey {
         flag: sidesOf(story)[0],
         continent: "region" in place ? place.region : country === undefined ? THE_WORLD : regionOf(country) ?? country,
     }
+}
+
+// Every country a story shows: its place's, its flags' and the flags it takes from. A continent's own flag is not one.
+export function storyCountriesOf(story: Story): string[] {
+    const place = story.place
+    const grounds = "country" in place ? [place.country] : "countries" in place ? place.countries : []
+    return [...new Set([...grounds, story.attacker, story.rival, ...story.victims])]
+        .filter((code): code is string => code !== undefined && Countries.has(code))
 }
 
 // heldAtStart: the flag that held most of a country's ground when the story starts.

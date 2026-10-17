@@ -35,13 +35,18 @@ func read(t *testing.T, inner history) (string, []posts.Telling, error) {
 }
 
 func TestAPostThatWentOutIsLoggedWithItsState(t *testing.T) {
-	telling := posts.Telling{Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}, At: at, Title: "ALGERIA IS INVADING LIBYA", State: "published"}
+	telling := posts.Telling{
+		Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}, Countries: []string{"ly", "dz"}, At: at, Title: "ALGERIA IS INVADING LIBYA",
+		State: "published",
+	}
 
 	logs, told, err := read(t, history{told: []posts.Telling{telling}})
 
 	require.NoError(t, err)
 	assert.Equal(t, []posts.Telling{telling}, told)
-	assert.Contains(t, logs, `level=INFO msg="a post of the last week" clip="ALGERIA IS INVADING LIBYA" at=2026-10-15T07:15:00.000Z state=published`)
+	assert.Contains(t, logs,
+		`level=INFO msg="a post of the last week" clip="ALGERIA IS INVADING LIBYA" at=2026-10-15T07:15:00.000Z state=published`+
+			` flag=dz continent=Africa countries=ly,dz`)
 }
 
 func TestAPostAPlatformRefusedIsAWarningThatSaysWhy(t *testing.T) {

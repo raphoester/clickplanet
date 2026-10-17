@@ -20,7 +20,12 @@ const (
       "key": {
         "flag": "xk",
         "continent": "Middle East"
-      }
+      },
+      "countries": [
+        "xk",
+        "tr",
+        "pw"
+      ]
     },
     {
       "title": "FRANCE IS ATTACKING EUROPE",
@@ -74,7 +79,10 @@ func TestAShortlistIsTheStoriesTheGeneratorWroteBestFirst(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.Shortlist{
-		{Pick: 1, Title: "KOSOVO IS ATTACKING THE MIDDLE EAST", Key: posts.StoryKey{Flag: "xk", Continent: "Middle East"}},
+		{
+			Pick: 1, Title: "KOSOVO IS ATTACKING THE MIDDLE EAST", Key: posts.StoryKey{Flag: "xk", Continent: "Middle East"},
+			Countries: []string{"xk", "tr", "pw"},
+		},
 		{Pick: 2, Title: "FRANCE IS ATTACKING EUROPE", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}},
 	}, shortlist)
 }

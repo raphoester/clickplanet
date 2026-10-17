@@ -36,7 +36,7 @@ func (f ShortlistFile) Shortlist(_ context.Context) (posts.Shortlist, error) {
 
 	stories := make([]posts.Story, 0, len(written.GetStories()))
 	for _, story := range written.GetStories() {
-		stories = append(stories, posts.Story{Title: story.GetTitle(), Key: keyOf(story.GetKey())})
+		stories = append(stories, posts.Story{Title: story.GetTitle(), Key: keyOf(story.GetKey()), Countries: story.GetCountries()})
 	}
 	return posts.ShortlistOf(stories...) //nolint:wrapcheck // a pure delegation: the domain already named what is wrong.
 }

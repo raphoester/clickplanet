@@ -2913,8 +2913,8 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 2. **shortlist** and **choose**: `npm run clip -- --shortlist shortlist.json`, then, in a job of its own (it holds
    the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, up to 6, `[1,2,4]`.
    **It skips a story told in the last 3 days**, by its key below, and a headline told in the last week, puts a
-   flag of the last 6 posts after the others, and holds back a flag in 2 of them: on Oct 13–17 Algeria in Africa
-   was told three times and Palau in half the clips. None is a quiet half day: the run ends there, green.
+   flag the last 6 posts showed after the others, and holds back a flag 2 of them showed, as their key or as one of
+   their countries: on Oct 13–17 Algeria in Africa was told three times and Palau in half the clips. None is a quiet half day: the run ends there, green.
 3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
    draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
    clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
@@ -2927,13 +2927,16 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 (its CLAUDE.md, "The clips job"). **This app keeps only what needs the browser**, and hands the rest over as data,
 `clips.v1` in the shared `proto/`, written as JSON:
 
-- **`--shortlist <path>`** writes a `Shortlist`: the title and the key of every story worth a clip, best first, so
-  a story's place from 1 is its `--pick`. One page load, no globe, 6s. With no story it is `{}`, not an error.
+- **`--shortlist <path>`** writes a `Shortlist` (`src/clip/shortlist.ts`): the title, the key and the countries of
+  every story worth a clip, best first, so a story's place from 1 is its `--pick`. One page load, no globe, 6s. With no story it is `{}`, not an error.
 - **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
   flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. "ALGERIA STRIKES
   BACK" and "ALGERIA VS FRANCE" are one key. The flag is the first of `sidesOf`: the loser of a rout, a continent's
   own flag when it strikes back together. The continent is the place's (Asia's parts as the headlines name them,
   `the world` for a tour), else its first country's, else that country.
+- **A story's countries are every country it shows** (`storyCountriesOf`): its place's, both sides and the flags it
+  takes from, only the game's countries. The job counts them in what it posted: "VATICAN CITY VS PALAU" is Vatican's
+  story and shows Palau. The `Clip`'s countries are the same list, with their hashtags.
 - **`clip-<n>.json`** is a `Clip`: its pick, its title (the headline), its key, which the job keeps with the post,
   and **the words of its caption that need the story**: its teasers, its countries with their hashtags, its
   continent's hashtag, and the credit of its music. **The job writes the caption** from them (the backend's

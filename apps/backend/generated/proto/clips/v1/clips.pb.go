@@ -70,6 +70,7 @@ type Story struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Title         string                 `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
 	Key           *StoryKey              `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Countries     []string               `protobuf:"bytes,3,rep,name=countries,proto3" json:"countries,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -114,6 +115,13 @@ func (x *Story) GetTitle() string {
 func (x *Story) GetKey() *StoryKey {
 	if x != nil {
 		return x.Key
+	}
+	return nil
+}
+
+func (x *Story) GetCountries() []string {
+	if x != nil {
+		return x.Countries
 	}
 	return nil
 }
@@ -328,10 +336,11 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\n" +
 	"\x14clips/v1/clips.proto\x12\bclips.v1\"6\n" +
 	"\tShortlist\x12)\n" +
-	"\astories\x18\x01 \x03(\v2\x0f.clips.v1.StoryR\astories\"C\n" +
+	"\astories\x18\x01 \x03(\v2\x0f.clips.v1.StoryR\astories\"a\n" +
 	"\x05Story\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12$\n" +
-	"\x03key\x18\x02 \x01(\v2\x12.clips.v1.StoryKeyR\x03key\"\xff\x01\n" +
+	"\x03key\x18\x02 \x01(\v2\x12.clips.v1.StoryKeyR\x03key\x12\x1c\n" +
+	"\tcountries\x18\x03 \x03(\tR\tcountries\"\xff\x01\n" +
 	"\x04Clip\x12\x12\n" +
 	"\x04pick\x18\x01 \x01(\rR\x04pick\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12$\n" +

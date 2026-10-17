@@ -59,6 +59,11 @@ export class Story extends Message<Story> {
    */
   key?: StoryKey;
 
+  /**
+   * @generated from field: repeated string countries = 3;
+   */
+  countries: string[] = [];
+
   constructor(data?: PartialMessage<Story>) {
     super();
     proto3.util.initPartial(data, this);
@@ -69,6 +74,7 @@ export class Story extends Message<Story> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "key", kind: "message", T: StoryKey },
+    { no: 3, name: "countries", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Story {

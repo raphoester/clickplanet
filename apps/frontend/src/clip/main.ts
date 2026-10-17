@@ -2,7 +2,7 @@ import "../tokens.css"
 import "./clip.css"
 import * as THREE from "three"
 import type {JsonValue} from "@bufbuild/protobuf"
-import {Clip, Shortlist} from "../gen/grpc/clips/v1/clips_pb.ts"
+import {Clip} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {GetReplayResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {ReplayBackend} from "../backends/replayBackend.ts"
 import {createGlobe} from "../app/viewer/globe.ts"
@@ -30,6 +30,7 @@ import {flagsZoomOf, tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {mulberry32} from "../app/viewer/stars.ts"
 import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, hashtagsOf, nameOf, placeName, wordsOf} from "./overlay.ts"
+import {shortlistOf} from "./shortlist.ts"
 
 export type Recording = {
     pick: number
@@ -424,9 +425,7 @@ async function choose(): Promise<Chosen> {
     }
 
     return {
-        shortlist: new Shortlist({
-            stories: worth.map(({story}) => ({title: wordsOf(story).headline, key: storyKeyOf(story, regionOf)})),
-        }).toJson(),
+        shortlist: shortlistOf(worth.map(({story}) => story)).toJson(),
         record,
     }
 }
