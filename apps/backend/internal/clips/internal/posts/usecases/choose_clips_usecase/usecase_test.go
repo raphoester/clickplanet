@@ -53,7 +53,7 @@ func (h *history) Told(_ context.Context, since time.Time) ([]posts.Telling, err
 	return h.told, h.err
 }
 
-func TestARunTakesTheBestStoriesNotToldInTheLastDay(t *testing.T) {
+func TestARunTakesTheBestStoriesNotToldLately(t *testing.T) {
 	past := &history{told: []posts.Telling{{Key: algeriaInAfrica, At: now.Add(-4 * time.Hour)}}}
 
 	choice, err := choose_clips_usecase.New(written{shortlist: shortlistOf(t)}, past, cptime.NewFixedClock(now), 2).Execute(t.Context())
@@ -61,7 +61,7 @@ func TestARunTakesTheBestStoriesNotToldInTheLastDay(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []posts.Pick{3, 4}, choice.Chosen.Picks())
 	assert.Equal(t, []posts.Pick{1, 2}, choice.Retold.Picks())
-	assert.Equal(t, []time.Time{now.Add(-24 * time.Hour)}, past.since)
+	assert.Equal(t, []time.Time{now.Add(-7 * 24 * time.Hour)}, past.since)
 }
 
 func TestARunWithNoStoryWorthAClipTakesNone(t *testing.T) {

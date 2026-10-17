@@ -3269,19 +3269,34 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
 
-- **`Shortlist.Best(count, told, now)`** is which clips: the first `count` stories, all of them when there are
-  fewer, 6 a run (`Config.PerRun`), **but never a story told already**: one whose `StoryKey` (a flag and a
-  continent, from the generator) a post holds that goes out within the last day or later (`ToldSince`), or that a
-  better story of the same run took. The keys and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS
-  FRANCE" are one story, and on Oct 13–14 two runs posted it three times. It answers a `Choice`: the stories chosen,
-  and the ones skipped (`Retold`), which the log shows. A story with no key is refused when the shortlist is read.
+- **`Shortlist.Best(count, told, now)`** is which clips: `count` stories, all of them when there are fewer, 6 a
+  run (`Config.PerRun`), **never a story told already, and never mostly one flag**. Four rules, from the week of
+  Oct 13–17, when 18 clips told "ALGERIA STRIKES BACK" three times, "PALAU IS TAKING OVER THE WORLD" twice right
+  after the old one-day window, and Palau (two players on five accounts) in about half of them:
+  - **A key told in the last 3 days is skipped** (`retelling`): a `StoryKey` (a flag and a continent, from the
+    generator) a post holds that goes out within 72 hours or later, or that a story of the same run took. The keys
+    and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story.
+  - **A headline told in the last week is skipped** (`reheadlining`), whatever its continent: the same words read
+    as the same clip. Compared in upper case, spaces at the ends cut.
+  - **A flag of the last 6 posts goes after the flags not in them** (`lately`, half a day at 6 a run). The
+    generator's order breaks a tie. A story chosen counts as the newest post.
+  - **A flag in 2 of the last 6 posts waits** (`mostLately`): it is a third of the feed at most. So a shortlist of
+    one flag gives 2 clips, not 6. Ranking alone was not enough at 6 a run: on Oct 15 a shortlist of Palau and one
+    other flag gave 5 clips of Palau.
+
+  It answers a `Choice`: the stories chosen, in the shortlist's order, the ones skipped (`Retold`), and the ones not
+  told whose flag holds the most of the last posts, or more of them than a story chosen (`Passed`), which the log
+  shows. A story with no key is refused when the shortlist is read. **Only the flag of the key counts**: "FRANCE VS
+  PALAU" is a story of France.
 - **6 a run, because the finder is not what runs short.** Replayed over Oct 14–17, a 12-hour window held 5 to 11
-  stories of different keys, and the rule above let about 10 a day out; 2 a run posted 4. Six is the most the
+  stories of different keys, and the one-day rule let about 10 a day out; 2 a run posted 4. Six is the most the
   `Cadence` below fits between two runs: the sixth goes out 14 hours after a run starts, and the next run's first
-  16 hours after it. A seventh would go out together with that one.
+  16 hours after it. A seventh would go out together with that one. **The rules above post fewer**: replayed over
+  Oct 15–17 at 6 a run, 15 clips with 4 of Palau and no repeat, against 21 with 9 of Palau and 3 repeats under the
+  one-day rule alone.
 - **What was told is Zernio's post list, not a table of ours**: each post keeps its key in its Zernio `metadata`
-  (`storyFlag`, `storyContinent`, never published), and `choose` lists the posts of the last day back, on every
-  platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
+  (`storyFlag`, `storyContinent`, never published), and `choose` lists the posts of the last week back
+  (`ToldSince`), on every platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
   (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
@@ -3352,14 +3367,14 @@ free tier has TikTok and the whole API). A change of service is that package, it
   credential for an hour, and Go's `url.Error` prints it. `unreachable` keeps the cause and drops the address;
   a test pins it.
 - **A post TikTok refuses at its time is seen by the next run**, hours after its own ended: the history `choose`
-  reads holds each post's state and each platform's error, and `log_history` logs every post of the last day,
-  a refused one as a warning with why (`a post of the last day was refused … failure="tiktok: …"`).
+  reads holds each post's state and each platform's error, and `log_history` logs every post of the last week,
+  a refused one as a warning with why (`a post of the last week was refused … failure="tiktok: …"`).
 - The tests run it against `httptest`, with the requests and the answers of Zernio's OpenAPI document.
 
 `posts/generator_output/` reads the generator's files (`protojson`, unknown fields dropped, so the generator can
 add one first), and both use cases log in a decorator
 (`log_choose_clips`, `log_schedule_clips`), as do the service (`log_service`: each try the service did not take,
-which is what explains a step that waited 20 minutes) and the history (`log_history`: how each post of the last day
+which is what explains a step that waited 20 minutes) and the history (`log_history`: how each post of the last week
 went).
 
 ### Shared (`internal/shared/`)

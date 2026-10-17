@@ -30,7 +30,7 @@ func read(t *testing.T, inner history) (string, []posts.Telling, error) {
 	t.Helper()
 
 	var logs bytes.Buffer
-	told, err := log_history.New(inner, slog.New(slog.NewTextHandler(&logs, nil))).Told(t.Context(), at.Add(-24*time.Hour))
+	told, err := log_history.New(inner, slog.New(slog.NewTextHandler(&logs, nil))).Told(t.Context(), at.Add(-7*24*time.Hour))
 	return logs.String(), told, err
 }
 
@@ -41,7 +41,7 @@ func TestAPostThatWentOutIsLoggedWithItsState(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []posts.Telling{telling}, told)
-	assert.Contains(t, logs, `level=INFO msg="a post of the last day" clip="ALGERIA IS INVADING LIBYA" at=2026-10-15T07:15:00.000Z state=published`)
+	assert.Contains(t, logs, `level=INFO msg="a post of the last week" clip="ALGERIA IS INVADING LIBYA" at=2026-10-15T07:15:00.000Z state=published`)
 }
 
 func TestAPostAPlatformRefusedIsAWarningThatSaysWhy(t *testing.T) {
@@ -51,7 +51,7 @@ func TestAPostAPlatformRefusedIsAWarningThatSaysWhy(t *testing.T) {
 	}}})
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, `level=WARN msg="a post of the last day was refused" clip="FRANCE IS KICKING MOROCCO OUT OF LIBYA"`)
+	assert.Contains(t, logs, `level=WARN msg="a post of the last week was refused" clip="FRANCE IS KICKING MOROCCO OUT OF LIBYA"`)
 	assert.Contains(t, logs, `failure="tiktok: TikTok creator has reached the daily posting limit."`)
 }
 
