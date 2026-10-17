@@ -184,7 +184,9 @@ func TestAClipIsUploadedOnceThenScheduledAsOnePostOnTikTokAndYouTube(t *testing.
 		},
 		"tags":         tags,
 		"scheduledFor": "2026-10-12T16:40:00Z",
-		"metadata":     map[string]any{"storyFlag": "fr", "storyContinent": "Europe", "callToAction": "join-the-battle"},
+		"metadata": map[string]any{
+			"storyFlag": "fr", "storyContinent": "Europe", "storyCountries": []any{"fr"}, "callToAction": "join-the-battle",
+		},
 	}, fake.sent)
 }
 
@@ -440,11 +442,12 @@ func TestTheStoriesToldAreThoseOfThePostsWithAKeyOnEveryPlatform(t *testing.T) {
 	fake := newFake()
 	fake.listed = answer{status: http.StatusOK, body: `{"posts":[` +
 		`{"_id":"p-1","title":"ALGERIA IS INVADING LIBYA","status":"scheduled","scheduledFor":"2026-10-14T05:15:00Z",` +
-		`"metadata":{"storyFlag":"dz","storyContinent":"Africa","usageCounted":true}},` +
+		`"metadata":{"storyFlag":"dz","storyContinent":"Africa","storyCountries":["ly","dz"],"usageCounted":true}},` +
 		`{"_id":"p-2","title":"PALESTINE IS KICKING ROMANIA OUT OF KAZAKHSTAN","status":"published","scheduledFor":"2026-10-13T21:09:00.000Z",` +
-		`"metadata":{"storyFlag":"ps","storyContinent":"Central Asia"},"addedLater":1,"platforms":[{"platform":"instagram","status":"published"}]},` +
+		`"metadata":{"storyFlag":"ps","storyContinent":"Central Asia","storyCountries":["kz","ps",3,"ro"]},"addedLater":1,` +
+		`"platforms":[{"platform":"instagram","status":"published"}]},` +
 		`{"_id":"p-3","status":"published","scheduledFor":"2026-10-13T20:00:00Z","content":"a post made by hand"},` +
-		`{"_id":"p-4","status":"cancelled","scheduledFor":"2026-10-13T23:09:00Z","metadata":{"storyFlag":"pt","storyContinent":"Europe"}},` +
+		`{"_id":"p-4","status":"cancelled","scheduledFor":"2026-10-13T23:09:00Z","metadata":{"storyFlag":"pt","storyContinent":"Europe","storyCountries":"pt"}},` +
 		`{"_id":"p-5","title":"FRANCE IS KICKING MOROCCO OUT OF LIBYA","status":"failed","scheduledFor":"2026-10-14T07:15:00Z",` +
 		`"metadata":{"storyFlag":"fr","storyContinent":"Africa"},"platforms":[` +
 		`{"platform":"tiktok","status":"failed","errorMessage":"TikTok creator has reached the daily posting limit."},` +
@@ -456,12 +459,12 @@ func TestTheStoriesToldAreThoseOfThePostsWithAKeyOnEveryPlatform(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []posts.Telling{
 		{
-			Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}, At: time.Date(2026, 10, 14, 5, 15, 0, 0, time.UTC),
-			Title: "ALGERIA IS INVADING LIBYA", State: "scheduled",
+			Key: posts.StoryKey{Flag: "dz", Continent: "Africa"}, Countries: []string{"ly", "dz"},
+			At: time.Date(2026, 10, 14, 5, 15, 0, 0, time.UTC), Title: "ALGERIA IS INVADING LIBYA", State: "scheduled",
 		},
 		{
-			Key: posts.StoryKey{Flag: "ps", Continent: "Central Asia"}, At: time.Date(2026, 10, 13, 21, 9, 0, 0, time.UTC),
-			Title: "PALESTINE IS KICKING ROMANIA OUT OF KAZAKHSTAN", State: "published",
+			Key: posts.StoryKey{Flag: "ps", Continent: "Central Asia"}, Countries: []string{"kz", "ps", "ro"},
+			At: time.Date(2026, 10, 13, 21, 9, 0, 0, time.UTC), Title: "PALESTINE IS KICKING ROMANIA OUT OF KAZAKHSTAN", State: "published",
 		},
 		{Key: posts.StoryKey{Flag: "pt", Continent: "Europe"}, At: time.Date(2026, 10, 13, 23, 9, 0, 0, time.UTC), State: "cancelled"},
 		{

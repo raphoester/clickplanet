@@ -21,9 +21,9 @@ import (
 )
 
 type sentPost struct {
-	Title        string            `json:"title"`
-	ScheduledFor string            `json:"scheduledFor"`
-	Metadata     map[string]string `json:"metadata"`
+	Title        string         `json:"title"`
+	ScheduledFor string         `json:"scheduledFor"`
+	Metadata     map[string]any `json:"metadata"`
 	MediaItems   []struct {
 		URL string `json:"url"`
 	} `json:"mediaItems"`
@@ -34,10 +34,10 @@ type sentPost struct {
 }
 
 type keptPost struct {
-	ID           string            `json:"_id"`
-	Status       string            `json:"status"`
-	ScheduledFor string            `json:"scheduledFor"`
-	Metadata     map[string]string `json:"metadata"`
+	ID           string         `json:"_id"`
+	Status       string         `json:"status"`
+	ScheduledFor string         `json:"scheduledFor"`
+	Metadata     map[string]any `json:"metadata"`
 }
 
 func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
@@ -80,11 +80,15 @@ func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 	return server
 }
 
-func rendered(t *testing.T, folder string, pick int, title, flag string) {
+func rendered(t *testing.T, folder string, pick int, title, flag string, countries ...string) {
 	t.Helper()
 
-	clip := fmt.Sprintf(`{"pick": %d, "title": %q, "teasers": [%q], "key": {"flag": %q, "continent": "Africa"}, "continentTag": "africa"}`,
-		pick, title, "SAID ANOTHER WAY: "+title, flag)
+	tagged := make([]string, 0, len(countries))
+	for _, country := range countries {
+		tagged = append(tagged, fmt.Sprintf(`{"code": %q, "tag": %q}`, country, country))
+	}
+	clip := fmt.Sprintf(`{"pick": %d, "title": %q, "teasers": [%q], "key": {"flag": %q, "continent": "Africa"}, "countries": [%s], "continentTag": "africa"}`,
+		pick, title, "SAID ANOTHER WAY: "+title, flag, strings.Join(tagged, ", "))
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.json", pick)), []byte(clip), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.mp4", pick)), []byte(title), 0o600))
 }
@@ -93,7 +97,7 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 	var posts []sentPost
 	server := zernio(t, &posts)
 	folder := t.TempDir()
-	rendered(t, folder, 2, "FRANCE IS ATTACKING EUROPE", "fr")
+	rendered(t, folder, 2, "FRANCE IS ATTACKING EUROPE", "fr", "fr", "de")
 	rendered(t, folder, 1, "KOSOVO IS ATTACKING THE MIDDLE EAST", "xk")
 	var config clips.Config
 	config.Zernio.APIKey = "the-key"
@@ -119,6 +123,7 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 	assert.True(t, strings.HasSuffix(youtube.CustomContent, " #africa"))
 	assert.Equal(t, "https://media.example/clip-1.mp4", posts[0].MediaItems[0].URL)
 	assert.Equal(t, "FRANCE IS ATTACKING EUROPE", posts[1].Title)
+	assert.Equal(t, []any{"fr", "de"}, posts[1].Metadata["storyCountries"])
 
 	first, err := time.Parse(time.RFC3339, posts[0].ScheduledFor)
 	require.NoError(t, err)
@@ -207,4 +212,23 @@ func TestAStoryOneRunScheduledIsNotChosenByTheNext(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []clips.Pick{3, 4}, picks)
+}
+
+func TestAFlagTheLastRunShowedTwiceWaitsThoughNeitherClipWasAboutIt(t *testing.T) {
+	var posts []sentPost
+	server := zernio(t, &posts)
+	folder := t.TempDir()
+	rendered(t, folder, 1, "ALGERIA VS PALAU", "dz", "dz", "pw")
+	rendered(t, folder, 2, "FRANCE VS PALAU", "fr", "fr", "pw")
+	_, err := clips.Schedule(t.Context(), folder, configFor(server), slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "shortlist.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"stories":[`+
+		`{"title":"PALAU IS ATTACKING EUROPE","key":{"flag":"pw","continent":"Europe"},"countries":["pw","pl"]},`+
+		`{"title":"PALESTINE IS KICKING ROMANIA OUT OF KAZAKHSTAN","key":{"flag":"ps","continent":"Central Asia"}}]}`), 0o600))
+
+	picks, err := clips.Choose(t.Context(), path, configFor(server), slog.New(slog.DiscardHandler))
+
+	require.NoError(t, err)
+	assert.Equal(t, []clips.Pick{2}, picks)
 }

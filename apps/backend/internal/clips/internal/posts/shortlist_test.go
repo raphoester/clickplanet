@@ -149,6 +149,83 @@ func TestOnlyTheLastSixPostsCountAFlag(t *testing.T) {
 	assert.Equal(t, []string{"ALGERIA STRIKES BACK"}, titles(choice.Chosen))
 }
 
+func showing(title string, key posts.StoryKey, countries ...string) posts.Story {
+	return posts.Story{Title: title, Key: key, Countries: countries}
+}
+
+func shown(story posts.Story, ago time.Duration) posts.Telling {
+	return posts.Telling{Key: story.Key, Countries: story.Countries, Title: story.Title, At: theNightOfOct14.Add(-ago)}
+}
+
+var (
+	franceVsPalau   = showing("FRANCE VS PALAU", franceInEurope, "fr", "pw")
+	vaticanVsPalau  = showing("VATICAN CITY VS PALAU", posts.StoryKey{Flag: "va", Continent: "Europe"}, "ru", "va", "pw")
+	palauInEurope   = showing("PALAU IS ATTACKING EUROPE", posts.StoryKey{Flag: "pw", Continent: "Europe"}, "pw", "pl", "it")
+	germanyInEurope = showing("GERMANY STRIKES BACK", posts.StoryKey{Flag: "de", Continent: "Europe"}, "de", "es")
+	spainInFrance   = showing("SPAIN IS INVADING FRANCE", posts.StoryKey{Flag: "es", Continent: "Europe"}, "fr", "es", "pw")
+)
+
+func TestAFlagTwoPostsShowedWaitsThoughNeitherWasAboutIt(t *testing.T) {
+	told := []posts.Telling{shown(franceVsPalau, time.Hour), shown(vaticanVsPalau, 3*time.Hour)}
+
+	choice := shortlistOf(t, palauInEurope, germanyInEurope).Best(6, told, theNightOfOct14)
+
+	assert.Equal(t, []string{"GERMANY STRIKES BACK"}, titles(choice.Chosen))
+	assert.Equal(t, []string{"PALAU IS ATTACKING EUROPE"}, titles(choice.Passed))
+}
+
+func TestAFlagAPostShowedRanksAfterTheFlagsItDidNotThoughThePostWasNotAboutIt(t *testing.T) {
+	told := []posts.Telling{shown(franceVsPalau, time.Hour)}
+
+	choice := shortlistOf(t, palauInEurope, germanyInEurope).Best(1, told, theNightOfOct14)
+
+	assert.Equal(t, []string{"GERMANY STRIKES BACK"}, titles(choice.Chosen))
+	assert.Equal(t, []string{"PALAU IS ATTACKING EUROPE"}, titles(choice.Passed))
+}
+
+func TestAStoryRanksByItsOwnFlagBeforeTheOthersItShows(t *testing.T) {
+	told := []posts.Telling{shown(franceVsPalau, time.Hour), shown(vaticanVsPalau, 3*time.Hour)}
+	franceInAfrica := showing("FRANCE STRIKES BACK", posts.StoryKey{Flag: "fr", Continent: "Africa"}, "fr", "dz")
+
+	choice := shortlistOf(t, franceInAfrica, spainInFrance).Best(1, told, theNightOfOct14)
+
+	assert.Equal(t, []string{"SPAIN IS INVADING FRANCE"}, titles(choice.Chosen))
+	assert.Equal(t, []string{"FRANCE STRIKES BACK"}, titles(choice.Passed))
+}
+
+func TestOfTwoStoriesOfFreshFlagsTheOneShowingNoFlagOfTheLastPostsGoesFirst(t *testing.T) {
+	told := []posts.Telling{shown(franceVsPalau, time.Hour)}
+
+	choice := shortlistOf(t, vaticanVsPalau, germanyInEurope).Best(1, told, theNightOfOct14)
+
+	assert.Equal(t, []string{"GERMANY STRIKES BACK"}, titles(choice.Chosen))
+	assert.Equal(t, []string{"VATICAN CITY VS PALAU"}, titles(choice.Passed))
+}
+
+func TestAStoryWaitsForItsOwnFlagAndNotForTheOthersItShows(t *testing.T) {
+	told := []posts.Telling{shown(franceVsPalau, time.Hour), shown(vaticanVsPalau, 3*time.Hour)}
+
+	choice := shortlistOf(t, spainInFrance).Best(6, told, theNightOfOct14)
+
+	assert.Equal(t, []string{"SPAIN IS INVADING FRANCE"}, titles(choice.Chosen))
+}
+
+func TestTheFlagsOfAStoryChosenCountForTheRestOfTheRun(t *testing.T) {
+	choice := shortlistOf(t, franceVsPalau, vaticanVsPalau, palauInEurope, germanyInEurope).Best(6, nil, theNightOfOct14)
+
+	assert.Equal(t, []string{"FRANCE VS PALAU", "VATICAN CITY VS PALAU", "GERMANY STRIKES BACK"}, titles(choice.Chosen))
+	assert.Equal(t, []string{"PALAU IS ATTACKING EUROPE"}, titles(choice.Passed))
+}
+
+func TestAPostMadeBeforeTheCountriesWereKeptCountsItsOwnFlagOnly(t *testing.T) {
+	before := franceVsPalau
+	before.Countries = nil
+
+	choice := shortlistOf(t, palauInEurope, germanyInEurope).Best(1, []posts.Telling{shown(before, time.Hour)}, theNightOfOct14)
+
+	assert.Equal(t, []string{"PALAU IS ATTACKING EUROPE"}, titles(choice.Chosen))
+}
+
 func TestARunTellsAnotherFlagAfterTheOneItChose(t *testing.T) {
 	stories := []posts.Story{
 		{Title: "PALAU IS TAKING OVER THE WORLD", Key: posts.StoryKey{Flag: "pw", Continent: "the world"}},

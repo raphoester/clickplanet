@@ -1,5 +1,5 @@
 import {Countries} from "../domain/countries.ts"
-import {inPlace, Place, sidesOf, Story, THE_WORLD} from "../domain/clip/story.ts"
+import {inPlace, Place, sidesOf, Story, storyCountriesOf, THE_WORLD} from "../domain/clip/story.ts"
 import {flagOfContinent, regionOf} from "../domain/regions.ts"
 
 export type Words = {
@@ -95,13 +95,11 @@ function tagOf(name: string): string {
 
 // Every flag of the story that is a country of the game, and the countries of its place; a continent's own flag is not one.
 export function hashtagsOf(story: Story): Hashtags {
-    const codes = [...countriesOf(story.place), story.attacker, story.rival, ...story.victims]
-        .filter((code): code is string => code !== undefined && Countries.has(code))
     const place = story.place
     const country = "country" in place ? place.country : "countries" in place ? place.countries[0] : undefined
     const continent = "region" in place ? place.region : country === undefined ? undefined : regionOf(country)
     return {
-        countries: [...new Set(codes)].map((code) => ({code, tag: tagOf(nameOf(code))})),
+        countries: storyCountriesOf(story).map((code) => ({code, tag: tagOf(nameOf(code))})),
         continent: continent === undefined || continent === THE_WORLD ? undefined : tagOf(continent),
     }
 }

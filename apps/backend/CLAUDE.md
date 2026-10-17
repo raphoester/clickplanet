@@ -3282,25 +3282,31 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
     and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story.
   - **A headline told in the last week is skipped** (`reheadlining`), whatever its continent: the same words read
     as the same clip. Compared in upper case, spaces at the ends cut.
-  - **A flag of the last 6 posts goes after the flags not in them** (`lately`, half a day at 6 a run). The
-    generator's order breaks a tie. A story chosen counts as the newest post.
-  - **A flag in 2 of the last 6 posts waits** (`mostLately`): it is a third of the feed at most. So a shortlist of
-    one flag gives 2 clips, not 6. Ranking alone was not enough at 6 a run: on Oct 15 a shortlist of Palau and one
-    other flag gave 5 clips of Palau.
+  - **A flag the last 6 posts showed goes after the flags they did not** (`lately`, half a day at 6 a run). **A
+    post shows its key's flag and every country of its story** (`Countries`, as the generator writes them: the
+    place, both sides, the flags it takes from): "FRANCE VS PALAU" and "VATICAN CITY VS PALAU" both show Palau. A
+    story ranks by its key's flag, then by the country of it the last posts showed most, then by the generator's
+    order. A story chosen counts as the newest post. A post made before the posts kept their countries shows its
+    key's flag only.
+  - **A flag that 2 of the last 6 posts showed waits** (`mostLately`): it is a third of the feed at most. So a
+    shortlist of one flag gives 2 clips, not 6. Ranking alone was not enough at 6 a run: on Oct 15 a shortlist of
+    Palau and one other flag gave 5 clips of Palau. **Only the key's flag waits, not each country of the story**:
+    Palau and France defend in nearly every story of Oct 15–17, and waiting on all of them left 6 clips in those
+    2.5 days, none on the night of Oct 16.
 
   It answers a `Choice`: the stories chosen, in the shortlist's order, the ones skipped (`Retold`), and the ones not
-  told whose flag holds the most of the last posts, or more of them than a story chosen (`Passed`), which the log
-  shows. A story with no key is refused when the shortlist is read. **Only the flag of the key counts**: "FRANCE VS
-  PALAU" is a story of France.
+  told whose flag 2 of the last posts showed, or that the posts showed more than a story chosen (`Passed`), which the
+  log shows. A story with no key is refused when the shortlist is read.
 - **6 a run, because the finder is not what runs short.** Replayed over Oct 14–17, a 12-hour window held 5 to 11
   stories of different keys, and the one-day rule let about 10 a day out; 2 a run posted 4. Six is the most the
   `Plan` below fits between two runs: the sixth goes out 14 hours after a run starts, and the next run's first
   16 hours after it. A seventh would go out together with that one. **The rules above post fewer**: replayed over
   Oct 15–17 at 6 a run, 15 clips with 4 of Palau and no repeat, against 21 with 9 of Palau and 3 repeats under the
-  one-day rule alone.
-- **What was told is Zernio's post list, not a table of ours**: each post keeps its key in its Zernio `metadata`
-  (`storyFlag`, `storyContinent`, never published), and `choose` lists the posts of the last week back
-  (`ToldSince`), on every platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
+  one-day rule alone; and once the posts count every country, 13 clips with 2 about Palau. Palau still shows in about
+  half of them, as the flag the others take from.
+- **What was told is Zernio's post list, not a table of ours**: each post keeps its key and its story's countries in
+  its Zernio `metadata` (`storyFlag`, `storyContinent`, `storyCountries`, never published), and `choose` lists
+  the posts of the last week back (`ToldSince`), on every platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
   (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.

@@ -26,6 +26,14 @@ type Clip struct {
 	video        VideoFile
 }
 
+func (c Clip) countryCodes() []string {
+	codes := make([]string, 0, len(c.countries))
+	for _, country := range c.countries {
+		codes = append(codes, country.Code)
+	}
+	return codes
+}
+
 func (c Clip) TakeSnapshot() ClipSnapshot {
 	return ClipSnapshot{
 		Pick: c.pick, Title: c.title, Key: c.key, Teasers: c.teasers, Countries: c.countries,

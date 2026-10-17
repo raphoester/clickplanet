@@ -10,6 +10,7 @@ message Shortlist {
 message Story {
   string title = 1;
   StoryKey key = 2;
+  repeated string countries = 3;
 }
 
 message Clip {
