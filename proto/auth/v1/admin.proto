@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package auth.v1;
+
+// Only the operator listener names who calls: on the loopback admin listener every call is unauthenticated.
+service AdminService {
+  rpc GetOperator(GetOperatorRequest) returns (GetOperatorResponse);
+}
+
+message GetOperatorRequest {}
+
+message GetOperatorResponse {
+  string account_id = 1;
+}

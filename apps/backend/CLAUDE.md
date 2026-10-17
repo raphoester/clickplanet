@@ -1243,7 +1243,7 @@ internal/auth/internal/
     usecases/start_email_sign_in_usecase/  complete_email_sign_in_usecase/
   attestation/                             Attester, ErrAttestationFailed
     turnstile/  turnstile_attester/  open_attester/
-  authv1controller/                        AuthService and InternalService: one handler package per procedure, authprovider for the enum
+  authv1controller/                        AuthService, InternalService and AdminService: one handler package per procedure, authprovider for the enum
     get_me_handler/me_query/               PostgresQuery: GetMeResponse from the cookie, straight from SQL
     get_account_handler/account_query/     PostgresQuery: GetAccountResponse, for another module
     get_accounts_handler/accounts_query/   PostgresQuery: GetAccountsResponse, a page at once
@@ -1329,6 +1329,10 @@ sets it by hand (`deploy/vps/README.md`, "Make an account an operator"). It is n
 - **`operator_query` reads the cookie a third time**, after `accounts.Caller` and `me_query`; its parity test runs
   cookies and clocks around an expiry through `accounts.Caller` and asks for the same caller.
 - **Only the admin page may call**, and that is `cpbootstrap`'s, not auth's: see [Operator tools](#operator-tools-adminservice).
+- **`auth.v1.AdminService/GetOperator` tells the admin page who it is**: the account id the guard put on the
+  context, never cached. The page cannot ask `GetMe`, since the public API answers CORS for the game alone. It
+  reads nothing: the guard already read the session. On the loopback listener nobody is admitted, so it is
+  `unauthenticated` there (`get_operator_handler.ErrNoOperator`).
 
 #### Signing out, deleting, pruning
 
@@ -3166,7 +3170,7 @@ again in `Run`: the admin services have no authentication of their own. A second
 nothing, refuses it too. Empty serves no operator listener. Caddy sends `/<package>.v1.AdminService/*` on the API's
 domain to it, so the cookie, which is host-only on that domain, travels.
 
-`planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute` — see [Mutes](#mutes); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes` and `ListReports` — see [Support](#support-internalsupport). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+The admin page is `apps/admin` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute` — see [Mutes](#mutes); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes` and `ListReports` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has `GetOperator` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.

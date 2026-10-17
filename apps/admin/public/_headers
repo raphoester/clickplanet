@@ -1,0 +1,10 @@
+/*
+  Content-Security-Policy: default-src 'self'; connect-src https://api.clickplanet.lol; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+  Referrer-Policy: no-referrer
+  X-Robots-Tag: noindex
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate

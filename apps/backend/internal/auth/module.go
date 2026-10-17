@@ -42,6 +42,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler/accounts_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler/me_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_sign_in_options_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/resume_session_handler"
@@ -245,6 +246,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 	operators := log_refusals.New(operator_query.NewPostgresQuery(db, clock), props.Logger)
 	if err := props.OperatorRPC.Guard(operatorguard.New(operators)); err != nil {
 		return fmt.Errorf("failed to guard the operator listener: %w", err)
+	}
+
+	adminService := authv1controller.AdminService{GetOperatorHandler: get_operator_handler.New()}
+	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return authv1connect.NewAdminServiceHandler(adminService, options...)
+	}); err != nil {
+		return fmt.Errorf("failed to mount auth.v1.AdminService: %w", err)
 	}
 
 	sessionService := sessionv1controller.NewSessionService(

@@ -1011,6 +1011,9 @@ admin.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* → Ca
 - **Signing out ends it**: the guard reads the session on every call, so
   `SignOut` or `SignOutEverywhere` closes the admin page at once.
 - The port is on the Docker network only, never published.
+- The page is `apps/admin`, a Cloudflare Worker of its own (`clickplanet-admin`).
+  It asks `auth.v1.AdminService/GetOperator` first, so a refused page says why:
+  not signed in, or not an operator.
 
 ### Make an account an operator
 

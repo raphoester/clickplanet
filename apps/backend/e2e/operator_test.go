@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 )
@@ -33,6 +35,40 @@ func (p *gamer) grantFromThePage(origin string, account string) (*planetv1.Grant
 		return nil, err //nolint:wrapcheck // the tests read the connect code.
 	}
 	return res.Msg, nil
+}
+
+func (p *gamer) operatorFromThePage() (string, error) {
+	p.t.Helper()
+
+	req := connect.NewRequest(&authv1.GetOperatorRequest{})
+	req.Header().Set("Origin", adminOrigin)
+	req.Header().Set("Cookie", p.cookie)
+	res, err := authv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.operatorURL).GetOperator(p.t.Context(), req)
+	if err != nil {
+		return "", err //nolint:wrapcheck // the tests read the connect code.
+	}
+	return res.Msg.GetAccountId(), nil
+}
+
+func TestTheAdminPageLearnsWhichAccountItIs(t *testing.T) {
+	game := startGame(t)
+	operator := game.newPlayer(t)
+	operator.link("the-operator")
+	operator.becomeOperator()
+
+	account, err := operator.operatorFromThePage()
+
+	require.NoError(t, err)
+	assert.Equal(t, operator.account(), account)
+}
+
+func TestTheLoopbackListenerNamesNoOperator(t *testing.T) {
+	game := startGame(t)
+
+	_, err := authv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).
+		GetOperator(t.Context(), connect.NewRequest(&authv1.GetOperatorRequest{}))
+
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }
 
 func TestAnOperatorGrantsItselfABombFromTheAdminPage(t *testing.T) {
