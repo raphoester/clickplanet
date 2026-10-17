@@ -1100,18 +1100,36 @@ describe("ChatPanel replies", () => {
 })
 
 describe("ChatPanel reports", () => {
-    it("hands up the message pressed, and offers nothing on the player's own", async () => {
-        const theirs = message("m1", "you all suck")
-        const mine = {...message("m2", "no u", 1_700_000_001_000), authorAccountId: OWN_ACCOUNT, authorName: "ana_1"}
+    const theirs = message("m1", "you all suck")
+    const mine = {...message("m2", "no u", 1_700_000_001_000), authorAccountId: OWN_ACCOUNT, authorName: "ana_1"}
+
+    it("sends a message reported as abuse in the chat, by its own id, and marks it reported", async () => {
         const {backend} = stubBackend([theirs, mine])
-        const onReport = vi.fn()
-        render(<ChatPanel backend={backend} country={france} username="ana_1" accountId={OWN_ACCOUNT} onReport={onReport}/>)
+        const reportPlayer = vi.fn(async () => undefined)
+        render(<ChatPanel backend={backend} country={france} username="ana_1" accountId={OWN_ACCOUNT} reporter={{reportPlayer}}/>)
         await screen.findByText("you all suck")
+        const user = userEvent.setup()
 
         expect(within(item("no u")).queryByRole("button", {name: /^Report/})).toBeNull()
-        await userEvent.click(within(item("you all suck")).getByRole("button", {name: "Report this message from Ana"}))
+        await user.click(within(item("you all suck")).getByRole("button", {name: "Report this message from Ana"}))
+        await user.click(within(item("you all suck")).getByRole("button", {name: "Confirm the report of this message from Ana"}))
 
-        expect(onReport.mock.calls).toEqual([[theirs]])
+        expect(reportPlayer.mock.calls).toEqual([[{accountId: "account-ana", reason: "chat-abuse", text: "", messageId: "m1"}]])
+        expect(await within(item("you all suck")).findByRole("img", {name: "Reported"})).toBeDefined()
+    })
+
+    it("asks no more on Escape, and keeps the phone's sheet open", async () => {
+        const {backend} = stubBackend([theirs])
+        const onOpenChange = vi.fn()
+        render(<ChatPanel backend={backend} country={france} compact open onOpenChange={onOpenChange} reporter={{reportPlayer: vi.fn()}}/>)
+        await screen.findByText("you all suck")
+        const user = userEvent.setup()
+
+        await user.click(within(item("you all suck")).getByRole("button", {name: "Report this message from Ana"}))
+        await user.keyboard("{Escape}")
+
+        expect(within(item("you all suck")).getByRole("button", {name: "Report this message from Ana"})).toBeDefined()
+        expect(onOpenChange).not.toHaveBeenCalled()
     })
 })
 

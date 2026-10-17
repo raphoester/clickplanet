@@ -227,7 +227,7 @@ describe("PlayerCard", () => {
             await user.click(screen.getByRole("button", {name: "Send"}))
 
             expect(reporter.reportPlayer).toHaveBeenCalledWith(
-                {accountId: "account-bo", reason: "chat-abuse", text: "", messageId: undefined})
+                {accountId: "account-bo", reason: "chat-abuse", text: ""})
         })
 
         it("steps back to the card when the report is closed", async () => {

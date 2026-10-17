@@ -1050,6 +1050,53 @@ button.chat-quote:hover {
     }
 }
 
+.chat-report-slot {
+    position: relative;
+    display: flex;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    margin-bottom: 3px;
+}
+
+.chat-report-slot > .chat-report-add {
+    margin-bottom: 0;
+}
+
+/* Over the reply and reaction buttons, so the balloon does not wrap again as it opens. */
+.chat-report-add.chat-report-armed,
+.chat-report-add.chat-report-armed:hover {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1;
+    width: auto;
+    padding: 3px var(--space-2) 0;
+    background: var(--action);
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    text-shadow: var(--text-drop);
+    opacity: 1;
+}
+
+.chat-report-armed[aria-busy="true"] {
+    cursor: progress;
+    opacity: 0.7;
+}
+
+.chat-report-add.chat-report-done,
+.chat-report-add.chat-report-done:hover {
+    background: var(--panel-raised);
+    color: var(--text);
+    cursor: default;
+    opacity: 1;
+}
+
+.chat-report-done svg {
+    fill: currentColor;
+}
+
 .chat-reaction-picker {
     display: grid;
     grid-template-columns: repeat(8, 32px);

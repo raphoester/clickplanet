@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {cleanup, render, screen, within} from "@testing-library/react"
+import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {ChatMessage} from "../../backends/chat.ts"
 import {quoteOf} from "../../domain/chatLog.ts"
 import ChatLog from "./ChatLog.tsx"
+import {ARMED_MS} from "./ReportMessageButton.tsx"
+import {SupportReportedAlreadyError} from "../../backends/support.ts"
 import {QUOTE_MAX_LENGTH} from "./QuoteLine.tsx"
 import {NameColor} from "../../backends/player.ts"
 
@@ -113,15 +115,66 @@ describe("ChatLog", () => {
         const first = {...message("1", "Ana", "fr"), text: "hi"}
         const second = {...message("2", "Ana", "fr"), text: "you all suck"}
 
-        it("sends the message it was pressed on, the second of its author's run too", async () => {
-            const onReport = vi.fn()
-            const {container} = render(<ChatLog loading={false} onReport={onReport} messages={[first, second]}/>)
+        const flag = (name = "Ana") => screen.getByRole("button", {name: `Report this message from ${name}`})
+        const confirm = (name = "Ana") => screen.getByRole("button", {name: `Confirm the report of this message from ${name}`})
 
+        it("asks on the first press and sends on the second, the second message of its author's run too", async () => {
+            const onReport = vi.fn(async () => undefined)
+            const {container} = render(<ChatLog loading={false} onReport={onReport} messages={[first, second]}/>)
             const [, last] = [...container.querySelectorAll<HTMLElement>(".chat-message")]
             expect(last.querySelector(".chat-message-head")).toBeNull()
-            await userEvent.click(within(last).getByRole("button", {name: "Report this message from Ana"}))
 
+            await userEvent.click(within(last).getByRole("button", {name: "Report this message from Ana"}))
+            expect(onReport).not.toHaveBeenCalled()
+            expect(within(last).getByRole("button", {name: "Confirm the report of this message from Ana"}).textContent).toBe("Report")
+
+            await userEvent.click(within(last).getByRole("button", {name: "Confirm the report of this message from Ana"}))
             expect(onReport.mock.calls).toEqual([[second]])
+        })
+
+        it("shows a message already reported as reported, with nothing to press", () => {
+            render(<ChatLog loading={false} onReport={vi.fn()} reported={new Set(["2"])} messages={[first, second]}/>)
+
+            expect(screen.getAllByRole("button", {name: "Report this message from Ana"})).toHaveLength(1)
+            expect(screen.getByRole("img", {name: "Reported"}).closest("[data-message]")?.getAttribute("data-message")).toBe("2")
+        })
+
+        it("asks no more after Escape, a press elsewhere, or a few seconds", async () => {
+            const onReport = vi.fn(async () => undefined)
+            render(<ChatLog loading={false} onReport={onReport} messages={[first]}/>)
+
+            await userEvent.click(flag())
+            await userEvent.keyboard("{Escape}")
+            expect(flag()).toBeDefined()
+
+            await userEvent.click(flag())
+            await userEvent.click(screen.getByText("hi"))
+            expect(flag()).toBeDefined()
+
+            vi.useFakeTimers()
+            try {
+                fireEvent.click(flag())
+                expect(confirm()).toBeDefined()
+                act(() => vi.advanceTimersByTime(ARMED_MS))
+                expect(flag()).toBeDefined()
+            } finally {
+                vi.useRealTimers()
+            }
+            expect(onReport).not.toHaveBeenCalled()
+        })
+
+        it("says why a report was refused, and asks again on the next press", async () => {
+            const onReport = vi.fn(async () => {
+                throw new SupportReportedAlreadyError()
+            })
+            render(<ChatLog loading={false} onReport={onReport} messages={[first]}/>)
+
+            await userEvent.click(flag())
+            await userEvent.click(confirm())
+
+            expect((await screen.findByRole("status")).textContent).toBe("You already reported this player today.")
+            await userEvent.click(flag())
+            expect(confirm()).toBeDefined()
         })
 
         it("is not offered on the player's own message, nor on one with no account", () => {

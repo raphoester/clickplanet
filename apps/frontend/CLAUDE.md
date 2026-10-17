@@ -1017,10 +1017,17 @@ the foot of Settings, and a report of another player, from that player's card.
   name is only on the first message of its author's run: the report of an
   insult sent after "hi" pointed to "hi".
 - **Every chat message has a Report button of its own**, beside react and reply
-  (`.chat-report-add`, shown like them). It opens `ReportPlayerModal` at once,
-  with no card first (`ChatPanel`'s `onReport`, held in `Viewer`), and sends
-  that message's own id. None on the player's own messages (`useChat`'s `own`)
-  or on a message with no account; none without a `support` backend wired.
+  (`ReportMessageButton`, `.chat-report-add`, shown like them). **No form**: the
+  message is what is reported, so the reason is abuse in the chat and there is
+  nothing to ask. The first press turns the flag into a red "Report" pill in
+  place, and the second sends the message's own id. Escape (`useEscape`, so a
+  phone's sheet stays open), a press elsewhere or `ARMED_MS` (4s) turns it back:
+  the flag sits beside reply, and a slip of a thumb is not a report. A message
+  sent is a filled flag, kept in `ChatPanel` (`reported`) so a phone's sheet
+  closed and opened again still shows it. A refusal is a `Bubble` with the
+  line of `sendFailure.ts`, and the flag asks again. None on the player's own
+  messages (`useChat`'s `own`) or on a message with no account; none without a
+  `support` backend wired.
 - **No Report on the player's own card**, told by account id: `AccountStore`
   keeps the `accountId` of a signed-in player from its profile. A guest's is
   not read here, so its own card has the button, and the server refuses the
