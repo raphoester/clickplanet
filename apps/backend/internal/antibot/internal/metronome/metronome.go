@@ -372,6 +372,7 @@ func (w *Watchdog) stamina(s *spender) (detect.Verdict, detect.Evidence) {
 
 	return verdict, detect.Evidence{
 		Rule: "stamina",
+		Zeal: true,
 		Fields: []detect.Field{
 			{Key: "busy", Value: busy},
 			{Key: "window", Value: config.Window},

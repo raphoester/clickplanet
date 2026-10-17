@@ -63,6 +63,8 @@ type Evidence struct {
 	Rule   string
 	Fields []Field
 
+	Zeal bool
+
 	Accomplices []Accomplice
 }
 
