@@ -12,7 +12,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/reconcile_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/titles/usecases/reconcile_titles_usecase/audit_reconcile_titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubExecutor struct {
@@ -50,14 +49,4 @@ func TestAFailureIsLoggedWithWhatWasDoneBeforeIt(t *testing.T) {
 
 	require.ErrorIs(t, err, cause)
 	assert.Contains(t, logs, `level=WARN msg="admin title reconciliation failed" granted=500 revoked=0`)
-}
-
-func TestAReconciliationNamesItsOperator(t *testing.T) {
-	var logs bytes.Buffer
-
-	_, err := audit_reconcile_titles.New(stubExecutor{}, slog.New(slog.NewTextHandler(&logs, nil))).
-		Execute(cpctx.AddOperatorToContext(t.Context(), "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"))
-
-	require.NoError(t, err)
-	assert.Contains(t, logs.String(), "operator=0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10")
 }

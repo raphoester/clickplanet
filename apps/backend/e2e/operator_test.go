@@ -16,7 +16,7 @@ func (p *gamer) becomeOperator() {
 	p.t.Helper()
 
 	_, err := p.stack.schema(p.t, "auth").ExecContext(p.t.Context(),
-		`UPDATE accounts SET role = 'operator' WHERE id = $1`, p.account())
+		`UPDATE accounts SET operator = true WHERE id = $1`, p.account())
 	require.NoError(p.t, err)
 }
 
@@ -28,7 +28,7 @@ func (p *gamer) grantFromThePage(origin string, account string) (*planetv1.Grant
 	if p.cookie != "" {
 		req.Header().Set("Cookie", p.cookie)
 	}
-	res, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.operatorURL).GrantCharges(p.t.Context(), req)
+	res, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.gatedAdminURL).GrantCharges(p.t.Context(), req)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the tests read the connect code.
 	}
@@ -65,7 +65,7 @@ func TestTheOperatorServicesAnswerNobodyElse(t *testing.T) {
 		code   connect.Code
 	}{
 		"a player":                 {player, adminOrigin, connect.CodePermissionDenied},
-		"a guest with the role":    {guest, adminOrigin, connect.CodePermissionDenied},
+		"a guest with the flag":    {guest, adminOrigin, connect.CodePermissionDenied},
 		"no cookie":                {stranger, adminOrigin, connect.CodeUnauthenticated},
 		"the game page":            {operator, "https://clickplanet.lol", connect.CodePermissionDenied},
 		"a script with no origin":  {operator, "", connect.CodePermissionDenied},

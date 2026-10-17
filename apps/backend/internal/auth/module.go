@@ -42,6 +42,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler/accounts_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler/me_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler/operator_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_sign_in_options_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/resume_session_handler"
@@ -50,9 +52,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/operatorguard"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/operatorguard/log_refusals"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/operatorguard/operator_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/aes_flow_sealer"
@@ -235,16 +234,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 		GetVerifyingKeyHandler: get_verifying_key_handler.New(signer),
 		GetAccountHandler:      get_account_handler.New(account_query.NewPostgresQuery(db)),
 		GetAccountsHandler:     get_accounts_handler.New(accounts_query.NewPostgresQuery(db)),
+		GetOperatorHandler:     get_operator_handler.New(operator_query.NewPostgresQuery(db, clock)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewInternalServiceHandler(internalService, options...)
 	}); err != nil {
 		return fmt.Errorf("failed to mount auth.v1.InternalService: %w", err)
-	}
-
-	operators := log_refusals.New(operator_query.NewPostgresQuery(db, clock), props.Logger)
-	if err := props.OperatorRPC.Guard(operatorguard.New(operators)); err != nil {
-		return fmt.Errorf("failed to guard the operator listener: %w", err)
 	}
 
 	sessionService := sessionv1controller.NewSessionService(

@@ -980,36 +980,36 @@ protection, so a non-loopback address refuses the boot. Reach them from the box
 with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
 JSON POST to `/<package>.<Service>/<Method>`.
 
-The same services are also served on the **operator listener**, for the admin
+The same services are also served on the **gated admin listener**, for the admin
 page: see below. The loopback listener stays: scripts on the box call it with no
 session, and the clips job reads its replays there.
 
-### The operator listener (the admin page)
+### The gated admin listener (the admin page)
 
 ```
-admin.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* → Caddy → backend:8083 → the auth guard → the admin service
+admin.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* → Caddy → backend:8083 → the admin gate → the admin service
 ```
 
 - **An operator is a game account.** You sign in on clickplanet.lol as you play,
   and the admin page uses that session: the `cp_sid` cookie of
   `api.clickplanet.lol`, which the browser sends to it from `admin.clickplanet.lol`
   since both are one site.
-- **The auth module guards every call**: a live session, of an account that
+- **Only the admin page may call** (`adminGate.origin`, from `ADMIN_ORIGIN` in
+  `env.public`). The game page holds the same cookie, so a call from any other
+  origin, or with none, is `permission_denied` before the session is read: a
+  script injected in the chat cannot use an operator's session. A script on the
+  box uses the loopback listener above.
+- **Then the gate asks auth who calls**: a live session, of an account that
   signed in with Google, Discord or an email code (never a guest), whose
-  `auth.accounts.role` is `operator`. No cookie, or no live session, is
+  `auth.accounts.operator` is true. No cookie, or no live session, is
   `unauthenticated`; anybody else is `permission_denied`. Each refusal is logged:
-  `journalctl CONTAINER_NAME=cp-backend | grep "operator refused"`.
-- **Only the admin page may call** (`httpServer.operatorOrigin`, from
-  `ADMIN_ORIGIN` in `env.public`). The game page holds the same cookie, so a call
-  from any other origin, or with none, is `permission_denied` before the session
-  is read: a script injected in the chat cannot use an operator's session. A
-  script on the box uses the loopback listener above.
-- **Every call that passes is logged**, reads included:
-  `journalctl CONTAINER_NAME=cp-backend | grep "operator call"`. Every audit line
-  (`admin ban`, `admin chat mute`, …) carries `operator=<account id>`, and
-  `operator=""` for a call on the loopback listener.
-- **Signing out ends it**: the guard reads the session on every call, so
-  `SignOut` or `SignOutEverywhere` closes the admin page at once.
+  `journalctl CONTAINER_NAME=cp-backend | grep "admin call refused"`.
+- **Every call that passes is logged** with its operator's account id, what it
+  asked and how it ended, reads included:
+  `journalctl CONTAINER_NAME=cp-backend | grep "admin call"`. The audit lines
+  (`admin ban`, `admin chat mute`, …) say what the call did.
+- **Signing out ends it**: the gate asks auth on every call, so `SignOut` or
+  `SignOutEverywhere` closes the admin page at once.
 - The port is on the Docker network only, never published.
 
 ### Make an account an operator
@@ -1022,11 +1022,11 @@ your username:
 docker compose exec postgres psql -U clickplanet -c \
   "SELECT account_id, name FROM player.profiles WHERE name = 'YourUsername'"
 docker compose exec postgres psql -U clickplanet -c \
-  "UPDATE auth.accounts SET role = 'operator' WHERE id = '<account_id>'"
+  "UPDATE auth.accounts SET operator = true WHERE id = '<account_id>'"
 ```
 
 Two steps, for the reason the crown has two (see the player module's admin flag):
-a name can change hands, an id cannot. `role = 'player'` takes it back. The role
+a name can change hands, an id cannot. `operator = false` takes it back. The flag
 is not the chat crown: `player.profiles.admin` stays a display flag.
 
 ### Give one country's tiles to another

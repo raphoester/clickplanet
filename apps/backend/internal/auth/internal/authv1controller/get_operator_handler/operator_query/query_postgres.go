@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
+	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -31,19 +32,19 @@ type PostgresQuery struct {
 	clock cptime.Clock
 }
 
-// A guest is never an operator, whatever its role: its cookie is the whole of what proves it.
+// A guest is never an operator, whatever its row says: its cookie is the whole of what proves it.
 const operator = `
 	SELECT accounts.id,
-	       accounts.role = 'operator' AND EXISTS (SELECT 1 FROM identities WHERE identities.account_id = accounts.id)
+	       accounts.operator AND EXISTS (SELECT 1 FROM identities WHERE identities.account_id = accounts.id)
 	FROM sessions
 	JOIN accounts ON accounts.id = sessions.account_id
 	WHERE sessions.token_hash = $1 AND sessions.expires_at > $2
 `
 
-func (q *PostgresQuery) Operator(ctx context.Context, cookieHeader string) (string, error) {
+func (q *PostgresQuery) Operator(ctx context.Context, cookieHeader string) (*authv1.GetOperatorResponse, error) {
 	hash, found := tokenHash(cookieHeader)
 	if !found {
-		return "", fmt.Errorf("%w: the browser sent no %s cookie", ErrNoSession, cookieName)
+		return nil, fmt.Errorf("%w: the browser sent no %s cookie", ErrNoSession, cookieName)
 	}
 
 	var (
@@ -54,17 +55,17 @@ func (q *PostgresQuery) Operator(ctx context.Context, cookieHeader string) (stri
 	now := q.clock.Now().UTC().Truncate(time.Microsecond)
 	err := q.db.QueryRowContext(ctx, operator, hash, now).Scan(&account, &operates)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", fmt.Errorf("%w: no live session for this cookie", ErrNoSession)
+		return nil, fmt.Errorf("%w: no live session for this cookie", ErrNoSession)
 	}
 	if err != nil {
-		return "", fmt.Errorf("failed to read the caller: %w", err)
+		return nil, fmt.Errorf("failed to read the caller: %w", err)
 	}
 
 	if !operates {
-		return "", fmt.Errorf("%w: account %s", ErrNotAnOperator, account)
+		return nil, fmt.Errorf("%w: account %s", ErrNotAnOperator, account)
 	}
 
-	return account.String(), nil
+	return &authv1.GetOperatorResponse{AccountId: account.String()}, nil
 }
 
 func tokenHash(cookieHeader string) ([]byte, bool) {

@@ -12,7 +12,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase/audit_paint_random"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubUseCase struct {
@@ -52,13 +51,4 @@ func TestAFailureIsLoggedWithHowFarItGot(t *testing.T) {
 	assert.Equal(t, 256, out.Painted)
 	assert.Contains(t, logs.String(), `msg="admin random paint failed"`)
 	assert.Contains(t, logs.String(), `error="paint interrupted"`)
-}
-
-func TestAPaintNamesItsOperator(t *testing.T) {
-	useCase, logs := audited(stubUseCase{})
-
-	_, err := useCase.Execute(cpctx.AddOperatorToContext(t.Context(), "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"), paint_random_tiles_usecase.In{Flag: "dz", Count: 1})
-
-	require.NoError(t, err)
-	assert.Contains(t, logs.String(), "operator=0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10")
 }

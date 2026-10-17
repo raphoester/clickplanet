@@ -24,7 +24,7 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/frontend/` or `a
 - `proto/support/v1/support.proto` — what a player sends the operator: a feature suggestion, a bug report or a report of another player (`SupportService`)
 - `proto/clips/v1/clips.proto` — what the frontend's clip generator hands the backend's job that posts its clips: the stories worth a clip, and what to post with each one. No service: both are written as JSON files in one workflow run
 
-Beside them, `internal.proto` is what one backend module asks another (`auth.v1`, `player.v1`, `planet.v1`), and `events.proto` is what one tells the others in process (`planet.v1.TileTaken`, `auth.v1.AccountDeleted`). Neither is on the public router; the frontend generates both without using them.
+Beside them, `internal.proto` is what one backend module asks another, or the admin gate asks `auth` (`auth.v1`, `player.v1`, `planet.v1`), and `events.proto` is what one tells the others in process (`planet.v1.TileTaken`, `auth.v1.AccountDeleted`). Neither is on the public router; the frontend generates both without using them.
 
 Connect derives each service's route from its proto package, so a new context gets its own path with no prefix to allocate. Both `buf.gen.yaml` inputs point at the whole `proto` directory, so a new package is picked up by either generator with no config change.
 

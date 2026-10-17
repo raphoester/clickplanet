@@ -9,6 +9,9 @@ service InternalService {
   rpc GetAccounts(GetAccountsRequest) returns (GetAccountsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
+  rpc GetOperator(GetOperatorRequest) returns (GetOperatorResponse);
 }
 
 message GetVerifyingKeyRequest {}
@@ -38,4 +41,12 @@ message Account {
   string account_id = 1;
   bool linked = 2;
   int64 created_at_unix_ms = 3;
+}
+
+message GetOperatorRequest {
+  string cookie = 1;
+}
+
+message GetOperatorResponse {
+  string account_id = 1;
 }

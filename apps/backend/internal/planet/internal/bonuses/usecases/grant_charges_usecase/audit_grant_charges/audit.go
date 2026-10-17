@@ -5,7 +5,6 @@ import (
 	"log/slog"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type UseCase interface {
@@ -31,7 +30,6 @@ func (a *Audited) Execute(ctx context.Context, in grant_charges_usecase.In) (gra
 		slog.Int("shields", in.Grant.Shields),
 		slog.String("account", string(out.Holder)),
 		slog.Any("before", out.Before), slog.Any("after", out.After),
-		slog.String("operator", cpctx.GetOperator(ctx)),
 	}
 
 	if err != nil {

@@ -5,7 +5,6 @@ import (
 	"log/slog"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type UseCase interface {
@@ -28,7 +27,6 @@ func (a *Audited) Execute(ctx context.Context, in reassign_country_usecase.In) (
 		slog.String("from", in.From), slog.String("to", in.To), slog.Bool("dryRun", in.DryRun),
 		slog.Int("fromBefore", out.FromBefore), slog.Int("toBefore", out.ToBefore),
 		slog.Int("moved", out.Moved), slog.Int("fromAfter", out.FromAfter), slog.Int("toAfter", out.ToAfter),
-		slog.String("operator", cpctx.GetOperator(ctx)),
 	}
 
 	if err != nil {
