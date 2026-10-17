@@ -166,6 +166,13 @@ export function ReplyIcon({size = 16}: IconProps) {
     </svg>
 }
 
+export function ReportIcon({size = 16}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.2}>
+        <path d="M5.5 21V4"/>
+        <path d="M5.5 4.5c4.5-2.5 8.5 2.5 13 0v9c-4.5 2.5-8.5-2.5-13 0"/>
+    </svg>
+}
+
 export function TrophyIcon({size = 22}: IconProps) {
     return <svg {...base(size)} strokeWidth={2}>
         <path d="M8 20.5h8M12 16.5v4"/>

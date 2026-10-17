@@ -1099,6 +1099,22 @@ describe("ChatPanel replies", () => {
     })
 })
 
+describe("ChatPanel reports", () => {
+    it("hands up the message pressed, and offers nothing on the player's own", async () => {
+        const theirs = message("m1", "you all suck")
+        const mine = {...message("m2", "no u", 1_700_000_001_000), authorAccountId: OWN_ACCOUNT, authorName: "ana_1"}
+        const {backend} = stubBackend([theirs, mine])
+        const onReport = vi.fn()
+        render(<ChatPanel backend={backend} country={france} username="ana_1" accountId={OWN_ACCOUNT} onReport={onReport}/>)
+        await screen.findByText("you all suck")
+
+        expect(within(item("no u")).queryByRole("button", {name: /^Report/})).toBeNull()
+        await userEvent.click(within(item("you all suck")).getByRole("button", {name: "Report this message from Ana"}))
+
+        expect(onReport.mock.calls).toEqual([[theirs]])
+    })
+})
+
 describe("ChatPanel size", () => {
     const wanted = () => ({
         width: document.documentElement.style.getPropertyValue(WANTED_WIDTH),

@@ -7,7 +7,7 @@ import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
 import StreakFlame from "../components/StreakFlame.tsx";
 import TitleBadge from "../titles/TitleBadge.tsx";
-import {ChevronIcon, ReplyIcon} from "../components/icons.tsx";
+import {ChevronIcon, ReplyIcon, ReportIcon} from "../components/icons.tsx";
 import {ChatLogEntry, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
 import {messageParts} from "../../domain/chatLinks.ts";
 import {describeBlast} from "../../domain/blast.ts";
@@ -26,6 +26,8 @@ export type ChatLogProps = {
     onOpenPlayer?: (player: PlayerLine, messageId?: string) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
+    onReport?: (message: ChatMessage) => void
+    own?: (message: ChatMessage) => boolean
     seenUntil?: number
     onSeen?: (at: number) => void
     watching?: boolean
@@ -179,7 +181,8 @@ export default function ChatLog(props: ChatLogProps) {
                                            jumpTo={shown.has(entry.message.replyTo?.messageId ?? "") ? jumpTo : undefined}
                                            onOpenPlayer={props.onOpenPlayer}
                                            onReact={props.onReact}
-                                           onReply={props.onReply}/>}
+                                           onReply={props.onReply}
+                                           onReport={reportable(entry.message, props.own) ? props.onReport : undefined}/>}
                     </Fragment>
                 })}
             </ul>
@@ -203,6 +206,7 @@ type MessageLineProps = {
     onOpenPlayer?: (player: PlayerLine, messageId?: string) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
+    onReport?: (message: ChatMessage) => void
 }
 
 function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpTo, ...props}: MessageLineProps) {
@@ -256,6 +260,13 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                                       title="Reply"
                                       onClick={() => props.onReply?.(message)}>
                 <ReplyIcon/>
+            </button>}
+            {props.onReport && <button type="button"
+                                       className="chat-report-add"
+                                       aria-label={`Report this message from ${message.authorName}`}
+                                       title="Report"
+                                       onClick={() => props.onReport?.(message)}>
+                <ReportIcon/>
             </button>}
         </div>
 
@@ -368,6 +379,10 @@ function messageClass(
         flashing?.has(id) && "chat-message-new",
         spotlit && "chat-message-spotlit",
     ].filter(Boolean).join(" ")
+}
+
+function reportable(message: ChatMessage, own: ((message: ChatMessage) => boolean) | undefined): boolean {
+    return message.authorAccountId !== "" && !own?.(message)
 }
 
 function atOf(entry: ChatLogEntry): number {

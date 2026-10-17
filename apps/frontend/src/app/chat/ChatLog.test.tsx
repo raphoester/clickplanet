@@ -109,6 +109,40 @@ describe("ChatLog", () => {
         expect(screen.getByText("see https://other.example")).toBeDefined()
     })
 
+    describe("a report", () => {
+        const first = {...message("1", "Ana", "fr"), text: "hi"}
+        const second = {...message("2", "Ana", "fr"), text: "you all suck"}
+
+        it("sends the message it was pressed on, the second of its author's run too", async () => {
+            const onReport = vi.fn()
+            const {container} = render(<ChatLog loading={false} onReport={onReport} messages={[first, second]}/>)
+
+            const [, last] = [...container.querySelectorAll<HTMLElement>(".chat-message")]
+            expect(last.querySelector(".chat-message-head")).toBeNull()
+            await userEvent.click(within(last).getByRole("button", {name: "Report this message from Ana"}))
+
+            expect(onReport.mock.calls).toEqual([[second]])
+        })
+
+        it("is not offered on the player's own message, nor on one with no account", () => {
+            const gone = {...message("3", "Cy", "it"), authorAccountId: ""}
+            const theirs = message("4", "Bo", "de")
+            render(<ChatLog loading={false}
+                            onReport={vi.fn()}
+                            own={(shown) => shown.authorAccountId === "account-Ana"}
+                            messages={[first, gone, theirs]}/>)
+
+            expect(screen.getAllByRole("button", {name: /^Report this message/}).map(button => button.getAttribute("aria-label")))
+                .toEqual(["Report this message from Bo"])
+        })
+
+        it("is not offered with nobody to send it to", () => {
+            render(<ChatLog loading={false} messages={[first, second]}/>)
+
+            expect(screen.queryAllByRole("button", {name: /^Report this message/})).toHaveLength(0)
+        })
+    })
+
     describe("a reply", () => {
         const question = {...message("1", "Ana", "fr"), text: "who holds the north", authorColor: NameColor.TEAL}
         const answer = {...message("2", "Bo", "de"), text: "we do", replyTo: quoteOf(question)}

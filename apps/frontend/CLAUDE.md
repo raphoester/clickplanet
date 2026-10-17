@@ -1015,7 +1015,13 @@ the foot of Settings, and a report of another player, from that player's card.
 - **A card opened from a chat message carries that message's id**: `ChatLog`
   hands it as the second argument of `onOpenPlayer`, `Viewer` keeps it with the
   open card, and the report sends it. A card opened from the roster or the
-  board has none.
+  board has none. **That is the first message of its author's run**, the one
+  under the name, so it is not the message to report.
+- **Every chat message has a Report button of its own**, beside react and reply
+  (`.chat-report-add`, shown like them). It opens `ReportPlayerModal` at once,
+  with no card first (`ChatPanel`'s `onReport`, held in `Viewer`), and sends
+  that message's own id. None on the player's own messages (`useChat`'s `own`)
+  or on a message with no account; none without a `support` backend wired.
 - **No Report on the player's own card**, told by account id: `AccountStore`
   keeps the `accountId` of a signed-in player from its profile. A guest's is
   not read here, so its own card has the button, and the server refuses the

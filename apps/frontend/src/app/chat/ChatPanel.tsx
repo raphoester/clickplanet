@@ -28,6 +28,7 @@ export type ChatPanelProps = {
     accountId?: string
     username?: string
     onOpenPlayer?: (player: PlayerLine, messageId?: string) => void
+    onReport?: (message: ChatMessage) => void
     players?: readonly RosterEntry[]
     compact?: boolean
     open?: boolean
@@ -214,7 +215,9 @@ export default function ChatPanel(props: ChatPanelProps) {
                      onOpenPlayer={props.onOpenPlayer}
                      onReact={(messageId, reaction, on) =>
                          react({messageId, reaction, on})}
-                     onReply={onReply}/>
+                     onReply={onReply}
+                     onReport={props.onReport}
+                     own={own}/>
 
             <ChatComposer username={username}
                           guestName={username === undefined ? displayName : undefined}
