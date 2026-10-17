@@ -1,5 +1,5 @@
 import {Countries} from "../domain/countries.ts"
-import {inPlace, Place, sidesOf, Story, THE_WORLD} from "../domain/clip/story.ts"
+import {inPlace, Place, sidesOf, Story, storyCountriesOf, THE_WORLD} from "../domain/clip/story.ts"
 import {flagOfContinent, regionOf} from "../domain/regions.ts"
 
 export type Words = {
@@ -10,10 +10,12 @@ export type Words = {
     // The flags of what the call asks the viewer to fight for.
     callFlags: string[]
     link: string
-    // What to post with the clip: links in a caption cannot be clicked, so the site is plain text.
-    caption: string
-    tags: string[]
+    // The headline said in other words, for the caption: the posting job picks one.
+    teasers: string[]
 }
+
+// The words of a hashtag, with no #.
+export type Hashtags = {countries: {code: string, tag: string}[], continent: string | undefined}
 
 export type Moment = {
     replayAt: number
@@ -87,77 +89,95 @@ function placeFlags(place: Place): string[] {
     return flag === undefined ? [] : [flag]
 }
 
-// The account's own tags, and the place's. Never the attacker's: a flag's tag can be a political feed.
-const TAGS = ["#clickplanet", "#pixelwars", "#rplace", "#wplace", "#map"]
-
 function tagOf(name: string): string {
-    return `#${name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")}`
+    return name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")
 }
+
+// Every flag of the story that is a country of the game, and the countries of its place; a continent's own flag is not one.
+export function hashtagsOf(story: Story): Hashtags {
+    const place = story.place
+    const country = "country" in place ? place.country : "countries" in place ? place.countries[0] : undefined
+    const continent = "region" in place ? place.region : country === undefined ? undefined : regionOf(country)
+    return {
+        countries: storyCountriesOf(story).map((code) => ({code, tag: tagOf(nameOf(code))})),
+        continent: continent === undefined || continent === THE_WORLD ? undefined : tagOf(continent),
+    }
+}
+
+const loud = (lines: string[]) => lines.map((line) => line.toUpperCase())
 
 export function wordsOf(story: Story, headline?: string): Words {
     const attacker = said(nameOf(story.attacker))
     const place = placeSaid(story.place)
-    const placeTags = "region" in story.place
-        ? story.place.region === THE_WORLD ? [] : [tagOf(story.place.region)]
-        : countriesOf(story.place).map((country) => tagOf(nameOf(country)))
-    const tags = [...TAGS, ...placeTags]
     const sides = sidesOf(story)
-    // The caption asks what the call at the end asks.
-    const finish = (words: Omit<Words, "caption" | "tags">, question: string): Words => ({
-        ...words,
-        caption: `${words.headline}. ${question} 👇\nclickplanet.lol\n${tags.join(" ")}`,
-        tags,
-    })
+    const victim = story.victims[0] === undefined ? undefined : said(nameOf(story.victims[0]))
 
     if (story.kind === "rout") {
         const loser = said(nameOf(sides[0]))
         const home = inPlace(story.place, sides[0], regionOf)
         const ownCountry = "country" in story.place && story.place.country === sides[0]
-        return finish({
+        const takerAtHome = "country" in story.place && story.place.country === story.attacker && story.team === undefined
+        return {
             headline: headline ?? (ownCountry ? `${loser} IS FALLING`
                 : home ? `${loser} IS LOSING ${place}` : `${loser} GETS KICKED OUT OF ${place}`).toUpperCase(),
             line: undefined,
             call: sides.length === 2 ? "PICK A SIDE" : `FIGHT FOR ${loser}`.toUpperCase(),
             callFlags: sides,
             link: sides.length === 2 ? SITE : `${SITE}/?f=${sides[0]}`,
-        }, sides.length === 2 ? "Pick a side" : "Who saves them?")
+            teasers: loud(ownCountry ? [`the fall of ${loser}`, `${loser} collapses`]
+                : home ? [`${loser} loses ground in ${place}`, `${loser} is in trouble in ${place}`]
+                    : takerAtHome ? [`${attacker} retakes its land from ${loser}`, `generational downfall of ${loser}`]
+                        : [`generational downfall of ${loser}`, `${loser} loses ${place}`]),
+        }
     }
 
     if (story.team !== undefined) {
-        return finish({
-            headline: headline ?? `${said(story.team)} STRIKES BACK`.toUpperCase(),
+        const team = said(story.team)
+        return {
+            headline: headline ?? `${team} STRIKES BACK`.toUpperCase(),
             line: undefined,
-            call: `FIGHT FOR ${said(story.team)}`.toUpperCase(),
+            call: `FIGHT FOR ${team}`.toUpperCase(),
             callFlags: sides,
             link: SITE,
-        }, "Who joins them?")
+            teasers: loud(victim === undefined ? [`${team} fights back`, `${team} unites`]
+                : [`${team} unites against ${victim}`, `${team} fights back against ${victim}`]),
+        }
     }
 
     if (sides.length === 2) {
-        return finish({
+        const other = said(nameOf(sides[1]))
+        return {
             headline: headline ?? (story.kind === "kickout"
-                ? `${attacker} IS KICKING ${said(nameOf(sides[1]))} OUT OF ${place}`
-                : `${attacker} VS ${said(nameOf(sides[1]))}`).toUpperCase(),
+                ? `${attacker} IS KICKING ${other} OUT OF ${place}`
+                : `${attacker} VS ${other}`).toUpperCase(),
             line: story.kind === "battle" ? `The battle for ${place}` : undefined,
             call: "PICK A SIDE",
             callFlags: sides,
             link: SITE,
-        }, "Pick a side")
+            teasers: loud(story.kind === "kickout"
+                ? [`${attacker} takes ${place} from ${other}`, `${other} loses ${place} to ${attacker}`]
+                : [`war for ${place}: ${attacker} vs ${other}`, `${attacker} and ${other} fight for ${place}`]),
+        }
     }
 
     if (story.kind === "comeback") {
-        return finish({
+        const ownCountry = "country" in story.place && story.place.country === story.attacker
+        return {
             headline: headline ?? `${attacker} STRIKES BACK`.toUpperCase(),
             line: undefined,
             call: `FIGHT FOR ${attacker}`.toUpperCase(),
             callFlags: [story.attacker],
             link: `${SITE}/?f=${story.attacker}`,
-        }, "Who joins them?")
+            teasers: loud(ownCountry && victim !== undefined
+                ? [`${attacker} retakes its land from ${victim}`, `${attacker} fights back against ${victim}`]
+                : [`${attacker} fights back in ${place}`, `${attacker} is back in ${place}`]),
+        }
     }
 
     const world = "region" in story.place && story.place.region === THE_WORLD
     const defended = world ? undefined : countriesOf(story.place)[0] ?? story.victims[0]
-    return finish({
+    const kicked = victim !== undefined && !countriesOf(story.place).includes(story.victims[0])
+    return {
         headline: headline ?? (world ? `${attacker} IS TAKING OVER ${place}`
             : story.kind === "invasion" ? `${attacker} IS INVADING ${place}`
                 : `${attacker} IS ATTACKING ${place}`).toUpperCase(),
@@ -165,7 +185,12 @@ export function wordsOf(story: Story, headline?: string): Words {
         call: world ? "FIGHT BACK" : `DEFEND ${place}`.toUpperCase(),
         callFlags: placeFlags(story.place),
         link: defended === undefined ? SITE : `${SITE}/?f=${defended}`,
-    }, "Who stops them?")
+        teasers: loud(world ? [`${attacker} takes over the world`, `nobody can stop ${attacker}`]
+            : story.kind === "invasion"
+                ? [kicked ? `${attacker} invades ${place} and kicks out ${victim}` : `${attacker} invades ${place}`,
+                    `${place} is under attack from ${attacker}`]
+                : [`${attacker} takes over ${place}`, `${place} is under attack from ${attacker}`]),
+    }
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, parent: HTMLElement) {

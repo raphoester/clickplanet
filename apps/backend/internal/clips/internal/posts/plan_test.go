@@ -9,7 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 )
 
-var cadence = posts.Cadence{Review: 4 * time.Hour, Spacing: 2 * time.Hour}
+var plan = posts.Plan{Review: 4 * time.Hour, Spacing: 2 * time.Hour, Platforms: []posts.Platform{posts.TikTok, posts.YouTube}}
 
 func times(planned []posts.Post) map[string]time.Time {
 	at := make(map[string]time.Time, len(planned))
@@ -23,7 +23,7 @@ func times(planned []posts.Post) map[string]time.Time {
 func TestTheBestClipGoesOutAReviewFromNowAndEachNextOneASpacingLater(t *testing.T) {
 	now := time.Date(2026, 10, 12, 12, 40, 0, 0, time.UTC)
 
-	planned := cadence.Posts([]posts.Clip{clip(t, 2, "SECOND"), clip(t, 1, "BEST"), clip(t, 3, "THIRD")}, now)
+	planned := plan.Posts([]posts.Clip{clip(t, 2, "SECOND"), clip(t, 1, "BEST"), clip(t, 3, "THIRD")}, now, posts.LoadedDice(0))
 
 	assert.Equal(t, map[string]time.Time{
 		"BEST":   time.Date(2026, 10, 12, 16, 40, 0, 0, time.UTC),
@@ -36,21 +36,29 @@ func TestTheBestClipGoesOutAReviewFromNowAndEachNextOneASpacingLater(t *testing.
 func TestAPostGoesOutOnAWholeMinuteNeverSoonerThanTheReview(t *testing.T) {
 	now := time.Date(2026, 10, 12, 12, 40, 27, 500, time.UTC)
 
-	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now)
+	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
 
 	assert.Equal(t, time.Date(2026, 10, 12, 16, 41, 0, 0, time.UTC), planned[0].TakeSnapshot().At)
 }
 
 func TestNoClipIsNoPost(t *testing.T) {
-	assert.Empty(t, cadence.Posts(nil, time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)))
+	assert.Empty(t, plan.Posts(nil, time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC), posts.LoadedDice(0)))
 }
 
 func TestAPostIsReviewableWhileItsTimeIsAnHourAway(t *testing.T) {
 	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
-	post := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now)[0]
+	post := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))[0]
 
 	assert.True(t, post.Reviewable(now))
 	assert.True(t, post.Reviewable(now.Add(3*time.Hour)))
 	assert.False(t, post.Reviewable(now.Add(3*time.Hour+time.Second)))
 	assert.False(t, post.Reviewable(now.Add(5*time.Hour)))
+}
+
+func TestEachPostGoesToEveryPlatformOfThePlan(t *testing.T) {
+	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
+
+	for _, post := range planned {
+		assert.Equal(t, []posts.Platform{posts.TikTok, posts.YouTube}, post.TakeSnapshot().Platforms)
+	}
 }

@@ -187,6 +187,18 @@ func TestEveryEventKeptBeforeTheTypeKeepsItsKind(t *testing.T) {
 	require.Error(t, err, "an event still has a kind")
 }
 
+const ledgerEventsAccountKind = "20261017120000"
+
+func TestTheAccountKindIndexRunsAgainWhenItsVersionIsForcedBack(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	up, err := fs.ReadFile(migrations.FS, ledgerEventsAccountKind+"_ledger_events_account_kind.up.sql")
+	require.NoError(t, err)
+
+	_, err = db.ExecContext(t.Context(), string(up))
+
+	require.NoError(t, err, "a run killed after the build committed leaves the index there")
+}
+
 func keys(m map[int]int) []int {
 	out := make([]int, 0, len(m))
 	for k := range m {

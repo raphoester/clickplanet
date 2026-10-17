@@ -7,7 +7,7 @@ import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
 import StreakFlame from "../components/StreakFlame.tsx";
 import TitleBadge from "../titles/TitleBadge.tsx";
-import {ChevronIcon, ReplyIcon} from "../components/icons.tsx";
+import {ChevronIcon, ReplyIcon, ReportIcon} from "../components/icons.tsx";
 import {ChatLogEntry, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
 import {messageParts} from "../../domain/chatLinks.ts";
 import {describeBlast} from "../../domain/blast.ts";
@@ -23,9 +23,12 @@ export type ChatLogProps = {
     announcements?: ChatAnnouncement[]
     loading: boolean
     flashing?: ReadonlySet<string>
-    onOpenPlayer?: (player: PlayerLine, messageId?: string) => void
+    onOpenPlayer?: (player: PlayerLine) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
+    onReport?: (message: ChatMessage) => void
+    reported?: ReadonlySet<string>
+    own?: (message: ChatMessage) => boolean
     seenUntil?: number
     onSeen?: (at: number) => void
     watching?: boolean
@@ -179,7 +182,9 @@ export default function ChatLog(props: ChatLogProps) {
                                            jumpTo={shown.has(entry.message.replyTo?.messageId ?? "") ? jumpTo : undefined}
                                            onOpenPlayer={props.onOpenPlayer}
                                            onReact={props.onReact}
-                                           onReply={props.onReply}/>}
+                                           onReply={props.onReply}
+                                           onReport={reportable(entry.message, props.own) ? props.onReport : undefined}
+                                           reported={props.reported?.has(entry.message.id) ?? false}/>}
                     </Fragment>
                 })}
             </ul>
@@ -200,9 +205,11 @@ type MessageLineProps = {
     picking: string | undefined
     pick: (id: string) => (open: boolean) => void
     jumpTo?: (id: string) => void
-    onOpenPlayer?: (player: PlayerLine, messageId?: string) => void
+    onOpenPlayer?: (player: PlayerLine) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
+    onReport?: (message: ChatMessage) => void
+    reported: boolean
 }
 
 function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpTo, ...props}: MessageLineProps) {
@@ -224,7 +231,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                 ? <button type="button"
                           className="chat-message-author player-name-button"
                           title={message.authorName}
-                          onClick={() => props.onOpenPlayer?.(author, message.id)}>
+                          onClick={() => props.onOpenPlayer?.(author)}>
                     {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
                 </button>
                 : <span className="chat-message-author">
@@ -257,6 +264,17 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                                       onClick={() => props.onReply?.(message)}>
                 <ReplyIcon/>
             </button>}
+            {props.onReport && (props.reported
+                ? <span className="chat-report-add chat-report-done" role="img" aria-label="Reported" title="Reported">
+                    <ReportIcon/>
+                </span>
+                : <button type="button"
+                          className="chat-report-add"
+                          aria-label={`Report this message from ${message.authorName}`}
+                          title="Report"
+                          onClick={() => props.onReport?.(message)}>
+                    <ReportIcon/>
+                </button>)}
         </div>
 
         <ReactionBar messageId={message.id}
@@ -368,6 +386,10 @@ function messageClass(
         flashing?.has(id) && "chat-message-new",
         spotlit && "chat-message-spotlit",
     ].filter(Boolean).join(" ")
+}
+
+function reportable(message: ChatMessage, own: ((message: ChatMessage) => boolean) | undefined): boolean {
+    return message.authorAccountId !== "" && !own?.(message)
 }
 
 function atOf(entry: ChatLogEntry): number {

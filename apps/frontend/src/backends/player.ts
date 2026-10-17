@@ -37,6 +37,7 @@ function folded(name: string): string {
 export type Profile = {
     accountId: string
     name: string
+    renamableAt?: number
 }
 
 export type ColoredProfile = Profile & {
@@ -63,12 +64,20 @@ export type PlayerFailure =
     | "notSignedIn"
     | "guest"
     | "unnamed"
+    | "tooSoon"
     | "failed"
 
 export class PlayerError extends Error {
     constructor(public readonly failure: PlayerFailure, options?: {cause?: unknown}) {
         super(`player request refused: ${failure}`, options)
         this.name = "PlayerError"
+    }
+}
+
+export class RenameTooSoonError extends PlayerError {
+    constructor(public readonly renamableAt: number, options?: {cause?: unknown}) {
+        super("tooSoon", options)
+        this.name = "RenameTooSoonError"
     }
 }
 

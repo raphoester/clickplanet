@@ -51,9 +51,9 @@ func TestAKeptNameShowsOnTheRosterAtOnce(t *testing.T) {
 	profile, err := f.useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada_L"})
 
 	require.NoError(t, err)
-	assert.Equal(t, players.Name("Ada_L"), profile.Name())
+	assert.Equal(t, players.Name("Ada_L"), profile.TakeSnapshot().Name)
 	require.Len(t, f.visits.Visits(), 1)
-	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), titles.Standing{}), f.visits.Visits()[0].Author())
+	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), titles.Standing{}), f.visits.Visits()[0].Author())
 }
 
 func TestARefusedNameRenamesNothing(t *testing.T) {

@@ -32,7 +32,7 @@ func TestTheCallerAndItsOpinionsSurviveASaveAndLoad(t *testing.T) {
 
 	watchdog := &saying{
 		verdict: detect.Suspect,
-		evidence: detect.Evidence{Rule: "stride", Fields: []detect.Field{
+		evidence: detect.Evidence{Rule: "stride", Zeal: true, Fields: []detect.Field{
 			{Key: "share", Value: 0.8},
 			{Key: "spread", Value: 120 * time.Millisecond},
 			{Key: "tiles", Value: []uint32{1, 2}},
@@ -65,6 +65,7 @@ func TestTheCallerAndItsOpinionsSurviveASaveAndLoad(t *testing.T) {
 	loaded := restarted.callers["caller"].opinions["saying"]
 	assert.Equal(t, j.callers["caller"].opinions["saying"].String(), loaded.String(), "the log line reads the same")
 	assert.Equal(t, detect.Suspect, loaded.Verdict)
+	assert.True(t, loaded.Evidence.Zeal, "zeal still counts once after a restart")
 
 	clock.Advance(time.Second)
 	watchdog.verdict = detect.Certain

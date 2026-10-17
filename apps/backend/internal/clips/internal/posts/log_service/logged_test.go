@@ -13,25 +13,25 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/log_service"
 )
 
-func schedule(t *testing.T, inner *posts.ScriptedService) (string, posts.PostID, error) {
+func schedule(t *testing.T, inner *posts.ScriptedService) (string, posts.Scheduled, error) {
 	t.Helper()
 
 	clip, err := posts.ClipSnapshot{
-		Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Caption: "C", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}, Video: "clip-1.mp4",
+		Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Teasers: []string{"FRANCE TAKES OVER EUROPE"}, Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}, Video: "clip-1.mp4",
 	}.Restore()
 	require.NoError(t, err)
-	post := posts.Cadence{Review: 4 * time.Hour}.Posts([]posts.Clip{clip}, time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC))[0]
+	post := posts.Plan{Review: 4 * time.Hour, Platforms: []posts.Platform{posts.TikTok}}.Posts([]posts.Clip{clip}, time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC), posts.LoadedDice(0))[0]
 
 	var logs bytes.Buffer
-	id, err := log_service.New(inner, slog.New(slog.NewTextHandler(&logs, nil))).Schedule(t.Context(), post)
-	return logs.String(), id, err
+	scheduled, err := log_service.New(inner, slog.New(slog.NewTextHandler(&logs, nil))).Schedule(t.Context(), post)
+	return logs.String(), scheduled, err
 }
 
 func TestAPostTheServiceTakesSaysNothing(t *testing.T) {
-	logs, id, err := schedule(t, posts.NewScriptedService())
+	logs, scheduled, err := schedule(t, posts.NewScriptedService())
 
 	require.NoError(t, err)
-	assert.Equal(t, posts.PostID("post-FRANCE IS ATTACKING EUROPE"), id)
+	assert.Equal(t, posts.PostID("post-FRANCE IS ATTACKING EUROPE"), scheduled.ID)
 	assert.Empty(t, logs)
 }
 

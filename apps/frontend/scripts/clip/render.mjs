@@ -38,7 +38,8 @@ Everything below is chosen from the replay when left out:
   --recorders <n>     the browsers taking the frames in turn, default one for every 3 cores, 4 at most
   --headed            show the browser
 
-Writes the video and, beside it, a .txt with the caption and a .json with what to post (clips.v1.Clip). Needs ffmpeg.
+Writes the video and, beside it, a .json with what to post (clips.v1.Clip), and a .txt with the headline said other
+ways, one a line: the posting job writes the caption from them. Needs ffmpeg.
 CHROME_PATH overrides the browser binary.`)
     process.exit(1)
 }
@@ -263,11 +264,11 @@ async function record(recorders, pick, chosenOut) {
     await encoded
     ffmpeg = undefined
 
-    const caption = out.replace(/\.mp4$/, "") + ".txt"
-    writeFileSync(caption, recording.caption + "\n")
+    const text = out.replace(/\.mp4$/, "") + ".txt"
+    writeFileSync(text, recording.teasers.join("\n") + "\n")
     const clip = out.replace(/\.mp4$/, "") + ".json"
     writeFileSync(clip, JSON.stringify(recording.clip, null, 2) + "\n")
-    console.log(`  saved ${out}, ${basename(caption)} and ${basename(clip)}`)
+    console.log(`  saved ${out}, ${basename(text)} and ${basename(clip)}`)
     return recording
 }
 

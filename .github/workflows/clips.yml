@@ -176,8 +176,10 @@ jobs:
           path: clips
           merge-multiple: true
 
-      - name: schedule the clips on TikTok
+      # The repository variable CLIPS_PLATFORMS turns a platform off with no commit: "tiktok" alone. Unset is every platform.
+      - name: schedule the clips on TikTok and YouTube
         working-directory: apps/backend
         env:
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
-        run: go run ./cmd/clips schedule -clips "$GITHUB_WORKSPACE/clips" -summary "$GITHUB_STEP_SUMMARY"
+          PLATFORMS: ${{ vars.CLIPS_PLATFORMS }}
+        run: go run ./cmd/clips schedule -clips "$GITHUB_WORKSPACE/clips" -platforms "$PLATFORMS" -summary "$GITHUB_STEP_SUMMARY"

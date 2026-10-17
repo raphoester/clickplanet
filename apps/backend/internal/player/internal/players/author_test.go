@@ -34,7 +34,7 @@ func TestAGuestAuthorShowsNoStreak(t *testing.T) {
 }
 
 func TestANamedAuthorIsItsProfile(t *testing.T) {
-	author := players.NamedAuthor(players.ProfileOf(players.AccountID{15: 1}, "Ada", authoredAt, true, 3), players.Streak{})
+	author := players.NamedAuthor(players.ProfileSnapshot{Account: players.AccountID{15: 1}, Name: "Ada", UpdatedAt: authoredAt, Admin: true, Color: 3}.Restore(), players.Streak{})
 
 	assert.Equal(t, "Ada", author.Name())
 	assert.False(t, author.Guest())
@@ -44,7 +44,7 @@ func TestANamedAuthorIsItsProfile(t *testing.T) {
 
 func TestARenamedAuthorKeepsItsMarkColorAndStreakAndIsNoLongerAGuest(t *testing.T) {
 	streak := players.StreakOf(4, players.DayOf(authoredAt))
-	named := players.NamedAuthor(players.ProfileOf(players.AccountID{15: 1}, "Ada", authoredAt, true, 3), streak)
+	named := players.NamedAuthor(players.ProfileSnapshot{Account: players.AccountID{15: 1}, Name: "Ada", UpdatedAt: authoredAt, Admin: true, Color: 3}.Restore(), streak)
 
 	renamed := named.Renamed("Ada_L")
 

@@ -111,7 +111,7 @@ root package**:
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
-| `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Pick`, `Report` |
+| `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Pick`, `Platform`, `PlatformsOf`, `Report`, `PlatformOutcome` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
@@ -587,10 +587,11 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   `GetAccount` and against the linked flag the click token carries (`accounts_query/parity_test.go`). A rule a parity
   test does not cover is a rule that can drift.
 - **So the domain has no exported fields.** A player domain type is built by a constructor (`NewProfile`,
-  `NewStats`, `NewVisit` to start one; `ProfileOf`, `StatsOf`, `StreakOf`, `AccountOf` to restore one a store or
-  another module kept), read through nouns (`Profile.Name()`, `Stats.TilesTaken()`, `Visit.Author()`), and changed
-  through builders that answer a copy (`Stats.WithTake`, `Author.Renamed`, `wearing.Author.Wearing`,
-  `Visit.Keyed`). Chat the same: `NewRecord`, `NewWindow`, `AuthorOf`,
+  `NewStats`, `NewVisit` to start one; `StatsOf`, `StreakOf`, `AccountOf` to restore one a store or
+  another module kept), read through nouns (`Stats.TilesTaken()`, `Visit.Author()`), and changed
+  through builders that answer a copy (`Stats.WithTake`, `Profile.Renamed`, `Author.Renamed`, `wearing.Author.Wearing`,
+  `Visit.Keyed`). `players.Profile` has no getter: a store and the wire read it through `ProfileSnapshot`
+  (`TakeSnapshot`, `Restore`), as chat's `Message` below. Chat the same: `NewRecord`, `NewWindow`, `AuthorOf`,
   `TitleOf`, `RankOf`, `reactions.On` and `Off` for a `Change`, `Tally.Named`, `NewAnnouncement`, `BombOf`, and
   `feed.MessageSent`, `ReactionsChanged` and `Announced` for the three cases of an `Update`. A test outside the
   package compares through those nouns, or through a view of them (`title_test.go`'s `standingView`), since it
@@ -1319,8 +1320,9 @@ internal/auth/internal/
 
 ```
 internal/player/internal/
-  players/                          AccountID, Name (NameOf), GuestCode (GuestCodes, DisplayNameOf), Author (AuthorOf), Tag (TagOf), Profile,
-                                    Color, Stats, Streak, Day; the Store port and its contract suite
+  players/                          AccountID, Name (NameOf), GuestCode (GuestCodes, DisplayNameOf), Author (AuthorOf), Tag (TagOf), Profile
+                                    (ProfileSnapshot, Unnamed, Renamed), NameChoice (the rename rule), Color, Stats, Streak, Day; the Store
+                                    port and its contract suite
     postgres_player_store/          the Store over player.profiles, player.guest_codes and player.stats
     random_code_generator/          draws guest codes from crypto/rand
     random_name_generator/          draws a username for a signed-in account: an adjective, an animal, two digits
@@ -1363,6 +1365,7 @@ internal/player/internal/
     get_roster_handler/roster_query/    MemoryQuery: the roster, from its Lines port
       inmemory_roster/              Lines from the visits in memory (presence.RosterOf)
     inprocess_title_catalog/        the Titles port of three queries: shown, worn and each track, from titles.Catalog
+    inprocess_rename_rule/          GetProfile's Renames port: when a name may change again, from players.NameChoice
     rpc_planet_fronts/              the countries played for and against, from planet.v1.InternalService/GetTakesByCountry:
                                     GetFronts' port, and GetPlayer's through caching_fronts/
       caching_fronts/               one answer per account for 30s
@@ -1377,7 +1380,7 @@ internal/player/internal/
 ```
 
 - **The caller is the account in the click token.** Every call but `GetRoster`, `GetPlayer` and `ListenForEvents` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, on the key `auth` hands over the internal listener, as `planet` does. No token, a bad one, or a token with no account (the deprecated mint) is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
-- **`GetProfile`** answers the account id and its name, empty when none was chosen, and its color. **`GetFronts`**
+- **`GetProfile`** answers the account id and its name, empty when none was chosen, when the name may change again, and its color. **`GetFronts`**
   answers every country the caller plays for and against (see the fronts below). **`GetStats`** answers `tiles_taken`, `streak_current`, `streak_best` and `streak_last_day` (YYYY-MM-DD).
 - **`SetName` chooses a username.** `players.NameOf` is the rule. It puts the name in **NFC** and cuts the spaces (U+0020) at its ends — the same text, as it shows — and changes nothing else. Then:
   - **3 to 15 characters, counted in code points after NFC**, as postgres' `char_length` counts, so both agree. A letter with a combining mark NFC cannot compose counts two.
@@ -1386,6 +1389,11 @@ internal/player/internal/
   - **Not starting with `guest_` once folded** (`Name.Folded`), which the chat puts before every guest's name. Folded, so `ＧＵＥＳＴ_x` and `gueſt_x` are refused too.
 
   A name that breaks a rule is `InvalidArgument` (`ErrInvalidName`). The name keeps the case it was typed in.
+- **A player changes its name at most once every 30 days**, so a name chosen to pass for another player has to be kept. `Profile.Renamed` applies `players.NameChoice`: the time the player last chose its name, plus 30 days, is the earliest next choice. A change sooner, by a nanosecond too, is `players.RenameRefusal` (`ErrRenamedTooSoon`), which `SetName` answers as `ResourceExhausted` with a `player.v1.RenameRefusal` detail: `renamable_at_unix_ms`. The use case checks it after the name and the link, and before the save.
+  - **The first name a player picks is free**: an account with no profile (`players.Unnamed`) and a name given at sign-in (`CreateProfile`, which keeps no choice time) start no wait. Every `SetName` that is kept starts it again, the same name in another case too; a refused one (invalid, taken, too soon) does not.
+  - **The time is `profiles.name_chosen_at`** (migration `20261015120000_name_chosen_at`), NULL until the player chooses. The migration gave the names kept before it no time, so each player's next change is free. `SaveProfile` writes it with the name.
+  - **`Profile.renamable_at_unix_ms`** (0 when the name may change now) is on `SetName`'s answer and on `GetProfile`'s. `profile_query` reads the time in SQL and asks the rule through its `Renames` port (`inprocess_rename_rule`), so the 30 days are only in `NameChoice`.
+  - Two `SetName` calls at the same moment can both pass the rule: the last one saved wins, and the wait starts from it.
 - **`SetColor` picks the color a username is drawn in**, from `player.v1.NameColor`: the proto enum is the list,
   as `chat.v1.Reaction` is for reactions, and the number is what is stored, so a value is never renumbered or
   reused. `playermessage.ColorOf` refuses a number the proto does not name (`InvalidArgument`, `ErrInvalidColor`);
@@ -1452,9 +1460,12 @@ internal/player/internal/
   - **`GetFronts` is the caller's every country**, uncached, behind the session interceptor as `Identified`: a read,
     so the identity token resumed from the cookie is enough. The client already asks at most every 10s while it clicks.
   - **A failure to ask planet is a real error**, the error net's `internal`, as for auth.
-  - **It costs one grouped read of the account's events**, through `ledger_events_account`. A player with a million
-    takes makes that heavy, which is what the cache is for on the public card. If it ever is too slow, a projection
-    fed by `TileTaken` is the way back.
+  - **It costs one grouped read of the account's events**, through `ledger_events_account_kind`
+    (`account, kind, country, previous`). The takes are read from the index alone, and only a spread's or an
+    enclose's row is read from the table, for its payload; `takes_query/plan_test.go` pins it. Key columns and not
+    `INCLUDE`, so the index deduplicates: 9.5 MB for 1.5M rows, against 63 MB with `INCLUDE`. A player with a million
+    takes still makes that heavy, which is what the cache is for on the public card. If it ever is too slow, a
+    projection fed by `TileTaken` is the way back.
 - **They are the total since the ledger has accounts, never a season's.** Decided on 2026-10-08, in season 0, when the
   two are the same. The card says which flags a player's tiles went to, so the flag beside its name on the Players
   board makes sense. **The per-season split is the same query bounded by the season's start and end**: `seasons`
@@ -2274,6 +2285,21 @@ earns its place because `sequencer` reads ids and `metronome` reads time — two
 genuinely different measurements — but `minSuspects: 2` is the loosest this
 should be, and 3 in practice means only `retaker`'s certain rule ever fires.
 
+**Two readings of zeal are one suspect, since 2026-10-17.** `stamina` (hours at
+pace) and `defence` (most takes win back the flag's tiles) both measure how hard a
+person plays, and the keenest players read both. Together they banned two people on
+2026-10-09, and on 2026-10-12 a new player on its first day: 5h50m busy of 6h, then
+81 retakes in 127 takes in a tile war, chatting all through it.
+
+- **Each rule says it reads zeal** (`Evidence.Zeal`), and the jury counts every zeal
+  reading of a caller as one suspect. The mark is saved with the opinion.
+- **Zeal still counts beside any other watchdog**: `rotator` with `stamina`, or
+  `cadence` with `defence`, is still a ban. Only the two together are not.
+- **The cost**: a loop that reads `stamina` and `defence` and nothing else is free,
+  as the player who reads the same is.
+- `TestTheNewcomerOfOctober12WhoPlaysHardAndDefendsIsNotBanned` replays the player,
+  and `TestThePairOfOctober13TakingTurnsAtACadenceIsBanned` a pair that is still banned.
+
 **Crossing is also what makes it fast.** The overnight sweep from the
 screenshots trips no watchdog's `Certain` for a long time — `sequencer` wants two
 hundred steps, `metronome` wants half an hour — but both read `Suspect` within
@@ -2582,6 +2608,8 @@ tiles, and every watchdog read `clear`.
   no `certainBusy`, and a run at pace for hours is banned only beside another
   watchdog. The bot of 2026-09-28 reads `clear` everywhere else, so it is free again
   until one does. `TestAnEveningAtPaceAloneBansNobody` pins it.
+- **Beside `defender` it is still one suspect**: both read zeal, see
+  [Ten watchdogs, one jury](#ten-watchdogs-one-jury).
 - `click_busy_hours` is each payer's busy time, once a sweep, for the payers that
   clicked since the last one.
 - **It is its own evidence in the metronome's section**, saved with the indexes'
@@ -3121,7 +3149,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **The boot has `httpServer.startupTimeout` (1m) for all of it**, every module included. Production is about ten times slower than a laptop. On 2026-10-08, with 255k owned tiles and 180k takes, a boot that came right after another took 3.6s: geography 0.9s, tile map 0.6s, ledger 1.5s. The first boot after a stop is 2 to 3 times slower at each step, because the 1 GB droplet reads its pages back from swap and disk. Postgres alone takes ~2s to send the ledger window and ~1s to send the tiles, so the time is the box, not the Go code. The old 5s deadline made the first boot fail four times between Oct 6 and Oct 8, each time on whatever step was running at 5s (once the player module's ping). At ~8µs a take, the 4M cap would load in ~30s on a warm boot.
 - **A flush appends, it never rewrites a take.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, blanks the scope of the takes between the head postgres held and the new one (what the retention or the cap dropped from memory), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written, in memory or in postgres. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
 - **The address does not outlive the retention.** A scope is personal data, so every row behind the head has none and every row from it on has one: the boot never loads a row with no scope. Blanking runs at ~100k rows a second on a laptop, so a cut of `ledger.retention` that drops a million takes at once passes the 10s flush timeout, and so does every retry; at today's volume the whole window is ~120k.
-- **A deleted account stops being named.** `planet` hears `auth.v1.AccountDeleted` (`planet-ledger-accounts`, `subscribers/account_deleted_subscriber`, `anonymize_takes_usecase`): it flushes the ledger, then sets `account` to NULL on every row of that account, on the partial index `ledger_events_account`. The flush comes first, or a take still in memory would be written after the update with the account on it. The takes keep their tile, flag and time. **What still names it**: memory, until the take ages out (72h at most); a revert mark, until the head passes it; a take made after the delete on a click token minted before it (an hour at most), as for the player's stats; and every take of an event the bus dropped (full buffer, crash). The subscriber's timeout is a minute, not 5s: the update grows with the account's history.
+- **A deleted account stops being named.** `planet` hears `auth.v1.AccountDeleted` (`planet-ledger-accounts`, `subscribers/account_deleted_subscriber`, `anonymize_takes_usecase`): it flushes the ledger, then sets `account` to NULL on every row of that account, on the partial index `ledger_events_account_kind`. The flush comes first, or a take still in memory would be written after the update with the account on it. The takes keep their tile, flag and time. **What still names it**: memory, until the take ages out (72h at most); a revert mark, until the head passes it; a take made after the delete on a click token minted before it (an hour at most), as for the player's stats; and every take of an event the bus dropped (full buffer, crash). The subscriber's timeout is a minute, not 5s: the update grows with the account's history.
 - **Size.** 1M takes are 83 MB of table and 31 MB of indexes (the primary key and the account). Production made ~116,000 takes in 72h at the start of October 2026, ~40,000 a day: ~15M rows and ~1.7 GB a year. Each take is written twice, once by the `COPY` and once when its scope is blanked, and autovacuum reuses the space. No partitioning yet.
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges, deletions)` runs them together and closes the pool after the last flushes, and after the subscriber drained its buffer.
 
@@ -3220,7 +3248,7 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 
 ### The clips job (`internal/clips/`, `cmd/clips`)
 
-**Twice a day a workflow makes the best clips of the last 12 hours and schedules them on TikTok**
+**Twice a day a workflow makes the best clips of the last 12 hours and schedules them on TikTok and YouTube Shorts**
 (`.github/workflows/clips.yml`; the frontend's CLAUDE.md, "Clips", has the four jobs and how a clip is made). The
 frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
 which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
@@ -3229,8 +3257,8 @@ meet in files: the replay this job saves for the generator, and `clips.v1.Shortl
 
 ```
 clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-clips choose -shortlist <shortlist.json> [-count 2]
-clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
+clips choose -shortlist <shortlist.json> [-count 6]
+clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,youtube] [-summary <file>]
 ```
 
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
@@ -3241,22 +3269,26 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   told. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's `--pick` takes.
   It needs `ZERNIO_API_KEY`, to read what was told.
 - **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the posting
-  service, and adds a table to the summary: each clip, its time, and whether it is scheduled. It exits 1 when a
-  clip was not scheduled, when the folder holds none, or when the summary cannot be written. A clip refused does
-  not stop the next one.
+  service, **as one post on every platform** (`-platforms`, default all: `tiktok,youtube`), and adds a table to the
+  summary: a row for each clip on each platform, its time, and whether it is scheduled there. It exits 1 when a
+  platform did not take a clip, when the folder holds none, or when the summary cannot be written. **Platforms are
+  independent**: a platform that refuses does not stop the others, and a clip refused does not stop the next one.
+  The workflow passes the repository variable `CLIPS_PLATFORMS` (Settings → Variables), so `tiktok` alone turns
+  YouTube off with no commit; unset is every platform.
 - **`cmd/clips` is three stages, and `run` only names them**: parse, work, display (see [A command's `run` is a
   table of contents](#a-commands-run-is-a-table-of-contents)). `main.go` holds no stage.
   - **`flags.Parse`** (`cmd/clips/internal/flags`) answers one typed `flags.Config`: the command, its files, and
-    the job's `clips.Config` with `CLICKPLANET_SSH` and `ZERNIO_API_KEY` read into it. No flag pointer leaves it.
+    the job's `clips.Config` with `CLICKPLANET_SSH` and `ZERNIO_API_KEY` read into it, and `-platforms` checked by
+    the domain (`clips.PlatformsOf`: each known, each once). No flag pointer leaves it.
     Flags and not `cpconfigs`: the job has a few settings and one secret, and a workflow passes them on the
     command line.
   - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks) and
     `clips.Schedule` (the `Report`), in `internal/clips/job.go`, which wires the objects as a `module.go` does.
-    A clip the service refused is in the report, not in the error: the error is for a run that could not be
-    made at all.
+    A clip or a platform the service refused is in the report, not in the error: the error is for a run that
+    could not be made at all.
   - **The display owns the output and says how it went** (`cmd/clips/internal/display`): `display.Picks`
     writes the array, `display.Report` writes the table, to the summary file when one is named, and answers
-    whether every clip is scheduled. It does not turn that into an error: `schedule` in `main.go` decides, and
+    whether every clip is scheduled on each of its platforms. It does not turn that into an error: `schedule` in `main.go` decides, and
     exits 1 on `errUnsent`.
   - **The dispatch acts on `fetch`, `choose` and `schedule`, and on nothing else**: any other command is
     `errUnknownCommand`, and nothing is fetched, printed or posted.
@@ -3280,21 +3312,74 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
 
-- **`Shortlist.Best(count, told, now)`** is which clips: the first `count` stories, all of them when there are
-  fewer, 2 a run (`Config.PerRun`), **but never a story told already**: one whose `StoryKey` (a flag and a
-  continent, from the generator) a post holds that goes out within the last day or later (`ToldSince`), or that a
-  better story of the same run took. The keys and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS
-  FRANCE" are one story, and on Oct 13–14 two runs posted it three times. It answers a `Choice`: the stories chosen,
-  and the ones skipped (`Retold`), which the log shows. A story with no key is refused when the shortlist is read.
-- **What was told is Zernio's post list, not a table of ours**: each post keeps its key in its Zernio `metadata`
-  (`storyFlag`, `storyContinent`, never published), and `choose` lists the posts of the last day back, on every
-  platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
+- **`Shortlist.Best(count, told, now)`** is which clips: `count` stories, all of them when there are fewer, 6 a
+  run (`Config.PerRun`), **never a story told already, and never mostly one flag**. Four rules, from the week of
+  Oct 13–17, when 18 clips told "ALGERIA STRIKES BACK" three times, "PALAU IS TAKING OVER THE WORLD" twice right
+  after the old one-day window, and Palau (two players on five accounts) in about half of them:
+  - **A key told in the last 3 days is skipped** (`retelling`): a `StoryKey` (a flag and a continent, from the
+    generator) a post holds that goes out within 72 hours or later, or that a story of the same run took. The keys
+    and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story.
+  - **A headline told in the last week is skipped** (`reheadlining`), whatever its continent: the same words read
+    as the same clip. Compared in upper case, spaces at the ends cut.
+  - **A flag the last 6 posts showed goes after the flags they did not** (`lately`, half a day at 6 a run). **A
+    post shows its key's flag and every country of its story** (`Countries`, as the generator writes them: the
+    place, both sides, the flags it takes from): "FRANCE VS PALAU" and "VATICAN CITY VS PALAU" both show Palau. A
+    story ranks by its key's flag, then by the country of it the last posts showed most, then by the generator's
+    order. A story chosen counts as the newest post. A post made before the posts kept their countries shows its
+    key's flag only.
+  - **A flag that 2 of the last 6 posts showed waits** (`mostLately`): it is a third of the feed at most. So a
+    shortlist of one flag gives 2 clips, not 6. Ranking alone was not enough at 6 a run: on Oct 15 a shortlist of
+    Palau and one other flag gave 5 clips of Palau. **Only the key's flag waits, not each country of the story**:
+    Palau and France defend in nearly every story of Oct 15–17, and waiting on all of them left 6 clips in those
+    2.5 days, none on the night of Oct 16.
+
+  It answers a `Choice`: the stories chosen, in the shortlist's order, the ones skipped (`Retold`), and the ones not
+  told whose flag 2 of the last posts showed, or that the posts showed more than a story chosen (`Passed`), which the
+  log shows. A story with no key is refused when the shortlist is read.
+- **6 a run, because the finder is not what runs short.** Replayed over Oct 14–17, a 12-hour window held 5 to 11
+  stories of different keys, and the one-day rule let about 10 a day out; 2 a run posted 4. Six is the most the
+  `Plan` below fits between two runs: the sixth goes out 14 hours after a run starts, and the next run's first
+  16 hours after it. A seventh would go out together with that one. **The rules above post fewer**: replayed over
+  Oct 15–17 at 6 a run, 15 clips with 4 of Palau and no repeat, against 21 with 9 of Palau and 3 repeats under the
+  one-day rule alone; and once the posts count every country, 13 clips with 2 about Palau. Palau still shows in about
+  half of them, as the flag the others take from.
+- **What was told is Zernio's post list, not a table of ours**: each post keeps its key and its story's countries in
+  its Zernio `metadata` (`storyFlag`, `storyContinent`, `storyCountries`, never published), and `choose` lists
+  the posts of the last week back (`ToldSince`), on every platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
   (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
-- **`Cadence.Posts(clips, now)`** is when: the best clip a `Review` from now (4 hours), each next one a `Spacing`
-  later (2 hours), on a whole minute and never sooner than the review. So a run at 12:17 UTC that renders in 20
-  minutes posts near 16:40 and 18:40.
+- **`Plan.Posts(clips, now, dice)`** is when and where: the best clip a `Review` from now (4 hours), each next one a
+  `Spacing` later (2 hours), on a whole minute and never sooner than the review, each to all the `Platforms` at
+  once. So a run at 12:17 UTC that renders in 20 minutes posts near 16:40, then every 2 hours until 02:40. It also
+  rolls each post's words (`Dice`, `SystemDice`), so no post exists without them. **A platform is a `Platform`**
+  (`tiktok`, `youtube`), and `PlatformsOf` is the only way from a name to one: each known, each once.
+- **The words of each platform are written here**, from what the generator gives (its teasers, the countries with
+  their hashtags, the continent's, the music's credit), since the platform is the job's business. One teaser and
+  one call per post, the same on every platform. **TikTok's caption** (`caption.go`):
+  ```
+  ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET
+  Play for free 👉 clickplanet.lol
+  #clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral #europe #italy #portugal #portugaltiktok🇵🇹
+  ```
+  A teaser and a call to act are picked at random, the call from `callsToAction`, and **the call's id is kept in
+  the post's Zernio metadata** (`callToAction`), so the calls can be compared on the posts' numbers. A caption
+  link cannot be clicked on TikTok, so a call is compared by how its posts do, not by visits. The music's credit,
+  when its licence asks for one, comes before the tags. Then the game's tags, the continent's, each country's, and
+  one TikTok community tag for the flag the clip is about (`#usatiktok🇺🇸`; an ISO private-use code such as `xk`
+  has no flag emoji).
+- **YouTube's words** (`youtube.go`) are a title, a description and tags, within YouTube's limits:
+  ```
+  ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET
+
+  Play for free 👉 clickplanet.lol
+  #clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral #europe #italy #portugal
+  ```
+  The title is the teaser and the brand, 100 characters at most: the teaser alone when both do not fit, cut with
+  `…` when it does not either. The description is the call, the music's credit and the hashtags, **60 at most**:
+  past that YouTube ignores every hashtag of the video. The tags are the same words with no `#`, the first that fit
+  in 500 characters with a comma between two, as YouTube counts them. **No `#Shorts`**: a vertical video of 3
+  minutes or less is a Short by itself. No TikTok community tag either.
 - **Review is opt-out, so nothing is ever sent for a time too close.** `Post.Reviewable(now)` is false under an hour
   ahead (`leastReview`), and `Sender` then refuses the post (`ErrNoTimeToReview`) rather than send it: nobody could
   cancel it, and the service publishes a time already past **at once**. It is checked before every try, since a
@@ -3304,14 +3389,17 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   1, 5 then 15 minutes, or as long as the service said when that is longer; a service that asks for longer than
   the longest wait fails the post at once. `Pause` is the wait, so a test takes no time (`RecordedPause` moves the
   fixed clock instead).
-- **`Service` is the posting service, one method**: `Schedule(ctx, post) (PostID, error)`. Its contract is in two
-  lines on it: for the post's time and never sooner, and a post scheduled twice is one post there.
+- **`Service` is the posting service, one method**: `Schedule(ctx, post) (Scheduled, error)`. Its contract is on
+  it: for the post's time and never sooner, on each of its platforms that takes it, and a post scheduled twice is
+  one post there. `Scheduled` is the post's id and each platform it is not on, with why (`Refused`); the error is a
+  post made on no platform.
 - `Clip` and `Post` have no getter: an adapter reads `TakeSnapshot()`, and a `ClipSnapshot` the generator left a
-  part out of does not `Restore()`. `Report` is what became of each clip, for the display and the log;
-  `Complete()` is whether every one is scheduled.
+  part out of does not `Restore()`. `Report` is what became of each clip on each platform, for the display and the
+  log; `Complete()` is whether every one is a post on all its platforms.
 
 **`posts/zernio/` is the one package that knows the service** (Zernio, chosen 2026-10-12 over upload-post: its
-free tier has TikTok and the whole API). A change of service is that package, its line in `job.go`, the variable
+free tier has TikTok and the whole API, posts are unlimited, and the first two accounts are free). **No Instagram
+for now** (2026-10-17): a third account is 6 USD a month. A change of service is that package, its line in `job.go`, the variable
 `main.go` reads the key from, and the client below.
 
 - **The HTTP client is generated, not written, and lives in `shared/cpzernio`** with all that makes it:
@@ -3327,11 +3415,24 @@ free tier has TikTok and the whole API). A change of service is that package, it
   on one added field, and `CreatePost` fails on the 201 of the document's own example, **after the post was
   made**, the bug its issue 4 reported in August. A pinned version breaks when the API grows; ours ignores what
   it does not know, and two tests pin that (`…FieldsAddedLater…`). It is also 36 MB of Go in one package.
-- **Four calls a clip**: `GET /v1/accounts?platform=tiktok`, `POST /v1/media/presign`, a `PUT` of the video to
-  the address that answers (the storage, not the API: raw HTTP, and no key), then `POST /v1/posts` with
-  `scheduledFor`. **Never `publishNow`.**
-- **It posts to the one connected TikTok account**, and refuses to guess between two: no account id is configured.
-  An account per country will need one.
+- **Four calls a clip**: `GET /v1/accounts`, `POST /v1/media/presign`, a `PUT` of the video to the address that
+  answers (the storage, not the API: raw HTTP, and no key), then `POST /v1/posts` with `scheduledFor`. **Never
+  `publishNow`.**
+- **One clip is one Zernio post, with a target for each platform**, so one cancel in the dashboard stops it
+  everywhere. Each target carries its own words (`customContent`) and its own settings (`platformSpecificData`), so
+  a change for one platform (TikTok's sound) touches no other. Zernio publishes each target on its own: one
+  platform that fails at its time leaves the post `partial`, and the next run's history says which (`tiktok: …`).
+  - TikTok: public, comments, duets and stitches on.
+  - YouTube: public, category Gaming (`20`), and **not made for kids**, sent every time since YouTube may block the
+    views of a video with no answer. It is the user's legal choice (2026-10-17): "made for kids" turns comments
+    off for good. The tags go at the root of the post, where Zernio sends them to YouTube alone. Zernio uploads a
+    scheduled video to YouTube up to 15 minutes before its time, private until then: **cancel a clip earlier than
+    that**.
+- **It posts to the one connected account of each platform**, and refuses to guess between two: no account id is
+  configured. A platform with none or two is refused (`Refused`), and the post still goes to the others; with no
+  platform left there is no upload and no post. An account per country will need an id.
+- **What is scheduled on a platform is what Zernio kept**: a platform the kept post has no target for is refused.
+  A run made again after a platform was connected gets the first post back, without it, and says so.
 - **`Idempotency-Key` is the SHA-256 of the video**, so a run made again, or a try after a timeout, is the same
   post there and not a second one. Zernio matches on the key alone, so the video uploaded again under a new
   address is still the same post.
@@ -3344,14 +3445,16 @@ free tier has TikTok and the whole API). A change of service is that package, it
   and never to the storage, and **an error never carries a URL**: the address a video is uploaded to is a
   credential for an hour, and Go's `url.Error` prints it. `unreachable` keeps the cause and drops the address;
   a test pins it.
-- **What the job cannot see: a post TikTok refuses at its time**, hours after the run ended. Zernio shows it in
-  its dashboard, as failed.
+- **A post a platform refuses at its time is seen by the next run**, hours after its own ended: the history `choose`
+  reads holds each post's state and each platform's error, and `log_history` logs every post of the last week,
+  a refused one as a warning with why (`a post of the last week was refused … failure="tiktok: …"`).
 - The tests run it against `httptest`, with the requests and the answers of Zernio's OpenAPI document.
 
 `posts/generator_output/` reads the generator's files (`protojson`, unknown fields dropped, so the generator can
 add one first), and both use cases log in a decorator
-(`log_choose_clips`, `log_schedule_clips`), as does the service (`log_service`: each try the service did not take,
-which is what explains a step that waited 20 minutes).
+(`log_choose_clips`, `log_schedule_clips`), as do the service (`log_service`: each try the service did not take,
+which is what explains a step that waited 20 minutes) and the history (`log_history`: how each post of the last week
+went).
 
 ### Shared (`internal/shared/`)
 
@@ -3598,7 +3701,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**, but for the one an operator lifts with `UnbanPlayer`
 - `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration or load refuses the boot
 - `antiBot.shadowBan.reflagInterval` — how soon a banned caller can be judged again
-- `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone
+- `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone; `stamina` and `defence` together count as one
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
 - `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. See [What survives a restart](#what-survives-a-restart)
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`

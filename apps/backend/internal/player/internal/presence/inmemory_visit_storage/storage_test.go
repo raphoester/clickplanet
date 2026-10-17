@@ -29,7 +29,7 @@ func visit(n int, tag players.Tag, at time.Time) presence.Visit {
 }
 
 var (
-	ada   = wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), titles.Standing{})
+	ada   = wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), titles.Standing{})
 	og, _ = titles.NewCatalog().StandingOf("og")
 )
 
@@ -186,12 +186,12 @@ func TestARenameKeepsEverythingButTheName(t *testing.T) {
 
 func TestARenameKeepsTheTitleWorn(t *testing.T) {
 	storage := inmemory_visit_storage.New(cptime.NewFixedClock(start))
-	storage.Record(named(visit(1, "aaaaaa", start), wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada", time.Time{}, false, 0), players.Streak{}), og)))
+	storage.Record(named(visit(1, "aaaaaa", start), wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada"}.Restore(), players.Streak{}), og)))
 
 	storage.Rename(account(1), "Ada_L")
 
 	require.Len(t, storage.Visits(), 1)
-	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), og), storage.Visits()[0].Author())
+	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), og), storage.Visits()[0].Author())
 }
 
 func TestAWornTitleShowsOnTheLineAndIsAChange(t *testing.T) {

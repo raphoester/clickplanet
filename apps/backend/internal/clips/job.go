@@ -9,6 +9,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/generator_output"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/log_history"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/log_service"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/choose_clips_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/choose_clips_usecase/log_choose_clips"
@@ -24,8 +25,10 @@ import (
 )
 
 type (
-	Pick   = posts.Pick
-	Report = posts.Report
+	Pick            = posts.Pick
+	Platform        = posts.Platform
+	Report          = posts.Report
+	PlatformOutcome = posts.PlatformOutcome
 )
 
 type Config struct {
@@ -34,6 +37,8 @@ type Config struct {
 	PerRun  int
 	Review  time.Duration
 	Spacing time.Duration
+	// Each clip is one post on all of them.
+	Platforms []Platform
 
 	Zernio zernio.Config
 }
@@ -50,7 +55,7 @@ const (
 	// The ledger keeps this much in memory: a replay cannot reach further back.
 	defaultSpan = 72 * time.Hour
 
-	defaultPerRun  = 2
+	defaultPerRun  = 6
 	defaultReview  = 4 * time.Hour
 	defaultSpacing = 2 * time.Hour
 
@@ -59,7 +64,14 @@ const (
 	historyTimeout = time.Minute
 )
 
-var defaultBackoff = posts.Backoff{time.Minute, 5 * time.Minute, 15 * time.Minute}
+var (
+	defaultBackoff   = posts.Backoff{time.Minute, 5 * time.Minute, 15 * time.Minute}
+	defaultPlatforms = []Platform{posts.TikTok, posts.YouTube}
+)
+
+func PlatformsOf(names ...string) ([]Platform, error) {
+	return posts.PlatformsOf(names...) //nolint:wrapcheck // a pure delegation: the domain already named what is wrong.
+}
 
 func (c Config) withDefaults() Config {
 	if c.Replay.Span == 0 {
@@ -73,6 +85,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.Spacing <= 0 {
 		c.Spacing = defaultSpacing
+	}
+	if len(c.Platforms) == 0 {
+		c.Platforms = defaultPlatforms
 	}
 	return c
 }
@@ -103,7 +118,7 @@ func Choose(ctx context.Context, shortlist string, config Config, logger *slog.L
 	}
 
 	choose := log_choose_clips.New(choose_clips_usecase.New(
-		generator_output.ShortlistFile(shortlist), history, cptime.SystemClock{}, config.PerRun,
+		generator_output.ShortlistFile(shortlist), log_history.New(history, logger), cptime.SystemClock{}, config.PerRun,
 	), logger)
 
 	choice, err := choose.Execute(ctx)
@@ -125,8 +140,8 @@ func Schedule(ctx context.Context, folder string, config Config, logger *slog.Lo
 
 	schedule := log_schedule_clips.New(schedule_clips_usecase.New(
 		generator_output.Folder(folder),
-		posts.Cadence{Review: config.Review, Spacing: config.Spacing},
-		clock, sender,
+		posts.Plan{Review: config.Review, Spacing: config.Spacing, Platforms: config.Platforms},
+		clock, posts.SystemDice{}, sender,
 	), logger)
 
 	return schedule.Execute(ctx)

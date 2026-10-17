@@ -62,7 +62,7 @@ func TestAnAccountWithAUsernameIsRecordedUnderIt(t *testing.T) {
 	err := f.useCase.Execute(t.Context(), announce_usecase.In{Account: ada, Country: "fr", IP: "1.2.3.4"})
 
 	require.NoError(t, err)
-	author := wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "Ada_L", time.Time{}, false, 0), players.Streak{}), titles.Standing{})
+	author := wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "Ada_L"}.Restore(), players.Streak{}), titles.Standing{})
 	assert.Equal(t, []presence.Visit{
 		presence.NewVisit(ada, author, players.TagOf("pepper", "1.2.3.4"), "fr", now).Keyed("1"),
 	}, f.visits.Visits())

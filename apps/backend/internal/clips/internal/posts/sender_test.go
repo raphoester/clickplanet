@@ -36,7 +36,7 @@ func send(t *testing.T, refusals ...error) sending {
 	pause := posts.NewRecordedPause(clock)
 	return sending{
 		service: service, pause: pause,
-		post:   cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now)[0],
+		post:   plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))[0],
 		sender: posts.NewSender(service, backoff, pause, clock),
 	}
 }
@@ -44,10 +44,10 @@ func send(t *testing.T, refusals ...error) sending {
 func TestAPostTheServiceTakesIsSentOnce(t *testing.T) {
 	s := send(t)
 
-	id, err := s.sender.Send(t.Context(), s.post)
+	scheduled, err := s.sender.Send(t.Context(), s.post)
 
 	require.NoError(t, err)
-	assert.Equal(t, posts.PostID("post-BEST"), id)
+	assert.Equal(t, posts.Scheduled{ID: "post-BEST"}, scheduled)
 	assert.Equal(t, []posts.PostSnapshot{s.post.TakeSnapshot()}, s.service.Scheduled)
 	assert.Empty(t, s.pause.Waited)
 }
@@ -55,10 +55,10 @@ func TestAPostTheServiceTakesIsSentOnce(t *testing.T) {
 func TestABusyServiceIsTriedAgainAfterALongerWaitEachTime(t *testing.T) {
 	s := send(t, busy(0), busy(0), busy(0))
 
-	id, err := s.sender.Send(t.Context(), s.post)
+	scheduled, err := s.sender.Send(t.Context(), s.post)
 
 	require.NoError(t, err)
-	assert.Equal(t, posts.PostID("post-BEST"), id)
+	assert.Equal(t, posts.PostID("post-BEST"), scheduled.ID)
 	assert.Equal(t, []time.Duration{time.Minute, 5 * time.Minute, 15 * time.Minute}, s.pause.Waited)
 }
 
@@ -92,6 +92,18 @@ func TestAServiceBusyForLongerThanTheLongestWaitFailsThePostAtOnce(t *testing.T)
 	assert.Empty(t, s.pause.Waited)
 }
 
+func TestAPostOnSomeOfItsPlatformsIsNotTriedAgain(t *testing.T) {
+	s := send(t)
+	s.service.Refusing = map[posts.Platform]error{posts.YouTube: errors.New("no youtube account")}
+
+	scheduled, err := s.sender.Send(t.Context(), s.post)
+
+	require.NoError(t, err)
+	assert.Equal(t, s.service.Refusing, scheduled.Refused)
+	assert.Len(t, s.service.Scheduled, 1)
+	assert.Empty(t, s.pause.Waited)
+}
+
 func TestAnyOtherRefusalIsNotTriedAgain(t *testing.T) {
 	refused := errors.New("the caption is too long")
 	s := send(t, refused)
@@ -106,7 +118,7 @@ func TestAnyOtherRefusalIsNotTriedAgain(t *testing.T) {
 func TestAPostTooCloseToItsTimeIsNeverSent(t *testing.T) {
 	clock := cptime.NewFixedClock(now.Add(3*time.Hour + time.Minute))
 	service := posts.NewScriptedService()
-	post := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now)[0]
+	post := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))[0]
 
 	_, err := posts.NewSender(service, backoff, posts.NewRecordedPause(clock), clock).Send(t.Context(), post)
 
@@ -117,7 +129,7 @@ func TestAPostTooCloseToItsTimeIsNeverSent(t *testing.T) {
 func TestAWaitThatEatsTheReviewStopsTheTries(t *testing.T) {
 	clock := cptime.NewFixedClock(now.Add(3*time.Hour - 30*time.Second))
 	service := posts.NewScriptedService(busy(0))
-	post := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now)[0]
+	post := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))[0]
 
 	_, err := posts.NewSender(service, backoff, posts.NewRecordedPause(clock), clock).Send(t.Context(), post)
 

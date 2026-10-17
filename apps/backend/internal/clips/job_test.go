@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,20 +21,23 @@ import (
 )
 
 type sentPost struct {
-	Title        string            `json:"title"`
-	Content      string            `json:"content"`
-	ScheduledFor string            `json:"scheduledFor"`
-	Metadata     map[string]string `json:"metadata"`
+	Title        string         `json:"title"`
+	ScheduledFor string         `json:"scheduledFor"`
+	Metadata     map[string]any `json:"metadata"`
 	MediaItems   []struct {
 		URL string `json:"url"`
 	} `json:"mediaItems"`
+	Platforms []struct {
+		Platform      string `json:"platform"`
+		CustomContent string `json:"customContent"`
+	} `json:"platforms"`
 }
 
 type keptPost struct {
-	ID           string            `json:"_id"`
-	Status       string            `json:"status"`
-	ScheduledFor string            `json:"scheduledFor"`
-	Metadata     map[string]string `json:"metadata"`
+	ID           string         `json:"_id"`
+	Status       string         `json:"status"`
+	ScheduledFor string         `json:"scheduledFor"`
+	Metadata     map[string]any `json:"metadata"`
 }
 
 func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
@@ -47,7 +51,7 @@ func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 
 		switch r.Method + " " + r.URL.Path {
 		case "GET /v1/accounts":
-			_, _ = fmt.Fprint(w, `{"accounts":[{"_id":"acc-1","platform":"tiktok","isActive":true}]}`)
+			_, _ = fmt.Fprint(w, `{"accounts":[{"_id":"acc-1","platform":"tiktok","isActive":true},{"_id":"acc-2","platform":"youtube","isActive":true}]}`)
 		case "POST /v1/media/presign":
 			var asked struct {
 				Filename string `json:"filename"`
@@ -60,7 +64,7 @@ func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 			assert.NoError(t, json.Unmarshal(raw, &post))
 			*posts = append(*posts, post)
 			w.WriteHeader(http.StatusCreated)
-			_, _ = fmt.Fprintf(w, `{"post":{"_id":"post-%d","status":"scheduled"}}`, len(*posts))
+			_, _ = fmt.Fprintf(w, `{"post":{"_id":"post-%d","status":"scheduled","platforms":[{"platform":"tiktok"},{"platform":"youtube"}]}}`, len(*posts))
 		case "GET /v1/posts":
 			kept := make([]keptPost, 0, len(*posts))
 			for i, post := range *posts {
@@ -76,11 +80,15 @@ func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 	return server
 }
 
-func rendered(t *testing.T, folder string, pick int, title, flag string) {
+func rendered(t *testing.T, folder string, pick int, title, flag string, countries ...string) {
 	t.Helper()
 
-	clip := fmt.Sprintf(`{"pick": %d, "title": %q, "caption": %q, "tags": ["#clickplanet"], "key": {"flag": %q, "continent": "Africa"}}`,
-		pick, title, title+" 👇\n#clickplanet", flag)
+	tagged := make([]string, 0, len(countries))
+	for _, country := range countries {
+		tagged = append(tagged, fmt.Sprintf(`{"code": %q, "tag": %q}`, country, country))
+	}
+	clip := fmt.Sprintf(`{"pick": %d, "title": %q, "teasers": [%q], "key": {"flag": %q, "continent": "Africa"}, "countries": [%s], "continentTag": "africa"}`,
+		pick, title, "SAID ANOTHER WAY: "+title, flag, strings.Join(tagged, ", "))
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.json", pick)), []byte(clip), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(folder, fmt.Sprintf("clip-%d.mp4", pick)), []byte(title), 0o600))
 }
@@ -89,7 +97,7 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 	var posts []sentPost
 	server := zernio(t, &posts)
 	folder := t.TempDir()
-	rendered(t, folder, 2, "FRANCE IS ATTACKING EUROPE", "fr")
+	rendered(t, folder, 2, "FRANCE IS ATTACKING EUROPE", "fr", "fr", "de")
 	rendered(t, folder, 1, "KOSOVO IS ATTACKING THE MIDDLE EAST", "xk")
 	var config clips.Config
 	config.Zernio.APIKey = "the-key"
@@ -102,10 +110,20 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 	require.NoError(t, err)
 	require.Len(t, posts, 2)
 	assert.Equal(t, "KOSOVO IS ATTACKING THE MIDDLE EAST", posts[0].Title)
-	assert.Equal(t, map[string]string{"storyFlag": "xk", "storyContinent": "Africa"}, posts[0].Metadata)
-	assert.Equal(t, "KOSOVO IS ATTACKING THE MIDDLE EAST 👇\n#clickplanet", posts[0].Content)
+	assert.Equal(t, "xk", posts[0].Metadata["storyFlag"])
+	assert.Equal(t, "Africa", posts[0].Metadata["storyContinent"])
+	assert.NotEmpty(t, posts[0].Metadata["callToAction"])
+	require.Len(t, posts[0].Platforms, 2)
+	tiktok, youtube := posts[0].Platforms[0], posts[0].Platforms[1]
+	assert.Equal(t, "tiktok", tiktok.Platform)
+	assert.True(t, strings.HasPrefix(tiktok.CustomContent, "SAID ANOTHER WAY: KOSOVO IS ATTACKING THE MIDDLE EAST | CLICKPLANET\n"))
+	assert.Contains(t, tiktok.CustomContent, "👉 clickplanet.lol\n#clickplanet ")
+	assert.True(t, strings.HasSuffix(tiktok.CustomContent, " #africa"))
+	assert.Equal(t, "youtube", youtube.Platform)
+	assert.True(t, strings.HasSuffix(youtube.CustomContent, " #africa"))
 	assert.Equal(t, "https://media.example/clip-1.mp4", posts[0].MediaItems[0].URL)
 	assert.Equal(t, "FRANCE IS ATTACKING EUROPE", posts[1].Title)
+	assert.Equal(t, []any{"fr", "de"}, posts[1].Metadata["storyCountries"])
 
 	first, err := time.Parse(time.RFC3339, posts[0].ScheduledFor)
 	require.NoError(t, err)
@@ -117,11 +135,14 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 
 	require.Len(t, report, 2)
 	assert.Equal(t, "KOSOVO IS ATTACKING THE MIDDLE EAST", report[0].Title)
-	assert.Equal(t, clips.Report{{Title: "FRANCE IS ATTACKING EUROPE", At: report[1].At, Post: "post-2"}}, report[1:])
+	assert.Equal(t, clips.Report{{
+		Title: "FRANCE IS ATTACKING EUROPE", At: report[1].At, Post: "post-2",
+		Platforms: []clips.PlatformOutcome{{Platform: "tiktok"}, {Platform: "youtube"}},
+	}}, report[1:])
 	assert.True(t, first.Equal(report[0].At))
 	assert.True(t, second.Equal(report[1].At))
 	assert.True(t, report.Complete())
-	assert.Contains(t, logs.String(), `msg="scheduled a clip" clip="KOSOVO IS ATTACKING THE MIDDLE EAST"`)
+	assert.Contains(t, logs.String(), `msg="scheduled a clip" clip="KOSOVO IS ATTACKING THE MIDDLE EAST" platform=youtube`)
 	assert.NotContains(t, logs.String(), "the-key")
 }
 
@@ -144,7 +165,8 @@ func TestARunThatZernioRefusesReportsWhyForEachClip(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, report, 1)
 	assert.False(t, report.Complete())
-	assert.Contains(t, report[0].Failure, "zernio answered 401 to the list of accounts: Invalid API key")
+	require.Len(t, report[0].Platforms, 2)
+	assert.Contains(t, report[0].Platforms[1].Failure, "zernio answered 401 to the list of accounts: Invalid API key")
 	assert.Contains(t, logs.String(), `level=ERROR msg="failed to schedule a clip"`)
 }
 
@@ -174,7 +196,7 @@ func TestChoosingGivesTheBestStoriesOfDifferentFlagsOrContinents(t *testing.T) {
 	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(zernio(t, &posts)), slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
-	assert.Equal(t, []clips.Pick{1, 3}, picks)
+	assert.Equal(t, []clips.Pick{1, 3, 4}, picks)
 	assert.Contains(t, logs.String(), `msg="skipped a story told already" pick=2 title="ALGERIA VS FRANCE"`)
 }
 
@@ -190,4 +212,23 @@ func TestAStoryOneRunScheduledIsNotChosenByTheNext(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []clips.Pick{3, 4}, picks)
+}
+
+func TestAFlagTheLastRunShowedTwiceWaitsThoughNeitherClipWasAboutIt(t *testing.T) {
+	var posts []sentPost
+	server := zernio(t, &posts)
+	folder := t.TempDir()
+	rendered(t, folder, 1, "ALGERIA VS PALAU", "dz", "dz", "pw")
+	rendered(t, folder, 2, "FRANCE VS PALAU", "fr", "fr", "pw")
+	_, err := clips.Schedule(t.Context(), folder, configFor(server), slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "shortlist.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{"stories":[`+
+		`{"title":"PALAU IS ATTACKING EUROPE","key":{"flag":"pw","continent":"Europe"},"countries":["pw","pl"]},`+
+		`{"title":"PALESTINE IS KICKING ROMANIA OUT OF KAZAKHSTAN","key":{"flag":"ps","continent":"Central Asia"}}]}`), 0o600))
+
+	picks, err := clips.Choose(t.Context(), path, configFor(server), slog.New(slog.DiscardHandler))
+
+	require.NoError(t, err)
+	assert.Equal(t, []clips.Pick{2}, picks)
 }

@@ -33,21 +33,29 @@ func run(t *testing.T, inner stubExecutor) (string, error) {
 	return logs.String(), err
 }
 
-func TestAScheduledClipIsLoggedWithItsTimeAndItsPost(t *testing.T) {
-	logs, err := run(t, stubExecutor{report: posts.Report{{Title: "FRANCE IS ATTACKING EUROPE", At: at, Post: "post-1"}}})
+func TestAScheduledClipIsLoggedOnEachPlatformWithItsTimeAndItsPost(t *testing.T) {
+	logs, err := run(t, stubExecutor{report: posts.Report{{
+		Title: "FRANCE IS ATTACKING EUROPE", At: at, Post: "post-1",
+		Platforms: []posts.PlatformOutcome{{Platform: posts.TikTok}, {Platform: posts.YouTube}},
+	}}})
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, `level=INFO msg="scheduled a clip" clip="FRANCE IS ATTACKING EUROPE" at=2026-10-12T16:40:00.000Z post=post-1`)
+	assert.Contains(t, logs,
+		`level=INFO msg="scheduled a clip" clip="FRANCE IS ATTACKING EUROPE" platform=tiktok at=2026-10-12T16:40:00.000Z post=post-1`)
+	assert.Contains(t, logs,
+		`level=INFO msg="scheduled a clip" clip="FRANCE IS ATTACKING EUROPE" platform=youtube at=2026-10-12T16:40:00.000Z post=post-1`)
 }
 
-func TestAClipThatWasNotScheduledIsLoggedAsAnErrorWithWhy(t *testing.T) {
-	logs, err := run(t, stubExecutor{
-		report: posts.Report{{Title: "FRANCE IS ATTACKING EUROPE", At: at, Failure: "the caption is too long"}},
-	})
+func TestAPlatformThatDidNotTakeAClipIsLoggedAsAnErrorWithWhy(t *testing.T) {
+	logs, err := run(t, stubExecutor{report: posts.Report{{
+		Title: "FRANCE IS ATTACKING EUROPE", At: at, Post: "post-1",
+		Platforms: []posts.PlatformOutcome{{Platform: posts.TikTok}, {Platform: posts.YouTube, Failure: "no youtube account"}},
+	}}})
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, `level=ERROR msg="failed to schedule a clip" clip="FRANCE IS ATTACKING EUROPE"`)
-	assert.Contains(t, logs, `failure="the caption is too long"`)
+	assert.Contains(t, logs, `level=INFO msg="scheduled a clip" clip="FRANCE IS ATTACKING EUROPE" platform=tiktok`)
+	assert.Contains(t, logs, `level=ERROR msg="failed to schedule a clip" clip="FRANCE IS ATTACKING EUROPE" platform=youtube`)
+	assert.Contains(t, logs, `failure="no youtube account"`)
 }
 
 func TestARunThatReadNoClipSaysNothing(t *testing.T) {

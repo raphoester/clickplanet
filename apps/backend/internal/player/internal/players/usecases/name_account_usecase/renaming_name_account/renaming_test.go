@@ -41,7 +41,7 @@ func TestAGeneratedNameShowsOnTheRosterAtOnce(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, visits.Visits(), 1)
-	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileOf(players.AccountID{}, "BraveFox42", time.Time{}, false, 0), players.Streak{}), titles.Standing{}), visits.Visits()[0].Author())
+	assert.Equal(t, wearing.AuthorOf(players.NamedAuthor(players.ProfileSnapshot{Name: "BraveFox42"}.Restore(), players.Streak{}), titles.Standing{}), visits.Visits()[0].Author())
 }
 
 func TestAFailureRenamesNothing(t *testing.T) {

@@ -3,6 +3,7 @@ package log_choose_clips
 import (
 	"context"
 	"log/slog"
+	"strings"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts/usecases/choose_clips_usecase"
@@ -28,6 +29,9 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 	for _, story := range choice.Retold {
 		l.logger.Info("skipped a story told already", attributesOf(story)...)
 	}
+	for _, story := range choice.Passed {
+		l.logger.Info("passed a story for a flag told less lately", attributesOf(story)...)
+	}
 	if len(choice.Chosen) == 0 {
 		l.logger.Info("no story is worth a clip")
 	}
@@ -42,5 +46,6 @@ func attributesOf(story posts.Story) []any {
 	return []any{
 		slog.Int("pick", int(story.Pick)), slog.String("title", story.Title),
 		slog.String("flag", story.Key.Flag), slog.String("continent", story.Key.Continent),
+		slog.String("countries", strings.Join(story.Countries, ",")),
 	}
 }

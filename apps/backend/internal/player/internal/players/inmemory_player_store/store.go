@@ -58,13 +58,15 @@ func (s *Store) SaveProfile(_ context.Context, profile players.Profile) error {
 	if s.failWith != nil {
 		return s.failWith
 	}
+	saved := profile.TakeSnapshot()
 	for account, held := range s.profiles {
-		if account != profile.Account() && held.Name().Folded() == profile.Name().Folded() {
+		if account != saved.Account && held.TakeSnapshot().Name.Folded() == saved.Name.Folded() {
 			return players.ErrNameTaken
 		}
 	}
-	held := s.profiles[profile.Account()]
-	s.profiles[profile.Account()] = players.ProfileOf(profile.Account(), profile.Name(), profile.UpdatedAt(), held.Admin(), held.Color())
+	held := s.profiles[saved.Account].TakeSnapshot()
+	saved.Admin, saved.Color = held.Admin, held.Color
+	s.profiles[saved.Account] = saved.Restore()
 	return nil
 }
 
@@ -75,15 +77,16 @@ func (s *Store) CreateProfile(_ context.Context, profile players.Profile) error 
 	if s.failWith != nil {
 		return s.failWith
 	}
-	if _, ok := s.profiles[profile.Account()]; ok {
+	created := profile.TakeSnapshot()
+	if _, ok := s.profiles[created.Account]; ok {
 		return players.ErrProfileExists
 	}
 	for _, held := range s.profiles {
-		if held.Name().Folded() == profile.Name().Folded() {
+		if held.TakeSnapshot().Name.Folded() == created.Name.Folded() {
 			return players.ErrNameTaken
 		}
 	}
-	s.profiles[profile.Account()] = profile
+	s.profiles[created.Account] = profile
 	return nil
 }
 
@@ -98,7 +101,9 @@ func (s *Store) SaveColor(_ context.Context, account players.AccountID, color pl
 	if !ok {
 		return players.ErrNoProfile
 	}
-	s.profiles[account] = players.ProfileOf(profile.Account(), profile.Name(), profile.UpdatedAt(), profile.Admin(), color)
+	colored := profile.TakeSnapshot()
+	colored.Color = color
+	s.profiles[account] = colored.Restore()
 	return nil
 }
 
@@ -139,8 +144,9 @@ func (s *Store) MakeAdmin(account players.AccountID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	profile := s.profiles[account]
-	s.profiles[account] = players.ProfileOf(profile.Account(), profile.Name(), profile.UpdatedAt(), true, profile.Color())
+	admin := s.profiles[account].TakeSnapshot()
+	admin.Admin = true
+	s.profiles[account] = admin.Restore()
 }
 
 func (s *Store) Stats(_ context.Context, account players.AccountID) (players.Stats, error) {
@@ -227,7 +233,7 @@ func (s *Store) Names(_ context.Context, accounts []players.AccountID) (map[play
 	names := make(map[players.AccountID]players.Name, len(accounts))
 	for _, account := range accounts {
 		if profile, ok := s.profiles[account]; ok {
-			names[account] = profile.Name()
+			names[account] = profile.TakeSnapshot().Name
 		}
 	}
 	return names, nil

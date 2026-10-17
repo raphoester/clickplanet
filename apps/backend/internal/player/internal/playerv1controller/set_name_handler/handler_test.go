@@ -34,9 +34,10 @@ func handler(t *testing.T) set_name_handler.SetNameHandler {
 		accounts.Link(linked)
 	}
 
-	return set_name_handler.New(set_name_usecase.New(inmemory_player_store.New(), accounts,
-		cptime.NewFixedClock(time.Date(2026, 9, 17, 0, 0, 0, 0, time.UTC))))
+	return set_name_handler.New(set_name_usecase.New(inmemory_player_store.New(), accounts, cptime.NewFixedClock(now)))
 }
+
+var now = time.Date(2026, 9, 17, 0, 0, 0, 0, time.UTC)
 
 func setName(t *testing.T, h set_name_handler.SetNameHandler, caller string, name string) (*playerv1.Profile, error) {
 	t.Helper()
@@ -54,6 +55,32 @@ func TestTheNameIsAnsweredAsTyped(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, account, profile.GetAccountId())
 	assert.Equal(t, "Ada_L", profile.GetName())
+}
+
+func TestTheNameAnsweredSaysWhenItMayChangeAgain(t *testing.T) {
+	profile, err := setName(t, handler(t), account, "Ada_L")
+
+	require.NoError(t, err)
+	assert.Equal(t, now.Add(30*24*time.Hour).UnixMilli(), profile.GetRenamableAtUnixMs())
+}
+
+func TestAChangeTooSoonIsResourceExhaustedAndSaysWhenOneIsAllowed(t *testing.T) {
+	h := handler(t)
+	_, err := setName(t, h, account, "Ada")
+	require.NoError(t, err)
+
+	_, err = setName(t, h, account, "Ada_L")
+
+	var refused *connect.Error
+	require.ErrorAs(t, err, &refused)
+	assert.Equal(t, connect.CodeResourceExhausted, refused.Code())
+	assert.NotContains(t, refused.Message(), "2026", "the time travels in the detail")
+	require.Len(t, refused.Details(), 1)
+	detail, err := refused.Details()[0].Value()
+	require.NoError(t, err)
+	refusal, ok := detail.(*playerv1.RenameRefusal)
+	require.True(t, ok)
+	assert.Equal(t, now.Add(30*24*time.Hour).UnixMilli(), refusal.GetRenamableAtUnixMs())
 }
 
 func TestAnInvalidNameIsInvalidArgument(t *testing.T) {

@@ -10,9 +10,9 @@ afterEach(() => {
     vi.restoreAllMocks()
 })
 
-function setup(reportPlayer: (report: PlayerReport) => Promise<void> = vi.fn(async () => undefined), messageId?: string) {
+function setup(reportPlayer: (report: PlayerReport) => Promise<void> = vi.fn(async () => undefined)) {
     const onClose = vi.fn()
-    render(<ReportPlayerModal accountId="account-1" name="guest_a1b2c3" messageId={messageId} reporter={{reportPlayer}}
+    render(<ReportPlayerModal accountId="account-1" name="guest_a1b2c3" reporter={{reportPlayer}}
                               onClose={onClose}/>)
     return {reportPlayer, onClose, user: userEvent.setup()}
 }
@@ -39,12 +39,12 @@ describe("ReportPlayerModal", () => {
         expect(reason("Cheating or a bot").getAttribute("aria-checked")).toBe("true")
         await user.click(send())
 
-        expect(reportPlayer).toHaveBeenCalledWith({accountId: "account-1", reason: "cheating", text: "", messageId: undefined})
+        expect(reportPlayer).toHaveBeenCalledWith({accountId: "account-1", reason: "cheating", text: ""})
         expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
     })
 
-    it("sends the details and the message the card was opened from", async () => {
-        const {reportPlayer, user} = setup(undefined, "message-1")
+    it("sends the details", async () => {
+        const {reportPlayer, user} = setup()
 
         await user.click(reason("Offensive name"))
         await user.click(reason("Abuse in the chat"))
@@ -52,7 +52,7 @@ describe("ReportPlayerModal", () => {
         await user.click(send())
 
         expect(reportPlayer).toHaveBeenCalledWith(
-            {accountId: "account-1", reason: "chat-abuse", text: "it insults everyone", messageId: "message-1"})
+            {accountId: "account-1", reason: "chat-abuse", text: "it insults everyone"})
     })
 
     it.each([

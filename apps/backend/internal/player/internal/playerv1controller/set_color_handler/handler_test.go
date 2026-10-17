@@ -54,7 +54,7 @@ func TestTheColorIsKeptAndAnswered(t *testing.T) {
 	require.NoError(t, err)
 	profile, err := store.Profile(t.Context(), account)
 	require.NoError(t, err)
-	assert.Equal(t, players.Color(playerv1.NameColor_NAME_COLOR_VIOLET), profile.Color())
+	assert.Equal(t, players.Color(playerv1.NameColor_NAME_COLOR_VIOLET), profile.TakeSnapshot().Color)
 }
 
 func TestNoColorGoesBackToTheOneTheNameGives(t *testing.T) {

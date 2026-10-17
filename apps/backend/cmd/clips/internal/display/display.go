@@ -20,7 +20,7 @@ func Picks(out io.Writer, picks []clips.Pick) error {
 	return nil
 }
 
-// Whether every clip of the report is scheduled. The table is added to the summary file, or written to out when none is named.
+// Whether every clip of the report is scheduled on each of its platforms. The table is added to the summary file, or written to out when none is named.
 func Report(summaryFile string, out io.Writer, report clips.Report) (bool, error) {
 	if summaryFile == "" {
 		return table(out, report)
@@ -37,13 +37,16 @@ func Report(summaryFile string, out io.Writer, report clips.Report) (bool, error
 
 func table(page io.Writer, report clips.Report) (bool, error) {
 	var rows strings.Builder
-	rows.WriteString("| Clip | Goes out | |\n|---|---|---|\n")
+	rows.WriteString("| Clip | Platform | Goes out | |\n|---|---|---|---|\n")
 	for _, outcome := range report {
-		state := "scheduled"
-		if outcome.Failure != "" {
-			state = "**not scheduled**: " + cell(outcome.Failure)
+		for _, platform := range outcome.Platforms {
+			state := "scheduled"
+			if platform.Failure != "" {
+				state = "**not scheduled**: " + cell(platform.Failure)
+			}
+			fmt.Fprintf(&rows, "| %s | %s | %s | %s |\n",
+				cell(outcome.Title), platform.Platform, outcome.At.UTC().Format(timeLayout), state)
 		}
-		fmt.Fprintf(&rows, "| %s | %s | %s |\n", cell(outcome.Title), outcome.At.UTC().Format(timeLayout), state)
 	}
 
 	if _, err := io.WriteString(page, rows.String()); err != nil {

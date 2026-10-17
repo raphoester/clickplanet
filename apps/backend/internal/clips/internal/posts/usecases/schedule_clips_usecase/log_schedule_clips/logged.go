@@ -23,13 +23,14 @@ func (l *Logged) Execute(ctx context.Context) (posts.Report, error) {
 	report, err := l.inner.Execute(ctx)
 
 	for _, outcome := range report {
-		if outcome.Failure != "" {
-			l.logger.Error("failed to schedule a clip",
-				slog.String("clip", outcome.Title), slog.Time("at", outcome.At), slog.String("failure", outcome.Failure))
-			continue
+		for _, platform := range outcome.Platforms {
+			attributes := []any{slog.String("clip", outcome.Title), slog.String("platform", string(platform.Platform)), slog.Time("at", outcome.At)}
+			if platform.Failure != "" {
+				l.logger.Error("failed to schedule a clip", append(attributes, slog.String("failure", platform.Failure))...)
+				continue
+			}
+			l.logger.Info("scheduled a clip", append(attributes, slog.String("post", string(outcome.Post)))...)
 		}
-		l.logger.Info("scheduled a clip",
-			slog.String("clip", outcome.Title), slog.Time("at", outcome.At), slog.String("post", string(outcome.Post)))
 	}
 
 	return report, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.

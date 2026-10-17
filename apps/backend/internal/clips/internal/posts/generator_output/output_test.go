@@ -20,7 +20,12 @@ const (
       "key": {
         "flag": "xk",
         "continent": "Middle East"
-      }
+      },
+      "countries": [
+        "xk",
+        "tr",
+        "pw"
+      ]
     },
     {
       "title": "FRANCE IS ATTACKING EUROPE",
@@ -35,19 +40,26 @@ const (
 	writtenClip = `{
   "pick": 2,
   "title": "FRANCE IS ATTACKING EUROPE",
-  "caption": "FRANCE IS ATTACKING EUROPE. Who stops them? 👇\nclickplanet.lol\n#clickplanet #pixelwars #rplace #wplace #map #europe",
-  "tags": [
-    "#clickplanet",
-    "#pixelwars",
-    "#rplace",
-    "#wplace",
-    "#map",
-    "#europe"
-  ],
   "key": {
     "flag": "fr",
     "continent": "Europe"
-  }
+  },
+  "teasers": [
+    "FRANCE TAKES OVER EUROPE",
+    "EUROPE IS UNDER ATTACK FROM FRANCE"
+  ],
+  "countries": [
+    {
+      "code": "fr",
+      "tag": "france"
+    },
+    {
+      "code": "de",
+      "tag": "germany"
+    }
+  ],
+  "continentTag": "europe",
+  "credit": "Fida'i (instrumental) by Sounds Monarch, CC BY 3.0"
 }
 `
 )
@@ -67,7 +79,10 @@ func TestAShortlistIsTheStoriesTheGeneratorWroteBestFirst(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, posts.Shortlist{
-		{Pick: 1, Title: "KOSOVO IS ATTACKING THE MIDDLE EAST", Key: posts.StoryKey{Flag: "xk", Continent: "Middle East"}},
+		{
+			Pick: 1, Title: "KOSOVO IS ATTACKING THE MIDDLE EAST", Key: posts.StoryKey{Flag: "xk", Continent: "Middle East"},
+			Countries: []string{"xk", "tr", "pw"},
+		},
 		{Pick: 2, Title: "FRANCE IS ATTACKING EUROPE", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}},
 	}, shortlist)
 }
@@ -104,9 +119,15 @@ func TestAFolderGivesEachClipWithItsVideo(t *testing.T) {
 	assert.Equal(t, posts.ClipSnapshot{
 		Pick:    2,
 		Title:   "FRANCE IS ATTACKING EUROPE",
-		Caption: "FRANCE IS ATTACKING EUROPE. Who stops them? 👇\nclickplanet.lol\n#clickplanet #pixelwars #rplace #wplace #map #europe",
 		Key:     posts.StoryKey{Flag: "fr", Continent: "Europe"},
-		Video:   posts.VideoFile(video),
+		Teasers: []string{"FRANCE TAKES OVER EUROPE", "EUROPE IS UNDER ATTACK FROM FRANCE"},
+		Countries: []posts.TaggedCountry{
+			{Code: "fr", Tag: "france"},
+			{Code: "de", Tag: "germany"},
+		},
+		ContinentTag: "europe",
+		Attribution:  "Fida'i (instrumental) by Sounds Monarch, CC BY 3.0",
+		Video:        posts.VideoFile(video),
 	}, clips[0].TakeSnapshot())
 }
 
@@ -129,7 +150,7 @@ func TestAClipWithNoVideoBesideItIsAnError(t *testing.T) {
 
 func TestAClipTheGeneratorLeftAPartOutOfIsAnError(t *testing.T) {
 	folder := t.TempDir()
-	write(t, folder, "clip-1.json", `{"pick": 1, "title": "FRANCE IS ATTACKING EUROPE"}`)
+	write(t, folder, "clip-1.json", `{"pick": 1, "title": "FRANCE IS ATTACKING EUROPE", "key": {"flag": "fr", "continent": "Europe"}}`)
 	write(t, folder, "clip-1.mp4", "the video")
 
 	_, err := generator_output.Folder(folder).Rendered(t.Context())

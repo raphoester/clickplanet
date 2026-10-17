@@ -28,18 +28,27 @@ func (s *Store) Profile(ctx context.Context, account players.AccountID) (players
 	var (
 		name      string
 		updatedAt time.Time
+		chosenAt  sql.NullTime
 		admin     bool
 		color     int32
 	)
-	err := s.db.QueryRowContext(ctx, `SELECT name, updated_at, admin, color FROM profiles WHERE account_id = $1`, uuid.UUID(account)).
-		Scan(&name, &updatedAt, &admin, &color)
+	err := s.db.QueryRowContext(ctx,
+		`SELECT name, updated_at, name_chosen_at, admin, color FROM profiles WHERE account_id = $1`, uuid.UUID(account),
+	).Scan(&name, &updatedAt, &chosenAt, &admin, &color)
 	if errors.Is(err, sql.ErrNoRows) {
 		return players.Profile{}, players.ErrNoProfile
 	}
 	if err != nil {
 		return players.Profile{}, fmt.Errorf("failed to read the profile: %w", err)
 	}
-	return players.ProfileOf(account, players.Name(name), updatedAt.UTC(), admin, players.Color(color)), nil
+
+	snapshot := players.ProfileSnapshot{
+		Account: account, Name: players.Name(name), UpdatedAt: updatedAt.UTC(), Admin: admin, Color: players.Color(color),
+	}
+	if chosenAt.Valid {
+		snapshot.ChosenAt = chosenAt.Time.UTC()
+	}
+	return snapshot.Restore(), nil
 }
 
 const uniqueNameIndex = "profiles_name_key"
@@ -47,11 +56,13 @@ const uniqueNameIndex = "profiles_name_key"
 const uniqueViolation = "23505"
 
 func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error {
+	kept := profile.TakeSnapshot()
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO profiles (account_id, name, name_folded, updated_at) VALUES ($1, $2, $3, $4)
+		INSERT INTO profiles (account_id, name, name_folded, updated_at, name_chosen_at) VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (account_id) DO UPDATE SET
-			name = excluded.name, name_folded = excluded.name_folded, updated_at = excluded.updated_at
-	`, uuid.UUID(profile.Account()), string(profile.Name()), profile.Name().Folded(), profile.UpdatedAt().UTC())
+			name = excluded.name, name_folded = excluded.name_folded, updated_at = excluded.updated_at,
+			name_chosen_at = excluded.name_chosen_at
+	`, uuid.UUID(kept.Account), string(kept.Name), kept.Name.Folded(), kept.UpdatedAt.UTC(), nullableTime(kept.ChosenAt))
 
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
@@ -64,10 +75,11 @@ func (s *Store) SaveProfile(ctx context.Context, profile players.Profile) error 
 }
 
 func (s *Store) CreateProfile(ctx context.Context, profile players.Profile) error {
+	kept := profile.TakeSnapshot()
 	result, err := s.db.ExecContext(ctx, `
-		INSERT INTO profiles (account_id, name, name_folded, updated_at) VALUES ($1, $2, $3, $4)
+		INSERT INTO profiles (account_id, name, name_folded, updated_at, name_chosen_at) VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (account_id) DO NOTHING
-	`, uuid.UUID(profile.Account()), string(profile.Name()), profile.Name().Folded(), profile.UpdatedAt().UTC())
+	`, uuid.UUID(kept.Account), string(kept.Name), kept.Name.Folded(), kept.UpdatedAt.UTC(), nullableTime(kept.ChosenAt))
 
 	var pqErr *pq.Error
 	if errors.As(err, &pqErr) && pqErr.Code == uniqueViolation && pqErr.Constraint == uniqueNameIndex {
@@ -310,4 +322,8 @@ func statsOf(row scanner) (players.Stats, error) {
 
 func nullableDay(day players.Day) sql.NullString {
 	return sql.NullString{String: day.String(), Valid: !day.Empty()}
+}
+
+func nullableTime(at time.Time) sql.NullTime {
+	return sql.NullTime{Time: at.UTC(), Valid: !at.IsZero()}
 }

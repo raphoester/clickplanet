@@ -59,6 +59,11 @@ export class Story extends Message<Story> {
    */
   key?: StoryKey;
 
+  /**
+   * @generated from field: repeated string countries = 3;
+   */
+  countries: string[] = [];
+
   constructor(data?: PartialMessage<Story>) {
     super();
     proto3.util.initPartial(data, this);
@@ -69,6 +74,7 @@ export class Story extends Message<Story> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "key", kind: "message", T: StoryKey },
+    { no: 3, name: "countries", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Story {
@@ -103,21 +109,37 @@ export class Clip extends Message<Clip> {
   title = "";
 
   /**
-   * Ready to post: its tags and the credit of its music are in it.
-   *
-   * @generated from field: string caption = 3;
-   */
-  caption = "";
-
-  /**
-   * @generated from field: repeated string tags = 4;
-   */
-  tags: string[] = [];
-
-  /**
    * @generated from field: clips.v1.StoryKey key = 5;
    */
   key?: StoryKey;
+
+  /**
+   * The headline said in other words: the job writes the caption, and picks one.
+   *
+   * @generated from field: repeated string teasers = 6;
+   */
+  teasers: string[] = [];
+
+  /**
+   * Every flag of the story that is a country, and its place's countries.
+   *
+   * @generated from field: repeated clips.v1.TaggedCountry countries = 7;
+   */
+  countries: TaggedCountry[] = [];
+
+  /**
+   * With no #: "europe", "middleeast"; empty for the world.
+   *
+   * @generated from field: string continent_tag = 8;
+   */
+  continentTag = "";
+
+  /**
+   * What the licence of the clip's music asks the caption to say; empty when none.
+   *
+   * @generated from field: string credit = 9;
+   */
+  credit = "";
 
   constructor(data?: PartialMessage<Clip>) {
     super();
@@ -129,9 +151,11 @@ export class Clip extends Message<Clip> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "pick", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "caption", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "tags", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 5, name: "key", kind: "message", T: StoryKey },
+    { no: 6, name: "teasers", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 7, name: "countries", kind: "message", T: TaggedCountry, repeated: true },
+    { no: 8, name: "continent_tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "credit", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Clip {
@@ -148,6 +172,51 @@ export class Clip extends Message<Clip> {
 
   static equals(a: Clip | PlainMessage<Clip> | undefined, b: Clip | PlainMessage<Clip> | undefined): boolean {
     return proto3.util.equals(Clip, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.TaggedCountry
+ */
+export class TaggedCountry extends Message<TaggedCountry> {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code = "";
+
+  /**
+   * With no #: "uk", "christmasisland".
+   *
+   * @generated from field: string tag = 2;
+   */
+  tag = "";
+
+  constructor(data?: PartialMessage<TaggedCountry>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.TaggedCountry";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TaggedCountry {
+    return new TaggedCountry().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TaggedCountry {
+    return new TaggedCountry().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TaggedCountry {
+    return new TaggedCountry().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TaggedCountry | PlainMessage<TaggedCountry> | undefined, b: TaggedCountry | PlainMessage<TaggedCountry> | undefined): boolean {
+    return proto3.util.equals(TaggedCountry, a, b);
   }
 }
 

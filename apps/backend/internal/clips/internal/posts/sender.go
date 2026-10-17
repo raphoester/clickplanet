@@ -35,24 +35,24 @@ type Sender struct {
 	clock   cptime.Clock
 }
 
-func (s *Sender) Send(ctx context.Context, post Post) (PostID, error) {
+func (s *Sender) Send(ctx context.Context, post Post) (Scheduled, error) {
 	for failed := 1; ; failed++ {
 		if !post.Reviewable(s.clock.Now()) {
-			return "", ErrNoTimeToReview
+			return Scheduled{}, ErrNoTimeToReview
 		}
 
-		id, err := s.service.Schedule(ctx, post)
+		scheduled, err := s.service.Schedule(ctx, post)
 		var busy *BusyError
 		if !errors.As(err, &busy) {
-			return id, err //nolint:wrapcheck // a pure delegation: the service already named what failed.
+			return scheduled, err //nolint:wrapcheck // a pure delegation: the service already named what failed.
 		}
 
 		wait, again := s.backoff.Wait(failed, busy.RetryAfter)
 		if !again {
-			return "", err //nolint:wrapcheck // a pure delegation: the service already named what failed.
+			return Scheduled{}, err //nolint:wrapcheck // a pure delegation: the service already named what failed.
 		}
 		if err := s.pause.Wait(ctx, wait); err != nil {
-			return "", err //nolint:wrapcheck // a pure delegation: the pause only ends early with the context.
+			return Scheduled{}, err //nolint:wrapcheck // a pure delegation: the pause only ends early with the context.
 		}
 	}
 }

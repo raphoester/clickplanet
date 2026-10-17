@@ -20,7 +20,7 @@ npm run borderLines # Trace the countries' outlines onto the tile lattice (see "
 npm run earth      # Cut the globe's texture from the tile field (see "The globe's texture")
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
-npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos and captions
+npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos with what to post
 npm run clip -- --replay replay.json --shortlist shortlist.json  # Only the list of its stories, as data
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
@@ -1021,10 +1021,21 @@ the foot of Settings, and a report of another player, from that player's card.
   `accountId` to send and the `name` for its title only. **A line with no
   account id has no Report**: the author of a message kept before accounts, or
   whose account is deleted.
-- **A card opened from a chat message carries that message's id**: `ChatLog`
-  hands it as the second argument of `onOpenPlayer`, `Viewer` keeps it with the
-  open card, and the report sends it. A card opened from the roster or the
-  board has none.
+- **The card's report names a player and no message**, wherever the card was
+  opened from. Opened from a chat name it once sent that message's id, and the
+  name is only on the first message of its author's run: the report of an
+  insult sent after "hi" pointed to "hi".
+- **Every chat message has a Report button of its own**, beside react and reply
+  (`.chat-report-add`, shown like them). It opens `ReportMessageModal`, held by
+  `ChatPanel`: `NoteModal` with the message quoted, its author and its text, and
+  optional details. **No reason is asked**: the message is what is reported, so
+  it is abuse in the chat; the reasons are the card's, about a player. It sends
+  the message's own id. A message sent is a filled flag, kept in `ChatPanel`
+  (`reported`) so a phone's sheet closed and opened again still shows it. A pill
+  that armed on the first press and sent on the second was tried: it covered
+  the reply and reaction buttons, and left no room for details. None on the
+  player's own messages (`useChat`'s `own`) or on a message with no account;
+  none without a `support` backend wired.
 - **No Report on the player's own card**, told by account id: `AccountStore`
   keeps the `accountId` of a signed-in player from its profile. A guest's is
   not read here, so its own card has the button, and the server refuses the
@@ -1564,8 +1575,9 @@ Discord or a code sent to an email address keeps that account on every device.
   sends the click token with every call, and a call refused `unauthenticated` is
   sent once more with a fresh session, as a click is. `invalid_argument` →
   `invalid`, `already_exists` → `taken`, `permission_denied` → `guest`, a second
-  `unauthenticated` → `notSignedIn`, anything else (a mint that failed included)
-  → `failed`. Only `GetProfile` is retried.
+  `unauthenticated` → `notSignedIn`, a `RenameRefusal` detail →
+  `RenameTooSoonError` (`tooSoon`, with `renamableAt`), anything else (a mint
+  that failed included) → `failed`. Only `GetProfile` is retried.
 - `app/account/accountStore.ts` — `AccountStore`, the section's state machine:
   `loading`, `hidden`, or `ready` with the offered providers, the linked ones,
   the action in flight and the last failure, and the username with its own save
@@ -1636,7 +1648,12 @@ One part is the server's alone: JavaScript cannot name a character's script, so
 the client refuses only Latin, Greek and Cyrillic mixed (the lookalikes), and a
 name mixing other scripts comes back `invalid`. The server is the
 authority and alone knows what is taken. The chat shows it (see [Live
-chat](#live-chat)). **It is read after the account, not with it**: `GetProfile`
+chat](#live-chat)). **A name changes at most once every 30 days**, a name given
+at sign-in aside (the backend's CLAUDE.md, Player). `GetProfile` and `SetName`
+answer when it may change again (`Profile.renamableAt`), and so does a refusal
+(`RenameTooSoonError`); `AccountStore` keeps it, and until then the form is
+disabled and its hint says the date and time instead of the rule. The client
+never counts the 30 days itself. **It is read after the account, not with it**: `GetProfile`
 needs a click token, which can mean a mint, so the section shows as soon as
 `GetMe` answers and the name follows. Only a linked account reads it — a guest
 has none and should not mint to learn that — and a failed read leaves the name
@@ -2946,8 +2963,8 @@ card on a phone.
 **A clip is the real globe playing back a war, for TikTok, Shorts and Reels**: 1080×1920, 8.5 to 22s, a headline,
 the map moving under it from the first frame, and the link at the end. `npm run clip` makes them from a replay
 and **chooses everything itself**: the stretch of time, the place, the headline, the camera, the look and the
-length. Each comes with a `.txt` holding the caption to post, for a person, and a `.json` holding the same as data,
-for a program (below). `--count 3` makes the three best stories, for a
+length. Each comes with a `.json` holding what to post with it, as data for the job that posts it (below), and a
+`.txt` with its teasers, one a line, for a person. `--count 3` makes the three best stories, for a
 person to pick one; `--plan` prints what they would be and renders nothing, and `--preview 3` renders only the
 first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 
@@ -2958,31 +2975,37 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
    npm at all, so the key to the VPS is in no job that installs this app's dependencies. The replay goes on as an
    artifact; it is the public stream's data.
 2. **shortlist** and **choose**: `npm run clip -- --shortlist shortlist.json`, then, in a job of its own (it holds
-   the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, `[1,2]`.
-   **It skips a story told in the last day**, by its key below: on Oct 13–14 two runs posted three clips of
-   Algeria in Africa. None is a quiet half day: the run ends there, green.
+   the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, up to 6, `[1,2,4]`.
+   **It skips a story told in the last 3 days**, by its key below, and a headline told in the last week, puts a
+   flag the last 6 posts showed after the others, and holds back a flag 2 of them showed, as their key or as one of
+   their countries: on Oct 13–17 Algeria in Africa was told three times and Palau in half the clips. None is a quiet half day: the run ends there, green.
 3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
    draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
    clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
    recorders do not help there: each one draws every frame.
-4. **schedule**: the backend's `clips schedule` sends each clip to the posting service, for a time hours ahead.
-   **Nothing is ever published at once**: the review is to cancel a clip in the service's dashboard before its time.
+4. **schedule**: the backend's `clips schedule` sends each clip to the posting service, for a time hours ahead, as
+   one post on TikTok and YouTube Shorts. **Nothing is ever published at once**: the review is to cancel a clip in
+   the service's dashboard before its time, which stops it on both.
 
 What chooses, when a clip goes out, the client of the service and the run's summary are Go, in the backend
 (its CLAUDE.md, "The clips job"). **This app keeps only what needs the browser**, and hands the rest over as data,
 `clips.v1` in the shared `proto/`, written as JSON:
 
-- **`--shortlist <path>`** writes a `Shortlist`: the title and the key of every story worth a clip, best first, so
-  a story's place from 1 is its `--pick`. One page load, no globe, 6s. With no story it is `{}`, not an error.
+- **`--shortlist <path>`** writes a `Shortlist` (`src/clip/shortlist.ts`): the title, the key and the countries of
+  every story worth a clip, best first, so a story's place from 1 is its `--pick`. One page load, no globe, 6s. With no story it is `{}`, not an error.
 - **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
   flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. "ALGERIA STRIKES
   BACK" and "ALGERIA VS FRANCE" are one key. The flag is the first of `sidesOf`: the loser of a rout, a continent's
   own flag when it strikes back together. The continent is the place's (Asia's parts as the headlines name them,
   `the world` for a tour), else its first country's, else that country.
-- **`clip-<n>.json`** is a `Clip`: its pick, its title (the headline), its caption as it is posted, its tags as
-  a list for where tags are not part of the text, and its key, which the job keeps with the post. **The caption is decided here and nowhere else**: the `.txt` and
-  the `.json` hold the same one, credit included (`credited`, `domain/clip/caption.ts`), and the job posts it as it
-  is. The repo is public and so are a run's logs and artifacts: a clip can be watched there before it is out.
+- **A story's countries are every country it shows** (`storyCountriesOf`): its place's, both sides and the flags it
+  takes from, only the game's countries. The job counts them in what it posted: "VATICAN CITY VS PALAU" is Vatican's
+  story and shows Palau. The `Clip`'s countries are the same list, with their hashtags.
+- **`clip-<n>.json`** is a `Clip`: its pick, its title (the headline), its key, which the job keeps with the post,
+  and **the words of its caption that need the story**: its teasers, its countries with their hashtags, its
+  continent's hashtag, and the credit of its music. **The job writes the caption** from them (the backend's
+  CLAUDE.md, "The clips job"): this app has the names, the job has the platform. The repo is public and so are a
+  run's logs and artifacts: a clip can be watched there before it is out.
 
 - **The replay is the backend's** (`planet.v1.AdminService/GetReplay`, see the backend's CLAUDE.md): the map as it
   was at the start, and every act after it as the live stream sent it. The backend's job asks for the last
@@ -3086,10 +3109,15 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   Republic". Tags keep them bare.
 - **The words say nothing the map says better.** Only a battle has a line under its headline, "The battle for
   France": no count of tiles and no "in 3 hours", which the counter shows and which read as written by a machine.
-  The caption is the headline and the question its call to act asks ("Who stops them?" to defend, "Who joins
-  them?" to fight for a flag striking back, "Pick a side"), the site as plain text (a caption's
-  link cannot be clicked) and the account's tags with the place's. Never the attacker's: a flag's tag can be a
-  political feed.
+- **The caption never repeats the headline** (`teasers` in `wordsOf`): the clip already shows it, and the
+  posts written by hand read better. Each kind of story says it two ways, which the job picks between: "PALESTINE
+  IS KICKING ROMANIA OUT OF KAZAKHSTAN" is "PALESTINE TAKES KAZAKHSTAN FROM ROMANIA", an invasion that threw
+  another flag out "CROATIA INVADES CHINA AND KICKS OUT FRANCE", a flag thrown out "GENERATIONAL DOWNFALL OF
+  CHRISTMAS ISLAND", and a country throwing a flag out of its own land "ITALY RETAKES ITS LAND FROM PORTUGAL".
+  A test checks that no kind ever gives the headline back.
+- **The hashtags are every flag of the story and the countries of its place** (`hashtagsOf`), bare
+  (`#christmasisland`, `#uk`), and the place's continent. Palestine and Israel included: the user chose it on
+  2026-10-14, though a flag's tag can be a political feed. A continent's own flag is not a country and has none.
 - **`music.ts` picks the anthem under the clip**, since YouTube Shorts cannot add a sound to an upload: the anthem
   of whoever makes the moves, the leading flag's, else the other side's in a battle, or the continent's when a
   continent strikes back. Never a loser's, but for a flag thrown out by many flags none of which leads ("ALGERIA IS

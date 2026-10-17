@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {TileChange} from "./changes.ts"
-import {castOf, inPlace, leadsTheWorld, lossOf, placeOf, routOf, sameRout, sameStory, Story, storyKeyOf, storyOf, THE_WORLD, widerThan} from "./story.ts"
+import {castOf, inPlace, leadsTheWorld, lossOf, placeOf, routOf, sameRout, sameStory, Story, storyCountriesOf, storyKeyOf, storyOf, THE_WORLD, widerThan} from "./story.ts"
 
 const REGIONS: Record<string, string> = {
     fr: "Europe",
@@ -342,5 +342,25 @@ describe("the key of a story", () => {
 
     it("is told on the country itself when no continent is known for it", () => {
         expect(storyKeyOf(told("invasion", {country: "xb"}), regionOf)).toEqual({flag: "dz", continent: "xb"})
+    })
+})
+
+describe("the countries of a story", () => {
+    const told = (kind: Story["kind"], place: Story["place"], more: Partial<Story> = {}): Story =>
+        ({kind, attacker: "dz", rival: undefined, victims: ["fr"], place, taken: 900, ...more})
+
+    it("are its place's, its flags' and the flags it takes from, once each", () => {
+        expect(storyCountriesOf(told("battle", {countries: ["eg", "tr"]}, {rival: "pw", victims: ["eg", "pw", "fr"]})))
+            .toEqual(["eg", "tr", "dz", "pw", "fr"])
+    })
+
+    it("name the opponent of a battle whose key is the other flag", () => {
+        expect(storyCountriesOf(told("battle", {country: "fr"}, {attacker: "va", rival: "pw", victims: []})))
+            .toEqual(["fr", "va", "pw"])
+    })
+
+    it("leave out a continent's own flag", () => {
+        expect(storyCountriesOf(told("rout", {region: "Europe"}, {attacker: "eu", victims: ["ps"], team: "Europe"})))
+            .toEqual(["ps"])
     })
 })
