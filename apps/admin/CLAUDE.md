@@ -68,6 +68,10 @@ Without the game: mint and sign in with `curl` against `:8080` (`CreateSession`,
 custom domain `admin.clickplanet.lol` is set on the Worker in the dashboard, not in `wrangler.jsonc`: a route
 there would make the DNS record on the first deploy.
 
+**Workers Builds deploys it from `main`**, on a push that changes something under `apps/admin/`: `npm ci && npm
+run build`, then `npx wrangler deploy`, with `NODE_VERSION` 22 and `VITE_API_BASE_URL` set on the build. A change
+to `proto/` alone ships nothing: the generated code is committed.
+
 `public/_headers` is the page's security:
 
 - **`Content-Security-Policy`**: scripts, styles and images from the page alone, calls to
