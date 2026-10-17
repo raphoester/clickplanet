@@ -17,6 +17,7 @@ import (
 type stubWatchdog struct {
 	name    string
 	verdict detect.Verdict
+	zeal    bool
 
 	accomplices []detect.Accomplice
 
@@ -32,6 +33,7 @@ func (w *stubWatchdog) Watch(detect.Click) (detect.Verdict, detect.Evidence) {
 	return w.verdict, detect.Evidence{
 		Rule:        w.name + "-rule",
 		Fields:      []detect.Field{{Key: "seen", Value: w.seen}},
+		Zeal:        w.zeal,
 		Accomplices: w.accomplices,
 	}
 }
@@ -132,6 +134,31 @@ func TestTwoSuspectsCrossIntoABan(t *testing.T) {
 	h := newHarness(t, juryConfig(), banConfig(),
 		&stubWatchdog{name: "first", verdict: detect.Suspect},
 		&stubWatchdog{name: "second", verdict: detect.Suspect},
+	)
+
+	assert.True(t, h.click())
+	require.Len(t, h.reports, 1)
+}
+
+func TestTwoReadingsOfZealAreOneSuspect(t *testing.T) {
+	h := newHarness(t, juryConfig(), banConfig(),
+		&stubWatchdog{name: "hours", verdict: detect.Suspect, zeal: true},
+		&stubWatchdog{name: "retakes", verdict: detect.Suspect, zeal: true},
+	)
+
+	assert.False(t, h.click(), "a person who plays hard reads both")
+	assert.Empty(t, h.reports)
+
+	examination := h.jury.Examine("caller")
+	assert.Equal(t, 1, examination.Suspects)
+	assert.False(t, examination.Guilty)
+}
+
+func TestZealStillCrossesAnotherWatchdog(t *testing.T) {
+	h := newHarness(t, juryConfig(), banConfig(),
+		&stubWatchdog{name: "hours", verdict: detect.Suspect, zeal: true},
+		&stubWatchdog{name: "retakes", verdict: detect.Suspect, zeal: true},
+		&stubWatchdog{name: "turns", verdict: detect.Suspect},
 	)
 
 	assert.True(t, h.click())

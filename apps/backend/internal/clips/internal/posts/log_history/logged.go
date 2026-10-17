@@ -29,10 +29,10 @@ func (l *Logged) Told(ctx context.Context, since time.Time) ([]posts.Telling, er
 			slog.String("flag", telling.Key.Flag), slog.String("continent", telling.Key.Continent),
 		}
 		if telling.Failure != "" {
-			l.logger.Warn("a post of the last day was refused", append(attributes, slog.String("failure", telling.Failure))...)
+			l.logger.Warn("a post of the last week was refused", append(attributes, slog.String("failure", telling.Failure))...)
 			continue
 		}
-		l.logger.Info("a post of the last day", attributes...)
+		l.logger.Info("a post of the last week", attributes...)
 	}
 
 	return told, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.

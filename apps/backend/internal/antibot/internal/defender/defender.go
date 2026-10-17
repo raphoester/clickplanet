@@ -145,6 +145,7 @@ func (w *Watchdog) Watch(click detect.Click) (detect.Verdict, detect.Evidence) {
 
 	return verdict, detect.Evidence{
 		Rule: "defence",
+		Zeal: true,
 		Fields: []detect.Field{
 			{Key: "clicks", Value: clicks},
 			{Key: "retakes", Value: retakes},

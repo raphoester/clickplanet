@@ -19,9 +19,10 @@ const usage = `usage:
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
 the ledger keeps 72 hours in memory, so a replay cannot reach further back. choose prints the picks of the stories
-to render, as a JSON array, and skips a story the posting service holds a post of from the last day. schedule
-sends every clip of the folder to the posting service, each for its time, as one post on every platform. Both need
-ZERNIO_API_KEY.`
+to render, as a JSON array: it skips a story the posting service holds a post of from the last 3 days, or a
+headline from the last week, puts a flag of the last 6 posts after the others, and holds back a flag in 2 of
+them. schedule sends every clip of the folder to the posting service, each for its time, as one post on every
+platform. Both need ZERNIO_API_KEY.`
 
 type Command string
 

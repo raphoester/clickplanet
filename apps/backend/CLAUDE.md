@@ -1458,9 +1458,12 @@ internal/player/internal/
   - **`GetFronts` is the caller's every country**, uncached, behind the session interceptor as `Identified`: a read,
     so the identity token resumed from the cookie is enough. The client already asks at most every 10s while it clicks.
   - **A failure to ask planet is a real error**, the error net's `internal`, as for auth.
-  - **It costs one grouped read of the account's events**, through `ledger_events_account`. A player with a million
-    takes makes that heavy, which is what the cache is for on the public card. If it ever is too slow, a projection
-    fed by `TileTaken` is the way back.
+  - **It costs one grouped read of the account's events**, through `ledger_events_account_kind`
+    (`account, kind, country, previous`). The takes are read from the index alone, and only a spread's or an
+    enclose's row is read from the table, for its payload; `takes_query/plan_test.go` pins it. Key columns and not
+    `INCLUDE`, so the index deduplicates: 9.5 MB for 1.5M rows, against 63 MB with `INCLUDE`. A player with a million
+    takes still makes that heavy, which is what the cache is for on the public card. If it ever is too slow, a
+    projection fed by `TileTaken` is the way back.
 - **They are the total since the ledger has accounts, never a season's.** Decided on 2026-10-08, in season 0, when the
   two are the same. The card says which flags a player's tiles went to, so the flag beside its name on the Players
   board makes sense. **The per-season split is the same query bounded by the season's start and end**: `seasons`
@@ -2243,6 +2246,21 @@ earns its place because `sequencer` reads ids and `metronome` reads time — two
 genuinely different measurements — but `minSuspects: 2` is the loosest this
 should be, and 3 in practice means only `retaker`'s certain rule ever fires.
 
+**Two readings of zeal are one suspect, since 2026-10-17.** `stamina` (hours at
+pace) and `defence` (most takes win back the flag's tiles) both measure how hard a
+person plays, and the keenest players read both. Together they banned two people on
+2026-10-09, and on 2026-10-12 a new player on its first day: 5h50m busy of 6h, then
+81 retakes in 127 takes in a tile war, chatting all through it.
+
+- **Each rule says it reads zeal** (`Evidence.Zeal`), and the jury counts every zeal
+  reading of a caller as one suspect. The mark is saved with the opinion.
+- **Zeal still counts beside any other watchdog**: `rotator` with `stamina`, or
+  `cadence` with `defence`, is still a ban. Only the two together are not.
+- **The cost**: a loop that reads `stamina` and `defence` and nothing else is free,
+  as the player who reads the same is.
+- `TestTheNewcomerOfOctober12WhoPlaysHardAndDefendsIsNotBanned` replays the player,
+  and `TestThePairOfOctober13TakingTurnsAtACadenceIsBanned` a pair that is still banned.
+
 **Crossing is also what makes it fast.** The overnight sweep from the
 screenshots trips no watchdog's `Certain` for a long time — `sequencer` wants two
 hundred steps, `metronome` wants half an hour — but both read `Suspect` within
@@ -2551,6 +2569,8 @@ tiles, and every watchdog read `clear`.
   no `certainBusy`, and a run at pace for hours is banned only beside another
   watchdog. The bot of 2026-09-28 reads `clear` everywhere else, so it is free again
   until one does. `TestAnEveningAtPaceAloneBansNobody` pins it.
+- **Beside `defender` it is still one suspect**: both read zeal, see
+  [Ten watchdogs, one jury](#ten-watchdogs-one-jury).
 - `click_busy_hours` is each payer's busy time, once a sweep, for the payers that
   clicked since the last one.
 - **It is its own evidence in the metronome's section**, saved with the indexes'
@@ -3090,7 +3110,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **The boot has `httpServer.startupTimeout` (1m) for all of it**, every module included. Production is about ten times slower than a laptop. On 2026-10-08, with 255k owned tiles and 180k takes, a boot that came right after another took 3.6s: geography 0.9s, tile map 0.6s, ledger 1.5s. The first boot after a stop is 2 to 3 times slower at each step, because the 1 GB droplet reads its pages back from swap and disk. Postgres alone takes ~2s to send the ledger window and ~1s to send the tiles, so the time is the box, not the Go code. The old 5s deadline made the first boot fail four times between Oct 6 and Oct 8, each time on whatever step was running at 5s (once the player module's ping). At ~8µs a take, the 4M cap would load in ~30s on a warm boot.
 - **A flush appends, it never rewrites a take.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, blanks the scope of the takes between the head postgres held and the new one (what the retention or the cap dropped from memory), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written, in memory or in postgres. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
 - **The address does not outlive the retention.** A scope is personal data, so every row behind the head has none and every row from it on has one: the boot never loads a row with no scope. Blanking runs at ~100k rows a second on a laptop, so a cut of `ledger.retention` that drops a million takes at once passes the 10s flush timeout, and so does every retry; at today's volume the whole window is ~120k.
-- **A deleted account stops being named.** `planet` hears `auth.v1.AccountDeleted` (`planet-ledger-accounts`, `subscribers/account_deleted_subscriber`, `anonymize_takes_usecase`): it flushes the ledger, then sets `account` to NULL on every row of that account, on the partial index `ledger_events_account`. The flush comes first, or a take still in memory would be written after the update with the account on it. The takes keep their tile, flag and time. **What still names it**: memory, until the take ages out (72h at most); a revert mark, until the head passes it; a take made after the delete on a click token minted before it (an hour at most), as for the player's stats; and every take of an event the bus dropped (full buffer, crash). The subscriber's timeout is a minute, not 5s: the update grows with the account's history.
+- **A deleted account stops being named.** `planet` hears `auth.v1.AccountDeleted` (`planet-ledger-accounts`, `subscribers/account_deleted_subscriber`, `anonymize_takes_usecase`): it flushes the ledger, then sets `account` to NULL on every row of that account, on the partial index `ledger_events_account_kind`. The flush comes first, or a take still in memory would be written after the update with the account on it. The takes keep their tile, flag and time. **What still names it**: memory, until the take ages out (72h at most); a revert mark, until the head passes it; a take made after the delete on a click token minted before it (an hour at most), as for the player's stats; and every take of an event the bus dropped (full buffer, crash). The subscriber's timeout is a minute, not 5s: the update grows with the account's history.
 - **Size.** 1M takes are 83 MB of table and 31 MB of indexes (the primary key and the account). Production made ~116,000 takes in 72h at the start of October 2026, ~40,000 a day: ~15M rows and ~1.7 GB a year. Each take is written twice, once by the `COPY` and once when its scope is blanked, and autovacuum reuses the space. No partitioning yet.
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges, deletions)` runs them together and closes the pool after the last flushes, and after the subscriber drained its buffer.
 
@@ -3253,19 +3273,34 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
 
-- **`Shortlist.Best(count, told, now)`** is which clips: the first `count` stories, all of them when there are
-  fewer, 6 a run (`Config.PerRun`), **but never a story told already**: one whose `StoryKey` (a flag and a
-  continent, from the generator) a post holds that goes out within the last day or later (`ToldSince`), or that a
-  better story of the same run took. The keys and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS
-  FRANCE" are one story, and on Oct 13–14 two runs posted it three times. It answers a `Choice`: the stories chosen,
-  and the ones skipped (`Retold`), which the log shows. A story with no key is refused when the shortlist is read.
+- **`Shortlist.Best(count, told, now)`** is which clips: `count` stories, all of them when there are fewer, 6 a
+  run (`Config.PerRun`), **never a story told already, and never mostly one flag**. Four rules, from the week of
+  Oct 13–17, when 18 clips told "ALGERIA STRIKES BACK" three times, "PALAU IS TAKING OVER THE WORLD" twice right
+  after the old one-day window, and Palau (two players on five accounts) in about half of them:
+  - **A key told in the last 3 days is skipped** (`retelling`): a `StoryKey` (a flag and a continent, from the
+    generator) a post holds that goes out within 72 hours or later, or that a story of the same run took. The keys
+    and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story.
+  - **A headline told in the last week is skipped** (`reheadlining`), whatever its continent: the same words read
+    as the same clip. Compared in upper case, spaces at the ends cut.
+  - **A flag of the last 6 posts goes after the flags not in them** (`lately`, half a day at 6 a run). The
+    generator's order breaks a tie. A story chosen counts as the newest post.
+  - **A flag in 2 of the last 6 posts waits** (`mostLately`): it is a third of the feed at most. So a shortlist of
+    one flag gives 2 clips, not 6. Ranking alone was not enough at 6 a run: on Oct 15 a shortlist of Palau and one
+    other flag gave 5 clips of Palau.
+
+  It answers a `Choice`: the stories chosen, in the shortlist's order, the ones skipped (`Retold`), and the ones not
+  told whose flag holds the most of the last posts, or more of them than a story chosen (`Passed`), which the log
+  shows. A story with no key is refused when the shortlist is read. **Only the flag of the key counts**: "FRANCE VS
+  PALAU" is a story of France.
 - **6 a run, because the finder is not what runs short.** Replayed over Oct 14–17, a 12-hour window held 5 to 11
-  stories of different keys, and the rule above let about 10 a day out; 2 a run posted 4. Six is the most the
+  stories of different keys, and the one-day rule let about 10 a day out; 2 a run posted 4. Six is the most the
   `Plan` below fits between two runs: the sixth goes out 14 hours after a run starts, and the next run's first
-  16 hours after it. A seventh would go out together with that one.
+  16 hours after it. A seventh would go out together with that one. **The rules above post fewer**: replayed over
+  Oct 15–17 at 6 a run, 15 clips with 4 of Palau and no repeat, against 21 with 9 of Palau and 3 repeats under the
+  one-day rule alone.
 - **What was told is Zernio's post list, not a table of ours**: each post keeps its key in its Zernio `metadata`
-  (`storyFlag`, `storyContinent`, never published), and `choose` lists the posts of the last day back, on every
-  platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
+  (`storyFlag`, `storyContinent`, never published), and `choose` lists the posts of the last week back
+  (`ToldSince`), on every platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
   (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
@@ -3366,14 +3401,14 @@ for now** (2026-10-17): a third account is 6 USD a month. A change of service is
   credential for an hour, and Go's `url.Error` prints it. `unreachable` keeps the cause and drops the address;
   a test pins it.
 - **A post a platform refuses at its time is seen by the next run**, hours after its own ended: the history `choose`
-  reads holds each post's state and each platform's error, and `log_history` logs every post of the last day,
-  a refused one as a warning with why (`a post of the last day was refused … failure="tiktok: …"`).
+  reads holds each post's state and each platform's error, and `log_history` logs every post of the last week,
+  a refused one as a warning with why (`a post of the last week was refused … failure="tiktok: …"`).
 - The tests run it against `httptest`, with the requests and the answers of Zernio's OpenAPI document.
 
 `posts/generator_output/` reads the generator's files (`protojson`, unknown fields dropped, so the generator can
 add one first), and both use cases log in a decorator
 (`log_choose_clips`, `log_schedule_clips`), as do the service (`log_service`: each try the service did not take,
-which is what explains a step that waited 20 minutes) and the history (`log_history`: how each post of the last day
+which is what explains a step that waited 20 minutes) and the history (`log_history`: how each post of the last week
 went).
 
 ### Shared (`internal/shared/`)
@@ -3621,7 +3656,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**, but for the one an operator lifts with `UnbanPlayer`
 - `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration or load refuses the boot
 - `antiBot.shadowBan.reflagInterval` — how soon a banned caller can be judged again
-- `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone
+- `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone; `stamina` and `defence` together count as one
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
 - `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. See [What survives a restart](#what-survives-a-restart)
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
