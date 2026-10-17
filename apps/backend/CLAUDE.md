@@ -1458,9 +1458,12 @@ internal/player/internal/
   - **`GetFronts` is the caller's every country**, uncached, behind the session interceptor as `Identified`: a read,
     so the identity token resumed from the cookie is enough. The client already asks at most every 10s while it clicks.
   - **A failure to ask planet is a real error**, the error net's `internal`, as for auth.
-  - **It costs one grouped read of the account's events**, through `ledger_events_account`. A player with a million
-    takes makes that heavy, which is what the cache is for on the public card. If it ever is too slow, a projection
-    fed by `TileTaken` is the way back.
+  - **It costs one grouped read of the account's events**, through `ledger_events_account_kind`
+    (`account, kind, country, previous`). The takes are read from the index alone, and only a spread's or an
+    enclose's row is read from the table, for its payload; `takes_query/plan_test.go` pins it. Key columns and not
+    `INCLUDE`, so the index deduplicates: 9.5 MB for 1.5M rows, against 63 MB with `INCLUDE`. A player with a million
+    takes still makes that heavy, which is what the cache is for on the public card. If it ever is too slow, a
+    projection fed by `TileTaken` is the way back.
 - **They are the total since the ledger has accounts, never a season's.** Decided on 2026-10-08, in season 0, when the
   two are the same. The card says which flags a player's tiles went to, so the flag beside its name on the Players
   board makes sense. **The per-season split is the same query bounded by the season's start and end**: `seasons`
@@ -3090,7 +3093,7 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **The boot has `httpServer.startupTimeout` (1m) for all of it**, every module included. Production is about ten times slower than a laptop. On 2026-10-08, with 255k owned tiles and 180k takes, a boot that came right after another took 3.6s: geography 0.9s, tile map 0.6s, ledger 1.5s. The first boot after a stop is 2 to 3 times slower at each step, because the 1 GB droplet reads its pages back from swap and disk. Postgres alone takes ~2s to send the ledger window and ~1s to send the tiles, so the time is the box, not the Go code. The old 5s deadline made the first boot fail four times between Oct 6 and Oct 8, each time on whatever step was running at 5s (once the player module's ping). At ~8µs a take, the 4M cap would load in ~30s on a warm boot.
 - **A flush appends, it never rewrites a take.** Every `ledgerStorage.flushInterval` (1s), `Flush` hands the takes past the last flush to `Save`: one transaction that `COPY`s them in, blanks the scope of the takes between the head postgres held and the new one (what the retention or the cap dropped from memory), moves the head, and upserts the marks set since. It first deletes any row at or past the first new position, so a flush whose commit answer was lost writes again without a conflict. A take dropped before it was flushed is never written, in memory or in postgres. A failed save keeps it all for the next tick; each flush has a 10s timeout, and shutdown flushes once more.
 - **The address does not outlive the retention.** A scope is personal data, so every row behind the head has none and every row from it on has one: the boot never loads a row with no scope. Blanking runs at ~100k rows a second on a laptop, so a cut of `ledger.retention` that drops a million takes at once passes the 10s flush timeout, and so does every retry; at today's volume the whole window is ~120k.
-- **A deleted account stops being named.** `planet` hears `auth.v1.AccountDeleted` (`planet-ledger-accounts`, `subscribers/account_deleted_subscriber`, `anonymize_takes_usecase`): it flushes the ledger, then sets `account` to NULL on every row of that account, on the partial index `ledger_events_account`. The flush comes first, or a take still in memory would be written after the update with the account on it. The takes keep their tile, flag and time. **What still names it**: memory, until the take ages out (72h at most); a revert mark, until the head passes it; a take made after the delete on a click token minted before it (an hour at most), as for the player's stats; and every take of an event the bus dropped (full buffer, crash). The subscriber's timeout is a minute, not 5s: the update grows with the account's history.
+- **A deleted account stops being named.** `planet` hears `auth.v1.AccountDeleted` (`planet-ledger-accounts`, `subscribers/account_deleted_subscriber`, `anonymize_takes_usecase`): it flushes the ledger, then sets `account` to NULL on every row of that account, on the partial index `ledger_events_account_kind`. The flush comes first, or a take still in memory would be written after the update with the account on it. The takes keep their tile, flag and time. **What still names it**: memory, until the take ages out (72h at most); a revert mark, until the head passes it; a take made after the delete on a click token minted before it (an hour at most), as for the player's stats; and every take of an event the bus dropped (full buffer, crash). The subscriber's timeout is a minute, not 5s: the update grows with the account's history.
 - **Size.** 1M takes are 83 MB of table and 31 MB of indexes (the primary key and the account). Production made ~116,000 takes in 72h at the start of October 2026, ~40,000 a day: ~15M rows and ~1.7 GB a year. Each take is written twice, once by the `COPY` and once when its scope is blanked, and autovacuum reuses the space. No partitioning yet.
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges, deletions)` runs them together and closes the pool after the last flushes, and after the subscriber drained its buffer.
 
@@ -3198,7 +3201,7 @@ meet in files: the replay this job saves for the generator, and `clips.v1.Shortl
 
 ```
 clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-clips choose -shortlist <shortlist.json> [-count 2]
+clips choose -shortlist <shortlist.json> [-count 6]
 clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 ```
 
@@ -3249,22 +3252,31 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
 
-- **`Shortlist.Best(count, told, now)`** is which clips: `count` stories, all of them when there are fewer, 2 a
-  run (`Config.PerRun`), **never a story told already, and a flag told lately after the others**. Three rules, from
-  the week of Oct 13–17, when 18 clips told "ALGERIA STRIKES BACK" three times, "PALAU IS TAKING OVER THE WORLD"
-  twice right after the old one-day window, and Palau (two players on five accounts) in about half of them:
+- **`Shortlist.Best(count, told, now)`** is which clips: `count` stories, all of them when there are fewer, 6 a
+  run (`Config.PerRun`), **never a story told already, and never mostly one flag**. Four rules, from the week of
+  Oct 13–17, when 18 clips told "ALGERIA STRIKES BACK" three times, "PALAU IS TAKING OVER THE WORLD" twice right
+  after the old one-day window, and Palau (two players on five accounts) in about half of them:
   - **A key told in the last 3 days is skipped** (`retelling`): a `StoryKey` (a flag and a continent, from the
     generator) a post holds that goes out within 72 hours or later, or that a story of the same run took. The keys
     and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story.
   - **A headline told in the last week is skipped** (`reheadlining`), whatever its continent: the same words read
     as the same clip. Compared in upper case, spaces at the ends cut.
-  - **A flag the last 4 posts told goes after the flags they did not** (`lately`, a day of posts), and the more of
-    them told it, the lower. The generator's order breaks a tie. A story chosen counts as the newest post, so a run
-    tells two flags when its shortlist has two. **It only ranks**: a shortlist of one flag is still told.
+  - **A flag of the last 6 posts goes after the flags not in them** (`lately`, half a day at 6 a run). The
+    generator's order breaks a tie. A story chosen counts as the newest post.
+  - **A flag in 2 of the last 6 posts waits** (`mostLately`): it is a third of the feed at most. So a shortlist of
+    one flag gives 2 clips, not 6. Ranking alone was not enough at 6 a run: on Oct 15 a shortlist of Palau and one
+    other flag gave 5 clips of Palau.
 
-  It answers a `Choice`: the stories chosen, in the shortlist's order, the ones skipped (`Retold`), and the ones
-  better ranked than a story chosen but of a flag told more (`Passed`), which the log shows. A story with no key is
-  refused when the shortlist is read. **Only the flag of the key counts**: "FRANCE VS PALAU" is a story of France.
+  It answers a `Choice`: the stories chosen, in the shortlist's order, the ones skipped (`Retold`), and the ones not
+  told whose flag holds the most of the last posts, or more of them than a story chosen (`Passed`), which the log
+  shows. A story with no key is refused when the shortlist is read. **Only the flag of the key counts**: "FRANCE VS
+  PALAU" is a story of France.
+- **6 a run, because the finder is not what runs short.** Replayed over Oct 14–17, a 12-hour window held 5 to 11
+  stories of different keys, and the one-day rule let about 10 a day out; 2 a run posted 4. Six is the most the
+  `Cadence` below fits between two runs: the sixth goes out 14 hours after a run starts, and the next run's first
+  16 hours after it. A seventh would go out together with that one. **The rules above post fewer**: replayed over
+  Oct 15–17 at 6 a run, 15 clips with 4 of Palau and no repeat, against 21 with 9 of Palau and 3 repeats under the
+  one-day rule alone.
 - **What was told is Zernio's post list, not a table of ours**: each post keeps its key in its Zernio `metadata`
   (`storyFlag`, `storyContinent`, never published), and `choose` lists the posts of the last week back
   (`ToldSince`), on every platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
@@ -3273,7 +3285,7 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
 - **`Cadence.Posts(clips, now, dice)`** is when: the best clip a `Review` from now (4 hours), each next one a
   `Spacing` later (2 hours), on a whole minute and never sooner than the review. So a run at 12:17 UTC that renders
-  in 20 minutes posts near 16:40 and 18:40. It also rolls each post's words (`Dice`, `SystemDice`), so no post
+  in 20 minutes posts near 16:40, then every 2 hours until 02:40. It also rolls each post's words (`Dice`, `SystemDice`), so no post
   exists without them.
 - **The caption is written here** (`caption.go`), from what the generator gives (its teasers, the countries with
   their hashtags, the continent's, the music's credit), since the platform is the job's business:

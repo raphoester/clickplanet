@@ -30,7 +30,8 @@ services:
       POSTGRES_USER: clickplanet
       POSTGRES_DB: clickplanet
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (openssl rand -hex 32)}
-    command: [ "postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=20" ]
+    # Keep max_connections 10 above the sum of the pools in backend.yaml, for psql sessions: cmd/api tests it.
+    command: [ "postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=40" ]
     ports:
       # Loopback only: a published port skips ufw, so "5432:5432" would put postgres on the internet.
       - "127.0.0.1:5432:5432"

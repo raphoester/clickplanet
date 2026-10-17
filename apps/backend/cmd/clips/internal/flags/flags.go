@@ -12,14 +12,14 @@ import (
 
 const usage = `usage:
   clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-  clips choose -shortlist <shortlist.json> [-count 2]
+  clips choose -shortlist <shortlist.json> [-count 6]
   clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
 the ledger keeps 72 hours in memory, so a replay cannot reach further back. choose prints the picks of the stories
 to render, as a JSON array: it skips a story the posting service holds a post of from the last 3 days, or a
-headline from the last week, and puts a flag of the last 4 posts after the others. schedule sends every clip of
-the folder to the posting service, each for its time. Both need ZERNIO_API_KEY.`
+headline from the last week, puts a flag of the last 6 posts after the others, and holds back a flag in 2 of
+them. schedule sends every clip of the folder to the posting service, each for its time. Both need ZERNIO_API_KEY.`
 
 type Command string
 

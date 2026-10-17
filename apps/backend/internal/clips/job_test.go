@@ -179,7 +179,7 @@ func TestChoosingGivesTheBestStoriesOfDifferentFlagsOrContinents(t *testing.T) {
 	picks, err := clips.Choose(t.Context(), shortlist(t), configFor(zernio(t, &posts)), slog.New(slog.NewTextHandler(&logs, nil)))
 
 	require.NoError(t, err)
-	assert.Equal(t, []clips.Pick{1, 3}, picks)
+	assert.Equal(t, []clips.Pick{1, 3, 4}, picks)
 	assert.Contains(t, logs.String(), `msg="skipped a story told already" pick=2 title="ALGERIA VS FRANCE"`)
 }
 
