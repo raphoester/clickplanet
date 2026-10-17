@@ -290,6 +290,7 @@ func (j *Jury) weighLocked(c *caller, at time.Time) ([]detect.Opinion, int, bool
 
 	var (
 		certain  bool
+		zeal     bool
 		suspects int
 		opinions = make([]detect.Opinion, 0, len(j.watchdogs))
 	)
@@ -304,15 +305,21 @@ func (j *Jury) weighLocked(c *caller, at time.Time) ([]detect.Opinion, int, bool
 			opinion.Verdict = detect.Clear
 		}
 
-		switch opinion.Verdict {
-		case detect.Certain:
+		switch {
+		case opinion.Verdict == detect.Certain:
 			certain = true
 			suspects++
-		case detect.Suspect:
+		case opinion.Verdict == detect.Suspect && opinion.Evidence.Zeal:
+			zeal = true
+		case opinion.Verdict == detect.Suspect:
 			suspects++
 		}
 
 		opinions = append(opinions, opinion)
+	}
+
+	if zeal {
+		suspects++
 	}
 
 	return opinions, suspects, certain || suspects >= j.config.MinSuspects

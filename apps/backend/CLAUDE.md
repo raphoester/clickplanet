@@ -2243,6 +2243,21 @@ earns its place because `sequencer` reads ids and `metronome` reads time — two
 genuinely different measurements — but `minSuspects: 2` is the loosest this
 should be, and 3 in practice means only `retaker`'s certain rule ever fires.
 
+**Two readings of zeal are one suspect, since 2026-10-17.** `stamina` (hours at
+pace) and `defence` (most takes win back the flag's tiles) both measure how hard a
+person plays, and the keenest players read both. Together they banned two people on
+2026-10-09, and on 2026-10-12 a new player on its first day: 5h50m busy of 6h, then
+81 retakes in 127 takes in a tile war, chatting all through it.
+
+- **Each rule says it reads zeal** (`Evidence.Zeal`), and the jury counts every zeal
+  reading of a caller as one suspect. The mark is saved with the opinion.
+- **Zeal still counts beside any other watchdog**: `rotator` with `stamina`, or
+  `cadence` with `defence`, is still a ban. Only the two together are not.
+- **The cost**: a loop that reads `stamina` and `defence` and nothing else is free,
+  as the player who reads the same is.
+- `TestTheNewcomerOfOctober12WhoPlaysHardAndDefendsIsNotBanned` replays the player,
+  and `TestThePairOfOctober13TakingTurnsAtACadenceIsBanned` a pair that is still banned.
+
 **Crossing is also what makes it fast.** The overnight sweep from the
 screenshots trips no watchdog's `Certain` for a long time — `sequencer` wants two
 hundred steps, `metronome` wants half an hour — but both read `Suspect` within
@@ -2551,6 +2566,8 @@ tiles, and every watchdog read `clear`.
   no `certainBusy`, and a run at pace for hours is banned only beside another
   watchdog. The bot of 2026-09-28 reads `clear` everywhere else, so it is free again
   until one does. `TestAnEveningAtPaceAloneBansNobody` pins it.
+- **Beside `defender` it is still one suspect**: both read zeal, see
+  [Ten watchdogs, one jury](#ten-watchdogs-one-jury).
 - `click_busy_hours` is each payer's busy time, once a sweep, for the payers that
   clicked since the last one.
 - **It is its own evidence in the metronome's section**, saved with the indexes'
@@ -3583,7 +3600,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**, but for the one an operator lifts with `UnbanPlayer`
 - `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration or load refuses the boot
 - `antiBot.shadowBan.reflagInterval` — how soon a banned caller can be judged again
-- `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone
+- `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone; `stamina` and `defence` together count as one
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
 - `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. See [What survives a restart](#what-survives-a-restart)
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
