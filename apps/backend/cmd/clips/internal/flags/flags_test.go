@@ -64,21 +64,39 @@ func TestScheduleFlagsSayWhichClipsWhenAndWhereTheSummaryGoes(t *testing.T) {
 	assert.Equal(t, flags.Config{Command: flags.Schedule, ClipsFolder: "clips", SummaryFile: "summary.md", Job: job}, parsed)
 }
 
+func TestScheduleFlagsSayWhichPlatformsEachClipGoesTo(t *testing.T) {
+	for given, platforms := range map[string][]clips.Platform{
+		"youtube":         {"youtube"},
+		"tiktok,youtube":  {"tiktok", "youtube"},
+		"youtube, tiktok": {"youtube", "tiktok"},
+		"":                nil,
+	} {
+		t.Run(given, func(t *testing.T) {
+			parsed, err := flags.Parse([]string{"schedule", "-clips", "clips", "-platforms", given})
+
+			require.NoError(t, err)
+			assert.Equal(t, platforms, parsed.Job.Platforms)
+		})
+	}
+}
+
 func TestFlagsWithAPartMissingOrWrongSayHowToCallTheCommand(t *testing.T) {
 	t.Setenv(flags.HostVariable, "")
 
 	for name, args := range map[string][]string{
-		"nothing":               {},
-		"an unknown command":    {"publish"},
-		"a command in capitals": {"Schedule", "-clips", "clips"},
-		"fetch, no file":        {"fetch", "-ssh", "deploy@vps.example"},
-		"fetch, no host":        {"fetch", "-out", "replay.json"},
-		"fetch, a wrong time":   {"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-until", "yesterday"},
-		"fetch, wrong hours":    {"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-hours", "many"},
-		"choose, no shortlist":  {"choose"},
-		"choose, a wrong count": {"choose", "-shortlist", "shortlist.json", "-count", "two"},
-		"schedule, no folder":   {"schedule"},
-		"schedule, a wrong gap": {"schedule", "-clips", "clips", "-spacing", "soon"},
+		"nothing":                    {},
+		"an unknown command":         {"publish"},
+		"a command in capitals":      {"Schedule", "-clips", "clips"},
+		"fetch, no file":             {"fetch", "-ssh", "deploy@vps.example"},
+		"fetch, no host":             {"fetch", "-out", "replay.json"},
+		"fetch, a wrong time":        {"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-until", "yesterday"},
+		"fetch, wrong hours":         {"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-hours", "many"},
+		"choose, no shortlist":       {"choose"},
+		"choose, a wrong count":      {"choose", "-shortlist", "shortlist.json", "-count", "two"},
+		"schedule, no folder":        {"schedule"},
+		"schedule, a wrong gap":      {"schedule", "-clips", "clips", "-spacing", "soon"},
+		"schedule, no such platform": {"schedule", "-clips", "clips", "-platforms", "tiktok,instagram"},
+		"schedule, a platform twice": {"schedule", "-clips", "clips", "-platforms", "tiktok,tiktok"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			parsed, err := flags.Parse(args)

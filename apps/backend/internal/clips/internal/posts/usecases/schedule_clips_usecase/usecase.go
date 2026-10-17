@@ -16,7 +16,7 @@ type Clips interface {
 }
 
 type Sender interface {
-	Send(ctx context.Context, post posts.Post) (posts.PostID, error)
+	Send(ctx context.Context, post posts.Post) (posts.Scheduled, error)
 }
 
 type Executor interface {
@@ -24,16 +24,16 @@ type Executor interface {
 	Execute(ctx context.Context) (posts.Report, error)
 }
 
-func New(clips Clips, cadence posts.Cadence, clock cptime.Clock, dice posts.Dice, sender Sender) *UseCase {
-	return &UseCase{clips: clips, cadence: cadence, clock: clock, dice: dice, sender: sender}
+func New(clips Clips, plan posts.Plan, clock cptime.Clock, dice posts.Dice, sender Sender) *UseCase {
+	return &UseCase{clips: clips, plan: plan, clock: clock, dice: dice, sender: sender}
 }
 
 type UseCase struct {
-	clips   Clips
-	cadence posts.Cadence
-	clock   cptime.Clock
-	dice    posts.Dice
-	sender  Sender
+	clips  Clips
+	plan   posts.Plan
+	clock  cptime.Clock
+	dice   posts.Dice
+	sender Sender
 }
 
 var _ Executor = (*UseCase)(nil)
@@ -48,9 +48,9 @@ func (u *UseCase) Execute(ctx context.Context) (posts.Report, error) {
 	}
 
 	report := posts.Report{}
-	for _, post := range u.cadence.Posts(rendered, u.clock.Now(), u.dice) {
-		id, err := u.sender.Send(ctx, post)
-		report = report.With(post, id, err)
+	for _, post := range u.plan.Posts(rendered, u.clock.Now(), u.dice) {
+		scheduled, err := u.sender.Send(ctx, post)
+		report = report.With(post, scheduled, err)
 	}
 	return report, nil
 }

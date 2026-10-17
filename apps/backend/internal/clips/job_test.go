@@ -22,12 +22,15 @@ import (
 
 type sentPost struct {
 	Title        string            `json:"title"`
-	Content      string            `json:"content"`
 	ScheduledFor string            `json:"scheduledFor"`
 	Metadata     map[string]string `json:"metadata"`
 	MediaItems   []struct {
 		URL string `json:"url"`
 	} `json:"mediaItems"`
+	Platforms []struct {
+		Platform      string `json:"platform"`
+		CustomContent string `json:"customContent"`
+	} `json:"platforms"`
 }
 
 type keptPost struct {
@@ -48,7 +51,7 @@ func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 
 		switch r.Method + " " + r.URL.Path {
 		case "GET /v1/accounts":
-			_, _ = fmt.Fprint(w, `{"accounts":[{"_id":"acc-1","platform":"tiktok","isActive":true}]}`)
+			_, _ = fmt.Fprint(w, `{"accounts":[{"_id":"acc-1","platform":"tiktok","isActive":true},{"_id":"acc-2","platform":"youtube","isActive":true}]}`)
 		case "POST /v1/media/presign":
 			var asked struct {
 				Filename string `json:"filename"`
@@ -61,7 +64,7 @@ func zernio(t *testing.T, posts *[]sentPost) *httptest.Server {
 			assert.NoError(t, json.Unmarshal(raw, &post))
 			*posts = append(*posts, post)
 			w.WriteHeader(http.StatusCreated)
-			_, _ = fmt.Fprintf(w, `{"post":{"_id":"post-%d","status":"scheduled"}}`, len(*posts))
+			_, _ = fmt.Fprintf(w, `{"post":{"_id":"post-%d","status":"scheduled","platforms":[{"platform":"tiktok"},{"platform":"youtube"}]}}`, len(*posts))
 		case "GET /v1/posts":
 			kept := make([]keptPost, 0, len(*posts))
 			for i, post := range *posts {
@@ -106,9 +109,14 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 	assert.Equal(t, "xk", posts[0].Metadata["storyFlag"])
 	assert.Equal(t, "Africa", posts[0].Metadata["storyContinent"])
 	assert.NotEmpty(t, posts[0].Metadata["callToAction"])
-	assert.True(t, strings.HasPrefix(posts[0].Content, "SAID ANOTHER WAY: KOSOVO IS ATTACKING THE MIDDLE EAST | CLICKPLANET\n"))
-	assert.Contains(t, posts[0].Content, "👉 clickplanet.lol\n#clickplanet ")
-	assert.True(t, strings.HasSuffix(posts[0].Content, " #africa"))
+	require.Len(t, posts[0].Platforms, 2)
+	tiktok, youtube := posts[0].Platforms[0], posts[0].Platforms[1]
+	assert.Equal(t, "tiktok", tiktok.Platform)
+	assert.True(t, strings.HasPrefix(tiktok.CustomContent, "SAID ANOTHER WAY: KOSOVO IS ATTACKING THE MIDDLE EAST | CLICKPLANET\n"))
+	assert.Contains(t, tiktok.CustomContent, "👉 clickplanet.lol\n#clickplanet ")
+	assert.True(t, strings.HasSuffix(tiktok.CustomContent, " #africa"))
+	assert.Equal(t, "youtube", youtube.Platform)
+	assert.True(t, strings.HasSuffix(youtube.CustomContent, " #africa"))
 	assert.Equal(t, "https://media.example/clip-1.mp4", posts[0].MediaItems[0].URL)
 	assert.Equal(t, "FRANCE IS ATTACKING EUROPE", posts[1].Title)
 
@@ -122,11 +130,14 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 
 	require.Len(t, report, 2)
 	assert.Equal(t, "KOSOVO IS ATTACKING THE MIDDLE EAST", report[0].Title)
-	assert.Equal(t, clips.Report{{Title: "FRANCE IS ATTACKING EUROPE", At: report[1].At, Post: "post-2"}}, report[1:])
+	assert.Equal(t, clips.Report{{
+		Title: "FRANCE IS ATTACKING EUROPE", At: report[1].At, Post: "post-2",
+		Platforms: []clips.PlatformOutcome{{Platform: "tiktok"}, {Platform: "youtube"}},
+	}}, report[1:])
 	assert.True(t, first.Equal(report[0].At))
 	assert.True(t, second.Equal(report[1].At))
 	assert.True(t, report.Complete())
-	assert.Contains(t, logs.String(), `msg="scheduled a clip" clip="KOSOVO IS ATTACKING THE MIDDLE EAST"`)
+	assert.Contains(t, logs.String(), `msg="scheduled a clip" clip="KOSOVO IS ATTACKING THE MIDDLE EAST" platform=youtube`)
 	assert.NotContains(t, logs.String(), "the-key")
 }
 
@@ -149,7 +160,8 @@ func TestARunThatZernioRefusesReportsWhyForEachClip(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, report, 1)
 	assert.False(t, report.Complete())
-	assert.Contains(t, report[0].Failure, "zernio answered 401 to the list of accounts: Invalid API key")
+	require.Len(t, report[0].Platforms, 2)
+	assert.Contains(t, report[0].Platforms[1].Failure, "zernio answered 401 to the list of accounts: Invalid API key")
 	assert.Contains(t, logs.String(), `level=ERROR msg="failed to schedule a clip"`)
 }
 

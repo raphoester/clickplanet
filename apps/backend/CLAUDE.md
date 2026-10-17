@@ -111,7 +111,7 @@ root package**:
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
-| `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Pick`, `Report` |
+| `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Pick`, `Platform`, `PlatformsOf`, `Report`, `PlatformOutcome` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
 reach a domain type, a storage adapter or a controller even if it wanted to. A
@@ -3189,7 +3189,7 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 
 ### The clips job (`internal/clips/`, `cmd/clips`)
 
-**Twice a day a workflow makes the best clips of the last 12 hours and schedules them on TikTok**
+**Twice a day a workflow makes the best clips of the last 12 hours and schedules them on TikTok and YouTube Shorts**
 (`.github/workflows/clips.yml`; the frontend's CLAUDE.md, "Clips", has the four jobs and how a clip is made). The
 frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
 which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
@@ -3199,7 +3199,7 @@ meet in files: the replay this job saves for the generator, and `clips.v1.Shortl
 ```
 clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -shortlist <shortlist.json> [-count 2]
-clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
+clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,youtube] [-summary <file>]
 ```
 
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
@@ -3210,22 +3210,26 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   told. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's `--pick` takes.
   It needs `ZERNIO_API_KEY`, to read what was told.
 - **`schedule` sends every clip of the folder** (`clip-<n>.json` with its `clip-<n>.mp4` beside it) to the posting
-  service, and adds a table to the summary: each clip, its time, and whether it is scheduled. It exits 1 when a
-  clip was not scheduled, when the folder holds none, or when the summary cannot be written. A clip refused does
-  not stop the next one.
+  service, **as one post on every platform** (`-platforms`, default all: `tiktok,youtube`), and adds a table to the
+  summary: a row for each clip on each platform, its time, and whether it is scheduled there. It exits 1 when a
+  platform did not take a clip, when the folder holds none, or when the summary cannot be written. **Platforms are
+  independent**: a platform that refuses does not stop the others, and a clip refused does not stop the next one.
+  The workflow passes the repository variable `CLIPS_PLATFORMS` (Settings → Variables), so `tiktok` alone turns
+  YouTube off with no commit; unset is every platform.
 - **`cmd/clips` is three stages, and `run` only names them**: parse, work, display (see [A command's `run` is a
   table of contents](#a-commands-run-is-a-table-of-contents)). `main.go` holds no stage.
   - **`flags.Parse`** (`cmd/clips/internal/flags`) answers one typed `flags.Config`: the command, its files, and
-    the job's `clips.Config` with `CLICKPLANET_SSH` and `ZERNIO_API_KEY` read into it. No flag pointer leaves it.
+    the job's `clips.Config` with `CLICKPLANET_SSH` and `ZERNIO_API_KEY` read into it, and `-platforms` checked by
+    the domain (`clips.PlatformsOf`: each known, each once). No flag pointer leaves it.
     Flags and not `cpconfigs`: the job has a few settings and one secret, and a workflow passes them on the
     command line.
   - **The work returns values and prints nothing**: `clips.Fetch`, `clips.Choose` (the picks) and
     `clips.Schedule` (the `Report`), in `internal/clips/job.go`, which wires the objects as a `module.go` does.
-    A clip the service refused is in the report, not in the error: the error is for a run that could not be
-    made at all.
+    A clip or a platform the service refused is in the report, not in the error: the error is for a run that
+    could not be made at all.
   - **The display owns the output and says how it went** (`cmd/clips/internal/display`): `display.Picks`
     writes the array, `display.Report` writes the table, to the summary file when one is named, and answers
-    whether every clip is scheduled. It does not turn that into an error: `schedule` in `main.go` decides, and
+    whether every clip is scheduled on each of its platforms. It does not turn that into an error: `schedule` in `main.go` decides, and
     exits 1 on `errUnsent`.
   - **The dispatch acts on `fetch`, `choose` and `schedule`, and on nothing else**: any other command is
     `errUnknownCommand`, and nothing is fetched, printed or posted.
@@ -3261,12 +3265,14 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
-- **`Cadence.Posts(clips, now, dice)`** is when: the best clip a `Review` from now (4 hours), each next one a
-  `Spacing` later (2 hours), on a whole minute and never sooner than the review. So a run at 12:17 UTC that renders
-  in 20 minutes posts near 16:40 and 18:40. It also rolls each post's words (`Dice`, `SystemDice`), so no post
-  exists without them.
-- **The caption is written here** (`caption.go`), from what the generator gives (its teasers, the countries with
-  their hashtags, the continent's, the music's credit), since the platform is the job's business:
+- **`Plan.Posts(clips, now, dice)`** is when and where: the best clip a `Review` from now (4 hours), each next one a
+  `Spacing` later (2 hours), on a whole minute and never sooner than the review, each to all the `Platforms` at
+  once. So a run at 12:17 UTC that renders in 20 minutes posts near 16:40 and 18:40. It also rolls each post's words
+  (`Dice`, `SystemDice`), so no post exists without them. **A platform is a `Platform`** (`tiktok`, `youtube`), and
+  `PlatformsOf` is the only way from a name to one: each known, each once.
+- **The words of each platform are written here**, from what the generator gives (its teasers, the countries with
+  their hashtags, the continent's, the music's credit), since the platform is the job's business. One teaser and
+  one call per post, the same on every platform. **TikTok's caption** (`caption.go`):
   ```
   ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET
   Play for free 👉 clickplanet.lol
@@ -3278,6 +3284,18 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   when its licence asks for one, comes before the tags. Then the game's tags, the continent's, each country's, and
   one TikTok community tag for the flag the clip is about (`#usatiktok🇺🇸`; an ISO private-use code such as `xk`
   has no flag emoji).
+- **YouTube's words** (`youtube.go`) are a title, a description and tags, within YouTube's limits:
+  ```
+  ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET
+
+  Play for free 👉 clickplanet.lol
+  #clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral #europe #italy #portugal
+  ```
+  The title is the teaser and the brand, 100 characters at most: the teaser alone when both do not fit, cut with
+  `…` when it does not either. The description is the call, the music's credit and the hashtags, **60 at most**:
+  past that YouTube ignores every hashtag of the video. The tags are the same words with no `#`, the first that fit
+  in 500 characters with a comma between two, as YouTube counts them. **No `#Shorts`**: a vertical video of 3
+  minutes or less is a Short by itself. No TikTok community tag either.
 - **Review is opt-out, so nothing is ever sent for a time too close.** `Post.Reviewable(now)` is false under an hour
   ahead (`leastReview`), and `Sender` then refuses the post (`ErrNoTimeToReview`) rather than send it: nobody could
   cancel it, and the service publishes a time already past **at once**. It is checked before every try, since a
@@ -3287,14 +3305,17 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   1, 5 then 15 minutes, or as long as the service said when that is longer; a service that asks for longer than
   the longest wait fails the post at once. `Pause` is the wait, so a test takes no time (`RecordedPause` moves the
   fixed clock instead).
-- **`Service` is the posting service, one method**: `Schedule(ctx, post) (PostID, error)`. Its contract is in two
-  lines on it: for the post's time and never sooner, and a post scheduled twice is one post there.
+- **`Service` is the posting service, one method**: `Schedule(ctx, post) (Scheduled, error)`. Its contract is on
+  it: for the post's time and never sooner, on each of its platforms that takes it, and a post scheduled twice is
+  one post there. `Scheduled` is the post's id and each platform it is not on, with why (`Refused`); the error is a
+  post made on no platform.
 - `Clip` and `Post` have no getter: an adapter reads `TakeSnapshot()`, and a `ClipSnapshot` the generator left a
-  part out of does not `Restore()`. `Report` is what became of each clip, for the display and the log;
-  `Complete()` is whether every one is scheduled.
+  part out of does not `Restore()`. `Report` is what became of each clip on each platform, for the display and the
+  log; `Complete()` is whether every one is a post on all its platforms.
 
 **`posts/zernio/` is the one package that knows the service** (Zernio, chosen 2026-10-12 over upload-post: its
-free tier has TikTok and the whole API). A change of service is that package, its line in `job.go`, the variable
+free tier has TikTok and the whole API, posts are unlimited, and the first two accounts are free). **No Instagram
+for now** (2026-10-17): a third account is 6 USD a month. A change of service is that package, its line in `job.go`, the variable
 `main.go` reads the key from, and the client below.
 
 - **The HTTP client is generated, not written, and lives in `shared/cpzernio`** with all that makes it:
@@ -3310,11 +3331,24 @@ free tier has TikTok and the whole API). A change of service is that package, it
   on one added field, and `CreatePost` fails on the 201 of the document's own example, **after the post was
   made**, the bug its issue 4 reported in August. A pinned version breaks when the API grows; ours ignores what
   it does not know, and two tests pin that (`…FieldsAddedLater…`). It is also 36 MB of Go in one package.
-- **Four calls a clip**: `GET /v1/accounts?platform=tiktok`, `POST /v1/media/presign`, a `PUT` of the video to
-  the address that answers (the storage, not the API: raw HTTP, and no key), then `POST /v1/posts` with
-  `scheduledFor`. **Never `publishNow`.**
-- **It posts to the one connected TikTok account**, and refuses to guess between two: no account id is configured.
-  An account per country will need one.
+- **Four calls a clip**: `GET /v1/accounts`, `POST /v1/media/presign`, a `PUT` of the video to the address that
+  answers (the storage, not the API: raw HTTP, and no key), then `POST /v1/posts` with `scheduledFor`. **Never
+  `publishNow`.**
+- **One clip is one Zernio post, with a target for each platform**, so one cancel in the dashboard stops it
+  everywhere. Each target carries its own words (`customContent`) and its own settings (`platformSpecificData`), so
+  a change for one platform (TikTok's sound) touches no other. Zernio publishes each target on its own: one
+  platform that fails at its time leaves the post `partial`, and the next run's history says which (`tiktok: …`).
+  - TikTok: public, comments, duets and stitches on.
+  - YouTube: public, category Gaming (`20`), and **not made for kids**, sent every time since YouTube may block the
+    views of a video with no answer. It is the user's legal choice (2026-10-17): "made for kids" turns comments
+    off for good. The tags go at the root of the post, where Zernio sends them to YouTube alone. Zernio uploads a
+    scheduled video to YouTube up to 15 minutes before its time, private until then: **cancel a clip earlier than
+    that**.
+- **It posts to the one connected account of each platform**, and refuses to guess between two: no account id is
+  configured. A platform with none or two is refused (`Refused`), and the post still goes to the others; with no
+  platform left there is no upload and no post. An account per country will need an id.
+- **What is scheduled on a platform is what Zernio kept**: a platform the kept post has no target for is refused.
+  A run made again after a platform was connected gets the first post back, without it, and says so.
 - **`Idempotency-Key` is the SHA-256 of the video**, so a run made again, or a try after a timeout, is the same
   post there and not a second one. Zernio matches on the key alone, so the video uploaded again under a new
   address is still the same post.
@@ -3327,7 +3361,7 @@ free tier has TikTok and the whole API). A change of service is that package, it
   and never to the storage, and **an error never carries a URL**: the address a video is uploaded to is a
   credential for an hour, and Go's `url.Error` prints it. `unreachable` keeps the cause and drops the address;
   a test pins it.
-- **A post TikTok refuses at its time is seen by the next run**, hours after its own ended: the history `choose`
+- **A post a platform refuses at its time is seen by the next run**, hours after its own ended: the history `choose`
   reads holds each post's state and each platform's error, and `log_history` logs every post of the last day,
   a refused one as a warning with why (`a post of the last day was refused … failure="tiktok: …"`).
 - The tests run it against `httptest`, with the requests and the answers of Zernio's OpenAPI document.

@@ -1,6 +1,7 @@
 package posts
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -23,7 +24,10 @@ var gameTags = []string{
 	"clickplanet", "rplace", "wplace", "pixelwar", "map", "geographygame", "conquestgame", "videogame", "clickergame", "viral",
 }
 
-const site = "clickplanet.lol"
+const (
+	site  = "clickplanet.lol"
+	brand = " | CLICKPLANET"
+)
 
 type Dice interface {
 	// From 0 to n-1.
@@ -39,32 +43,52 @@ func wordingOf(clip Clip, dice Dice) wording {
 	return wording{teaser: clip.teasers[dice.IntN(len(clip.teasers))], call: callsToAction[dice.IntN(len(callsToAction))]}
 }
 
+type TikTokWords struct {
+	Caption string
+}
+
 // A teaser that says where it happens, a call with the site, the music's credit, then the tags.
-func (w wording) caption(clip Clip) string {
-	lines := []string{w.teaser + " | CLICKPLANET", w.call.Words + " 👉 " + site}
+func (w wording) tiktok(clip Clip) TikTokWords {
+	lines := append([]string{w.teaser + brand}, w.callAndCredit(clip)...)
+	tags := append(tagsOf(clip), communityTagsOf(clip)...)
+	return TikTokWords{Caption: strings.Join(append(lines, hashtagged(tags)), "\n")}
+}
+
+func (w wording) callAndCredit(clip Clip) []string {
+	lines := []string{w.call.Words + " 👉 " + site}
 	if clip.attribution != "" {
 		lines = append(lines, "🎵 "+clip.attribution)
 	}
-	return strings.Join(append(lines, strings.Join(hashtagsOf(clip), " ")), "\n")
+	return lines
 }
 
-func hashtagsOf(clip Clip) []string {
-	tags := make([]string, 0, len(gameTags)+len(clip.countries)+2)
-	for _, tag := range gameTags {
-		tags = append(tags, "#"+tag)
-	}
+func tagsOf(clip Clip) []string {
+	tags := slices.Clone(gameTags)
 	if clip.continentTag != "" {
-		tags = append(tags, "#"+clip.continentTag)
+		tags = append(tags, clip.continentTag)
 	}
 	for _, country := range clip.countries {
-		tags = append(tags, "#"+country.Tag)
+		tags = append(tags, country.Tag)
 	}
+	return tags
+}
+
+func communityTagsOf(clip Clip) []string {
+	var tags []string
 	for _, country := range clip.countries {
 		if country.Code == clip.key.Flag {
-			tags = append(tags, "#"+country.Tag+"tiktok"+flagOf(country.Code))
+			tags = append(tags, country.Tag+"tiktok"+flagOf(country.Code))
 		}
 	}
 	return tags
+}
+
+func hashtagged(tags []string) string {
+	marked := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		marked = append(marked, "#"+tag)
+	}
+	return strings.Join(marked, " ")
 }
 
 // ISO's x codes are for private use: they have no flag.
