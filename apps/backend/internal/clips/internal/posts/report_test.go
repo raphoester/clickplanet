@@ -9,31 +9,56 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 )
 
-func TestAReportSaysWhatBecameOfEachClip(t *testing.T) {
-	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
+func scheduledOn(failures ...string) []posts.PlatformOutcome {
+	return []posts.PlatformOutcome{{Platform: posts.TikTok, Failure: failures[0]}, {Platform: posts.YouTube, Failure: failures[1]}}
+}
+
+func TestAReportSaysWhatBecameOfEachClipOnEachPlatform(t *testing.T) {
+	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
 
 	report := posts.Report{}.
-		With(planned[0], "post-1", nil).
-		With(planned[1], "", errors.New("the caption is too long"))
+		With(planned[0], posts.Scheduled{ID: "post-1"}, nil).
+		With(planned[1], posts.Scheduled{}, errors.New("the caption is too long"))
 
 	assert.Equal(t, posts.Report{
-		{Title: "BEST", At: planned[0].TakeSnapshot().At, Post: "post-1"},
-		{Title: "SECOND", At: planned[1].TakeSnapshot().At, Failure: "the caption is too long"},
+		{Title: "BEST", At: planned[0].TakeSnapshot().At, Post: "post-1", Platforms: scheduledOn("", "")},
+		{
+			Title: "SECOND", At: planned[1].TakeSnapshot().At,
+			Platforms: scheduledOn("the caption is too long", "the caption is too long"),
+		},
 	}, report)
 	assert.False(t, report.Complete())
 }
 
-func TestARunThatScheduledEveryClipIsComplete(t *testing.T) {
-	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
+func TestAPlatformThatRefusedAClipIsInTheReportBesideTheOneThatTookIt(t *testing.T) {
+	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
 
-	assert.True(t, posts.Report{}.With(planned[0], "post-1", nil).Complete())
+	report := posts.Report{}.With(planned[0], posts.Scheduled{
+		ID: "post-1", Refused: map[posts.Platform]error{posts.YouTube: errors.New("no youtube account")},
+	}, nil)
+
+	assert.Equal(t, scheduledOn("", "no youtube account"), report[0].Platforms)
+	assert.Equal(t, posts.PostID("post-1"), report[0].Post)
+	assert.False(t, report.Complete())
+}
+
+func TestARunThatScheduledEveryClipOnEveryPlatformIsComplete(t *testing.T) {
+	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
+
+	assert.True(t, posts.Report{}.With(planned[0], posts.Scheduled{ID: "post-1"}, nil).Complete())
+}
+
+func TestAClipThatIsNoPostIsNeverComplete(t *testing.T) {
+	planned := posts.Plan{}.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
+
+	assert.False(t, posts.Report{}.With(planned[0], posts.Scheduled{}, nil).Complete())
 }
 
 func TestAddingToAReportLeavesItAsItWas(t *testing.T) {
-	planned := cadence.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
-	first := posts.Report{}.With(planned[0], "post-1", nil)
+	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
+	first := posts.Report{}.With(planned[0], posts.Scheduled{ID: "post-1"}, nil)
 
-	_ = first.With(planned[1], "post-2", nil)
+	_ = first.With(planned[1], posts.Scheduled{ID: "post-2"}, nil)
 
 	assert.Len(t, first, 1)
 }

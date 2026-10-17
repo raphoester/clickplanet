@@ -21,8 +21,10 @@ import (
 )
 
 const (
-	oneAccount = `{"accounts":[{"_id":"acc-1","platform":"tiktok","isActive":true}]}`
-	kept       = `{"post":{"_id":"post-1","status":"scheduled","scheduledFor":"2026-10-12T16:40:00Z"},"message":"Post scheduled successfully"}`
+	oneAccountEach = `{"accounts":[{"_id":"acc-1","platform":"tiktok","isActive":true},{"_id":"acc-2","platform":"youtube","isActive":true}]}`
+	onBoth         = `"platforms":[{"platform":"tiktok","status":"pending"},{"platform":"youtube","status":"pending"}]`
+	kept           = `{"post":{"_id":"post-1","status":"scheduled","scheduledFor":"2026-10-12T16:40:00Z",` + onBoth + `},` +
+		`"message":"Post scheduled successfully"}`
 )
 
 var at = time.Date(2026, 10, 12, 16, 40, 0, 0, time.UTC)
@@ -59,7 +61,7 @@ func (a answer) write(w http.ResponseWriter) {
 
 func newFake() *zernioFake {
 	return &zernioFake{
-		accounts: answer{status: http.StatusOK, body: oneAccount},
+		accounts: answer{status: http.StatusOK, body: oneAccountEach},
 		upload:   answer{status: http.StatusOK},
 		posts:    answer{status: http.StatusCreated, body: kept},
 		listed:   answer{status: http.StatusOK, body: `{"posts":[]}`},
@@ -82,8 +84,7 @@ func (f *zernioFake) serve(t *testing.T) *httptest.Server {
 
 		switch call {
 		case "GET /v1/accounts":
-			assert.Equal(t, "tiktok", r.URL.Query().Get("platform"))
-			assert.Equal(t, "true", r.URL.Query().Get("excludeHidden"))
+			assert.Equal(t, url.Values{"excludeHidden": {"true"}}, r.URL.Query())
 			f.accounts.write(w)
 		case "POST /v1/media/presign":
 			assert.NoError(t, json.Unmarshal(raw, &f.presigned))
@@ -93,7 +94,8 @@ func (f *zernioFake) serve(t *testing.T) *httptest.Server {
 			}
 			answer{status: http.StatusOK, body: fmt.Sprintf(
 				`{"uploadUrl":%q,"publicUrl":"https://media.example/clip-1.mp4","key":"temp/clip-1.mp4","expiresIn":3600}`,
-				server.URL+"/storage/clip-1.mp4?signature=the-signature")}.write(w)
+				server.URL+"/storage/clip-1.mp4?signature=the-signature",
+			)}.write(w)
 		case "PUT /storage/clip-1.mp4":
 			f.uploaded = raw
 			f.upload.write(w)
@@ -111,9 +113,12 @@ func (f *zernioFake) serve(t *testing.T) *httptest.Server {
 	return server
 }
 
-func post(t *testing.T) posts.Post {
+func post(t *testing.T, platforms ...posts.Platform) posts.Post {
 	t.Helper()
 
+	if len(platforms) == 0 {
+		platforms = []posts.Platform{posts.TikTok, posts.YouTube}
+	}
 	video := filepath.Join(t.TempDir(), "clip-1.mp4")
 	require.NoError(t, os.WriteFile(video, []byte("the video"), 0o600))
 	clip, err := posts.ClipSnapshot{
@@ -122,43 +127,77 @@ func post(t *testing.T) posts.Post {
 	}.Restore()
 	require.NoError(t, err)
 
-	planned := posts.Cadence{Review: 4 * time.Hour}.Posts([]posts.Clip{clip}, at.Add(-4*time.Hour), posts.LoadedDice(0))
+	planned := posts.Plan{Review: 4 * time.Hour, Platforms: platforms}.Posts([]posts.Clip{clip}, at.Add(-4*time.Hour), posts.LoadedDice(0))
 	require.Equal(t, at, planned[0].TakeSnapshot().At)
 	return planned[0]
 }
 
-func schedule(t *testing.T, fake *zernioFake) (posts.PostID, error) {
+func schedule(t *testing.T, fake *zernioFake, platforms ...posts.Platform) (posts.Scheduled, error) {
 	t.Helper()
 
 	server := fake.serve(t)
 	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
 	require.NoError(t, err)
-	return service.Schedule(t.Context(), post(t)) //nolint:wrapcheck // the test reads the service's own error.
+	return service.Schedule(t.Context(), post(t, platforms...)) //nolint:wrapcheck // the test reads the service's own error.
 }
 
-func TestAClipIsUploadedThenScheduledOnTheOneTikTokAccount(t *testing.T) {
+func tiktokTarget(t *testing.T) map[string]any {
+	t.Helper()
+
+	return map[string]any{
+		"platform": "tiktok", "accountId": "acc-1", "customContent": post(t).TakeSnapshot().TikTok.Caption,
+		"platformSpecificData": map[string]any{
+			"privacyLevel": "PUBLIC_TO_EVERYONE", "allowComment": true, "allowDuet": true, "allowStitch": true,
+			"contentPreviewConfirmed": true, "expressConsentGiven": true,
+		},
+	}
+}
+
+func TestAClipIsUploadedOnceThenScheduledAsOnePostOnTikTokAndYouTube(t *testing.T) {
 	fake := newFake()
 
-	id, err := schedule(t, fake)
+	scheduled, err := schedule(t, fake)
 
 	require.NoError(t, err)
-	assert.Equal(t, posts.PostID("post-1"), id)
+	assert.Equal(t, posts.PostID("post-1"), scheduled.ID)
+	assert.Empty(t, scheduled.Refused)
 	assert.Equal(t, []string{"GET /v1/accounts", "POST /v1/media/presign", "PUT /storage/clip-1.mp4", "POST /v1/posts"}, fake.calls)
 	assert.Equal(t, map[string]any{"filename": "clip-1.mp4", "contentType": "video/mp4", "size": float64(9)}, fake.presigned)
 	assert.Equal(t, []byte("the video"), fake.uploaded)
 	assert.Equal(t, "video/mp4", fake.headers["PUT /storage/clip-1.mp4"].Get("Content-Type"))
+	youtube := post(t).TakeSnapshot().YouTube
+	tags := make([]any, 0, len(youtube.Tags))
+	for _, tag := range youtube.Tags {
+		tags = append(tags, tag)
+	}
 	assert.Equal(t, map[string]any{
-		"title":        "FRANCE IS ATTACKING EUROPE",
-		"content":      post(t).TakeSnapshot().Caption,
-		"mediaItems":   []any{map[string]any{"type": "video", "url": "https://media.example/clip-1.mp4"}},
-		"platforms":    []any{map[string]any{"platform": "tiktok", "accountId": "acc-1"}},
+		"title":      "FRANCE IS ATTACKING EUROPE",
+		"mediaItems": []any{map[string]any{"type": "video", "url": "https://media.example/clip-1.mp4"}},
+		"platforms": []any{
+			tiktokTarget(t),
+			map[string]any{
+				"platform": "youtube", "accountId": "acc-2", "customContent": youtube.Description,
+				"platformSpecificData": map[string]any{
+					"title": "FRANCE TAKES OVER EUROPE | CLICKPLANET", "visibility": "public", "madeForKids": false, "categoryId": "20",
+				},
+			},
+		},
+		"tags":         tags,
 		"scheduledFor": "2026-10-12T16:40:00Z",
 		"metadata":     map[string]any{"storyFlag": "fr", "storyContinent": "Europe", "callToAction": "join-the-battle"},
-		"tiktokSettings": map[string]any{
-			"privacyLevel": "PUBLIC_TO_EVERYONE", "allowComment": true, "allowDuet": true, "allowStitch": true,
-			"contentPreviewConfirmed": true, "expressConsentGiven": true,
-		},
 	}, fake.sent)
+}
+
+func TestAPostForTikTokAloneHasNoYouTubeTargetAndNoTags(t *testing.T) {
+	fake := newFake()
+	fake.posts = answer{status: http.StatusCreated, body: `{"post":{"_id":"post-1","status":"scheduled","platforms":[{"platform":"tiktok"}]}}`}
+
+	scheduled, err := schedule(t, fake, posts.TikTok)
+
+	require.NoError(t, err)
+	assert.Equal(t, posts.Scheduled{ID: "post-1", Refused: map[posts.Platform]error{}}, scheduled)
+	assert.Equal(t, []any{tiktokTarget(t)}, fake.sent["platforms"])
+	assert.NotContains(t, fake.sent, "tags")
 }
 
 func TestTheKeyGoesToZernioAndNeverToTheStorage(t *testing.T) {
@@ -179,10 +218,10 @@ func TestTheSameVideoIsSentUnderTheSameKeySoARunMadeAgainPostsItOnce(t *testing.
 
 	_, err := schedule(t, first)
 	require.NoError(t, err)
-	id, err := schedule(t, second)
+	scheduled, err := schedule(t, second)
 
 	require.NoError(t, err)
-	assert.Equal(t, posts.PostID("post-1"), id)
+	assert.Equal(t, posts.PostID("post-1"), scheduled.ID)
 	key := first.headers["POST /v1/posts"].Get("Idempotency-Key")
 	assert.Len(t, key, 2*sha256.Size)
 	assert.Equal(t, key, second.headers["POST /v1/posts"].Get("Idempotency-Key"))
@@ -190,25 +229,47 @@ func TestTheSameVideoIsSentUnderTheSameKeySoARunMadeAgainPostsItOnce(t *testing.
 
 func TestAnAnswerWithFieldsAddedLaterIsStillRead(t *testing.T) {
 	fake := newFake()
-	fake.accounts = answer{status: http.StatusOK, body: `{"accounts":[{"_id":"acc-1","platform":"tiktok","profileId":"p-1","isActive":true,"addedLater":1}],"hasAnalyticsAccess":false,"addedLater":1}`}
-	fake.posts = answer{status: http.StatusCreated, body: `{"post":{"_id":"post-1","status":"scheduled","addedLater":1,` +
-		`"platforms":[{"platform":"tiktok","status":"pending","addedLater":1,` +
-		`"accountId":{"_id":"acc-1","platform":"tiktok","username":"@clickplanet","isActive":true,"addedLater":1}}]},"addedLater":1}`}
+	fake.accounts = answer{status: http.StatusOK, body: `{"accounts":[` +
+		`{"_id":"acc-1","platform":"tiktok","profileId":"p-1","isActive":true,"addedLater":1},` +
+		`{"_id":"acc-2","platform":"youtube","profileId":"p-1","isActive":true,"addedLater":1}` +
+		`],"hasAnalyticsAccess":false,"addedLater":1}`}
+	fake.posts = answer{status: http.StatusCreated, body: `{"post":{"_id":"post-1","status":"scheduled","addedLater":1,"platforms":[` +
+		`{"platform":"tiktok","status":"pending","addedLater":1,` +
+		`"accountId":{"_id":"acc-1","platform":"tiktok","username":"@clickplanet","isActive":true,"addedLater":1}},` +
+		`{"platform":"youtube","status":"pending","addedLater":1,` +
+		`"accountId":{"_id":"acc-2","platform":"youtube","username":"@clickplanet","isActive":true,"addedLater":1}}` +
+		`]},"addedLater":1}`}
 
-	id, err := schedule(t, fake)
+	scheduled, err := schedule(t, fake)
 
 	require.NoError(t, err)
-	assert.Equal(t, posts.PostID("post-1"), id)
+	assert.Equal(t, posts.PostID("post-1"), scheduled.ID)
+	assert.Empty(t, scheduled.Refused)
 }
 
 func TestTheSamePostAnsweredAgainWithFieldsAddedLaterIsStillRead(t *testing.T) {
 	fake := newFake()
-	fake.posts = answer{status: http.StatusOK, body: `{"post":{"_id":"post-1","status":"scheduled","addedLater":1},"message":"Post already exists (idempotent retry)","addedLater":1}`}
+	fake.posts = answer{status: http.StatusOK, body: `{"post":{"_id":"post-1","status":"scheduled","addedLater":1,` + onBoth + `},` +
+		`"message":"Post already exists (idempotent retry)","addedLater":1}`}
 
-	id, err := schedule(t, fake)
+	scheduled, err := schedule(t, fake)
 
 	require.NoError(t, err)
-	assert.Equal(t, posts.PostID("post-1"), id)
+	assert.Equal(t, posts.PostID("post-1"), scheduled.ID)
+	assert.Empty(t, scheduled.Refused)
+}
+
+func TestAPlatformThePostZernioKeptIsNotOnIsRefused(t *testing.T) {
+	fake := newFake()
+	fake.posts = answer{status: http.StatusOK, body: `{"post":{"_id":"post-1","status":"scheduled","platforms":[{"platform":"tiktok"}]},` +
+		`"message":"Post already exists (idempotent retry)"}`}
+
+	scheduled, err := schedule(t, fake)
+
+	require.NoError(t, err)
+	assert.Equal(t, posts.PostID("post-1"), scheduled.ID)
+	require.Len(t, scheduled.Refused, 1)
+	require.ErrorContains(t, scheduled.Refused[posts.YouTube], "zernio kept the post without it")
 }
 
 func TestAPostZernioDidNotKeepAsScheduledIsAFailure(t *testing.T) {
@@ -266,22 +327,50 @@ func TestARefusalIsAnErrorThatSaysWhyAndIsNotBusy(t *testing.T) {
 	}
 }
 
-func TestNoTikTokAccountOrMoreThanOneIsRefusedBeforeAnyUpload(t *testing.T) {
-	for name, accounts := range map[string]string{
-		"none":         `{"accounts":[]}`,
-		"disconnected": `{"accounts":[{"_id":"acc-1","platform":"tiktok","isActive":false}]}`,
-		"two":          `{"accounts":[{"_id":"acc-1","platform":"tiktok","isActive":true},{"_id":"acc-2","platform":"tiktok","isActive":true}]}`,
+func TestAPlatformWithNoAccountOrTwoIsRefusedAndThePostStillGoesToTheOthers(t *testing.T) {
+	tiktok := `{"_id":"acc-1","platform":"tiktok","isActive":true}`
+	for name, youtube := range map[string]string{
+		"none":         ``,
+		"disconnected": `,{"_id":"acc-2","platform":"youtube","isActive":false}`,
+		"two":          `,{"_id":"acc-2","platform":"youtube","isActive":true},{"_id":"acc-3","platform":"youtube","isActive":true}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			fake := newFake()
-			fake.accounts = answer{status: http.StatusOK, body: accounts}
+			fake.accounts = answer{status: http.StatusOK, body: `{"accounts":[` + tiktok + youtube + `]}`}
+			fake.posts = answer{status: http.StatusCreated, body: `{"post":{"_id":"post-1","status":"scheduled","platforms":[{"platform":"tiktok"}]}}`}
 
-			_, err := schedule(t, fake)
+			scheduled, err := schedule(t, fake)
 
-			require.ErrorContains(t, err, "exactly one")
-			assert.Equal(t, []string{"GET /v1/accounts"}, fake.calls)
+			require.NoError(t, err)
+			assert.Equal(t, posts.PostID("post-1"), scheduled.ID)
+			require.Len(t, scheduled.Refused, 1)
+			require.ErrorContains(t, scheduled.Refused[posts.YouTube], "connected youtube accounts, and the job posts to exactly one")
+			assert.Equal(t, []any{tiktokTarget(t)}, fake.sent["platforms"])
+			assert.NotContains(t, fake.sent, "tags")
 		})
 	}
+}
+
+func TestNoAccountOnAnyPlatformIsNoPostAndNoUpload(t *testing.T) {
+	fake := newFake()
+	fake.accounts = answer{status: http.StatusOK, body: `{"accounts":[]}`}
+
+	scheduled, err := schedule(t, fake)
+
+	require.NoError(t, err)
+	assert.Empty(t, scheduled.ID)
+	assert.Len(t, scheduled.Refused, 2)
+	assert.Equal(t, []string{"GET /v1/accounts"}, fake.calls)
+}
+
+func TestAListOfAccountsZernioRefusesIsAnError(t *testing.T) {
+	fake := newFake()
+	fake.accounts = answer{status: http.StatusUnauthorized, body: `{"error":"Invalid API key"}`}
+
+	_, err := schedule(t, fake)
+
+	require.ErrorContains(t, err, "zernio answered 401 to the list of accounts: Invalid API key")
+	assert.Equal(t, []string{"GET /v1/accounts"}, fake.calls)
 }
 
 func TestAFailedUploadSchedulesNothing(t *testing.T) {
@@ -332,7 +421,7 @@ func TestAVideoThatIsNotThereIsAnError(t *testing.T) {
 	}.Restore()
 	require.NoError(t, err)
 
-	_, err = service.Schedule(t.Context(), posts.Cadence{Review: 4 * time.Hour}.Posts([]posts.Clip{clip}, at, posts.LoadedDice(0))[0])
+	_, err = service.Schedule(t.Context(), posts.Plan{Review: 4 * time.Hour, Platforms: []posts.Platform{posts.TikTok}}.Posts([]posts.Clip{clip}, at, posts.LoadedDice(0))[0])
 
 	require.ErrorContains(t, err, "failed to read the video")
 	assert.Empty(t, fake.calls)

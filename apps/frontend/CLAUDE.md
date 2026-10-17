@@ -2919,8 +2919,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
    draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
    clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
    recorders do not help there: each one draws every frame.
-4. **schedule**: the backend's `clips schedule` sends each clip to the posting service, for a time hours ahead.
-   **Nothing is ever published at once**: the review is to cancel a clip in the service's dashboard before its time.
+4. **schedule**: the backend's `clips schedule` sends each clip to the posting service, for a time hours ahead, as
+   one post on TikTok and YouTube Shorts. **Nothing is ever published at once**: the review is to cancel a clip in
+   the service's dashboard before its time, which stops it on both.
 
 What chooses, when a clip goes out, the client of the service and the run's summary are Go, in the backend
 (its CLAUDE.md, "The clips job"). **This app keeps only what needs the browser**, and hands the rest over as data,

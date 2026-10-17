@@ -25,8 +25,10 @@ import (
 )
 
 type (
-	Pick   = posts.Pick
-	Report = posts.Report
+	Pick            = posts.Pick
+	Platform        = posts.Platform
+	Report          = posts.Report
+	PlatformOutcome = posts.PlatformOutcome
 )
 
 type Config struct {
@@ -35,6 +37,8 @@ type Config struct {
 	PerRun  int
 	Review  time.Duration
 	Spacing time.Duration
+	// Each clip is one post on all of them.
+	Platforms []Platform
 
 	Zernio zernio.Config
 }
@@ -60,7 +64,14 @@ const (
 	historyTimeout = time.Minute
 )
 
-var defaultBackoff = posts.Backoff{time.Minute, 5 * time.Minute, 15 * time.Minute}
+var (
+	defaultBackoff   = posts.Backoff{time.Minute, 5 * time.Minute, 15 * time.Minute}
+	defaultPlatforms = []Platform{posts.TikTok, posts.YouTube}
+)
+
+func PlatformsOf(names ...string) ([]Platform, error) {
+	return posts.PlatformsOf(names...) //nolint:wrapcheck // a pure delegation: the domain already named what is wrong.
+}
 
 func (c Config) withDefaults() Config {
 	if c.Replay.Span == 0 {
@@ -74,6 +85,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.Spacing <= 0 {
 		c.Spacing = defaultSpacing
+	}
+	if len(c.Platforms) == 0 {
+		c.Platforms = defaultPlatforms
 	}
 	return c
 }
@@ -126,7 +140,7 @@ func Schedule(ctx context.Context, folder string, config Config, logger *slog.Lo
 
 	schedule := log_schedule_clips.New(schedule_clips_usecase.New(
 		generator_output.Folder(folder),
-		posts.Cadence{Review: config.Review, Spacing: config.Spacing},
+		posts.Plan{Review: config.Review, Spacing: config.Spacing, Platforms: config.Platforms},
 		clock, posts.SystemDice{}, sender,
 	), logger)
 

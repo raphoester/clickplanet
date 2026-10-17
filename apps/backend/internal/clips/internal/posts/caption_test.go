@@ -27,7 +27,7 @@ func portugalInItaly(t *testing.T, attribution string) posts.Clip {
 func captionOf(t *testing.T, clip posts.Clip, face int) posts.PostSnapshot {
 	t.Helper()
 
-	return cadence.Posts([]posts.Clip{clip}, time.Date(2026, 10, 14, 12, 17, 0, 0, time.UTC), posts.LoadedDice(face))[0].TakeSnapshot()
+	return plan.Posts([]posts.Clip{clip}, time.Date(2026, 10, 14, 12, 17, 0, 0, time.UTC), posts.LoadedDice(face))[0].TakeSnapshot()
 }
 
 func TestACaptionSaysWhereItHappensHowToPlayAndItsTags(t *testing.T) {
@@ -36,21 +36,21 @@ func TestACaptionSaysWhereItHappensHowToPlayAndItsTags(t *testing.T) {
 	assert.Equal(t, "ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET\n"+
 		"Join the battle now 👉 clickplanet.lol\n"+
 		"#clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral "+
-		"#europe #italy #portugal #portugaltiktok🇵🇹", post.Caption)
+		"#europe #italy #portugal #portugaltiktok🇵🇹", post.TikTok.Caption)
 	assert.Equal(t, "join-the-battle", post.CallToAction)
 }
 
 func TestTheTeaserAndTheCallAreTheDicesPick(t *testing.T) {
 	post := captionOf(t, portugalInItaly(t, ""), 3)
 
-	assert.Contains(t, post.Caption, "GENERATIONAL DOWNFALL OF PORTUGAL | CLICKPLANET\nPlay for free 👉 clickplanet.lol\n")
+	assert.Contains(t, post.TikTok.Caption, "GENERATIONAL DOWNFALL OF PORTUGAL | CLICKPLANET\nPlay for free 👉 clickplanet.lol\n")
 	assert.Equal(t, "free", post.CallToAction)
 }
 
 func TestTheCreditOfTheMusicComesBeforeTheTags(t *testing.T) {
 	post := captionOf(t, portugalInItaly(t, "Fida'i (instrumental) by Sounds Monarch, CC BY 3.0"), 0)
 
-	assert.Contains(t, post.Caption, "clickplanet.lol\n🎵 Fida'i (instrumental) by Sounds Monarch, CC BY 3.0\n#clickplanet ")
+	assert.Contains(t, post.TikTok.Caption, "clickplanet.lol\n🎵 Fida'i (instrumental) by Sounds Monarch, CC BY 3.0\n#clickplanet ")
 }
 
 func TestOnlyTheFlagTheClipIsAboutGetsItsTikTokTag(t *testing.T) {
@@ -61,7 +61,7 @@ func TestOnlyTheFlagTheClipIsAboutGetsItsTikTokTag(t *testing.T) {
 	}.Restore()
 	require.NoError(t, err)
 
-	caption := captionOf(t, restored, 0).Caption
+	caption := captionOf(t, restored, 0).TikTok.Caption
 
 	assert.Contains(t, caption, "#viral #kosovo #usa #kosovotiktok")
 	assert.NotContains(t, caption, "#usatiktok")
@@ -75,5 +75,5 @@ func TestAnAmericanStoryGetsItsFlag(t *testing.T) {
 	}.Restore()
 	require.NoError(t, err)
 
-	assert.Contains(t, captionOf(t, restored, 0).Caption, "#usa #usatiktok🇺🇸")
+	assert.Contains(t, captionOf(t, restored, 0).TikTok.Caption, "#usa #usatiktok🇺🇸")
 }

@@ -28,6 +28,7 @@ func (p *RecordedPause) Wait(_ context.Context, d time.Duration) error {
 
 type ScriptedService struct {
 	refusals  []error
+	Refusing  map[Platform]error
 	Scheduled []PostSnapshot
 }
 
@@ -37,14 +38,14 @@ func NewScriptedService(refusals ...error) *ScriptedService {
 
 var _ Service = (*ScriptedService)(nil)
 
-func (s *ScriptedService) Schedule(_ context.Context, post Post) (PostID, error) {
+func (s *ScriptedService) Schedule(_ context.Context, post Post) (Scheduled, error) {
 	if len(s.refusals) > 0 {
 		refusal := s.refusals[0]
 		s.refusals = s.refusals[1:]
-		return "", refusal
+		return Scheduled{}, refusal
 	}
 	s.Scheduled = append(s.Scheduled, post.TakeSnapshot())
-	return PostID("post-" + post.clip.title), nil
+	return Scheduled{ID: PostID("post-" + post.clip.title), Refused: s.Refusing}, nil
 }
 
 // A dice that always shows the same face.

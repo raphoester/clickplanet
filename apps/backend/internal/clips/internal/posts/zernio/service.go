@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -27,8 +28,8 @@ const Production = "https://zernio.com/api"
 
 const (
 	maxBodyBytes = 1 << 16
-	platform     = string(cpzernio.SocialAccountPlatformTiktok)
 	everyone     = "PUBLIC_TO_EVERYONE"
+	gaming       = "20"
 	inFlight     = "idempotency_conflict"
 
 	flagKey      = "storyFlag"
@@ -70,21 +71,28 @@ type Service struct {
 
 var _ posts.Service = (*Service)(nil)
 
-func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.PostID, error) {
+func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.Scheduled, error) {
 	snapshot := post.TakeSnapshot()
 
 	video, err := os.ReadFile(string(snapshot.Video)) //nolint:gosec // the file of a clip this job rendered.
 	if err != nil {
-		return "", fmt.Errorf("failed to read the video: %w", err)
+		return posts.Scheduled{}, fmt.Errorf("failed to read the video: %w", err)
 	}
 
-	account, err := s.account(ctx)
+	accounts, refused, err := s.accounts(ctx, snapshot.Platforms)
 	if err != nil {
-		return "", err
+		return posts.Scheduled{}, err
+	}
+	targets, err := targetsOf(snapshot, accounts)
+	if err != nil {
+		return posts.Scheduled{}, err
+	}
+	if len(targets) == 0 {
+		return posts.Scheduled{Refused: refused}, nil
 	}
 	media, err := s.upload(ctx, filepath.Base(string(snapshot.Video)), video)
 	if err != nil {
-		return "", err
+		return posts.Scheduled{}, err
 	}
 
 	// The same video is the same post: a run made again does not post it twice.
@@ -94,30 +102,88 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.PostID, 
 		&cpzernio.CreatePostParams{IdempotencyKey: new(hex.EncodeToString(key[:]))},
 		cpzernio.CreatePostJSONRequestBody{
 			Title:        &snapshot.Title,
-			Content:      &snapshot.Caption,
 			MediaItems:   &[]cpzernio.MediaItem{{Type: new(cpzernio.MediaItemTypeVideo), Url: &media}},
-			Platforms:    &[]cpzernio.CreatePostJSONBody_Platforms{{Platform: platform, AccountId: account}},
+			Platforms:    &targets,
 			ScheduledFor: new(snapshot.At.UTC()),
 			Metadata: &map[string]any{
 				flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent, callKey: snapshot.CallToAction,
 			},
-			TiktokSettings: &cpzernio.TikTokPlatformData{
-				PrivacyLevel: new(everyone), AllowComment: new(true), AllowDuet: new(true), AllowStitch: new(true),
-				ContentPreviewConfirmed: new(true), ExpressConsentGiven: new(true),
-			},
+			Tags: tagsOf(snapshot, accounts),
 		})
 	if err != nil {
-		return "", unreachable(err)
+		return posts.Scheduled{}, unreachable(err)
 	}
 
 	kept, err := keptPost(answer)
 	if err != nil {
-		return "", err
+		return posts.Scheduled{}, err
 	}
 	if kept.UnderscoreId == nil || kept.Status == nil || *kept.Status != cpzernio.PostStatusScheduled {
-		return "", fmt.Errorf("zernio kept the post as %q, not %q", status(kept), cpzernio.PostStatusScheduled)
+		return posts.Scheduled{}, fmt.Errorf("zernio kept the post as %q, not %q", status(kept), cpzernio.PostStatusScheduled)
 	}
-	return posts.PostID(*kept.UnderscoreId), nil
+	for platform := range accounts {
+		if !on(kept, platform) {
+			refused[platform] = errors.New("zernio kept the post without it")
+		}
+	}
+	return posts.Scheduled{ID: posts.PostID(*kept.UnderscoreId), Refused: refused}, nil
+}
+
+func targetsOf(snapshot posts.PostSnapshot, accounts map[posts.Platform]string) ([]cpzernio.CreatePostJSONBody_Platforms, error) {
+	targets := make([]cpzernio.CreatePostJSONBody_Platforms, 0, len(accounts))
+	for _, platform := range snapshot.Platforms {
+		account, connected := accounts[platform]
+		if !connected {
+			continue
+		}
+		target, err := targetOf(snapshot, platform, account)
+		if err != nil {
+			return nil, err
+		}
+		targets = append(targets, target)
+	}
+	return targets, nil
+}
+
+func targetOf(snapshot posts.PostSnapshot, platform posts.Platform, account string) (cpzernio.CreatePostJSONBody_Platforms, error) {
+	settings := &cpzernio.CreatePostJSONBody_Platforms_PlatformSpecificData{}
+	target := cpzernio.CreatePostJSONBody_Platforms{Platform: string(platform), AccountId: account, PlatformSpecificData: settings}
+
+	var err error
+	switch platform {
+	case posts.TikTok:
+		target.CustomContent = &snapshot.TikTok.Caption
+		err = settings.FromTikTokPlatformData(cpzernio.TikTokPlatformData{
+			PrivacyLevel: new(everyone), AllowComment: new(true), AllowDuet: new(true), AllowStitch: new(true),
+			ContentPreviewConfirmed: new(true), ExpressConsentGiven: new(true),
+		})
+	case posts.YouTube:
+		target.CustomContent = &snapshot.YouTube.Description
+		err = settings.FromYouTubePlatformData(cpzernio.YouTubePlatformData{
+			Title: &snapshot.YouTube.Title, Visibility: new(cpzernio.YouTubePlatformDataVisibilityPublic),
+			MadeForKids: new(false), CategoryId: new(gaming),
+		})
+	default:
+		return target, fmt.Errorf("the job does not post to %q", platform)
+	}
+	if err != nil {
+		return target, fmt.Errorf("failed to write the settings of %s: %w", platform, err)
+	}
+	return target, nil
+}
+
+// Zernio sends them to YouTube alone.
+func tagsOf(snapshot posts.PostSnapshot, accounts map[posts.Platform]string) *[]string {
+	if _, connected := accounts[posts.YouTube]; !connected {
+		return nil
+	}
+	return &snapshot.YouTube.Tags
+}
+
+func on(post cpzernio.Post, platform posts.Platform) bool {
+	return post.Platforms != nil && slices.ContainsFunc(*post.Platforms, func(target cpzernio.PlatformTarget) bool {
+		return valueOf(target.Platform) == string(platform)
+	})
 }
 
 // The posts made by hand carry no story key, and are left out.
@@ -198,25 +264,32 @@ func status(post cpzernio.Post) cpzernio.PostStatus {
 	return *post.Status
 }
 
-func (s *Service) account(ctx context.Context) (string, error) {
-	answer, err := s.api.ListAccountsWithResponse(ctx, &cpzernio.ListAccountsParams{Platform: new(platform), ExcludeHidden: new(true)})
+// The one connected account of each platform. A platform with none or two is refused, and the post still goes to the others.
+func (s *Service) accounts(ctx context.Context, platforms []posts.Platform) (map[posts.Platform]string, map[posts.Platform]error, error) {
+	answer, err := s.api.ListAccountsWithResponse(ctx, &cpzernio.ListAccountsParams{ExcludeHidden: new(true)})
 	if err != nil {
-		return "", unreachable(err)
+		return nil, nil, unreachable(err)
 	}
 	if answer.JSON200 == nil {
-		return "", refusal(answer.HTTPResponse, answer.Body, "the list of accounts")
+		return nil, nil, refusal(answer.HTTPResponse, answer.Body, "the list of accounts")
 	}
 
-	var connected []string
+	connected := map[posts.Platform][]string{}
 	for _, account := range answer.JSON200.Accounts {
-		if string(account.Platform) == platform && account.IsActive {
-			connected = append(connected, account.UnderscoreId)
+		if account.IsActive {
+			connected[posts.Platform(account.Platform)] = append(connected[posts.Platform(account.Platform)], account.UnderscoreId)
 		}
 	}
-	if len(connected) != 1 {
-		return "", fmt.Errorf("zernio has %d connected %s accounts, and the job posts to exactly one", len(connected), platform)
+
+	accounts, refused := map[posts.Platform]string{}, map[posts.Platform]error{}
+	for _, platform := range platforms {
+		if ids := connected[platform]; len(ids) != 1 {
+			refused[platform] = fmt.Errorf("zernio has %d connected %s accounts, and the job posts to exactly one", len(ids), platform)
+			continue
+		}
+		accounts[platform] = connected[platform][0]
 	}
-	return connected[0], nil
+	return accounts, refused, nil
 }
 
 func (s *Service) upload(ctx context.Context, name string, video []byte) (string, error) {

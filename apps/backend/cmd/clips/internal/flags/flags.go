@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
 )
@@ -13,13 +15,14 @@ import (
 const usage = `usage:
   clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
   clips choose -shortlist <shortlist.json> [-count 6]
-  clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
+  clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,youtube] [-summary <file>]
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
 the ledger keeps 72 hours in memory, so a replay cannot reach further back. choose prints the picks of the stories
 to render, as a JSON array: it skips a story the posting service holds a post of from the last 3 days, or a
 headline from the last week, puts a flag of the last 6 posts after the others, and holds back a flag in 2 of
-them. schedule sends every clip of the folder to the posting service, each for its time. Both need ZERNIO_API_KEY.`
+them. schedule sends every clip of the folder to the posting service, each for its time, as one post on every
+platform. Both need ZERNIO_API_KEY.`
 
 type Command string
 
@@ -116,13 +119,26 @@ func parseSchedule(args []string) (Config, error) {
 	flags.StringVar(&parsed.SummaryFile, "summary", "", "the file the summary of the run is added to, default the standard output")
 	flags.DurationVar(&parsed.Job.Review, "review", 0, "how long before the first clip goes out")
 	flags.DurationVar(&parsed.Job.Spacing, "spacing", 0, "between two clips of one run")
+	platforms := flags.String("platforms", "", "where each clip goes, default every platform")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)
 	}
 	if parsed.ClipsFolder == "" {
 		return Config{}, misused(ErrArguments)
 	}
+
+	if names := strings.FieldsFunc(*platforms, isSeparator); len(names) > 0 {
+		chosen, err := clips.PlatformsOf(names...)
+		if err != nil {
+			return Config{}, misused(err)
+		}
+		parsed.Job.Platforms = chosen
+	}
 	return parsed, nil
+}
+
+func isSeparator(r rune) bool {
+	return r == ',' || unicode.IsSpace(r)
 }
 
 func misused(cause error) error {
