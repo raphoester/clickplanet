@@ -60,7 +60,33 @@ func (s *testSuite) kept() []notes.Snapshot {
 		})
 	}
 	s.Require().NoError(rows.Err())
+
+	for n := range kept {
+		kept[n].Attachments = s.attachmentsOf(kept[n].ID)
+	}
 	return kept
+}
+
+func (s *testSuite) attachmentsOf(note notes.NoteID) []notes.Attachment {
+	rows, err := s.db.QueryContext(s.T().Context(),
+		`SELECT position, id, media_type, size_bytes FROM attachments WHERE note_id = $1 ORDER BY position`, uuid.UUID(note))
+	s.Require().NoError(err)
+	defer func() { _ = rows.Close() }()
+
+	var files []notes.Attachment
+	for rows.Next() {
+		var (
+			position int
+			id       uuid.UUID
+			media    string
+			size     int64
+		)
+		s.Require().NoError(rows.Scan(&position, &id, &media, &size))
+		s.Require().Equal(len(files), position, "the positions count up from 0 with no gap")
+		files = append(files, notes.Attachment{ID: notes.AttachmentID(id), MediaType: notes.MediaType(media), Size: size})
+	}
+	s.Require().NoError(rows.Err())
+	return files
 }
 
 func (s *testSuite) diagnosticsOf(stored []byte) notes.Diagnostics {
@@ -114,6 +140,18 @@ func (s *testSuite) TestAnAnonymizedNoteHasNoAccountInTheTable() {
 	var named bool
 	s.Require().NoError(s.db.QueryRowContext(s.T().Context(), `SELECT account_id IS NOT NULL FROM notes`).Scan(&named))
 	s.False(named, "NULL, not an account of zeros")
+}
+
+func (s *testSuite) TestTheDatabaseRefusesAMediaTypeItsTypeDoesNotName() {
+	note, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.AccountID{15: 1}, "a night mode", notes.Diagnostics{}, time.Now())
+	s.Require().NoError(err)
+	s.Require().NoError(postgres_note_store.New(s.db).Save(s.T().Context(), note))
+
+	_, err = s.db.ExecContext(s.T().Context(),
+		`INSERT INTO attachments (note_id, position, id, media_type, size_bytes) VALUES ($1, 0, $2, 'image/svg+xml', 1)`,
+		uuid.UUID{15: 1}, uuid.New())
+
+	s.Require().ErrorContains(err, "media_type")
 }
 
 func (s *testSuite) TestTheDatabaseRefusesAKindItsTypeDoesNotName() {

@@ -2,6 +2,7 @@ package support
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -18,8 +19,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/postgres_note_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/s3_attachment_bucket"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/anonymize_notes_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/create_upload_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/prune_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/prune_usecase/log_prune"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/report_bug_usecase"
@@ -33,6 +37,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/account_deleted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/get_attachment_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler/notes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler"
@@ -41,11 +47,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_bug_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/suggest_feature_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/uploads"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/uploads/postgres_upload_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/uploads/usecases/discard_unsent_usecase"
 )
 
 const moduleName = "support"
 
 const accountDeletedBuffer = 256
+
+const bucketTimeout = 4 * time.Second
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -77,11 +88,23 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	noteStore := postgres_note_store.New(db)
 	reportStore := postgres_report_store.New(db)
+	uploadStore := postgres_upload_store.New(db)
+
+	bucket, err := s3_attachment_bucket.New(config.Attachments.bucket(), config.Attachments.lifetimes(), clock,
+		&http.Client{Timeout: bucketTimeout})
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to build the bucket of the attachments: %w", err)
+	}
+	rules := config.Attachments.rules()
+	shelf := uploads.NewShelf(uploadStore, config.Attachments.MaxStoredBytes, clock)
 
 	notePrune := log_prune.New(prune_usecase.New(config.Retention, clock, noteStore),
 		props.Logger.With(slog.String("pruned", "notes")))
 	reportPrune := log_prune.New(prune_reports_usecase.New(config.Retention, clock, reportStore),
 		props.Logger.With(slog.String("pruned", "reports")))
+	unsentDiscard := log_prune.New(discard_unsent_usecase.New(config.Attachments.KeepUnsent, clock, uploadStore, bucket),
+		props.Logger.With(slog.String("pruned", "unsent files")))
 
 	noteDeletions, err := cpbootstrap.Subscribe(props.Events, "support-notes-accounts", accountDeletedBuffer,
 		log_subscriber.New(account_deleted_subscriber.New(anonymize_notes_usecase.New(noteStore)), props.Logger))
@@ -99,16 +122,24 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		prune_usecase.NewRunner(config.PruneInterval, notePrune, reportPrune), noteDeletions, reportDeletions))
+		prune_usecase.NewRunner(config.PruneInterval, notePrune, reportPrune, unsentDiscard), noteDeletions, reportDeletions))
 
 	limiter := cpratelimit.New("support-limiter", config.RateLimiter, clock)
 	props.Runners.Add(limiter)
+	noteLimiter := cpratelimit.New("support-note-limiter", config.NoteLimiter, clock)
+	props.Runners.Add(noteLimiter)
+	uploadLimiter := cpratelimit.New("support-upload-limiter", config.UploadLimiter, clock)
+	props.Runners.Add(uploadLimiter)
 
 	service := supportv1controller.SupportService{
-		SuggestFeatureHandler: suggest_feature_handler.New(suggest_feature_usecase.New(note_ids.Provider{}, clock, noteStore)),
-		ReportBugHandler:      report_bug_handler.New(report_bug_usecase.New(note_ids.Provider{}, clock, noteStore)),
+		SuggestFeatureHandler: suggest_feature_handler.New(
+			suggest_feature_usecase.New(note_ids.Provider{}, clock, rules, noteStore, bucket)),
+		ReportBugHandler: report_bug_handler.New(
+			report_bug_usecase.New(note_ids.Provider{}, clock, rules, noteStore, bucket)),
 		ReportPlayerHandler: report_player_handler.New(report_player_usecase.New(
 			report_ids.Provider{}, clock, reportStore)),
+		GetAttachmentRulesHandler: get_attachment_rules_handler.New(rules, shelf),
+		CreateUploadHandler:       create_upload_handler.New(create_upload_usecase.New(note_ids.Provider{}, rules, shelf, bucket)),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", moduleName)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -116,12 +147,14 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	},
 		supportv1controller.NewSessionInterceptor(verifier, clock, props.Metrics),
 		supportv1controller.NewRateLimitInterceptor(limiter),
+		supportv1controller.NewNoteLimitInterceptor(noteLimiter),
+		supportv1controller.NewUploadLimitInterceptor(uploadLimiter),
 	); err != nil {
 		return fmt.Errorf("failed to mount support.v1.SupportService: %w", err)
 	}
 
 	adminService := supportv1controller.AdminService{
-		ListNotesHandler:   list_notes_handler.New(notes_query.NewPostgresQuery(db)),
+		ListNotesHandler:   list_notes_handler.New(notes_query.NewPostgresQuery(db, bucket)),
 		ListReportsHandler: list_reports_handler.New(reports_query.NewPostgresQuery(db, report_authors.New(player))),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -130,7 +163,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount support.v1.AdminService: %w", err)
 	}
 
-	props.Logger.Info("support built", slog.String("schema", config.Database.Schema))
+	props.Logger.Info("support built",
+		slog.String("schema", config.Database.Schema), slog.Bool("attachments", config.Attachments.Enabled))
 
 	return nil
 }
@@ -142,15 +176,74 @@ type Config struct {
 	PruneInterval time.Duration
 
 	RateLimiter cpratelimit.Config
+	// A day's suggestions and bug reports, per account and per address.
+	NoteLimiter cpratelimit.Config
+	// A day's files, per account and per address.
+	UploadLimiter cpratelimit.Config
+
+	Attachments AttachmentsConfig
+}
+
+type AttachmentsConfig struct {
+	Enabled bool
+
+	MaxPerNote int
+	MaxBytes   int64
+	// The most bytes the bucket holds, the files sent and the files that may still come.
+	MaxStoredBytes int64
+	// How long a file waits for the note that names it, before it is deleted. More than UploadTTL.
+	KeepUnsent time.Duration
+
+	UploadTTL time.Duration
+	LinkTTL   time.Duration
+
+	Bucket s3_attachment_bucket.Config
+}
+
+// Off, a note carries no file, and the bucket block is not read.
+func (c AttachmentsConfig) rules() notes.AttachmentRules {
+	if !c.Enabled {
+		return notes.AttachmentRules{}
+	}
+	return notes.AttachmentRules{MaxPerNote: c.MaxPerNote, MaxBytes: c.MaxBytes}
+}
+
+func (c AttachmentsConfig) bucket() s3_attachment_bucket.Config {
+	if !c.Enabled {
+		return s3_attachment_bucket.Config{}
+	}
+	return c.Bucket
+}
+
+func (c AttachmentsConfig) lifetimes() s3_attachment_bucket.Lifetimes {
+	return s3_attachment_bucket.Lifetimes{Upload: c.UploadTTL, View: c.LinkTTL}
 }
 
 const (
 	defaultRetention     = 90 * 24 * time.Hour
 	defaultPruneInterval = time.Hour
 	defaultBurst         = 3
+
+	defaultMaxPerNote     = 10
+	defaultMaxBytes       = 50 << 20
+	defaultMaxStoredBytes = 9 << 30
+	defaultKeepUnsent     = day
+	// The page asks for a link right before it puts the file there.
+	defaultUploadTTL = 10 * time.Minute
+	defaultLinkTTL   = time.Hour
+
+	// A bucket refuses a link signed for longer.
+	maxLinkTTL = 7 * 24 * time.Hour
 )
 
 const defaultPerSecond = 1.0 / 60
+
+const (
+	day = 24 * time.Hour
+
+	defaultNotesADay   = 10
+	defaultUploadsADay = 100
+)
 
 func (c Config) withDefaults() Config {
 	if c.Retention <= 0 {
@@ -165,12 +258,61 @@ func (c Config) withDefaults() Config {
 	if c.RateLimiter.Burst <= 0 {
 		c.RateLimiter.Burst = defaultBurst
 	}
+	c.NoteLimiter = daily(c.NoteLimiter, defaultNotesADay)
+	c.UploadLimiter = daily(c.UploadLimiter, defaultUploadsADay)
+	if c.Attachments.MaxStoredBytes <= 0 {
+		c.Attachments.MaxStoredBytes = defaultMaxStoredBytes
+	}
+	if c.Attachments.KeepUnsent <= 0 {
+		c.Attachments.KeepUnsent = defaultKeepUnsent
+	}
+	if c.Attachments.MaxPerNote <= 0 {
+		c.Attachments.MaxPerNote = defaultMaxPerNote
+	}
+	if c.Attachments.MaxBytes <= 0 {
+		c.Attachments.MaxBytes = defaultMaxBytes
+	}
+	if c.Attachments.UploadTTL <= 0 {
+		c.Attachments.UploadTTL = defaultUploadTTL
+	}
+	if c.Attachments.LinkTTL <= 0 {
+		c.Attachments.LinkTTL = defaultLinkTTL
+	}
 	return c
 }
 
-func (c Config) Validate() error {
-	if err := c.Database.Validate(); err != nil {
-		return fmt.Errorf("support.database: %w", err)
+// A burst of a day's allowance, refilled over the day.
+func daily(limiter cpratelimit.Config, aDay int) cpratelimit.Config {
+	if limiter.Burst <= 0 {
+		limiter.Burst = aDay
 	}
-	return nil
+	if limiter.PerSecond <= 0 {
+		limiter.PerSecond = float64(limiter.Burst) / day.Seconds()
+	}
+	return limiter
+}
+
+func (c Config) Validate() error {
+	var errs []error
+	if err := c.Database.Validate(); err != nil {
+		errs = append(errs, fmt.Errorf("support.database: %w", err))
+	}
+	if !c.Attachments.Enabled {
+		return errors.Join(errs...)
+	}
+
+	if err := c.Attachments.Bucket.Validate(); err != nil {
+		errs = append(errs, fmt.Errorf("support.attachments.bucket: %w", err))
+	}
+	for name, ttl := range map[string]time.Duration{"uploadTTL": c.Attachments.UploadTTL, "linkTTL": c.Attachments.LinkTTL} {
+		if ttl > maxLinkTTL {
+			errs = append(errs, fmt.Errorf("support.attachments.%s is %s, and a bucket takes %s at most", name, ttl, maxLinkTTL))
+		}
+	}
+	// A file deleted while its link still works could come back, and take no room.
+	if set := c.withDefaults().Attachments; set.KeepUnsent <= set.UploadTTL {
+		errs = append(errs, fmt.Errorf("support.attachments.keepUnsent is %s, and must outlast uploadTTL, %s",
+			set.KeepUnsent, set.UploadTTL))
+	}
+	return errors.Join(errs...)
 }

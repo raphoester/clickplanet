@@ -77,9 +77,11 @@ func (ReportReason) EnumDescriptor() ([]byte, []int) {
 }
 
 type SuggestFeatureRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
-	Context       *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Text    string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Context *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	// Each one from CreateUpload, and uploaded before the note is sent.
+	AttachmentIds []string `protobuf:"bytes,3,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -128,6 +130,13 @@ func (x *SuggestFeatureRequest) GetContext() *PageContext {
 	return nil
 }
 
+func (x *SuggestFeatureRequest) GetAttachmentIds() []string {
+	if x != nil {
+		return x.AttachmentIds
+	}
+	return nil
+}
+
 type SuggestFeatureResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -165,9 +174,11 @@ func (*SuggestFeatureResponse) Descriptor() ([]byte, []int) {
 }
 
 type ReportBugRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Text          string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
-	Context       *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Text    string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
+	Context *PageContext           `protobuf:"bytes,2,opt,name=context,proto3" json:"context,omitempty"`
+	// Each one from CreateUpload, and uploaded before the note is sent.
+	AttachmentIds []string `protobuf:"bytes,3,rep,name=attachment_ids,json=attachmentIds,proto3" json:"attachment_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -216,6 +227,13 @@ func (x *ReportBugRequest) GetContext() *PageContext {
 	return nil
 }
 
+func (x *ReportBugRequest) GetAttachmentIds() []string {
+	if x != nil {
+		return x.AttachmentIds
+	}
+	return nil
+}
+
 type ReportBugResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -252,6 +270,209 @@ func (*ReportBugResponse) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{3}
 }
 
+type CreateUploadRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ContentType   string                 `protobuf:"bytes,1,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	SizeBytes     uint64                 `protobuf:"varint,2,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateUploadRequest) Reset() {
+	*x = CreateUploadRequest{}
+	mi := &file_support_v1_support_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateUploadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateUploadRequest) ProtoMessage() {}
+
+func (x *CreateUploadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateUploadRequest.ProtoReflect.Descriptor instead.
+func (*CreateUploadRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CreateUploadRequest) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *CreateUploadRequest) GetSizeBytes() uint64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+type CreateUploadResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What a note names the file by.
+	AttachmentId string `protobuf:"bytes,1,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`
+	// Takes one PUT of the file, with the Content-Type and the size the request declared.
+	Url           string `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateUploadResponse) Reset() {
+	*x = CreateUploadResponse{}
+	mi := &file_support_v1_support_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateUploadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateUploadResponse) ProtoMessage() {}
+
+func (x *CreateUploadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateUploadResponse.ProtoReflect.Descriptor instead.
+func (*CreateUploadResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CreateUploadResponse) GetAttachmentId() string {
+	if x != nil {
+		return x.AttachmentId
+	}
+	return ""
+}
+
+func (x *CreateUploadResponse) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type GetAttachmentRulesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAttachmentRulesRequest) Reset() {
+	*x = GetAttachmentRulesRequest{}
+	mi := &file_support_v1_support_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAttachmentRulesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAttachmentRulesRequest) ProtoMessage() {}
+
+func (x *GetAttachmentRulesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAttachmentRulesRequest.ProtoReflect.Descriptor instead.
+func (*GetAttachmentRulesRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{6}
+}
+
+type GetAttachmentRulesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 0: this server takes no attachment.
+	MaxPerNote    uint32   `protobuf:"varint,1,opt,name=max_per_note,json=maxPerNote,proto3" json:"max_per_note,omitempty"`
+	MaxBytes      uint64   `protobuf:"varint,2,opt,name=max_bytes,json=maxBytes,proto3" json:"max_bytes,omitempty"`
+	ContentTypes  []string `protobuf:"bytes,3,rep,name=content_types,json=contentTypes,proto3" json:"content_types,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAttachmentRulesResponse) Reset() {
+	*x = GetAttachmentRulesResponse{}
+	mi := &file_support_v1_support_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAttachmentRulesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAttachmentRulesResponse) ProtoMessage() {}
+
+func (x *GetAttachmentRulesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAttachmentRulesResponse.ProtoReflect.Descriptor instead.
+func (*GetAttachmentRulesResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetAttachmentRulesResponse) GetMaxPerNote() uint32 {
+	if x != nil {
+		return x.MaxPerNote
+	}
+	return 0
+}
+
+func (x *GetAttachmentRulesResponse) GetMaxBytes() uint64 {
+	if x != nil {
+		return x.MaxBytes
+	}
+	return 0
+}
+
+func (x *GetAttachmentRulesResponse) GetContentTypes() []string {
+	if x != nil {
+		return x.ContentTypes
+	}
+	return nil
+}
+
 // What the page knows about itself and its device when a note is sent. The server adds the user agent.
 type PageContext struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -280,7 +501,7 @@ type PageContext struct {
 
 func (x *PageContext) Reset() {
 	*x = PageContext{}
-	mi := &file_support_v1_support_proto_msgTypes[4]
+	mi := &file_support_v1_support_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -292,7 +513,7 @@ func (x *PageContext) String() string {
 func (*PageContext) ProtoMessage() {}
 
 func (x *PageContext) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_support_proto_msgTypes[4]
+	mi := &file_support_v1_support_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -305,7 +526,7 @@ func (x *PageContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PageContext.ProtoReflect.Descriptor instead.
 func (*PageContext) Descriptor() ([]byte, []int) {
-	return file_support_v1_support_proto_rawDescGZIP(), []int{4}
+	return file_support_v1_support_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PageContext) GetBuild() string {
@@ -407,7 +628,7 @@ type ReportPlayerRequest struct {
 
 func (x *ReportPlayerRequest) Reset() {
 	*x = ReportPlayerRequest{}
-	mi := &file_support_v1_support_proto_msgTypes[5]
+	mi := &file_support_v1_support_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -419,7 +640,7 @@ func (x *ReportPlayerRequest) String() string {
 func (*ReportPlayerRequest) ProtoMessage() {}
 
 func (x *ReportPlayerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_support_proto_msgTypes[5]
+	mi := &file_support_v1_support_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -432,7 +653,7 @@ func (x *ReportPlayerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportPlayerRequest.ProtoReflect.Descriptor instead.
 func (*ReportPlayerRequest) Descriptor() ([]byte, []int) {
-	return file_support_v1_support_proto_rawDescGZIP(), []int{5}
+	return file_support_v1_support_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ReportPlayerRequest) GetReason() ReportReason {
@@ -471,7 +692,7 @@ type ReportPlayerResponse struct {
 
 func (x *ReportPlayerResponse) Reset() {
 	*x = ReportPlayerResponse{}
-	mi := &file_support_v1_support_proto_msgTypes[6]
+	mi := &file_support_v1_support_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -483,7 +704,7 @@ func (x *ReportPlayerResponse) String() string {
 func (*ReportPlayerResponse) ProtoMessage() {}
 
 func (x *ReportPlayerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_support_v1_support_proto_msgTypes[6]
+	mi := &file_support_v1_support_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -496,7 +717,7 @@ func (x *ReportPlayerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportPlayerResponse.ProtoReflect.Descriptor instead.
 func (*ReportPlayerResponse) Descriptor() ([]byte, []int) {
-	return file_support_v1_support_proto_rawDescGZIP(), []int{6}
+	return file_support_v1_support_proto_rawDescGZIP(), []int{10}
 }
 
 var File_support_v1_support_proto protoreflect.FileDescriptor
@@ -504,15 +725,30 @@ var File_support_v1_support_proto protoreflect.FileDescriptor
 const file_support_v1_support_proto_rawDesc = "" +
 	"\n" +
 	"\x18support/v1/support.proto\x12\n" +
-	"support.v1\"^\n" +
+	"support.v1\"\x85\x01\n" +
 	"\x15SuggestFeatureRequest\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x121\n" +
-	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\"\x18\n" +
-	"\x16SuggestFeatureResponse\"Y\n" +
+	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\x12%\n" +
+	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\"\x18\n" +
+	"\x16SuggestFeatureResponse\"\x80\x01\n" +
 	"\x10ReportBugRequest\x12\x12\n" +
 	"\x04text\x18\x01 \x01(\tR\x04text\x121\n" +
-	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\"\x13\n" +
-	"\x11ReportBugResponse\"\xa4\x03\n" +
+	"\acontext\x18\x02 \x01(\v2\x17.support.v1.PageContextR\acontext\x12%\n" +
+	"\x0eattachment_ids\x18\x03 \x03(\tR\rattachmentIds\"\x13\n" +
+	"\x11ReportBugResponse\"W\n" +
+	"\x13CreateUploadRequest\x12!\n" +
+	"\fcontent_type\x18\x01 \x01(\tR\vcontentType\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x02 \x01(\x04R\tsizeBytes\"M\n" +
+	"\x14CreateUploadResponse\x12#\n" +
+	"\rattachment_id\x18\x01 \x01(\tR\fattachmentId\x12\x10\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\"\x1b\n" +
+	"\x19GetAttachmentRulesRequest\"\x80\x01\n" +
+	"\x1aGetAttachmentRulesResponse\x12 \n" +
+	"\fmax_per_note\x18\x01 \x01(\rR\n" +
+	"maxPerNote\x12\x1b\n" +
+	"\tmax_bytes\x18\x02 \x01(\x04R\bmaxBytes\x12#\n" +
+	"\rcontent_types\x18\x03 \x03(\tR\fcontentTypes\"\xa4\x03\n" +
 	"\vPageContext\x12\x14\n" +
 	"\x05build\x18\x01 \x01(\tR\x05build\x12%\n" +
 	"\x0eviewport_width\x18\x02 \x01(\rR\rviewportWidth\x12'\n" +
@@ -542,11 +778,13 @@ const file_support_v1_support_proto_rawDesc = "" +
 	"\x16REPORT_REASON_CHEATING\x10\x01\x12\x1c\n" +
 	"\x18REPORT_REASON_CHAT_ABUSE\x10\x02\x12\x1a\n" +
 	"\x16REPORT_REASON_BAD_NAME\x10\x03\x12\x17\n" +
-	"\x13REPORT_REASON_OTHER\x10\x042\x86\x02\n" +
+	"\x13REPORT_REASON_OTHER\x10\x042\xc3\x03\n" +
 	"\x0eSupportService\x12W\n" +
 	"\x0eSuggestFeature\x12!.support.v1.SuggestFeatureRequest\x1a\".support.v1.SuggestFeatureResponse\x12H\n" +
 	"\tReportBug\x12\x1c.support.v1.ReportBugRequest\x1a\x1d.support.v1.ReportBugResponse\x12Q\n" +
-	"\fReportPlayer\x12\x1f.support.v1.ReportPlayerRequest\x1a .support.v1.ReportPlayerResponseB\xbb\x01\n" +
+	"\fReportPlayer\x12\x1f.support.v1.ReportPlayerRequest\x1a .support.v1.ReportPlayerResponse\x12h\n" +
+	"\x12GetAttachmentRules\x12%.support.v1.GetAttachmentRulesRequest\x1a&.support.v1.GetAttachmentRulesResponse\"\x03\x90\x02\x01\x12Q\n" +
+	"\fCreateUpload\x12\x1f.support.v1.CreateUploadRequest\x1a .support.v1.CreateUploadResponseB\xbb\x01\n" +
 	"\x0ecom.support.v1B\fSupportProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1;supportv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Support.V1\xca\x02\n" +
 	"Support\\V1\xe2\x02\x16Support\\V1\\GPBMetadata\xea\x02\vSupport::V1b\x06proto3"
@@ -564,32 +802,40 @@ func file_support_v1_support_proto_rawDescGZIP() []byte {
 }
 
 var file_support_v1_support_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_support_v1_support_proto_goTypes = []any{
-	(ReportReason)(0),              // 0: support.v1.ReportReason
-	(*SuggestFeatureRequest)(nil),  // 1: support.v1.SuggestFeatureRequest
-	(*SuggestFeatureResponse)(nil), // 2: support.v1.SuggestFeatureResponse
-	(*ReportBugRequest)(nil),       // 3: support.v1.ReportBugRequest
-	(*ReportBugResponse)(nil),      // 4: support.v1.ReportBugResponse
-	(*PageContext)(nil),            // 5: support.v1.PageContext
-	(*ReportPlayerRequest)(nil),    // 6: support.v1.ReportPlayerRequest
-	(*ReportPlayerResponse)(nil),   // 7: support.v1.ReportPlayerResponse
+	(ReportReason)(0),                  // 0: support.v1.ReportReason
+	(*SuggestFeatureRequest)(nil),      // 1: support.v1.SuggestFeatureRequest
+	(*SuggestFeatureResponse)(nil),     // 2: support.v1.SuggestFeatureResponse
+	(*ReportBugRequest)(nil),           // 3: support.v1.ReportBugRequest
+	(*ReportBugResponse)(nil),          // 4: support.v1.ReportBugResponse
+	(*CreateUploadRequest)(nil),        // 5: support.v1.CreateUploadRequest
+	(*CreateUploadResponse)(nil),       // 6: support.v1.CreateUploadResponse
+	(*GetAttachmentRulesRequest)(nil),  // 7: support.v1.GetAttachmentRulesRequest
+	(*GetAttachmentRulesResponse)(nil), // 8: support.v1.GetAttachmentRulesResponse
+	(*PageContext)(nil),                // 9: support.v1.PageContext
+	(*ReportPlayerRequest)(nil),        // 10: support.v1.ReportPlayerRequest
+	(*ReportPlayerResponse)(nil),       // 11: support.v1.ReportPlayerResponse
 }
 var file_support_v1_support_proto_depIdxs = []int32{
-	5, // 0: support.v1.SuggestFeatureRequest.context:type_name -> support.v1.PageContext
-	5, // 1: support.v1.ReportBugRequest.context:type_name -> support.v1.PageContext
-	0, // 2: support.v1.ReportPlayerRequest.reason:type_name -> support.v1.ReportReason
-	1, // 3: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
-	3, // 4: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
-	6, // 5: support.v1.SupportService.ReportPlayer:input_type -> support.v1.ReportPlayerRequest
-	2, // 6: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
-	4, // 7: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
-	7, // 8: support.v1.SupportService.ReportPlayer:output_type -> support.v1.ReportPlayerResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	9,  // 0: support.v1.SuggestFeatureRequest.context:type_name -> support.v1.PageContext
+	9,  // 1: support.v1.ReportBugRequest.context:type_name -> support.v1.PageContext
+	0,  // 2: support.v1.ReportPlayerRequest.reason:type_name -> support.v1.ReportReason
+	1,  // 3: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
+	3,  // 4: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
+	10, // 5: support.v1.SupportService.ReportPlayer:input_type -> support.v1.ReportPlayerRequest
+	7,  // 6: support.v1.SupportService.GetAttachmentRules:input_type -> support.v1.GetAttachmentRulesRequest
+	5,  // 7: support.v1.SupportService.CreateUpload:input_type -> support.v1.CreateUploadRequest
+	2,  // 8: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
+	4,  // 9: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
+	11, // 10: support.v1.SupportService.ReportPlayer:output_type -> support.v1.ReportPlayerResponse
+	8,  // 11: support.v1.SupportService.GetAttachmentRules:output_type -> support.v1.GetAttachmentRulesResponse
+	6,  // 12: support.v1.SupportService.CreateUpload:output_type -> support.v1.CreateUploadResponse
+	8,  // [8:13] is the sub-list for method output_type
+	3,  // [3:8] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_support_proto_init() }
@@ -603,7 +849,7 @@ func file_support_v1_support_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_v1_support_proto_rawDesc), len(file_support_v1_support_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

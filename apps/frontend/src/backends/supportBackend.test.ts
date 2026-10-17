@@ -3,6 +3,7 @@ import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
 import {SupportService} from "../gen/grpc/support/v1/support_connect.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {
+    NO_ATTACHMENTS,
     SupportNoSessionError,
     SupportRateLimitedError,
     SupportRejectedError,
@@ -48,7 +49,7 @@ describe("ConnectSupportBackend.suggestFeature", () => {
 
         await new ConnectSupportBackend(clientOf(suggestFeature), session("token-1")).suggestFeature("a night mode", phone)
 
-        expect(suggestFeature.mock.calls[0][0]).toEqual({text: "a night mode", context: phone})
+        expect(suggestFeature.mock.calls[0][0]).toEqual({text: "a night mode", context: phone, attachmentIds: []})
         expect(headersOf(suggestFeature).get(SESSION_HEADER)).toBe("token-1")
     })
 
@@ -111,7 +112,7 @@ describe("ConnectSupportBackend.reportBug", () => {
 
         await backendOf(reportBug, session("token-1")).reportBug("the globe is black", phone)
 
-        expect(reportBug.mock.calls[0][0]).toEqual({text: "the globe is black", context: phone})
+        expect(reportBug.mock.calls[0][0]).toEqual({text: "the globe is black", context: phone, attachmentIds: []})
         expect(headersOf(reportBug).get(SESSION_HEADER)).toBe("token-1")
     })
 
@@ -130,6 +131,97 @@ describe("ConnectSupportBackend.reportBug", () => {
         await expect(backendOf(limited, session("token-1")).reportBug("the globe is black", phone))
             .rejects.toBeInstanceOf(SupportRateLimitedError)
         expect(limited).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("ConnectSupportBackend with attachments", () => {
+    const recording = new Blob(["a screen recording"], {type: "video/mp4"})
+    const upload = {attachmentId: "6f1c2c64-6a4a-4b0e-9f43-2f0d7c1b5a01", url: "https://bucket.example/support/6f1c2c64"}
+    const backendOf = (calls: object, put = vi.fn(async () => undefined), provider = session("token-1")) =>
+        new ConnectSupportBackend(calls as unknown as PromiseClient<typeof SupportService>, provider, put)
+
+    it.each(["suggestFeature", "reportBug"] as const)("%s names the files already uploaded", async (procedure) => {
+        const call = vi.fn().mockResolvedValue({})
+
+        await backendOf({[procedure]: call})[procedure]("the globe is black", phone, ["first", "second"])
+
+        expect(call.mock.calls[0][0].attachmentIds).toEqual(["first", "second"])
+    })
+
+    it("asks where a file goes with its type and its size and the click token, puts it there, and answers its id", async () => {
+        const createUpload = vi.fn().mockResolvedValue(upload)
+        const put = vi.fn(async () => undefined)
+        const onProgress = vi.fn()
+
+        const id = await backendOf({createUpload}, put).uploadAttachment(recording, {onProgress})
+
+        expect(createUpload.mock.calls[0][0]).toEqual({contentType: "video/mp4", sizeBytes: 18n})
+        expect(headersOf(createUpload).get(SESSION_HEADER)).toBe("token-1")
+        expect(put).toHaveBeenCalledWith(upload.url, recording, {onProgress})
+        expect(id).toBe(upload.attachmentId)
+    })
+
+    it("mints again once when the token is refused for an upload", async () => {
+        const createUpload = vi.fn()
+            .mockRejectedValueOnce(new ConnectError("no token", Code.Unauthenticated))
+            .mockResolvedValue(upload)
+        const provider = session("stale", "fresh")
+
+        await backendOf({createUpload}, undefined, provider).uploadAttachment(recording)
+
+        expect(provider.invalidate).toHaveBeenCalledTimes(1)
+        expect(headersOf(createUpload, 1).get(SESSION_HEADER)).toBe("fresh")
+    })
+
+    it.each([
+        [Code.ResourceExhausted, SupportRateLimitedError],
+        [Code.InvalidArgument, SupportRejectedError],
+    ])("reads the server's refusal %s of an upload as its own error, and puts nothing", async (code, expected) => {
+        const put = vi.fn(async () => undefined)
+
+        await expect(backendOf({createUpload: vi.fn().mockRejectedValue(new ConnectError("refused", code))}, put)
+            .uploadAttachment(recording)).rejects.toBeInstanceOf(expected)
+        expect(put).not.toHaveBeenCalled()
+    })
+
+    it("fails the upload the bucket refused", async () => {
+        const refused = new Error("the upload was answered 403")
+        const put = vi.fn(async () => {
+            throw refused
+        })
+
+        await expect(backendOf({createUpload: vi.fn().mockResolvedValue(upload)}, put).uploadAttachment(recording))
+            .rejects.toBe(refused)
+    })
+})
+
+describe("ConnectSupportBackend.attachmentRules", () => {
+    const backendOf = (getAttachmentRules: unknown) =>
+        new ConnectSupportBackend({getAttachmentRules} as unknown as PromiseClient<typeof SupportService>, session("token-1"))
+
+    it("reads what a note may carry, with no token", async () => {
+        const getAttachmentRules = vi.fn().mockResolvedValue({
+            maxPerNote: 10, maxBytes: 52428800n, contentTypes: ["image/png", "video/mp4"],
+        })
+        const provider = session("token-1")
+
+        const rules = await new ConnectSupportBackend(
+            {getAttachmentRules} as unknown as PromiseClient<typeof SupportService>, provider).attachmentRules()
+
+        expect(rules).toEqual({maxPerNote: 10, maxBytes: 52428800, contentTypes: ["image/png", "video/mp4"]})
+        expect(provider.token).not.toHaveBeenCalled()
+    })
+
+    it("reads a server from before attachments as one that takes none", async () => {
+        const getAttachmentRules = vi.fn().mockRejectedValue(new ConnectError("no such procedure", Code.Unimplemented))
+
+        expect(await backendOf(getAttachmentRules).attachmentRules()).toEqual(NO_ATTACHMENTS)
+    })
+
+    it("fails on any other answer", async () => {
+        const broken = new ConnectError("internal error", Code.Internal)
+
+        await expect(backendOf(vi.fn().mockRejectedValue(broken)).attachmentRules()).rejects.toBe(broken)
     })
 })
 

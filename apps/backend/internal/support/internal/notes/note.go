@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,6 +31,7 @@ type Note struct {
 	account     AccountID
 	text        string
 	diagnostics Diagnostics
+	attachments []Attachment
 	at          time.Time
 }
 
@@ -49,7 +51,17 @@ func sent(note Snapshot) (Note, error) {
 	return note.Restore()
 }
 
-// The note with nothing that says who sent it: the text stays.
+func (n Note) Attaching(files []Attachment, rules AttachmentRules) (Note, error) {
+	if err := rules.refusal(files); err != nil {
+		return Note{}, err
+	}
+
+	attached := n.TakeSnapshot()
+	attached.Attachments = files
+	return attached.Restore()
+}
+
+// The note with nothing that says who sent it: the text and the files stay.
 func (n Note) Anonymized() Note {
 	n.account = AccountID{}
 	return n
@@ -64,7 +76,10 @@ func AllAnonymized(sent []Note) []Note {
 }
 
 func (n Note) TakeSnapshot() Snapshot {
-	return Snapshot{ID: n.id, Kind: n.kind, Account: n.account, Text: n.text, Diagnostics: n.diagnostics, At: n.at}
+	return Snapshot{
+		ID: n.id, Kind: n.kind, Account: n.account, Text: n.text, Diagnostics: n.diagnostics,
+		Attachments: slices.Clone(n.attachments), At: n.at,
+	}
 }
 
 // The state of a Note, for a store. It holds no rule: Restore does.
@@ -75,6 +90,8 @@ type Snapshot struct {
 	Account     AccountID
 	Text        string
 	Diagnostics Diagnostics
+	// In the order they were sent.
+	Attachments []Attachment
 	At          time.Time
 }
 
@@ -93,8 +110,14 @@ func (s Snapshot) Restore() (Note, error) {
 		return Note{}, err
 	}
 
+	attachments, err := checked(s.Attachments)
+	if err != nil {
+		return Note{}, err
+	}
+
 	return Note{
-		id: s.ID, kind: s.Kind, account: s.Account, text: text, diagnostics: s.Diagnostics.cleaned(), at: s.At,
+		id: s.ID, kind: s.Kind, account: s.Account, text: text, diagnostics: s.Diagnostics.cleaned(),
+		attachments: attachments, at: s.At,
 	}, nil
 }
 

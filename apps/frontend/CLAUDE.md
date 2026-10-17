@@ -68,9 +68,12 @@ player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
-`"unknown-player"`, `"reported-already"`, `"failed"`) refuses what Settings and a
-player's card send next, and `fakeSupport.refuse()` takes it again;
-`fakeSupport.sent` is what it took.
+`"reported-already"`, `"failed"`) refuses what Settings and a player's card
+send next, `fakeSupport.refuse("upload-failed")` fails each file half way up,
+and `fakeSupport.refuse()` takes it all again; `fakeSupport.sent` is what it
+took, with the ids of each note's files, and `fakeSupport.uploaded` the files
+behind those ids (`fake-file-<n>` is its place there).
+`fakeSupport.rules.maxPerNote = 0` is a server that takes no file.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` runs chat (it is always on), and the Go server answers
@@ -948,8 +951,10 @@ What a player sends the operator: a feature suggestion or a bug report, from
 the foot of Settings, and a report of another player, from that player's card.
 
 - `backends/support.ts` — `FeatureSuggester` and `BugReporter`, the
-  `PageContext` both send, `PlayerReporter` with its `PlayerReport` and
-  `ReportReason` (and `SupportBackend`, every support contract together),
+  `PageContext` both send, `AttachmentRulesReader` and `AttachmentUploader` for
+  the files (`FeedbackBackend` is those four together), `PlayerReporter` with
+  its `PlayerReport` and `ReportReason` (and `SupportBackend`, every support
+  contract together),
   `MAX_NOTE_LENGTH`, which mirrors the backend's
   `notes.MaxTextLength`, and the errors. `ConnectSupportBackend`
   (`supportBackend.ts`) implements it over `support.v1.SupportService`;
@@ -961,7 +966,9 @@ the foot of Settings, and a report of another player, from that player's card.
 - **A send is never retried.** A call that landed and lost its answer would be
   kept twice, and the text is still in the box.
 - The refusals are `resource_exhausted` → `SupportRateLimitedError` (one address
-  sends three, then one a minute) and `invalid_argument` → `SupportRejectedError`.
+  sends three, then one a minute; an account and an address send ten notes and a
+  hundred files a day; and the bucket is full) and `invalid_argument` →
+  `SupportRejectedError`. The line says "Try again later": the wait can be a day.
   A player report has one more: `already_exists` → `SupportReportedAlreadyError`
   (one account reports one player once a day).
 - **A note says what the page knows about itself, a suggestion as a bug report**
@@ -997,7 +1004,8 @@ the foot of Settings, and a report of another player, from that player's card.
 - **The modal's scroll fade is off** (`.modal-support`): a field sits at the
   bottom edge of the body, and the fade drew over it.
 - `SettingsPlace` shows Feedback only with a `support` backend wired. It asks
-  for `FeatureSuggester & BugReporter`, not the whole `SupportBackend`.
+  for `FeedbackBackend` (the two sends and the two contracts of the files), not
+  the whole `SupportBackend`.
 - **A player is reported from its card.** With a `reporter` wired, `PlayerCard`
   has a Report button in its footer, clear of the body's scroll fade. A press
   shows `ReportPlayerModal` **in place of the card**, not over it: two modals
@@ -1005,6 +1013,7 @@ the foot of Settings, and a report of another player, from that player's card.
 - **`ReportPlayerModal` is `NoteModal` with a question before the text**
   (`asked`): `Choices` of the four reasons, then the details, which are
   `optional`. Send waits for a reason (`ready`). It opens on the first reason.
+  It hands the form no `files`, so a report of a player takes none.
 - **The report names the account, never the name.** A name can change hands,
   so a report by name could land on another player. `PlayerLine.accountId` is on
   every line a card opens from: a chat message (`authorAccountId`), a roster
@@ -1033,6 +1042,50 @@ the foot of Settings, and a report of another player, from that player's card.
   report.
 - The fakes name one account per name (`backends/fakeAccounts.ts`), so a fake
   chat message, roster line and standing agree on who a player is.
+
+**A note carries photos and videos**, an idea as a bug: `FeedbackModal` hands
+`NoteModal` the backend as `files`, and the picker is under the text whatever
+the pick. See the backend's CLAUDE.md (Support) for where they are kept.
+
+- **The server says what a note may carry.** The form reads `attachmentRules()`
+  when it opens (`GetAttachmentRules`, no token): the most files, the most bytes
+  of one, and the content types. The most bytes shrink to the room the bucket has
+  left, and a full bucket takes no file, so the picker goes away. The picker shows only once they say one file or
+  more, so a server with no bucket, an older server (it answers
+  `unimplemented`) and a read that failed all give the plain form. No limit is
+  written on this side.
+- **The files first, the note after.** Send uploads each file in turn, then
+  sends the note with the id of every one (`attachmentIds`): a note never
+  reaches the operator without the files that explain it. `uploadAttachment`
+  is two calls: `CreateUpload` (the type and the size, with the click token)
+  answers an id and a link signed for that type and that size, and the file is
+  put there. The server checks each id is in the bucket before it keeps the
+  note.
+- **`putFile` is one `PUT` straight to the bucket**, over `XMLHttpRequest`:
+  `fetch` says nothing while a body goes up, and a 50 MB video on a phone needs a
+  bar. It sets the `Content-Type` the link was signed for; with another one the
+  bucket refuses the file. It is not a Connect call, so it has no token, no
+  retry and no `connectionInterceptor`.
+- `domain/attachments.ts` — `withPicked`, what the rules take of the files just
+  picked, and the first refusal as one line (`refusalLine`): too many, too big,
+  not a photo or a video. `sizeLine` writes a size.
+- `app/support/Attachments.tsx` — `AttachmentPicker` (the button, a hidden file
+  input with the server's types as `accept`, the list with a thumbnail, the size
+  and a remove button), each with its bar while it goes up and a tick once it
+  is up. **A picture pasted into the text is a file too.** A photo the browser
+  cannot draw (HEIC outside Safari) gets the plain mark.
+- **The form shows each file going up.** The footer is "Uploading 2 of 3…", the
+  text is read-only, the files cannot be taken off, and a click beside the form
+  does not close it. A file that did not upload stops the send and is named in
+  one line; Send again goes on from it. **A file already up is not sent again**
+  (`NoteModal` keeps each one's id), on a failed upload or a refused note
+  alike.
+- **Closing the form calls the upload off and sends nothing** (an
+  `AbortController` made in an effect). Made once per component, React's
+  StrictMode aborted it before the form was ever used, and every upload in
+  `npm run dev` stopped at 0%. A file already up stays in the bucket, named by
+  no note.
+- The fake uploads in eight steps, so the bar moves in dev.
 
 ### Titles
 
@@ -3310,9 +3363,11 @@ crawler reads it as it is. The Workers asset handler serves it at `/privacy`
 (`html_handling` drops the extension) and `nginx.conf` does the same with
 `$uri.html`; `npm run dev` serves it at both `/privacy` and `/privacy.html`. **It states
 retention periods, so it goes stale when the backend's do**: `ledger.retention`,
-`antiBot.evidence.retention`, `chat.storage.retention` and
+`antiBot.evidence.retention`, `chat.storage.retention`, `support.retention` and
 `auth.sessions.guestTTL` in `deploy/vps/backend.yaml`, and `roll_keep_for` in
-the Caddyfile. Change one, change the page and its date.
+the Caddyfile. Change one, change the page and its date. **It names who keeps
+the photos and videos of a note** (Cloudflare, for an R2 bucket): another
+`support.attachments.bucket.endpoint` changes that line too.
 
 **Its "Google user data" section is what Google's brand verification reads**:
 what we ask Google for, why, that nobody else gets it, and the Limited Use

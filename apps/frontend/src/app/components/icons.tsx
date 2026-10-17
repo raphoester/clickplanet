@@ -94,6 +94,25 @@ export function InfoIcon({size = 22}: IconProps) {
     </svg>
 }
 
+export function ClipIcon({size = 18}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.2}>
+        <path d="M20 11.5 12.2 19.3a5 5 0 0 1-7.1-7.1l8.2-8.2a3.4 3.4 0 0 1 4.8 4.8l-8.1 8.1a1.7 1.7 0 0 1-2.4-2.4l7.4-7.4"/>
+    </svg>
+}
+
+export function FilmIcon({size = 20}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2}>
+        <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/>
+        <path d="M10 9.2v5.6l4.8-2.8z"/>
+    </svg>
+}
+
+export function CheckIcon({size = 16}: IconProps) {
+    return <svg {...base(size)} strokeWidth={2.8}>
+        <path d="M5 12.5 10 17.5 19 7.5"/>
+    </svg>
+}
+
 export function DiscordIcon({size = 22}: IconProps) {
     return <svg {...base(size)} viewBox="0 0 127.14 96.36" fill="currentColor" stroke="none">
         <path d="M107.7 8.07A105.15 105.15 0 0 0 81.47 0a72.06 72.06 0 0 0-3.36 6.83 97.68 97.68 0 0 0-29.11 0A72.37 72.37 0 0 0 45.64 0a105.89 105.89 0 0 0-26.25 8.09C2.79 32.65-1.71 56.6.54 80.21a105.73 105.73 0 0 0 32.17 16.15 77.7 77.7 0 0 0 6.89-11.11 68.42 68.42 0 0 1-10.85-5.18c.91-.66 1.8-1.34 2.66-2a75.57 75.57 0 0 0 64.32 0c.87.71 1.76 1.39 2.66 2a68.68 68.68 0 0 1-10.87 5.19 77 77 0 0 0 6.89 11.1 105.25 105.25 0 0 0 32.19-16.14c2.64-27.38-4.51-51.11-18.9-72.15zM42.45 65.69C36.18 65.69 31 60 31 53s5-12.74 11.43-12.74S54 46 53.89 53s-5.05 12.69-11.44 12.69zm42.24 0C78.41 65.69 73.25 60 73.25 53s5-12.74 11.44-12.74S96.23 46 96.12 53s-5.04 12.69-11.43 12.69z"/>
