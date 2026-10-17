@@ -1004,7 +1004,8 @@ button.chat-quote:hover {
 }
 
 .chat-reaction-add,
-.chat-reply-add {
+.chat-reply-add,
+.chat-report-add {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1025,14 +1026,17 @@ button.chat-quote:hover {
 
 .chat-message:hover .chat-reaction-add,
 .chat-message:hover .chat-reply-add,
+.chat-message:hover .chat-report-add,
 .chat-reaction-add:focus-visible,
 .chat-reply-add:focus-visible,
+.chat-report-add:focus-visible,
 .chat-reaction-add-open {
     opacity: 1;
 }
 
 .chat-reaction-add:hover,
 .chat-reply-add:hover,
+.chat-report-add:hover,
 .chat-reaction-add-open {
     background: var(--secondary);
     color: var(--text);
@@ -1040,7 +1044,8 @@ button.chat-quote:hover {
 
 @media (hover: none) {
     .chat-reaction-add,
-    .chat-reply-add {
+    .chat-reply-add,
+    .chat-report-add {
         opacity: 0.5;
     }
 }
