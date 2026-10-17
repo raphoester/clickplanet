@@ -27,7 +27,7 @@ export type ChatPanelProps = {
     playSound?: PlaySound
     accountId?: string
     username?: string
-    onOpenPlayer?: (player: PlayerLine, messageId?: string) => void
+    onOpenPlayer?: (player: PlayerLine) => void
     onReport?: (message: ChatMessage) => void
     players?: readonly RosterEntry[]
     compact?: boolean
