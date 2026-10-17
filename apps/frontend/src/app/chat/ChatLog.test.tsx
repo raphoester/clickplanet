@@ -113,15 +113,22 @@ describe("ChatLog", () => {
         const first = {...message("1", "Ana", "fr"), text: "hi"}
         const second = {...message("2", "Ana", "fr"), text: "you all suck"}
 
-        it("sends the message it was pressed on, the second of its author's run too", async () => {
+        it("hands up the message it was pressed on, the second of its author's run too", async () => {
             const onReport = vi.fn()
             const {container} = render(<ChatLog loading={false} onReport={onReport} messages={[first, second]}/>)
-
             const [, last] = [...container.querySelectorAll<HTMLElement>(".chat-message")]
             expect(last.querySelector(".chat-message-head")).toBeNull()
+
             await userEvent.click(within(last).getByRole("button", {name: "Report this message from Ana"}))
 
             expect(onReport.mock.calls).toEqual([[second]])
+        })
+
+        it("shows a message already reported as reported, with nothing to press", () => {
+            render(<ChatLog loading={false} onReport={vi.fn()} reported={new Set(["2"])} messages={[first, second]}/>)
+
+            expect(screen.getAllByRole("button", {name: "Report this message from Ana"})).toHaveLength(1)
+            expect(screen.getByRole("img", {name: "Reported"}).closest("[data-message]")?.getAttribute("data-message")).toBe("2")
         })
 
         it("is not offered on the player's own message, nor on one with no account", () => {

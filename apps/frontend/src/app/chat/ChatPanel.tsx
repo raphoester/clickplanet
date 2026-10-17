@@ -1,6 +1,7 @@
 import {ReactNode, useCallback, useEffect, useId, useRef, useState} from "react";
 import {ChatBackend, ChatMessage, OutgoingMessage} from "../../backends/chat.ts";
 import {PlayerLine, RosterEntry} from "../../backends/player.ts";
+import {PlayerReporter} from "../../backends/support.ts";
 import {Country} from "../../domain/countries.ts";
 import {idsSince, unseenAfter} from "../../domain/chatLog.ts";
 import {ChevronIcon} from "../components/icons.tsx";
@@ -14,6 +15,7 @@ import {authorOf, authorStyle} from "./authorStyle.ts";
 import {RESIZE_EDGES} from "./chatSize.ts";
 import ChatComposer from "./ChatComposer.tsx";
 import ChatLog from "./ChatLog.tsx";
+import ReportMessageModal from "../support/ReportMessageModal.tsx";
 import DiscordBar from "./DiscordBar.tsx";
 import {useChat} from "./useChat.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
@@ -28,7 +30,7 @@ export type ChatPanelProps = {
     accountId?: string
     username?: string
     onOpenPlayer?: (player: PlayerLine) => void
-    onReport?: (message: ChatMessage) => void
+    reporter?: PlayerReporter
     players?: readonly RosterEntry[]
     compact?: boolean
     open?: boolean
@@ -63,6 +65,8 @@ export default function ChatPanel(props: ChatPanelProps) {
     const [toast, setToast] = useState<ChatMessage>()
     const [replyingTo, setReplyingTo] = useState<ChatMessage>()
     const [flashing, setFlashing] = useState<ReadonlySet<string>>(NOTHING)
+    const [reported, setReported] = useState<ReadonlySet<string>>(NOTHING)
+    const [reporting, setReporting] = useState<ChatMessage>()
     const bodyId = useId()
     const panel = useRef<HTMLElement>(null)
     const {startResize, resetSize} = useChatSize(panel)
@@ -165,6 +169,10 @@ export default function ChatPanel(props: ChatPanelProps) {
     // A copy each time: Reply pressed again on the same message puts the focus back in the box.
     const onReply = useCallback((message: ChatMessage) => setReplyingTo({...message}), [])
 
+    const {reporter} = props
+    const onReported = useCallback((message: ChatMessage) =>
+        setReported(current => new Set([...current, message.id])), [])
+
     if (status === 'unavailable') return null
 
     const onSend = async (text: string) => {
@@ -216,7 +224,8 @@ export default function ChatPanel(props: ChatPanelProps) {
                      onReact={(messageId, reaction, on) =>
                          react({messageId, reaction, on})}
                      onReply={onReply}
-                     onReport={props.onReport}
+                     onReport={reporter && setReporting}
+                     reported={reported}
                      own={own}/>
 
             <ChatComposer username={username}
@@ -226,6 +235,12 @@ export default function ChatPanel(props: ChatPanelProps) {
                           replyingTo={replyingTo}
                           onCancelReply={() => setReplyingTo(undefined)}
                           onSend={onSend}/>
+
+            {reporting && reporter && <ReportMessageModal key={reporting.id}
+                                                          message={reporting}
+                                                          reporter={reporter}
+                                                          onSent={onReported}
+                                                          onClose={() => setReporting(undefined)}/>}
         </>
 
     if (props.compact) {

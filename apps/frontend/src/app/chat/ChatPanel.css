@@ -1050,6 +1050,18 @@ button.chat-quote:hover {
     }
 }
 
+.chat-report-add.chat-report-done,
+.chat-report-add.chat-report-done:hover {
+    background: var(--panel-raised);
+    color: var(--text);
+    cursor: default;
+    opacity: 1;
+}
+
+.chat-report-done svg {
+    fill: currentColor;
+}
+
 .chat-reaction-picker {
     display: grid;
     grid-template-columns: repeat(8, 32px);

@@ -22,7 +22,7 @@ import {ConnectionSource} from "../../backends/connection.ts";
 import {useConnection} from "./useConnection.ts";
 import Quiz from "../quiz/Quiz.tsx";
 import {useQuiz} from "../quiz/useQuiz.ts";
-import {ChatBackend, ChatMessage} from "../../backends/chat.ts";
+import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu, {BoardSheet, MenuTab, YouPlace} from "../Menu.tsx";
 import {youLabel} from "../youLabel.ts";
@@ -54,7 +54,6 @@ import {useAccount} from "../account/useAccount.ts";
 import {hueOf} from "../../domain/authorColor.ts";
 import {PlayerInfoBackend, PlayerLine, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
-import ReportPlayerModal from "../support/ReportPlayerModal.tsx";
 import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
@@ -132,8 +131,6 @@ export default function Viewer(props: ViewerProps) {
     const [pitchOpen, setPitchOpen] = useState(false)
     const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
     const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
-    const [reportedMessage, setReportedMessage] = useState<ChatMessage>()
-    const onReport = props.support ? setReportedMessage : undefined
     const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
 
     const compact = useCompact()
@@ -335,7 +332,7 @@ export default function Viewer(props: ViewerProps) {
             accountId={ownAccountId}
             username={username}
             onOpenPlayer={onOpenPlayer}
-            onReport={onReport}
+            reporter={props.support}
             players={roster.kind === 'ready' ? roster.entries : undefined}
             compact={compact}
             open={compact ? sheet === "chat" : undefined}
@@ -381,13 +378,6 @@ export default function Viewer(props: ViewerProps) {
                                                        backend={props.playerInfo}
                                                        reporter={openPlayer.accountId === ownAccountId ? undefined : props.support}
                                                        onClose={() => setOpenPlayer(undefined)}/>}
-
-        {reportedMessage && props.support && <ReportPlayerModal key={reportedMessage.id}
-                                                                accountId={reportedMessage.authorAccountId}
-                                                                name={reportedMessage.authorName}
-                                                                messageId={reportedMessage.id}
-                                                                reporter={props.support}
-                                                                onClose={() => setReportedMessage(undefined)}/>}
 
         {unlocked.length > 0 && <TitleUnlocked key={unlocked[0].id}
                                                title={unlocked[0]}
