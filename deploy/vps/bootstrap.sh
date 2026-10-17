@@ -165,7 +165,7 @@ SECRETS
 	cat <<PUSH
 $(log "push the box's secrets up, BEFORE the first deploy")
 
-  ssh ${DEPLOY_USER}@${SSH_HOST} 'grep -hE "^(CLOUDFLARE_API_TOKEN|CHAT_TAG_SALT|SESSION_SECRET|TURNSTILE_SECRET|POSTGRES_PASSWORD|GOOGLE_CLIENT_SECRET|DISCORD_CLIENT_SECRET)=." ${STACK_DIR}/.env ${STACK_DIR}/.env.caddy ${STACK_DIR}/.env.backend' \\
+  ssh ${DEPLOY_USER}@${SSH_HOST} 'grep -hE "^(CLOUDFLARE_API_TOKEN|CHAT_TAG_SALT|SESSION_SECRET|TURNSTILE_SECRET|POSTGRES_PASSWORD|GOOGLE_CLIENT_SECRET|DISCORD_CLIENT_SECRET|ADMIN_GOOGLE_CLIENT_SECRET)=." ${STACK_DIR}/.env ${STACK_DIR}/.env.caddy ${STACK_DIR}/.env.backend' \\
     | sort -u | while IFS='=' read -r name value; do \\
         printf '%s' "\$value" | gh secret set "\$name" --repo raphoester/clickplanet && echo "set \$name"; \\
       done

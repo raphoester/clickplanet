@@ -2,6 +2,9 @@ package authv1controller
 
 import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_complete_sign_in_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_sign_out_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_start_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
@@ -17,6 +20,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_sign_in_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/who_am_i_handler"
 )
 
 type AuthService struct {
@@ -43,3 +47,12 @@ type InternalService struct {
 }
 
 var _ authv1connect.InternalServiceHandler = InternalService{}
+
+type AdminService struct {
+	admin_start_sign_in_handler.AdminStartSignInHandler
+	admin_complete_sign_in_handler.AdminCompleteSignInHandler
+	admin_sign_out_handler.AdminSignOutHandler
+	who_am_i_handler.WhoAmIHandler
+}
+
+var _ authv1connect.AdminServiceHandler = AdminService{}

@@ -27,11 +27,19 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_everywhere_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/sign_out_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/uuid_id_provider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/postgres_admin_session_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/complete_admin_sign_in_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/sign_out_admin_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/start_admin_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/turnstile"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/turnstile_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_complete_sign_in_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_sign_out_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_start_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
@@ -51,6 +59,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_sign_in_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/who_am_i_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/sessionv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
@@ -85,7 +94,11 @@ func NewModule(config Config) cpbootstrap.Module {
 			if err != nil {
 				return err
 			}
-			return build(ctx, config, props, newProviders(config), mailing{mailer: mailer, codes: random_code_generator.Generator{}})
+			return build(ctx, config, props, signIns{
+				game:  newProviders(config),
+				admin: newAdminProviders(config.Admin),
+				mail:  mailing{mailer: mailer, codes: random_code_generator.Generator{}},
+			})
 		},
 	}
 }
@@ -108,6 +121,21 @@ func newProviders(config Config) signin.Providers {
 			discord_identity_provider.Production, httpClient)
 	}
 	return providers
+}
+
+// Its own client and redirect: the admin page's sign-in is not the game's.
+func newAdminProviders(config AdminConfig) signin.Providers {
+	if config.Origin == "" || !config.Google.Configured() {
+		return signin.Providers{}
+	}
+	return signin.Providers{signin.Google: google_identity_provider.New(config.Google, config.RedirectURL,
+		google_identity_provider.Production, &http.Client{Timeout: providerTimeout}, cptime.SystemClock{})}
+}
+
+type signIns struct {
+	game  signin.Providers
+	admin signin.Providers
+	mail  mailing
 }
 
 const mailerTimeout = 10 * time.Second
@@ -138,7 +166,9 @@ func newMailer(config EmailConfig, logger *slog.Logger) (signin.Mailer, error) {
 	return mailer, nil
 }
 
-func build(ctx context.Context, config Config, props cpbootstrap.Props, providers signin.Providers, mail mailing) error {
+func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns signIns) error {
+	providers, mail := signIns.game, signIns.mail
+
 	signer, err := cpsession.NewSigner(config.SignerConfig)
 	if err != nil {
 		return fmt.Errorf("failed to build the click token signer: %w", err)
@@ -230,16 +260,36 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, provider
 		return fmt.Errorf("failed to mount auth.v1: %w", err)
 	}
 
+	operators := operator_query.NewPostgresQuery(db, clock)
 	internalService := authv1controller.InternalService{
 		GetVerifyingKeyHandler: get_verifying_key_handler.New(signer),
 		GetAccountHandler:      get_account_handler.New(account_query.NewPostgresQuery(db)),
 		GetAccountsHandler:     get_accounts_handler.New(accounts_query.NewPostgresQuery(db)),
-		GetOperatorHandler:     get_operator_handler.New(operator_query.NewPostgresQuery(db, clock)),
+		GetOperatorHandler:     get_operator_handler.New(operators),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewInternalServiceHandler(internalService, options...)
 	}); err != nil {
 		return fmt.Errorf("failed to mount auth.v1.InternalService: %w", err)
+	}
+
+	adminSessions := postgres_admin_session_store.New(db)
+	adminService := authv1controller.AdminService{
+		AdminStartSignInHandler: admin_start_sign_in_handler.New(
+			start_admin_sign_in_usecase.New(signIns.admin, random_secret_generator.Generator{}, sealer, clock),
+		),
+		AdminCompleteSignInHandler: admin_complete_sign_in_handler.New(
+			complete_admin_sign_in_usecase.New(signIns.admin, sealer, adminSessions,
+				adminsignin.NewIssuer(random_token_generator.Generator{}, config.Admin.SessionTTL), clock),
+			props.Logger,
+		),
+		AdminSignOutHandler: admin_sign_out_handler.New(sign_out_admin_usecase.New(adminSessions)),
+		WhoAmIHandler:       who_am_i_handler.New(operators),
+	}
+	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
+		return authv1connect.NewAdminServiceHandler(adminService, options...)
+	}, authv1controller.NewAdminRateLimitInterceptor(mintLimiter)); err != nil {
+		return fmt.Errorf("failed to mount auth.v1.AdminService: %w", err)
 	}
 
 	sessionService := sessionv1controller.NewSessionService(
@@ -302,7 +352,7 @@ type Config struct {
 
 	Prune prune_guests_usecase.Config
 
-	AdminGate AdminGateConfig
+	Admin AdminConfig
 }
 
 type EmailConfig struct {
@@ -321,6 +371,7 @@ type EmailConfig struct {
 const defaultTurnstileAction = "session"
 
 func (c Config) withDefaults() Config {
+	c.Admin = c.Admin.withDefaults()
 	if c.Turnstile.Action == "" {
 		c.Turnstile.Action = defaultTurnstileAction
 	}
@@ -340,8 +391,8 @@ func (c Config) withDefaults() Config {
 
 func (c Config) Validate() error {
 	if !c.Enabled {
-		if c.AdminGate.Origin != "" {
-			return errors.New("auth.adminGate.origin is set and auth is off: the admin gate could admit nobody")
+		if c.Admin.Origin != "" {
+			return errors.New("auth.admin.origin is set and auth is off: the admin gate could admit nobody")
 		}
 		return nil
 	}
@@ -350,7 +401,7 @@ func (c Config) Validate() error {
 	if err := c.Database.Validate(); err != nil {
 		databaseErr = fmt.Errorf("auth.database: %w", err)
 	}
-	return errors.Join(c.SignerConfig.Validate(), databaseErr, c.pruneError(), c.signInError(), c.emailError(), c.AdminGate.Validate())
+	return errors.Join(c.SignerConfig.Validate(), databaseErr, c.pruneError(), c.signInError(), c.emailError(), c.Admin.Validate())
 }
 
 func (c Config) pruneError() error {

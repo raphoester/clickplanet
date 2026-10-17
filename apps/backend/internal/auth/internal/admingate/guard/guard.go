@@ -25,7 +25,7 @@ type guard struct {
 
 func (g guard) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 	return func(ctx context.Context, request connect.AnyRequest) (connect.AnyResponse, error) {
-		admitted, err := g.admitted(ctx, request.Header())
+		admitted, err := g.admitted(ctx, request.Spec().Procedure, request.Header())
 		if err != nil {
 			return nil, err
 		}
@@ -40,7 +40,7 @@ func (g guard) WrapStreamingClient(next connect.StreamingClientFunc) connect.Str
 
 func (g guard) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
 	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
-		admitted, err := g.admitted(ctx, conn.RequestHeader())
+		admitted, err := g.admitted(ctx, conn.Spec().Procedure, conn.RequestHeader())
 		if err != nil {
 			return err
 		}
@@ -49,8 +49,10 @@ func (g guard) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.S
 	}
 }
 
-func (g guard) admitted(ctx context.Context, header http.Header) (context.Context, error) {
-	operator, err := g.admitter.Execute(ctx, admission.Visit{Origin: header.Get("Origin"), Cookie: header.Get("Cookie")})
+func (g guard) admitted(ctx context.Context, procedure string, header http.Header) (context.Context, error) {
+	operator, err := g.admitter.Execute(ctx, admission.Visit{
+		Origin: header.Get("Origin"), Cookie: header.Get("Cookie"), Procedure: procedure,
+	})
 
 	switch {
 	case err == nil:

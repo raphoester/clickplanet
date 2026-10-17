@@ -16,10 +16,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-const cookieName = "cp_sid"
+const cookieName = "cp_admin"
 
 var (
-	ErrNoSession     = errors.New("this browser is signed in to no account")
+	ErrNoSession     = errors.New("this browser holds no admin session")
 	ErrNotAnOperator = errors.New("not an operator")
 )
 
@@ -32,13 +32,12 @@ type PostgresQuery struct {
 	clock cptime.Clock
 }
 
-// A guest is never an operator, whatever its row says: its cookie is the whole of what proves it.
+// The flag is read again on every call: unsetting it ends a session already open.
 const operator = `
-	SELECT accounts.id,
-	       accounts.operator AND EXISTS (SELECT 1 FROM identities WHERE identities.account_id = accounts.id)
-	FROM sessions
-	JOIN accounts ON accounts.id = sessions.account_id
-	WHERE sessions.token_hash = $1 AND sessions.expires_at > $2
+	SELECT accounts.id, accounts.operator
+	FROM admin_sessions
+	JOIN accounts ON accounts.id = admin_sessions.account_id
+	WHERE admin_sessions.token_hash = $1 AND admin_sessions.expires_at > $2
 `
 
 func (q *PostgresQuery) Operator(ctx context.Context, cookieHeader string) (*authv1.GetOperatorResponse, error) {
@@ -55,7 +54,7 @@ func (q *PostgresQuery) Operator(ctx context.Context, cookieHeader string) (*aut
 	now := q.clock.Now().UTC().Truncate(time.Microsecond)
 	err := q.db.QueryRowContext(ctx, operator, hash, now).Scan(&account, &operates)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, fmt.Errorf("%w: no live session for this cookie", ErrNoSession)
+		return nil, fmt.Errorf("%w: no live admin session for this cookie", ErrNoSession)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the caller: %w", err)
