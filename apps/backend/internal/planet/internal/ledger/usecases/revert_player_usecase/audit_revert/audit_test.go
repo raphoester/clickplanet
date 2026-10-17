@@ -12,6 +12,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase/audit_revert"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubUseCase struct {
@@ -48,4 +49,14 @@ func TestAFailureIsLoggedWithHowFarItGot(t *testing.T) {
 	assert.Equal(t, 256, out.Restored)
 	assert.Contains(t, logs.String(), `msg="admin player revert failed"`)
 	assert.Contains(t, logs.String(), `error="revert interrupted"`)
+}
+
+func TestARevertNamesItsOperator(t *testing.T) {
+	var logs bytes.Buffer
+	useCase := audit_revert.New(stubUseCase{}, slog.New(slog.NewTextHandler(&logs, nil)))
+
+	_, err := useCase.Execute(cpctx.AddOperatorToContext(t.Context(), "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"), revert_player_usecase.In{Scope: "9.9.9.9"})
+
+	require.NoError(t, err)
+	assert.Contains(t, logs.String(), "operator=0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10")
 }

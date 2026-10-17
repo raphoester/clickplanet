@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type UseCase interface {
@@ -27,6 +28,7 @@ func (a *Audited) Execute(ctx context.Context, in ban_player_usecase.In) (ban_pl
 		slog.String("asked", in.Scope), slog.String("askedAccount", in.Account), slog.Duration("duration", in.Duration),
 		slog.String("scope", out.Scope), slog.String("account", out.Account), slog.Int("offence", out.Offence),
 		slog.Time("bannedUntil", out.Until), slog.Bool("enforced", out.Enforced),
+		slog.String("operator", cpctx.GetOperator(ctx)),
 	}
 
 	if err != nil {

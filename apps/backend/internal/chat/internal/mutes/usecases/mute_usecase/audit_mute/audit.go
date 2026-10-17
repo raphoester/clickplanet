@@ -6,6 +6,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 func New(inner mute_usecase.Executor, logger *slog.Logger) *Audited {
@@ -25,6 +26,7 @@ func (a *Audited) Execute(ctx context.Context, in mute_usecase.In) (mutes.Mute, 
 	attrs := []any{
 		slog.String("account", in.Account.String()), slog.Duration("duration", in.Duration),
 		slog.String("scope", string(mute.Caller().Scope())), slog.Time("mutedUntil", mute.Until()),
+		slog.String("operator", cpctx.GetOperator(ctx)),
 	}
 
 	if err != nil {

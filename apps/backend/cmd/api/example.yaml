@@ -5,6 +5,9 @@ httpServer:
   startupTimeout: 1m
   adminBindAddress: 127.0.0.1:8081
   internalBindAddress: 127.0.0.1:8082
+  # The admin page's calls: set, it needs auth.enabled, whose module guards it, and answers operatorOrigin alone.
+  operatorBindAddress: ""
+  operatorOrigin: http://localhost:5174
   allowedOrigin: http://localhost:5173
 gameMap:
   maxIndex: 262119

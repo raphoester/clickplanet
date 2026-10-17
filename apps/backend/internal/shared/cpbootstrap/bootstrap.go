@@ -40,6 +40,8 @@ type Props struct {
 
 	AdminRPC RPCRegistrar
 
+	OperatorRPC OperatorRegistrar
+
 	InternalRPC RPCRegistrar
 	Internal    InternalDialer
 
@@ -52,6 +54,10 @@ type InternalDialer interface {
 
 type RPCRegistrar interface {
 	Mount(build ServiceBuilder, interceptors ...connect.Interceptor) error
+}
+
+type OperatorRegistrar interface {
+	Guard(interceptors ...connect.Interceptor) error
 }
 
 type ServiceBuilder func(options ...connect.HandlerOption) (string, http.Handler)
@@ -78,6 +84,10 @@ type ServerConfig struct {
 
 	AdminBindAddress string
 
+	OperatorBindAddress string
+
+	OperatorOrigin string
+
 	InternalBindAddress string
 
 	AllowedOrigin string
@@ -88,7 +98,7 @@ func (c ServerConfig) Validate() error {
 		return errors.New("httpServer.bindAddress is empty")
 	}
 
-	if err := validateOrigin(c.AllowedOrigin); err != nil {
+	if err := originError("allowedOrigin", c.AllowedOrigin); err != nil {
 		return err
 	}
 
@@ -97,6 +107,10 @@ func (c ServerConfig) Validate() error {
 			"httpServer.adminBindAddress %q is not a loopback host:port: the admin services have no authentication",
 			c.AdminBindAddress,
 		)
+	}
+
+	if err := c.operatorError(); err != nil {
+		return err
 	}
 
 	if c.InternalBindAddress != "" && !isLoopback(c.InternalBindAddress) {
@@ -109,21 +123,38 @@ func (c ServerConfig) Validate() error {
 	return nil
 }
 
-func validateOrigin(origin string) error {
+func (c ServerConfig) operatorError() error {
+	if c.OperatorBindAddress == "" {
+		return nil
+	}
+
+	if !hostPort(c.OperatorBindAddress) {
+		return fmt.Errorf("httpServer.operatorBindAddress %q is not a host:port", c.OperatorBindAddress)
+	}
+
+	return originError("operatorOrigin", c.OperatorOrigin)
+}
+
+func originError(key, origin string) error {
 	if origin == "" {
-		return errors.New("httpServer.allowedOrigin is empty: set it to the frontend's origin")
+		return fmt.Errorf("httpServer.%s is empty: set it to the origin of the page that calls", key)
 	}
 
 	parsed, err := url.Parse(origin)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" ||
 		parsed.String() != parsed.Scheme+"://"+parsed.Host {
 		return fmt.Errorf(
-			"httpServer.allowedOrigin %q is not an origin: want scheme://host[:port], with no path and not \"*\"",
-			origin,
+			"httpServer.%s %q is not an origin: want scheme://host[:port], with no path and not \"*\"",
+			key, origin,
 		)
 	}
 
 	return nil
+}
+
+func hostPort(address string) bool {
+	_, port, err := net.SplitHostPort(address)
+	return err == nil && port != ""
 }
 
 func isLoopback(address string) bool {
@@ -177,11 +208,14 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	routes := newRPCRoutes(errorNet, drainNet)
 	adminRoutes := newRPCRoutes(errorNet, drainNet)
 	internalRoutes := newRPCRoutes(errorNet, drainNet)
+	operatorGuard := newOperatorGuard()
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
 	events := newEventBus(metrics)
 
-	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes, events: events}
+	registrars := registrars{
+		routes: routes, admin: adminRoutes, operator: operatorGuard, internal: internalRoutes, events: events,
+	}
 	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
 		return err
 	}
@@ -196,49 +230,64 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	))
 	mountMetrics(router, metrics, options.Logger)
 
-	loopbacks, err := listenLoopbacks(options, listen, adminRoutes, internalRoutes)
+	sides, err := listenSides(options, listen, adminRoutes, operatorGuard, internalRoutes)
 	if err != nil {
 		return err
 	}
 
 	public, err := listen(context.Background(), "tcp", options.Server.BindAddress)
 	if err != nil {
-		for _, loopback := range loopbacks {
-			_ = loopback.listener.Close()
-		}
+		closeSides(sides)
 		return fmt.Errorf("failed to listen on httpServer.bindAddress %q: %w", options.Server.BindAddress, err)
 	}
 
-	return serve(ctx, options, public, router, loopbacks, drain, runners, closers)
+	return serve(ctx, options, public, router, sides, drain, runners, closers)
 }
 
-func listenLoopbacks(options Options, listen listenFunc, adminRoutes, internalRoutes *rpcRoutes) ([]*loopbackServer, error) {
-	admin, err := listenLoopback(options, listen, "admin", "adminBindAddress", options.Server.AdminBindAddress, adminRoutes)
-	if err != nil {
-		return nil, err
+func listenSides(
+	options Options,
+	listen listenFunc,
+	adminRoutes *rpcRoutes,
+	operatorGuard *operatorGuard,
+	internalRoutes *rpcRoutes,
+) ([]*sideServer, error) {
+	opens := []func() (*sideServer, error){
+		func() (*sideServer, error) {
+			return listenLoopback(options, listen, "admin", "adminBindAddress", options.Server.AdminBindAddress, adminRoutes)
+		},
+		func() (*sideServer, error) {
+			return listenOperator(options, listen, adminRoutes, operatorGuard)
+		},
+		func() (*sideServer, error) {
+			return listenLoopback(options, listen, "internal", "internalBindAddress", options.Server.InternalBindAddress, internalRoutes)
+		},
 	}
 
-	internal, err := listenLoopback(options, listen, "internal", "internalBindAddress", options.Server.InternalBindAddress, internalRoutes)
-	if err != nil {
-		if admin != nil {
-			_ = admin.listener.Close()
+	var sides []*sideServer
+	for _, open := range opens {
+		side, err := open()
+		if err != nil {
+			closeSides(sides)
+			return nil, err
 		}
-		return nil, err
-	}
-
-	var loopbacks []*loopbackServer
-	for _, loopback := range []*loopbackServer{admin, internal} {
-		if loopback != nil {
-			loopbacks = append(loopbacks, loopback)
+		if side != nil {
+			sides = append(sides, side)
 		}
 	}
 
-	return loopbacks, nil
+	return sides, nil
+}
+
+func closeSides(sides []*sideServer) {
+	for _, side := range sides {
+		_ = side.listener.Close()
+	}
 }
 
 type registrars struct {
 	routes   *rpcRoutes
 	admin    *rpcRoutes
+	operator *operatorGuard
 	internal *rpcRoutes
 	events   *eventBus
 }
@@ -268,6 +317,7 @@ func buildModules(
 			Server:      options.Server,
 			RPC:         registrars.routes.forModule(module.Name),
 			AdminRPC:    registrars.admin.forModule(module.Name),
+			OperatorRPC: registrars.operator.forModule(module.Name),
 			InternalRPC: registrars.internal.forModule(module.Name),
 			Internal:    internalDialer{address: options.Server.InternalBindAddress},
 			Events:      registrars.events,
