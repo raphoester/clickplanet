@@ -43,7 +43,7 @@ func (p *gamer) whoAmIOnThePage() (string, error) {
 	req := connect.NewRequest(&authv1.WhoAmIRequest{})
 	req.Header().Set("Origin", adminOrigin)
 	req.Header().Set("Cookie", p.cookie)
-	res, err := authv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.gatedAdminURL).WhoAmI(p.t.Context(), req)
+	res, err := authv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.adminURL).WhoAmI(p.t.Context(), req)
 	if err != nil {
 		return "", err //nolint:wrapcheck // the tests read the connect code.
 	}
@@ -62,10 +62,10 @@ func TestTheAdminPageLearnsWhichAccountItIs(t *testing.T) {
 	assert.Equal(t, operator.account(), account)
 }
 
-func TestTheLoopbackListenerNamesNoOperator(t *testing.T) {
+func TestTheConsoleListenerNamesNoOperator(t *testing.T) {
 	game := startGame(t)
 
-	_, err := authv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).
+	_, err := authv1connect.NewAdminServiceClient(http.DefaultClient, game.consoleURL).
 		WhoAmI(t.Context(), connect.NewRequest(&authv1.WhoAmIRequest{}))
 
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))

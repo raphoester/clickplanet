@@ -1332,7 +1332,7 @@ display flag, and holding one never grants the other.
   cookies and clocks around an expiry through `accounts.Caller` and asks for the same caller.
 - **`AdminService/WhoAmI` tells the admin page who it is**: `operator_query` again, on the `Cookie` header, never
   cached. The page cannot ask `GetMe`, since the public API answers CORS for the game alone, and the gate keeps the
-  operator it admitted to itself. On the loopback listener no browser sends a cookie, so it is `unauthenticated`
+  operator it admitted to itself. On the console listener no browser sends a cookie, so it is `unauthenticated`
   there.
 
 #### Signing out, deleting, pruning
