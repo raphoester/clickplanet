@@ -34,7 +34,7 @@ const (
 	flagKey      = "storyFlag"
 	continentKey = "storyContinent"
 	callKey      = "callToAction"
-	// Four posts a day: a page this long holds two days of them and more.
+	// Four posts a day: a page this long holds the week the choice reads, and more.
 	pageOfPosts = 500
 )
 

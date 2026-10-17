@@ -2912,8 +2912,9 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
    artifact; it is the public stream's data.
 2. **shortlist** and **choose**: `npm run clip -- --shortlist shortlist.json`, then, in a job of its own (it holds
    the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, `[1,2]`.
-   **It skips a story told in the last day**, by its key below: on Oct 13–14 two runs posted three clips of
-   Algeria in Africa. None is a quiet half day: the run ends there, green.
+   **It skips a story told in the last 3 days**, by its key below, and a headline told in the last week, and puts a
+   flag of the last 4 posts after the others: on Oct 13–17 Algeria in Africa was told three times and Palau in
+   half the clips. None is a quiet half day: the run ends there, green.
 3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
    draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
    clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More

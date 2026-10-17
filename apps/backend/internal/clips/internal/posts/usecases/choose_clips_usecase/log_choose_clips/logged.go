@@ -28,6 +28,9 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 	for _, story := range choice.Retold {
 		l.logger.Info("skipped a story told already", attributesOf(story)...)
 	}
+	for _, story := range choice.Passed {
+		l.logger.Info("passed a story for a flag told less lately", attributesOf(story)...)
+	}
 	if len(choice.Chosen) == 0 {
 		l.logger.Info("no story is worth a clip")
 	}
