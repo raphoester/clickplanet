@@ -35,22 +35,27 @@ import (
 const mapTiles = 262119
 
 type gameStack struct {
-	baseURL  string
-	adminURL string
-	fakes    auth.FakeProviders
-	postgres *cppg.TestServer
+	baseURL     string
+	adminURL    string
+	operatorURL string
+	fakes       auth.FakeProviders
+	postgres    *cppg.TestServer
 }
+
+const adminOrigin = "https://admin.clickplanet.lol"
 
 func startGame(t *testing.T) gameStack {
 	t.Helper()
 
 	postgres := cppg.StartTestServer(t)
 	secret, _ := cpsession.TestKeyPair()
-	public, internal, admin := listen(t), listen(t), listen(t)
+	public, internal, admin, operator := listen(t), listen(t), listen(t), listen(t)
 	server := cpbootstrap.ServerConfig{
 		BindAddress:         public.Addr().String(),
 		InternalBindAddress: internal.Addr().String(),
 		AdminBindAddress:    admin.Addr().String(),
+		OperatorBindAddress: operator.Addr().String(),
+		OperatorOrigin:      adminOrigin,
 	}
 
 	authConfig := auth.Config{
@@ -90,7 +95,7 @@ func startGame(t *testing.T) gameStack {
 				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
 				seasons.NewModule(seasonsConfig), support.NewModule(supportConfig),
 			},
-		}, public, internal, admin)
+		}, public, internal, admin, operator)
 	}()
 	t.Cleanup(func() {
 		cancel()
@@ -100,7 +105,11 @@ func startGame(t *testing.T) gameStack {
 	waitUntilServed(t, server.BindAddress)
 
 	return gameStack{
-		baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes, postgres: postgres,
+		baseURL:     "http://" + server.BindAddress,
+		adminURL:    "http://" + server.AdminBindAddress,
+		operatorURL: "http://" + server.OperatorBindAddress,
+		fakes:       fakes,
+		postgres:    postgres,
 	}
 }
 

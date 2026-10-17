@@ -974,11 +974,60 @@ rm -f ~/backups/tiles-*.tar.gz
 ## 10. Operator tools
 
 `httpServer.adminBindAddress` serves the backend's operator services
-(`planet.v1.AdminService`, `player.v1.AdminService`, `chat.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
+(`planet.v1.AdminService`, `player.v1.AdminService`, `chat.v1.AdminService`, `support.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
 not behind Caddy and have **no authentication**: loopback is their whole
 protection, so a non-loopback address refuses the boot. Reach them from the box
 with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
 JSON POST to `/<package>.<Service>/<Method>`.
+
+The same services are also served on the **operator listener**, for the admin
+page: see below. The loopback listener stays: scripts on the box call it with no
+session, and the clips job reads its replays there.
+
+### The operator listener (the admin page)
+
+```
+admin.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* → Caddy → backend:8083 → the auth guard → the admin service
+```
+
+- **An operator is a game account.** You sign in on clickplanet.lol as you play,
+  and the admin page uses that session: the `cp_sid` cookie of
+  `api.clickplanet.lol`, which the browser sends to it from `admin.clickplanet.lol`
+  since both are one site.
+- **The auth module guards every call**: a live session, of an account that
+  signed in with Google, Discord or an email code (never a guest), whose
+  `auth.accounts.role` is `operator`. No cookie, or no live session, is
+  `unauthenticated`; anybody else is `permission_denied`. Each refusal is logged:
+  `journalctl CONTAINER_NAME=cp-backend | grep "operator refused"`.
+- **Only the admin page may call** (`httpServer.operatorOrigin`, from
+  `ADMIN_ORIGIN` in `env.public`). The game page holds the same cookie, so a call
+  from any other origin, or with none, is `permission_denied` before the session
+  is read: a script injected in the chat cannot use an operator's session. A
+  script on the box uses the loopback listener above.
+- **Every call that passes is logged**, reads included:
+  `journalctl CONTAINER_NAME=cp-backend | grep "operator call"`. Every audit line
+  (`admin ban`, `admin chat mute`, …) carries `operator=<account id>`, and
+  `operator=""` for a call on the loopback listener.
+- **Signing out ends it**: the guard reads the session on every call, so
+  `SignOut` or `SignOutEverywhere` closes the admin page at once.
+- The port is on the Docker network only, never published.
+
+### Make an account an operator
+
+Sign in on clickplanet.lol with Google, Discord or an email code, then find your
+account id: it is `accountId` in the answer of `GetMe`, in the network tab, or by
+your username:
+
+```bash
+docker compose exec postgres psql -U clickplanet -c \
+  "SELECT account_id, name FROM player.profiles WHERE name = 'YourUsername'"
+docker compose exec postgres psql -U clickplanet -c \
+  "UPDATE auth.accounts SET role = 'operator' WHERE id = '<account_id>'"
+```
+
+Two steps, for the reason the crown has two (see the player module's admin flag):
+a name can change hands, an id cannot. `role = 'player'` takes it back. The role
+is not the chat crown: `player.profiles.admin` stays a display flag.
 
 ### Give one country's tiles to another
 

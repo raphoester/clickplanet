@@ -12,6 +12,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/ban_player_usecase/audit_ban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubUseCase struct {
@@ -45,4 +46,14 @@ func TestARefusedBanIsLoggedToo(t *testing.T) {
 
 	require.ErrorIs(t, err, cause)
 	assert.Contains(t, logs.String(), `msg="admin ban failed" asked=bot`)
+}
+
+func TestABanNamesItsOperator(t *testing.T) {
+	var logs bytes.Buffer
+	useCase := audit_ban.New(stubUseCase{}, slog.New(slog.NewTextHandler(&logs, nil)))
+
+	_, err := useCase.Execute(cpctx.AddOperatorToContext(t.Context(), "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"), ban_player_usecase.In{Scope: "1.2.3.4"})
+
+	require.NoError(t, err)
+	assert.Contains(t, logs.String(), "operator=0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10")
 }

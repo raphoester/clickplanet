@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/name_accounts_usecase/audit_name_accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubExecutor struct {
@@ -44,4 +45,14 @@ func TestAFailureIsLoggedWithWhatWasDoneBeforeIt(t *testing.T) {
 
 	require.ErrorIs(t, err, cause)
 	assert.Contains(t, logs, `level=WARN msg="admin account naming failed" named=500`)
+}
+
+func TestANamingNamesItsOperator(t *testing.T) {
+	var logs bytes.Buffer
+
+	_, err := audit_name_accounts.New(stubExecutor{}, slog.New(slog.NewTextHandler(&logs, nil))).
+		Execute(cpctx.AddOperatorToContext(t.Context(), "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"))
+
+	require.NoError(t, err)
+	assert.Contains(t, logs.String(), "operator=0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10")
 }
