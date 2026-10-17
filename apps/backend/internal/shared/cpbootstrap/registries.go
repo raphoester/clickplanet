@@ -50,7 +50,7 @@ func (r *rpcRoutes) mountOn(router *http.ServeMux, middlewares func(http.Handler
 }
 
 // Each service is built again, its gate inside the error net: an interceptor is fixed when its handler is built.
-func (r *rpcRoutes) mountGatedOn(
+func (r *rpcRoutes) mountBehind(
 	router *http.ServeMux,
 	middlewares func(http.Handler) http.Handler,
 	gate ...connect.Interceptor,

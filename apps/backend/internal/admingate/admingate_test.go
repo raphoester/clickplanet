@@ -14,7 +14,7 @@ func TestNoOriginIsNoAdminPageAndSoNoGate(t *testing.T) {
 	gate, err := admingate.New(admingate.Config{}, "127.0.0.1:8082", slog.New(slog.DiscardHandler))
 
 	require.NoError(t, err)
-	assert.Empty(t, gate.Interceptors, "a gated admin listener then refuses the boot")
+	assert.Empty(t, gate.Interceptors, "an admin listener then refuses the boot")
 }
 
 func TestTheGateAsksAuthOverTheInternalListener(t *testing.T) {

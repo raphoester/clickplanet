@@ -973,18 +973,18 @@ rm -f ~/backups/tiles-*.tar.gz
 
 ## 10. Operator tools
 
-`httpServer.adminBindAddress` serves the backend's operator services
+`httpServer.consoleBindAddress` serves the backend's operator services
 (`planet.v1.AdminService`, `player.v1.AdminService`, `chat.v1.AdminService`, `support.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
 not behind Caddy and have **no authentication**: loopback is their whole
 protection, so a non-loopback address refuses the boot. Reach them from the box
 with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
 JSON POST to `/<package>.<Service>/<Method>`.
 
-The same services are also served on the **gated admin listener**, for the admin
-page: see below. The loopback listener stays: scripts on the box call it with no
-session, and the clips job reads its replays there.
+This is the **console listener**. The same services are also served on the
+**admin listener**, for the admin page: see below. The console stays: scripts on
+the box call it with no session, and the clips job reads its replays there.
 
-### The gated admin listener (the admin page)
+### The admin listener (the admin page)
 
 ```
 admin.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* → Caddy → backend:8083 → the admin gate → the admin service
@@ -998,7 +998,7 @@ admin.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* → Ca
   `env.public`). The game page holds the same cookie, so a call from any other
   origin, or with none, is `permission_denied` before the session is read: a
   script injected in the chat cannot use an operator's session. A script on the
-  box uses the loopback listener above.
+  box uses the console listener above.
 - **Then the gate asks auth who calls**: a live session, of an account that
   signed in with Google, Discord or an email code (never a guest), whose
   `auth.accounts.operator` is true. No cookie, or no live session, is

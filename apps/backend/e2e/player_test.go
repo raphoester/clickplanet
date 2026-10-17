@@ -36,11 +36,11 @@ import (
 const mapTiles = 262119
 
 type gameStack struct {
-	baseURL       string
-	adminURL      string
-	gatedAdminURL string
-	fakes         auth.FakeProviders
-	postgres      *cppg.TestServer
+	baseURL    string
+	consoleURL string
+	adminURL   string
+	fakes      auth.FakeProviders
+	postgres   *cppg.TestServer
 }
 
 const adminOrigin = "https://admin.clickplanet.lol"
@@ -50,12 +50,12 @@ func startGame(t *testing.T) gameStack {
 
 	postgres := cppg.StartTestServer(t)
 	secret, _ := cpsession.TestKeyPair()
-	public, internal, admin, gated := listen(t), listen(t), listen(t), listen(t)
+	public, internal, console, admin := listen(t), listen(t), listen(t), listen(t)
 	server := cpbootstrap.ServerConfig{
-		BindAddress:           public.Addr().String(),
-		InternalBindAddress:   internal.Addr().String(),
-		AdminBindAddress:      admin.Addr().String(),
-		GatedAdminBindAddress: gated.Addr().String(),
+		BindAddress:         public.Addr().String(),
+		InternalBindAddress: internal.Addr().String(),
+		ConsoleBindAddress:  console.Addr().String(),
+		AdminBindAddress:    admin.Addr().String(),
 	}
 
 	authConfig := auth.Config{
@@ -100,7 +100,7 @@ func startGame(t *testing.T) gameStack {
 				seasons.NewModule(seasonsConfig), support.NewModule(supportConfig),
 			},
 			AdminGate: gate,
-		}, public, internal, admin, gated)
+		}, public, internal, console, admin)
 	}()
 	t.Cleanup(func() {
 		cancel()
@@ -110,11 +110,11 @@ func startGame(t *testing.T) gameStack {
 	waitUntilServed(t, server.BindAddress)
 
 	return gameStack{
-		baseURL:       "http://" + server.BindAddress,
-		adminURL:      "http://" + server.AdminBindAddress,
-		gatedAdminURL: "http://" + server.GatedAdminBindAddress,
-		fakes:         fakes,
-		postgres:      postgres,
+		baseURL:    "http://" + server.BindAddress,
+		consoleURL: "http://" + server.ConsoleBindAddress,
+		adminURL:   "http://" + server.AdminBindAddress,
+		fakes:      fakes,
+		postgres:   postgres,
 	}
 }
 
@@ -481,7 +481,7 @@ func TestAnOperatorReconcilesTheTitlesOnTheAdminListenerOnly(t *testing.T) {
 	_, err = playerv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).ReconcileTitles(t.Context(), request)
 	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "the public router does not serve it")
 
-	admin := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL)
+	admin := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.consoleURL)
 	first, err := admin.ReconcileTitles(t.Context(), request)
 	require.NoError(t, err)
 	assert.Zero(t, first.Msg.GetRevoked(), "the worker granted the guest nothing, and the player only what it earns")

@@ -62,21 +62,21 @@ func listenLoopback(options Options, listen listenFunc, name, key, address strin
 	}, nil
 }
 
-func listenGatedAdmin(options Options, listen listenFunc, routes *rpcRoutes) (*sideServer, error) {
-	address, gate := options.Server.GatedAdminBindAddress, options.AdminGate
+func listenAdmin(options Options, listen listenFunc, routes *rpcRoutes) (*sideServer, error) {
+	address, gate := options.Server.AdminBindAddress, options.AdminGate
 	if address == "" {
 		if !gate.empty() {
-			options.Logger.Info("gated admin listener off, its gate unused")
+			options.Logger.Info("admin listener off, its gate unused")
 		}
 		return nil, nil //nolint:nilnil // nil means "no such listener"; serve skips it.
 	}
 
 	if !hostPort(address) {
-		return nil, fmt.Errorf("httpServer.gatedAdminBindAddress %q is not a host:port", address)
+		return nil, fmt.Errorf("httpServer.adminBindAddress %q is not a host:port", address)
 	}
 	if gate.empty() {
 		return nil, fmt.Errorf(
-			"httpServer.gatedAdminBindAddress %q is set and nothing gates it: the admin services have no authentication of their own",
+			"httpServer.adminBindAddress %q is set and nothing gates it: the admin services have no authentication of their own",
 			address,
 		)
 	}
@@ -88,17 +88,17 @@ func listenGatedAdmin(options Options, listen listenFunc, routes *rpcRoutes) (*s
 	middlewares := cphttpserver.MiddlewareStack(append(
 		[]func(http.Handler) http.Handler{cphttpserver.NewLoggingMiddleware(options.Logger)}, gate.Middlewares...,
 	)...)
-	if err := routes.mountGatedOn(router, middlewares, gate.Interceptors...); err != nil {
+	if err := routes.mountBehind(router, middlewares, gate.Interceptors...); err != nil {
 		return nil, err
 	}
 
 	listener, err := listen(context.Background(), "tcp", address)
 	if err != nil {
-		return nil, fmt.Errorf("failed to listen on httpServer.gatedAdminBindAddress %q: %w", address, err)
+		return nil, fmt.Errorf("failed to listen on httpServer.adminBindAddress %q: %w", address, err)
 	}
 
 	return &sideServer{
-		name:     "gated admin",
+		name:     "admin",
 		server:   &http.Server{Handler: router, ReadHeaderTimeout: readHeaderTimeout},
 		listener: listener,
 	}, nil

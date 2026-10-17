@@ -28,7 +28,7 @@ func (p *gamer) grantFromThePage(origin string, account string) (*planetv1.Grant
 	if p.cookie != "" {
 		req.Header().Set("Cookie", p.cookie)
 	}
-	res, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.gatedAdminURL).GrantCharges(p.t.Context(), req)
+	res, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.adminURL).GrantCharges(p.t.Context(), req)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the tests read the connect code.
 	}
