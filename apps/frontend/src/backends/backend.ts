@@ -1,5 +1,6 @@
 import {BonusReward, BonusRules, Charges, Switches} from "../domain/bonus.ts"
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts"
+import {Allegiance} from "../domain/allegiance.ts"
 
 export interface TileClicker {
     clickTile(tileId: number, countryId: string, switches?: Switches): Promise<void>
@@ -135,6 +136,17 @@ export interface Refiller {
 
 export interface Shielder {
     placeShield(tileId: number, countryId: string): Promise<void>
+}
+
+export interface AllegianceSource {
+    listenForAllegiance(callback: (allegiance: Allegiance | undefined) => void): () => void
+}
+
+export class AllegianceLockedError extends Error {
+    constructor(readonly allegiance: Allegiance, options?: ErrorOptions) {
+        super(`this player plays for ${allegiance.countryId} for now`, options)
+        this.name = "AllegianceLockedError"
+    }
 }
 
 export class ShieldRefusedError extends Error {

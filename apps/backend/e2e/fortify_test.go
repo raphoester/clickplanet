@@ -92,8 +92,9 @@ func TestTakingAWholeLandmassFortifiesItForEveryScreen(t *testing.T) {
 		assert.Equal(t, uint32(1), shielded[tile], "tile %d holds one shield", tile)
 	}
 
-	ada.click(members[landmass][0], "es")
-	ada.click(members[landmass][0], "es")
+	eve := game.newPlayer(t)
+	eve.click(members[landmass][0], "es")
+	eve.click(members[landmass][0], "es")
 	ada.click(members[landmass][0], "pt")
 	select {
 	case event := <-fortified:

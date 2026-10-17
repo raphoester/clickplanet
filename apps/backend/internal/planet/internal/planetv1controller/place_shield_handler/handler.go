@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/allegiancemessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 )
 
@@ -33,6 +34,10 @@ func (h PlaceShieldHandler) PlaceShield(
 		TileID:    req.Msg.GetTileId(),
 		CountryID: req.Msg.GetCountryId(),
 	})
+
+	if refused, ok := allegiancemessage.Refusal(err); ok {
+		return nil, refused
+	}
 
 	switch {
 	case err == nil:

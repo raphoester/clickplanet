@@ -123,6 +123,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     bomber={fake}
                     refiller={fake}
                     shielder={fake}
+                    allegiance={fake}
                     clickBudgetSource={fake}
                     connection={connection}
                     chatBackend={fakeChat}
@@ -160,6 +161,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
                     bomber={backend}
                     refiller={backend}
                     shielder={backend}
+                    allegiance={backend}
                     clickBudgetSource={backend}
                     connection={connection}
                     chatBackend={chatBackend}
