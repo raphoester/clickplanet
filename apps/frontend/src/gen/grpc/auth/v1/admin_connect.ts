@@ -3,24 +3,24 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetOperatorRequest, GetOperatorResponse } from "./admin_pb.js";
+import { WhoAmIRequest, WhoAmIResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Only the operator listener names who calls: on the loopback admin listener every call is unauthenticated.
- *
  * @generated from service auth.v1.AdminService
  */
 export const AdminService = {
   typeName: "auth.v1.AdminService",
   methods: {
     /**
-     * @generated from rpc auth.v1.AdminService.GetOperator
+     * The account the cookie names, when it operates: the admin page's own. Unauthenticated with no cookie.
+     *
+     * @generated from rpc auth.v1.AdminService.WhoAmI
      */
-    getOperator: {
-      name: "GetOperator",
-      I: GetOperatorRequest,
-      O: GetOperatorResponse,
+    whoAmI: {
+      name: "WhoAmI",
+      I: WhoAmIRequest,
+      O: WhoAmIResponse,
       kind: MethodKind.Unary,
     },
   }

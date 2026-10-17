@@ -21,26 +21,26 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GetOperatorRequest struct {
+type WhoAmIRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetOperatorRequest) Reset() {
-	*x = GetOperatorRequest{}
+func (x *WhoAmIRequest) Reset() {
+	*x = WhoAmIRequest{}
 	mi := &file_auth_v1_admin_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetOperatorRequest) String() string {
+func (x *WhoAmIRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetOperatorRequest) ProtoMessage() {}
+func (*WhoAmIRequest) ProtoMessage() {}
 
-func (x *GetOperatorRequest) ProtoReflect() protoreflect.Message {
+func (x *WhoAmIRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_admin_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -52,32 +52,32 @@ func (x *GetOperatorRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetOperatorRequest.ProtoReflect.Descriptor instead.
-func (*GetOperatorRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use WhoAmIRequest.ProtoReflect.Descriptor instead.
+func (*WhoAmIRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_admin_proto_rawDescGZIP(), []int{0}
 }
 
-type GetOperatorResponse struct {
+type WhoAmIResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetOperatorResponse) Reset() {
-	*x = GetOperatorResponse{}
+func (x *WhoAmIResponse) Reset() {
+	*x = WhoAmIResponse{}
 	mi := &file_auth_v1_admin_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetOperatorResponse) String() string {
+func (x *WhoAmIResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetOperatorResponse) ProtoMessage() {}
+func (*WhoAmIResponse) ProtoMessage() {}
 
-func (x *GetOperatorResponse) ProtoReflect() protoreflect.Message {
+func (x *WhoAmIResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_admin_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -89,12 +89,12 @@ func (x *GetOperatorResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetOperatorResponse.ProtoReflect.Descriptor instead.
-func (*GetOperatorResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use WhoAmIResponse.ProtoReflect.Descriptor instead.
+func (*WhoAmIResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_admin_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetOperatorResponse) GetAccountId() string {
+func (x *WhoAmIResponse) GetAccountId() string {
 	if x != nil {
 		return x.AccountId
 	}
@@ -105,13 +105,13 @@ var File_auth_v1_admin_proto protoreflect.FileDescriptor
 
 const file_auth_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x13auth/v1/admin.proto\x12\aauth.v1\"\x14\n" +
-	"\x12GetOperatorRequest\"4\n" +
-	"\x13GetOperatorResponse\x12\x1d\n" +
+	"\x13auth/v1/admin.proto\x12\aauth.v1\"\x0f\n" +
+	"\rWhoAmIRequest\"/\n" +
+	"\x0eWhoAmIResponse\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId2X\n" +
-	"\fAdminService\x12H\n" +
-	"\vGetOperator\x12\x1b.auth.v1.GetOperatorRequest\x1a\x1c.auth.v1.GetOperatorResponseB\xa4\x01\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId2I\n" +
+	"\fAdminService\x129\n" +
+	"\x06WhoAmI\x12\x16.auth.v1.WhoAmIRequest\x1a\x17.auth.v1.WhoAmIResponseB\xa4\x01\n" +
 	"\vcom.auth.v1B\n" +
 	"AdminProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
 
@@ -129,12 +129,12 @@ func file_auth_v1_admin_proto_rawDescGZIP() []byte {
 
 var file_auth_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_auth_v1_admin_proto_goTypes = []any{
-	(*GetOperatorRequest)(nil),  // 0: auth.v1.GetOperatorRequest
-	(*GetOperatorResponse)(nil), // 1: auth.v1.GetOperatorResponse
+	(*WhoAmIRequest)(nil),  // 0: auth.v1.WhoAmIRequest
+	(*WhoAmIResponse)(nil), // 1: auth.v1.WhoAmIResponse
 }
 var file_auth_v1_admin_proto_depIdxs = []int32{
-	0, // 0: auth.v1.AdminService.GetOperator:input_type -> auth.v1.GetOperatorRequest
-	1, // 1: auth.v1.AdminService.GetOperator:output_type -> auth.v1.GetOperatorResponse
+	0, // 0: auth.v1.AdminService.WhoAmI:input_type -> auth.v1.WhoAmIRequest
+	1, // 1: auth.v1.AdminService.WhoAmI:output_type -> auth.v1.WhoAmIResponse
 	1, // [1:2] is the sub-list for method output_type
 	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name

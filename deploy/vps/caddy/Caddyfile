@@ -30,7 +30,7 @@
 	encode zstd gzip
 
 	# The admin page calls with the game's cookie: the backend refuses any other origin, Caddy only says which.
-	@operator path_regexp ^/[a-z]+\.v1\.AdminService/
+	@admin path_regexp ^/[a-z]+\.v1\.AdminService/
 	@game not path_regexp ^/[a-z]+\.v1\.AdminService/
 
 	header @game {
@@ -42,7 +42,7 @@
 		-Server
 	}
 
-	header @operator {
+	header @admin {
 		Access-Control-Allow-Origin "{$ADMIN_ORIGIN}"
 		Access-Control-Allow-Credentials "true"
 		Access-Control-Allow-Methods "POST, OPTIONS"
@@ -99,7 +99,7 @@
 		}
 	}
 
-	handle @operator {
+	handle @admin {
 		reverse_proxy backend:8083
 	}
 

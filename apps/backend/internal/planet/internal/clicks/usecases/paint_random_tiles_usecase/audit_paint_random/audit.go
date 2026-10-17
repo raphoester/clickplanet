@@ -5,7 +5,6 @@ import (
 	"log/slog"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/paint_random_tiles_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type UseCase interface {
@@ -28,7 +27,6 @@ func (a *Audited) Execute(ctx context.Context, in paint_random_tiles_usecase.In)
 		slog.String("flag", in.Flag), slog.String("area", in.Area), slog.Int("count", in.Count),
 		slog.Float64("proximity", in.Proximity), slog.Bool("dryRun", in.DryRun),
 		slog.Int("eligible", out.Eligible), slog.Int("picked", out.Picked), slog.Int("outsideArea", out.OutsideArea), slog.Int("painted", out.Painted),
-		slog.String("operator", cpctx.GetOperator(ctx)),
 	}
 
 	if err != nil {

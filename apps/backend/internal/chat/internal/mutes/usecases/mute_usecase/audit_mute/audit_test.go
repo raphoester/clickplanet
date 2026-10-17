@@ -15,7 +15,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes/usecases/mute_usecase/audit_mute"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubExecutor struct {
@@ -55,15 +54,4 @@ func TestARefusedMuteIsLoggedToo(t *testing.T) {
 
 	require.ErrorIs(t, err, cause)
 	assert.Contains(t, logs, `level=WARN msg="admin chat mute failed" account=00000000-0000-0000-0000-000000000001`)
-}
-
-func TestAMuteNamesItsOperator(t *testing.T) {
-	var logs bytes.Buffer
-	mute := mutes.NewMute(mutes.MuteID{1}, mutes.CallerOf(bully, "2a01:e0a:1:2::/64"), time.Now(), time.Hour)
-
-	_, err := audit_mute.New(stubExecutor{mute: mute}, slog.New(slog.NewTextHandler(&logs, nil))).
-		Execute(cpctx.AddOperatorToContext(t.Context(), "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"), mute_usecase.In{Account: bully, Duration: time.Hour})
-
-	require.NoError(t, err)
-	assert.Contains(t, logs.String(), "operator=0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10")
 }

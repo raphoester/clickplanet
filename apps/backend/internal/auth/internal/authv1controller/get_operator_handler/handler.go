@@ -3,31 +3,40 @@ package get_operator_handler
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"connectrpc.com/connect"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler/operator_query"
 )
 
-var ErrNoOperator = errors.New("this listener names no operator; the admin page calls the operator listener")
-
-func New() GetOperatorHandler {
-	return GetOperatorHandler{}
+type Query interface {
+	Operator(ctx context.Context, cookieHeader string) (*authv1.GetOperatorResponse, error)
 }
 
-type GetOperatorHandler struct{}
+func New(query Query) GetOperatorHandler {
+	return GetOperatorHandler{query: query}
+}
 
-func (GetOperatorHandler) GetOperator(
+type GetOperatorHandler struct {
+	query Query
+}
+
+func (h GetOperatorHandler) GetOperator(
 	ctx context.Context,
-	_ *connect.Request[authv1.GetOperatorRequest],
+	req *connect.Request[authv1.GetOperatorRequest],
 ) (*connect.Response[authv1.GetOperatorResponse], error) {
-	operator := cpctx.GetOperator(ctx)
-	if operator == "" {
-		return nil, connect.NewError(connect.CodeUnauthenticated, ErrNoOperator)
+	operator, err := h.query.Operator(ctx, req.Msg.GetCookie())
+
+	switch {
+	case err == nil:
+		return connect.NewResponse(operator), nil
+	case errors.Is(err, operator_query.ErrNoSession):
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	case errors.Is(err, operator_query.ErrNotAnOperator):
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 
-	res := connect.NewResponse(&authv1.GetOperatorResponse{AccountId: operator})
-	res.Header().Set("Cache-Control", "no-store")
-	return res, nil
+	return nil, fmt.Errorf("failed to read the operator: %w", err)
 }

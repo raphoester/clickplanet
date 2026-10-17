@@ -2,13 +2,13 @@ syntax = "proto3";
 
 package auth.v1;
 
-// Only the operator listener names who calls: on the loopback admin listener every call is unauthenticated.
 service AdminService {
-  rpc GetOperator(GetOperatorRequest) returns (GetOperatorResponse);
+  // The account the cookie names, when it operates: the admin page's own. Unauthenticated with no cookie.
+  rpc WhoAmI(WhoAmIRequest) returns (WhoAmIResponse);
 }
 
-message GetOperatorRequest {}
+message WhoAmIRequest {}
 
-message GetOperatorResponse {
+message WhoAmIResponse {
   string account_id = 1;
 }

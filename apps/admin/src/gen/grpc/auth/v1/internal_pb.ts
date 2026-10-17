@@ -277,3 +277,77 @@ export class Account extends Message<Account> {
   }
 }
 
+/**
+ * @generated from message auth.v1.GetOperatorRequest
+ */
+export class GetOperatorRequest extends Message<GetOperatorRequest> {
+  /**
+   * @generated from field: string cookie = 1;
+   */
+  cookie = "";
+
+  constructor(data?: PartialMessage<GetOperatorRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.GetOperatorRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "cookie", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetOperatorRequest {
+    return new GetOperatorRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetOperatorRequest {
+    return new GetOperatorRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetOperatorRequest {
+    return new GetOperatorRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetOperatorRequest | PlainMessage<GetOperatorRequest> | undefined, b: GetOperatorRequest | PlainMessage<GetOperatorRequest> | undefined): boolean {
+    return proto3.util.equals(GetOperatorRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.GetOperatorResponse
+ */
+export class GetOperatorResponse extends Message<GetOperatorResponse> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<GetOperatorResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.GetOperatorResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetOperatorResponse {
+    return new GetOperatorResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetOperatorResponse {
+    return new GetOperatorResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetOperatorResponse {
+    return new GetOperatorResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetOperatorResponse | PlainMessage<GetOperatorResponse> | undefined, b: GetOperatorResponse | PlainMessage<GetOperatorResponse> | undefined): boolean {
+    return proto3.util.equals(GetOperatorResponse, a, b);
+  }
+}
+

@@ -42,6 +42,9 @@ const (
 	// InternalServiceGetAccountsProcedure is the fully-qualified name of the InternalService's
 	// GetAccounts RPC.
 	InternalServiceGetAccountsProcedure = "/auth.v1.InternalService/GetAccounts"
+	// InternalServiceGetOperatorProcedure is the fully-qualified name of the InternalService's
+	// GetOperator RPC.
+	InternalServiceGetOperatorProcedure = "/auth.v1.InternalService/GetOperator"
 )
 
 // InternalServiceClient is a client for the auth.v1.InternalService service.
@@ -49,6 +52,8 @@ type InternalServiceClient interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
 	GetAccount(context.Context, *connect.Request[v1.GetAccountRequest]) (*connect.Response[v1.GetAccountResponse], error)
 	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
+	// Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
+	GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the auth.v1.InternalService service. By default,
@@ -81,6 +86,12 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getOperator: connect.NewClient[v1.GetOperatorRequest, v1.GetOperatorResponse](
+			httpClient,
+			baseURL+InternalServiceGetOperatorProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetOperator")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -89,6 +100,7 @@ type internalServiceClient struct {
 	getVerifyingKey *connect.Client[v1.GetVerifyingKeyRequest, v1.GetVerifyingKeyResponse]
 	getAccount      *connect.Client[v1.GetAccountRequest, v1.GetAccountResponse]
 	getAccounts     *connect.Client[v1.GetAccountsRequest, v1.GetAccountsResponse]
+	getOperator     *connect.Client[v1.GetOperatorRequest, v1.GetOperatorResponse]
 }
 
 // GetVerifyingKey calls auth.v1.InternalService.GetVerifyingKey.
@@ -106,11 +118,18 @@ func (c *internalServiceClient) GetAccounts(ctx context.Context, req *connect.Re
 	return c.getAccounts.CallUnary(ctx, req)
 }
 
+// GetOperator calls auth.v1.InternalService.GetOperator.
+func (c *internalServiceClient) GetOperator(ctx context.Context, req *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error) {
+	return c.getOperator.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the auth.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
 	GetAccount(context.Context, *connect.Request[v1.GetAccountRequest]) (*connect.Response[v1.GetAccountResponse], error)
 	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
+	// Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
+	GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -139,6 +158,12 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetOperatorHandler := connect.NewUnaryHandler(
+		InternalServiceGetOperatorProcedure,
+		svc.GetOperator,
+		connect.WithSchema(internalServiceMethods.ByName("GetOperator")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetVerifyingKeyProcedure:
@@ -147,6 +172,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetAccountHandler.ServeHTTP(w, r)
 		case InternalServiceGetAccountsProcedure:
 			internalServiceGetAccountsHandler.ServeHTTP(w, r)
+		case InternalServiceGetOperatorProcedure:
+			internalServiceGetOperatorHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -166,4 +193,8 @@ func (UnimplementedInternalServiceHandler) GetAccount(context.Context, *connect.
 
 func (UnimplementedInternalServiceHandler) GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetAccounts is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetOperator is not implemented"))
 }

@@ -15,7 +15,7 @@ the root `CLAUDE.md`, "Independence of the apps").
 ## Commands
 
 ```bash
-npm run dev        # Vite on http://localhost:5174, the backend's httpServer.operatorOrigin
+npm run dev        # Vite on http://localhost:5174, the backend's adminGate.origin
 npm run build      # TypeScript check + Vite bundle → /dist
 npm test           # vitest, once
 npm run lint       # ESLint
@@ -27,33 +27,34 @@ npm run proto      # Regenerate src/gen/grpc from the shared ../../proto
 ## How it reaches the API
 
 - **Every call goes to `https://api.clickplanet.lol/<package>.v1.AdminService/<Method>`** (`src/api.ts`).
-  Caddy sends those paths to the backend's operator listener (the backend's `CLAUDE.md`, "Operator tools").
+  Caddy sends those paths to the backend's gated admin listener (the backend's `CLAUDE.md`, "Operator tools").
   `VITE_API_BASE_URL` points it elsewhere; it is a build variable.
 - **The game's `cp_sid` cookie is the only credential.** The transport sends `credentials: "include"`. The cookie
   is host-only on `api.clickplanet.lol`, and it travels from `admin.clickplanet.lol` because both are one site.
   There is no second sign-in: an operator signs in on the game.
-- **The backend admits an account whose `auth.accounts.role` is `operator`**, and only from the `Origin`
-  `https://admin.clickplanet.lol`. The role is set by hand (`deploy/vps/README.md`, "Make an account an operator").
+- **The backend's admin gate admits an account whose `auth.accounts.operator` is true**, and only from the
+  `Origin` `https://admin.clickplanet.lol`. The flag is set by hand (`deploy/vps/README.md`, "Make an account an
+  operator").
 - **Two refusals have their own words** (`refusal.ts`, `FailureNotice`): `unauthenticated` is "Sign in on
   clickplanet.lol" with a link, `permission_denied` is "This account is not an operator". Anything else is "The
   API did not answer". The server's message is shown under each, for the operator. A wrong origin is also
   `permission_denied`.
-- **`auth.v1.AdminService/GetOperator` says who the page is**: the account id the guard admitted. `App` asks it
-  first, and shows nothing else until it answers. The public `AuthService/GetMe` is not an option: the public API
+- **`auth.v1.AdminService/WhoAmI` says who the page is**: the operator's account id, read from the same cookie.
+  `App` asks it first, and shows nothing else until it answers. The public `AuthService/GetMe` is not an option: the public API
   answers CORS for the game's origin alone.
 - **`useCall`** runs one call, aborts it when the component goes or the call changes, and holds `loading`,
   `done` or `failed`. Its `run` must keep its identity (module scope or `useCallback`).
 
 ## Running it locally
 
-The page needs a backend with auth on and an operator listener:
+The page needs a backend with auth on and a gated admin listener:
 
-1. In a copy of `apps/backend/cmd/api/example.yaml`: `httpServer.operatorBindAddress: 127.0.0.1:8083`,
-   `auth.enabled: true`, an `auth.secret` (`openssl rand -hex 32`) and `auth.email.enabled: true`. Email
+1. In a copy of `apps/backend/cmd/api/example.yaml`: `httpServer.gatedAdminBindAddress: 127.0.0.1:8083`,
+   `adminGate.origin: http://localhost:5174` (already there), `auth.enabled: true`, an `auth.secret` (`openssl rand -hex 32`) and `auth.email.enabled: true`. Email
    delivery `log` puts the sign-in code in the server log. Postgres on `localhost:5432`.
 2. Sign in with an email in the game (`apps/frontend`, `VITE_API_BASE_URL=http://localhost:8080`). A guest is never
    an operator.
-3. `UPDATE auth.accounts SET role = 'operator' WHERE id = '<account id>'` in psql.
+3. `UPDATE auth.accounts SET operator = true WHERE id = '<account id>'` in psql.
 4. `VITE_API_BASE_URL=http://localhost:8083 npm run dev`. A cookie ignores the port, so the game's cookie for
    `localhost` reaches `:8083`.
 
@@ -82,7 +83,7 @@ src/
   api.ts            the transport and one client per AdminService
   refusal.ts        a call's error → signedOut, notOperator or failed
   useCall.ts        one call's state
-  App.tsx           GetOperator first, then the page
+  App.tsx           WhoAmI first, then the page
   components/       FailureNotice, AccountId (with Copy), When
   support/          the support page: NoteList, ReportList, labels.ts (names and the device lines)
   gen/grpc/         generated from ../../proto, committed

@@ -12,7 +12,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubUseCase struct {
@@ -61,13 +60,4 @@ func TestAFailureIsLoggedWithHowFarItGot(t *testing.T) {
 	assert.Contains(t, logs.String(), `msg="admin country reassignment failed"`)
 	assert.Contains(t, logs.String(), "moved=512")
 	assert.Contains(t, logs.String(), `error="reassignment interrupted"`)
-}
-
-func TestAReassignmentNamesItsOperator(t *testing.T) {
-	useCase, logs := audited(stubUseCase{})
-
-	_, err := useCase.Execute(cpctx.AddOperatorToContext(t.Context(), "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"), reassign_country_usecase.In{From: "dz", To: "fr"})
-
-	require.NoError(t, err)
-	assert.Contains(t, logs.String(), "operator=0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10")
 }

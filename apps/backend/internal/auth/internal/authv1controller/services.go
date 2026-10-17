@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_sign_in_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/who_am_i_handler"
 )
 
 type AuthService struct {
@@ -39,12 +40,13 @@ type InternalService struct {
 	get_verifying_key_handler.GetVerifyingKeyHandler
 	get_account_handler.GetAccountHandler
 	get_accounts_handler.GetAccountsHandler
+	get_operator_handler.GetOperatorHandler
 }
 
 var _ authv1connect.InternalServiceHandler = InternalService{}
 
 type AdminService struct {
-	get_operator_handler.GetOperatorHandler
+	who_am_i_handler.WhoAmIHandler
 }
 
 var _ authv1connect.AdminServiceHandler = AdminService{}

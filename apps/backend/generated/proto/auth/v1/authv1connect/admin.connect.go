@@ -33,14 +33,14 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// AdminServiceGetOperatorProcedure is the fully-qualified name of the AdminService's GetOperator
-	// RPC.
-	AdminServiceGetOperatorProcedure = "/auth.v1.AdminService/GetOperator"
+	// AdminServiceWhoAmIProcedure is the fully-qualified name of the AdminService's WhoAmI RPC.
+	AdminServiceWhoAmIProcedure = "/auth.v1.AdminService/WhoAmI"
 )
 
 // AdminServiceClient is a client for the auth.v1.AdminService service.
 type AdminServiceClient interface {
-	GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error)
+	// The account the cookie names, when it operates: the admin page's own. Unauthenticated with no cookie.
+	WhoAmI(context.Context, *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the auth.v1.AdminService service. By default, it
@@ -54,10 +54,10 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 	baseURL = strings.TrimRight(baseURL, "/")
 	adminServiceMethods := v1.File_auth_v1_admin_proto.Services().ByName("AdminService").Methods()
 	return &adminServiceClient{
-		getOperator: connect.NewClient[v1.GetOperatorRequest, v1.GetOperatorResponse](
+		whoAmI: connect.NewClient[v1.WhoAmIRequest, v1.WhoAmIResponse](
 			httpClient,
-			baseURL+AdminServiceGetOperatorProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("GetOperator")),
+			baseURL+AdminServiceWhoAmIProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("WhoAmI")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -65,17 +65,18 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	getOperator *connect.Client[v1.GetOperatorRequest, v1.GetOperatorResponse]
+	whoAmI *connect.Client[v1.WhoAmIRequest, v1.WhoAmIResponse]
 }
 
-// GetOperator calls auth.v1.AdminService.GetOperator.
-func (c *adminServiceClient) GetOperator(ctx context.Context, req *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error) {
-	return c.getOperator.CallUnary(ctx, req)
+// WhoAmI calls auth.v1.AdminService.WhoAmI.
+func (c *adminServiceClient) WhoAmI(ctx context.Context, req *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error) {
+	return c.whoAmI.CallUnary(ctx, req)
 }
 
 // AdminServiceHandler is an implementation of the auth.v1.AdminService service.
 type AdminServiceHandler interface {
-	GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error)
+	// The account the cookie names, when it operates: the admin page's own. Unauthenticated with no cookie.
+	WhoAmI(context.Context, *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -85,16 +86,16 @@ type AdminServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	adminServiceMethods := v1.File_auth_v1_admin_proto.Services().ByName("AdminService").Methods()
-	adminServiceGetOperatorHandler := connect.NewUnaryHandler(
-		AdminServiceGetOperatorProcedure,
-		svc.GetOperator,
-		connect.WithSchema(adminServiceMethods.ByName("GetOperator")),
+	adminServiceWhoAmIHandler := connect.NewUnaryHandler(
+		AdminServiceWhoAmIProcedure,
+		svc.WhoAmI,
+		connect.WithSchema(adminServiceMethods.ByName("WhoAmI")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/auth.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case AdminServiceGetOperatorProcedure:
-			adminServiceGetOperatorHandler.ServeHTTP(w, r)
+		case AdminServiceWhoAmIProcedure:
+			adminServiceWhoAmIHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -104,6 +105,6 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 // UnimplementedAdminServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAdminServiceHandler struct{}
 
-func (UnimplementedAdminServiceHandler) GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AdminService.GetOperator is not implemented"))
+func (UnimplementedAdminServiceHandler) WhoAmI(context.Context, *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AdminService.WhoAmI is not implemented"))
 }

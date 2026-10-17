@@ -20,6 +20,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/admingate"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
@@ -35,11 +36,11 @@ import (
 const mapTiles = 262119
 
 type gameStack struct {
-	baseURL     string
-	adminURL    string
-	operatorURL string
-	fakes       auth.FakeProviders
-	postgres    *cppg.TestServer
+	baseURL       string
+	adminURL      string
+	gatedAdminURL string
+	fakes         auth.FakeProviders
+	postgres      *cppg.TestServer
 }
 
 const adminOrigin = "https://admin.clickplanet.lol"
@@ -49,13 +50,12 @@ func startGame(t *testing.T) gameStack {
 
 	postgres := cppg.StartTestServer(t)
 	secret, _ := cpsession.TestKeyPair()
-	public, internal, admin, operator := listen(t), listen(t), listen(t), listen(t)
+	public, internal, admin, gated := listen(t), listen(t), listen(t), listen(t)
 	server := cpbootstrap.ServerConfig{
-		BindAddress:         public.Addr().String(),
-		InternalBindAddress: internal.Addr().String(),
-		AdminBindAddress:    admin.Addr().String(),
-		OperatorBindAddress: operator.Addr().String(),
-		OperatorOrigin:      adminOrigin,
+		BindAddress:           public.Addr().String(),
+		InternalBindAddress:   internal.Addr().String(),
+		AdminBindAddress:      admin.Addr().String(),
+		GatedAdminBindAddress: gated.Addr().String(),
 	}
 
 	authConfig := auth.Config{
@@ -85,17 +85,22 @@ func startGame(t *testing.T) gameStack {
 
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
 
+	logger := slog.New(slog.DiscardHandler)
+	gate, err := admingate.New(admingate.Config{Origin: adminOrigin}, server.InternalBindAddress, logger)
+	require.NoError(t, err)
+
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
 		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
 			Server: server,
-			Logger: slog.New(slog.DiscardHandler),
+			Logger: logger,
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
 				seasons.NewModule(seasonsConfig), support.NewModule(supportConfig),
 			},
-		}, public, internal, admin, operator)
+			AdminGate: gate,
+		}, public, internal, admin, gated)
 	}()
 	t.Cleanup(func() {
 		cancel()
@@ -105,11 +110,11 @@ func startGame(t *testing.T) gameStack {
 	waitUntilServed(t, server.BindAddress)
 
 	return gameStack{
-		baseURL:     "http://" + server.BindAddress,
-		adminURL:    "http://" + server.AdminBindAddress,
-		operatorURL: "http://" + server.OperatorBindAddress,
-		fakes:       fakes,
-		postgres:    postgres,
+		baseURL:       "http://" + server.BindAddress,
+		adminURL:      "http://" + server.AdminBindAddress,
+		gatedAdminURL: "http://" + server.GatedAdminBindAddress,
+		fakes:         fakes,
+		postgres:      postgres,
 	}
 }
 

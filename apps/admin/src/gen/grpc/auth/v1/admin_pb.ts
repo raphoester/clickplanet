@@ -7,70 +7,70 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
- * @generated from message auth.v1.GetOperatorRequest
+ * @generated from message auth.v1.WhoAmIRequest
  */
-export class GetOperatorRequest extends Message<GetOperatorRequest> {
-  constructor(data?: PartialMessage<GetOperatorRequest>) {
+export class WhoAmIRequest extends Message<WhoAmIRequest> {
+  constructor(data?: PartialMessage<WhoAmIRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "auth.v1.GetOperatorRequest";
+  static readonly typeName = "auth.v1.WhoAmIRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetOperatorRequest {
-    return new GetOperatorRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WhoAmIRequest {
+    return new WhoAmIRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetOperatorRequest {
-    return new GetOperatorRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WhoAmIRequest {
+    return new WhoAmIRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetOperatorRequest {
-    return new GetOperatorRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WhoAmIRequest {
+    return new WhoAmIRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetOperatorRequest | PlainMessage<GetOperatorRequest> | undefined, b: GetOperatorRequest | PlainMessage<GetOperatorRequest> | undefined): boolean {
-    return proto3.util.equals(GetOperatorRequest, a, b);
+  static equals(a: WhoAmIRequest | PlainMessage<WhoAmIRequest> | undefined, b: WhoAmIRequest | PlainMessage<WhoAmIRequest> | undefined): boolean {
+    return proto3.util.equals(WhoAmIRequest, a, b);
   }
 }
 
 /**
- * @generated from message auth.v1.GetOperatorResponse
+ * @generated from message auth.v1.WhoAmIResponse
  */
-export class GetOperatorResponse extends Message<GetOperatorResponse> {
+export class WhoAmIResponse extends Message<WhoAmIResponse> {
   /**
    * @generated from field: string account_id = 1;
    */
   accountId = "";
 
-  constructor(data?: PartialMessage<GetOperatorResponse>) {
+  constructor(data?: PartialMessage<WhoAmIResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "auth.v1.GetOperatorResponse";
+  static readonly typeName = "auth.v1.WhoAmIResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetOperatorResponse {
-    return new GetOperatorResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WhoAmIResponse {
+    return new WhoAmIResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetOperatorResponse {
-    return new GetOperatorResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WhoAmIResponse {
+    return new WhoAmIResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetOperatorResponse {
-    return new GetOperatorResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WhoAmIResponse {
+    return new WhoAmIResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetOperatorResponse | PlainMessage<GetOperatorResponse> | undefined, b: GetOperatorResponse | PlainMessage<GetOperatorResponse> | undefined): boolean {
-    return proto3.util.equals(GetOperatorResponse, a, b);
+  static equals(a: WhoAmIResponse | PlainMessage<WhoAmIResponse> | undefined, b: WhoAmIResponse | PlainMessage<WhoAmIResponse> | undefined): boolean {
+    return proto3.util.equals(WhoAmIResponse, a, b);
   }
 }
 

@@ -12,7 +12,6 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/unban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/unban_player_usecase/audit_unban"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type stubUseCase struct {
@@ -45,14 +44,4 @@ func TestARefusedUnbanIsLoggedToo(t *testing.T) {
 
 	require.ErrorIs(t, err, unban_player_usecase.ErrNotBanned)
 	assert.Contains(t, logs.String(), `level=WARN msg="admin unban failed" asked=1.2.3.4`)
-}
-
-func TestAnUnbanNamesItsOperator(t *testing.T) {
-	var logs bytes.Buffer
-	useCase := audit_unban.New(stubUseCase{}, slog.New(slog.NewTextHandler(&logs, nil)))
-
-	_, err := useCase.Execute(cpctx.AddOperatorToContext(t.Context(), "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"), unban_player_usecase.In{Scope: "1.2.3.4"})
-
-	require.NoError(t, err)
-	assert.Contains(t, logs.String(), "operator=0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10")
 }

@@ -18,7 +18,7 @@ func (p *gamer) becomeOperator() {
 	p.t.Helper()
 
 	_, err := p.stack.schema(p.t, "auth").ExecContext(p.t.Context(),
-		`UPDATE accounts SET role = 'operator' WHERE id = $1`, p.account())
+		`UPDATE accounts SET operator = true WHERE id = $1`, p.account())
 	require.NoError(p.t, err)
 }
 
@@ -30,20 +30,20 @@ func (p *gamer) grantFromThePage(origin string, account string) (*planetv1.Grant
 	if p.cookie != "" {
 		req.Header().Set("Cookie", p.cookie)
 	}
-	res, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.operatorURL).GrantCharges(p.t.Context(), req)
+	res, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.gatedAdminURL).GrantCharges(p.t.Context(), req)
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the tests read the connect code.
 	}
 	return res.Msg, nil
 }
 
-func (p *gamer) operatorFromThePage() (string, error) {
+func (p *gamer) whoAmIOnThePage() (string, error) {
 	p.t.Helper()
 
-	req := connect.NewRequest(&authv1.GetOperatorRequest{})
+	req := connect.NewRequest(&authv1.WhoAmIRequest{})
 	req.Header().Set("Origin", adminOrigin)
 	req.Header().Set("Cookie", p.cookie)
-	res, err := authv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.operatorURL).GetOperator(p.t.Context(), req)
+	res, err := authv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.gatedAdminURL).WhoAmI(p.t.Context(), req)
 	if err != nil {
 		return "", err //nolint:wrapcheck // the tests read the connect code.
 	}
@@ -56,7 +56,7 @@ func TestTheAdminPageLearnsWhichAccountItIs(t *testing.T) {
 	operator.link("the-operator")
 	operator.becomeOperator()
 
-	account, err := operator.operatorFromThePage()
+	account, err := operator.whoAmIOnThePage()
 
 	require.NoError(t, err)
 	assert.Equal(t, operator.account(), account)
@@ -66,7 +66,7 @@ func TestTheLoopbackListenerNamesNoOperator(t *testing.T) {
 	game := startGame(t)
 
 	_, err := authv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).
-		GetOperator(t.Context(), connect.NewRequest(&authv1.GetOperatorRequest{}))
+		WhoAmI(t.Context(), connect.NewRequest(&authv1.WhoAmIRequest{}))
 
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 }
@@ -101,7 +101,7 @@ func TestTheOperatorServicesAnswerNobodyElse(t *testing.T) {
 		code   connect.Code
 	}{
 		"a player":                 {player, adminOrigin, connect.CodePermissionDenied},
-		"a guest with the role":    {guest, adminOrigin, connect.CodePermissionDenied},
+		"a guest with the flag":    {guest, adminOrigin, connect.CodePermissionDenied},
 		"no cookie":                {stranger, adminOrigin, connect.CodeUnauthenticated},
 		"the game page":            {operator, "https://clickplanet.lol", connect.CodePermissionDenied},
 		"a script with no origin":  {operator, "", connect.CodePermissionDenied},

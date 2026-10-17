@@ -9,11 +9,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"sync"
 	"syscall"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
@@ -62,46 +62,43 @@ func listenLoopback(options Options, listen listenFunc, name, key, address strin
 	}, nil
 }
 
-func listenOperator(options Options, listen listenFunc, routes *rpcRoutes, guard *operatorGuard) (*sideServer, error) {
-	address := options.Server.OperatorBindAddress
+func listenGatedAdmin(options Options, listen listenFunc, routes *rpcRoutes) (*sideServer, error) {
+	address, gate := options.Server.GatedAdminBindAddress, options.AdminGate
 	if address == "" {
-		if guard.guarded() {
-			options.Logger.Info("operator listener off, the admin services are on the admin listener only")
+		if !gate.empty() {
+			options.Logger.Info("gated admin listener off, its gate unused")
 		}
 		return nil, nil //nolint:nilnil // nil means "no such listener"; serve skips it.
 	}
 
-	if err := options.Server.operatorError(); err != nil {
-		return nil, err
+	if !hostPort(address) {
+		return nil, fmt.Errorf("httpServer.gatedAdminBindAddress %q is not a host:port", address)
 	}
-
-	if !guard.guarded() {
+	if gate.empty() {
 		return nil, fmt.Errorf(
-			"httpServer.operatorBindAddress %q is set and no module guards it: the admin services have no authentication of their own",
+			"httpServer.gatedAdminBindAddress %q is set and nothing gates it: the admin services have no authentication of their own",
 			address,
 		)
 	}
-
-	origin := options.Server.OperatorOrigin
-	interceptors := append([]connect.Interceptor{newOriginGuard(origin)}, guard.interceptors...)
-	interceptors = append(interceptors, newCallLog(options.Logger))
+	if slices.Contains(gate.Interceptors, nil) || slices.ContainsFunc(gate.Middlewares, func(m func(http.Handler) http.Handler) bool { return m == nil }) {
+		return nil, errors.New("the admin gate holds a nil interceptor or middleware")
+	}
 
 	router := http.NewServeMux()
-	middlewares := cphttpserver.MiddlewareStack(
-		cphttpserver.NewLoggingMiddleware(options.Logger),
-		cphttpserver.NewCorsMiddleware(origin),
-	)
-	if err := routes.mountGuardedOn(router, middlewares, interceptors...); err != nil {
+	middlewares := cphttpserver.MiddlewareStack(append(
+		[]func(http.Handler) http.Handler{cphttpserver.NewLoggingMiddleware(options.Logger)}, gate.Middlewares...,
+	)...)
+	if err := routes.mountGatedOn(router, middlewares, gate.Interceptors...); err != nil {
 		return nil, err
 	}
 
 	listener, err := listen(context.Background(), "tcp", address)
 	if err != nil {
-		return nil, fmt.Errorf("failed to listen on httpServer.operatorBindAddress %q: %w", address, err)
+		return nil, fmt.Errorf("failed to listen on httpServer.gatedAdminBindAddress %q: %w", address, err)
 	}
 
 	return &sideServer{
-		name:     "operator",
+		name:     "gated admin",
 		server:   &http.Server{Handler: router, ReadHeaderTimeout: readHeaderTimeout},
 		listener: listener,
 	}, nil

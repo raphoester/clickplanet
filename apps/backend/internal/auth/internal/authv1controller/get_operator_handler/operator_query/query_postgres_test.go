@@ -10,8 +10,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/postgres_account_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler/operator_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/operatorguard/operator_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -55,12 +55,13 @@ func (s *testSuite) link(account accounts.AccountID, subject string, token strin
 }
 
 func (s *testSuite) operates(account accounts.AccountID) {
-	_, err := s.db.ExecContext(s.T().Context(), `UPDATE accounts SET role = 'operator' WHERE id = $1`, account.String())
+	_, err := s.db.ExecContext(s.T().Context(), `UPDATE accounts SET operator = true WHERE id = $1`, account.String())
 	s.Require().NoError(err)
 }
 
 func (s *testSuite) operator(cookieHeader string, at time.Time) (string, error) {
-	return operator_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at)).Operator(s.T().Context(), cookieHeader) //nolint:wrapcheck // the tests read the sentinel.
+	answer, err := operator_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at)).Operator(s.T().Context(), cookieHeader)
+	return answer.GetAccountId(), err //nolint:wrapcheck // the tests read the sentinel.
 }
 
 func (s *testSuite) TestASignedInOperatorIsAnsweredAsItsAccount() {

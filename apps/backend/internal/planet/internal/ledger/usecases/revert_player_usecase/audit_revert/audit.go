@@ -5,7 +5,6 @@ import (
 	"log/slog"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 type UseCase interface {
@@ -28,7 +27,6 @@ func (a *Audited) Execute(ctx context.Context, in revert_player_usecase.In) (rev
 		slog.String("asked", in.Scope), slog.String("askedAccount", in.Account),
 		slog.String("scope", out.Scope), slog.String("account", out.Account), slog.Bool("dryRun", in.DryRun),
 		slog.Int("touched", out.Touched), slog.Int("held", out.Held), slog.Int("restored", out.Restored),
-		slog.String("operator", cpctx.GetOperator(ctx)),
 	}
 
 	if err != nil {

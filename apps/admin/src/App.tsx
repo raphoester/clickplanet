@@ -4,7 +4,7 @@ import {FailureNotice} from "./components/FailureNotice.tsx"
 import {SupportPage} from "./support/SupportPage.tsx"
 import {useCall} from "./useCall.ts"
 
-const whoAmI = (signal: AbortSignal) => authAdmin.getOperator({}, {signal}).then(answer => answer.accountId)
+const whoAmI = (signal: AbortSignal) => authAdmin.whoAmI({}, {signal}).then(answer => answer.accountId)
 
 export function App() {
     const [operator, again] = useCall(whoAmI)

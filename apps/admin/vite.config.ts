@@ -1,7 +1,7 @@
 import {defineConfig} from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
-// The port is the backend's httpServer.operatorOrigin: any other origin is refused.
+// The port is the backend's adminGate.origin: the gate refuses any other origin.
 const PORT = 5174
 
 export default defineConfig({
