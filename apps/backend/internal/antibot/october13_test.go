@@ -9,15 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const polishAddress = "203.0.113.45"
+const polishLine = "polish-line"
 
 func (s *stack) takeTurns(r *rand.Rand, lasting time.Duration) {
 	for start := s.clock.Now(); s.clock.Now().Sub(start) < lasting; {
 		cycle := s.clock.Now()
 
-		require.False(s.t, s.burst(r, polishAddress, "desktop", "PL", 25*time.Second, time.Second))
+		require.False(s.t, s.burst(r, polishLine, "desktop", "PL", 25*time.Second, time.Second))
 		s.rest(cycle.Add(time.Minute))
-		require.False(s.t, s.burst(r, polishAddress, "laptop", "PL", 25*time.Second, time.Second))
+		require.False(s.t, s.burst(r, polishLine, "laptop", "PL", 25*time.Second, time.Second))
 		s.rest(cycle.Add(150 * time.Second))
 	}
 }
@@ -35,7 +35,7 @@ func TestThePairOfOctober13TakingTurnsAtACadenceIsBanned(t *testing.T) {
 	var dropped bool
 	for range 200 {
 		s.clock.Advance(time.Duration(200+r.IntN(380)) * time.Millisecond)
-		if s.clickAs(polishAddress, "laptop", 100000+uint32(r.IntN(60000)), "PL") {
+		if s.clickAs(polishLine, "laptop", 100000+uint32(r.IntN(60000)), "PL") {
 			dropped = true
 			break
 		}

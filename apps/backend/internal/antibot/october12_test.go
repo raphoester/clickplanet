@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	newcomerLine = "2001:db8:12:20::/64"
-	rivalLine    = "2001:db8:34:7::/64"
+	newcomerLine = "newcomer-line"
+	rivalLine    = "rival-line"
 )
 
 func (s *stack) playHard(r *rand.Rand, lasting time.Duration) {
