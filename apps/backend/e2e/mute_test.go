@@ -16,7 +16,7 @@ import (
 func (s gameStack) mute(t *testing.T, account string) *chatv1.MuteResponse {
 	t.Helper()
 
-	res, err := chatv1connect.NewAdminServiceClient(http.DefaultClient, s.adminURL).Mute(t.Context(),
+	res, err := chatv1connect.NewAdminServiceClient(http.DefaultClient, s.consoleURL).Mute(t.Context(),
 		connect.NewRequest(&chatv1.MuteRequest{AccountId: account}))
 	require.NoError(t, err)
 	return res.Msg

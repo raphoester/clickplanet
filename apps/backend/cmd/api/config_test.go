@@ -124,7 +124,7 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.InDelta(t, 4, config.Planet.Toll.Steps[2].Slowdown, 1e-9)
 	require.NoError(t, config.Planet.Validate())
 	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
-	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.AdminBindAddress)
+	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.ConsoleBindAddress)
 	assert.Equal(t, "127.0.0.1:8082", config.HTTPServer.InternalBindAddress)
 	assert.Equal(t, "http://localhost:5173", config.HTTPServer.AllowedOrigin)
 	assert.Equal(t, time.Hour, config.Auth.TTL)

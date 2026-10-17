@@ -38,7 +38,7 @@ func (c Config) Validate() error {
 	return nil
 }
 
-// No origin is no admin page, and so no gate: a gated admin listener then refuses the boot.
+// No origin is no admin page, and so no gate: an admin listener then refuses the boot.
 func New(config Config, internalBindAddress string, logger *slog.Logger) (cpbootstrap.Gate, error) {
 	if config.Origin == "" {
 		return cpbootstrap.Gate{}, nil

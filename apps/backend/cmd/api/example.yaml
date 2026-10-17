@@ -3,10 +3,10 @@ httpServer:
   # Must stay well under Cloudflare's ~125s idle cut, which answers 524.
   streamHeartbeat: 30s
   startupTimeout: 1m
-  adminBindAddress: 127.0.0.1:8081
+  consoleBindAddress: 127.0.0.1:8081
   internalBindAddress: 127.0.0.1:8082
-  # The admin services again, behind the adminGate below: set, it needs adminGate.origin and auth.enabled.
-  gatedAdminBindAddress: ""
+  # Behind the adminGate below: set, it needs adminGate.origin and auth.enabled.
+  adminBindAddress: ""
   allowedOrigin: http://localhost:5173
 gameMap:
   maxIndex: 262119

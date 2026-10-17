@@ -48,7 +48,7 @@ func TestAnOperatorNamesTheLinkedAccountsOnTheAdminListenerOnly(t *testing.T) {
 	_, err := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).NameAccounts(t.Context(), request)
 	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "the public router does not serve it")
 
-	res, err := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).NameAccounts(t.Context(), request)
+	res, err := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.consoleURL).NameAccounts(t.Context(), request)
 	require.NoError(t, err)
 	assert.Zero(t, res.Msg.GetNamed(), "the sign-in already named it")
 }

@@ -76,9 +76,9 @@ type ServerConfig struct {
 
 	StartupTimeout time.Duration
 
-	AdminBindAddress string
+	ConsoleBindAddress string
 
-	GatedAdminBindAddress string
+	AdminBindAddress string
 
 	InternalBindAddress string
 
@@ -94,15 +94,15 @@ func (c ServerConfig) Validate() error {
 		return err
 	}
 
-	if c.AdminBindAddress != "" && !isLoopback(c.AdminBindAddress) {
+	if c.ConsoleBindAddress != "" && !isLoopback(c.ConsoleBindAddress) {
 		return fmt.Errorf(
-			"httpServer.adminBindAddress %q is not a loopback host:port: the admin services have no authentication",
-			c.AdminBindAddress,
+			"httpServer.consoleBindAddress %q is not a loopback host:port: the admin services have no authentication",
+			c.ConsoleBindAddress,
 		)
 	}
 
-	if c.GatedAdminBindAddress != "" && !hostPort(c.GatedAdminBindAddress) {
-		return fmt.Errorf("httpServer.gatedAdminBindAddress %q is not a host:port", c.GatedAdminBindAddress)
+	if c.AdminBindAddress != "" && !hostPort(c.AdminBindAddress) {
+		return fmt.Errorf("httpServer.adminBindAddress %q is not a host:port", c.AdminBindAddress)
 	}
 
 	if c.InternalBindAddress != "" && !isLoopback(c.InternalBindAddress) {
@@ -162,7 +162,7 @@ type Options struct {
 	AdminGate Gate
 }
 
-// What the admin services sit behind on the gated admin listener: they have no authentication of their own.
+// What the admin services sit behind on the admin listener: they have no authentication of their own.
 type Gate struct {
 	Middlewares  []func(http.Handler) http.Handler
 	Interceptors []connect.Interceptor
@@ -236,10 +236,10 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 func listenSides(options Options, listen listenFunc, adminRoutes, internalRoutes *rpcRoutes) ([]*sideServer, error) {
 	opens := []func() (*sideServer, error){
 		func() (*sideServer, error) {
-			return listenLoopback(options, listen, "admin", "adminBindAddress", options.Server.AdminBindAddress, adminRoutes)
+			return listenLoopback(options, listen, "console", "consoleBindAddress", options.Server.ConsoleBindAddress, adminRoutes)
 		},
 		func() (*sideServer, error) {
-			return listenGatedAdmin(options, listen, adminRoutes)
+			return listenAdmin(options, listen, adminRoutes)
 		},
 		func() (*sideServer, error) {
 			return listenLoopback(options, listen, "internal", "internalBindAddress", options.Server.InternalBindAddress, internalRoutes)

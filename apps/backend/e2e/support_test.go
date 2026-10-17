@@ -60,7 +60,7 @@ func (s gameStack) notes(t *testing.T) []*supportv1.Note {
 func (s gameStack) notesOf(t *testing.T, kind supportv1.NoteKind) []*supportv1.Note {
 	t.Helper()
 
-	res, err := supportv1connect.NewAdminServiceClient(http.DefaultClient, s.adminURL).ListNotes(t.Context(),
+	res, err := supportv1connect.NewAdminServiceClient(http.DefaultClient, s.consoleURL).ListNotes(t.Context(),
 		connect.NewRequest(&supportv1.ListNotesRequest{Kind: kind}))
 	require.NoError(t, err)
 	return res.Msg.GetNotes()
@@ -196,7 +196,7 @@ func (p *gamer) reportPlayer(account string, reason supportv1.ReportReason, text
 func (s gameStack) reports(t *testing.T) []*supportv1.Report {
 	t.Helper()
 
-	res, err := supportv1connect.NewAdminServiceClient(http.DefaultClient, s.adminURL).ListReports(t.Context(),
+	res, err := supportv1connect.NewAdminServiceClient(http.DefaultClient, s.consoleURL).ListReports(t.Context(),
 		connect.NewRequest(&supportv1.ListReportsRequest{}))
 	require.NoError(t, err)
 	return res.Msg.GetReports()
