@@ -1012,11 +1012,10 @@ the foot of Settings, and a report of another player, from that player's card.
   `accountId` to send and the `name` for its title only. **A line with no
   account id has no Report**: the author of a message kept before accounts, or
   whose account is deleted.
-- **A card opened from a chat message carries that message's id**: `ChatLog`
-  hands it as the second argument of `onOpenPlayer`, `Viewer` keeps it with the
-  open card, and the report sends it. A card opened from the roster or the
-  board has none. **That is the first message of its author's run**, the one
-  under the name, so it is not the message to report.
+- **The card's report names a player and no message**, wherever the card was
+  opened from. Opened from a chat name it once sent that message's id, and the
+  name is only on the first message of its author's run: the report of an
+  insult sent after "hi" pointed to "hi".
 - **Every chat message has a Report button of its own**, beside react and reply
   (`.chat-report-add`, shown like them). It opens `ReportPlayerModal` at once,
   with no card first (`ChatPanel`'s `onReport`, held in `Viewer`), and sends

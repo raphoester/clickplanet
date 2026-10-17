@@ -23,7 +23,7 @@ export type ChatLogProps = {
     announcements?: ChatAnnouncement[]
     loading: boolean
     flashing?: ReadonlySet<string>
-    onOpenPlayer?: (player: PlayerLine, messageId?: string) => void
+    onOpenPlayer?: (player: PlayerLine) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
     onReport?: (message: ChatMessage) => void
@@ -203,7 +203,7 @@ type MessageLineProps = {
     picking: string | undefined
     pick: (id: string) => (open: boolean) => void
     jumpTo?: (id: string) => void
-    onOpenPlayer?: (player: PlayerLine, messageId?: string) => void
+    onOpenPlayer?: (player: PlayerLine) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
     onReport?: (message: ChatMessage) => void
@@ -228,7 +228,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                 ? <button type="button"
                           className="chat-message-author player-name-button"
                           title={message.authorName}
-                          onClick={() => props.onOpenPlayer?.(author, message.id)}>
+                          onClick={() => props.onOpenPlayer?.(author)}>
                     {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
                 </button>
                 : <span className="chat-message-author">

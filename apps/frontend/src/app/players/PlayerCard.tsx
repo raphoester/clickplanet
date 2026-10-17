@@ -26,13 +26,12 @@ const count = new Intl.NumberFormat()
 export type PlayerCardProps = {
     player: PlayerLine
     backend: PlayerInfoBackend
-    // With it the card offers to report the player; `messageId` is the chat message the card was opened from.
+    // With it the card offers to report the player.
     reporter?: PlayerReporter
-    messageId?: string
     onClose: () => void
 }
 
-export default function PlayerCard({player, backend, reporter, messageId, onClose}: PlayerCardProps) {
+export default function PlayerCard({player, backend, reporter, onClose}: PlayerCardProps) {
     const [reporting, setReporting] = useState(false)
     const state = usePlayerInfo(backend, player)
     const country = Countries.get(player.countryCode)?.name ?? player.countryCode
@@ -50,7 +49,6 @@ export default function PlayerCard({player, backend, reporter, messageId, onClos
     if (reporting && reporter) {
         return <ReportPlayerModal accountId={player.accountId}
                                   name={player.name}
-                                  messageId={messageId}
                                   reporter={reporter}
                                   onClose={() => setReporting(false)}/>
     }

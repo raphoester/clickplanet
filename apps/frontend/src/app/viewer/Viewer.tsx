@@ -130,10 +130,8 @@ export default function Viewer(props: ViewerProps) {
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
     const boardGuide = useBoardGuide()
     const [pitchOpen, setPitchOpen] = useState(false)
-    const [openPlayer, setOpenPlayer] = useState<{player: PlayerLine, messageId?: string}>()
-    const onOpenPlayer = props.playerInfo
-        ? (player: PlayerLine, messageId?: string) => setOpenPlayer({player, messageId})
-        : undefined
+    const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
+    const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
     const [reportedMessage, setReportedMessage] = useState<ChatMessage>()
     const onReport = props.support ? setReportedMessage : undefined
     const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
@@ -378,11 +376,10 @@ export default function Viewer(props: ViewerProps) {
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
 
-        {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.player.accountId}
-                                                       player={openPlayer.player}
+        {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.accountId}
+                                                       player={openPlayer}
                                                        backend={props.playerInfo}
-                                                       reporter={openPlayer.player.accountId === ownAccountId ? undefined : props.support}
-                                                       messageId={openPlayer.messageId}
+                                                       reporter={openPlayer.accountId === ownAccountId ? undefined : props.support}
                                                        onClose={() => setOpenPlayer(undefined)}/>}
 
         {reportedMessage && props.support && <ReportPlayerModal key={reportedMessage.id}

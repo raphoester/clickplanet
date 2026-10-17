@@ -213,9 +213,9 @@ describe("PlayerCard", () => {
             expect(screen.queryByRole("button", {name: "Report"})).toBeNull()
         })
 
-        it("opens in place of the card, and sends the account on the card with the message it was opened from", async () => {
+        it("opens in place of the card, and sends the account on the card with no message", async () => {
             const reporter = {reportPlayer: vi.fn(async () => undefined)}
-            render(<PlayerCard player={bo} backend={guestCard()} reporter={reporter} messageId="message-1" onClose={() => {}}/>)
+            render(<PlayerCard player={bo} backend={guestCard()} reporter={reporter} onClose={() => {}}/>)
             const user = userEvent.setup()
 
             await user.click(screen.getByRole("button", {name: "Report"}))
@@ -227,7 +227,7 @@ describe("PlayerCard", () => {
             await user.click(screen.getByRole("button", {name: "Send"}))
 
             expect(reporter.reportPlayer).toHaveBeenCalledWith(
-                {accountId: "account-bo", reason: "chat-abuse", text: "", messageId: "message-1"})
+                {accountId: "account-bo", reason: "chat-abuse", text: "", messageId: undefined})
         })
 
         it("steps back to the card when the report is closed", async () => {
