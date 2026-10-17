@@ -31,3 +31,12 @@ func NewRateLimitInterceptor(limiter MintLimiter) connect.Interceptor {
 		authv1connect.AuthServiceCompleteEmailSignInProcedure,
 	)
 }
+
+// The admin page's sign-in reaches Google too, so it spends the mint budget the game's does.
+func NewAdminRateLimitInterceptor(limiter MintLimiter) connect.Interceptor {
+	return cpconnect.NewRateLimitInterceptor(
+		limiter, ErrTooManySessions,
+		authv1connect.AdminServiceStartSignInProcedure,
+		authv1connect.AdminServiceCompleteSignInProcedure,
+	)
+}

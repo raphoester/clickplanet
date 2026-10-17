@@ -33,12 +33,24 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AdminServiceStartSignInProcedure is the fully-qualified name of the AdminService's StartSignIn
+	// RPC.
+	AdminServiceStartSignInProcedure = "/auth.v1.AdminService/StartSignIn"
+	// AdminServiceCompleteSignInProcedure is the fully-qualified name of the AdminService's
+	// CompleteSignIn RPC.
+	AdminServiceCompleteSignInProcedure = "/auth.v1.AdminService/CompleteSignIn"
+	// AdminServiceSignOutProcedure is the fully-qualified name of the AdminService's SignOut RPC.
+	AdminServiceSignOutProcedure = "/auth.v1.AdminService/SignOut"
 	// AdminServiceWhoAmIProcedure is the fully-qualified name of the AdminService's WhoAmI RPC.
 	AdminServiceWhoAmIProcedure = "/auth.v1.AdminService/WhoAmI"
 )
 
 // AdminServiceClient is a client for the auth.v1.AdminService service.
 type AdminServiceClient interface {
+	StartSignIn(context.Context, *connect.Request[v1.AdminStartSignInRequest]) (*connect.Response[v1.AdminStartSignInResponse], error)
+	// PermissionDenied for a Google account no operator holds; FailedPrecondition to start again.
+	CompleteSignIn(context.Context, *connect.Request[v1.AdminCompleteSignInRequest]) (*connect.Response[v1.AdminCompleteSignInResponse], error)
+	SignOut(context.Context, *connect.Request[v1.AdminSignOutRequest]) (*connect.Response[v1.AdminSignOutResponse], error)
 	// The account the cookie names, when it operates: the admin page's own. Unauthenticated with no cookie.
 	WhoAmI(context.Context, *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error)
 }
@@ -54,6 +66,24 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 	baseURL = strings.TrimRight(baseURL, "/")
 	adminServiceMethods := v1.File_auth_v1_admin_proto.Services().ByName("AdminService").Methods()
 	return &adminServiceClient{
+		startSignIn: connect.NewClient[v1.AdminStartSignInRequest, v1.AdminStartSignInResponse](
+			httpClient,
+			baseURL+AdminServiceStartSignInProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("StartSignIn")),
+			connect.WithClientOptions(opts...),
+		),
+		completeSignIn: connect.NewClient[v1.AdminCompleteSignInRequest, v1.AdminCompleteSignInResponse](
+			httpClient,
+			baseURL+AdminServiceCompleteSignInProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("CompleteSignIn")),
+			connect.WithClientOptions(opts...),
+		),
+		signOut: connect.NewClient[v1.AdminSignOutRequest, v1.AdminSignOutResponse](
+			httpClient,
+			baseURL+AdminServiceSignOutProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("SignOut")),
+			connect.WithClientOptions(opts...),
+		),
 		whoAmI: connect.NewClient[v1.WhoAmIRequest, v1.WhoAmIResponse](
 			httpClient,
 			baseURL+AdminServiceWhoAmIProcedure,
@@ -65,7 +95,25 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	whoAmI *connect.Client[v1.WhoAmIRequest, v1.WhoAmIResponse]
+	startSignIn    *connect.Client[v1.AdminStartSignInRequest, v1.AdminStartSignInResponse]
+	completeSignIn *connect.Client[v1.AdminCompleteSignInRequest, v1.AdminCompleteSignInResponse]
+	signOut        *connect.Client[v1.AdminSignOutRequest, v1.AdminSignOutResponse]
+	whoAmI         *connect.Client[v1.WhoAmIRequest, v1.WhoAmIResponse]
+}
+
+// StartSignIn calls auth.v1.AdminService.StartSignIn.
+func (c *adminServiceClient) StartSignIn(ctx context.Context, req *connect.Request[v1.AdminStartSignInRequest]) (*connect.Response[v1.AdminStartSignInResponse], error) {
+	return c.startSignIn.CallUnary(ctx, req)
+}
+
+// CompleteSignIn calls auth.v1.AdminService.CompleteSignIn.
+func (c *adminServiceClient) CompleteSignIn(ctx context.Context, req *connect.Request[v1.AdminCompleteSignInRequest]) (*connect.Response[v1.AdminCompleteSignInResponse], error) {
+	return c.completeSignIn.CallUnary(ctx, req)
+}
+
+// SignOut calls auth.v1.AdminService.SignOut.
+func (c *adminServiceClient) SignOut(ctx context.Context, req *connect.Request[v1.AdminSignOutRequest]) (*connect.Response[v1.AdminSignOutResponse], error) {
+	return c.signOut.CallUnary(ctx, req)
 }
 
 // WhoAmI calls auth.v1.AdminService.WhoAmI.
@@ -75,6 +123,10 @@ func (c *adminServiceClient) WhoAmI(ctx context.Context, req *connect.Request[v1
 
 // AdminServiceHandler is an implementation of the auth.v1.AdminService service.
 type AdminServiceHandler interface {
+	StartSignIn(context.Context, *connect.Request[v1.AdminStartSignInRequest]) (*connect.Response[v1.AdminStartSignInResponse], error)
+	// PermissionDenied for a Google account no operator holds; FailedPrecondition to start again.
+	CompleteSignIn(context.Context, *connect.Request[v1.AdminCompleteSignInRequest]) (*connect.Response[v1.AdminCompleteSignInResponse], error)
+	SignOut(context.Context, *connect.Request[v1.AdminSignOutRequest]) (*connect.Response[v1.AdminSignOutResponse], error)
 	// The account the cookie names, when it operates: the admin page's own. Unauthenticated with no cookie.
 	WhoAmI(context.Context, *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error)
 }
@@ -86,6 +138,24 @@ type AdminServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	adminServiceMethods := v1.File_auth_v1_admin_proto.Services().ByName("AdminService").Methods()
+	adminServiceStartSignInHandler := connect.NewUnaryHandler(
+		AdminServiceStartSignInProcedure,
+		svc.StartSignIn,
+		connect.WithSchema(adminServiceMethods.ByName("StartSignIn")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceCompleteSignInHandler := connect.NewUnaryHandler(
+		AdminServiceCompleteSignInProcedure,
+		svc.CompleteSignIn,
+		connect.WithSchema(adminServiceMethods.ByName("CompleteSignIn")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceSignOutHandler := connect.NewUnaryHandler(
+		AdminServiceSignOutProcedure,
+		svc.SignOut,
+		connect.WithSchema(adminServiceMethods.ByName("SignOut")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceWhoAmIHandler := connect.NewUnaryHandler(
 		AdminServiceWhoAmIProcedure,
 		svc.WhoAmI,
@@ -94,6 +164,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 	)
 	return "/auth.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AdminServiceStartSignInProcedure:
+			adminServiceStartSignInHandler.ServeHTTP(w, r)
+		case AdminServiceCompleteSignInProcedure:
+			adminServiceCompleteSignInHandler.ServeHTTP(w, r)
+		case AdminServiceSignOutProcedure:
+			adminServiceSignOutHandler.ServeHTTP(w, r)
 		case AdminServiceWhoAmIProcedure:
 			adminServiceWhoAmIHandler.ServeHTTP(w, r)
 		default:
@@ -104,6 +180,18 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 
 // UnimplementedAdminServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAdminServiceHandler struct{}
+
+func (UnimplementedAdminServiceHandler) StartSignIn(context.Context, *connect.Request[v1.AdminStartSignInRequest]) (*connect.Response[v1.AdminStartSignInResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AdminService.StartSignIn is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) CompleteSignIn(context.Context, *connect.Request[v1.AdminCompleteSignInRequest]) (*connect.Response[v1.AdminCompleteSignInResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AdminService.CompleteSignIn is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) SignOut(context.Context, *connect.Request[v1.AdminSignOutRequest]) (*connect.Response[v1.AdminSignOutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AdminService.SignOut is not implemented"))
+}
 
 func (UnimplementedAdminServiceHandler) WhoAmI(context.Context, *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AdminService.WhoAmI is not implemented"))

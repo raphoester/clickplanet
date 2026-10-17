@@ -51,3 +51,19 @@ func TestSomebodyWhoDoesNotOperateIsRefused(t *testing.T) {
 
 	require.ErrorIs(t, err, admission.ErrNotAnOperator)
 }
+
+func TestTheSignInCallsNeedTheOriginAndNoSession(t *testing.T) {
+	asked := &operators{}
+	useCase := admit_usecase.New(admission.NewPage(adminOrigin, "/auth.v1.AdminService/StartSignIn"), asked)
+
+	operator, err := useCase.Execute(t.Context(), admission.Visit{Origin: adminOrigin, Procedure: "/auth.v1.AdminService/StartSignIn"})
+	require.NoError(t, err)
+	assert.Empty(t, operator, "nobody is signed in yet")
+	assert.Empty(t, asked.asked, "auth is not asked who calls")
+
+	_, err = useCase.Execute(t.Context(), admission.Visit{Origin: "https://clickplanet.lol", Procedure: "/auth.v1.AdminService/StartSignIn"})
+	require.ErrorIs(t, err, admission.ErrForeignOrigin, "the origin still holds")
+
+	_, err = useCase.Execute(t.Context(), admission.Visit{Origin: adminOrigin, Procedure: "/planet.v1.AdminService/BanPlayer"})
+	require.ErrorIs(t, err, admission.ErrNotAnOperator, "every other call needs a session")
+}

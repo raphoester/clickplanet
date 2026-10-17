@@ -85,7 +85,7 @@ func startGame(t *testing.T) gameStack {
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
 
 	logger := slog.New(slog.DiscardHandler)
-	gate, err := auth.NewAdminGate(auth.AdminGateConfig{Origin: adminOrigin}, server.InternalBindAddress, logger)
+	gate, err := auth.NewAdminGate(auth.AdminConfig{Origin: adminOrigin}, server.InternalBindAddress, logger)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -122,6 +122,8 @@ type gamer struct {
 	stack  gameStack
 	cookie string
 	token  string
+
+	adminCookie string
 }
 
 func (s gameStack) newPlayer(t *testing.T) *gamer {

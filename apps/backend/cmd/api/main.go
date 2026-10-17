@@ -47,7 +47,7 @@ func run(ctx context.Context) error {
 	}))
 	logger.Debug("config", slog.Any("config", config))
 
-	gate, err := auth.NewAdminGate(config.Auth.AdminGate, config.HTTPServer.InternalBindAddress, logger)
+	gate, err := auth.NewAdminGate(config.Auth.Admin, config.HTTPServer.InternalBindAddress, logger)
 	if err != nil {
 		return fmt.Errorf("failed to build the admin gate: %w", err)
 	}

@@ -24,6 +24,9 @@ func (u *UseCase) Execute(ctx context.Context, visit admission.Visit) (admission
 	if err := u.page.OriginError(visit.Origin); err != nil {
 		return "", fmt.Errorf("failed to admit the caller: %w", err)
 	}
+	if u.page.SignIn(visit.Procedure) {
+		return "", nil
+	}
 
 	operator, err := u.operators.Operator(ctx, visit.Cookie)
 	if err != nil {

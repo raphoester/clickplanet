@@ -21,6 +21,254 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type AdminStartSignInRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminStartSignInRequest) Reset() {
+	*x = AdminStartSignInRequest{}
+	mi := &file_auth_v1_admin_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminStartSignInRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminStartSignInRequest) ProtoMessage() {}
+
+func (x *AdminStartSignInRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminStartSignInRequest.ProtoReflect.Descriptor instead.
+func (*AdminStartSignInRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{0}
+}
+
+type AdminStartSignInResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	AuthorizationUrl string                 `protobuf:"bytes,1,opt,name=authorization_url,json=authorizationUrl,proto3" json:"authorization_url,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *AdminStartSignInResponse) Reset() {
+	*x = AdminStartSignInResponse{}
+	mi := &file_auth_v1_admin_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminStartSignInResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminStartSignInResponse) ProtoMessage() {}
+
+func (x *AdminStartSignInResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminStartSignInResponse.ProtoReflect.Descriptor instead.
+func (*AdminStartSignInResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *AdminStartSignInResponse) GetAuthorizationUrl() string {
+	if x != nil {
+		return x.AuthorizationUrl
+	}
+	return ""
+}
+
+type AdminCompleteSignInRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	State         string                 `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminCompleteSignInRequest) Reset() {
+	*x = AdminCompleteSignInRequest{}
+	mi := &file_auth_v1_admin_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminCompleteSignInRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminCompleteSignInRequest) ProtoMessage() {}
+
+func (x *AdminCompleteSignInRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminCompleteSignInRequest.ProtoReflect.Descriptor instead.
+func (*AdminCompleteSignInRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *AdminCompleteSignInRequest) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *AdminCompleteSignInRequest) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+type AdminCompleteSignInResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminCompleteSignInResponse) Reset() {
+	*x = AdminCompleteSignInResponse{}
+	mi := &file_auth_v1_admin_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminCompleteSignInResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminCompleteSignInResponse) ProtoMessage() {}
+
+func (x *AdminCompleteSignInResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminCompleteSignInResponse.ProtoReflect.Descriptor instead.
+func (*AdminCompleteSignInResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AdminCompleteSignInResponse) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+type AdminSignOutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminSignOutRequest) Reset() {
+	*x = AdminSignOutRequest{}
+	mi := &file_auth_v1_admin_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminSignOutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminSignOutRequest) ProtoMessage() {}
+
+func (x *AdminSignOutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminSignOutRequest.ProtoReflect.Descriptor instead.
+func (*AdminSignOutRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{4}
+}
+
+type AdminSignOutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminSignOutResponse) Reset() {
+	*x = AdminSignOutResponse{}
+	mi := &file_auth_v1_admin_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminSignOutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminSignOutResponse) ProtoMessage() {}
+
+func (x *AdminSignOutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_admin_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminSignOutResponse.ProtoReflect.Descriptor instead.
+func (*AdminSignOutResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{5}
+}
+
 type WhoAmIRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -29,7 +277,7 @@ type WhoAmIRequest struct {
 
 func (x *WhoAmIRequest) Reset() {
 	*x = WhoAmIRequest{}
-	mi := &file_auth_v1_admin_proto_msgTypes[0]
+	mi := &file_auth_v1_admin_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41,7 +289,7 @@ func (x *WhoAmIRequest) String() string {
 func (*WhoAmIRequest) ProtoMessage() {}
 
 func (x *WhoAmIRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_admin_proto_msgTypes[0]
+	mi := &file_auth_v1_admin_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,7 +302,7 @@ func (x *WhoAmIRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WhoAmIRequest.ProtoReflect.Descriptor instead.
 func (*WhoAmIRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_admin_proto_rawDescGZIP(), []int{0}
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{6}
 }
 
 type WhoAmIResponse struct {
@@ -66,7 +314,7 @@ type WhoAmIResponse struct {
 
 func (x *WhoAmIResponse) Reset() {
 	*x = WhoAmIResponse{}
-	mi := &file_auth_v1_admin_proto_msgTypes[1]
+	mi := &file_auth_v1_admin_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -78,7 +326,7 @@ func (x *WhoAmIResponse) String() string {
 func (*WhoAmIResponse) ProtoMessage() {}
 
 func (x *WhoAmIResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_admin_proto_msgTypes[1]
+	mi := &file_auth_v1_admin_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -91,7 +339,7 @@ func (x *WhoAmIResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WhoAmIResponse.ProtoReflect.Descriptor instead.
 func (*WhoAmIResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_admin_proto_rawDescGZIP(), []int{1}
+	return file_auth_v1_admin_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *WhoAmIResponse) GetAccountId() string {
@@ -105,12 +353,26 @@ var File_auth_v1_admin_proto protoreflect.FileDescriptor
 
 const file_auth_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x13auth/v1/admin.proto\x12\aauth.v1\"\x0f\n" +
+	"\x13auth/v1/admin.proto\x12\aauth.v1\"\x19\n" +
+	"\x17AdminStartSignInRequest\"G\n" +
+	"\x18AdminStartSignInResponse\x12+\n" +
+	"\x11authorization_url\x18\x01 \x01(\tR\x10authorizationUrl\"F\n" +
+	"\x1aAdminCompleteSignInRequest\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\"<\n" +
+	"\x1bAdminCompleteSignInResponse\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"\x15\n" +
+	"\x13AdminSignOutRequest\"\x16\n" +
+	"\x14AdminSignOutResponse\"\x0f\n" +
 	"\rWhoAmIRequest\"/\n" +
 	"\x0eWhoAmIResponse\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId2I\n" +
-	"\fAdminService\x129\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId2\xc2\x02\n" +
+	"\fAdminService\x12R\n" +
+	"\vStartSignIn\x12 .auth.v1.AdminStartSignInRequest\x1a!.auth.v1.AdminStartSignInResponse\x12[\n" +
+	"\x0eCompleteSignIn\x12#.auth.v1.AdminCompleteSignInRequest\x1a$.auth.v1.AdminCompleteSignInResponse\x12F\n" +
+	"\aSignOut\x12\x1c.auth.v1.AdminSignOutRequest\x1a\x1d.auth.v1.AdminSignOutResponse\x129\n" +
 	"\x06WhoAmI\x12\x16.auth.v1.WhoAmIRequest\x1a\x17.auth.v1.WhoAmIResponseB\xa4\x01\n" +
 	"\vcom.auth.v1B\n" +
 	"AdminProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
@@ -127,16 +389,28 @@ func file_auth_v1_admin_proto_rawDescGZIP() []byte {
 	return file_auth_v1_admin_proto_rawDescData
 }
 
-var file_auth_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_auth_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_auth_v1_admin_proto_goTypes = []any{
-	(*WhoAmIRequest)(nil),  // 0: auth.v1.WhoAmIRequest
-	(*WhoAmIResponse)(nil), // 1: auth.v1.WhoAmIResponse
+	(*AdminStartSignInRequest)(nil),     // 0: auth.v1.AdminStartSignInRequest
+	(*AdminStartSignInResponse)(nil),    // 1: auth.v1.AdminStartSignInResponse
+	(*AdminCompleteSignInRequest)(nil),  // 2: auth.v1.AdminCompleteSignInRequest
+	(*AdminCompleteSignInResponse)(nil), // 3: auth.v1.AdminCompleteSignInResponse
+	(*AdminSignOutRequest)(nil),         // 4: auth.v1.AdminSignOutRequest
+	(*AdminSignOutResponse)(nil),        // 5: auth.v1.AdminSignOutResponse
+	(*WhoAmIRequest)(nil),               // 6: auth.v1.WhoAmIRequest
+	(*WhoAmIResponse)(nil),              // 7: auth.v1.WhoAmIResponse
 }
 var file_auth_v1_admin_proto_depIdxs = []int32{
-	0, // 0: auth.v1.AdminService.WhoAmI:input_type -> auth.v1.WhoAmIRequest
-	1, // 1: auth.v1.AdminService.WhoAmI:output_type -> auth.v1.WhoAmIResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
+	0, // 0: auth.v1.AdminService.StartSignIn:input_type -> auth.v1.AdminStartSignInRequest
+	2, // 1: auth.v1.AdminService.CompleteSignIn:input_type -> auth.v1.AdminCompleteSignInRequest
+	4, // 2: auth.v1.AdminService.SignOut:input_type -> auth.v1.AdminSignOutRequest
+	6, // 3: auth.v1.AdminService.WhoAmI:input_type -> auth.v1.WhoAmIRequest
+	1, // 4: auth.v1.AdminService.StartSignIn:output_type -> auth.v1.AdminStartSignInResponse
+	3, // 5: auth.v1.AdminService.CompleteSignIn:output_type -> auth.v1.AdminCompleteSignInResponse
+	5, // 6: auth.v1.AdminService.SignOut:output_type -> auth.v1.AdminSignOutResponse
+	7, // 7: auth.v1.AdminService.WhoAmI:output_type -> auth.v1.WhoAmIResponse
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -153,7 +427,7 @@ func file_auth_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_admin_proto_rawDesc), len(file_auth_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

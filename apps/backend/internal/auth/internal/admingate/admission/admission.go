@@ -3,6 +3,7 @@ package admission
 import (
 	"errors"
 	"fmt"
+	"slices"
 )
 
 var (
@@ -14,17 +15,23 @@ var (
 type Operator string
 
 type Visit struct {
-	Origin string
-	Cookie string
+	Origin    string
+	Cookie    string
+	Procedure string
 }
 
-func NewPage(origin string) Page {
-	return Page{origin: origin}
+func NewPage(origin string, signIn ...string) Page {
+	return Page{origin: origin, signIn: signIn}
 }
 
-// The game page holds the same cookie on the same site: only the admin page's origin may ride it.
+// Only the admin page's origin may call; its sign-in calls are the ones made before a session exists.
 type Page struct {
 	origin string
+	signIn []string
+}
+
+func (p Page) SignIn(procedure string) bool {
+	return slices.Contains(p.signIn, procedure)
 }
 
 func (p Page) OriginError(origin string) error {

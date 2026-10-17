@@ -7,6 +7,216 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
+ * @generated from message auth.v1.AdminStartSignInRequest
+ */
+export class AdminStartSignInRequest extends Message<AdminStartSignInRequest> {
+  constructor(data?: PartialMessage<AdminStartSignInRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.AdminStartSignInRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminStartSignInRequest {
+    return new AdminStartSignInRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminStartSignInRequest {
+    return new AdminStartSignInRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminStartSignInRequest {
+    return new AdminStartSignInRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminStartSignInRequest | PlainMessage<AdminStartSignInRequest> | undefined, b: AdminStartSignInRequest | PlainMessage<AdminStartSignInRequest> | undefined): boolean {
+    return proto3.util.equals(AdminStartSignInRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.AdminStartSignInResponse
+ */
+export class AdminStartSignInResponse extends Message<AdminStartSignInResponse> {
+  /**
+   * @generated from field: string authorization_url = 1;
+   */
+  authorizationUrl = "";
+
+  constructor(data?: PartialMessage<AdminStartSignInResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.AdminStartSignInResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "authorization_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminStartSignInResponse {
+    return new AdminStartSignInResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminStartSignInResponse {
+    return new AdminStartSignInResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminStartSignInResponse {
+    return new AdminStartSignInResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminStartSignInResponse | PlainMessage<AdminStartSignInResponse> | undefined, b: AdminStartSignInResponse | PlainMessage<AdminStartSignInResponse> | undefined): boolean {
+    return proto3.util.equals(AdminStartSignInResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.AdminCompleteSignInRequest
+ */
+export class AdminCompleteSignInRequest extends Message<AdminCompleteSignInRequest> {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code = "";
+
+  /**
+   * @generated from field: string state = 2;
+   */
+  state = "";
+
+  constructor(data?: PartialMessage<AdminCompleteSignInRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.AdminCompleteSignInRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "state", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminCompleteSignInRequest {
+    return new AdminCompleteSignInRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminCompleteSignInRequest {
+    return new AdminCompleteSignInRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminCompleteSignInRequest {
+    return new AdminCompleteSignInRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminCompleteSignInRequest | PlainMessage<AdminCompleteSignInRequest> | undefined, b: AdminCompleteSignInRequest | PlainMessage<AdminCompleteSignInRequest> | undefined): boolean {
+    return proto3.util.equals(AdminCompleteSignInRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.AdminCompleteSignInResponse
+ */
+export class AdminCompleteSignInResponse extends Message<AdminCompleteSignInResponse> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<AdminCompleteSignInResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.AdminCompleteSignInResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminCompleteSignInResponse {
+    return new AdminCompleteSignInResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminCompleteSignInResponse {
+    return new AdminCompleteSignInResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminCompleteSignInResponse {
+    return new AdminCompleteSignInResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminCompleteSignInResponse | PlainMessage<AdminCompleteSignInResponse> | undefined, b: AdminCompleteSignInResponse | PlainMessage<AdminCompleteSignInResponse> | undefined): boolean {
+    return proto3.util.equals(AdminCompleteSignInResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.AdminSignOutRequest
+ */
+export class AdminSignOutRequest extends Message<AdminSignOutRequest> {
+  constructor(data?: PartialMessage<AdminSignOutRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.AdminSignOutRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminSignOutRequest {
+    return new AdminSignOutRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminSignOutRequest {
+    return new AdminSignOutRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminSignOutRequest {
+    return new AdminSignOutRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminSignOutRequest | PlainMessage<AdminSignOutRequest> | undefined, b: AdminSignOutRequest | PlainMessage<AdminSignOutRequest> | undefined): boolean {
+    return proto3.util.equals(AdminSignOutRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.AdminSignOutResponse
+ */
+export class AdminSignOutResponse extends Message<AdminSignOutResponse> {
+  constructor(data?: PartialMessage<AdminSignOutResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.AdminSignOutResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminSignOutResponse {
+    return new AdminSignOutResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminSignOutResponse {
+    return new AdminSignOutResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminSignOutResponse {
+    return new AdminSignOutResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminSignOutResponse | PlainMessage<AdminSignOutResponse> | undefined, b: AdminSignOutResponse | PlainMessage<AdminSignOutResponse> | undefined): boolean {
+    return proto3.util.equals(AdminSignOutResponse, a, b);
+  }
+}
+
+/**
  * @generated from message auth.v1.WhoAmIRequest
  */
 export class WhoAmIRequest extends Message<WhoAmIRequest> {

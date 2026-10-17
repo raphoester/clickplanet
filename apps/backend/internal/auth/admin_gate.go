@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -16,30 +17,61 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission/usecases/admit_usecase/log_admit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/guard/log_calls"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
 )
 
-type AdminGateConfig struct {
+type AdminConfig struct {
 	Origin string
+
+	RedirectURL string
+	Google      signin.Client
+	SessionTTL  time.Duration
 }
 
-func (c AdminGateConfig) Validate() error {
+func (c AdminConfig) withDefaults() AdminConfig {
+	if c.SessionTTL <= 0 {
+		c.SessionTTL = adminsignin.DefaultTTL
+	}
+	return c
+}
+
+// No origin is no admin page: no gate, and no admin sign-in.
+func (c AdminConfig) Validate() error {
 	if c.Origin == "" {
 		return nil
 	}
 
+	var errs []error
 	parsed, err := url.Parse(c.Origin)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" ||
 		parsed.String() != parsed.Scheme+"://"+parsed.Host {
-		return fmt.Errorf("auth.adminGate.origin %q is not an origin: want scheme://host[:port], with no path and not \"*\"", c.Origin)
+		errs = append(errs, fmt.Errorf("auth.admin.origin %q is not an origin: want scheme://host[:port], with no path and not \"*\"", c.Origin))
+	}
+	redirect, err := url.Parse(c.RedirectURL)
+	if err != nil || !redirect.IsAbs() || redirect.RawQuery != "" {
+		errs = append(errs, fmt.Errorf("auth.admin.redirectUrl %q is not an absolute URL without a query", c.RedirectURL))
+	}
+	if !c.Google.Configured() || c.Google.ClientSecret == "" {
+		errs = append(errs, errors.New("auth.admin.google needs a clientId and a clientSecret: only Google opens an admin session"))
+	}
+	if c.SessionTTL < 0 {
+		errs = append(errs, fmt.Errorf("auth.admin.sessionTTL %s is negative", c.SessionTTL))
 	}
 
-	return nil
+	return errors.Join(errs...)
+}
+
+var signInProcedures = []string{
+	authv1connect.AdminServiceStartSignInProcedure,
+	authv1connect.AdminServiceCompleteSignInProcedure,
+	authv1connect.AdminServiceSignOutProcedure,
 }
 
 // No origin is no admin page, and so no gate: an admin listener then refuses the boot.
-func NewAdminGate(config AdminGateConfig, internalBindAddress string, logger *slog.Logger) (cpbootstrap.Gate, error) {
+func NewAdminGate(config AdminConfig, internalBindAddress string, logger *slog.Logger) (cpbootstrap.Gate, error) {
 	if config.Origin == "" {
 		return cpbootstrap.Gate{}, nil
 	}
@@ -49,7 +81,7 @@ func NewAdminGate(config AdminGateConfig, internalBindAddress string, logger *sl
 
 	auth := authv1connect.NewInternalServiceClient(&http.Client{Transport: http.DefaultTransport}, "http://"+internalBindAddress)
 	admit := log_admit.New(
-		admit_usecase.New(admission.NewPage(config.Origin), rpc_operators.New(auth)),
+		admit_usecase.New(admission.NewPage(config.Origin, signInProcedures...), rpc_operators.New(auth)),
 		logger,
 	)
 

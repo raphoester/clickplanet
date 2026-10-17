@@ -3,15 +3,46 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { WhoAmIRequest, WhoAmIResponse } from "./admin_pb.js";
+import { AdminCompleteSignInRequest, AdminCompleteSignInResponse, AdminSignOutRequest, AdminSignOutResponse, AdminStartSignInRequest, AdminStartSignInResponse, WhoAmIRequest, WhoAmIResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * The admin page's own sign-in: Google only, an account flagged operator only, a session of its own (cp_admin).
+ *
  * @generated from service auth.v1.AdminService
  */
 export const AdminService = {
   typeName: "auth.v1.AdminService",
   methods: {
+    /**
+     * @generated from rpc auth.v1.AdminService.StartSignIn
+     */
+    startSignIn: {
+      name: "StartSignIn",
+      I: AdminStartSignInRequest,
+      O: AdminStartSignInResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * PermissionDenied for a Google account no operator holds; FailedPrecondition to start again.
+     *
+     * @generated from rpc auth.v1.AdminService.CompleteSignIn
+     */
+    completeSignIn: {
+      name: "CompleteSignIn",
+      I: AdminCompleteSignInRequest,
+      O: AdminCompleteSignInResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc auth.v1.AdminService.SignOut
+     */
+    signOut: {
+      name: "SignOut",
+      I: AdminSignOutRequest,
+      O: AdminSignOutResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * The account the cookie names, when it operates: the admin page's own. Unauthenticated with no cookie.
      *
