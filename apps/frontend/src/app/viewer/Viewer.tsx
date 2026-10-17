@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from 'react';
 import {
+    AllegianceSource,
     BankFullError,
     Bomber,
     BonusListener,
@@ -39,7 +40,9 @@ import SharePlace from "../share/SharePlace.tsx";
 import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
 import {shareStats} from "../../domain/shareCard.ts";
-import {Country} from "../../domain/countries.ts";
+import {Countries, Country} from "../../domain/countries.ts";
+import {lockOf} from "../../domain/allegiance.ts";
+import {useAllegiance} from "./useAllegiance.ts";
 import {ClickBudgetSource, now as budgetNow, tokensAt} from "../../backends/clickBudget.ts";
 import {useClickBudget} from './useClickBudget.ts';
 import {useCountryStorage} from './useCountryStorage.ts';
@@ -97,6 +100,7 @@ export type ViewerProps = {
     bomber?: Bomber
     refiller?: Refiller
     shielder?: Shielder
+    allegiance?: AllegianceSource
     chatBackend?: ChatBackend
     account?: AccountStore
     presence?: PresenceBackend
@@ -109,6 +113,12 @@ export type ViewerProps = {
 export default function Viewer(props: ViewerProps) {
     const container = useRef<HTMLDivElement>(null)
     const {countryState, handleSetCountry} = useCountryStorage(props.sharedCountry)
+    const allegiance = useAllegiance(props.allegiance)
+    useEffect(() => {
+        const locked = lockOf(allegiance, Date.now())
+        const held = locked && locked.countryId !== countryState.code ? Countries.get(locked.countryId) : undefined
+        if (held) handleSetCountry(held)
+    }, [allegiance, countryState.code, handleSetCountry])
     const clickBudget = useClickBudget(props.clickBudgetSource, countryState.code)
     const connection = useConnection(props.connection)
     const sound = useSound()
@@ -246,6 +256,7 @@ export default function Viewer(props: ViewerProps) {
     const board = {
         country: countryState,
         setCountry: handleSetCountry,
+        allegiance,
         leaderboard,
         tileDeltas,
         tilesCount,

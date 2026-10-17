@@ -1,4 +1,6 @@
 import {
+    AllegianceLockedError,
+    AllegianceSource,
     BankFullError,
     BombDrop,
     Bomber,
@@ -24,6 +26,7 @@ import {
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
+import {Allegiance, lockOf} from "../domain/allegiance.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
 import {SessionUnavailableError} from "./session.ts";
 import {v4 as UUIDv4} from 'uuid';
@@ -35,6 +38,8 @@ const TILE_COUNT = 257_000
 
 const CLICKS_PER_SECOND = 0.2
 const CLICK_BURST = 60
+
+const FLAG_CHANGE_EVERY_MS = 60 * 60 * 1000
 
 const TOLL_STEPS = [
     {share: 0.10, slowdown: 1.5},
@@ -99,7 +104,7 @@ export type FakeBackendOptions = {
     landmasses?: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource {
     private tileBindings: Map<number, string> = new Map()
     private tileCounts: Map<string, number> = new Map()
     private budgetCountry = ""
@@ -115,6 +120,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private fortresses: FakeFortresses | undefined
 
     private charges: Charges = NO_CHARGES
+    private allegiance: Allegiance | undefined
+    private readonly allegianceCallbacks = new Map<string, (allegiance: Allegiance | undefined) => void>()
     private positions: Promise<Float32Array> | undefined
     private readonly tilePositions: (() => Promise<Float32Array>) | undefined
 
@@ -215,6 +222,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (switches.spread && switches.enclose) throw new Error("spread and enclose switched on together")
         if (this.sessionUnavailable) throw new SessionUnavailableError()
         if (this.vpnBlocked) throw new VPNBlockedError()
+        this.pledge(countryId)
 
         const allowed = this.allow(countryId)
         this.reportBudget()
@@ -329,6 +337,32 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.budgetCallbacks.forEach(callback => callback(budget))
     }
 
+    public unlockFlag(): void {
+        if (this.allegiance) this.holdAllegiance({countryId: this.allegiance.countryId})
+    }
+
+    public listenForAllegiance(callback: (allegiance: Allegiance | undefined) => void): () => void {
+        const id = UUIDv4()
+        this.allegianceCallbacks.set(id, callback)
+        callback(this.allegiance)
+        return () => this.allegianceCallbacks.delete(id)
+    }
+
+    private pledge(countryId: string): void {
+        const held = this.allegiance
+        if (held?.countryId === countryId) return
+
+        const locked = lockOf(held, Date.now())
+        if (locked) throw new AllegianceLockedError(locked)
+
+        this.holdAllegiance(held ? {countryId, changeableAt: Date.now() + FLAG_CHANGE_EVERY_MS} : {countryId})
+    }
+
+    private holdAllegiance(allegiance: Allegiance): void {
+        this.allegiance = allegiance
+        this.allegianceCallbacks.forEach(callback => callback(allegiance))
+    }
+
     public closeShapes(close: boolean): void {
         this.shapesClose = close
     }
@@ -438,6 +472,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public async placeShield(tileId: number, countryId: string): Promise<void> {
         if (this.sessionUnavailable) throw new SessionUnavailableError()
+        this.pledge(countryId)
         if (this.charges.shields === 0) throw new BonusLostError()
         if (!this.botShield(tileId, countryId)) throw new ShieldRefusedError()
 

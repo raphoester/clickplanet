@@ -3,13 +3,17 @@ package click_handler_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
@@ -120,4 +124,19 @@ func TestClickMapsTheErrors(t *testing.T) {
 		require.Equal(t, connect.CodeUnknown, connect.CodeOf(err),
 			"the handler picked no code: dressing this up would hide it from the interceptor's log")
 	})
+}
+
+func TestAClickRefusedForItsFlagSaysWhichFlagAndUntilWhen(t *testing.T) {
+	until := time.Date(2026, 10, 17, 13, 0, 0, 0, time.UTC)
+	useCase := &stubUseCase{err: fmt.Errorf("wrapped: %w", allegiances.Refusal{Flag: "de", Until: until})}
+
+	_, err := clickOn(t, useCase, &planetv1.ClickRequest{TileId: 1, CountryId: "fr"})
+
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	var connectErr *connect.Error
+	require.ErrorAs(t, err, &connectErr)
+	require.Len(t, connectErr.Details(), 1)
+	value, err := connectErr.Details()[0].Value()
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(&planetv1.Allegiance{CountryId: "de", ChangeableAtUnixMs: until.UnixMilli()}, value))
 }

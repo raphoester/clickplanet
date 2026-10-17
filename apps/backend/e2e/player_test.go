@@ -378,11 +378,9 @@ func TestAPlayerKeepsItsCardWhenAnotherTakesTheNameItLeft(t *testing.T) {
 
 func TestAPlayerReadsEveryCountryItPlaysAgainstAndAnybodyTheTopThree(t *testing.T) {
 	game := startGame(t)
-	ada := game.newPlayer(t)
-	ada.click(1, "fr")
-	ada.click(2, "it")
-	ada.click(3, "es")
-	ada.click(4, "pt")
+	for tile, flag := range []string{"fr", "it", "es", "pt"} {
+		game.newPlayer(t).click(uint32(tile)+1, flag)
+	}
 	bob := game.newPlayer(t)
 	bob.link("google-bob")
 	_, err := bob.setName("Bob_B")

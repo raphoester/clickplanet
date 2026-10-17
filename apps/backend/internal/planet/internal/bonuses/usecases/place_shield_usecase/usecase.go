@@ -27,6 +27,10 @@ type CountryChecker interface {
 	CheckCountry(country string) bool
 }
 
+type Allegiances interface {
+	Pledge(payer clicks.Payer, flag string) error
+}
+
 type In struct {
 	TileID    uint32
 	CountryID string
@@ -34,15 +38,16 @@ type In struct {
 	Dud bool
 }
 
-func New(shields Shields, tiles Tiles, countries CountryChecker, perTile int) *UseCase {
-	return &UseCase{shields: shields, tiles: tiles, countries: countries, perTile: perTile}
+func New(shields Shields, tiles Tiles, countries CountryChecker, allegiances Allegiances, perTile int) *UseCase {
+	return &UseCase{shields: shields, tiles: tiles, countries: countries, allegiances: allegiances, perTile: perTile}
 }
 
 type UseCase struct {
-	shields   Shields
-	tiles     Tiles
-	countries CountryChecker
-	perTile   int
+	shields     Shields
+	tiles       Tiles
+	countries   CountryChecker
+	allegiances Allegiances
+	perTile     int
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
@@ -59,7 +64,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 		return bonuses.Held{}, fmt.Errorf("tile %d: %w", in.TileID, err)
 	}
 
-	holder := bonuses.HolderOf(clicks.PayerOf(ctx))
+	payer := clicks.PayerOf(ctx)
+	if err := u.allegiances.Pledge(payer, in.CountryID); err != nil {
+		return bonuses.Held{}, err
+	}
+
+	holder := bonuses.HolderOf(payer)
 	if !u.shields.SpendShield(holder) {
 		return bonuses.Held{}, ErrNoShield
 	}

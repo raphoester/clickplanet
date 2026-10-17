@@ -352,6 +352,9 @@ internal/planet/internal/
     inmemory_charge_storage/
     postgres_charge_store/
     usecases/
+  allegiances/                    the flag each account plays for, and when it last changed it
+    inmemory_allegiance_storage/
+    postgres_allegiance_store/
   planetv1controller/             the edge: maps the wire to the use cases, nothing else
     get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
   subscribers/                    the edge for events: auth.v1.AccountDeleted → anonymize_takes_usecase
@@ -422,7 +425,7 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/get_charges_usecase` | what the caller holds | `Charges` |
 | `bonuses/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `bonuses/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger` |
-| `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker` |
+| `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Shields`, `Tiles`, `CountryChecker`, `Allegiances` |
 | `clicks/usecases/relay_fortifications_usecase` | follows the tile map and publishes `planet.v1.Fortified` for each fortify; a `Runner` | `Changes`, `Publisher` |
 
 **The interfaces in that last column are declared by the package that calls
@@ -434,7 +437,7 @@ these ports at once, which is why `module.go` hands it over several times.
 
 **`click_usecase` is the only one with an interface of its own (`IUseCase`)**,
 because the click chain decorates it — `prom_click`, `throttle_click`,
-`antibot_click`, `antibot_attempt_click`, and the bonus decorators `spread_click`, `enclose_click` and
+`antibot_click`, `antibot_attempt_click`, `allegiance_click`, and the bonus decorators `spread_click`, `enclose_click` and
 `bonus_click`. The counting is a wrapper rather than a line inside the rule, so
 a process that does not want it leaves it out and the rule does not change.
 
@@ -714,6 +717,7 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
        then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
   → antibot_attempt_click (times every try for the metronome; drops nothing)
+  → allegiance_click (another flag within the hour of a change is refused, and spends nothing)
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
   → antibot_click   (judges; a flagged caller is answered OK and dropped)
   → prom_click      (counts)
@@ -854,6 +858,43 @@ defence against taking back the last tile for a free refill, and it costs no tim
   map's channel and publishes `planet.v1.Fortified` for each fortify; the map is where it
   happened. It subscribes again a second after the map cuts it off. The chat announces
   the ones of `fortifyNewsTiles` (50) tiles or more.
+
+### Allegiance: one change of flag an hour
+
+**An account plays for one flag, and may change it once an hour.** Every click and
+every shield names a flag, and nothing else ties a player to one: before this, a
+player could paint for one country and defend another click to click.
+
+- **The rule is `Allegiance.Pledged(flag, at)`**, pure and tested in the
+  `allegiances` root. The first flag an account acts for is kept with no wait, so a
+  player who clicked for its time zone's flag can still pick its own. The next
+  change is free too, and starts the wait: another flag within `changeEvery` (1h) of
+  it is `allegiances.Refusal` (`ErrChangedTooSoon`), with the flag held and until
+  when. The same flag again changes nothing.
+- **`allegiances.Book.Pledge(payer, flag)`** applies it at the clock's time, under
+  the storage's lock, so two tabs clicking two flags at once cannot both change it.
+  A caller with no account, and a flag that is no country, are held to nothing: the
+  click use case refuses the second.
+- **It is checked outside the throttle and outside the shadow ban**
+  (`allegiance_click`, between `antibot_attempt_click` and `throttle_click`): a click
+  refused for its flag spends no token, and a banned caller is refused exactly as
+  any other, or switching flags would tell it its clicks are dropped.
+  `place_shield_usecase` pledges before it spends the shield. A bomb, a claim, a
+  quiz and a refill name a flag only for what they announce, and are not held.
+- **The refusal is `FailedPrecondition` with a `planet.v1.Allegiance` detail**
+  (`allegiancemessage.Refusal`): the flag held and `changeable_at_unix_ms`. The
+  client snaps back to that flag.
+- **`ClickService/GetAllegiance`** answers the caller's (`allegiance_query`, from
+  memory), as `Identified`: unset for an account that never acted for a flag, and
+  `changeable_at_unix_ms` 0 for a flag never changed. Not `NO_SIDE_EFFECTS`.
+- **Kept like the charges**: `inmemory_allegiance_storage` holds every account's
+  in memory, and flushes the ones that changed to `planet.allegiances`
+  (`account`, `flag`, `changed_at`, NULL for a first flag) every
+  `allegianceStorage.flushInterval`. **A row is never deleted**, not even with its
+  account: without the row the next flag is a first flag again, which would hand
+  out a free change. The row names nobody once the account is gone.
+- **Guests are held per account**, like the bank: a private tab is a new guest and
+  a new first flag.
 
 ### Chat (`internal/chat/`)
 
@@ -3114,6 +3155,8 @@ Both chains order them the same way: error mapping outermost, then the blocklist
 - **Size.** 1M takes are 83 MB of table and 31 MB of indexes (the primary key and the account). Production made ~116,000 takes in 72h at the start of October 2026, ~40,000 a day: ~15M rows and ~1.7 GB a year. Each take is written twice, once by the `COPY` and once when its scope is blanked, and autovacuum reuses the space. No partitioning yet.
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, charges, deletions)` runs them together and closes the pool after the last flushes, and after the subscriber drained its buffer.
 
+**The allegiances do too**, through `inmemory_allegiance_storage.Persistence` and `allegiances/postgres_allegiance_store`, on the same pool: one row per account in `planet.allegiances`. See [Allegiance](#allegiance-one-change-of-flag-an-hour).
+
 **The charges follow it too**, through `inmemory_charge_storage.Persistence` and `bonuses/postgres_charge_store`, on the same pool: one row per account in `planet.charges`, written every `chargeStorage.flushInterval`. See [Charges](#charges-refill-bomb-enclose-spread-shields).
 
 The antibot's evidence is in postgres too, in the `antibot` schema, the same way, and its bans are read and written there on every call — see [What survives a restart](#what-survives-a-restart). The player module's profiles and stats are in postgres too, in the `player` schema, but with no memory copy: each call reads or writes the table — see [Player](#player-internalplayer). The seasons module's standings are kept the same way, in the `seasons` schema — see [Seasons](#seasons-internalseasons). So are the support module's notes, in the `support` schema — see [Support](#support-internalsupport).
@@ -3656,6 +3699,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `bonus.enclose.held`, `bonus.enclose.maxPerBox`, `bonus.enclose.maxTiles` — the most enclosures held (3), the most one box adds (3; it draws 1 to that), and the most tiles one shape may take (25)
 - `bonus.shield.held`, `bonus.shield.minPerBox`, `bonus.shield.maxPerBox`, `bonus.shield.perTile` — the most shields held (30), the fewest and the most one box adds (5 and 20; it draws evenly between them), and the most one tile holds (10)
 - `chargeStorage.flushInterval` — how often the charges that changed are written to postgres (default 1s); also flushed on shutdown
+- `allegianceStorage.flushInterval` — how often the flags that changed are written to postgres (default 1s); also flushed on shutdown
 - `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
 - `antiBot.enabled` — off registers nothing and measures nothing
 - `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in

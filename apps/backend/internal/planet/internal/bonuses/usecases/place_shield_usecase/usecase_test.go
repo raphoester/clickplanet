@@ -4,10 +4,13 @@ import (
 	"context"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/inmemory_allegiance_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/inmemory_charge_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
@@ -15,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 const caller bonuses.Holder = "a-player"
@@ -22,6 +26,8 @@ const caller bonuses.Holder = "a-player"
 type fixture struct {
 	charges *inmemory_charge_storage.Storage
 	tiles   *inmemory_tile_storage.Storage
+	book    allegiances.Book
+	clock   *cptime.FixedClock
 	useCase *place_shield_usecase.UseCase
 }
 
@@ -38,10 +44,16 @@ func setup(t *testing.T, shields int) fixture {
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{7: "fr", 8: "de"}), slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context()))
 
+	clock := cptime.NewFixedClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
+	book := allegiances.NewBook(inmemory_allegiance_storage.New(inmemory_allegiance_storage.Config{},
+		inmemory_allegiance_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler)), cpcountries.New(), clock)
+
 	return fixture{
 		charges: charges,
 		tiles:   tiles,
-		useCase: place_shield_usecase.New(charges, tiles, cpcountries.New(), 2),
+		book:    book,
+		clock:   clock,
+		useCase: place_shield_usecase.New(charges, tiles, cpcountries.New(), book, 2),
 	}
 }
 
@@ -130,10 +142,25 @@ func (l lostRace) Shield(context.Context, uint32, string, int) error { return cl
 
 func TestAShieldThatCouldNotBePlacedIsGivenBack(t *testing.T) {
 	f := setup(t, 3)
-	useCase := place_shield_usecase.New(f.charges, lostRace{f.tiles}, cpcountries.New(), 2)
+	useCase := place_shield_usecase.New(f.charges, lostRace{f.tiles}, cpcountries.New(), f.book, 2)
 
 	_, err := useCase.Execute(played(t), place_shield_usecase.In{TileID: 7, CountryID: "fr"})
 	require.ErrorIs(t, err, clicks.ErrNotYourTile, "the tile changed hands between the check and the placement")
 
 	assert.Equal(t, 3, f.charges.Held(caller).Shields)
+}
+
+func TestAShieldForAnotherFlagWithinTheHourIsRefusedAndSpendsNothing(t *testing.T) {
+	f := setup(t, 3)
+	_, err := f.place(t, place_shield_usecase.In{TileID: 7, CountryID: "fr"})
+	require.NoError(t, err)
+	_, err = f.place(t, place_shield_usecase.In{TileID: 8, CountryID: "de"})
+	require.NoError(t, err, "the first change is free")
+
+	f.clock.Advance(30 * time.Minute)
+	_, err = f.place(t, place_shield_usecase.In{TileID: 7, CountryID: "fr"})
+
+	require.ErrorIs(t, err, allegiances.ErrChangedTooSoon)
+	assert.Equal(t, 1, f.charges.Held(caller).Shields)
+	assert.Equal(t, 1, f.tiles.Shields(7))
 }

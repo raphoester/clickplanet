@@ -4,6 +4,7 @@ import {LeaderboardEntry, rankOf} from "../domain/leaderboard.ts";
 import {countryLines, CountryOrder, shownOrder} from "../domain/race.ts";
 import {NO_TILE_DELTAS, TileDeltas} from "../domain/tileDeltas.ts";
 import {Race} from "../backends/standings.ts";
+import {Allegiance} from "../domain/allegiance.ts";
 import Leaderboard, {OrderSwitch} from "./Leaderboard.tsx";
 import CountryPicker from "./CountryPicker.tsx";
 import MenuPanel from "./components/MenuPanel.tsx";
@@ -28,6 +29,7 @@ export type MenuTab = "board" | "you" | "share" | "settings"
 export type BoardPlaceProps = {
     country: Country,
     setCountry: (country: Country) => void,
+    allegiance?: Allegiance,
     leaderboard: LeaderboardEntry[],
     tileDeltas?: TileDeltas,
     tilesCount: number,
@@ -85,7 +87,7 @@ export default function Menu(props: MenuProps) {
 
         {picker.picking
             ? <MenuPanel title="Change country" onClose={picker.close}>
-                <CountryPicker country={props.country} setCountry={(country) => {
+                <CountryPicker country={props.country} allegiance={props.allegiance} setCountry={(country) => {
                     props.setCountry(country)
                     picker.close()
                 }}/>
@@ -205,7 +207,7 @@ export function BoardSheet({onClose, ...props}: BoardPlaceProps & {onClose: () =
     return <Sheet title="Leaderboard" head={head} className="board-sheet" onClose={onClose}>
         {picker.picking
             ? <MenuPanel title="Change country" onClose={picker.close}>
-                <CountryPicker country={props.country} setCountry={(country) => {
+                <CountryPicker country={props.country} allegiance={props.allegiance} setCountry={(country) => {
                     props.setCountry(country)
                     picker.close()
                 }}/>
