@@ -55,7 +55,7 @@ const (
 	// The ledger keeps this much in memory: a replay cannot reach further back.
 	defaultSpan = 72 * time.Hour
 
-	defaultPerRun  = 2
+	defaultPerRun  = 6
 	defaultReview  = 4 * time.Hour
 	defaultSpacing = 2 * time.Hour
 

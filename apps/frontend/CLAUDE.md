@@ -2911,7 +2911,7 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
    npm at all, so the key to the VPS is in no job that installs this app's dependencies. The replay goes on as an
    artifact; it is the public stream's data.
 2. **shortlist** and **choose**: `npm run clip -- --shortlist shortlist.json`, then, in a job of its own (it holds
-   the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, `[1,2]`.
+   the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, up to 6, `[1,2,4]`.
    **It skips a story told in the last day**, by its key below: on Oct 13–14 two runs posted three clips of
    Algeria in Africa. None is a quiet half day: the run ends there, green.
 3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
