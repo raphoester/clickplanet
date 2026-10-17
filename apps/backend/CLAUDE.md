@@ -3198,7 +3198,7 @@ meet in files: the replay this job saves for the generator, and `clips.v1.Shortl
 
 ```
 clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
-clips choose -shortlist <shortlist.json> [-count 2]
+clips choose -shortlist <shortlist.json> [-count 6]
 clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 ```
 
@@ -3250,11 +3250,15 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
 
 - **`Shortlist.Best(count, told, now)`** is which clips: the first `count` stories, all of them when there are
-  fewer, 2 a run (`Config.PerRun`), **but never a story told already**: one whose `StoryKey` (a flag and a
+  fewer, 6 a run (`Config.PerRun`), **but never a story told already**: one whose `StoryKey` (a flag and a
   continent, from the generator) a post holds that goes out within the last day or later (`ToldSince`), or that a
   better story of the same run took. The keys and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS
   FRANCE" are one story, and on Oct 13–14 two runs posted it three times. It answers a `Choice`: the stories chosen,
   and the ones skipped (`Retold`), which the log shows. A story with no key is refused when the shortlist is read.
+- **6 a run, because the finder is not what runs short.** Replayed over Oct 14–17, a 12-hour window held 5 to 11
+  stories of different keys, and the rule above let about 10 a day out; 2 a run posted 4. Six is the most the
+  `Cadence` below fits between two runs: the sixth goes out 14 hours after a run starts, and the next run's first
+  16 hours after it. A seventh would go out together with that one.
 - **What was told is Zernio's post list, not a table of ours**: each post keeps its key in its Zernio `metadata`
   (`storyFlag`, `storyContinent`, never published), and `choose` lists the posts of the last day back, on every
   platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
@@ -3263,7 +3267,7 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-summary <file>]
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.
 - **`Cadence.Posts(clips, now, dice)`** is when: the best clip a `Review` from now (4 hours), each next one a
   `Spacing` later (2 hours), on a whole minute and never sooner than the review. So a run at 12:17 UTC that renders
-  in 20 minutes posts near 16:40 and 18:40. It also rolls each post's words (`Dice`, `SystemDice`), so no post
+  in 20 minutes posts near 16:40, then every 2 hours until 02:40. It also rolls each post's words (`Dice`, `SystemDice`), so no post
   exists without them.
 - **The caption is written here** (`caption.go`), from what the generator gives (its teasers, the countries with
   their hashtags, the continent's, the music's credit), since the platform is the job's business:
