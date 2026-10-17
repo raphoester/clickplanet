@@ -43,8 +43,10 @@ const (
 	retelling = 72 * time.Hour
 	// Longer than a key: the same headline on another continent reads as the same clip.
 	reheadlining = 7 * 24 * time.Hour
-	// A day of posts.
-	lately = 4
+	// Half a day of posts at 6 a run.
+	lately = 6
+	// A third of them: a team of two players is not the feed.
+	mostLately = 2
 )
 
 // Inclusive: the posts at this time or after are what was told.
@@ -72,7 +74,7 @@ type Choice struct {
 	Chosen Shortlist
 	// Skipped: its key told in the last three days, its headline in the last week, or either by a story of this run.
 	Retold Shortlist
-	// Better than a story chosen, but of a flag the last posts told more.
+	// Not told, but its flag holds the most of the last posts, or more of them than a story chosen.
 	Passed Shortlist
 }
 
@@ -97,7 +99,7 @@ func (s Shortlist) Best(count int, told []Telling, now time.Time) Choice {
 			choice.Chosen = append(choice.Chosen, story)
 		case !past.untold(story):
 			choice.Retold = append(choice.Retold, story)
-		case story.Pick < last:
+		case story.Pick < last || past.crowded(story.Key.Flag):
 			choice.Passed = append(choice.Passed, story)
 		}
 	}
@@ -108,7 +110,7 @@ func (s Shortlist) freshest(past *past) (Story, bool) {
 	var best Story
 	found := false
 	for _, story := range s {
-		if !past.untold(story) {
+		if !past.untold(story) || past.crowded(story.Key.Flag) {
 			continue
 		}
 		if !found || past.mentions(story.Key.Flag) < past.mentions(best.Key.Flag) {
@@ -159,6 +161,10 @@ func (p *past) tell(story Story) {
 
 func (p *past) untold(story Story) bool {
 	return !p.keys.Contains(story.Key) && !p.headlines.Contains(headlineOf(story.Title))
+}
+
+func (p *past) crowded(flag string) bool {
+	return p.mentions(flag) >= mostLately
 }
 
 func (p *past) mentions(flag string) int {

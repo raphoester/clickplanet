@@ -1,6 +1,7 @@
 package posts_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -125,28 +126,23 @@ func TestAFlagTheLastPostsToldRanksAfterTheFlagsTheyDidNot(t *testing.T) {
 	assert.Equal(t, []string{"ALGERIA STRIKES BACK", "ALGERIA VS FRANCE"}, titles(choice.Passed))
 }
 
-func TestAFlagTheLastPostsToldMoreRanksLower(t *testing.T) {
+func TestAFlagInTwoOfTheLastPostsWaits(t *testing.T) {
 	told := []posts.Telling{
 		toldAgo(posts.StoryKey{Flag: "dz", Continent: "Europe"}, "ALGERIA IS ATTACKING EUROPE", time.Hour),
-		toldAgo(posts.StoryKey{Flag: "ps", Continent: "Europe"}, "PALESTINE IS ATTACKING EUROPE", 2*time.Hour),
 		toldAgo(posts.StoryKey{Flag: "dz", Continent: "Antarctica"}, "ALGERIA IS INVADING ANTARCTICA", 3*time.Hour),
-		toldAgo(posts.StoryKey{Flag: "fr", Continent: "Africa"}, "FRANCE IS INVADING AFRICA", 4*time.Hour),
 	}
 
-	choice := shortlistOf(t, written[0], written[2], written[4]).Best(2, told, theNightOfOct14)
+	choice := shortlistOf(t, written...).Best(6, told, theNightOfOct14)
 
 	assert.Equal(t, []string{"PALESTINE IS KICKING ROMANIA OUT OF KAZAKHSTAN", "FRANCE IS ATTACKING EUROPE"}, titles(choice.Chosen))
-	assert.Equal(t, []string{"ALGERIA STRIKES BACK"}, titles(choice.Passed))
+	assert.Equal(t, []string{"ALGERIA STRIKES BACK", "ALGERIA VS FRANCE", "ALGERIA IS INVADING INDIA"}, titles(choice.Passed))
 }
 
-func TestOnlyTheLastPostsRankAFlagLower(t *testing.T) {
-	told := []posts.Telling{
-		toldAgo(posts.StoryKey{Flag: "ps", Continent: "Europe"}, "PALESTINE IS ATTACKING EUROPE", 1*time.Hour),
-		toldAgo(posts.StoryKey{Flag: "fr", Continent: "Africa"}, "FRANCE IS INVADING AFRICA", 2*time.Hour),
-		toldAgo(posts.StoryKey{Flag: "ps", Continent: "Antarctica"}, "PALESTINE IS INVADING ANTARCTICA", 3*time.Hour),
-		toldAgo(posts.StoryKey{Flag: "fr", Continent: "Asia"}, "FRANCE IS INVADING ASIA", 4*time.Hour),
-		toldAgo(posts.StoryKey{Flag: "dz", Continent: "Europe"}, "ALGERIA IS ATTACKING EUROPE", 5*time.Hour),
+func TestOnlyTheLastSixPostsCountAFlag(t *testing.T) {
+	flag := func(code string, hours int) posts.Telling {
+		return toldAgo(posts.StoryKey{Flag: code, Continent: "Europe"}, strings.ToUpper(code)+" IS ATTACKING EUROPE", time.Duration(hours)*time.Hour)
 	}
+	told := []posts.Telling{flag("ps", 1), flag("fr", 2), flag("de", 3), flag("it", 4), flag("es", 5), flag("pt", 6), flag("dz", 7), flag("dz", 8)}
 
 	choice := shortlistOf(t, written[0], written[2], written[4]).Best(1, told, theNightOfOct14)
 
@@ -166,14 +162,17 @@ func TestARunTellsAnotherFlagAfterTheOneItChose(t *testing.T) {
 	assert.Equal(t, []posts.Pick{2}, choice.Passed.Picks())
 }
 
-func TestAShortlistOfOneFlagIsStillTold(t *testing.T) {
+func TestAShortlistOfOneFlagIsToldTwiceInARun(t *testing.T) {
 	stories := []posts.Story{
 		{Title: "PALAU IS TAKING OVER THE WORLD", Key: posts.StoryKey{Flag: "pw", Continent: "the world"}},
 		{Title: "PALAU IS ATTACKING EAST ASIA", Key: posts.StoryKey{Flag: "pw", Continent: "East Asia"}},
+		{Title: "PALAU VS FRANCE", Key: posts.StoryKey{Flag: "pw", Continent: "Europe"}},
 	}
-	told := []posts.Telling{toldAgo(posts.StoryKey{Flag: "pw", Continent: "Europe"}, "PALAU VS FRANCE", time.Hour)}
 
-	assert.Equal(t, []posts.Pick{1, 2}, shortlistOf(t, stories...).Best(2, told, theNightOfOct14).Chosen.Picks())
+	choice := shortlistOf(t, stories...).Best(6, nil, theNightOfOct14)
+
+	assert.Equal(t, []posts.Pick{1, 2}, choice.Chosen.Picks())
+	assert.Equal(t, []posts.Pick{3}, choice.Passed.Picks())
 }
 
 func TestAShortlistWithFewerStoriesGivesAllItHas(t *testing.T) {
