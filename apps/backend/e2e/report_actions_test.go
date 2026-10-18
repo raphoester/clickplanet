@@ -3,6 +3,7 @@ package e2e_test
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -68,7 +69,8 @@ func TestAnOperatorRemovesAReportedMessageAndClosesTheReport(t *testing.T) {
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err), "nobody reacts to it")
 	read = game.message(t, insult.GetId())
 	assert.Equal(t, "hello", read.GetText(), "the operator still reads it")
-	assert.True(t, removed.Msg.GetRemovedAt().AsTime().Equal(read.GetRemovedAt().AsTime()))
+	assert.WithinDuration(t, removed.Msg.GetRemovedAt().AsTime(), read.GetRemovedAt().AsTime(), time.Microsecond,
+		"postgres keeps microseconds")
 
 	_, err = game.supportDesk().DecideReport(t.Context(), connect.NewRequest(&supportv1.DecideReportRequest{
 		ReportId: open[0].GetId(), Outcome: supportv1.ReportOutcome_REPORT_OUTCOME_ACTED, Comment: "removed the message",
