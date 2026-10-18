@@ -500,6 +500,7 @@
 
 .chat-message-text {
     position: relative;
+    min-width: 0;
     max-width: 86%;
     margin: 0;
     padding: 6px var(--space-3) 7px var(--space-3);
