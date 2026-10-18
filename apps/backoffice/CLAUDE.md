@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 **The operator's page, at `backoffice.clickplanet.lol`.** It calls the backend's `AdminService`s, which were
-reachable only over SSH before. Today it has one page, read only: the support notes (ideas and bugs) and the
-player reports, newest first. The plan after it: a player page (search, ban, mute, revert, grant charges), map
-tools, a live chat view, then ops pages.
+reachable only over SSH before. Today it has one page: the support notes (ideas and bugs), read only, and the
+player reports, which the operator acts on and closes (see [Acting on a report](#acting-on-a-report)). The plan
+after it: a player page (search, ban, mute, revert, grant charges), map tools, a live chat view, then ops pages.
 
 It is a third app, not a page of the game: **it imports nothing from `apps/frontend`** and has no Three.js (see
 the root `CLAUDE.md`, "Independence of the apps").
@@ -15,9 +15,9 @@ the root `CLAUDE.md`, "Independence of the apps").
 ## Commands
 
 ```bash
-npm run dev        # Vite on http://localhost:5174: set it as the backend's auth.adminGate.origin
+npm run dev        # Vite on http://localhost:5174: set it as the backend's auth.admin.origin
 npm run build      # TypeScript check + Vite bundle → /dist
-npm test           # vitest, once
+npm test           # vitest, once (node; a .test.tsx opens with `// @vitest-environment jsdom`)
 npm run lint       # ESLint
 npm run proto      # Regenerate src/gen/grpc from the shared ../../proto
 ```
@@ -59,9 +59,10 @@ The page needs a backend with auth on and an admin listener. In a copy of `apps/
 an `auth.secret` (`openssl rand -hex 32`). Postgres on `localhost:5432`. Then
 `VITE_API_BASE_URL=http://localhost:8083 npm run dev`.
 
-- **A whole Google sign-in** needs `auth.admin.google.clientId` and `clientSecret` of a Google client that lists
-  `http://localhost:5174/auth/callback`, and a Google identity on an account flagged operator. Without a client,
-  `StartSignIn` is `unimplemented`.
+- **The boot needs `auth.admin.google.clientId` and `clientSecret`** once `auth.admin.origin` is set. Made-up
+  values boot it, and a session made by hand (below) works with them. **A whole Google sign-in** needs a real
+  Google client that lists `http://localhost:5174/auth/callback`, and a Google identity on an account flagged
+  operator.
 - **Without Google**, open a session by hand. The table keeps the SHA-256 of the cookie's value, so pick a value,
   insert its hash, and set the cookie on `http://localhost:5174` (a cookie ignores the port, so it reaches `:8083`;
   the backend does not see that it is not `HttpOnly`):
@@ -77,6 +78,31 @@ an `auth.secret` (`openssl rand -hex 32`). Postgres on `localhost:5432`. Then
 
   Any account row will do, a guest's included (`curl` a `CreateSession` against `:8080`): only the Google
   sign-in checks the identity, and this skips it.
+
+## Acting on a report
+
+`src/reports/` is the Reports tab: `ReportsView` shows the list, or one report's detail.
+
+- **The list shows the open reports first** (`ListReports` with `open_only`), and a switch shows them all. A
+  decided report shows its outcome, comment and time (`DecisionLine`). The list is read again on the way back
+  from a detail, so a report just closed leaves the open list.
+- **The detail** (`ReportDetail`): who reported whom, each by name and account id, the reason and the text. With
+  a `message_id` it reads the message (`GetMessage`, `MessagePanel`): its text, time and country, struck through
+  with "Removed at …" once removed. A message past the chat's retention is `not_found`: "This message is no
+  longer kept."
+- **The actions, all on the reported account id**, never its name: remove the message (`RemoveMessage`, only while
+  it is shown), mute (`Mute`, an hour by default), ban (`BanPlayer`, no duration by default, so the antibot's
+  ladder picks the next step) and inspect (`InspectPlayer`). Then close the report (`DecideReport`): Acted or
+  Dismissed, with an optional comment of up to 1000 characters. A second decision replaces the first.
+- **Every action that changes something asks first** (`ConfirmAction`): the button opens a question with "Yes, …"
+  and Cancel, and only Yes calls the server. Then it says what the server answered ("Muted until …"), or the
+  refusal. **Inspect asks nothing**: it is a read.
+- **The refusals in plain words** (`refusalOf` in `actions.ts`): `not_found` is the message or the report no
+  longer kept, `failed_precondition` is the antibot off (no ban, no inspection), `invalid_argument` quotes the
+  server, a session that ended says to sign in again.
+- **`actions.ts` holds every call**, over narrow client types (`ChatAdmin`, `PlanetAdmin`, `SupportAdmin`), so a
+  test hands it `FakeAdmin` (`fakeClients.ts`), which records each request and can refuse a method with a code.
+  `ReportDetail` takes the same `clients`, so its jsdom test drives each action through the page.
 
 ## Deploy
 
@@ -105,8 +131,9 @@ src/
   useCall.ts        one call's state
   App.tsx           the callback, or WhoAmI first, then the page
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
-  components/       FailureNotice, AccountId (with Copy), When
-  support/          the support page: NoteList, ReportList, labels.ts (names and the device lines)
+  components/       FailureNotice, AccountId (with Copy), Person, When and timeOf
+  support/          the support page: NoteList, labels.ts (names, outcomes and the device lines)
+  reports/          the Reports tab: list, detail, actions.ts, ConfirmAction, FakeAdmin
   gen/grpc/         generated from ../../proto, committed
 ```
 

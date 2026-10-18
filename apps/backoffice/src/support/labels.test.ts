@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
-import {NoteKind} from "../gen/grpc/support/v1/admin_pb.ts"
+import {NoteKind, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
 import {PageContext, ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
-import {deviceLines, kindLabel, reasonLabel} from "./labels.ts"
+import {deviceLines, kindLabel, outcomeLabel, reasonLabel} from "./labels.ts"
 
 describe("deviceLines", () => {
     it("says everything the page said of itself, and the browser", () => {
@@ -44,10 +44,13 @@ describe("labels", () => {
         expect(kindLabel(NoteKind.SUGGESTION)).toBe("Idea")
         expect(kindLabel(NoteKind.BUG)).toBe("Bug")
         expect(reasonLabel(ReportReason.CHAT_ABUSE)).toBe("Chat abuse")
+        expect(outcomeLabel(ReportOutcome.ACTED)).toBe("Acted")
+        expect(outcomeLabel(ReportOutcome.DISMISSED)).toBe("Dismissed")
     })
 
     it("names a value added to the proto since this build by its number", () => {
         expect(kindLabel(9 as NoteKind)).toBe("Kind 9")
         expect(reasonLabel(9 as ReportReason)).toBe("Reason 9")
+        expect(outcomeLabel(9 as ReportOutcome)).toBe("Outcome 9")
     })
 })

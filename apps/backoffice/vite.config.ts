@@ -9,7 +9,7 @@ export default defineConfig({
     server: {port: PORT, strictPort: true},
     preview: {port: PORT, strictPort: true},
     test: {
-        include: ["src/**/*.test.ts"],
+        include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
         environment: "node",
     },
 })
