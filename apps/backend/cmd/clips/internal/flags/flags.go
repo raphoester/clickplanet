@@ -13,16 +13,17 @@ import (
 )
 
 const usage = `usage:
-  clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
+  clips fetch -out <replay.json> [-race <race.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
   clips choose -shortlist <shortlist.json> [-count 6]
   clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,youtube] [-summary <file>]
 
 fetch asks the production backend's operator tool for a replay, over ssh: CLICKPLANET_SSH stands in for -ssh, and
-the ledger keeps 72 hours in memory, so a replay cannot reach further back. choose prints the picks of the stories
-to render, as a JSON array: it skips a story the posting service holds a post of from the last 3 days, or a
-headline from the last week, puts a flag of the last 6 posts after the others, and holds back a flag in 2 of
-them. schedule sends every clip of the folder to the posting service, each for its time, as one post on every
-platform. Both need ZERNIO_API_KEY.`
+the ledger keeps 72 hours in memory, so a replay cannot reach further back. With -race it asks for the season's race
+too, and leaves it out with a warning when the backend does not answer it. choose prints the picks of the stories
+to render, as a JSON array: a day of the season won first, then each angle once before any twice; it skips a story
+the posting service holds a post of from the last 3 days, or a headline from the last week, puts a flag of the last
+6 posts after the others, and holds back a flag in 2 of them. schedule sends every clip of the folder to the posting
+service, each for its time, as one post on every platform. Both need ZERNIO_API_KEY.`
 
 type Command string
 
@@ -42,7 +43,9 @@ var ErrArguments = errors.New("wrong arguments")
 type Config struct {
 	Command Command
 
-	ReplayFile    string
+	ReplayFile string
+	// Empty is no race.
+	RaceFile      string
 	ShortlistFile string
 	ClipsFolder   string
 	// Empty is the standard output.
@@ -73,6 +76,7 @@ func parseFetch(args []string) (Config, error) {
 
 	flags := flag.NewFlagSet(string(Fetch), flag.ContinueOnError)
 	flags.StringVar(&parsed.ReplayFile, "out", "", "the file the replay is written to")
+	flags.StringVar(&parsed.RaceFile, "race", "", "the file the season's race is written to, default none")
 	flags.StringVar(&parsed.Job.Replay.SSH, "ssh", os.Getenv(HostVariable), "user@host of the machine the backend runs on")
 	hours := flags.Float64("hours", 0, "how long the replay is")
 	until := flags.String("until", "", "when the replay ends, default now")

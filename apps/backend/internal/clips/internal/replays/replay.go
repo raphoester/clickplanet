@@ -46,3 +46,20 @@ type Source interface {
 type Store interface {
 	Save(ctx context.Context, replay Replay) error
 }
+
+// The race the season stream sends: the generator tells the day closed last when it ended in the replay.
+type Race struct {
+	// A seasons.v1.GetRaceResponse in JSON, as the backend answered it.
+	Document []byte
+	// The day closed last as its season and its number, "1.5"; empty when no day closed yet.
+	Closed  string
+	EndedAt time.Time
+}
+
+type RaceSource interface {
+	Race(ctx context.Context) (Race, error)
+}
+
+type RaceStore interface {
+	SaveRace(ctx context.Context, race Race) error
+}

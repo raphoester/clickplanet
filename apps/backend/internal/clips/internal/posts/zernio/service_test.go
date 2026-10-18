@@ -116,6 +116,12 @@ func (f *zernioFake) serve(t *testing.T) *httptest.Server {
 func post(t *testing.T, platforms ...posts.Platform) posts.Post {
 	t.Helper()
 
+	return postOf(t, posts.StoryKey{Flag: "fr", Continent: "Europe"}, platforms...)
+}
+
+func postOf(t *testing.T, key posts.StoryKey, platforms ...posts.Platform) posts.Post {
+	t.Helper()
+
 	if len(platforms) == 0 {
 		platforms = []posts.Platform{posts.TikTok, posts.YouTube}
 	}
@@ -123,7 +129,7 @@ func post(t *testing.T, platforms ...posts.Platform) posts.Post {
 	require.NoError(t, os.WriteFile(video, []byte("the video"), 0o600))
 	clip, err := posts.ClipSnapshot{
 		Pick: 1, Title: "FRANCE IS ATTACKING EUROPE", Teasers: []string{"FRANCE TAKES OVER EUROPE"}, Countries: []posts.TaggedCountry{{Code: "fr", Tag: "france"}},
-		ContinentTag: "europe", Key: posts.StoryKey{Flag: "fr", Continent: "Europe"}, Video: posts.VideoFile(video),
+		ContinentTag: "europe", Key: key, Video: posts.VideoFile(video),
 	}.Restore()
 	require.NoError(t, err)
 
@@ -188,6 +194,21 @@ func TestAClipIsUploadedOnceThenScheduledAsOnePostOnTikTokAndYouTube(t *testing.
 			"storyFlag": "fr", "storyContinent": "Europe", "storyCountries": []any{"fr"}, "callToAction": "join-the-battle",
 		},
 	}, fake.sent)
+}
+
+func TestWhatAStoryTellsOfItsFlagAndItsDayAreKeptWithThePost(t *testing.T) {
+	fake := newFake()
+	server := fake.serve(t)
+	service, err := zernio.New(zernio.Config{APIKey: "the-key", BaseURL: server.URL}, server.Client())
+	require.NoError(t, err)
+
+	_, err = service.Schedule(t.Context(), postOf(t, posts.StoryKey{Flag: "fr", Continent: "the world", Angle: posts.DayWon, Round: "1.5"}))
+
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"storyFlag": "fr", "storyContinent": "the world", "storyAngle": "round", "storyRound": "1.5",
+		"storyCountries": []any{"fr"}, "callToAction": "join-the-battle",
+	}, fake.sent["metadata"])
 }
 
 func TestAPostForTikTokAloneHasNoYouTubeTargetAndNoTags(t *testing.T) {
@@ -475,6 +496,23 @@ func TestTheStoriesToldAreThoseOfThePostsWithAKeyOnEveryPlatform(t *testing.T) {
 	}, tellings)
 	assert.Equal(t, url.Values{"fromDate": {"2026-10-13"}, "limit": {"500"}}, fake.queries["GET /v1/posts"])
 	assert.Equal(t, "Bearer the-key", fake.headers["GET /v1/posts"].Get("Authorization"))
+}
+
+func TestAPostOfADayWonOrAHoldingIsReadWithItsAngle(t *testing.T) {
+	fake := newFake()
+	fake.listed = answer{status: http.StatusOK, body: `{"posts":[` +
+		`{"_id":"p-1","title":"FRANCE WINS DAY 5","status":"scheduled","scheduledFor":"2026-10-14T05:15:00Z",` +
+		`"metadata":{"storyFlag":"fr","storyContinent":"the world","storyAngle":"round","storyRound":"1.5"}},` +
+		`{"_id":"p-2","title":"CROATIA HOLDS 80% OF EUROPE","status":"scheduled","scheduledFor":"2026-10-14T07:15:00Z",` +
+		`"metadata":{"storyFlag":"hr","storyContinent":"Europe","storyAngle":"holding"}}` +
+		`],"pagination":{"page":1}}`}
+
+	tellings, err := told(t, fake, time.Date(2026, 10, 13, 0, 57, 0, 0, time.UTC))
+
+	require.NoError(t, err)
+	require.Len(t, tellings, 2)
+	assert.Equal(t, posts.StoryKey{Flag: "fr", Continent: "the world", Angle: posts.DayWon, Round: "1.5"}, tellings[0].Key)
+	assert.Equal(t, posts.StoryKey{Flag: "hr", Continent: "Europe", Angle: posts.Holding}, tellings[1].Key)
 }
 
 func TestAListOfPostsZernioRefusesIsAnError(t *testing.T) {

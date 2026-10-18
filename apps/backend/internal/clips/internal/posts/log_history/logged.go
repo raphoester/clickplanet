@@ -28,8 +28,14 @@ func (l *Logged) Told(ctx context.Context, since time.Time) ([]posts.Telling, er
 		attributes := []any{
 			slog.String("clip", telling.Title), slog.Time("at", telling.At), slog.String("state", telling.State),
 			slog.String("flag", telling.Key.Flag), slog.String("continent", telling.Key.Continent),
-			slog.String("countries", strings.Join(telling.Countries, ",")),
 		}
+		if telling.Key.Angle != posts.Deeds {
+			attributes = append(attributes, slog.String("angle", string(telling.Key.Angle)))
+		}
+		if telling.Key.Round != "" {
+			attributes = append(attributes, slog.String("round", telling.Key.Round))
+		}
+		attributes = append(attributes, slog.String("countries", strings.Join(telling.Countries, ",")))
 		if telling.Failure != "" {
 			l.logger.Warn("a post of the last week was refused", append(attributes, slog.String("failure", telling.Failure))...)
 			continue
