@@ -45,7 +45,7 @@ function Page({header, children}: {header: ReactNode, children: ReactNode}) {
     return (
         <div className="page">
             <header className="top">
-                <h1>Clickplanet admin</h1>
+                <h1>Clickplanet backoffice</h1>
                 {header !== null && <div className="who">{header}</div>}
             </header>
             <main>{children}</main>

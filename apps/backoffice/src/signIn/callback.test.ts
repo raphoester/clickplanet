@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {callbackOf} from "./callback.ts"
 
-const at = (path: string) => callbackOf(new URL(path, "https://admin.clickplanet.lol"))
+const at = (path: string) => callbackOf(new URL(path, "https://backoffice.clickplanet.lol"))
 
 describe("callbackOf", () => {
     it("reads the code and the state Google sent back", () => {

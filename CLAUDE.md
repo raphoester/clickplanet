@@ -8,7 +8,7 @@ This is a monorepo with three independent apps, each with its own `CLAUDE.md` fo
 
 - [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md) — React/Three.js client (npm)
 - [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) — Go API (Go modules)
-- [`apps/admin/CLAUDE.md`](apps/admin/CLAUDE.md) — the operator's page at `admin.clickplanet.lol`, React (npm)
+- [`apps/backoffice/CLAUDE.md`](apps/backoffice/CLAUDE.md) — the operator's page at `backoffice.clickplanet.lol`, React (npm)
 
 Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file only covers what's shared.
 
@@ -34,7 +34,7 @@ After editing a `.proto`:
 ```bash
 cd apps/backend && make proto   # regenerates apps/backend/generated/proto
 cd apps/frontend && npm run proto   # regenerates apps/frontend/src/gen/grpc
-cd apps/admin && npm run proto      # regenerates apps/admin/src/gen/grpc
+cd apps/backoffice && npm run proto   # regenerates apps/backoffice/src/gen/grpc
 ```
 
 Every app's `buf.gen.yaml` reference `../../proto` (or `../../../proto` for the backend, whose config lives one level deeper at `apps/backend/proto/`) — do not create per-app copies of the `.proto` files again.
@@ -107,4 +107,4 @@ The stack includes a **postgres**: the backend keeps the whole tile map in proce
 
 ## Independence of the apps
 
-Each app under `apps/` keeps its own dependency manifest (`package.json` / `go.mod`) and is built from its own directory as the Docker or Workers build context — nothing at the repo root is required to build or run any app in isolation. **`apps/admin` imports nothing from `apps/frontend`**, though both are React: it is a third app with its own Worker, not a page of the game. That is why `proto/`, `map/` and `quiz/` all generate a committed copy into the app that needs them instead of being read from the root at build time. Don't introduce root-level build tooling (Nx/Turborepo/etc.) unless the apps actually start sharing more than the proto contract, the map geometry and the quiz bank.
+Each app under `apps/` keeps its own dependency manifest (`package.json` / `go.mod`) and is built from its own directory as the Docker or Workers build context — nothing at the repo root is required to build or run any app in isolation. **`apps/backoffice` imports nothing from `apps/frontend`**, though both are React: it is a third app with its own Worker, not a page of the game. That is why `proto/`, `map/` and `quiz/` all generate a committed copy into the app that needs them instead of being read from the root at build time. Don't introduce root-level build tooling (Nx/Turborepo/etc.) unless the apps actually start sharing more than the proto contract, the map geometry and the quiz bank.

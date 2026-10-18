@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**The operator's page, at `admin.clickplanet.lol`.** It calls the backend's `AdminService`s, which were
+**The operator's page, at `backoffice.clickplanet.lol`.** It calls the backend's `AdminService`s, which were
 reachable only over SSH before. Today it has one page, read only: the support notes (ideas and bugs) and the
 player reports, newest first. The plan after it: a player page (search, ban, mute, revert, grant charges), map
 tools, a live chat view, then ops pages.
@@ -22,7 +22,7 @@ npm run lint       # ESLint
 npm run proto      # Regenerate src/gen/grpc from the shared ../../proto
 ```
 
-`.github/workflows/check-admin.yml` runs lint, build and tests on every PR touching this app or `proto/`.
+`.github/workflows/check-backoffice.yml` runs lint, build and tests on every PR touching this app or `proto/`.
 
 ## How it reaches the API
 
@@ -31,7 +31,7 @@ npm run proto      # Regenerate src/gen/grpc from the shared ../../proto
   `VITE_API_BASE_URL` points it elsewhere; it is a build variable.
 - **The page signs in on its own, with Google only** (`auth.v1.AdminService`, the backend's `CLAUDE.md`,
   "Operators"). Its session is the `cp_admin` cookie: 12 hours, never extended, `SameSite=Strict`, host-only on
-  `api.clickplanet.lol`. It travels from `admin.clickplanet.lol` because both are one site, and the transport sends
+  `api.clickplanet.lol`. It travels from `backoffice.clickplanet.lol` because both are one site, and the transport sends
   `credentials: "include"`. **The game's `cp_sid` never opens this page**, and signing out of one leaves the other.
 - **The sign-in** (`src/signIn/`): "Sign in with Google" calls `StartSignIn` and sends the browser to the
   `authorization_url` it answers. Google comes back to `/auth/callback` (the backend's `auth.admin.redirectUrl`).
@@ -41,7 +41,7 @@ npm run proto      # Regenerate src/gen/grpc from the shared ../../proto
   the button again. The Worker serves `/auth/callback` through its SPA fallback.
 - **Sign out** is a button beside the account id (`SignOut`), and then the page asks `WhoAmI` again.
 - **The gate admits a session of an account whose `auth.accounts.operator` is true**, and only from the `Origin`
-  `https://admin.clickplanet.lol`. The flag is set by hand (`deploy/vps/README.md`, "Make an account an
+  `https://backoffice.clickplanet.lol`. The flag is set by hand (`deploy/vps/README.md`, "Make an account an
   operator"); it is read on every call, so unsetting it ends a session already open.
 - **The refusals** (`refusal.ts`, `FailureNotice`): `unauthenticated` is "Sign in to continue", `permission_denied`
   is "This Google account is not an operator" (a wrong origin too), `failed_precondition` from `CompleteSignIn` is
@@ -80,11 +80,11 @@ an `auth.secret` (`openssl rand -hex 32`). Postgres on `localhost:5432`. Then
 
 ## Deploy
 
-**A Cloudflare Worker with static assets, `clickplanet-admin`** (`wrangler.jsonc`), like the game's. Its
-custom domain `admin.clickplanet.lol` is set on the Worker in the dashboard, not in `wrangler.jsonc`: a route
+**A Cloudflare Worker with static assets, `clickplanet-backoffice`** (`wrangler.jsonc`), like the game's. Its
+custom domain `backoffice.clickplanet.lol` is set on the Worker in the dashboard, not in `wrangler.jsonc`: a route
 there would make the DNS record on the first deploy.
 
-**Workers Builds deploys it from `main`**, on a push that changes something under `apps/admin/`: `npm ci && npm
+**Workers Builds deploys it from `main`**, on a push that changes something under `apps/backoffice/`: `npm ci && npm
 run build`, then `npx wrangler deploy`, with `NODE_VERSION` 22 and `VITE_API_BASE_URL` set on the build. A change
 to `proto/` alone ships nothing: the generated code is committed.
 

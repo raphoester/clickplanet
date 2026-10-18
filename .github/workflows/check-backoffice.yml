@@ -1,22 +1,22 @@
-name: check admin
+name: check backoffice
 
 on:
   push:
     branches: [ main ]
     paths:
-      - 'apps/admin/**'
+      - 'apps/backoffice/**'
       - 'proto/**'
-      - '.github/workflows/check-admin.yml'
+      - '.github/workflows/check-backoffice.yml'
   pull_request:
     paths:
-      - 'apps/admin/**'
+      - 'apps/backoffice/**'
       - 'proto/**'
-      - '.github/workflows/check-admin.yml'
+      - '.github/workflows/check-backoffice.yml'
   workflow_dispatch:
 
 defaults:
   run:
-    working-directory: apps/admin
+    working-directory: apps/backoffice
 
 jobs:
   check:
@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: apps/admin/package-lock.json
+          cache-dependency-path: apps/backoffice/package-lock.json
 
       - run: npm ci
 

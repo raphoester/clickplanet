@@ -39,7 +39,7 @@ func TestAnAdmittedCallIsNotLoggedHere(t *testing.T) {
 	var logs bytes.Buffer
 	useCase := log_admit.New(stubUseCase{operator: "the operator"}, slog.New(slog.NewTextHandler(&logs, nil)))
 
-	operator, err := useCase.Execute(t.Context(), admission.Visit{Origin: "https://admin.clickplanet.lol"})
+	operator, err := useCase.Execute(t.Context(), admission.Visit{Origin: "https://backoffice.clickplanet.lol"})
 
 	require.NoError(t, err)
 	assert.Equal(t, admission.Operator("the operator"), operator)

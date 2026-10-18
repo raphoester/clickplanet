@@ -42,7 +42,7 @@ type gameStack struct {
 	postgres   *cppg.TestServer
 }
 
-const adminOrigin = "https://admin.clickplanet.lol"
+const adminOrigin = "https://backoffice.clickplanet.lol"
 
 func startGame(t *testing.T) gameStack {
 	t.Helper()

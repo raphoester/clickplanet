@@ -11,7 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admingate/admission/usecases/admit_usecase"
 )
 
-const adminOrigin = "https://admin.clickplanet.lol"
+const adminOrigin = "https://backoffice.clickplanet.lol"
 
 type operators struct {
 	asked []string
