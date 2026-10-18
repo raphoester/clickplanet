@@ -3426,7 +3426,7 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   one call per post, the same on every platform. **TikTok's caption** (`caption.go`):
   ```
   ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET
-  Play for free 👉 clickplanet.lol
+  Play for free 👉 https://clickplanet.lol
   #clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral #europe #italy #portugal #portugaltiktok🇵🇹
   ```
   A teaser and a call to act are picked at random, the call from `callsToAction`, and **the call's id is kept in
@@ -3439,7 +3439,7 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   ```
   ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET
 
-  Play for free 👉 clickplanet.lol
+  Play for free 👉 https://clickplanet.lol
   #clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral #europe #italy #portugal
   ```
   The title is the teaser and the brand, 100 characters at most: the teaser alone when both do not fit, cut with

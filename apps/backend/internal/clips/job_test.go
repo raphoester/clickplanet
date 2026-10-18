@@ -117,7 +117,7 @@ func TestARunSchedulesEveryClipOfTheFolderHoursAheadAndReportsEachOne(t *testing
 	tiktok, youtube := posts[0].Platforms[0], posts[0].Platforms[1]
 	assert.Equal(t, "tiktok", tiktok.Platform)
 	assert.True(t, strings.HasPrefix(tiktok.CustomContent, "SAID ANOTHER WAY: KOSOVO IS ATTACKING THE MIDDLE EAST | CLICKPLANET\n"))
-	assert.Contains(t, tiktok.CustomContent, "👉 clickplanet.lol\n#clickplanet ")
+	assert.Contains(t, tiktok.CustomContent, "👉 https://clickplanet.lol\n#clickplanet ")
 	assert.True(t, strings.HasSuffix(tiktok.CustomContent, " #africa"))
 	assert.Equal(t, "youtube", youtube.Platform)
 	assert.True(t, strings.HasSuffix(youtube.CustomContent, " #africa"))
