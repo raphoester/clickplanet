@@ -437,6 +437,49 @@ textarea {
     font-size: 14px;
 }
 
+.attachments {
+    list-style: none;
+    margin: 8px 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+}
+
+.attachment {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.attachment img, .attachment video {
+    display: block;
+    width: 100%;
+    height: 200px;
+    object-fit: contain;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.attachment-unshown {
+    margin: 0;
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    overflow-wrap: anywhere;
+}
+
+.attachment-foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 8px;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
 .notice {
     padding: 16px;
     background: var(--surface);

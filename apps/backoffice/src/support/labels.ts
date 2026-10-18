@@ -64,3 +64,18 @@ export function deviceLines(context: PageContext | undefined, userAgent: string)
 
     return lines
 }
+
+export type Media = "photo" | "video" | "file"
+
+export function mediaOf(contentType: string): Media {
+    if (contentType.startsWith("image/")) return "photo"
+    if (contentType.startsWith("video/")) return "video"
+    return "file"
+}
+
+export function sizeLabel(bytes: bigint | number): string {
+    const n = Number(bytes)
+    if (n < 1024) return `${n} B`
+    if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`
+    return `${(n / (1024 * 1024)).toFixed(1)} MB`
+}
