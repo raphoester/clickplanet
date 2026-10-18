@@ -8,7 +8,7 @@ import {
 export type SendFailure = "rate-limited" | "rejected" | "no-session" | "reported-already" | "failed"
 
 export const SEND_FAILURES: Record<SendFailure, string> = {
-    "rate-limited": "You sent too many. Try again in a few minutes.",
+    "rate-limited": "You sent too many. Try again later.",
     "rejected": "That was refused.",
     "no-session": "Could not start a session. Try again in a moment.",
     "reported-already": "You already reported this player today.",

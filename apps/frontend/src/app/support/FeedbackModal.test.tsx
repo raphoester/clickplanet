@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
-import {cleanup, render, screen} from "@testing-library/react"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
+import {cleanup, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {PageContext} from "../../backends/support.ts"
+import {AttachmentRules, NO_ATTACHMENTS, PageContext} from "../../backends/support.ts"
 import FeedbackModal from "./FeedbackModal.tsx"
 
 const PAGE: PageContext = {
@@ -20,15 +20,26 @@ const PAGE: PageContext = {
     memoryGb: 4,
 }
 
+beforeEach(() => {
+    // jsdom draws nothing, so it makes no object URL.
+    URL.createObjectURL = vi.fn(() => "blob:thumb")
+    URL.revokeObjectURL = vi.fn()
+})
+
 afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
 })
 
-function setup() {
+const TAKES_FILES: AttachmentRules = {maxPerNote: 10, maxBytes: 1000, contentTypes: ["image/png", "video/mp4"]}
+
+function setup(rules: AttachmentRules = NO_ATTACHMENTS) {
+    const uploaded: Blob[] = []
     const support = {
         suggestFeature: vi.fn(async () => undefined),
         reportBug: vi.fn(async () => undefined),
+        attachmentRules: vi.fn(async () => rules),
+        uploadAttachment: vi.fn(async (file: Blob) => `file-${uploaded.push(file) - 1}`),
     }
     const onClose = vi.fn()
     render(<FeedbackModal support={support} pageContext={() => PAGE} onClose={onClose}/>)
@@ -69,7 +80,7 @@ describe("FeedbackModal", () => {
         await user.type(box("Your idea"), "a night mode")
         await user.click(send())
 
-        expect(support.suggestFeature).toHaveBeenCalledWith("a night mode", PAGE)
+        expect(support.suggestFeature).toHaveBeenCalledWith("a night mode", PAGE, [])
         expect(support.reportBug).not.toHaveBeenCalled()
         expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
     })
@@ -82,7 +93,7 @@ describe("FeedbackModal", () => {
         await user.type(box("What happened"), "the globe is black")
         await user.click(send())
 
-        expect(support.reportBug).toHaveBeenCalledWith("the globe is black", PAGE)
+        expect(support.reportBug).toHaveBeenCalledWith("the globe is black", PAGE, [])
         expect(support.suggestFeature).not.toHaveBeenCalled()
     })
 
@@ -99,5 +110,32 @@ describe("FeedbackModal", () => {
 
         await user.click(send())
         expect(support.reportBug).toHaveBeenCalledTimes(1)
+    })
+
+    it("offers no file on a server that takes none", async () => {
+        const {support} = setup()
+
+        await waitFor(() => expect(support.attachmentRules).toHaveBeenCalledTimes(1))
+
+        expect(screen.queryByRole("button", {name: "Add photos or videos"})).toBeNull()
+    })
+
+    it.each([
+        ["A bug", "What happened", "reportBug"],
+        ["An idea", "Your idea", "suggestFeature"],
+    ] as const)("uploads the files picked for %s, then sends it with them", async (option, label, procedure) => {
+        const {support, user} = setup(TAKES_FILES)
+        const screenshot = new File(["a screenshot"], "screen.png", {type: "image/png"})
+        const recording = new File(["a screen recording"], "clip.mp4", {type: "video/mp4"})
+
+        await screen.findByRole("button", {name: "Add photos or videos"})
+        await user.upload(document.querySelector("input[type=file]") as HTMLInputElement, [screenshot, recording])
+        await user.click(kind(option))
+        await user.type(box(label), "the globe is black")
+        await user.click(send())
+
+        await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!"))
+        expect(support.uploadAttachment.mock.calls.map((call) => call[0])).toEqual([screenshot, recording])
+        expect(support[procedure]).toHaveBeenCalledWith("the globe is black", PAGE, ["file-0", "file-1"])
     })
 })

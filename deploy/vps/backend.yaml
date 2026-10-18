@@ -383,3 +383,14 @@ support:
   rateLimiter:
     perSecond: 0.0167
     burst: 3
+  attachments:
+    enabled: true
+    maxPerNote: 10
+    maxBytes: 52428800
+    maxStoredBytes: 9663676416
+    bucket:
+      endpoint: https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com
+      region: auto
+      name: clickplanet-support
+      accessKeyId: 9ec4cd4fdf48006b2944c522219f1eea
+      secretAccessKey: env://SUPPORT_BUCKET_SECRET
