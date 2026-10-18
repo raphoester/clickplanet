@@ -82,7 +82,9 @@ func (f Folder) Rendered(_ context.Context) ([]posts.Clip, error) {
 }
 
 func keyOf(written *clipsv1.StoryKey) posts.StoryKey {
-	return posts.StoryKey{Flag: written.GetFlag(), Continent: written.GetContinent()}
+	return posts.StoryKey{
+		Flag: written.GetFlag(), Continent: written.GetContinent(), Angle: posts.Angle(written.GetAngle()), Round: written.GetRound(),
+	}
 }
 
 func countriesOf(written []*clipsv1.TaggedCountry) []posts.TaggedCountry {

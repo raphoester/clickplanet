@@ -538,7 +538,7 @@ internal/chat/internal/
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
 (`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
 (`GetTakesByCountry`, `GetTerritories`), auth
-(`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
+(`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race and `GetRace`) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
 through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
@@ -1699,6 +1699,7 @@ internal/seasons/internal/
       log_take_snapshot/            logs each round closed, and a snapshot that failed
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
+    get_race_handler/             the race of the stream, once, through race_query — Query
     get_standings_handler/standings_query/   PostgresQuery: GetStandingsResponse from SQL, named, and the same top as
                                   a Board, for the live boards — Authors
       rpc_player_authors/         Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
@@ -1776,6 +1777,10 @@ standings rank players, the rounds rank countries.
   reading on its own clock is at most 10s late, and the snapshot use case knows nothing of who reads its rows. It
   forgets the race when the last stream closes. A failed read is logged (`log_race_reader`) and the next tick reads
   again. No season is a race with no round and no scores, and no round closed yet is a race with no `closed`.
+- **`GetRace` is the same race, once**, for a reader that follows no stream: the clips job, which tells the day closed
+  last (see [The clips job](#the-clips-job-internalclips-cmdclips)). It needs no token, is a GET (`NO_SIDE_EFFECTS`)
+  and answers `public, max-age=10`. It reads through `race_query` itself, logged by `log_race_reader` as the feed is,
+  and never through the feed: a feed with no stream holds no race.
 - `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
   and reads the race off the stream.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
@@ -3359,11 +3364,11 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 (`.github/workflows/clips.yml`; the frontend's CLAUDE.md, "Clips", has the four jobs and how a clip is made). The
 frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
 which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
-meet in files: the replay this job saves for the generator, and `clips.v1.Shortlist` and `clips.v1.Clip`
-(`proto/clips/v1/clips.proto`), which the generator writes as JSON.
+meet in files: the replay and the race this job saves for the generator, and `clips.v1.Shortlist` and
+`clips.v1.Clip` (`proto/clips/v1/clips.proto`), which the generator writes as JSON.
 
 ```
-clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
+clips fetch -out <replay.json> [-race <race.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -shortlist <shortlist.json> [-count 6]
 clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,youtube] [-summary <file>]
 ```
@@ -3371,6 +3376,9 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
   ([`GetReplay`](#getreplay)), over SSH, and writes the answer as it came. `CLICKPLANET_SSH` stands in for `-ssh`.
   With no `-hours` it is 72: the ledger keeps that much in memory, and a replay cannot reach further back.
+  **With `-race` it saves the season's race too** ([`GetRace`](#seasons-internalseasons)), from which the generator
+  tells the day of the season closed in the replay, "FRANCE WINS DAY 5". **A race the backend does not answer is a
+  warning, not a failure**: the run still has its replay, and tells no day. No race file is written then.
 - **`choose` prints the picks to render**, as a JSON array on the standard output (`[1,2]`, or `[]` on a quiet half
   day): the workflow makes one render job of each. The log goes to the standard error, with each story skipped as
   told. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's `--pick` takes.
@@ -3415,6 +3423,10 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   browser. The file holds the answer byte for byte, never a re-encoding: the generator reads the backend's JSON.
 - **An ssh that fails says what it complained of** (`Permission denied (publickey)`), from its standard error.
   In the workflow the host is a secret, which Actions masks in the log.
+- **The race is asked the same way, of the public listener** (`127.0.0.1:8080` in the container, `{}` for a body),
+  and checked the same: it has to read as a `seasons.v1.GetRaceResponse`. A backend from before `GetRace` answers
+  404, which `wget` turns into a failed ssh. `fetch_race_usecase` keeps it, and `log_fetch_race` logs the day closed
+  last, or warns that the race is left out: `clips.Fetch` goes on without it.
 - Its test runs a fake `ssh`, a shell script that keeps its arguments. No test runs the real one.
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
@@ -3423,9 +3435,13 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   run (`Config.PerRun`), **never a story told already, and never mostly one flag**. Four rules, from the week of
   Oct 13–17, when 18 clips told "ALGERIA STRIKES BACK" three times, "PALAU IS TAKING OVER THE WORLD" twice right
   after the old one-day window, and Palau (two players on five accounts) in about half of them:
-  - **A key told in the last 3 days is skipped** (`retelling`): a `StoryKey` (a flag and a continent, from the
-    generator) a post holds that goes out within 72 hours or later, or that a story of the same run took. The keys
-    and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story.
+  - **A key told in the last 3 days is skipped** (`retelling`): a `StoryKey` (a flag, a continent and an angle,
+    from the generator) a post holds that goes out within 72 hours or later, or that a story of the same run took.
+    The keys and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story. **The angle is
+    what the story tells of its flag there** (`Angle`): what it did (`Deeds`, empty), how much of the place it holds
+    (`Holding`, "CROATIA HOLDS 80% OF EUROPE"), or a day of the season it won (`DayWon`, "FRANCE WINS DAY 5", whose
+    key names the day too, `Round`, "1.5": France winning two days is two stories). So a holding is not the story of
+    what its flag did there. A key of a day with no day, or a day on another angle, is refused.
   - **A headline told in the last week is skipped** (`reheadlining`), whatever its continent: the same words read
     as the same clip. Compared in upper case, spaces at the ends cut.
   - **A flag the last 6 posts showed goes after the flags they did not** (`lately`, half a day at 6 a run). **A
@@ -3440,9 +3456,18 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
     Palau and France defend in nearly every story of Oct 15–17, and waiting on all of them left 6 clips in those
     2.5 days, none on the night of Oct 16.
 
+  And two from Oct 18, when the noon run skipped 8 of its 13 stories as told, nearly all one flag in Europe
+  ("SWEDEN IS INVADING UKRAINE", "… LITHUANIA", "… PORTUGAL" are one key), and posted 3, and every headline told what
+  a flag did:
+  - **A day of the season won goes first** (`DayWon`), whatever the last posts showed: it is the day's news, and
+    the flag that won a day is in most of the day's clips. It is still skipped when it was told.
+  - **A run tells each angle it has once before it tells any twice**, the freshest flag first within it: so a run
+    holds a holding when the shortlist has one, beside what the flags did.
+
   It answers a `Choice`: the stories chosen, in the shortlist's order, the ones skipped (`Retold`), and the ones not
-  told whose flag 2 of the last posts showed, or that the posts showed more than a story chosen (`Passed`), which the
-  log shows. A story with no key is refused when the shortlist is read.
+  told whose flag 2 of the last posts showed, or that a story after them was chosen over, for a flag told less
+  lately or an angle the run had not told (`Passed`), which the log shows. A story with no key is refused when the
+  shortlist is read. With a day won and three holdings added to it by hand, the shortlist of Oct 18 gives 6 (a test of `Best`); what a real run gives is for its log to say.
 - **6 a run, because the finder is not what runs short.** Replayed over Oct 14–17, a 12-hour window held 5 to 11
   stories of different keys, and the one-day rule let about 10 a day out; 2 a run posted 4. Six is the most the
   `Plan` below fits between two runs: the sixth goes out 14 hours after a run starts, and the next run's first
@@ -3451,7 +3476,8 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   one-day rule alone; and once the posts count every country, 13 clips with 2 about Palau. Palau still shows in about
   half of them, as the flag the others take from.
 - **What was told is Zernio's post list, not a table of ours**: each post keeps its key and its story's countries in
-  its Zernio `metadata` (`storyFlag`, `storyContinent`, `storyCountries`, never published), and `choose` lists
+  its Zernio `metadata` (`storyFlag`, `storyContinent`, `storyCountries`, and `storyAngle` and `storyRound` when it
+  has them, never published; a post with none is of what a flag did), and `choose` lists
   the posts of the last week back (`ToldSince`), on every platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
   (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for

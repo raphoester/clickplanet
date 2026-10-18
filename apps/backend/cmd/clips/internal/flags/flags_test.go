@@ -15,7 +15,7 @@ func TestFetchFlagsSayWhichReplayAndWhereItGoes(t *testing.T) {
 	t.Setenv(flags.HostVariable, "")
 
 	parsed, err := flags.Parse([]string{
-		"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-hours", "1.5", "-until", "2026-10-12T12:00:00Z",
+		"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-race", "race.json", "-hours", "1.5", "-until", "2026-10-12T12:00:00Z",
 	})
 
 	require.NoError(t, err)
@@ -23,7 +23,14 @@ func TestFetchFlagsSayWhichReplayAndWhereItGoes(t *testing.T) {
 	job.Replay.SSH = "deploy@vps.example"
 	job.Replay.Span = 90 * time.Minute
 	job.Replay.Until = time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
-	assert.Equal(t, flags.Config{Command: flags.Fetch, ReplayFile: "replay.json", Job: job}, parsed)
+	assert.Equal(t, flags.Config{Command: flags.Fetch, ReplayFile: "replay.json", RaceFile: "race.json", Job: job}, parsed)
+}
+
+func TestAFetchWithNoRaceFileAsksForNoRace(t *testing.T) {
+	parsed, err := flags.Parse([]string{"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json"})
+
+	require.NoError(t, err)
+	assert.Empty(t, parsed.RaceFile)
 }
 
 func TestFetchTakesItsHostFromTheEnvironmentAndAFlagWinsOverIt(t *testing.T) {

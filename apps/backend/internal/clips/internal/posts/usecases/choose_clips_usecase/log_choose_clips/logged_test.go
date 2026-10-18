@@ -49,6 +49,17 @@ func TestEachStorySkippedAsToldIsLogged(t *testing.T) {
 	assert.Contains(t, logs, `msg="skipped a story told already" pick=1 title="ALGERIA VS FRANCE" flag=dz continent=Africa`)
 }
 
+func TestTheAngleAndTheDayOfAKeyAreLoggedWhenItHasThem(t *testing.T) {
+	logs, err := run(t, stubExecutor{choice: posts.Choice{Chosen: posts.Shortlist{
+		{Pick: 1, Title: "FRANCE WINS DAY 5", Key: posts.StoryKey{Flag: "fr", Continent: "the world", Angle: posts.DayWon, Round: "1.5"}},
+		{Pick: 2, Title: "CROATIA HOLDS 80% OF EUROPE", Key: posts.StoryKey{Flag: "hr", Continent: "Europe", Angle: posts.Holding}},
+	}}})
+
+	require.NoError(t, err)
+	assert.Contains(t, logs, `title="FRANCE WINS DAY 5" flag=fr continent="the world" angle=round round=1.5 countries=""`)
+	assert.Contains(t, logs, `title="CROATIA HOLDS 80% OF EUROPE" flag=hr continent=Europe angle=holding countries=""`)
+}
+
 func TestEachStoryPassedForAFlagToldLessIsLogged(t *testing.T) {
 	logs, err := run(t, stubExecutor{choice: posts.Choice{Passed: posts.Shortlist{
 		{Pick: 2, Title: "PALAU VS FRANCE", Key: posts.StoryKey{Flag: "pw", Continent: "Europe"}, Countries: []string{"pw", "fr"}},
@@ -56,7 +67,7 @@ func TestEachStoryPassedForAFlagToldLessIsLogged(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, logs,
-		`msg="passed a story for a flag told less lately" pick=2 title="PALAU VS FRANCE" flag=pw continent=Europe countries=pw,fr`)
+		`msg="passed a story for a flag or an angle told less lately" pick=2 title="PALAU VS FRANCE" flag=pw continent=Europe countries=pw,fr`)
 }
 
 func TestAQuietHalfDayIsLoggedAsSuch(t *testing.T) {

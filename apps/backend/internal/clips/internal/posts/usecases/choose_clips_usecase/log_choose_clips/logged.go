@@ -30,7 +30,7 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 		l.logger.Info("skipped a story told already", attributesOf(story)...)
 	}
 	for _, story := range choice.Passed {
-		l.logger.Info("passed a story for a flag told less lately", attributesOf(story)...)
+		l.logger.Info("passed a story for a flag or an angle told less lately", attributesOf(story)...)
 	}
 	if len(choice.Chosen) == 0 {
 		l.logger.Info("no story is worth a clip")
@@ -43,9 +43,15 @@ func (l *Logged) Execute(ctx context.Context) (posts.Choice, error) {
 }
 
 func attributesOf(story posts.Story) []any {
-	return []any{
+	attributes := []any{
 		slog.Int("pick", int(story.Pick)), slog.String("title", story.Title),
 		slog.String("flag", story.Key.Flag), slog.String("continent", story.Key.Continent),
-		slog.String("countries", strings.Join(story.Countries, ",")),
 	}
+	if story.Key.Angle != posts.Deeds {
+		attributes = append(attributes, slog.String("angle", string(story.Key.Angle)))
+	}
+	if story.Key.Round != "" {
+		attributes = append(attributes, slog.String("round", story.Key.Round))
+	}
+	return append(attributes, slog.String("countries", strings.Join(story.Countries, ",")))
 }

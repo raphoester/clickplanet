@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	seasonsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/seasons/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays"
 )
 
@@ -22,6 +23,11 @@ const OpenSSH = "ssh"
 const operatorTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
 	" --header 'Content-Type: application/json' --post-data '%s'" +
 	" http://127.0.0.1:8081/planet.v1.AdminService/GetReplay"
+
+// The race is the season stream's, public: the backend serves it on the listener every browser reaches.
+const raceTool = "cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO-" +
+	" --header 'Content-Type: application/json' --post-data '{}'" +
+	" http://127.0.0.1:8080/seasons.v1.SeasonService/GetRace"
 
 var decoder = protojson.UnmarshalOptions{DiscardUnknown: true}
 
@@ -49,17 +55,13 @@ func (s *Source) Replay(ctx context.Context, window replays.Window) (replays.Rep
 		return replays.Replay{}, fmt.Errorf("failed to encode the request: %w", err)
 	}
 
-	var answered, complained bytes.Buffer
-	// "--" ends the options: a host that starts with a dash is a host, never an option of ssh.
-	call := exec.CommandContext(ctx, s.client, "--", s.host, fmt.Sprintf(operatorTool, body)) //nolint:gosec // the operator of the job names the host.
-	call.Stdout = &answered
-	call.Stderr = &complained
-	if err := call.Run(); err != nil {
-		return replays.Replay{}, fmt.Errorf("ssh failed: %w: %s", err, strings.TrimSpace(complained.String()))
+	answered, err := s.ask(ctx, fmt.Sprintf(operatorTool, body))
+	if err != nil {
+		return replays.Replay{}, err
 	}
 
 	var replay planetv1.GetReplayResponse
-	if err := decoder.Unmarshal(answered.Bytes(), &replay); err != nil {
+	if err := decoder.Unmarshal(answered, &replay); err != nil {
 		return replays.Replay{}, fmt.Errorf("the backend answered what is not a planet.v1.GetReplayResponse: %w", err)
 	}
 	if replay.GetSince() == nil || replay.GetUntil() == nil {
@@ -67,8 +69,44 @@ func (s *Source) Replay(ctx context.Context, window replays.Window) (replays.Rep
 	}
 
 	return replays.Replay{
-		Document: answered.Bytes(),
+		Document: answered,
 		Events:   len(replay.GetEvents()),
 		Window:   replays.Window{Since: replay.GetSince().AsTime(), Until: replay.GetUntil().AsTime()},
 	}, nil
+}
+
+var _ replays.RaceSource = (*Source)(nil)
+
+func (s *Source) Race(ctx context.Context) (replays.Race, error) {
+	answered, err := s.ask(ctx, raceTool)
+	if err != nil {
+		return replays.Race{}, err
+	}
+
+	var race seasonsv1.GetRaceResponse
+	if err := decoder.Unmarshal(answered, &race); err != nil {
+		return replays.Race{}, fmt.Errorf("the backend answered what is not a seasons.v1.GetRaceResponse: %w", err)
+	}
+
+	closed := race.GetRace().GetClosed()
+	if closed == nil {
+		return replays.Race{Document: answered}, nil
+	}
+	return replays.Race{
+		Document: answered,
+		Closed:   fmt.Sprintf("%d.%d", closed.GetSeason(), closed.GetNumber()),
+		EndedAt:  time.UnixMilli(closed.GetEndedAtUnixMs()).UTC(),
+	}, nil
+}
+
+func (s *Source) ask(ctx context.Context, command string) ([]byte, error) {
+	var answered, complained bytes.Buffer
+	// "--" ends the options: a host that starts with a dash is a host, never an option of ssh.
+	call := exec.CommandContext(ctx, s.client, "--", s.host, command) //nolint:gosec // the operator of the job names the host.
+	call.Stdout = &answered
+	call.Stderr = &complained
+	if err := call.Run(); err != nil {
+		return nil, fmt.Errorf("ssh failed: %w: %s", err, strings.TrimSpace(complained.String()))
+	}
+	return answered.Bytes(), nil
 }

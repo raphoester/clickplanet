@@ -38,8 +38,14 @@ message TaggedCountry {
 
 // Two stories with one key are one story told twice, whatever their headlines.
 message StoryKey {
-  // The country code of the flag the clip is about: the loser when a flag is thrown out.
+  // The country code of the flag the clip is about: the loser when a flag is thrown out, the holder of a place, the
+  // winner of a day.
   string flag = 1;
   // As the headlines name it: "Africa", "Middle East", "the world".
   string continent = 2;
+  // What the clip tells of the flag there: empty for what it did (an attack, a battle, a flag thrown out),
+  // "holding" for how much of the place it holds, "round" for a day of the season it won.
+  string angle = 3;
+  // The day a "round" tells, as its season and its number: "1.5". Empty for any other angle.
+  string round = 4;
 }

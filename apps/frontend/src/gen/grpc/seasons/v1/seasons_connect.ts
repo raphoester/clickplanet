@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMySeasonRequest, GetMySeasonResponse, GetSeasonRequest, GetSeasonResponse, GetStandingsRequest, GetStandingsResponse, ListenForEventsRequest, SeasonEvent } from "./seasons_pb.js";
+import { GetMySeasonRequest, GetMySeasonResponse, GetRaceRequest, GetRaceResponse, GetSeasonRequest, GetSeasonResponse, GetStandingsRequest, GetStandingsResponse, ListenForEventsRequest, SeasonEvent } from "./seasons_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -49,6 +49,18 @@ export const SeasonService = {
       I: ListenForEventsRequest,
       O: SeasonEvent,
       kind: MethodKind.ServerStreaming,
+    },
+    /**
+     * The race the stream sends, once: for a reader that does not follow it, the clips job.
+     *
+     * @generated from rpc seasons.v1.SeasonService.GetRace
+     */
+    getRace: {
+      name: "GetRace",
+      I: GetRaceRequest,
+      O: GetRaceResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

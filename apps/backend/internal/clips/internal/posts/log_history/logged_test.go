@@ -49,6 +49,16 @@ func TestAPostThatWentOutIsLoggedWithItsState(t *testing.T) {
 			` flag=dz continent=Africa countries=ly,dz`)
 }
 
+func TestAPostOfADayWonIsLoggedWithItsAngleAndItsDay(t *testing.T) {
+	logs, _, err := read(t, history{told: []posts.Telling{{
+		Key: posts.StoryKey{Flag: "fr", Continent: "the world", Angle: posts.DayWon, Round: "1.5"}, Countries: []string{"fr", "pw"}, At: at,
+		Title: "FRANCE WINS DAY 5", State: "scheduled",
+	}}})
+
+	require.NoError(t, err)
+	assert.Contains(t, logs, `flag=fr continent="the world" angle=round round=1.5 countries=fr,pw`)
+}
+
 func TestAPostAPlatformRefusedIsAWarningThatSaysWhy(t *testing.T) {
 	logs, _, err := read(t, history{told: []posts.Telling{{
 		Key: posts.StoryKey{Flag: "fr", Continent: "Africa"}, At: at, Title: "FRANCE IS KICKING MOROCCO OUT OF LIBYA", State: "failed",

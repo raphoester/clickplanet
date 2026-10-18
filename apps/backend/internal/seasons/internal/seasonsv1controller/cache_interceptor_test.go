@@ -1,6 +1,7 @@
 package seasonsv1controller_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/calendar/usecases/get_season_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_race_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -44,4 +46,25 @@ func TestTheSeasonIsAGetAnyCacheMayKeepForAMinute(t *testing.T) {
 	assert.Equal(t, http.MethodGet, <-methods)
 	assert.Equal(t, "public, max-age=60", res.Header().Get("Cache-Control"))
 	assert.Equal(t, ends.UnixMilli(), res.Msg.GetSeason().GetEndsAtUnixMs())
+}
+
+type race struct{}
+
+func (race) Race(context.Context) (*seasonsv1.Race, error) {
+	return &seasonsv1.Race{Closed: &seasonsv1.ClosedRound{Season: 1, Number: 5}}, nil
+}
+
+func TestTheRaceIsAGetAnyCacheMayKeepForTenSeconds(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.Handle(seasonsv1connect.NewSeasonServiceHandler(seasonsv1controller.SeasonService{GetRaceHandler: get_race_handler.New(race{})},
+		connect.WithInterceptors(seasonsv1controller.NewCacheInterceptor())))
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	client := seasonsv1connect.NewSeasonServiceClient(server.Client(), server.URL, connect.WithHTTPGet())
+	res, err := client.GetRace(t.Context(), connect.NewRequest(&seasonsv1.GetRaceRequest{}))
+	require.NoError(t, err)
+
+	assert.Equal(t, "public, max-age=10", res.Header().Get("Cache-Control"))
+	assert.Equal(t, uint32(5), res.Msg.GetRace().GetClosed().GetNumber())
 }

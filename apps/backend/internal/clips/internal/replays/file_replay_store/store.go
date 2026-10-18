@@ -18,3 +18,14 @@ func (s Store) Save(_ context.Context, replay replays.Replay) error {
 	}
 	return nil
 }
+
+type RaceStore string
+
+var _ replays.RaceStore = RaceStore("")
+
+func (s RaceStore) SaveRace(_ context.Context, race replays.Race) error {
+	if err := os.WriteFile(string(s), race.Document, 0o600); err != nil {
+		return fmt.Errorf("failed to write the race: %w", err)
+	}
+	return nil
+}

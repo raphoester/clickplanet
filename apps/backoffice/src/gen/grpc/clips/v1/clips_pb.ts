@@ -227,7 +227,8 @@ export class TaggedCountry extends Message<TaggedCountry> {
  */
 export class StoryKey extends Message<StoryKey> {
   /**
-   * The country code of the flag the clip is about: the loser when a flag is thrown out.
+   * The country code of the flag the clip is about: the loser when a flag is thrown out, the holder of a place, the
+   * winner of a day.
    *
    * @generated from field: string flag = 1;
    */
@@ -240,6 +241,21 @@ export class StoryKey extends Message<StoryKey> {
    */
   continent = "";
 
+  /**
+   * What the clip tells of the flag there: empty for what it did (an attack, a battle, a flag thrown out),
+   * "holding" for how much of the place it holds, "round" for a day of the season it won.
+   *
+   * @generated from field: string angle = 3;
+   */
+  angle = "";
+
+  /**
+   * The day a "round" tells, as its season and its number: "1.5". Empty for any other angle.
+   *
+   * @generated from field: string round = 4;
+   */
+  round = "";
+
   constructor(data?: PartialMessage<StoryKey>) {
     super();
     proto3.util.initPartial(data, this);
@@ -250,6 +266,8 @@ export class StoryKey extends Message<StoryKey> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "continent", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "angle", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "round", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): StoryKey {

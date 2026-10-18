@@ -1,6 +1,12 @@
 import {describe, expect, it} from "vitest"
-import {sidesOf, Story, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
+import {Day, sidesOf, Story, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
 import {hashtagsOf, nameOf, wordsOf} from "./overlay.ts"
+
+const day: Day = {
+    season: 1, number: 5, finale: false, endedAt: 0,
+    podium: [{country: "fr", rank: 1, points: 25}, {country: "pw", rank: 2, points: 18}],
+    table: [{country: "fr", rank: 1, points: 86}],
+}
 
 function story(kind: Story["kind"], place: Story["place"], rival?: string): Story {
     return {kind, attacker: "ps", rival, victims: ["fr", "es"], place, taken: 2593}
@@ -153,6 +159,10 @@ describe("the teasers of a caption", () => {
             {...story("rout", {region: "Europe"}), victims: ["ps"], team: "Europe"},
             {...story("rout", {country: "dz"}), victims: ["dz"]}, {...story("rout", {region: "Africa"}), victims: ["dz"]},
             {...story("comeback", {region: "Europe"}), attacker: "de", team: "Europe"},
+            {...story("holding", {region: "Europe"}), attacker: "hr", share: 0.8},
+            {...story("holding", {region: "the world"}), share: 0.12}, {...story("holding", {country: "br"}), share: 0.92},
+            {...story("round", {region: "the world"}), attacker: "fr", day},
+            {...story("round", {region: "the world"}), attacker: "fr", day: {...day, finale: true}},
         ]
         for (const told of stories) {
             const words = wordsOf(told)
@@ -164,6 +174,66 @@ describe("the teasers of a caption", () => {
 
     it("keep the article of a name", () => {
         expect(wordsOf(story("battle", {country: "gb"}, "nl")).teasers).toContain("WAR FOR THE UK: PALESTINE VS THE NETHERLANDS")
+    })
+})
+
+describe("what a flag holds", () => {
+    it("says the share of the place it holds, never more than it holds, and asks to take it back", () => {
+        const words = wordsOf({...story("holding", {region: "Europe"}), attacker: "hr", victims: ["se"], share: 0.7996})
+
+        expect(words.headline).toBe("CROATIA HOLDS 79% OF EUROPE")
+        expect(words.line).toBeUndefined()
+        expect(words.call).toBe("TAKE EUROPE BACK")
+        expect(words.callFlags).toEqual(["eu"])
+        expect(words.teasers).toEqual(["79% OF EUROPE FLIES THE FLAG OF CROATIA", "CROATIA RULES EUROPE"])
+    })
+
+    it("calls a flag holding less than half of a place its biggest power, which it is", () => {
+        expect(wordsOf({...story("holding", {region: "Africa"}), attacker: "fr", share: 0.42}).teasers)
+            .toContain("FRANCE IS THE BIGGEST POWER IN AFRICA")
+    })
+
+    it("asks a country's players to take it back from a foreign flag", () => {
+        const words = wordsOf({...story("holding", {country: "br"}), attacker: "pt", share: 0.92})
+
+        expect(words.headline).toBe("PORTUGAL HOLDS 92% OF BRAZIL")
+        expect(words.callFlags).toEqual(["br"])
+        expect(words.link).toBe("https://clickplanet.lol/?f=br")
+    })
+
+    it("calls the world's biggest holder the biggest empire on earth, and asks everyone to fight back", () => {
+        const words = wordsOf({...story("holding", {region: "the world"}), attacker: "pw", share: 0.124})
+
+        expect(words.headline).toBe("PALAU HOLDS 12% OF THE WORLD")
+        expect(words.call).toBe("FIGHT BACK")
+        expect(words.callFlags).toEqual([])
+        expect(words.teasers).toContain("THE BIGGEST EMPIRE ON EARTH: PALAU")
+    })
+})
+
+describe("a day of the season", () => {
+    it("says who won it, where that leaves it in the season, and asks who wins the next", () => {
+        const words = wordsOf({...story("round", {region: "the world"}), attacker: "fr", day})
+
+        expect(words.headline).toBe("FRANCE WINS DAY 5")
+        expect(words.line).toBe("Leads the season with 86 points")
+        expect(words.call).toBe("WHO WINS DAY 6?")
+        expect(words.teasers).toEqual(["FRANCE TAKES DAY 5", "DAY 5 GOES TO FRANCE"])
+    })
+
+    it("places a winner behind in the season", () => {
+        const behind = {...day, table: [{country: "fr", rank: 2, points: 61}, {country: "pw", rank: 1, points: 70}]}
+
+        expect(wordsOf({...story("round", {region: "the world"}), attacker: "fr", day: behind}).line)
+            .toBe("2nd in the season with 61 points")
+    })
+
+    it("crowns the winner of the final battle that leads the season", () => {
+        const words = wordsOf({...story("round", {region: "the world"}), attacker: "fr", day: {...day, finale: true}})
+
+        expect(words.headline).toBe("FRANCE WINS THE FINAL BATTLE")
+        expect(words.line).toBe("Wins the season with 86 points")
+        expect(words.call).toBe("PLAY FOR YOUR COUNTRY")
     })
 })
 

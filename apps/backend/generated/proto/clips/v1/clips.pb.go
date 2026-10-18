@@ -278,10 +278,16 @@ func (x *TaggedCountry) GetTag() string {
 // Two stories with one key are one story told twice, whatever their headlines.
 type StoryKey struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The country code of the flag the clip is about: the loser when a flag is thrown out.
+	// The country code of the flag the clip is about: the loser when a flag is thrown out, the holder of a place, the
+	// winner of a day.
 	Flag string `protobuf:"bytes,1,opt,name=flag,proto3" json:"flag,omitempty"`
 	// As the headlines name it: "Africa", "Middle East", "the world".
-	Continent     string `protobuf:"bytes,2,opt,name=continent,proto3" json:"continent,omitempty"`
+	Continent string `protobuf:"bytes,2,opt,name=continent,proto3" json:"continent,omitempty"`
+	// What the clip tells of the flag there: empty for what it did (an attack, a battle, a flag thrown out),
+	// "holding" for how much of the place it holds, "round" for a day of the season it won.
+	Angle string `protobuf:"bytes,3,opt,name=angle,proto3" json:"angle,omitempty"`
+	// The day a "round" tells, as its season and its number: "1.5". Empty for any other angle.
+	Round         string `protobuf:"bytes,4,opt,name=round,proto3" json:"round,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -330,6 +336,20 @@ func (x *StoryKey) GetContinent() string {
 	return ""
 }
 
+func (x *StoryKey) GetAngle() string {
+	if x != nil {
+		return x.Angle
+	}
+	return ""
+}
+
+func (x *StoryKey) GetRound() string {
+	if x != nil {
+		return x.Round
+	}
+	return ""
+}
+
 var File_clips_v1_clips_proto protoreflect.FileDescriptor
 
 const file_clips_v1_clips_proto_rawDesc = "" +
@@ -351,10 +371,12 @@ const file_clips_v1_clips_proto_rawDesc = "" +
 	"\x06credit\x18\t \x01(\tR\x06creditJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\acaptionR\x04tags\"5\n" +
 	"\rTaggedCountry\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x10\n" +
-	"\x03tag\x18\x02 \x01(\tR\x03tag\"<\n" +
+	"\x03tag\x18\x02 \x01(\tR\x03tag\"h\n" +
 	"\bStoryKey\x12\x12\n" +
 	"\x04flag\x18\x01 \x01(\tR\x04flag\x12\x1c\n" +
-	"\tcontinent\x18\x02 \x01(\tR\tcontinentB\xab\x01\n" +
+	"\tcontinent\x18\x02 \x01(\tR\tcontinent\x12\x14\n" +
+	"\x05angle\x18\x03 \x01(\tR\x05angle\x12\x14\n" +
+	"\x05round\x18\x04 \x01(\tR\x05roundB\xab\x01\n" +
 	"\fcom.clips.v1B\n" +
 	"ClipsProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1;clipsv1\xa2\x02\x03CXX\xaa\x02\bClips.V1\xca\x02\bClips\\V1\xe2\x02\x14Clips\\V1\\GPBMetadata\xea\x02\tClips::V1b\x06proto3"
 

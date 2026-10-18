@@ -307,3 +307,113 @@ func TestTheNightOfOct17RetellsNothingAndTellsFlagsTheLastDayDidNot(t *testing.T
 	assert.Equal(t, []posts.Pick{1, 2, 3, 5, 6, 9, 10}, choice.Retold.Picks())
 	assert.Equal(t, []string{"ALGERIA IS KICKING BELGIUM OUT OF TURKEY"}, titles(choice.Passed))
 }
+
+var (
+	franceWinsDay5  = showing("FRANCE WINS DAY 5", posts.StoryKey{Flag: "fr", Continent: "the world", Angle: posts.DayWon, Round: "1.5"}, "fr", "pw", "dz")
+	croatiaHolds    = showing("CROATIA HOLDS 80% OF EUROPE", posts.StoryKey{Flag: "hr", Continent: "Europe", Angle: posts.Holding}, "hr", "pw")
+	croatiaInEurope = showing("CROATIA IS ATTACKING EUROPE", posts.StoryKey{Flag: "hr", Continent: "Europe"}, "hr", "pl")
+	palauHolds      = showing("PALAU HOLDS 12% OF THE WORLD", posts.StoryKey{Flag: "pw", Continent: "the world", Angle: posts.Holding}, "pw", "fr")
+)
+
+func TestADayOfTheSeasonWonIsToldFirstThoughTheLastPostsShowedItsFlag(t *testing.T) {
+	told := []posts.Telling{shown(franceVsPalau, time.Hour), toldAgo(franceInEurope, "FRANCE STRIKES BACK", 3*time.Hour)}
+
+	choice := shortlistOf(t, germanyInEurope, palauInEurope, franceWinsDay5).Best(1, told, theNightOfOct14)
+
+	assert.Equal(t, []string{"FRANCE WINS DAY 5"}, titles(choice.Chosen))
+	assert.Equal(t, []string{"GERMANY STRIKES BACK", "PALAU IS ATTACKING EUROPE"}, titles(choice.Passed))
+}
+
+func TestADayWonIsNotToldTwice(t *testing.T) {
+	choice := shortlistOf(t, franceWinsDay5, germanyInEurope).Best(6, []posts.Telling{shown(franceWinsDay5, 3*time.Hour)}, theNightOfOct14)
+
+	assert.Equal(t, []string{"GERMANY STRIKES BACK"}, titles(choice.Chosen))
+	assert.Equal(t, []string{"FRANCE WINS DAY 5"}, titles(choice.Retold))
+}
+
+func TestEachDayWonIsAStoryOfItsOwn(t *testing.T) {
+	day4 := posts.Telling{
+		Key: posts.StoryKey{Flag: "fr", Continent: "the world", Angle: posts.DayWon, Round: "1.4"}, Title: "FRANCE WINS DAY 4",
+		At: theNightOfOct14.Add(-24 * time.Hour),
+	}
+
+	choice := shortlistOf(t, franceWinsDay5).Best(6, []posts.Telling{day4}, theNightOfOct14)
+
+	assert.Equal(t, []string{"FRANCE WINS DAY 5"}, titles(choice.Chosen))
+}
+
+func TestAHoldingIsNotTheStoryOfWhatItsFlagDidThere(t *testing.T) {
+	choice := shortlistOf(t, croatiaHolds).Best(6, []posts.Telling{shown(croatiaInEurope, 2*time.Hour)}, theNightOfOct14)
+
+	assert.Equal(t, []string{"CROATIA HOLDS 80% OF EUROPE"}, titles(choice.Chosen))
+	assert.Empty(t, choice.Retold)
+}
+
+func TestARunTellsEachAngleItHasOnceBeforeItTellsAnyTwice(t *testing.T) {
+	choice := shortlistOf(t, written[0], written[2], written[4], palauHolds).Best(2, nil, theNightOfOct14)
+
+	assert.Equal(t, []string{"ALGERIA STRIKES BACK", "PALAU HOLDS 12% OF THE WORLD"}, titles(choice.Chosen))
+	assert.Equal(t, []string{"PALESTINE IS KICKING ROMANIA OUT OF KAZAKHSTAN", "FRANCE IS ATTACKING EUROPE"}, titles(choice.Passed))
+}
+
+func TestAHoldingOfAFlagInTwoOfTheLastPostsWaits(t *testing.T) {
+	told := []posts.Telling{shown(franceVsPalau, time.Hour), shown(vaticanVsPalau, 3*time.Hour)}
+
+	choice := shortlistOf(t, palauHolds, germanyInEurope).Best(6, told, theNightOfOct14)
+
+	assert.Equal(t, []string{"GERMANY STRIKES BACK"}, titles(choice.Chosen))
+	assert.Equal(t, []string{"PALAU HOLDS 12% OF THE WORLD"}, titles(choice.Passed))
+}
+
+func TestADayWonWithNoDayOrADayOnAnotherAngleIsRefused(t *testing.T) {
+	_, noDay := posts.ShortlistOf(posts.Story{Title: "FRANCE WINS DAY 5", Key: posts.StoryKey{Flag: "fr", Continent: "the world", Angle: posts.DayWon}})
+	_, dayOfAHolding := posts.ShortlistOf(posts.Story{Title: "CROATIA HOLDS 80% OF EUROPE", Key: posts.StoryKey{
+		Flag: "hr", Continent: "Europe", Angle: posts.Holding, Round: "1.5",
+	}})
+
+	require.ErrorIs(t, noDay, posts.ErrInvalidStory)
+	require.ErrorIs(t, dayOfAHolding, posts.ErrInvalidStory)
+}
+
+// The run of Oct 18 12:34 skipped 8 of its 13 stories as told, nearly all one flag in Europe, and posted 3. Given a
+// day won and the holdings of that map, it posts 6: the day first, then each angle once, the freshest flag first.
+func TestTheRunOfOct18NoonPostsTheDayWonAndTheHoldingsBesideTheNews(t *testing.T) {
+	key := func(flag, continent string) posts.StoryKey { return posts.StoryKey{Flag: flag, Continent: continent} }
+	at := func(day, hour, minute int) time.Time { return time.Date(2026, 10, day, hour, minute, 0, 0, time.UTC) }
+	told := []posts.Telling{
+		{Key: key("ps", "Antarctica"), Countries: []string{"aq", "ps", "pl", "tv"}, Title: "PALESTINE IS KICKING POLAND OUT OF ANTARCTICA", At: at(18, 15, 20)},
+		{Key: key("rs", "Europe"), Countries: []string{"rs", "fr", "bg", "tr"}, Title: "SERBIA VS FRANCE", At: at(18, 13, 20)},
+		{Key: key("se", "Europe"), Countries: []string{"se", "xk", "pl", "gr"}, Title: "SWEDEN STRIKES BACK", At: at(18, 11, 20)},
+		{Key: key("ch", "Europe"), Countries: []string{"fr", "ch", "gr", "br"}, Title: "SWITZERLAND IS INVADING FRANCE", At: at(18, 9, 20)},
+		{Key: key("bg", "Africa"), Countries: []string{"bg", "dz", "br", "tv"}, Title: "BULGARIA IS ATTACKING AFRICA", At: at(18, 7, 20)},
+		{Key: key("xk", "Europe"), Countries: []string{"se", "xk", "fr", "pl"}, Title: "KOSOVO IS LOSING EUROPE", At: at(18, 5, 20)},
+		{Key: key("cy", "North America"), Title: "CYPRUS IS ATTACKING NORTH AMERICA", At: at(17, 18, 54)},
+		{Key: key("gb", "Europe"), Title: "THE UK IS FALLING", At: at(17, 16, 54)},
+	}
+	shortlist := shortlistOf(t,
+		posts.Story{Title: "SWITZERLAND WINS DAY 5", Key: posts.StoryKey{Flag: "ch", Continent: "the world", Angle: posts.DayWon, Round: "1.5"}, Countries: []string{"ch", "se", "fr"}},
+		posts.Story{Title: "SWEDEN IS KICKING BELGIUM OUT OF CENTRAL ASIA", Key: key("se", "Central Asia"), Countries: []string{"se", "be", "tn", "pl"}},
+		posts.Story{Title: "ALGERIA IS KICKING BULGARIA OUT OF TURKEY", Key: key("dz", "Middle East"), Countries: []string{"tr", "dz", "bg", "tv", "gr"}},
+		posts.Story{Title: "BRAZIL STRIKES BACK", Key: key("br", "South America"), Countries: []string{"br", "ma", "pt", "fr"}},
+		posts.Story{Title: "SWITZERLAND IS INVADING SPAIN", Key: key("ch", "Europe"), Countries: []string{"es", "ch", "gr"}},
+		posts.Story{Title: "THE UK IS KICKING SWITZERLAND OUT OF FRANCE", Key: key("gb", "Europe"), Countries: []string{"fr", "gb", "ch"}},
+		posts.Story{Title: "PALESTINE IS KICKING POLAND OUT OF ANTARCTICA", Key: key("ps", "Antarctica"), Countries: []string{"aq", "ps", "pl", "tv", "gb"}},
+		posts.Story{Title: "GREECE IS INVADING THE UK", Key: key("gr", "Europe"), Countries: []string{"gb", "gr"}},
+		posts.Story{Title: "SWEDEN IS INVADING UKRAINE", Key: key("se", "Europe"), Countries: []string{"ua", "se", "bg"}},
+		posts.Story{Title: "LITHUANIA VS SWEDEN", Key: key("lt", "Europe"), Countries: []string{"lt", "se", "gr"}},
+		posts.Story{Title: "SWEDEN HOLDS 41% OF EUROPE", Key: posts.StoryKey{Flag: "se", Continent: "Europe", Angle: posts.Holding}, Countries: []string{"se", "ch", "pl"}},
+		posts.Story{Title: "PALESTINE HOLDS 90% OF ANTARCTICA", Key: posts.StoryKey{Flag: "ps", Continent: "Antarctica", Angle: posts.Holding}, Countries: []string{"aq", "ps", "pl"}},
+		posts.Story{Title: "ALGERIA HOLDS 52% OF AFRICA", Key: posts.StoryKey{Flag: "dz", Continent: "Africa", Angle: posts.Holding}, Countries: []string{"dz", "bg"}},
+	)
+
+	choice := shortlist.Best(6, told, at(18, 12, 37))
+
+	assert.Equal(t, []string{
+		"SWITZERLAND WINS DAY 5", "BRAZIL STRIKES BACK", "GREECE IS INVADING THE UK", "LITHUANIA VS SWEDEN",
+		"PALESTINE HOLDS 90% OF ANTARCTICA", "ALGERIA HOLDS 52% OF AFRICA",
+	}, titles(choice.Chosen))
+	assert.Equal(t, []string{
+		"SWITZERLAND IS INVADING SPAIN", "THE UK IS KICKING SWITZERLAND OUT OF FRANCE", "PALESTINE IS KICKING POLAND OUT OF ANTARCTICA",
+		"SWEDEN IS INVADING UKRAINE",
+	}, titles(choice.Retold))
+}

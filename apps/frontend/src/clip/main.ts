@@ -4,6 +4,7 @@ import * as THREE from "three"
 import type {JsonValue} from "@bufbuild/protobuf"
 import {Clip} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {GetReplayResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {GetRaceResponse} from "../gen/grpc/seasons/v1/seasons_pb.ts"
 import {ReplayBackend} from "../backends/replayBackend.ts"
 import {createGlobe} from "../app/viewer/globe.ts"
 import {loadPointGeometryData} from "../app/viewer/points.ts"
@@ -20,17 +21,20 @@ import {HIGHLIGHTS} from "./anthemHighlightsAsset.ts"
 import {CLIP_ANTHEMS} from "./clipAnthemsAsset.ts"
 import {Candidate, candidatesOf, inCandidate, newsSince, Window} from "../domain/clip/window.ts"
 import {Front, frontOf, FRONT_RADIANS, inSightOf, sameFront, spanOf} from "../domain/clip/front.ts"
+import {Holding, holdingsOf, inHolding} from "../domain/clip/holding.ts"
+import {ROUND_PLAY_MS, roundStoryOf} from "../domain/clip/round.ts"
 import {castOf, inPlace, leadsTheWorld, lossOf, placeOf, routOf, sameStory, Story, storyKeyOf, storyOf, teamFlagOf, THE_WORLD, widerThan} from "../domain/clip/story.ts"
 import {scoreOf} from "../domain/clip/score.ts"
 import {Flip, flipsOf, Look, lookOf} from "../domain/clip/look.ts"
 import {cameraOf, framingOf, openingOf, PullBack, screensOf} from "../domain/clip/camera.ts"
-import {paceOf, playedAt, timelineFor, timelineOf} from "../domain/clip/pace.ts"
+import {paceOf, playedAt, PODIUM_ENDING_SECONDS, timelineFor, timelineOf} from "../domain/clip/pace.ts"
 import {stopsOf, tourOf, tourSecondsOf, Visit} from "../domain/clip/tour.ts"
 import {flagsZoomOf, tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {mulberry32} from "../app/viewer/stars.ts"
 import {installVirtualClock} from "./virtualClock.ts"
 import {createOverlay, hashtagsOf, nameOf, placeName, wordsOf} from "./overlay.ts"
 import {shortlistOf} from "./shortlist.ts"
+import {dayOf} from "./race.ts"
 
 export type Recording = {
     pick: number
@@ -157,6 +161,9 @@ async function choose(): Promise<Chosen> {
     const answer = await fetch("/__clip/replay.json")
     if (!answer.ok) throw new Error(`no replay to play: ${answer.status}`)
     const replay = ReplayBackend.of(GetReplayResponse.fromJson(await answer.json(), {ignoreUnknownFields: true}))
+    // The race, when the run fetched one: the day it closed last is a story of the run whose window holds its cutoff.
+    const race = await fetch("/__clip/race.json")
+    const day = race.ok ? dayOf(GetRaceResponse.fromJson(await race.json(), {ignoreUnknownFields: true}).race?.closed) : undefined
 
     const attacker = countryParam("country")
     const focus = countryParam("focus")
@@ -278,6 +285,42 @@ async function choose(): Promise<Chosen> {
                     : solidity < SCRIBBLE_BELOW ? "lines drawn on someone else's land, not land taken" : undefined
         return {...take, story, backend, solidity, skipped}
     }
+    // What the map is, beside what changed on it: the flag holding the most of a place, as the map stands at the end.
+    const window = everything.filter(({at}) => at >= since && at <= until)
+    const end = ownersAfter(replay.opening, everything.filter(({at}) => at <= until))
+    const holdings = focus !== undefined ? []
+        : holdingsOf(end, borders.assignment.length, groundAt, window, regionOf)
+            .filter(({story}) => attacker === undefined || story.attacker === attacker)
+    // The clip of a holding plays its flag's fighting for it, all over the place.
+    const holdingReviewOf = ({story}: Holding): Review => {
+        const changes = window.filter(({tile, from, to}) => from !== to && (from === story.attacker || to === story.attacker)
+            && inHolding(story.place, groundAt(tile), regionOf))
+        const front = {heart: meanOf(changes.map(({tile}) => pointAt(tile))) ?? {x: 0, y: 0, z: 1}, changes}
+        const span = spanOf(front, MARGIN_MS)
+        const backend = replay.cut(Math.max(since, span.since), Math.min(until, span.until))
+        const candidate = {since: backend.since, until: backend.until, cell: 0}
+        return {
+            candidate, front, story, score: 0, scope: undefined, world: false, backend,
+            solidity: solidityAfter(story.attacker, front, end), skipped: undefined,
+        }
+    }
+    // The clip of a day plays the run-up to its cutoff: its winner's fighting, else everyone's.
+    const roundReviewOf = (story: Story): Review => {
+        const cutoff = story.day?.endedAt ?? until
+        const backend = replay.cut(Math.max(replay.since, cutoff - ROUND_PLAY_MS), cutoff)
+        const played = backend.changes().filter(({from, to}) => from !== to)
+        const own = played.filter(({from, to}) => from === story.attacker || to === story.attacker)
+        const changes = own.length > 0 ? own : played
+        const front = {heart: meanOf(changes.map(({tile}) => pointAt(tile))) ?? {x: 0, y: 0, z: 1}, changes}
+        const candidate = {since: backend.since, until: backend.until, cell: 0}
+        return {
+            candidate, front, story, score: 0, scope: undefined, world: false, backend, solidity: 1,
+            skipped: changes.length === 0 ? "nothing changed hands before the cutoff" : undefined,
+        }
+    }
+    const told = focus === undefined ? roundStoryOf(day, since, until) : undefined
+    const days = told === undefined || (attacker !== undefined && told.attacker !== attacker) ? [] : [roundReviewOf(told)]
+
     const reviewed = stories.map(reviewOf)
     const kept = reviewed.filter(({skipped}) => skipped === undefined)
     // One story per flag and what it did, whatever window or scale found it: told over the most of the map, else the best.
@@ -285,8 +328,17 @@ async function choose(): Promise<Chosen> {
         && sameStory(other.story, review.story, placeName, regionOf)
         && (widerThan(other.story.place, review.story.place)
             || (!widerThan(review.story.place, other.story.place) && kept.indexOf(other) < kept.indexOf(review))))
-    const worth = kept.filter((review) => tellerOf(review) === undefined)
+    // The day first, the run's news; then what changed, best first; then what the map is, the biggest holding first.
+    const worth = [
+        ...days.filter(({skipped}) => skipped === undefined),
+        ...kept.filter((review) => tellerOf(review) === undefined),
+        ...holdings.filter(({short}) => short === undefined).map(holdingReviewOf),
+    ]
     const skipped = [
+        ...days.flatMap(({story: told, skipped: why}) => why === undefined ? [] : [`${wordsOf(told).headline}: ${why}`]),
+        // A country's top holder short of most of it is every country of a war: only the near misses are worth a line.
+        ...holdings.flatMap(({story: held, short}) => short === undefined || ("country" in held.place && short.startsWith("too little"))
+            || short === "mostly its own country" ? [] : [`${wordsOf(held).headline}: ${short}`]),
         ...reviewed.flatMap(({story: told, skipped: why, solidity}) =>
             why === undefined ? [] : [`${wordsOf(told).headline}: ${why} (solidity ${solidity.toFixed(2)})`]),
         ...kept.flatMap((review) => {
@@ -306,10 +358,19 @@ async function choose(): Promise<Chosen> {
         const changes = backend.changes().filter(({tile}) => inScope(scope)(tile))
 
         // The counter counts where the headline says: in the story's place, not in all that is near its front.
-        const inArea = (tile: number) => inPlace(story.place, groundAt(tile), regionOf)
+        const inArea = story.kind === "holding" ? (tile: number) => inHolding(story.place, groundAt(tile), regionOf)
+            : (tile: number) => inPlace(story.place, groundAt(tile), regionOf)
+        // A holding's counter is the share of the place its flag holds. A day was won on a day's average, not on the
+        // map now: its counter counts tiles, as any clip's, and the podium says the points.
+        const ground = story.kind === "holding"
+            ? Array.from({length: borders.assignment.length}, (_, i) => i + 1).filter(inArea).length : undefined
+        // What the map is opens on all its flag holds there.
+        const shared = story.kind === "holding" || story.kind === "round"
+        const territory = shared ? [...ownersAfter(backend.opening, backend.changes())]
+            .flatMap(([tile, owner]) => owner === story.attacker && inArea(tile) ? [pointAt(tile)] : []) : []
 
         const points = front.changes.map(({tile}) => pointAt(tile))
-        const wide = framingOf(points, aspect)
+        const wide = framingOf(territory.length > 0 ? territory : points, aspect)
         const touched = front.changes.map(({tile}) => tile)
         const flips = flipsOf(borders.assignment, backend.opening, changes, touched)
         const look = lookParam() ?? lookOf(flips, wide.zoom)
@@ -321,7 +382,8 @@ async function choose(): Promise<Chosen> {
         const screens = screensOf(front.changes.map(({tile}, i) => ({share: i / front.changes.length, point: pointAt(tile)})), close)
         const pace = paceOf(front.changes.map(({at}) => at), backend.since, backend.until)
         const stops = world ? stopsOf(visitsOf(front, story.attacker, pace.shareOf), aspect) : []
-        const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds")) : timelineOf(screens, numberParam("seconds"))
+        const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds"))
+            : timelineOf(screens, numberParam("seconds"), story.kind === "round" ? PODIUM_ENDING_SECONDS : undefined)
         const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending, flagsZoomOf(root.clientHeight))
             : cameraOf(first, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
                 close,
@@ -330,7 +392,7 @@ async function choose(): Promise<Chosen> {
                 hold: numberParam("hold"),
             })
 
-        // A continent striking back together is counted as one side.
+        // A continent striking back together is held as one side.
         const team = teamFlagOf(story)
         const sideOf = (owner: string) => team !== undefined && regionOf(owner) === story.team ? team : owner
         const owners = new Map([...backend.opening].filter(([tile]) => inArea(tile)))
@@ -351,7 +413,7 @@ async function choose(): Promise<Chosen> {
         backend.listenForBombs((drop) => drop.cleared.forEach((tile) => own(tile, undefined)))
 
         const words = wordsOf(story, params.get("headline") ?? undefined)
-        const overlay = createOverlay(root, story, words, opening)
+        const overlay = createOverlay(root, story, words, opening, ground)
         const music = params.has("silent") ? undefined : musicOf(story, timeline.seconds)
         const hashtags = hashtagsOf(story)
 

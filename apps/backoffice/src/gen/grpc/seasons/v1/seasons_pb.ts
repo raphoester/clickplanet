@@ -827,3 +827,71 @@ export class Heartbeat extends Message<Heartbeat> {
   }
 }
 
+/**
+ * @generated from message seasons.v1.GetRaceRequest
+ */
+export class GetRaceRequest extends Message<GetRaceRequest> {
+  constructor(data?: PartialMessage<GetRaceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.GetRaceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRaceRequest {
+    return new GetRaceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRaceRequest {
+    return new GetRaceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRaceRequest {
+    return new GetRaceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRaceRequest | PlainMessage<GetRaceRequest> | undefined, b: GetRaceRequest | PlainMessage<GetRaceRequest> | undefined): boolean {
+    return proto3.util.equals(GetRaceRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message seasons.v1.GetRaceResponse
+ */
+export class GetRaceResponse extends Message<GetRaceResponse> {
+  /**
+   * @generated from field: seasons.v1.Race race = 1;
+   */
+  race?: Race;
+
+  constructor(data?: PartialMessage<GetRaceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "seasons.v1.GetRaceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "race", kind: "message", T: Race },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRaceResponse {
+    return new GetRaceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRaceResponse {
+    return new GetRaceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRaceResponse {
+    return new GetRaceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRaceResponse | PlainMessage<GetRaceResponse> | undefined, b: GetRaceResponse | PlainMessage<GetRaceResponse> | undefined): boolean {
+    return proto3.util.equals(GetRaceResponse, a, b);
+  }
+}
+
