@@ -12,7 +12,7 @@ import (
 )
 
 type Query interface {
-	Message(ctx context.Context, id string, before, after uint32) (*chatv1.GetMessageResponse, error)
+	Message(ctx context.Context, id string) (*chatv1.GetMessageResponse, error)
 }
 
 func New(query Query) GetMessageHandler {
@@ -27,7 +27,7 @@ func (h GetMessageHandler) GetMessage(
 	ctx context.Context,
 	req *connect.Request[chatv1.GetMessageRequest],
 ) (*connect.Response[chatv1.GetMessageResponse], error) {
-	message, err := h.query.Message(ctx, req.Msg.GetMessageId(), req.Msg.GetBefore(), req.Msg.GetAfter())
+	message, err := h.query.Message(ctx, req.Msg.GetMessageId())
 	if errors.Is(err, message_query.ErrNoMessage) {
 		return nil, connect.NewError(connect.CodeNotFound, message_query.ErrNoMessage)
 	}

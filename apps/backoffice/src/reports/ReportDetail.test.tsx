@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
-import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
+import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {AT, FakeAdmin} from "../fakeAdmin.ts"
 import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
@@ -28,92 +28,143 @@ function open(admin: FakeAdmin, shown: Report = report) {
     render(<ReportDetail report={shown} onBack={() => undefined} clients={admin.clients()}/>)
 }
 
+// The lines of the conversation, once the pages around the reported message are read.
+async function lines(): Promise<HTMLElement[]> {
+    await screen.findByRole("list", {name: "The conversation"})
+    await waitFor(() => expect(screen.queryByText("Loading what was said around it…")).toBeNull())
+    return within(screen.getByRole("list", {name: "The conversation"})).getAllByRole("listitem")
+}
+
 function confirm(label: string, yes: string) {
     fireEvent.click(screen.getByRole("button", {name: label}))
     fireEvent.click(screen.getByRole("button", {name: yes}))
 }
 
 describe("ReportDetail", () => {
-    it("reads the reported message and the messages around it", async () => {
+    it("reads the reported message, then a page of the chat on each side of it", async () => {
         const admin = new FakeAdmin()
         open(admin)
 
         expect(await screen.findByText("you all suck")).toBeTruthy()
-        expect(admin.askedFor("getMessage")).toEqual([{messageId: "message-1", before: 50, after: 50}])
+        await lines()
+        expect(admin.askedFor("getMessage")).toEqual([{messageId: "message-1"}])
+        expect(admin.askedFor("listMessages")).toEqual([
+            {beforeMessageId: "message-1", limit: 10},
+            {afterMessageId: "message-1", limit: 10},
+        ])
     })
 
     it("shows the conversation oldest first, the reported message marked", async () => {
         open(new FakeAdmin())
 
-        const lines = within(await screen.findByRole("list", {name: "The conversation"})).getAllByRole("listitem")
-        expect(lines.map(line => within(line).getByText(/^(come at me|calm down|you all suck|so rude)$/,
+        const shown = await lines()
+        expect(shown.map(line => within(line).getByText(/^(come at me|calm down|you all suck|so rude)$/,
             {selector: ".line-text"}).textContent)).toEqual(["come at me", "calm down", "you all suck", "so rude"])
-        expect(lines.map(line => line.getAttribute("aria-current"))).toEqual([null, null, "true", null])
-        expect(within(lines[2]).getByText("Reported message")).toBeTruthy()
+        expect(shown.map(line => line.getAttribute("aria-current"))).toEqual([null, null, "true", null])
+        expect(within(shown[2]).getByText("Reported message")).toBeTruthy()
     })
 
     it("marks what the reporter and the reported account said, by account id", async () => {
         open(new FakeAdmin())
 
-        const lines = within(await screen.findByRole("list", {name: "The conversation"})).getAllByRole("listitem")
-        expect(within(lines[0]).getByText("reporter")).toBeTruthy()
-        expect(within(lines[1]).queryByText(/^report(er|ed)$/)).toBeNull()
-        expect(within(lines[2]).getByText("reported")).toBeTruthy()
-        expect(within(lines[3]).getByText("reporter")).toBeTruthy()
+        const shown = await lines()
+        expect(within(shown[0]).getByText("reporter")).toBeTruthy()
+        expect(within(shown[1]).queryByText(/^report(er|ed)$/)).toBeNull()
+        expect(within(shown[2]).getByText("reported")).toBeTruthy()
+        expect(within(shown[3]).getByText("reporter")).toBeTruthy()
     })
 
     it("names each author and its country, and what a message answers", async () => {
         open(new FakeAdmin())
 
-        const lines = within(await screen.findByRole("list", {name: "The conversation"})).getAllByRole("listitem")
-        expect(within(lines[1]).getByText("Cleo")).toBeTruthy()
-        expect(lines[1].textContent).toContain("IT · ")
-        expect(within(lines[2]).getByText(/^In reply to/).textContent).toBe("In reply to Bob: come at me")
+        const shown = await lines()
+        expect(within(shown[1]).getByText("Cleo")).toBeTruthy()
+        expect(shown[1].textContent).toContain("IT · ")
+        expect(within(shown[1]).getByText(/^In reply to/).textContent).toBe("In reply to Bob: come at me")
+        expect(within(shown[2]).getByText("Ana")).toBeTruthy()
     })
 
-    it("shows the ten nearest on each side, and the rest on asking", async () => {
+    it("pages back and forth from the reported message, on asking", async () => {
         const admin = new FakeAdmin()
         const said = (side: string, n: number) => new KeptMessage({
             messageId: `${side}-${n}`, accountId: "account-cleo", authorName: "Cleo", text: `${side} ${n}`,
             sentAt: Timestamp.fromDate(AT),
         })
-        admin.message.before = Array.from({length: 14}, (_, n) => said("before", n + 1))
-        admin.message.after = Array.from({length: 12}, (_, n) => said("after", n + 1))
+        admin.chat = [
+            ...Array.from({length: 25}, (_, n) => said("before", n + 1)),
+            admin.chat[2],
+            ...Array.from({length: 22}, (_, n) => said("after", n + 1)),
+        ]
         open(admin)
 
-        const list = await screen.findByRole("list", {name: "The conversation"})
-        expect(within(list).getAllByRole("listitem")).toHaveLength(21)
-        expect(within(list).queryByText("before 4")).toBeNull()
-        expect(within(list).getByText("before 5")).toBeTruthy()
+        expect(await lines()).toHaveLength(21)
+        const list = screen.getByRole("list", {name: "The conversation"})
+        expect(within(list).queryByText("before 15")).toBeNull()
+        expect(within(list).getByText("before 16")).toBeTruthy()
         expect(within(list).getByText("after 10")).toBeTruthy()
         expect(within(list).queryByText("after 11")).toBeNull()
 
-        fireEvent.click(screen.getByRole("button", {name: "Show 4 earlier"}))
-        fireEvent.click(screen.getByRole("button", {name: "Show 2 later"}))
+        fireEvent.click(screen.getByRole("button", {name: "Show earlier"}))
+        expect(await within(list).findByText("before 1")).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Show later"}))
+        expect(await within(list).findByText("after 22")).toBeTruthy()
 
-        expect(within(list).getAllByRole("listitem")).toHaveLength(27)
-        expect(within(list).getByText("before 1")).toBeTruthy()
-        expect(within(list).getByText("after 12")).toBeTruthy()
+        expect(within(list).getAllByRole("listitem")).toHaveLength(48)
+        expect(admin.askedFor("listMessages").slice(2)).toEqual([
+            {beforeMessageId: "before-16", limit: 20},
+            {afterMessageId: "after-10", limit: 20},
+        ])
+        expect(screen.queryByRole("button", {name: "Show earlier"})).toBeNull()
+        expect(screen.queryByRole("button", {name: "Show later"})).toBeNull()
     })
 
     it("says when nothing was said around it", async () => {
         const admin = new FakeAdmin()
-        admin.message.before = []
-        admin.message.after = []
+        admin.chat = [admin.chat[2]]
         open(admin)
 
         expect(await screen.findByText("Nothing said before it is kept.")).toBeTruthy()
         expect(screen.getByText("Nothing was said after it.")).toBeTruthy()
+        expect(screen.queryByRole("button", {name: /^Show/})).toBeNull()
     })
 
     it("strikes a message removed around it, with when", async () => {
         const admin = new FakeAdmin()
-        admin.message.before[1].removedAt = Timestamp.fromDate(AT)
+        admin.chat[1].removedAt = Timestamp.fromDate(AT)
         open(admin)
 
         expect((await screen.findByText("calm down")).className).toContain("line-removed")
         expect(screen.getByText(/^Removed at /)).toBeTruthy()
         expect(screen.getByRole("button", {name: "Remove the message"})).toBeTruthy()
+    })
+
+    it("shows the reported message when the chat around it cannot be read, and reads it again", async () => {
+        const admin = new FakeAdmin()
+        admin.refuse("listMessages", Code.Unavailable)
+        open(admin)
+
+        expect(await screen.findByText("The call failed.")).toBeTruthy()
+        expect(screen.getByText("you all suck")).toBeTruthy()
+
+        admin.refusals.delete("listMessages")
+        fireEvent.click(screen.getByRole("button", {name: "Try again"}))
+
+        expect(await screen.findByText("so rude")).toBeTruthy()
+    })
+
+    it("says when an earlier page is no longer kept", async () => {
+        const admin = new FakeAdmin()
+        admin.chat = [
+            ...Array.from({length: 10}, (_, n) => new KeptMessage({messageId: `before-${n}`, text: `before ${n}`})),
+            admin.chat[2],
+        ]
+        open(admin)
+        await lines()
+
+        admin.refuse("listMessages", Code.NotFound)
+        fireEvent.click(screen.getByRole("button", {name: "Show earlier"}))
+
+        expect(await screen.findByText("That part of the chat is no longer kept.")).toBeTruthy()
     })
 
     it("opens an author of the conversation on the player page, by its id", async () => {

@@ -32,6 +32,14 @@ func (s gameStack) message(t *testing.T, id string) *chatv1.GetMessageResponse {
 	return res.Msg
 }
 
+func (s gameStack) messages(t *testing.T, req *chatv1.ListMessagesRequest) []*chatv1.KeptMessage {
+	t.Helper()
+
+	res, err := s.chatDesk().ListMessages(t.Context(), connect.NewRequest(req))
+	require.NoError(t, err)
+	return res.Msg.GetMessages()
+}
+
 func (s gameStack) openReports(t *testing.T) []*supportv1.Report {
 	t.Helper()
 
@@ -86,7 +94,7 @@ func TestAnOperatorRemovesAReportedMessageAndClosesTheReport(t *testing.T) {
 	assert.Equal(t, "removed the message", reports[0].GetDecision().GetComment())
 }
 
-func TestAnOperatorReadsWhatWasSaidAroundAReportedMessage(t *testing.T) {
+func TestAnOperatorReadsWhatWasSaidAroundAReportedMessageAPageEachSide(t *testing.T) {
 	game := startGame(t)
 	offender, reporter := game.newPlayer(t), game.newPlayer(t)
 	bait, err := reporter.post()
@@ -96,21 +104,22 @@ func TestAnOperatorReadsWhatWasSaidAroundAReportedMessage(t *testing.T) {
 	answer, err := reporter.reply(insult.GetId())
 	require.NoError(t, err)
 
-	res, err := game.chatDesk().GetMessage(t.Context(),
-		connect.NewRequest(&chatv1.GetMessageRequest{MessageId: insult.GetId(), Before: 10, After: 10}))
-	require.NoError(t, err)
+	before := game.messages(t, &chatv1.ListMessagesRequest{BeforeMessageId: insult.GetId()})
+	require.Len(t, before, 1)
+	assert.Equal(t, bait.GetId(), before[0].GetMessageId())
+	assert.Equal(t, reporter.account(), before[0].GetAccountId())
+	assert.Equal(t, bait.GetAuthorName(), before[0].GetAuthorName(), "named as the chat names it")
 
-	read := res.Msg
-	assert.Equal(t, insult.GetAuthorName(), read.GetAuthorName(), "named as the chat names it")
-	assert.Equal(t, bait.GetId(), read.GetReplyTo().GetMessageId())
-	assert.Equal(t, bait.GetAuthorName(), read.GetReplyTo().GetAuthorName())
-	require.Len(t, read.GetBefore(), 1)
-	assert.Equal(t, bait.GetId(), read.GetBefore()[0].GetMessageId())
-	assert.Equal(t, reporter.account(), read.GetBefore()[0].GetAccountId())
-	require.Len(t, read.GetAfter(), 1)
-	assert.Equal(t, answer.GetId(), read.GetAfter()[0].GetMessageId())
-	assert.Equal(t, answer.GetAuthorName(), read.GetAfter()[0].GetAuthorName())
-	assert.Equal(t, insult.GetId(), read.GetAfter()[0].GetReplyTo().GetMessageId())
+	after := game.messages(t, &chatv1.ListMessagesRequest{AfterMessageId: insult.GetId()})
+	require.Len(t, after, 1)
+	assert.Equal(t, answer.GetId(), after[0].GetMessageId())
+	assert.Equal(t, insult.GetId(), after[0].GetReplyTo().GetMessageId())
+	assert.Equal(t, insult.GetAuthorName(), after[0].GetReplyTo().GetAuthorName())
+
+	newest := game.messages(t, &chatv1.ListMessagesRequest{Limit: 2})
+	require.Len(t, newest, 2)
+	assert.Equal(t, insult.GetId(), newest[0].GetMessageId())
+	assert.Equal(t, answer.GetId(), newest[1].GetMessageId())
 }
 
 func TestNothingToRemoveReadOrDecideIsNotFound(t *testing.T) {
@@ -122,6 +131,10 @@ func TestNothingToRemoveReadOrDecideIsNotFound(t *testing.T) {
 
 	_, err = game.chatDesk().GetMessage(t.Context(),
 		connect.NewRequest(&chatv1.GetMessageRequest{MessageId: "no-such-message"}))
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+
+	_, err = game.chatDesk().ListMessages(t.Context(),
+		connect.NewRequest(&chatv1.ListMessagesRequest{BeforeMessageId: "no-such-message"}))
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 
 	_, err = game.supportDesk().DecideReport(t.Context(), connect.NewRequest(&supportv1.DecideReportRequest{

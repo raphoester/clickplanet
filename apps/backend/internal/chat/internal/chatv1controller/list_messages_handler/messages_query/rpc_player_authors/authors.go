@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_message_handler/message_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_messages_handler/messages_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -30,7 +30,7 @@ type Authors struct {
 	player Player
 }
 
-var _ message_query.Authors = (*Authors)(nil)
+var _ messages_query.Authors = (*Authors)(nil)
 
 func (a *Authors) Authors(
 	ctx context.Context,

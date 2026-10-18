@@ -12,8 +12,11 @@ service AdminService {
   // Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
   rpc RemoveMessage(RemoveMessageRequest) returns (RemoveMessageResponse);
 
-  // A message as it was sent, removed or not, and on asking the messages sent just before and after it: what an operator reads to judge a report. NotFound past the retention.
+  // A message as it was sent, removed or not. NotFound past the retention.
   rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
+
+  // The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention.
+  rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
 }
 
 message MuteRequest {
@@ -36,10 +39,6 @@ message RemoveMessageResponse {
 
 message GetMessageRequest {
   string message_id = 1;
-  // How many of the messages sent just before it to answer with it. None unless asked, 50 at most.
-  uint32 before = 2;
-  // How many of the messages sent just after it. None unless asked, 50 at most.
-  uint32 after = 3;
 }
 
 message GetMessageResponse {
@@ -51,14 +50,20 @@ message GetMessageResponse {
   string country_id = 5;
   // Unset while the message is shown.
   google.protobuf.Timestamp removed_at = 6;
-  // As KeptMessage.author_name.
-  string author_name = 7;
-  // As KeptMessage.reply_to.
-  KeptQuote reply_to = 8;
-  // Oldest first: as many as asked, or as the retention keeps.
-  repeated KeptMessage before = 9;
-  // Oldest first: as many as asked, or as were sent.
-  repeated KeptMessage after = 10;
+}
+
+message ListMessagesRequest {
+  // The page of the messages sent just before this one. Neither cursor is the newest page; both is InvalidArgument.
+  string before_message_id = 1;
+  // The page of the messages sent just after this one.
+  string after_message_id = 2;
+  // 50 unless asked, 200 at most.
+  uint32 limit = 3;
+}
+
+message ListMessagesResponse {
+  // Oldest first. Fewer than the limit: nothing more is kept before it, or nothing more was sent after it.
+  repeated KeptMessage messages = 1;
 }
 
 // A message as it was sent, removed or not, for an operator.

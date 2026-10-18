@@ -15,14 +15,10 @@ import (
 )
 
 type stubQuery struct {
-	err           error
-	before, after *uint32
+	err error
 }
 
-func (q stubQuery) Message(_ context.Context, id string, before, after uint32) (*chatv1.GetMessageResponse, error) {
-	if q.before != nil {
-		*q.before, *q.after = before, after
-	}
+func (q stubQuery) Message(_ context.Context, id string) (*chatv1.GetMessageResponse, error) {
 	if q.err != nil {
 		return nil, q.err
 	}
@@ -36,17 +32,6 @@ func TestTheMessageIsAnsweredAndNeverCached(t *testing.T) {
 
 	assert.Equal(t, "the text of insult", res.Msg.GetText())
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
-}
-
-func TestHowManyAroundItIsAskedOfTheQuery(t *testing.T) {
-	query := stubQuery{before: new(uint32), after: new(uint32)}
-
-	_, err := get_message_handler.New(query).GetMessage(t.Context(),
-		connect.NewRequest(&chatv1.GetMessageRequest{MessageId: "insult", Before: 10, After: 5}))
-	require.NoError(t, err)
-
-	assert.Equal(t, uint32(10), *query.before)
-	assert.Equal(t, uint32(5), *query.after)
 }
 
 func TestErrorsMapToTheirCodes(t *testing.T) {

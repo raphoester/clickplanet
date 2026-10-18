@@ -1,62 +1,159 @@
-import {useState} from "react"
+import {useCallback, useState} from "react"
+import {ChatAdmin} from "../clients.ts"
+import {FailureNotice} from "../components/FailureNotice.tsx"
 import {clockOf, timeOf} from "../components/time.ts"
 import {GetMessageResponse, KeptMessage, KeptQuote} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
+import {wordsOf} from "../refusal.ts"
+import {useCall} from "../useCall.ts"
 
-// How many of the messages on each side of the one reported show before the operator asks for the rest.
-const SHOWN_AROUND = 10
+// How many messages the first page on each side of the reported one holds, and each page asked for after.
+const FIRST_PAGE = 10
+const NEXT_PAGE = 20
 
-// The accounts a report names, so the conversation marks what each of them said.
-export type Parties = {reporter: string, reported: string}
+export const CHAT_GONE = "That part of the chat is no longer kept."
+
+// An account a report names, so the conversation marks what it said.
+export type Party = {accountId: string, name: string}
+export type Parties = {reporter: Party, reported: Party}
+
+// A page is full when it holds as many as asked: there may be more past it.
+type Page = {messages: KeptMessage[], more: boolean}
+type Cursor = {beforeMessageId: string} | {afterMessageId: string}
+
+async function pageOf(chat: ChatAdmin, cursor: Cursor, limit: number, signal?: AbortSignal): Promise<Page> {
+    const answer = await chat.listMessages({...cursor, limit}, {signal})
+    return {messages: answer.messages, more: answer.messages.length === limit}
+}
 
 type Props = {
+    chat: ChatAdmin
     message: GetMessageResponse
     removedAt: Date | undefined
     parties: Parties
 }
 
-// The message reported among those sent just before and just after it, oldest first, as the chat showed them.
-export function Conversation({message, removedAt, parties}: Props) {
-    const [allBefore, setAllBefore] = useState(false)
-    const [allAfter, setAllAfter] = useState(false)
-    const before = allBefore ? message.before : message.before.slice(-SHOWN_AROUND)
-    const after = allAfter ? message.after : message.after.slice(0, SHOWN_AROUND)
-    const day = message.sentAt?.toDate()
+// The message reported among the pages of the chat just before and just after it, oldest first, the reported one
+// shown while they load.
+export function Conversation({chat, message, removedAt, parties}: Props) {
+    const messageId = message.messageId
+    const first = useCallback(
+        (signal: AbortSignal) => Promise.all([
+            pageOf(chat, {beforeMessageId: messageId}, FIRST_PAGE, signal),
+            pageOf(chat, {afterMessageId: messageId}, FIRST_PAGE, signal),
+        ]).then(([before, after]) => ({before, after})),
+        [chat, messageId],
+    )
+    const [call, again] = useCall(first)
+    const reported = {line: lineOf(message, parties), removedAt}
 
+    if (call.state === "done") {
+        return <Pages chat={chat} first={call.value} reported={reported} parties={parties}/>
+    }
     return (
         <div className="conversation">
-            {message.before.length === 0 && <p className="hint">Nothing said before it is kept.</p>}
-            {before.length < message.before.length && (
-                <button type="button" className="button-small" onClick={() => setAllBefore(true)}>
-                    Show {message.before.length - before.length} earlier
-                </button>
-            )}
-            <ol className="lines" aria-label="The conversation">
-                {before.map(line => <Line key={line.messageId} line={line} parties={parties} day={day}/>)}
-                <Line line={keptOf(message)} parties={parties} day={day} removedAt={removedAt} reported/>
-                {after.map(line => <Line key={line.messageId} line={line} parties={parties} day={day}/>)}
-            </ol>
-            {after.length < message.after.length && (
-                <button type="button" className="button-small" onClick={() => setAllAfter(true)}>
-                    Show {message.after.length - after.length} later
-                </button>
-            )}
-            {message.after.length === 0 && <p className="hint">Nothing was said after it.</p>}
+            <Lines before={[]} reported={reported} after={[]} parties={parties}/>
+            {call.state === "loading" && <p className="hint">Loading what was said around it…</p>}
+            {call.state === "failed" && <FailureNotice failure={call} onRetry={again}/>}
         </div>
     )
 }
 
-function keptOf(message: GetMessageResponse): KeptMessage {
+// GetMessage names no author: the report does, for the account it names.
+function lineOf(message: GetMessageResponse, parties: Parties): KeptMessage {
+    const party = [parties.reported, parties.reporter].find(each => each.accountId === message.accountId)
     return new KeptMessage({
         messageId: message.messageId,
         accountId: message.accountId,
-        authorName: message.authorName,
+        authorName: message.accountId === "" ? "" : party?.name ?? "",
         text: message.text,
         sentAt: message.sentAt,
         countryId: message.countryId,
         removedAt: message.removedAt,
-        replyTo: message.replyTo,
     })
+}
+
+type Reported = {line: KeptMessage, removedAt: Date | undefined}
+
+type PagesProps = {
+    chat: ChatAdmin
+    first: {before: Page, after: Page}
+    reported: Reported
+    parties: Parties
+}
+
+function Pages({chat, first, reported, parties}: PagesProps) {
+    const [before, setBefore] = useState(first.before)
+    const [after, setAfter] = useState(first.after)
+    const oldest = before.messages[0]?.messageId ?? reported.line.messageId
+    const newest = after.messages.at(-1)?.messageId ?? reported.line.messageId
+
+    return (
+        <div className="conversation">
+            {before.messages.length === 0 && <p className="hint">Nothing said before it is kept.</p>}
+            {before.more && (
+                <More
+                    label="Show earlier"
+                    load={() => pageOf(chat, {beforeMessageId: oldest}, NEXT_PAGE)}
+                    onLoaded={page => setBefore(shown => ({messages: [...page.messages, ...shown.messages], more: page.more}))}
+                />
+            )}
+            <Lines before={before.messages} reported={reported} after={after.messages} parties={parties}/>
+            {after.more && (
+                <More
+                    label="Show later"
+                    load={() => pageOf(chat, {afterMessageId: newest}, NEXT_PAGE)}
+                    onLoaded={page => setAfter(shown => ({messages: [...shown.messages, ...page.messages], more: page.more}))}
+                />
+            )}
+            {after.messages.length === 0 && <p className="hint">Nothing was said after it.</p>}
+        </div>
+    )
+}
+
+type MoreStep = {step: "idle"} | {step: "running"} | {step: "refused", words: string}
+
+// The next page, on a click: a read, so it asks nothing first.
+function More({label, load, onLoaded}: {label: string, load: () => Promise<Page>, onLoaded: (page: Page) => void}) {
+    const [step, setStep] = useState<MoreStep>({step: "idle"})
+
+    const run = () => {
+        setStep({step: "running"})
+        load().then(
+            page => {
+                setStep({step: "idle"})
+                onLoaded(page)
+            },
+            (err: unknown) => setStep({step: "refused", words: wordsOf(err, {notFound: CHAT_GONE})}),
+        )
+    }
+
+    return (
+        <div className="more">
+            <button type="button" className="button-small" disabled={step.step === "running"} onClick={run}>
+                {step.step === "running" ? "Loading…" : label}
+            </button>
+            {step.step === "refused" && <p className="action-refused" role="alert">{step.words}</p>}
+        </div>
+    )
+}
+
+type LinesProps = {
+    before: KeptMessage[]
+    reported: Reported
+    after: KeptMessage[]
+    parties: Parties
+}
+
+function Lines({before, reported, after, parties}: LinesProps) {
+    const day = reported.line.sentAt?.toDate()
+    return (
+        <ol className="lines" aria-label="The conversation">
+            {before.map(line => <Line key={line.messageId} line={line} parties={parties} day={day}/>)}
+            <Line line={reported.line} parties={parties} day={undefined} removedAt={reported.removedAt} reported/>
+            {after.map(line => <Line key={line.messageId} line={line} parties={parties} day={day}/>)}
+        </ol>
+    )
 }
 
 type LineProps = {
@@ -80,7 +177,7 @@ function Line({line, parties, day, reported = false, removedAt}: LineProps) {
                 {party !== undefined && <span className={`tag tag-${party}`}>{party}</span>}
                 <span className="muted">
                     {line.countryId !== "" && <>{line.countryId.toUpperCase()} · </>}
-                    <Sent at={line.sentAt?.toDate()} day={reported ? undefined : day}/>
+                    <Sent at={line.sentAt?.toDate()} day={day}/>
                 </span>
             </div>
             {line.replyTo !== undefined && <Quote quote={line.replyTo}/>}
@@ -92,8 +189,8 @@ function Line({line, parties, day, reported = false, removedAt}: LineProps) {
 
 function partyOf(accountId: string, parties: Parties): "reporter" | "reported" | undefined {
     if (accountId === "") return undefined
-    if (accountId === parties.reported) return "reported"
-    if (accountId === parties.reporter) return "reporter"
+    if (accountId === parties.reported.accountId) return "reported"
+    if (accountId === parties.reporter.accountId) return "reporter"
     return undefined
 }
 

@@ -175,20 +175,6 @@ export class GetMessageRequest extends Message<GetMessageRequest> {
    */
   messageId = "";
 
-  /**
-   * How many of the messages sent just before it to answer with it. None unless asked, 50 at most.
-   *
-   * @generated from field: uint32 before = 2;
-   */
-  before = 0;
-
-  /**
-   * How many of the messages sent just after it. None unless asked, 50 at most.
-   *
-   * @generated from field: uint32 after = 3;
-   */
-  after = 0;
-
   constructor(data?: PartialMessage<GetMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -198,8 +184,6 @@ export class GetMessageRequest extends Message<GetMessageRequest> {
   static readonly typeName = "chat.v1.GetMessageRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "before", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "after", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageRequest {
@@ -257,34 +241,6 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
    */
   removedAt?: Timestamp;
 
-  /**
-   * As KeptMessage.author_name.
-   *
-   * @generated from field: string author_name = 7;
-   */
-  authorName = "";
-
-  /**
-   * As KeptMessage.reply_to.
-   *
-   * @generated from field: chat.v1.KeptQuote reply_to = 8;
-   */
-  replyTo?: KeptQuote;
-
-  /**
-   * Oldest first: as many as asked, or as the retention keeps.
-   *
-   * @generated from field: repeated chat.v1.KeptMessage before = 9;
-   */
-  before: KeptMessage[] = [];
-
-  /**
-   * Oldest first: as many as asked, or as were sent.
-   *
-   * @generated from field: repeated chat.v1.KeptMessage after = 10;
-   */
-  after: KeptMessage[] = [];
-
   constructor(data?: PartialMessage<GetMessageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -299,10 +255,6 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
     { no: 4, name: "sent_at", kind: "message", T: Timestamp },
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "removed_at", kind: "message", T: Timestamp },
-    { no: 7, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 8, name: "reply_to", kind: "message", T: KeptQuote },
-    { no: 9, name: "before", kind: "message", T: KeptMessage, repeated: true },
-    { no: 10, name: "after", kind: "message", T: KeptMessage, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageResponse {
@@ -319,6 +271,100 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
 
   static equals(a: GetMessageResponse | PlainMessage<GetMessageResponse> | undefined, b: GetMessageResponse | PlainMessage<GetMessageResponse> | undefined): boolean {
     return proto3.util.equals(GetMessageResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.ListMessagesRequest
+ */
+export class ListMessagesRequest extends Message<ListMessagesRequest> {
+  /**
+   * The page of the messages sent just before this one. Neither cursor is the newest page; both is InvalidArgument.
+   *
+   * @generated from field: string before_message_id = 1;
+   */
+  beforeMessageId = "";
+
+  /**
+   * The page of the messages sent just after this one.
+   *
+   * @generated from field: string after_message_id = 2;
+   */
+  afterMessageId = "";
+
+  /**
+   * 50 unless asked, 200 at most.
+   *
+   * @generated from field: uint32 limit = 3;
+   */
+  limit = 0;
+
+  constructor(data?: PartialMessage<ListMessagesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.ListMessagesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "before_message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "after_message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMessagesRequest {
+    return new ListMessagesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListMessagesRequest {
+    return new ListMessagesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListMessagesRequest {
+    return new ListMessagesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListMessagesRequest | PlainMessage<ListMessagesRequest> | undefined, b: ListMessagesRequest | PlainMessage<ListMessagesRequest> | undefined): boolean {
+    return proto3.util.equals(ListMessagesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.ListMessagesResponse
+ */
+export class ListMessagesResponse extends Message<ListMessagesResponse> {
+  /**
+   * Oldest first. Fewer than the limit: nothing more is kept before it, or nothing more was sent after it.
+   *
+   * @generated from field: repeated chat.v1.KeptMessage messages = 1;
+   */
+  messages: KeptMessage[] = [];
+
+  constructor(data?: PartialMessage<ListMessagesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.ListMessagesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "messages", kind: "message", T: KeptMessage, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMessagesResponse {
+    return new ListMessagesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListMessagesResponse {
+    return new ListMessagesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListMessagesResponse {
+    return new ListMessagesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListMessagesResponse | PlainMessage<ListMessagesResponse> | undefined, b: ListMessagesResponse | PlainMessage<ListMessagesResponse> | undefined): boolean {
+    return proto3.util.equals(ListMessagesResponse, a, b);
   }
 }
 

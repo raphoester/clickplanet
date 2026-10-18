@@ -22,7 +22,9 @@ import (
 	history_authors "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_message_handler/message_query"
-	message_authors "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_message_handler/message_query/rpc_player_authors"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_messages_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_messages_handler/messages_query"
+	messages_authors "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_messages_handler/messages_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mark_seen_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mute_handler"
@@ -218,8 +220,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			props.Logger)),
 		RemoveMessageHandler: remove_message_handler.New(audit_remove.New(
 			remove_message_usecase.New(messageStore, removalStore, updates, window, cptime.SystemClock{}), props.Logger)),
-		GetMessageHandler: get_message_handler.New(message_query.NewPostgresQuery(
-			db, message_authors.New(player), cptime.SystemClock{}, storage.Retention)),
+		GetMessageHandler: get_message_handler.New(message_query.NewPostgresQuery(db, cptime.SystemClock{}, storage.Retention)),
+		ListMessagesHandler: list_messages_handler.New(messages_query.NewPostgresQuery(
+			db, messages_authors.New(player), cptime.SystemClock{}, storage.Retention)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return chatv1connect.NewAdminServiceHandler(adminService, options...)

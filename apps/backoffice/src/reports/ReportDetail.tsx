@@ -47,7 +47,10 @@ export function ReportDetail({report, onBack, clients = CLIENTS}: Props) {
                 <MessagePanel
                     chat={clients.chat}
                     messageId={report.messageId}
-                    parties={{reporter: report.reporterAccountId, reported: report.reportedAccountId}}
+                    parties={{
+                        reporter: {accountId: report.reporterAccountId, name: report.reporterName},
+                        reported: {accountId: report.reportedAccountId, name: report.reportedName},
+                    }}
                 />
             )}
 

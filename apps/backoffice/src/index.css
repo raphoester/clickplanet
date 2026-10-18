@@ -381,6 +381,12 @@ button:disabled {
     min-width: 0;
 }
 
+.more {
+    display: grid;
+    gap: 4px;
+    justify-items: start;
+}
+
 .lines {
     display: grid;
     gap: 2px;
