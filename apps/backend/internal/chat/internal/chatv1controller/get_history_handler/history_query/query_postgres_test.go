@@ -535,23 +535,33 @@ func (s *testSuite) TestNoViewerHasSeenNothing() {
 	s.Zero(s.history(messages.NoAccount).GetSeenUntilUnixMs())
 }
 
-func (s *testSuite) TestARemovedMessageIsOutOfTheHistoryAndLeavesItsPlace() {
-	s.sent("first", 3*time.Hour)
-	s.sent("insult", 2*time.Hour)
-	s.sent("last", time.Hour)
-	s.removed("insult")
-
-	s.Equal([]string{"first", "last"}, texts(s.history(ada)))
-}
-
-func (s *testSuite) TestAReplyToARemovedMessageQuotesNothing() {
+func (s *testSuite) TestARemovedMessageKeepsItsPlaceAndItsAuthorAndLosesItsTextAndReactions() {
 	s.sentAt("insult", bob, now.Add(-2*time.Hour))
-	s.repliedAt("answer", ada, now.Add(-time.Hour), "insult")
+	s.sent("last", time.Hour)
+	s.reacted("insult", clown, reactions.ReactorOf(ada), true, now.Add(-90*time.Minute))
 	s.removed("insult")
 
 	shown := s.history(ada).GetMessages()
 
-	s.Require().Len(shown, 1)
-	s.Equal("answer", shown[0].GetText())
-	s.Nil(shown[0].GetReplyTo(), "nobody reads a removed message in a quote")
+	s.Require().Len(shown, 2)
+	s.Equal("insult", shown[0].GetId())
+	s.Equal("Bob", shown[0].GetAuthorName())
+	s.True(shown[0].GetRemoved())
+	s.Empty(shown[0].GetText(), "the text never leaves the server")
+	s.Empty(shown[0].GetReactions())
+	s.False(shown[1].GetRemoved())
+	s.Equal("last", shown[1].GetText())
+}
+
+func (s *testSuite) TestAReplyToARemovedMessageQuotesItWithNoText() {
+	s.sentAt("insult", bob, now.Add(-2*time.Hour))
+	s.repliedAt("answer", ada, now.Add(-time.Hour), "insult")
+	s.removed("insult")
+
+	quote := s.history(ada).GetMessages()[1].GetReplyTo()
+
+	s.Equal("insult", quote.GetMessageId())
+	s.Equal("Bob", quote.GetAuthorName())
+	s.True(quote.GetRemoved())
+	s.Empty(quote.GetText(), "nobody reads a removed message in a quote")
 }

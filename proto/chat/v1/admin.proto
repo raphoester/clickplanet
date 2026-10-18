@@ -9,7 +9,7 @@ import "google/protobuf/timestamp.proto";
 service AdminService {
   rpc Mute(MuteRequest) returns (MuteResponse);
 
-  // Out of the history and of every quote for everyone, at once; the row is kept as evidence. NotFound past the retention.
+  // Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
   rpc RemoveMessage(RemoveMessageRequest) returns (RemoveMessageResponse);
 
   // A message as it was sent, removed or not. NotFound past the retention.

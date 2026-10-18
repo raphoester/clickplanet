@@ -1405,8 +1405,9 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"messageId":"<message_id>"}' http://127.0.0.1:8081/chat.v1.AdminService/GetMessage
 ```
 
-- To remove it for everyone, at once. It leaves the history and every quote, and
-  the open chats drop it. The row stays, as evidence, until the retention:
+- To remove it for everyone, at once. It stays in its place and reads "This
+  message has been deleted", in the chat and in every quote; nobody can react to
+  it or answer it. The row stays, as evidence, until the retention:
 
 ```bash
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"messageId":"<message_id>"}' http://127.0.0.1:8081/chat.v1.AdminService/RemoveMessage

@@ -244,6 +244,13 @@ export class ChatMessage extends Message<ChatMessage> {
    */
   authorAccountId = "";
 
+  /**
+   * An operator removed it: it keeps its place, with no text and no reactions.
+   *
+   * @generated from field: bool removed = 15;
+   */
+  removed = false;
+
   constructor(data?: PartialMessage<ChatMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -265,6 +272,7 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 12, name: "author_title", kind: "message", T: Title },
     { no: 13, name: "reply_to", kind: "message", T: Quote },
     { no: 14, name: "author_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 15, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatMessage {
@@ -308,6 +316,13 @@ export class Quote extends Message<Quote> {
    */
   text = "";
 
+  /**
+   * The message quoted was removed: no text.
+   *
+   * @generated from field: bool removed = 5;
+   */
+  removed = false;
+
   constructor(data?: PartialMessage<Quote>) {
     super();
     proto3.util.initPartial(data, this);
@@ -320,6 +335,7 @@ export class Quote extends Message<Quote> {
     { no: 2, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "author_color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Quote {
@@ -866,7 +882,7 @@ export class ChatEvent extends Message<ChatEvent> {
 }
 
 /**
- * An operator removed it: it is out of the history and of every quote, and a client drops it.
+ * An operator removed it: a client keeps it in its place with no text and no reactions, and empties every quote of it.
  *
  * @generated from message chat.v1.MessageRemoved
  */

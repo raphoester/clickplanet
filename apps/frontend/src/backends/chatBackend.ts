@@ -225,6 +225,7 @@ export function decodedMessage(message: ChatMessagePb): ChatMessage {
         reactions: message.reactions.map(decodedCount),
         reactionsVersion: Number(message.reactionsVersion),
         replyTo: decodedQuote(message.replyTo),
+        removed: message.removed,
     }
 }
 
@@ -236,6 +237,7 @@ function decodedQuote(quote: QuotePb | undefined): ChatQuote | undefined {
         authorName: quote.authorName,
         authorColor: quote.authorColor,
         text: quote.text,
+        removed: quote.removed,
     }
 }
 

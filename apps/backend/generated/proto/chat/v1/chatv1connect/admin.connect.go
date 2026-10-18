@@ -45,7 +45,7 @@ const (
 // AdminServiceClient is a client for the chat.v1.AdminService service.
 type AdminServiceClient interface {
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
-	// Out of the history and of every quote for everyone, at once; the row is kept as evidence. NotFound past the retention.
+	// Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
 	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
 	// A message as it was sent, removed or not. NotFound past the retention.
 	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
@@ -108,7 +108,7 @@ func (c *adminServiceClient) GetMessage(ctx context.Context, req *connect.Reques
 // AdminServiceHandler is an implementation of the chat.v1.AdminService service.
 type AdminServiceHandler interface {
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
-	// Out of the history and of every quote for everyone, at once; the row is kept as evidence. NotFound past the retention.
+	// Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
 	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
 	// A message as it was sent, removed or not. NotFound past the retention.
 	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)

@@ -197,8 +197,10 @@ type ChatMessage struct {
 	ReplyTo          *Quote                 `protobuf:"bytes,13,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`
 	// Empty for a message kept before accounts, and for an account that was deleted.
 	AuthorAccountId string `protobuf:"bytes,14,opt,name=author_account_id,json=authorAccountId,proto3" json:"author_account_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// An operator removed it: it keeps its place, with no text and no reactions.
+	Removed       bool `protobuf:"varint,15,opt,name=removed,proto3" json:"removed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ChatMessage) Reset() {
@@ -322,12 +324,21 @@ func (x *ChatMessage) GetAuthorAccountId() string {
 	return ""
 }
 
+func (x *ChatMessage) GetRemoved() bool {
+	if x != nil {
+		return x.Removed
+	}
+	return false
+}
+
 type Quote struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	MessageId     string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	AuthorName    string                 `protobuf:"bytes,2,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
-	AuthorColor   v1.NameColor           `protobuf:"varint,3,opt,name=author_color,json=authorColor,proto3,enum=player.v1.NameColor" json:"author_color,omitempty"`
-	Text          string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	MessageId   string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
+	AuthorName  string                 `protobuf:"bytes,2,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`
+	AuthorColor v1.NameColor           `protobuf:"varint,3,opt,name=author_color,json=authorColor,proto3,enum=player.v1.NameColor" json:"author_color,omitempty"`
+	Text        string                 `protobuf:"bytes,4,opt,name=text,proto3" json:"text,omitempty"`
+	// The message quoted was removed: no text.
+	Removed       bool `protobuf:"varint,5,opt,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -388,6 +399,13 @@ func (x *Quote) GetText() string {
 		return x.Text
 	}
 	return ""
+}
+
+func (x *Quote) GetRemoved() bool {
+	if x != nil {
+		return x.Removed
+	}
+	return false
 }
 
 type SendMessageRequest struct {
@@ -1068,7 +1086,7 @@ func (*ChatEvent_Announcement) isChatEvent_Event() {}
 
 func (*ChatEvent_MessageRemoved) isChatEvent_Event() {}
 
-// An operator removed it: it is out of the history and of every quote, and a client drops it.
+// An operator removed it: a client keeps it in its place with no text and no reactions, and empties every quote of it.
 type MessageRemoved struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MessageId     string                 `protobuf:"bytes,1,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
@@ -1218,7 +1236,7 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\breaction\x18\x01 \x01(\x0e2\x11.chat.v1.ReactionR\breaction\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\rR\x05count\x12\x12\n" +
 	"\x04mine\x18\x03 \x01(\bR\x04mine\x12\x1a\n" +
-	"\breactors\x18\x04 \x03(\tR\breactors\"\x9a\x04\n" +
+	"\breactors\x18\x04 \x03(\tR\breactors\"\xb4\x04\n" +
 	"\vChatMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12%\n" +
 	"\x0fsent_at_unix_ms\x18\x02 \x01(\x03R\fsentAtUnixMs\x12\x1f\n" +
@@ -1235,15 +1253,17 @@ const file_chat_v1_chat_proto_rawDesc = "" +
 	"\rauthor_streak\x18\v \x01(\rR\fauthorStreak\x123\n" +
 	"\fauthor_title\x18\f \x01(\v2\x10.player.v1.TitleR\vauthorTitle\x12)\n" +
 	"\breply_to\x18\r \x01(\v2\x0e.chat.v1.QuoteR\areplyTo\x12*\n" +
-	"\x11author_account_id\x18\x0e \x01(\tR\x0fauthorAccountIdJ\x04\b\x04\x10\x05R\n" +
-	"author_tag\"\x94\x01\n" +
+	"\x11author_account_id\x18\x0e \x01(\tR\x0fauthorAccountId\x12\x18\n" +
+	"\aremoved\x18\x0f \x01(\bR\aremovedJ\x04\b\x04\x10\x05R\n" +
+	"author_tag\"\xae\x01\n" +
 	"\x05Quote\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\tR\tmessageId\x12\x1f\n" +
 	"\vauthor_name\x18\x02 \x01(\tR\n" +
 	"authorName\x127\n" +
 	"\fauthor_color\x18\x03 \x01(\x0e2\x14.player.v1.NameColorR\vauthorColor\x12\x12\n" +
-	"\x04text\x18\x04 \x01(\tR\x04text\"\xa6\x01\n" +
+	"\x04text\x18\x04 \x01(\tR\x04text\x12\x18\n" +
+	"\aremoved\x18\x05 \x01(\bR\aremoved\"\xa6\x01\n" +
 	"\x12SendMessageRequest\x12\x1b\n" +
 	"\tauthor_id\x18\x02 \x01(\tR\bauthorId\x12\x1d\n" +
 	"\n" +

@@ -296,11 +296,11 @@ describe("ChatPanel", () => {
         expect(line.textContent).toContain("Spain fortified French Guiana")
     })
 
-    it("drops a message an operator removed, and the quote of a reply to it", async () => {
+    it("says a message an operator removed was deleted, in its place and in the quote of a reply to it", async () => {
         const insult = message("a", "you all suck")
         const {backend, remove} = stubBackend([
             insult,
-            {...message("b", "say that again", 1_700_000_100_000), replyTo: {
+            {...message("b", "say that again", 1_700_000_100_000), authorAccountId: "account-bo", authorName: "Bo", replyTo: {
                 messageId: "a", authorName: "Ana", authorColor: NameColor.UNSPECIFIED, text: "you all suck",
             }},
         ])
@@ -310,7 +310,10 @@ describe("ChatPanel", () => {
         act(() => remove("a"))
 
         expect(screen.queryByText("you all suck")).toBeNull()
+        expect(screen.getAllByText("This message has been deleted")).toHaveLength(2)
         expect(screen.getByText("say that again")).toBeDefined()
+        expect(screen.queryByRole("button", {name: "Reply to Ana"})).toBeNull()
+        expect(screen.queryByRole("button", {name: "Report this message from Ana"})).toBeNull()
     })
 
     it("renders message text as text, never as markup", async () => {

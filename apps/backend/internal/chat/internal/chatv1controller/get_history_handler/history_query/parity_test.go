@@ -93,7 +93,9 @@ func (s *testSuite) TestAMessageIsInTheHistoryExactlyWhenItCanBeReactedAndReplie
 
 			shown := cpcolls.NewSet[string]()
 			for _, message := range s.history(ada).GetMessages() {
-				shown.Add(message.GetId())
+				if !message.GetRemoved() {
+					shown.Add(message.GetId())
+				}
 			}
 			for _, id := range ids {
 				reactable, err := s.messages.Shown(s.T().Context(), messages.MessageID(id), window.Since(now), window.Size())

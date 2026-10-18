@@ -983,20 +983,21 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
 - **The row stays, as evidence**: a removal is a row of its own in `chat.removals` (`message_id`, `removed_at`;
   migration `20261018120000_removals`), never a delete or a flag on the message. The prune deletes it with the
   messages, past `retention`.
-- **Out of everything anybody is shown, at once**: the history's window (`history_query`), the quote of every reply
-  to it, and `Store.Shown` and `Store.Message`, so nobody reacts to it or answers it (`NotFound`). **It leaves its
-  place**: the window is the newest `historySize` messages still shown. The parity test runs removals through the
-  history, `React` and `SendMessage`.
+- **It keeps its place and its author, and loses its text and its reactions**: the history answers it with
+  `removed` and no text, and the quote of every reply to it too (`history_query`). The text never leaves the server
+  again. The client writes "This message has been deleted".
+- **Nobody acts on it**: `Store.Shown` and `Store.Message` count it in the window and refuse it, so a reaction or a
+  reply to it is `NotFound`. The parity test runs removals through the history, `React` and `SendMessage`.
 - **Only a kept message can be removed** (`Store.Kept`: within the retention, removed or not), else
   `removals.ErrUnknownMessage`, `NotFound`. Removing twice keeps the latest time.
 - **Every open stream is told**: `remove_message_usecase` publishes `feed.MessageRemoved` once the removal is kept,
-  and the stream sends `message_removed`, which the client drops at once. A client that missed it shows the
+  and the stream sends `message_removed`, which the client empties at once. A client that missed it shows the
   message until its next load.
 - **`chat.v1.AdminService/GetMessage(message_id)`** is the message as it was sent, removed or not, with
   `removed_at`, for the operator who reads a report (`message_query`). `NotFound` past the retention.
 - **`audit_remove` logs every call at Warn** (`admin chat message removal`).
-- `e2e/report_actions_test.go` removes a reported message over the console listener, and sees it leave the history
-  and the quote, refuse a reaction, and still read for the operator.
+- `e2e/report_actions_test.go` removes a reported message over the console listener, and sees it stay in the
+  history with no text, its quote with none, a reaction refused, and the text still read for the operator.
 
 #### Replies
 

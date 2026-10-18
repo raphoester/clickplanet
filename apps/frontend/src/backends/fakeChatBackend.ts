@@ -26,7 +26,7 @@ import {
 import {NameColor, PlayerTitle} from "./player.ts";
 import {ClosedRound} from "./standings.ts";
 import {podiumOf} from "../domain/roundReveal.ts";
-import {quoteOf, withoutMessage} from "../domain/chatLog.ts";
+import {quoteOf, withRemoved} from "../domain/chatLog.ts";
 import {v4 as UUIDv4} from 'uuid';
 
 const MESSAGES_PER_SECOND = 0.33
@@ -245,7 +245,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     public remove(messageId = this.messages[this.messages.length - 1]?.id): string {
         if (!this.messages.some(message => message.id === messageId)) return "no such message"
 
-        this.messages.splice(0, this.messages.length, ...withoutMessage(this.messages, messageId))
+        this.messages.splice(0, this.messages.length, ...withRemoved(this.messages, messageId))
         this.listeners.forEach(listener => listener.removed?.(messageId))
         return `removed ${messageId}`
     }

@@ -39,10 +39,10 @@ func (s *Store) Shown(ctx context.Context, id messages.MessageID, since time.Tim
 		SELECT EXISTS (
 			SELECT 1 FROM (
 				SELECT id FROM messages
-				WHERE sent_at >= $2 AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id)
+				WHERE sent_at >= $2
 				ORDER BY seq DESC LIMIT $3
 			) recent
-			WHERE recent.id = $1
+			WHERE recent.id = $1 AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = recent.id)
 		)
 	`, string(id), since, limit).Scan(&shown); err != nil {
 		return false, fmt.Errorf("failed to read whether a message is shown: %w", err)
@@ -66,10 +66,10 @@ func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.T
 		FROM (
 			SELECT id, sent_at, account_id, name, author_admin, country, text, reply_to
 			FROM messages
-			WHERE sent_at >= $2 AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id)
+			WHERE sent_at >= $2
 			ORDER BY seq DESC LIMIT $3
 		) recent
-		WHERE recent.id = $1
+		WHERE recent.id = $1 AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = recent.id)
 	`, string(id), since, limit).Scan(&sentAt, &account, &name, &admin, &country, &text, &replyTo)
 	if errors.Is(err, sql.ErrNoRows) {
 		return messages.Message{}, messages.ErrNotShown

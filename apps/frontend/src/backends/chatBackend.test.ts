@@ -95,7 +95,17 @@ describe("decodedMessage", () => {
             text: "hello",
             reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]}],
             reactionsVersion: 3,
+            removed: false,
         })
+    })
+
+    it("says when an operator removed it, and when a quote is of a removed message", () => {
+        const removed = proto()
+        removed.removed = true
+        removed.replyTo = new Quote({messageId: "message-0", authorName: "Bo", removed: true})
+
+        expect(decodedMessage(removed).removed).toBe(true)
+        expect(decodedMessage(removed).replyTo?.removed).toBe(true)
     })
 
     it("carries the message a reply quotes, and none for a plain message", () => {
@@ -107,6 +117,7 @@ describe("decodedMessage", () => {
             authorName: "Bo",
             authorColor: NameColor.PINK,
             text: "who holds the north",
+            removed: false,
         })
         expect(decodedMessage(proto()).replyTo).toBeUndefined()
     })

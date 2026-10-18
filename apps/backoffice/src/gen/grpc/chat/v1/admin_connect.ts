@@ -24,7 +24,7 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Out of the history and of every quote for everyone, at once; the row is kept as evidence. NotFound past the retention.
+     * Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
      *
      * @generated from rpc chat.v1.AdminService.RemoveMessage
      */

@@ -140,7 +140,7 @@ func (s *testSuite) TestARemovedMessageIsNeitherShownNorReadAndIsStillKept() {
 	s.True(kept, "the row stays, as evidence")
 }
 
-func (s *testSuite) TestARemovedMessageLeavesItsPlaceInTheWindow() {
+func (s *testSuite) TestARemovedMessageKeepsItsPlaceInTheWindow() {
 	older := s.sent("older", "Ada", start)
 	insult := s.sent("insult", "Bob", start.Add(time.Second))
 	s.keep(older)
@@ -149,7 +149,7 @@ func (s *testSuite) TestARemovedMessageLeavesItsPlaceInTheWindow() {
 
 	shown, err := s.store.Shown(context.Background(), "id-older", start, 1)
 	s.Require().NoError(err)
-	s.True(shown, "a window of one holds the newest message still shown")
+	s.False(shown, "a window of one holds the removed message, as the history does")
 }
 
 func (s *testSuite) TestAMessageIsKeptOnlyInsideTheRetention() {
