@@ -14,9 +14,11 @@ import {
     startsGroup,
     unreadSince,
     unseenAfter,
+    withRemoved,
 } from "./chatLog.ts"
 import type {ChatAnnouncement, ChatMessage} from "../backends/chat.ts"
 import {NameColor} from "../backends/player.ts"
+import {Reaction} from "../gen/grpc/chat/v1/chat_pb.ts"
 
 const message = (id: string, sentAt: number): ChatMessage => ({
     id,
@@ -78,6 +80,42 @@ describe("addMessages", () => {
         const many = Array.from({length: CHAT_LOG_LIMIT + 10}, (_, i) => message(`m${i}`, i))
 
         expect(addMessages([], many)).toHaveLength(CHAT_LOG_LIMIT)
+    })
+})
+
+describe("withRemoved", () => {
+    it("keeps the message an operator removed in its place, with no text and no reactions", () => {
+        const insult = {...message("a", 1), reactions: [{reaction: Reaction.CLOWN, count: 2, mine: false, reactors: []}]}
+        const log = [insult, message("b", 2)]
+
+        const kept = withRemoved(log, "a")
+
+        expect(ids(kept)).toEqual(["a", "b"])
+        expect(kept[0]).toMatchObject({removed: true, text: "", reactions: []})
+        expect(kept[1]).toBe(log[1])
+    })
+
+    it("empties the quote of a reply to it", () => {
+        const removed = message("a", 1)
+        const reply = {...message("b", 2), replyTo: quoteOf(removed)}
+
+        const kept = withRemoved([removed, reply], "a")
+
+        expect(kept[1].replyTo).toMatchObject({messageId: "a", text: "", removed: true})
+    })
+
+    it("empties the quote of a reply whose message the log has dropped already", () => {
+        const reply = {...message("b", 2), replyTo: quoteOf(message("a", 1))}
+
+        expect(withRemoved([reply], "a")[0].replyTo).toMatchObject({text: "", removed: true})
+    })
+
+    it("returns the same array when nothing changes, so React sees no change", () => {
+        const log = addMessages([], [message("a", 1)])
+
+        expect(withRemoved(log, "never-seen")).toBe(log)
+        const removed = withRemoved(log, "a")
+        expect(withRemoved(removed, "a")).toBe(removed)
     })
 })
 

@@ -71,6 +71,57 @@ func (NoteKind) EnumDescriptor() ([]byte, []int) {
 	return file_support_v1_admin_proto_rawDescGZIP(), []int{0}
 }
 
+type ReportOutcome int32
+
+const (
+	ReportOutcome_REPORT_OUTCOME_UNSPECIFIED ReportOutcome = 0
+	// The operator acted: a message removed, a mute or a ban.
+	ReportOutcome_REPORT_OUTCOME_ACTED ReportOutcome = 1
+	// Nothing to act on.
+	ReportOutcome_REPORT_OUTCOME_DISMISSED ReportOutcome = 2
+)
+
+// Enum value maps for ReportOutcome.
+var (
+	ReportOutcome_name = map[int32]string{
+		0: "REPORT_OUTCOME_UNSPECIFIED",
+		1: "REPORT_OUTCOME_ACTED",
+		2: "REPORT_OUTCOME_DISMISSED",
+	}
+	ReportOutcome_value = map[string]int32{
+		"REPORT_OUTCOME_UNSPECIFIED": 0,
+		"REPORT_OUTCOME_ACTED":       1,
+		"REPORT_OUTCOME_DISMISSED":   2,
+	}
+)
+
+func (x ReportOutcome) Enum() *ReportOutcome {
+	p := new(ReportOutcome)
+	*p = x
+	return p
+}
+
+func (x ReportOutcome) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReportOutcome) Descriptor() protoreflect.EnumDescriptor {
+	return file_support_v1_admin_proto_enumTypes[1].Descriptor()
+}
+
+func (ReportOutcome) Type() protoreflect.EnumType {
+	return &file_support_v1_admin_proto_enumTypes[1]
+}
+
+func (x ReportOutcome) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReportOutcome.Descriptor instead.
+func (ReportOutcome) EnumDescriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{1}
+}
+
 type ListNotesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset is every note kept.
@@ -346,7 +397,9 @@ type ListReportsRequest struct {
 	// Unset is every report kept.
 	Since *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=since,proto3" json:"since,omitempty"`
 	// Unset is 100; at most 500.
-	Limit         uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Only the reports nobody decided yet.
+	OpenOnly      bool `protobuf:"varint,3,opt,name=open_only,json=openOnly,proto3" json:"open_only,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -393,6 +446,13 @@ func (x *ListReportsRequest) GetLimit() uint32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListReportsRequest) GetOpenOnly() bool {
+	if x != nil {
+		return x.OpenOnly
+	}
+	return false
 }
 
 type ListReportsResponse struct {
@@ -449,8 +509,10 @@ type Report struct {
 	MessageId         string                 `protobuf:"bytes,6,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// The name the game shows for each account now; empty for one it can no longer name.
-	ReporterName  string `protobuf:"bytes,8,opt,name=reporter_name,json=reporterName,proto3" json:"reporter_name,omitempty"`
-	ReportedName  string `protobuf:"bytes,9,opt,name=reported_name,json=reportedName,proto3" json:"reported_name,omitempty"`
+	ReporterName string `protobuf:"bytes,8,opt,name=reporter_name,json=reporterName,proto3" json:"reporter_name,omitempty"`
+	ReportedName string `protobuf:"bytes,9,opt,name=reported_name,json=reportedName,proto3" json:"reported_name,omitempty"`
+	// Unset while the report is open.
+	Decision      *ReportDecision `protobuf:"bytes,10,opt,name=decision,proto3" json:"decision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -548,6 +610,179 @@ func (x *Report) GetReportedName() string {
 	return ""
 }
 
+func (x *Report) GetDecision() *ReportDecision {
+	if x != nil {
+		return x.Decision
+	}
+	return nil
+}
+
+type ReportDecision struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Outcome ReportOutcome          `protobuf:"varint,1,opt,name=outcome,proto3,enum=support.v1.ReportOutcome" json:"outcome,omitempty"`
+	// Optional: why, in the operator's words.
+	Comment       string                 `protobuf:"bytes,2,opt,name=comment,proto3" json:"comment,omitempty"`
+	DecidedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportDecision) Reset() {
+	*x = ReportDecision{}
+	mi := &file_support_v1_admin_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportDecision) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportDecision) ProtoMessage() {}
+
+func (x *ReportDecision) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportDecision.ProtoReflect.Descriptor instead.
+func (*ReportDecision) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ReportDecision) GetOutcome() ReportOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return ReportOutcome_REPORT_OUTCOME_UNSPECIFIED
+}
+
+func (x *ReportDecision) GetComment() string {
+	if x != nil {
+		return x.Comment
+	}
+	return ""
+}
+
+func (x *ReportDecision) GetDecidedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DecidedAt
+	}
+	return nil
+}
+
+type DecideReportRequest struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	ReportId string                 `protobuf:"bytes,1,opt,name=report_id,json=reportId,proto3" json:"report_id,omitempty"`
+	Outcome  ReportOutcome          `protobuf:"varint,2,opt,name=outcome,proto3,enum=support.v1.ReportOutcome" json:"outcome,omitempty"`
+	// Optional: why, in the operator's words.
+	Comment       string `protobuf:"bytes,3,opt,name=comment,proto3" json:"comment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecideReportRequest) Reset() {
+	*x = DecideReportRequest{}
+	mi := &file_support_v1_admin_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecideReportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecideReportRequest) ProtoMessage() {}
+
+func (x *DecideReportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecideReportRequest.ProtoReflect.Descriptor instead.
+func (*DecideReportRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DecideReportRequest) GetReportId() string {
+	if x != nil {
+		return x.ReportId
+	}
+	return ""
+}
+
+func (x *DecideReportRequest) GetOutcome() ReportOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return ReportOutcome_REPORT_OUTCOME_UNSPECIFIED
+}
+
+func (x *DecideReportRequest) GetComment() string {
+	if x != nil {
+		return x.Comment
+	}
+	return ""
+}
+
+type DecideReportResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DecidedAt     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecideReportResponse) Reset() {
+	*x = DecideReportResponse{}
+	mi := &file_support_v1_admin_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecideReportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecideReportResponse) ProtoMessage() {}
+
+func (x *DecideReportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_admin_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecideReportResponse.ProtoReflect.Descriptor instead.
+func (*DecideReportResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_admin_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DecideReportResponse) GetDecidedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DecidedAt
+	}
+	return nil
+}
+
 var File_support_v1_admin_proto protoreflect.FileDescriptor
 
 const file_support_v1_admin_proto_rawDesc = "" +
@@ -575,12 +810,13 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\fcontent_type\x18\x01 \x01(\tR\vcontentType\x12\x1d\n" +
 	"\n" +
 	"size_bytes\x18\x02 \x01(\x04R\tsizeBytes\x12\x10\n" +
-	"\x03url\x18\x03 \x01(\tR\x03url\"\\\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\"y\n" +
 	"\x12ListReportsRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\rR\x05limit\"C\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\x12\x1b\n" +
+	"\topen_only\x18\x03 \x01(\bR\bopenOnly\"C\n" +
 	"\x13ListReportsResponse\x12,\n" +
-	"\areports\x18\x01 \x03(\v2\x12.support.v1.ReportR\areports\"\xe2\x02\n" +
+	"\areports\x18\x01 \x03(\v2\x12.support.v1.ReportR\areports\"\x9a\x03\n" +
 	"\x06Report\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12.\n" +
 	"\x13reporter_account_id\x18\x02 \x01(\tR\x11reporterAccountId\x12.\n" +
@@ -592,14 +828,33 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12#\n" +
 	"\rreporter_name\x18\b \x01(\tR\freporterName\x12#\n" +
-	"\rreported_name\x18\t \x01(\tR\freportedName*R\n" +
+	"\rreported_name\x18\t \x01(\tR\freportedName\x126\n" +
+	"\bdecision\x18\n" +
+	" \x01(\v2\x1a.support.v1.ReportDecisionR\bdecision\"\x9a\x01\n" +
+	"\x0eReportDecision\x123\n" +
+	"\aoutcome\x18\x01 \x01(\x0e2\x19.support.v1.ReportOutcomeR\aoutcome\x12\x18\n" +
+	"\acomment\x18\x02 \x01(\tR\acomment\x129\n" +
+	"\n" +
+	"decided_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\"\x81\x01\n" +
+	"\x13DecideReportRequest\x12\x1b\n" +
+	"\treport_id\x18\x01 \x01(\tR\breportId\x123\n" +
+	"\aoutcome\x18\x02 \x01(\x0e2\x19.support.v1.ReportOutcomeR\aoutcome\x12\x18\n" +
+	"\acomment\x18\x03 \x01(\tR\acomment\"Q\n" +
+	"\x14DecideReportResponse\x129\n" +
+	"\n" +
+	"decided_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt*R\n" +
 	"\bNoteKind\x12\x19\n" +
 	"\x15NOTE_KIND_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14NOTE_KIND_SUGGESTION\x10\x01\x12\x11\n" +
-	"\rNOTE_KIND_BUG\x10\x022\xa8\x01\n" +
+	"\rNOTE_KIND_BUG\x10\x02*g\n" +
+	"\rReportOutcome\x12\x1e\n" +
+	"\x1aREPORT_OUTCOME_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14REPORT_OUTCOME_ACTED\x10\x01\x12\x1c\n" +
+	"\x18REPORT_OUTCOME_DISMISSED\x10\x022\xfb\x01\n" +
 	"\fAdminService\x12H\n" +
 	"\tListNotes\x12\x1c.support.v1.ListNotesRequest\x1a\x1d.support.v1.ListNotesResponse\x12N\n" +
-	"\vListReports\x12\x1e.support.v1.ListReportsRequest\x1a\x1f.support.v1.ListReportsResponseB\xb9\x01\n" +
+	"\vListReports\x12\x1e.support.v1.ListReportsRequest\x1a\x1f.support.v1.ListReportsResponse\x12Q\n" +
+	"\fDecideReport\x12\x1f.support.v1.DecideReportRequest\x1a .support.v1.DecideReportResponseB\xb9\x01\n" +
 	"\x0ecom.support.v1B\n" +
 	"AdminProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1;supportv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Support.V1\xca\x02\n" +
@@ -617,42 +872,53 @@ func file_support_v1_admin_proto_rawDescGZIP() []byte {
 	return file_support_v1_admin_proto_rawDescData
 }
 
-var file_support_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_support_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_support_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_support_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_support_v1_admin_proto_goTypes = []any{
 	(NoteKind)(0),                 // 0: support.v1.NoteKind
-	(*ListNotesRequest)(nil),      // 1: support.v1.ListNotesRequest
-	(*ListNotesResponse)(nil),     // 2: support.v1.ListNotesResponse
-	(*Note)(nil),                  // 3: support.v1.Note
-	(*NoteAttachment)(nil),        // 4: support.v1.NoteAttachment
-	(*ListReportsRequest)(nil),    // 5: support.v1.ListReportsRequest
-	(*ListReportsResponse)(nil),   // 6: support.v1.ListReportsResponse
-	(*Report)(nil),                // 7: support.v1.Report
-	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
-	(*PageContext)(nil),           // 9: support.v1.PageContext
-	(ReportReason)(0),             // 10: support.v1.ReportReason
+	(ReportOutcome)(0),            // 1: support.v1.ReportOutcome
+	(*ListNotesRequest)(nil),      // 2: support.v1.ListNotesRequest
+	(*ListNotesResponse)(nil),     // 3: support.v1.ListNotesResponse
+	(*Note)(nil),                  // 4: support.v1.Note
+	(*NoteAttachment)(nil),        // 5: support.v1.NoteAttachment
+	(*ListReportsRequest)(nil),    // 6: support.v1.ListReportsRequest
+	(*ListReportsResponse)(nil),   // 7: support.v1.ListReportsResponse
+	(*Report)(nil),                // 8: support.v1.Report
+	(*ReportDecision)(nil),        // 9: support.v1.ReportDecision
+	(*DecideReportRequest)(nil),   // 10: support.v1.DecideReportRequest
+	(*DecideReportResponse)(nil),  // 11: support.v1.DecideReportResponse
+	(*timestamppb.Timestamp)(nil), // 12: google.protobuf.Timestamp
+	(*PageContext)(nil),           // 13: support.v1.PageContext
+	(ReportReason)(0),             // 14: support.v1.ReportReason
 }
 var file_support_v1_admin_proto_depIdxs = []int32{
-	8,  // 0: support.v1.ListNotesRequest.since:type_name -> google.protobuf.Timestamp
+	12, // 0: support.v1.ListNotesRequest.since:type_name -> google.protobuf.Timestamp
 	0,  // 1: support.v1.ListNotesRequest.kind:type_name -> support.v1.NoteKind
-	3,  // 2: support.v1.ListNotesResponse.notes:type_name -> support.v1.Note
+	4,  // 2: support.v1.ListNotesResponse.notes:type_name -> support.v1.Note
 	0,  // 3: support.v1.Note.kind:type_name -> support.v1.NoteKind
-	8,  // 4: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
-	9,  // 5: support.v1.Note.context:type_name -> support.v1.PageContext
-	4,  // 6: support.v1.Note.attachments:type_name -> support.v1.NoteAttachment
-	8,  // 7: support.v1.ListReportsRequest.since:type_name -> google.protobuf.Timestamp
-	7,  // 8: support.v1.ListReportsResponse.reports:type_name -> support.v1.Report
-	10, // 9: support.v1.Report.reason:type_name -> support.v1.ReportReason
-	8,  // 10: support.v1.Report.created_at:type_name -> google.protobuf.Timestamp
-	1,  // 11: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
-	5,  // 12: support.v1.AdminService.ListReports:input_type -> support.v1.ListReportsRequest
-	2,  // 13: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
-	6,  // 14: support.v1.AdminService.ListReports:output_type -> support.v1.ListReportsResponse
-	13, // [13:15] is the sub-list for method output_type
-	11, // [11:13] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	12, // 4: support.v1.Note.submitted_at:type_name -> google.protobuf.Timestamp
+	13, // 5: support.v1.Note.context:type_name -> support.v1.PageContext
+	5,  // 6: support.v1.Note.attachments:type_name -> support.v1.NoteAttachment
+	12, // 7: support.v1.ListReportsRequest.since:type_name -> google.protobuf.Timestamp
+	8,  // 8: support.v1.ListReportsResponse.reports:type_name -> support.v1.Report
+	14, // 9: support.v1.Report.reason:type_name -> support.v1.ReportReason
+	12, // 10: support.v1.Report.created_at:type_name -> google.protobuf.Timestamp
+	9,  // 11: support.v1.Report.decision:type_name -> support.v1.ReportDecision
+	1,  // 12: support.v1.ReportDecision.outcome:type_name -> support.v1.ReportOutcome
+	12, // 13: support.v1.ReportDecision.decided_at:type_name -> google.protobuf.Timestamp
+	1,  // 14: support.v1.DecideReportRequest.outcome:type_name -> support.v1.ReportOutcome
+	12, // 15: support.v1.DecideReportResponse.decided_at:type_name -> google.protobuf.Timestamp
+	2,  // 16: support.v1.AdminService.ListNotes:input_type -> support.v1.ListNotesRequest
+	6,  // 17: support.v1.AdminService.ListReports:input_type -> support.v1.ListReportsRequest
+	10, // 18: support.v1.AdminService.DecideReport:input_type -> support.v1.DecideReportRequest
+	3,  // 19: support.v1.AdminService.ListNotes:output_type -> support.v1.ListNotesResponse
+	7,  // 20: support.v1.AdminService.ListReports:output_type -> support.v1.ListReportsResponse
+	11, // 21: support.v1.AdminService.DecideReport:output_type -> support.v1.DecideReportResponse
+	19, // [19:22] is the sub-list for method output_type
+	16, // [16:19] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_admin_proto_init() }
@@ -666,8 +932,8 @@ func file_support_v1_admin_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_v1_admin_proto_rawDesc), len(file_support_v1_admin_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   7,
+			NumEnums:      2,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

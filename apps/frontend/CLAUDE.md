@@ -653,6 +653,22 @@ the log has dropped the message it answers.
 - In fake mode one opening line is a reply, and every third line after it
   answers a random earlier one.
 
+#### Removed messages
+
+**An operator can remove a message** (the back office, on a report). It keeps its
+place and its author, and reads "This message has been deleted" (`REMOVED_TEXT`
+in `QuoteLine.tsx`), in italics. So does the quote of every reply to it.
+
+- **The server never sends the text again**: the history answers `removed` with
+  no text and no reactions, on the message and on a quote.
+- **The stream sends `message_removed`** with its id, and `useChat` empties the
+  message and every quote of it at once (`withRemoved` in `domain/chatLog.ts`).
+- **Nothing more can be done with it**: no reaction, no reply, no report.
+- A removal missed while the stream was down shows until the next page load: a
+  catch-up only adds what the history holds.
+- In fake mode `fakeChat.remove()` in the console removes the newest line, and
+  `fakeChat.remove(id)` a given one.
+
 #### Reactions
 
 A message carries reactions from a fixed set, `chat.v1.Reaction`: the proto enum

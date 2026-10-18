@@ -20,12 +20,15 @@ type stubQuery struct {
 	answer *supportv1.ListReportsResponse
 	err    error
 
-	since time.Time
-	limit uint32
+	since    time.Time
+	limit    uint32
+	openOnly bool
 }
 
-func (s *stubQuery) Reports(_ context.Context, since time.Time, limit uint32) (*supportv1.ListReportsResponse, error) {
-	s.since, s.limit = since, limit
+func (s *stubQuery) Reports(
+	_ context.Context, since time.Time, limit uint32, openOnly bool,
+) (*supportv1.ListReportsResponse, error) {
+	s.since, s.limit, s.openOnly = since, limit, openOnly
 	return s.answer, s.err
 }
 
@@ -43,11 +46,12 @@ func TestTheWindowReachesTheQueryAndItsAnswerComesBack(t *testing.T) {
 	since := time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
 	query := &stubQuery{answer: &supportv1.ListReportsResponse{Reports: []*supportv1.Report{{Text: "it never sleeps"}}}}
 
-	answer, err := list(t, query, &supportv1.ListReportsRequest{Since: timestamppb.New(since), Limit: 20})
+	answer, err := list(t, query, &supportv1.ListReportsRequest{Since: timestamppb.New(since), Limit: 20, OpenOnly: true})
 	require.NoError(t, err)
 
 	assert.True(t, since.Equal(query.since))
 	assert.Equal(t, uint32(20), query.limit)
+	assert.True(t, query.openOnly)
 	assert.Same(t, query.answer, answer)
 }
 

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { MuteRequest, MuteResponse } from "./admin_pb.js";
+import { GetMessageRequest, GetMessageResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -21,6 +21,28 @@ export const AdminService = {
       name: "Mute",
       I: MuteRequest,
       O: MuteResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
+     *
+     * @generated from rpc chat.v1.AdminService.RemoveMessage
+     */
+    removeMessage: {
+      name: "RemoveMessage",
+      I: RemoveMessageRequest,
+      O: RemoveMessageResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * A message as it was sent, removed or not. NotFound past the retention.
+     *
+     * @generated from rpc chat.v1.AdminService.GetMessage
+     */
+    getMessage: {
+      name: "GetMessage",
+      I: GetMessageRequest,
+      O: GetMessageResponse,
       kind: MethodKind.Unary,
     },
   }

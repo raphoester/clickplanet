@@ -603,6 +603,11 @@ button.chat-quote:hover {
     color: var(--author);
 }
 
+.chat-removed {
+    font-style: italic;
+    opacity: 0.7;
+}
+
 .chat-quote-text {
     min-width: 0;
     overflow: hidden;

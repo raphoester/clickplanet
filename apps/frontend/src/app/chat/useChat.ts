@@ -12,7 +12,7 @@ import {
     OutgoingMessage,
     OutgoingReaction,
 } from '../../backends/chat.ts';
-import {accountSentUnder, addAnnouncements, addMessages, nameSentUnder, newestAt} from '../../domain/chatLog.ts';
+import {accountSentUnder, addAnnouncements, addMessages, nameSentUnder, newestAt, withRemoved} from '../../domain/chatLog.ts';
 import {
     applyReactionsAnswer,
     applyReactionsChange,
@@ -89,6 +89,7 @@ export function useChat({backend, accountId, username}: UseChatOptions) {
             change => setMessages(current => applyReactionsChange(current, change)),
             announcement => setAnnouncements(current => addAnnouncements(current, [announcement])),
             () => void catchUp(),
+            messageId => setMessages(current => withRemoved(current, messageId)),
         )
 
         backend.getHistory(abort.signal)

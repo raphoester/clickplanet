@@ -25,13 +25,21 @@ const (
 	MaxLimit     = 500
 )
 
-var ErrUnknownReason = errors.New("a stored report has a reason the wire cannot carry")
+var (
+	ErrUnknownReason  = errors.New("a stored report has a reason the wire cannot carry")
+	ErrUnknownOutcome = errors.New("a stored decision has an outcome the wire cannot carry")
+)
 
 var reasons = map[string]supportv1.ReportReason{
 	"cheating":   supportv1.ReportReason_REPORT_REASON_CHEATING,
 	"chat_abuse": supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE,
 	"bad_name":   supportv1.ReportReason_REPORT_REASON_BAD_NAME,
 	"other":      supportv1.ReportReason_REPORT_REASON_OTHER,
+}
+
+var outcomes = map[string]supportv1.ReportOutcome{
+	"acted":     supportv1.ReportOutcome_REPORT_OUTCOME_ACTED,
+	"dismissed": supportv1.ReportOutcome_REPORT_OUTCOME_DISMISSED,
 }
 
 func NewPostgresQuery(db cppg.Querier, authors Authors) *PostgresQuery {
@@ -44,10 +52,12 @@ type PostgresQuery struct {
 }
 
 const reports = `
-	SELECT id, reporter_account_id, reported_account_id, reason, text, message_id, created_at
+	SELECT reports.id, reporter_account_id, reported_account_id, reason, text, message_id, created_at,
+		report_decisions.outcome, report_decisions.comment, report_decisions.decided_at
 	FROM reports
-	WHERE $1::timestamptz IS NULL OR created_at >= $1
-	ORDER BY created_at DESC, id DESC
+	LEFT JOIN report_decisions ON report_decisions.report_id = reports.id
+	WHERE ($1::timestamptz IS NULL OR created_at >= $1) AND (NOT $3 OR report_decisions.report_id IS NULL)
+	ORDER BY created_at DESC, reports.id DESC
 	LIMIT $2
 `
 
@@ -57,8 +67,10 @@ type row struct {
 }
 
 // A zero since is every report kept; a zero limit is DefaultLimit, and none passes MaxLimit.
-func (q *PostgresQuery) Reports(ctx context.Context, since time.Time, limit uint32) (*supportv1.ListReportsResponse, error) {
-	rows, err := q.rows(ctx, since, limit)
+func (q *PostgresQuery) Reports(
+	ctx context.Context, since time.Time, limit uint32, openOnly bool,
+) (*supportv1.ListReportsResponse, error) {
+	rows, err := q.rows(ctx, since, limit, openOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -77,8 +89,9 @@ func (q *PostgresQuery) Reports(ctx context.Context, since time.Time, limit uint
 	return answer, nil
 }
 
-func (q *PostgresQuery) rows(ctx context.Context, since time.Time, limit uint32) ([]row, error) {
-	found, err := q.db.QueryContext(ctx, reports, sql.NullTime{Time: since.UTC(), Valid: !since.IsZero()}, limitOf(limit))
+func (q *PostgresQuery) rows(ctx context.Context, since time.Time, limit uint32, openOnly bool) ([]row, error) {
+	found, err := q.db.QueryContext(ctx, reports,
+		sql.NullTime{Time: since.UTC(), Valid: !since.IsZero()}, limitOf(limit), openOnly)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the reports: %w", err)
 	}
@@ -91,8 +104,11 @@ func (q *PostgresQuery) rows(ctx context.Context, since time.Time, limit uint32)
 			reporter, reported uuid.UUID
 			reason             string
 			at                 time.Time
+			outcome, comment   sql.NullString
+			decidedAt          sql.NullTime
 		)
-		if err := found.Scan(&report.Id, &reporter, &reported, &reason, &report.Text, &report.MessageId, &at); err != nil {
+		if err := found.Scan(&report.Id, &reporter, &reported, &reason, &report.Text, &report.MessageId, &at,
+			&outcome, &comment, &decidedAt); err != nil {
 			return nil, fmt.Errorf("failed to read a report: %w", err)
 		}
 
@@ -103,6 +119,15 @@ func (q *PostgresQuery) rows(ctx context.Context, since time.Time, limit uint32)
 		report.Reason = known
 		report.ReporterAccountId, report.ReportedAccountId = reporter.String(), reported.String()
 		report.CreatedAt = timestamppb.New(at)
+		if outcome.Valid {
+			decided, ok := outcomes[outcome.String]
+			if !ok {
+				return nil, fmt.Errorf("%w: %q", ErrUnknownOutcome, outcome.String)
+			}
+			report.Decision = &supportv1.ReportDecision{
+				Outcome: decided, Comment: comment.String, DecidedAt: timestamppb.New(decidedAt.Time),
+			}
+		}
 		read = append(read, row{report: report, reporter: cpsession.AccountID(reporter), reported: cpsession.AccountID(reported)})
 	}
 	if err := found.Err(); err != nil {

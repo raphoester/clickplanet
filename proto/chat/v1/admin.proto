@@ -8,6 +8,12 @@ import "google/protobuf/timestamp.proto";
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
 service AdminService {
   rpc Mute(MuteRequest) returns (MuteResponse);
+
+  // Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
+  rpc RemoveMessage(RemoveMessageRequest) returns (RemoveMessageResponse);
+
+  // A message as it was sent, removed or not. NotFound past the retention.
+  rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
 }
 
 message MuteRequest {
@@ -18,4 +24,27 @@ message MuteRequest {
 message MuteResponse {
   string scope = 1;
   google.protobuf.Timestamp muted_until = 2;
+}
+
+message RemoveMessageRequest {
+  string message_id = 1;
+}
+
+message RemoveMessageResponse {
+  google.protobuf.Timestamp removed_at = 1;
+}
+
+message GetMessageRequest {
+  string message_id = 1;
+}
+
+message GetMessageResponse {
+  string message_id = 1;
+  // Empty for a message kept before accounts, or of a deleted account.
+  string account_id = 2;
+  string text = 3;
+  google.protobuf.Timestamp sent_at = 4;
+  string country_id = 5;
+  // Unset while the message is shown.
+  google.protobuf.Timestamp removed_at = 6;
 }

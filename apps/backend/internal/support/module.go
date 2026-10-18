@@ -18,6 +18,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsessionverifier"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/postgres_decision_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/usecases/decide_report_usecase/audit_decide_report"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/postgres_note_store"
@@ -38,6 +41,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/decide_report_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/get_attachment_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler/notes_query"
@@ -156,6 +160,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	adminService := supportv1controller.AdminService{
 		ListNotesHandler:   list_notes_handler.New(notes_query.NewPostgresQuery(db, bucket)),
 		ListReportsHandler: list_reports_handler.New(reports_query.NewPostgresQuery(db, report_authors.New(player))),
+		DecideReportHandler: decide_report_handler.New(audit_decide_report.New(
+			decide_report_usecase.New(postgres_decision_store.New(db), clock), props.Logger)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return supportv1connect.NewAdminServiceHandler(adminService, options...)

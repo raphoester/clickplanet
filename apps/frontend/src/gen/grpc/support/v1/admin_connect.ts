@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
+import { DecideReportRequest, DecideReportResponse, ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -30,6 +30,17 @@ export const AdminService = {
       name: "ListReports",
       I: ListReportsRequest,
       O: ListReportsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
+     *
+     * @generated from rpc support.v1.AdminService.DecideReport
+     */
+    decideReport: {
+      name: "DecideReport",
+      I: DecideReportRequest,
+      O: DecideReportResponse,
       kind: MethodKind.Unary,
     },
   }

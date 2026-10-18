@@ -101,7 +101,8 @@ func (q *PostgresQuery) seenUntil(ctx context.Context, viewer cpsession.AccountI
 }
 
 const inWindow = `
-	SELECT seq, id, sent_at, account_id, name, author_admin, country, text, reply_to
+	SELECT seq, id, sent_at, account_id, name, author_admin, country, text, reply_to,
+		EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id) AS removed
 	FROM messages
 	WHERE sent_at >= $1
 	ORDER BY seq DESC
@@ -117,16 +118,19 @@ const shownMessages = `
 		shown.name,
 		shown.author_admin,
 		shown.country,
-		shown.text,
+		CASE WHEN shown.removed THEN '' ELSE shown.text END,
+		shown.removed,
 		COALESCE(quoted.id, ''),
 		quoted.account_id,
 		COALESCE(quoted.name, ''),
-		COALESCE(quoted.text, ''),
+		CASE WHEN quoted.removed THEN '' ELSE COALESCE(quoted.text, '') END,
+		COALESCE(quoted.removed, false),
 		COALESCE(versions.version, 0),
 		COALESCE(tallies.counts, '[]')
 	FROM shown
 	LEFT JOIN LATERAL (
-		SELECT id, account_id, name, text
+		SELECT id, account_id, name, text,
+			EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id) AS removed
 		FROM messages
 		WHERE messages.id = shown.reply_to AND messages.sent_at >= $1
 		ORDER BY seq DESC
@@ -151,7 +155,7 @@ const shownMessages = `
 					'{}'
 				) AS accounts
 			FROM reactions
-			WHERE reactions.message_id = versions.message_id
+			WHERE reactions.message_id = versions.message_id AND NOT shown.removed
 			GROUP BY reaction
 		) given
 	) tallies ON true
@@ -166,6 +170,7 @@ type row struct {
 	admin   bool
 	country string
 	text    string
+	removed bool
 	quoted  quoted
 	version uint64
 	counts  []count
@@ -176,6 +181,7 @@ type quoted struct {
 	account cpsession.AccountID
 	name    string
 	text    string
+	removed bool
 }
 
 type count struct {
@@ -223,8 +229,8 @@ func (q *PostgresQuery) rows(ctx context.Context, since time.Time, viewer cpsess
 			counts        []byte
 		)
 		if err := result.Scan(
-			&each.id, &each.sentAt, &account, &each.name, &each.admin, &each.country, &each.text,
-			&each.quoted.id, &quotedAccount, &each.quoted.name, &each.quoted.text,
+			&each.id, &each.sentAt, &account, &each.name, &each.admin, &each.country, &each.text, &each.removed,
+			&each.quoted.id, &quotedAccount, &each.quoted.name, &each.quoted.text, &each.quoted.removed,
 			&each.version, &counts,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan a message of the chat history: %w", err)
@@ -296,6 +302,7 @@ func messageOf(row row, named map[cpsession.AccountID]*playerv1.Author) *chatv1.
 		SentAtUnixMs:     row.sentAt,
 		CountryId:        row.country,
 		Text:             row.text,
+		Removed:          row.removed,
 		Reactions:        reactionsOf(row.counts, named),
 		ReactionsVersion: row.version,
 		ReplyTo:          quoteOf(row.quoted, named),
@@ -327,7 +334,7 @@ func quoteOf(quoted quoted, named map[cpsession.AccountID]*playerv1.Author) *cha
 		return nil
 	}
 
-	quote := &chatv1.Quote{MessageId: quoted.id, Text: quoted.text}
+	quote := &chatv1.Quote{MessageId: quoted.id, Text: quoted.text, Removed: quoted.removed}
 	if quoted.account == cpsession.NoAccount {
 		quote.AuthorName = quoted.name
 		return quote

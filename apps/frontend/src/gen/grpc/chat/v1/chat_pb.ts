@@ -244,6 +244,13 @@ export class ChatMessage extends Message<ChatMessage> {
    */
   authorAccountId = "";
 
+  /**
+   * An operator removed it: it keeps its place, with no text and no reactions.
+   *
+   * @generated from field: bool removed = 15;
+   */
+  removed = false;
+
   constructor(data?: PartialMessage<ChatMessage>) {
     super();
     proto3.util.initPartial(data, this);
@@ -265,6 +272,7 @@ export class ChatMessage extends Message<ChatMessage> {
     { no: 12, name: "author_title", kind: "message", T: Title },
     { no: 13, name: "reply_to", kind: "message", T: Quote },
     { no: 14, name: "author_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 15, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatMessage {
@@ -308,6 +316,13 @@ export class Quote extends Message<Quote> {
    */
   text = "";
 
+  /**
+   * The message quoted was removed: no text.
+   *
+   * @generated from field: bool removed = 5;
+   */
+  removed = false;
+
   constructor(data?: PartialMessage<Quote>) {
     super();
     proto3.util.initPartial(data, this);
@@ -320,6 +335,7 @@ export class Quote extends Message<Quote> {
     { no: 2, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "author_color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "removed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Quote {
@@ -825,6 +841,12 @@ export class ChatEvent extends Message<ChatEvent> {
      */
     value: Announcement;
     case: "announcement";
+  } | {
+    /**
+     * @generated from field: chat.v1.MessageRemoved message_removed = 5;
+     */
+    value: MessageRemoved;
+    case: "messageRemoved";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<ChatEvent>) {
@@ -839,6 +861,7 @@ export class ChatEvent extends Message<ChatEvent> {
     { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
     { no: 3, name: "reactions", kind: "message", T: ReactionsChanged, oneof: "event" },
     { no: 4, name: "announcement", kind: "message", T: Announcement, oneof: "event" },
+    { no: 5, name: "message_removed", kind: "message", T: MessageRemoved, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatEvent {
@@ -855,6 +878,45 @@ export class ChatEvent extends Message<ChatEvent> {
 
   static equals(a: ChatEvent | PlainMessage<ChatEvent> | undefined, b: ChatEvent | PlainMessage<ChatEvent> | undefined): boolean {
     return proto3.util.equals(ChatEvent, a, b);
+  }
+}
+
+/**
+ * An operator removed it: a client keeps it in its place with no text and no reactions, and empties every quote of it.
+ *
+ * @generated from message chat.v1.MessageRemoved
+ */
+export class MessageRemoved extends Message<MessageRemoved> {
+  /**
+   * @generated from field: string message_id = 1;
+   */
+  messageId = "";
+
+  constructor(data?: PartialMessage<MessageRemoved>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.MessageRemoved";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageRemoved {
+    return new MessageRemoved().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MessageRemoved {
+    return new MessageRemoved().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MessageRemoved {
+    return new MessageRemoved().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MessageRemoved | PlainMessage<MessageRemoved> | undefined, b: MessageRemoved | PlainMessage<MessageRemoved> | undefined): boolean {
+    return proto3.util.equals(MessageRemoved, a, b);
   }
 }
 

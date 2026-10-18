@@ -46,6 +46,7 @@ function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncemen
     const listeners: ((message: ChatMessage) => void)[] = []
     const reactionListeners: ((change: ReactionsChange) => void)[] = []
     const announcementListeners: ((announcement: ChatAnnouncement) => void)[] = []
+    const removalListeners: ((messageId: string) => void)[] = []
 
     const backend = {
         getHistory: vi.fn().mockResolvedValue({messages: history, announcements, seenUntil}),
@@ -54,10 +55,13 @@ function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncemen
             callback: (message: ChatMessage) => void,
             onReactions?: (change: ReactionsChange) => void,
             onAnnouncement?: (announcement: ChatAnnouncement) => void,
+            _onResumed?: () => void,
+            onRemoved?: (messageId: string) => void,
         ) => {
             listeners.push(callback)
             if (onReactions) reactionListeners.push(onReactions)
             if (onAnnouncement) announcementListeners.push(onAnnouncement)
+            if (onRemoved) removalListeners.push(onRemoved)
             return () => {
             }
         }),
@@ -88,6 +92,7 @@ function stubBackend(history: ChatMessage[] = [], announcements: ChatAnnouncemen
         broadcast: (m: ChatMessage) => listeners.forEach(listener => listener(m)),
         broadcastReactions: (change: ReactionsChange) => reactionListeners.forEach(listener => listener(change)),
         announce: (announcement: ChatAnnouncement) => announcementListeners.forEach(listener => listener(announcement)),
+        remove: (messageId: string) => removalListeners.forEach(listener => listener(messageId)),
     }
 }
 
@@ -289,6 +294,26 @@ describe("ChatPanel", () => {
         const line = (await screen.findByText("fortified French Guiana", {exact: false})).closest("li")!
         expect(line.className).toBe("chat-announcement")
         expect(line.textContent).toContain("Spain fortified French Guiana")
+    })
+
+    it("says a message an operator removed was deleted, in its place and in the quote of a reply to it", async () => {
+        const insult = message("a", "you all suck")
+        const {backend, remove} = stubBackend([
+            insult,
+            {...message("b", "say that again", 1_700_000_100_000), authorAccountId: "account-bo", authorName: "Bo", replyTo: {
+                messageId: "a", authorName: "Ana", authorColor: NameColor.UNSPECIFIED, text: "you all suck",
+            }},
+        ])
+        setup(backend)
+
+        expect(await screen.findAllByText("you all suck")).toHaveLength(2)
+        act(() => remove("a"))
+
+        expect(screen.queryByText("you all suck")).toBeNull()
+        expect(screen.getAllByText("This message has been deleted")).toHaveLength(2)
+        expect(screen.getByText("say that again")).toBeDefined()
+        expect(screen.queryByRole("button", {name: "Reply to Ana"})).toBeNull()
+        expect(screen.queryByRole("button", {name: "Report this message from Ana"})).toBeNull()
     })
 
     it("renders message text as text, never as markup", async () => {

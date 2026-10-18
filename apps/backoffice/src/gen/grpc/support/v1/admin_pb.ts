@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 import { PageContext, ReportReason } from "./support_pb.js";
 
 /**
@@ -31,6 +31,36 @@ proto3.util.setEnumType(NoteKind, "support.v1.NoteKind", [
   { no: 0, name: "NOTE_KIND_UNSPECIFIED" },
   { no: 1, name: "NOTE_KIND_SUGGESTION" },
   { no: 2, name: "NOTE_KIND_BUG" },
+]);
+
+/**
+ * @generated from enum support.v1.ReportOutcome
+ */
+export enum ReportOutcome {
+  /**
+   * @generated from enum value: REPORT_OUTCOME_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The operator acted: a message removed, a mute or a ban.
+   *
+   * @generated from enum value: REPORT_OUTCOME_ACTED = 1;
+   */
+  ACTED = 1,
+
+  /**
+   * Nothing to act on.
+   *
+   * @generated from enum value: REPORT_OUTCOME_DISMISSED = 2;
+   */
+  DISMISSED = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(ReportOutcome)
+proto3.util.setEnumType(ReportOutcome, "support.v1.ReportOutcome", [
+  { no: 0, name: "REPORT_OUTCOME_UNSPECIFIED" },
+  { no: 1, name: "REPORT_OUTCOME_ACTED" },
+  { no: 2, name: "REPORT_OUTCOME_DISMISSED" },
 ]);
 
 /**
@@ -168,6 +198,11 @@ export class Note extends Message<Note> {
    */
   userAgent = "";
 
+  /**
+   * @generated from field: repeated support.v1.NoteAttachment attachments = 8;
+   */
+  attachments: NoteAttachment[] = [];
+
   constructor(data?: PartialMessage<Note>) {
     super();
     proto3.util.initPartial(data, this);
@@ -183,6 +218,7 @@ export class Note extends Message<Note> {
     { no: 5, name: "submitted_at", kind: "message", T: Timestamp },
     { no: 6, name: "context", kind: "message", T: PageContext },
     { no: 7, name: "user_agent", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "attachments", kind: "message", T: NoteAttachment, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Note {
@@ -199,6 +235,57 @@ export class Note extends Message<Note> {
 
   static equals(a: Note | PlainMessage<Note> | undefined, b: Note | PlainMessage<Note> | undefined): boolean {
     return proto3.util.equals(Note, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.NoteAttachment
+ */
+export class NoteAttachment extends Message<NoteAttachment> {
+  /**
+   * @generated from field: string content_type = 1;
+   */
+  contentType = "";
+
+  /**
+   * @generated from field: uint64 size_bytes = 2;
+   */
+  sizeBytes = protoInt64.zero;
+
+  /**
+   * Good for a short time. It answers 404 when the page never uploaded the file.
+   *
+   * @generated from field: string url = 3;
+   */
+  url = "";
+
+  constructor(data?: PartialMessage<NoteAttachment>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.NoteAttachment";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "content_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "size_bytes", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 3, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NoteAttachment {
+    return new NoteAttachment().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NoteAttachment {
+    return new NoteAttachment().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NoteAttachment {
+    return new NoteAttachment().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NoteAttachment | PlainMessage<NoteAttachment> | undefined, b: NoteAttachment | PlainMessage<NoteAttachment> | undefined): boolean {
+    return proto3.util.equals(NoteAttachment, a, b);
   }
 }
 
@@ -220,6 +307,13 @@ export class ListReportsRequest extends Message<ListReportsRequest> {
    */
   limit = 0;
 
+  /**
+   * Only the reports nobody decided yet.
+   *
+   * @generated from field: bool open_only = 3;
+   */
+  openOnly = false;
+
   constructor(data?: PartialMessage<ListReportsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -230,6 +324,7 @@ export class ListReportsRequest extends Message<ListReportsRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "since", kind: "message", T: Timestamp },
     { no: 2, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "open_only", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListReportsRequest {
@@ -337,6 +432,13 @@ export class Report extends Message<Report> {
    */
   reportedName = "";
 
+  /**
+   * Unset while the report is open.
+   *
+   * @generated from field: support.v1.ReportDecision decision = 10;
+   */
+  decision?: ReportDecision;
+
   constructor(data?: PartialMessage<Report>) {
     super();
     proto3.util.initPartial(data, this);
@@ -354,6 +456,7 @@ export class Report extends Message<Report> {
     { no: 7, name: "created_at", kind: "message", T: Timestamp },
     { no: 8, name: "reporter_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 9, name: "reported_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "decision", kind: "message", T: ReportDecision },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Report {
@@ -370,6 +473,145 @@ export class Report extends Message<Report> {
 
   static equals(a: Report | PlainMessage<Report> | undefined, b: Report | PlainMessage<Report> | undefined): boolean {
     return proto3.util.equals(Report, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.ReportDecision
+ */
+export class ReportDecision extends Message<ReportDecision> {
+  /**
+   * @generated from field: support.v1.ReportOutcome outcome = 1;
+   */
+  outcome = ReportOutcome.UNSPECIFIED;
+
+  /**
+   * Optional: why, in the operator's words.
+   *
+   * @generated from field: string comment = 2;
+   */
+  comment = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 3;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ReportDecision>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.ReportDecision";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "outcome", kind: "enum", T: proto3.getEnumType(ReportOutcome) },
+    { no: 2, name: "comment", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReportDecision {
+    return new ReportDecision().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReportDecision {
+    return new ReportDecision().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReportDecision {
+    return new ReportDecision().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReportDecision | PlainMessage<ReportDecision> | undefined, b: ReportDecision | PlainMessage<ReportDecision> | undefined): boolean {
+    return proto3.util.equals(ReportDecision, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.DecideReportRequest
+ */
+export class DecideReportRequest extends Message<DecideReportRequest> {
+  /**
+   * @generated from field: string report_id = 1;
+   */
+  reportId = "";
+
+  /**
+   * @generated from field: support.v1.ReportOutcome outcome = 2;
+   */
+  outcome = ReportOutcome.UNSPECIFIED;
+
+  /**
+   * Optional: why, in the operator's words.
+   *
+   * @generated from field: string comment = 3;
+   */
+  comment = "";
+
+  constructor(data?: PartialMessage<DecideReportRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.DecideReportRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "report_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "outcome", kind: "enum", T: proto3.getEnumType(ReportOutcome) },
+    { no: 3, name: "comment", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DecideReportRequest {
+    return new DecideReportRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DecideReportRequest {
+    return new DecideReportRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DecideReportRequest {
+    return new DecideReportRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DecideReportRequest | PlainMessage<DecideReportRequest> | undefined, b: DecideReportRequest | PlainMessage<DecideReportRequest> | undefined): boolean {
+    return proto3.util.equals(DecideReportRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message support.v1.DecideReportResponse
+ */
+export class DecideReportResponse extends Message<DecideReportResponse> {
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 1;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<DecideReportResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "support.v1.DecideReportResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DecideReportResponse {
+    return new DecideReportResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DecideReportResponse {
+    return new DecideReportResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DecideReportResponse {
+    return new DecideReportResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DecideReportResponse | PlainMessage<DecideReportResponse> | undefined, b: DecideReportResponse | PlainMessage<DecideReportResponse> | undefined): boolean {
+    return proto3.util.equals(DecideReportResponse, a, b);
   }
 }
 

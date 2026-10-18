@@ -38,12 +38,17 @@ const (
 	// AdminServiceListReportsProcedure is the fully-qualified name of the AdminService's ListReports
 	// RPC.
 	AdminServiceListReportsProcedure = "/support.v1.AdminService/ListReports"
+	// AdminServiceDecideReportProcedure is the fully-qualified name of the AdminService's DecideReport
+	// RPC.
+	AdminServiceDecideReportProcedure = "/support.v1.AdminService/DecideReport"
 )
 
 // AdminServiceClient is a client for the support.v1.AdminService service.
 type AdminServiceClient interface {
 	ListNotes(context.Context, *connect.Request[v1.ListNotesRequest]) (*connect.Response[v1.ListNotesResponse], error)
 	ListReports(context.Context, *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error)
+	// Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
+	DecideReport(context.Context, *connect.Request[v1.DecideReportRequest]) (*connect.Response[v1.DecideReportResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the support.v1.AdminService service. By default, it
@@ -69,13 +74,20 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("ListReports")),
 			connect.WithClientOptions(opts...),
 		),
+		decideReport: connect.NewClient[v1.DecideReportRequest, v1.DecideReportResponse](
+			httpClient,
+			baseURL+AdminServiceDecideReportProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("DecideReport")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	listNotes   *connect.Client[v1.ListNotesRequest, v1.ListNotesResponse]
-	listReports *connect.Client[v1.ListReportsRequest, v1.ListReportsResponse]
+	listNotes    *connect.Client[v1.ListNotesRequest, v1.ListNotesResponse]
+	listReports  *connect.Client[v1.ListReportsRequest, v1.ListReportsResponse]
+	decideReport *connect.Client[v1.DecideReportRequest, v1.DecideReportResponse]
 }
 
 // ListNotes calls support.v1.AdminService.ListNotes.
@@ -88,10 +100,17 @@ func (c *adminServiceClient) ListReports(ctx context.Context, req *connect.Reque
 	return c.listReports.CallUnary(ctx, req)
 }
 
+// DecideReport calls support.v1.AdminService.DecideReport.
+func (c *adminServiceClient) DecideReport(ctx context.Context, req *connect.Request[v1.DecideReportRequest]) (*connect.Response[v1.DecideReportResponse], error) {
+	return c.decideReport.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the support.v1.AdminService service.
 type AdminServiceHandler interface {
 	ListNotes(context.Context, *connect.Request[v1.ListNotesRequest]) (*connect.Response[v1.ListNotesResponse], error)
 	ListReports(context.Context, *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error)
+	// Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
+	DecideReport(context.Context, *connect.Request[v1.DecideReportRequest]) (*connect.Response[v1.DecideReportResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -113,12 +132,20 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("ListReports")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceDecideReportHandler := connect.NewUnaryHandler(
+		AdminServiceDecideReportProcedure,
+		svc.DecideReport,
+		connect.WithSchema(adminServiceMethods.ByName("DecideReport")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/support.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceListNotesProcedure:
 			adminServiceListNotesHandler.ServeHTTP(w, r)
 		case AdminServiceListReportsProcedure:
 			adminServiceListReportsHandler.ServeHTTP(w, r)
+		case AdminServiceDecideReportProcedure:
+			adminServiceDecideReportHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -134,4 +161,8 @@ func (UnimplementedAdminServiceHandler) ListNotes(context.Context, *connect.Requ
 
 func (UnimplementedAdminServiceHandler) ListReports(context.Context, *connect.Request[v1.ListReportsRequest]) (*connect.Response[v1.ListReportsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.ListReports is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) DecideReport(context.Context, *connect.Request[v1.DecideReportRequest]) (*connect.Response[v1.DecideReportResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("support.v1.AdminService.DecideReport is not implemented"))
 }

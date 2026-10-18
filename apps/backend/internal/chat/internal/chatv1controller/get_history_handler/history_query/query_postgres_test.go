@@ -23,6 +23,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/postgres_removal_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/postgres_seen_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -138,6 +140,11 @@ func (s *testSuite) legacy(name string, at time.Time) {
 
 func (s *testSuite) sent(text string, ago time.Duration) {
 	s.sentAt(text, ada, now.Add(-ago))
+}
+
+func (s *testSuite) removed(text string) {
+	s.Require().NoError(postgres_removal_store.New(s.db).Save(s.T().Context(),
+		removals.Snapshot{MessageID: messages.MessageID(text), RemovedAt: now.Add(-time.Minute)}))
 }
 
 func (s *testSuite) reacted(text string, reaction reactions.Reaction, reactor reactions.Reactor, on bool, at time.Time) {
@@ -526,4 +533,35 @@ func (s *testSuite) TestNoViewerHasSeenNothing() {
 	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, now))
 
 	s.Zero(s.history(messages.NoAccount).GetSeenUntilUnixMs())
+}
+
+func (s *testSuite) TestARemovedMessageKeepsItsPlaceAndItsAuthorAndLosesItsTextAndReactions() {
+	s.sentAt("insult", bob, now.Add(-2*time.Hour))
+	s.sent("last", time.Hour)
+	s.reacted("insult", clown, reactions.ReactorOf(ada), true, now.Add(-90*time.Minute))
+	s.removed("insult")
+
+	shown := s.history(ada).GetMessages()
+
+	s.Require().Len(shown, 2)
+	s.Equal("insult", shown[0].GetId())
+	s.Equal("Bob", shown[0].GetAuthorName())
+	s.True(shown[0].GetRemoved())
+	s.Empty(shown[0].GetText(), "the text never leaves the server")
+	s.Empty(shown[0].GetReactions())
+	s.False(shown[1].GetRemoved())
+	s.Equal("last", shown[1].GetText())
+}
+
+func (s *testSuite) TestAReplyToARemovedMessageQuotesItWithNoText() {
+	s.sentAt("insult", bob, now.Add(-2*time.Hour))
+	s.repliedAt("answer", ada, now.Add(-time.Hour), "insult")
+	s.removed("insult")
+
+	quote := s.history(ada).GetMessages()[1].GetReplyTo()
+
+	s.Equal("insult", quote.GetMessageId())
+	s.Equal("Bob", quote.GetAuthorName())
+	s.True(quote.GetRemoved())
+	s.Empty(quote.GetText(), "nobody reads a removed message in a quote")
 }

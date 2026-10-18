@@ -15,7 +15,7 @@ import {describeMute} from "../../domain/mute.ts";
 import {medalOf, roundOverLine} from "../../domain/roundReveal.ts";
 import {truncate} from "../truncate.ts";
 import {authorOf, authorStyle, quoteStyle} from "./authorStyle.ts";
-import QuoteLine from "./QuoteLine.tsx";
+import QuoteLine, {REMOVED_TEXT} from "./QuoteLine.tsx";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
 
 export type ChatLogProps = {
@@ -181,8 +181,8 @@ export default function ChatLog(props: ChatLogProps) {
                                            pick={pick}
                                            jumpTo={shown.has(entry.message.replyTo?.messageId ?? "") ? jumpTo : undefined}
                                            onOpenPlayer={props.onOpenPlayer}
-                                           onReact={props.onReact}
-                                           onReply={props.onReply}
+                                           onReact={entry.message.removed ? undefined : props.onReact}
+                                           onReply={entry.message.removed ? undefined : props.onReply}
                                            onReport={reportable(entry.message, props.own) ? props.onReport : undefined}
                                            reported={props.reported?.has(entry.message.id) ?? false}/>}
                     </Fragment>
@@ -249,11 +249,13 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
         {message.replyTo && <Quote quote={message.replyTo} jumpTo={jumpTo}/>}
 
         <div className="chat-message-line">
-            <p className="chat-message-text">
-                {messageParts(message).map((part, index) => part.kind === "link"
-                    ? <a key={index} href={part.href} target="_blank" rel="noopener noreferrer nofollow ugc">{part.text}</a>
-                    : <Fragment key={index}>{part.text}</Fragment>)}
-            </p>
+            {message.removed
+                ? <p className="chat-message-text chat-removed">{REMOVED_TEXT}</p>
+                : <p className="chat-message-text">
+                    {messageParts(message).map((part, index) => part.kind === "link"
+                        ? <a key={index} href={part.href} target="_blank" rel="noopener noreferrer nofollow ugc">{part.text}</a>
+                        : <Fragment key={index}>{part.text}</Fragment>)}
+                </p>}
             {props.onReact && <AddReactionButton messageId={message.id}
                                                  picking={picking === message.id}
                                                  setPicking={pick(message.id)}/>}
@@ -389,7 +391,7 @@ function messageClass(
 }
 
 function reportable(message: ChatMessage, own: ((message: ChatMessage) => boolean) | undefined): boolean {
-    return message.authorAccountId !== "" && !own?.(message)
+    return message.authorAccountId !== "" && !message.removed && !own?.(message)
 }
 
 function atOf(entry: ChatLogEntry): number {

@@ -20,10 +20,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query"
 	history_authors "github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler/history_query/rpc_player_authors"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_message_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_message_handler/message_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mark_seen_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mute_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/react_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/remove_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/send_message_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/inprocess_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/usecases/listen_for_events_usecase"
@@ -47,6 +50,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/usecases/react_usecase/muting_react"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/postgres_removal_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/usecases/remove_message_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/usecases/remove_message_usecase/audit_remove"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/postgres_seen_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/forget_seen_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/usecases/mark_seen_usecase"
@@ -109,12 +115,14 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	announcementStore := postgres_announcement_store.New(db)
 	seenStore := postgres_seen_store.New(db)
 	muteStore := postgres_mute_store.New(db)
+	removalStore := postgres_removal_store.New(db)
 	muteBook := mutes.NewBook(muteStore, cptime.SystemClock{})
 	window := messages.NewWindow(storage.HistorySize, storage.Retention)
 	updates := inprocess_feed.New(storage.SubscriberBuffer, props.Logger)
 
 	prune := log_prune.New(
-		prune_usecase.New(storage.Retention, cptime.SystemClock{}, messageStore, reactionStore, announcementStore, muteStore),
+		prune_usecase.New(storage.Retention, cptime.SystemClock{},
+			messageStore, reactionStore, announcementStore, muteStore, removalStore),
 		props.Logger)
 
 	announce := announce_usecase.New(announcementStore, updates, announcement_ids.Provider{})
@@ -207,6 +215,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		MuteHandler: mute_handler.New(audit_mute.New(publishing_mute.New(
 			mute_usecase.New(muteStore, messageStore, mute_ids.Provider{}, cptime.SystemClock{}), props.Events),
 			props.Logger)),
+		RemoveMessageHandler: remove_message_handler.New(audit_remove.New(
+			remove_message_usecase.New(messageStore, removalStore, updates, window, cptime.SystemClock{}), props.Logger)),
+		GetMessageHandler: get_message_handler.New(message_query.NewPostgresQuery(db, cptime.SystemClock{}, storage.Retention)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return chatv1connect.NewAdminServiceHandler(adminService, options...)

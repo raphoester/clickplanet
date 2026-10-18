@@ -42,6 +42,12 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		})
 	}
 
+	if removed, gone := event.Update.Removed(); gone {
+		return s.stream.Send(&chatv1.ChatEvent{
+			Event: &chatv1.ChatEvent_MessageRemoved{MessageRemoved: &chatv1.MessageRemoved{MessageId: string(removed)}},
+		})
+	}
+
 	if announcement, announced := event.Update.Announcement(); announced {
 		return s.stream.Send(&chatv1.ChatEvent{
 			Event: &chatv1.ChatEvent_Announcement{Announcement: chatannouncement.Encode(announcement)},

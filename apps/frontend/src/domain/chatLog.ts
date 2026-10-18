@@ -64,6 +64,18 @@ export function addMessages(
     return merged.length > limit ? merged.slice(merged.length - limit) : merged
 }
 
+export function withRemoved(log: readonly ChatMessage[], id: string): ChatMessage[] {
+    const removes = (message: ChatMessage) => message.id === id && !message.removed
+    const empties = (message: ChatMessage) => message.replyTo?.messageId === id && !message.replyTo.removed
+    if (!log.some(message => removes(message) || empties(message))) return log as ChatMessage[]
+
+    return log.map(message => {
+        if (removes(message)) return {...message, text: "", reactions: [], removed: true}
+        if (empties(message)) return {...message, replyTo: {...message.replyTo!, text: "", removed: true}}
+        return message
+    })
+}
+
 export function unreadSince(log: readonly ChatMessage[], lastSeenId: string | undefined): number {
     if (lastSeenId === undefined) return log.length
 
