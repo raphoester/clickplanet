@@ -1,9 +1,10 @@
 import {useState} from "react"
+import {SupportAdmin} from "../clients.ts"
+import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {timeOf} from "../components/time.ts"
 import {ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
 import {outcomeLabel} from "../support/labels.ts"
-import {decide, Decided, MAX_COMMENT_LENGTH, refusalOf, SupportAdmin} from "./actions.ts"
-import {ConfirmAction} from "./ConfirmAction.tsx"
+import {decide, Decided, MAX_COMMENT_LENGTH, refusalOf} from "./actions.ts"
 
 const OUTCOMES = [ReportOutcome.ACTED, ReportOutcome.DISMISSED]
 

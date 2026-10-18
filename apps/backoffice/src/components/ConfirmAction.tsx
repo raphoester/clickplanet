@@ -1,4 +1,4 @@
-import {ReactNode, useState} from "react"
+import {ReactNode, useEffect, useState} from "react"
 
 type Step<T> =
     | {step: "idle"}
@@ -20,6 +20,11 @@ type Props<T> = {
 
 export function ConfirmAction<T>({label, question, run, said, refusal, onDone, disabled, tone}: Props<T>) {
     const [state, setState] = useState<Step<T>>({step: "idle"})
+
+    // A question whose inputs changed under it until it no longer holds (a dry run of other inputs) is taken back.
+    useEffect(() => {
+        if (disabled === true) setState(was => was.step === "asking" ? {step: "idle"} : was)
+    }, [disabled])
 
     const confirm = () => {
         setState({step: "running"})

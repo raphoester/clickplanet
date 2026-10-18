@@ -5,9 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 **The operator's page, at `backoffice.clickplanet.lol`.** It calls the backend's `AdminService`s, which were
-reachable only over SSH before. Today it has one page: the support notes (ideas and bugs), read only, and the
-player reports, which the operator acts on and closes (see [Acting on a report](#acting-on-a-report)). The plan
-after it: a player page (search, ban, mute, revert, grant charges), map tools, a live chat view, then ops pages.
+reachable only over SSH before, and **every admin method has a place on it**. Four sections, picked in the tab bar
+(`Sections` in `App.tsx`):
+
+- **Support**: the notes (ideas and bugs), read only, and the player reports, which the operator acts on and
+  closes (see [Acting on a report](#acting-on-a-report)).
+- **Players**: who played, and every tool on one player (see [The player page](#the-player-page)).
+- **Map**: reassign a country, paint random tiles, download a replay (see [The map tools](#the-map-tools)).
+- **Ops**: the runs after a deploy, `ReconcileTitles` and `NameAccounts` (see [Ops](#ops)).
+
+What is left of the plan is a live chat view, which no admin method serves.
 
 It is a third app, not a page of the game: **it imports nothing from `apps/frontend`** and has no Three.js (see
 the root `CLAUDE.md`, "Independence of the apps").
@@ -94,15 +101,75 @@ an `auth.secret` (`openssl rand -hex 32`). Postgres on `localhost:5432`. Then
   it is shown), mute (`Mute`, an hour by default), ban (`BanPlayer`, no duration by default, so the antibot's
   ladder picks the next step) and inspect (`InspectPlayer`). Then close the report (`DecideReport`): Acted or
   Dismissed, with an optional comment of up to 1000 characters. A second decision replaces the first.
-- **Every action that changes something asks first** (`ConfirmAction`): the button opens a question with "Yes, …"
-  and Cancel, and only Yes calls the server. Then it says what the server answered ("Muted until …"), or the
-  refusal. **Inspect asks nothing**: it is a read.
-- **The refusals in plain words** (`refusalOf` in `actions.ts`): `not_found` is the message or the report no
-  longer kept, `failed_precondition` is the antibot off (no ban, no inspection), `invalid_argument` quotes the
-  server, a session that ended says to sign in again.
-- **`actions.ts` holds every call**, over narrow client types (`ChatAdmin`, `PlanetAdmin`, `SupportAdmin`), so a
-  test hands it `FakeAdmin` (`fakeClients.ts`), which records each request and can refuse a method with a code.
-  `ReportDetail` takes the same `clients`, so its jsdom test drives each action through the page.
+- **"Every tool →" opens the reported account on the player page** (`OpenPlayer` in `navigation.ts`, which `App`
+  provides): unban, revert, its address. The mute, ban and inspect here are the player page's own components.
+- **`reports/actions.ts` holds the report's own calls** (remove, decide); the mute, ban and inspect are
+  `players/actions.ts`'s.
+
+## Every action, on every page
+
+- **Every action that changes something asks first** (`components/ConfirmAction`): the button opens a question
+  with "Yes, …" and Cancel, and only Yes calls the server. Then it says what the server answered ("Muted until
+  …"), or the refusal. **A read asks nothing** (inspect, a dry run, a list, a replay): `useAction` runs it on a
+  click and holds its answer, as `useCall` does on mount.
+- **What can be undone by nothing counts first**: a revert, a reassign and a paint stay disabled until their dry
+  run, and the question quotes it ("Give back the 120 tiles Ana holds?"). The dry run holds for the inputs it ran
+  on alone: changing a country disables the action again, and **a question whose inputs change under it is taken
+  back** (`ConfirmAction` with `disabled`).
+- **The refusals in plain words** (`wordsOf` in `refusal.ts`, and each section's `refusalOf` over it, which says
+  what its `not_found` and `failed_precondition` mean): `not_found` is a message or a report no longer kept, or no
+  ban left to lift; `failed_precondition` is the antibot off (no ban, unban or inspection); `invalid_argument`
+  quotes the server (an unknown country, a grant of nothing); `deadline_exceeded` says the call may have done part
+  of its work; a session that ended says to sign in again.
+- **The long calls take `LONG_CALL_MS`** (`api.ts`, 2 minutes) instead of the transport's 10s: a revert, a
+  reassign and a paint are paced on the server, a replay is MBs, and the two ops runs page through every player.
+- **Every page takes its clients** (`clients.ts`: `ChatAdmin`, `PlanetAdmin`, `PlayerAdmin`, `SupportAdmin`,
+  defaulting to `CLIENTS`), so a test hands it `FakeAdmin` (`fakeAdmin.ts`), which answers every method, records
+  each request (`askedFor`) and can refuse a method with a code. The jsdom tests drive each action through its
+  page.
+
+## The player page
+
+`src/players/`. **A player is an account or an address** (`Caller` in `caller.ts`), never both: the planet's tools
+take either. An account id is a UUID; anything else typed is an address, which the server reads as its scope (the
+address over IPv4, the /64 over IPv6) and checks.
+
+- **The list** (`PlayerList`): `TopPlayers` (most takes first, then most tiles held), or **By flag**,
+  `FindPlayers` with a flag and an optional ground. 20 by default, up to 500. Each row of the ledger's 72 hours is
+  one account on one address, with its takes, the tiles it still holds and their share of its takes (many takes
+  and few tiles is a player painted over as fast as it paints), its rates and any ban. The list is read again on
+  the way back from a player, as the reports are.
+- **Open a player** from a row (its account, or its address when it has none), from the field at the top, or
+  from a report. The other half of a row (the address of an account, the account of an address) opens from the
+  header, and the inspection's address of an account's latest take opens too: **a guest the jury banned is banned
+  on both**, and an unban lifts one key.
+- **The page inspects on open** (`InspectPlayer`): the antibot's readings, its ban and its clicks. The antibot off
+  reads as such, not as a failure. A ban or an unban reads it again.
+- **The tools**: ban (`BanPlayer`, the ladder's next step by default), unban (`UnbanPlayer`, which forgets the
+  latest offence; `not_found` is no ban left), revert (`RevertPlayer`, dry run first), and for an account alone
+  mute (`Mute`) and charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer
+  says what the account held before and after, since the caps hold).
+
+## The map tools
+
+`src/map/`, each a panel of `MapPage`.
+
+- **Reassign** (`ReassignCountry`): every tile one country holds goes to another. The dry run counts both sides.
+  A `from_after` above zero is tiles retaken while it ran: the page says to run it again.
+- **Paint** (`PaintRandomTiles`): a flag, a ground to start on (empty: the whole map), a count and a proximity
+  (0 scattered, 1 one patch). The dry run draws without painting, so the real run draws again: the question says
+  "about".
+- **A country is typed by its id** (`CountryField`), and the page names it below ("dz" → Algeria) with
+  `Intl.DisplayNames`, plus the game's own ids no standard names (`countries.ts`: England, Scotland, Wales,
+  Brittany). It is a hint: the server holds the list of countries and refuses any other.
+- **Replay** (`GetReplay`): a span back from an end (empty: now), saved as `replay-<since>-<until>.json`, the
+  answer as protobuf JSON, which the frontend's `npm run clip` reads as it reads what `clips fetch` saves. The
+  ledger keeps 72 hours. The file is made in memory (`download.ts`, a `blob:` link), which the CSP allows.
+
+## Ops
+
+`src/ops/`: `ReconcileTitles` (after a deploy that adds a title or changes a rule) and `NameAccounts` (once, after
+the deploy that brought generated names). Each asks first, and each is harmless twice.
 
 ## Deploy
 
@@ -117,8 +184,8 @@ to `proto/` alone ships nothing: the generated code is committed.
 `public/_headers` is the page's security:
 
 - **`Content-Security-Policy`**: scripts, styles and images from the page alone, calls to
-  `https://api.clickplanet.lol` alone, and no frame (`frame-ancestors 'none'`): the later pages ban and revert,
-  and a framed page could be clicked through. **A new API host is a change here.**
+  `https://api.clickplanet.lol` alone, and no frame (`frame-ancestors 'none'`): the pages ban, revert and repaint
+  the map, and a framed page could be clicked through. **A new API host is a change here.**
 - `Referrer-Policy: no-referrer` and `X-Robots-Tag: noindex`.
 - `/assets/*` is immutable, `/index.html` is revalidated.
 
@@ -126,14 +193,22 @@ to `proto/` alone ships nothing: the generated code is committed.
 
 ```
 src/
-  api.ts            the transport and one client per AdminService
-  refusal.ts        a call's error → signedOut, notOperator, startAgain or failed
-  useCall.ts        one call's state
-  App.tsx           the callback, or WhoAmI first, then the page
+  api.ts            the transport, one client per AdminService, LONG_CALL_MS
+  clients.ts        the narrow client types every page takes, and CLIENTS
+  fakeAdmin.ts      FakeAdmin, every admin method for the tests
+  refusal.ts        a page's error → signedOut, notOperator, startAgain or failed; an action's in words (wordsOf)
+  useCall.ts        one call's state, run on mount
+  useAction.ts      one read's state, run on a click
+  navigation.ts     the sections, and OpenPlayer
+  countries.ts      a country id's name
+  App.tsx           the callback, or WhoAmI first, then the sections
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
-  components/       FailureNotice, AccountId (with Copy), Person, When and timeOf
+  components/       ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), CountryField, Fact, Person, When
   support/          the support page: NoteList, labels.ts (names, outcomes and the device lines)
-  reports/          the Reports tab: list, detail, actions.ts, ConfirmAction, FakeAdmin
+  reports/          the Reports tab: list, detail, the report's own actions
+  players/          the Players section: list, PlayerView, the tools on one player, actions.ts
+  map/              the Map section: reassign, paint, replay
+  ops/              the Ops section: titles and names
   gen/grpc/         generated from ../../proto, committed
 ```
 

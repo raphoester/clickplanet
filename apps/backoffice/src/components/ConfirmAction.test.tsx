@@ -50,6 +50,24 @@ describe("ConfirmAction", () => {
         expect(run).toHaveBeenCalledTimes(1)
     })
 
+    it("takes the question back when what it asked about no longer holds", () => {
+        const run = vi.fn(() => Promise.resolve("ok"))
+        const action = (disabled: boolean) => (
+            <ConfirmAction label="Revert" question="Revert 120 tiles?" run={run} said={String} refusal={String} disabled={disabled}/>
+        )
+        const {rerender} = render(action(false))
+
+        fireEvent.click(screen.getByRole("button", {name: "Revert"}))
+        rerender(action(true))
+
+        expect(screen.queryByRole("button", {name: "Yes, revert"})).toBeNull()
+        expect((screen.getByRole("button", {name: "Revert"}) as HTMLButtonElement).disabled).toBe(true)
+
+        rerender(action(false))
+        expect(screen.queryByRole("button", {name: "Yes, revert"})).toBeNull()
+        expect(run).not.toHaveBeenCalled()
+    })
+
     it("shows the refusal in plain words", async () => {
         renderAction(() => Promise.reject(new Error("boom")))
 

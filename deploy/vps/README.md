@@ -1018,6 +1018,11 @@ backoffice.clickplanet.lol â†’ api.clickplanet.lol/<package>.v1.AdminService/* â
 - The page is `apps/backoffice`, a Cloudflare Worker of its own (`clickplanet-backoffice`).
   It asks `auth.v1.AdminService/WhoAmI` first, so a refused page says why:
   not signed in, or not an operator.
+- **Every tool in this section is on the page too**: Players (find, ban, unban,
+  revert, inspect, mute, grant charges), Map (reassign, paint, replay) and Ops
+  (titles, names). Each asks before it changes anything, and a revert, a
+  reassign and a paint run their dry run first. The commands below stay for
+  scripts on the box.
 
 ### The admin Google client
 

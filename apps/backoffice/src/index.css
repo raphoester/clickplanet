@@ -285,12 +285,18 @@ button:disabled {
     max-width: 20em;
 }
 
+.picker-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .picker, .field {
     display: grid;
     gap: 4px;
 }
 
-select, textarea {
+select, textarea, input:not([type="checkbox"]):not([type="range"]) {
     font: inherit;
     color: var(--text);
     background: var(--bg);
@@ -447,4 +453,126 @@ textarea {
 .notice-title {
     margin: 0 0 8px;
     font-weight: 600;
+}
+
+.sections {
+    display: flex;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+}
+
+.sections button {
+    flex: 1;
+    min-height: 44px;
+    padding: 0 8px;
+    font: inherit;
+    font-weight: 600;
+    color: var(--muted);
+    background: none;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+}
+
+.sections button:hover {
+    color: var(--text);
+}
+
+.sections button[aria-current="page"] {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.hint {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+.fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10em, 1fr));
+    gap: 10px 12px;
+}
+
+.field input {
+    min-width: 0;
+}
+
+.field input[type="range"] {
+    width: 100%;
+    max-width: 24em;
+}
+
+.input-country {
+    width: 100%;
+    max-width: 10em;
+}
+
+.checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+}
+
+.check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+}
+
+.check input {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+}
+
+.stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 16px;
+    margin: 0;
+    font-size: 14px;
+    min-width: 0;
+}
+
+.stats > div {
+    display: flex;
+    gap: 6px;
+}
+
+.stats dt {
+    color: var(--muted);
+}
+
+.stats dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.open-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.open-form .field {
+    flex: 1 1 16em;
+    min-width: 0;
+}
+
+form.panel > .button {
+    justify-self: start;
 }
