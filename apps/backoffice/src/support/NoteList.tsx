@@ -5,6 +5,7 @@ import {FailureNotice} from "../components/FailureNotice.tsx"
 import {When} from "../components/When.tsx"
 import {Note, NoteKind} from "../gen/grpc/support/v1/admin_pb.ts"
 import {useCall} from "../useCall.ts"
+import {Attachments} from "./Attachments.tsx"
 import {countOf, deviceLines, kindLabel} from "./labels.ts"
 
 const FILTERS: {kind: NoteKind, label: string}[] = [
@@ -68,6 +69,7 @@ function NoteCard({note}: {note: Note}) {
                 <When at={note.submittedAt}/>
             </div>
             <p className="text">{note.text}</p>
+            <Attachments files={note.attachments}/>
             <AccountId id={note.accountId}/>
             {device.length > 0 && (
                 <details className="device">

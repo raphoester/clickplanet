@@ -1479,7 +1479,12 @@ change `endpoint` to `https://<region>.digitaloceanspaces.com` and `region` to
 
 To check it: the boot logs `support built ... attachments=true`, the Feedback
 form in Settings shows **Add photos or videos**, and a picture sent from it
-opens from the `url` `ListNotes` prints.
+shows under its note in the backoffice.
+
+- **The backoffice loads each file straight from the bucket**, so its
+  Content-Security-Policy (`apps/backoffice/public/_headers`) names the
+  bucket's host in `img-src` and `media-src`. **With another bucket, change it
+  there too**, or the backoffice shows none of the files.
 
 - **A link is only good for the file it was signed for**: its type and its
   exact size. A player cannot use one to upload something else or something

@@ -5,9 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 **The operator's page, at `backoffice.clickplanet.lol`.** It calls the backend's `AdminService`s, which were
-reachable only over SSH before. Today it has one page: the support notes (ideas and bugs), read only, and the
-player reports, which the operator acts on and closes (see [Acting on a report](#acting-on-a-report)). The plan
-after it: a player page (search, ban, mute, revert, grant charges), map tools, a live chat view, then ops pages.
+reachable only over SSH before. Today it has one page: the support notes (ideas and bugs), read only, with their
+photos and videos, and the player reports, which the operator acts on and closes (see
+[Acting on a report](#acting-on-a-report)). The plan after it: a player page (search, ban, mute, revert, grant
+charges), map tools, a live chat view, then ops pages.
 
 It is a third app, not a page of the game: **it imports nothing from `apps/frontend`** and has no Three.js (see
 the root `CLAUDE.md`, "Independence of the apps").
@@ -79,6 +80,16 @@ an `auth.secret` (`openssl rand -hex 32`). Postgres on `localhost:5432`. Then
   Any account row will do, a guest's included (`curl` a `CreateSession` against `:8080`): only the Google
   sign-in checks the identity, and this skips it.
 
+## A note's photos and videos
+
+`Attachments` shows each file a note carries, under its text, from the `url` `ListNotes` answers.
+
+- **A photo is a thumbnail that opens the file**, a video plays in place (`preload="metadata"`), and every file has
+  its type, its size and an Open link.
+- **A file the browser cannot show** (HEIC outside Safari, a QuickTime video Chrome cannot decode) or a link past
+  its hour says so, and keeps the Open link. The links are signed for an hour (`support.attachments.linkTTL`):
+  Reload signs new ones.
+
 ## Acting on a report
 
 `src/reports/` is the Reports tab: `ReportsView` shows the list, or one report's detail.
@@ -119,6 +130,9 @@ to `proto/` alone ships nothing: the generated code is committed.
 - **`Content-Security-Policy`**: scripts, styles and images from the page alone, calls to
   `https://api.clickplanet.lol` alone, and no frame (`frame-ancestors 'none'`): the later pages ban and revert,
   and a framed page could be clicked through. **A new API host is a change here.**
+- **The support bucket's host is in `img-src` and `media-src`**, and no other: a note's photos and videos load
+  straight from the R2 link `ListNotes` signs (`support.attachments.bucket.endpoint` in `deploy/vps/backend.yaml`).
+  **Another bucket is a change here too**, or every attachment shows "not shown here".
 - `Referrer-Policy: no-referrer` and `X-Robots-Tag: noindex`.
 - `/assets/*` is immutable, `/index.html` is revalidated.
 
@@ -132,7 +146,7 @@ src/
   App.tsx           the callback, or WhoAmI first, then the page
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
   components/       FailureNotice, AccountId (with Copy), Person, When and timeOf
-  support/          the support page: NoteList, labels.ts (names, outcomes and the device lines)
+  support/          the support page: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   reports/          the Reports tab: list, detail, actions.ts, ConfirmAction, FakeAdmin
   gen/grpc/         generated from ../../proto, committed
 ```
