@@ -66,6 +66,130 @@ a {
     font-size: 20px;
 }
 
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.menu-button, .menu-close {
+    display: inline-grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    margin-left: -10px;
+    padding: 0;
+    color: var(--text);
+    background: none;
+    border: 0;
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.menu-close {
+    margin: 0 -10px 0 0;
+}
+
+.menu-button:hover, .menu-close:hover {
+    background: var(--line);
+}
+
+.drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: rgb(0 0 0 / 40%);
+}
+
+.drawer {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 11;
+    width: min(300px, 85vw);
+    overflow-y: auto;
+    padding: 8px 16px 24px;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    box-shadow: 4px 0 24px rgb(0 0 0 / 20%);
+    animation: drawer-in 160ms ease-out;
+}
+
+@keyframes drawer-in {
+    from {
+        transform: translateX(-100%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .drawer {
+        animation: none;
+    }
+}
+
+.drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 52px;
+    border-bottom: 1px solid var(--line);
+}
+
+.drawer-title {
+    font-weight: 700;
+}
+
+.menu-group {
+    padding-top: 16px;
+}
+
+.menu-heading {
+    margin: 0 0 4px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.menu-group ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.menu-item {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    padding: 0 10px;
+    font: inherit;
+    text-align: left;
+    color: var(--text);
+    background: none;
+    border: 0;
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.menu-item:hover {
+    background: var(--bg);
+}
+
+.menu-item[aria-current="page"] {
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--bg);
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.page-title {
+    margin: 0 0 16px;
+    font-size: 22px;
+}
+
 .who {
     display: flex;
     flex-wrap: wrap;
@@ -141,15 +265,6 @@ button:disabled {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--accent-text);
-}
-
-.segmented-wide {
-    display: flex;
-    margin-bottom: 16px;
-}
-
-.segmented-wide button {
-    flex: 1;
 }
 
 .toolbar {
@@ -285,12 +400,18 @@ button:disabled {
     max-width: 20em;
 }
 
+.picker-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .picker, .field {
     display: grid;
     gap: 4px;
 }
 
-select, textarea {
+select, textarea, input:not([type="checkbox"]):not([type="range"]) {
     font: inherit;
     color: var(--text);
     background: var(--bg);
@@ -490,4 +611,98 @@ textarea {
 .notice-title {
     margin: 0 0 8px;
     font-weight: 600;
+}
+
+.panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.hint {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+.fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10em, 1fr));
+    gap: 10px 12px;
+}
+
+.field input {
+    min-width: 0;
+}
+
+.field input[type="range"] {
+    width: 100%;
+    max-width: 24em;
+}
+
+.input-country {
+    width: 100%;
+    max-width: 10em;
+}
+
+.checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+}
+
+.check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+}
+
+.check input {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+}
+
+.stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 16px;
+    margin: 0;
+    font-size: 14px;
+    min-width: 0;
+}
+
+.stats > div {
+    display: flex;
+    gap: 6px;
+}
+
+.stats dt {
+    color: var(--muted);
+}
+
+.stats dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.open-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.open-form .field {
+    flex: 1 1 16em;
+    min-width: 0;
+}
+
+form.panel > .button {
+    justify-self: start;
 }

@@ -2,10 +2,11 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
-import {afterEach, describe, expect, it} from "vitest"
+import {afterEach, describe, expect, it, vi} from "vitest"
+import {AT, FakeAdmin} from "../fakeAdmin.ts"
 import {Report, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
 import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
-import {AT, FakeAdmin} from "./fakeClients.ts"
+import {OpenPlayer} from "../navigation.ts"
 import {ReportDetail} from "./ReportDetail.tsx"
 
 afterEach(cleanup)
@@ -31,17 +32,13 @@ function confirm(label: string, yes: string) {
     fireEvent.click(screen.getByRole("button", {name: yes}))
 }
 
-function askedFor(admin: FakeAdmin, method: string) {
-    return admin.asked.filter(call => call.method === method).map(call => call.request)
-}
-
 describe("ReportDetail", () => {
     it("reads the reported message", async () => {
         const admin = new FakeAdmin()
         open(admin)
 
         expect(await screen.findByText("you all suck")).toBeTruthy()
-        expect(askedFor(admin, "getMessage")).toEqual([{messageId: "message-1"}])
+        expect(admin.askedFor("getMessage")).toEqual([{messageId: "message-1"}])
     })
 
     it("says when the message is no longer kept", async () => {
@@ -60,7 +57,7 @@ describe("ReportDetail", () => {
         confirm("Remove the message", "Yes, remove the message")
 
         expect(await screen.findByText(/^Removed at /)).toBeTruthy()
-        expect(askedFor(admin, "removeMessage")).toEqual([{messageId: "message-1"}])
+        expect(admin.askedFor("removeMessage")).toEqual([{messageId: "message-1"}])
         expect(screen.queryByRole("button", {name: "Remove the message"})).toBeNull()
     })
 
@@ -80,7 +77,7 @@ describe("ReportDetail", () => {
         confirm("Mute", "Yes, mute")
 
         expect(await screen.findByText(/^Muted until /)).toBeTruthy()
-        const [request] = askedFor(admin, "mute") as {accountId: string, duration: {seconds: bigint}}[]
+        const [request] = admin.askedFor("mute") as {accountId: string, duration: {seconds: bigint}}[]
         expect(request.accountId).toBe("account-reported")
         expect(request.duration.seconds).toBe(3600n)
     })
@@ -94,7 +91,7 @@ describe("ReportDetail", () => {
         fireEvent.click(screen.getByRole("button", {name: "Yes, ban"}))
 
         expect(await screen.findByText(/^Banned until .*, offence 2\.$/)).toBeTruthy()
-        expect(askedFor(admin, "banPlayer")).toEqual([{accountId: "account-reported", duration: undefined}])
+        expect(admin.askedFor("banPlayer")).toEqual([{accountId: "account-reported", duration: undefined}])
     })
 
     it("says a ban the antibot cannot make in plain words", async () => {
@@ -104,7 +101,7 @@ describe("ReportDetail", () => {
 
         confirm("Ban", "Yes, ban")
 
-        expect(await screen.findByText("The antibot is off on this server, so it cannot ban or inspect.")).toBeTruthy()
+        expect(await screen.findByText("The antibot is off on this server, so it cannot ban, unban or inspect.")).toBeTruthy()
     })
 
     it("inspects the reported account", async () => {
@@ -114,7 +111,20 @@ describe("ReportDetail", () => {
         fireEvent.click(screen.getByRole("button", {name: "Inspect"}))
 
         expect(await screen.findByText(/^42 in /)).toBeTruthy()
-        expect(askedFor(admin, "inspectPlayer")).toEqual([{accountId: "account-reported"}])
+        expect(admin.askedFor("inspectPlayer")).toEqual([{accountId: "account-reported"}])
+    })
+
+    it("opens the reported account on the player page, by its id", () => {
+        const openPlayer = vi.fn()
+        render(
+            <OpenPlayer.Provider value={openPlayer}>
+                <ReportDetail report={report} onBack={() => undefined} clients={new FakeAdmin().clients()}/>
+            </OpenPlayer.Provider>,
+        )
+
+        fireEvent.click(screen.getByRole("button", {name: "Every tool →"}))
+
+        expect(openPlayer).toHaveBeenCalledWith({caller: {accountId: "account-reported"}, name: "Ana"})
     })
 
     it("closes the report with the outcome picked and its comment", async () => {
@@ -127,7 +137,7 @@ describe("ReportDetail", () => {
         confirm("Close the report", "Yes, close the report")
 
         expect(await screen.findByText(/^Closed as Dismissed at /)).toBeTruthy()
-        expect(askedFor(admin, "decideReport"))
+        expect(admin.askedFor("decideReport"))
             .toEqual([{reportId: "report-1", outcome: ReportOutcome.DISMISSED, comment: "banter"}])
         const card = screen.getByRole("article")
         expect(within(card).getByText("Dismissed")).toBeTruthy()

@@ -4,9 +4,10 @@ import {FailureNotice} from "../components/FailureNotice.tsx"
 import {timeOf} from "../components/time.ts"
 import {When} from "../components/When.tsx"
 import {GetMessageResponse} from "../gen/grpc/chat/v1/admin_pb.ts"
+import {ChatAdmin} from "../clients.ts"
+import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {useCall} from "../useCall.ts"
-import {ChatAdmin, MESSAGE_GONE, refusalOf, removeMessage} from "./actions.ts"
-import {ConfirmAction} from "./ConfirmAction.tsx"
+import {MESSAGE_GONE, refusalOf, removeMessage} from "./actions.ts"
 
 type Read = {kept: true, message: GetMessageResponse} | {kept: false}
 

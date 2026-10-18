@@ -1,9 +1,8 @@
-import {useState} from "react"
-import {timeOf} from "../components/time.ts"
-import {ban, ChatAdmin, DEFAULT_MUTE_SECONDS, LADDER, mute, PlanetAdmin, refusalOf} from "./actions.ts"
-import {ConfirmAction} from "./ConfirmAction.tsx"
-import {BAN_CHOICES, Choice, labelOf, MUTE_CHOICES} from "./durations.ts"
-import {InspectPanel} from "./InspectPanel.tsx"
+import {ChatAdmin, PlanetAdmin} from "../clients.ts"
+import {useOpenPlayer} from "../navigation.ts"
+import {whoOf} from "../players/caller.ts"
+import {InspectPanel} from "../players/InspectPanel.tsx"
+import {BanAction, MuteAction} from "../players/Moderation.tsx"
 
 type Props = {
     chat: ChatAdmin
@@ -12,55 +11,29 @@ type Props = {
     name: string
 }
 
+// What a report usually calls for. The player page has the rest: unban, revert, its address.
 export function ActPanel({chat, planet, accountId, name}: Props) {
-    const [muteFor, setMuteFor] = useState(DEFAULT_MUTE_SECONDS)
-    const [banFor, setBanFor] = useState(LADDER)
-    const who = name === "" ? "this account" : name
+    const openPlayer = useOpenPlayer()
+    const caller = {accountId}
+    const who = whoOf(caller, name)
 
     return (
         <section className="panel" aria-label="Act on the reported account">
-            <h2>Act on {who}</h2>
-
-            <div className="act">
-                <DurationPicker label="Mute for" choices={MUTE_CHOICES} value={muteFor} onChange={setMuteFor}/>
-                <ConfirmAction
-                    label="Mute"
-                    question={`Mute ${who} in the chat for ${labelOf(MUTE_CHOICES, muteFor)}?`}
-                    run={() => mute(chat, accountId, muteFor)}
-                    said={muted => `Muted until ${timeOf(muted.until)}.`}
-                    refusal={err => refusalOf("mute", err)}
-                />
+            <div className="panel-head">
+                <h2>Act on {who}</h2>
+                {openPlayer !== undefined && (
+                    <button type="button" className="button-small" onClick={() => openPlayer({caller, name})}>
+                        Every tool →
+                    </button>
+                )}
             </div>
 
-            <div className="act">
-                <DurationPicker label="Ban for" choices={BAN_CHOICES} value={banFor} onChange={setBanFor}/>
-                <ConfirmAction
-                    label="Ban"
-                    tone="danger"
-                    question={`Ban ${who} for ${labelOf(BAN_CHOICES, banFor)}?`}
-                    run={() => ban(planet, accountId, banFor)}
-                    said={banned => `Banned until ${timeOf(banned.until)}, offence ${banned.offence}.`
-                        + (banned.enforced ? "" : " Not enforced: the antibot only watches on this server.")}
-                    refusal={err => refusalOf("ban", err)}
-                />
-            </div>
+            <MuteAction chat={chat} accountId={accountId} who={who}/>
+            <BanAction planet={planet} caller={caller} who={who}/>
 
             <div className="act">
-                <InspectPanel planet={planet} accountId={accountId}/>
+                <InspectPanel planet={planet} caller={caller}/>
             </div>
         </section>
-    )
-}
-
-type PickerProps = {label: string, choices: Choice[], value: number, onChange: (seconds: number) => void}
-
-function DurationPicker({label, choices, value, onChange}: PickerProps) {
-    return (
-        <label className="picker">
-            <span className="muted">{label}</span>
-            <select value={value} onChange={event => onChange(Number(event.target.value))}>
-                {choices.map(choice => <option key={choice.seconds} value={choice.seconds}>{choice.label}</option>)}
-            </select>
-        </label>
     )
 }
