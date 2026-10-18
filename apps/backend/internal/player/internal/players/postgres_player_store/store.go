@@ -256,39 +256,6 @@ func (s *Store) DeleteAccount(ctx context.Context, account players.AccountID) (e
 	return nil
 }
 
-func (s *Store) Names(ctx context.Context, accounts []players.AccountID) (map[players.AccountID]players.Name, error) {
-	names := make(map[players.AccountID]players.Name, len(accounts))
-	if len(accounts) == 0 {
-		return names, nil
-	}
-
-	ids := make([]string, len(accounts))
-	for i, account := range accounts {
-		ids[i] = account.String()
-	}
-
-	rows, err := s.db.QueryContext(ctx, `SELECT account_id, name FROM profiles WHERE account_id = ANY($1::uuid[])`, pq.Array(ids))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the names: %w", err)
-	}
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var (
-			account uuid.UUID
-			name    string
-		)
-		if err := rows.Scan(&account, &name); err != nil {
-			return nil, fmt.Errorf("failed to read a name: %w", err)
-		}
-		names[players.AccountID(account)] = players.Name(name)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read the names: %w", err)
-	}
-	return names, nil
-}
-
 type scanner interface {
 	Scan(dest ...any) error
 }
