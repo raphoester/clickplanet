@@ -1,0 +1,279 @@
+:root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --text: #15181d;
+    --muted: #5d6673;
+    --line: #dde1e7;
+    --accent: #2457d6;
+    --accent-text: #ffffff;
+    --idea: #1d7a46;
+    --bug: #b3261e;
+    --report: #8a5a00;
+    --radius: 10px;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+    color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #111317;
+        --surface: #1a1d23;
+        --text: #e8eaed;
+        --muted: #9aa3ae;
+        --line: #2c313a;
+        --accent: #7aa2ff;
+        --accent-text: #0b1020;
+        --idea: #6fd39a;
+        --bug: #ff8a80;
+        --report: #f2c063;
+    }
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 var(--font);
+}
+
+a {
+    color: var(--accent);
+}
+
+.page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 16px 48px;
+}
+
+.top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 16px;
+    padding: 16px 0;
+}
+
+.top h1 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.who {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    min-width: 0;
+}
+
+.muted {
+    color: var(--muted);
+}
+
+.mono {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.button, .button-small, .segmented button {
+    font: inherit;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.button {
+    min-height: 40px;
+    padding: 0 14px;
+}
+
+.button-small {
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 13px;
+}
+
+.button:hover, .button-small:hover, .segmented button:hover {
+    border-color: var(--accent);
+}
+
+.button-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.sign-in {
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+}
+
+.segmented {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.segmented button {
+    min-height: 40px;
+    padding: 0 14px;
+}
+
+.segmented button[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+}
+
+.segmented-wide {
+    display: flex;
+    margin-bottom: 16px;
+}
+
+.segmented-wide button {
+    flex: 1;
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.cards {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.card {
+    min-width: 0;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 12px;
+}
+
+.badge {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 1px 8px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+}
+
+.badge-idea {
+    color: var(--idea);
+}
+
+.badge-bug {
+    color: var(--bug);
+}
+
+.badge-report {
+    color: var(--report);
+}
+
+.text {
+    margin: 8px 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.account {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    min-width: 0;
+}
+
+.name {
+    font-weight: 600;
+}
+
+.people {
+    display: grid;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+.people > div, .device dl > div {
+    display: grid;
+    grid-template-columns: 7em minmax(0, 1fr);
+    gap: 8px;
+}
+
+.people dt, .device dt {
+    color: var(--muted);
+}
+
+.people dd, .device dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.people dd {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+}
+
+.device {
+    margin-top: 8px;
+}
+
+.device summary {
+    cursor: pointer;
+    color: var(--muted);
+}
+
+.device dl {
+    display: grid;
+    gap: 4px;
+    margin: 8px 0 0;
+    font-size: 14px;
+}
+
+.notice {
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.notice-title {
+    margin: 0 0 8px;
+    font-weight: 600;
+}

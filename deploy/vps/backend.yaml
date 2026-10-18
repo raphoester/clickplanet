@@ -304,7 +304,7 @@ auth:
     clientSecret: env://DISCORD_CLIENT_SECRET
   # The origin comes from ADMIN_ORIGIN, through docker-compose.yaml.
   admin:
-    redirectUrl: https://admin.clickplanet.lol/auth/callback
+    redirectUrl: https://backoffice.clickplanet.lol/auth/callback
     google:
       clientId: 865499711308-b1uvtdjiikb9perlhb0t9plm44e2bgh4.apps.googleusercontent.com
       clientSecret: env://ADMIN_GOOGLE_CLIENT_SECRET

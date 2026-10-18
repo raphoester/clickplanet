@@ -987,7 +987,7 @@ the box call it with no session, and the clips job reads its replays there.
 ### The admin listener (the admin page)
 
 ```
-admin.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* → Caddy → backend:8083 → the admin gate → the admin service
+backoffice.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* → Caddy → backend:8083 → the admin gate → the admin service
 ```
 
 - **Two apps, two sessions, one account base.** An operator is a game account
@@ -1014,12 +1014,15 @@ admin.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* → Ca
   `journalctl CONTAINER_NAME=cp-backend | grep "admin call"`. The audit lines
   (`admin ban`, `admin chat mute`, …) say what the call did.
 - The port is on the Docker network only, never published.
+- The page is `apps/backoffice`, a Cloudflare Worker of its own (`clickplanet-backoffice`).
+  It asks `auth.v1.AdminService/WhoAmI` first, so a refused page says why:
+  not signed in, or not an operator.
 
 ### The admin Google client
 
 The admin page signs in with a Google OAuth client of its own, "ClickPlanet admin",
 in the same Google Cloud project as the game's. Its redirect URI is
-`https://admin.clickplanet.lol/auth/callback`. Its client id is in `backend.yaml`
+`https://backoffice.clickplanet.lol/auth/callback`. Its client id is in `backend.yaml`
 (`auth.admin.google.clientId`), and its secret is the repository secret
 `ADMIN_GOOGLE_CLIENT_SECRET`. **Without that secret the backend refuses to boot**:
 an admin page with an origin needs its Google client whole.
@@ -1037,7 +1040,7 @@ docker compose exec postgres psql -U clickplanet -c \
   "UPDATE auth.accounts SET operator = true WHERE id = '<account_id>'"
 ```
 
-Then sign in on admin.clickplanet.lol with that Google account.
+Then sign in on backoffice.clickplanet.lol with that Google account.
 
 Two steps, for the reason the crown has two (see the player module's admin flag):
 a name can change hands, an id cannot. `operator = false` takes it back, and
