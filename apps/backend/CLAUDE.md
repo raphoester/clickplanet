@@ -269,7 +269,7 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` and each title award (`StatsChanged`) | `players/rpc_account_reader` |
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
-| `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
+| `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React`; who wrote each message of a page, once per `ListMessages` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors`, `list_messages_handler/messages_query/rpc_player_authors` |
 | `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute) | `rounds/rpc_planet_territories` |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of both accounts of each report of a page, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
@@ -509,8 +509,11 @@ internal/chat/internal/
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — UpdatesSubscriber
   chatv1controller/                     ChatService and AdminService (bags), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
-    mute_handler/  remove_message_handler/  get_message_handler/
+    mute_handler/  remove_message_handler/  get_message_handler/  list_messages_handler/
     get_message_handler/message_query/  PostgresQuery: one message as it was sent, removed or not
+    list_messages_handler/messages_query/  PostgresQuery: a page of messages as they were sent, before or after a
+                                        message's id, named — Authors
+      rpc_player_authors/               the same adapter as the history's, for this query
     get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, named, and until when
                                         the viewer saw the chat — Authors
       rpc_player_authors/               Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
@@ -536,7 +539,7 @@ internal/chat/internal/
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
+(`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
 (`GetTakesByCountry`, `GetTerritories`), auth
 (`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race and `GetRace`) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
@@ -995,9 +998,28 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
   message until its next load.
 - **`chat.v1.AdminService/GetMessage(message_id)`** is the message as it was sent, removed or not, with
   `removed_at`, for the operator who reads a report (`message_query`). `NotFound` past the retention.
+- **`chat.v1.AdminService/ListMessages(before_message_id | after_message_id, limit)`** is the chat as it was sent,
+  removed or not, a page at a time (`messages_query`). **A message's id is a cursor**: the page just before it, or
+  just after it, by `seq` as the history orders them, never with it. Neither is the newest page; both is
+  `InvalidArgument` (`ErrTwoCursors`), and a cursor past the retention is `NotFound`. The report page reads one page
+  on each side of the reported message, and the next page from the oldest or the newest message it holds.
+  - **A page is oldest first**, 50 messages unless asked, 200 at most. Fewer than the limit is the end: nothing more
+    kept before it, or nothing more sent after it. Before the cursor it stops at the retention.
+  - **Each is a `KeptMessage`**: its text as sent and its `removed_at`, as `GetMessage` answers, its country, its
+    time, and what it answers as a `KeptQuote` (its id, its author's name, its text as sent and its `removed_at`;
+    unset past the retention, as the history's quote is).
+  - **Each is named as the chat names it now** (`author_name`): one `GetAuthors` for every account the page names,
+    quotes included; the name it was sent under for a message kept before accounts; `messages_query.DeletedName`
+    for an account nobody can name, whose id is still answered, since the operator tools take it. A failure to name
+    refuses the read, as the history's does.
+  - **It is two statements**: the cursor's `seq` (`NotFound` when it is not kept), then the page, one of two windows
+    (`older`, `newer`) under one projection that joins the removals and the quote. The newest page is `older` from
+    the top. Each window walks the primary key from the cursor.
 - **`audit_remove` logs every call at Warn** (`admin chat message removal`).
 - `e2e/report_actions_test.go` removes a reported message over the console listener, and sees it stay in the
-  history with no text, its quote with none, a reaction refused, and the text still read for the operator.
+  history with no text, its quote with none, a reaction refused, and the text still read for the operator; and
+  reads a page on each side of a reported reply: the message it answers before it, the answer to it after, each
+  named as the chat named it.
 
 #### Replies
 
@@ -3275,7 +3297,7 @@ origin with auth off refuses the boot.
 Caddy sends `/<package>.v1.AdminService/*` on the API's domain to it, so `cp_admin`, which is host-only on that
 domain, travels from the admin page, a page of the same site.
 
-The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage` and `GetMessage` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.

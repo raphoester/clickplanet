@@ -6,7 +6,7 @@ import {AdminService as PlayerAdminService} from "./gen/grpc/player/v1/admin_con
 import {AdminService as SupportAdminService} from "./gen/grpc/support/v1/admin_connect.ts"
 
 // Each page takes the services it calls as these, so a test hands it FakeAdmin (fakeAdmin.ts) instead.
-export type ChatAdmin = Pick<PromiseClient<typeof ChatAdminService>, "getMessage" | "removeMessage" | "mute">
+export type ChatAdmin = Pick<PromiseClient<typeof ChatAdminService>, "getMessage" | "listMessages" | "removeMessage" | "mute">
 export type PlanetAdmin = PromiseClient<typeof PlanetAdminService>
 export type PlayerAdmin = PromiseClient<typeof PlayerAdminService>
 export type SupportAdmin = Pick<PromiseClient<typeof SupportAdminService>, "decideReport">
