@@ -14,7 +14,7 @@ const message = (id: string, authorName: string, countryCode: string): ChatMessa
     ({id, sentAt: Date.UTC(2026, 8, 17, 12), authorAccountId: `account-${authorName}`, authorName, authorAdmin: false, authorColor: NameColor.UNSPECIFIED, authorStreak: 0, countryCode, text: "hello", reactions: [], reactionsVersion: 0})
 
 describe("ChatLog", () => {
-    it("opens the author of a message from its name with the message, and tells a guest by its prefix", async () => {
+    it("opens the author of a message from its name, and tells a guest by its prefix", async () => {
         const onOpenPlayer = vi.fn()
         render(<ChatLog loading={false}
                         onOpenPlayer={onOpenPlayer}
@@ -24,8 +24,8 @@ describe("ChatLog", () => {
         await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
 
         expect(onOpenPlayer.mock.calls).toEqual([
-            [{accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}, "1"],
-            [{accountId: "account-guest_Bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}, "2"],
+            [{accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED, streak: 0}],
+            [{accountId: "account-guest_Bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0}],
         ])
     })
 
@@ -53,7 +53,7 @@ describe("ChatLog", () => {
         expect(onOpenPlayer).toHaveBeenCalledWith({
             accountId: "account-Ana", name: "Ana", countryCode: "fr", guest: false, admin: true, color: NameColor.UNSPECIFIED,
             streak: 0,
-        }, "1")
+        })
     })
 
     it("lights a flame beside a streak of three days or more, and keeps it on the player it opens", async () => {
@@ -65,7 +65,7 @@ describe("ChatLog", () => {
         expect(screen.getAllByRole("img", {name: /streak/})).toHaveLength(1)
         expect(screen.getByRole("img", {name: "12-day streak"}).textContent).toBe("12")
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({streak: 12}), "1")
+        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({streak: 12}))
     })
 
     it("shows the title its author wears beside the name, and keeps it on the player it opens", async () => {
@@ -78,7 +78,7 @@ describe("ChatLog", () => {
         expect(screen.getAllByRole("img", {name: "Warlord"})).toHaveLength(1)
         expect(screen.getByRole("img", {name: "Warlord"}).querySelector(".title-emblem")).not.toBeNull()
         await userEvent.click(screen.getByRole("button", {name: "Ana"}))
-        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({wornTitle: warlord}), "1")
+        expect(onOpenPlayer).toHaveBeenCalledWith(expect.objectContaining({wornTitle: warlord}))
     })
 
     it("paints a name in the color its player chose, and grey with none or as a guest", () => {
@@ -107,6 +107,47 @@ describe("ChatLog", () => {
         expect(links[0].getAttribute("rel")).toBe("noopener noreferrer nofollow ugc")
         expect(links[0].closest(".chat-message-text")!.textContent).toBe("see https://clickplanet.lol/play now")
         expect(screen.getByText("see https://other.example")).toBeDefined()
+    })
+
+    describe("a report", () => {
+        const first = {...message("1", "Ana", "fr"), text: "hi"}
+        const second = {...message("2", "Ana", "fr"), text: "you all suck"}
+
+        it("hands up the message it was pressed on, the second of its author's run too", async () => {
+            const onReport = vi.fn()
+            const {container} = render(<ChatLog loading={false} onReport={onReport} messages={[first, second]}/>)
+            const [, last] = [...container.querySelectorAll<HTMLElement>(".chat-message")]
+            expect(last.querySelector(".chat-message-head")).toBeNull()
+
+            await userEvent.click(within(last).getByRole("button", {name: "Report this message from Ana"}))
+
+            expect(onReport.mock.calls).toEqual([[second]])
+        })
+
+        it("shows a message already reported as reported, with nothing to press", () => {
+            render(<ChatLog loading={false} onReport={vi.fn()} reported={new Set(["2"])} messages={[first, second]}/>)
+
+            expect(screen.getAllByRole("button", {name: "Report this message from Ana"})).toHaveLength(1)
+            expect(screen.getByRole("img", {name: "Reported"}).closest("[data-message]")?.getAttribute("data-message")).toBe("2")
+        })
+
+        it("is not offered on the player's own message, nor on one with no account", () => {
+            const gone = {...message("3", "Cy", "it"), authorAccountId: ""}
+            const theirs = message("4", "Bo", "de")
+            render(<ChatLog loading={false}
+                            onReport={vi.fn()}
+                            own={(shown) => shown.authorAccountId === "account-Ana"}
+                            messages={[first, gone, theirs]}/>)
+
+            expect(screen.getAllByRole("button", {name: /^Report this message/}).map(button => button.getAttribute("aria-label")))
+                .toEqual(["Report this message from Bo"])
+        })
+
+        it("is not offered with nobody to send it to", () => {
+            render(<ChatLog loading={false} messages={[first, second]}/>)
+
+            expect(screen.queryAllByRole("button", {name: /^Report this message/})).toHaveLength(0)
+        })
     })
 
     describe("a reply", () => {
