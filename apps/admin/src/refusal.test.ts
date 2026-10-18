@@ -12,6 +12,10 @@ describe("failureOf", () => {
         expect(failureOf(new ConnectError("not an operator", Code.PermissionDenied)).refusal).toBe("notOperator")
     })
 
+    it("reads a sign-in to start again", () => {
+        expect(failureOf(new ConnectError("start again", Code.FailedPrecondition)).refusal).toBe("startAgain")
+    })
+
     it("reads anything else as a failure", () => {
         expect(failureOf(new ConnectError("boom", Code.Internal)).refusal).toBe("failed")
         expect(failureOf(new TypeError("Failed to fetch")).refusal).toBe("failed")

@@ -29,39 +29,54 @@ npm run proto      # Regenerate src/gen/grpc from the shared ../../proto
 - **Every call goes to `https://api.clickplanet.lol/<package>.v1.AdminService/<Method>`** (`src/api.ts`).
   Caddy sends those paths to the backend's admin listener (the backend's `CLAUDE.md`, "Operator tools").
   `VITE_API_BASE_URL` points it elsewhere; it is a build variable.
-- **The game's `cp_sid` cookie is the only credential.** The transport sends `credentials: "include"`. The cookie
-  is host-only on `api.clickplanet.lol`, and it travels from `admin.clickplanet.lol` because both are one site.
-  There is no second sign-in: an operator signs in on the game.
-- **The backend's admin gate admits an account whose `auth.accounts.operator` is true**, and only from the
-  `Origin` `https://admin.clickplanet.lol`. The flag is set by hand (`deploy/vps/README.md`, "Make an account an
-  operator").
-- **Two refusals have their own words** (`refusal.ts`, `FailureNotice`): `unauthenticated` is "Sign in on
-  clickplanet.lol" with a link, `permission_denied` is "This account is not an operator". Anything else is "The
-  API did not answer". The server's message is shown under each, for the operator. A wrong origin is also
-  `permission_denied`.
-- **`auth.v1.AdminService/WhoAmI` says who the page is**: the operator's account id, read from the same cookie.
-  `App` asks it first, and shows nothing else until it answers. The public `AuthService/GetMe` is not an option: the public API
-  answers CORS for the game's origin alone.
+- **The page signs in on its own, with Google only** (`auth.v1.AdminService`, the backend's `CLAUDE.md`,
+  "Operators"). Its session is the `cp_admin` cookie: 12 hours, never extended, `SameSite=Strict`, host-only on
+  `api.clickplanet.lol`. It travels from `admin.clickplanet.lol` because both are one site, and the transport sends
+  `credentials: "include"`. **The game's `cp_sid` never opens this page**, and signing out of one leaves the other.
+- **The sign-in** (`src/signIn/`): "Sign in with Google" calls `StartSignIn` and sends the browser to the
+  `authorization_url` it answers. Google comes back to `/auth/callback` (the backend's `auth.admin.redirectUrl`).
+  `main.tsx` reads the code and the state there (`callbackOf`) and **takes them out of the address bar before
+  anything renders**: a code is good once. `SignInCallback` calls `CompleteSignIn` once (a ref guards it, since
+  StrictMode runs an effect twice), then shows the page. A Google refusal, or a link with a part missing, offers
+  the button again. The Worker serves `/auth/callback` through its SPA fallback.
+- **Sign out** is a button beside the account id (`SignOut`), and then the page asks `WhoAmI` again.
+- **The gate admits a session of an account whose `auth.accounts.operator` is true**, and only from the `Origin`
+  `https://admin.clickplanet.lol`. The flag is set by hand (`deploy/vps/README.md`, "Make an account an
+  operator"); it is read on every call, so unsetting it ends a session already open.
+- **The refusals** (`refusal.ts`, `FailureNotice`): `unauthenticated` is "Sign in to continue", `permission_denied`
+  is "This Google account is not an operator" (a wrong origin too), `failed_precondition` from `CompleteSignIn` is
+  "The sign-in expired. Start again". Each offers the Google button. Anything else is "The call failed", with Try
+  again. The server's message is shown under each, for the operator.
+- **`auth.v1.AdminService/WhoAmI` says who the page is**: the operator's account id, from the `cp_admin` session.
+  `App` asks it first, and shows nothing else until it answers.
 - **`useCall`** runs one call, aborts it when the component goes or the call changes, and holds `loading`,
   `done` or `failed`. Its `run` must keep its identity (module scope or `useCallback`).
 
 ## Running it locally
 
-The page needs a backend with auth on and an admin listener:
+The page needs a backend with auth on and an admin listener. In a copy of `apps/backend/cmd/api/example.yaml`:
+`httpServer.adminBindAddress: 127.0.0.1:8083`, `auth.admin.origin: http://localhost:5174`, `auth.enabled: true` and
+an `auth.secret` (`openssl rand -hex 32`). Postgres on `localhost:5432`. Then
+`VITE_API_BASE_URL=http://localhost:8083 npm run dev`.
 
-1. In a copy of `apps/backend/cmd/api/example.yaml`: `httpServer.adminBindAddress: 127.0.0.1:8083`,
-   `auth.adminGate.origin: http://localhost:5174`, `auth.enabled: true`, an `auth.secret`
-   (`openssl rand -hex 32`) and `auth.email.enabled: true`. Email delivery `log` puts the sign-in code in the
-   server log. Postgres on `localhost:5432`.
-2. Sign in with an email in the game (`apps/frontend`, `VITE_API_BASE_URL=http://localhost:8080`). A guest is never
-   an operator.
-3. `UPDATE auth.accounts SET operator = true WHERE id = '<account id>'` in psql.
-4. `VITE_API_BASE_URL=http://localhost:8083 npm run dev`. A cookie ignores the port, so the game's cookie for
-   `localhost` reaches `:8083`.
+- **A whole Google sign-in** needs `auth.admin.google.clientId` and `clientSecret` of a Google client that lists
+  `http://localhost:5174/auth/callback`, and a Google identity on an account flagged operator. Without a client,
+  `StartSignIn` is `unimplemented`.
+- **Without Google**, open a session by hand. The table keeps the SHA-256 of the cookie's value, so pick a value,
+  insert its hash, and set the cookie on `http://localhost:5174` (a cookie ignores the port, so it reaches `:8083`;
+  the backend does not see that it is not `HttpOnly`):
 
-Without the game: mint and sign in with `curl` against `:8080` (`CreateSession`, `StartEmailSignIn`,
-`CompleteEmailSignIn`, with a cookie jar), then set the jar's `cp_sid` with `document.cookie` on
-`http://localhost:5174`. The backend reads the header and does not see that it is not `HttpOnly`.
+  ```sql
+  UPDATE auth.accounts SET operator = true WHERE id = '<account id>';
+  INSERT INTO auth.admin_sessions VALUES (sha256('local-test'), '<account id>', now(), now() + interval '12 hours');
+  ```
+
+  ```js
+  document.cookie = "cp_admin=local-test; path=/"
+  ```
+
+  Any account row will do, a guest's included (`curl` a `CreateSession` against `:8080`): only the Google
+  sign-in checks the identity, and this skips it.
 
 ## Deploy
 
@@ -86,9 +101,10 @@ to `proto/` alone ships nothing: the generated code is committed.
 ```
 src/
   api.ts            the transport and one client per AdminService
-  refusal.ts        a call's error → signedOut, notOperator or failed
+  refusal.ts        a call's error → signedOut, notOperator, startAgain or failed
   useCall.ts        one call's state
-  App.tsx           WhoAmI first, then the page
+  App.tsx           the callback, or WhoAmI first, then the page
+  signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
   components/       FailureNotice, AccountId (with Copy), When
   support/          the support page: NoteList, ReportList, labels.ts (names and the device lines)
   gen/grpc/         generated from ../../proto, committed

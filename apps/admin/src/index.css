@@ -66,6 +66,14 @@ a {
     font-size: 20px;
 }
 
+.who {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    min-width: 0;
+}
+
 .muted {
     color: var(--muted);
 }
@@ -98,6 +106,23 @@ a {
 
 .button:hover, .button-small:hover, .segmented button:hover {
     border-color: var(--accent);
+}
+
+.button-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.sign-in {
+    display: grid;
+    justify-items: start;
+    gap: 8px;
 }
 
 .segmented {

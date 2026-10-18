@@ -1,6 +1,6 @@
 import {Code, ConnectError} from "@connectrpc/connect"
 
-export type Refusal = "signedOut" | "notOperator" | "failed"
+export type Refusal = "signedOut" | "notOperator" | "startAgain" | "failed"
 
 export type Failure = {refusal: Refusal, detail: string}
 
@@ -12,5 +12,6 @@ export function failureOf(err: unknown): Failure {
 function refusalOf(code: Code): Refusal {
     if (code === Code.Unauthenticated) return "signedOut"
     if (code === Code.PermissionDenied) return "notOperator"
+    if (code === Code.FailedPrecondition) return "startAgain"
     return "failed"
 }
