@@ -3,6 +3,7 @@ package notes_query
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -29,19 +30,29 @@ var kinds = map[string]supportv1.NoteKind{
 	"bug":        supportv1.NoteKind_NOTE_KIND_BUG,
 }
 
-func NewPostgresQuery(db cppg.Querier) *PostgresQuery {
-	return &PostgresQuery{db: db}
+type Links interface {
+	ViewURL(attachment string) (string, error)
+}
+
+func NewPostgresQuery(db cppg.Querier, links Links) *PostgresQuery {
+	return &PostgresQuery{db: db, links: links}
 }
 
 type PostgresQuery struct {
-	db cppg.Querier
+	db    cppg.Querier
+	links Links
 }
 
 // diagnostics holds the JSON names of support.v1.PageContext, and the user agent beside them.
 const notes = `
 	SELECT
 		id, kind, COALESCE(account_id::text, ''), text, submitted_at,
-		diagnostics, COALESCE(diagnostics->>'userAgent', '')
+		diagnostics, COALESCE(diagnostics->>'userAgent', ''),
+		COALESCE((
+			SELECT json_agg(json_build_object('id', id, 'contentType', media_type, 'sizeBytes', size_bytes) ORDER BY position)
+			FROM attachments
+			WHERE note_id = notes.id
+		), '[]')
 	FROM notes
 	WHERE ($1::timestamptz IS NULL OR submitted_at >= $1)
 		AND ($2::note_kind IS NULL OR kind = $2)
@@ -72,16 +83,20 @@ func (q *PostgresQuery) Notes(
 	answer := &supportv1.ListNotesResponse{}
 	for rows.Next() {
 		var (
-			note   = &supportv1.Note{Context: &supportv1.PageContext{}}
-			stored string
-			said   []byte
-			at     time.Time
+			note     = &supportv1.Note{Context: &supportv1.PageContext{}}
+			stored   string
+			said     []byte
+			attached []byte
+			at       time.Time
 		)
-		if err := rows.Scan(&note.Id, &stored, &note.AccountId, &note.Text, &at, &said, &note.UserAgent); err != nil {
+		if err := rows.Scan(&note.Id, &stored, &note.AccountId, &note.Text, &at, &said, &note.UserAgent, &attached); err != nil {
 			return nil, fmt.Errorf("failed to read a note: %w", err)
 		}
 		if err := kept.Unmarshal(said, note.Context); err != nil {
 			return nil, fmt.Errorf("failed to decode the diagnostics of the note %s: %w", note.GetId(), err)
+		}
+		if note.Attachments, err = q.attachments(note.GetId(), attached); err != nil {
+			return nil, err
 		}
 
 		known, ok := kinds[stored]
@@ -96,6 +111,31 @@ func (q *PostgresQuery) Notes(
 		return nil, fmt.Errorf("failed to read the notes: %w", err)
 	}
 	return answer, nil
+}
+
+type attachment struct {
+	ID          string `json:"id"`
+	ContentType string `json:"contentType"`
+	SizeBytes   uint64 `json:"sizeBytes"`
+}
+
+func (q *PostgresQuery) attachments(note string, stored []byte) ([]*supportv1.NoteAttachment, error) {
+	var files []attachment
+	if err := json.Unmarshal(stored, &files); err != nil {
+		return nil, fmt.Errorf("failed to decode the attachments of the note %s: %w", note, err)
+	}
+
+	var attachments []*supportv1.NoteAttachment
+	for _, file := range files {
+		link, err := q.links.ViewURL(file.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to make the link to the attachment %s of the note %s: %w", file.ID, note, err)
+		}
+		attachments = append(attachments, &supportv1.NoteAttachment{
+			ContentType: file.ContentType, SizeBytes: file.SizeBytes, Url: link,
+		})
+	}
+	return attachments, nil
 }
 
 func storedKind(asked supportv1.NoteKind) (sql.NullString, error) {

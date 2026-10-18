@@ -9,6 +9,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/inmemory_attachment_bucket"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/inmemory_note_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/suggest_feature_usecase"
 )
@@ -18,8 +19,13 @@ func TestRunSuite(t *testing.T) {
 }
 
 var (
-	now = time.Date(2026, 10, 11, 20, 0, 0, 0, time.UTC)
-	ada = notes.AccountID{15: 1}
+	now   = time.Date(2026, 10, 11, 20, 0, 0, 0, time.UTC)
+	ada   = notes.AccountID{15: 1}
+	rules = notes.AttachmentRules{MaxPerNote: 2, MaxBytes: 1000}
+	files = []notes.Attachment{
+		{ID: notes.AttachmentID{0: 0xa, 15: 1}, MediaType: notes.MediaPNG, Size: 400},
+		{ID: notes.AttachmentID{0: 0xa, 15: 2}, MediaType: notes.MediaMP4, Size: 1000},
+	}
 )
 
 type failingIDs struct{}
@@ -30,16 +36,18 @@ type testSuite struct {
 	suite.Suite
 
 	notes   *inmemory_note_storage.Storage
+	bucket  *inmemory_attachment_bucket.Bucket
 	useCase *suggest_feature_usecase.UseCase
 }
 
 func (s *testSuite) SetupTest() {
 	s.notes = inmemory_note_storage.New()
+	s.bucket = inmemory_attachment_bucket.New()
 	s.useCase = s.build(&notes.SequentialIDs{})
 }
 
 func (s *testSuite) build(ids notes.IDProvider) *suggest_feature_usecase.UseCase {
-	return suggest_feature_usecase.New(ids, cptime.NewFixedClock(now), s.notes)
+	return suggest_feature_usecase.New(ids, cptime.NewFixedClock(now), rules, s.notes, s.bucket)
 }
 
 func (s *testSuite) suggest(useCase *suggest_feature_usecase.UseCase, text string) error {
@@ -63,6 +71,38 @@ func (s *testSuite) TestASuggestionIsKeptWithWhatThePageSaid() {
 	s.Equal([]notes.Snapshot{{
 		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, Text: "a night mode", Diagnostics: said, At: now,
 	}}, s.notes.Kept())
+}
+
+func (s *testSuite) TestASuggestionIsKeptWithTheFilesTheBucketHolds() {
+	s.bucket.Put(files...)
+
+	err := s.useCase.Execute(s.T().Context(), suggest_feature_usecase.In{
+		Account: ada, Text: "a night mode", Attachments: []notes.AttachmentID{files[0].ID, files[1].ID},
+	})
+	s.Require().NoError(err)
+
+	s.Equal([]notes.Snapshot{{
+		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, Text: "a night mode", Attachments: files, At: now,
+	}}, s.notes.Kept())
+}
+
+func (s *testSuite) TestAFileTheBucketDoesNotHoldIsRefusedAndNothingIsKept() {
+	err := s.useCase.Execute(s.T().Context(),
+		suggest_feature_usecase.In{Account: ada, Text: "a night mode", Attachments: []notes.AttachmentID{files[0].ID}})
+
+	s.Require().ErrorIs(err, notes.ErrNotUploaded)
+	s.Empty(s.notes.Kept())
+}
+
+func (s *testSuite) TestFilesTheRulesDoNotTakeAreRefusedAndNothingIsKept() {
+	tooBig := notes.Attachment{ID: notes.AttachmentID{0: 0xa, 15: 9}, MediaType: notes.MediaMP4, Size: 1001}
+	s.bucket.Put(tooBig)
+
+	err := s.useCase.Execute(s.T().Context(),
+		suggest_feature_usecase.In{Account: ada, Text: "a night mode", Attachments: []notes.AttachmentID{tooBig.ID}})
+
+	s.Require().ErrorIs(err, notes.ErrInvalidAttachment)
+	s.Empty(s.notes.Kept())
 }
 
 func (s *testSuite) TestEachSuggestionGetsAnIDOfItsOwn() {

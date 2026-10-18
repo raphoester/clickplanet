@@ -2,20 +2,22 @@ import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrp
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {SupportService} from "../gen/grpc/support/v1/support_connect.ts";
 import {ReportReason as ReportReasonPb} from "../gen/grpc/support/v1/support_pb.ts";
+import {putFile, PutFile} from "./putFile.ts";
 import {SESSION_HEADER, SessionProvider} from "./session.ts";
 import {
-    BugReporter,
-    FeatureSuggester,
+    AttachmentRules,
+    NO_ATTACHMENTS,
     PageContext,
     PlayerReport,
-    PlayerReporter,
     ReportReason,
+    SupportBackend,
     SupportNoSessionError,
     SupportRateLimitedError,
     SupportRejectedError,
     SupportReportedAlreadyError,
+    UploadOptions,
 } from "./support.ts";
-import {Config} from "./transport.ts";
+import {Config, retrying} from "./transport.ts";
 
 export function newSupportServiceClient(config: Config): PromiseClient<typeof SupportService> {
     return createPromiseClient(SupportService, createConnectTransport({
@@ -33,23 +35,46 @@ const REASONS: Record<ReportReason, ReportReasonPb> = {
     "other": ReportReasonPb.OTHER,
 }
 
-export class ConnectSupportBackend implements FeatureSuggester, BugReporter, PlayerReporter {
+export class ConnectSupportBackend implements SupportBackend {
     constructor(
         private client: PromiseClient<typeof SupportService>,
         private readonly session: SessionProvider,
+        private readonly put: PutFile = putFile,
     ) {
     }
 
-    public suggestFeature(text: string, context: PageContext): Promise<void> {
-        return this.send((headers) => this.client.suggestFeature({text, context}, {headers}))
+    public async suggestFeature(text: string, context: PageContext, attachmentIds: string[] = []): Promise<void> {
+        await this.send((headers) => this.client.suggestFeature({text, context, attachmentIds}, {headers}))
     }
 
-    public reportBug(text: string, context: PageContext): Promise<void> {
-        return this.send((headers) => this.client.reportBug({text, context}, {headers}))
+    public async reportBug(text: string, context: PageContext, attachmentIds: string[] = []): Promise<void> {
+        await this.send((headers) => this.client.reportBug({text, context, attachmentIds}, {headers}))
     }
 
-    public reportPlayer(report: PlayerReport): Promise<void> {
-        return this.send((headers) => this.client.reportPlayer({
+    // A server from before attachments has no such procedure: it takes none.
+    public async attachmentRules(): Promise<AttachmentRules> {
+        try {
+            const rules = await retrying(() => this.client.getAttachmentRules({}), "attachment rules")
+            return {
+                maxPerNote: rules.maxPerNote,
+                maxBytes: Number(rules.maxBytes),
+                contentTypes: rules.contentTypes,
+            }
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.Unimplemented) return NO_ATTACHMENTS
+            throw e
+        }
+    }
+
+    public async uploadAttachment(file: Blob, options?: UploadOptions): Promise<string> {
+        const upload = await this.send((headers) =>
+            this.client.createUpload({contentType: file.type, sizeBytes: BigInt(file.size)}, {headers}))
+        await this.put(upload.url, file, options)
+        return upload.attachmentId
+    }
+
+    public async reportPlayer(report: PlayerReport): Promise<void> {
+        await this.send((headers) => this.client.reportPlayer({
             accountId: report.accountId,
             reason: REASONS[report.reason],
             text: report.text,
@@ -58,9 +83,9 @@ export class ConnectSupportBackend implements FeatureSuggester, BugReporter, Pla
     }
 
     // Not retried: a call that landed and lost its answer would be kept twice.
-    private async send(call: (headers: Headers) => Promise<unknown>): Promise<void> {
+    private async send<T>(call: (headers: Headers) => Promise<T>): Promise<T> {
         try {
-            await this.authenticated(call)
+            return await this.authenticated(call)
         } catch (e) {
             throw translate(e)
         }

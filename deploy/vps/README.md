@@ -11,6 +11,7 @@ managed add-ons were, and none of them are needed. Target cost is **~$6/month**.
 | TLS | Caddy, automatic Let's Encrypt over DNS-01 | free |
 | Images | GitHub Container Registry | free |
 | DNS | Cloudflare | free |
+| Photos and videos on a note | Cloudflare R2 (see [11](#11-photos-and-videos-on-a-note)) | free up to 10 GB |
 
 Prices are from late 2025 — check before you commit.
 
@@ -1341,7 +1342,7 @@ docker compose exec postgres psql -U clickplanet -c "delete from chat.mutes wher
 
 ### Read what players sent
 
-A player sends a suggestion or a bug report from the More menu. Read the newest 100:
+A player sends a suggestion or a bug report from Feedback, in Settings. Read the newest 100:
 
 ```bash
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/support.v1.AdminService/ListNotes
@@ -1365,7 +1366,19 @@ docker compose exec postgres psql -U clickplanet -c "select coalesce(p.name, 'gu
 - A note loses its account after 90 days (`support.retention`), and at once
   when its account is deleted. The text stays, and `accountId` is then empty:
   nothing says who sent it. The note keeps its `context` and `userAgent`.
-- One address sends three, then one a minute (`support.rateLimiter`).
+- One address sends three, then one a minute (`support.rateLimiter`), and ten
+  suggestions and bug reports a day, as does one account (`support.noteLimiter`).
+- A note lists its `attachments`: each has a `contentType`, a `sizeBytes` and a
+  `url`. **Open the `url` in a browser**: it is good for one hour
+  (`support.attachments.linkTTL`), so run the command again for a fresh one.
+  Every file a note lists was in the bucket when the note was kept. To print
+  the links alone:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"kind":"NOTE_KIND_BUG"}' http://127.0.0.1:8081/support.v1.AdminService/ListNotes | jq -r '.notes[] | select(.attachments) | .text, (.attachments[] | "  \(.contentType) \(.url)")'
+```
+
+- A note keeps its files when it loses its account, as it keeps its text.
 
 ### Read the reports of players
 
@@ -1415,6 +1428,88 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 - A guest account is free to make. Do not count reports: read them.
 - A report is deleted after 90 days, and at once when the reporter or the
   player reported is deleted.
+
+## 11. Photos and videos on a note
+
+On in `backend.yaml` (`support.attachments.enabled: true`). A player adds up
+to 10 photos or videos to a suggestion or a bug report. They are not kept on
+the droplet: its disk is 25 GB, and you read notes on a loopback listener, where
+no browser can open a video. The page sends each file straight to an S3 bucket,
+on a link the backend signs, then sends the note naming them. The backend reads
+each file back from the bucket before it keeps the note, and `ListNotes` gives
+you a link to each.
+
+`backend.yaml` names a Cloudflare R2 bucket: R2 is free up to 10 GB, has no
+charge for downloads, and is on the account that already serves the site. **Any
+S3-compatible bucket works**: for DigitalOcean Spaces ($5 a month for 250 GB),
+change `endpoint` to `https://<region>.digitaloceanspaces.com` and `region` to
+`us-east-1`, and do steps 2 and 3 in its control panel.
+
+1. Turn R2 on for the account in the dashboard (**R2 object storage**), then
+   make the bucket. **Done on 2026-10-14**, in Western Europe:
+
+   ```bash
+   npx wrangler r2 bucket create clickplanet-support
+   ```
+
+2. Let the site upload to it. Without this rule the browser blocks every
+   upload. **Done on 2026-10-14** too:
+
+   ```bash
+   printf '%s' '{"rules":[{"allowed":{"origins":["https://clickplanet.lol"],"methods":["PUT"],"headers":["content-type"]},"maxAgeSeconds":3600}]}' > /tmp/cors.json && npx wrangler r2 bucket cors set clickplanet-support --file /tmp/cors.json
+   ```
+
+3. In the dashboard, **R2 object storage → Manage API tokens → Create**: an
+   **Object Read & Write** token for the `clickplanet-support` bucket alone. It
+   shows an **Access Key ID** and a **Secret Access Key**, once.
+4. Put the secret in the Actions secrets. `backend.yaml` already names it
+   (`env://SUPPORT_BUCKET_SECRET`):
+
+   ```bash
+   read -rsp 'Secret Access Key: ' s && echo && printf '%s' "$s" | gh secret set SUPPORT_BUCKET_SECRET --repo raphoester/clickplanet && unset s
+   ```
+
+5. In `backend.yaml`, write the Access Key ID in
+   `support.attachments.bucket.accessKeyId` (it is in every link the page gets,
+   so it is not a secret), set `support.attachments.enabled: true`, and deploy.
+   **An empty key or secret refuses the boot, and the deploy does not check the
+   boot**: set the secret before the deploy, or the backend restarts in a loop.
+   With a new token, change both, then deploy. **Done on 2026-10-18.**
+
+To check it: the boot logs `support built ... attachments=true`, the Feedback
+form in Settings shows **Add photos or videos**, and a picture sent from it
+opens from the `url` `ListNotes` prints.
+
+- **A link is only good for the file it was signed for**: its type and its
+  exact size. A player cannot use one to upload something else or something
+  bigger than `support.attachments.maxBytes` (50 MiB).
+- **This was tested on an S3 server, not on R2 itself.** If every upload
+  answers 403, compare `region` and the key with the token.
+- **The bucket holds 9 GiB at most** (`support.attachments.maxStoredBytes`),
+  under R2's free 10 GB, so storage costs nothing. A file is counted from the
+  moment its link is signed. Past it, the Feedback form shows no picker, and an
+  upload is refused. To see what it holds:
+
+  ```bash
+  docker compose exec postgres psql -U clickplanet -c "select count(*), pg_size_pretty(sum(size_bytes)) from support.uploads"
+  ```
+
+- **Nothing deletes a file a note names**, not even when its note loses its
+  account. Once those fill the 9 GiB, players can attach no more until you
+  delete some or raise the cap (each GB past 10 costs $0.015 a month).
+- **A file no note names is deleted after a day**
+  (`support.attachments.keepUnsent`): a player who closed the form, or whose
+  note was refused. Its room is free again.
+- **One account and one address upload 100 files a day**
+  (`support.uploadLimiter`), and send 10 notes a day.
+- **The request fees are the one cost the app cannot cap**: R2 charges each
+  write past a million a month ($4.50 a million), and an upload link works for
+  10 minutes. Cloudflare has no spending limit on R2, so look at the bucket's
+  operations in the dashboard if the bill moves.
+- **Switch it off only once no note carries a file**: with no bucket,
+  `ListNotes` fails on a note that does.
+- The privacy page says Cloudflare stores these files. With another provider,
+  change that line.
 
 ## Rollback
 

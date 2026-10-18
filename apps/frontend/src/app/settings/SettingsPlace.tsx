@@ -1,6 +1,6 @@
 import {useState} from "react";
 import {DisplaySettings} from "../../domain/displaySettings.ts";
-import {BugReporter, FeatureSuggester, PageContext} from "../../backends/support.ts";
+import {FeedbackBackend, PageContext} from "../../backends/support.ts";
 import About from "../About.tsx";
 import BuyMeACoffee from "../components/BuyMeACoffee.tsx";
 import {InfoIcon, MailIcon} from "../components/icons.tsx";
@@ -15,7 +15,7 @@ import "./SettingsPlace.css"
 export type SettingsPlaceProps = {
     display?: {settings: DisplaySettings, onChange: (settings: DisplaySettings) => void},
     sound?: SoundSettingsPanelProps,
-    support?: FeatureSuggester & BugReporter,
+    support?: FeedbackBackend,
     pageContext?: () => PageContext,
 }
 

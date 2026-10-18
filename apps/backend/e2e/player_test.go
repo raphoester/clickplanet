@@ -47,6 +47,12 @@ const adminOrigin = "https://backoffice.clickplanet.lol"
 func startGame(t *testing.T) gameStack {
 	t.Helper()
 
+	return startGameWith(t, func(*support.Config) {})
+}
+
+func startGameWith(t *testing.T, adjust func(*support.Config)) gameStack {
+	t.Helper()
+
 	postgres := cppg.StartTestServer(t)
 	secret, _ := cpsession.TestKeyPair()
 	public, internal, console, admin := listen(t), listen(t), listen(t), listen(t)
@@ -80,7 +86,15 @@ func startGame(t *testing.T) gameStack {
 	chatConfig.RateLimiter.PerSecond = 100
 	chatConfig.RateLimiter.Burst = 100
 
+	bucket := startBucket(t)
 	supportConfig := support.Config{Database: postgres.ConfigFor("support")}
+	supportConfig.Attachments.Enabled = true
+	supportConfig.Attachments.Bucket.Endpoint = bucket.url
+	supportConfig.Attachments.Bucket.Region = "auto"
+	supportConfig.Attachments.Bucket.Name = "support"
+	supportConfig.Attachments.Bucket.AccessKeyID = "the-key-id"
+	supportConfig.Attachments.Bucket.SecretAccessKey = "the-secret-key"
+	adjust(&supportConfig)
 
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
 
