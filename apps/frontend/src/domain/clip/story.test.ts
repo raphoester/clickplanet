@@ -18,6 +18,19 @@ function took(to: string | undefined, from: string | undefined, count: number, f
     return Array.from({length: count}, (_, i) => ({tile: first + i, from, to, at: i}))
 }
 
+describe("what a flag holds", () => {
+    it("is told beside what the flag did there, once a flag", () => {
+        const attack: Story = {kind: "attack", attacker: "hr", rival: undefined, victims: ["fr"], place: {region: "Europe"}, taken: 900}
+        const holding: Story = {...attack, kind: "holding", victims: ["se"], taken: 9400, share: 0.8}
+        const name = () => "Europe"
+
+        expect(sameStory(attack, holding, name, regionOf)).toBe(false)
+        expect(sameStory(holding, {...holding, place: {country: "fr"}}, name, regionOf)).toBe(true)
+        expect(storyKeyOf(holding, regionOf)).toEqual({flag: "hr", continent: "Europe", angle: "holding"})
+        expect(storyKeyOf(attack, regionOf)).toEqual({flag: "hr", continent: "Europe"})
+    })
+})
+
 describe("the story of a front", () => {
     it("is an attack on a region when the attacker took tiles over several countries", () => {
         const changes = [

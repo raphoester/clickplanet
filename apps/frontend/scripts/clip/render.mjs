@@ -21,6 +21,8 @@ if (!replay || has("help")) {
   --pick <n>          only the n-th best story
   --plan              print what each clip would be, and make none
   --shortlist <path>  write the stories worth a clip, best first, as JSON (clips.v1.Shortlist), and make none
+  --race <path>       the season's race (seasons.v1.GetRaceResponse): the day it closed last is a story when its
+                      cutoff is in the window
   --silent            no anthem under the clip, for a sound added where it is posted
   --preview <s>       only the first s seconds of each clip
 
@@ -59,6 +61,11 @@ if (!existsSync(replayPath)) {
     console.error(`no replay at ${replayPath}`)
     process.exit(1)
 }
+const racePath = flag("race") === undefined ? undefined : resolve(flag("race"))
+if (racePath !== undefined && !existsSync(racePath)) {
+    console.error(`no race at ${racePath}`)
+    process.exit(1)
+}
 
 const server = await createServer({
     root: APP,
@@ -72,6 +79,17 @@ const server = await createServer({
                 res.setHeader("Content-Type", "application/json")
                 res.setHeader("Content-Length", statSync(replayPath).size)
                 createReadStream(replayPath).pipe(res)
+            })
+            // Answered either way: with no race, a day is no story, and the page must not read the app's fallback page.
+            vite.middlewares.use("/__clip/race.json", (_req, res) => {
+                if (racePath === undefined) {
+                    res.statusCode = 404
+                    res.end()
+                    return
+                }
+                res.setHeader("Content-Type", "application/json")
+                res.setHeader("Content-Length", statSync(racePath).size)
+                createReadStream(racePath).pipe(res)
             })
         },
     }],

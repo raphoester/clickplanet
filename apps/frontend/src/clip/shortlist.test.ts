@@ -14,4 +14,12 @@ describe("the shortlist", () => {
             ],
         })
     })
+
+    it("keys what a flag holds apart from what it did there", () => {
+        const holding: Story = {kind: "holding", attacker: "hr", rival: undefined, victims: ["se"], place: {region: "Europe"}, taken: 9400, share: 0.8}
+
+        expect(shortlistOf([holding]).toJson()).toEqual({
+            stories: [{title: "CROATIA HOLDS 80% OF EUROPE", key: {flag: "hr", continent: "Europe", angle: "holding"}, countries: ["hr", "se"]}],
+        })
+    })
 })

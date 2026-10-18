@@ -4,15 +4,29 @@ import {ranked, tally, TileChange} from "./changes.ts"
 
 export type Place = {country: string} | {countries: [string, string]} | {region: string}
 
-// team: the continent whose flags strike back together, when no one flag of them leads.
+// A day of the season once it closed: the countries that scored the most in it, and the season's table after it.
+export type Day = {
+    season: number
+    number: number
+    finale: boolean
+    endedAt: number
+    podium: {country: string, rank: number, points: number}[]
+    table: {country: string, rank: number, points: number}[]
+}
+
+// team: the continent whose flags strike back together, when no one flag of them leads. A holding is what the map is
+// rather than what changed on it: its flag (attacker) holds share of the place, the flags holding the most after it
+// are its victims. A round is a day of the season its flag won, the next places on its podium its victims.
 export type Story = {
-    kind: "attack" | "invasion" | "comeback" | "kickout" | "rout" | "battle"
+    kind: "attack" | "invasion" | "comeback" | "kickout" | "rout" | "battle" | "holding" | "round"
     attacker: string
     rival: string | undefined
     victims: string[]
     place: Place
     taken: number
     team?: string
+    share?: number
+    day?: Day
 }
 
 // The continent, as Natural Earth names it.
@@ -64,16 +78,20 @@ export function sidesOf(story: Story): string[] {
     return [story.attacker]
 }
 
-// Two stories with one key are one story told twice, whatever their headlines.
-export type StoryKey = {flag: string, continent: string}
+// Two stories with one key are one story told twice, whatever their headlines. angle: what the story tells of its flag
+// there, none for what it did; round: the day a round tells, "1.5".
+export type StoryKey = {flag: string, continent: string, angle?: "holding" | "round", round?: string}
 
 export function storyKeyOf(story: Story, regionOf: RegionOf): StoryKey {
     const place = story.place
     const country = "country" in place ? place.country : "countries" in place ? place.countries[0] : undefined
-    return {
+    const key = {
         flag: sidesOf(story)[0],
         continent: "region" in place ? place.region : country === undefined ? THE_WORLD : regionOf(country) ?? country,
     }
+    if (story.kind === "holding") return {...key, angle: "holding"}
+    if (story.kind === "round" && story.day !== undefined) return {...key, angle: "round", round: `${story.day.season}.${story.day.number}`}
+    return key
 }
 
 // Every country a story shows: its place's, its flags' and the flags it takes from. A continent's own flag is not one.
@@ -175,6 +193,9 @@ export function lossOf(told: Story, loser: string, taker: string, place: Place):
 // by both sides in their place.
 export function sameStory(a: Story, b: Story, placeName: (place: Place) => string, regionOf: RegionOf): boolean {
     if (sameRout(a, b, regionOf)) return true
+    // What a flag holds, and a day it won, are told beside what it did, once a flag.
+    const told = (story: Story) => story.kind === "holding" || story.kind === "round"
+    if (told(a) || told(b)) return a.kind === b.kind && a.attacker === b.attacker
     // A flag thrown out is its story, whoever took its land.
     if (a.kind === "rout" || b.kind === "rout") return false
     if (a.kind === "comeback" && b.kind === "comeback") return a.attacker === b.attacker
