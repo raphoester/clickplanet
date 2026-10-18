@@ -10,6 +10,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages/postgres_message_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/postgres_removal_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -111,4 +113,55 @@ func (s *testSuite) names() []string {
 	}
 	s.Require().NoError(rows.Err())
 	return names
+}
+
+func (s *testSuite) removed(message messages.Message) {
+	snapshot := message.TakeSnapshot()
+	s.Require().NoError(postgres_removal_store.New(s.db).Save(context.Background(),
+		removals.Snapshot{MessageID: snapshot.ID, RemovedAt: snapshot.SentAt.Add(time.Minute)}))
+}
+
+func (s *testSuite) TestARemovedMessageIsNeitherShownNorReadAndIsStillKept() {
+	ctx := context.Background()
+	insult := s.sent("insult", "Bob", start)
+	s.keep(insult)
+	s.keep(s.sent("hello", "Ada", start.Add(time.Second)))
+	s.removed(insult)
+
+	shown, err := s.store.Shown(ctx, "id-insult", start, 10)
+	s.Require().NoError(err)
+	s.False(shown, "nobody reacts to a removed message")
+
+	_, err = s.store.Message(ctx, "id-insult", start, 10)
+	s.Require().ErrorIs(err, messages.ErrNotShown, "nobody answers a removed message")
+
+	kept, err := s.store.Kept(ctx, "id-insult", start)
+	s.Require().NoError(err)
+	s.True(kept, "the row stays, as evidence")
+}
+
+func (s *testSuite) TestARemovedMessageLeavesItsPlaceInTheWindow() {
+	older := s.sent("older", "Ada", start)
+	insult := s.sent("insult", "Bob", start.Add(time.Second))
+	s.keep(older)
+	s.keep(insult)
+	s.removed(insult)
+
+	shown, err := s.store.Shown(context.Background(), "id-older", start, 1)
+	s.Require().NoError(err)
+	s.True(shown, "a window of one holds the newest message still shown")
+}
+
+func (s *testSuite) TestAMessageIsKeptOnlyInsideTheRetention() {
+	ctx := context.Background()
+	s.keep(s.sent("old", "Ada", start))
+
+	for id, since := range map[messages.MessageID]time.Time{
+		"id-old":     start.Add(time.Second),
+		"id-unknown": start,
+	} {
+		kept, err := s.store.Kept(ctx, id, since)
+		s.Require().NoError(err)
+		s.False(kept, id)
+	}
 }

@@ -1,11 +1,20 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {announcementOf, ChatServiceBackend, decodedAnnouncement, decodedMessage, messageOf, reactionsOf} from "./chatBackend.ts"
+import {
+    announcementOf,
+    ChatServiceBackend,
+    decodedAnnouncement,
+    decodedMessage,
+    messageOf,
+    reactionsOf,
+    removedOf,
+} from "./chatBackend.ts"
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
 import {
     Announcement,
     ChatEvent,
     ChatMessage as ChatMessagePb,
     Heartbeat,
+    MessageRemoved,
     MuteRefusal,
     Quote,
     Reaction,
@@ -122,6 +131,15 @@ describe("reactionsOf", () => {
             version: 8,
         })
         expect(reactionsOf(new ChatEvent({event: {case: "message", value: proto()}}))).toBeUndefined()
+    })
+})
+
+describe("removedOf", () => {
+    it("unwraps a removal, and nothing else", () => {
+        const event = new ChatEvent({event: {case: "messageRemoved", value: new MessageRemoved({messageId: "message-1"})}})
+
+        expect(removedOf(event)).toBe("message-1")
+        expect(removedOf(new ChatEvent({event: {case: "message", value: proto()}}))).toBeUndefined()
     })
 })
 

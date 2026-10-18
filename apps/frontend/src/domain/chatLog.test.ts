@@ -14,6 +14,7 @@ import {
     startsGroup,
     unreadSince,
     unseenAfter,
+    withoutMessage,
 } from "./chatLog.ts"
 import type {ChatAnnouncement, ChatMessage} from "../backends/chat.ts"
 import {NameColor} from "../backends/player.ts"
@@ -78,6 +79,36 @@ describe("addMessages", () => {
         const many = Array.from({length: CHAT_LOG_LIMIT + 10}, (_, i) => message(`m${i}`, i))
 
         expect(addMessages([], many)).toHaveLength(CHAT_LOG_LIMIT)
+    })
+})
+
+describe("withoutMessage", () => {
+    it("drops the message an operator removed", () => {
+        const log = addMessages([], [message("a", 1), message("b", 2)])
+
+        expect(ids(withoutMessage(log, "a"))).toEqual(["b"])
+    })
+
+    it("drops the quote of a reply to it, so the reply reads as a plain message", () => {
+        const removed = message("a", 1)
+        const reply = {...message("b", 2), replyTo: quoteOf(removed)}
+
+        const kept = withoutMessage([removed, reply], "a")
+
+        expect(ids(kept)).toEqual(["b"])
+        expect(kept[0].replyTo).toBeUndefined()
+    })
+
+    it("keeps a reply whose message the log has dropped already", () => {
+        const reply = {...message("b", 2), replyTo: quoteOf(message("a", 1))}
+
+        expect(withoutMessage([reply], "a")[0].replyTo).toBeUndefined()
+    })
+
+    it("returns the same array when the log holds nothing of it, so React sees no change", () => {
+        const log = addMessages([], [message("a", 1)])
+
+        expect(withoutMessage(log, "never-seen")).toBe(log)
     })
 })
 

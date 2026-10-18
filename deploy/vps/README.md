@@ -1376,7 +1376,8 @@ and the chat message. **A report does nothing by itself.** Read the newest 100:
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/support.v1.AdminService/ListReports
 ```
 
-- `since` and `limit` work as for the notes.
+- `since` and `limit` work as for the notes. `{"openOnly":true}` leaves out the
+  reports already decided.
 - Each report names two accounts, with the name the game shows for each now:
   `reporterAccountId` and `reportedAccountId`. A name is empty when the account
   can no longer be named.
@@ -1384,11 +1385,30 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
   `REPORT_REASON_BAD_NAME` or `REPORT_REASON_OTHER`.
 - **To act**, give `reportedAccountId` to the tools above: `InspectPlayer` and
   `BanPlayer` for a cheater, `Mute` for the chat.
-- A report from a chat message has its `messageId`. To read the message:
+- A report from a chat message has its `messageId`. To read the message, removed
+  or not:
 
 ```bash
-docker compose exec postgres psql -U clickplanet -c "select sent_at, text from chat.messages where id = '<message_id>'"
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"messageId":"<message_id>"}' http://127.0.0.1:8081/chat.v1.AdminService/GetMessage
 ```
+
+- To remove it for everyone, at once. It leaves the history and every quote, and
+  the open chats drop it. The row stays, as evidence, until the retention:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"messageId":"<message_id>"}' http://127.0.0.1:8081/chat.v1.AdminService/RemoveMessage
+```
+
+- Then close the report: `REPORT_OUTCOME_ACTED` when you acted, or
+  `REPORT_OUTCOME_DISMISSED`. The comment is optional. A second decision
+  replaces the first:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"reportId":"<report_id>","outcome":"REPORT_OUTCOME_ACTED","comment":"removed the message"}' http://127.0.0.1:8081/support.v1.AdminService/DecideReport
+```
+
+- Every removal and every decision is logged:
+  `journalctl CONTAINER_NAME=cp-backend | grep -E "admin chat message removal|admin report decision"`.
 
 - One account reports one player once a day (UTC). Many reports of one player
   are many accounts, or many days.

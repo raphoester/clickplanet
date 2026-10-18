@@ -92,3 +92,185 @@ export class MuteResponse extends Message<MuteResponse> {
   }
 }
 
+/**
+ * @generated from message chat.v1.RemoveMessageRequest
+ */
+export class RemoveMessageRequest extends Message<RemoveMessageRequest> {
+  /**
+   * @generated from field: string message_id = 1;
+   */
+  messageId = "";
+
+  constructor(data?: PartialMessage<RemoveMessageRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.RemoveMessageRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoveMessageRequest {
+    return new RemoveMessageRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RemoveMessageRequest {
+    return new RemoveMessageRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RemoveMessageRequest {
+    return new RemoveMessageRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RemoveMessageRequest | PlainMessage<RemoveMessageRequest> | undefined, b: RemoveMessageRequest | PlainMessage<RemoveMessageRequest> | undefined): boolean {
+    return proto3.util.equals(RemoveMessageRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.RemoveMessageResponse
+ */
+export class RemoveMessageResponse extends Message<RemoveMessageResponse> {
+  /**
+   * @generated from field: google.protobuf.Timestamp removed_at = 1;
+   */
+  removedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<RemoveMessageResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.RemoveMessageResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "removed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RemoveMessageResponse {
+    return new RemoveMessageResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RemoveMessageResponse {
+    return new RemoveMessageResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RemoveMessageResponse {
+    return new RemoveMessageResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RemoveMessageResponse | PlainMessage<RemoveMessageResponse> | undefined, b: RemoveMessageResponse | PlainMessage<RemoveMessageResponse> | undefined): boolean {
+    return proto3.util.equals(RemoveMessageResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.GetMessageRequest
+ */
+export class GetMessageRequest extends Message<GetMessageRequest> {
+  /**
+   * @generated from field: string message_id = 1;
+   */
+  messageId = "";
+
+  constructor(data?: PartialMessage<GetMessageRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.GetMessageRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageRequest {
+    return new GetMessageRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMessageRequest {
+    return new GetMessageRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMessageRequest {
+    return new GetMessageRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMessageRequest | PlainMessage<GetMessageRequest> | undefined, b: GetMessageRequest | PlainMessage<GetMessageRequest> | undefined): boolean {
+    return proto3.util.equals(GetMessageRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message chat.v1.GetMessageResponse
+ */
+export class GetMessageResponse extends Message<GetMessageResponse> {
+  /**
+   * @generated from field: string message_id = 1;
+   */
+  messageId = "";
+
+  /**
+   * Empty for a message kept before accounts, or of a deleted account.
+   *
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string text = 3;
+   */
+  text = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp sent_at = 4;
+   */
+  sentAt?: Timestamp;
+
+  /**
+   * @generated from field: string country_id = 5;
+   */
+  countryId = "";
+
+  /**
+   * Unset while the message is shown.
+   *
+   * @generated from field: google.protobuf.Timestamp removed_at = 6;
+   */
+  removedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<GetMessageResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.GetMessageResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "sent_at", kind: "message", T: Timestamp },
+    { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "removed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageResponse {
+    return new GetMessageResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMessageResponse {
+    return new GetMessageResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMessageResponse {
+    return new GetMessageResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMessageResponse | PlainMessage<GetMessageResponse> | undefined, b: GetMessageResponse | PlainMessage<GetMessageResponse> | undefined): boolean {
+    return proto3.util.equals(GetMessageResponse, a, b);
+  }
+}
+

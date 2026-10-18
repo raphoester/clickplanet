@@ -162,6 +162,7 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
         onReactions?: (change: ReactionsChange) => void,
         onAnnouncement?: (announcement: ChatAnnouncement) => void,
         onResumed?: () => void,
+        onRemoved?: (messageId: string) => void,
     ): () => void {
         return openStream(
             (signal) => this.client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT}),
@@ -172,6 +173,8 @@ export class ChatServiceBackend implements ChatSender, ChatHistoryGetter, ChatLi
                 if (change) onReactions?.(change)
                 const announcement = announcementOf(event)
                 if (announcement) onAnnouncement?.(announcement)
+                const removed = removedOf(event)
+                if (removed !== undefined) onRemoved?.(removed)
             },
             "chat",
             {onResumed},
@@ -244,6 +247,12 @@ export function reactionsOf(event: ChatEvent): ReactionsChange | undefined {
         reactions: event.event.value.reactions.map(decodedCount),
         version: Number(event.event.value.version),
     }
+}
+
+export function removedOf(event: ChatEvent): string | undefined {
+    if (event.event.case !== "messageRemoved") return undefined
+
+    return event.event.value.messageId
 }
 
 export function announcementOf(event: ChatEvent): ChatAnnouncement | undefined {

@@ -447,9 +447,10 @@ handler declares: they tell the guard what a caller reads, for the `scraper`.
 
 ### Inside the chat module: the same shape
 
-Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has six:
+Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has seven:
 `messages`, `reactions` (which imports `messages`), `announcements`, `seen` (which imports `messages`), `mutes`
-(which imports `messages`), and `feed`, the live stream, which carries the first three. `subscribers/` is its edge for events, as `chatv1controller/` is
+(which imports `messages`), `removals` (which imports `messages`), and `feed`, the live stream, which carries the
+first three and the removals. `subscribers/` is its edge for events, as `chatv1controller/` is
 its edge for the wire. A read is a query under its handler: see [Reads are queries](#reads-are-queries).
 
 ```
@@ -497,13 +498,19 @@ internal/chat/internal/
     usecases/mute_usecase/              keeps a mute on the account and its network — Saver, Addresses, IDProvider
       publishing_mute/                  publishes chat.v1.AccountMuted once a mute is kept
       audit_mute/                       logs every mute at Warn
-  feed/                                 Update: a message sent, a message's new reactions, or an announcement
-                                        (MessageSent, ReactionsChanged, Announced)
+  removals/                             Removal (NewRemoval, TakeSnapshot), Snapshot, ErrUnknownMessage, the Storage port
+    postgres_removal_store/             Storage, over chat.removals
+    usecases/remove_message_usecase/    takes a kept message out of what anybody is shown, then tells the streams —
+                                        Messages, Saver, Publisher
+      audit_remove/                     logs every removal at Warn
+  feed/                                 Update: a message sent, a message's new reactions, an announcement, or a
+                                        message removed (MessageSent, ReactionsChanged, Announced, MessageRemoved)
     inprocess_feed/                     the fanout to every open stream, in this process
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — UpdatesSubscriber
   chatv1controller/                     ChatService and AdminService (bags), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
-    mute_handler/
+    mute_handler/  remove_message_handler/  get_message_handler/
+    get_message_handler/message_query/  PostgresQuery: one message as it was sent, removed or not
     get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, named, and until when
                                         the viewer saw the chat — Authors
       rpc_player_authors/               Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
@@ -634,7 +641,7 @@ Both live feeds are served **two ways at once**, and that is a transition, not a
 
 - `ClickService.ListenForEvents` → `stream PlanetEvent`, `ChatService.ListenForEvents` → `stream ChatEvent`, `PlayerService.ListenForEvents` → `stream PlayerEvent`, and `SeasonService.ListenForEvents` → `stream SeasonEvent`. Ordinary Connect server-streaming RPCs, on the same routes and the same port as everything else.
 
-**One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message`, `heartbeat`, `reactions` and `announcement`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
+**One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message`, `heartbeat`, `reactions`, `announcement` and `message_removed`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
 
 **`heartbeat` is not decoration.** Cloudflare cuts a silent response at **~125s with a 524** — measured against production three times, exactly 125.1s. The websocket never hit this because Cloudflare keeps those open; a chunked HTTP response is not so lucky. A quiet chat is the normal case, and a quiet planet happens, so both streams send a heartbeat every `httpServer.streamHeartbeat` (30s by default, and it **must** stay well under 125s). Without it a silent stream dies and reconnects forever, losing whatever was published in each gap. **Each also sends one at once when it opens**, once it is subscribed (and, for the planet, attending its boxes): Connect writes nothing, not even the headers, until the first `Send`, and the client takes a stream's first event as the sign it is live and refetches the map or the history then. Without it a quiet chat stream would wait up to 30s to say so.
 These replaced a pair of websockets on `/ws/listen` and `/ws/chat`, broadcast by a `wspublisher` fanout. **Nothing here speaks websocket any more** — no upgrade route, no second mux, no `coder/websocket` dependency.
@@ -887,7 +894,7 @@ The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Cl
 
 **Each table has its own `Storage` port and a contract suite** (`messages.StorageContractSuite`, `reactions.StorageContractSuite`, behind the `testing` tag). The postgres stores run it against a real postgres; `inmemory_message_storage` and `inmemory_reaction_storage` run it too, and exist **only for tests** — both files carry the `testing` tag, have no persistence port and are never built into the binary. Use case tests use them instead of hand-written fakes.
 
-**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, then the mutes that ended before it, once at boot and every `pruneInterval`, and `log_prune` logs it. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
+**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, then the mutes that ended before it and the removals made before it, once at boot and every `pruneInterval`, and `log_prune` logs it. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
 
 The table holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size.
 
@@ -967,6 +974,29 @@ duration)`, on the admin listener (see [Operator tools](#operator-tools-adminser
   a mute early (`deploy/vps/README.md`).
 - `e2e/mute_test.go` mutes over the console listener and sees the player, its reaction and a fresh guest on its
   network refused, and the line reach the history.
+
+#### Removals
+
+**An operator can take a message out of the chat**: `chat.v1.AdminService/RemoveMessage(message_id)`, on the admin
+listener, for a report it acts on. The notice-and-action answer to a message, beside the mute for its sender.
+
+- **The row stays, as evidence**: a removal is a row of its own in `chat.removals` (`message_id`, `removed_at`;
+  migration `20261018120000_removals`), never a delete or a flag on the message. The prune deletes it with the
+  messages, past `retention`.
+- **Out of everything anybody is shown, at once**: the history's window (`history_query`), the quote of every reply
+  to it, and `Store.Shown` and `Store.Message`, so nobody reacts to it or answers it (`NotFound`). **It leaves its
+  place**: the window is the newest `historySize` messages still shown. The parity test runs removals through the
+  history, `React` and `SendMessage`.
+- **Only a kept message can be removed** (`Store.Kept`: within the retention, removed or not), else
+  `removals.ErrUnknownMessage`, `NotFound`. Removing twice keeps the latest time.
+- **Every open stream is told**: `remove_message_usecase` publishes `feed.MessageRemoved` once the removal is kept,
+  and the stream sends `message_removed`, which the client drops at once. A client that missed it shows the
+  message until its next load.
+- **`chat.v1.AdminService/GetMessage(message_id)`** is the message as it was sent, removed or not, with
+  `removed_at`, for the operator who reads a report (`message_query`). `NotFound` past the retention.
+- **`audit_remove` logs every call at Warn** (`admin chat message removal`).
+- `e2e/report_actions_test.go` removes a reported message over the console listener, and sees it leave the history
+  and the quote, refuse a reaction, and still read for the operator.
 
 #### Replies
 
@@ -1548,10 +1578,15 @@ internal/support/internal/
     usecases/report_player_usecase/     reads what was filed, draws an id, builds the report, keeps it — IDProvider, Reports
     usecases/forget_reports_usecase/    reads the reports that name an account, forgets them, saves — Reports
     usecases/prune_reports_usecase/     reads the reports past retention, forgets them, saves — Reports
+  decisions/                        Decision (NewDecision, TakeSnapshot), Snapshot (Restore), Outcome; the Storage port
+    postgres_decision_store/        Storage, over support.report_decisions
+    usecases/decide_report_usecase/ builds the decision and keeps it — Saver
+      audit_decide_report/          logs every decision at Warn
   supportv1controller/              SupportService and AdminService (bags), the interceptors
     suggest_feature_handler/  report_bug_handler/  report_player_handler/
     list_notes_handler/notes_query/ PostgresQuery: ListNotesResponse straight from SQL
-    list_reports_handler/reports_query/   PostgresQuery: ListReportsResponse from SQL, named — Authors
+    list_reports_handler/reports_query/   PostgresQuery: ListReportsResponse from SQL, decided or not, named — Authors
+    decide_report_handler/
       rpc_player_authors/           Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
     caller/                         the account on the context, or Unauthenticated
     pagecontext/                    Diagnostics: a request's PageContext and its User-Agent, for both handlers
@@ -1592,7 +1627,15 @@ internal/support/internal/
 - **One account reports one player once a UTC day** (`ErrReportedAlready`, `AlreadyExists`), **and `NewReport` is where that is decided**: the use case hands it what the reporter already filed about the player (`FiledBy`), and a report of the same day among them refuses the new one. **The database holds no part of the rule**: no day column, no unique constraint, and a storage keeps two reports of one day if it is handed them. So two reports sent at the very same moment can both be kept. That is accepted: a report does nothing by itself, and the service's limiter lets an address send three.
 - **A report does nothing by itself, and nothing counts reports.** No mute, no ban, no score. A guest account is free to make and countries are rivals here, so a threshold would be a weapon. The operator reads a report, then uses the tools it already has.
 - **Kept in `support.reports`** (`id`, `reporter_account_id`, `reported_account_id`, `reason`, `text`, `message_id`, `created_at`; migration `20261012110000_reports`), with no address. **`reason` is a postgres enum type, `report_reason`**, as a note's kind is: a new reason is a value a migration adds to the type.
-- **`AdminService/ListReports(since, limit)`**, as `ListNotes`: newest first, 100 unless asked, 500 at most. `reports_query` reads the rows, then asks `GetAuthors` once for everyone they name, reporters and reported together. An account nobody can name any more has an empty name. **Reports nobody could be named in are refused**, as a chat history is. A stored reason the wire cannot carry refuses the read (`ErrUnknownReason`: a reason a newer migration added to the type, read by an older build). `reported_account_id` is what `InspectPlayer`, `BanPlayer` and `Mute` take.
+- **`AdminService/ListReports(since, limit)`**, as `ListNotes`: newest first, 100 unless asked, 500 at most. `reports_query` reads the rows, then asks `GetAuthors` once for everyone they name, reporters and reported together. An account nobody can name any more has an empty name. **Reports nobody could be named in are refused**, as a chat history is. A stored reason the wire cannot carry refuses the read (`ErrUnknownReason`: a reason a newer migration added to the type, read by an older build). `reported_account_id` is what `InspectPlayer`, `BanPlayer` and `Mute` take, and `message_id` what `GetMessage` and `RemoveMessage` take.
+- **`AdminService/DecideReport(report_id, outcome, comment)` closes a report**: `acted` or `dismissed`, and an
+  optional comment that follows `notes.TextOf`. **A decision is a concept of its own** (`decisions/`), in
+  `support.report_decisions` (migration `20261018130000_report_decisions`, `outcome` the type `report_outcome`), one
+  row per report: a second decision replaces the first, and `audit_decide_report` logs each one. **It goes with its
+  report** (`ON DELETE CASCADE`), so a forgotten report takes its decision. A report no longer kept is `NotFound`
+  (the store reads the foreign key's refusal as `decisions.ErrUnknownReport`).
+- **`ListReports` carries each decision** (`Report.decision`, unset while open), and `open_only` leaves out the
+  decided ones. A stored outcome the wire cannot carry refuses the read (`reports_query.ErrUnknownOutcome`).
 - With no internal listener the boot is refused: the module dials it once, at build, for `player`, which names the accounts in `ListReports`.
 - `reports.StorageContractSuite` runs on `inmemory_report_storage` and on postgres, through the same `Kept` hook of snapshots.
 
@@ -3191,7 +3234,7 @@ origin with auth off refuses the boot.
 Caddy sends `/<package>.v1.AdminService/*` on the API's domain to it, so `cp_admin`, which is host-only on that
 domain, travels from the admin page, a page of the same site.
 
-The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute` — see [Mutes](#mutes); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes` and `ListReports` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage` and `GetMessage` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.

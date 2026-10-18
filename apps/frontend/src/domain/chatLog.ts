@@ -64,6 +64,14 @@ export function addMessages(
     return merged.length > limit ? merged.slice(merged.length - limit) : merged
 }
 
+export function withoutMessage(log: readonly ChatMessage[], id: string): ChatMessage[] {
+    if (!log.some(message => message.id === id || message.replyTo?.messageId === id)) return log as ChatMessage[]
+
+    return log
+        .filter(message => message.id !== id)
+        .map(message => message.replyTo?.messageId === id ? {...message, replyTo: undefined} : message)
+}
+
 export function unreadSince(log: readonly ChatMessage[], lastSeenId: string | undefined): number {
     if (lastSeenId === undefined) return log.length
 

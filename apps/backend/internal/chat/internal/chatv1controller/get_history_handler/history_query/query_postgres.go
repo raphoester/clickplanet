@@ -100,10 +100,11 @@ func (q *PostgresQuery) seenUntil(ctx context.Context, viewer cpsession.AccountI
 	return until, nil
 }
 
+// A removed message is out of the window, as if it had never been sent: an operator took it out.
 const inWindow = `
 	SELECT seq, id, sent_at, account_id, name, author_admin, country, text, reply_to
 	FROM messages
-	WHERE sent_at >= $1
+	WHERE sent_at >= $1 AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id)
 	ORDER BY seq DESC
 	LIMIT $2
 `
@@ -129,6 +130,7 @@ const shownMessages = `
 		SELECT id, account_id, name, text
 		FROM messages
 		WHERE messages.id = shown.reply_to AND messages.sent_at >= $1
+			AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id)
 		ORDER BY seq DESC
 		LIMIT 1
 	) quoted ON true

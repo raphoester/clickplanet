@@ -126,6 +126,7 @@ export interface ChatListener {
         onReactions?: (change: ReactionsChange) => void,
         onAnnouncement?: (announcement: ChatAnnouncement) => void,
         onResumed?: () => void,
+        onRemoved?: (messageId: string) => void,
     ): () => void
 }
 

@@ -186,3 +186,14 @@ func TestEveryReportOfAListIsForgottenInItsOrder(t *testing.T) {
 	assert.Equal(t, second.Forgotten(), forgotten[1])
 	assert.Empty(t, reports.AllForgotten(nil))
 }
+
+func TestAReportIDIsAUUIDAndNothingElse(t *testing.T) {
+	id, err := reports.ReportIDOf("00000000-0000-0000-0000-000000000001")
+	require.NoError(t, err)
+	assert.Equal(t, reports.ReportID{15: 1}, id)
+
+	for _, value := range []string{"", "not-a-report", "00000000-0000-0000-0000-000000000000"} {
+		_, err := reports.ReportIDOf(value)
+		require.ErrorIs(t, err, reports.ErrInvalidReportID, value)
+	}
+}

@@ -825,6 +825,12 @@ export class ChatEvent extends Message<ChatEvent> {
      */
     value: Announcement;
     case: "announcement";
+  } | {
+    /**
+     * @generated from field: chat.v1.MessageRemoved message_removed = 5;
+     */
+    value: MessageRemoved;
+    case: "messageRemoved";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<ChatEvent>) {
@@ -839,6 +845,7 @@ export class ChatEvent extends Message<ChatEvent> {
     { no: 2, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
     { no: 3, name: "reactions", kind: "message", T: ReactionsChanged, oneof: "event" },
     { no: 4, name: "announcement", kind: "message", T: Announcement, oneof: "event" },
+    { no: 5, name: "message_removed", kind: "message", T: MessageRemoved, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChatEvent {
@@ -855,6 +862,45 @@ export class ChatEvent extends Message<ChatEvent> {
 
   static equals(a: ChatEvent | PlainMessage<ChatEvent> | undefined, b: ChatEvent | PlainMessage<ChatEvent> | undefined): boolean {
     return proto3.util.equals(ChatEvent, a, b);
+  }
+}
+
+/**
+ * An operator removed it: it is out of the history and of every quote, and a client drops it.
+ *
+ * @generated from message chat.v1.MessageRemoved
+ */
+export class MessageRemoved extends Message<MessageRemoved> {
+  /**
+   * @generated from field: string message_id = 1;
+   */
+  messageId = "";
+
+  constructor(data?: PartialMessage<MessageRemoved>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.MessageRemoved";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageRemoved {
+    return new MessageRemoved().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MessageRemoved {
+    return new MessageRemoved().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MessageRemoved {
+    return new MessageRemoved().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MessageRemoved | PlainMessage<MessageRemoved> | undefined, b: MessageRemoved | PlainMessage<MessageRemoved> | undefined): boolean {
+    return proto3.util.equals(MessageRemoved, a, b);
   }
 }
 

@@ -23,6 +23,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions/postgres_reaction_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/postgres_removal_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/seen/postgres_seen_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -138,6 +140,11 @@ func (s *testSuite) legacy(name string, at time.Time) {
 
 func (s *testSuite) sent(text string, ago time.Duration) {
 	s.sentAt(text, ada, now.Add(-ago))
+}
+
+func (s *testSuite) removed(text string) {
+	s.Require().NoError(postgres_removal_store.New(s.db).Save(s.T().Context(),
+		removals.Snapshot{MessageID: messages.MessageID(text), RemovedAt: now.Add(-time.Minute)}))
 }
 
 func (s *testSuite) reacted(text string, reaction reactions.Reaction, reactor reactions.Reactor, on bool, at time.Time) {
@@ -526,4 +533,25 @@ func (s *testSuite) TestNoViewerHasSeenNothing() {
 	s.Require().NoError(s.seen.SaveSeen(s.T().Context(), ada, now))
 
 	s.Zero(s.history(messages.NoAccount).GetSeenUntilUnixMs())
+}
+
+func (s *testSuite) TestARemovedMessageIsOutOfTheHistoryAndLeavesItsPlace() {
+	s.sent("first", 3*time.Hour)
+	s.sent("insult", 2*time.Hour)
+	s.sent("last", time.Hour)
+	s.removed("insult")
+
+	s.Equal([]string{"first", "last"}, texts(s.history(ada)))
+}
+
+func (s *testSuite) TestAReplyToARemovedMessageQuotesNothing() {
+	s.sentAt("insult", bob, now.Add(-2*time.Hour))
+	s.repliedAt("answer", ada, now.Add(-time.Hour), "insult")
+	s.removed("insult")
+
+	shown := s.history(ada).GetMessages()
+
+	s.Require().Len(shown, 1)
+	s.Equal("answer", shown[0].GetText())
+	s.Nil(shown[0].GetReplyTo(), "nobody reads a removed message in a quote")
 }

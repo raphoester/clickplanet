@@ -15,6 +15,8 @@ import (
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/postgres_decision_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/postgres_report_store"
@@ -92,7 +94,7 @@ func (s *testSuite) reported(n byte, reporter, about reports.AccountID, complain
 }
 
 func (s *testSuite) read(since time.Time, limit uint32) []*supportv1.Report {
-	answer, err := s.query.Reports(s.T().Context(), since, limit)
+	answer, err := s.query.Reports(s.T().Context(), since, limit, false)
 	s.Require().NoError(err)
 	return answer.GetReports()
 }
@@ -176,7 +178,7 @@ func (s *testSuite) TestAReasonTheDatabaseNamesAndTheWireCannotCarryRefusesTheRe
 	`, uuid.New(), uuid.UUID(ada), uuid.UUID(bob), start)
 	s.Require().NoError(err)
 
-	_, err = s.query.Reports(s.T().Context(), time.Time{}, 0)
+	_, err = s.query.Reports(s.T().Context(), time.Time{}, 0, false)
 
 	s.Require().ErrorIs(err, reports_query.ErrUnknownReason)
 }
@@ -186,7 +188,7 @@ func (s *testSuite) TestReportsNobodyCouldNameAreRefused() {
 	cause := errors.New("the player module is down")
 	s.names.err = cause
 
-	_, err := s.query.Reports(s.T().Context(), time.Time{}, 0)
+	_, err := s.query.Reports(s.T().Context(), time.Time{}, 0, false)
 
 	s.Require().ErrorIs(err, cause)
 }
@@ -195,7 +197,66 @@ func (s *testSuite) TestAFailedReadIsAnError() {
 	ctx, cancel := context.WithCancel(s.T().Context())
 	cancel()
 
-	_, err := s.query.Reports(ctx, time.Time{}, 0)
+	_, err := s.query.Reports(ctx, time.Time{}, 0, false)
 
 	s.Error(err, "not an empty list")
+}
+
+func (s *testSuite) decided(n byte, outcome decisions.Outcome, comment string, at time.Time) {
+	decision, err := decisions.NewDecision(reports.ReportID{15: n}, outcome, comment, at)
+	s.Require().NoError(err)
+	s.Require().NoError(postgres_decision_store.New(s.db).Save(s.T().Context(), decision))
+}
+
+func (s *testSuite) TestADecidedReportCarriesItsDecision() {
+	report := s.reported(1, ada, bob, reports.Complaint{Reason: reports.ReasonChatAbuse}, start)
+	report.Reason = supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE
+	s.decided(1, decisions.OutcomeActed, "muted for a day", start.Add(time.Hour))
+	report.Decision = &supportv1.ReportDecision{
+		Outcome: supportv1.ReportOutcome_REPORT_OUTCOME_ACTED, Comment: "muted for a day",
+		DecidedAt: timestamppb.New(start.Add(time.Hour)),
+	}
+
+	s.same([]*supportv1.Report{report}, s.read(time.Time{}, 0))
+}
+
+func (s *testSuite) TestTheOpenReportsLeaveOutTheDecidedOnes() {
+	s.reported(1, ada, bob, reports.Complaint{Reason: reports.ReasonOther}, start)
+	open := s.reported(2, bob, ada, reports.Complaint{Reason: reports.ReasonOther}, start.Add(time.Minute))
+	open.Reason = supportv1.ReportReason_REPORT_REASON_OTHER
+	s.decided(1, decisions.OutcomeDismissed, "", start.Add(time.Hour))
+
+	answer, err := s.query.Reports(s.T().Context(), time.Time{}, 0, true)
+	s.Require().NoError(err)
+
+	s.same([]*supportv1.Report{open}, answer.GetReports())
+	s.Len(s.read(time.Time{}, 0), 2, "every report unless asked")
+}
+
+func (s *testSuite) TestEveryOutcomeTheDomainKnowsIsRead() {
+	for n, outcome := range []decisions.Outcome{decisions.OutcomeActed, decisions.OutcomeDismissed} {
+		s.reported(byte(n+1), ada, bob, reports.Complaint{Reason: reports.ReasonOther}, start.Add(time.Duration(n)*24*time.Hour))
+		s.decided(byte(n+1), outcome, "", start.Add(time.Duration(n)*24*time.Hour+time.Hour))
+	}
+
+	got := s.read(time.Time{}, 0)
+
+	s.Require().Len(got, 2)
+	s.Equal([]supportv1.ReportOutcome{
+		supportv1.ReportOutcome_REPORT_OUTCOME_DISMISSED, supportv1.ReportOutcome_REPORT_OUTCOME_ACTED,
+	}, []supportv1.ReportOutcome{got[0].GetDecision().GetOutcome(), got[1].GetDecision().GetOutcome()})
+}
+
+func (s *testSuite) TestAnOutcomeTheDatabaseNamesAndTheWireCannotCarryRefusesTheRead() {
+	s.reported(1, ada, bob, reports.Complaint{Reason: reports.ReasonOther}, start)
+	_, err := s.db.ExecContext(s.T().Context(), `ALTER TYPE report_outcome ADD VALUE IF NOT EXISTS 'escalated'`)
+	s.Require().NoError(err)
+	_, err = s.db.ExecContext(s.T().Context(), `
+		INSERT INTO report_decisions (report_id, outcome, comment, decided_at) VALUES ($1, 'escalated', '', $2)
+	`, uuid.UUID(reports.ReportID{15: 1}), start)
+	s.Require().NoError(err)
+
+	_, err = s.query.Reports(s.T().Context(), time.Time{}, 0, false)
+
+	s.Require().ErrorIs(err, reports_query.ErrUnknownOutcome)
 }

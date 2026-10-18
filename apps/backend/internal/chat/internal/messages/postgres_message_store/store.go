@@ -38,7 +38,9 @@ func (s *Store) Shown(ctx context.Context, id messages.MessageID, since time.Tim
 	if err := s.db.QueryRowContext(ctx, `
 		SELECT EXISTS (
 			SELECT 1 FROM (
-				SELECT id FROM messages WHERE sent_at >= $2 ORDER BY seq DESC LIMIT $3
+				SELECT id FROM messages
+				WHERE sent_at >= $2 AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id)
+				ORDER BY seq DESC LIMIT $3
 			) recent
 			WHERE recent.id = $1
 		)
@@ -63,7 +65,9 @@ func (s *Store) Message(ctx context.Context, id messages.MessageID, since time.T
 			recent.reply_to
 		FROM (
 			SELECT id, sent_at, account_id, name, author_admin, country, text, reply_to
-			FROM messages WHERE sent_at >= $2 ORDER BY seq DESC LIMIT $3
+			FROM messages
+			WHERE sent_at >= $2 AND NOT EXISTS (SELECT 1 FROM removals WHERE removals.message_id = messages.id)
+			ORDER BY seq DESC LIMIT $3
 		) recent
 		WHERE recent.id = $1
 	`, string(id), since, limit).Scan(&sentAt, &account, &name, &admin, &country, &text, &replyTo)
@@ -101,6 +105,17 @@ func (s *Store) LatestAddress(ctx context.Context, account messages.AccountID) (
 		return "", fmt.Errorf("failed to read the latest address of an account: %w", err)
 	}
 	return ip, nil
+}
+
+// Removed or not: a removal is of a message that was kept.
+func (s *Store) Kept(ctx context.Context, id messages.MessageID, since time.Time) (bool, error) {
+	var kept bool
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT EXISTS (SELECT 1 FROM messages WHERE id = $1 AND sent_at >= $2)
+	`, string(id), since).Scan(&kept); err != nil {
+		return false, fmt.Errorf("failed to read whether a message is kept: %w", err)
+	}
+	return kept, nil
 }
 
 func (s *Store) DeleteBefore(ctx context.Context, cutoff time.Time) (int64, error) {

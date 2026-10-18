@@ -131,7 +131,13 @@ message ChatEvent {
     Heartbeat heartbeat = 2;
     ReactionsChanged reactions = 3;
     Announcement announcement = 4;
+    MessageRemoved message_removed = 5;
   }
+}
+
+// An operator removed it: it is out of the history and of every quote, and a client drops it.
+message MessageRemoved {
+  string message_id = 1;
 }
 
 message ReactionsChanged {
