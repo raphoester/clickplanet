@@ -16,6 +16,7 @@ import {SignInCallback} from "./signIn/SignInCallback.tsx"
 import {SignOutButton} from "./signIn/SignOutButton.tsx"
 import {NoteList} from "./support/NoteList.tsx"
 import {useCall} from "./useCall.ts"
+import {usePage} from "./usePage.ts"
 
 export function App({callback}: {callback: Callback | undefined}) {
     const [returning, setReturning] = useState(callback)
@@ -44,14 +45,14 @@ function Operator() {
 
 // The signed-in page: the burger menu picks one page, and its title says which.
 function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => void}) {
-    const [page, setPage] = useState<PageId>("notes")
+    const [page, setPage] = usePage()
     const [player, setPlayer] = useState<Opened | undefined>(undefined)
 
     // A report opens its player on the Players page, where every tool on it is.
     const openPlayer = useCallback((opened: Opened) => {
         setPlayer(opened)
         setPage("players")
-    }, [])
+    }, [setPage])
 
     // Picking the page shown goes back to its top: Players to its list.
     const go = (to: PageId) => {

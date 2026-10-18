@@ -97,7 +97,9 @@ title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
   scroll while it is open.
 - **Picking Players while on it goes back to the list.** A report's "Every tool →" goes to Players with its account
   open (`OpenPlayer`).
-- **The page picked is not kept** across a reload: the page opens on Ideas and bugs.
+- **The page shown is in the address bar** (`#/reports`, `usePage`): a reload or a link opens it again, and Back
+  goes to the page before. An address that names no page opens Ideas and bugs. Only the page is kept, not the
+  player open on it.
 
 ## Acting on a report
 
@@ -213,6 +215,7 @@ src/
   refusal.ts        a page's error → signedOut, notOperator, startAgain or failed; an action's in words (wordsOf)
   useCall.ts        one call's state, run on mount
   useAction.ts      one read's state, run on a click
+  usePage.ts        the page shown, kept in the address bar
   navigation.ts     MENU, the pages by group, and OpenPlayer
   countries.ts      a country id's name
   App.tsx           the callback, or WhoAmI first, then the page the menu picked
