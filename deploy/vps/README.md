@@ -1344,7 +1344,7 @@ docker compose exec postgres psql -U clickplanet -c "select sent_at, text from c
 
 ## 11. Photos and videos on a note
 
-Off in `backend.yaml` (`support.attachments.enabled: false`). A player adds up
+On in `backend.yaml` (`support.attachments.enabled: true`). A player adds up
 to 10 photos or videos to a suggestion or a bug report. They are not kept on
 the droplet: its disk is 25 GB, and you read notes on a loopback listener, where
 no browser can open a video. The page sends each file straight to an S3 bucket,
@@ -1385,7 +1385,9 @@ change `endpoint` to `https://<region>.digitaloceanspaces.com` and `region` to
 5. In `backend.yaml`, write the Access Key ID in
    `support.attachments.bucket.accessKeyId` (it is in every link the page gets,
    so it is not a secret), set `support.attachments.enabled: true`, and deploy.
-   An empty key or secret refuses the boot.
+   **An empty key or secret refuses the boot, and the deploy does not check the
+   boot**: set the secret before the deploy, or the backend restarts in a loop.
+   With a new token, change both, then deploy. **Done on 2026-10-18.**
 
 To check it: the boot logs `support built ... attachments=true`, the Feedback
 form in Settings shows **Add photos or videos**, and a picture sent from it

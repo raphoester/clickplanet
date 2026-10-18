@@ -364,13 +364,13 @@ func TestTheExampleConfigReachesTheAttachments(t *testing.T) {
 	assert.False(t, attachments.Enabled, "the example has no bucket")
 	assert.Equal(t, 10, attachments.MaxPerNote)
 	assert.Equal(t, int64(50<<20), attachments.MaxBytes)
-	assert.Equal(t, 30*time.Minute, attachments.UploadTTL)
+	assert.Equal(t, 10*time.Minute, attachments.UploadTTL)
 	assert.Equal(t, time.Hour, attachments.LinkTTL)
 	assert.Equal(t, "auto", attachments.Bucket.Region)
 	assert.Equal(t, "clickplanet-support", attachments.Bucket.Name)
 }
 
-func TestTheProductionConfigNamesItsBucketAndIsValidOnceTheKeyIsSet(t *testing.T) {
+func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T) {
 	const production = "../../../../deploy/vps/backend.yaml"
 	file, err := os.ReadFile(production)
 	require.NoError(t, err)
@@ -385,13 +385,17 @@ func TestTheProductionConfigNamesItsBucketAndIsValidOnceTheKeyIsSet(t *testing.T
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(production)))
 
-	bucket := config.Support.Attachments.Bucket
-	assert.Equal(t, "the-bucket-secret", bucket.SecretAccessKey)
-	assert.Equal(t, "clickplanet-support", bucket.Name)
-	assert.Equal(t, "auto", bucket.Region)
-	assert.True(t, strings.HasSuffix(bucket.Endpoint, ".r2.cloudflarestorage.com"), bucket.Endpoint)
+	attachments := config.Support.Attachments
+	assert.True(t, attachments.Enabled)
+	assert.Equal(t, "the-bucket-secret", attachments.Bucket.SecretAccessKey)
+	assert.Equal(t, "9ec4cd4fdf48006b2944c522219f1eea", attachments.Bucket.AccessKeyID)
+	assert.Equal(t, "https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com", attachments.Bucket.Endpoint)
+	assert.Equal(t, "clickplanet-support", attachments.Bucket.Name)
+	assert.Equal(t, "auto", attachments.Bucket.Region)
+	assert.Equal(t, int64(9<<30), attachments.MaxStoredBytes)
+	require.NoError(t, config.Support.Validate())
 
-	config.Support.Attachments.Enabled = true
-	config.Support.Attachments.Bucket.AccessKeyID = "the-key-id"
-	require.NoError(t, config.Support.Validate(), "all that is left to set is the key")
+	config.Support.Attachments.Bucket.SecretAccessKey = ""
+	require.ErrorContains(t, config.Support.Validate(), "secretAccessKey",
+		"a deploy before SUPPORT_BUCKET_SECRET is set refuses the boot")
 }

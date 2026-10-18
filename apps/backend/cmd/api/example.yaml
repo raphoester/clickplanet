@@ -410,7 +410,7 @@ support:
     enabled: false
     maxPerNote: 10
     maxBytes: 52428800
-    uploadTTL: 30m
+    uploadTTL: 10m
     linkTTL: 1h
     bucket:
       endpoint: https://ACCOUNT_ID.r2.cloudflarestorage.com
