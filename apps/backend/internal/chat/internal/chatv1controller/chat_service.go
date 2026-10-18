@@ -4,6 +4,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1/chatv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/get_message_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_messages_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mark_seen_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/mute_handler"
@@ -26,6 +27,7 @@ type AdminService struct {
 	mute_handler.MuteHandler
 	remove_message_handler.RemoveMessageHandler
 	get_message_handler.GetMessageHandler
+	list_messages_handler.ListMessagesHandler
 }
 
 var _ chatv1connect.AdminServiceHandler = AdminService{}

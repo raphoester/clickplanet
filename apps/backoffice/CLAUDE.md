@@ -15,7 +15,8 @@ burger menu (see [The menu](#the-menu)), by group:
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](#the-map-tools)).
 - **Ops**: Reconcile titles, the run after a deploy (see [Ops](#ops)).
 
-What is left of the plan is a live chat view, which no admin method serves.
+What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report page reads it),
+and no admin method streams it.
 
 It is a third app, not a page of the game: **it imports nothing from `apps/frontend`** and has no Three.js (see
 the root `CLAUDE.md`, "Independence of the apps").
@@ -120,9 +121,20 @@ title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
   decided report shows its outcome, comment and time (`DecisionLine`). The list is read again on the way back
   from a detail, so a report just closed leaves the open list.
 - **The detail** (`ReportDetail`): who reported whom, each by name and account id, the reason and the text. With
-  a `message_id` it reads the message (`GetMessage`, `MessagePanel`): its text, time and country, struck through
-  with "Removed at …" once removed. A message past the chat's retention is `not_found`: "This message is no
-  longer kept."
+  a `message_id` it reads the message in its conversation (`GetMessage`, `MessagePanel`), struck through with
+  "Removed at …" once removed. A message past the chat's retention is `not_found`: "This message is no longer
+  kept."
+- **The conversation** (`Conversation`): a message alone cannot be judged, so the page pages through the chat
+  around it with `ListMessages`, the message's id as the cursor: the 10 messages before it and the 10 after
+  (`FIRST_PAGE`), at once, then 20 more each time "Show earlier" or "Show later" is pressed (`NEXT_PAGE`), from
+  the oldest or the newest message shown. A page shorter than asked is the end, and its button goes. The reported
+  message shows while they load, marked ("Reported message", `aria-current`), and stays shown if they fail.
+  `GetMessage` names no author, so its line takes the name the report gives its account.
+- **Each line** has its author's name as the chat names it now, its country and its time (with the date when it
+  is not the reported message's day), what it answers ("In reply to …"), and is struck through with when it was
+  removed. **What the reporter and the reported account said is tagged** `reporter` and `reported`, by account
+  id. An author's name opens it on the player page (`OpenPlayer`), so a third player in the conversation is a
+  click away. A page past the chat's retention is `not_found`: "That part of the chat is no longer kept."
 - **The actions, all on the reported account id**, never its name: remove the message (`RemoveMessage`, only while
   it is shown), mute (`Mute`, an hour by default), ban (`BanPlayer`, no duration by default, so the antibot's
   ladder picks the next step) and inspect (`InspectPlayer`). Then close the report (`DecideReport`): Acted or

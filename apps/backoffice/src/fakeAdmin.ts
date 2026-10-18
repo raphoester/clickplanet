@@ -3,6 +3,10 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {
     GetMessageRequest,
     GetMessageResponse,
+    KeptMessage,
+    KeptQuote,
+    ListMessagesRequest,
+    ListMessagesResponse,
     MuteRequest,
     MuteResponse,
     RemoveMessageRequest,
@@ -56,6 +60,27 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         messageId: "message-1", accountId: "account-reported", text: "you all suck",
         sentAt: Timestamp.fromDate(AT), countryId: "fr",
     })
+    // The chat ListMessages pages through, the reported message among it: Bob baits, Cleo answers him, Ana insults,
+    // then Bob again.
+    chat = [
+        new KeptMessage({
+            messageId: "message-before-1", accountId: "account-reporter", authorName: "Bob", text: "come at me",
+            sentAt: Timestamp.fromDate(new Date(AT.getTime() - 120_000)), countryId: "de",
+        }),
+        new KeptMessage({
+            messageId: "message-before-2", accountId: "account-cleo", authorName: "Cleo", text: "calm down",
+            sentAt: Timestamp.fromDate(new Date(AT.getTime() - 60_000)), countryId: "it",
+            replyTo: new KeptQuote({messageId: "message-before-1", authorName: "Bob", text: "come at me"}),
+        }),
+        new KeptMessage({
+            messageId: "message-1", accountId: "account-reported", authorName: "Ana", text: "you all suck",
+            sentAt: Timestamp.fromDate(AT), countryId: "fr",
+        }),
+        new KeptMessage({
+            messageId: "message-after-1", accountId: "account-reporter", authorName: "Bob", text: "so rude",
+            sentAt: Timestamp.fromDate(new Date(AT.getTime() + 60_000)), countryId: "de",
+        }),
+    ]
     players = [
         new Player({
             accountId: ACCOUNT, scope: "203.0.113.7", tiles: 3, takes: 900, takesPerMinute: 30,
@@ -92,6 +117,21 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     getMessage(request: PartialMessage<GetMessageRequest>): Promise<GetMessageResponse> {
         return this.answer("getMessage", request, this.message)
+    }
+
+    // A page of chat as the server reads it: oldest first, just before or just after the cursor, the newest with none.
+    listMessages(request: PartialMessage<ListMessagesRequest>): Promise<ListMessagesResponse> {
+        const limit = request.limit || 50
+        const cursor = request.beforeMessageId || request.afterMessageId || ""
+        const at = this.chat.findIndex(message => message.messageId === cursor)
+        if (cursor !== "" && at < 0) {
+            this.asked.push({method: "listMessages", request})
+            return Promise.reject(new ConnectError("no message kept under this id", Code.NotFound))
+        }
+        const messages = request.afterMessageId
+            ? this.chat.slice(at + 1, at + 1 + limit)
+            : this.chat.slice(Math.max(0, (cursor === "" ? this.chat.length : at) - limit), cursor === "" ? undefined : at)
+        return this.answer("listMessages", request, new ListMessagesResponse({messages}))
     }
 
     removeMessage(request: PartialMessage<RemoveMessageRequest>): Promise<RemoveMessageResponse> {

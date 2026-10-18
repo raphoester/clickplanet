@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMessageRequest, GetMessageResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse } from "./admin_pb.js";
+import { GetMessageRequest, GetMessageResponse, ListMessagesRequest, ListMessagesResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -43,6 +43,17 @@ export const AdminService = {
       name: "GetMessage",
       I: GetMessageRequest,
       O: GetMessageResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention.
+     *
+     * @generated from rpc chat.v1.AdminService.ListMessages
+     */
+    listMessages: {
+      name: "ListMessages",
+      I: ListMessagesRequest,
+      O: ListMessagesResponse,
       kind: MethodKind.Unary,
     },
   }
