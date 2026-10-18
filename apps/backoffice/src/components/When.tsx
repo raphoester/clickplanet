@@ -1,9 +1,8 @@
 import {Timestamp} from "@bufbuild/protobuf"
+import {timeOf} from "./time.ts"
 
-const FORMAT = new Intl.DateTimeFormat(undefined, {dateStyle: "medium", timeStyle: "short"})
-
-export function When({at}: {at: Timestamp | undefined}) {
+export function When({at}: {at: Timestamp | Date | undefined}) {
     if (at === undefined) return null
-    const date = at.toDate()
-    return <time className="muted" dateTime={date.toISOString()}>{FORMAT.format(date)}</time>
+    const date = at instanceof Date ? at : at.toDate()
+    return <time className="muted" dateTime={date.toISOString()}>{timeOf(date)}</time>
 }

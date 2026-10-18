@@ -1,4 +1,4 @@
-import {NoteKind} from "../gen/grpc/support/v1/admin_pb.ts"
+import {NoteKind, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
 import {PageContext, ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 
 const KINDS: Record<NoteKind, string> = {
@@ -15,6 +15,12 @@ const REASONS: Record<ReportReason, string> = {
     [ReportReason.OTHER]: "Other",
 }
 
+const OUTCOMES: Record<ReportOutcome, string> = {
+    [ReportOutcome.UNSPECIFIED]: "Unknown",
+    [ReportOutcome.ACTED]: "Acted",
+    [ReportOutcome.DISMISSED]: "Dismissed",
+}
+
 // A value this build has no name for is one the proto added since.
 export function kindLabel(kind: NoteKind): string {
     return KINDS[kind] ?? `Kind ${kind}`
@@ -22,6 +28,10 @@ export function kindLabel(kind: NoteKind): string {
 
 export function reasonLabel(reason: ReportReason): string {
     return REASONS[reason] ?? `Reason ${reason}`
+}
+
+export function outcomeLabel(outcome: ReportOutcome): string {
+    return OUTCOMES[outcome] ?? `Outcome ${outcome}`
 }
 
 export function countOf(n: number, noun: string): string {
