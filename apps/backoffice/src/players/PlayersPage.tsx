@@ -30,7 +30,7 @@ export function PlayersPage({opened, onOpen, clients = CLIENTS}: Props) {
     return (
         <>
             <OpenForm onOpen={onOpen}/>
-            <PlayerList planet={clients.planet} query={query} onQuery={setQuery} onOpen={onOpen}/>
+            <PlayerList planet={clients.planet} player={clients.player} query={query} onQuery={setQuery} onOpen={onOpen}/>
         </>
     )
 }

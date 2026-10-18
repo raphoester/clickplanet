@@ -316,8 +316,8 @@ func TestAPlayerCountsItsTakesAndTheTilesItStillHolds(t *testing.T) {
 	}, current, every)
 
 	assert.Equal(t, []ledger.Player{
-		{Scope: "bot", Tiles: 1, Takes: 4, FirstAt: start, LastAt: start.Add(5 * time.Second)},
-		{Scope: "defender", Tiles: 1, Takes: 2, FirstAt: start.Add(2 * time.Second), LastAt: start.Add(4 * time.Second)},
+		{Scope: "bot", Flag: "ps", Tiles: 1, Takes: 4, FirstAt: start, LastAt: start.Add(5 * time.Second)},
+		{Scope: "defender", Flag: "il", Tiles: 1, Takes: 2, FirstAt: start.Add(2 * time.Second), LastAt: start.Add(4 * time.Second)},
 	}, players, "a tile painted over and a tile bombed still count as takes, not as holds")
 }
 
@@ -335,10 +335,10 @@ func TestABombIsOneTakeThatHoldsNothingAndEndsTheHoldsOfTheTilesItHit(t *testing
 	}
 
 	assert.Equal(t, []ledger.Player{
-		{Scope: "other", Tiles: 1, Takes: 1, FirstAt: start.Add(2 * time.Second), LastAt: start.Add(2 * time.Second)},
+		{Scope: "other", Flag: "ps", Tiles: 1, Takes: 1, FirstAt: start.Add(2 * time.Second), LastAt: start.Add(2 * time.Second)},
 		{Scope: "bomber", Takes: 1, FirstAt: start.Add(time.Second), LastAt: start.Add(time.Second)},
-		{Scope: "player", Takes: 2, FirstAt: start, LastAt: start},
-	}, tally.Players(owners{1: "ps", 2: ""}), "a bomb is one act, and the tiles it hit are nobody's")
+		{Scope: "player", Flag: "ps", Takes: 2, FirstAt: start, LastAt: start},
+	}, tally.Players(owners{1: "ps", 2: ""}), "a bomb is one act, paints no flag, and the tiles it hit are nobody's")
 }
 
 func TestABombTakesNoTileForAnyFlag(t *testing.T) {
@@ -346,7 +346,7 @@ func TestABombTakesNoTileForAnyFlag(t *testing.T) {
 	tally.See(ledger.Taking{Tile: 1, Scope: "player", Country: "ps", At: start})
 	tally.See(ledger.Bombing{Scope: "bomber", At: start, Blast: clicks.Blast{Cleared: []uint32{1}, Owners: []string{"ps"}}})
 
-	assert.Equal(t, []ledger.Player{{Scope: "player", Takes: 1, FirstAt: start, LastAt: start}},
+	assert.Equal(t, []ledger.Player{{Scope: "player", Flag: "ps", Takes: 1, FirstAt: start, LastAt: start}},
 		tally.Players(owners{1: ""}))
 }
 
@@ -365,7 +365,7 @@ func TestASpreadIsOneTakeThatHoldsEveryTileItTookAndAStrikeIsNone(t *testing.T) 
 		tally.See(event)
 	}
 
-	assert.Equal(t, []ledger.Player{{Scope: "player", Tiles: 3, Takes: 2, FirstAt: start, LastAt: start}},
+	assert.Equal(t, []ledger.Player{{Scope: "player", Flag: "fr", Tiles: 3, Takes: 2, FirstAt: start, LastAt: start}},
 		tally.Players(owners{1: "fr", 2: "fr", 3: "fr", 4: "de"}), "the click and the spread are two acts")
 }
 
@@ -375,7 +375,7 @@ func TestAPlayerPaintedOverEverywhereStillShows(t *testing.T) {
 		{Tile: 1, Scope: "defender", Country: "il", At: start.Add(time.Second)},
 	}, owners{1: "il"}, func(taking ledger.Taking) bool { return taking.Country == "ps" })
 
-	assert.Equal(t, []ledger.Player{{Scope: "bot", Takes: 1, FirstAt: start, LastAt: start}}, players)
+	assert.Equal(t, []ledger.Player{{Scope: "bot", Flag: "ps", Takes: 1, FirstAt: start, LastAt: start}}, players)
 }
 
 func TestATakeThatDoesNotCountEndsTheHoldOfOneThatDid(t *testing.T) {
@@ -388,6 +388,34 @@ func TestATakeThatDoesNotCountEndsTheHoldOfOneThatDid(t *testing.T) {
 	require.Len(t, players, 1)
 	assert.Zero(t, players[0].Tiles, "the tile wears ps, but another scope painted it last")
 	assert.Equal(t, 2, players[0].Takes)
+}
+
+func TestAPlayersFlagIsTheOneItTookTheMostTilesFor(t *testing.T) {
+	players := tally([]ledger.Taking{
+		{Tile: 1, Scope: "bot", Country: "ps", At: start},
+		{Tile: 2, Scope: "bot", Country: "fr", At: start},
+		{Tile: 1, Scope: "defender", Country: "il", At: start.Add(time.Second)},
+		{Tile: 3, Scope: "bot", Country: "fr", At: start.Add(2 * time.Second)},
+		{Tile: 4, Scope: "bot", Country: "ps", At: start.Add(2 * time.Second)},
+		{Tile: 5, Scope: "bot", Country: "ps", At: start.Add(2 * time.Second)},
+	}, owners{1: "il", 2: "fr", 3: "fr", 4: "ps", 5: "ps"}, every)
+
+	require.Len(t, players, 2)
+	assert.Equal(t, "ps", players[0].Flag, "a tile painted over still counts for the flag it was taken for")
+	assert.Equal(t, "il", players[1].Flag)
+}
+
+func TestAPlayersFlagIsTheFirstByIDOfThoseItTookAsManyTilesFor(t *testing.T) {
+	for range 20 {
+		players := tally([]ledger.Taking{
+			{Tile: 1, Scope: "bot", Country: "ps", At: start},
+			{Tile: 2, Scope: "bot", Country: "fr", At: start},
+			{Tile: 3, Scope: "bot", Country: "il", At: start},
+		}, owners{}, every)
+
+		require.Len(t, players, 1)
+		assert.Equal(t, "fr", players[0].Flag, "the same flag on every replay, whatever order the map walks in")
+	}
 }
 
 func TestPlayersAreLatestFirstAndEqualTimesFallBackToScope(t *testing.T) {
@@ -796,9 +824,9 @@ func TestEachAccountOnOneScopeIsAPlayerOfItsOwn(t *testing.T) {
 	}, owners{1: "ps", 2: "ps", 3: "ps", 4: "ps"}, every)
 
 	assert.Equal(t, []ledger.Player{
-		{Scope: "campus", Tiles: 1, Takes: 1, FirstAt: start.Add(time.Second), LastAt: start.Add(time.Second)},
-		{Scope: "campus", Account: "bob", Tiles: 2, Takes: 2, FirstAt: start, LastAt: start.Add(time.Second)},
-		{Scope: "campus", Account: "alice", Tiles: 1, Takes: 1, FirstAt: start, LastAt: start},
+		{Scope: "campus", Flag: "ps", Tiles: 1, Takes: 1, FirstAt: start.Add(time.Second), LastAt: start.Add(time.Second)},
+		{Scope: "campus", Account: "bob", Flag: "ps", Tiles: 2, Takes: 2, FirstAt: start, LastAt: start.Add(time.Second)},
+		{Scope: "campus", Account: "alice", Flag: "ps", Tiles: 1, Takes: 1, FirstAt: start, LastAt: start},
 	}, players)
 }
 

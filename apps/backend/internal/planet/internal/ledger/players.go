@@ -12,6 +12,7 @@ const defaultLimit = 20
 type Player struct {
 	Scope   string
 	Account string
+	Flag    string
 	Tiles   int
 	Takes   int
 	FirstAt time.Time
@@ -23,7 +24,9 @@ type Player struct {
 }
 
 func NewTally(counts func(Taking) bool) *Tally {
-	return &Tally{counts: counts, callers: make(map[Caller]int), tiles: make(map[uint32]hold)}
+	return &Tally{
+		counts: counts, callers: make(map[Caller]int), tiles: make(map[uint32]hold), flags: make(map[hold]int),
+	}
 }
 
 type Tally struct {
@@ -31,6 +34,7 @@ type Tally struct {
 	callers map[Caller]int
 	players []Player
 	tiles   map[uint32]hold
+	flags   map[hold]int
 }
 
 type hold struct {
@@ -68,7 +72,9 @@ func (t *Tally) See(event Event) {
 			delete(t.tiles, taking.Tile)
 			return
 		}
-		t.tiles[taking.Tile] = hold{player: index, country: taking.Country}
+		paint := hold{player: index, country: taking.Country}
+		t.tiles[taking.Tile] = paint
+		t.flags[paint]++
 	})
 
 	if player >= 0 {
@@ -82,6 +88,7 @@ func (t *Tally) Players(owners Owners) []Player {
 			t.players[hold.player].Tiles++
 		}
 	}
+	t.pickFlags()
 
 	players := t.players
 	sort.Slice(players, func(i, j int) bool {
@@ -95,6 +102,17 @@ func (t *Tally) Players(owners Owners) []Player {
 	})
 
 	return players
+}
+
+// A player's flag is the one it took the most tiles for, and the first by id of those it took as many for.
+func (t *Tally) pickFlags() {
+	most := make([]int, len(t.players))
+	for paint, tiles := range t.flags {
+		player := &t.players[paint.player]
+		if tiles > most[paint.player] || tiles == most[paint.player] && paint.country < player.Flag {
+			most[paint.player], player.Flag = tiles, paint.country
+		}
+	}
 }
 
 func ByTakes(players []Player) []Player {

@@ -3,8 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
+import { AdminGetPlayerRequest, AdminGetPlayerResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
@@ -21,6 +22,28 @@ export const AdminService = {
       name: "ReconcileTitles",
       I: ReconcileTitlesRequest,
       O: ReconcileTitlesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * InternalService/GetAuthors, for the admin page naming a page of players.
+     *
+     * @generated from rpc player.v1.AdminService.GetAuthors
+     */
+    getAuthors: {
+      name: "GetAuthors",
+      I: GetAuthorsRequest,
+      O: GetAuthorsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
+     *
+     * @generated from rpc player.v1.AdminService.GetPlayer
+     */
+    getPlayer: {
+      name: "GetPlayer",
+      I: AdminGetPlayerRequest,
+      O: AdminGetPlayerResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -4,7 +4,10 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { NameColor } from "./color_pb.js";
+import { CountryTiles, Stats } from "./player_pb.js";
+import { Title } from "./title_pb.js";
 
 /**
  * @generated from message player.v1.ReconcileTitlesRequest
@@ -77,6 +80,146 @@ export class ReconcileTitlesResponse extends Message<ReconcileTitlesResponse> {
 
   static equals(a: ReconcileTitlesResponse | PlainMessage<ReconcileTitlesResponse> | undefined, b: ReconcileTitlesResponse | PlainMessage<ReconcileTitlesResponse> | undefined): boolean {
     return proto3.util.equals(ReconcileTitlesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.AdminGetPlayerRequest
+ */
+export class AdminGetPlayerRequest extends Message<AdminGetPlayerRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<AdminGetPlayerRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.AdminGetPlayerRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminGetPlayerRequest {
+    return new AdminGetPlayerRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminGetPlayerRequest {
+    return new AdminGetPlayerRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminGetPlayerRequest {
+    return new AdminGetPlayerRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminGetPlayerRequest | PlainMessage<AdminGetPlayerRequest> | undefined, b: AdminGetPlayerRequest | PlainMessage<AdminGetPlayerRequest> | undefined): boolean {
+    return proto3.util.equals(AdminGetPlayerRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.AdminGetPlayerResponse
+ */
+export class AdminGetPlayerResponse extends Message<AdminGetPlayerResponse> {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name = "";
+
+  /**
+   * @generated from field: bool guest = 2;
+   */
+  guest = false;
+
+  /**
+   * @generated from field: bool linked = 3;
+   */
+  linked = false;
+
+  /**
+   * @generated from field: bool admin = 4;
+   */
+  admin = false;
+
+  /**
+   * @generated from field: player.v1.NameColor color = 5;
+   */
+  color = NameColor.UNSPECIFIED;
+
+  /**
+   * @generated from field: int64 created_at_unix_ms = 6;
+   */
+  createdAtUnixMs = protoInt64.zero;
+
+  /**
+   * @generated from field: player.v1.Stats stats = 7;
+   */
+  stats?: Stats;
+
+  /**
+   * @generated from field: uint64 messages_sent = 8;
+   */
+  messagesSent = protoInt64.zero;
+
+  /**
+   * @generated from field: repeated player.v1.Title titles = 9;
+   */
+  titles: Title[] = [];
+
+  /**
+   * @generated from field: player.v1.Title worn_title = 10;
+   */
+  wornTitle?: Title;
+
+  /**
+   * @generated from field: repeated player.v1.CountryTiles plays_for = 11;
+   */
+  playsFor: CountryTiles[] = [];
+
+  /**
+   * @generated from field: repeated player.v1.CountryTiles plays_against = 12;
+   */
+  playsAgainst: CountryTiles[] = [];
+
+  constructor(data?: PartialMessage<AdminGetPlayerResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.AdminGetPlayerResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "guest", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "linked", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
+    { no: 6, name: "created_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 7, name: "stats", kind: "message", T: Stats },
+    { no: 8, name: "messages_sent", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 9, name: "titles", kind: "message", T: Title, repeated: true },
+    { no: 10, name: "worn_title", kind: "message", T: Title },
+    { no: 11, name: "plays_for", kind: "message", T: CountryTiles, repeated: true },
+    { no: 12, name: "plays_against", kind: "message", T: CountryTiles, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminGetPlayerResponse {
+    return new AdminGetPlayerResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminGetPlayerResponse {
+    return new AdminGetPlayerResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminGetPlayerResponse {
+    return new AdminGetPlayerResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminGetPlayerResponse | PlainMessage<AdminGetPlayerResponse> | undefined, b: AdminGetPlayerResponse | PlainMessage<AdminGetPlayerResponse> | undefined): boolean {
+    return proto3.util.equals(AdminGetPlayerResponse, a, b);
   }
 }
 

@@ -336,6 +336,49 @@ button:disabled {
     margin-top: 8px;
 }
 
+.card-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 12px;
+    margin-top: 4px;
+}
+
+.player-name {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 8px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.player-heading {
+    margin: 0;
+    font-size: 18px;
+    font-weight: normal;
+}
+
+.flag {
+    font-size: 1.2em;
+    line-height: 1;
+}
+
+.fronts {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+}
+
+.front {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
 .decision {
     display: flex;
     flex-wrap: wrap;

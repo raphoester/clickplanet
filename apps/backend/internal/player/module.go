@@ -31,6 +31,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase/renaming_set_name"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler/admin_player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_author_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_authors_handler"
@@ -266,9 +268,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount player.v1.PlayerService: %w", err)
 	}
 
+	getAuthors := get_authors_handler.New(authors_query.NewPostgresQuery(db, titleCards, clock))
 	internalService := playerv1controller.InternalService{
 		GetAuthorHandler:  get_author_handler.New(authors),
-		GetAuthorsHandler: get_authors_handler.New(authors_query.NewPostgresQuery(db, titleCards, clock)),
+		GetAuthorsHandler: getAuthors,
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewInternalServiceHandler(internalService, options...)
@@ -280,6 +283,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		ReconcileTitlesHandler: reconcile_titles_handler.New(audit_reconcile_titles.New(
 			reconcile_titles_usecase.New(store, accounts, titleStore, catalog, clock), props.Logger,
 		)),
+		GetAuthorsHandler: getAuthors,
+		AdminGetPlayerHandler: admin_get_player_handler.New(
+			admin_player_query.NewPostgresQuery(db, titleCards, accounts, fronts, clock),
+		),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewAdminServiceHandler(adminService, options...)

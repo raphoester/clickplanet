@@ -1,8 +1,11 @@
 import {Duration} from "@bufbuild/protobuf"
+import {Code, ConnectError} from "@connectrpc/connect"
 import {LONG_CALL_MS} from "../api.ts"
-import {ChatAdmin, PlanetAdmin} from "../clients.ts"
+import {ChatAdmin, PlanetAdmin, PlayerAdmin} from "../clients.ts"
 import {InspectPlayerResponse, Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {ChargesHeld} from "../gen/grpc/planet/v1/planet_pb.ts"
+import {AdminGetPlayerResponse} from "../gen/grpc/player/v1/admin_pb.ts"
+import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
 import {Meanings, wordsOf} from "../refusal.ts"
 import {Caller} from "./caller.ts"
 
@@ -20,6 +23,10 @@ export type Reverted = {touched: number, held: number, restored: number}
 export type Grant = {refill: boolean, bomb: boolean, enclosures: number, spreadClicks: number, shields: number}
 export type Granted = {before: ChargesHeld, after: ChargesHeld}
 export type Players = {players: Player[], total: number}
+export type Authors = Map<string, Author>
+// A page of players and who each account is. `unnamed` says why there are no names, when they could not be read.
+export type Listed = Players & {authors: Authors, unnamed: string | undefined}
+export type Profile = AdminGetPlayerResponse
 
 export const NO_GRANT: Grant = {refill: false, bomb: false, enclosures: 0, spreadClicks: 0, shields: 0}
 
@@ -73,6 +80,30 @@ export async function findPlayers(
 ): Promise<Players> {
     const answer = await planet.findPlayers({flagCountryId: flag, areaCountryId: area, limit}, {signal})
     return {players: answer.players, total: answer.total}
+}
+
+// Each account of a page by its username or its guest code. A page whose names cannot be read is still listed.
+export async function withAuthors(player: PlayerAdmin, page: Players, signal?: AbortSignal): Promise<Listed> {
+    const accountIds = [...new Set(page.players.map(row => row.accountId).filter(id => id !== ""))]
+    if (accountIds.length === 0) return {...page, authors: new Map(), unnamed: undefined}
+
+    try {
+        const answer = await player.getAuthors({accountIds}, {signal})
+        return {...page, authors: new Map(answer.authors.map(author => [author.accountId, author])), unnamed: undefined}
+    } catch (err) {
+        if (signal?.aborted === true) throw err
+        return {...page, authors: new Map(), unnamed: wordsOf(err)}
+    }
+}
+
+// Everything the game keeps about an account, a guest's too, or undefined when it keeps nothing.
+export async function profileOf(player: PlayerAdmin, accountId: string, signal?: AbortSignal): Promise<Profile | undefined> {
+    try {
+        return await player.getPlayer({accountId}, {signal})
+    } catch (err) {
+        if (ConnectError.from(err).code === Code.NotFound) return undefined
+        throw err
+    }
 }
 
 export type Action = "mute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "list"

@@ -507,6 +507,58 @@ func TestAnOperatorReconcilesTheTitlesOnTheAdminListenerOnly(t *testing.T) {
 	assert.Zero(t, second.Msg.GetRevoked())
 }
 
+func TestAnOperatorReadsWhoPlayersAreAndAGuestsProfileOnTheAdminListenerOnly(t *testing.T) {
+	game := startGame(t)
+	before := time.Now().Add(-time.Second)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+	_, err := ada.setName("Ada_L")
+	require.NoError(t, err)
+	guest := game.newPlayer(t)
+	require.NoError(t, guest.announce("de"))
+	for tile, country := range []string{"de", "fr", "it", "es"} {
+		guest.click(uint32(tile)+1, country) //nolint:gosec // four tiles.
+	}
+
+	names := connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: []string{ada.account(), guest.account()}})
+	_, err = playerv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).GetAuthors(t.Context(), names)
+	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "the public router does not serve it")
+
+	admin := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.consoleURL)
+	authors, err := admin.GetAuthors(t.Context(), names)
+	require.NoError(t, err)
+	require.Len(t, authors.Msg.GetAuthors(), 2)
+	assert.Equal(t, "Ada_L", authors.Msg.GetAuthors()[0].GetName())
+	assert.Regexp(t, `^guest_[0-9a-f]{6}$`, authors.Msg.GetAuthors()[1].GetName())
+	assert.True(t, authors.Msg.GetAuthors()[1].GetGuest())
+
+	asked := connect.NewRequest(&playerv1.AdminGetPlayerRequest{AccountId: guest.account()})
+	everyCountry := []*playerv1.CountryTiles{
+		{CountryId: "de", Tiles: 1}, {CountryId: "es", Tiles: 1}, {CountryId: "fr", Tiles: 1}, {CountryId: "it", Tiles: 1},
+	}
+	require.Eventually(t, func() bool {
+		res, err := admin.GetPlayer(t.Context(), asked)
+		return err == nil && res.Msg.GetStats().GetTilesTaken() == 4 && proto.Equal(
+			&playerv1.AdminGetPlayerResponse{PlaysFor: everyCountry},
+			&playerv1.AdminGetPlayerResponse{PlaysFor: res.Msg.GetPlaysFor()},
+		)
+	}, 5*time.Second, 20*time.Millisecond, "every country, where the public card has three and a guest no card at all")
+	profile, err := admin.GetPlayer(t.Context(), asked)
+	require.NoError(t, err)
+	assert.Equal(t, authors.Msg.GetAuthors()[1].GetName(), profile.Msg.GetName())
+	assert.True(t, profile.Msg.GetGuest())
+	assert.False(t, profile.Msg.GetLinked())
+	assert.WithinRange(t, time.UnixMilli(profile.Msg.GetCreatedAtUnixMs()), before, time.Now())
+
+	linked, err := admin.GetPlayer(t.Context(), connect.NewRequest(&playerv1.AdminGetPlayerRequest{AccountId: ada.account()}))
+	require.NoError(t, err)
+	assert.True(t, linked.Msg.GetLinked())
+	assert.False(t, linked.Msg.GetGuest())
+
+	_, err = admin.GetPlayer(t.Context(), connect.NewRequest(&playerv1.AdminGetPlayerRequest{AccountId: "9.9.9.9"}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "an address has no profile")
+}
+
 func TestASignedInStreamHearsTheTitleItsTakesEarnAndTheTitleCanBeWorn(t *testing.T) {
 	game := startGame(t)
 	ada := game.newPlayer(t)

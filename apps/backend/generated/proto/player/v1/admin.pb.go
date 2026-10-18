@@ -109,17 +109,214 @@ func (x *ReconcileTitlesResponse) GetRevoked() uint32 {
 	return 0
 }
 
+type AdminGetPlayerRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdminGetPlayerRequest) Reset() {
+	*x = AdminGetPlayerRequest{}
+	mi := &file_player_v1_admin_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminGetPlayerRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminGetPlayerRequest) ProtoMessage() {}
+
+func (x *AdminGetPlayerRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_admin_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminGetPlayerRequest.ProtoReflect.Descriptor instead.
+func (*AdminGetPlayerRequest) Descriptor() ([]byte, []int) {
+	return file_player_v1_admin_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *AdminGetPlayerRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+type AdminGetPlayerResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Name            string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Guest           bool                   `protobuf:"varint,2,opt,name=guest,proto3" json:"guest,omitempty"`
+	Linked          bool                   `protobuf:"varint,3,opt,name=linked,proto3" json:"linked,omitempty"`
+	Admin           bool                   `protobuf:"varint,4,opt,name=admin,proto3" json:"admin,omitempty"`
+	Color           NameColor              `protobuf:"varint,5,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
+	CreatedAtUnixMs int64                  `protobuf:"varint,6,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
+	Stats           *Stats                 `protobuf:"bytes,7,opt,name=stats,proto3" json:"stats,omitempty"`
+	MessagesSent    uint64                 `protobuf:"varint,8,opt,name=messages_sent,json=messagesSent,proto3" json:"messages_sent,omitempty"`
+	Titles          []*Title               `protobuf:"bytes,9,rep,name=titles,proto3" json:"titles,omitempty"`
+	WornTitle       *Title                 `protobuf:"bytes,10,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
+	PlaysFor        []*CountryTiles        `protobuf:"bytes,11,rep,name=plays_for,json=playsFor,proto3" json:"plays_for,omitempty"`
+	PlaysAgainst    []*CountryTiles        `protobuf:"bytes,12,rep,name=plays_against,json=playsAgainst,proto3" json:"plays_against,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *AdminGetPlayerResponse) Reset() {
+	*x = AdminGetPlayerResponse{}
+	mi := &file_player_v1_admin_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdminGetPlayerResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdminGetPlayerResponse) ProtoMessage() {}
+
+func (x *AdminGetPlayerResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_admin_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdminGetPlayerResponse.ProtoReflect.Descriptor instead.
+func (*AdminGetPlayerResponse) Descriptor() ([]byte, []int) {
+	return file_player_v1_admin_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AdminGetPlayerResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AdminGetPlayerResponse) GetGuest() bool {
+	if x != nil {
+		return x.Guest
+	}
+	return false
+}
+
+func (x *AdminGetPlayerResponse) GetLinked() bool {
+	if x != nil {
+		return x.Linked
+	}
+	return false
+}
+
+func (x *AdminGetPlayerResponse) GetAdmin() bool {
+	if x != nil {
+		return x.Admin
+	}
+	return false
+}
+
+func (x *AdminGetPlayerResponse) GetColor() NameColor {
+	if x != nil {
+		return x.Color
+	}
+	return NameColor_NAME_COLOR_UNSPECIFIED
+}
+
+func (x *AdminGetPlayerResponse) GetCreatedAtUnixMs() int64 {
+	if x != nil {
+		return x.CreatedAtUnixMs
+	}
+	return 0
+}
+
+func (x *AdminGetPlayerResponse) GetStats() *Stats {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
+func (x *AdminGetPlayerResponse) GetMessagesSent() uint64 {
+	if x != nil {
+		return x.MessagesSent
+	}
+	return 0
+}
+
+func (x *AdminGetPlayerResponse) GetTitles() []*Title {
+	if x != nil {
+		return x.Titles
+	}
+	return nil
+}
+
+func (x *AdminGetPlayerResponse) GetWornTitle() *Title {
+	if x != nil {
+		return x.WornTitle
+	}
+	return nil
+}
+
+func (x *AdminGetPlayerResponse) GetPlaysFor() []*CountryTiles {
+	if x != nil {
+		return x.PlaysFor
+	}
+	return nil
+}
+
+func (x *AdminGetPlayerResponse) GetPlaysAgainst() []*CountryTiles {
+	if x != nil {
+		return x.PlaysAgainst
+	}
+	return nil
+}
+
 var File_player_v1_admin_proto protoreflect.FileDescriptor
 
 const file_player_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x15player/v1/admin.proto\x12\tplayer.v1\"\x18\n" +
+	"\x15player/v1/admin.proto\x12\tplayer.v1\x1a\x15player/v1/color.proto\x1a\x18player/v1/internal.proto\x1a\x16player/v1/player.proto\x1a\x15player/v1/title.proto\"\x18\n" +
 	"\x16ReconcileTitlesRequest\"M\n" +
 	"\x17ReconcileTitlesResponse\x12\x18\n" +
 	"\agranted\x18\x01 \x01(\rR\agranted\x12\x18\n" +
-	"\arevoked\x18\x02 \x01(\rR\arevoked2h\n" +
+	"\arevoked\x18\x02 \x01(\rR\arevoked\"6\n" +
+	"\x15AdminGetPlayerRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"\xe5\x03\n" +
+	"\x16AdminGetPlayerResponse\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
+	"\x05guest\x18\x02 \x01(\bR\x05guest\x12\x16\n" +
+	"\x06linked\x18\x03 \x01(\bR\x06linked\x12\x14\n" +
+	"\x05admin\x18\x04 \x01(\bR\x05admin\x12*\n" +
+	"\x05color\x18\x05 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12+\n" +
+	"\x12created_at_unix_ms\x18\x06 \x01(\x03R\x0fcreatedAtUnixMs\x12&\n" +
+	"\x05stats\x18\a \x01(\v2\x10.player.v1.StatsR\x05stats\x12#\n" +
+	"\rmessages_sent\x18\b \x01(\x04R\fmessagesSent\x12(\n" +
+	"\x06titles\x18\t \x03(\v2\x10.player.v1.TitleR\x06titles\x12/\n" +
+	"\n" +
+	"worn_title\x18\n" +
+	" \x01(\v2\x10.player.v1.TitleR\twornTitle\x124\n" +
+	"\tplays_for\x18\v \x03(\v2\x17.player.v1.CountryTilesR\bplaysFor\x12<\n" +
+	"\rplays_against\x18\f \x03(\v2\x17.player.v1.CountryTilesR\fplaysAgainst2\x85\x02\n" +
 	"\fAdminService\x12X\n" +
-	"\x0fReconcileTitles\x12!.player.v1.ReconcileTitlesRequest\x1a\".player.v1.ReconcileTitlesResponseB\xb2\x01\n" +
+	"\x0fReconcileTitles\x12!.player.v1.ReconcileTitlesRequest\x1a\".player.v1.ReconcileTitlesResponse\x12I\n" +
+	"\n" +
+	"GetAuthors\x12\x1c.player.v1.GetAuthorsRequest\x1a\x1d.player.v1.GetAuthorsResponse\x12P\n" +
+	"\tGetPlayer\x12 .player.v1.AdminGetPlayerRequest\x1a!.player.v1.AdminGetPlayerResponseB\xb2\x01\n" +
 	"\rcom.player.v1B\n" +
 	"AdminProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1;playerv1\xa2\x02\x03PXX\xaa\x02\tPlayer.V1\xca\x02\tPlayer\\V1\xe2\x02\x15Player\\V1\\GPBMetadata\xea\x02\n" +
 	"Player::V1b\x06proto3"
@@ -136,19 +333,37 @@ func file_player_v1_admin_proto_rawDescGZIP() []byte {
 	return file_player_v1_admin_proto_rawDescData
 }
 
-var file_player_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_player_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_player_v1_admin_proto_goTypes = []any{
 	(*ReconcileTitlesRequest)(nil),  // 0: player.v1.ReconcileTitlesRequest
 	(*ReconcileTitlesResponse)(nil), // 1: player.v1.ReconcileTitlesResponse
+	(*AdminGetPlayerRequest)(nil),   // 2: player.v1.AdminGetPlayerRequest
+	(*AdminGetPlayerResponse)(nil),  // 3: player.v1.AdminGetPlayerResponse
+	(NameColor)(0),                  // 4: player.v1.NameColor
+	(*Stats)(nil),                   // 5: player.v1.Stats
+	(*Title)(nil),                   // 6: player.v1.Title
+	(*CountryTiles)(nil),            // 7: player.v1.CountryTiles
+	(*GetAuthorsRequest)(nil),       // 8: player.v1.GetAuthorsRequest
+	(*GetAuthorsResponse)(nil),      // 9: player.v1.GetAuthorsResponse
 }
 var file_player_v1_admin_proto_depIdxs = []int32{
-	0, // 0: player.v1.AdminService.ReconcileTitles:input_type -> player.v1.ReconcileTitlesRequest
-	1, // 1: player.v1.AdminService.ReconcileTitles:output_type -> player.v1.ReconcileTitlesResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	4, // 0: player.v1.AdminGetPlayerResponse.color:type_name -> player.v1.NameColor
+	5, // 1: player.v1.AdminGetPlayerResponse.stats:type_name -> player.v1.Stats
+	6, // 2: player.v1.AdminGetPlayerResponse.titles:type_name -> player.v1.Title
+	6, // 3: player.v1.AdminGetPlayerResponse.worn_title:type_name -> player.v1.Title
+	7, // 4: player.v1.AdminGetPlayerResponse.plays_for:type_name -> player.v1.CountryTiles
+	7, // 5: player.v1.AdminGetPlayerResponse.plays_against:type_name -> player.v1.CountryTiles
+	0, // 6: player.v1.AdminService.ReconcileTitles:input_type -> player.v1.ReconcileTitlesRequest
+	8, // 7: player.v1.AdminService.GetAuthors:input_type -> player.v1.GetAuthorsRequest
+	2, // 8: player.v1.AdminService.GetPlayer:input_type -> player.v1.AdminGetPlayerRequest
+	1, // 9: player.v1.AdminService.ReconcileTitles:output_type -> player.v1.ReconcileTitlesResponse
+	9, // 10: player.v1.AdminService.GetAuthors:output_type -> player.v1.GetAuthorsResponse
+	3, // 11: player.v1.AdminService.GetPlayer:output_type -> player.v1.AdminGetPlayerResponse
+	9, // [9:12] is the sub-list for method output_type
+	6, // [6:9] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_player_v1_admin_proto_init() }
@@ -156,13 +371,17 @@ func file_player_v1_admin_proto_init() {
 	if File_player_v1_admin_proto != nil {
 		return
 	}
+	file_player_v1_color_proto_init()
+	file_player_v1_internal_proto_init()
+	file_player_v1_player_proto_init()
+	file_player_v1_title_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_admin_proto_rawDesc), len(file_player_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
