@@ -1000,6 +1000,7 @@ type Player struct {
 	TilesPerMinute float64                `protobuf:"fixed64,9,opt,name=tiles_per_minute,json=tilesPerMinute,proto3" json:"tiles_per_minute,omitempty"`
 	Takes          uint32                 `protobuf:"varint,10,opt,name=takes,proto3" json:"takes,omitempty"`
 	TakesPerMinute float64                `protobuf:"fixed64,11,opt,name=takes_per_minute,json=takesPerMinute,proto3" json:"takes_per_minute,omitempty"`
+	FlagCountryId  string                 `protobuf:"bytes,13,opt,name=flag_country_id,json=flagCountryId,proto3" json:"flag_country_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1116,6 +1117,13 @@ func (x *Player) GetTakesPerMinute() float64 {
 		return x.TakesPerMinute
 	}
 	return 0
+}
+
+func (x *Player) GetFlagCountryId() string {
+	if x != nil {
+		return x.FlagCountryId
+	}
+	return ""
 }
 
 type BanPlayerRequest struct {
@@ -1736,7 +1744,7 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x05limit\x18\x01 \x01(\rR\x05limit\"W\n" +
 	"\x12TopPlayersResponse\x12+\n" +
 	"\aplayers\x18\x01 \x03(\v2\x11.planet.v1.PlayerR\aplayers\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\rR\x05total\"\xe4\x03\n" +
+	"\x05total\x18\x02 \x01(\rR\x05total\"\x8c\x04\n" +
 	"\x06Player\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
@@ -1752,7 +1760,8 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x10tiles_per_minute\x18\t \x01(\x01R\x0etilesPerMinute\x12\x14\n" +
 	"\x05takes\x18\n" +
 	" \x01(\rR\x05takes\x12(\n" +
-	"\x10takes_per_minute\x18\v \x01(\x01R\x0etakesPerMinuteB\t\n" +
+	"\x10takes_per_minute\x18\v \x01(\x01R\x0etakesPerMinute\x12&\n" +
+	"\x0fflag_country_id\x18\r \x01(\tR\rflagCountryIdB\t\n" +
 	"\a_banned\"~\n" +
 	"\x10BanPlayerRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +

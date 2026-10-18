@@ -31,7 +31,7 @@ func (s *stubUseCase) Execute(_ context.Context, in top_players_usecase.In) (top
 func TestTheLimitReachesTheUseCaseAndThePlayersComeBack(t *testing.T) {
 	at := time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
 	useCase := &stubUseCase{out: top_players_usecase.Out{Total: 7, Players: []ledger.Player{
-		{Scope: "9.9.9.9", Tiles: 40, Takes: 300, FirstAt: at, LastAt: at.Add(time.Minute), Banned: true, BannedUntil: at.Add(time.Hour), Offence: 2},
+		{Scope: "9.9.9.9", Flag: "ps", Tiles: 40, Takes: 300, FirstAt: at, LastAt: at.Add(time.Minute), Banned: true, BannedUntil: at.Add(time.Hour), Offence: 2},
 		{Scope: "2001:db8::/64", Tiles: 1, FirstAt: at, LastAt: at},
 	}}}
 
@@ -45,6 +45,7 @@ func TestTheLimitReachesTheUseCaseAndThePlayersComeBack(t *testing.T) {
 
 	top := res.Msg.GetPlayers()[0]
 	assert.Equal(t, "9.9.9.9", top.GetScope())
+	assert.Equal(t, "ps", top.GetFlagCountryId())
 	assert.Equal(t, uint32(40), top.GetTiles())
 	assert.Equal(t, at, top.GetFirstAt().AsTime())
 	assert.Equal(t, at.Add(time.Minute), top.GetLastAt().AsTime())

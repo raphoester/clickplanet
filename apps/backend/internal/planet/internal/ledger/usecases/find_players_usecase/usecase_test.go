@@ -74,12 +74,12 @@ func TestItListsEveryoneWhoPaintedTheFlagInTheAreaLatestFirst(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, find_players_usecase.Out{Total: 3, Players: []ledger.Player{
-		{Scope: "covered", Takes: 1, FirstAt: start.Add(4 * time.Second), LastAt: start.Add(4 * time.Second)},
+		{Scope: "covered", Flag: "ps", Takes: 1, FirstAt: start.Add(4 * time.Second), LastAt: start.Add(4 * time.Second)},
 		{
-			Scope: "bot", Tiles: 2, Takes: 2, FirstAt: start, LastAt: start.Add(2 * time.Second),
+			Scope: "bot", Flag: "ps", Tiles: 2, Takes: 2, FirstAt: start, LastAt: start.Add(2 * time.Second),
 			Banned: true, BannedUntil: start.Add(time.Hour), Offence: 2,
 		},
-		{Scope: "player", Tiles: 1, Takes: 1, FirstAt: start.Add(time.Second), LastAt: start.Add(time.Second)},
+		{Scope: "player", Flag: "ps", Tiles: 1, Takes: 1, FirstAt: start.Add(time.Second), LastAt: start.Add(time.Second)},
 	}}, out, "a tile outside the area is nobody's, and a tile taken back still counts as a take")
 }
 

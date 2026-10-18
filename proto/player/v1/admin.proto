@@ -2,11 +2,22 @@ syntax = "proto3";
 
 package player.v1;
 
+import "player/v1/color.proto";
+import "player/v1/internal.proto";
+import "player/v1/player.proto";
+import "player/v1/title.proto";
+
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
 service AdminService {
   rpc ReconcileTitles(ReconcileTitlesRequest) returns (ReconcileTitlesResponse);
 
   rpc NameAccounts(NameAccountsRequest) returns (NameAccountsResponse);
+
+  // InternalService/GetAuthors, for the admin page naming a page of players.
+  rpc GetAuthors(GetAuthorsRequest) returns (GetAuthorsResponse);
+
+  // Everything the game keeps about one account, a guest's too. NotFound for an account it keeps nothing about.
+  rpc GetPlayer(AdminGetPlayerRequest) returns (AdminGetPlayerResponse);
 }
 
 message ReconcileTitlesRequest {}
@@ -20,4 +31,23 @@ message NameAccountsRequest {}
 
 message NameAccountsResponse {
   uint32 named = 1;
+}
+
+message AdminGetPlayerRequest {
+  string account_id = 1;
+}
+
+message AdminGetPlayerResponse {
+  string name = 1;
+  bool guest = 2;
+  bool linked = 3;
+  bool admin = 4;
+  NameColor color = 5;
+  int64 created_at_unix_ms = 6;
+  Stats stats = 7;
+  uint64 messages_sent = 8;
+  repeated Title titles = 9;
+  Title worn_title = 10;
+  repeated CountryTiles plays_for = 11;
+  repeated CountryTiles plays_against = 12;
 }

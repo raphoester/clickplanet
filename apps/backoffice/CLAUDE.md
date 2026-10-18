@@ -165,10 +165,24 @@ address over IPv4, the /64 over IPv6) and checks.
   one account on one address, with its takes, the tiles it still holds and their share of its takes (many takes
   and few tiles is a player painted over as fast as it paints), its rates and any ban. The list is read again on
   the way back from a player, as the reports are.
+- **A row is shown by its flag and its name, never its account id** (`PlayerName`): the flag it took the most tiles
+  for (`flag_country_id`), as an emoji and a name, then its username or its guest code, then its address. The
+  planet's rows carry no name, and planet may not ask `player` (the backend's `CLAUDE.md`, "Player"), so
+  the page asks `player.v1.AdminService/GetAuthors` for the accounts of the page once the list answers
+  (`withAuthors`). An account the game never named is "Unnamed": it never joined the roster or posted, and the
+  game's page joins the roster as soon as it may click, so it is most likely a script. A row with no account is "No account". **Names
+  that cannot be read leave the list listed**, every account "Unnamed", with the reason above it.
 - **Open a player** from a row (its account, or its address when it has none), from the field at the top, or
   from a report. The other half of a row (the address of an account, the account of an address) opens from the
   header, and the inspection's address of an account's latest take opens too: **a guest the jury banned is banned
   on both**, and an unban lifts one key.
+- **An account's page reads its profile** (`player.v1.AdminService/GetPlayer`, `ProfilePanel`): signed in or a
+  guest, when it was made, its name and whether it is a username or a guest code, the crown, its color, the tiles
+  it took, its streak, its messages, its titles (the one worn marked), and every country it plays for and against,
+  five of each and the rest behind "All". A guest has all of it too, which the game's public card does not. The
+  heading is its flag and its name: the name the profile answers, which is the name it holds now, over the one the
+  page that opened it knew; the flag of its row, or else the country it took the most tiles for. `not_found` is an
+  account the game keeps nothing about. An address has no profile, and is not asked.
 - **The page inspects on open** (`InspectPlayer`): the antibot's readings, its ban and its clicks. The antibot off
   reads as such, not as a failure. A ban or an unban reads it again.
 - **The tools**: ban (`BanPlayer`, the ladder's next step by default), unban (`UnbanPlayer`, which forgets the
@@ -188,6 +202,10 @@ address over IPv4, the /64 over IPv6) and checks.
 - **A country is typed by its id** (`CountryField`), and the page names it below ("dz" → Algeria) with
   `Intl.DisplayNames`, plus the game's own ids no standard names (`countries.ts`: England, Scotland, Wales,
   Brittany). It is a hint: the server holds the list of countries and refuses any other.
+- **A flag is an emoji** (`flagOf` in `countries.ts`, `Country`), never the game's flag atlas, which is the
+  frontend's: the regional indicators of an ISO code, the tag sequences of England, Scotland and Wales, and nothing
+  for Brittany, which Unicode has no flag for. Windows draws the two letters instead, so a flag always goes beside
+  its country's name.
 - **Replay** (`GetReplay`): a span back from an end (empty: now), saved as `replay-<since>-<until>.json`, the
   answer as protobuf JSON, which the frontend's `npm run clip` reads as it reads what `clips fetch` saves. The
   ledger keeps 72 hours. The file is made in memory (`download.ts`, a `blob:` link), which the CSP allows.
@@ -231,21 +249,22 @@ src/
   useAction.ts      one read's state, run on a click
   usePage.ts        the page shown, kept in the address bar
   navigation.ts     MENU, the pages by group, and OpenPlayer
-  countries.ts      a country id's name
+  countries.ts      a country id's name and its flag
   App.tsx           the callback, or WhoAmI first, then the page the menu picked
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
-  components/       Menu, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), CountryField, Fact,
-                    Person, When
+  components/       Menu, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
+                    Fact, Person, When
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   reports/          Reports: list, detail, the report's own actions
-  players/          Players: list, PlayerView, the tools on one player, actions.ts
+  players/          Players: list, PlayerName, PlayerView, ProfilePanel, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay
   ops/              Reconcile titles, Name accounts
   gen/grpc/         generated from ../../proto, committed
 ```
 
-**An account is shown by its id, with Copy**, beside its name: a name can change hands, and the id is what the
-operator tools take.
+**An account is shown by its id, with Copy**, beside its name, wherever a tool takes it: a name can change hands,
+and the id is what the operator tools take. **A list of players is the exception**: its rows show the flag and the
+name alone, and the id is on the player page each opens.
 
 Plain CSS in `src/index.css`, tokens on `:root`, dark from `prefers-color-scheme`. **It must work on a phone**:
 16px gutter, and nothing may scroll sideways, so every id and text wraps (`overflow-wrap: anywhere`).

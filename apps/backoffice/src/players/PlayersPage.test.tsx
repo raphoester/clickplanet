@@ -4,8 +4,10 @@ import {cleanup, fireEvent, render, screen, within} from "@testing-library/react
 import {useState} from "react"
 import {afterEach, describe, expect, it} from "vitest"
 import {ACCOUNT, FakeAdmin} from "../fakeAdmin.ts"
+import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
 import {Opened} from "../navigation.ts"
 import {PlayersPage} from "./PlayersPage.tsx"
+import {NO_PROFILE} from "./ProfilePanel.tsx"
 
 afterEach(cleanup)
 
@@ -20,14 +22,29 @@ function confirm(label: string, yes: string) {
 }
 
 describe("the player list", () => {
-    it("shows the top players first", async () => {
+    it("shows the top players first, each by its flag and its name rather than its account id", async () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin}/>)
 
         expect(await screen.findByText("2 of 75 players")).toBeTruthy()
-        expect(screen.getByText(ACCOUNT)).toBeTruthy()
-        expect(screen.getByText("2001:db8:1:2::/64")).toBeTruthy()
+        const [named, anonymous] = screen.getAllByRole("listitem")
+        expect(within(named).getByText("BraveFox42")).toBeTruthy()
+        expect(within(named).getByText("\u{1F1EB}\u{1F1F7}")).toBeTruthy()
+        expect(within(named).getByText("France")).toBeTruthy()
+        expect(screen.queryByText(ACCOUNT)).toBeNull()
+        expect(within(anonymous).getByText("No account")).toBeTruthy()
+        expect(within(anonymous).getByText("2001:db8:1:2::/64")).toBeTruthy()
         expect(admin.askedFor("topPlayers")).toEqual([{limit: 20}])
+        expect(admin.askedFor("getAuthors")).toEqual([{accountIds: [ACCOUNT]}])
+    })
+
+    it("still lists the players when their names cannot be read, and says why", async () => {
+        const admin = new FakeAdmin()
+        admin.refuse("getAuthors", Code.Unavailable)
+        render(<Page admin={admin}/>)
+
+        expect(await screen.findByText("The names could not be read. The call failed: refused")).toBeTruthy()
+        expect(within(screen.getAllByRole("listitem")[0]).getByText("Unnamed")).toBeTruthy()
     })
 
     it("finds who painted a flag on a country's ground", async () => {
@@ -52,6 +69,7 @@ describe("the player list", () => {
 
         fireEvent.click(within(screen.getAllByRole("listitem")[0]).getByRole("button", {name: "Open"}))
         expect(await screen.findByText(/^0 of 0$/)).toBeTruthy()
+        expect(screen.getByRole("heading", {name: "BraveFox42 France"})).toBeTruthy()
         expect(admin.askedFor("inspectPlayer")).toEqual([{accountId: ACCOUNT}])
 
         const card = screen.getByRole("article")
@@ -73,8 +91,50 @@ describe("the player list", () => {
 })
 
 describe("one player", () => {
-    const account: Opened = {caller: {accountId: ACCOUNT}, name: "Ana"}
+    const account: Opened = {caller: {accountId: ACCOUNT}, name: "BraveFox42"}
     const address: Opened = {caller: {scope: "203.0.113.7"}}
+
+    it("reads what the game keeps about the account, under the name it holds now", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={{caller: {accountId: ACCOUNT}, name: "OldName"}}/>)
+
+        const profile = await screen.findByRole("region", {name: "Profile"})
+        expect(await within(profile).findByText(/^Signed in, made/)).toBeTruthy()
+        expect(within(profile).getByText("(username)")).toBeTruthy()
+        expect(within(profile).getByText("1200")).toBeTruthy()
+        expect(within(profile).getByText("3 days now, best 12 days")).toBeTruthy()
+        expect(within(profile).getByText("France")).toBeTruthy()
+        expect(within(profile).getByText("Scotland")).toBeTruthy()
+        expect(screen.getByRole("heading", {name: "BraveFox42 France"})).toBeTruthy()
+        expect(admin.askedFor("getPlayer")).toEqual([{accountId: ACCOUNT}])
+    })
+
+    it("folds the countries past five behind All", async () => {
+        const admin = new FakeAdmin()
+        admin.profile.playsAgainst = ["de", "es", "it", "pt", "be", "nl", "ch"]
+            .map((countryId, i) => new CountryTiles({countryId, tiles: BigInt(70 - i)}))
+        render(<Page admin={admin} first={account}/>)
+
+        const profile = await screen.findByRole("region", {name: "Profile"})
+        await within(profile).findByText("Germany")
+        expect(within(profile).queryByText("Netherlands")).toBeNull()
+
+        fireEvent.click(within(profile).getByRole("button", {name: "All 7"}))
+        expect(within(profile).getByText("Switzerland")).toBeTruthy()
+    })
+
+    it("says when the game keeps nothing about an account, and reads no profile for an address", async () => {
+        const admin = new FakeAdmin()
+        admin.refuse("getPlayer", Code.NotFound)
+        render(<Page admin={admin} first={account}/>)
+        expect(await screen.findByText(NO_PROFILE)).toBeTruthy()
+        cleanup()
+
+        render(<Page admin={admin} first={address}/>)
+        await screen.findByRole("heading", {name: "Ban"})
+        expect(screen.queryByRole("region", {name: "Profile"})).toBeNull()
+        expect(admin.askedFor("getPlayer")).toHaveLength(1)
+    })
 
     it("says the antibot is off rather than failing", async () => {
         const admin = new FakeAdmin()
@@ -120,7 +180,7 @@ describe("one player", () => {
         expect(await screen.findByText(/took 900 tiles in the last 72 hours and still holds 120/)).toBeTruthy()
 
         fireEvent.click(revert())
-        expect(screen.getByText("Give back the 120 tiles Ana holds?")).toBeTruthy()
+        expect(screen.getByText("Give back the 120 tiles BraveFox42 holds?")).toBeTruthy()
         fireEvent.click(screen.getByRole("button", {name: "Yes, revert"}))
 
         expect(await screen.findByText(/^Restored 118 of 120 tiles held\. The rest were retaken/)).toBeTruthy()
@@ -140,7 +200,7 @@ describe("one player", () => {
         fireEvent.click(screen.getByRole("checkbox", {name: "Bomb"}))
         fireEvent.change(screen.getByRole("spinbutton", {name: "Enclosures"}), {target: {value: "3"}})
         fireEvent.click(grant())
-        expect(screen.getByText("Give Ana a bomb and 3 enclosures?")).toBeTruthy()
+        expect(screen.getByText("Give BraveFox42 a bomb and 3 enclosures?")).toBeTruthy()
         fireEvent.click(screen.getByRole("button", {name: "Yes, grant"}))
 
         expect(await screen.findByText("It held 2 enclosures. It holds a bomb and 3 enclosures.")).toBeTruthy()

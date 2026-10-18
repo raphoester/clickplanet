@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {countryIdOf, countryLabel, countryName} from "./countries.ts"
+import {countryIdOf, countryLabel, countryName, flagOf} from "./countries.ts"
 
 describe("countryName", () => {
     it("names an ISO code, however it was typed", () => {
@@ -28,5 +28,22 @@ describe("countryLabel", () => {
 describe("countryIdOf", () => {
     it("is the id the server takes", () => {
         expect(countryIdOf(" GB-ENG ")).toBe("gb-eng")
+    })
+})
+
+describe("flagOf", () => {
+    it("is the emoji of an ISO code", () => {
+        expect(flagOf("fr")).toBe("\u{1F1EB}\u{1F1F7}")
+        expect(flagOf("ps")).toBe("\u{1F1F5}\u{1F1F8}")
+    })
+
+    it("is the tag sequence of the nations Unicode draws a flag for", () => {
+        expect(flagOf("gb-sct")).toBe("\u{1F3F4}\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}")
+    })
+
+    it("is nothing for an id with no flag, rather than two letters in boxes", () => {
+        expect(flagOf("xb")).toBe("")
+        expect(flagOf("zz-top")).toBe("")
+        expect(flagOf("")).toBe("")
     })
 })

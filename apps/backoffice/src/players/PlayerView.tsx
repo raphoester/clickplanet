@@ -4,15 +4,17 @@ import {Clients} from "../clients.ts"
 import {Copyable} from "../components/AccountId.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {When} from "../components/When.tsx"
-import {InspectPlayerResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {InspectPlayerResponse, Player} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Opened} from "../navigation.ts"
 import {useCall} from "../useCall.ts"
-import {ANTIBOT_OFF, inspect} from "./actions.ts"
+import {ANTIBOT_OFF, inspect, Profile, profileOf} from "./actions.ts"
 import {Caller, idOf, isAccount, whoOf} from "./caller.ts"
 import {GrantPanel} from "./GrantPanel.tsx"
 import {Inspection} from "./InspectPanel.tsx"
 import {BanAction, MuteAction, UnbanAction} from "./Moderation.tsx"
+import {PlayerName} from "./PlayerName.tsx"
 import {BanLine, PlayerStats} from "./PlayerStats.tsx"
+import {ProfilePanel} from "./ProfilePanel.tsx"
 import {RevertPanel} from "./RevertPanel.tsx"
 
 type Props = {
@@ -24,11 +26,21 @@ type Props = {
 
 type Read = {on: true, value: InspectPlayerResponse} | {on: false}
 
-// One player, by account or by address: what the antibot reads of it, and every tool that takes it.
+// One player, by account or by address: who it is, what the antibot reads of it, and every tool that takes it.
 export function PlayerView({clients, opened, onBack, onOpen}: Props) {
-    const {caller, name = "", row} = opened
-    const who = whoOf(caller, name)
+    const {caller, row} = opened
     const other = otherOf(opened)
+
+    const readProfile = useCallback(
+        (signal: AbortSignal) => isAccount(caller)
+            ? profileOf(clients.player, caller.accountId, signal)
+            : Promise.resolve(undefined),
+        [clients.player, caller],
+    )
+    const [profile, readProfileAgain] = useCall(readProfile)
+    const kept = profile.state === "done" ? profile.value : undefined
+    const name = kept?.name ?? opened.name ?? ""
+    const who = whoOf(caller, name)
 
     const read = useCallback(
         (signal: AbortSignal): Promise<Read> => inspect(clients.planet, caller, signal).then(
@@ -48,16 +60,13 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
 
             <article className="card">
                 <div className="card-head">
-                    {row !== undefined ? <BanLine player={row}/> : <span/>}
+                    {isAccount(caller)
+                        ? <h2 className="player-heading"><PlayerName name={name} flag={shownFlagOf(row, kept)} unnamed="Unnamed"/></h2>
+                        : <span/>}
                     {row?.lastAt !== undefined && <span className="muted">last take <When at={row.lastAt}/></span>}
                 </div>
+                {row !== undefined && <BanLine player={row}/>}
                 <dl className="people">
-                    {name !== "" && (
-                        <div>
-                            <dt>Name</dt>
-                            <dd className="name">{name}</dd>
-                        </div>
-                    )}
                     <div>
                         <dt>{labelOf(caller)}</dt>
                         <dd><Copyable text={idOf(caller)}/></dd>
@@ -76,6 +85,8 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
                 </dl>
                 {row !== undefined && <PlayerStats player={row}/>}
             </article>
+
+            {isAccount(caller) && <ProfilePanel profile={profile} onReload={readProfileAgain}/>}
 
             <section className="panel" aria-label="Antibot">
                 <div className="panel-head">
@@ -111,6 +122,12 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
             {isAccount(caller) && <GrantPanel planet={clients.planet} accountId={caller.accountId} who={who}/>}
         </section>
     )
+}
+
+// The flag the row painted most in the ledger's 72 hours, or else the one the account took the most tiles for.
+function shownFlagOf(row: Player | undefined, profile: Profile | undefined): string {
+    if (row !== undefined && row.flagCountryId !== "") return row.flagCountryId
+    return profile?.playsFor[0]?.countryId ?? ""
 }
 
 // The other half of a ledger row: the address of an account opened from it, or the account of an address.

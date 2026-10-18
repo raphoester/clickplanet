@@ -33,11 +33,15 @@ import {
 } from "./gen/grpc/planet/v1/admin_pb.ts"
 import {ChargesHeld} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
+    AdminGetPlayerRequest,
+    AdminGetPlayerResponse,
     NameAccountsRequest,
     NameAccountsResponse,
     ReconcileTitlesRequest,
     ReconcileTitlesResponse,
 } from "./gen/grpc/player/v1/admin_pb.ts"
+import {Author, GetAuthorsRequest, GetAuthorsResponse} from "./gen/grpc/player/v1/internal_pb.ts"
+import {CountryTiles, Stats} from "./gen/grpc/player/v1/player_pb.ts"
 import {DecideReportRequest, DecideReportResponse} from "./gen/grpc/support/v1/admin_pb.ts"
 import {ChatAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
 
@@ -58,11 +62,17 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         new Player({
             accountId: ACCOUNT, scope: "203.0.113.7", tiles: 3, takes: 900, takesPerMinute: 30,
             tilesPerMinute: 0.1, firstAt: Timestamp.fromDate(AT), lastAt: Timestamp.fromDate(AT),
-            activeFor: new Duration({seconds: 1800n}),
+            activeFor: new Duration({seconds: 1800n}), flagCountryId: "fr",
         }),
         new Player({scope: "2001:db8:1:2::/64", tiles: 40, takes: 50}),
     ]
     inspection = new InspectPlayerResponse({accountId: "account-reported", clicks: 42, banned: false})
+    authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
+    profile = new AdminGetPlayerResponse({
+        name: "BraveFox42", linked: true, createdAtUnixMs: BigInt(AT.getTime()), messagesSent: 4n,
+        stats: new Stats({tilesTaken: 1200n, streakCurrent: 3, streakBest: 12}),
+        playsFor: [new CountryTiles({countryId: "fr", tiles: 1100n}), new CountryTiles({countryId: "gb-sct", tiles: 100n})],
+    })
 
     clients(): Clients {
         return {chat: this, planet: this, player: this, support: this}
@@ -151,6 +161,16 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     reconcileTitles(request: PartialMessage<ReconcileTitlesRequest>): Promise<ReconcileTitlesResponse> {
         return this.answer("reconcileTitles", request, new ReconcileTitlesResponse({granted: 12, revoked: 3}))
+    }
+
+    getAuthors(request: PartialMessage<GetAuthorsRequest>): Promise<GetAuthorsResponse> {
+        const asked = new Set(request.accountIds)
+        return this.answer("getAuthors", request,
+            new GetAuthorsResponse({authors: this.authors.filter(author => asked.has(author.accountId))}))
+    }
+
+    getPlayer(request: PartialMessage<AdminGetPlayerRequest>): Promise<AdminGetPlayerResponse> {
+        return this.answer("getPlayer", request, this.profile)
     }
 
     nameAccounts(request: PartialMessage<NameAccountsRequest>): Promise<NameAccountsResponse> {

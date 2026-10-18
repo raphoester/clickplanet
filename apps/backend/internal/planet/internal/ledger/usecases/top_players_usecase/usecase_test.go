@@ -69,13 +69,13 @@ func TestItRanksByTakesThenTilesHeldOverEveryFlag(t *testing.T) {
 
 	assert.Equal(t, top_players_usecase.Out{Total: 4, Players: []ledger.Player{
 		{
-			Scope: "painter", Tiles: 3, Takes: 3, FirstAt: start, LastAt: start.Add(2 * time.Second),
+			Scope: "painter", Flag: "fr", Tiles: 3, Takes: 3, FirstAt: start, LastAt: start.Add(2 * time.Second),
 			Banned: true, BannedUntil: start.Add(time.Hour), Offence: 1,
 		},
-		{Scope: "late", Tiles: 2, Takes: 2, FirstAt: start.Add(3 * time.Second), LastAt: start.Add(6 * time.Second)},
-		{Scope: "covered", Tiles: 1, Takes: 2, FirstAt: start.Add(4 * time.Second), LastAt: start.Add(5 * time.Second)},
-		{Scope: "bombed", Takes: 2, FirstAt: start.Add(7 * time.Second), LastAt: start.Add(8 * time.Second)},
-	}}, out, "a tile taken over and a tile bombed count as takes, not as tiles")
+		{Scope: "late", Flag: "de", Tiles: 2, Takes: 2, FirstAt: start.Add(3 * time.Second), LastAt: start.Add(6 * time.Second)},
+		{Scope: "covered", Flag: "il", Tiles: 1, Takes: 2, FirstAt: start.Add(4 * time.Second), LastAt: start.Add(5 * time.Second)},
+		{Scope: "bombed", Flag: "br", Takes: 2, FirstAt: start.Add(7 * time.Second), LastAt: start.Add(8 * time.Second)},
+	}}, out, "a tile taken over and a tile bombed count as takes, not as tiles, and each player shows the flag it painted most")
 }
 
 func TestTheLimitCutsAfterTheRanking(t *testing.T) {
