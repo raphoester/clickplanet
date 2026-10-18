@@ -66,7 +66,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 - **`internal/planet/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
-- **`internal/auth/`** — who a caller is and what it has to prove before it may click: Turnstile, accounts, the click token. See [Auth](#auth-internalauth).
+- **`internal/auth/`** — who a caller is and what it has to prove before it may click: Turnstile, accounts, the click token, and which accounts may operate. See [Auth](#auth-internalauth).
 - **`internal/player/`** — what the game keeps about one account: the name it chose, the tiles it took, its daily streak. See [Player](#player-internalplayer).
 - **`internal/seasons/`** — the season calendar, each season's player standings and its daily rounds between countries, above the game. See [Seasons](#seasons-internalseasons).
 - **`internal/support/`** — what a player sends the operator: a feature suggestion, a bug report or a report of another player. See [Support](#support-internalsupport).
@@ -106,7 +106,7 @@ root package**:
 |---|---|
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `StorageConfig`, `NewModule` |
-| `auth` | `Config`, `NewModule`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
+| `auth` | `Config`, `NewModule`, `AdminGateConfig`, `NewAdminGate`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
 | `player` | `Config`, `NewModule` |
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
@@ -214,7 +214,7 @@ func run(logger *slog.Logger) error {
 Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`, `internal/player/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
 
 - `props.RPC.Mount(build, interceptors...)` — the module hands over what *builds* the handler, plus the interceptors it wants. `cpbootstrap` builds it, so it can put its own interceptor outside every module's — see [The error net](#the-error-net)
-- `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served only on the loopback admin listener — see [Operator tools](#operator-tools-adminservice)
+- `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served on the loopback console listener, and on the admin listener behind `Options.AdminGate` — see [Operator tools](#operator-tools-adminservice)
 - `props.InternalRPC.Mount(build, interceptors...)` — the same again, for what other modules call: served only on the loopback internal listener
 - `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
 - `props.Events` — the in-process event bus: `props.Events.Publish(message)`, and `cpbootstrap.Subscribe(props.Events, name, buffer, handler)` for the runner that delivers one type — see [Telling other modules what happened](#telling-other-modules-what-happened)
@@ -227,9 +227,9 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
-**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger and the antibot's evidence all flush from their runners, after the closers, once the server has stopped taking writes.
+**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the console, admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger and the antibot's evidence all flush from their runners, after the closers, once the server has stopped taking writes.
 
-**`cmd/api/main.go` is the composition root, and the server's only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules. It builds no objects, derives nothing, and reads inside no block.
+**`cmd/api/main.go` is the composition root, and the server's only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does three things: load the config, build the admin gate (`auth.NewAdminGate`, see [Operator tools](#operator-tools-adminservice)), and list the modules. It builds no other object, derives nothing, and reads inside no block.
 
 **The aggregation is the whole of it — a flat slice, no branches, no dependencies threaded through:**
 
@@ -274,6 +274,7 @@ return []bootstrap.Module{
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of both accounts of each report of a page, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of each account a page of reports names, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
+| `auth`'s admin gate, which `main` builds | `auth.v1.InternalService/GetOperator` | who calls the admin listener, and whether that account operates, on each admin call | `admingate/admission/rpc_operators` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts` and on each `GetPlayer` the cache does not answer | `playerv1controller/rpc_planet_fronts` |
 
 A module cannot import another's interior, so the key client all five need is `shared/cpsessionverifier` rather than a copy in each.
@@ -964,7 +965,7 @@ duration)`, on the admin listener (see [Operator tools](#operator-tools-adminser
 - **Kept in `chat.mutes`** (`id`, `account_id`, `scope`, `muted_at`, `muted_until`). The network is personal data,
   so the prune deletes a mute that ended more than `retention` ago. There is no unmute RPC: deleting the rows ends
   a mute early (`deploy/vps/README.md`).
-- `e2e/mute_test.go` mutes over the admin listener and sees the player, its reaction and a fresh guest on its
+- `e2e/mute_test.go` mutes over the console listener and sees the player, its reaction and a fresh guest on its
   network refused, and the line reach the history.
 
 #### Replies
@@ -1246,7 +1247,19 @@ internal/auth/internal/
     get_me_handler/me_query/               PostgresQuery: GetMeResponse from the cookie, straight from SQL
     get_account_handler/account_query/     PostgresQuery: GetAccountResponse, for another module
     get_accounts_handler/accounts_query/   PostgresQuery: GetAccountsResponse, a page at once
+    get_operator_handler/operator_query/   PostgresQuery: GetOperatorResponse, the cp_admin cookie's live session if it operates
+  adminsignin/                             the admin page's sign-in: Candidate, Session (Snapshot), Issuer, the cookies, the Store port
+    postgres_admin_session_store/          the Store over identities, accounts and admin_sessions
+    usecases/start_admin_sign_in_usecase/  complete_admin_sign_in_usecase/  sign_out_admin_usecase/
+  admingate/                               what the admin listener sits behind; NewAdminGate builds it, main injects it
+    admission/                             Page (the admin page's origin), Visit, Operator, the refusals
+      rpc_operators/                       who operates, from InternalService/GetOperator
+      usecases/admit_usecase/              the origin, then who calls — and log_admit/, which logs each refusal
+    guard/                                 the interceptor: a refusal's code, the operator on the context
+      log_calls/                           one line per admitted call
   sessionv1controller/                     deprecated SessionService
+    operator_query/                        PostgresQuery: the cookie's live session, its account and whether it operates
+    log_refusals/                          logs each caller it refused
   migrations/
 ```
 
@@ -1304,6 +1317,34 @@ internal/auth/internal/
 - **An email account is linked**: it is never pruned, it refills at the linked multiplier, and it may pick a username.
 - **`auth.email.delivery` is `cloudflare` or `log`.** `cloudflare_mailer` posts to the REST API with a token that has *Email Sending: Edit* only; a non-2xx, a body that is not JSON, or a permanent bounce of the address is an error, and nothing is set. `log_mailer` writes the letter, code included, to the server log at `WARN` — the local choice, with no account anywhere. The server warns at boot when it is on.
 - `auth.NewModuleWithFakeProviders` turns email on with `signin.FakeMailer` and codes `000001`, `000002`, …; `e2e/email_sign_in_test.go` reads the code out of the letter.
+
+#### Operators
+
+**An operator is a game account flagged operator, with a session of its own for the admin page.** Two apps, two
+sign-ins, one account base: the admin account is the player account, so `GrantCharges` to its own id is "give me a
+bomb to test". `auth.accounts.operator` is a boolean (migration `20261017120000_account_operator`), false for every
+account until an operator sets it by hand (`deploy/vps/README.md`, "Make an account an operator"). It is not the
+chat crown: `player.profiles.admin` is a display flag, and holding one never grants the other.
+
+- **`adminsignin` is the admin page's sign-in: Google only**, with a Google client of its own (`auth.admin.google`,
+  redirect `auth.admin.redirectUrl`). It reuses the game's `signin.Flow`, sealer and Google provider, under a cookie
+  of its own (`cp_admin_oauth`), so a game sign-in in progress is never overwritten. **It only finds an account**:
+  `Store.Candidate` is the account of the Google identity and whether it operates. It never makes one, links one or
+  joins by email, and an identity nobody holds is `ErrUnknownIdentity`, refused as `ErrNotAnOperator`.
+- **The admin session is its own concept** (`adminsignin.Session`, table `admin_sessions`, migration
+  `20261017130000_admin_sessions`): `Issuer.Session` opens one for an operator only, for `auth.admin.sessionTTL` (12h)
+  and never extended. Its cookie, `cp_admin`, is `SameSite=Strict` (`Token.StrictCookie`) and host-only on the API's
+  domain. `cp_sid` never opens the admin page, and signing out of one leaves the other. A session goes with its
+  account (cascade); one that expired stays until then, a row per sign-in.
+- **`auth.v1.AdminService` is that sign-in** (`StartSignIn`, `CompleteSignIn`, `SignOut`) and `WhoAmI`, mounted with
+  `props.AdminRPC`: on the console listener, and behind the admin gate. The sign-in spends the mint budget
+  (`NewAdminRateLimitInterceptor`). `CompleteSignIn` answers `failed_precondition` to start again and
+  `permission_denied` for anybody but an operator, and clears `cp_admin_oauth` on every answer it maps.
+- **`InternalService/GetOperator(cookie)` and `WhoAmI` are who a browser is, as an operator**:
+  `get_operator_handler/operator_query` asks SQL for a live admin session (`cp_admin`) whose account is flagged, and
+  answers its account id. The flag is read on every call, so unsetting it ends a session already open. No admin
+  session is `unauthenticated` (`ErrNoSession`); anybody else is `permission_denied` (`ErrNotAnOperator`).
+- **The session is read on every call**: no cache. Admin calls are a handful a minute.
 
 #### Signing out, deleting, pruning
 
@@ -3122,7 +3163,33 @@ Nothing lives in files any more: the container mounts no state volume.
 
 ### Operator tools (`AdminService`)
 
-**A second router, on a loopback listener.** `props.AdminRPC.Mount` is `props.RPC.Mount` for services an operator calls: same builder, same error net, but `cpbootstrap` serves them on `httpServer.adminBindAddress` instead of the public router — logging middleware only, no CORS. Empty serves no admin listener; anything but a loopback `host:port` refuses the boot, both in `ServerConfig.Validate` and again in `Run`, and a port already taken refuses it too. They have no authentication, so loopback is their whole protection, and they are off the router Caddy forwards to on purpose: one Caddyfile edit would otherwise let anybody repaint the map. In production they are reached with `docker compose exec backend wget`; see `deploy/vps/README.md`, "Operator tools".
+**A second router, on a loopback listener: the console.** `props.AdminRPC.Mount` is `props.RPC.Mount` for services an operator calls: same builder, same error net, but `cpbootstrap` serves them on `httpServer.consoleBindAddress` instead of the public router — logging middleware only, no CORS. Empty serves no admin listener; anything but a loopback `host:port` refuses the boot, both in `ServerConfig.Validate` and again in `Run`, and a port already taken refuses it too. They have no authentication, so loopback is their whole protection, and they are off the router Caddy forwards to on purpose: one Caddyfile edit would otherwise let anybody repaint the map. In production they are reached with `docker compose exec backend wget`; see `deploy/vps/README.md`, "Operator tools".
+
+**The admin listener serves every admin service again, for the admin page.**
+`httpServer.adminBindAddress` is not loopback (Caddy reaches it on the Docker network), so `cpbootstrap`
+builds every admin route a second time behind `Options.AdminGate`: its middlewares around the router, its
+interceptors inside the error net (`rpcRoutes.mountBehind`). `cpbootstrap` knows nothing of what the gate checks.
+An address with an empty gate, or a gate holding a nil, refuses the boot: the admin services have no authentication
+of their own. Empty serves no admin listener.
+
+**The gate is auth's (`internal/auth/internal/admingate`), and `cmd/api` builds it** with `auth.NewAdminGate`,
+from `auth.admin.origin` and the internal listener's address, since it runs outside the module: it asks auth
+who calls over the internal listener, as another module would. No origin is no admin page, and so no gate; an
+origin with auth off refuses the boot.
+
+- **The admin page's origin alone** (`admission.Page`): a call whose `Origin` is another, or none, is
+  `permission_denied` before anything is asked. Scripts on the box use the console listener. The router answers CORS
+  for that origin alone, with credentials.
+- **Then who calls**, but for the admin sign-in calls (`admission.Page.SignIn`: start, complete, sign out), which
+  are made before a session exists: `admit_usecase` asks `auth.v1.InternalService/GetOperator` with the cookie
+  (`rpc_operators`, 2s), and `guard` maps the answer: no session `unauthenticated`, anybody but an operator
+  `permission_denied`. `log_admit` logs each refusal (`admin call refused`), with its origin and never the cookie.
+- **A line per admitted call** (`log_calls`, inside the guard): `admin call` with the operator's account id, the
+  procedure, the request as JSON and the code, reads included. The audit decorators say what a call did; this line
+  says who asked it.
+
+Caddy sends `/<package>.v1.AdminService/*` on the API's domain to it, so `cp_admin`, which is host-only on that
+domain, travels from the admin page, a page of the same site.
 
 `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute` — see [Mutes](#mutes); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes` and `ListReports` — see [Support](#support-internalsupport). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
@@ -3620,7 +3687,7 @@ func (c Config) Validate() error {
 
 The binary never reads inside a block to check it, so a new bound is added in the module that owns it and nothing here changes. `errors.Join` also means a broken file reports **everything** wrong at once rather than one line per restart.
 
-- `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `adminBindAddress` set to anything but loopback
+- `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `consoleBindAddress` set to anything but loopback
 - `shared/cppg.Config` — a connection setting or the schema left empty, or a schema that is not a plain lowercase identifier. Each module checks its own block, starting with `planet.Config`
 - `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click, plus whatever `bonus` and `antiBot` refuse of their own
 - `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: two switches and no key
@@ -3634,7 +3701,11 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s), after the one it opens with. **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
 - `httpServer.startupTimeout` — how long building every module may take, the loads included (default 1m). A boot that passes it fails, and the container's restart policy boots it again. See [Durability](#durability) for why it is not 5s.
-- `httpServer.adminBindAddress` — where the operator services listen (see [Operator tools](#operator-tools-adminservice)); empty serves none, and a non-loopback address refuses the boot
+- `httpServer.consoleBindAddress` — where the operator services listen for a shell on the box, with no session (see [Operator tools](#operator-tools-adminservice)); empty serves none, and a non-loopback address refuses the boot
+- `httpServer.adminBindAddress` — where the admin services listen again, behind the admin gate, for the admin page (see [Operator tools](#operator-tools-adminservice)); empty serves none, and set with no gate refuses the boot
+- `auth.admin.origin` — the admin page's exact origin, the only one the gate answers; empty builds no gate and offers no admin sign-in, and set with `auth.enabled` false refuses the boot. In production it comes from `ADMIN_ORIGIN`
+- `auth.admin.redirectUrl`, `auth.admin.google.clientId`, `auth.admin.google.clientSecret` — the admin page's own Google client and callback; with an origin, a missing one refuses the boot. The secret is `env://ADMIN_GOOGLE_CLIENT_SECRET`
+- `auth.admin.sessionTTL` — how long an admin session lasts, never extended (12h)
 - `httpServer.internalBindAddress` — where the services other modules call listen (see [Calling another module](#calling-another-module)); empty serves none, a caller that dials it then fails, and a non-loopback address refuses the boot
 - `httpServer.allowedOrigin` — the frontend's exact origin (`scheme://host[:port]`, no path). The public router answers CORS for it alone, with `Access-Control-Allow-Credentials: true`, so the `cp_sid` cookie travels on the web client's mint. **Empty, `*` or anything that is not an origin refuses the boot**: a browser drops a credentialed answer that allows every origin, so a wrong value would only show up as every mint starting a new guest. In production it comes from `FRONTEND_ORIGIN`, the value the Caddyfile allows, which sets the same headers and overwrites these.
 - `gameMap.maxIndex` — total number of tiles

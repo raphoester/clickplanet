@@ -973,12 +973,76 @@ rm -f ~/backups/tiles-*.tar.gz
 
 ## 10. Operator tools
 
-`httpServer.adminBindAddress` serves the backend's operator services
-(`planet.v1.AdminService`, `player.v1.AdminService`, `chat.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
+`httpServer.consoleBindAddress` serves the backend's operator services
+(`planet.v1.AdminService`, `player.v1.AdminService`, `chat.v1.AdminService`, `support.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
 not behind Caddy and have **no authentication**: loopback is their whole
 protection, so a non-loopback address refuses the boot. Reach them from the box
 with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
 JSON POST to `/<package>.<Service>/<Method>`.
+
+This is the **console listener**. The same services are also served on the
+**admin listener**, for the admin page: see below. The console stays: scripts on
+the box call it with no session, and the clips job reads its replays there.
+
+### The admin listener (the admin page)
+
+```
+admin.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* → Caddy → backend:8083 → the admin gate → the admin service
+```
+
+- **Two apps, two sessions, one account base.** An operator is a game account
+  flagged `operator`. The admin page has a sign-in of its own: Google only, with
+  its own Google client, and it opens an admin session, `cp_admin`. That session
+  lasts 12 hours, is never extended, and is `SameSite=Strict`, host-only on
+  `api.clickplanet.lol`. The game's `cp_sid` never opens the admin page. Signing
+  out of one leaves the other open.
+- **Only an operator gets an admin session.** The Google account must be one the
+  game account already signed in with: the sign-in finds the account by that
+  identity. It never makes an account, never links one, and never joins by email.
+  Anybody else is refused at sign-in (`permission_denied`).
+- **Only the admin page may call** (`auth.admin.origin`, from `ADMIN_ORIGIN` in
+  `env.public`). A call from any other origin, or with none, is
+  `permission_denied` before anything is read. A script on the box uses the
+  console listener above.
+- **Then the gate asks auth who calls**, except for the sign-in calls (start,
+  complete, sign out): a live admin session of an account still flagged
+  `operator`. Unsetting the flag ends a session already open. No admin session is
+  `unauthenticated`; anybody else is `permission_denied`. Each refusal is logged:
+  `journalctl CONTAINER_NAME=cp-backend | grep "admin call refused"`.
+- **Every call that passes is logged** with its operator's account id, what it
+  asked and how it ended, reads included:
+  `journalctl CONTAINER_NAME=cp-backend | grep "admin call"`. The audit lines
+  (`admin ban`, `admin chat mute`, …) say what the call did.
+- The port is on the Docker network only, never published.
+
+### The admin Google client
+
+The admin page signs in with a Google OAuth client of its own, "ClickPlanet admin",
+in the same Google Cloud project as the game's. Its redirect URI is
+`https://admin.clickplanet.lol/auth/callback`. Its client id is in `backend.yaml`
+(`auth.admin.google.clientId`), and its secret is the repository secret
+`ADMIN_GOOGLE_CLIENT_SECRET`. **Without that secret the backend refuses to boot**:
+an admin page with an origin needs its Google client whole.
+
+### Make an account an operator
+
+On clickplanet.lol, sign in or link with **the Google account you will use on the
+admin page**. Then find your account id: it is `accountId` in the answer of
+`GetMe`, in the network tab, or by your username:
+
+```bash
+docker compose exec postgres psql -U clickplanet -c \
+  "SELECT account_id, name FROM player.profiles WHERE name = 'YourUsername'"
+docker compose exec postgres psql -U clickplanet -c \
+  "UPDATE auth.accounts SET operator = true WHERE id = '<account_id>'"
+```
+
+Then sign in on admin.clickplanet.lol with that Google account.
+
+Two steps, for the reason the crown has two (see the player module's admin flag):
+a name can change hands, an id cannot. `operator = false` takes it back, and
+ends any admin session at once. The flag is not the chat crown:
+`player.profiles.admin` stays a display flag.
 
 ### Give one country's tiles to another
 

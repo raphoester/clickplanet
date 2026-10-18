@@ -41,3 +41,20 @@ func TestEveryIdentityKeptBeforeTheTypeKeepsItsProvider(t *testing.T) {
 	_, err = db.ExecContext(t.Context(), insert, "github", "the subject of github", account, at)
 	require.Error(t, err, "a provider is a value of the type before an identity has it")
 }
+
+const accountOperator = "20261017120000"
+
+func TestNoAccountKeptBeforeTheFlagIsAnOperator(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "auth", cppg.MigrationsBefore(t, migrations.FS, accountOperator))
+	at := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	account := uuid.UUID{15: 1}
+	_, err := db.ExecContext(t.Context(),
+		`INSERT INTO accounts (id, created_at, last_seen_at) VALUES ($1, $2, $2)`, account, at)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	var operator bool
+	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT operator FROM accounts WHERE id = $1`, account).Scan(&operator))
+	assert.False(t, operator)
+}

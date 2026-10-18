@@ -35,21 +35,25 @@ import (
 const mapTiles = 262119
 
 type gameStack struct {
-	baseURL  string
-	adminURL string
-	fakes    auth.FakeProviders
-	postgres *cppg.TestServer
+	baseURL    string
+	consoleURL string
+	adminURL   string
+	fakes      auth.FakeProviders
+	postgres   *cppg.TestServer
 }
+
+const adminOrigin = "https://admin.clickplanet.lol"
 
 func startGame(t *testing.T) gameStack {
 	t.Helper()
 
 	postgres := cppg.StartTestServer(t)
 	secret, _ := cpsession.TestKeyPair()
-	public, internal, admin := listen(t), listen(t), listen(t)
+	public, internal, console, admin := listen(t), listen(t), listen(t), listen(t)
 	server := cpbootstrap.ServerConfig{
 		BindAddress:         public.Addr().String(),
 		InternalBindAddress: internal.Addr().String(),
+		ConsoleBindAddress:  console.Addr().String(),
 		AdminBindAddress:    admin.Addr().String(),
 	}
 
@@ -80,17 +84,22 @@ func startGame(t *testing.T) gameStack {
 
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
 
+	logger := slog.New(slog.DiscardHandler)
+	gate, err := auth.NewAdminGate(auth.AdminConfig{Origin: adminOrigin}, server.InternalBindAddress, logger)
+	require.NoError(t, err)
+
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
 		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
 			Server: server,
-			Logger: slog.New(slog.DiscardHandler),
+			Logger: logger,
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
 				seasons.NewModule(seasonsConfig), support.NewModule(supportConfig),
 			},
-		}, public, internal, admin)
+			AdminGate: gate,
+		}, public, internal, console, admin)
 	}()
 	t.Cleanup(func() {
 		cancel()
@@ -100,7 +109,11 @@ func startGame(t *testing.T) gameStack {
 	waitUntilServed(t, server.BindAddress)
 
 	return gameStack{
-		baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes, postgres: postgres,
+		baseURL:    "http://" + server.BindAddress,
+		consoleURL: "http://" + server.ConsoleBindAddress,
+		adminURL:   "http://" + server.AdminBindAddress,
+		fakes:      fakes,
+		postgres:   postgres,
 	}
 }
 
@@ -109,6 +122,8 @@ type gamer struct {
 	stack  gameStack
 	cookie string
 	token  string
+
+	adminCookie string
 }
 
 func (s gameStack) newPlayer(t *testing.T) *gamer {
@@ -467,7 +482,7 @@ func TestAnOperatorReconcilesTheTitlesOnTheAdminListenerOnly(t *testing.T) {
 	_, err = playerv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).ReconcileTitles(t.Context(), request)
 	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "the public router does not serve it")
 
-	admin := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL)
+	admin := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.consoleURL)
 	first, err := admin.ReconcileTitles(t.Context(), request)
 	require.NoError(t, err)
 	assert.Zero(t, first.Msg.GetRevoked(), "the worker granted the guest nothing, and the player only what it earns")

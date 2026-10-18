@@ -53,12 +53,14 @@ services:
     restart: unless-stopped
     expose:
       - "8080"
+      - "8083"
     depends_on:
       postgres:
         condition: service_healthy
     env_file: .env.backend
     environment:
       httpServer.allowedOrigin: ${FRONTEND_ORIGIN:?set FRONTEND_ORIGIN in env.public}
+      auth.admin.origin: ${ADMIN_ORIGIN:?set ADMIN_ORIGIN in env.public}
     volumes:
       - ./backend.yaml:/home/app/config/config.yaml:ro
     command: [ "./api", "-config", "/home/app/config/config.yaml" ]

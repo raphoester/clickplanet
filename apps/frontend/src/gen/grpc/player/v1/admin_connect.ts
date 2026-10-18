@@ -7,7 +7,7 @@ import { NameAccountsRequest, NameAccountsResponse, ReconcileTitlesRequest, Reco
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Unauthenticated: serve only on the loopback admin listener, never the public router.
+ * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
  *
  * @generated from service player.v1.AdminService
  */

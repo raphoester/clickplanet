@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -16,38 +17,54 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 )
 
-const adminProcedure = "/test.v1.AdminService/Do"
+const (
+	passHeader   = "X-Test-Pass"
+	gateHeader   = "X-Test-Gate"
+	callerHeader = "X-Test-Caller"
+)
 
-func listen(t *testing.T) net.Listener {
-	t.Helper()
+type callerKey struct{}
 
-	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = listener.Close() })
-
-	return listener
+func headerGate() cpbootstrap.Gate {
+	return cpbootstrap.Gate{
+		Middlewares: []func(http.Handler) http.Handler{func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set(gateHeader, "yes")
+				next.ServeHTTP(w, r)
+			})
+		}},
+		Interceptors: []connect.Interceptor{connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+			return func(ctx context.Context, request connect.AnyRequest) (connect.AnyResponse, error) {
+				pass := request.Header().Get(passHeader)
+				if pass == "" {
+					return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("no pass"))
+				}
+				return next(context.WithValue(ctx, callerKey{}, pass), request)
+			}
+		})},
+	}
 }
 
-func waitUntilServed(t *testing.T, address string) {
-	t.Helper()
-
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+address+"/metrics", nil)
-	require.NoError(t, err)
-	// Pooled, it can come back while the next call dials, leaving a silent spare that holds Shutdown for 5s.
-	req.Close = true
-	res, err := http.DefaultClient.Do(req)
-	require.NoError(t, err, "the server never came up")
-	require.NoError(t, res.Body.Close())
+type seenCallers struct {
+	mu   sync.Mutex
+	seen []string
 }
 
-func adminModule(result error) cpbootstrap.Module {
+func (s *seenCallers) all() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.seen...)
+}
+
+func recordingAdminModule(seen *seenCallers) cpbootstrap.Module {
 	return newModule("planet", func(props cpbootstrap.Props) error {
 		return props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 			return adminProcedure, connect.NewUnaryHandler(adminProcedure,
-				func(context.Context, *connect.Request[emptypb.Empty]) (*connect.Response[emptypb.Empty], error) {
-					if result != nil {
-						return nil, result
-					}
+				func(ctx context.Context, _ *connect.Request[emptypb.Empty]) (*connect.Response[emptypb.Empty], error) {
+					caller, _ := ctx.Value(callerKey{}).(string)
+					seen.mu.Lock()
+					seen.seen = append(seen.seen, caller)
+					seen.mu.Unlock()
 					return connect.NewResponse(&emptypb.Empty{}), nil
 				},
 				options...,
@@ -56,28 +73,28 @@ func adminModule(result error) cpbootstrap.Module {
 	})
 }
 
-func call(ctx context.Context, address string) error {
+func callWithPass(ctx context.Context, address, pass string) (http.Header, error) {
 	client := connect.NewClient[emptypb.Empty, emptypb.Empty](http.DefaultClient, "http://"+address+adminProcedure)
-	_, err := client.CallUnary(ctx, connect.NewRequest(&emptypb.Empty{}))
-	return err //nolint:wrapcheck // the test reads the connect code.
+	request := connect.NewRequest(&emptypb.Empty{})
+	request.Header().Set(passHeader, pass)
+	response, err := client.CallUnary(ctx, request)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the test reads the connect code.
+	}
+	return response.Header(), nil
 }
 
-func serveUntil(
-	t *testing.T,
-	server cpbootstrap.ServerConfig,
-	listeners []net.Listener,
-	probe func(),
-	modules ...cpbootstrap.Module,
-) {
+func serveBehind(t *testing.T, server cpbootstrap.ServerConfig, gate cpbootstrap.Gate, listeners []net.Listener, probe func(), modules ...cpbootstrap.Module) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
 		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
-			Server:  server,
-			Logger:  slog.New(slog.DiscardHandler),
-			Modules: modules,
+			Server:    server,
+			Logger:    slog.New(slog.DiscardHandler),
+			Modules:   modules,
+			AdminGate: gate,
 		}, listeners...)
 	}()
 
@@ -89,97 +106,104 @@ func serveUntil(
 	require.NoError(t, <-done)
 }
 
-func TestAnAdminServiceIsServedOnTheAdminListenerAndNowhereElse(t *testing.T) {
-	public, admin := listen(t), listen(t)
-	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), AdminBindAddress: admin.Addr().String()}
+func TestTheAdminListenerServesTheAdminServicesBehindTheGate(t *testing.T) {
+	public, console, admin := listen(t), listen(t), listen(t)
+	server := cpbootstrap.ServerConfig{
+		BindAddress:        public.Addr().String(),
+		ConsoleBindAddress: console.Addr().String(),
+		AdminBindAddress:   admin.Addr().String(),
+	}
+	seen := &seenCallers{}
 
-	serveUntil(t, server, []net.Listener{public, admin}, func() {
-		require.NoError(t, call(t.Context(), server.AdminBindAddress))
-		assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(call(t.Context(), server.BindAddress)),
-			"an admin service on the public router is one proxy edit away from the internet")
-	}, adminModule(nil))
-}
+	serveBehind(t, server, headerGate(), []net.Listener{public, console, admin}, func() {
+		_, err := callWithPass(t.Context(), server.AdminBindAddress, "")
+		assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 
-func TestAnAdminServiceGetsTheErrorNet(t *testing.T) {
-	public, admin := listen(t), listen(t)
-	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), AdminBindAddress: admin.Addr().String()}
+		header, err := callWithPass(t.Context(), server.AdminBindAddress, "the caller")
+		require.NoError(t, err)
+		assert.Equal(t, "yes", header.Get(gateHeader), "the gate's middlewares wrap the router")
 
-	serveUntil(t, server, []net.Listener{public, admin}, func() {
-		err := call(t.Context(), server.AdminBindAddress)
-		assert.Equal(t, connect.CodeInternal, connect.CodeOf(err))
-		assert.NotContains(t, err.Error(), "disk on fire")
-	}, adminModule(errors.New("disk on fire")))
-}
-
-func TestNoAdminAddressServesNoAdminListener(t *testing.T) {
-	public := listen(t)
-	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String()}
-
-	serveUntil(t, server, []net.Listener{public}, func() {
+		require.NoError(t, call(t.Context(), server.ConsoleBindAddress), "the console listener stays as it was")
 		assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(call(t.Context(), server.BindAddress)))
+	}, recordingAdminModule(seen))
+
+	assert.Equal(t, []string{"the caller", ""}, seen.all(), "the gate's context reaches the handler, and nothing on the loopback")
+}
+
+func TestTheAdminListenerServesOnlyTheAdminServices(t *testing.T) {
+	public, admin := listen(t), listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), AdminBindAddress: admin.Addr().String()}
+
+	serveBehind(t, server, headerGate(), []net.Listener{public, admin}, func() {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+server.AdminBindAddress+"/metrics", nil)
+		require.NoError(t, err)
+		req.Close = true
+		res, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		require.NoError(t, res.Body.Close())
+
+		assert.Equal(t, http.StatusNotFound, res.StatusCode)
 	}, adminModule(nil))
 }
 
-func TestOnlyALoopbackAdminAddressIsAccepted(t *testing.T) {
+func TestTheGateIsInsideTheErrorNet(t *testing.T) {
+	public, admin := listen(t), listen(t)
+	server := cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), AdminBindAddress: admin.Addr().String()}
+	broken := cpbootstrap.Gate{Interceptors: []connect.Interceptor{connect.UnaryInterceptorFunc(func(connect.UnaryFunc) connect.UnaryFunc {
+		return func(context.Context, connect.AnyRequest) (connect.AnyResponse, error) {
+			return nil, errors.New("the gate is on fire")
+		}
+	})}}
+
+	serveBehind(t, server, broken, []net.Listener{public, admin}, func() {
+		_, err := callWithPass(t.Context(), server.AdminBindAddress, "the caller")
+		assert.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+		assert.NotContains(t, err.Error(), "on fire")
+	}, adminModule(nil))
+}
+
+func TestAnAdminAddressWithNoGateRefusesTheBoot(t *testing.T) {
+	public, admin := listen(t), listen(t)
+
+	err := cpbootstrap.RunOn(t.Context(), cpbootstrap.Options{
+		Server:  cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), AdminBindAddress: admin.Addr().String()},
+		Logger:  slog.New(slog.DiscardHandler),
+		Modules: []cpbootstrap.Module{adminModule(nil)},
+	}, public, admin)
+
+	require.ErrorContains(t, err, "nothing gates it")
+}
+
+func TestAGateHoldingNothingUsableRefusesTheBoot(t *testing.T) {
+	public, admin := listen(t), listen(t)
+	gate := headerGate()
+	gate.Interceptors = append(gate.Interceptors, nil)
+
+	err := cpbootstrap.RunOn(t.Context(), cpbootstrap.Options{
+		Server:    cpbootstrap.ServerConfig{BindAddress: public.Addr().String(), AdminBindAddress: admin.Addr().String()},
+		Logger:    slog.New(slog.DiscardHandler),
+		Modules:   []cpbootstrap.Module{adminModule(nil)},
+		AdminGate: gate,
+	}, public, admin)
+
+	require.ErrorContains(t, err, "nil interceptor")
+}
+
+func TestTheAdminAddressIsAHostAndAPort(t *testing.T) {
 	for address, ok := range map[string]bool{
-		"":               true,
-		"127.0.0.1:8081": true,
-		"localhost:8081": true,
-		"[::1]:8081":     true,
-		":8081":          false,
-		"0.0.0.0:8081":   false,
-		"10.0.0.5:8081":  false,
-		"[::]:8081":      false,
-		"127.0.0.1":      false,
+		"":             true,
+		"0.0.0.0:8083": true,
+		":8083":        true,
+		"backend":      false,
+		"0.0.0.0:":     false,
 	} {
-		err := cpbootstrap.ServerConfig{BindAddress: "0.0.0.0:8080", AllowedOrigin: "https://clickplanet.lol", AdminBindAddress: address}.Validate()
+		err := cpbootstrap.ServerConfig{
+			BindAddress: "0.0.0.0:8080", AllowedOrigin: "https://clickplanet.lol", AdminBindAddress: address,
+		}.Validate()
 		if ok {
 			require.NoError(t, err, address)
 		} else {
-			require.Error(t, err, address)
+			require.ErrorContains(t, err, "adminBindAddress", address)
 		}
 	}
-}
-
-func TestOnlyAnExactOriginIsAccepted(t *testing.T) {
-	for origin, ok := range map[string]bool{
-		"https://clickplanet.lol":      true,
-		"http://localhost:5173":        true,
-		"":                             false,
-		"*":                            false,
-		"https://clickplanet.lol/":     false,
-		"https://clickplanet.lol/play": false,
-		"clickplanet.lol":              false,
-		"ftp://clickplanet.lol":        false,
-	} {
-		err := cpbootstrap.ServerConfig{BindAddress: "0.0.0.0:8080", AllowedOrigin: origin}.Validate()
-		if ok {
-			require.NoError(t, err, origin)
-		} else {
-			require.ErrorContains(t, err, "httpServer.allowedOrigin", origin)
-		}
-	}
-}
-
-func TestATakenAdminAddressRefusesTheBoot(t *testing.T) {
-	taken := listen(t)
-
-	err := cpbootstrap.Run(t.Context(), cpbootstrap.Options{
-		Server:  cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0", AdminBindAddress: taken.Addr().String()},
-		Logger:  slog.New(slog.DiscardHandler),
-		Modules: []cpbootstrap.Module{adminModule(nil)},
-	})
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "adminBindAddress")
-}
-
-func TestRunRefusesANonLoopbackAdminAddressEvenUnvalidated(t *testing.T) {
-	err := cpbootstrap.Run(t.Context(), cpbootstrap.Options{
-		Server:  cpbootstrap.ServerConfig{BindAddress: "127.0.0.1:0", AdminBindAddress: "0.0.0.0:0"},
-		Logger:  slog.New(slog.DiscardHandler),
-		Modules: []cpbootstrap.Module{adminModule(nil)},
-	})
-
-	require.Error(t, err)
 }

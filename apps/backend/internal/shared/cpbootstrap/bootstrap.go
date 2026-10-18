@@ -76,6 +76,8 @@ type ServerConfig struct {
 
 	StartupTimeout time.Duration
 
+	ConsoleBindAddress string
+
 	AdminBindAddress string
 
 	InternalBindAddress string
@@ -92,11 +94,15 @@ func (c ServerConfig) Validate() error {
 		return err
 	}
 
-	if c.AdminBindAddress != "" && !isLoopback(c.AdminBindAddress) {
+	if c.ConsoleBindAddress != "" && !isLoopback(c.ConsoleBindAddress) {
 		return fmt.Errorf(
-			"httpServer.adminBindAddress %q is not a loopback host:port: the admin services have no authentication",
-			c.AdminBindAddress,
+			"httpServer.consoleBindAddress %q is not a loopback host:port: the admin services have no authentication",
+			c.ConsoleBindAddress,
 		)
+	}
+
+	if c.AdminBindAddress != "" && !hostPort(c.AdminBindAddress) {
+		return fmt.Errorf("httpServer.adminBindAddress %q is not a host:port", c.AdminBindAddress)
 	}
 
 	if c.InternalBindAddress != "" && !isLoopback(c.InternalBindAddress) {
@@ -126,6 +132,11 @@ func validateOrigin(origin string) error {
 	return nil
 }
 
+func hostPort(address string) bool {
+	_, port, err := net.SplitHostPort(address)
+	return err == nil && port != ""
+}
+
 func isLoopback(address string) bool {
 	host, _, err := net.SplitHostPort(address)
 	if err != nil {
@@ -147,6 +158,18 @@ type Options struct {
 	Logger *slog.Logger
 
 	Modules []Module
+
+	AdminGate Gate
+}
+
+// What the admin services sit behind on the admin listener: they have no authentication of their own.
+type Gate struct {
+	Middlewares  []func(http.Handler) http.Handler
+	Interceptors []connect.Interceptor
+}
+
+func (g Gate) empty() bool {
+	return len(g.Interceptors) == 0
 }
 
 const (
@@ -196,44 +219,52 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	))
 	mountMetrics(router, metrics, options.Logger)
 
-	loopbacks, err := listenLoopbacks(options, listen, adminRoutes, internalRoutes)
+	sides, err := listenSides(options, listen, adminRoutes, internalRoutes)
 	if err != nil {
 		return err
 	}
 
 	public, err := listen(context.Background(), "tcp", options.Server.BindAddress)
 	if err != nil {
-		for _, loopback := range loopbacks {
-			_ = loopback.listener.Close()
-		}
+		closeSides(sides)
 		return fmt.Errorf("failed to listen on httpServer.bindAddress %q: %w", options.Server.BindAddress, err)
 	}
 
-	return serve(ctx, options, public, router, loopbacks, drain, runners, closers)
+	return serve(ctx, options, public, router, sides, drain, runners, closers)
 }
 
-func listenLoopbacks(options Options, listen listenFunc, adminRoutes, internalRoutes *rpcRoutes) ([]*loopbackServer, error) {
-	admin, err := listenLoopback(options, listen, "admin", "adminBindAddress", options.Server.AdminBindAddress, adminRoutes)
-	if err != nil {
-		return nil, err
+func listenSides(options Options, listen listenFunc, adminRoutes, internalRoutes *rpcRoutes) ([]*sideServer, error) {
+	opens := []func() (*sideServer, error){
+		func() (*sideServer, error) {
+			return listenLoopback(options, listen, "console", "consoleBindAddress", options.Server.ConsoleBindAddress, adminRoutes)
+		},
+		func() (*sideServer, error) {
+			return listenAdmin(options, listen, adminRoutes)
+		},
+		func() (*sideServer, error) {
+			return listenLoopback(options, listen, "internal", "internalBindAddress", options.Server.InternalBindAddress, internalRoutes)
+		},
 	}
 
-	internal, err := listenLoopback(options, listen, "internal", "internalBindAddress", options.Server.InternalBindAddress, internalRoutes)
-	if err != nil {
-		if admin != nil {
-			_ = admin.listener.Close()
+	var sides []*sideServer
+	for _, open := range opens {
+		side, err := open()
+		if err != nil {
+			closeSides(sides)
+			return nil, err
 		}
-		return nil, err
-	}
-
-	var loopbacks []*loopbackServer
-	for _, loopback := range []*loopbackServer{admin, internal} {
-		if loopback != nil {
-			loopbacks = append(loopbacks, loopback)
+		if side != nil {
+			sides = append(sides, side)
 		}
 	}
 
-	return loopbacks, nil
+	return sides, nil
+}
+
+func closeSides(sides []*sideServer) {
+	for _, side := range sides {
+		_ = side.listener.Close()
+	}
 }
 
 type registrars struct {
