@@ -23,6 +23,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query"
 	my_season_authors "github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_my_season_handler/my_season_query/rpc_player_authors"
+	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_race_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_season_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons/internal/seasonsv1controller/get_standings_handler/standings_query"
@@ -101,7 +102,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
-	races := inprocess_race_feed.New(log_race_reader.New(race_query.NewPostgresQuery(db, seasons, clock), props.Logger))
+	race := log_race_reader.New(race_query.NewPostgresQuery(db, seasons, clock), props.Logger)
+	races := inprocess_race_feed.New(race)
 	snapshot := take_snapshot_usecase.NewRunner(config.Snapshot, log_take_snapshot.New(
 		take_snapshot_usecase.New(rpc_planet_territories.New(planet), postgres_round_store.New(db), props.Events, seasons, clock),
 		props.Logger,
@@ -118,6 +120,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			db, my_season_authors.New(player), seasons, clock, countries,
 		)),
 		ListenForEventsHandler: listen_for_events_handler.New(boards, races, countries, props.Server.StreamHeartbeat),
+		GetRaceHandler:         get_race_handler.New(race),
 	}
 	verifier := cpsessionverifier.New(props.Internal, props.Logger.With(slog.String("module", "seasons")))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

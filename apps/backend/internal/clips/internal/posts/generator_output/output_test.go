@@ -87,6 +87,21 @@ func TestAShortlistIsTheStoriesTheGeneratorWroteBestFirst(t *testing.T) {
 	}, shortlist)
 }
 
+func TestAStoryKeepsWhatItTellsOfItsFlagAndTheDayItTells(t *testing.T) {
+	file := write(t, t.TempDir(), "shortlist.json", `{"stories":[`+
+		`{"title":"FRANCE WINS DAY 5","key":{"flag":"fr","continent":"the world","angle":"round","round":"1.5"}},`+
+		`{"title":"CROATIA HOLDS 80% OF EUROPE","key":{"flag":"hr","continent":"Europe","angle":"holding"}}`+
+		`]}`)
+
+	shortlist, err := generator_output.ShortlistFile(file).Shortlist(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, []posts.StoryKey{
+		{Flag: "fr", Continent: "the world", Angle: posts.DayWon, Round: "1.5"},
+		{Flag: "hr", Continent: "Europe", Angle: posts.Holding},
+	}, []posts.StoryKey{shortlist[0].Key, shortlist[1].Key})
+}
+
 func TestAShortlistWithNoStoryIsEmpty(t *testing.T) {
 	file := write(t, t.TempDir(), "shortlist.json", "{}\n")
 

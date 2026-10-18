@@ -26,5 +26,4 @@ type Store interface {
 	RecordMessage(ctx context.Context, account AccountID) error
 	StatsAfter(ctx context.Context, after AccountID, limit int) ([]Stats, error)
 	DeleteAccount(ctx context.Context, account AccountID) error
-	Names(ctx context.Context, accounts []AccountID) (map[AccountID]Name, error)
 }

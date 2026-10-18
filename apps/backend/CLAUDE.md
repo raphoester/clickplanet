@@ -538,7 +538,7 @@ internal/chat/internal/
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
 (`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
 (`GetTakesByCountry`, `GetTerritories`), auth
-(`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
+(`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race and `GetRace`) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
 through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
@@ -1406,8 +1406,6 @@ internal/player/internal/
     usecases/record_take_usecase/  record_message_usecase/  forget_account_usecase/
     usecases/name_account_usecase/  — a username for an account signed in to with none; on auth.v1.SignedIn
       name_account_usecase/renaming_name_account/   shows the name on the roster at once
-    usecases/name_accounts_usecase/  — the same for every linked account with stats; player.v1.AdminService/NameAccounts
-      name_accounts_usecase/audit_name_accounts/   logs every run at Warn
       record_take_usecase/publishing_record_take/   publishes player.v1.StatsChanged once a take is counted
       record_message_usecase/publishing_record_message/   the same, once a message is counted
   titles/                           Title (one type per title), Rank, Track (Conquest, Devotion, Chatter), Place, Standing, Catalog (NewCatalog), Career,
@@ -1432,7 +1430,7 @@ internal/player/internal/
     get_profile_handler/  set_name_handler/  set_color_handler/  get_stats_handler/  get_author_handler/  get_player_handler/
     get_authors_handler/  get_titles_handler/  wear_title_handler/  get_fronts_handler/
     announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
-    reconcile_titles_handler/  name_accounts_handler/  admin_get_player_handler/   AdminService's own; it serves get_authors_handler too
+    reconcile_titles_handler/  admin_get_player_handler/   AdminService's own; it serves get_authors_handler too
       admin_get_player_handler/admin_player_query/   PostgresQuery: what the game keeps about one account, a guest's too
     get_profile_handler/profile_query/  get_stats_handler/stats_query/  get_player_handler/player_query/
     get_titles_handler/titles_query/  get_authors_handler/authors_query/   PostgresQuery: the response straight from SQL
@@ -1480,7 +1478,7 @@ internal/player/internal/
 - **Usernames are unique ignoring case** (`Name.Folded`): **NFKC_Casefold**, the NFKC of the Unicode full case fold of the NFKD, so `Straße` is `STRASSE`, `Émile` is `éMILE`, and a full-width `Ａｄａ` is `ada`. A name another account holds is `AlreadyExists` (`ErrNameTaken`); an account setting its own name again, in any case, is not refused, and a rename or a deleted account frees the old one. **The game computes the fold and the store keeps it** in `profiles.name_folded`: postgres' `lower()` depends on the database's locale (a C locale folds ASCII only) and folds neither `ß` nor full-width letters, so an index on it would disagree with Go on non-ASCII names. Postgres holds uniqueness, not a read before the write: a unique index on `name_folded`, whose violation (`23505` on `profiles_name_key`) `postgres_player_store.SaveProfile` answers as `ErrNameTaken`, so two players asking for one name at once cannot both get it. The in-memory store compares `Folded` under its lock, and `StoreContractSuite` pins both.
 - **The table's `CHECK` holds what it can say without the locale**: 3 to 15 `char_length`, `IS NFC NORMALIZED` (a UTF8 database), no space at either end or two in a row, no ASCII but letters, digits, `_` and space, no C0 or C1 control, and none of the zero-width, bidi and other invisible format characters (a range list in the migration); and `name_folded` not empty and not starting with `guest_`. Letter categories and scripts are Go's alone: postgres' regex classes depend on the locale too.
 - **Only a linked account may hold one.** `set_name_usecase` checks the name first, so a name no account may hold costs no call, then asks its `Accounts` port whether the caller signed in with a provider: `rpc_account_reader` calls `auth.v1.InternalService/GetAccount` over the internal listener on every `SetName` (2s timeout), since an account links at any time and a name is chosen rarely. A guest is `PermissionDenied` (`ErrNotLinked`). Auth answers `linked` false for an unknown account or an id that is not one; **a failure to ask is a real error**, the error net's `internal`, never a guest. With `auth` off that call 404s, so no name can be set.
-- **A signed-in account is given a username** when it has none, so every player who signs in has one. On `auth.v1.SignedIn` (`player-names-sign-ins`), `name_account_usecase` asks `players.GeneratedNames.Assign`, which saves with `Store.CreateProfile`: an insert that refuses an account with a profile (`ErrProfileExists`), so a name chosen at the same moment is never replaced. `random_name_generator` draws an adjective, an animal and two digits (`BraveFox42`; 40 × 40 × 90 names, every one valid under `NameOf`, which its tests pin), and a name another account holds is drawn again, 10 draws at most as for guest codes (`ErrNoFreeName`, logged; the next sign-in or `NameAccounts` tries again). Postgres decides what is taken: the unique index on `name_folded` refuses the second of two accounts saving one name at once, whatever both read before. `renaming_name_account` renames the roster line at once. The player changes it with `SetName` as any name. A guest is never named: it has not signed in.
+- **A signed-in account is given a username** when it has none, so every player who signs in has one. On `auth.v1.SignedIn` (`player-names-sign-ins`), `name_account_usecase` asks `players.GeneratedNames.Assign`, which saves with `Store.CreateProfile`: an insert that refuses an account with a profile (`ErrProfileExists`), so a name chosen at the same moment is never replaced. `random_name_generator` draws an adjective, an animal and two digits (`BraveFox42`; 40 × 40 × 90 names, every one valid under `NameOf`, which its tests pin), and a name another account holds is drawn again, 10 draws at most as for guest codes (`ErrNoFreeName`, logged; the next sign-in tries again). Postgres decides what is taken: the unique index on `name_folded` refuses the second of two accounts saving one name at once, whatever both read before. `renaming_name_account` renames the roster line at once. The player changes it with `SetName` as any name. A guest is never named: it has not signed in.
 - **The operator reads players on `player.v1.AdminService`**, for the admin page's Players (see [Operator
   tools](#operator-tools-adminservice)). Both are reads, and neither logs nor writes anything:
   - **`GetAuthors(account_ids)` is the internal service's, handler and all**: the same `get_authors_handler`
@@ -1497,7 +1495,6 @@ internal/player/internal/
     `NotFound` (`admin_player_query.ErrNoPlayer`) is an account with no profile, no guest code and no stats; an id
     that is not an account is `InvalidArgument`; a failure to ask auth or planet is the error net's `internal`.
     `no-store`.
-- **`player.v1.AdminService/NameAccounts`** names the accounts that signed in before names were given: it pages through `player.stats` (500 at a time), asks auth which are linked (`GetAccounts`), and names each linked one with no profile. A second run names nobody. `audit_name_accounts` logs every run at Warn.
 - **Migration `20260918190000_unicode_usernames`** moves to this rule. Every name kept before is ASCII of 3 to 20, so only length breaks the new rule: **a name over 15 is cut to its first 15 characters**, the player keeping most of it. A cut name that another would then hold, ignoring case — a name of 15 or fewer, or an older cut name (`updated_at`, then `account_id`) — is **deleted** instead, and its player chooses again; an untouched name is never the one to go. Then it fills `name_folded` with an ASCII-only `translate()` (exact for these names, in any locale), replaces the `CHECK`, and moves `profiles_name_key` to `name_folded`. The down migration deletes the names the old rule refuses, drops the column and puts the old `CHECK` and the `lower(name)` index back; cut names stay cut. `migrations_test.go` migrates to the version before, writes names, and migrates the rest.
 - **Migration `20260917180000_usernames`** deletes the profiles whose name breaks the new rule, then, of names that differ only in case, every one but the oldest (`updated_at`, then `account_id`), replaces the name `CHECK` with the new pattern and adds the unique index. No client called `SetName` before usernames existed, so nothing a player chose is lost. The down migration drops the index and puts the old `CHECK` back; the deleted rows stay deleted.
 - **A guest code names an account that chose no username**: 6 lowercase hex characters (`players.GuestCode`), shown as `guest_` and the code (`players.DisplayNameOf`). It is drawn by `random_code_generator` the first time the account is shown (`players.GuestCodes.Assign`), kept in `player.guest_codes`, and deleted with the account, which frees it. **It is unique**: the table's `guest_codes_code_key` refuses a code another account holds, the store answers `ErrGuestCodeTaken`, and `Assign` draws again, up to 10 times (`ErrNoFreeGuestCode`). An account keeps its first code: a second save for it changes nothing, so two first announces at once leave one code. **It does not change with the network**, unlike the address, and says nothing about the account or the address. A linked account with no username keeps the code it had as a guest until it picks a name.
@@ -1720,6 +1717,7 @@ internal/seasons/internal/
       log_take_snapshot/            logs each round closed, and a snapshot that failed
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
+    get_race_handler/             the race of the stream, once, through race_query — Query
     get_standings_handler/standings_query/   PostgresQuery: GetStandingsResponse from SQL, named, and the same top as
                                   a Board, for the live boards — Authors
       rpc_player_authors/         Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
@@ -1797,6 +1795,10 @@ standings rank players, the rounds rank countries.
   reading on its own clock is at most 10s late, and the snapshot use case knows nothing of who reads its rows. It
   forgets the race when the last stream closes. A failed read is logged (`log_race_reader`) and the next tick reads
   again. No season is a race with no round and no scores, and no round closed yet is a race with no `closed`.
+- **`GetRace` is the same race, once**, for a reader that follows no stream: the clips job, which tells the day closed
+  last (see [The clips job](#the-clips-job-internalclips-cmdclips)). It needs no token, is a GET (`NO_SIDE_EFFECTS`)
+  and answers `public, max-age=10`. It reads through `race_query` itself, logged by `log_race_reader` as the feed is,
+  and never through the feed: a feed with no stream holds no race.
 - `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
   and reads the race off the stream.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
@@ -3291,7 +3293,7 @@ origin with auth off refuses the boot.
 Caddy sends `/<package>.v1.AdminService/*` on the API's domain to it, so `cp_admin`, which is host-only on that
 domain, travels from the admin page, a page of the same site.
 
-The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts`, and the reads that name players, `GetAuthors` and `GetPlayer` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage` and `GetMessage` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage` and `GetMessage` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
@@ -3380,11 +3382,11 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 (`.github/workflows/clips.yml`; the frontend's CLAUDE.md, "Clips", has the four jobs and how a clip is made). The
 frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
 which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
-meet in files: the replay this job saves for the generator, and `clips.v1.Shortlist` and `clips.v1.Clip`
-(`proto/clips/v1/clips.proto`), which the generator writes as JSON.
+meet in files: the replay and the race this job saves for the generator, and `clips.v1.Shortlist` and
+`clips.v1.Clip` (`proto/clips/v1/clips.proto`), which the generator writes as JSON.
 
 ```
-clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
+clips fetch -out <replay.json> [-race <race.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -shortlist <shortlist.json> [-count 6]
 clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,youtube] [-summary <file>]
 ```
@@ -3392,6 +3394,9 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
   ([`GetReplay`](#getreplay)), over SSH, and writes the answer as it came. `CLICKPLANET_SSH` stands in for `-ssh`.
   With no `-hours` it is 72: the ledger keeps that much in memory, and a replay cannot reach further back.
+  **With `-race` it saves the season's race too** ([`GetRace`](#seasons-internalseasons)), from which the generator
+  tells the day of the season closed in the replay, "FRANCE WINS DAY 5". **A race the backend does not answer is a
+  warning, not a failure**: the run still has its replay, and tells no day. No race file is written then.
 - **`choose` prints the picks to render**, as a JSON array on the standard output (`[1,2]`, or `[]` on a quiet half
   day): the workflow makes one render job of each. The log goes to the standard error, with each story skipped as
   told. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's `--pick` takes.
@@ -3436,6 +3441,10 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   browser. The file holds the answer byte for byte, never a re-encoding: the generator reads the backend's JSON.
 - **An ssh that fails says what it complained of** (`Permission denied (publickey)`), from its standard error.
   In the workflow the host is a secret, which Actions masks in the log.
+- **The race is asked the same way, of the public listener** (`127.0.0.1:8080` in the container, `{}` for a body),
+  and checked the same: it has to read as a `seasons.v1.GetRaceResponse`. A backend from before `GetRace` answers
+  404, which `wget` turns into a failed ssh. `fetch_race_usecase` keeps it, and `log_fetch_race` logs the day closed
+  last, or warns that the race is left out: `clips.Fetch` goes on without it.
 - Its test runs a fake `ssh`, a shell script that keeps its arguments. No test runs the real one.
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
@@ -3444,9 +3453,13 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   run (`Config.PerRun`), **never a story told already, and never mostly one flag**. Four rules, from the week of
   Oct 13–17, when 18 clips told "ALGERIA STRIKES BACK" three times, "PALAU IS TAKING OVER THE WORLD" twice right
   after the old one-day window, and Palau (two players on five accounts) in about half of them:
-  - **A key told in the last 3 days is skipped** (`retelling`): a `StoryKey` (a flag and a continent, from the
-    generator) a post holds that goes out within 72 hours or later, or that a story of the same run took. The keys
-    and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story.
+  - **A key told in the last 3 days is skipped** (`retelling`): a `StoryKey` (a flag, a continent and an angle,
+    from the generator) a post holds that goes out within 72 hours or later, or that a story of the same run took.
+    The keys and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story. **The angle is
+    what the story tells of its flag there** (`Angle`): what it did (`Deeds`, empty), how much of the place it holds
+    (`Holding`, "CROATIA HOLDS 80% OF EUROPE"), or a day of the season it won (`DayWon`, "FRANCE WINS DAY 5", whose
+    key names the day too, `Round`, "1.5": France winning two days is two stories). So a holding is not the story of
+    what its flag did there. A key of a day with no day, or a day on another angle, is refused.
   - **A headline told in the last week is skipped** (`reheadlining`), whatever its continent: the same words read
     as the same clip. Compared in upper case, spaces at the ends cut.
   - **A flag the last 6 posts showed goes after the flags they did not** (`lately`, half a day at 6 a run). **A
@@ -3461,9 +3474,18 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
     Palau and France defend in nearly every story of Oct 15–17, and waiting on all of them left 6 clips in those
     2.5 days, none on the night of Oct 16.
 
+  And two from Oct 18, when the noon run skipped 8 of its 13 stories as told, nearly all one flag in Europe
+  ("SWEDEN IS INVADING UKRAINE", "… LITHUANIA", "… PORTUGAL" are one key), and posted 3, and every headline told what
+  a flag did:
+  - **A day of the season won goes first** (`DayWon`), whatever the last posts showed: it is the day's news, and
+    the flag that won a day is in most of the day's clips. It is still skipped when it was told.
+  - **A run tells each angle it has once before it tells any twice**, the freshest flag first within it: so a run
+    holds a holding when the shortlist has one, beside what the flags did.
+
   It answers a `Choice`: the stories chosen, in the shortlist's order, the ones skipped (`Retold`), and the ones not
-  told whose flag 2 of the last posts showed, or that the posts showed more than a story chosen (`Passed`), which the
-  log shows. A story with no key is refused when the shortlist is read.
+  told whose flag 2 of the last posts showed, or that a story after them was chosen over, for a flag told less
+  lately or an angle the run had not told (`Passed`), which the log shows. A story with no key is refused when the
+  shortlist is read. With a day won and three holdings added to it by hand, the shortlist of Oct 18 gives 6 (a test of `Best`); what a real run gives is for its log to say.
 - **6 a run, because the finder is not what runs short.** Replayed over Oct 14–17, a 12-hour window held 5 to 11
   stories of different keys, and the one-day rule let about 10 a day out; 2 a run posted 4. Six is the most the
   `Plan` below fits between two runs: the sixth goes out 14 hours after a run starts, and the next run's first
@@ -3472,7 +3494,8 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   one-day rule alone; and once the posts count every country, 13 clips with 2 about Palau. Palau still shows in about
   half of them, as the flag the others take from.
 - **What was told is Zernio's post list, not a table of ours**: each post keeps its key and its story's countries in
-  its Zernio `metadata` (`storyFlag`, `storyContinent`, `storyCountries`, never published), and `choose` lists
+  its Zernio `metadata` (`storyFlag`, `storyContinent`, `storyCountries`, and `storyAngle` and `storyRound` when it
+  has them, never published; a post with none is of what a flag did), and `choose` lists
   the posts of the last week back (`ToldSince`), on every platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
   (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for

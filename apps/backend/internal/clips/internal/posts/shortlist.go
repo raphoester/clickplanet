@@ -13,14 +13,29 @@ import (
 // From 1: what the generator's --pick takes.
 type Pick int
 
+// What a story tells of its flag there, beyond what it did.
+type Angle string
+
+const (
+	// What the flag did: an attack, a battle, a flag thrown out.
+	Deeds Angle = ""
+	// How much of the place the flag holds: "CROATIA HOLDS 80% OF EUROPE".
+	Holding Angle = "holding"
+	// A day of the season the flag won: "FRANCE WINS DAY 5".
+	DayWon Angle = "round"
+)
+
 // Two stories with one key are one story told twice, whatever their headlines.
 type StoryKey struct {
 	Flag      string
 	Continent string
+	Angle     Angle
+	// The day a DayWon tells, as its season and its number: "1.5". France winning two days is two stories.
+	Round string
 }
 
 func (k StoryKey) known() bool {
-	return k.Flag != "" && k.Continent != ""
+	return k.Flag != "" && k.Continent != "" && (k.Angle == DayWon) == (k.Round != "")
 }
 
 type Story struct {
@@ -82,20 +97,26 @@ type Choice struct {
 	Chosen Shortlist
 	// Skipped: its key told in the last three days, its headline in the last week, or either by a story of this run.
 	Retold Shortlist
-	// Not told, but its flag is in 2 of the last posts, or its flags are in more of them than a story chosen.
+	// Not told, but its flag is in 2 of the last posts, or a story after it was chosen: its flags in fewer of them, or
+	// an angle the run had not told.
 	Passed Shortlist
 }
 
+// A day of the season won goes first, whatever the posts showed: it is the day's news. Then a run tells each angle it
+// has once before it tells any twice, the freshest flag first: on Oct 18 a run skipped 8 of its 13 stories as told,
+// nearly all one flag in Europe, and a holding is a new story for that flag.
 func (s Shortlist) Best(count int, told []Telling, now time.Time) Choice {
 	past := pastOf(told, now)
 	chosen := cpcolls.NewSet[Pick]()
+	angles := cpcolls.NewSet[Angle]()
 	var last Pick
 	for chosen.Len() < count {
-		story, found := s.freshest(past)
+		story, found := s.next(past, angles)
 		if !found {
 			break
 		}
 		chosen.Add(story.Pick)
+		angles.Add(story.Key.Angle)
 		last = max(last, story.Pick)
 		past.tell(story)
 	}
@@ -114,11 +135,23 @@ func (s Shortlist) Best(count int, told []Telling, now time.Time) Choice {
 	return choice
 }
 
-func (s Shortlist) freshest(past *past) (Story, bool) {
+func (s Shortlist) next(past *past, told *cpcolls.Set[Angle]) (Story, bool) {
+	for _, story := range s {
+		if story.Key.Angle == DayWon && past.untold(story) {
+			return story, true
+		}
+	}
+	if story, found := s.freshest(past, func(story Story) bool { return !told.Contains(story.Key.Angle) }); found {
+		return story, true
+	}
+	return s.freshest(past, func(Story) bool { return true })
+}
+
+func (s Shortlist) freshest(past *past, among func(Story) bool) (Story, bool) {
 	var best Story
 	found := false
 	for _, story := range s {
-		if !past.untold(story) || past.crowded(story.Key.Flag) {
+		if !among(story) || !past.untold(story) || past.crowded(story.Key.Flag) {
 			continue
 		}
 		if !found || past.fresher(story, best) {

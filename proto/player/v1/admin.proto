@@ -11,8 +11,6 @@ import "player/v1/title.proto";
 service AdminService {
   rpc ReconcileTitles(ReconcileTitlesRequest) returns (ReconcileTitlesResponse);
 
-  rpc NameAccounts(NameAccountsRequest) returns (NameAccountsResponse);
-
   // InternalService/GetAuthors, for the admin page naming a page of players.
   rpc GetAuthors(GetAuthorsRequest) returns (GetAuthorsResponse);
 
@@ -25,12 +23,6 @@ message ReconcileTitlesRequest {}
 message ReconcileTitlesResponse {
   uint32 granted = 1;
   uint32 revoked = 2;
-}
-
-message NameAccountsRequest {}
-
-message NameAccountsResponse {
-  uint32 named = 1;
 }
 
 message AdminGetPlayerRequest {

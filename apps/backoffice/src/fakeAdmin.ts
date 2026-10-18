@@ -35,8 +35,6 @@ import {ChargesHeld} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
     AdminGetPlayerResponse,
-    NameAccountsRequest,
-    NameAccountsResponse,
     ReconcileTitlesRequest,
     ReconcileTitlesResponse,
 } from "./gen/grpc/player/v1/admin_pb.ts"
@@ -171,10 +169,6 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     getPlayer(request: PartialMessage<AdminGetPlayerRequest>): Promise<AdminGetPlayerResponse> {
         return this.answer("getPlayer", request, this.profile)
-    }
-
-    nameAccounts(request: PartialMessage<NameAccountsRequest>): Promise<NameAccountsResponse> {
-        return this.answer("nameAccounts", request, new NameAccountsResponse({named: 7}))
     }
 
     decideReport(request: PartialMessage<DecideReportRequest>): Promise<DecideReportResponse> {

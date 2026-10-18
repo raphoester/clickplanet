@@ -22,6 +22,7 @@ npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos with what to post
 npm run clip -- --replay replay.json --shortlist shortlist.json  # Only the list of its stories, as data
+npm run clip -- --replay replay.json --race race.json --plan  # With the season's race: the day it closed is a story too
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
 npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
@@ -2987,14 +2988,17 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 **Twice a day a workflow posts the best ones with no person and no laptop** (`.github/workflows/clips.yml`, at
 00:17 and 12:17 UTC, or by hand with `workflow_dispatch`). Four jobs:
 
-1. **fetch**: the backend's `clips fetch -hours 12` over SSH, with the deploy's `VPS_*` secrets. The job runs no
-   npm at all, so the key to the VPS is in no job that installs this app's dependencies. The replay goes on as an
-   artifact; it is the public stream's data.
+1. **fetch**: the backend's `clips fetch -hours 12 -race race.json` over SSH, with the deploy's `VPS_*` secrets. The
+   job runs no npm at all, so the key to the VPS is in no job that installs this app's dependencies. The replay and
+   the season's race go on as an artifact; both are the public streams' data. A race that could not be fetched is no
+   file, and the run goes on without a day to tell.
 2. **shortlist** and **choose**: `npm run clip -- --shortlist shortlist.json`, then, in a job of its own (it holds
    the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, up to 6, `[1,2,4]`.
    **It skips a story told in the last 3 days**, by its key below, and a headline told in the last week, puts a
    flag the last 6 posts showed after the others, and holds back a flag 2 of them showed, as their key or as one of
-   their countries: on Oct 13–17 Algeria in Africa was told three times and Palau in half the clips. None is a quiet half day: the run ends there, green.
+   their countries: on Oct 13–17 Algeria in Africa was told three times and Palau in half the clips. **A day won goes
+   first**, whatever the posts showed, **then a run tells each angle it has once before any twice** (what changed,
+   what a flag holds). None is a quiet half day: the run ends there, green.
 3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
    draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
    clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
@@ -3008,10 +3012,18 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 `clips.v1` in the shared `proto/`, written as JSON:
 
 - **`--shortlist <path>`** writes a `Shortlist` (`src/clip/shortlist.ts`): the title, the key and the countries of
-  every story worth a clip, best first, so a story's place from 1 is its `--pick`. One page load, no globe, 6s. With no story it is `{}`, not an error.
+  every story worth a clip, best first, so a story's place from 1 is its `--pick`: a day won first, then what changed,
+  best first, then what flags hold, the biggest holding first. One page load, no globe, 6s. With no story it is `{}`, not an error.
+- **`--race <path>`** is the season's race, a `seasons.v1.GetRaceResponse` as the backend's `GetRace` answers it,
+  served to the page at `/__clip/race.json` (`src/clip/race.ts` reads its closed round). With none, that path
+  answers 404, never the app's fallback page, and no day is told.
 - **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
   flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. "ALGERIA STRIKES
-  BACK" and "ALGERIA VS FRANCE" are one key. The flag is the first of `sidesOf`: the loser of a rout, a continent's
+  BACK" and "ALGERIA VS FRANCE" are one key. **Its angle says what the story tells of the flag there**: none for what
+  it did, `holding` for what it holds, `round` for a day it won, with the day (`round: "1.5"`, season and number). So
+  "CROATIA HOLDS 80% OF EUROPE" is not "CROATIA IS ATTACKING EUROPE" told again, and France winning day 5 and day 6 is
+  two stories. On Oct 18 a run of 13 stories skipped 8 as told already, nearly all one flag in Europe: every story was
+  what changed, so a flag had one story a continent every 3 days. The flag is the first of `sidesOf`: the loser of a rout, a continent's
   own flag when it strikes back together. The continent is the place's (Asia's parts as the headlines name them,
   `the world` for a tour), else its first country's, else that country.
 - **A story's countries are every country it shows** (`storyCountriesOf`): its place's, both sides and the flags it
@@ -3130,7 +3142,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   IS KICKING ROMANIA OUT OF KAZAKHSTAN" is "PALESTINE TAKES KAZAKHSTAN FROM ROMANIA", an invasion that threw
   another flag out "CROATIA INVADES CHINA AND KICKS OUT FRANCE", a flag thrown out "GENERATIONAL DOWNFALL OF
   CHRISTMAS ISLAND", and a country throwing a flag out of its own land "ITALY RETAKES ITS LAND FROM PORTUGAL".
-  A test checks that no kind ever gives the headline back.
+  A holding is "80% OF EUROPE FLIES THE FLAG OF CROATIA" and "CROATIA RULES EUROPE" (below half, "the biggest power
+  in Europe"; the world's, "THE BIGGEST EMPIRE ON EARTH"), and asks to "TAKE EUROPE BACK"; a day won is "FRANCE TAKES
+  DAY 5" and "DAY 5 GOES TO FRANCE". A test checks that no kind ever gives the headline back.
 - **The hashtags are every flag of the story and the countries of its place** (`hashtagsOf`), bare
   (`#christmasisland`, `#uk`), and the place's continent. Palestine and Israel included: the user chose it on
   2026-10-14, though a flag's tag can be a political feed. A continent's own flag is not a country and has none.
@@ -3151,6 +3165,23 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   keyed by the content-addressed file, and both anthem scripts run it, since a new encode is a new file; a test
   fails when one is missing. A clip starts on the best highlight that leaves the anthem playing to its end, else
   early enough that it does.
+- **`holding.ts` tells what the map is, beside what changed on it**: as the map stands at the end, the flag holding the
+  most of each place, **"CROATIA HOLDS 80% OF EUROPE"**. The places are the world (from a tenth of it), each
+  continent (from 40%) and each country of 1,000 tiles or more (49 of them), held by a foreign flag (from 75%). **Europe
+  is held without Russia**: Russia's ground is 71% of Natural Earth's Europe, so a flag holding Siberia would "hold
+  Europe"; Russia is a place of its own. A share is of all the place's tiles, empty ones too, and the headline never
+  says more than it holds (79.96% is 79%). It is news only when its flag fought for it: 50 tiles of the place changed
+  hands to it or from it in the window, which is what the clip plays, all over the place, with the counter as the
+  flag's share of it. It is no story when it is mostly the flag's own country (Australia holding Oceania), and a flag
+  is told once, where it holds the most for the place's bar: 80% of Europe over 13% of the world, Antarctica the
+  continent over Antarctica the country. `--plan` lists each place's holder that fell short, and why: the bars are
+  guesses made with no production data, to tune from those lines.
+- **`round.ts` tells a day of the season** from the race (`--race`): **"FRANCE WINS DAY 5"**, or **"FRANCE WINS THE
+  FINAL BATTLE"**, with where it leaves the winner in the season ("Leads the season with 86 points"). Only the run
+  whose window holds the cutoff tells it: the 00:17 run, for the day that closed at 21:00. It plays the 3 hours before
+  the cutoff, the winner's fighting (anyone's when it fought none), opens on all the winner holds, counts its tiles
+  (not its share of the map: a day is won on its average, which the podium's points say), and ends on the podium, the places that scored with their points, then "WHO WINS DAY 6?". The ending
+  lasts 4s instead of 2.5, to read it.
 - **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
   the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
   story already told by a better candidate (same attacker, same front) is dropped.

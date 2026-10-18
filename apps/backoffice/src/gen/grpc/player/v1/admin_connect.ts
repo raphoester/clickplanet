@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AdminGetPlayerRequest, AdminGetPlayerResponse, NameAccountsRequest, NameAccountsResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
+import { AdminGetPlayerRequest, AdminGetPlayerResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
 
@@ -22,15 +22,6 @@ export const AdminService = {
       name: "ReconcileTitles",
       I: ReconcileTitlesRequest,
       O: ReconcileTitlesResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc player.v1.AdminService.NameAccounts
-     */
-    nameAccounts: {
-      name: "NameAccounts",
-      I: NameAccountsRequest,
-      O: NameAccountsResponse,
       kind: MethodKind.Unary,
     },
     /**

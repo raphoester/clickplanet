@@ -27,6 +27,7 @@ jobs:
           cache-dependency-path: apps/backend/go.sum
 
       # No npm here: the VPS key is in no job that installs the frontend's dependencies.
+      # The race tells the day of the season closed in the replay; a backend that does not answer it leaves it out.
       - name: fetch the last 12 hours
         working-directory: apps/backend
         env:
@@ -38,12 +39,14 @@ jobs:
           ssh-add -q - <<< "$VPS_SSH_KEY"
           install -m 700 -d ~/.ssh
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts 2> /dev/null
-          go run ./cmd/clips fetch -hours 12 -out "$GITHUB_WORKSPACE/replay.json"
+          go run ./cmd/clips fetch -hours 12 -out "$GITHUB_WORKSPACE/replay.json" -race "$GITHUB_WORKSPACE/race.json"
 
       - uses: actions/upload-artifact@v4
         with:
           name: replay
-          path: replay.json
+          path: |
+            replay.json
+            race.json
           retention-days: 1
 
   shortlist:
@@ -69,7 +72,9 @@ jobs:
 
       - name: list the stories worth a clip
         working-directory: apps/frontend
-        run: npm run clip -- --replay replay.json --shortlist shortlist.json
+        run: |
+          race=$([ -f race.json ] && echo "--race race.json" || true)
+          npm run clip -- --replay replay.json $race --shortlist shortlist.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -145,7 +150,9 @@ jobs:
       - name: render the clip
         env:
           PICK: ${{ matrix.pick }}
-        run: npm run clip -- --replay replay.json --pick "$PICK" --recorders 1
+        run: |
+          race=$([ -f race.json ] && echo "--race race.json" || true)
+          npm run clip -- --replay replay.json $race --pick "$PICK" --recorders 1
 
       - uses: actions/upload-artifact@v4
         with:

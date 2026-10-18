@@ -17,6 +17,11 @@ service SeasonService {
   rpc GetMySeason(GetMySeasonRequest) returns (GetMySeasonResponse);
 
   rpc ListenForEvents(ListenForEventsRequest) returns (stream SeasonEvent);
+
+  // The race the stream sends, once: for a reader that does not follow it, the clips job.
+  rpc GetRace(GetRaceRequest) returns (GetRaceResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetSeasonRequest {}
@@ -117,3 +122,9 @@ message Score {
 }
 
 message Heartbeat {}
+
+message GetRaceRequest {}
+
+message GetRaceResponse {
+  Race race = 1;
+}

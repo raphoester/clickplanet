@@ -19,6 +19,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/file_replay_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/ssh_replay_source"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_race_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_race_usecase/log_fetch_race"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/replays/usecases/fetch_replay_usecase/log_fetch_replay"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -92,7 +94,9 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
-func Fetch(ctx context.Context, out string, config Config, logger *slog.Logger) error {
+// race: where the race is written, or empty for none. A race the backend does not answer is no error: the replay is
+// what the run needs, and the race only adds the day of the season closed in it.
+func Fetch(ctx context.Context, out, race string, config Config, logger *slog.Logger) error {
 	config = config.withDefaults()
 
 	source, err := ssh_replay_source.New(config.Replay.SSH, ssh_replay_source.OpenSSH)
@@ -105,8 +109,13 @@ func Fetch(ctx context.Context, out string, config Config, logger *slog.Logger) 
 		cptime.SystemClock{}, source, file_replay_store.Store(out),
 	), logger)
 
-	_, err = fetch.Execute(ctx)
-	return err
+	if _, err := fetch.Execute(ctx); err != nil || race == "" {
+		return err
+	}
+
+	// Its decorator warns that the race is left out.
+	_, _ = log_fetch_race.New(fetch_race_usecase.New(source, file_replay_store.RaceStore(race)), logger).Execute(ctx)
+	return nil
 }
 
 func Choose(ctx context.Context, shortlist string, config Config, logger *slog.Logger) ([]Pick, error) {
