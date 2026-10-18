@@ -7,7 +7,6 @@ import {PaintPanel} from "./map/PaintPanel.tsx"
 import {ReassignPanel} from "./map/ReassignPanel.tsx"
 import {ReplayPanel} from "./map/ReplayPanel.tsx"
 import {OpenPlayer, Opened, PageId, titleOf} from "./navigation.ts"
-import {NamesPanel} from "./ops/NamesPanel.tsx"
 import {TitlesPanel} from "./ops/TitlesPanel.tsx"
 import {PlayersPage} from "./players/PlayersPage.tsx"
 import {ReportsView} from "./reports/ReportsView.tsx"
@@ -79,7 +78,6 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "paint" && <PaintPanel planet={CLIENTS.planet}/>}
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
                 {page === "titles" && <TitlesPanel player={CLIENTS.player}/>}
-                {page === "names" && <NamesPanel player={CLIENTS.player}/>}
             </Page>
         </OpenPlayer.Provider>
     )

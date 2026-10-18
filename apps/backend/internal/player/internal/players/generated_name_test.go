@@ -72,17 +72,3 @@ func TestAssigningANameFailsWhenTheStoreDoes(t *testing.T) {
 	require.Error(t, players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42")).
 		Assign(t.Context(), players.AccountID{15: 1}, namedAt))
 }
-
-func TestOnlyALinkedAccountWithNoNameIsNameless(t *testing.T) {
-	linked, named, guest, unknown := players.AccountID{15: 1}, players.AccountID{15: 2}, players.AccountID{15: 3}, players.AccountID{15: 4}
-	page := []players.Stats{players.NewStats(linked), players.NewStats(named), players.NewStats(guest), players.NewStats(unknown)}
-
-	nameless := players.NamelessLinked(page,
-		map[players.AccountID]players.Account{
-			linked: players.AccountOf(true, time.Time{}), named: players.AccountOf(true, time.Time{}), guest: {},
-		},
-		map[players.AccountID]players.Name{named: "Ada"})
-
-	assert.Equal(t, []players.AccountID{linked}, nameless)
-	assert.Equal(t, []players.AccountID{linked, named, guest, unknown}, players.AccountsOf(page))
-}

@@ -32,12 +32,7 @@ import {
     UnbanPlayerResponse,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
 import {ChargesHeld} from "./gen/grpc/planet/v1/planet_pb.ts"
-import {
-    NameAccountsRequest,
-    NameAccountsResponse,
-    ReconcileTitlesRequest,
-    ReconcileTitlesResponse,
-} from "./gen/grpc/player/v1/admin_pb.ts"
+import {ReconcileTitlesRequest, ReconcileTitlesResponse} from "./gen/grpc/player/v1/admin_pb.ts"
 import {DecideReportRequest, DecideReportResponse} from "./gen/grpc/support/v1/admin_pb.ts"
 import {ChatAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
 
@@ -151,10 +146,6 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     reconcileTitles(request: PartialMessage<ReconcileTitlesRequest>): Promise<ReconcileTitlesResponse> {
         return this.answer("reconcileTitles", request, new ReconcileTitlesResponse({granted: 12, revoked: 3}))
-    }
-
-    nameAccounts(request: PartialMessage<NameAccountsRequest>): Promise<NameAccountsResponse> {
-        return this.answer("nameAccounts", request, new NameAccountsResponse({named: 7}))
     }
 
     decideReport(request: PartialMessage<DecideReportRequest>): Promise<DecideReportResponse> {

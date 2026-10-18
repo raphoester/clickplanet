@@ -188,24 +188,6 @@ func (s *StoreContractSuite) TestAnAccountWithStatsOnlyHasNoProfile() {
 	s.Require().ErrorIs(err, ErrNoProfile)
 }
 
-func (s *StoreContractSuite) TestNamesLeaveOutTheAccountsWithNone() {
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(2, "Bob")))
-	s.recordTake(3, contractAt)
-
-	names, err := s.store.Names(s.T().Context(), []AccountID{{15: 1}, {15: 3}, {15: 4}})
-
-	s.Require().NoError(err)
-	s.Equal(map[AccountID]Name{{15: 1}: "Ada"}, names)
-}
-
-func (s *StoreContractSuite) TestNoAccountsAskedIsNoNames() {
-	names, err := s.store.Names(s.T().Context(), nil)
-
-	s.Require().NoError(err)
-	s.Empty(names)
-}
-
 func (s *StoreContractSuite) TestANameAnotherAccountHoldsIsTakenIgnoringCase() {
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada_L")))
 
