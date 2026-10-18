@@ -13,7 +13,7 @@ burger menu (see [The menu](#the-menu)), by group:
 - **Moderation**: Reports, which the operator acts on and closes (see [Acting on a report](#acting-on-a-report)),
   and Players, who played and every tool on one player (see [The player page](#the-player-page)).
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](#the-map-tools)).
-- **Ops**: Reconcile titles and Name accounts, the runs after a deploy (see [Ops](#ops)).
+- **Ops**: Reconcile titles, the run after a deploy (see [Ops](#ops)).
 
 What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report page reads it),
 and no admin method streams it.
@@ -206,9 +206,8 @@ address over IPv4, the /64 over IPv6) and checks.
 
 ## Ops
 
-`src/ops/`, a page each: `ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes a rule) and
-`NameAccounts` (`NamesPanel`, once, after the deploy that brought generated names). Each asks first, and each is
-harmless twice.
+`src/ops/`: `ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes a rule). It asks first, and
+it is harmless twice.
 
 ## Deploy
 
@@ -252,7 +251,7 @@ src/
   reports/          Reports: list, detail, the report's own actions
   players/          Players: list, PlayerView, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay
-  ops/              Reconcile titles, Name accounts
+  ops/              Reconcile titles
   gen/grpc/         generated from ../../proto, committed
 ```
 

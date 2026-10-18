@@ -3,7 +3,6 @@ import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen} from "@testing-library/react"
 import {afterEach, describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
-import {NamesPanel} from "./NamesPanel.tsx"
 import {TitlesPanel} from "./TitlesPanel.tsx"
 
 afterEach(cleanup)
@@ -24,21 +23,12 @@ describe("the ops runs", () => {
         expect(admin.askedFor("reconcileTitles")).toEqual([{}])
     })
 
-    it("names the accounts once confirmed", async () => {
-        const admin = new FakeAdmin()
-        render(<NamesPanel player={admin}/>)
-
-        confirm("Name accounts", "Yes, name accounts")
-
-        expect(await screen.findByText("Named 7 accounts.")).toBeTruthy()
-    })
-
     it("says a session that ended", async () => {
         const admin = new FakeAdmin()
-        admin.refuse("nameAccounts", Code.Unauthenticated)
-        render(<NamesPanel player={admin}/>)
+        admin.refuse("reconcileTitles", Code.Unauthenticated)
+        render(<TitlesPanel player={admin}/>)
 
-        confirm("Name accounts", "Yes, name accounts")
+        confirm("Reconcile titles", "Yes, reconcile titles")
 
         expect(await screen.findByText("Your session ended. Reload the page and sign in again.")).toBeTruthy()
     })

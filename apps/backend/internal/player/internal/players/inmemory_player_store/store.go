@@ -223,22 +223,6 @@ func (s *Store) DeleteAccount(_ context.Context, account players.AccountID) erro
 	return nil
 }
 
-func (s *Store) Names(_ context.Context, accounts []players.AccountID) (map[players.AccountID]players.Name, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
-	names := make(map[players.AccountID]players.Name, len(accounts))
-	for _, account := range accounts {
-		if profile, ok := s.profiles[account]; ok {
-			names[account] = profile.TakeSnapshot().Name
-		}
-	}
-	return names, nil
-}
-
 func accountBytes(stats players.Stats) []byte {
 	account := stats.Account()
 	return account[:]
