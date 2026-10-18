@@ -66,6 +66,130 @@ a {
     font-size: 20px;
 }
 
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.menu-button, .menu-close {
+    display: inline-grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    margin-left: -10px;
+    padding: 0;
+    color: var(--text);
+    background: none;
+    border: 0;
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.menu-close {
+    margin: 0 -10px 0 0;
+}
+
+.menu-button:hover, .menu-close:hover {
+    background: var(--line);
+}
+
+.drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: rgb(0 0 0 / 40%);
+}
+
+.drawer {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 11;
+    width: min(300px, 85vw);
+    overflow-y: auto;
+    padding: 8px 16px 24px;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    box-shadow: 4px 0 24px rgb(0 0 0 / 20%);
+    animation: drawer-in 160ms ease-out;
+}
+
+@keyframes drawer-in {
+    from {
+        transform: translateX(-100%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .drawer {
+        animation: none;
+    }
+}
+
+.drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 52px;
+    border-bottom: 1px solid var(--line);
+}
+
+.drawer-title {
+    font-weight: 700;
+}
+
+.menu-group {
+    padding-top: 16px;
+}
+
+.menu-heading {
+    margin: 0 0 4px;
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.menu-group ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.menu-item {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    padding: 0 10px;
+    font: inherit;
+    text-align: left;
+    color: var(--text);
+    background: none;
+    border: 0;
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+.menu-item:hover {
+    background: var(--bg);
+}
+
+.menu-item[aria-current="page"] {
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--bg);
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.page-title {
+    margin: 0 0 16px;
+    font-size: 22px;
+}
+
 .who {
     display: flex;
     flex-wrap: wrap;
@@ -141,15 +265,6 @@ button:disabled {
     background: var(--accent);
     border-color: var(--accent);
     color: var(--accent-text);
-}
-
-.segmented-wide {
-    display: flex;
-    margin-bottom: 16px;
-}
-
-.segmented-wide button {
-    flex: 1;
 }
 
 .toolbar {
@@ -453,34 +568,6 @@ textarea {
 .notice-title {
     margin: 0 0 8px;
     font-weight: 600;
-}
-
-.sections {
-    display: flex;
-    margin-bottom: 16px;
-    border-bottom: 1px solid var(--line);
-}
-
-.sections button {
-    flex: 1;
-    min-height: 44px;
-    padding: 0 8px;
-    font: inherit;
-    font-weight: 600;
-    color: var(--muted);
-    background: none;
-    border: 0;
-    border-bottom: 3px solid transparent;
-    cursor: pointer;
-}
-
-.sections button:hover {
-    color: var(--text);
-}
-
-.sections button[aria-current="page"] {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
 }
 
 .panel-head {

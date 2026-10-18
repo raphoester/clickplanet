@@ -3,7 +3,8 @@ import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen} from "@testing-library/react"
 import {afterEach, describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
-import {OpsPage} from "./OpsPage.tsx"
+import {NamesPanel} from "./NamesPanel.tsx"
+import {TitlesPanel} from "./TitlesPanel.tsx"
 
 afterEach(cleanup)
 
@@ -12,10 +13,10 @@ function confirm(label: string, yes: string) {
     fireEvent.click(screen.getByRole("button", {name: yes}))
 }
 
-describe("OpsPage", () => {
+describe("the ops runs", () => {
     it("reconciles the titles once confirmed, and says how many moved", async () => {
         const admin = new FakeAdmin()
-        render(<OpsPage clients={admin.clients()}/>)
+        render(<TitlesPanel player={admin}/>)
 
         confirm("Reconcile titles", "Yes, reconcile titles")
 
@@ -25,7 +26,7 @@ describe("OpsPage", () => {
 
     it("names the accounts once confirmed", async () => {
         const admin = new FakeAdmin()
-        render(<OpsPage clients={admin.clients()}/>)
+        render(<NamesPanel player={admin}/>)
 
         confirm("Name accounts", "Yes, name accounts")
 
@@ -35,7 +36,7 @@ describe("OpsPage", () => {
     it("says a session that ended", async () => {
         const admin = new FakeAdmin()
         admin.refuse("nameAccounts", Code.Unauthenticated)
-        render(<OpsPage clients={admin.clients()}/>)
+        render(<NamesPanel player={admin}/>)
 
         confirm("Name accounts", "Yes, name accounts")
 

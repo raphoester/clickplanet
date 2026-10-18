@@ -1,14 +1,20 @@
 import {ReactNode, useCallback, useState} from "react"
 import {authAdmin} from "./api.ts"
+import {CLIENTS} from "./clients.ts"
 import {FailureNotice} from "./components/FailureNotice.tsx"
-import {MapPage} from "./map/MapPage.tsx"
-import {OpenPlayer, Opened, Section} from "./navigation.ts"
-import {OpsPage} from "./ops/OpsPage.tsx"
+import {Menu} from "./components/Menu.tsx"
+import {PaintPanel} from "./map/PaintPanel.tsx"
+import {ReassignPanel} from "./map/ReassignPanel.tsx"
+import {ReplayPanel} from "./map/ReplayPanel.tsx"
+import {OpenPlayer, Opened, PageId, titleOf} from "./navigation.ts"
+import {NamesPanel} from "./ops/NamesPanel.tsx"
+import {TitlesPanel} from "./ops/TitlesPanel.tsx"
 import {PlayersPage} from "./players/PlayersPage.tsx"
+import {ReportsView} from "./reports/ReportsView.tsx"
 import {Callback} from "./signIn/callback.ts"
 import {SignInCallback} from "./signIn/SignInCallback.tsx"
 import {SignOutButton} from "./signIn/SignOutButton.tsx"
-import {SupportPage} from "./support/SupportPage.tsx"
+import {NoteList} from "./support/NoteList.tsx"
 import {useCall} from "./useCall.ts"
 
 export function App({callback}: {callback: Callback | undefined}) {
@@ -32,64 +38,62 @@ function Operator() {
         case "failed":
             return <Page header={null}><FailureNotice failure={operator} onRetry={again}/></Page>
         case "done":
-            return (
-                <Page header={
-                    <>
-                        <code className="mono muted" title="Your account">{operator.value}</code>
-                        <SignOutButton onSignedOut={again}/>
-                    </>
-                }>
-                    <Sections/>
-                </Page>
-            )
+            return <Console operator={operator.value} onSignedOut={again}/>
     }
 }
 
-const SECTIONS: {section: Section, label: string}[] = [
-    {section: "support", label: "Support"},
-    {section: "players", label: "Players"},
-    {section: "map", label: "Map"},
-    {section: "ops", label: "Ops"},
-]
-
-function Sections() {
-    const [section, setSection] = useState<Section>("support")
+// The signed-in page: the burger menu picks one page, and its title says which.
+function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => void}) {
+    const [page, setPage] = useState<PageId>("notes")
     const [player, setPlayer] = useState<Opened | undefined>(undefined)
 
     // A report opens its player on the Players page, where every tool on it is.
     const openPlayer = useCallback((opened: Opened) => {
         setPlayer(opened)
-        setSection("players")
+        setPage("players")
     }, [])
 
-    // The tab of the section shown goes back to its top: Players to its list.
-    const go = (to: Section) => {
-        if (to === "players" && section === "players") setPlayer(undefined)
-        setSection(to)
+    // Picking the page shown goes back to its top: Players to its list.
+    const go = (to: PageId) => {
+        if (to === "players" && page === "players") setPlayer(undefined)
+        setPage(to)
     }
 
     return (
         <OpenPlayer.Provider value={openPlayer}>
-            <nav className="sections" aria-label="Sections">
-                {SECTIONS.map(({section: each, label}) => (
-                    <button key={each} type="button" aria-current={section === each ? "page" : undefined} onClick={() => go(each)}>
-                        {label}
-                    </button>
-                ))}
-            </nav>
-            {section === "support" && <SupportPage/>}
-            {section === "players" && <PlayersPage opened={player} onOpen={setPlayer}/>}
-            {section === "map" && <MapPage/>}
-            {section === "ops" && <OpsPage/>}
+            <Page
+                menu={<Menu page={page} onGo={go}/>}
+                header={
+                    <>
+                        <code className="mono muted" title="Your account">{operator}</code>
+                        <SignOutButton onSignedOut={onSignedOut}/>
+                    </>
+                }
+            >
+                <h2 className="page-title">{titleOf(page)}</h2>
+                {page === "notes" && <NoteList/>}
+                {page === "reports" && <ReportsView/>}
+                {page === "players" && <PlayersPage opened={player} onOpen={setPlayer}/>}
+                {page === "reassign" && <ReassignPanel planet={CLIENTS.planet}/>}
+                {page === "paint" && <PaintPanel planet={CLIENTS.planet}/>}
+                {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
+                {page === "titles" && <TitlesPanel player={CLIENTS.player}/>}
+                {page === "names" && <NamesPanel player={CLIENTS.player}/>}
+            </Page>
         </OpenPlayer.Provider>
     )
 }
 
-function Page({header, children}: {header: ReactNode, children: ReactNode}) {
+type PageProps = {menu?: ReactNode, header: ReactNode, children: ReactNode}
+
+function Page({menu, header, children}: PageProps) {
     return (
         <div className="page">
             <header className="top">
-                <h1>Clickplanet backoffice</h1>
+                <div className="brand">
+                    {menu}
+                    <h1>Clickplanet backoffice</h1>
+                </div>
                 {header !== null && <div className="who">{header}</div>}
             </header>
             <main>{children}</main>

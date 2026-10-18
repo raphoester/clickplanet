@@ -30,7 +30,6 @@ export function ReplayPanel({planet, save = download}: {planet: PlanetAdmin, sav
 
     return (
         <section className="panel" aria-label="Download a replay">
-            <h2>Download a replay</h2>
             <p className="hint">
                 The file <code>clips fetch</code> saves, for the frontend's <code>npm run clip</code>. The ledger keeps
                 {" "}{RETENTION_HOURS} hours: an older start opens on the oldest act it has. A day is a few MB.

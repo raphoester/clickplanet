@@ -26,7 +26,6 @@ export function ReassignPanel({planet}: {planet: PlanetAdmin}) {
 
     return (
         <section className="panel" aria-label="Give a country's tiles to another">
-            <h2>Give a country's tiles to another</h2>
             <p className="hint">
                 Nothing undoes it, and reassigning back would also move what the other country held before. Copy
                 the table first if you may want to return (<code>deploy/vps/README.md</code>).

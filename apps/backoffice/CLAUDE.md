@@ -5,14 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 **The operator's page, at `backoffice.clickplanet.lol`.** It calls the backend's `AdminService`s, which were
-reachable only over SSH before, and **every admin method has a place on it**. Four sections, picked in the tab bar
-(`Sections` in `App.tsx`):
+reachable only over SSH before, and **every admin method has a place on it**. One page at a time, picked in the
+burger menu (see [The menu](#the-menu)), by group:
 
-- **Support**: the notes (ideas and bugs), read only, and the player reports, which the operator acts on and
-  closes (see [Acting on a report](#acting-on-a-report)).
-- **Players**: who played, and every tool on one player (see [The player page](#the-player-page)).
-- **Map**: reassign a country, paint random tiles, download a replay (see [The map tools](#the-map-tools)).
-- **Ops**: the runs after a deploy, `ReconcileTitles` and `NameAccounts` (see [Ops](#ops)).
+- **Feedback**: Ideas and bugs, the notes players send, read only.
+- **Moderation**: Reports, which the operator acts on and closes (see [Acting on a report](#acting-on-a-report)),
+  and Players, who played and every tool on one player (see [The player page](#the-player-page)).
+- **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](#the-map-tools)).
+- **Ops**: Reconcile titles and Name accounts, the runs after a deploy (see [Ops](#ops)).
 
 What is left of the plan is a live chat view, which no admin method serves.
 
@@ -86,9 +86,22 @@ an `auth.secret` (`openssl rand -hex 32`). Postgres on `localhost:5432`. Then
   Any account row will do, a guest's included (`curl` a `CreateSession` against `:8080`): only the Google
   sign-in checks the identity, and this skips it.
 
+## The menu
+
+**A burger at the top left opens a drawer from the left** (`components/Menu`), at every width: every page under
+its group, the page shown marked. `MENU` in `navigation.ts` is the only list of pages, and a page's label is its
+title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
+
+- **The drawer is modal**: it takes the focus to the page shown, keeps Tab inside it, and closes on Escape, its
+  close button, a click beside it or a page picked, giving the focus back to the burger. The page behind does not
+  scroll while it is open.
+- **Picking Players while on it goes back to the list.** A report's "Every tool →" goes to Players with its account
+  open (`OpenPlayer`).
+- **The page picked is not kept** across a reload: the page opens on Ideas and bugs.
+
 ## Acting on a report
 
-`src/reports/` is the Reports tab: `ReportsView` shows the list, or one report's detail.
+`src/reports/` is the Reports page: `ReportsView` shows the list, or one report's detail.
 
 - **The list shows the open reports first** (`ListReports` with `open_only`), and a switch shows them all. A
   decided report shows its outcome, comment and time (`DecisionLine`). The list is read again on the way back
@@ -152,7 +165,7 @@ address over IPv4, the /64 over IPv6) and checks.
 
 ## The map tools
 
-`src/map/`, each a panel of `MapPage`.
+`src/map/`, a page each.
 
 - **Reassign** (`ReassignCountry`): every tile one country holds goes to another. The dry run counts both sides.
   A `from_after` above zero is tiles retaken while it ran: the page says to run it again.
@@ -168,8 +181,9 @@ address over IPv4, the /64 over IPv6) and checks.
 
 ## Ops
 
-`src/ops/`: `ReconcileTitles` (after a deploy that adds a title or changes a rule) and `NameAccounts` (once, after
-the deploy that brought generated names). Each asks first, and each is harmless twice.
+`src/ops/`, a page each: `ReconcileTitles` (`TitlesPanel`, after a deploy that adds a title or changes a rule) and
+`NameAccounts` (`NamesPanel`, once, after the deploy that brought generated names). Each asks first, and each is
+harmless twice.
 
 ## Deploy
 
@@ -199,16 +213,17 @@ src/
   refusal.ts        a page's error → signedOut, notOperator, startAgain or failed; an action's in words (wordsOf)
   useCall.ts        one call's state, run on mount
   useAction.ts      one read's state, run on a click
-  navigation.ts     the sections, and OpenPlayer
+  navigation.ts     MENU, the pages by group, and OpenPlayer
   countries.ts      a country id's name
-  App.tsx           the callback, or WhoAmI first, then the sections
+  App.tsx           the callback, or WhoAmI first, then the page the menu picked
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
-  components/       ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), CountryField, Fact, Person, When
-  support/          the support page: NoteList, labels.ts (names, outcomes and the device lines)
-  reports/          the Reports tab: list, detail, the report's own actions
-  players/          the Players section: list, PlayerView, the tools on one player, actions.ts
-  map/              the Map section: reassign, paint, replay
-  ops/              the Ops section: titles and names
+  components/       Menu, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), CountryField, Fact,
+                    Person, When
+  support/          Ideas and bugs: NoteList, labels.ts (names, outcomes and the device lines)
+  reports/          Reports: list, detail, the report's own actions
+  players/          Players: list, PlayerView, the tools on one player, actions.ts
+  map/              Reassign a country, Paint random tiles, Download a replay
+  ops/              Reconcile titles, Name accounts
   gen/grpc/         generated from ../../proto, committed
 ```
 

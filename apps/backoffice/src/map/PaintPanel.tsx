@@ -26,7 +26,6 @@ export function PaintPanel({planet}: {planet: PlanetAdmin}) {
 
     return (
         <section className="panel" aria-label="Paint random tiles">
-            <h2>Paint random tiles with a flag</h2>
             <p className="hint">
                 Nothing undoes it. A tile somebody takes while it runs stays theirs. Copy the table first if you may
                 want to return.
