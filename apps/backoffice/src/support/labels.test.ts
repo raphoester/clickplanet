@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {NoteKind, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
 import {PageContext, ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
-import {deviceLines, kindLabel, outcomeLabel, reasonLabel} from "./labels.ts"
+import {deviceLines, kindLabel, mediaOf, outcomeLabel, reasonLabel, sizeLabel} from "./labels.ts"
 
 describe("deviceLines", () => {
     it("says everything the page said of itself, and the browser", () => {
@@ -52,5 +52,20 @@ describe("labels", () => {
         expect(kindLabel(9 as NoteKind)).toBe("Kind 9")
         expect(reasonLabel(9 as ReportReason)).toBe("Reason 9")
         expect(outcomeLabel(9 as ReportOutcome)).toBe("Outcome 9")
+    })
+})
+
+describe("attachments", () => {
+    it("tells a photo from a video from anything else", () => {
+        expect(mediaOf("image/jpeg")).toBe("photo")
+        expect(mediaOf("image/heic")).toBe("photo")
+        expect(mediaOf("video/quicktime")).toBe("video")
+        expect(mediaOf("application/pdf")).toBe("file")
+    })
+
+    it("says a size in bytes, KB or MB", () => {
+        expect(sizeLabel(512n)).toBe("512 B")
+        expect(sizeLabel(2048n)).toBe("2 KB")
+        expect(sizeLabel(52428800n)).toBe("50.0 MB")
     })
 })

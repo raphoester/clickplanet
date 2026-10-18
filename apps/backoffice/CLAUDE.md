@@ -8,7 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 reachable only over SSH before, and **every admin method has a place on it**. One page at a time, picked in the
 burger menu (see [The menu](#the-menu)), by group:
 
-- **Feedback**: Ideas and bugs, the notes players send, read only.
+- **Feedback**: Ideas and bugs, the notes players send, read only, with their photos and videos (see
+  [A note's photos and videos](#a-notes-photos-and-videos)).
 - **Moderation**: Reports, which the operator acts on and closes (see [Acting on a report](#acting-on-a-report)),
   and Players, who played and every tool on one player (see [The player page](#the-player-page)).
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](#the-map-tools)).
@@ -100,6 +101,16 @@ title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
 - **The page shown is in the address bar** (`#/reports`, `usePage`): a reload or a link opens it again, and Back
   goes to the page before. An address that names no page opens Ideas and bugs. Only the page is kept, not the
   player open on it.
+
+## A note's photos and videos
+
+`Attachments` shows each file a note carries, under its text, from the `url` `ListNotes` answers.
+
+- **A photo is a thumbnail that opens the file**, a video plays in place (`preload="metadata"`), and every file has
+  its type, its size and an Open link.
+- **A file the browser cannot show** (HEIC outside Safari, a QuickTime video Chrome cannot decode) or a link past
+  its hour says so, and keeps the Open link. The links are signed for an hour (`support.attachments.linkTTL`):
+  Reload signs new ones.
 
 ## Acting on a report
 
@@ -202,6 +213,9 @@ to `proto/` alone ships nothing: the generated code is committed.
 - **`Content-Security-Policy`**: scripts, styles and images from the page alone, calls to
   `https://api.clickplanet.lol` alone, and no frame (`frame-ancestors 'none'`): the pages ban, revert and repaint
   the map, and a framed page could be clicked through. **A new API host is a change here.**
+- **The support bucket's host is in `img-src` and `media-src`**, and no other: a note's photos and videos load
+  straight from the R2 link `ListNotes` signs (`support.attachments.bucket.endpoint` in `deploy/vps/backend.yaml`).
+  **Another bucket is a change here too**, or every attachment shows "not shown here".
 - `Referrer-Policy: no-referrer` and `X-Robots-Tag: noindex`.
 - `/assets/*` is immutable, `/index.html` is revalidated.
 
@@ -222,7 +236,7 @@ src/
   signIn/           callbackOf, SignInButton, SignInCallback, SignOutButton
   components/       Menu, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), CountryField, Fact,
                     Person, When
-  support/          Ideas and bugs: NoteList, labels.ts (names, outcomes and the device lines)
+  support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   reports/          Reports: list, detail, the report's own actions
   players/          Players: list, PlayerView, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay
