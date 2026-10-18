@@ -3,6 +3,8 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {
     GetMessageRequest,
     GetMessageResponse,
+    KeptMessage,
+    KeptQuote,
     MuteRequest,
     MuteResponse,
     RemoveMessageRequest,
@@ -50,9 +52,27 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     readonly kind = "fake admin"
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
+    // Bob baits, Cleo calms, Ana answers Bob, then Bob again.
     message = new GetMessageResponse({
-        messageId: "message-1", accountId: "account-reported", text: "you all suck",
+        messageId: "message-1", accountId: "account-reported", authorName: "Ana", text: "you all suck",
         sentAt: Timestamp.fromDate(AT), countryId: "fr",
+        replyTo: new KeptQuote({messageId: "message-before-1", authorName: "Bob", text: "come at me"}),
+        before: [
+            new KeptMessage({
+                messageId: "message-before-1", accountId: "account-reporter", authorName: "Bob", text: "come at me",
+                sentAt: Timestamp.fromDate(new Date(AT.getTime() - 120_000)), countryId: "de",
+            }),
+            new KeptMessage({
+                messageId: "message-before-2", accountId: "account-cleo", authorName: "Cleo", text: "calm down",
+                sentAt: Timestamp.fromDate(new Date(AT.getTime() - 60_000)), countryId: "it",
+            }),
+        ],
+        after: [
+            new KeptMessage({
+                messageId: "message-after-1", accountId: "account-reporter", authorName: "Bob", text: "so rude",
+                sentAt: Timestamp.fromDate(new Date(AT.getTime() + 60_000)), countryId: "de",
+            }),
+        ],
     })
     players = [
         new Player({

@@ -269,7 +269,7 @@ return []bootstrap.Module{
 | `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` and each title award (`StatsChanged`) | `players/rpc_account_reader` |
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
-| `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
+| `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React`; who wrote a reported message and those around it, once per `GetMessage` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors`, `get_message_handler/message_query/rpc_player_authors` |
 | `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute) | `rounds/rpc_planet_territories` |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of both accounts of each report of a page, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
@@ -510,7 +510,9 @@ internal/chat/internal/
   chatv1controller/                     ChatService and AdminService (bags), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
     mute_handler/  remove_message_handler/  get_message_handler/
-    get_message_handler/message_query/  PostgresQuery: one message as it was sent, removed or not
+    get_message_handler/message_query/  PostgresQuery: one message as it was sent, removed or not, and those around it,
+                                        named — Authors
+      rpc_player_authors/               the same adapter as the history's, for this query
     get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, named, and until when
                                         the viewer saw the chat — Authors
       rpc_player_authors/               Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
@@ -993,11 +995,23 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
 - **Every open stream is told**: `remove_message_usecase` publishes `feed.MessageRemoved` once the removal is kept,
   and the stream sends `message_removed`, which the client empties at once. A client that missed it shows the
   message until its next load.
-- **`chat.v1.AdminService/GetMessage(message_id)`** is the message as it was sent, removed or not, with
-  `removed_at`, for the operator who reads a report (`message_query`). `NotFound` past the retention.
+- **`chat.v1.AdminService/GetMessage(message_id, before, after)`** is the message as it was sent, removed or not,
+  with `removed_at`, for the operator who reads a report (`message_query`). `NotFound` past the retention.
+  - **What was said around it comes with it on asking**: `before` and `after` are how many of the messages sent
+    just before and just after it (by `seq`, as the history orders them) to answer too, oldest first; none unless
+    asked, `message_query.MostAround` (50) at most each. Before it stops at the retention. Each is a `KeptMessage`:
+    its text as sent and its `removed_at`, as the message itself.
+  - **Each is named as the chat names it now** (`author_name`): one `GetAuthors` for every account the answer
+    names, the message, those around it and what each answers; the name it was sent under for a message kept
+    before accounts; `message_query.DeletedName` for an account nobody can name, whose id is still answered, since
+    the operator tools take it. A failure to name refuses the read, as the history's does.
+  - **What each answers is a `KeptQuote`** (`reply_to`): its id, its author's name, its text as sent and its
+    `removed_at`. Unset for a message past the retention, as the history's quote is.
 - **`audit_remove` logs every call at Warn** (`admin chat message removal`).
 - `e2e/report_actions_test.go` removes a reported message over the console listener, and sees it stay in the
-  history with no text, its quote with none, a reaction refused, and the text still read for the operator.
+  history with no text, its quote with none, a reaction refused, and the text still read for the operator; and
+  reads a reported reply with the message it answers before it and the answer to it after, each named as the chat
+  named it.
 
 #### Replies
 

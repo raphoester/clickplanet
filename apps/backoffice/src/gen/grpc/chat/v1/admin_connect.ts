@@ -35,7 +35,7 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * A message as it was sent, removed or not. NotFound past the retention.
+     * A message as it was sent, removed or not, and on asking the messages sent just before and after it: what an operator reads to judge a report. NotFound past the retention.
      *
      * @generated from rpc chat.v1.AdminService.GetMessage
      */

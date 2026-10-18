@@ -175,6 +175,20 @@ export class GetMessageRequest extends Message<GetMessageRequest> {
    */
   messageId = "";
 
+  /**
+   * How many of the messages sent just before it to answer with it. None unless asked, 50 at most.
+   *
+   * @generated from field: uint32 before = 2;
+   */
+  before = 0;
+
+  /**
+   * How many of the messages sent just after it. None unless asked, 50 at most.
+   *
+   * @generated from field: uint32 after = 3;
+   */
+  after = 0;
+
   constructor(data?: PartialMessage<GetMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -184,6 +198,8 @@ export class GetMessageRequest extends Message<GetMessageRequest> {
   static readonly typeName = "chat.v1.GetMessageRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "before", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "after", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageRequest {
@@ -241,6 +257,34 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
    */
   removedAt?: Timestamp;
 
+  /**
+   * As KeptMessage.author_name.
+   *
+   * @generated from field: string author_name = 7;
+   */
+  authorName = "";
+
+  /**
+   * As KeptMessage.reply_to.
+   *
+   * @generated from field: chat.v1.KeptQuote reply_to = 8;
+   */
+  replyTo?: KeptQuote;
+
+  /**
+   * Oldest first: as many as asked, or as the retention keeps.
+   *
+   * @generated from field: repeated chat.v1.KeptMessage before = 9;
+   */
+  before: KeptMessage[] = [];
+
+  /**
+   * Oldest first: as many as asked, or as were sent.
+   *
+   * @generated from field: repeated chat.v1.KeptMessage after = 10;
+   */
+  after: KeptMessage[] = [];
+
   constructor(data?: PartialMessage<GetMessageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -255,6 +299,10 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
     { no: 4, name: "sent_at", kind: "message", T: Timestamp },
     { no: 5, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "removed_at", kind: "message", T: Timestamp },
+    { no: 7, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "reply_to", kind: "message", T: KeptQuote },
+    { no: 9, name: "before", kind: "message", T: KeptMessage, repeated: true },
+    { no: 10, name: "after", kind: "message", T: KeptMessage, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMessageResponse {
@@ -271,6 +319,156 @@ export class GetMessageResponse extends Message<GetMessageResponse> {
 
   static equals(a: GetMessageResponse | PlainMessage<GetMessageResponse> | undefined, b: GetMessageResponse | PlainMessage<GetMessageResponse> | undefined): boolean {
     return proto3.util.equals(GetMessageResponse, a, b);
+  }
+}
+
+/**
+ * A message as it was sent, removed or not, for an operator.
+ *
+ * @generated from message chat.v1.KeptMessage
+ */
+export class KeptMessage extends Message<KeptMessage> {
+  /**
+   * @generated from field: string message_id = 1;
+   */
+  messageId = "";
+
+  /**
+   * Empty for a message kept before accounts.
+   *
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * Its author's name now: the name it was sent under for a message kept before accounts, [deleted] for an account nobody can name any more.
+   *
+   * @generated from field: string author_name = 3;
+   */
+  authorName = "";
+
+  /**
+   * @generated from field: string text = 4;
+   */
+  text = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp sent_at = 5;
+   */
+  sentAt?: Timestamp;
+
+  /**
+   * @generated from field: string country_id = 6;
+   */
+  countryId = "";
+
+  /**
+   * Unset while the message is shown.
+   *
+   * @generated from field: google.protobuf.Timestamp removed_at = 7;
+   */
+  removedAt?: Timestamp;
+
+  /**
+   * The message it answers. Unset for none, and for one past the retention.
+   *
+   * @generated from field: chat.v1.KeptQuote reply_to = 8;
+   */
+  replyTo?: KeptQuote;
+
+  constructor(data?: PartialMessage<KeptMessage>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.KeptMessage";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "sent_at", kind: "message", T: Timestamp },
+    { no: 6, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "removed_at", kind: "message", T: Timestamp },
+    { no: 8, name: "reply_to", kind: "message", T: KeptQuote },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeptMessage {
+    return new KeptMessage().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KeptMessage {
+    return new KeptMessage().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KeptMessage {
+    return new KeptMessage().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: KeptMessage | PlainMessage<KeptMessage> | undefined, b: KeptMessage | PlainMessage<KeptMessage> | undefined): boolean {
+    return proto3.util.equals(KeptMessage, a, b);
+  }
+}
+
+/**
+ * The message a reply answers, as it was sent, removed or not.
+ *
+ * @generated from message chat.v1.KeptQuote
+ */
+export class KeptQuote extends Message<KeptQuote> {
+  /**
+   * @generated from field: string message_id = 1;
+   */
+  messageId = "";
+
+  /**
+   * As KeptMessage.author_name.
+   *
+   * @generated from field: string author_name = 2;
+   */
+  authorName = "";
+
+  /**
+   * @generated from field: string text = 3;
+   */
+  text = "";
+
+  /**
+   * Unset while the message is shown.
+   *
+   * @generated from field: google.protobuf.Timestamp removed_at = 4;
+   */
+  removedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<KeptQuote>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chat.v1.KeptQuote";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "author_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "removed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeptQuote {
+    return new KeptQuote().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KeptQuote {
+    return new KeptQuote().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KeptQuote {
+    return new KeptQuote().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: KeptQuote | PlainMessage<KeptQuote> | undefined, b: KeptQuote | PlainMessage<KeptQuote> | undefined): boolean {
+    return proto3.util.equals(KeptQuote, a, b);
   }
 }
 

@@ -120,9 +120,17 @@ title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
   decided report shows its outcome, comment and time (`DecisionLine`). The list is read again on the way back
   from a detail, so a report just closed leaves the open list.
 - **The detail** (`ReportDetail`): who reported whom, each by name and account id, the reason and the text. With
-  a `message_id` it reads the message (`GetMessage`, `MessagePanel`): its text, time and country, struck through
-  with "Removed at …" once removed. A message past the chat's retention is `not_found`: "This message is no
-  longer kept."
+  a `message_id` it reads the message in its conversation (`GetMessage`, `MessagePanel`), struck through with
+  "Removed at …" once removed. A message past the chat's retention is `not_found`: "This message is no longer
+  kept."
+- **The conversation** (`Conversation`): a message alone cannot be judged, so the page asks `GetMessage` for the
+  50 messages before it and the 50 after (`AROUND`, the server's cap) and lists them oldest first, the reported
+  one marked ("Reported message", `aria-current`). The 10 nearest on each side show (`SHOWN_AROUND`), and "Show
+  N earlier" or "Show N later" shows the rest, with no second call. Each line has its author's name as the chat
+  names it now, its country and its time (with the date when it is not the reported message's day), what it
+  answers ("In reply to …"), and is struck through with when it was removed. **What the reporter and the
+  reported account said is tagged** `reporter` and `reported`, by account id. An author's name opens it on the
+  player page (`OpenPlayer`), so a third player in the conversation is a click away.
 - **The actions, all on the reported account id**, never its name: remove the message (`RemoveMessage`, only while
   it is shown), mute (`Mute`, an hour by default), ban (`BanPlayer`, no duration by default, so the antibot's
   ladder picks the next step) and inspect (`InspectPlayer`). Then close the report (`DecideReport`): Acted or

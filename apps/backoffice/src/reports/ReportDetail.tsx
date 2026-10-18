@@ -43,7 +43,13 @@ export function ReportDetail({report, onBack, clients = CLIENTS}: Props) {
                 {decision !== undefined && <DecisionLine decision={decision}/>}
             </article>
 
-            {report.messageId !== "" && <MessagePanel chat={clients.chat} messageId={report.messageId}/>}
+            {report.messageId !== "" && (
+                <MessagePanel
+                    chat={clients.chat}
+                    messageId={report.messageId}
+                    parties={{reporter: report.reporterAccountId, reported: report.reportedAccountId}}
+                />
+            )}
 
             {report.reportedAccountId !== "" && (
                 <ActPanel

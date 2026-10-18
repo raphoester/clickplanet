@@ -12,7 +12,7 @@ service AdminService {
   // Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
   rpc RemoveMessage(RemoveMessageRequest) returns (RemoveMessageResponse);
 
-  // A message as it was sent, removed or not. NotFound past the retention.
+  // A message as it was sent, removed or not, and on asking the messages sent just before and after it: what an operator reads to judge a report. NotFound past the retention.
   rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
 }
 
@@ -36,6 +36,10 @@ message RemoveMessageResponse {
 
 message GetMessageRequest {
   string message_id = 1;
+  // How many of the messages sent just before it to answer with it. None unless asked, 50 at most.
+  uint32 before = 2;
+  // How many of the messages sent just after it. None unless asked, 50 at most.
+  uint32 after = 3;
 }
 
 message GetMessageResponse {
@@ -47,4 +51,38 @@ message GetMessageResponse {
   string country_id = 5;
   // Unset while the message is shown.
   google.protobuf.Timestamp removed_at = 6;
+  // As KeptMessage.author_name.
+  string author_name = 7;
+  // As KeptMessage.reply_to.
+  KeptQuote reply_to = 8;
+  // Oldest first: as many as asked, or as the retention keeps.
+  repeated KeptMessage before = 9;
+  // Oldest first: as many as asked, or as were sent.
+  repeated KeptMessage after = 10;
+}
+
+// A message as it was sent, removed or not, for an operator.
+message KeptMessage {
+  string message_id = 1;
+  // Empty for a message kept before accounts.
+  string account_id = 2;
+  // Its author's name now: the name it was sent under for a message kept before accounts, [deleted] for an account nobody can name any more.
+  string author_name = 3;
+  string text = 4;
+  google.protobuf.Timestamp sent_at = 5;
+  string country_id = 6;
+  // Unset while the message is shown.
+  google.protobuf.Timestamp removed_at = 7;
+  // The message it answers. Unset for none, and for one past the retention.
+  KeptQuote reply_to = 8;
+}
+
+// The message a reply answers, as it was sent, removed or not.
+message KeptQuote {
+  string message_id = 1;
+  // As KeptMessage.author_name.
+  string author_name = 2;
+  string text = 3;
+  // Unset while the message is shown.
+  google.protobuf.Timestamp removed_at = 4;
 }

@@ -86,6 +86,33 @@ func TestAnOperatorRemovesAReportedMessageAndClosesTheReport(t *testing.T) {
 	assert.Equal(t, "removed the message", reports[0].GetDecision().GetComment())
 }
 
+func TestAnOperatorReadsWhatWasSaidAroundAReportedMessage(t *testing.T) {
+	game := startGame(t)
+	offender, reporter := game.newPlayer(t), game.newPlayer(t)
+	bait, err := reporter.post()
+	require.NoError(t, err)
+	insult, err := offender.reply(bait.GetId())
+	require.NoError(t, err)
+	answer, err := reporter.reply(insult.GetId())
+	require.NoError(t, err)
+
+	res, err := game.chatDesk().GetMessage(t.Context(),
+		connect.NewRequest(&chatv1.GetMessageRequest{MessageId: insult.GetId(), Before: 10, After: 10}))
+	require.NoError(t, err)
+
+	read := res.Msg
+	assert.Equal(t, insult.GetAuthorName(), read.GetAuthorName(), "named as the chat names it")
+	assert.Equal(t, bait.GetId(), read.GetReplyTo().GetMessageId())
+	assert.Equal(t, bait.GetAuthorName(), read.GetReplyTo().GetAuthorName())
+	require.Len(t, read.GetBefore(), 1)
+	assert.Equal(t, bait.GetId(), read.GetBefore()[0].GetMessageId())
+	assert.Equal(t, reporter.account(), read.GetBefore()[0].GetAccountId())
+	require.Len(t, read.GetAfter(), 1)
+	assert.Equal(t, answer.GetId(), read.GetAfter()[0].GetMessageId())
+	assert.Equal(t, answer.GetAuthorName(), read.GetAfter()[0].GetAuthorName())
+	assert.Equal(t, insult.GetId(), read.GetAfter()[0].GetReplyTo().GetMessageId())
+}
+
 func TestNothingToRemoveReadOrDecideIsNotFound(t *testing.T) {
 	game := startGame(t)
 

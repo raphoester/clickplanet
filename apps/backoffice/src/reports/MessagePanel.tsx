@@ -2,18 +2,27 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {useCallback, useState} from "react"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {timeOf} from "../components/time.ts"
-import {When} from "../components/When.tsx"
 import {GetMessageResponse} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {ChatAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {useCall} from "../useCall.ts"
 import {MESSAGE_GONE, refusalOf, removeMessage} from "./actions.ts"
+import {Conversation, Parties} from "./Conversation.tsx"
+
+// How many messages the page asks for on each side of the one reported: as many as the server answers.
+const AROUND = 50
 
 type Read = {kept: true, message: GetMessageResponse} | {kept: false}
 
-export function MessagePanel({chat, messageId}: {chat: ChatAdmin, messageId: string}) {
+type Props = {
+    chat: ChatAdmin
+    messageId: string
+    parties: Parties
+}
+
+export function MessagePanel({chat, messageId, parties}: Props) {
     const read = useCallback(
-        (signal: AbortSignal): Promise<Read> => chat.getMessage({messageId}, {signal}).then(
+        (signal: AbortSignal): Promise<Read> => chat.getMessage({messageId, before: AROUND, after: AROUND}, {signal}).then(
             message => ({kept: true, message}),
             (err: unknown) => {
                 if (ConnectError.from(err).code === Code.NotFound) return {kept: false}
@@ -27,13 +36,14 @@ export function MessagePanel({chat, messageId}: {chat: ChatAdmin, messageId: str
 
     return (
         <section className="panel" aria-label="The message">
-            <h2>The message</h2>
+            <h2>The message, in its conversation</h2>
             {call.state === "loading" && <p className="muted">Loading…</p>}
             {call.state === "failed" && <FailureNotice failure={call} onRetry={again}/>}
             {call.state === "done" && !call.value.kept && <p className="muted">{MESSAGE_GONE}</p>}
             {call.state === "done" && call.value.kept && (
                 <Message
                     message={call.value.message}
+                    parties={parties}
                     removedAt={removedAt ?? call.value.message.removedAt?.toDate()}
                     remove={() => removeMessage(chat, messageId)}
                     onRemoved={setRemovedAt}
@@ -45,21 +55,16 @@ export function MessagePanel({chat, messageId}: {chat: ChatAdmin, messageId: str
 
 type MessageProps = {
     message: GetMessageResponse
+    parties: Parties
     removedAt: Date | undefined
     remove: () => Promise<{removedAt: Date}>
     onRemoved: (at: Date) => void
 }
 
-function Message({message, removedAt, remove, onRemoved}: MessageProps) {
+function Message({message, parties, removedAt, remove, onRemoved}: MessageProps) {
     return (
         <>
-            <blockquote className={`quote ${removedAt !== undefined ? "quote-removed" : ""}`}>
-                <p className="text">{message.text}</p>
-                <footer className="muted">
-                    <When at={message.sentAt}/>
-                    {message.countryId !== "" && <> · {message.countryId.toUpperCase()}</>}
-                </footer>
-            </blockquote>
+            <Conversation message={message} removedAt={removedAt} parties={parties}/>
             {removedAt !== undefined
                 ? <p className="action-said" role="status">Removed at {timeOf(removedAt)}.</p>
                 : (
