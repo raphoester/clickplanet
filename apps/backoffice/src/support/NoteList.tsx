@@ -1,9 +1,12 @@
 import {useCallback, useState} from "react"
-import {supportAdmin} from "../api.ts"
-import {AccountId} from "../components/AccountId.tsx"
+import {Clients, CLIENTS} from "../clients.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
+import {Person} from "../components/Person.tsx"
 import {When} from "../components/When.tsx"
 import {Note, NoteKind} from "../gen/grpc/support/v1/admin_pb.ts"
+import {Author} from "../gen/grpc/player/v1/internal_pb.ts"
+import {useOpenPlayer} from "../navigation.ts"
+import {namesOf} from "../players/actions.ts"
 import {useCall} from "../useCall.ts"
 import {Attachments} from "./Attachments.tsx"
 import {countOf, deviceLines, kindLabel} from "./labels.ts"
@@ -19,11 +22,15 @@ const BADGES: Partial<Record<NoteKind, string>> = {
     [NoteKind.BUG]: "badge-bug",
 }
 
-export function NoteList() {
+// Each note with who sent it: notes carry an account id alone, so the page asks the player module for the names.
+export function NoteList({clients = CLIENTS}: {clients?: Clients}) {
     const [kind, setKind] = useState(NoteKind.UNSPECIFIED)
     const list = useCallback(
-        (signal: AbortSignal) => supportAdmin.listNotes({kind}, {signal}).then(answer => answer.notes),
-        [kind],
+        async (signal: AbortSignal) => {
+            const {notes} = await clients.support.listNotes({kind}, {signal})
+            return {notes, ...await namesOf(clients.player, notes.map(note => note.accountId), signal)}
+        },
+        [clients, kind],
     )
     const [notes, again] = useCall(list)
 
@@ -49,9 +56,14 @@ export function NoteList() {
             {notes.state === "failed" && <FailureNotice failure={notes} onRetry={again}/>}
             {notes.state === "done" && (
                 <>
-                    <p className="muted">{countOf(notes.value.length, "note")}</p>
+                    <p className="muted">{countOf(notes.value.notes.length, "note")}</p>
+                    {notes.value.unnamed !== undefined && (
+                        <p className="action-refused">The names could not be read. {notes.value.unnamed}</p>
+                    )}
                     <ol className="cards">
-                        {notes.value.map(note => <NoteCard key={note.id} note={note}/>)}
+                        {notes.value.notes.map(note => (
+                            <NoteCard key={note.id} note={note} sender={notes.value.authors.get(note.accountId)}/>
+                        ))}
                     </ol>
                 </>
             )}
@@ -59,8 +71,10 @@ export function NoteList() {
     )
 }
 
-function NoteCard({note}: {note: Note}) {
+function NoteCard({note, sender}: {note: Note, sender: Author | undefined}) {
+    const openPlayer = useOpenPlayer()
     const device = deviceLines(note.context, note.userAgent)
+    const name = sender?.name ?? ""
 
     return (
         <li className="card">
@@ -70,7 +84,9 @@ function NoteCard({note}: {note: Note}) {
             </div>
             <p className="text">{note.text}</p>
             <Attachments files={note.attachments}/>
-            <AccountId id={note.accountId}/>
+            <dl className="people">
+                <Person label="From" name={name} id={note.accountId}/>
+            </dl>
             {device.length > 0 && (
                 <details className="device">
                     <summary>Device</summary>
@@ -83,6 +99,14 @@ function NoteCard({note}: {note: Note}) {
                         ))}
                     </dl>
                 </details>
+            )}
+            {openPlayer !== undefined && note.accountId !== "" && (
+                <div className="card-foot">
+                    <span/>
+                    <button type="button" className="button" onClick={() => openPlayer({caller: {accountId: note.accountId}, name})}>
+                        Open player
+                    </button>
+                </div>
             )}
         </li>
     )
