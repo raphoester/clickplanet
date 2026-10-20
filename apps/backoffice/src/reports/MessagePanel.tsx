@@ -2,13 +2,13 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {useCallback, useState} from "react"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {timeOf} from "../components/time.ts"
-import {GetMessageResponse} from "../gen/grpc/chat/v1/admin_pb.ts"
+import {GetMessageResponse, KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {ChatAdmin} from "../clients.ts"
+import {Parties} from "../chat/chatPages.ts"
+import {Conversation} from "../chat/Conversation.tsx"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {useCall} from "../useCall.ts"
 import {MESSAGE_GONE, refusalOf, removeMessage} from "./actions.ts"
-import {keptOf, Parties} from "./chatPages.ts"
-import {Conversation} from "./Conversation.tsx"
 
 type Read = {kept: true, message: GetMessageResponse} | {kept: false}
 
@@ -86,4 +86,18 @@ function Message({chat, message, parties, removedAt, remove, onRemoved}: Message
                 )}
         </>
     )
+}
+
+// GetMessage names no author: the report does, for the account it names.
+function keptOf(message: GetMessageResponse, parties: Parties): KeptMessage {
+    const party = [parties.reported, parties.reporter].find(each => each.accountId === message.accountId)
+    return new KeptMessage({
+        messageId: message.messageId,
+        accountId: message.accountId,
+        authorName: message.accountId === "" ? "" : party?.name ?? "",
+        text: message.text,
+        sentAt: message.sentAt,
+        countryId: message.countryId,
+        removedAt: message.removedAt,
+    })
 }

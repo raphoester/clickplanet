@@ -1,5 +1,5 @@
 import {ChatAdmin} from "../clients.ts"
-import {GetMessageResponse, KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
+import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 
 // An account a report names, so the conversation marks what it said.
 export type Party = {accountId: string, name: string}
@@ -12,18 +12,4 @@ type Ask = {beforeMessageId?: string, afterMessageId?: string, accountId?: strin
 export async function pageOf(chat: ChatAdmin, ask: Ask, limit: number, signal?: AbortSignal): Promise<Page> {
     const answer = await chat.listMessages({...ask, limit}, {signal})
     return {messages: answer.messages, more: answer.messages.length === limit}
-}
-
-// GetMessage names no author: the report does, for the account it names.
-export function keptOf(message: GetMessageResponse, parties: Parties): KeptMessage {
-    const party = [parties.reported, parties.reporter].find(each => each.accountId === message.accountId)
-    return new KeptMessage({
-        messageId: message.messageId,
-        accountId: message.accountId,
-        authorName: message.accountId === "" ? "" : party?.name ?? "",
-        text: message.text,
-        sentAt: message.sentAt,
-        countryId: message.countryId,
-        removedAt: message.removedAt,
-    })
 }

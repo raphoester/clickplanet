@@ -13,10 +13,10 @@ type Props = {
     chat: ChatAdmin
     accountId: string
     name: string
-    parties: Parties
+    parties: Parties | undefined
 }
 
-// What the reported account said in the chat, whatever the report names: a report from a player's card names no message.
+// What one account said in the chat, by its account id: a report from a player's card names no message.
 export function TheirMessages({chat, accountId, name, parties}: Props) {
     const first = useCallback(
         (signal: AbortSignal) => pageOf(chat, {accountId}, THEIR_PAGE, signal),
@@ -34,7 +34,7 @@ export function TheirMessages({chat, accountId, name, parties}: Props) {
     )
 }
 
-type PagesProps = {chat: ChatAdmin, accountId: string, first: Page, parties: Parties}
+type PagesProps = {chat: ChatAdmin, accountId: string, first: Page, parties: Parties | undefined}
 
 function Pages({chat, accountId, first, parties}: PagesProps) {
     const [page, setPage] = useState(first)
@@ -59,7 +59,7 @@ function Pages({chat, accountId, first, parties}: PagesProps) {
     )
 }
 
-function Theirs({chat, message, parties}: {chat: ChatAdmin, message: KeptMessage, parties: Parties}) {
+function Theirs({chat, message, parties}: {chat: ChatAdmin, message: KeptMessage, parties: Parties | undefined}) {
     const [open, setOpen] = useState(false)
 
     return (

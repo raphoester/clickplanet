@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
+import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
-import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
+import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {useState} from "react"
 import {afterEach, describe, expect, it} from "vitest"
-import {ACCOUNT, FakeAdmin} from "../fakeAdmin.ts"
+import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
+import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
 import {Opened} from "../navigation.ts"
 import {PlayersPage} from "./PlayersPage.tsx"
@@ -14,6 +16,13 @@ afterEach(cleanup)
 function Page({admin, first}: {admin: FakeAdmin, first?: Opened}) {
     const [opened, setOpened] = useState(first)
     return <PlayersPage opened={opened} onOpen={setOpened} clients={admin.clients()}/>
+}
+
+function said(n: number, accountId = ACCOUNT, authorName = "BraveFox42") {
+    return new KeptMessage({
+        messageId: `${accountId}-${n}`, accountId, authorName, text: `${authorName} ${n}`,
+        sentAt: Timestamp.fromDate(new Date(AT.getTime() + n * 60_000)), countryId: "fr",
+    })
 }
 
 function confirm(label: string, yes: string) {
@@ -134,6 +143,50 @@ describe("one player", () => {
         await screen.findByRole("heading", {name: "Ban"})
         expect(screen.queryByRole("region", {name: "Profile"})).toBeNull()
         expect(admin.askedFor("getPlayer")).toHaveLength(1)
+    })
+
+    it("lists what the account said, newest first, read by its account id", async () => {
+        const admin = new FakeAdmin()
+        admin.chat = [said(1), said(1, "account-cleo", "Cleo"), said(2)]
+        render(<Page admin={admin} first={account}/>)
+
+        const messages = await screen.findByRole("region", {name: "Their messages"})
+        expect(await within(messages).findByRole("heading", {name: "Messages from BraveFox42"})).toBeTruthy()
+        const list = await within(messages).findByRole("list", {name: "Their messages, newest first"})
+        expect(within(list).getAllByText(/^\w+ \d+$/, {selector: ".line-text"}).map(line => line.textContent))
+            .toEqual(["BraveFox42 2", "BraveFox42 1"])
+        expect(admin.askedFor("listMessages")).toEqual([{accountId: ACCOUNT, limit: 20}])
+    })
+
+    it("shows what everyone said around one of its messages, no one tagged", async () => {
+        const admin = new FakeAdmin()
+        admin.chat = [said(1, "account-cleo", "Cleo"), said(2), said(3, "account-dan", "Dan")]
+        render(<Page admin={admin} first={account}/>)
+
+        const messages = await screen.findByRole("region", {name: "Their messages"})
+        fireEvent.click(await within(messages).findByRole("button", {name: "Show what was said around it"}))
+
+        await within(messages).findByRole("list", {name: "The conversation"})
+        await waitFor(() => expect(within(messages).queryByText("Loading what was said around it…")).toBeNull())
+        const conversation = within(within(messages).getByRole("list", {name: "The conversation"}))
+        expect(conversation.getByText("Cleo 1")).toBeTruthy()
+        expect(conversation.getByText("Dan 3")).toBeTruthy()
+        expect(conversation.getByText("This message")).toBeTruthy()
+        expect(conversation.queryByText("reported")).toBeNull()
+        expect(conversation.queryByText("reporter")).toBeNull()
+        expect(admin.askedFor("listMessages").slice(1)).toEqual([
+            {beforeMessageId: `${ACCOUNT}-2`, limit: 10},
+            {afterMessageId: `${ACCOUNT}-2`, limit: 10},
+        ])
+    })
+
+    it("reads no messages for an address: the chat keeps them by account", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={address}/>)
+
+        await screen.findByRole("heading", {name: "Ban"})
+        expect(screen.queryByRole("region", {name: "Their messages"})).toBeNull()
+        expect(admin.askedFor("listMessages")).toEqual([])
     })
 
     it("says the antibot is off rather than failing", async () => {
