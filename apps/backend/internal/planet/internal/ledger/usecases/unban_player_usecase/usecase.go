@@ -18,6 +18,7 @@ var (
 type Unbanner interface {
 	LastSentence(ctx context.Context, scope, account string) (antibot.Sentence, bool, error)
 	Unban(ctx context.Context, scope, account string) error
+	Pardon(ctx context.Context, scope, account string) (antibot.Pardon, bool, error)
 	Enabled() bool
 }
 
@@ -27,10 +28,11 @@ type In struct {
 }
 
 type Out struct {
-	Scope   string
-	Account string
-	Offence int
-	Until   time.Time
+	Scope         string
+	Account       string
+	Offence       int
+	Until         time.Time
+	PardonedUntil time.Time
 }
 
 func New(unbanner Unbanner) *UseCase {
@@ -63,10 +65,16 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, fmt.Errorf("failed to unban: %w", err)
 	}
 
+	pardon, _, err := u.unbanner.Pardon(ctx, caller.Scope, caller.Account)
+	if err != nil {
+		return Out{}, fmt.Errorf("failed to read the pardon: %w", err)
+	}
+
 	return Out{
-		Scope:   caller.Scope,
-		Account: caller.Account,
-		Offence: sentence.Offence,
-		Until:   sentence.Until,
+		Scope:         caller.Scope,
+		Account:       caller.Account,
+		Offence:       sentence.Offence,
+		Until:         sentence.Until,
+		PardonedUntil: pardon.Until,
 	}, nil
 }

@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -23,7 +23,7 @@ func (s *saying) Committed(detect.Click)                               {}
 func (s *saying) Watch(detect.Click) (detect.Verdict, detect.Evidence) { return s.verdict, s.evidence }
 
 func newJury(clock cptime.Clock, hooks Hooks, watchdog detect.Watchdog) *Jury {
-	banner := shadowban.NewBans(shadowban.Config{Enforce: true}, clock, shadowban.NewMemoryStore(), shadowban.NewMemoryStore())
+	banner := bans.NewBook(bans.Config{Enforce: true}, 72*time.Hour, clock, bans.NewMemoryStore(), bans.NewMemoryStore())
 	return New(Config{TrackWindow: time.Hour}, banner, clock, hooks, watchdog)
 }
 
@@ -69,7 +69,7 @@ func TestTheCallerAndItsOpinionsSurviveASaveAndLoad(t *testing.T) {
 
 	clock.Advance(time.Second)
 	watchdog.verdict = detect.Certain
-	require.True(t, inspect(t, restarted, detect.Click{Scope: "caller", Tile: 20, Country: "FR", At: clock.Now()}))
+	inspect(t, restarted, detect.Click{Scope: "caller", Tile: 20, Country: "FR", At: clock.Now()})
 	require.Len(t, reports, 1)
 	assert.Equal(t, []detect.Verdict{detect.Certain}, rises, "suspect was already standing before the restart")
 

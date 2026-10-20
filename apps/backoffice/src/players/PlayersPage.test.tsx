@@ -7,6 +7,7 @@ import {afterEach, describe, expect, it} from "vitest"
 import {AROUND} from "../chat/theirConversations.ts"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
+import {InspectPlayerResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
 import {Opened} from "../navigation.ts"
 import {PlayersPage} from "./PlayersPage.tsx"
@@ -196,12 +197,24 @@ describe("one player", () => {
         expect(admin.askedFor("inspectPlayer")).toHaveLength(2)
     })
 
+    it("shows a pardon only while one runs", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={account}/>)
+        await screen.findByText(/^42 in /)
+        expect(screen.queryByText("Pardoned")).toBeNull()
+        cleanup()
+
+        admin.inspection = new InspectPlayerResponse({clicks: 42, banned: false, pardonedUntil: Timestamp.fromDate(AT)})
+        render(<Page admin={admin} first={account}/>)
+        expect(await screen.findByText("Pardoned")).toBeTruthy()
+    })
+
     it("lifts the latest ban, and says when there is none", async () => {
         const admin = new FakeAdmin()
         render(<Page admin={admin} first={address}/>)
 
         confirm("Unban", "Yes, unban")
-        expect(await screen.findByText(/^Lifted offence 2: its ban was until /)).toBeTruthy()
+        expect(await screen.findByText(/^Lifted offence 2: its ban was until .*\. Pardoned until .*\.$/)).toBeTruthy()
         expect(admin.askedFor("unbanPlayer")).toEqual([{scope: "203.0.113.7"}])
 
         admin.refuse("unbanPlayer", Code.NotFound)

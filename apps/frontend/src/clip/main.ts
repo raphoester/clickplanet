@@ -433,6 +433,7 @@ async function choose(): Promise<Chosen> {
             onLoadProgress: () => {},
             onRateLimited: () => {},
             onVPNBlocked: () => {},
+            onBanned: () => {},
             onSessionUnavailable: () => {},
             onBonusTaken: () => {},
             onBonusWon: () => {},

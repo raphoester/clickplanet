@@ -67,6 +67,8 @@ landmass starts locked to France. `fakeBackend.shareClicks("guests")` (or
 `"network"`) reads the bucket as shared, and `fakeBackend.shareClicks()` as the
 player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
+`fakeBackend.ban(90)` refuses this player's clicks, bombs and shields for 90
+minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
 `"reported-already"`, `"failed"`) refuses what Settings and a player's card
@@ -332,23 +334,30 @@ with no wait, and **a click that timed out is not sent again**, since it may
 have landed and costs a click and maybe a charge. It is rolled back, and the
 echo repaints it if it did land.
 
-The backend refuses a click in three ways, and `clickTile` translates all of
-them into errors declared beside the interfaces — the first two in `backend.ts`,
-the third in `session.ts` — so `globe.ts` recognises them without knowing what a
+The backend refuses a click in four ways, and `clickTile` translates all of
+them into errors declared beside the interfaces — the first three in `backend.ts`,
+the last in `session.ts` — so `globe.ts` recognises them without knowing what a
 Connect code is:
 
 - `resource_exhausted` → `RateLimitedError`. The per-IP token bucket is spent.
-- `permission_denied` → `VPNBlockedError`. The address is in the backend's VPN
-  and proxy blocklist.
+- `permission_denied` with a `BanRefusal` detail → `BannedError`, with `until`,
+  when the ban ends. The account or its network is banned (see the backend's
+  CLAUDE.md, "A ban is told").
+- `permission_denied` with no detail → `VPNBlockedError`. The address is in the
+  backend's VPN and proxy blocklist.
 - `unauthenticated` → `SessionUnavailableError`, **and only after a retry** —
   see [Sessions](#sessions).
 
 They are separate classes rather than one with a field because each one says
 something different: ease off for a second (the click meter shakes — no dialog),
-turn the VPN off, or reload and unblock the challenge. Everything else is a transport fault and still reaches the
-console.
+wait for the ban to end, turn the VPN off, or reload and unblock the challenge.
+Everything else is a transport fault and still reaches the console.
 
-`FakeBackend` reproduces all three, so every refusal is reachable in dev: it
+**A bomb and a shield are refused for a ban the same way** (`asBonusError` reads
+the detail), and the bomb or the shield stays in hand, since the server spent
+nothing.
+
+`FakeBackend` reproduces all four, so every refusal is reachable in dev: it
 enforces the same bucket as production's `rateLimiter` (one click every 5s, 60 in hand), and takes `vpnBlocked` and
 `sessionUnavailable` options that refuse every click (there is no address and no
 widget there to judge). Its own simulated traffic bypasses all of them, standing
@@ -2285,11 +2294,11 @@ and are shared; how thick a line is drawn between them is this app's.
    A refused click is taken back off the map. A throttled one bumps `refusals` in
    `useGlobe`, and `ClickBudgetMeter` shakes and flashes red once per bump — a
    dialog here was annoying, since a player hits the wall mid-burst and the meter
-   already says why. The other two raise a flag that `Viewer` renders as
-   `VPNBlockedModal` or `SessionUnavailableModal`. The globe reports every refused
-   click, so those flags are booleans and not a queue — a burst is one thing to
-   say, once.
-   `reportClickFailure` in `globe.ts` is the four-way branch that picks which,
+   already says why. The other three raise a flag that `Viewer` renders as
+   `BannedModal`, `VPNBlockedModal` or `SessionUnavailableModal`. The globe reports
+   every refused click, so those flags hold one value and are not a queue — a burst
+   is one thing to say, once.
+   `reportClickFailure` in `globe.ts` is the five-way branch that picks which,
    split out of the click handler because it is the one piece of that handler
    worth testing: sending a refusal to the wrong dialog leaves a working page
    giving the wrong advice.
@@ -2297,6 +2306,12 @@ and are shared; how thick a line is drawn between them is this app's.
    Dismissing `VPNBlockedModal` only closes it. Unlike a spent bucket, that
    refusal does not clear on its own — the player has to change network — so the
    next click raises it again.
+
+   **`BannedModal` says until when** (`describeEnd`, the chat mute's words: the
+   time under 20 hours, then the day, and the year when it is not this one), and
+   links the terms' "Play fair" section in a new tab (`GAME_RULES`,
+   `/terms#play-fair`). It gives no reason, on purpose: the server sends none.
+   Bombs and shields refused for a ban raise it too (`reportClaimFailure`).
 
 6. `ClickBudgetMeter` shows what is left of the bucket, in the dock at the bottom
    (see [The screen](#the-screen-four-zones)). It warns
@@ -2469,8 +2484,8 @@ the account's. `ClaimBonusResponse.charges` replaces them on a claim, and
 `PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread
 click off, this player's own `tilesEnclosed` takes an enclosure off, and a drop
-takes the bomb off at once and gives it back only if the call never reached the
-server; a shield is taken off the same way. The click answer says nothing about charges, on purpose (see the backend's
+takes the bomb off at once and gives it back unless the server says it holds
+none (a ban refusal gives it back too); a shield is taken off the same way. The click answer says nothing about charges, on purpose (see the backend's
 CLAUDE.md). A charge spent in another tab stays on screen until the next read. It
 reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` hands it to the
 inventory.
@@ -2534,13 +2549,12 @@ charge is spent. The same line is in the slot's `aria-describedby`.
   player's own tiles when a shield stopped the click.
 - **Shield on, a full tile**: "Full" on the slot and a line saying so.
 - **Enclose on, a click that took a tile and closed no shape**: "Shape is not
-  closed or is too big (25 tiles max)". **This is guessed on the client, on
-  purpose**: `Click` answers nothing about bonuses so a shadow-banned caller
-  cannot tell its clicks are dropped (see the backend's CLAUDE.md), and the
-  server cannot tell an open shape from one too big either. The globe waits
-  `ENCLOSURE_WAIT_MS` (1.5s) after the click is accepted for this player's own
-  `tilesEnclosed` closed at that tile, and says it when none came. A banned
-  player learns nothing new: it sees no enclosure either way.
+  closed or is too big (25 tiles max)". **This is guessed on the client**:
+  `Click` answers nothing about bonuses (it once hid a shadow ban; see the
+  backend's CLAUDE.md), and the server cannot tell an open shape from one too big
+  either. The globe waits `ENCLOSURE_WAIT_MS` (1.5s) after the click is accepted
+  for this player's own `tilesEnclosed` closed at that tile, and says it when none
+  came.
 
 **What a player has learned is kept in the browser** (`clickplanet-bonus-guide`,
 `domain/bonusGuide.ts`, `useBonusGuide`): how many times each kind was switched
@@ -3456,7 +3470,9 @@ to the plain pages, which write `%DISCORD_INVITE%`, `%TIKTOK_PROFILE%` and
 `links.test.ts` fails on one of them pasted into a page.
 
 **`terms.html` is the terms of service**, linked beside it and built
-the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. The
+the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in.
+**`BannedModal` links its "Play fair" section** by its `id="play-fair"`, which
+`BannedModal.test.tsx` pins: keep the id if the heading changes. The
 privacy policy says what Google and Discord send us; a new provider, or a new
 field kept from one, changes that page and its date.
 

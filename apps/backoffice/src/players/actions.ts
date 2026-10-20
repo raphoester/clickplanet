@@ -18,7 +18,7 @@ export const LIMITS = [20, 50, 100, 500]
 
 export type Muted = {until: Date}
 export type Banned = {until: Date, offence: number, enforced: boolean}
-export type Unbanned = {offence: number, until: Date | undefined}
+export type Unbanned = {offence: number, until: Date | undefined, pardonedUntil: Date | undefined}
 export type Reverted = {touched: number, held: number, restored: number}
 export type Grant = {refill: boolean, bomb: boolean, enclosures: number, spreadClicks: number, shields: number}
 export type Granted = {before: ChargesHeld, after: ChargesHeld}
@@ -47,7 +47,7 @@ export async function ban(planet: PlanetAdmin, caller: Caller, seconds: number):
 // Lifts the latest ban, running or ended, and forgets its offence. One call forgets one offence.
 export async function unban(planet: PlanetAdmin, caller: Caller): Promise<Unbanned> {
     const answer = await planet.unbanPlayer(caller)
-    return {offence: answer.offence, until: answer.bannedUntil?.toDate()}
+    return {offence: answer.offence, until: answer.bannedUntil?.toDate(), pardonedUntil: answer.pardonedUntil?.toDate()}
 }
 
 // Paced on the server, a tile at a time on the live stream: a big revert takes seconds.

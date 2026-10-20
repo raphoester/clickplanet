@@ -470,13 +470,13 @@ Each returns `certain` or `suspect`. **`certain` bans on its own; `suspect` is a
 reading that would ban real players if it were trusted alone**, and counts only
 alongside a second watchdog. `jury.minSuspects` (2) is how many it takes.
 
-A flagged caller's clicks are answered `OK` and dropped. That is deliberately not
-a refusal — a 403 names the check that tripped, and a silent no-op names nothing,
-so working around it is guesswork instead of a diff. It is not permanent: the
-caller reads the map back over the same stream and will notice eventually.
+A banned caller's clicks, bombs and shields are refused with a 403 that says when
+the ban ends, and the game shows it with a link to the rules. No reason goes out.
+Until 2026-10-20 they were answered `OK` and dropped (a shadow ban), and most of
+the people banned by mistake took it for a bug.
 
-`backend.yaml` now runs with `shadowBan.enforce: true`. It spent 2026-09-11 in
-observe mode (`enforce: false`, which judges and logs without dropping anything)
+`backend.yaml` now runs with `bans.enforce: true`. It spent 2026-09-11 in
+observe mode (`enforce: false`, which judges and logs without refusing anything)
 and the bounds below were set from what that pass recorded — see "What the
 measuring pass found". **Anything you widen here, widen back in observe mode
 first.**
@@ -606,16 +606,16 @@ interceptor, so this number partly measures the limiter. That is tolerable at
 `certainClicks: 900` are the ones that ban alone here, and the claim they rest on
 is the absence of any pause past `maxGap`, not the spread.
 
-Then `shadowBan.enforce: true` and redeploy.
+Then `bans.enforce: true` and redeploy.
 
-`shadowban_flagged` is how many callers are inside a ban and **counts while
+`banned_callers` is how many callers are inside a ban and **counts while
 `enforce` is false too** — a non-zero gauge in observe mode means the rules are
-biting, not that anything was dropped. `shadowbanned_clicks` is the one that
+biting, not that anything was refused. `banned_clicks` is the one that
 stays at 0 until you enforce.
 
-`shadowban_flags` counts flags rather than callers, **labelled by watchdog**, so
-the two read together: `shadowban_flags{watchdog="sequencer"} 40` against
-`shadowban_flagged 2` is two callers flagged twenty times each, which is a very
+`ban_flags` counts flags rather than callers, **labelled by watchdog**, so
+the two read together: `ban_flags{watchdog="sequencer"} 40` against
+`banned_callers 2` is two callers flagged twenty times each, which is a very
 different picture from forty callers caught once. The labels also tell you which
 watchdog is earning its keep before you enforce. All of them are readable with
 the `wget` line above.
@@ -638,7 +638,7 @@ docker compose exec backend wget -qO- localhost:8080/metrics | grep antibot_opin
 
 **Levels are cumulative**: `suspect` includes every `certain`, so
 `suspect − certain` is the near misses. `antibot_opinions_total{watchdog="sequencer",level="suspect"} 30`
-with `shadowban_flags` still at 0 is thirty suspicions nobody corroborated — look
+with `ban_flags` still at 0 is thirty suspicions nobody corroborated — look
 at what the other watchdogs were reading on the same callers before loosening
 `jury.minSuspects`. The poller keeps both.
 
@@ -686,8 +686,10 @@ if `/var/log/journal` does not exist the journal is memory-only and this buys
 nothing.
 
 **`cp-metrics-poller` scrapes `/metrics` every `POLL_INTERVAL` seconds** and
-appends the shadowban and click series to the `metrics_history` volume, one
-file per UTC day, pruned after `POLL_RETENTION_DAYS`:
+appends the ban and click series to the `metrics_history` volume, one
+file per UTC day, pruned after `POLL_RETENTION_DAYS`. Before 2026-10-20 the ban
+series were named `shadowban_flagged`, `shadowban_flags` and `shadowbanned_clicks`
+(now `banned_callers`, `ban_flags` and `banned_clicks`):
 
 ```bash
 docker compose exec -T metrics-poller ls /history
@@ -1210,8 +1212,8 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 Ban the scope when the player is on a guest account: a guest drops its account
 with a new cookie.
 
-`"enforced":false` in the answer means `antiBot.shadowBan.enforce` is off: the
-ban is kept but drops nothing. To lift a ban, see [Unban a player](#unban-a-player).
+`"enforced":false` in the answer means `antiBot.bans.enforce` is off: the
+ban is kept but refuses nothing. To lift a ban, see [Unban a player](#unban-a-player).
 
 Then revert, dry run first:
 
@@ -1249,7 +1251,7 @@ docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --pos
 - **Fix the rule first.** The unban does not change what the watchdogs hold. If
   a rule still reads the player `certain`, the jury bans it again on its next
   click, at the earliest 5 minutes after the last ban
-  (`antiBot.shadowBan.reflagInterval`).
+  (`antiBot.bans.reflagInterval`).
   [`InspectPlayer`](#see-how-close-the-antibot-is-to-one-player) shows which
   rule it was. Change the rule and deploy, then unban.
 - **The ban's offence is forgotten**: the next ban takes the same step of the

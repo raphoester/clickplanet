@@ -25,7 +25,8 @@ func (s stubUseCase) Execute(context.Context, unban_player_usecase.In) (unban_pl
 
 func TestAnUnbanIsLoggedWithTheBanItLifted(t *testing.T) {
 	var logs bytes.Buffer
-	want := unban_player_usecase.Out{Scope: "2001:db8::/64", Offence: 1, Until: time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)}
+	until := time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
+	want := unban_player_usecase.Out{Scope: "2001:db8::/64", Offence: 1, Until: until, PardonedUntil: until.Add(72 * time.Hour)}
 	useCase := audit_unban.New(stubUseCase{out: want}, slog.New(slog.NewTextHandler(&logs, nil)))
 
 	out, err := useCase.Execute(t.Context(), unban_player_usecase.In{Scope: "2001:db8::1"})
@@ -33,7 +34,7 @@ func TestAnUnbanIsLoggedWithTheBanItLifted(t *testing.T) {
 
 	assert.Equal(t, want, out)
 	assert.Contains(t, logs.String(),
-		`level=WARN msg="admin unban" asked=2001:db8::1 askedAccount="" scope=2001:db8::/64 account="" offence=1 bannedUntil=2026-10-09T12:00:00.000Z`)
+		`level=WARN msg="admin unban" asked=2001:db8::1 askedAccount="" scope=2001:db8::/64 account="" offence=1 bannedUntil=2026-10-09T12:00:00.000Z pardonedUntil=2026-10-12T12:00:00.000Z`)
 }
 
 func TestARefusedUnbanIsLoggedToo(t *testing.T) {

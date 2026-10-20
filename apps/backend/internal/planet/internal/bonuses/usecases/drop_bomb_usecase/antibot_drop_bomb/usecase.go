@@ -3,6 +3,7 @@ package antibot_drop_bomb
 import (
 	"context"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
@@ -12,7 +13,7 @@ type UseCase interface {
 }
 
 type Bans interface {
-	Banned(ctx context.Context, scope, account string) bool
+	EnforcedSentence(ctx context.Context, scope, account string) (antibot.Sentence, bool)
 }
 
 func New(implementation UseCase, bans Bans) *Decorator {
@@ -24,10 +25,11 @@ type Decorator struct {
 	bans           Bans
 }
 
-// Still runs the drop: a bomb left in hand would tell a banned caller it was refused.
 func (d *Decorator) Execute(ctx context.Context, in drop_bomb_usecase.In) (clicks.Blast, error) {
 	payer := clicks.PayerOf(ctx)
-	in.Dud = d.bans.Banned(ctx, payer.Scope, payer.Account)
+	if sentence, banned := d.bans.EnforcedSentence(ctx, payer.Scope, payer.Account); banned {
+		return clicks.Blast{}, clicks.NewBanRefusal(sentence.Until)
+	}
 
-	return d.implementation.Execute(ctx, in) //nolint:wrapcheck // a decorator adds a flag, not a sentence.
+	return d.implementation.Execute(ctx, in) //nolint:wrapcheck // a decorator adds a gate, not a sentence.
 }

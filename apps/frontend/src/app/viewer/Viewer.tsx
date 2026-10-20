@@ -35,6 +35,7 @@ import {useBoardGuide} from "../useBoardGuide.ts";
 import {isFirstWin} from "../../domain/bonusGuide.ts";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
+import BannedModal from "../components/BannedModal.tsx";
 import SharePlace from "../share/SharePlace.tsx";
 import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
@@ -160,6 +161,8 @@ export default function Viewer(props: ViewerProps) {
         refusals,
         vpnBlocked,
         dismissVPNBlocked,
+        bannedUntil,
+        dismissBanned,
         sessionUnavailable,
         dismissSessionUnavailable,
         award,
@@ -430,6 +433,7 @@ export default function Viewer(props: ViewerProps) {
         <Quiz state={quiz.state} onOpen={quiz.open} onAnswer={quiz.answer}/>
 
         {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
+        {bannedUntil !== undefined && <BannedModal until={bannedUntil} onClose={dismissBanned}/>}
 
         {sessionUnavailable && <SessionUnavailableModal onClose={dismissSessionUnavailable}/>}
     </>
