@@ -10,6 +10,7 @@ import {ActPanel} from "./ActPanel.tsx"
 import {DecideForm} from "./DecideForm.tsx"
 import {DecisionLine} from "./DecisionLine.tsx"
 import {MessagePanel} from "./MessagePanel.tsx"
+import {TheirMessages} from "./TheirMessages.tsx"
 
 type Props = {
     report: Report
@@ -19,6 +20,10 @@ type Props = {
 
 export function ReportDetail({report, onBack, clients = CLIENTS}: Props) {
     const [decision, setDecision] = useState<ReportDecision | undefined>(report.decision)
+    const parties = {
+        reporter: {accountId: report.reporterAccountId, name: report.reporterName},
+        reported: {accountId: report.reportedAccountId, name: report.reportedName},
+    }
 
     const decided = (done: Decided) => setDecision(new ReportDecision({
         outcome: done.outcome,
@@ -44,13 +49,15 @@ export function ReportDetail({report, onBack, clients = CLIENTS}: Props) {
             </article>
 
             {report.messageId !== "" && (
-                <MessagePanel
+                <MessagePanel chat={clients.chat} messageId={report.messageId} parties={parties}/>
+            )}
+
+            {report.reportedAccountId !== "" && (
+                <TheirMessages
                     chat={clients.chat}
-                    messageId={report.messageId}
-                    parties={{
-                        reporter: {accountId: report.reporterAccountId, name: report.reporterName},
-                        reported: {accountId: report.reportedAccountId, name: report.reportedName},
-                    }}
+                    accountId={report.reportedAccountId}
+                    name={report.reportedName}
+                    parties={parties}
                 />
             )}
 

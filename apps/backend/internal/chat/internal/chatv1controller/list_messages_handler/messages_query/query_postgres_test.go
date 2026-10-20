@@ -105,7 +105,13 @@ func (s *testSuite) query() *messages_query.PostgresQuery {
 }
 
 func (s *testSuite) page(cursor messages_query.Cursor, limit uint32) []*chatv1.KeptMessage {
-	page, err := s.query().Messages(s.T().Context(), cursor, limit)
+	page, err := s.query().Messages(s.T().Context(), cursor, messages.NoAccount, limit)
+	s.Require().NoError(err)
+	return page.GetMessages()
+}
+
+func (s *testSuite) pageOf(author messages.AccountID, cursor messages_query.Cursor, limit uint32) []*chatv1.KeptMessage {
+	page, err := s.query().Messages(s.T().Context(), cursor, author, limit)
 	s.Require().NoError(err)
 	return page.GetMessages()
 }
@@ -155,6 +161,31 @@ func (s *testSuite) TestAPageIsAsManyAsThereAre() {
 	s.Empty(s.page(messages_query.Cursor{Before: "1"}, 10), "nothing is kept before the oldest")
 }
 
+func (s *testSuite) TestAnAccountsPageHoldsItsMessagesAloneOldestFirst() {
+	s.conversation(9)
+
+	s.Equal([]string{"2", "4", "6", "8"}, ids(s.pageOf(bob, messages_query.Cursor{}, 10)))
+	s.Equal([]string{"6", "8"}, ids(s.pageOf(bob, messages_query.Cursor{}, 2)), "its newest")
+	s.Empty(s.pageOf(deleted, messages_query.Cursor{}, 10), "an account that said nothing")
+}
+
+func (s *testSuite) TestAnAccountsCursorsPageThroughItsMessagesAlone() {
+	s.conversation(9)
+
+	s.Equal([]string{"4", "6"}, ids(s.pageOf(bob, messages_query.Cursor{Before: "8"}, 2)))
+	s.Equal([]string{"4", "6"}, ids(s.pageOf(bob, messages_query.Cursor{After: "2"}, 2)))
+	s.Equal([]string{"2", "4"}, ids(s.pageOf(bob, messages_query.Cursor{Before: "5"}, 10)),
+		"a cursor may be another author's message")
+
+	var read []string
+	page := s.pageOf(ada, messages_query.Cursor{}, 2)
+	for len(page) > 0 {
+		read = append(ids(page), read...)
+		page = s.pageOf(ada, messages_query.Cursor{Before: page[0].GetMessageId()}, 2)
+	}
+	s.Equal([]string{"1", "3", "5", "7", "9"}, read, "paging back reads each of its messages once")
+}
+
 func (s *testSuite) TestPagingBackFromTheNewestReadsEveryMessageOnce() {
 	s.conversation(7)
 
@@ -188,7 +219,7 @@ func (s *testSuite) TestACursorPastTheRetentionOrNeverSentIsNotFound() {
 	s.sent(messages.Snapshot{ID: "old", SentAt: now.Add(-retention - time.Second), Account: bob, Country: "fr", Text: "old"})
 
 	for _, cursor := range []messages_query.Cursor{{Before: "old"}, {After: "old"}, {Before: "never"}, {After: "never"}} {
-		_, err := s.query().Messages(s.T().Context(), cursor, 10)
+		_, err := s.query().Messages(s.T().Context(), cursor, messages.NoAccount, 10)
 		s.Require().ErrorIs(err, messages_query.ErrNoMessage, cursor)
 	}
 }
@@ -196,7 +227,7 @@ func (s *testSuite) TestACursorPastTheRetentionOrNeverSentIsNotFound() {
 func (s *testSuite) TestTwoCursorsAreRefused() {
 	s.conversation(3)
 
-	_, err := s.query().Messages(s.T().Context(), messages_query.Cursor{Before: "3", After: "1"}, 10)
+	_, err := s.query().Messages(s.T().Context(), messages_query.Cursor{Before: "3", After: "1"}, messages.NoAccount, 10)
 
 	s.Require().ErrorIs(err, messages_query.ErrTwoCursors)
 }
@@ -223,7 +254,7 @@ func (s *testSuite) TestEveryAuthorIsNamedAsNowAndAskedForOnce() {
 	s.sent(messages.Snapshot{ID: "again", SentAt: now.Add(-time.Minute), Account: bob, Country: "fr", Text: "again"})
 
 	page, err := messages_query.NewPostgresQuery(s.db, stubAuthors{asked: asked}, cptime.NewFixedClock(now), retention).
-		Messages(s.T().Context(), messages_query.Cursor{}, 10)
+		Messages(s.T().Context(), messages_query.Cursor{}, messages.NoAccount, 10)
 	s.Require().NoError(err)
 
 	kept := page.GetMessages()
@@ -268,7 +299,7 @@ func (s *testSuite) TestNobodyToNameRefusesTheRead() {
 	s.conversation(3)
 
 	_, err := messages_query.NewPostgresQuery(s.db, stubAuthors{err: assert.AnError}, cptime.NewFixedClock(now), retention).
-		Messages(s.T().Context(), messages_query.Cursor{}, 10)
+		Messages(s.T().Context(), messages_query.Cursor{}, messages.NoAccount, 10)
 
 	s.Require().ErrorIs(err, assert.AnError)
 }

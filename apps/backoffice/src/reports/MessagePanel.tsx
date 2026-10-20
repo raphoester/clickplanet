@@ -7,7 +7,8 @@ import {ChatAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {useCall} from "../useCall.ts"
 import {MESSAGE_GONE, refusalOf, removeMessage} from "./actions.ts"
-import {Conversation, Parties} from "./Conversation.tsx"
+import {keptOf, Parties} from "./chatPages.ts"
+import {Conversation} from "./Conversation.tsx"
 
 type Read = {kept: true, message: GetMessageResponse} | {kept: false}
 
@@ -63,7 +64,13 @@ type MessageProps = {
 function Message({chat, message, parties, removedAt, remove, onRemoved}: MessageProps) {
     return (
         <>
-            <Conversation chat={chat} message={message} removedAt={removedAt} parties={parties}/>
+            <Conversation
+                chat={chat}
+                anchor={keptOf(message, parties)}
+                removedAt={removedAt}
+                parties={parties}
+                mark="Reported message"
+            />
             {removedAt !== undefined
                 ? <p className="action-said" role="status">Removed at {timeOf(removedAt)}.</p>
                 : (

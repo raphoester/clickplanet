@@ -15,7 +15,7 @@ service AdminService {
   // A message as it was sent, removed or not. NotFound past the retention.
   rpc GetMessage(GetMessageRequest) returns (GetMessageResponse);
 
-  // The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention.
+  // The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention. With an account, that account's messages alone.
   rpc ListMessages(ListMessagesRequest) returns (ListMessagesResponse);
 }
 
@@ -59,6 +59,8 @@ message ListMessagesRequest {
   string after_message_id = 2;
   // 50 unless asked, 200 at most.
   uint32 limit = 3;
+  // Only this account's messages, the cursors included: a page is its messages sent just before or after the cursor. Empty is everyone's; not a UUID is InvalidArgument.
+  string account_id = 4;
 }
 
 message ListMessagesResponse {

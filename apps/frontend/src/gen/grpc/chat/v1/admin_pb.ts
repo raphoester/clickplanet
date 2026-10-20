@@ -299,6 +299,13 @@ export class ListMessagesRequest extends Message<ListMessagesRequest> {
    */
   limit = 0;
 
+  /**
+   * Only this account's messages, the cursors included: a page is its messages sent just before or after the cursor. Empty is everyone's; not a UUID is InvalidArgument.
+   *
+   * @generated from field: string account_id = 4;
+   */
+  accountId = "";
+
   constructor(data?: PartialMessage<ListMessagesRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -310,6 +317,7 @@ export class ListMessagesRequest extends Message<ListMessagesRequest> {
     { no: 1, name: "before_message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "after_message_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMessagesRequest {

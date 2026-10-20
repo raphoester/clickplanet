@@ -59,7 +59,7 @@ const keptSeq = `
 	LIMIT 1
 `
 
-// $1 is the start of the retention, $2 the limit and $3 the cursor's seq.
+// $1 is the start of the retention, $2 the limit, $3 the cursor's seq and $4 the one author, when there is one.
 const (
 	older = `
 		SELECT seq, id, account_id, name, text, sent_at, country, reply_to
@@ -72,6 +72,20 @@ const (
 		SELECT seq, id, account_id, name, text, sent_at, country, reply_to
 		FROM messages
 		WHERE sent_at >= $1 AND seq > $3
+		ORDER BY seq
+		LIMIT $2
+	`
+	olderOfOne = `
+		SELECT seq, id, account_id, name, text, sent_at, country, reply_to
+		FROM messages
+		WHERE sent_at >= $1 AND seq < $3 AND account_id = $4
+		ORDER BY seq DESC
+		LIMIT $2
+	`
+	newerOfOne = `
+		SELECT seq, id, account_id, name, text, sent_at, country, reply_to
+		FROM messages
+		WHERE sent_at >= $1 AND seq > $3 AND account_id = $4
 		ORDER BY seq
 		LIMIT $2
 	`
@@ -92,8 +106,10 @@ const (
 	) quoted ON true
 	ORDER BY page.seq
 `
-	olderPage = `WITH page AS (` + older + projection
-	newerPage = `WITH page AS (` + newer + projection
+	olderPage      = `WITH page AS (` + older + projection
+	newerPage      = `WITH page AS (` + newer + projection
+	olderPageOfOne = `WITH page AS (` + olderOfOne + projection
+	newerPageOfOne = `WITH page AS (` + newerOfOne + projection
 )
 
 type row struct {
@@ -108,19 +124,22 @@ type author struct {
 	name    string
 }
 
-// A zero limit is DefaultLimit, and none passes MaxLimit.
-func (q *PostgresQuery) Messages(ctx context.Context, cursor Cursor, limit uint32) (*chatv1.ListMessagesResponse, error) {
+// A zero limit is DefaultLimit, and none passes MaxLimit. NoAccount as the author is everyone's messages.
+func (q *PostgresQuery) Messages(
+	ctx context.Context, cursor Cursor, author cpsession.AccountID, limit uint32,
+) (*chatv1.ListMessagesResponse, error) {
 	if cursor.Before != "" && cursor.After != "" {
 		return nil, ErrTwoCursors
 	}
 
 	since := q.clock.Now().Add(-q.retention)
-	statement, from, err := q.window(ctx, cursor, since)
+	backward, from, err := q.window(ctx, cursor, since)
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := q.rows(ctx, statement, since, limitOf(limit), from)
+	statement, args := statementOf(backward, author)
+	rows, err := q.rows(ctx, statement, append([]any{since, limitOf(limit), from}, args...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -141,17 +160,30 @@ func (q *PostgresQuery) Messages(ctx context.Context, cursor Cursor, limit uint3
 	return answer, nil
 }
 
-// The statement that reads the page, and the seq it reads from.
-func (q *PostgresQuery) window(ctx context.Context, cursor Cursor, since time.Time) (string, int64, error) {
+// Whether the page reads back from its cursor, and the seq it reads from.
+func (q *PostgresQuery) window(ctx context.Context, cursor Cursor, since time.Time) (bool, int64, error) {
 	switch {
 	case cursor.Before != "":
 		seq, err := q.seqOf(ctx, cursor.Before, since)
-		return olderPage, seq, err
+		return true, seq, err
 	case cursor.After != "":
 		seq, err := q.seqOf(ctx, cursor.After, since)
-		return newerPage, seq, err
+		return false, seq, err
 	default:
-		return olderPage, math.MaxInt64, nil
+		return true, math.MaxInt64, nil
+	}
+}
+
+func statementOf(backward bool, author cpsession.AccountID) (string, []any) {
+	switch {
+	case author == cpsession.NoAccount && backward:
+		return olderPage, nil
+	case author == cpsession.NoAccount:
+		return newerPage, nil
+	case backward:
+		return olderPageOfOne, []any{uuid.UUID(author)}
+	default:
+		return newerPageOfOne, []any{uuid.UUID(author)}
 	}
 }
 
@@ -167,8 +199,8 @@ func (q *PostgresQuery) seqOf(ctx context.Context, id string, since time.Time) (
 	return seq, nil
 }
 
-func (q *PostgresQuery) rows(ctx context.Context, statement string, since time.Time, limit int, from int64) ([]row, error) {
-	found, err := q.db.QueryContext(ctx, statement, since, limit, from)
+func (q *PostgresQuery) rows(ctx context.Context, statement string, args ...any) ([]row, error) {
+	found, err := q.db.QueryContext(ctx, statement, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read a page of messages: %w", err)
 	}

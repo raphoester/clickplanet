@@ -130,6 +130,11 @@ title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
   the oldest or the newest message shown. A page shorter than asked is the end, and its button goes. The reported
   message shows while they load, marked ("Reported message", `aria-current`), and stays shown if they fail.
   `GetMessage` names no author, so its line takes the name the report gives its account.
+- **The reported account's own messages** (`TheirMessages`, "Messages from Ana"), for every report: a report from a
+  player's card names no message, and a chat abuse is rarely one line. `ListMessages` with the account's id reads
+  them, 20 a page (`THEIR_PAGE`), shown newest first, "Show earlier" for more. Each is struck through once removed,
+  and "Show what was said around it" opens its `Conversation` in place, the message marked "This message", the
+  reporter and the reported tagged. Nothing kept is "Nothing they said in the chat is kept."
 - **Each line** has its author's name as the chat names it now, its country and its time (with the date when it
   is not the reported message's day), what it answers ("In reply to …"), and is struck through with when it was
   removed. **What the reporter and the reported account said is tagged** `reporter` and `reported`, by account
@@ -266,7 +271,8 @@ src/
   components/       Menu, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
                     Fact, Person, When
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
-  reports/          Reports: list, detail, the report's own actions
+  reports/          Reports: list, detail, the report's own actions, Conversation and TheirMessages over
+                    chatPages.ts (a page of ListMessages, the parties a report names)
   players/          Players: list, PlayerName, PlayerView, ProfilePanel, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay
   ops/              Reconcile titles
