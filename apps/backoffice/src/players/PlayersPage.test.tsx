@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
-import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
+import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import {useState} from "react"
 import {afterEach, describe, expect, it} from "vitest"
+import {AROUND} from "../chat/theirConversations.ts"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
@@ -145,38 +146,24 @@ describe("one player", () => {
         expect(admin.askedFor("getPlayer")).toHaveLength(1)
     })
 
-    it("lists what the account said, newest first, read by its account id", async () => {
-        const admin = new FakeAdmin()
-        admin.chat = [said(1), said(1, "account-cleo", "Cleo"), said(2)]
-        render(<Page admin={admin} first={account}/>)
-
-        const messages = await screen.findByRole("region", {name: "Their messages"})
-        expect(await within(messages).findByRole("heading", {name: "Messages from BraveFox42"})).toBeTruthy()
-        const list = await within(messages).findByRole("list", {name: "Their messages, newest first"})
-        expect(within(list).getAllByText(/^\w+ \d+$/, {selector: ".line-text"}).map(line => line.textContent))
-            .toEqual(["BraveFox42 2", "BraveFox42 1"])
-        expect(admin.askedFor("listMessages")).toEqual([{accountId: ACCOUNT, limit: 20}])
-    })
-
-    it("shows what everyone said around one of its messages, no one tagged", async () => {
+    it("shows what the account said in its conversations, read by its account id, no one tagged", async () => {
         const admin = new FakeAdmin()
         admin.chat = [said(1, "account-cleo", "Cleo"), said(2), said(3, "account-dan", "Dan")]
         render(<Page admin={admin} first={account}/>)
 
-        const messages = await screen.findByRole("region", {name: "Their messages"})
-        fireEvent.click(await within(messages).findByRole("button", {name: "Show what was said around it"}))
-
-        await within(messages).findByRole("list", {name: "The conversation"})
-        await waitFor(() => expect(within(messages).queryByText("Loading what was said around it…")).toBeNull())
-        const conversation = within(within(messages).getByRole("list", {name: "The conversation"}))
-        expect(conversation.getByText("Cleo 1")).toBeTruthy()
-        expect(conversation.getByText("Dan 3")).toBeTruthy()
-        expect(conversation.getByText("This message")).toBeTruthy()
-        expect(conversation.queryByText("reported")).toBeNull()
-        expect(conversation.queryByText("reporter")).toBeNull()
-        expect(admin.askedFor("listMessages").slice(1)).toEqual([
-            {beforeMessageId: `${ACCOUNT}-2`, limit: 10},
-            {afterMessageId: `${ACCOUNT}-2`, limit: 10},
+        const messages = within(await screen.findByRole("region", {name: "Their messages"}))
+        expect(await messages.findByRole("heading", {name: "What BraveFox42 said"})).toBeTruthy()
+        const list = await messages.findByRole("list", {name: "Their conversations, newest first"})
+        const shown = within(list).getAllByRole("list", {name: "A conversation"}).map(conversation =>
+            within(conversation).getAllByText(/^\w+ \d+$/, {selector: ".line-text"}).map(line => line.textContent))
+        expect(shown).toEqual([["Cleo 1", "BraveFox42 2", "Dan 3"]])
+        expect(messages.getByText("BraveFox42 2").closest("li")?.className).toContain("line-theirs")
+        expect(messages.queryByText("reported")).toBeNull()
+        expect(messages.queryByText("reporter")).toBeNull()
+        expect(admin.askedFor("listMessages")).toEqual([
+            {accountId: ACCOUNT, limit: 20},
+            {beforeMessageId: `${ACCOUNT}-2`, limit: AROUND},
+            {afterMessageId: `${ACCOUNT}-2`, limit: AROUND},
         ])
     })
 

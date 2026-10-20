@@ -130,11 +130,15 @@ title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
   the oldest or the newest message shown. A page shorter than asked is the end, and its button goes. The reported
   message shows while they load, marked ("Reported message", `aria-current`), and stays shown if they fail.
   `GetMessage` names no author, so its line takes the name the report gives its account.
-- **The reported account's own messages** (`chat/TheirMessages`, "Messages from Ana"), for every report: a report
-  from a player's card names no message, and a chat abuse is rarely one line. `ListMessages` with the account's id
-  reads them, 20 a page (`THEIR_PAGE`), shown newest first, "Show earlier" for more. Each is struck through once
-  removed, and "Show what was said around it" opens its `Conversation` in place, the message marked "This
-  message", the reporter and the reported tagged. Nothing kept is "Nothing they said in the chat is kept."
+- **What the reported account said, in its conversations** (`chat/TheirMessages`, "What Ana said"), for every
+  report: a report from a player's card names no message, and one line cannot be judged alone. `ListMessages` with
+  the account's id reads its messages, 20 at a time (`THEIR_PAGE`), then `moreConversations`
+  (`theirConversations.ts`) reads the whole chat around each, `AROUND` (5) messages each side, and shows them at
+  once, newest first, three at a time (`CONVERSATIONS`), "Show more conversations" for the next. **One of their
+  messages a conversation already holds gets none of its own, and a conversation that reaches the next one joins
+  it**, so an exchange of three insults is one conversation, read with two calls. Their lines are marked
+  (`line-theirs`) and tagged `reported`, the reporter's `reporter`. Each conversation grows with "Show earlier" and
+  "Show later". Nothing kept is "Nothing they said in the chat is kept."
 - **Each line** has its author's name as the chat names it now, its country and its time (with the date when it
   is not the reported message's day), what it answers ("In reply to …"), and is struck through with when it was
   removed. **What the reporter and the reported account said is tagged** `reporter` and `reported`, by account
@@ -201,9 +205,10 @@ address over IPv4, the /64 over IPv6) and checks.
   heading is its flag and its name: the name the profile answers, which is the name it holds now, over the one the
   page that opened it knew; the flag of its row, or else the country it took the most tiles for. `not_found` is an
   account the game keeps nothing about. An address has no profile, and is not asked.
-- **An account's page lists its messages** (`chat/TheirMessages`, as a report does): `ListMessages` with its
-  account id, 20 a page, newest first, each with "Show what was said around it". No line is tagged: there is no
-  report. An address has no messages, since the chat keeps them by account, and is not asked.
+- **An account's page shows what it said, in its conversations** (`chat/TheirMessages`, as a report does): its
+  messages by its account id, the chat around each, three conversations at a time. Its lines are marked
+  (`line-theirs`), and no line is tagged: there is no report. An address has no messages, since the chat keeps them
+  by account, and is not asked.
 - **The page inspects on open** (`InspectPlayer`): the antibot's readings, its ban and its clicks. The antibot off
   reads as such, not as a failure. A ban or an unban reads it again.
 - **The tools**: ban (`BanPlayer`, the ladder's next step by default), unban (`UnbanPlayer`, which forgets the
@@ -276,7 +281,7 @@ src/
                     Fact, Person, When
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
-                    ListMessages, the parties a report names)
+                    ListMessages, the parties a report names) and theirConversations.ts
   reports/          Reports: list, detail, the report's own actions
   players/          Players: list, PlayerName, PlayerView, ProfilePanel, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay

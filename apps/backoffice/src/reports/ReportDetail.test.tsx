@@ -9,6 +9,7 @@ import {Report, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
 import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 import {OpenPlayer} from "../navigation.ts"
 import {ReportDetail} from "./ReportDetail.tsx"
+import {AROUND} from "../chat/theirConversations.ts"
 
 afterEach(cleanup)
 
@@ -40,9 +41,13 @@ function messagePanel() {
     return within(screen.getByRole("region", {name: "The message"}))
 }
 
-// What the conversation around the reported message asked, leaving out the reported account's own messages.
+// What the conversation around the reported message asked, leaving out the reported account's own messages and the
+// conversations TheirMessages reads around them.
 function asksAround(admin: FakeAdmin): unknown[] {
-    return admin.askedFor("listMessages").filter(ask => !(ask as {accountId?: string}).accountId)
+    return admin.askedFor("listMessages").filter(ask => {
+        const {accountId, limit} = ask as {accountId?: string, limit?: number}
+        return !accountId && limit !== AROUND
+    })
 }
 
 function confirm(label: string, yes: string) {
@@ -114,9 +119,9 @@ describe("ReportDetail", () => {
         expect(within(list).getByText("after 10")).toBeTruthy()
         expect(within(list).queryByText("after 11")).toBeNull()
 
-        fireEvent.click(screen.getByRole("button", {name: "Show earlier"}))
+        fireEvent.click(messagePanel().getByRole("button", {name: "Show earlier"}))
         expect(await within(list).findByText("before 1")).toBeTruthy()
-        fireEvent.click(screen.getByRole("button", {name: "Show later"}))
+        fireEvent.click(messagePanel().getByRole("button", {name: "Show later"}))
         expect(await within(list).findByText("after 22")).toBeTruthy()
 
         expect(within(list).getAllByRole("listitem")).toHaveLength(48)
@@ -124,8 +129,8 @@ describe("ReportDetail", () => {
             {beforeMessageId: "before-16", limit: 20},
             {afterMessageId: "after-10", limit: 20},
         ])
-        expect(screen.queryByRole("button", {name: "Show earlier"})).toBeNull()
-        expect(screen.queryByRole("button", {name: "Show later"})).toBeNull()
+        expect(messagePanel().queryByRole("button", {name: "Show earlier"})).toBeNull()
+        expect(messagePanel().queryByRole("button", {name: "Show later"})).toBeNull()
     })
 
     it("says when nothing was said around it", async () => {
@@ -143,8 +148,8 @@ describe("ReportDetail", () => {
         admin.chat[1].removedAt = Timestamp.fromDate(AT)
         open(admin)
 
-        expect((await screen.findByText("calm down")).className).toContain("line-removed")
-        expect(screen.getByText(/^Removed at /)).toBeTruthy()
+        expect((await messagePanel().findByText("calm down")).className).toContain("line-removed")
+        expect(messagePanel().getByText(/^Removed at /)).toBeTruthy()
         expect(screen.getByRole("button", {name: "Remove the message"})).toBeTruthy()
     })
 
@@ -172,7 +177,7 @@ describe("ReportDetail", () => {
         await lines()
 
         admin.refuse("listMessages", Code.NotFound)
-        fireEvent.click(screen.getByRole("button", {name: "Show earlier"}))
+        fireEvent.click(messagePanel().getByRole("button", {name: "Show earlier"}))
 
         expect(await screen.findByText("That part of the chat is no longer kept.")).toBeTruthy()
     })
