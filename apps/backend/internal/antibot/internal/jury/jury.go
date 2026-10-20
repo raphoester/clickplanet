@@ -51,6 +51,7 @@ func (c Config) WithDefaults() Config {
 
 type Banner interface {
 	Flag(ctx context.Context, caller bans.Caller) (bans.Sentence, bool, error)
+	Pardoned(ctx context.Context, caller bans.Caller) (bool, error)
 	Flagged(ctx context.Context) (int, error)
 }
 
@@ -133,6 +134,11 @@ func (j *Jury) Inspect(ctx context.Context, click detect.Click) error {
 }
 
 func (j *Jury) flag(ctx context.Context, click detect.Click, report detect.Report) error {
+	pardoned, err := j.banner.Pardoned(ctx, callerOf(click))
+	if err != nil || pardoned {
+		return err //nolint:wrapcheck // the banner already named what failed.
+	}
+
 	var errs []error
 
 	for _, convict := range convictsOf(click, report) {

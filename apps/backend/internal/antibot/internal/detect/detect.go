@@ -141,6 +141,8 @@ type Examination struct {
 	Offence     int
 	BannedUntil time.Time
 
+	PardonedUntil time.Time
+
 	Readings []Reading
 
 	Suspects    int

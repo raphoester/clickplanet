@@ -218,10 +218,10 @@ address over IPv4, the /64 over IPv6) and checks.
   heading is its flag and its name: the name the profile answers, which is the name it holds now, over the one the
   page that opened it knew; the flag of its row, or else the country it took the most tiles for. `not_found` is an
   account the game keeps nothing about. An address has no profile, and is not asked.
-- **The page inspects on open** (`InspectPlayer`): the antibot's readings, its ban and its clicks. The antibot off
+- **The page inspects on open** (`InspectPlayer`): the antibot's readings, its ban, its pardon and its clicks. The antibot off
   reads as such, not as a failure. A ban or an unban reads it again.
 - **The tools**: ban (`BanPlayer`, the ladder's next step by default), unban (`UnbanPlayer`, which forgets the
-  latest offence; `not_found` is no ban left), revert (`RevertPlayer`, dry run first), and for an account alone
+  latest offence and pardons the key, and says until when; `not_found` is no ban left), revert (`RevertPlayer`, dry run first), and for an account alone
   mute (`Mute`) and charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer
   says what the account held before and after, since the caps hold).
 

@@ -469,6 +469,11 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
   flags = 0;
 
   /**
+   * @generated from field: google.protobuf.Timestamp pardoned_until = 18;
+   */
+  pardonedUntil?: Timestamp;
+
+  /**
    * @generated from field: repeated planet.v1.WatchdogReading readings = 7;
    */
   readings: WatchdogReading[] = [];
@@ -533,6 +538,7 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
     { no: 4, name: "banned_until", kind: "message", T: Timestamp },
     { no: 5, name: "offence", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "flags", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 18, name: "pardoned_until", kind: "message", T: Timestamp },
     { no: 7, name: "readings", kind: "message", T: WatchdogReading, repeated: true },
     { no: 8, name: "suspects", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 9, name: "min_suspects", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
@@ -1077,6 +1083,11 @@ export class UnbanPlayerResponse extends Message<UnbanPlayerResponse> {
    */
   bannedUntil?: Timestamp;
 
+  /**
+   * @generated from field: google.protobuf.Timestamp pardoned_until = 5;
+   */
+  pardonedUntil?: Timestamp;
+
   constructor(data?: PartialMessage<UnbanPlayerResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1089,6 +1100,7 @@ export class UnbanPlayerResponse extends Message<UnbanPlayerResponse> {
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "offence", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "banned_until", kind: "message", T: Timestamp },
+    { no: 5, name: "pardoned_until", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnbanPlayerResponse {

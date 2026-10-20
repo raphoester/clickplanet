@@ -67,7 +67,7 @@ func TestAFailingStoreIsAnError(t *testing.T) {
 	store := bans.NewMemoryStore()
 	cause := errors.New("postgres is down")
 	store.FailWith(cause)
-	banner := bans.New(config(), newClock(), store)
+	banner := bans.New(config(), pardon, newClock(), store)
 	ctx := t.Context()
 
 	_, _, err := banner.Flag(ctx, "bot")
@@ -89,7 +89,7 @@ func TestWithEnforceOffBannedReadsNothing(t *testing.T) {
 	c := config()
 	c.Enforce = false
 
-	_, banned, err := bans.New(c, newClock(), store).EnforcedSentence(t.Context(), "bot")
+	_, banned, err := bans.New(c, pardon, newClock(), store).EnforcedSentence(t.Context(), "bot")
 
 	require.NoError(t, err)
 	assert.False(t, banned)
@@ -107,11 +107,19 @@ func TestAnUnbanIsKeptInTheStore(t *testing.T) {
 
 	assert.Equal(t, bans.Record{
 		Key: "player", Flags: 1, ExpiresAt: clock.Now(), LastFlaggedAt: flaggedAt,
+		Pardon: bans.Pardon{
+			At:     clock.Now(),
+			Lifted: bans.Sentence{Flags: 1, Offence: 1, Until: flaggedAt.Add(time.Hour)},
+			Until:  clock.Now().Add(pardon),
+		},
 	}, store.Stored()["player"])
 
 	after := bannerOver(t, config(), clock, store)
 	assert.False(t, after.Banned("player"))
+	_, accepted := after.Flag("player")
+	assert.False(t, accepted, "the pardon is in the store, not in the banner")
 
+	clock.Advance(pardon)
 	sentence, accepted := after.Flag("player")
 	require.True(t, accepted)
 	assert.Equal(t, 1, sentence.Offence)

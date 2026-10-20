@@ -50,6 +50,8 @@ func TestTheExaminationComesBackWhole(t *testing.T) {
 		Flags:       3,
 		Offence:     2,
 		BannedUntil: at.Add(24 * time.Hour),
+
+		PardonedUntil: at.Add(72 * time.Hour),
 		Readings: []antibot.Reading{
 			{Watchdog: "metronome", Level: "suspect", Evidence: "cadence clicks=120 spread=40ms", At: at},
 			{Watchdog: "sequencer", Level: "clear"},
@@ -75,6 +77,7 @@ func TestTheExaminationComesBackWhole(t *testing.T) {
 	assert.Equal(t, uint32(3), res.GetFlags())
 	assert.Equal(t, uint32(2), res.GetOffence())
 	assert.Equal(t, at.Add(24*time.Hour), res.GetBannedUntil().AsTime())
+	assert.Equal(t, at.Add(72*time.Hour), res.GetPardonedUntil().AsTime())
 
 	require.Len(t, res.GetReadings(), 2)
 	assert.Equal(t, "metronome", res.GetReadings()[0].GetWatchdog())
@@ -107,6 +110,7 @@ func TestAnUntrackedScopeStillSaysSo(t *testing.T) {
 	require.NotNil(t, res.Banned)
 	assert.False(t, res.GetBanned())
 	assert.Nil(t, res.GetBannedUntil())
+	assert.Nil(t, res.GetPardonedUntil())
 	assert.Nil(t, res.GetActiveFor())
 	assert.Nil(t, res.GetLastClickAt())
 }

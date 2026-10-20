@@ -57,7 +57,7 @@ func newHarness(t *testing.T, config jury.Config, ban bans.Config, watchdogs ...
 	t.Helper()
 	h := &harness{t: t, clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))}
 
-	h.banner = bans.NewBook(ban, h.clock, bans.NewMemoryStore(), bans.NewMemoryStore())
+	h.banner = bans.NewBook(ban, pardon, h.clock, bans.NewMemoryStore(), bans.NewMemoryStore())
 	h.jury = jury.New(config, h.banner, h.clock, jury.Hooks{
 		OnFlag: func(report detect.Report) {
 			h.reports = append(h.reports, report)
@@ -107,6 +107,8 @@ func juryConfig() jury.Config {
 		TrackWindow:     time.Hour,
 	}
 }
+
+const pardon = 72 * time.Hour
 
 func banConfig() bans.Config {
 	return bans.Config{
@@ -542,6 +544,49 @@ func TestAGuiltyVerdictPassesToTheAccomplicesAWatchdogNames(t *testing.T) {
 		"signed-in accomplices leave their scope alone")
 }
 
+func (h *harness) pardon(caller bans.Caller) {
+	h.t.Helper()
+	_, err := h.banner.Ban(h.t.Context(), caller, time.Hour)
+	require.NoError(h.t, err)
+	require.NoError(h.t, h.banner.Unban(h.t.Context(), caller))
+}
+
+func TestAPardonedCallerBansNobodyNotEvenItsRing(t *testing.T) {
+	h := newHarness(t, juryConfig(), banConfig(),
+		&stubWatchdog{name: "ring", verdict: detect.Suspect, accomplices: []detect.Accomplice{{Account: "second", SignedIn: true}}},
+		&stubWatchdog{name: "other", verdict: detect.Suspect},
+	)
+	h.pardon(bans.Caller{Account: "first"})
+
+	for range 10 {
+		require.False(t, h.inspect(detect.Click{Scope: "campus", Account: "first", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()}))
+		h.clock.Advance(time.Minute)
+	}
+	assert.Empty(t, h.reports, "its ring falls with its guilt, and its guilt is pardoned")
+	_, ringBanned, err := h.banner.EnforcedSentence(t.Context(), bans.Caller{Account: "second", SignedIn: true})
+	require.NoError(t, err)
+	assert.False(t, ringBanned)
+
+	h.clock.Advance(pardon)
+	require.True(t, h.inspect(detect.Click{Scope: "campus", Account: "first", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()}))
+	assert.Equal(t, []banned{{account: "first"}, {account: "second", alongside: "first"}}, h.banned())
+}
+
+func TestAPardonedAccomplicePassesNoBanOnToItsRing(t *testing.T) {
+	h := newHarness(t, juryConfig(), banConfig(),
+		&stubWatchdog{name: "ring", verdict: detect.Suspect, accomplices: []detect.Accomplice{
+			{Account: "second", SignedIn: true},
+			{Account: "third", SignedIn: true},
+		}},
+		&stubWatchdog{name: "other", verdict: detect.Suspect},
+	)
+	h.pardon(bans.Caller{Account: "second"})
+
+	require.True(t, h.inspect(detect.Click{Scope: "campus", Account: "first", SignedIn: true, Tile: 1, Country: "FR", At: h.clock.Now()}))
+
+	assert.Equal(t, []banned{{account: "first"}, {account: "third", alongside: "first"}}, h.banned())
+}
+
 func TestAReadingOfTurnsStillNamesTheRingOfAGuiltyCaller(t *testing.T) {
 	h := newHarness(t, juryConfig(), banConfig(),
 		&stubWatchdog{name: "turns", verdict: detect.Suspect, turns: true, accomplices: []detect.Accomplice{{Account: "second", SignedIn: true}}},
@@ -606,7 +651,7 @@ func TestAFlagThatCannotBeKeptIsReported(t *testing.T) {
 	cause := errors.New("postgres is down")
 	store.FailWith(cause)
 
-	j := jury.New(juryConfig(), bans.NewBook(banConfig(), clock, store, store), clock, jury.Hooks{},
+	j := jury.New(juryConfig(), bans.NewBook(banConfig(), pardon, clock, store, store), clock, jury.Hooks{},
 		&stubWatchdog{name: "sure", verdict: detect.Certain})
 
 	err := j.Inspect(t.Context(), detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})

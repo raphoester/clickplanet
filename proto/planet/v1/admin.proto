@@ -95,6 +95,7 @@ message InspectPlayerResponse {
   google.protobuf.Timestamp banned_until = 4;
   uint32 offence = 5;
   uint32 flags = 6;
+  google.protobuf.Timestamp pardoned_until = 18;
 
   repeated WatchdogReading readings = 7;
 
@@ -178,6 +179,7 @@ message UnbanPlayerResponse {
   string account_id = 2;
   uint32 offence = 3;
   google.protobuf.Timestamp banned_until = 4;
+  google.protobuf.Timestamp pardoned_until = 5;
 }
 
 message RevertPlayerRequest {

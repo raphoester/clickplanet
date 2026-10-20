@@ -58,6 +58,7 @@ export function Inspection({value, caller, onOpenScope}: InspectionProps) {
                     ? <>yes, offence {value.offence}, until <When at={value.bannedUntil}/></>
                     : "no"}
             </Fact>
+            {value.pardonedUntil !== undefined && <Fact label="Pardoned">until <When at={value.pardonedUntil}/></Fact>}
             <Fact label="Watched">{value.tracked === true ? `yes, ${value.flags} flags` : "no"}</Fact>
             <Fact label="Suspects">
                 {`${value.suspects} of ${value.minSuspects}`}{value.guilty === true && ", guilty"}

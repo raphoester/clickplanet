@@ -110,7 +110,7 @@ root package**:
 | `player` | `Config`, `NewModule` |
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
-| `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
+| `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Pardon`, `Examination`, `Reading` |
 | `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Pick`, `Platform`, `PlatformsOf`, `Report`, `PlatformOutcome` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
@@ -413,7 +413,7 @@ because it serves every concept over one Connect service. It only maps.
 | `ledger/usecases/find_players_usecase` | who is painting a flag, and where | `Ledger`, `Owners`, `Borders`, `Bans` |
 | `ledger/usecases/top_players_usecase` | who takes the most tiles, every flag | `Ledger`, `Owners`, `Bans` |
 | `ledger/usecases/ban_player_usecase` | the operator's ban | `Banner` |
-| `ledger/usecases/unban_player_usecase` | lifts a running ban and forgets its offence | `Unbanner` |
+| `ledger/usecases/unban_player_usecase` | lifts a running ban, forgets its offence and pardons the caller | `Unbanner` |
 | `ledger/usecases/inspect_player_usecase` | what the antibot holds on one caller | `Examiner` |
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
 | `ledger/usecases/anonymize_takes_usecase` | flushes the ledger, then takes a deleted account off every take postgres keeps | `Ledger`, `Takes` |
@@ -2337,13 +2337,13 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
-**The whole of its API is eleven names**, and `internal/antibot/antibot.go` is all
+**The whole of its API is twelve names**, and `internal/antibot/antibot.go` is all
 of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
-`Click`, `Point`, `Report`, `Sentence`, `Examination` and `Reading` — the types a caller writes down, because it builds two
+`Click`, `Point`, `Report`, `Sentence`, `Pardon`, `Examination` and `Reading` — the types a caller writes down, because it builds two
 and is handed the others. A caller hands over the block and the two hooks it wants
 findings reported through, and gets back a `Guard` — one that refuses and bans nothing when the block is off, so
 the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Fetched`, `Listened`, `Flagged`, `EnforcedSentence`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
-`Unban`, `Sentence`, `Enforcing` and `Examine` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
+`Unban`, `Sentence`, `Pardon`, `Enforcing` and `Examine` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
 package's business, which is why `planet` registers one runner rather than one per sweeper.
 
@@ -2534,6 +2534,11 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   tables, each with its own ladder. An offence is forgotten only when an operator
   lifts its ban (`UnbanPlayer`): the row is written with one offence fewer, and
   with the ban ended when it was still running.
+- **Each unban is a pardon, and every pardon is kept**: a row of `antibot.pardons` or
+  `antibot.account_pardons`, with when, the ban it lifted (`flags`, `offence`,
+  `banned_until`) and when it ends (`expires_at`). The `Record` carries the latest one,
+  read in the same query and written in the same transaction as the ban, under the same
+  lock. See [Manual bans](#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer).
 - **Evidence is the tile map's pattern.** `evidence.Persistence` is the port,
   `postgres_evidence_store` the adapter, `MemoryPersistence` (behind the `testing`
   tag) the fake. It lives in memory and is flushed every `saveInterval` (1m), with a
@@ -3427,11 +3432,19 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
   answers, so a restart keeps the caller unbanned: no restart and no SQL. It lifts the key it is given, so **a guest the jury banned needs two
   calls**, its account and its scope. A caller with no offence left is `NotFound` (`ErrNotBanned`), which a typo or the wrong
   half shows loudly; with `antiBot.enabled` false it is `FailedPrecondition`, as `BanPlayer` is.
-  - **It does not touch the evidence.** The watchdogs kept what they read before the ban, so a rule that still
-    reads `certain` bans the caller again on its first click after the unban, as a first offence. **Fix the rule first**, then unban. `InspectPlayer` says which rule it was. Forgetting the
-    evidence instead would only put the ban off until the same play reads the same way again, and it would take
-    a forget in each of the ten watchdogs, keyed by scope, by account or by wider prefix. `TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain` pins it.
-- **`InspectPlayer(scope | account_id)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`. **An account is read on the scope of its latest take** in the ledger, because the watchdogs judge scopes, with the bans on both; an account with no take inside the retention answers its bans alone and an empty `scope`. It changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `ledger.ParseCaller` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
+  - **It pardons the key it lifts, for `antiBot.evidence.retention` (72h)** (`bans.Pardon`, in the same row
+    change). Until then, the jury flags nothing on that key, however guilty it reads. The watchdogs kept what they
+    read before the ban, and until 2026-10-20 a rule that still read `certain` banned the caller again five
+    minutes after the unban (`reflagInterval`). No evidence outlives retention, so when the pardon ends every
+    reading rests on play after the unban.
+  - **It does not touch the evidence.** Forgetting it would take a forget in each of the ten watchdogs, keyed by
+    scope, by account or by wider prefix. The cost: a rule that still reads the same play the same way bans again
+    once the pardon ends, as a first offence. **Fix the rule** if it is the rule. `InspectPlayer` says which one.
+  - **A pardoned caller convicts nobody** (`Book.Pardoned`, every key the jury would flag): not even the accounts
+    it rotates with. An accomplice that is pardoned is skipped and the rest of the ring still falls.
+  - **An operator's `BanPlayer` still bans a pardoned key**: the pardon only holds off the jury.
+  - The answer carries `pardonedUntil`. `TestAnUnbanPardonsTheCallerUntilTheEvidenceThatBannedItIsGone` pins it.
+- **`InspectPlayer(scope | account_id)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`. **An account is read on the scope of its latest take** in the ledger, because the watchdogs judge scopes, with the bans on both; an account with no take inside the retention answers its bans alone and an empty `scope`. It changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`) and pardon (`pardonedUntil`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `ledger.ParseCaller` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
 - `audit_ban`, `audit_unban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers`, `TopPlayers` and `InspectPlayer` are reads and log nothing.
 
 ### The clips job (`internal/clips/`, `cmd/clips`)
@@ -3916,7 +3929,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.bans.reflagInterval` — how soon a banned caller can be judged again
 - `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone; `stamina` and `defence` together count as one
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
-- `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. See [What survives a restart](#what-survives-a-restart)
+- `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. Also how long `UnbanPlayer` holds the jury off. See [What survives a restart](#what-survives-a-restart)
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
 - `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
 - `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold; `detector.shape.maxGap`, `clicks`, `maxSkew`, `certainClicks`, `certainSkew` — the longest gap sampled, and the skew of the last gaps that reads each level (unset, it only measures); `detector.stamina.slice`, `clicks`, `window`, `minBusy`, `certainBusy` — what makes a slice busy, and the busy time inside the window that reads each level (unset, it only measures)

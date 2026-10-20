@@ -20,7 +20,16 @@ const (
 
 func NewScopes(db cppg.QuerierBeginner) *Store {
 	return &Store{db: db, lock: scopesLock, queries: queries{
-		record:  `SELECT flags, offences, expires_at, last_flagged_at FROM bans WHERE scope = $1`,
+		record: `
+			SELECT b.flags, b.offences, b.expires_at, b.last_flagged_at,
+				p.pardoned_at, p.flags, p.offence, p.banned_until, p.expires_at
+			FROM bans b
+			LEFT JOIN LATERAL (
+				SELECT pardoned_at, flags, offence, banned_until, expires_at FROM pardons
+				WHERE pardons.scope = b.scope ORDER BY pardoned_at DESC LIMIT 1
+			) p ON true
+			WHERE b.scope = $1
+		`,
 		running: `SELECT count(*) FROM bans WHERE expires_at > $1`,
 		save: `
 			INSERT INTO bans (scope, flags, offences, expires_at, last_flagged_at) VALUES ($1, $2, $3, $4, $5)
@@ -30,12 +39,29 @@ func NewScopes(db cppg.QuerierBeginner) *Store {
 				expires_at = excluded.expires_at,
 				last_flagged_at = excluded.last_flagged_at
 		`,
+		savePardon: `
+			INSERT INTO pardons (scope, pardoned_at, flags, offence, banned_until, expires_at) VALUES ($1, $2, $3, $4, $5, $6)
+			ON CONFLICT (scope, pardoned_at) DO UPDATE SET
+				flags = excluded.flags,
+				offence = excluded.offence,
+				banned_until = excluded.banned_until,
+				expires_at = excluded.expires_at
+		`,
 	}}
 }
 
 func NewAccounts(db cppg.QuerierBeginner) *Store {
 	return &Store{db: db, lock: accountsLock, queries: queries{
-		record:  `SELECT flags, offences, expires_at, last_flagged_at FROM account_bans WHERE account = $1`,
+		record: `
+			SELECT b.flags, b.offences, b.expires_at, b.last_flagged_at,
+				p.pardoned_at, p.flags, p.offence, p.banned_until, p.expires_at
+			FROM account_bans b
+			LEFT JOIN LATERAL (
+				SELECT pardoned_at, flags, offence, banned_until, expires_at FROM account_pardons
+				WHERE account_pardons.account = b.account ORDER BY pardoned_at DESC LIMIT 1
+			) p ON true
+			WHERE b.account = $1
+		`,
 		running: `SELECT count(*) FROM account_bans WHERE expires_at > $1`,
 		save: `
 			INSERT INTO account_bans (account, flags, offences, expires_at, last_flagged_at) VALUES ($1, $2, $3, $4, $5)
@@ -44,6 +70,15 @@ func NewAccounts(db cppg.QuerierBeginner) *Store {
 				offences = excluded.offences,
 				expires_at = excluded.expires_at,
 				last_flagged_at = excluded.last_flagged_at
+		`,
+		savePardon: `
+			INSERT INTO account_pardons (account, pardoned_at, flags, offence, banned_until, expires_at)
+			VALUES ($1, $2, $3, $4, $5, $6)
+			ON CONFLICT (account, pardoned_at) DO UPDATE SET
+				flags = excluded.flags,
+				offence = excluded.offence,
+				banned_until = excluded.banned_until,
+				expires_at = excluded.expires_at
 		`,
 	}}
 }
@@ -55,9 +90,10 @@ type Store struct {
 }
 
 type queries struct {
-	record  string
-	running string
-	save    string
+	record     string
+	running    string
+	save       string
+	savePardon string
 }
 
 func (s *Store) Record(ctx context.Context, key string) (bans.Record, bool, error) {
@@ -67,8 +103,15 @@ func (s *Store) Record(ctx context.Context, key string) (bans.Record, bool, erro
 func (s *Store) recordOf(ctx context.Context, db cppg.Querier, key string) (bans.Record, bool, error) {
 	record := bans.Record{Key: key}
 
-	var flagged sql.NullTime
-	err := db.QueryRowContext(ctx, s.queries.record, key).Scan(&record.Flags, &record.Offences, &record.ExpiresAt, &flagged)
+	var (
+		flagged                              sql.NullTime
+		pardonedAt, liftedUntil, pardonUntil sql.NullTime
+		liftedFlags, liftedOffence           sql.NullInt64
+	)
+	err := db.QueryRowContext(ctx, s.queries.record, key).Scan(
+		&record.Flags, &record.Offences, &record.ExpiresAt, &flagged,
+		&pardonedAt, &liftedFlags, &liftedOffence, &liftedUntil, &pardonUntil,
+	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return record, false, nil
 	}
@@ -79,6 +122,17 @@ func (s *Store) recordOf(ctx context.Context, db cppg.Querier, key string) (bans
 	record.ExpiresAt = record.ExpiresAt.UTC()
 	if flagged.Valid {
 		record.LastFlaggedAt = flagged.Time.UTC()
+	}
+	if pardonedAt.Valid {
+		record.Pardon = bans.Pardon{
+			At: pardonedAt.Time.UTC(),
+			Lifted: bans.Sentence{
+				Flags:   int(liftedFlags.Int64),
+				Offence: int(liftedOffence.Int64),
+				Until:   liftedUntil.Time.UTC(),
+			},
+			Until: pardonUntil.Time.UTC(),
+		}
 	}
 
 	return record, true, nil
@@ -124,6 +178,14 @@ func (s *Store) Change(
 	if _, err := tx.ExecContext(ctx, s.queries.save, key, next.Flags, next.Offences, next.ExpiresAt,
 		sql.NullTime{Time: next.LastFlaggedAt, Valid: !next.LastFlaggedAt.IsZero()}); err != nil {
 		return fmt.Errorf("failed to save the ban: %w", err)
+	}
+
+	if !next.Pardon.At.IsZero() {
+		pardon := next.Pardon
+		if _, err := tx.ExecContext(ctx, s.queries.savePardon, key, pardon.At,
+			pardon.Lifted.Flags, pardon.Lifted.Offence, pardon.Lifted.Until, pardon.Until); err != nil {
+			return fmt.Errorf("failed to save the pardon: %w", err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

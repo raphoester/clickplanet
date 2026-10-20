@@ -34,6 +34,8 @@ func (stubBanner) Flag(context.Context, bans.Caller) (bans.Sentence, bool, error
 	return bans.Sentence{Flags: 1}, true, nil
 }
 
+func (stubBanner) Pardoned(context.Context, bans.Caller) (bool, error) { return false, nil }
+
 func (stubBanner) Flagged(context.Context) (int, error) { return 0, nil }
 
 func inspect(t *testing.T, j *Jury, click detect.Click) {
