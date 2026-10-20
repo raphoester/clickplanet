@@ -832,3 +832,19 @@ textarea {
 form.panel > .button {
     justify-self: start;
 }
+
+.painters {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.painter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    min-width: 0;
+}

@@ -10,6 +10,7 @@ import {OpenPlayer, Opened, PageId, titleOf} from "./navigation.ts"
 import {TitlesPanel} from "./ops/TitlesPanel.tsx"
 import {PlayersPage} from "./players/PlayersPage.tsx"
 import {ReportsView} from "./reports/ReportsView.tsx"
+import {DrawingsView} from "./drawings/DrawingsView.tsx"
 import {Callback} from "./signIn/callback.ts"
 import {SignInCallback} from "./signIn/SignInCallback.tsx"
 import {SignOutButton} from "./signIn/SignOutButton.tsx"
@@ -73,6 +74,7 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 <h2 className="page-title">{titleOf(page)}</h2>
                 {page === "notes" && <NoteList/>}
                 {page === "reports" && <ReportsView/>}
+                {page === "drawings" && <DrawingsView/>}
                 {page === "players" && <PlayersPage opened={player} onOpen={setPlayer}/>}
                 {page === "reassign" && <ReassignPanel planet={CLIENTS.planet}/>}
                 {page === "paint" && <PaintPanel planet={CLIENTS.planet}/>}

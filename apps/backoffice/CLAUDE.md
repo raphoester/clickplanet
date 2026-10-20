@@ -12,7 +12,8 @@ burger menu (see [The menu](#the-menu)), by group:
   [Who sent a note](#who-sent-a-note)) and its photos and videos (see
   [A note's photos and videos](#a-notes-photos-and-videos)).
 - **Moderation**: Reports, which the operator acts on and closes (see [Acting on a report](#acting-on-a-report)),
-  and Players, who played and every tool on one player (see [The player page](#the-player-page)).
+  Drawings, the reports of a drawing on the map and the tools that undo one (see [Drawings](#drawings)), and
+  Players, who played and every tool on one player (see [The player page](#the-player-page)).
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](#the-map-tools)).
 - **Ops**: Reconcile titles, the run after a deploy (see [Ops](#ops)).
 
@@ -180,6 +181,30 @@ note and keeps its text).
   each request (`askedFor`) and can refuse a method with a code. The jsdom tests drive each action through its
   page.
 
+## Drawings
+
+`src/drawings/`: the reports of a drawing on the map (`ListPlaceReports`), a page like Reports.
+
+- **The list** shows the open reports first, and a switch shows them all: the reason (hate, sexual, other), the
+  tile, the reporter's name, the text and the time, and the decision once decided.
+- **The detail** links the drawing on the map, in a new tab (`mapLinkOf`: the game at `?tile=<id>`, close up on
+  the tile), and holds the area every tool acts on: the reported tile and the rings around it, 8 by default, as a
+  bomb's blast, 1 to 50.
+- **Restore** (`RestoreArea`, `RestorePanel`) puts each tile of the area back to what it held at a time: an hour
+  before the report by default (`beforeOf`). The dry run says how many tiles the area holds and how many changed
+  since, how far back the ledger reaches (`kept_since`, then the field's `min`), and who painted the area since,
+  most takes first, with their takes and tiles in the area alone: each by flag and name (`GetAuthors`, as the
+  players list), each opening on the player page, where the ban is (`PainterList`). **Restore stays off until a dry
+  run matches the rings and the time**, asks with its count ("Put back the 12 tiles changed since …?"), and needs a
+  new dry run after it. A time older than the ledger is `failed_precondition`: "The ledger does not reach back to
+  then: clear the area instead."
+- **Clear** (`ClearArea`, `ClearPanel`) gives every tile of the area that a flag holds to nobody, for a drawing older
+  than the ledger. Dry run first (how many are held), then Clear, which asks with its count, on the same rule.
+- **Close the report**: Acted or Dismissed, with a comment, `DecidePlaceReport` through the same `DecideForm` as a
+  player's report (it takes the call that decides).
+- `FakeAdmin` refuses a restore older than its `keptSince` and changes tiles only when it is not a dry run, as the
+  server does.
+
 ## The player page
 
 `src/players/`. **A player is an account or an address** (`Caller` in `caller.ts`), never both: the planet's tools
@@ -280,7 +305,8 @@ src/
   components/       Menu, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
                     Fact, Person, When
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
-  reports/          Reports: list, detail, the report's own actions
+  reports/          Reports: list, detail, the report's own actions, DecideForm
+  drawings/         Drawings: list, detail, RestorePanel, ClearPanel, PainterList, actions.ts
   players/          Players: list, PlayerName, PlayerView, ProfilePanel, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay
   ops/              Reconcile titles

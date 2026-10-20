@@ -49,13 +49,19 @@ import {
 import {Author, GetAuthorsRequest, GetAuthorsResponse} from "./gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles, Stats} from "./gen/grpc/player/v1/player_pb.ts"
 import {
+    DecidePlaceReportRequest,
+    DecidePlaceReportResponse,
     DecideReportRequest,
     DecideReportResponse,
     ListNotesRequest,
     ListNotesResponse,
+    ListPlaceReportsRequest,
+    ListPlaceReportsResponse,
     Note,
     NoteKind,
+    PlaceReport,
 } from "./gen/grpc/support/v1/admin_pb.ts"
+import {PlaceReportReason} from "./gen/grpc/support/v1/support_pb.ts"
 import {ChatAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
@@ -101,6 +107,18 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         new Player({scope: "2001:db8:1:2::/64", tiles: 40, takes: 50}),
     ]
     inspection = new InspectPlayerResponse({accountId: "account-reported", clicks: 42, banned: false})
+    // A drawing reported on tile 1234, painted by two players; the ledger reaches back to a day before AT.
+    placeReports = [
+        new PlaceReport({
+            id: "place-report-1", reporterAccountId: "account-reporter", reporterName: "Bob", tileId: 1234,
+            reason: PlaceReportReason.HATE, text: "a swastika over Berlin", createdAt: Timestamp.fromDate(AT),
+        }),
+    ]
+    keptSince = new Date(AT.getTime() - 24 * 3_600_000)
+    painters = [
+        new Player({accountId: ACCOUNT, scope: "203.0.113.7", takes: 40, tiles: 12, flagCountryId: "de"}),
+        new Player({scope: "2001:db8:1:2::/64", takes: 3, tiles: 0, flagCountryId: "de"}),
+    ]
     authors = [new Author({accountId: ACCOUNT, name: "BraveFox42"})]
     profile = new AdminGetPlayerResponse({
         name: "BraveFox42", linked: true, createdAtUnixMs: BigInt(AT.getTime()), messagesSent: 4n,
@@ -219,12 +237,21 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         }))
     }
 
+    // As the server: a time older than the ledger keeps is refused, and only a real run changes tiles.
     restoreArea(request: PartialMessage<RestoreAreaRequest>): Promise<RestoreAreaResponse> {
-        return this.answer("restoreArea", request, new RestoreAreaResponse({tiles: 37, changed: 12}))
+        if (request.before !== undefined && new Timestamp(request.before).toDate() < this.keptSince) {
+            this.asked.push({method: "restoreArea", request})
+            return Promise.reject(new ConnectError("before is older than the ledger keeps", Code.FailedPrecondition))
+        }
+        return this.answer("restoreArea", request, new RestoreAreaResponse({
+            tiles: 37, changed: 12, restored: request.dryRun === true ? 0 : 12,
+            painters: this.painters, paintersTotal: this.painters.length, keptSince: Timestamp.fromDate(this.keptSince),
+        }))
     }
 
     clearArea(request: PartialMessage<ClearAreaRequest>): Promise<ClearAreaResponse> {
-        return this.answer("clearArea", request, new ClearAreaResponse({tiles: 37, owned: 20}))
+        return this.answer("clearArea", request,
+            new ClearAreaResponse({tiles: 37, owned: 20, cleared: request.dryRun === true ? 0 : 20}))
     }
 
     reconcileTitles(request: PartialMessage<ReconcileTitlesRequest>): Promise<ReconcileTitlesResponse> {
@@ -249,5 +276,14 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     decideReport(request: PartialMessage<DecideReportRequest>): Promise<DecideReportResponse> {
         return this.answer("decideReport", request, new DecideReportResponse({decidedAt: Timestamp.fromDate(AT)}))
+    }
+
+    listPlaceReports(request: PartialMessage<ListPlaceReportsRequest>): Promise<ListPlaceReportsResponse> {
+        const reports = this.placeReports.filter(report => request.openOnly !== true || report.decision === undefined)
+        return this.answer("listPlaceReports", request, new ListPlaceReportsResponse({reports}))
+    }
+
+    decidePlaceReport(request: PartialMessage<DecidePlaceReportRequest>): Promise<DecidePlaceReportResponse> {
+        return this.answer("decidePlaceReport", request, new DecidePlaceReportResponse({decidedAt: Timestamp.fromDate(AT)}))
     }
 }
