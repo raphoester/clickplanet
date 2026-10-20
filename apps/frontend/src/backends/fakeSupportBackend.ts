@@ -1,6 +1,7 @@
 import {
     AttachmentRules,
     PageContext,
+    PlaceReport,
     PlayerReport,
     SupportBackend,
     SupportNoSessionError,
@@ -17,6 +18,7 @@ type FakeNoteKind = "suggestion" | "bug"
 export type FakeSupportNote =
     | {kind: FakeNoteKind, text: string, context: PageContext, attachmentIds: string[]}
     | {kind: "report", report: PlayerReport}
+    | {kind: "place", report: PlaceReport}
 
 const ANSWER_DELAY_MS = 400
 const UPLOAD_STEPS = 8
@@ -78,6 +80,11 @@ export class FakeSupportBackend implements SupportBackend {
     public async reportPlayer(report: PlayerReport): Promise<void> {
         await this.answer()
         this.sent.push({kind: "report", report})
+    }
+
+    public async reportPlace(report: PlaceReport): Promise<void> {
+        await this.answer()
+        this.sent.push({kind: "place", report})
     }
 
     private async answer(): Promise<void> {

@@ -30,6 +30,7 @@ import {rememberSignIn} from "./app/account/rememberedSignIn.ts"
 import SignInGate from "./app/account/SignInGate.tsx"
 import {callbackOf, CALLBACK_PATH} from "./domain/signInCallback.ts"
 import {SHARE_FLAG_PARAM, sharedCountry, withoutSharedFlag} from "./domain/shareCard.ts"
+import {linkedTile, TILE_PARAM, withoutLinkedTile} from "./domain/tileLink.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
 const callback = callbackOf(new URL(window.location.href))
@@ -37,7 +38,10 @@ if (callback) window.history.replaceState(null, "", CALLBACK_PATH)
 
 const page = new URL(window.location.href)
 const shared = sharedCountry(page)
-if (page.searchParams.has(SHARE_FLAG_PARAM)) window.history.replaceState(null, "", withoutSharedFlag(page))
+const lookingAt = linkedTile(page)
+if (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(TILE_PARAM)) {
+    window.history.replaceState(null, "", withoutLinkedTile(withoutSharedFlag(page)))
+}
 
 const connection = new ConnectionHealth()
 followBrowser(connection, window)
@@ -115,6 +119,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             <SignInGate callback={callback}>
                 <App
                     sharedCountry={shared}
+                    lookingAt={lookingAt}
                     ownershipsGetter={fake}
                     tileClicker={clicker}
                     updatesListener={fake}
@@ -152,6 +157,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             <SignInGate callback={callback} account={account}>
                 <App
                     sharedCountry={shared}
+                    lookingAt={lookingAt}
                     ownershipsGetter={backend}
                     tileClicker={backend}
                     updatesListener={backend}

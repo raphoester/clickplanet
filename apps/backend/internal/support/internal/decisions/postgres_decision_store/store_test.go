@@ -11,6 +11,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/postgres_decision_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/places"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/places/postgres_place_report_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/postgres_report_store"
 )
@@ -31,13 +33,13 @@ type testSuite struct {
 	suite.Suite
 
 	db      *cppg.Postgres
-	store   *postgres_decision_store.Store
+	store   *postgres_decision_store.Store[reports.ReportID]
 	reports *postgres_report_store.Store
 }
 
 func (s *testSuite) SetupSuite() {
 	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "support", migrations.FS)
-	s.store = postgres_decision_store.New(s.db)
+	s.store = postgres_decision_store.ForReports(s.db)
 	s.reports = postgres_report_store.New(s.db)
 }
 
@@ -52,18 +54,18 @@ func (s *testSuite) filed() reports.Report {
 	return filed
 }
 
-func (s *testSuite) decided(outcome decisions.Outcome, comment string, at time.Time) decisions.Decision {
+func (s *testSuite) decided(outcome decisions.Outcome, comment string, at time.Time) decisions.Decision[reports.ReportID] {
 	decision, err := decisions.NewDecision(report, outcome, comment, at)
 	s.Require().NoError(err)
 	return decision
 }
 
-func (s *testSuite) kept() []decisions.Snapshot {
+func (s *testSuite) kept() []decisions.Snapshot[reports.ReportID] {
 	rows, err := s.db.QueryContext(s.T().Context(), `SELECT report_id, outcome, comment, decided_at FROM report_decisions`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 
-	var kept []decisions.Snapshot
+	var kept []decisions.Snapshot[reports.ReportID]
 	for rows.Next() {
 		var (
 			id               uuid.UUID
@@ -71,7 +73,7 @@ func (s *testSuite) kept() []decisions.Snapshot {
 			at               time.Time
 		)
 		s.Require().NoError(rows.Scan(&id, &outcome, &comment, &at))
-		kept = append(kept, decisions.Snapshot{
+		kept = append(kept, decisions.Snapshot[reports.ReportID]{
 			Report: reports.ReportID(id), Outcome: decisions.Outcome(outcome), Comment: comment, At: at.UTC(),
 		})
 	}
@@ -84,7 +86,7 @@ func (s *testSuite) TestADecisionIsKeptWithItsReport() {
 
 	s.Require().NoError(s.store.Save(s.T().Context(), s.decided(decisions.OutcomeActed, "muted", decidedAt)))
 
-	s.Equal([]decisions.Snapshot{
+	s.Equal([]decisions.Snapshot[reports.ReportID]{
 		{Report: report, Outcome: decisions.OutcomeActed, Comment: "muted", At: decidedAt},
 	}, s.kept())
 }
@@ -95,7 +97,7 @@ func (s *testSuite) TestAReportDecidedAgainKeepsTheLastDecision() {
 	s.Require().NoError(s.store.Save(s.T().Context(), s.decided(decisions.OutcomeDismissed, "", decidedAt)))
 	s.Require().NoError(s.store.Save(s.T().Context(), s.decided(decisions.OutcomeActed, "looked again", decidedAt.Add(time.Hour))))
 
-	s.Equal([]decisions.Snapshot{
+	s.Equal([]decisions.Snapshot[reports.ReportID]{
 		{Report: report, Outcome: decisions.OutcomeActed, Comment: "looked again", At: decidedAt.Add(time.Hour)},
 	}, s.kept())
 }
@@ -114,4 +116,25 @@ func (s *testSuite) TestADecisionGoesWithItsReport() {
 	s.Require().NoError(s.reports.Save(s.T().Context(), filed.Forgotten()))
 
 	s.Empty(s.kept())
+}
+
+func (s *testSuite) TestAPlaceReportsDecisionIsKeptInItsOwnTableAndGoesWithIt() {
+	ctx := s.T().Context()
+	placeStore := postgres_place_report_store.New(s.db)
+	placed, err := places.NewReport(places.ReportID{15: 7}, ada, 42, places.Complaint{Reason: places.ReasonHate}, createdAt)
+	s.Require().NoError(err)
+	s.Require().NoError(placeStore.Save(ctx, placed))
+	decision, err := decisions.NewDecision(places.ReportID{15: 7}, decisions.OutcomeActed, "restored the area", decidedAt)
+	s.Require().NoError(err)
+
+	s.Require().NoError(postgres_decision_store.ForPlaces(s.db).Save(ctx, decision))
+
+	var outcome string
+	s.Require().NoError(s.db.QueryRowContext(ctx, `SELECT outcome FROM place_report_decisions`).Scan(&outcome))
+	s.Equal("acted", outcome)
+	s.Empty(s.kept(), "never in the player reports' table")
+
+	unknown, err := decisions.NewDecision(places.ReportID{15: 8}, decisions.OutcomeActed, "", decidedAt)
+	s.Require().NoError(err)
+	s.Require().ErrorIs(postgres_decision_store.ForPlaces(s.db).Save(ctx, unknown), decisions.ErrUnknownReport)
 }

@@ -20,6 +20,10 @@ type ReportID uuid.UUID
 
 var ErrInvalidReportID = errors.New("not a report id")
 
+func (id ReportID) String() string {
+	return uuid.UUID(id).String()
+}
+
 func ReportIDOf(value string) (ReportID, error) {
 	id, err := uuid.Parse(value)
 	if err != nil || id == uuid.Nil {

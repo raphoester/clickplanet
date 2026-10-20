@@ -13,6 +13,12 @@ service AdminService {
 
   // Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
   rpc DecideReport(DecideReportRequest) returns (DecideReportResponse);
+
+  // Newest first, as ListReports.
+  rpc ListPlaceReports(ListPlaceReportsRequest) returns (ListPlaceReportsResponse);
+
+  // As DecideReport, for a report of a place.
+  rpc DecidePlaceReport(DecidePlaceReportRequest) returns (DecidePlaceReportResponse);
 }
 
 enum NoteKind {
@@ -105,5 +111,43 @@ message DecideReportRequest {
 }
 
 message DecideReportResponse {
+  google.protobuf.Timestamp decided_at = 1;
+}
+
+message ListPlaceReportsRequest {
+  // Unset is every report kept.
+  google.protobuf.Timestamp since = 1;
+  // Unset is 100; at most 500.
+  uint32 limit = 2;
+  // Only the reports nobody decided yet.
+  bool open_only = 3;
+}
+
+message ListPlaceReportsResponse {
+  repeated PlaceReport reports = 1;
+}
+
+message PlaceReport {
+  string id = 1;
+  // Empty once the reporter's account is deleted, or past the retention.
+  string reporter_account_id = 2;
+  // The name the game shows for the reporter now; empty for an account it can no longer name.
+  string reporter_name = 3;
+  uint32 tile_id = 4;
+  PlaceReportReason reason = 5;
+  string text = 6;
+  google.protobuf.Timestamp created_at = 7;
+  // Unset while the report is open.
+  ReportDecision decision = 8;
+}
+
+message DecidePlaceReportRequest {
+  string report_id = 1;
+  ReportOutcome outcome = 2;
+  // Optional: why, in the operator's words.
+  string comment = 3;
+}
+
+message DecidePlaceReportResponse {
   google.protobuf.Timestamp decided_at = 1;
 }

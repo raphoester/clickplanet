@@ -133,6 +133,9 @@ export function drawsFrame({turned, changed, ambient, at, drawnAt, interactingUn
 
 const CLAIM_MARGIN_MS = 2_000
 
+// Close enough to see a drawing of a few dozen tiles.
+const LINKED_ZOOM = 8
+
 const textureLoader = new THREE.TextureLoader();
 
 export type Shot = {
@@ -165,6 +168,10 @@ export type GlobeOptions = {
     bomber?: Bomber
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
     onArmedChange: (armed: boolean) => void
+    // Whether the next tap picks a tile instead of painting it (setPicking).
+    onPickingChange?: (picking: boolean) => void
+    // The tile the camera opens on, close up: a link to a place.
+    lookingAt?: number
     shielder?: Shielder
     onNotice?: (notice: BonusNotice) => void
     onClickAccepted?: (click: AcceptedClick) => void
@@ -181,6 +188,8 @@ export type Globe = {
     setMapView(view: MapView): void
     takeReward(claimed: ClaimedBonus): void
     setArmed(armed: boolean): void
+    // The next tap on a tile hands it over and paints nothing; Escape, a bomb or undefined calls it off.
+    setPicking(onPicked: ((tile: number) => void) | undefined): void
     setSwitch(name: keyof Switches, on: boolean): void
     setClickHue(hue: number | undefined): void
     capture(): Promise<CapturedFrame>
@@ -217,6 +226,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber,
         onBombDropped,
         onArmedChange,
+        onPickingChange = () => {},
+        lookingAt,
         shielder,
         onNotice = () => {},
         onClickAccepted = () => {},
@@ -246,6 +257,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const graphics = graphicsOf(window.location.search, rendering);
     const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget, graphics);
+    if (lookingAt !== undefined && lookingAt >= 1 && lookingAt * 3 <= geometryData.positions.length) {
+        const at = (lookingAt - 1) * 3
+        const [x, y, z] = [geometryData.positions[at], geometryData.positions[at + 1], geometryData.positions[at + 2]]
+        aim(camera, {direction: {x, y, z}, zoom: LINKED_ZOOM})
+    }
     let mapView: MapView = initialMapView
 
     let dirty = true
@@ -401,6 +417,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let rules: BonusRules | undefined
 
     let armed: {radius: number} | undefined
+    let picking: ((tile: number) => void) | undefined
 
     const hold = new HoldToDrop<THREE.Vector3>({holdSeconds: HOLD_TO_DROP_SECONDS, tolerancePx: HOLD_TOLERANCE_PX})
 
@@ -422,7 +439,22 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onArmedChange(false)
     }
 
+    const stopPicking = () => {
+        if (!picking) return
+        picking = undefined
+        eventTarget.classList.remove("viewer-canvas--picking")
+        onPickingChange(false)
+    }
+
+    const startPicking = (onPicked: (tile: number) => void) => {
+        disarm()
+        picking = onPicked
+        eventTarget.classList.add("viewer-canvas--picking")
+        onPickingChange(true)
+    }
+
     const arm = () => {
+        stopPicking()
         if (armed || !charges.bomb || !bomber || !rules) return
         armed = {radius: rules.blastRadius}
         eventTarget.classList.add("viewer-canvas--armed")
@@ -628,7 +660,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }, listenerOptions);
 
     window.addEventListener('keydown', (event: KeyboardEvent) => {
-        if (event.key === "Escape") disarm()
+        if (event.key !== "Escape") return
+        disarm()
+        stopPicking()
     }, listenerOptions);
 
     eventTarget.addEventListener('pointermove', (event: PointerEvent) => {
@@ -651,6 +685,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (press.dragged) return
 
         const {x, y} = canvasPosition(event)
+
+        if (picking) {
+            const tile = picker.pick(camera, x, y)
+            if (tile === undefined) return
+            const picked = picking
+            stopPicking()
+            picked(tile)
+            return
+        }
 
         if (offered && monotonicNow() >= offered.expiresAt - CLAIM_MARGIN_MS) {
             offered = undefined
@@ -875,6 +918,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         takeReward,
         setArmed: (on: boolean) => on ? arm() : disarm(),
+        setPicking: (onPicked) => onPicked ? startPicking(onPicked) : stopPicking(),
         setSwitch: (name: keyof Switches, on: boolean) => {
             const next = switchesHeld(switched(switches, name, on), charges)
             if (next[name]) disarm()
@@ -891,6 +935,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }),
         graphics: () => graphicsReportOf(renderer.getContext()),
         dispose: () => {
+            stopPicking()
             lifetime.abort()
 
             for (const request of takeCaptureRequests()) {

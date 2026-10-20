@@ -9,6 +9,9 @@ service SupportService {
 
   rpc ReportPlayer(ReportPlayerRequest) returns (ReportPlayerResponse);
 
+  // A drawing on the map, by a tile of it: the operator reads it and may put the area back as it was.
+  rpc ReportPlace(ReportPlaceRequest) returns (ReportPlaceResponse);
+
   rpc GetAttachmentRules(GetAttachmentRulesRequest) returns (GetAttachmentRulesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -99,3 +102,21 @@ message ReportPlayerRequest {
 }
 
 message ReportPlayerResponse {}
+
+enum PlaceReportReason {
+  PLACE_REPORT_REASON_UNSPECIFIED = 0;
+  // A hateful symbol or hateful words.
+  PLACE_REPORT_REASON_HATE = 1;
+  PLACE_REPORT_REASON_SEXUAL = 2;
+  PLACE_REPORT_REASON_OTHER = 3;
+}
+
+message ReportPlaceRequest {
+  // A tile of the drawing, the one the reporter picked.
+  uint32 tile_id = 1;
+  PlaceReportReason reason = 2;
+  // Optional.
+  string text = 3;
+}
+
+message ReportPlaceResponse {}

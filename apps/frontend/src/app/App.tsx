@@ -9,6 +9,7 @@ export default function App(props: AppProps) {
 
         <Viewer
             sharedCountry={props.sharedCountry}
+            lookingAt={props.lookingAt}
             tileClicker={props.tileClicker}
             ownershipsGetter={props.ownershipsGetter}
             updatesListener={props.updatesListener}

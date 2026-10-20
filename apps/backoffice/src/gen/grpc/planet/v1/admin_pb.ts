@@ -8,6 +8,248 @@ import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { ChargesHeld, GetMapResponse, PlanetEvent } from "./planet_pb.js";
 
 /**
+ * @generated from message planet.v1.RestoreAreaRequest
+ */
+export class RestoreAreaRequest extends Message<RestoreAreaRequest> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * The area is every tile within this many tile spacings of the tile, as a bomb's blast is. 1 to 50.
+   *
+   * @generated from field: uint32 rings = 2;
+   */
+  rings = 0;
+
+  /**
+   * Each tile of the area goes back to what it held then. FailedPrecondition past the ledger's retention.
+   *
+   * @generated from field: google.protobuf.Timestamp before = 3;
+   */
+  before?: Timestamp;
+
+  /**
+   * @generated from field: bool dry_run = 4;
+   */
+  dryRun = false;
+
+  constructor(data?: PartialMessage<RestoreAreaRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RestoreAreaRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "rings", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "before", kind: "message", T: Timestamp },
+    { no: 4, name: "dry_run", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RestoreAreaRequest {
+    return new RestoreAreaRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RestoreAreaRequest {
+    return new RestoreAreaRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RestoreAreaRequest {
+    return new RestoreAreaRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RestoreAreaRequest | PlainMessage<RestoreAreaRequest> | undefined, b: RestoreAreaRequest | PlainMessage<RestoreAreaRequest> | undefined): boolean {
+    return proto3.util.equals(RestoreAreaRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.RestoreAreaResponse
+ */
+export class RestoreAreaResponse extends Message<RestoreAreaResponse> {
+  /**
+   * In the area.
+   *
+   * @generated from field: uint32 tiles = 1;
+   */
+  tiles = 0;
+
+  /**
+   * That a restore changes: a tile changed since before and not back to what it held then.
+   *
+   * @generated from field: uint32 changed = 2;
+   */
+  changed = 0;
+
+  /**
+   * That changed: a tile somebody took during the restore stays theirs.
+   *
+   * @generated from field: uint32 restored = 3;
+   */
+  restored = 0;
+
+  /**
+   * Who took tiles of the area since before, most takes first, 50 at most. Tiles and takes count the area alone.
+   *
+   * @generated from field: repeated planet.v1.Player painters = 4;
+   */
+  painters: Player[] = [];
+
+  /**
+   * The oldest before the ledger can rewind to.
+   *
+   * @generated from field: google.protobuf.Timestamp kept_since = 5;
+   */
+  keptSince?: Timestamp;
+
+  /**
+   * @generated from field: uint32 painters_total = 6;
+   */
+  paintersTotal = 0;
+
+  constructor(data?: PartialMessage<RestoreAreaResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RestoreAreaResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "restored", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "painters", kind: "message", T: Player, repeated: true },
+    { no: 5, name: "kept_since", kind: "message", T: Timestamp },
+    { no: 6, name: "painters_total", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RestoreAreaResponse {
+    return new RestoreAreaResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RestoreAreaResponse {
+    return new RestoreAreaResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RestoreAreaResponse {
+    return new RestoreAreaResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RestoreAreaResponse | PlainMessage<RestoreAreaResponse> | undefined, b: RestoreAreaResponse | PlainMessage<RestoreAreaResponse> | undefined): boolean {
+    return proto3.util.equals(RestoreAreaResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.ClearAreaRequest
+ */
+export class ClearAreaRequest extends Message<ClearAreaRequest> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * As RestoreArea's.
+   *
+   * @generated from field: uint32 rings = 2;
+   */
+  rings = 0;
+
+  /**
+   * @generated from field: bool dry_run = 3;
+   */
+  dryRun = false;
+
+  constructor(data?: PartialMessage<ClearAreaRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ClearAreaRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "rings", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "dry_run", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClearAreaRequest {
+    return new ClearAreaRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClearAreaRequest {
+    return new ClearAreaRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClearAreaRequest {
+    return new ClearAreaRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClearAreaRequest | PlainMessage<ClearAreaRequest> | undefined, b: ClearAreaRequest | PlainMessage<ClearAreaRequest> | undefined): boolean {
+    return proto3.util.equals(ClearAreaRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.ClearAreaResponse
+ */
+export class ClearAreaResponse extends Message<ClearAreaResponse> {
+  /**
+   * In the area.
+   *
+   * @generated from field: uint32 tiles = 1;
+   */
+  tiles = 0;
+
+  /**
+   * That a flag holds.
+   *
+   * @generated from field: uint32 owned = 2;
+   */
+  owned = 0;
+
+  /**
+   * That were given to nobody: a tile somebody took during the clear stays theirs.
+   *
+   * @generated from field: uint32 cleared = 3;
+   */
+  cleared = 0;
+
+  constructor(data?: PartialMessage<ClearAreaResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ClearAreaResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "owned", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "cleared", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClearAreaResponse {
+    return new ClearAreaResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ClearAreaResponse {
+    return new ClearAreaResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ClearAreaResponse {
+    return new ClearAreaResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ClearAreaResponse | PlainMessage<ClearAreaResponse> | undefined, b: ClearAreaResponse | PlainMessage<ClearAreaResponse> | undefined): boolean {
+    return proto3.util.equals(ClearAreaResponse, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.GetReplayRequest
  */
 export class GetReplayRequest extends Message<GetReplayRequest> {
