@@ -130,11 +130,15 @@ title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
   the oldest or the newest message shown. A page shorter than asked is the end, and its button goes. The reported
   message shows while they load, marked ("Reported message", `aria-current`), and stays shown if they fail.
   `GetMessage` names no author, so its line takes the name the report gives its account.
-- **The reported account's own messages** (`TheirMessages`, "Messages from Ana"), for every report: a report from a
-  player's card names no message, and a chat abuse is rarely one line. `ListMessages` with the account's id reads
-  them, 20 a page (`THEIR_PAGE`), shown newest first, "Show earlier" for more. Each is struck through once removed,
-  and "Show what was said around it" opens its `Conversation` in place, the message marked "This message", the
-  reporter and the reported tagged. Nothing kept is "Nothing they said in the chat is kept."
+- **What the reported account said, in its conversations** (`TheirMessages`, "What Ana said"), for every report: a
+  report from a player's card names no message, and one line cannot be judged alone. `ListMessages` with the
+  account's id reads its messages, 20 at a time (`THEIR_PAGE`), then `moreConversations` (`theirConversations.ts`)
+  reads the whole chat around each, `AROUND` (5) messages each side, and shows them at once, newest first, three at a
+  time (`CONVERSATIONS`), "Show more conversations" for the next. **One of their messages a conversation already holds
+  gets none of its own, and a conversation that reaches the next one joins it**, so an exchange of three insults is
+  one conversation, read with two calls. Their lines are marked (`line-theirs`) and tagged `reported`, the reporter's
+  `reporter`. Each conversation grows with "Show earlier" and "Show later". Nothing kept is "Nothing they said in the
+  chat is kept."
 - **Each line** has its author's name as the chat names it now, its country and its time (with the date when it
   is not the reported message's day), what it answers ("In reply to …"), and is struck through with when it was
   removed. **What the reporter and the reported account said is tagged** `reporter` and `reported`, by account
@@ -272,7 +276,7 @@ src/
                     Fact, Person, When
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   reports/          Reports: list, detail, the report's own actions, Conversation and TheirMessages over
-                    chatPages.ts (a page of ListMessages, the parties a report names)
+                    chatPages.ts (a page of ListMessages, the parties a report names) and theirConversations.ts
   players/          Players: list, PlayerName, PlayerView, ProfilePanel, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay
   ops/              Reconcile titles
