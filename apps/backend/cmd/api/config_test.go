@@ -47,10 +47,10 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
 	assert.Equal(t, time.Second, config.Planet.LedgerStorage.FlushInterval)
 
-	assert.False(t, config.Planet.AntiBot.ShadowBan.Enforce, "the example must ship observing only")
-	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.ShadowBan.BanDurations)
+	assert.False(t, config.Planet.AntiBot.Bans.Enforce, "the example must ship observing only")
+	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.Bans.BanDurations)
 	assert.Equal(t, "antibot", config.Planet.AntiBot.Database.Schema)
-	assert.Equal(t, 5*time.Minute, config.Planet.AntiBot.ShadowBan.ReflagInterval)
+	assert.Equal(t, 5*time.Minute, config.Planet.AntiBot.Bans.ReflagInterval)
 
 	assert.Equal(t, 2, config.Planet.AntiBot.Jury.MinSuspects)
 	assert.Equal(t, 10*time.Minute, config.Planet.AntiBot.Jury.SuspicionWindow)
@@ -370,7 +370,9 @@ func TestTheExampleConfigReachesTheAttachments(t *testing.T) {
 	assert.Equal(t, "clickplanet-support", attachments.Bucket.Name)
 }
 
-func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T) {
+func productionConfig(t *testing.T) Config {
+	t.Helper()
+
 	const production = "../../../../deploy/vps/backend.yaml"
 	file, err := os.ReadFile(production)
 	require.NoError(t, err)
@@ -384,6 +386,19 @@ func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T)
 
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(production)))
+	return config
+}
+
+func TestTheProductionConfigEnforcesBans(t *testing.T) {
+	config := productionConfig(t)
+
+	assert.True(t, config.Planet.AntiBot.Enabled)
+	assert.True(t, config.Planet.AntiBot.Bans.Enforce, "a key the config does not read leaves bans off without a word")
+	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.Bans.BanDurations)
+}
+
+func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T) {
+	config := productionConfig(t)
 
 	attachments := config.Support.Attachments
 	assert.True(t, attachments.Enabled)

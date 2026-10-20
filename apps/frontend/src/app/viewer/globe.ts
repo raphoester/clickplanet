@@ -17,6 +17,7 @@ import {regions} from "./atlas.ts";
 import {Country} from "../../domain/countries.ts";
 import {MapView, Rendering} from "../../domain/displaySettings.ts";
 import {
+    BannedError,
     BombDrop,
     Bomber,
     GlobePoint,
@@ -155,6 +156,7 @@ export type GlobeOptions = {
     onLoadProgress: (share: number) => void
     onRateLimited: () => void
     onVPNBlocked: () => void
+    onBanned: (until: number) => void
     onSessionUnavailable: () => void
     onBonusTaken: (taken: BonusCatch) => void
     onBonusWon: (reward: BonusReward) => void
@@ -207,6 +209,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onLoadProgress,
         onRateLimited,
         onVPNBlocked,
+        onBanned,
         onSessionUnavailable,
         onBonusTaken,
         onBonusWon,
@@ -488,7 +491,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber.dropBomb({x: point.x, y: point.y, z: point.z}, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
             ownDropAt = undefined
-            reportClaimFailure(e, {onSessionUnavailable})
+            reportClaimFailure(e, {onSessionUnavailable, onBanned})
         })
     }
 
@@ -543,7 +546,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         shielder.placeShield(tile, country.code).catch((e) => {
             if (lifetime.signal.aborted || e instanceof ShieldRefusedError) return
-            reportClaimFailure(e, {onSessionUnavailable})
+            reportClaimFailure(e, {onSessionUnavailable, onBanned})
         })
     }
 
@@ -668,7 +671,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 .then(takeReward)
                 .catch((e) => {
                     if (lifetime.signal.aborted) return
-                    reportClaimFailure(e, {onSessionUnavailable})
+                    reportClaimFailure(e, {onSessionUnavailable, onBanned})
                 })
             return
         }
@@ -734,7 +737,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }, (e) => {
             if (lifetime.signal.aborted) return
             applyChanges(ownership.rollback(claim))
-            if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onSessionUnavailable})) playSound("refused")
+            if (reportClickFailure(e, {onRateLimited, onVPNBlocked, onBanned, onSessionUnavailable})) playSound("refused")
         })
     }, listenerOptions);
 
@@ -1052,10 +1055,11 @@ function prefersReducedMotion(): boolean {
 
 export function reportClaimFailure(
     error: unknown,
-    handlers: {onSessionUnavailable: () => void},
+    handlers: {onSessionUnavailable: () => void, onBanned: (until: number) => void},
 ) {
     if (error instanceof BonusLostError) return
     if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
+    else if (error instanceof BannedError) handlers.onBanned(error.until)
     else console.error(error)
 }
 
@@ -1064,11 +1068,13 @@ export function reportClickFailure(
     handlers: {
         onRateLimited: () => void,
         onVPNBlocked: () => void,
+        onBanned: (until: number) => void,
         onSessionUnavailable: () => void,
     },
 ): boolean {
     if (error instanceof RateLimitedError) handlers.onRateLimited()
     else if (error instanceof VPNBlockedError) handlers.onVPNBlocked()
+    else if (error instanceof BannedError) handlers.onBanned(error.until)
     else if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
     else {
         console.error(error)

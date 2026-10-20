@@ -16,7 +16,7 @@ import (
 )
 
 type ClickGuard interface {
-	Inspect(ctx context.Context, click antibot.Click) (drop bool)
+	Inspect(ctx context.Context, click antibot.Click)
 	Committed(click antibot.Click)
 	Flagged(ctx context.Context) (int, error)
 }
@@ -43,16 +43,9 @@ func New(
 		clock = cptime.SystemClock{}
 	}
 
-	factory := promauto.With(registerer)
-
-	dropped := factory.NewCounter(prometheus.CounterOpts{
-		Name: "shadowbanned_clicks",
-		Help: "Clicks answered OK and dropped without touching the map",
-	})
-
-	factory.NewGaugeFunc(prometheus.GaugeOpts{
-		Name: "shadowban_flagged",
-		Help: "Callers currently banned, whether or not shadowBan.enforce is on",
+	promauto.With(registerer).NewGaugeFunc(prometheus.GaugeOpts{
+		Name: "banned_callers",
+		Help: "Callers currently banned, whether or not bans.enforce is on",
 	}, func() float64 {
 		ctx, cancel := context.WithTimeout(context.Background(), flaggedTimeout)
 		defer cancel()
@@ -70,7 +63,6 @@ func New(
 		owner:          owner,
 		rule:           rule,
 		clock:          clock,
-		dropped:        dropped,
 	}
 }
 
@@ -80,7 +72,6 @@ type UseCase struct {
 	owner          TileOwner
 	rule           Rule
 	clock          cptime.Clock
-	dropped        prometheus.Counter
 }
 
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
@@ -100,11 +91,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		observed.Shielded = outcome == clicks.Shielded
 	}
 
-	if u.guard.Inspect(ctx, observed) {
-		// Answer like an accepted click: a refusal would tell the bot it was caught.
-		u.dropped.Inc()
-		return click_usecase.Out{}, nil
-	}
+	u.guard.Inspect(ctx, observed)
 
 	out, err := u.implementation.Execute(ctx, in)
 

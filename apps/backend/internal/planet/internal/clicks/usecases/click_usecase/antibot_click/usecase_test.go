@@ -19,15 +19,12 @@ import (
 )
 
 type fakeGuard struct {
-	drop bool
-
 	seen      []antibot.Click
 	committed []antibot.Click
 }
 
-func (g *fakeGuard) Inspect(_ context.Context, click antibot.Click) bool {
+func (g *fakeGuard) Inspect(_ context.Context, click antibot.Click) {
 	g.seen = append(g.seen, click)
-	return g.drop
 }
 
 func (g *fakeGuard) Committed(click antibot.Click) {
@@ -98,23 +95,14 @@ func executeOn(
 }
 
 func TestAntiBotClick(t *testing.T) {
-	t.Run("lets an unflagged click through to the map", func(t *testing.T) {
-		guard := &fakeGuard{drop: false}
+	t.Run("judges a click and lets it through to the map", func(t *testing.T) {
+		guard := &fakeGuard{}
 		inner := &fakeClick{}
 
 		require.NoError(t, execute(t, t.Context(), guard, fakeOwner{}, inner))
 		require.True(t, inner.ran)
+		require.Len(t, guard.seen, 1)
 		require.Len(t, guard.committed, 1, "a click the use case accepted reached the map")
-	})
-
-	t.Run("answers a flagged click OK without touching the map", func(t *testing.T) {
-		guard := &fakeGuard{drop: true}
-		inner := &fakeClick{}
-
-		require.NoError(t, execute(t, t.Context(), guard, fakeOwner{}, inner),
-			"a shadow ban must look exactly like success")
-		require.False(t, inner.ran, "the map must not be touched")
-		require.Empty(t, guard.committed, "a dropped click took no tile")
 	})
 
 	t.Run("does not report a click the use case refused", func(t *testing.T) {

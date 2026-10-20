@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -45,17 +45,18 @@ func (w *stubWatchdog) Attempted(detect.Click) { w.attempted++ }
 type harness struct {
 	t       *testing.T
 	jury    *jury.Jury
+	banner  *bans.Book
 	clock   *cptime.FixedClock
 	reports []detect.Report
 	rises   []string
 }
 
-func newHarness(t *testing.T, config jury.Config, ban shadowban.Config, watchdogs ...detect.Watchdog) *harness {
+func newHarness(t *testing.T, config jury.Config, ban bans.Config, watchdogs ...detect.Watchdog) *harness {
 	t.Helper()
 	h := &harness{t: t, clock: cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))}
 
-	banner := shadowban.NewBans(ban, h.clock, shadowban.NewMemoryStore(), shadowban.NewMemoryStore())
-	h.jury = jury.New(config, banner, h.clock, jury.Hooks{
+	h.banner = bans.NewBook(ban, h.clock, bans.NewMemoryStore(), bans.NewMemoryStore())
+	h.jury = jury.New(config, h.banner, h.clock, jury.Hooks{
 		OnFlag: func(report detect.Report) {
 			h.reports = append(h.reports, report)
 		},
@@ -69,9 +70,12 @@ func newHarness(t *testing.T, config jury.Config, ban shadowban.Config, watchdog
 
 func (h *harness) inspect(click detect.Click) bool {
 	h.t.Helper()
-	drop, err := h.jury.Inspect(h.t.Context(), click)
+	require.NoError(h.t, h.jury.Inspect(h.t.Context(), click))
+
+	_, banned, err := h.banner.EnforcedSentence(h.t.Context(),
+		bans.Caller{Scope: click.Scope, Account: click.Account, SignedIn: click.SignedIn})
 	require.NoError(h.t, err)
-	return drop
+	return banned
 }
 
 func (h *harness) flagged() int {
@@ -102,8 +106,8 @@ func juryConfig() jury.Config {
 	}
 }
 
-func banConfig() shadowban.Config {
-	return shadowban.Config{
+func banConfig() bans.Config {
+	return bans.Config{
 		Enforce:        true,
 		BanDurations:   []time.Duration{time.Hour},
 		ReflagInterval: 5 * time.Minute,
@@ -566,17 +570,16 @@ func TestAGuestAccompliceTakesItsScopeWithIt(t *testing.T) {
 		"a guest sheds its account with a new cookie, so its ban falls on its scope too")
 }
 
-func TestABanThatCannotBeReadLetsTheClickThrough(t *testing.T) {
+func TestAFlagThatCannotBeKeptIsReported(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC))
-	store := shadowban.NewMemoryStore()
+	store := bans.NewMemoryStore()
 	cause := errors.New("postgres is down")
 	store.FailWith(cause)
 
-	j := jury.New(juryConfig(), shadowban.NewBans(banConfig(), clock, store, store), clock, jury.Hooks{},
+	j := jury.New(juryConfig(), bans.NewBook(banConfig(), clock, store, store), clock, jury.Hooks{},
 		&stubWatchdog{name: "sure", verdict: detect.Certain})
 
-	drop, err := j.Inspect(t.Context(), detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
+	err := j.Inspect(t.Context(), detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
 
 	require.ErrorIs(t, err, cause)
-	assert.False(t, drop)
 }

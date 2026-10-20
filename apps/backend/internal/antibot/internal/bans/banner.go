@@ -1,4 +1,4 @@
-package shadowban
+package bans
 
 import (
 	"context"
@@ -194,13 +194,12 @@ func (b *Banner) duration(offence int) time.Duration {
 	return ladder[offence-1]
 }
 
-func (b *Banner) Banned(ctx context.Context, scope string) (bool, error) {
+func (b *Banner) EnforcedSentence(ctx context.Context, scope string) (Sentence, bool, error) {
 	if !b.config.Enforce {
-		return false, nil
+		return Sentence{}, false, nil
 	}
 
-	_, running, err := b.Sentence(ctx, scope)
-	return running, err
+	return b.Sentence(ctx, scope)
 }
 
 func (b *Banner) Flagged(ctx context.Context) (int, error) {

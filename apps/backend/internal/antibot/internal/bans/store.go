@@ -1,4 +1,4 @@
-package shadowban
+package bans
 
 import (
 	"context"

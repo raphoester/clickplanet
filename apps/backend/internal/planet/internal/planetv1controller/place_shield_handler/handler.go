@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetban"
 )
 
 type UseCase interface {
@@ -33,6 +34,10 @@ func (h PlaceShieldHandler) PlaceShield(
 		TileID:    req.Msg.GetTileId(),
 		CountryID: req.Msg.GetCountryId(),
 	})
+
+	if refused, banned := planetban.Refusal(err); banned {
+		return nil, refused
+	}
 
 	switch {
 	case err == nil:

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 
 	"github.com/stretchr/testify/assert"
@@ -30,19 +30,15 @@ func (w *fixedWatchdog) Watch(detect.Click) (detect.Verdict, detect.Evidence) {
 
 func (w *fixedWatchdog) Committed(detect.Click) {}
 
-func (stubBanner) Flag(context.Context, shadowban.Caller) (shadowban.Sentence, bool, error) {
-	return shadowban.Sentence{Flags: 1}, true, nil
+func (stubBanner) Flag(context.Context, bans.Caller) (bans.Sentence, bool, error) {
+	return bans.Sentence{Flags: 1}, true, nil
 }
-
-func (stubBanner) Banned(context.Context, shadowban.Caller) (bool, error) { return false, nil }
 
 func (stubBanner) Flagged(context.Context) (int, error) { return 0, nil }
 
-func inspect(t *testing.T, j *Jury, click detect.Click) bool {
+func inspect(t *testing.T, j *Jury, click detect.Click) {
 	t.Helper()
-	drop, err := j.Inspect(t.Context(), click)
-	require.NoError(t, err)
-	return drop
+	require.NoError(t, j.Inspect(t.Context(), click))
 }
 
 func TestSweepForgetsIdleCallers(t *testing.T) {
