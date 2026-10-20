@@ -81,6 +81,23 @@ func TestTheCallerAndItsOpinionsSurviveASaveAndLoad(t *testing.T) {
 	assert.Len(t, report.Tiles, keptTiles)
 }
 
+func TestAReadingOfTurnsStillCountsForNothingAfterARestart(t *testing.T) {
+	clock := cptime.NewFixedClock(time.Date(2026, 10, 19, 18, 0, 0, 0, time.UTC))
+
+	watchdog := &saying{verdict: detect.Suspect, evidence: detect.Evidence{Rule: "rotation", Turns: true}}
+	j := newJury(clock, Hooks{}, watchdog)
+	inspect(t, j, detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
+
+	data, err := j.Save()
+	require.NoError(t, err)
+
+	restarted := newJury(clock, Hooks{}, watchdog)
+	require.NoError(t, restarted.Load(data))
+
+	assert.True(t, restarted.callers["caller"].opinions["saying"].Evidence.Turns)
+	assert.Zero(t, restarted.Examine("caller").Suspects)
+}
+
 func TestForgetDropsSilentCallersAndOldOpinions(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
