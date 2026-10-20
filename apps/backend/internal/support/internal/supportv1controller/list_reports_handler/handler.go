@@ -10,7 +10,7 @@ import (
 )
 
 type Query interface {
-	Reports(ctx context.Context, since time.Time, limit uint32) (*supportv1.ListReportsResponse, error)
+	Reports(ctx context.Context, since time.Time, limit uint32, openOnly bool) (*supportv1.ListReportsResponse, error)
 }
 
 func New(query Query) ListReportsHandler {
@@ -30,7 +30,7 @@ func (h ListReportsHandler) ListReports(
 		since = asked.AsTime()
 	}
 
-	reports, err := h.query.Reports(ctx, since, req.Msg.GetLimit())
+	reports, err := h.query.Reports(ctx, since, req.Msg.GetLimit(), req.Msg.GetOpenOnly())
 	if err != nil {
 		return nil, err //nolint:wrapcheck // the error net answers it.
 	}

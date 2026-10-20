@@ -3,8 +3,10 @@ httpServer:
   # Must stay well under Cloudflare's ~125s idle cut, which answers 524.
   streamHeartbeat: 30s
   startupTimeout: 1m
-  adminBindAddress: 127.0.0.1:8081
+  consoleBindAddress: 127.0.0.1:8081
   internalBindAddress: 127.0.0.1:8082
+  # Behind the admin gate: set, it needs auth.admin.origin.
+  adminBindAddress: ""
   allowedOrigin: http://localhost:5173
 gameMap:
   maxIndex: 262119
@@ -127,7 +129,7 @@ antiBot:
     pool:
       maxOpenConns: 2
 
-  shadowBan:
+  bans:
     enforce: false
     banDurations: [24h, 168h, 26280h]
     reflagInterval: 5m
@@ -306,6 +308,11 @@ chat:
 
 auth:
   enabled: false
+  # The admin page, with auth on: its origin (e.g. http://localhost:5174), its own Google client and callback.
+  admin:
+    origin: ""
+    redirectUrl: http://localhost:5174/auth/callback
+    sessionTTL: 12h
   enforce: false
   secret: ""
   ttl: 1h
@@ -405,3 +412,16 @@ support:
     perSecond: 0.0167
     burst: 3
     sweepInterval: 1m
+  attachments:
+    # Off: a note takes no file and the bucket below is not read. On, any S3-compatible bucket does.
+    enabled: false
+    maxPerNote: 10
+    maxBytes: 52428800
+    uploadTTL: 10m
+    linkTTL: 1h
+    bucket:
+      endpoint: https://ACCOUNT_ID.r2.cloudflarestorage.com
+      region: auto
+      name: clickplanet-support
+      accessKeyId: ""
+      secretAccessKey: ""

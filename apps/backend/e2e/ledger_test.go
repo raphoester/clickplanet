@@ -111,7 +111,7 @@ func TestABombIsOneEventInTheLedgerWithTheFlagEachTileItClearedWore(t *testing.T
 	ada.click(1, "fr")
 
 	grant := connect.NewRequest(&planetv1.GrantChargesRequest{AccountId: ada.account(), Bomb: true})
-	_, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).GrantCharges(t.Context(), grant)
+	_, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, game.consoleURL).GrantCharges(t.Context(), grant)
 	require.NoError(t, err)
 
 	drop := connect.NewRequest(&planetv1.DropBombRequest{Target: pointOf(t, 1), CountryId: "de"})
@@ -151,7 +151,7 @@ func TestAShieldAndTheClickItStoppedAreEventsInTheLedger(t *testing.T) {
 	ada.click(1, "fr")
 
 	grant := connect.NewRequest(&planetv1.GrantChargesRequest{AccountId: ada.account(), Shields: 1})
-	_, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).GrantCharges(t.Context(), grant)
+	_, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, game.consoleURL).GrantCharges(t.Context(), grant)
 	require.NoError(t, err)
 
 	place := connect.NewRequest(&planetv1.PlaceShieldRequest{TileId: 1, CountryId: "fr"})

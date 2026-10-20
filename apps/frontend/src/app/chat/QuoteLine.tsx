@@ -4,6 +4,8 @@ import {truncate} from "../truncate.ts";
 
 export const QUOTE_MAX_LENGTH = 100
 
+export const REMOVED_TEXT = "This message has been deleted"
+
 const QUOTE_AUTHOR_MAX_LENGTH = 16
 
 export default function QuoteLine({quote, lead}: {quote: ChatQuote, lead: string}) {
@@ -13,6 +15,8 @@ export default function QuoteLine({quote, lead}: {quote: ChatQuote, lead: string
         {" "}
         <span className="chat-quote-author">{truncate(quote.authorName, QUOTE_AUTHOR_MAX_LENGTH)}</span>
         {" "}
-        <span className="chat-quote-text">{truncate(quote.text, QUOTE_MAX_LENGTH)}</span>
+        {quote.removed
+            ? <span className="chat-quote-text chat-removed">{REMOVED_TEXT}</span>
+            : <span className="chat-quote-text">{truncate(quote.text, QUOTE_MAX_LENGTH)}</span>}
     </>
 }

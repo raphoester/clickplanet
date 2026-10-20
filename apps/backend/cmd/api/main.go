@@ -47,10 +47,16 @@ func run(ctx context.Context) error {
 	}))
 	logger.Debug("config", slog.Any("config", config))
 
+	gate, err := auth.NewAdminGate(config.Auth.Admin, config.HTTPServer.InternalBindAddress, logger)
+	if err != nil {
+		return fmt.Errorf("failed to build the admin gate: %w", err)
+	}
+
 	return cpbootstrap.Run(ctx, cpbootstrap.Options{
-		Server:  config.HTTPServer,
-		Logger:  logger,
-		Modules: describeModules(config),
+		Server:    config.HTTPServer,
+		Logger:    logger,
+		Modules:   describeModules(config),
+		AdminGate: gate,
 	})
 }
 

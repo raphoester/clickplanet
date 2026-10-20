@@ -11,6 +11,7 @@ managed add-ons were, and none of them are needed. Target cost is **~$6/month**.
 | TLS | Caddy, automatic Let's Encrypt over DNS-01 | free |
 | Images | GitHub Container Registry | free |
 | DNS | Cloudflare | free |
+| Photos and videos on a note | Cloudflare R2 (see [11](#11-photos-and-videos-on-a-note)) | free up to 10 GB |
 
 Prices are from late 2025 — check before you commit.
 
@@ -469,13 +470,13 @@ Each returns `certain` or `suspect`. **`certain` bans on its own; `suspect` is a
 reading that would ban real players if it were trusted alone**, and counts only
 alongside a second watchdog. `jury.minSuspects` (2) is how many it takes.
 
-A flagged caller's clicks are answered `OK` and dropped. That is deliberately not
-a refusal — a 403 names the check that tripped, and a silent no-op names nothing,
-so working around it is guesswork instead of a diff. It is not permanent: the
-caller reads the map back over the same stream and will notice eventually.
+A banned caller's clicks, bombs and shields are refused with a 403 that says when
+the ban ends, and the game shows it with a link to the rules. No reason goes out.
+Until 2026-10-20 they were answered `OK` and dropped (a shadow ban), and most of
+the people banned by mistake took it for a bug.
 
-`backend.yaml` now runs with `shadowBan.enforce: true`. It spent 2026-09-11 in
-observe mode (`enforce: false`, which judges and logs without dropping anything)
+`backend.yaml` now runs with `bans.enforce: true`. It spent 2026-09-11 in
+observe mode (`enforce: false`, which judges and logs without refusing anything)
 and the bounds below were set from what that pass recorded — see "What the
 measuring pass found". **Anything you widen here, widen back in observe mode
 first.**
@@ -605,16 +606,16 @@ interceptor, so this number partly measures the limiter. That is tolerable at
 `certainClicks: 900` are the ones that ban alone here, and the claim they rest on
 is the absence of any pause past `maxGap`, not the spread.
 
-Then `shadowBan.enforce: true` and redeploy.
+Then `bans.enforce: true` and redeploy.
 
-`shadowban_flagged` is how many callers are inside a ban and **counts while
+`banned_callers` is how many callers are inside a ban and **counts while
 `enforce` is false too** — a non-zero gauge in observe mode means the rules are
-biting, not that anything was dropped. `shadowbanned_clicks` is the one that
+biting, not that anything was refused. `banned_clicks` is the one that
 stays at 0 until you enforce.
 
-`shadowban_flags` counts flags rather than callers, **labelled by watchdog**, so
-the two read together: `shadowban_flags{watchdog="sequencer"} 40` against
-`shadowban_flagged 2` is two callers flagged twenty times each, which is a very
+`ban_flags` counts flags rather than callers, **labelled by watchdog**, so
+the two read together: `ban_flags{watchdog="sequencer"} 40` against
+`banned_callers 2` is two callers flagged twenty times each, which is a very
 different picture from forty callers caught once. The labels also tell you which
 watchdog is earning its keep before you enforce. All of them are readable with
 the `wget` line above.
@@ -637,7 +638,7 @@ docker compose exec backend wget -qO- localhost:8080/metrics | grep antibot_opin
 
 **Levels are cumulative**: `suspect` includes every `certain`, so
 `suspect − certain` is the near misses. `antibot_opinions_total{watchdog="sequencer",level="suspect"} 30`
-with `shadowban_flags` still at 0 is thirty suspicions nobody corroborated — look
+with `ban_flags` still at 0 is thirty suspicions nobody corroborated — look
 at what the other watchdogs were reading on the same callers before loosening
 `jury.minSuspects`. The poller keeps both.
 
@@ -685,8 +686,10 @@ if `/var/log/journal` does not exist the journal is memory-only and this buys
 nothing.
 
 **`cp-metrics-poller` scrapes `/metrics` every `POLL_INTERVAL` seconds** and
-appends the shadowban and click series to the `metrics_history` volume, one
-file per UTC day, pruned after `POLL_RETENTION_DAYS`:
+appends the ban and click series to the `metrics_history` volume, one
+file per UTC day, pruned after `POLL_RETENTION_DAYS`. Before 2026-10-20 the ban
+series were named `shadowban_flagged`, `shadowban_flags` and `shadowbanned_clicks`
+(now `banned_callers`, `ban_flags` and `banned_clicks`):
 
 ```bash
 docker compose exec -T metrics-poller ls /history
@@ -973,12 +976,84 @@ rm -f ~/backups/tiles-*.tar.gz
 
 ## 10. Operator tools
 
-`httpServer.adminBindAddress` serves the backend's operator services
-(`planet.v1.AdminService`, `player.v1.AdminService`, `chat.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
+`httpServer.consoleBindAddress` serves the backend's operator services
+(`planet.v1.AdminService`, `player.v1.AdminService`, `chat.v1.AdminService`, `support.v1.AdminService`) on `127.0.0.1:8081`, inside the container. They are
 not behind Caddy and have **no authentication**: loopback is their whole
 protection, so a non-loopback address refuses the boot. Reach them from the box
 with `docker compose exec`. They are ordinary Connect RPCs, so a request is a
 JSON POST to `/<package>.<Service>/<Method>`.
+
+This is the **console listener**. The same services are also served on the
+**admin listener**, for the admin page: see below. The console stays: scripts on
+the box call it with no session, and the clips job reads its replays there.
+
+### The admin listener (the admin page)
+
+```
+backoffice.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* → Caddy → backend:8083 → the admin gate → the admin service
+```
+
+- **Two apps, two sessions, one account base.** An operator is a game account
+  flagged `operator`. The admin page has a sign-in of its own: Google only, with
+  its own Google client, and it opens an admin session, `cp_admin`. That session
+  lasts 12 hours, is never extended, and is `SameSite=Strict`, host-only on
+  `api.clickplanet.lol`. The game's `cp_sid` never opens the admin page. Signing
+  out of one leaves the other open.
+- **Only an operator gets an admin session.** The Google account must be one the
+  game account already signed in with: the sign-in finds the account by that
+  identity. It never makes an account, never links one, and never joins by email.
+  Anybody else is refused at sign-in (`permission_denied`).
+- **Only the admin page may call** (`auth.admin.origin`, from `ADMIN_ORIGIN` in
+  `env.public`). A call from any other origin, or with none, is
+  `permission_denied` before anything is read. A script on the box uses the
+  console listener above.
+- **Then the gate asks auth who calls**, except for the sign-in calls (start,
+  complete, sign out): a live admin session of an account still flagged
+  `operator`. Unsetting the flag ends a session already open. No admin session is
+  `unauthenticated`; anybody else is `permission_denied`. Each refusal is logged:
+  `journalctl CONTAINER_NAME=cp-backend | grep "admin call refused"`.
+- **Every call that passes is logged** with its operator's account id, what it
+  asked and how it ended, reads included:
+  `journalctl CONTAINER_NAME=cp-backend | grep "admin call"`. The audit lines
+  (`admin ban`, `admin chat mute`, …) say what the call did.
+- The port is on the Docker network only, never published.
+- The page is `apps/backoffice`, a Cloudflare Worker of its own (`clickplanet-backoffice`).
+  It asks `auth.v1.AdminService/WhoAmI` first, so a refused page says why:
+  not signed in, or not an operator.
+- **Every tool in this section is on the page too**, in its burger menu:
+  Players (find, ban, unban, revert, inspect, mute, grant charges), the Map
+  pages (reassign, paint, replay) and the Ops pages (titles, names). Each asks before it changes anything, and a revert, a
+  reassign and a paint run their dry run first. The commands below stay for
+  scripts on the box.
+
+### The admin Google client
+
+The admin page signs in with a Google OAuth client of its own, "ClickPlanet admin",
+in the same Google Cloud project as the game's. Its redirect URI is
+`https://backoffice.clickplanet.lol/auth/callback`. Its client id is in `backend.yaml`
+(`auth.admin.google.clientId`), and its secret is the repository secret
+`ADMIN_GOOGLE_CLIENT_SECRET`. **Without that secret the backend refuses to boot**:
+an admin page with an origin needs its Google client whole.
+
+### Make an account an operator
+
+On clickplanet.lol, sign in or link with **the Google account you will use on the
+admin page**. Then find your account id: it is `accountId` in the answer of
+`GetMe`, in the network tab, or by your username:
+
+```bash
+docker compose exec postgres psql -U clickplanet -c \
+  "SELECT account_id, name FROM player.profiles WHERE name = 'YourUsername'"
+docker compose exec postgres psql -U clickplanet -c \
+  "UPDATE auth.accounts SET operator = true WHERE id = '<account_id>'"
+```
+
+Then sign in on backoffice.clickplanet.lol with that Google account.
+
+Two steps, for the reason the crown has two (see the player module's admin flag):
+a name can change hands, an id cannot. `operator = false` takes it back, and
+ends any admin session at once. The flag is not the chat crown:
+`player.profiles.admin` stays a display flag.
 
 ### Give one country's tiles to another
 
@@ -1030,20 +1105,6 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
   kept keeps the date it was first earned. A failed run is simply run again.
 - It reads 500 players at a time and asks auth about each page at once.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin title reconciliation"`.
-
-### Name the signed-in players who have no username
-
-Gives a generated username to every signed-in account that took a tile or
-sent a message and has none. Run it **once after the deploy that brought
-generated names**: an account signing in since then is named at once.
-
-```bash
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/player.v1.AdminService/NameAccounts
-```
-
-- The answer is `{"named":N}`. `{}` means nobody was named.
-- **Running it twice is harmless**: a name, chosen or given, is never replaced.
-- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin account naming"`.
 
 ### Paint random tiles of a country with a flag
 
@@ -1151,8 +1212,8 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 Ban the scope when the player is on a guest account: a guest drops its account
 with a new cookie.
 
-`"enforced":false` in the answer means `antiBot.shadowBan.enforce` is off: the
-ban is kept but drops nothing. To lift a ban, see [Unban a player](#unban-a-player).
+`"enforced":false` in the answer means `antiBot.bans.enforce` is off: the
+ban is kept but refuses nothing. To lift a ban, see [Unban a player](#unban-a-player).
 
 Then revert, dry run first:
 
@@ -1190,7 +1251,7 @@ docker exec cp-backend wget -qO- --header 'Content-Type: application/json' --pos
 - **Fix the rule first.** The unban does not change what the watchdogs hold. If
   a rule still reads the player `certain`, the jury bans it again on its next
   click, at the earliest 5 minutes after the last ban
-  (`antiBot.shadowBan.reflagInterval`).
+  (`antiBot.bans.reflagInterval`).
   [`InspectPlayer`](#see-how-close-the-antibot-is-to-one-player) shows which
   rule it was. Change the rule and deploy, then unban.
 - **The ban's offence is forgotten**: the next ban takes the same step of the
@@ -1274,7 +1335,7 @@ docker compose exec postgres psql -U clickplanet -c "delete from chat.mutes wher
 
 ### Read what players sent
 
-A player sends a suggestion or a bug report from the More menu. Read the newest 100:
+A player sends a suggestion or a bug report from Feedback, in Settings. Read the newest 100:
 
 ```bash
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/support.v1.AdminService/ListNotes
@@ -1298,7 +1359,19 @@ docker compose exec postgres psql -U clickplanet -c "select coalesce(p.name, 'gu
 - A note loses its account after 90 days (`support.retention`), and at once
   when its account is deleted. The text stays, and `accountId` is then empty:
   nothing says who sent it. The note keeps its `context` and `userAgent`.
-- One address sends three, then one a minute (`support.rateLimiter`).
+- One address sends three, then one a minute (`support.rateLimiter`), and ten
+  suggestions and bug reports a day, as does one account (`support.noteLimiter`).
+- A note lists its `attachments`: each has a `contentType`, a `sizeBytes` and a
+  `url`. **Open the `url` in a browser**: it is good for one hour
+  (`support.attachments.linkTTL`), so run the command again for a fresh one.
+  Every file a note lists was in the bucket when the note was kept. To print
+  the links alone:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"kind":"NOTE_KIND_BUG"}' http://127.0.0.1:8081/support.v1.AdminService/ListNotes | jq -r '.notes[] | select(.attachments) | .text, (.attachments[] | "  \(.contentType) \(.url)")'
+```
+
+- A note keeps its files when it loses its account, as it keeps its text.
 
 ### Read the reports of players
 
@@ -1309,7 +1382,8 @@ and the chat message. **A report does nothing by itself.** Read the newest 100:
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{}' http://127.0.0.1:8081/support.v1.AdminService/ListReports
 ```
 
-- `since` and `limit` work as for the notes.
+- `since` and `limit` work as for the notes. `{"openOnly":true}` leaves out the
+  reports already decided.
 - Each report names two accounts, with the name the game shows for each now:
   `reporterAccountId` and `reportedAccountId`. A name is empty when the account
   can no longer be named.
@@ -1317,17 +1391,124 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
   `REPORT_REASON_BAD_NAME` or `REPORT_REASON_OTHER`.
 - **To act**, give `reportedAccountId` to the tools above: `InspectPlayer` and
   `BanPlayer` for a cheater, `Mute` for the chat.
-- A report from a chat message has its `messageId`. To read the message:
+- A report from a chat message has its `messageId`. To read the message, removed
+  or not:
 
 ```bash
-docker compose exec postgres psql -U clickplanet -c "select sent_at, text from chat.messages where id = '<message_id>'"
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"messageId":"<message_id>"}' http://127.0.0.1:8081/chat.v1.AdminService/GetMessage
 ```
+
+- To remove it for everyone, at once. It stays in its place and reads "This
+  message has been deleted", in the chat and in every quote; nobody can react to
+  it or answer it. The row stays, as evidence, until the retention:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"messageId":"<message_id>"}' http://127.0.0.1:8081/chat.v1.AdminService/RemoveMessage
+```
+
+- Then close the report: `REPORT_OUTCOME_ACTED` when you acted, or
+  `REPORT_OUTCOME_DISMISSED`. The comment is optional. A second decision
+  replaces the first:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"reportId":"<report_id>","outcome":"REPORT_OUTCOME_ACTED","comment":"removed the message"}' http://127.0.0.1:8081/support.v1.AdminService/DecideReport
+```
+
+- Every removal and every decision is logged:
+  `journalctl CONTAINER_NAME=cp-backend | grep -E "admin chat message removal|admin report decision"`.
 
 - One account reports one player once a day (UTC). Many reports of one player
   are many accounts, or many days.
 - A guest account is free to make. Do not count reports: read them.
 - A report is deleted after 90 days, and at once when the reporter or the
   player reported is deleted.
+
+## 11. Photos and videos on a note
+
+On in `backend.yaml` (`support.attachments.enabled: true`). A player adds up
+to 10 photos or videos to a suggestion or a bug report. They are not kept on
+the droplet: its disk is 25 GB, and you read notes on a loopback listener, where
+no browser can open a video. The page sends each file straight to an S3 bucket,
+on a link the backend signs, then sends the note naming them. The backend reads
+each file back from the bucket before it keeps the note, and `ListNotes` gives
+you a link to each.
+
+`backend.yaml` names a Cloudflare R2 bucket: R2 is free up to 10 GB, has no
+charge for downloads, and is on the account that already serves the site. **Any
+S3-compatible bucket works**: for DigitalOcean Spaces ($5 a month for 250 GB),
+change `endpoint` to `https://<region>.digitaloceanspaces.com` and `region` to
+`us-east-1`, and do steps 2 and 3 in its control panel.
+
+1. Turn R2 on for the account in the dashboard (**R2 object storage**), then
+   make the bucket. **Done on 2026-10-14**, in Western Europe:
+
+   ```bash
+   npx wrangler r2 bucket create clickplanet-support
+   ```
+
+2. Let the site upload to it. Without this rule the browser blocks every
+   upload. **Done on 2026-10-14** too:
+
+   ```bash
+   printf '%s' '{"rules":[{"allowed":{"origins":["https://clickplanet.lol"],"methods":["PUT"],"headers":["content-type"]},"maxAgeSeconds":3600}]}' > /tmp/cors.json && npx wrangler r2 bucket cors set clickplanet-support --file /tmp/cors.json
+   ```
+
+3. In the dashboard, **R2 object storage → Manage API tokens → Create**: an
+   **Object Read & Write** token for the `clickplanet-support` bucket alone. It
+   shows an **Access Key ID** and a **Secret Access Key**, once.
+4. Put the secret in the Actions secrets. `backend.yaml` already names it
+   (`env://SUPPORT_BUCKET_SECRET`):
+
+   ```bash
+   read -rsp 'Secret Access Key: ' s && echo && printf '%s' "$s" | gh secret set SUPPORT_BUCKET_SECRET --repo raphoester/clickplanet && unset s
+   ```
+
+5. In `backend.yaml`, write the Access Key ID in
+   `support.attachments.bucket.accessKeyId` (it is in every link the page gets,
+   so it is not a secret), set `support.attachments.enabled: true`, and deploy.
+   **An empty key or secret refuses the boot, and the deploy does not check the
+   boot**: set the secret before the deploy, or the backend restarts in a loop.
+   With a new token, change both, then deploy. **Done on 2026-10-18.**
+
+To check it: the boot logs `support built ... attachments=true`, the Feedback
+form in Settings shows **Add photos or videos**, and a picture sent from it
+shows under its note in the backoffice.
+
+- **The backoffice loads each file straight from the bucket**, so its
+  Content-Security-Policy (`apps/backoffice/public/_headers`) names the
+  bucket's host in `img-src` and `media-src`. **With another bucket, change it
+  there too**, or the backoffice shows none of the files.
+
+- **A link is only good for the file it was signed for**: its type and its
+  exact size. A player cannot use one to upload something else or something
+  bigger than `support.attachments.maxBytes` (50 MiB).
+- **This was tested on an S3 server, not on R2 itself.** If every upload
+  answers 403, compare `region` and the key with the token.
+- **The bucket holds 9 GiB at most** (`support.attachments.maxStoredBytes`),
+  under R2's free 10 GB, so storage costs nothing. A file is counted from the
+  moment its link is signed. Past it, the Feedback form shows no picker, and an
+  upload is refused. To see what it holds:
+
+  ```bash
+  docker compose exec postgres psql -U clickplanet -c "select count(*), pg_size_pretty(sum(size_bytes)) from support.uploads"
+  ```
+
+- **Nothing deletes a file a note names**, not even when its note loses its
+  account. Once those fill the 9 GiB, players can attach no more until you
+  delete some or raise the cap (each GB past 10 costs $0.015 a month).
+- **A file no note names is deleted after a day**
+  (`support.attachments.keepUnsent`): a player who closed the form, or whose
+  note was refused. Its room is free again.
+- **One account and one address upload 100 files a day**
+  (`support.uploadLimiter`), and send 10 notes a day.
+- **The request fees are the one cost the app cannot cap**: R2 charges each
+  write past a million a month ($4.50 a million), and an upload link works for
+  10 minutes. Cloudflare has no spending limit on R2, so look at the bucket's
+  operations in the dashboard if the bill moves.
+- **Switch it off only once no note carries a file**: with no bucket,
+  `ListNotes` fails on a note that does.
+- The privacy page says Cloudflare stores these files. With another provider,
+  change that line.
 
 ## Rollback
 

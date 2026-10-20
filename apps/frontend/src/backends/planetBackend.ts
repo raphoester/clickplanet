@@ -2,6 +2,7 @@ import {
     AllegianceLockedError,
     AllegianceSource,
     BankFullError,
+    BannedError,
     BombDrop,
     Bomber,
     BonusCatch,
@@ -31,6 +32,7 @@ import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
 import {Allegiance} from "../domain/allegiance.ts";
 import {
     Allegiance as AllegianceMessage,
+    BanRefusal,
     BonusKind,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
@@ -804,9 +806,15 @@ export function asBonusError(e: unknown): unknown {
     if (e instanceof ConnectError) {
         if (e.code === Code.NotFound || e.code === Code.Unimplemented) return new BonusLostError({cause: e})
         if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})
+        if (e.code === Code.PermissionDenied) return bannedOf(e) ?? e
     }
 
     return e
+}
+
+function bannedOf(e: ConnectError): BannedError | undefined {
+    const refusal = e.findDetails(BanRefusal)[0]
+    return refusal && new BannedError(Number(refusal.bannedUntilUnixMs), {cause: e})
 }
 
 export function asShieldError(e: unknown): unknown {
@@ -865,7 +873,7 @@ export function asClickError(e: unknown): unknown {
 
     if (e instanceof ConnectError) {
         if (e.code === Code.ResourceExhausted) return new RateLimitedError({cause: e})
-        if (e.code === Code.PermissionDenied) return new VPNBlockedError({cause: e})
+        if (e.code === Code.PermissionDenied) return bannedOf(e) ?? new VPNBlockedError({cause: e})
         if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})
     }
 

@@ -12,12 +12,15 @@ import (
 const (
 	seasonMaxAge    = 60
 	standingsMaxAge = 15
+	// The race changes once a minute, with the snapshot.
+	raceMaxAge = 10
 )
 
 func NewCacheInterceptor() connect.Interceptor {
 	maxAge := map[string]int{
 		seasonsv1connect.SeasonServiceGetSeasonProcedure:    seasonMaxAge,
 		seasonsv1connect.SeasonServiceGetStandingsProcedure: standingsMaxAge,
+		seasonsv1connect.SeasonServiceGetRaceProcedure:      raceMaxAge,
 	}
 
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {

@@ -89,6 +89,22 @@ func TestSinkFramesAnAnnouncement(t *testing.T) {
 	assert.JSONEq(t, `{"country":"fr"}`, announcement.GetPayload())
 }
 
+func TestSinkFramesARemoval(t *testing.T) {
+	stream := &recorder{}
+
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Update: feed.MessageRemoved("message-1"),
+	})
+
+	require.NoError(t, err)
+	require.Len(t, stream.sent, 1)
+
+	removed := stream.sent[0].GetMessageRemoved()
+	require.NotNil(t, removed, "a removal travels as the message_removed case")
+	assert.Nil(t, stream.sent[0].GetMessage())
+	assert.Equal(t, "message-1", removed.GetMessageId())
+}
+
 func TestSinkFramesAHeartbeat(t *testing.T) {
 	stream := &recorder{}
 

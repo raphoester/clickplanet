@@ -3,6 +3,7 @@ package antibot_place_shield
 import (
 	"context"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -13,7 +14,7 @@ type UseCase interface {
 }
 
 type Bans interface {
-	Banned(ctx context.Context, scope, account string) bool
+	EnforcedSentence(ctx context.Context, scope, account string) (antibot.Sentence, bool)
 }
 
 func New(implementation UseCase, bans Bans) *Decorator {
@@ -25,10 +26,11 @@ type Decorator struct {
 	bans           Bans
 }
 
-// Still spends the shield: one left in hand would tell a banned caller it was refused.
 func (d *Decorator) Execute(ctx context.Context, in place_shield_usecase.In) (bonuses.Held, error) {
 	payer := clicks.PayerOf(ctx)
-	in.Dud = d.bans.Banned(ctx, payer.Scope, payer.Account)
+	if sentence, banned := d.bans.EnforcedSentence(ctx, payer.Scope, payer.Account); banned {
+		return bonuses.Held{}, clicks.NewBanRefusal(sentence.Until)
+	}
 
-	return d.implementation.Execute(ctx, in) //nolint:wrapcheck // a decorator adds a flag, not a sentence.
+	return d.implementation.Execute(ctx, in) //nolint:wrapcheck // a decorator adds a gate, not a sentence.
 }

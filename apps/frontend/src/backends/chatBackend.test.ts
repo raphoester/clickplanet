@@ -1,11 +1,20 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
-import {announcementOf, ChatServiceBackend, decodedAnnouncement, decodedMessage, messageOf, reactionsOf} from "./chatBackend.ts"
+import {
+    announcementOf,
+    ChatServiceBackend,
+    decodedAnnouncement,
+    decodedMessage,
+    messageOf,
+    reactionsOf,
+    removedOf,
+} from "./chatBackend.ts"
 import {Code, ConnectError, PromiseClient} from "@connectrpc/connect"
 import {
     Announcement,
     ChatEvent,
     ChatMessage as ChatMessagePb,
     Heartbeat,
+    MessageRemoved,
     MuteRefusal,
     Quote,
     Reaction,
@@ -86,7 +95,17 @@ describe("decodedMessage", () => {
             text: "hello",
             reactions: [{reaction: Reaction.CLOWN, count: 2, mine: true, reactors: ["Ana", "Bo"]}],
             reactionsVersion: 3,
+            removed: false,
         })
+    })
+
+    it("says when an operator removed it, and when a quote is of a removed message", () => {
+        const removed = proto()
+        removed.removed = true
+        removed.replyTo = new Quote({messageId: "message-0", authorName: "Bo", removed: true})
+
+        expect(decodedMessage(removed).removed).toBe(true)
+        expect(decodedMessage(removed).replyTo?.removed).toBe(true)
     })
 
     it("carries the message a reply quotes, and none for a plain message", () => {
@@ -98,6 +117,7 @@ describe("decodedMessage", () => {
             authorName: "Bo",
             authorColor: NameColor.PINK,
             text: "who holds the north",
+            removed: false,
         })
         expect(decodedMessage(proto()).replyTo).toBeUndefined()
     })
@@ -122,6 +142,15 @@ describe("reactionsOf", () => {
             version: 8,
         })
         expect(reactionsOf(new ChatEvent({event: {case: "message", value: proto()}}))).toBeUndefined()
+    })
+})
+
+describe("removedOf", () => {
+    it("unwraps a removal, and nothing else", () => {
+        const event = new ChatEvent({event: {case: "messageRemoved", value: new MessageRemoved({messageId: "message-1"})}})
+
+        expect(removedOf(event)).toBe("message-1")
+        expect(removedOf(new ChatEvent({event: {case: "message", value: proto()}}))).toBeUndefined()
     })
 })
 

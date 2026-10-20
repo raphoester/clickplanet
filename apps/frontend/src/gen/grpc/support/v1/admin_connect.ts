@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
+import { DecideReportRequest, DecideReportResponse, ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Unauthenticated: serve only on the loopback admin listener, never the public router.
+ * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
  *
  * @generated from service support.v1.AdminService
  */
@@ -30,6 +30,17 @@ export const AdminService = {
       name: "ListReports",
       I: ListReportsRequest,
       O: ListReportsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
+     *
+     * @generated from rpc support.v1.AdminService.DecideReport
+     */
+    decideReport: {
+      name: "DecideReport",
+      I: DecideReportRequest,
+      O: DecideReportResponse,
       kind: MethodKind.Unary,
     },
   }

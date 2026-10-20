@@ -47,22 +47,3 @@ func (g GeneratedNames) Assign(ctx context.Context, account AccountID, at time.T
 	}
 	return ErrNoFreeName
 }
-
-func NamelessLinked(page []Stats, known map[AccountID]Account, named map[AccountID]Name) []AccountID {
-	var nameless []AccountID
-	for _, stats := range page {
-		_, hasName := named[stats.account]
-		if known[stats.account].linked && !hasName {
-			nameless = append(nameless, stats.account)
-		}
-	}
-	return nameless
-}
-
-func AccountsOf(page []Stats) []AccountID {
-	accounts := make([]AccountID, len(page))
-	for i, stats := range page {
-		accounts[i] = stats.account
-	}
-	return accounts
-}

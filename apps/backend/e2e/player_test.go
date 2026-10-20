@@ -35,21 +35,31 @@ import (
 const mapTiles = 262119
 
 type gameStack struct {
-	baseURL  string
-	adminURL string
-	fakes    auth.FakeProviders
-	postgres *cppg.TestServer
+	baseURL    string
+	consoleURL string
+	adminURL   string
+	fakes      auth.FakeProviders
+	postgres   *cppg.TestServer
 }
+
+const adminOrigin = "https://backoffice.clickplanet.lol"
 
 func startGame(t *testing.T) gameStack {
 	t.Helper()
 
+	return startGameWith(t, func(*support.Config) {})
+}
+
+func startGameWith(t *testing.T, adjust func(*support.Config)) gameStack {
+	t.Helper()
+
 	postgres := cppg.StartTestServer(t)
 	secret, _ := cpsession.TestKeyPair()
-	public, internal, admin := listen(t), listen(t), listen(t)
+	public, internal, console, admin := listen(t), listen(t), listen(t), listen(t)
 	server := cpbootstrap.ServerConfig{
 		BindAddress:         public.Addr().String(),
 		InternalBindAddress: internal.Addr().String(),
+		ConsoleBindAddress:  console.Addr().String(),
 		AdminBindAddress:    admin.Addr().String(),
 	}
 
@@ -76,21 +86,34 @@ func startGame(t *testing.T) gameStack {
 	chatConfig.RateLimiter.PerSecond = 100
 	chatConfig.RateLimiter.Burst = 100
 
+	bucket := startBucket(t)
 	supportConfig := support.Config{Database: postgres.ConfigFor("support")}
+	supportConfig.Attachments.Enabled = true
+	supportConfig.Attachments.Bucket.Endpoint = bucket.url
+	supportConfig.Attachments.Bucket.Region = "auto"
+	supportConfig.Attachments.Bucket.Name = "support"
+	supportConfig.Attachments.Bucket.AccessKeyID = "the-key-id"
+	supportConfig.Attachments.Bucket.SecretAccessKey = "the-secret-key"
+	adjust(&supportConfig)
 
 	authModule, fakes := auth.NewModuleWithFakeProviders(authConfig)
+
+	logger := slog.New(slog.DiscardHandler)
+	gate, err := auth.NewAdminGate(auth.AdminConfig{Origin: adminOrigin}, server.InternalBindAddress, logger)
+	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
 	go func() {
 		done <- cpbootstrap.RunOn(ctx, cpbootstrap.Options{
 			Server: server,
-			Logger: slog.New(slog.DiscardHandler),
+			Logger: logger,
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
 				seasons.NewModule(seasonsConfig), support.NewModule(supportConfig),
 			},
-		}, public, internal, admin)
+			AdminGate: gate,
+		}, public, internal, console, admin)
 	}()
 	t.Cleanup(func() {
 		cancel()
@@ -100,7 +123,11 @@ func startGame(t *testing.T) gameStack {
 	waitUntilServed(t, server.BindAddress)
 
 	return gameStack{
-		baseURL: "http://" + server.BindAddress, adminURL: "http://" + server.AdminBindAddress, fakes: fakes, postgres: postgres,
+		baseURL:    "http://" + server.BindAddress,
+		consoleURL: "http://" + server.ConsoleBindAddress,
+		adminURL:   "http://" + server.AdminBindAddress,
+		fakes:      fakes,
+		postgres:   postgres,
 	}
 }
 
@@ -109,6 +136,8 @@ type gamer struct {
 	stack  gameStack
 	cookie string
 	token  string
+
+	adminCookie string
 }
 
 func (s gameStack) newPlayer(t *testing.T) *gamer {
@@ -465,7 +494,7 @@ func TestAnOperatorReconcilesTheTitlesOnTheAdminListenerOnly(t *testing.T) {
 	_, err = playerv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).ReconcileTitles(t.Context(), request)
 	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "the public router does not serve it")
 
-	admin := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL)
+	admin := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.consoleURL)
 	first, err := admin.ReconcileTitles(t.Context(), request)
 	require.NoError(t, err)
 	assert.Zero(t, first.Msg.GetRevoked(), "the worker granted the guest nothing, and the player only what it earns")
@@ -474,6 +503,59 @@ func TestAnOperatorReconcilesTheTitlesOnTheAdminListenerOnly(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, second.Msg.GetGranted())
 	assert.Zero(t, second.Msg.GetRevoked())
+}
+
+func TestAnOperatorReadsWhoPlayersAreAndAGuestsProfileOnTheAdminListenerOnly(t *testing.T) {
+	game := startGame(t)
+	before := time.Now().Add(-time.Second)
+	ada := game.newPlayer(t)
+	ada.link("google-ada")
+	_, err := ada.setName("Ada_L")
+	require.NoError(t, err)
+	guest := game.newPlayer(t)
+	require.NoError(t, guest.announce("de"))
+	for tile, country := range []string{"fr", "it", "es", "pt"} {
+		game.newPlayer(t).click(uint32(tile)+1, country) //nolint:gosec // four tiles.
+		guest.click(uint32(tile)+1, "de")                //nolint:gosec // four tiles.
+	}
+
+	names := connect.NewRequest(&playerv1.GetAuthorsRequest{AccountIds: []string{ada.account(), guest.account()}})
+	_, err = playerv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).GetAuthors(t.Context(), names)
+	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "the public router does not serve it")
+
+	admin := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.consoleURL)
+	authors, err := admin.GetAuthors(t.Context(), names)
+	require.NoError(t, err)
+	require.Len(t, authors.Msg.GetAuthors(), 2)
+	assert.Equal(t, "Ada_L", authors.Msg.GetAuthors()[0].GetName())
+	assert.Regexp(t, `^guest_[0-9a-f]{6}$`, authors.Msg.GetAuthors()[1].GetName())
+	assert.True(t, authors.Msg.GetAuthors()[1].GetGuest())
+
+	asked := connect.NewRequest(&playerv1.AdminGetPlayerRequest{AccountId: guest.account()})
+	everyCountry := []*playerv1.CountryTiles{
+		{CountryId: "es", Tiles: 1}, {CountryId: "fr", Tiles: 1}, {CountryId: "it", Tiles: 1}, {CountryId: "pt", Tiles: 1},
+	}
+	require.Eventually(t, func() bool {
+		res, err := admin.GetPlayer(t.Context(), asked)
+		return err == nil && res.Msg.GetStats().GetTilesTaken() == 4 && proto.Equal(
+			&playerv1.AdminGetPlayerResponse{PlaysFor: []*playerv1.CountryTiles{{CountryId: "de", Tiles: 4}}, PlaysAgainst: everyCountry},
+			&playerv1.AdminGetPlayerResponse{PlaysFor: res.Msg.GetPlaysFor(), PlaysAgainst: res.Msg.GetPlaysAgainst()},
+		)
+	}, 5*time.Second, 20*time.Millisecond, "every country, where the public card has three and a guest no card at all")
+	profile, err := admin.GetPlayer(t.Context(), asked)
+	require.NoError(t, err)
+	assert.Equal(t, authors.Msg.GetAuthors()[1].GetName(), profile.Msg.GetName())
+	assert.True(t, profile.Msg.GetGuest())
+	assert.False(t, profile.Msg.GetLinked())
+	assert.WithinRange(t, time.UnixMilli(profile.Msg.GetCreatedAtUnixMs()), before, time.Now())
+
+	linked, err := admin.GetPlayer(t.Context(), connect.NewRequest(&playerv1.AdminGetPlayerRequest{AccountId: ada.account()}))
+	require.NoError(t, err)
+	assert.True(t, linked.Msg.GetLinked())
+	assert.False(t, linked.Msg.GetGuest())
+
+	_, err = admin.GetPlayer(t.Context(), connect.NewRequest(&playerv1.AdminGetPlayerRequest{AccountId: "9.9.9.9"}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "an address has no profile")
 }
 
 func TestASignedInStreamHearsTheTitleItsTakesEarnAndTheTitleCanBeWorn(t *testing.T) {

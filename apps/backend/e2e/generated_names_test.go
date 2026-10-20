@@ -1,7 +1,6 @@
 package e2e_test
 
 import (
-	"net/http"
 	"testing"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 )
 
 func (p *gamer) name() string {
@@ -34,21 +32,4 @@ func TestASignedInPlayerIsGivenAUsernameItMayChange(t *testing.T) {
 	_, err := ada.setName("Ada_L")
 	require.NoError(t, err)
 	assert.Equal(t, "Ada_L", ada.name())
-}
-
-func TestAnOperatorNamesTheLinkedAccountsOnTheAdminListenerOnly(t *testing.T) {
-	game := startGame(t)
-	ada := game.newPlayer(t)
-	ada.link("google-ada")
-	ada.click(1, "fr")
-	require.Eventually(t, func() bool { return ada.stats().GetTilesTaken() == 1 && ada.name() != "" },
-		5*time.Second, 20*time.Millisecond)
-
-	request := connect.NewRequest(&playerv1.NameAccountsRequest{})
-	_, err := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.baseURL).NameAccounts(t.Context(), request)
-	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "the public router does not serve it")
-
-	res, err := playerv1connect.NewAdminServiceClient(http.DefaultClient, game.adminURL).NameAccounts(t.Context(), request)
-	require.NoError(t, err)
-	assert.Zero(t, res.Msg.GetNamed(), "the sign-in already named it")
 }

@@ -35,11 +35,25 @@ const (
 const (
 	// AdminServiceMuteProcedure is the fully-qualified name of the AdminService's Mute RPC.
 	AdminServiceMuteProcedure = "/chat.v1.AdminService/Mute"
+	// AdminServiceRemoveMessageProcedure is the fully-qualified name of the AdminService's
+	// RemoveMessage RPC.
+	AdminServiceRemoveMessageProcedure = "/chat.v1.AdminService/RemoveMessage"
+	// AdminServiceGetMessageProcedure is the fully-qualified name of the AdminService's GetMessage RPC.
+	AdminServiceGetMessageProcedure = "/chat.v1.AdminService/GetMessage"
+	// AdminServiceListMessagesProcedure is the fully-qualified name of the AdminService's ListMessages
+	// RPC.
+	AdminServiceListMessagesProcedure = "/chat.v1.AdminService/ListMessages"
 )
 
 // AdminServiceClient is a client for the chat.v1.AdminService service.
 type AdminServiceClient interface {
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
+	// Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
+	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
+	// A message as it was sent, removed or not. NotFound past the retention.
+	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
+	// The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention. With an account, that account's messages alone.
+	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the chat.v1.AdminService service. By default, it
@@ -59,12 +73,33 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("Mute")),
 			connect.WithClientOptions(opts...),
 		),
+		removeMessage: connect.NewClient[v1.RemoveMessageRequest, v1.RemoveMessageResponse](
+			httpClient,
+			baseURL+AdminServiceRemoveMessageProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("RemoveMessage")),
+			connect.WithClientOptions(opts...),
+		),
+		getMessage: connect.NewClient[v1.GetMessageRequest, v1.GetMessageResponse](
+			httpClient,
+			baseURL+AdminServiceGetMessageProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetMessage")),
+			connect.WithClientOptions(opts...),
+		),
+		listMessages: connect.NewClient[v1.ListMessagesRequest, v1.ListMessagesResponse](
+			httpClient,
+			baseURL+AdminServiceListMessagesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListMessages")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	mute *connect.Client[v1.MuteRequest, v1.MuteResponse]
+	mute          *connect.Client[v1.MuteRequest, v1.MuteResponse]
+	removeMessage *connect.Client[v1.RemoveMessageRequest, v1.RemoveMessageResponse]
+	getMessage    *connect.Client[v1.GetMessageRequest, v1.GetMessageResponse]
+	listMessages  *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
 }
 
 // Mute calls chat.v1.AdminService.Mute.
@@ -72,9 +107,30 @@ func (c *adminServiceClient) Mute(ctx context.Context, req *connect.Request[v1.M
 	return c.mute.CallUnary(ctx, req)
 }
 
+// RemoveMessage calls chat.v1.AdminService.RemoveMessage.
+func (c *adminServiceClient) RemoveMessage(ctx context.Context, req *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error) {
+	return c.removeMessage.CallUnary(ctx, req)
+}
+
+// GetMessage calls chat.v1.AdminService.GetMessage.
+func (c *adminServiceClient) GetMessage(ctx context.Context, req *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error) {
+	return c.getMessage.CallUnary(ctx, req)
+}
+
+// ListMessages calls chat.v1.AdminService.ListMessages.
+func (c *adminServiceClient) ListMessages(ctx context.Context, req *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error) {
+	return c.listMessages.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the chat.v1.AdminService service.
 type AdminServiceHandler interface {
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
+	// Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
+	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
+	// A message as it was sent, removed or not. NotFound past the retention.
+	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
+	// The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention. With an account, that account's messages alone.
+	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -90,10 +146,34 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("Mute")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceRemoveMessageHandler := connect.NewUnaryHandler(
+		AdminServiceRemoveMessageProcedure,
+		svc.RemoveMessage,
+		connect.WithSchema(adminServiceMethods.ByName("RemoveMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceGetMessageHandler := connect.NewUnaryHandler(
+		AdminServiceGetMessageProcedure,
+		svc.GetMessage,
+		connect.WithSchema(adminServiceMethods.ByName("GetMessage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceListMessagesHandler := connect.NewUnaryHandler(
+		AdminServiceListMessagesProcedure,
+		svc.ListMessages,
+		connect.WithSchema(adminServiceMethods.ByName("ListMessages")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chat.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceMuteProcedure:
 			adminServiceMuteHandler.ServeHTTP(w, r)
+		case AdminServiceRemoveMessageProcedure:
+			adminServiceRemoveMessageHandler.ServeHTTP(w, r)
+		case AdminServiceGetMessageProcedure:
+			adminServiceGetMessageHandler.ServeHTTP(w, r)
+		case AdminServiceListMessagesProcedure:
+			adminServiceListMessagesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -105,4 +185,16 @@ type UnimplementedAdminServiceHandler struct{}
 
 func (UnimplementedAdminServiceHandler) Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.Mute is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.RemoveMessage is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.GetMessage is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.AdminService.ListMessages is not implemented"))
 }

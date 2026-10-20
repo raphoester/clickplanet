@@ -853,6 +853,11 @@ export class Player extends Message<Player> {
    */
   takesPerMinute = 0;
 
+  /**
+   * @generated from field: string flag_country_id = 13;
+   */
+  flagCountryId = "";
+
   constructor(data?: PartialMessage<Player>) {
     super();
     proto3.util.initPartial(data, this);
@@ -873,6 +878,7 @@ export class Player extends Message<Player> {
     { no: 9, name: "tiles_per_minute", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 10, name: "takes", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 11, name: "takes_per_minute", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 13, name: "flag_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Player {

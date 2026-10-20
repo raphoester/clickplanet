@@ -15,7 +15,7 @@ import {describeMute} from "../../domain/mute.ts";
 import {medalOf, roundOverLine} from "../../domain/roundReveal.ts";
 import {truncate} from "../truncate.ts";
 import {authorOf, authorStyle, quoteStyle} from "./authorStyle.ts";
-import QuoteLine from "./QuoteLine.tsx";
+import QuoteLine, {REMOVED_TEXT} from "./QuoteLine.tsx";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
 
 export type ChatLogProps = {
@@ -23,10 +23,11 @@ export type ChatLogProps = {
     announcements?: ChatAnnouncement[]
     loading: boolean
     flashing?: ReadonlySet<string>
-    onOpenPlayer?: (player: PlayerLine, messageId?: string) => void
+    onOpenPlayer?: (player: PlayerLine) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
     onReport?: (message: ChatMessage) => void
+    reported?: ReadonlySet<string>
     own?: (message: ChatMessage) => boolean
     seenUntil?: number
     onSeen?: (at: number) => void
@@ -180,9 +181,10 @@ export default function ChatLog(props: ChatLogProps) {
                                            pick={pick}
                                            jumpTo={shown.has(entry.message.replyTo?.messageId ?? "") ? jumpTo : undefined}
                                            onOpenPlayer={props.onOpenPlayer}
-                                           onReact={props.onReact}
-                                           onReply={props.onReply}
-                                           onReport={reportable(entry.message, props.own) ? props.onReport : undefined}/>}
+                                           onReact={entry.message.removed ? undefined : props.onReact}
+                                           onReply={entry.message.removed ? undefined : props.onReply}
+                                           onReport={reportable(entry.message, props.own) ? props.onReport : undefined}
+                                           reported={props.reported?.has(entry.message.id) ?? false}/>}
                     </Fragment>
                 })}
             </ul>
@@ -203,10 +205,11 @@ type MessageLineProps = {
     picking: string | undefined
     pick: (id: string) => (open: boolean) => void
     jumpTo?: (id: string) => void
-    onOpenPlayer?: (player: PlayerLine, messageId?: string) => void
+    onOpenPlayer?: (player: PlayerLine) => void
     onReact?: (messageId: string, reaction: Reaction, on: boolean) => void
     onReply?: (message: ChatMessage) => void
     onReport?: (message: ChatMessage) => void
+    reported: boolean
 }
 
 function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpTo, ...props}: MessageLineProps) {
@@ -228,7 +231,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                 ? <button type="button"
                           className="chat-message-author player-name-button"
                           title={message.authorName}
-                          onClick={() => props.onOpenPlayer?.(author, message.id)}>
+                          onClick={() => props.onOpenPlayer?.(author)}>
                     {truncate(message.authorName, AUTHOR_MAX_LENGTH)}
                 </button>
                 : <span className="chat-message-author">
@@ -246,11 +249,13 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
         {message.replyTo && <Quote quote={message.replyTo} jumpTo={jumpTo}/>}
 
         <div className="chat-message-line">
-            <p className="chat-message-text">
-                {messageParts(message).map((part, index) => part.kind === "link"
-                    ? <a key={index} href={part.href} target="_blank" rel="noopener noreferrer nofollow ugc">{part.text}</a>
-                    : <Fragment key={index}>{part.text}</Fragment>)}
-            </p>
+            {message.removed
+                ? <p className="chat-message-text chat-removed">{REMOVED_TEXT}</p>
+                : <p className="chat-message-text">
+                    {messageParts(message).map((part, index) => part.kind === "link"
+                        ? <a key={index} href={part.href} target="_blank" rel="noopener noreferrer nofollow ugc">{part.text}</a>
+                        : <Fragment key={index}>{part.text}</Fragment>)}
+                </p>}
             {props.onReact && <AddReactionButton messageId={message.id}
                                                  picking={picking === message.id}
                                                  setPicking={pick(message.id)}/>}
@@ -261,13 +266,17 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                                       onClick={() => props.onReply?.(message)}>
                 <ReplyIcon/>
             </button>}
-            {props.onReport && <button type="button"
-                                       className="chat-report-add"
-                                       aria-label={`Report this message from ${message.authorName}`}
-                                       title="Report"
-                                       onClick={() => props.onReport?.(message)}>
-                <ReportIcon/>
-            </button>}
+            {props.onReport && (props.reported
+                ? <span className="chat-report-add chat-report-done" role="img" aria-label="Reported" title="Reported">
+                    <ReportIcon/>
+                </span>
+                : <button type="button"
+                          className="chat-report-add"
+                          aria-label={`Report this message from ${message.authorName}`}
+                          title="Report"
+                          onClick={() => props.onReport?.(message)}>
+                    <ReportIcon/>
+                </button>)}
         </div>
 
         <ReactionBar messageId={message.id}
@@ -382,7 +391,7 @@ function messageClass(
 }
 
 function reportable(message: ChatMessage, own: ((message: ChatMessage) => boolean) | undefined): boolean {
-    return message.authorAccountId !== "" && !own?.(message)
+    return message.authorAccountId !== "" && !message.removed && !own?.(message)
 }
 
 function atOf(entry: ChatLogEntry): number {

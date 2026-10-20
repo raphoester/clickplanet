@@ -34,8 +34,6 @@ type Allegiances interface {
 type In struct {
 	TileID    uint32
 	CountryID string
-
-	Dud bool
 }
 
 func New(shields Shields, tiles Tiles, countries CountryChecker, allegiances Allegiances, perTile int) *UseCase {
@@ -74,11 +72,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (bonuses.Held, error) {
 		return bonuses.Held{}, ErrNoShield
 	}
 
-	if !in.Dud {
-		if err := u.tiles.Shield(ctx, in.TileID, in.CountryID, u.perTile); err != nil {
-			u.shields.Grant(holder, bonuses.KindShields, 1)
-			return bonuses.Held{}, fmt.Errorf("failed to place the shield: %w", err)
-		}
+	if err := u.tiles.Shield(ctx, in.TileID, in.CountryID, u.perTile); err != nil {
+		u.shields.Grant(holder, bonuses.KindShields, 1)
+		return bonuses.Held{}, fmt.Errorf("failed to place the shield: %w", err)
 	}
 
 	return u.shields.Held(holder), nil

@@ -104,6 +104,11 @@ message ClickResponse {
   ClickBudget budget = 1;
 }
 
+// The detail of a PermissionDenied that Click, DropBomb and PlaceShield answer a banned caller.
+message BanRefusal {
+  int64 banned_until_unix_ms = 1;
+}
+
 message GetBudgetRequest {
   string country_id = 1;
 }

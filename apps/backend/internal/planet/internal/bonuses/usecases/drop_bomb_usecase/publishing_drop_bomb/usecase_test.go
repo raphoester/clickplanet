@@ -60,17 +60,13 @@ func TestABombInTheSeaIsPublishedWithNoGround(t *testing.T) {
 	assert.True(t, proto.Equal(&planetv1.BombLanded{Country: "fr", LandedAt: timestamppb.New(now)}, events.Published()[0]))
 }
 
-func TestARefusedDropOrADudPublishesNothing(t *testing.T) {
+func TestARefusedDropPublishesNothing(t *testing.T) {
 	events := cpbootstrap.NewRecordedEvents()
 	refused := errors.New("no bomb")
 
 	_, err := publishing_drop_bomb.New(stubUseCase{err: refused}, borders{}, events, cptime.NewFixedClock(now)).
 		Execute(t.Context(), drop_bomb_usecase.In{CountryID: "fr"})
 	require.ErrorIs(t, err, refused)
-
-	_, err = publishing_drop_bomb.New(stubUseCase{}, borders{}, events, cptime.NewFixedClock(now)).
-		Execute(t.Context(), drop_bomb_usecase.In{CountryID: "fr", Dud: true})
-	require.NoError(t, err)
 
 	assert.Empty(t, events.Published())
 }

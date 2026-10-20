@@ -34,7 +34,7 @@ func TestACaptionSaysWhereItHappensHowToPlayAndItsTags(t *testing.T) {
 	post := captionOf(t, portugalInItaly(t, ""), 0)
 
 	assert.Equal(t, "ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET\n"+
-		"Join the battle now 👉 clickplanet.lol\n"+
+		"Join the battle now 👉 https://clickplanet.lol\n"+
 		"#clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral "+
 		"#europe #italy #portugal #portugaltiktok🇵🇹", post.TikTok.Caption)
 	assert.Equal(t, "join-the-battle", post.CallToAction)
@@ -43,14 +43,14 @@ func TestACaptionSaysWhereItHappensHowToPlayAndItsTags(t *testing.T) {
 func TestTheTeaserAndTheCallAreTheDicesPick(t *testing.T) {
 	post := captionOf(t, portugalInItaly(t, ""), 3)
 
-	assert.Contains(t, post.TikTok.Caption, "GENERATIONAL DOWNFALL OF PORTUGAL | CLICKPLANET\nPlay for free 👉 clickplanet.lol\n")
+	assert.Contains(t, post.TikTok.Caption, "GENERATIONAL DOWNFALL OF PORTUGAL | CLICKPLANET\nPlay for free 👉 https://clickplanet.lol\n")
 	assert.Equal(t, "free", post.CallToAction)
 }
 
 func TestTheCreditOfTheMusicComesBeforeTheTags(t *testing.T) {
 	post := captionOf(t, portugalInItaly(t, "Fida'i (instrumental) by Sounds Monarch, CC BY 3.0"), 0)
 
-	assert.Contains(t, post.TikTok.Caption, "clickplanet.lol\n🎵 Fida'i (instrumental) by Sounds Monarch, CC BY 3.0\n#clickplanet ")
+	assert.Contains(t, post.TikTok.Caption, "https://clickplanet.lol\n🎵 Fida'i (instrumental) by Sounds Monarch, CC BY 3.0\n#clickplanet ")
 }
 
 func TestOnlyTheFlagTheClipIsAboutGetsItsTikTokTag(t *testing.T) {

@@ -83,7 +83,7 @@ func NewObserver(logger *slog.Logger, registerer prometheus.Registerer) antibot.
 	})
 
 	flags := factory.NewCounterVec(prometheus.CounterOpts{
-		Name: "shadowban_flags",
+		Name: "ban_flags",
 		Help: "Times a caller has been flagged, counted once per watchdog that argued for it",
 	}, []string{"watchdog"})
 

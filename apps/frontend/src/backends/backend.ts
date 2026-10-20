@@ -184,3 +184,13 @@ export class VPNBlockedError extends Error {
         this.name = "VPNBlockedError"
     }
 }
+
+export class BannedError extends Error {
+    readonly until: number
+
+    constructor(until: number, options?: {cause?: unknown}) {
+        super("the account or its network is banned", options)
+        this.name = "BannedError"
+        this.until = until
+    }
+}

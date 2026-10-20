@@ -18,6 +18,16 @@ type AccountID = notes.AccountID
 
 type ReportID uuid.UUID
 
+var ErrInvalidReportID = errors.New("not a report id")
+
+func ReportIDOf(value string) (ReportID, error) {
+	id, err := uuid.Parse(value)
+	if err != nil || id == uuid.Nil {
+		return ReportID{}, fmt.Errorf("%w: %q", ErrInvalidReportID, value)
+	}
+	return ReportID(id), nil
+}
+
 var (
 	ErrInvalidReport   = errors.New("the report is invalid")
 	ErrUnknownReason   = errors.New("not a reason to report a player")

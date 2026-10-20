@@ -25,7 +25,7 @@ var gameTags = []string{
 }
 
 const (
-	site  = "clickplanet.lol"
+	site  = "https://clickplanet.lol"
 	brand = " | CLICKPLANET"
 )
 

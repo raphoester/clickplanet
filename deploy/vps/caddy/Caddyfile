@@ -29,11 +29,24 @@
 
 	encode zstd gzip
 
-	header {
+	# The admin page calls with the game's cookie: the backend refuses any other origin, Caddy only says which.
+	@admin path_regexp ^/[a-z]+\.v1\.AdminService/
+	@game not path_regexp ^/[a-z]+\.v1\.AdminService/
+
+	header @game {
 		Access-Control-Allow-Origin "{$FRONTEND_ORIGIN}"
 		Access-Control-Allow-Credentials "true"
 		Access-Control-Allow-Methods "GET, POST, OPTIONS"
 		Access-Control-Allow-Headers "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-Session-Token"
+		Vary "Origin"
+		-Server
+	}
+
+	header @admin {
+		Access-Control-Allow-Origin "{$ADMIN_ORIGIN}"
+		Access-Control-Allow-Credentials "true"
+		Access-Control-Allow-Methods "POST, OPTIONS"
+		Access-Control-Allow-Headers "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms"
 		Vary "Origin"
 		-Server
 	}
@@ -84,6 +97,10 @@
 		reverse_proxy backend:8080 {
 			header_up X-Real-IP {client_ip}
 		}
+	}
+
+	handle @admin {
+		reverse_proxy backend:8083
 	}
 
 	handle {

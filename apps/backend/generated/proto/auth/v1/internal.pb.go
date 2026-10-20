@@ -345,6 +345,94 @@ func (x *Account) GetCreatedAtUnixMs() int64 {
 	return 0
 }
 
+type GetOperatorRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cookie        string                 `protobuf:"bytes,1,opt,name=cookie,proto3" json:"cookie,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOperatorRequest) Reset() {
+	*x = GetOperatorRequest{}
+	mi := &file_auth_v1_internal_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOperatorRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOperatorRequest) ProtoMessage() {}
+
+func (x *GetOperatorRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_internal_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOperatorRequest.ProtoReflect.Descriptor instead.
+func (*GetOperatorRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetOperatorRequest) GetCookie() string {
+	if x != nil {
+		return x.Cookie
+	}
+	return ""
+}
+
+type GetOperatorResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOperatorResponse) Reset() {
+	*x = GetOperatorResponse{}
+	mi := &file_auth_v1_internal_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOperatorResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOperatorResponse) ProtoMessage() {}
+
+func (x *GetOperatorResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_internal_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOperatorResponse.ProtoReflect.Descriptor instead.
+func (*GetOperatorResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_internal_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetOperatorResponse) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
 var File_auth_v1_internal_proto protoreflect.FileDescriptor
 
 const file_auth_v1_internal_proto_rawDesc = "" +
@@ -369,12 +457,18 @@ const file_auth_v1_internal_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x16\n" +
 	"\x06linked\x18\x02 \x01(\bR\x06linked\x12+\n" +
-	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs2\xfd\x01\n" +
+	"\x12created_at_unix_ms\x18\x03 \x01(\x03R\x0fcreatedAtUnixMs\",\n" +
+	"\x12GetOperatorRequest\x12\x16\n" +
+	"\x06cookie\x18\x01 \x01(\tR\x06cookie\"4\n" +
+	"\x13GetOperatorResponse\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId2\xc7\x02\n" +
 	"\x0fInternalService\x12T\n" +
 	"\x0fGetVerifyingKey\x12\x1f.auth.v1.GetVerifyingKeyRequest\x1a .auth.v1.GetVerifyingKeyResponse\x12E\n" +
 	"\n" +
 	"GetAccount\x12\x1a.auth.v1.GetAccountRequest\x1a\x1b.auth.v1.GetAccountResponse\x12M\n" +
-	"\vGetAccounts\x12\x1b.auth.v1.GetAccountsRequest\x1a\x1c.auth.v1.GetAccountsResponse\"\x03\x90\x02\x01B\xa7\x01\n" +
+	"\vGetAccounts\x12\x1b.auth.v1.GetAccountsRequest\x1a\x1c.auth.v1.GetAccountsResponse\"\x03\x90\x02\x01\x12H\n" +
+	"\vGetOperator\x12\x1b.auth.v1.GetOperatorRequest\x1a\x1c.auth.v1.GetOperatorResponseB\xa7\x01\n" +
 	"\vcom.auth.v1B\rInternalProtoP\x01ZLgithub.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1;authv1\xa2\x02\x03AXX\xaa\x02\aAuth.V1\xca\x02\aAuth\\V1\xe2\x02\x13Auth\\V1\\GPBMetadata\xea\x02\bAuth::V1b\x06proto3"
 
 var (
@@ -389,7 +483,7 @@ func file_auth_v1_internal_proto_rawDescGZIP() []byte {
 	return file_auth_v1_internal_proto_rawDescData
 }
 
-var file_auth_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_auth_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_auth_v1_internal_proto_goTypes = []any{
 	(*GetVerifyingKeyRequest)(nil),  // 0: auth.v1.GetVerifyingKeyRequest
 	(*GetVerifyingKeyResponse)(nil), // 1: auth.v1.GetVerifyingKeyResponse
@@ -398,17 +492,21 @@ var file_auth_v1_internal_proto_goTypes = []any{
 	(*GetAccountsRequest)(nil),      // 4: auth.v1.GetAccountsRequest
 	(*GetAccountsResponse)(nil),     // 5: auth.v1.GetAccountsResponse
 	(*Account)(nil),                 // 6: auth.v1.Account
+	(*GetOperatorRequest)(nil),      // 7: auth.v1.GetOperatorRequest
+	(*GetOperatorResponse)(nil),     // 8: auth.v1.GetOperatorResponse
 }
 var file_auth_v1_internal_proto_depIdxs = []int32{
 	6, // 0: auth.v1.GetAccountsResponse.accounts:type_name -> auth.v1.Account
 	0, // 1: auth.v1.InternalService.GetVerifyingKey:input_type -> auth.v1.GetVerifyingKeyRequest
 	2, // 2: auth.v1.InternalService.GetAccount:input_type -> auth.v1.GetAccountRequest
 	4, // 3: auth.v1.InternalService.GetAccounts:input_type -> auth.v1.GetAccountsRequest
-	1, // 4: auth.v1.InternalService.GetVerifyingKey:output_type -> auth.v1.GetVerifyingKeyResponse
-	3, // 5: auth.v1.InternalService.GetAccount:output_type -> auth.v1.GetAccountResponse
-	5, // 6: auth.v1.InternalService.GetAccounts:output_type -> auth.v1.GetAccountsResponse
-	4, // [4:7] is the sub-list for method output_type
-	1, // [1:4] is the sub-list for method input_type
+	7, // 4: auth.v1.InternalService.GetOperator:input_type -> auth.v1.GetOperatorRequest
+	1, // 5: auth.v1.InternalService.GetVerifyingKey:output_type -> auth.v1.GetVerifyingKeyResponse
+	3, // 6: auth.v1.InternalService.GetAccount:output_type -> auth.v1.GetAccountResponse
+	5, // 7: auth.v1.InternalService.GetAccounts:output_type -> auth.v1.GetAccountsResponse
+	8, // 8: auth.v1.InternalService.GetOperator:output_type -> auth.v1.GetOperatorResponse
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -425,7 +523,7 @@ func file_auth_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_internal_proto_rawDesc), len(file_auth_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

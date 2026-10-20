@@ -1,10 +1,10 @@
 import {useState} from "react"
-import {BugReporter, FeatureSuggester, PageContext} from "../../backends/support.ts"
+import {FeedbackBackend, PageContext} from "../../backends/support.ts"
 import Choices, {Choice} from "./Choices.tsx"
 import NoteModal from "./NoteModal.tsx"
 
 export type FeedbackModalProps = {
-    support: FeatureSuggester & BugReporter
+    support: FeedbackBackend
     pageContext: () => PageContext
     onClose: () => void
 }
@@ -29,12 +29,12 @@ export default function FeedbackModal({support, pageContext, onClose}: FeedbackM
     const [kind, setKind] = useState<Kind>()
     const writing = kind ? WRITING[kind] : UNPICKED
 
-    const send = async (text: string) => {
+    const send = async (text: string, attachmentIds: string[]) => {
         switch (kind) {
             case "idea":
-                return support.suggestFeature(text, pageContext())
+                return support.suggestFeature(text, pageContext(), attachmentIds)
             case "bug":
-                return support.reportBug(text, pageContext())
+                return support.reportBug(text, pageContext(), attachmentIds)
             case undefined:
                 return
         }
@@ -45,6 +45,7 @@ export default function FeedbackModal({support, pageContext, onClose}: FeedbackM
                       placeholder={writing.placeholder}
                       asked={<Choices label="It is" options={KINDS} picked={kind} onPick={setKind}/>}
                       ready={kind !== undefined}
+                      files={support}
                       onSend={send}
                       onClose={onClose}/>
 }

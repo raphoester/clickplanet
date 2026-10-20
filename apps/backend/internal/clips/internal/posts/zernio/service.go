@@ -36,6 +36,9 @@ const (
 	continentKey = "storyContinent"
 	countriesKey = "storyCountries"
 	callKey      = "callToAction"
+	// Absent on a post of what a flag did, and on every post made before them.
+	angleKey = "storyAngle"
+	roundKey = "storyRound"
 	// Four posts a day: a page this long holds the week the choice reads, and more.
 	pageOfPosts = 500
 )
@@ -106,11 +109,8 @@ func (s *Service) Schedule(ctx context.Context, post posts.Post) (posts.Schedule
 			MediaItems:   &[]cpzernio.MediaItem{{Type: new(cpzernio.MediaItemTypeVideo), Url: &media}},
 			Platforms:    &targets,
 			ScheduledFor: new(snapshot.At.UTC()),
-			Metadata: &map[string]any{
-				flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent, countriesKey: snapshot.Countries,
-				callKey: snapshot.CallToAction,
-			},
-			Tags: tagsOf(snapshot, accounts),
+			Metadata:     metadataOf(snapshot),
+			Tags:         tagsOf(snapshot, accounts),
 		})
 	if err != nil {
 		return posts.Scheduled{}, unreachable(err)
@@ -172,6 +172,22 @@ func targetOf(snapshot posts.PostSnapshot, platform posts.Platform, account stri
 		return target, fmt.Errorf("failed to write the settings of %s: %w", platform, err)
 	}
 	return target, nil
+}
+
+// What the choice reads back of the post: its key and its countries; and the call to act, to compare the calls on the
+// posts' numbers. Never published.
+func metadataOf(snapshot posts.PostSnapshot) *map[string]any {
+	metadata := map[string]any{
+		flagKey: snapshot.Key.Flag, continentKey: snapshot.Key.Continent, countriesKey: snapshot.Countries,
+		callKey: snapshot.CallToAction,
+	}
+	if snapshot.Key.Angle != posts.Deeds {
+		metadata[angleKey] = string(snapshot.Key.Angle)
+	}
+	if snapshot.Key.Round != "" {
+		metadata[roundKey] = snapshot.Key.Round
+	}
+	return &metadata
 }
 
 // Zernio sends them to YouTube alone.
@@ -241,7 +257,9 @@ func keyOf(post cpzernio.Post) (posts.StoryKey, bool) {
 	}
 	flag, _ := (*post.Metadata)[flagKey].(string)
 	continent, _ := (*post.Metadata)[continentKey].(string)
-	return posts.StoryKey{Flag: flag, Continent: continent}, flag != "" && continent != ""
+	angle, _ := (*post.Metadata)[angleKey].(string)
+	round, _ := (*post.Metadata)[roundKey].(string)
+	return posts.StoryKey{Flag: flag, Continent: continent, Angle: posts.Angle(angle), Round: round}, flag != "" && continent != ""
 }
 
 func countriesOf(post cpzernio.Post) []string {

@@ -17,6 +17,7 @@ import {AcceptedClicks, acceptedClicks} from "./viewer/acceptedClicks.ts"
 import {SETTLE_MS} from "./viewer/useAcceptedClicks.ts"
 import {Race} from "../backends/standings.ts"
 import {BUILD} from "./support/pageContext.ts"
+import {NO_ATTACHMENTS} from "../backends/support.ts"
 
 const france = Countries.get("fr")!
 const RACE: Race = {
@@ -397,6 +398,8 @@ describe("Menu", () => {
     const supportBackend = () => ({
         suggestFeature: vi.fn(async () => undefined),
         reportBug: vi.fn(async () => undefined),
+        attachmentRules: vi.fn(async () => NO_ATTACHMENTS),
+        uploadAttachment: vi.fn(async () => "file"),
     })
 
     const phone = {
@@ -435,7 +438,7 @@ describe("Menu", () => {
             await write(user, "An idea", "Your idea", "a night mode")
             await user.click(button("Send"))
 
-            expect(support.suggestFeature).toHaveBeenCalledWith("a night mode", phone)
+            expect(support.suggestFeature).toHaveBeenCalledWith("a night mode", phone, [])
             expect(support.reportBug).not.toHaveBeenCalled()
             expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
         })
@@ -446,7 +449,7 @@ describe("Menu", () => {
             await write(user, "A bug", "What happened", "the globe is black")
             await user.click(button("Send"))
 
-            expect(support.reportBug).toHaveBeenCalledWith("the globe is black", phone)
+            expect(support.reportBug).toHaveBeenCalledWith("the globe is black", phone, [])
             expect(support.suggestFeature).not.toHaveBeenCalled()
             expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
         })
@@ -459,7 +462,7 @@ describe("Menu", () => {
             connectionDown = true
             await user.click(button("Send"))
 
-            expect(support.reportBug.mock.calls[0]).toMatchObject(["the globe is black", {connectionDown: true}])
+            expect(support.reportBug.mock.calls[0]).toMatchObject(["the globe is black", {connectionDown: true}, []])
         })
 
         it("says what the page alone knows when nothing tells it more", async () => {
@@ -474,7 +477,7 @@ describe("Menu", () => {
                 viewportHeight: window.innerHeight,
                 connectionDown: false,
                 gpuRenderer: "",
-            }])
+            }, []])
         })
 
         it("is not offered when no support backend is wired", async () => {

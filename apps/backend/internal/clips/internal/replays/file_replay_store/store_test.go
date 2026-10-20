@@ -27,3 +27,19 @@ func TestAReplayThatCannotBeWrittenIsAnError(t *testing.T) {
 
 	require.Error(t, file_replay_store.Store(path).Save(t.Context(), replays.Replay{Document: []byte(`{}`)}))
 }
+
+func TestARaceIsWrittenAsTheBackendAnsweredIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "race.json")
+
+	require.NoError(t, file_replay_store.RaceStore(path).SaveRace(t.Context(), replays.Race{Document: []byte(`{"race":{}}`)}))
+
+	written, err := os.ReadFile(path) //nolint:gosec // the file the test wrote.
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"race":{}}`, string(written))
+}
+
+func TestARaceThatCannotBeWrittenIsAnError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "no-such-folder", "race.json")
+
+	require.Error(t, file_replay_store.RaceStore(path).SaveRace(t.Context(), replays.Race{Document: []byte(`{}`)}))
+}

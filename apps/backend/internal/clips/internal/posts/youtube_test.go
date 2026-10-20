@@ -16,7 +16,7 @@ func TestAShortIsTitledWithTheTeaserAndSaysHowToPlayAndItsTags(t *testing.T) {
 
 	assert.Equal(t, posts.YouTubeWords{
 		Title: "ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET",
-		Description: "Join the battle now 👉 clickplanet.lol\n" +
+		Description: "Join the battle now 👉 https://clickplanet.lol\n" +
 			"#clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral " +
 			"#europe #italy #portugal",
 		Tags: []string{
@@ -29,7 +29,7 @@ func TestAShortIsTitledWithTheTeaserAndSaysHowToPlayAndItsTags(t *testing.T) {
 func TestAShortKeepsTheCreditOfTheMusic(t *testing.T) {
 	words := captionOf(t, portugalInItaly(t, "Fida'i (instrumental) by Sounds Monarch, CC BY 3.0"), 0).YouTube
 
-	assert.Contains(t, words.Description, "clickplanet.lol\n🎵 Fida'i (instrumental) by Sounds Monarch, CC BY 3.0\n#clickplanet ")
+	assert.Contains(t, words.Description, "https://clickplanet.lol\n🎵 Fida'i (instrumental) by Sounds Monarch, CC BY 3.0\n#clickplanet ")
 }
 
 func TestAShortHasNoTikTokTagAndNoShortsTag(t *testing.T) {

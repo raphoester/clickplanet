@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
+import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetOperatorRequest, GetOperatorResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -39,6 +39,17 @@ export const InternalService = {
       O: GetAccountsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
+     *
+     * @generated from rpc auth.v1.InternalService.GetOperator
+     */
+    getOperator: {
+      name: "GetOperator",
+      I: GetOperatorRequest,
+      O: GetOperatorResponse,
+      kind: MethodKind.Unary,
     },
   }
 } as const;

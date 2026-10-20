@@ -30,12 +30,20 @@ func (s *stubUseCase) Execute(_ context.Context, in report_bug_usecase.In) error
 }
 
 func report(ctx context.Context, useCase *stubUseCase, msg *supportv1.ReportBugRequest, userAgent string) error {
+	_, err := answered(ctx, useCase, msg, userAgent)
+	return err
+}
+
+func answered(
+	ctx context.Context, useCase *stubUseCase, msg *supportv1.ReportBugRequest, userAgent string,
+) (*supportv1.ReportBugResponse, error) {
 	req := connect.NewRequest(msg)
 	req.Header().Set("User-Agent", userAgent)
-	if _, err := report_bug_handler.New(useCase).ReportBug(ctx, req); err != nil {
-		return fmt.Errorf("ReportBug failed: %w", err)
+	res, err := report_bug_handler.New(useCase).ReportBug(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("ReportBug failed: %w", err)
 	}
-	return nil
+	return res.Msg, nil
 }
 
 func asAda(t *testing.T) context.Context {
@@ -60,6 +68,41 @@ func TestTheTextThePageAndTheBrowserAreHandedOn(t *testing.T) {
 			Build: "play-a1b2c3.js", ViewportWidth: 390, ViewportHeight: 844, ConnectionDown: true, UserAgent: "Mozilla/5.0 (iPhone)",
 		},
 	}}, useCase.asked)
+}
+
+func TestTheFilesAreHandedOnByIDInTheirOrder(t *testing.T) {
+	useCase := &stubUseCase{}
+
+	_, err := answered(asAda(t), useCase, &supportv1.ReportBugRequest{
+		Text:          "the globe is black",
+		AttachmentIds: []string{"0a000000-0000-0000-0000-000000000002", "0a000000-0000-0000-0000-000000000001"},
+	}, "")
+	require.NoError(t, err)
+
+	assert.Equal(t, []notes.AttachmentID{{0: 0xa, 15: 2}, {0: 0xa, 15: 1}}, useCase.asked[0].Attachments)
+}
+
+func TestAnAttachmentIDThatIsNotOneIsRefusedBeforeTheUseCase(t *testing.T) {
+	useCase := &stubUseCase{}
+
+	_, err := answered(asAda(t), useCase, &supportv1.ReportBugRequest{Text: "the globe is black", AttachmentIds: []string{"a file"}}, "")
+
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	assert.Empty(t, useCase.asked)
+}
+
+func TestAFileThatWasNotUploadedIsAPreconditionTheCallerMissed(t *testing.T) {
+	_, err := answered(asAda(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", notes.ErrNotUploaded)},
+		&supportv1.ReportBugRequest{Text: "the globe is black"}, "")
+
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}
+
+func TestFilesTheRulesDoNotTakeAreTheCallersFault(t *testing.T) {
+	err := report(asAda(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", notes.ErrInvalidAttachment)},
+		&supportv1.ReportBugRequest{Text: "the globe is black"}, "")
+
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
 func TestAReportWithNoContextKeepsTheBrowserAlone(t *testing.T) {

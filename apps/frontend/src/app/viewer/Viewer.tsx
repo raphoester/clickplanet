@@ -23,7 +23,7 @@ import {ConnectionSource} from "../../backends/connection.ts";
 import {useConnection} from "./useConnection.ts";
 import Quiz from "../quiz/Quiz.tsx";
 import {useQuiz} from "../quiz/useQuiz.ts";
-import {ChatBackend, ChatMessage} from "../../backends/chat.ts";
+import {ChatBackend} from "../../backends/chat.ts";
 import ChatPanel from "../chat/ChatPanel.tsx";
 import Menu, {BoardSheet, MenuTab, YouPlace} from "../Menu.tsx";
 import {youLabel} from "../youLabel.ts";
@@ -36,6 +36,7 @@ import {useBoardGuide} from "../useBoardGuide.ts";
 import {isFirstWin} from "../../domain/bonusGuide.ts";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
+import BannedModal from "../components/BannedModal.tsx";
 import SharePlace from "../share/SharePlace.tsx";
 import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
@@ -57,7 +58,6 @@ import {useAccount} from "../account/useAccount.ts";
 import {hueOf} from "../../domain/authorColor.ts";
 import {PlayerInfoBackend, PlayerLine, PlayerTitle, PresenceBackend} from "../../backends/player.ts";
 import PlayerCard from "../players/PlayerCard.tsx";
-import ReportPlayerModal from "../support/ReportPlayerModal.tsx";
 import TitleUnlocked from "../titles/TitleUnlocked.tsx";
 import {usePresence} from "../players/usePresence.ts";
 import {useRoster} from "../players/useRoster.ts";
@@ -140,12 +140,8 @@ export default function Viewer(props: ViewerProps) {
     const [countryOrder, setCountryOrder] = useState<CountryOrder>("season")
     const boardGuide = useBoardGuide()
     const [pitchOpen, setPitchOpen] = useState(false)
-    const [openPlayer, setOpenPlayer] = useState<{player: PlayerLine, messageId?: string}>()
-    const onOpenPlayer = props.playerInfo
-        ? (player: PlayerLine, messageId?: string) => setOpenPlayer({player, messageId})
-        : undefined
-    const [reportedMessage, setReportedMessage] = useState<ChatMessage>()
-    const onReport = props.support ? setReportedMessage : undefined
+    const [openPlayer, setOpenPlayer] = useState<PlayerLine>()
+    const onOpenPlayer = props.playerInfo ? setOpenPlayer : undefined
     const guest = account.kind === 'ready' && account.offered.length > 0 && account.me.linked.length === 0
 
     const compact = useCompact()
@@ -175,6 +171,8 @@ export default function Viewer(props: ViewerProps) {
         refusals,
         vpnBlocked,
         dismissVPNBlocked,
+        bannedUntil,
+        dismissBanned,
         sessionUnavailable,
         dismissSessionUnavailable,
         award,
@@ -348,7 +346,7 @@ export default function Viewer(props: ViewerProps) {
             accountId={ownAccountId}
             username={username}
             onOpenPlayer={onOpenPlayer}
-            onReport={onReport}
+            reporter={props.support}
             players={roster.kind === 'ready' ? roster.entries : undefined}
             compact={compact}
             open={compact ? sheet === "chat" : undefined}
@@ -389,19 +387,11 @@ export default function Viewer(props: ViewerProps) {
             multiplier={clickBudget.linkedMultiplier}
             onClose={() => setPitchOpen(false)}/>}
 
-        {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.player.accountId}
-                                                       player={openPlayer.player}
+        {openPlayer && props.playerInfo && <PlayerCard key={openPlayer.accountId}
+                                                       player={openPlayer}
                                                        backend={props.playerInfo}
-                                                       reporter={openPlayer.player.accountId === ownAccountId ? undefined : props.support}
-                                                       messageId={openPlayer.messageId}
+                                                       reporter={openPlayer.accountId === ownAccountId ? undefined : props.support}
                                                        onClose={() => setOpenPlayer(undefined)}/>}
-
-        {reportedMessage && props.support && <ReportPlayerModal key={reportedMessage.id}
-                                                                accountId={reportedMessage.authorAccountId}
-                                                                name={reportedMessage.authorName}
-                                                                messageId={reportedMessage.id}
-                                                                reporter={props.support}
-                                                                onClose={() => setReportedMessage(undefined)}/>}
 
         {unlocked.length > 0 && <TitleUnlocked key={unlocked[0].id}
                                                title={unlocked[0]}
@@ -454,6 +444,7 @@ export default function Viewer(props: ViewerProps) {
         <Quiz state={quiz.state} onOpen={quiz.open} onAnswer={quiz.answer}/>
 
         {vpnBlocked && <VPNBlockedModal onClose={dismissVPNBlocked}/>}
+        {bannedUntil !== undefined && <BannedModal until={bannedUntil} onClose={dismissBanned}/>}
 
         {sessionUnavailable && <SessionUnavailableModal onClose={dismissSessionUnavailable}/>}
     </>

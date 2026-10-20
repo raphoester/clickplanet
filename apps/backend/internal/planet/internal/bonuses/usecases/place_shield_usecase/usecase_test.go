@@ -126,16 +126,6 @@ func TestAMalformedRequestIsRefused(t *testing.T) {
 	assert.Equal(t, 3, f.charges.Held(caller).Shields)
 }
 
-func TestADudSpendsTheShieldAndPlacesNothing(t *testing.T) {
-	f := setup(t, 3)
-
-	held, err := f.place(t, place_shield_usecase.In{TileID: 7, CountryID: "fr", Dud: true})
-	require.NoError(t, err)
-
-	assert.Equal(t, 2, held.Shields)
-	assert.Zero(t, f.tiles.Shields(7))
-}
-
 type lostRace struct{ *inmemory_tile_storage.Storage }
 
 func (l lostRace) Shield(context.Context, uint32, string, int) error { return clicks.ErrNotYourTile }

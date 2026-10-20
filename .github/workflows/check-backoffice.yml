@@ -1,0 +1,39 @@
+name: check backoffice
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'apps/backoffice/**'
+      - 'proto/**'
+      - '.github/workflows/check-backoffice.yml'
+  pull_request:
+    paths:
+      - 'apps/backoffice/**'
+      - 'proto/**'
+      - '.github/workflows/check-backoffice.yml'
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: apps/backoffice
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/backoffice/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run build
+
+      - run: npm test

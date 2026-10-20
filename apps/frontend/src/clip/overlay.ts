@@ -74,6 +74,13 @@ function said(name: string): string {
     return SAID_WITH_THE.test(name) ? `the ${name}` : name
 }
 
+// 1st, 2nd, 3rd, 4th, 11th, 21st.
+function ordinalOf(rank: number): string {
+    const teen = rank % 100 >= 11 && rank % 100 <= 13
+    const suffix = teen ? "th" : ["th", "st", "nd", "rd"][rank % 10] ?? "th"
+    return `${rank}${suffix}`
+}
+
 export function placeName(place: Place): string {
     return "region" in place ? place.region : countriesOf(place).map(nameOf).join(" and ")
 }
@@ -111,6 +118,43 @@ export function wordsOf(story: Story, headline?: string): Words {
     const place = placeSaid(story.place)
     const sides = sidesOf(story)
     const victim = story.victims[0] === undefined ? undefined : said(nameOf(story.victims[0]))
+
+    if (story.kind === "holding") {
+        const world = "region" in story.place && story.place.region === THE_WORLD
+        const share = story.share ?? 0
+        // Never more than it holds: 79.6% is 79%.
+        const percent = `${Math.floor(share * 100)}%`
+        const country = countriesOf(story.place)[0]
+        return {
+            headline: headline ?? `${attacker} HOLDS ${percent} OF ${place}`.toUpperCase(),
+            line: undefined,
+            call: world ? "FIGHT BACK" : `TAKE ${place} BACK`.toUpperCase(),
+            callFlags: world ? [] : placeFlags(story.place),
+            link: country === undefined ? SITE : `${SITE}/?f=${country}`,
+            teasers: loud([
+                `${percent} of ${place} flies the flag of ${attacker}`,
+                world ? `the biggest empire on earth: ${attacker}`
+                    : share >= 0.5 ? `${attacker} rules ${place}` : `${attacker} is the biggest power in ${place}`,
+            ]),
+        }
+    }
+
+    if (story.kind === "round" && story.day !== undefined) {
+        const day = story.day
+        const won = day.finale ? "the final battle" : `day ${day.number}`
+        const after = day.table.find(({country}) => country === story.attacker)
+        const points = after === undefined ? "" : `${NUMBER.format(after.points)} ${after.points === 1 ? "point" : "points"}`
+        return {
+            headline: headline ?? `${attacker} WINS ${won}`.toUpperCase(),
+            line: after === undefined ? undefined
+                : after.rank > 1 ? `${ordinalOf(after.rank)} in the season with ${points}`
+                    : day.finale ? `Wins the season with ${points}` : `Leads the season with ${points}`,
+            call: day.finale ? "PLAY FOR YOUR COUNTRY" : `WHO WINS DAY ${day.number + 1}?`,
+            callFlags: [],
+            link: SITE,
+            teasers: loud([`${attacker} takes ${won}`, `${won} goes to ${attacker}`]),
+        }
+    }
 
     if (story.kind === "rout") {
         const loser = said(nameOf(sides[0]))
@@ -207,7 +251,19 @@ function flag(code: string, className: string, parent: HTMLElement) {
     return image
 }
 
-export function createOverlay(root: HTMLElement, story: Story, words: Words, opening: ReadonlyMap<string, number>): Overlay {
+// A share of a place, to a tenth of a point, never more than it is: 79.96% is 79.9%.
+function shareOf(count: number, ground: number): string {
+    return `${(Math.floor(count / Math.max(1, ground) * 1000) / 10).toFixed(1)}%`
+}
+
+// ground: the tiles of the place, when the counter says what share of it a side holds rather than how many tiles.
+export function createOverlay(
+    root: HTMLElement,
+    story: Story,
+    words: Words,
+    opening: ReadonlyMap<string, number>,
+    ground?: number,
+): Overlay {
     const sides = sidesOf(story)
 
     const top = element("header", "clip-top", root)
@@ -235,6 +291,16 @@ export function createOverlay(root: HTMLElement, story: Story, words: Words, ope
     const ending = element("section", "clip-ending", root)
     const endingFlags = element("div", "clip-ending-flags", ending)
     for (const called of words.callFlags) flag(called, "clip-ending-flag", endingFlags)
+    if (story.day !== undefined) {
+        const podium = element("ol", "clip-podium", ending)
+        for (const {country, rank, points} of story.day.podium) {
+            const place = element("li", `clip-podium-place clip-podium-place--${rank}`, podium)
+            element("span", "clip-podium-rank", place).textContent = ordinalOf(rank).toUpperCase()
+            flag(country, "clip-podium-flag", place)
+            element("span", "clip-podium-name", place).textContent = nameOf(country).toUpperCase()
+            element("span", "clip-podium-points", place).textContent = `+${NUMBER.format(points)}`
+        }
+    }
     element("p", "clip-call", ending).textContent = words.call
     element("p", "clip-url", ending).textContent = "clickplanet.lol"
 
@@ -243,8 +309,10 @@ export function createOverlay(root: HTMLElement, story: Story, words: Words, ope
             for (const {side, tiles, delta} of shown) {
                 const count = held.get(side) ?? 0
                 const moved = count - (opening.get(side) ?? 0)
-                tiles.textContent = `${NUMBER.format(count)} ${count === 1 ? "tile" : "tiles"}`
-                delta.textContent = moved === 0 ? "" : `${moved > 0 ? "+" : "−"}${NUMBER.format(Math.abs(moved))}`
+                tiles.textContent = ground !== undefined ? shareOf(count, ground)
+                    : `${NUMBER.format(count)} ${count === 1 ? "tile" : "tiles"}`
+                const by = ground !== undefined ? shareOf(Math.abs(moved), ground) : NUMBER.format(Math.abs(moved))
+                delta.textContent = moved === 0 || by === "0.0%" ? "" : `${moved > 0 ? "+" : "−"}${by}`
                 delta.classList.toggle("clip-counter-delta--gain", moved > 0)
                 delta.classList.toggle("clip-counter-delta--loss", moved < 0)
             }

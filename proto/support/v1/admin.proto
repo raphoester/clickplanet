@@ -5,11 +5,14 @@ package support.v1;
 import "google/protobuf/timestamp.proto";
 import "support/v1/support.proto";
 
-// Unauthenticated: serve only on the loopback admin listener, never the public router.
+// No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
 service AdminService {
   rpc ListNotes(ListNotesRequest) returns (ListNotesResponse);
 
   rpc ListReports(ListReportsRequest) returns (ListReportsResponse);
+
+  // Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
+  rpc DecideReport(DecideReportRequest) returns (DecideReportResponse);
 }
 
 enum NoteKind {
@@ -41,6 +44,14 @@ message Note {
   // What the page said of itself. Every note has one; a note sent before they were kept has an empty one.
   PageContext context = 6;
   string user_agent = 7;
+  repeated NoteAttachment attachments = 8;
+}
+
+message NoteAttachment {
+  string content_type = 1;
+  uint64 size_bytes = 2;
+  // Good for a short time. It answers 404 when the page never uploaded the file.
+  string url = 3;
 }
 
 message ListReportsRequest {
@@ -48,6 +59,8 @@ message ListReportsRequest {
   google.protobuf.Timestamp since = 1;
   // Unset is 100; at most 500.
   uint32 limit = 2;
+  // Only the reports nobody decided yet.
+  bool open_only = 3;
 }
 
 message ListReportsResponse {
@@ -65,4 +78,32 @@ message Report {
   // The name the game shows for each account now; empty for one it can no longer name.
   string reporter_name = 8;
   string reported_name = 9;
+  // Unset while the report is open.
+  ReportDecision decision = 10;
+}
+
+enum ReportOutcome {
+  REPORT_OUTCOME_UNSPECIFIED = 0;
+  // The operator acted: a message removed, a mute or a ban.
+  REPORT_OUTCOME_ACTED = 1;
+  // Nothing to act on.
+  REPORT_OUTCOME_DISMISSED = 2;
+}
+
+message ReportDecision {
+  ReportOutcome outcome = 1;
+  // Optional: why, in the operator's words.
+  string comment = 2;
+  google.protobuf.Timestamp decided_at = 3;
+}
+
+message DecideReportRequest {
+  string report_id = 1;
+  ReportOutcome outcome = 2;
+  // Optional: why, in the operator's words.
+  string comment = 3;
+}
+
+message DecideReportResponse {
+  google.protobuf.Timestamp decided_at = 1;
 }

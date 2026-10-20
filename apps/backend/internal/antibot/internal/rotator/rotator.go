@@ -233,6 +233,7 @@ func (w *Watchdog) judgeLocked(n *network, a *account, now time.Time) (detect.Ve
 			{Key: "sharedSeconds", Value: together.seconds},
 			{Key: "byChance", Value: math.Round(together.byChance)},
 		},
+		Turns:       true,
 		Accomplices: accomplices,
 	}
 }

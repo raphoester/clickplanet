@@ -63,25 +63,39 @@ func (c commandAuthors) Authors(ctx context.Context, accounts []messages.Account
 }
 
 func (s *testSuite) TestAMessageIsInTheHistoryExactlyWhenItCanBeReactedAndRepliedTo() {
-	for name, sends := range map[string][]time.Duration{
-		"fewer than the window holds":   {time.Hour},
-		"more than the window holds":    {4 * time.Hour, 3 * time.Hour, 2 * time.Hour, time.Hour},
-		"kept out of time order":        {time.Hour, 3 * time.Hour, 2 * time.Hour},
-		"across the retention":          {25 * time.Hour, 23 * time.Hour, time.Hour},
-		"one just inside the retention": {historyRetention - time.Second, historyRetention + time.Second},
+	for name, kept := range map[string]struct {
+		sends   []time.Duration
+		removed []string
+	}{
+		"fewer than the window holds":   {sends: []time.Duration{time.Hour}},
+		"more than the window holds":    {sends: []time.Duration{4 * time.Hour, 3 * time.Hour, 2 * time.Hour, time.Hour}},
+		"kept out of time order":        {sends: []time.Duration{time.Hour, 3 * time.Hour, 2 * time.Hour}},
+		"across the retention":          {sends: []time.Duration{25 * time.Hour, 23 * time.Hour, time.Hour}},
+		"one just inside the retention": {sends: []time.Duration{historyRetention - time.Second, historyRetention + time.Second}},
+		"one removed in the window": {
+			sends: []time.Duration{4 * time.Hour, 3 * time.Hour, 2 * time.Hour, time.Hour}, removed: []string{"m3"},
+		},
+		"one removed past the window": {
+			sends: []time.Duration{4 * time.Hour, 3 * time.Hour, 2 * time.Hour, time.Hour}, removed: []string{"m0"},
+		},
 	} {
 		s.Run(name, func() {
 			s.Require().NoError(s.db.Purge(s.T().Context()))
-			ids := make([]string, 0, len(sends))
-			for i, ago := range sends {
+			ids := make([]string, 0, len(kept.sends))
+			for i, ago := range kept.sends {
 				id := fmt.Sprintf("m%d", i)
 				s.sentAt(id, ada, now.Add(-ago))
 				ids = append(ids, id)
 			}
+			for _, id := range kept.removed {
+				s.removed(id)
+			}
 
 			shown := cpcolls.NewSet[string]()
 			for _, message := range s.history(ada).GetMessages() {
-				shown.Add(message.GetId())
+				if !message.GetRemoved() {
+					shown.Add(message.GetId())
+				}
 			}
 			for _, id := range ids {
 				reactable, err := s.messages.Shown(s.T().Context(), messages.MessageID(id), window.Since(now), window.Size())

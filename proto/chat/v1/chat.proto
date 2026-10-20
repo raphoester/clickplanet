@@ -63,6 +63,8 @@ message ChatMessage {
   Quote reply_to = 13;
   // Empty for a message kept before accounts, and for an account that was deleted.
   string author_account_id = 14;
+  // An operator removed it: it keeps its place, with no text and no reactions.
+  bool removed = 15;
 }
 
 message Quote {
@@ -70,6 +72,8 @@ message Quote {
   string author_name = 2;
   player.v1.NameColor author_color = 3;
   string text = 4;
+  // The message quoted was removed: no text.
+  bool removed = 5;
 }
 
 message SendMessageRequest {
@@ -131,7 +135,13 @@ message ChatEvent {
     Heartbeat heartbeat = 2;
     ReactionsChanged reactions = 3;
     Announcement announcement = 4;
+    MessageRemoved message_removed = 5;
   }
+}
+
+// An operator removed it: a client keeps it in its place with no text and no reactions, and empties every quote of it.
+message MessageRemoved {
+  string message_id = 1;
 }
 
 message ReactionsChanged {

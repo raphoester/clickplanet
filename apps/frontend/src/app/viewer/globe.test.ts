@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
-import {drawsFrame, reportClickFailure, spinStep} from "./globe.ts"
-import {AllegianceLockedError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
+import {drawsFrame, reportClaimFailure, reportClickFailure, spinStep} from "./globe.ts"
+import {AllegianceLockedError, BannedError, BonusLostError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts"
@@ -9,7 +9,7 @@ import {TileField} from "./tileField.ts"
 import {regions} from "./atlas.ts"
 
 function handlers() {
-    return {onRateLimited: vi.fn(), onVPNBlocked: vi.fn(), onSessionUnavailable: vi.fn()}
+    return {onRateLimited: vi.fn(), onVPNBlocked: vi.fn(), onBanned: vi.fn(), onSessionUnavailable: vi.fn()}
 }
 
 describe("reportClickFailure", () => {
@@ -29,6 +29,18 @@ describe("reportClickFailure", () => {
         expect(reportClickFailure(new VPNBlockedError(), h)).toBe(true)
 
         expect(h.onVPNBlocked).toHaveBeenCalledTimes(1)
+        expect(h.onRateLimited).not.toHaveBeenCalled()
+        expect(h.onSessionUnavailable).not.toHaveBeenCalled()
+    })
+
+    it("sends a ban to its own dialog with its end, and not to the VPN one", () => {
+        const h = handlers()
+        const until = Date.now() + 3600_000
+
+        expect(reportClickFailure(new BannedError(until), h)).toBe(true)
+
+        expect(h.onBanned).toHaveBeenCalledWith(until)
+        expect(h.onVPNBlocked).not.toHaveBeenCalled()
         expect(h.onRateLimited).not.toHaveBeenCalled()
         expect(h.onSessionUnavailable).not.toHaveBeenCalled()
     })
@@ -67,6 +79,27 @@ describe("reportClickFailure", () => {
         expect(h.onVPNBlocked).not.toHaveBeenCalled()
         expect(h.onSessionUnavailable).not.toHaveBeenCalled()
         logged.mockRestore()
+    })
+})
+
+describe("reportClaimFailure", () => {
+    it("sends a bomb or a shield refused for a ban to the ban dialog", () => {
+        const h = {onSessionUnavailable: vi.fn(), onBanned: vi.fn()}
+        const until = Date.now() + 3600_000
+
+        reportClaimFailure(new BannedError(until), h)
+
+        expect(h.onBanned).toHaveBeenCalledWith(until)
+        expect(h.onSessionUnavailable).not.toHaveBeenCalled()
+    })
+
+    it("says nothing of a bonus that was lost", () => {
+        const h = {onSessionUnavailable: vi.fn(), onBanned: vi.fn()}
+
+        reportClaimFailure(new BonusLostError(), h)
+
+        expect(h.onBanned).not.toHaveBeenCalled()
+        expect(h.onSessionUnavailable).not.toHaveBeenCalled()
     })
 })
 

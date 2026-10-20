@@ -42,6 +42,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/allegiance_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_attempt_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/antibot_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/ban_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/bonus_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click/prom_enclose"
@@ -250,13 +251,15 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			clickUseCase = bonus_click.New(clickUseCase, registry)
 
-			// Outside the shadow ban, or a banned caller would stop seeing 429s and know.
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
 
 			// Outside the throttle, so a click refused for its flag spends nothing.
 			clickUseCase = allegiance_click.New(clickUseCase, book)
 
 			clickUseCase = antibot_attempt_click.New(clickUseCase, guard, geography, clock)
+
+			// Outside the throttle: a refused click must not spend a token, or the client shows a 429.
+			clickUseCase = ban_click.New(clickUseCase, guard, props.Metrics)
 
 			adminBatch := config.TilesStorage.SubscriberBuffer / 4
 			if adminBatch <= 0 {
@@ -353,13 +356,13 @@ func NewModule(config Config) cpbootstrap.Module {
 				},
 			})
 
-			dropped := prom_drop_bomb.New(
-				publishing_drop_bomb.New(
-					drop_bomb_usecase.New(charges, geography, writer, countries, bombRules),
-					borders, props.Events, clock),
+			dropBomb := prom_drop_bomb.New(
+				antibot_drop_bomb.New(
+					publishing_drop_bomb.New(
+						drop_bomb_usecase.New(charges, geography, writer, countries, bombRules),
+						borders, props.Events, clock),
+					guard),
 				props.Metrics)
-
-			dropBomb := antibot_drop_bomb.New(dropped, guard)
 
 			rules := bonuses.Rules{
 				BlastRadius:       bombRules.Radius,

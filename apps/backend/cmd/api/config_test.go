@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -46,10 +47,10 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
 	assert.Equal(t, time.Second, config.Planet.LedgerStorage.FlushInterval)
 
-	assert.False(t, config.Planet.AntiBot.ShadowBan.Enforce, "the example must ship observing only")
-	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.ShadowBan.BanDurations)
+	assert.False(t, config.Planet.AntiBot.Bans.Enforce, "the example must ship observing only")
+	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.Bans.BanDurations)
 	assert.Equal(t, "antibot", config.Planet.AntiBot.Database.Schema)
-	assert.Equal(t, 5*time.Minute, config.Planet.AntiBot.ShadowBan.ReflagInterval)
+	assert.Equal(t, 5*time.Minute, config.Planet.AntiBot.Bans.ReflagInterval)
 
 	assert.Equal(t, 2, config.Planet.AntiBot.Jury.MinSuspects)
 	assert.Equal(t, 10*time.Minute, config.Planet.AntiBot.Jury.SuspicionWindow)
@@ -124,7 +125,7 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.InDelta(t, 4, config.Planet.Toll.Steps[2].Slowdown, 1e-9)
 	require.NoError(t, config.Planet.Validate())
 	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
-	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.AdminBindAddress)
+	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.ConsoleBindAddress)
 	assert.Equal(t, "127.0.0.1:8082", config.HTTPServer.InternalBindAddress)
 	assert.Equal(t, "http://localhost:5173", config.HTTPServer.AllowedOrigin)
 	assert.Equal(t, time.Hour, config.Auth.TTL)
@@ -353,4 +354,63 @@ seasons:
 	var config Config
 	err := cpconfigs.Load(&config, cpconfigs.FromFile(path))
 	require.ErrorContains(t, err, "seasons: list[0].number is 1")
+}
+
+func TestTheExampleConfigReachesTheAttachments(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	attachments := config.Support.Attachments
+	assert.False(t, attachments.Enabled, "the example has no bucket")
+	assert.Equal(t, 10, attachments.MaxPerNote)
+	assert.Equal(t, int64(50<<20), attachments.MaxBytes)
+	assert.Equal(t, 10*time.Minute, attachments.UploadTTL)
+	assert.Equal(t, time.Hour, attachments.LinkTTL)
+	assert.Equal(t, "auto", attachments.Bucket.Region)
+	assert.Equal(t, "clickplanet-support", attachments.Bucket.Name)
+}
+
+func productionConfig(t *testing.T) Config {
+	t.Helper()
+
+	const production = "../../../../deploy/vps/backend.yaml"
+	file, err := os.ReadFile(production)
+	require.NoError(t, err)
+	seed, _ := cpsession.TestKeyPair()
+	for _, anchor := range regexp.MustCompile(`env://([A-Za-z_][A-Za-z0-9_]*)`).FindAllStringSubmatch(string(file), -1) {
+		t.Setenv(anchor[1], "a-secret")
+	}
+	t.Setenv("SESSION_SECRET", seed)
+	t.Setenv("SUPPORT_BUCKET_SECRET", "the-bucket-secret")
+	t.Setenv("httpServer.allowedOrigin", "https://clickplanet.lol")
+
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(production)))
+	return config
+}
+
+func TestTheProductionConfigEnforcesBans(t *testing.T) {
+	config := productionConfig(t)
+
+	assert.True(t, config.Planet.AntiBot.Enabled)
+	assert.True(t, config.Planet.AntiBot.Bans.Enforce, "a key the config does not read leaves bans off without a word")
+	assert.Equal(t, []time.Duration{24 * time.Hour, 7 * 24 * time.Hour, 3 * 365 * 24 * time.Hour}, config.Planet.AntiBot.Bans.BanDurations)
+}
+
+func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T) {
+	config := productionConfig(t)
+
+	attachments := config.Support.Attachments
+	assert.True(t, attachments.Enabled)
+	assert.Equal(t, "the-bucket-secret", attachments.Bucket.SecretAccessKey)
+	assert.Equal(t, "9ec4cd4fdf48006b2944c522219f1eea", attachments.Bucket.AccessKeyID)
+	assert.Equal(t, "https://76f6f3883c3a531ae90d1dc4b96bf810.r2.cloudflarestorage.com", attachments.Bucket.Endpoint)
+	assert.Equal(t, "clickplanet-support", attachments.Bucket.Name)
+	assert.Equal(t, "auto", attachments.Bucket.Region)
+	assert.Equal(t, int64(9<<30), attachments.MaxStoredBytes)
+	require.NoError(t, config.Support.Validate())
+
+	config.Support.Attachments.Bucket.SecretAccessKey = ""
+	require.ErrorContains(t, config.Support.Validate(), "secretAccessKey",
+		"a deploy before SUPPORT_BUCKET_SECRET is set refuses the boot")
 }

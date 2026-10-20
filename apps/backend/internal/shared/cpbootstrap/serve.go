@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"sync"
 	"syscall"
 	"time"
@@ -28,13 +29,13 @@ func mountMetrics(router *http.ServeMux, metrics *prometheus.Registry, logger *s
 	)(metricsRouter))
 }
 
-type loopbackServer struct {
+type sideServer struct {
 	name     string
 	server   *http.Server
 	listener net.Listener
 }
 
-func listenLoopback(options Options, listen listenFunc, name, key, address string, routes *rpcRoutes) (*loopbackServer, error) {
+func listenLoopback(options Options, listen listenFunc, name, key, address string, routes *rpcRoutes) (*sideServer, error) {
 	if address == "" {
 		if len(routes.paths) > 0 {
 			options.Logger.Info(name+" listener off, its services not served", slog.Int("services", len(routes.paths)))
@@ -54,8 +55,50 @@ func listenLoopback(options Options, listen listenFunc, name, key, address strin
 	router := http.NewServeMux()
 	routes.mountOn(router, cphttpserver.MiddlewareStack(cphttpserver.NewLoggingMiddleware(options.Logger)))
 
-	return &loopbackServer{
+	return &sideServer{
 		name:     name,
+		server:   &http.Server{Handler: router, ReadHeaderTimeout: readHeaderTimeout},
+		listener: listener,
+	}, nil
+}
+
+func listenAdmin(options Options, listen listenFunc, routes *rpcRoutes) (*sideServer, error) {
+	address, gate := options.Server.AdminBindAddress, options.AdminGate
+	if address == "" {
+		if !gate.empty() {
+			options.Logger.Info("admin listener off, its gate unused")
+		}
+		return nil, nil //nolint:nilnil // nil means "no such listener"; serve skips it.
+	}
+
+	if !hostPort(address) {
+		return nil, fmt.Errorf("httpServer.adminBindAddress %q is not a host:port", address)
+	}
+	if gate.empty() {
+		return nil, fmt.Errorf(
+			"httpServer.adminBindAddress %q is set and nothing gates it: the admin services have no authentication of their own",
+			address,
+		)
+	}
+	if slices.Contains(gate.Interceptors, nil) || slices.ContainsFunc(gate.Middlewares, func(m func(http.Handler) http.Handler) bool { return m == nil }) {
+		return nil, errors.New("the admin gate holds a nil interceptor or middleware")
+	}
+
+	router := http.NewServeMux()
+	middlewares := cphttpserver.MiddlewareStack(append(
+		[]func(http.Handler) http.Handler{cphttpserver.NewLoggingMiddleware(options.Logger)}, gate.Middlewares...,
+	)...)
+	if err := routes.mountBehind(router, middlewares, gate.Interceptors...); err != nil {
+		return nil, err
+	}
+
+	listener, err := listen(context.Background(), "tcp", address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen on httpServer.adminBindAddress %q: %w", address, err)
+	}
+
+	return &sideServer{
+		name:     "admin",
 		server:   &http.Server{Handler: router, ReadHeaderTimeout: readHeaderTimeout},
 		listener: listener,
 	}, nil
@@ -66,7 +109,7 @@ func serve(
 	options Options,
 	public net.Listener,
 	router http.Handler,
-	loopbacks []*loopbackServer,
+	sides []*sideServer,
 	drain context.CancelFunc,
 	runners *runnerRegistry,
 	closers *closerRegistry,
@@ -100,11 +143,11 @@ func serve(
 		serveErr <- err
 	}()
 
-	for _, loopback := range loopbacks {
-		options.Logger.Info("Listening for "+loopback.name, slog.String("address", loopback.listener.Addr().String()))
+	for _, side := range sides {
+		options.Logger.Info("Listening for "+side.name, slog.String("address", side.listener.Addr().String()))
 		go func() {
-			if err := loopback.server.Serve(loopback.listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				options.Logger.Error(loopback.name+" server stopped", slog.Any("error", err))
+			if err := side.server.Serve(side.listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				options.Logger.Error(side.name+" server stopped", slog.Any("error", err))
 			}
 		}()
 	}
@@ -115,8 +158,8 @@ func serve(
 
 	select {
 	case err := <-serveErr:
-		for _, loopback := range loopbacks {
-			_ = loopback.server.Close()
+		for _, side := range sides {
+			_ = side.server.Close()
 		}
 		stop(options, closers, stopRunning, started)
 		if err != nil {
@@ -140,9 +183,9 @@ func serve(
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		options.Logger.Error("failed to shut down the http server", slog.Any("error", err))
 	}
-	for _, loopback := range loopbacks {
-		if err := loopback.server.Shutdown(shutdownCtx); err != nil {
-			options.Logger.Error("failed to shut down the "+loopback.name+" server", slog.Any("error", err))
+	for _, side := range sides {
+		if err := side.server.Shutdown(shutdownCtx); err != nil {
+			options.Logger.Error("failed to shut down the "+side.name+" server", slog.Any("error", err))
 		}
 	}
 

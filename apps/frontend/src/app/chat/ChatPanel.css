@@ -500,6 +500,7 @@
 
 .chat-message-text {
     position: relative;
+    min-width: 0;
     max-width: 86%;
     margin: 0;
     padding: 6px var(--space-3) 7px var(--space-3);
@@ -601,6 +602,11 @@ button.chat-quote:hover {
     white-space: nowrap;
     font-weight: 700;
     color: var(--author);
+}
+
+.chat-removed {
+    font-style: italic;
+    opacity: 0.7;
 }
 
 .chat-quote-text {
@@ -1048,6 +1054,18 @@ button.chat-quote:hover {
     .chat-report-add {
         opacity: 0.5;
     }
+}
+
+.chat-report-add.chat-report-done,
+.chat-report-add.chat-report-done:hover {
+    background: var(--panel-raised);
+    color: var(--text);
+    cursor: default;
+    opacity: 1;
+}
+
+.chat-report-done svg {
+    fill: currentColor;
 }
 
 .chat-reaction-picker {

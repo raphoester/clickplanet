@@ -115,3 +115,64 @@ func TestASourceWithNoHostIsRefusedWhenItIsBuilt(t *testing.T) {
 
 	require.Error(t, err)
 }
+
+const raced = `{"race":{"round":{"number":6,"endsAtUnixMs":"1792357200000"},` +
+	`"closed":{"season":1,"number":5,"endedAtUnixMs":"1792270800000","standings":[{"rank":1,"countryId":"fr","share":0.18,"points":25}]}},` +
+	`"aFieldOfALaterBackend":true}`
+
+func TestTheRaceIsAskedOfThePublicListenerOverSSH(t *testing.T) {
+	fake := ssh(t, raced, "", 0)
+	source, err := ssh_replay_source.New("deploy@vps.example", fake.client)
+	require.NoError(t, err)
+
+	race, err := source.Race(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{
+		"--",
+		"deploy@vps.example",
+		"cd /opt/clickplanet/deploy/vps && docker compose exec -T backend wget -qO- --header 'Content-Type: application/json'" +
+			" --post-data '{}' http://127.0.0.1:8080/seasons.v1.SeasonService/GetRace",
+	}, fake.asked(t))
+	assert.Equal(t, replays.Race{
+		Document: []byte(raced),
+		Closed:   "1.5",
+		EndedAt:  time.Date(2026, 10, 17, 21, 0, 0, 0, time.UTC),
+	}, race)
+}
+
+func TestARaceWithNoDayClosedYetIsARaceToo(t *testing.T) {
+	source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, `{"race":{}}`, "", 0).client)
+	require.NoError(t, err)
+
+	race, err := source.Race(t.Context())
+
+	require.NoError(t, err)
+	assert.Equal(t, replays.Race{Document: []byte(`{"race":{}}`)}, race)
+}
+
+func TestARaceTheBackendDoesNotServeIsAnErrorThatSaysWhy(t *testing.T) {
+	source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, "", "wget: server returned error: HTTP/1.1 404 Not Found\n", 1).client)
+	require.NoError(t, err)
+
+	_, err = source.Race(t.Context())
+
+	require.ErrorContains(t, err, "ssh failed: exit status 1: wget: server returned error: HTTP/1.1 404 Not Found")
+}
+
+func TestAnAnswerThatIsNotARaceIsAnError(t *testing.T) {
+	for name, says := range map[string]string{
+		"nothing": "",
+		"a page":  "<html>502 Bad Gateway</html>",
+		"a list":  `[]`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, says, "", 0).client)
+			require.NoError(t, err)
+
+			_, err = source.Race(t.Context())
+
+			require.Error(t, err)
+		})
+	}
+}

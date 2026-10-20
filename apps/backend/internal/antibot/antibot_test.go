@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -27,8 +27,8 @@ type stack struct {
 	config antibot.Config
 	stop   func()
 
-	bans           *shadowban.MemoryStore
-	accountBans    *shadowban.MemoryStore
+	bans           *bans.MemoryStore
+	accountBans    *bans.MemoryStore
 	evidence       *evidence.MemoryPersistence
 	forgetEvidence bool
 
@@ -48,16 +48,16 @@ func newStack(t *testing.T, options ...func(*antibot.Config)) *stack {
 		owner:       map[uint32]string{},
 		shields:     map[uint32]int{},
 		linked:      cpcolls.NewSet[string](),
-		bans:        shadowban.NewMemoryStore(),
-		accountBans: shadowban.NewMemoryStore(),
+		bans:        bans.NewMemoryStore(),
+		accountBans: bans.NewMemoryStore(),
 		evidence:    evidence.NewMemoryPersistence(),
 	}
 
 	config := antibot.Config{Enabled: true}
 
-	config.ShadowBan.Enforce = true
-	config.ShadowBan.BanDurations = []time.Duration{time.Hour}
-	config.ShadowBan.ReflagInterval = 5 * time.Minute
+	config.Bans.Enforce = true
+	config.Bans.BanDurations = []time.Duration{time.Hour}
+	config.Bans.ReflagInterval = 5 * time.Minute
 
 	config.Jury.MinSuspects = 2
 	config.Jury.SuspicionWindow = 10 * time.Minute
@@ -195,7 +195,8 @@ func (s *stack) restart(outage time.Duration) {
 }
 
 func (s *stack) inspect(click antibot.Click) bool {
-	return s.guard.Inspect(s.t.Context(), click)
+	s.guard.Inspect(s.t.Context(), click)
+	return s.banned(click.Scope, click.Account)
 }
 
 func (s *stack) ban(scope, account string, duration time.Duration) antibot.Sentence {
@@ -211,7 +212,8 @@ func (s *stack) unban(scope, account string) {
 }
 
 func (s *stack) banned(scope, account string) bool {
-	return s.guard.Banned(s.t.Context(), scope, account)
+	_, banned := s.guard.EnforcedSentence(s.t.Context(), scope, account)
+	return banned
 }
 
 func (s *stack) examine(scope, account string) antibot.Examination {
@@ -826,8 +828,9 @@ func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.False(t, guard.Enabled())
-	assert.False(t, guard.Inspect(t.Context(), antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"}))
-	assert.False(t, guard.Banned(t.Context(), "1.2.3.4", "a-guest"))
+	guard.Inspect(t.Context(), antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"})
+	_, banned := guard.EnforcedSentence(t.Context(), "1.2.3.4", "a-guest")
+	assert.False(t, banned)
 }
 
 func TestALoopRestartedEveryFewMinutesIsStillCaught(t *testing.T) {

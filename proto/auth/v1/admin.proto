@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package auth.v1;
+
+// The admin page's own sign-in: Google only, an account flagged operator only, a session of its own (cp_admin).
+service AdminService {
+  rpc StartSignIn(AdminStartSignInRequest) returns (AdminStartSignInResponse);
+
+  // PermissionDenied for a Google account no operator holds; FailedPrecondition to start again.
+  rpc CompleteSignIn(AdminCompleteSignInRequest) returns (AdminCompleteSignInResponse);
+
+  rpc SignOut(AdminSignOutRequest) returns (AdminSignOutResponse);
+
+  // The account the cookie names, when it operates: the admin page's own. Unauthenticated with no cookie.
+  rpc WhoAmI(WhoAmIRequest) returns (WhoAmIResponse);
+}
+
+message AdminStartSignInRequest {}
+
+message AdminStartSignInResponse {
+  string authorization_url = 1;
+}
+
+message AdminCompleteSignInRequest {
+  string code = 1;
+  string state = 2;
+}
+
+message AdminCompleteSignInResponse {
+  string account_id = 1;
+}
+
+message AdminSignOutRequest {}
+
+message AdminSignOutResponse {}
+
+message WhoAmIRequest {}
+
+message WhoAmIResponse {
+  string account_id = 1;
+}

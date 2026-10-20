@@ -26,6 +26,7 @@ export type ChatMessage = {
     reactions: ReactionCount[]
     reactionsVersion: number
     replyTo?: ChatQuote
+    removed?: boolean
 }
 
 export type ChatQuote = {
@@ -33,6 +34,7 @@ export type ChatQuote = {
     authorName: string
     authorColor: NameColor
     text: string
+    removed?: boolean
 }
 
 export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | RoundAnnouncement | FortifyAnnouncement
@@ -126,6 +128,7 @@ export interface ChatListener {
         onReactions?: (change: ReactionsChange) => void,
         onAnnouncement?: (announcement: ChatAnnouncement) => void,
         onResumed?: () => void,
+        onRemoved?: (messageId: string) => void,
     ): () => void
 }
 

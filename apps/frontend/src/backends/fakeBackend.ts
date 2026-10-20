@@ -2,6 +2,7 @@ import {
     AllegianceLockedError,
     AllegianceSource,
     BankFullError,
+    BannedError,
     BombDrop,
     Bomber,
     BonusHandlers,
@@ -135,6 +136,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private pace = 1
     private sharedWith: SharedBy | undefined
     private shapesClose = true
+    private bannedUntil: number | undefined
     private readonly vpnBlocked: boolean
     private readonly sessionUnavailable: boolean
 
@@ -221,6 +223,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF) {
         if (switches.spread && switches.enclose) throw new Error("spread and enclose switched on together")
         if (this.sessionUnavailable) throw new SessionUnavailableError()
+        this.refuseBanned()
         if (this.vpnBlocked) throw new VPNBlockedError()
         this.pledge(countryId)
 
@@ -363,6 +366,14 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.allegianceCallbacks.forEach(callback => callback(allegiance))
     }
 
+    public ban(minutes = 60): void {
+        this.bannedUntil = minutes > 0 ? Date.now() + minutes * 60_000 : undefined
+    }
+
+    private refuseBanned() {
+        if (this.bannedUntil !== undefined && Date.now() < this.bannedUntil) throw new BannedError(this.bannedUntil)
+    }
+
     public closeShapes(close: boolean): void {
         this.shapesClose = close
     }
@@ -472,6 +483,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public async placeShield(tileId: number, countryId: string): Promise<void> {
         if (this.sessionUnavailable) throw new SessionUnavailableError()
+        this.refuseBanned()
         this.pledge(countryId)
         if (this.charges.shields === 0) throw new BonusLostError()
         if (!this.botShield(tileId, countryId)) throw new ShieldRefusedError()
@@ -594,6 +606,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public async dropBomb(target: GlobePoint, countryId: string): Promise<void> {
         if (this.sessionUnavailable) throw new SessionUnavailableError()
+        this.refuseBanned()
         if (!this.charges.bomb) throw new BonusLostError()
 
         this.hold({...this.charges, bomb: false})

@@ -10,6 +10,7 @@ type Update struct {
 	message      *messages.Message
 	reactions    *reactions.Tally
 	announcement *announcements.Announcement
+	removed      *messages.MessageID
 }
 
 func MessageSent(message messages.Message) Update {
@@ -22,6 +23,10 @@ func ReactionsChanged(tally reactions.Tally) Update {
 
 func Announced(announcement announcements.Announcement) Update {
 	return Update{announcement: &announcement}
+}
+
+func MessageRemoved(message messages.MessageID) Update {
+	return Update{removed: &message}
 }
 
 func (u Update) Message() (messages.Message, bool) {
@@ -43,4 +48,11 @@ func (u Update) Announcement() (announcements.Announcement, bool) {
 		return announcements.Announcement{}, false
 	}
 	return *u.announcement, true
+}
+
+func (u Update) Removed() (messages.MessageID, bool) {
+	if u.removed == nil {
+		return "", false
+	}
+	return *u.removed, true
 }

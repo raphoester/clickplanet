@@ -22,6 +22,7 @@ npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see "Debugging mobile layout")
 npm run clip -- --replay replay.json --count 3  # The 3 best stories in it, as vertical videos with what to post
 npm run clip -- --replay replay.json --shortlist shortlist.json  # Only the list of its stories, as data
+npm run clip -- --replay replay.json --race race.json --plan  # With the season's race: the day it closed is a story too
 npm run clip:anthems # Vendor the anthems only the clips play (Europe's, Palestine's) into scripts/clip/anthems
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
 npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
@@ -67,11 +68,16 @@ landmass starts locked to France. `fakeBackend.shareClicks("guests")` (or
 wait for another flag (see [The flag played for](#the-flag-played-for)), and `fakeBackend.shareClicks()` as the
 player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
+`fakeBackend.ban(90)` refuses this player's clicks, bombs and shields for 90
+minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
 `localStorage.removeItem("clickplanet-bonus-guide")` makes the bonuses new again.
 `fakeSupport.refuse("rate-limited")` (or `"rejected"`, `"no-session"`,
-`"unknown-player"`, `"reported-already"`, `"failed"`) refuses what Settings and a
-player's card send next, and `fakeSupport.refuse()` takes it again;
-`fakeSupport.sent` is what it took.
+`"reported-already"`, `"failed"`) refuses what Settings and a player's card
+send next, `fakeSupport.refuse("upload-failed")` fails each file half way up,
+and `fakeSupport.refuse()` takes it all again; `fakeSupport.sent` is what it
+took, with the ids of each note's files, and `fakeSupport.uploaded` the files
+behind those ids (`fake-file-<n>` is its place there).
+`fakeSupport.rules.maxPerNote = 0` is a server that takes no file.
 
 A local backend is the quickest way to exercise the real chat: `cmd/api`'s
 `example.yaml` runs chat (it is always on), and the Go server answers
@@ -329,23 +335,30 @@ with no wait, and **a click that timed out is not sent again**, since it may
 have landed and costs a click and maybe a charge. It is rolled back, and the
 echo repaints it if it did land.
 
-The backend refuses a click in three ways, and `clickTile` translates all of
-them into errors declared beside the interfaces — the first two in `backend.ts`,
-the third in `session.ts` — so `globe.ts` recognises them without knowing what a
+The backend refuses a click in four ways, and `clickTile` translates all of
+them into errors declared beside the interfaces — the first three in `backend.ts`,
+the last in `session.ts` — so `globe.ts` recognises them without knowing what a
 Connect code is:
 
 - `resource_exhausted` → `RateLimitedError`. The per-IP token bucket is spent.
-- `permission_denied` → `VPNBlockedError`. The address is in the backend's VPN
-  and proxy blocklist.
+- `permission_denied` with a `BanRefusal` detail → `BannedError`, with `until`,
+  when the ban ends. The account or its network is banned (see the backend's
+  CLAUDE.md, "A ban is told").
+- `permission_denied` with no detail → `VPNBlockedError`. The address is in the
+  backend's VPN and proxy blocklist.
 - `unauthenticated` → `SessionUnavailableError`, **and only after a retry** —
   see [Sessions](#sessions).
 
 They are separate classes rather than one with a field because each one says
 something different: ease off for a second (the click meter shakes — no dialog),
-turn the VPN off, or reload and unblock the challenge. Everything else is a transport fault and still reaches the
-console.
+wait for the ban to end, turn the VPN off, or reload and unblock the challenge.
+Everything else is a transport fault and still reaches the console.
 
-`FakeBackend` reproduces all three, so every refusal is reachable in dev: it
+**A bomb and a shield are refused for a ban the same way** (`asBonusError` reads
+the detail), and the bomb or the shield stays in hand, since the server spent
+nothing.
+
+`FakeBackend` reproduces all four, so every refusal is reachable in dev: it
 enforces the same bucket as production's `rateLimiter` (one click every 5s, 60 in hand), and takes `vpnBlocked` and
 `sessionUnavailable` options that refuse every click (there is no address and no
 widget there to judge). Its own simulated traffic bypasses all of them, standing
@@ -651,6 +664,22 @@ the log has dropped the message it answers.
 - In fake mode one opening line is a reply, and every third line after it
   answers a random earlier one.
 
+#### Removed messages
+
+**An operator can remove a message** (the back office, on a report). It keeps its
+place and its author, and reads "This message has been deleted" (`REMOVED_TEXT`
+in `QuoteLine.tsx`), in italics. So does the quote of every reply to it.
+
+- **The server never sends the text again**: the history answers `removed` with
+  no text and no reactions, on the message and on a quote.
+- **The stream sends `message_removed`** with its id, and `useChat` empties the
+  message and every quote of it at once (`withRemoved` in `domain/chatLog.ts`).
+- **Nothing more can be done with it**: no reaction, no reply, no report.
+- A removal missed while the stream was down shows until the next page load: a
+  catch-up only adds what the history holds.
+- In fake mode `fakeChat.remove()` in the console removes the newest line, and
+  `fakeChat.remove(id)` a given one.
+
 #### Reactions
 
 A message carries reactions from a fixed set, `chat.v1.Reaction`: the proto enum
@@ -949,8 +978,10 @@ What a player sends the operator: a feature suggestion or a bug report, from
 the foot of Settings, and a report of another player, from that player's card.
 
 - `backends/support.ts` — `FeatureSuggester` and `BugReporter`, the
-  `PageContext` both send, `PlayerReporter` with its `PlayerReport` and
-  `ReportReason` (and `SupportBackend`, every support contract together),
+  `PageContext` both send, `AttachmentRulesReader` and `AttachmentUploader` for
+  the files (`FeedbackBackend` is those four together), `PlayerReporter` with
+  its `PlayerReport` and `ReportReason` (and `SupportBackend`, every support
+  contract together),
   `MAX_NOTE_LENGTH`, which mirrors the backend's
   `notes.MaxTextLength`, and the errors. `ConnectSupportBackend`
   (`supportBackend.ts`) implements it over `support.v1.SupportService`;
@@ -962,7 +993,9 @@ the foot of Settings, and a report of another player, from that player's card.
 - **A send is never retried.** A call that landed and lost its answer would be
   kept twice, and the text is still in the box.
 - The refusals are `resource_exhausted` → `SupportRateLimitedError` (one address
-  sends three, then one a minute) and `invalid_argument` → `SupportRejectedError`.
+  sends three, then one a minute; an account and an address send ten notes and a
+  hundred files a day; and the bucket is full) and `invalid_argument` →
+  `SupportRejectedError`. The line says "Try again later": the wait can be a day.
   A player report has one more: `already_exists` → `SupportReportedAlreadyError`
   (one account reports one player once a day).
 - **A note says what the page knows about itself, a suggestion as a bug report**
@@ -998,7 +1031,8 @@ the foot of Settings, and a report of another player, from that player's card.
 - **The modal's scroll fade is off** (`.modal-support`): a field sits at the
   bottom edge of the body, and the fade drew over it.
 - `SettingsPlace` shows Feedback only with a `support` backend wired. It asks
-  for `FeatureSuggester & BugReporter`, not the whole `SupportBackend`.
+  for `FeedbackBackend` (the two sends and the two contracts of the files), not
+  the whole `SupportBackend`.
 - **A player is reported from its card.** With a `reporter` wired, `PlayerCard`
   has a Report button in its footer, clear of the body's scroll fade. A press
   shows `ReportPlayerModal` **in place of the card**, not over it: two modals
@@ -1006,6 +1040,7 @@ the foot of Settings, and a report of another player, from that player's card.
 - **`ReportPlayerModal` is `NoteModal` with a question before the text**
   (`asked`): `Choices` of the four reasons, then the details, which are
   `optional`. Send waits for a reason (`ready`). It opens on the first reason.
+  It hands the form no `files`, so a report of a player takes none.
 - **The report names the account, never the name.** A name can change hands,
   so a report by name could land on another player. `PlayerLine.accountId` is on
   every line a card opens from: a chat message (`authorAccountId`), a roster
@@ -1013,22 +1048,71 @@ the foot of Settings, and a report of another player, from that player's card.
   `accountId` to send and the `name` for its title only. **A line with no
   account id has no Report**: the author of a message kept before accounts, or
   whose account is deleted.
-- **A card opened from a chat message carries that message's id**: `ChatLog`
-  hands it as the second argument of `onOpenPlayer`, `Viewer` keeps it with the
-  open card, and the report sends it. A card opened from the roster or the
-  board has none. **That is the first message of its author's run**, the one
-  under the name, so it is not the message to report.
+- **The card's report names a player and no message**, wherever the card was
+  opened from. Opened from a chat name it once sent that message's id, and the
+  name is only on the first message of its author's run: the report of an
+  insult sent after "hi" pointed to "hi".
 - **Every chat message has a Report button of its own**, beside react and reply
-  (`.chat-report-add`, shown like them). It opens `ReportPlayerModal` at once,
-  with no card first (`ChatPanel`'s `onReport`, held in `Viewer`), and sends
-  that message's own id. None on the player's own messages (`useChat`'s `own`)
-  or on a message with no account; none without a `support` backend wired.
+  (`.chat-report-add`, shown like them). It opens `ReportMessageModal`, held by
+  `ChatPanel`: `NoteModal` with the message quoted, its author and its text, and
+  optional details. **No reason is asked**: the message is what is reported, so
+  it is abuse in the chat; the reasons are the card's, about a player. It sends
+  the message's own id. A message sent is a filled flag, kept in `ChatPanel`
+  (`reported`) so a phone's sheet closed and opened again still shows it. A pill
+  that armed on the first press and sent on the second was tried: it covered
+  the reply and reaction buttons, and left no room for details. None on the
+  player's own messages (`useChat`'s `own`) or on a message with no account;
+  none without a `support` backend wired.
 - **No Report on the player's own card**, told by account id: `AccountStore`
   keeps the `accountId` of a signed-in player from its profile. A guest's is
   not read here, so its own card has the button, and the server refuses the
   report.
 - The fakes name one account per name (`backends/fakeAccounts.ts`), so a fake
   chat message, roster line and standing agree on who a player is.
+
+**A note carries photos and videos**, an idea as a bug: `FeedbackModal` hands
+`NoteModal` the backend as `files`, and the picker is under the text whatever
+the pick. See the backend's CLAUDE.md (Support) for where they are kept.
+
+- **The server says what a note may carry.** The form reads `attachmentRules()`
+  when it opens (`GetAttachmentRules`, no token): the most files, the most bytes
+  of one, and the content types. The most bytes shrink to the room the bucket has
+  left, and a full bucket takes no file, so the picker goes away. The picker shows only once they say one file or
+  more, so a server with no bucket, an older server (it answers
+  `unimplemented`) and a read that failed all give the plain form. No limit is
+  written on this side.
+- **The files first, the note after.** Send uploads each file in turn, then
+  sends the note with the id of every one (`attachmentIds`): a note never
+  reaches the operator without the files that explain it. `uploadAttachment`
+  is two calls: `CreateUpload` (the type and the size, with the click token)
+  answers an id and a link signed for that type and that size, and the file is
+  put there. The server checks each id is in the bucket before it keeps the
+  note.
+- **`putFile` is one `PUT` straight to the bucket**, over `XMLHttpRequest`:
+  `fetch` says nothing while a body goes up, and a 50 MB video on a phone needs a
+  bar. It sets the `Content-Type` the link was signed for; with another one the
+  bucket refuses the file. It is not a Connect call, so it has no token, no
+  retry and no `connectionInterceptor`.
+- `domain/attachments.ts` — `withPicked`, what the rules take of the files just
+  picked, and the first refusal as one line (`refusalLine`): too many, too big,
+  not a photo or a video. `sizeLine` writes a size.
+- `app/support/Attachments.tsx` — `AttachmentPicker` (the button, a hidden file
+  input with the server's types as `accept`, the list with a thumbnail, the size
+  and a remove button), each with its bar while it goes up and a tick once it
+  is up. **A picture pasted into the text is a file too.** A photo the browser
+  cannot draw (HEIC outside Safari) gets the plain mark.
+- **The form shows each file going up.** The footer is "Uploading 2 of 3…", the
+  text is read-only, the files cannot be taken off, and a click beside the form
+  does not close it. A file that did not upload stops the send and is named in
+  one line; Send again goes on from it. **A file already up is not sent again**
+  (`NoteModal` keeps each one's id), on a failed upload or a refused note
+  alike.
+- **Closing the form calls the upload off and sends nothing** (an
+  `AbortController` made in an effect). Made once per component, React's
+  StrictMode aborted it before the form was ever used, and every upload in
+  `npm run dev` stopped at 0%. A file already up stays in the bucket, named by
+  no note.
+- The fake uploads in eight steps, so the bar moves in dev.
 
 ### Titles
 
@@ -2211,11 +2295,11 @@ and are shared; how thick a line is drawn between them is this app's.
    A refused click is taken back off the map. A throttled one bumps `refusals` in
    `useGlobe`, and `ClickBudgetMeter` shakes and flashes red once per bump — a
    dialog here was annoying, since a player hits the wall mid-burst and the meter
-   already says why. The other two raise a flag that `Viewer` renders as
-   `VPNBlockedModal` or `SessionUnavailableModal`. The globe reports every refused
-   click, so those flags are booleans and not a queue — a burst is one thing to
-   say, once.
-   `reportClickFailure` in `globe.ts` is the four-way branch that picks which,
+   already says why. The other three raise a flag that `Viewer` renders as
+   `BannedModal`, `VPNBlockedModal` or `SessionUnavailableModal`. The globe reports
+   every refused click, so those flags hold one value and are not a queue — a burst
+   is one thing to say, once.
+   `reportClickFailure` in `globe.ts` is the five-way branch that picks which,
    split out of the click handler because it is the one piece of that handler
    worth testing: sending a refusal to the wrong dialog leaves a working page
    giving the wrong advice.
@@ -2223,6 +2307,12 @@ and are shared; how thick a line is drawn between them is this app's.
    Dismissing `VPNBlockedModal` only closes it. Unlike a spent bucket, that
    refusal does not clear on its own — the player has to change network — so the
    next click raises it again.
+
+   **`BannedModal` says until when** (`describeEnd`, the chat mute's words: the
+   time under 20 hours, then the day, and the year when it is not this one), and
+   links the terms' "Play fair" section in a new tab (`GAME_RULES`,
+   `/terms#play-fair`). It gives no reason, on purpose: the server sends none.
+   Bombs and shields refused for a ban raise it too (`reportClaimFailure`).
 
 6. `ClickBudgetMeter` shows what is left of the bucket, in the dock at the bottom
    (see [The screen](#the-screen-four-zones)). It warns
@@ -2417,8 +2507,8 @@ the account's. `ClaimBonusResponse.charges` replaces them on a claim, and
 `PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread
 click off, this player's own `tilesEnclosed` takes an enclosure off, and a drop
-takes the bomb off at once and gives it back only if the call never reached the
-server; a shield is taken off the same way. The click answer says nothing about charges, on purpose (see the backend's
+takes the bomb off at once and gives it back unless the server says it holds
+none (a ban refusal gives it back too); a shield is taken off the same way. The click answer says nothing about charges, on purpose (see the backend's
 CLAUDE.md). A charge spent in another tab stays on screen until the next read. It
 reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` hands it to the
 inventory.
@@ -2482,13 +2572,12 @@ charge is spent. The same line is in the slot's `aria-describedby`.
   player's own tiles when a shield stopped the click.
 - **Shield on, a full tile**: "Full" on the slot and a line saying so.
 - **Enclose on, a click that took a tile and closed no shape**: "Shape is not
-  closed or is too big (25 tiles max)". **This is guessed on the client, on
-  purpose**: `Click` answers nothing about bonuses so a shadow-banned caller
-  cannot tell its clicks are dropped (see the backend's CLAUDE.md), and the
-  server cannot tell an open shape from one too big either. The globe waits
-  `ENCLOSURE_WAIT_MS` (1.5s) after the click is accepted for this player's own
-  `tilesEnclosed` closed at that tile, and says it when none came. A banned
-  player learns nothing new: it sees no enclosure either way.
+  closed or is too big (25 tiles max)". **This is guessed on the client**:
+  `Click` answers nothing about bonuses (it once hid a shadow ban; see the
+  backend's CLAUDE.md), and the server cannot tell an open shape from one too big
+  either. The globe waits `ENCLOSURE_WAIT_MS` (1.5s) after the click is accepted
+  for this player's own `tilesEnclosed` closed at that tile, and says it when none
+  came.
 
 **What a player has learned is kept in the browser** (`clickplanet-bonus-guide`,
 `domain/bonusGuide.ts`, `useBonusGuide`): how many times each kind was switched
@@ -2936,14 +3025,17 @@ first 3 seconds; every choice can be forced (`npm run clip -- --help`).
 **Twice a day a workflow posts the best ones with no person and no laptop** (`.github/workflows/clips.yml`, at
 00:17 and 12:17 UTC, or by hand with `workflow_dispatch`). Four jobs:
 
-1. **fetch**: the backend's `clips fetch -hours 12` over SSH, with the deploy's `VPS_*` secrets. The job runs no
-   npm at all, so the key to the VPS is in no job that installs this app's dependencies. The replay goes on as an
-   artifact; it is the public stream's data.
+1. **fetch**: the backend's `clips fetch -hours 12 -race race.json` over SSH, with the deploy's `VPS_*` secrets. The
+   job runs no npm at all, so the key to the VPS is in no job that installs this app's dependencies. The replay and
+   the season's race go on as an artifact; both are the public streams' data. A race that could not be fetched is no
+   file, and the run goes on without a day to tell.
 2. **shortlist** and **choose**: `npm run clip -- --shortlist shortlist.json`, then, in a job of its own (it holds
    the Zernio key, and runs no npm), the backend's `clips choose` reads it and prints the picks to render, up to 6, `[1,2,4]`.
    **It skips a story told in the last 3 days**, by its key below, and a headline told in the last week, puts a
    flag the last 6 posts showed after the others, and holds back a flag 2 of them showed, as their key or as one of
-   their countries: on Oct 13–17 Algeria in Africa was told three times and Palau in half the clips. None is a quiet half day: the run ends there, green.
+   their countries: on Oct 13–17 Algeria in Africa was told three times and Palau in half the clips. **A day won goes
+   first**, whatever the posts showed, **then a run tells each angle it has once before any twice** (what changed,
+   what a flag holds). None is a quiet half day: the run ends there, green.
 3. **render**: one job per pick, side by side, `--pick <n> --recorders 1`. A runner has 4 cores and no GPU: Chrome
    draws with SwiftShader, **1.9 to 3.1s a frame, by the runner it lands on** (measured 2026-10-12: the same 12s
    clip in 11.5 minutes, then in 18.5; a 22s one would take 21 to 34), the same picture as with a GPU. More
@@ -2957,10 +3049,18 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 `clips.v1` in the shared `proto/`, written as JSON:
 
 - **`--shortlist <path>`** writes a `Shortlist` (`src/clip/shortlist.ts`): the title, the key and the countries of
-  every story worth a clip, best first, so a story's place from 1 is its `--pick`. One page load, no globe, 6s. With no story it is `{}`, not an error.
+  every story worth a clip, best first, so a story's place from 1 is its `--pick`: a day won first, then what changed,
+  best first, then what flags hold, the biggest holding first. One page load, no globe, 6s. With no story it is `{}`, not an error.
+- **`--race <path>`** is the season's race, a `seasons.v1.GetRaceResponse` as the backend's `GetRace` answers it,
+  served to the page at `/__clip/race.json` (`src/clip/race.ts` reads its closed round). With none, that path
+  answers 404, never the app's fallback page, and no day is told.
 - **A story's key says which story it is, the headline never does** (`storyKeyOf`, `domain/clip/story.ts`): the
   flag the clip is about and the continent it is told on, `{flag: "dz", continent: "Africa"}`. "ALGERIA STRIKES
-  BACK" and "ALGERIA VS FRANCE" are one key. The flag is the first of `sidesOf`: the loser of a rout, a continent's
+  BACK" and "ALGERIA VS FRANCE" are one key. **Its angle says what the story tells of the flag there**: none for what
+  it did, `holding` for what it holds, `round` for a day it won, with the day (`round: "1.5"`, season and number). So
+  "CROATIA HOLDS 80% OF EUROPE" is not "CROATIA IS ATTACKING EUROPE" told again, and France winning day 5 and day 6 is
+  two stories. On Oct 18 a run of 13 stories skipped 8 as told already, nearly all one flag in Europe: every story was
+  what changed, so a flag had one story a continent every 3 days. The flag is the first of `sidesOf`: the loser of a rout, a continent's
   own flag when it strikes back together. The continent is the place's (Asia's parts as the headlines name them,
   `the world` for a tour), else its first country's, else that country.
 - **A story's countries are every country it shows** (`storyCountriesOf`): its place's, both sides and the flags it
@@ -3079,7 +3179,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   IS KICKING ROMANIA OUT OF KAZAKHSTAN" is "PALESTINE TAKES KAZAKHSTAN FROM ROMANIA", an invasion that threw
   another flag out "CROATIA INVADES CHINA AND KICKS OUT FRANCE", a flag thrown out "GENERATIONAL DOWNFALL OF
   CHRISTMAS ISLAND", and a country throwing a flag out of its own land "ITALY RETAKES ITS LAND FROM PORTUGAL".
-  A test checks that no kind ever gives the headline back.
+  A holding is "80% OF EUROPE FLIES THE FLAG OF CROATIA" and "CROATIA RULES EUROPE" (below half, "the biggest power
+  in Europe"; the world's, "THE BIGGEST EMPIRE ON EARTH"), and asks to "TAKE EUROPE BACK"; a day won is "FRANCE TAKES
+  DAY 5" and "DAY 5 GOES TO FRANCE". A test checks that no kind ever gives the headline back.
 - **The hashtags are every flag of the story and the countries of its place** (`hashtagsOf`), bare
   (`#christmasisland`, `#uk`), and the place's continent. Palestine and Israel included: the user chose it on
   2026-10-14, though a flag's tag can be a political feed. A continent's own flag is not a country and has none.
@@ -3100,6 +3202,23 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   keyed by the content-addressed file, and both anthem scripts run it, since a new encode is a new file; a test
   fails when one is missing. A clip starts on the best highlight that leaves the anthem playing to its end, else
   early enough that it does.
+- **`holding.ts` tells what the map is, beside what changed on it**: as the map stands at the end, the flag holding the
+  most of each place, **"CROATIA HOLDS 80% OF EUROPE"**. The places are the world (from a tenth of it), each
+  continent (from 40%) and each country of 1,000 tiles or more (49 of them), held by a foreign flag (from 75%). **Europe
+  is held without Russia**: Russia's ground is 71% of Natural Earth's Europe, so a flag holding Siberia would "hold
+  Europe"; Russia is a place of its own. A share is of all the place's tiles, empty ones too, and the headline never
+  says more than it holds (79.96% is 79%). It is news only when its flag fought for it: 50 tiles of the place changed
+  hands to it or from it in the window, which is what the clip plays, all over the place, with the counter as the
+  flag's share of it. It is no story when it is mostly the flag's own country (Australia holding Oceania), and a flag
+  is told once, where it holds the most for the place's bar: 80% of Europe over 13% of the world, Antarctica the
+  continent over Antarctica the country. `--plan` lists each place's holder that fell short, and why: the bars are
+  guesses made with no production data, to tune from those lines.
+- **`round.ts` tells a day of the season** from the race (`--race`): **"FRANCE WINS DAY 5"**, or **"FRANCE WINS THE
+  FINAL BATTLE"**, with where it leaves the winner in the season ("Leads the season with 86 points"). Only the run
+  whose window holds the cutoff tells it: the 00:17 run, for the day that closed at 21:00. It plays the 3 hours before
+  the cutoff, the winner's fighting (anyone's when it fought none), opens on all the winner holds, counts its tiles
+  (not its share of the map: a day is won on its average, which the podium's points say), and ends on the podium, the places that scored with their points, then "WHO WINS DAY 6?". The ending
+  lasts 4s instead of 2.5, to read it.
 - **`score.ts` ranks the candidates**: the tiles taken from another flag, over the square root of the hours, times
   the countries they were taken in (up to 4). A short war over several countries beats a long filling of one. A
   story already told by a better candidate (same attacker, same front) is dropped.
@@ -3328,9 +3447,11 @@ crawler reads it as it is. The Workers asset handler serves it at `/privacy`
 (`html_handling` drops the extension) and `nginx.conf` does the same with
 `$uri.html`; `npm run dev` serves it at both `/privacy` and `/privacy.html`. **It states
 retention periods, so it goes stale when the backend's do**: `ledger.retention`,
-`antiBot.evidence.retention`, `chat.storage.retention` and
+`antiBot.evidence.retention`, `chat.storage.retention`, `support.retention` and
 `auth.sessions.guestTTL` in `deploy/vps/backend.yaml`, and `roll_keep_for` in
-the Caddyfile. Change one, change the page and its date.
+the Caddyfile. Change one, change the page and its date. **It names who keeps
+the photos and videos of a note** (Cloudflare, for an R2 bucket): another
+`support.attachments.bucket.endpoint` changes that line too.
 
 **Its "Google user data" section is what Google's brand verification reads**:
 what we ask Google for, why, that nobody else gets it, and the Limited Use
@@ -3372,7 +3493,9 @@ to the plain pages, which write `%DISCORD_INVITE%`, `%TIKTOK_PROFILE%` and
 `links.test.ts` fails on one of them pasted into a page.
 
 **`terms.html` is the terms of service**, linked beside it and built
-the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in. The
+the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in.
+**`BannedModal` links its "Play fair" section** by its `id="play-fair"`, which
+`BannedModal.test.tsx` pins: keep the id if the heading changes. The
 privacy policy says what Google and Discord send us; a new provider, or a new
 field kept from one, changes that page and its date.
 

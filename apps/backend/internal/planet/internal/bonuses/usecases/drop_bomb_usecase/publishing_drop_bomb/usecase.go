@@ -37,7 +37,7 @@ type Decorator struct {
 
 func (d *Decorator) Execute(ctx context.Context, in drop_bomb_usecase.In) (clicks.Blast, error) {
 	blast, err := d.implementation.Execute(ctx, in)
-	if err != nil || in.Dud {
+	if err != nil {
 		return blast, err //nolint:wrapcheck // a decorator adds an event, not a sentence.
 	}
 

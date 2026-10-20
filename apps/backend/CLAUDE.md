@@ -66,7 +66,7 @@ This is a Go backend for a collaborative map-clicking game. It follows **hexagon
 
 - **`internal/planet/`** — the tile game: clicks, ownership, the map, the update stream.
 - **`internal/chat/`** — the live chat: messages, identity, retention.
-- **`internal/auth/`** — who a caller is and what it has to prove before it may click: Turnstile, accounts, the click token. See [Auth](#auth-internalauth).
+- **`internal/auth/`** — who a caller is and what it has to prove before it may click: Turnstile, accounts, the click token, and which accounts may operate. See [Auth](#auth-internalauth).
 - **`internal/player/`** — what the game keeps about one account: the name it chose, the tiles it took, its daily streak. See [Player](#player-internalplayer).
 - **`internal/seasons/`** — the season calendar, each season's player standings and its daily rounds between countries, above the game. See [Seasons](#seasons-internalseasons).
 - **`internal/support/`** — what a player sends the operator: a feature suggestion, a bug report or a report of another player. See [Support](#support-internalsupport).
@@ -106,7 +106,7 @@ root package**:
 |---|---|
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `StorageConfig`, `NewModule` |
-| `auth` | `Config`, `NewModule`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
+| `auth` | `Config`, `NewModule`, `AdminGateConfig`, `NewAdminGate`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
 | `player` | `Config`, `NewModule` |
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
@@ -214,7 +214,7 @@ func run(logger *slog.Logger) error {
 Each context wires **itself**, in a `module.go` at its root (`internal/planet/module.go`, `internal/chat/module.go`, `internal/auth/module.go`, `internal/player/module.go`). That file is the context's manifest: its `Config`, whether it is on, and its DI sequence. **A module takes its config and nothing else, and builds every object it needs itself** — there is no `Deps` struct and nothing is handed down from `main`. A module is a `cpbootstrap.Module` — a name, an `Enabled` flag and a DI sequence — and the sequence is handed a `cpbootstrap.Props` carrying registrars and nothing else:
 
 - `props.RPC.Mount(build, interceptors...)` — the module hands over what *builds* the handler, plus the interceptors it wants. `cpbootstrap` builds it, so it can put its own interceptor outside every module's — see [The error net](#the-error-net)
-- `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served only on the loopback admin listener — see [Operator tools](#operator-tools-adminservice)
+- `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served on the loopback console listener, and on the admin listener behind `Options.AdminGate` — see [Operator tools](#operator-tools-adminservice)
 - `props.InternalRPC.Mount(build, interceptors...)` — the same again, for what other modules call: served only on the loopback internal listener
 - `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
 - `props.Events` — the in-process event bus: `props.Events.Publish(message)`, and `cpbootstrap.Subscribe(props.Events, name, buffer, handler)` for the runner that delivers one type — see [Telling other modules what happened](#telling-other-modules-what-happened)
@@ -227,9 +227,9 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 
-**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger and the antibot's evidence all flush from their runners, after the closers, once the server has stopped taking writes.
+**Shutdown goes in this order**: end every open stream, `http.Server.Shutdown` (the public server, then the console, admin and internal ones — a public call in flight may still be waiting on an internal one), the closers in reverse order, then cancel and wait on the runners. The first step is the drain interceptor — see [Ending the streams on shutdown](#ending-the-streams-on-shutdown). There are no storage closers left: the tile map, the ledger and the antibot's evidence all flush from their runners, after the closers, once the server has stopped taking writes.
 
-**`cmd/api/main.go` is the composition root, and the server's only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does two things: load the config, and list the modules. It builds no objects, derives nothing, and reads inside no block.
+**`cmd/api/main.go` is the composition root, and the server's only one** — there is no `internal/app`, because a package whose whole job is to be called once by `main` was a level of indirection and nothing else. It does three things: load the config, build the admin gate (`auth.NewAdminGate`, see [Operator tools](#operator-tools-adminservice)), and list the modules. It builds no other object, derives nothing, and reads inside no block.
 
 **The aggregation is the whole of it — a flat slice, no branches, no dependencies threaded through:**
 
@@ -266,15 +266,16 @@ return []bootstrap.Module{
 | caller | asks | for | through |
 |---|---|---|---|
 | `planet`, `player`, `chat`, `seasons`, `support` | `auth.v1.InternalService/GetVerifyingKey` | the public half of the click token key, once per boot | `shared/cpsessionverifier` |
-| `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` and each title award (`StatsChanged`) | `players/rpc_account_reader` |
+| `player` | `auth.v1.InternalService/GetAccount` | whether an account is linked, on each `SetName`; when it was made, on each `GetPlayer` and each title award (`StatsChanged`); both, on each operator's `AdminService/GetPlayer` | `players/rpc_account_reader` |
 | `player` | `auth.v1.InternalService/GetAccounts` | whether each account of a page is linked and when it was made, once per page of a title reconciliation | `players/rpc_account_reader` |
 | `chat` | `player.v1.InternalService/GetAuthor` | the name a sender is shown under, on each `SendMessage` | `messages/rpc_player_authors` |
-| `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors` |
+| `chat` | `player.v1.InternalService/GetAuthors` | who everyone in the window is, once per `GetHistory`; who reacted, once per `React`; who wrote each message of a page, once per `ListMessages` | `get_history_handler/history_query/rpc_player_authors`, `messages/rpc_player_authors`, `list_messages_handler/messages_query/rpc_player_authors` |
 | `seasons` | `planet.v1.InternalService/GetTerritories` | the tiles each country holds and the size of the map, for each snapshot (once a minute) | `rounds/rpc_planet_territories` |
 | `seasons` | `player.v1.InternalService/GetAuthors` | the name and color of each account of a page of standings, and whether it is a guest, on each `GetStandings` and `GetMySeason`, and each read of a live board | `get_standings_handler/standings_query/rpc_player_authors`, `get_my_season_handler/my_season_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of both accounts of each report of a page, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
 | `support` | `player.v1.InternalService/GetAuthors` | the name of each account a page of reports names, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
-| `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts` and on each `GetPlayer` the cache does not answer | `playerv1controller/rpc_planet_fronts` |
+| `auth`'s admin gate, which `main` builds | `auth.v1.InternalService/GetOperator` | who calls the admin listener, and whether that account operates, on each admin call | `admingate/admission/rpc_operators` |
+| `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts`, on each `GetPlayer` the cache does not answer, and on each operator's `AdminService/GetPlayer` | `playerv1controller/rpc_planet_fronts` |
 
 A module cannot import another's interior, so the key client all five need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -314,7 +315,7 @@ The events today:
 | event | published by | when | heard by |
 |---|---|---|---|
 | `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats; `seasons`, for the standings |
-| `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
+| `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop publishes nothing | `chat`, which announces it |
 | `planet.v1.Fortified{country, landmass_id, tiles, ground, fortified_at}` | `planet`, `relay_fortifications_usecase` | each landmass a player's take fortified (see [Fortify](#fortify)) | `chat`, which announces the ones of 50 tiles or more |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark; `support`, which takes the account off the notes it sent and deletes the reports that name it |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
@@ -414,7 +415,7 @@ because it serves every concept over one Connect service. It only maps.
 | `clicks/usecases/paint_random_tiles_usecase` | paints random tiles with a flag, starting on one country's ground or anywhere | `Borders`, `Neighbours`, `Map`, `CountryChecker` |
 | `ledger/usecases/find_players_usecase` | who is painting a flag, and where | `Ledger`, `Owners`, `Borders`, `Bans` |
 | `ledger/usecases/top_players_usecase` | who takes the most tiles, every flag | `Ledger`, `Owners`, `Bans` |
-| `ledger/usecases/ban_player_usecase` | the operator's shadow ban | `Banner` |
+| `ledger/usecases/ban_player_usecase` | the operator's ban | `Banner` |
 | `ledger/usecases/unban_player_usecase` | lifts a running ban and forgets its offence | `Unbanner` |
 | `ledger/usecases/inspect_player_usecase` | what the antibot holds on one caller | `Examiner` |
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
@@ -449,9 +450,10 @@ handler declares: they tell the guard what a caller reads, for the `scraper`.
 
 ### Inside the chat module: the same shape
 
-Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has six:
+Chat follows the same rules as planet: no `domain`, no `adapters`, one directory per concept. It has seven:
 `messages`, `reactions` (which imports `messages`), `announcements`, `seen` (which imports `messages`), `mutes`
-(which imports `messages`), and `feed`, the live stream, which carries the first three. `subscribers/` is its edge for events, as `chatv1controller/` is
+(which imports `messages`), `removals` (which imports `messages`), and `feed`, the live stream, which carries the
+first three and the removals. `subscribers/` is its edge for events, as `chatv1controller/` is
 its edge for the wire. A read is a query under its handler: see [Reads are queries](#reads-are-queries).
 
 ```
@@ -499,13 +501,22 @@ internal/chat/internal/
     usecases/mute_usecase/              keeps a mute on the account and its network — Saver, Addresses, IDProvider
       publishing_mute/                  publishes chat.v1.AccountMuted once a mute is kept
       audit_mute/                       logs every mute at Warn
-  feed/                                 Update: a message sent, a message's new reactions, or an announcement
-                                        (MessageSent, ReactionsChanged, Announced)
+  removals/                             Removal (NewRemoval, TakeSnapshot), Snapshot, ErrUnknownMessage, the Storage port
+    postgres_removal_store/             Storage, over chat.removals
+    usecases/remove_message_usecase/    takes a kept message out of what anybody is shown, then tells the streams —
+                                        Messages, Saver, Publisher
+      audit_remove/                     logs every removal at Warn
+  feed/                                 Update: a message sent, a message's new reactions, an announcement, or a
+                                        message removed (MessageSent, ReactionsChanged, Announced, MessageRemoved)
     inprocess_feed/                     the fanout to every open stream, in this process
     usecases/listen_for_events_usecase/ one client's feed, heartbeat   — UpdatesSubscriber
   chatv1controller/                     ChatService and AdminService (bags), the interceptors
     send_message_handler/  get_history_handler/  listen_for_events_handler/  react_handler/  mark_seen_handler/
-    mute_handler/
+    mute_handler/  remove_message_handler/  get_message_handler/  list_messages_handler/
+    get_message_handler/message_query/  PostgresQuery: one message as it was sent, removed or not
+    list_messages_handler/messages_query/  PostgresQuery: a page of messages as they were sent, before or after a
+                                        message's id, named — Authors
+      rpc_player_authors/               the same adapter as the history's, for this query
     get_history_handler/history_query/  PostgresQuery: GetHistoryResponse straight from SQL, named, and until when
                                         the viewer saw the chat — Authors
       rpc_player_authors/               Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
@@ -531,9 +542,9 @@ internal/chat/internal/
 
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
-(`GetHistory`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
+(`GetHistory`, `GetMessage`, `ListMessages`), player (`GetProfile`, `GetStats`, `GetPlayer`, `GetTitles`, `GetAuthors`, `GetRoster`), planet
 (`GetTakesByCountry`, `GetTerritories`), auth
-(`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
+(`GetMe`, `GetAccount`, `GetAccounts`), seasons (`GetStandings`, `GetMySeason`, the live race and `GetRace`) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `GetAuthor`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
 through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
@@ -636,7 +647,7 @@ Both live feeds are served **two ways at once**, and that is a transition, not a
 
 - `ClickService.ListenForEvents` → `stream PlanetEvent`, `ChatService.ListenForEvents` → `stream ChatEvent`, `PlayerService.ListenForEvents` → `stream PlayerEvent`, and `SeasonService.ListenForEvents` → `stream SeasonEvent`. Ordinary Connect server-streaming RPCs, on the same routes and the same port as everything else.
 
-**One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message`, `heartbeat`, `reactions` and `announcement`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
+**One stream per API, and an envelope rather than a bare payload.** A `PlanetEvent` is a `oneof` of `tile_update` and `heartbeat`; `ChatEvent` is a `oneof` of `message`, `heartbeat`, `reactions`, `announcement` and `message_removed`. **A new kind of live event is a new case in that `oneof`, never a second stream** — one connection per client, one route to configure, and a client that does not know a case reads an unset `oneof` and skips it instead of breaking. That is what the bare `TileUpdate` frame could not do, on the websocket or off it.
 
 **`heartbeat` is not decoration.** Cloudflare cuts a silent response at **~125s with a 524** — measured against production three times, exactly 125.1s. The websocket never hit this because Cloudflare keeps those open; a chunked HTTP response is not so lucky. A quiet chat is the normal case, and a quiet planet happens, so both streams send a heartbeat every `httpServer.streamHeartbeat` (30s by default, and it **must** stay well under 125s). Without it a silent stream dies and reconnects forever, losing whatever was published in each gap. **Each also sends one at once when it opens**, once it is subscribed (and, for the planet, attending its boxes): Connect writes nothing, not even the headers, until the first `Send`, and the client takes a stream's first event as the sign it is live and refetches the map or the history then. Without it a quiet chat stream would wait up to 30s to say so.
 These replaced a pair of websockets on `/ws/listen` and `/ws/chat`, broadcast by a `wspublisher` fanout. **Nothing here speaks websocket any more** — no upgrade route, no second mux, no `coder/websocket` dependency.
@@ -716,10 +727,11 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
       [cpsessionverifier: the key from auth.v1.InternalService, asked once per boot
        then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
-  → antibot_attempt_click (times every try for the metronome; drops nothing)
+  → ban_click       (a banned caller is PermissionDenied, with a BanRefusal: when the ban ends)
+  → antibot_attempt_click (times every try for the metronome; refuses nothing)
   → allegiance_click (another flag within the hour of a change is refused, and spends nothing)
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
-  → antibot_click   (judges; a flagged caller is answered OK and dropped)
+  → antibot_click   (judges, and flags a caller it finds guilty; refuses nothing)
   → prom_click      (counts)
   → clicks/usecases/click_usecase (validates tile ID + country)
   → ledger.Recording.Click() [records a take or a strike]
@@ -804,16 +816,15 @@ to the jury.
   `FailedPrecondition` and spend nothing; no shield held is `NotFound`; an unknown
   country or tile is `InvalidArgument`. A placement the tile refuses after the
   charge was spent (it changed hands in between) gives the shield back. It is
-  session-gated like `DropBomb` and not throttled. `antibot_place_shield` makes a
-  banned caller's a `Dud`: the shield is spent, nothing is placed, and it is
-  answered OK. The answer is the charges left.
+  session-gated like `DropBomb` and not throttled. `antibot_place_shield` refuses a
+  banned caller before anything is spent, as `ban_click` does a click (see
+  [A ban is told](#a-ban-is-told)). The answer is the charges left.
 - **Kept with the tile**: `planet.tiles.shields`, written by the flush that writes
   the owner.
-- **`click_usecase.Out.Outcome`** says what the rule did, for the decorators inside
-  the shadow ban: `enclose_click` closes a shape only with `Taken`, and `prom_click`
+- **`click_usecase.Out.Outcome`** says what the rule did, for the decorators around
+  it: `enclose_click` closes a shape only with `Taken`, and `prom_click`
   counts `clicks_shielded_total{country_id}` by the flag clicked. **It never reaches
-  the wire**: a dropped click answers the zero `Out`, which reads `Unchanged`. The
-  client predicts it from the shields it holds.
+  the wire**. The client predicts it from the shields it holds.
 
 What a spread, an enclose, a bomb and the antibot do with a shielded tile is in their
 own sections: [spread](#what-a-spread-does-to-a-click), [enclose](#what-an-enclose-does-to-a-click),
@@ -875,10 +886,9 @@ player could paint for one country and defend another click to click.
   the storage's lock, so two tabs clicking two flags at once cannot both change it.
   A caller with no account, and a flag that is no country, are held to nothing: the
   click use case refuses the second.
-- **It is checked outside the throttle and outside the shadow ban**
-  (`allegiance_click`, between `antibot_attempt_click` and `throttle_click`): a click
-  refused for its flag spends no token, and a banned caller is refused exactly as
-  any other, or switching flags would tell it its clicks are dropped.
+- **It is checked after the ban and before the throttle** (`allegiance_click`,
+  between `antibot_attempt_click` and `throttle_click`): a banned caller is told its
+  ban first and changes no flag, and a click refused for its flag spends no token.
   `place_shield_usecase` pledges before it spends the shield. A bomb, a claim, a
   quiz and a refill name a flag only for what they announce, and are not held.
 - **The refusal is `FailedPrecondition` with a `planet.v1.Allegiance` detail**
@@ -927,7 +937,7 @@ The **vendored VPN lists** do not cover chat: `NewVPNBlockInterceptor` wraps `Cl
 
 **Each table has its own `Storage` port and a contract suite** (`messages.StorageContractSuite`, `reactions.StorageContractSuite`, behind the `testing` tag). The postgres stores run it against a real postgres; `inmemory_message_storage` and `inmemory_reaction_storage` run it too, and exist **only for tests** — both files carry the `testing` tag, have no persistence port and are never built into the binary. Use case tests use them instead of hand-written fakes.
 
-**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, then the mutes that ended before it, once at boot and every `pruneInterval`, and `log_prune` logs it. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
+**The prune** is `prune_usecase` on a `Runner`, as auth's guest prune is: it deletes messages, then reactions, then announcements, older than `retention`, then the mutes that ended before it and the removals made before it, once at boot and every `pruneInterval`, and `log_prune` logs it. The runner sits inside `cppg.CloseAfter`, so the pool closes after it stops.
 
 The table holds **personal data** — IPs next to user-authored text — so the retention window is a policy decision rather than a cache size.
 
@@ -1005,8 +1015,56 @@ duration)`, on the admin listener (see [Operator tools](#operator-tools-adminser
 - **Kept in `chat.mutes`** (`id`, `account_id`, `scope`, `muted_at`, `muted_until`). The network is personal data,
   so the prune deletes a mute that ended more than `retention` ago. There is no unmute RPC: deleting the rows ends
   a mute early (`deploy/vps/README.md`).
-- `e2e/mute_test.go` mutes over the admin listener and sees the player, its reaction and a fresh guest on its
+- `e2e/mute_test.go` mutes over the console listener and sees the player, its reaction and a fresh guest on its
   network refused, and the line reach the history.
+
+#### Removals
+
+**An operator can take a message out of the chat**: `chat.v1.AdminService/RemoveMessage(message_id)`, on the admin
+listener, for a report it acts on. The notice-and-action answer to a message, beside the mute for its sender.
+
+- **The row stays, as evidence**: a removal is a row of its own in `chat.removals` (`message_id`, `removed_at`;
+  migration `20261018120000_removals`), never a delete or a flag on the message. The prune deletes it with the
+  messages, past `retention`.
+- **It keeps its place and its author, and loses its text and its reactions**: the history answers it with
+  `removed` and no text, and the quote of every reply to it too (`history_query`). The text never leaves the server
+  again. The client writes "This message has been deleted".
+- **Nobody acts on it**: `Store.Shown` and `Store.Message` count it in the window and refuse it, so a reaction or a
+  reply to it is `NotFound`. The parity test runs removals through the history, `React` and `SendMessage`.
+- **Only a kept message can be removed** (`Store.Kept`: within the retention, removed or not), else
+  `removals.ErrUnknownMessage`, `NotFound`. Removing twice keeps the latest time.
+- **Every open stream is told**: `remove_message_usecase` publishes `feed.MessageRemoved` once the removal is kept,
+  and the stream sends `message_removed`, which the client empties at once. A client that missed it shows the
+  message until its next load.
+- **`chat.v1.AdminService/GetMessage(message_id)`** is the message as it was sent, removed or not, with
+  `removed_at`, for the operator who reads a report (`message_query`). `NotFound` past the retention.
+- **`chat.v1.AdminService/ListMessages(before_message_id | after_message_id, limit, account_id)`** is the chat as it was sent,
+  removed or not, a page at a time (`messages_query`). **A message's id is a cursor**: the page just before it, or
+  just after it, by `seq` as the history orders them, never with it. Neither is the newest page; both is
+  `InvalidArgument` (`ErrTwoCursors`), and a cursor past the retention is `NotFound`. The report page reads one page
+  on each side of the reported message, and the next page from the oldest or the newest message it holds.
+  - **With an `account_id`, it is that account's messages alone**, cursors included: the page of its messages just
+    before or just after the cursor, which may be anybody's message. A report from a player's card names no
+    message, so the report page lists the reported account's this way, and reads the whole chat around any one of
+    them. An id that is not a UUID is `InvalidArgument` (`ErrInvalidAccount`): read as everyone, it would show other
+    people's messages as the account's. The two statements of one author ride the `(account_id)` index.
+  - **A page is oldest first**, 50 messages unless asked, 200 at most. Fewer than the limit is the end: nothing more
+    kept before it, or nothing more sent after it. Before the cursor it stops at the retention.
+  - **Each is a `KeptMessage`**: its text as sent and its `removed_at`, as `GetMessage` answers, its country, its
+    time, and what it answers as a `KeptQuote` (its id, its author's name, its text as sent and its `removed_at`;
+    unset past the retention, as the history's quote is).
+  - **Each is named as the chat names it now** (`author_name`): one `GetAuthors` for every account the page names,
+    quotes included; the name it was sent under for a message kept before accounts; `messages_query.DeletedName`
+    for an account nobody can name, whose id is still answered, since the operator tools take it. A failure to name
+    refuses the read, as the history's does.
+  - **It is two statements**: the cursor's `seq` (`NotFound` when it is not kept), then the page, one of two windows
+    (`older`, `newer`) under one projection that joins the removals and the quote. The newest page is `older` from
+    the top. Each window walks the primary key from the cursor.
+- **`audit_remove` logs every call at Warn** (`admin chat message removal`).
+- `e2e/report_actions_test.go` removes a reported message over the console listener, and sees it stay in the
+  history with no text, its quote with none, a reaction refused, and the text still read for the operator; and
+  reads a page on each side of a reported reply: the message it answers before it, the answer to it after, each
+  named as the chat named it.
 
 #### Replies
 
@@ -1179,6 +1237,8 @@ Chat and sessions each have **their own limiter instance** with their own budget
 - `auth.rateLimiter` — one mint every 30s, ten in hand, across both `CreateSession` paths. A mint costs a siteverify round trip to a third party, so an unthrottled `CreateSession` is a free way to spend this server's Turnstile quota.
 - `auth.resumeLimiter` — one `ResumeSession` a second, ten in hand. It costs one row read and no third party.
 - `support.rateLimiter` — one note or report a minute, three in hand. Each is a row the operator reads by hand.
+- `support.noteLimiter` — ten suggestions and bug reports a day, per account and per address together.
+- `support.uploadLimiter` — a hundred files a day, per account and per address together. Each is room in a bucket we pay for.
 
 ### VPN blocklist
 
@@ -1283,11 +1343,23 @@ internal/auth/internal/
     usecases/start_email_sign_in_usecase/  complete_email_sign_in_usecase/
   attestation/                             Attester, ErrAttestationFailed
     turnstile/  turnstile_attester/  open_attester/
-  authv1controller/                        AuthService and InternalService: one handler package per procedure, authprovider for the enum
+  authv1controller/                        AuthService, InternalService and AdminService: one handler package per procedure, authprovider for the enum
     get_me_handler/me_query/               PostgresQuery: GetMeResponse from the cookie, straight from SQL
     get_account_handler/account_query/     PostgresQuery: GetAccountResponse, for another module
     get_accounts_handler/accounts_query/   PostgresQuery: GetAccountsResponse, a page at once
+    get_operator_handler/operator_query/   PostgresQuery: GetOperatorResponse, the cp_admin cookie's live session if it operates
+  adminsignin/                             the admin page's sign-in: Candidate, Session (Snapshot), Issuer, the cookies, the Store port
+    postgres_admin_session_store/          the Store over identities, accounts and admin_sessions
+    usecases/start_admin_sign_in_usecase/  complete_admin_sign_in_usecase/  sign_out_admin_usecase/
+  admingate/                               what the admin listener sits behind; NewAdminGate builds it, main injects it
+    admission/                             Page (the admin page's origin), Visit, Operator, the refusals
+      rpc_operators/                       who operates, from InternalService/GetOperator
+      usecases/admit_usecase/              the origin, then who calls — and log_admit/, which logs each refusal
+    guard/                                 the interceptor: a refusal's code, the operator on the context
+      log_calls/                           one line per admitted call
   sessionv1controller/                     deprecated SessionService
+    operator_query/                        PostgresQuery: the cookie's live session, its account and whether it operates
+    log_refusals/                          logs each caller it refused
   migrations/
 ```
 
@@ -1346,6 +1418,34 @@ internal/auth/internal/
 - **`auth.email.delivery` is `cloudflare` or `log`.** `cloudflare_mailer` posts to the REST API with a token that has *Email Sending: Edit* only; a non-2xx, a body that is not JSON, or a permanent bounce of the address is an error, and nothing is set. `log_mailer` writes the letter, code included, to the server log at `WARN` — the local choice, with no account anywhere. The server warns at boot when it is on.
 - `auth.NewModuleWithFakeProviders` turns email on with `signin.FakeMailer` and codes `000001`, `000002`, …; `e2e/email_sign_in_test.go` reads the code out of the letter.
 
+#### Operators
+
+**An operator is a game account flagged operator, with a session of its own for the admin page.** Two apps, two
+sign-ins, one account base: the admin account is the player account, so `GrantCharges` to its own id is "give me a
+bomb to test". `auth.accounts.operator` is a boolean (migration `20261017120000_account_operator`), false for every
+account until an operator sets it by hand (`deploy/vps/README.md`, "Make an account an operator"). It is not the
+chat crown: `player.profiles.admin` is a display flag, and holding one never grants the other.
+
+- **`adminsignin` is the admin page's sign-in: Google only**, with a Google client of its own (`auth.admin.google`,
+  redirect `auth.admin.redirectUrl`). It reuses the game's `signin.Flow`, sealer and Google provider, under a cookie
+  of its own (`cp_admin_oauth`), so a game sign-in in progress is never overwritten. **It only finds an account**:
+  `Store.Candidate` is the account of the Google identity and whether it operates. It never makes one, links one or
+  joins by email, and an identity nobody holds is `ErrUnknownIdentity`, refused as `ErrNotAnOperator`.
+- **The admin session is its own concept** (`adminsignin.Session`, table `admin_sessions`, migration
+  `20261017130000_admin_sessions`): `Issuer.Session` opens one for an operator only, for `auth.admin.sessionTTL` (12h)
+  and never extended. Its cookie, `cp_admin`, is `SameSite=Strict` (`Token.StrictCookie`) and host-only on the API's
+  domain. `cp_sid` never opens the admin page, and signing out of one leaves the other. A session goes with its
+  account (cascade); one that expired stays until then, a row per sign-in.
+- **`auth.v1.AdminService` is that sign-in** (`StartSignIn`, `CompleteSignIn`, `SignOut`) and `WhoAmI`, mounted with
+  `props.AdminRPC`: on the console listener, and behind the admin gate. The sign-in spends the mint budget
+  (`NewAdminRateLimitInterceptor`). `CompleteSignIn` answers `failed_precondition` to start again and
+  `permission_denied` for anybody but an operator, and clears `cp_admin_oauth` on every answer it maps.
+- **`InternalService/GetOperator(cookie)` and `WhoAmI` are who a browser is, as an operator**:
+  `get_operator_handler/operator_query` asks SQL for a live admin session (`cp_admin`) whose account is flagged, and
+  answers its account id. The flag is read on every call, so unsetting it ends a session already open. No admin
+  session is `unauthenticated` (`ErrNoSession`); anybody else is `permission_denied` (`ErrNotAnOperator`).
+- **The session is read on every call**: no cache. Admin calls are a handful a minute.
+
 #### Signing out, deleting, pruning
 
 - **`SignOut`** deletes this browser's session and clears the cookie; a browser with no session succeeds too. **`SignOutEverywhere`** deletes every session of the account and answers `Unauthenticated` with none. Neither touches the account. Both publish **`auth.v1.SignedOut`** once a session was deleted; `SignOut` reads the session first, expired or not, to name its account.
@@ -1373,8 +1473,6 @@ internal/player/internal/
     usecases/record_take_usecase/  record_message_usecase/  forget_account_usecase/
     usecases/name_account_usecase/  — a username for an account signed in to with none; on auth.v1.SignedIn
       name_account_usecase/renaming_name_account/   shows the name on the roster at once
-    usecases/name_accounts_usecase/  — the same for every linked account with stats; player.v1.AdminService/NameAccounts
-      name_accounts_usecase/audit_name_accounts/   logs every run at Warn
       record_take_usecase/publishing_record_take/   publishes player.v1.StatsChanged once a take is counted
       record_message_usecase/publishing_record_message/   the same, once a message is counted
   titles/                           Title (one type per title), Rank, Track (Conquest, Devotion, Chatter), Place, Standing, Catalog (NewCatalog), Career,
@@ -1395,10 +1493,12 @@ internal/player/internal/
   presence/                         Visit, Entry, RosterOf, TTL: who is playing
     inmemory_visit_storage/         the last visit of each account, capped, keyed, pruned every 5s (a Runner), and each change to its subscribers
     usecases/announce_usecase/  listen_for_events_usecase/  move_visit_usecase/  forget_visit_usecase/
-  playerv1controller/               PlayerService and InternalService (bags), the session interceptor
+  playerv1controller/               PlayerService, InternalService and AdminService (bags), the session interceptor
     get_profile_handler/  set_name_handler/  set_color_handler/  get_stats_handler/  get_author_handler/  get_player_handler/
     get_authors_handler/  get_titles_handler/  wear_title_handler/  get_fronts_handler/
     announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
+    reconcile_titles_handler/  admin_get_player_handler/   AdminService's own; it serves get_authors_handler too
+      admin_get_player_handler/admin_player_query/   PostgresQuery: what the game keeps about one account, a guest's too
     get_profile_handler/profile_query/  get_stats_handler/stats_query/  get_player_handler/player_query/
     get_titles_handler/titles_query/  get_authors_handler/authors_query/   PostgresQuery: the response straight from SQL
     get_roster_handler/roster_query/    MemoryQuery: the roster, from its Lines port
@@ -1445,8 +1545,23 @@ internal/player/internal/
 - **Usernames are unique ignoring case** (`Name.Folded`): **NFKC_Casefold**, the NFKC of the Unicode full case fold of the NFKD, so `Straße` is `STRASSE`, `Émile` is `éMILE`, and a full-width `Ａｄａ` is `ada`. A name another account holds is `AlreadyExists` (`ErrNameTaken`); an account setting its own name again, in any case, is not refused, and a rename or a deleted account frees the old one. **The game computes the fold and the store keeps it** in `profiles.name_folded`: postgres' `lower()` depends on the database's locale (a C locale folds ASCII only) and folds neither `ß` nor full-width letters, so an index on it would disagree with Go on non-ASCII names. Postgres holds uniqueness, not a read before the write: a unique index on `name_folded`, whose violation (`23505` on `profiles_name_key`) `postgres_player_store.SaveProfile` answers as `ErrNameTaken`, so two players asking for one name at once cannot both get it. The in-memory store compares `Folded` under its lock, and `StoreContractSuite` pins both.
 - **The table's `CHECK` holds what it can say without the locale**: 3 to 15 `char_length`, `IS NFC NORMALIZED` (a UTF8 database), no space at either end or two in a row, no ASCII but letters, digits, `_` and space, no C0 or C1 control, and none of the zero-width, bidi and other invisible format characters (a range list in the migration); and `name_folded` not empty and not starting with `guest_`. Letter categories and scripts are Go's alone: postgres' regex classes depend on the locale too.
 - **Only a linked account may hold one.** `set_name_usecase` checks the name first, so a name no account may hold costs no call, then asks its `Accounts` port whether the caller signed in with a provider: `rpc_account_reader` calls `auth.v1.InternalService/GetAccount` over the internal listener on every `SetName` (2s timeout), since an account links at any time and a name is chosen rarely. A guest is `PermissionDenied` (`ErrNotLinked`). Auth answers `linked` false for an unknown account or an id that is not one; **a failure to ask is a real error**, the error net's `internal`, never a guest. With `auth` off that call 404s, so no name can be set.
-- **A signed-in account is given a username** when it has none, so every player who signs in has one. On `auth.v1.SignedIn` (`player-names-sign-ins`), `name_account_usecase` asks `players.GeneratedNames.Assign`, which saves with `Store.CreateProfile`: an insert that refuses an account with a profile (`ErrProfileExists`), so a name chosen at the same moment is never replaced. `random_name_generator` draws an adjective, an animal and two digits (`BraveFox42`; 40 × 40 × 90 names, every one valid under `NameOf`, which its tests pin), and a name another account holds is drawn again, 10 draws at most as for guest codes (`ErrNoFreeName`, logged; the next sign-in or `NameAccounts` tries again). Postgres decides what is taken: the unique index on `name_folded` refuses the second of two accounts saving one name at once, whatever both read before. `renaming_name_account` renames the roster line at once. The player changes it with `SetName` as any name. A guest is never named: it has not signed in.
-- **`player.v1.AdminService/NameAccounts`** names the accounts that signed in before names were given: it pages through `player.stats` (500 at a time), asks auth which are linked (`GetAccounts`), and names each linked one with no profile. A second run names nobody. `audit_name_accounts` logs every run at Warn.
+- **A signed-in account is given a username** when it has none, so every player who signs in has one. On `auth.v1.SignedIn` (`player-names-sign-ins`), `name_account_usecase` asks `players.GeneratedNames.Assign`, which saves with `Store.CreateProfile`: an insert that refuses an account with a profile (`ErrProfileExists`), so a name chosen at the same moment is never replaced. `random_name_generator` draws an adjective, an animal and two digits (`BraveFox42`; 40 × 40 × 90 names, every one valid under `NameOf`, which its tests pin), and a name another account holds is drawn again, 10 draws at most as for guest codes (`ErrNoFreeName`, logged; the next sign-in tries again). Postgres decides what is taken: the unique index on `name_folded` refuses the second of two accounts saving one name at once, whatever both read before. `renaming_name_account` renames the roster line at once. The player changes it with `SetName` as any name. A guest is never named: it has not signed in.
+- **The operator reads players on `player.v1.AdminService`**, for the admin page's Players (see [Operator
+  tools](#operator-tools-adminservice)). Both are reads, and neither logs nor writes anything:
+  - **`GetAuthors(account_ids)` is the internal service's, handler and all**: the same `get_authors_handler`
+    serves both, so the admin page names a page of players exactly as the chat and the season board do, and a
+    read never draws a guest code. The planet's `TopPlayers` cannot name its rows itself: planet would have to ask
+    `player`, which already asks planet for the fronts, and a synchronous cycle is the one thing two modules may not
+    have. So the page asks both, and joins them.
+  - **`GetPlayer(account_id)` is everything the game keeps about one account**, a guest's too, which the public
+    `GetPlayer` refuses (`admin_get_player_handler`, `admin_player_query`): its name (the username, `guest_` and
+    the code, or empty for an account never shown), `guest` (no username), `linked` and `created_at_unix_ms` from
+    auth (`GetAccount`, one call), `admin`, its color, the stats as kept (a guest's streak too, which the game
+    never shows), `messages_sent`, the titles held and worn, and **every** country it plays for and against,
+    uncached (`rpc_planet_fronts`, not `caching_fronts`): the public card's cut to three is for the public wire.
+    `NotFound` (`admin_player_query.ErrNoPlayer`) is an account with no profile, no guest code and no stats; an id
+    that is not an account is `InvalidArgument`; a failure to ask auth or planet is the error net's `internal`.
+    `no-store`.
 - **Migration `20260918190000_unicode_usernames`** moves to this rule. Every name kept before is ASCII of 3 to 20, so only length breaks the new rule: **a name over 15 is cut to its first 15 characters**, the player keeping most of it. A cut name that another would then hold, ignoring case — a name of 15 or fewer, or an older cut name (`updated_at`, then `account_id`) — is **deleted** instead, and its player chooses again; an untouched name is never the one to go. Then it fills `name_folded` with an ASCII-only `translate()` (exact for these names, in any locale), replaces the `CHECK`, and moves `profiles_name_key` to `name_folded`. The down migration deletes the names the old rule refuses, drops the column and puts the old `CHECK` and the `lower(name)` index back; cut names stay cut. `migrations_test.go` migrates to the version before, writes names, and migrates the rest.
 - **Migration `20260917180000_usernames`** deletes the profiles whose name breaks the new rule, then, of names that differ only in case, every one but the oldest (`updated_at`, then `account_id`), replaces the name `CHECK` with the new pattern and adds the unique index. No client called `SetName` before usernames existed, so nothing a player chose is lost. The down migration drops the index and puts the old `CHECK` back; the deleted rows stay deleted.
 - **A guest code names an account that chose no username**: 6 lowercase hex characters (`players.GuestCode`), shown as `guest_` and the code (`players.DisplayNameOf`). It is drawn by `random_code_generator` the first time the account is shown (`players.GuestCodes.Assign`), kept in `player.guest_codes`, and deleted with the account, which frees it. **It is unique**: the table's `guest_codes_code_key` refuses a code another account holds, the store answers `ErrGuestCodeTaken`, and `Assign` draws again, up to 10 times (`ErrNoFreeGuestCode`). An account keeps its first code: a second save for it changes nothing, so two first announces at once leave one code. **It does not change with the network**, unlike the address, and says nothing about the account or the address. A linked account with no username keeps the code it had as a guest until it picks a name.
@@ -1527,18 +1642,31 @@ internal/player/internal/
 
 ```
 internal/support/internal/
-  notes/                            Note (NewSuggestion, NewBugReport, Anonymized, TakeSnapshot), Snapshot (Restore), Diagnostics, NoteID,
-                                    Kind, AccountID (AccountIDOf), TextOf; the Storage and IDProvider ports, the StorageContractSuite
-                                    and SequentialIDs
-    postgres_note_store/            Storage, over support.notes
+  notes/                            Note (NewSuggestion, NewBugReport, Attaching, Anonymized, TakeSnapshot), Snapshot (Restore), Diagnostics,
+                                    Attachment, AttachmentID (AttachmentIDOf), MediaType (MediaTypes), AttachmentRules, NoteID, Kind,
+                                    AccountID (AccountIDOf), TextOf; the Storage, IDProvider and AttachmentIDProvider ports, the
+                                    StorageContractSuite and SequentialIDs
+    postgres_note_store/            Storage, over support.notes and support.attachments
     inmemory_note_storage/          Storage in a slice of snapshots, with Seed and Kept for a test — behind the testing tag, tests only
-    uuid_id_provider/               IDProvider: a UUIDv7 per note
-    usecases/suggest_feature_usecase/   draws an id, builds a suggestion and keeps it — IDProvider, Saver
-    usecases/report_bug_usecase/        draws an id, builds a bug report and keeps it — IDProvider, Saver
+    s3_attachment_bucket/           the files notes carry, in an S3 bucket: upload links, view links, and what a file uploaded
+                                    is. It signs its own links
+    inmemory_attachment_bucket/     the same with no bucket, and Put for a file a test uploads — behind the testing tag, tests only
+    uuid_id_provider/               IDProvider: a UUIDv7 per note; AttachmentIDProvider: a random UUID per file
+    usecases/create_upload_usecase/     draws a file's id, checks it against the rules, keeps its room on the shelf,
+                                        answers the link to put it at — AttachmentIDProvider, Shelf, Uploads
+    usecases/suggest_feature_usecase/   draws an id, reads the files named from the bucket, builds a suggestion with them and
+                                        keeps it — IDProvider, Saver, Files
+    usecases/report_bug_usecase/        the same, for a bug report — IDProvider, Saver, Files
     usecases/anonymize_notes_usecase/   reads the notes an account sent, anonymizes them, saves — Notes
     usecases/prune_usecase/             reads the notes past retention that still have a sender, anonymizes them, saves;
                                         Runner, which runs each prune — Notes
       log_prune/                        logs how many a prune went through
+  uploads/                          Upload (NewUpload, Discarded, TakeSnapshot), Snapshot (Restore), Shelf (Reserve, Room),
+                                    FilesOf; the Storage port and the StorageContractSuite
+    postgres_upload_store/          Storage, over support.uploads, and the attachments that name them
+    inmemory_upload_storage/        Storage in a slice of snapshots, with Send and Kept for a test — behind the testing tag
+    usecases/discard_unsent_usecase/    reads the files no note named in time, deletes them from the bucket, frees their
+                                        room — Uploads, Bucket
   reports/                          Report (NewReport, Forgotten, TakeSnapshot), Snapshot (Restore), Complaint, ReportID, Reason,
                                     MessageID; the Storage and IDProvider ports, the StorageContractSuite
                                     and SequentialIDs
@@ -1548,13 +1676,19 @@ internal/support/internal/
     usecases/report_player_usecase/     reads what was filed, draws an id, builds the report, keeps it — IDProvider, Reports
     usecases/forget_reports_usecase/    reads the reports that name an account, forgets them, saves — Reports
     usecases/prune_reports_usecase/     reads the reports past retention, forgets them, saves — Reports
+  decisions/                        Decision (NewDecision, TakeSnapshot), Snapshot (Restore), Outcome; the Storage port
+    postgres_decision_store/        Storage, over support.report_decisions
+    usecases/decide_report_usecase/ builds the decision and keeps it — Saver
+      audit_decide_report/          logs every decision at Warn
   supportv1controller/              SupportService and AdminService (bags), the interceptors
-    suggest_feature_handler/  report_bug_handler/  report_player_handler/
-    list_notes_handler/notes_query/ PostgresQuery: ListNotesResponse straight from SQL
-    list_reports_handler/reports_query/   PostgresQuery: ListReportsResponse from SQL, named — Authors
+    suggest_feature_handler/  report_bug_handler/  report_player_handler/  get_attachment_rules_handler/
+    create_upload_handler/  decide_report_handler/
+    list_notes_handler/notes_query/ PostgresQuery: ListNotesResponse straight from SQL, with a link to each file — Links
+    list_reports_handler/reports_query/   PostgresQuery: ListReportsResponse from SQL, decided or not, named — Authors
       rpc_player_authors/           Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
     caller/                         the account on the context, or Unauthenticated
     pagecontext/                    Diagnostics: a request's PageContext and its User-Agent, for both handlers
+    attachment/                     IDs and Uploaded: the files a note names, and the upload a request is answered
   subscribers/                      Timeout
     account_deleted_subscriber/     auth.v1.AccountDeleted → anonymize_notes_usecase, and again → forget_reports_usecase
     log_subscriber/                 logs an event a subscriber refused
@@ -1568,15 +1702,37 @@ internal/support/internal/
   - **The server reads the `User-Agent` itself.** `pagecontext.Diagnostics` is the one mapping, for both handlers.
   - It is plain data, a part of the snapshot, and `Restore` keeps it cleaned: no control character, 64 characters of build, 256 of user agent and of each graphics name, 128 of WebGL version, a viewport side of 100,000 at most, two decimals on a ratio or a memory, and 0 for what is not a number.
   - **Nothing in it is trusted**: the page writes it, so it helps read a note and decides nothing. A note whose page said nothing (an older client) has empty diagnostics, not none.
-- **A note is anonymized, never deleted.** The text is worth keeping; who sent it is the personal part. `Note.Anonymized()` is the one change a note has: a copy with no account, and the same id, kind, text, diagnostics and time. **It keeps its diagnostics**: a user agent, a graphics card and a viewport with no account and no address describe a device, not a person. An anonymized note's account is zero in its snapshot, and `NULL` in `support.notes.account_id` (migration `20261012090000_note_sender_optional`).
+- **A note is anonymized, never deleted.** The text is worth keeping; who sent it is the personal part. `Note.Anonymized()` is the one change a note has: a copy with no account, and the same id, kind, text, diagnostics, files and time. **It keeps its diagnostics**: a user agent, a graphics card and a viewport with no account and no address describe a device, not a person. An anonymized note's account is zero in its snapshot, and `NULL` in `support.notes.account_id` (migration `20261012090000_note_sender_optional`).
 - **A storage finds and saves, and holds no rule.** `notes.Storage` is two finders (`SentBy` an account, `WithSenderBefore` a time) and one `Save`, which upserts whatever notes it is handed. **It deletes nothing and reads no flag**: a change to a note is a method of `Note`, the use case reads, tells the note, and saves, and the adapter writes the state it is given without knowing why it changed. A finder restores each row it reads (`Snapshot.Restore()`), so a row that breaks a rule is an error, not a note.
 - **`notes.TextOf` is the rule on the text**: valid UTF-8, and 1 to 1,000 runes (`MaxTextLength`) once trimmed. **Lines are kept**, which a chat message's are not: `\r\n` and `\r` become `\n`, a tab a space, and every other control character is dropped. The text goes to postgres and to the operator's JSON, so a newline forges nothing. A text that breaks the rule is `InvalidArgument` (`ErrInvalidText`).
 - **The caller is the account in the click token**, a guest's included: `SuggestFeature`, `ReportBug` and `ReportPlayer` are `Attested` behind `supportv1controller.NewSessionInterceptor`, always enforcing (`support_session_checks{verdict}`). A token with no account is `Unauthenticated`.
-- **One limiter for the service**, `support.rateLimiter`: three at once, then one a minute, per address (`cpipscope`), suggestions, bug reports and player reports together. **The session check is outside the limiter**: the client answers a refused token by minting and sending again, and that first try must not cost one of the three. `TestAnAddressSendsThreeNotesAtOnceAndACallWithNoSessionSpendsNone` pins it.
+- **One limiter for what is kept**, `support.rateLimiter`: three at once, then one a minute, per address (`cpipscope`), suggestions, bug reports and player reports together. `CreateUpload` has its own (see the files below).
+- **Ten suggestions and bug reports a day, per account and per address** (`support.noteLimiter`): a call spends from the account's allowance and the address's together, or from neither (`supportv1controller.NewNoteLimitInterceptor`, `cpratelimit.Limiter.TakeAll`), so neither a new guest on one network nor one account on many networks sends more. It is a bucket of 10 refilled over a day, so a day is a rolling one. A player report is not a note: it has its own rule, once a day per player. **It is in memory**, like every limiter here: a restart forgets it. **The session check is outside the limiter**: the client answers a refused token by minting and sending again, and that first try must not cost one of the three. `TestAnAddressSendsThreeNotesAtOnceAndACallWithNoSessionSpendsNone` pins it.
 - **Kept in `support.notes`** (`id`, `kind`, `account_id`, `text`, `diagnostics`, `submitted_at`), one insert per note (5s timeout), in the module's own block, `support.database`. **`diagnostics` is `jsonb NOT NULL`** (migration `20261012100000_note_diagnostics`, which gives `{}` to the notes kept before it): every row has one, so no column is there for one kind alone. The store writes every key, and the keys are the JSON names of `PageContext` plus `userAgent`: `notes_query` decodes the object as a `PageContext` and skips a key it does not know, so a new diagnostic is a proto field and a key, and no migration. `migrations_test.go` starts from a note kept before the column. **`kind` is a postgres enum type, `note_kind`**: the database holds the list of kinds, so a row of another kind cannot exist, typed by hand or written by a bug. A new kind is a value a migration adds to the type, as `bug` is. **No address is kept**: the account is enough to find a player again, and the limiter holds the address in memory only.
-- **The account does not outlive its reason; a note's text does.** A note goes one way: read, `Anonymized()`, save. The prune reads the notes sent before `support.retention` (90 days) ago that still have a sender, 500 at a time until none is left, then forgets the reports filed before it (`prune_reports_usecase`), at boot and every `support.pruneInterval`; an anonymized note is not read again, which is what ends the loop. `auth.v1.AccountDeleted` reads the notes the account sent and anonymizes them at once (`support-notes-accounts`), and forgets every report it filed or is named in (`support-reports-accounts`): each concept has its own subscription. **What stays of a note is free text**: a player who wrote a name or an address in it left it there. The privacy page says the text is kept and asks for no personal details in it.
+- **The account does not outlive its reason; a note's text does.** A note goes one way: read, `Anonymized()`, save. The prune reads the notes sent before `support.retention` (90 days) ago that still have a sender, 500 at a time until none is left, then forgets the reports filed before it (`prune_reports_usecase`), at boot and every `support.pruneInterval`; an anonymized note is not read again, which is what ends the loop. `auth.v1.AccountDeleted` reads the notes the account sent and anonymizes them at once (`support-notes-accounts`), and forgets every report it filed or is named in (`support-reports-accounts`): each concept has its own subscription. **What stays of a note is free text and its files**: a player who wrote a name or an address in it, or showed one, left it there. The privacy page says both are kept and asks for no personal details in them.
 - **The operator reads them with `support.v1.AdminService/ListNotes(since, kind, limit)`**, on the admin listener (see [Operator tools](#operator-tools-adminservice)): newest first, 100 unless asked, 500 at most, every kind unless one is asked. Every note comes with its `context` and `user_agent`. It is a query (`notes_query`): a stored kind the wire cannot carry refuses the read (`ErrUnknownKind`: a kind a newer migration added to the type, read by an older build), and a kind asked for that the proto does not name is `InvalidArgument` (`ErrInvalidKind`). Each note carries its `account_id`, which is what `InspectPlayer`, `BanPlayer` and `Mute` take; it is empty once the note is anonymized.
-- **Nothing is pushed.** The module publishes no event and nothing leaves the server: the operator asks.
+- **Nothing is pushed.** The module publishes no event, and nothing leaves the server but the files a note carries, which go to the bucket: the operator asks.
+- **A note carries up to 10 photos or videos**, a suggestion as a bug report: every note has the list, most of them empty. A `notes.Attachment` is an id, a media type and a size, plain data in the snapshot. The id (`notes.AttachmentID`) is the file's name in the bucket.
+  - **The files are in an S3 bucket, never on this server.** The droplet has 1 GB of memory and 25 GB of disk, Cloudflare cuts a proxied body at 100 MB, Caddy passes Connect routes alone, and the operator reads on a loopback listener, so a file kept here could not be opened in a browser. Any S3-compatible bucket does (`support.attachments.bucket`); production's is Cloudflare R2.
+  - **The files first, the note after**, so a note never reaches the operator without the files that explain it. `CreateUpload(content_type, size_bytes)` answers an id and a link: the page sends the file there with one `PUT`, straight to the bucket, and no byte of it passes through this server. Then `SuggestFeatureRequest.attachment_ids` and `ReportBugRequest.attachment_ids` name the files, in order.
+  - **The server reads each file named before it keeps the note** (`Files.Attachments`, a presigned `HEAD` per file, 8 at once): its type and its size are what the bucket holds, never what the page says. A file that is not there is `notes.ErrNotUploaded`, answered `FailedPrecondition`, and nothing is kept. A type the list does not hold, or a size the rules do not take, is `InvalidArgument` as before: the rules are checked again on what was uploaded.
+  - **The id is a random UUID** (`uuid_id_provider.NewAttachmentID`), not a v7: it is the only thing that lets a note name a file, so only the page that uploaded it knows it. A note naming the same id twice is refused.
+  - **`CreateUpload` checks the rules first** (`Attaching` on one file): a type or a size they do not take gets no link. It is `Attested`, like a note, and has a daily limiter of its own, `support.uploadLimiter`: 100 files a day, per account and per address together, as the notes'.
+  - **The bucket never holds more than `support.attachments.maxStoredBytes`** (9 GiB, under R2's free 10 GB): the bill is capped, not only slowed. **Every link signed takes its room first**, on the `uploads.Shelf`, whether its file comes or not, since a link cannot be taken back. `uploads.Upload` is that room: the id, the size the link signs, and when. `Shelf.Reserve` keeps it in `support.uploads` under one advisory lock for the whole table, so two links at once never both take the last of the room; a file that would not fit is `uploads.ErrShelfFull`, answered `ResourceExhausted`, and gets no link. A link can be used again until it expires, but on the same key and at the same size, so it never takes more room.
+  - **The page is told the room left**: `GetAttachmentRules` answers `AttachmentRules.Within(room)`, no file bigger than what is left, and no file at all once the bucket is full, so the picker goes away rather than refuse.
+  - **A file no note named in a day is deleted** (`support.attachments.keepUnsent`): the page was closed before Send, or the note was refused after its files went up. `discard_unsent_usecase` runs with the prune: it reads the uploads from before the cutoff that no row of `support.attachments` names (`Storage.Unsent`), deletes their files from the bucket (a signed `DELETE`, 8 at once; a file not there is deleted already), then marks them `Discarded`, and the store removes them, which frees their room. A file the bucket would not delete keeps its room, and the next prune tries again. **`keepUnsent` must outlast `uploadTTL`**, or the boot is refused: a file deleted while its link still works could come back with no room taken.
+  - **`s3_attachment_bucket` signs each link itself** (AWS Signature Version 4, in the query): no SDK, and nothing is asked of the bucket to make one. An upload link signs the content type and the content length, so the bucket refuses another type or one byte more or less; it is good for `uploadTTL` (10m): the page asks for it right before it puts the file there. `signature_test.go` signs the S3 reference's own example.
+  - **The key is the attachment id**, and only the adapter knows it: the upload link, the read and the view link go through it, and `TestAViewLinkIsOfTheSameFileAsTheUploadLinkAndLastsItsOwnTime` pins the first two against each other.
+  - **`notes.AttachmentRules` is what a note sent may carry**: `Note.Attaching(files, rules)` refuses more files than `maxPerNote` (10) and a file over `maxBytes` (50 MiB), `ErrInvalidAttachment`, answered `InvalidArgument`. `Restore` only checks the media type and a size above 0, so a new limit never makes a kept note unreadable.
+  - **`GetAttachmentRules` tells the page the rules**: the most files, the most bytes, and every content type. No token, no throttle, `no-store`. A server that takes none answers 0, and the page then shows no picker; a new limit needs no frontend release.
+  - **The media types are a closed list** (`notes.MediaTypes`: JPEG, PNG, WebP, GIF, HEIC, HEIF, MP4, QuickTime, WebM), and the type `media_type` in postgres lists them again. A new one is a constant and a migration; the contract suite keeps a file of each, so a constant with no migration fails the tests. SVG is left out: it can run scripts.
+  - **Kept in `support.attachments`** (`note_id`, `position`, `id`, `media_type`, `size_bytes`; migration `20261013100000_attachments`), written by the note store in the note's own transaction. It writes the list the snapshot holds and drops the rows past it, without knowing why the list changed.
+  - **A note keeps its files for good, as it keeps its text.** A player sends them for the operator's use, so an anonymized note keeps them: only the account goes. Nothing deletes a file a note names. **Known risk**: a picture or a video can show who sent it (a username on screen, a voice), and nothing blanks that. The privacy page says the files are kept and asks for no personal details in them. Decided on 2026-10-14.
+  - **Known risk: the bucket's request fees are not capped.** R2 charges each write past a million a month ($4.50 a million), and a link can be sent again and again until it expires. A short `uploadTTL` and the daily limits bound it; nothing in the app can stop it.
+  - **Known risk: a full bucket stays full.** The files notes carry are kept for good, so once they reach `maxStoredBytes` no player can attach a file until the operator deletes some or raises the cap.
+  - **The operator opens a file from `ListNotes`**: each note lists its attachments with `content_type`, `size_bytes` and `url`, a view link good for `linkTTL` (1h). `notes_query` reads the list in its one statement and asks its `Links` port, which the bucket fills, for each link.
+  - **Off unless switched on** (`support.attachments.enabled`). Off, the rules take no file and the bucket block is not read: every link is `ErrNoBucket`. **Switch it off only once no note carries a file**: `ListNotes` fails on one that does.
+  - **`s3_attachment_bucket`'s tests run on a real S3 server**, the Versity gateway in a container (MinIO's images are gone from the public registries): a file goes up and comes back, its type and size read back as uploaded, a file never uploaded is `ErrNotUploaded`, a file deleted is gone and the others stay, a link takes no other size or type, and a link past its time and a link signed with another secret are refused. `e2e/` uses a fake bucket that checks no signature.
 - `notes.StorageContractSuite` runs on `inmemory_note_storage` and on postgres. It reads what a store kept, as snapshots, through a `Kept` hook each adapter's test fills, since the write side reads nothing back. Each snapshot read back must restore a note.
 
 **A report is a concept of its own** (`reports/`), not a third kind of note: it names a second account, it has a reason, and it can be abused. `reports` imports `notes` (the account, the rule on a text), never the other way.
@@ -1592,7 +1748,15 @@ internal/support/internal/
 - **One account reports one player once a UTC day** (`ErrReportedAlready`, `AlreadyExists`), **and `NewReport` is where that is decided**: the use case hands it what the reporter already filed about the player (`FiledBy`), and a report of the same day among them refuses the new one. **The database holds no part of the rule**: no day column, no unique constraint, and a storage keeps two reports of one day if it is handed them. So two reports sent at the very same moment can both be kept. That is accepted: a report does nothing by itself, and the service's limiter lets an address send three.
 - **A report does nothing by itself, and nothing counts reports.** No mute, no ban, no score. A guest account is free to make and countries are rivals here, so a threshold would be a weapon. The operator reads a report, then uses the tools it already has.
 - **Kept in `support.reports`** (`id`, `reporter_account_id`, `reported_account_id`, `reason`, `text`, `message_id`, `created_at`; migration `20261012110000_reports`), with no address. **`reason` is a postgres enum type, `report_reason`**, as a note's kind is: a new reason is a value a migration adds to the type.
-- **`AdminService/ListReports(since, limit)`**, as `ListNotes`: newest first, 100 unless asked, 500 at most. `reports_query` reads the rows, then asks `GetAuthors` once for everyone they name, reporters and reported together. An account nobody can name any more has an empty name. **Reports nobody could be named in are refused**, as a chat history is. A stored reason the wire cannot carry refuses the read (`ErrUnknownReason`: a reason a newer migration added to the type, read by an older build). `reported_account_id` is what `InspectPlayer`, `BanPlayer` and `Mute` take.
+- **`AdminService/ListReports(since, limit)`**, as `ListNotes`: newest first, 100 unless asked, 500 at most. `reports_query` reads the rows, then asks `GetAuthors` once for everyone they name, reporters and reported together. An account nobody can name any more has an empty name. **Reports nobody could be named in are refused**, as a chat history is. A stored reason the wire cannot carry refuses the read (`ErrUnknownReason`: a reason a newer migration added to the type, read by an older build). `reported_account_id` is what `InspectPlayer`, `BanPlayer` and `Mute` take, and `message_id` what `GetMessage` and `RemoveMessage` take.
+- **`AdminService/DecideReport(report_id, outcome, comment)` closes a report**: `acted` or `dismissed`, and an
+  optional comment that follows `notes.TextOf`. **A decision is a concept of its own** (`decisions/`), in
+  `support.report_decisions` (migration `20261018130000_report_decisions`, `outcome` the type `report_outcome`), one
+  row per report: a second decision replaces the first, and `audit_decide_report` logs each one. **It goes with its
+  report** (`ON DELETE CASCADE`), so a forgotten report takes its decision. A report no longer kept is `NotFound`
+  (the store reads the foreign key's refusal as `decisions.ErrUnknownReport`).
+- **`ListReports` carries each decision** (`Report.decision`, unset while open), and `open_only` leaves out the
+  decided ones. A stored outcome the wire cannot carry refuses the read (`reports_query.ErrUnknownOutcome`).
 - With no internal listener the boot is refused: the module dials it once, at build, for `player`, which names the accounts in `ListReports`.
 - `reports.StorageContractSuite` runs on `inmemory_report_storage` and on postgres, through the same `Kept` hook of snapshots.
 
@@ -1620,6 +1784,7 @@ internal/seasons/internal/
       log_take_snapshot/            logs each round closed, and a snapshot that failed
   seasonsv1controller/            SeasonService (a bag), the cache interceptor, the session interceptor
     get_season_handler/
+    get_race_handler/             the race of the stream, once, through race_query — Query
     get_standings_handler/standings_query/   PostgresQuery: GetStandingsResponse from SQL, named, and the same top as
                                   a Board, for the live boards — Authors
       rpc_player_authors/         Authors, from player.v1.InternalService/GetAuthors, as player.v1.Author
@@ -1645,7 +1810,7 @@ internal/seasons/internal/
 **A player's season score is the tiles it took this season for its main flag**, the flag it took the most tiles for, so a player cannot add up several flags. **A country's board is every player who took tiles for that country, ranked by those tiles**, so a player is on the board of each flag it took for, and a change of flag shows at the first take rather than when the main flag moves.
 
 - **`standings.Tally` is the rule**: an account's tiles per flag in one season, and its main flag. `WithTake` adds one tile and makes the flag the main one when it has strictly more tiles than the main one; a tie keeps the flag that got there first. **The season of a take is the one whose interval holds `taken_at`** (`Take.Season`, over `Calendar.Current`); a take after the last season counts nothing. `tally_test.go` and `take_test.go` pin both.
-- **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event. A strike on a shield, a shadow-banned click (it never reaches the ledger) and a revert publish nothing, so they change no score. Takes before this module had a database are not replayed: counting started the day it shipped.
+- **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event. A strike on a shield, a click the ban refuses (it never reaches the ledger) and a revert publish nothing, so they change no score. Takes before this module had a database are not replayed: counting started the day it shipped.
 - **One transaction per take**, under `pg_advisory_xact_lock` on the account: read the account's rows for the season, apply `WithTake`, upsert the flag's row and move `main`. The rule stays in Go; the column only keeps what it said.
 - **Kept in `seasons.contributions`** (`season`, `account_id`, `country`, `tiles`, `main`; primary key `(season, account_id, country)`), with its own block, `seasons.database`, its own pool and migrations. `main` marks one row per account and season (a partial unique index). A partial index on it serves the whole map's board, and `contributions_country_board` (`season, country, tiles DESC, account_id`, every row) serves a country's.
 - **`auth.v1.AccountDeleted`** (`seasons-standings-accounts`) deletes the account's rows in every season.
@@ -1697,6 +1862,10 @@ standings rank players, the rounds rank countries.
   reading on its own clock is at most 10s late, and the snapshot use case knows nothing of who reads its rows. It
   forgets the race when the last stream closes. A failed read is logged (`log_race_reader`) and the next tick reads
   again. No season is a race with no round and no scores, and no round closed yet is a race with no `closed`.
+- **`GetRace` is the same race, once**, for a reader that follows no stream: the clips job, which tells the day closed
+  last (see [The clips job](#the-clips-job-internalclips-cmdclips)). It needs no token, is a GET (`NO_SIDE_EFFECTS`)
+  and answers `public, max-age=10`. It reads through `race_query` itself, logged by `log_race_reader` as the feed is,
+  and never through the feed: a feed with no stream holds no race.
 - `rounds.StoreContractSuite` runs on `inmemory_round_store` and on postgres. `e2e/race_test.go` clicks for two flags
   and reads the race off the stream.
 - `standings.StoreContractSuite` runs on `inmemory_contribution_store` and on postgres. It reads what a store kept through a `TallyOf` hook each adapter's test fills, since the write side reads nothing back. The use cases are tested over the in-memory one; the queries on postgres, seeded through `postgres_contribution_store`.
@@ -2002,10 +2171,10 @@ its own.
   shield placed. After that the client follows
   its own calls: a drop spends the bomb, an accepted click sent with spread on a
   spread click, its own `tiles_enclosed` an enclosure. A charge spent in another
-  tab shows until the next read. **`Click` answers nothing about them on purpose**:
-  a shadow-banned click never reaches the spread, so a count on the answer would
-  tell a banned caller its clicks are dropped. `planetv1controller/chargesheld`
-  encodes the message both procedures answer.
+  tab shows until the next read. **`Click` answers nothing about them.** It was so
+  a shadow-banned caller could not tell its clicks were dropped; a ban is told now
+  (see [A ban is told](#a-ban-is-told)), so the answer could carry them.
+  `planetv1controller/chargesheld` encodes the message both procedures answer.
 - **How big a charge is, is a rule, not state.** `GetBonusRules` answers the
   blast radius, the enclose's `maxTiles`, the spread pool's size and the
   enclosure stack's size (`bonuses.Rules`, built in `module.go`), how many
@@ -2030,10 +2199,10 @@ it: a refused click spreads nothing and costs nothing, and a click with spread o
 never touches the pool.
 
 `click/spread_click` is the decorator that reads it, and **it sits right against
-the rule**, inside the count, the shadow ban and the throttle:
+the rule**, inside the count, the ban and the throttle:
 
 - a click is **one click** to the throttle and to `prom_click`, however many tiles it took
-- a click the shadow ban drops never reaches the rule, so it spreads nothing
+- a click the ban refuses never reaches the rule, so it spreads nothing
 - a click the rule refuses (unknown country, tile out of range) spreads nothing
 - the neighbours are not reported to the antibot jury — only the clicked tile is
   a click the caller made
@@ -2113,11 +2282,10 @@ by `publishing_drop_bomb`, inside the count, and the chat announces it — see
 **And the ledger keeps it**: the drop clears through `ledger.Recording`, so every
 bomb that went off is one event in `planet.ledger_events`, with the flag each tile
 it cleared wore and the shields each tile it struck kept — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer).
-**The shadow ban applies**: `antibot_drop_bomb` marks a banned caller's drop as a
-`Dud`, which spends the bomb, clears nothing and publishes nothing, and is answered
-OK — a bomb left in hand would tell the caller it was refused. It sits outside the
-count so the counter can label it.
-`prom_drop_bomb` counts `bonus_bombs_dropped_total{outcome=land|sea|refused|shadowbanned}`
+**The ban applies**: `antibot_drop_bomb` refuses a banned caller's drop before the
+bomb is spent, with the same `BanRefusal` as a click (see [A ban is told](#a-ban-is-told)),
+so the bomb stays in hand. It sits inside the count so the counter can label it.
+`prom_drop_bomb` counts `bonus_bombs_dropped_total{outcome=land|sea|banned|refused}`
 and `bonus_bomb_tiles_cleared_total`.
 
 #### What an enclose does to a click
@@ -2162,7 +2330,7 @@ tiles and announces them. `Execute` asks whether the charge is held, lets the
 rule write, and hands the pockets to the annexer.
 
 It sits beside `spread_click`, against the rule and inside everything else, so
-it is one click to the throttle and to `prom_click`, a shadow-banned click never
+it is one click to the throttle and to `prom_click`, a click the ban refuses never
 reaches it, and the tiles it takes are not reported to the antibot jury. The
 annexer hands the inside to `ledger.Recording.Enclose`, which claims each tile as
 an ordinary `Set` and keeps the enclosure as one event. The search holds no lock across the map, so a
@@ -2213,8 +2381,8 @@ check can tell them from a player. The signal that survives is **behavioural**.
 of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
 `Click`, `Point`, `Report`, `Sentence`, `Examination` and `Reading` — the types a caller writes down, because it builds two
 and is handed the others. A caller hands over the block and the two hooks it wants
-findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
-the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Fetched`, `Listened`, `Flagged`, `Banned`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
+findings reported through, and gets back a `Guard` — one that refuses and bans nothing when the block is off, so
+the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Fetched`, `Listened`, `Flagged`, `EnforcedSentence`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
 `Unban`, `Sentence`, `Enforcing` and `Examine` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
 package's business, which is why `planet` registers one runner rather than one per sweeper.
@@ -2238,21 +2406,45 @@ reflection, so a caller sets `config.Retaker.Detector.MaxSpread` without ever
 naming a type.
 
 Everything else is under `antibot/internal/`, so the click edge
-could not assemble a jury out of watchdogs even if it wanted to. The shadow-ban step of
+could not assemble a jury out of watchdogs even if it wanted to. The antibot step of
 the DI sequence in `internal/planet/module.go` is the whole of the clicks side, and what is left in it is genuinely the edge's:
 the metric names, the message and attribute names of the ban line, and where
 in the chain it sits.
 
 **Detection and consequence are separate, and the consequence is the boring
-half.** `antibot/internal/shadowban` takes a scope or an account and a clock and runs a ban. It knows
+half.** `antibot/internal/bans` takes a scope or an account and a clock and runs a ban. It knows
 nothing about tiles, reactions or what earned it, which is why the same sentence
 serves three different findings and would serve a fourth.
 
-**A flagged caller's clicks are answered `OK` and dropped.** That is the whole
-point — a refusal names the check that tripped, and the author fixes it in an
-afternoon; a silent no-op names nothing. It is not permanent (the caller reads
-the map back over the same stream and will notice), but it moves the cost of
-the next round onto them.
+#### A ban is told
+
+**A banned caller's click, bomb and shield are refused, with when the ban ends.** Until 2026-10-20
+they were answered `OK` and dropped, so a script author learned nothing. But most of the callers the
+rules banned in October 2026 were people (`stamina` on Oct 7, `cadence` on Oct 9, `roam` on Oct 10,
+`rotator` on Oct 18), and for them a click that did nothing read as a bug, with no way to ask.
+
+- **`PermissionDenied` with a `planet.v1.BanRefusal` detail**: `banned_until_unix_ms`, the end of the
+  ban that ends last of the scope's and the account's (`Guard.EnforcedSentence`). The VPN block answers
+  the same code with no detail, which is how the client tells the two apart; an older client shows its
+  VPN dialog. `clicks.BanRefusal` is the domain's error, and `planetban.Refusal` maps it in
+  `click_handler`, `drop_bomb_handler` and `place_shield_handler`.
+- **No reason goes out.** The client links the terms' "Play fair" section (`/terms#play-fair`). The
+  rule that fired is in the `antibot ban` log line and in `InspectPlayer`, never on the wire.
+- **`ban_click` sits outside the whole click chain**, as the VPN block does: a refused click spends no
+  token, or the client would show a 429 instead of the ban, and it reaches no watchdog.
+  `antibot_drop_bomb` and `antibot_place_shield` refuse before the bomb or the shield is spent, so it
+  stays in hand.
+- **The click that earns the ban goes through**: `antibot_click` judges and refuses nothing, and the
+  next click meets `ban_click`.
+- **So a ban no longer feeds itself**: the watchdogs never see the clicks of a caller while it is
+  banned, and the end the player was told does not move however much it clicks. Only an accomplice's
+  click can extend it (see the `rotator`). The ban lapses on its own, and the evidence windows have
+  forgotten the caller by then.
+- **`banned_clicks`** counts the clicks refused. Until 2026-10-20 it was `shadowbanned_clicks`, and the
+  ban metrics beside it `shadowban_flagged` (`banned_callers`) and `shadowban_flags` (`ban_flags`): the
+  metrics poller's history files before that day carry the old names. The config block was
+  `antiBot.shadowBan` and the package `antibot/internal/shadowban`.
+- `TestABannedCallerIsToldUntilWhenAndSpendsNoToken` pins it over HTTP.
 
 #### Ten watchdogs, one jury
 
@@ -2277,7 +2469,8 @@ strict end and miss every bot that jitters, or at the loose end and ban humans �
 which is exactly the corner the first version of this was painted into.
 
 The `Jury` crosses them: guilty on one `Certain`, or on `jury.minSuspects`
-different watchdogs at `Suspect` inside `jury.suspicionWindow`.
+different watchdogs at `Suspect` inside `jury.suspicionWindow`. `rotator` never
+counts.
 
 **Crossing is worth less than it looks, and the config says so.** Weak signals
 only multiply confidence when they are independent, and these only half are: a
@@ -2295,12 +2488,24 @@ person plays, and the keenest players read both. Together they banned two people
 
 - **Each rule says it reads zeal** (`Evidence.Zeal`), and the jury counts every zeal
   reading of a caller as one suspect. The mark is saved with the opinion.
-- **Zeal still counts beside any other watchdog**: `rotator` with `stamina`, or
+- **Zeal still counts beside any other watchdog**: `sequencer` with `stamina`, or
   `cadence` with `defence`, is still a ban. Only the two together are not.
 - **The cost**: a loop that reads `stamina` and `defence` and nothing else is free,
   as the player who reads the same is.
 - `TestTheNewcomerOfOctober12WhoPlaysHardAndDefendsIsNotBanned` replays the player,
-  and `TestThePairOfOctober13TakingTurnsAtACadenceIsBanned` a pair that is still banned.
+  and `TestWithNoAccountTheSameHandsAreBannedAsOneCaller` is `cadence` with `defence`.
+
+**Turns never count, since 2026-10-20.** From 10-11 to 10-19 every ban but one was
+`rotator` beside `defence` or beside a `cadence` at its bound. The ones checked were
+children: one on a PC, one switching between two browsers on a phone, both chatting
+all through a tile war. Rotation beats the rate limit; it is not a bot signal.
+
+- **The rotator marks its reading** (`Evidence.Turns`), and the jury counts it at no
+  level. It still reads, logs, shows in `InspectPlayer` and feeds `click_rotation_share`.
+- **Its ring still falls with a guilty caller**: when other watchdogs find one account
+  guilty, the accounts it rotates with are banned with it (`Evidence.Accomplices`).
+- `TestThePhoneOfOctober19SwitchingBrowsersInATileWarIsNotBanned` and
+  `TestThePCOfOctober19AtACadenceTheMorningAfterItsTurnsIsNotBanned` replay the two.
 
 **Crossing is also what makes it fast.** The overnight sweep from the
 screenshots trips no watchdog's `Certain` for a long time — `sequencer` wants two
@@ -2317,18 +2522,18 @@ third: loosening `metronome` to catch it sooner is how the obsessed player gets
 banned. `hopper` is one, for shuffled ids that land all over the globe:
 `TestALoopAimingAllOverTheGlobeIsCaughtBeforeTheClockIsSure`.
 
-**Every watchdog sees every click, including the ones a ban is already
-dropping.** A watchdog cut off the moment another one banned the caller would be
-judging a caller that appears to have stopped, and the ban would lapse on silence
-the caller never produced. It also means a ban sustains itself: while it runs,
-the caller takes no tiles so `retaker` starves, but ids and timing still flow, so
-`sequencer` and `metronome` keep re-flagging through `reflagInterval`.
+**Every watchdog sees every click until the caller is banned, and none while it is.** Until
+2026-10-20 they saw the clicks a ban was dropping too, so a ban sustained itself: `sequencer` and
+`metronome` kept re-flagging it through `reflagInterval`. A ban the player is told must not move
+under it, so `ban_click` refuses those clicks before the jury (see [A ban is told](#a-ban-is-told)).
+The scenario tests' stack still hands every click to the jury: what they pin is when a ban first
+falls.
 
 #### What survives a restart
 
 **Bans and evidence both, in postgres, in the `antibot` schema.** Bans are
 `antibot.bans`, one row per scope ever banned, and `antibot.account_bans`, one row per
-account, read and written by `antibot/internal/shadowban` with no copy in memory. What
+account, read and written by `antibot/internal/bans` with no copy in memory. What
 each watchdog is tracking and the jury's record of each caller — its tally and
 the last opinion of every watchdog — are `antibot.evidence`, one row per section, written by
 `antibot/internal/evidence`. This exists because of 2026-09-14: production
@@ -2345,7 +2550,7 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   `Guard.LoadState(ctx)` connects, migrates and loads the evidence, and **an error
   refuses the boot**. The guard's `Run` closes the pool after the last flush of the
   evidence, the way `cppg.CloseAfter` does for the tile map.
-- **Bans are postgres, and nothing else.** `shadowban.Store` is the port: `Record`
+- **Bans are postgres, and nothing else.** `bans.Store` is the port: `Record`
   reads one key, `Running` counts the bans running, and `Change` runs a function on
   one key's record under `pg_advisory_xact_lock` and writes what it answers, in one
   transaction. The ladder, the reflag interval and the unban stay in Go, on the
@@ -2356,14 +2561,14 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   next: the reflag interval is added in Go, so a new `reflagInterval` applies to every
   row, and a restart is no way around it. The ban's end is `expires_at` (migration
   `20261008120000` added the first and renamed `banned_until` to the second).
-  `postgres_ban_store` is the adapter and `MemoryStore` (behind the `testing` tag) the fake; `shadowban.StoreContractSuite` runs on both,
+  `postgres_ban_store` is the adapter and `MemoryStore` (behind the `testing` tag) the fake; `bans.StoreContractSuite` runs on both,
   and pins the lock: changes to one key never overlap.
-- **Every click reads them**, in `Guard.Inspect`, and a bomb or a shield in
-  `Guard.Banned`: one primary-key lookup on the scope and one on the account, and
-  none at all with `enforce` off. A read gets `banTimeout` (1s). **A ban that cannot
+- **Every click, bomb and shield reads them**, in `Guard.EnforcedSentence` (`ban_click`,
+  `antibot_drop_bomb`, `antibot_place_shield`): one primary-key lookup on the scope and one on the
+  account, and none at all with `enforce` off. A read gets `banTimeout` (1s). **A ban that cannot
   be read is no ban**: the click goes through, and the error reaches
   `Observer.OnStateError`, which logs it. Postgres down lets a banned bot click,
-  rather than every player's clicks being dropped without a word. The operator
+  rather than every player's clicks being refused. The operator
   tools answer the error instead.
 - **A row is never deleted.** Scopes and accounts are two `Banner`s over two
   tables, each with its own ladder. An offence is forgotten only when an operator
@@ -2597,9 +2802,7 @@ tiles, and every watchdog read `clear`.
   tokens spent, and tokens are the account's; seven accounts taking turns behind one
   address are seven players here. The reading still lands on the scope's jury record,
   like every watchdog's.
-- **It counts in `Watch`, not `Attempted`**: a try the throttle refused spent nothing,
-  and a click a ban is dropping still passed the throttle, so a running ban keeps
-  reading.
+- **It counts in `Watch`, not `Attempted`**: a try the throttle refused spent nothing.
 - **Measured before it was set**, over three days of ledger per account: the bot's two
   accounts read 6h of 6h, the heaviest player 4h50m, and 5 of 555 accounts 3h or more.
 - **It only reads `Suspect`, since 2026-10-08.** Production shipped `certainBusy`
@@ -2905,10 +3108,10 @@ people, not scripts, and every other watchdog read `clear`.
   of seconds per slot can miss each other for a while. Simulated, the worst such
   pair, judged at the first moment it can be, reads once in 400 times.
 - **`minSlots` (24) shared slots read `suspect`, `certainSlots` reads `certain`.**
-  Two hours of shared slots, since an hour of turns happens. **Production sets no
-  `certainSlots`**: rotation is a person who cheats the rate limit, and a rule that
-  measured one thing has banned people here before (`stamina`). So it bans only
-  beside another watchdog. `TestTakingTurnsAloneBansNobody` pins it.
+  Two hours of shared slots, since an hour of turns happens. Production sets no
+  `certainSlots`. **The jury counts neither level**: rotation is a person who cheats
+  the rate limit, and beside another watchdog it banned children (see turns never
+  count, above). `TestTakingTurnsAloneBansNobody` pins it.
 - **It reads tries, like the metronome** (`Attempted`), and judges in `Watch`. A try
   the throttle refused was made by the same hand, and accepted clicks alone would
   let one shared bucket space two people apart.
@@ -2946,7 +3149,7 @@ honest player flagged:
   `Set` publishes nothing, so it neither reacts nor becomes something to react to
 - a click the handler refused (invalid country, tile out of range) — it changed
   no tile
-- a click that was itself dropped by the ban — same reason
+- a click the ban refused — it never reaches the jury at all
 
 The interceptor reads the tile's owner **before** the handler runs and puts it on
 `antibot.Click` as `Held`/`NoOp`, because afterwards the map no longer remembers
@@ -2968,21 +3171,19 @@ the walk.
 
 **It is a decorator over the click use case** (`antibot_click`), not an interceptor.
 None of what it does is about HTTP: it reads who held the tile before the write,
-reports the take afterwards, and answers a flagged caller OK with nothing
-written — and the middle one only works adjacent to the write, because
-afterwards the map no longer remembers who held the tile.
+judges, and reports the take afterwards — and that only works adjacent to the write,
+because afterwards the map no longer remembers who held the tile.
 
-**It sits innermost, inside the throttle** — the opposite of the blocklist and the
-session check. A shadow-banned caller has to keep hitting the same 429s everyone
-else does; a caller that is never throttled again has been told. `TestAntiBotRunsAfterTheThrottle`
-pins it.
+**It sits innermost, inside the throttle**, so the watchdogs judge only the clicks
+the throttle let through: a try it refused spent nothing.
 
-**Only the watching is outside it.** `antibot_attempt_click` wraps the throttle and
-reports each try through `Attempted`, which judges and drops nothing. Moving the
-whole guard out instead would let a banned caller skip its 429s.
+**Only the watching and the refusing are outside it.** `antibot_attempt_click` wraps
+the throttle and reports each try through `Attempted`, which judges and refuses
+nothing. `ban_click` wraps that, and refuses a banned caller before anything else
+(see [A ban is told](#a-ban-is-told)).
 
-**`antiBot.shadowBan.enforce` is the rollout switch,** the same shape as
-`auth.enforce`: false judges, logs and counts without dropping anything. The
+**`antiBot.bans.enforce` is the rollout switch,** the same shape as
+`auth.enforce`: false judges, logs and counts without refusing anything. The
 two surfaces are built for a box with no dashboard — `click_reaction_seconds` is
 a histogram whose raw bucket counts show the bot band by eye, and each flag
 writes one `antibot ban` log line carrying the scope, every watchdog's verdict
@@ -2998,11 +3199,11 @@ log and never an input to a rule on its own: the client declares it, so it is ch
 editing one string, and real players paint the same flags a bot does. `cohort` only uses the flag
 to group scopes that already started together — see above.
 
-**A flag repeats, and that is most of its value.** `reflagInterval` is how soon a
-caller already serving a ban can be judged again; at or above a watchdog's
-`trackWindow`, each flag rests on evidence the previous one never saw, so
-`flags=6` on a line is six independent judgements agreeing rather than one
-verdict repeated.
+**A flag on a running ban is rare now.** `reflagInterval` is how soon a caller
+already serving a ban can be judged again, but a banned caller's clicks never reach
+the jury (see [A ban is told](#a-ban-is-told)): only an accomplice's click, or a scope
+banned while its account is not, flags it again. A second ban after one has lapsed
+is a new offence, and climbs the ladder.
 
 **A day with no ban still says how close it came.** A ban is the only thing
 `OnFlag` reports, so on 2026-09-14 a bot attack produced zero lines and zero
@@ -3032,19 +3233,19 @@ words it on the way out.
 **The watchdogs judge a scope; a ban falls on the scope and the account.** The
 evidence stays keyed on `cpipscope.Of`, so a v6 caller cannot serve a ban on one
 address and click from the next in its own /64. A click carries the account its
-token names (`Click.Account`), and `shadowban.Bans` passes a ban on:
+token names (`Click.Account`), and `bans.Book` passes a ban on:
 
-- **the account**, when the token names one, so it is dropped from any scope;
+- **the account**, when the token names one, so it is refused from any scope;
 - **the scope too, when there is no account or the account is a guest's**
   (`Click.SignedIn` false: the token is not linked). A guest can
   shed its account with a new cookie, and must not shed the ban with it. A
   signed-in account's ban leaves its scope alone, so a campus is not banned for one
   player on it.
 
-**A click, and a bomb, are dropped when the scope or the account is banned**
-(`Guard.Banned(scope, account)`). `TestAGuestBannedByTheJuryCannotShedItWithAFreshCookie`
+**A click, a bomb and a shield are refused when the scope or the account is banned**
+(`Guard.EnforcedSentence(scope, account)`). `TestAGuestBannedByTheJuryCannotShedItWithAFreshCookie`
 and `TestABannedGuestWithAFreshCookieIsStillDropped` pin it. The `antibot ban` line
-carries `account`, and `shadowban_flagged` counts running bans on scopes and on
+carries `account`, and `banned_callers` counts running bans on scopes and on
 accounts, so a guest banned on both counts twice.
 
 **A ban on one account of a ring falls on all of it.** The `rotator` names the
@@ -3054,7 +3255,7 @@ clicker (`convictsOf`): the account, and its scope too when it is a guest. Each 
 own `antibot ban` line, with `alongside` set to the account whose click was judged,
 since the opinions on the line are that click's. On 2026-10-09 two accounts of a trio
 were banned and the third played on; `TestTheTrioThatTakesTurnsIsBannedTogether`
-replays it. A lone suspicion passes to nobody.
+bans the whole trio for a sweep on one account. A lone suspicion passes to nobody.
 
 A scope ban only bites a bot with a stable address — against a residential proxy
 pool it evaporates for exactly the reason the scope's bucket does; the account ban
@@ -3165,9 +3366,35 @@ Nothing lives in files any more: the container mounts no state volume.
 
 ### Operator tools (`AdminService`)
 
-**A second router, on a loopback listener.** `props.AdminRPC.Mount` is `props.RPC.Mount` for services an operator calls: same builder, same error net, but `cpbootstrap` serves them on `httpServer.adminBindAddress` instead of the public router — logging middleware only, no CORS. Empty serves no admin listener; anything but a loopback `host:port` refuses the boot, both in `ServerConfig.Validate` and again in `Run`, and a port already taken refuses it too. They have no authentication, so loopback is their whole protection, and they are off the router Caddy forwards to on purpose: one Caddyfile edit would otherwise let anybody repaint the map. In production they are reached with `docker compose exec backend wget`; see `deploy/vps/README.md`, "Operator tools".
+**A second router, on a loopback listener: the console.** `props.AdminRPC.Mount` is `props.RPC.Mount` for services an operator calls: same builder, same error net, but `cpbootstrap` serves them on `httpServer.consoleBindAddress` instead of the public router — logging middleware only, no CORS. Empty serves no admin listener; anything but a loopback `host:port` refuses the boot, both in `ServerConfig.Validate` and again in `Run`, and a port already taken refuses it too. They have no authentication, so loopback is their whole protection, and they are off the router Caddy forwards to on purpose: one Caddyfile edit would otherwise let anybody repaint the map. In production they are reached with `docker compose exec backend wget`; see `deploy/vps/README.md`, "Operator tools".
 
-`planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles` and `NameAccounts` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute` — see [Mutes](#mutes); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes` and `ListReports` — see [Support](#support-internalsupport). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
+**The admin listener serves every admin service again, for the admin page.**
+`httpServer.adminBindAddress` is not loopback (Caddy reaches it on the Docker network), so `cpbootstrap`
+builds every admin route a second time behind `Options.AdminGate`: its middlewares around the router, its
+interceptors inside the error net (`rpcRoutes.mountBehind`). `cpbootstrap` knows nothing of what the gate checks.
+An address with an empty gate, or a gate holding a nil, refuses the boot: the admin services have no authentication
+of their own. Empty serves no admin listener.
+
+**The gate is auth's (`internal/auth/internal/admingate`), and `cmd/api` builds it** with `auth.NewAdminGate`,
+from `auth.admin.origin` and the internal listener's address, since it runs outside the module: it asks auth
+who calls over the internal listener, as another module would. No origin is no admin page, and so no gate; an
+origin with auth off refuses the boot.
+
+- **The admin page's origin alone** (`admission.Page`): a call whose `Origin` is another, or none, is
+  `permission_denied` before anything is asked. Scripts on the box use the console listener. The router answers CORS
+  for that origin alone, with credentials.
+- **Then who calls**, but for the admin sign-in calls (`admission.Page.SignIn`: start, complete, sign out), which
+  are made before a session exists: `admit_usecase` asks `auth.v1.InternalService/GetOperator` with the cookie
+  (`rpc_operators`, 2s), and `guard` maps the answer: no session `unauthenticated`, anybody but an operator
+  `permission_denied`. `log_admit` logs each refusal (`admin call refused`), with its origin and never the cookie.
+- **A line per admitted call** (`log_calls`, inside the guard): `admin call` with the operator's account id, the
+  procedure, the request as JSON and the code, reads included. The audit decorators say what a call did; this line
+  says who asked it.
+
+Caddy sends `/<package>.v1.AdminService/*` on the API's domain to it, so `cp_admin`, which is host-only on that
+domain, travels from the admin page, a page of the same site.
+
+The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
 - **The move is paced.** `inmemory_tile_storage.Reassign` moves one batch under the lock and returns where to resume; the use case sleeps 50ms between batches. A batch is a quarter of `tilesStorage.subscriberBuffer`, because each tile is one update on every open stream, the clicks still arriving need the rest of the buffer, and a stream that overflows it is closed.
 - **Each tile is an ordinary `TileUpdate`** with `Previous` set, not a new event kind: open clients repaint with no frontend release, `counts` move so the toll prices the next click right, and `dirty` puts it in the next flush.
@@ -3220,16 +3447,16 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
 
 For the patterns no watchdog catches but a person sees on the map. A player is an **account on a scope** (`cpipscope`: the address over IPv4, the /64 over IPv6), or a scope alone for takes made with no account. `BanPlayer`, `UnbanPlayer`, `RevertPlayer` and `InspectPlayer` take a `scope` (any address) **or** an `account_id`, never both (`ledger.ParseCaller`; both, neither or a malformed id is `InvalidArgument`).
 
-- **`ledger` remembers every act of a player on the map**: who, when, the flag, the tile, and what it did to each tile, oldest first. `ledger.Recording` is the tile writer the click chain, `drop_bomb_usecase` and `place_shield_usecase` write through, with one method per act (`Click`, `Spread`, `Enclose`, `Clear`, `Shield`), so each act is one event, a click that changed nothing is none, and a click or a bomb the shadow ban drops never reaches it. Recording appends through `publishing_ledger_storage`, which publishes `planet.v1.TileTaken` for each take with an account, after it is recorded. A take by somebody else is one more take, not a replacement: a bot painted over as fast as it paints is still in the ledger. Reassigns, paints and reverts write nothing; they show as a change the ledger never saw.
+- **`ledger` remembers every act of a player on the map**: who, when, the flag, the tile, and what it did to each tile, oldest first. `ledger.Recording` is the tile writer the click chain, `drop_bomb_usecase` and `place_shield_usecase` write through, with one method per act (`Click`, `Spread`, `Enclose`, `Clear`, `Shield`), so each act is one event, a click that changed nothing is none, and a click or a bomb the ban refuses never reaches it. Recording appends through `publishing_ledger_storage`, which publishes `planet.v1.TileTaken` for each take with an account, after it is recorded. A take by somebody else is one more take, not a replacement: a bot painted over as fast as it paints is still in the ledger. Reassigns, paints and reverts write nothing; they show as a change the ledger never saw.
 - **The ledger is a log of `ledger.Event`s, and nothing outside a kind's own file asks which kind it holds.** An event does two things: `Replay(see)` hands over each tile it changed, as a `Taking`, and `Entry()` writes it down. `ledger.EventOf(entry)` reads one back through `kinds`, the catalog, which is the only list of kinds. So the storage, the store, `Runs`, `Tally` and the publisher see events and changes, never a kind, and **a new kind is a type and one line in `kinds`**. A take replays as itself.
 - **The kinds**: a click that took a tile is a `Taking`, and one a shield stopped a `Striking`, which replays nothing. A spread or an enclosure is one event beside the click's (`Spreading`, `Enclosing`): the `clicks.Impact` of each tile it took or struck, sorted by tile, replayed as a take of each tile it took. A shield placed is a `Shielding`, and replays nothing. **`Tally` counts acts**: a click with a spread that took a neighbour is two takes in `TopPlayers`, and a strike or a shield is none. `TileTaken` is still one per tile taken, so the stats and the seasons count tiles as before.
-- **A bomb is one event** (`ledger.Bombing`): who dropped it, when, and the blast as the map cleared it. `drop_bomb_usecase` clears through `Recording.Clear`, and the map's `Clear` reports the flag each tile wore under its own lock (`clicks.Blast.Owners`). A dud never reaches it; a bomb in the sea is kept too, and clears nothing. It replays as a take with no country on each tile it cleared, by the bomber. **So a revert undoes a bomb**: a bomber's run on each tile it cleared goes back to the flag it wore, while the tile is still empty, and a bomb breaks the run of whoever it hit. **`Tally` counts takes by event**: a bomb is one take for the bomber in `TopPlayers` and holds nothing, it ends the hold of each tile it hit, and it matches no flag in `FindPlayers`. It is never published, since every tile it changed is a clear: `BombLanded` already says it.
+- **A bomb is one event** (`ledger.Bombing`): who dropped it, when, and the blast as the map cleared it. `drop_bomb_usecase` clears through `Recording.Clear`, and the map's `Clear` reports the flag each tile wore under its own lock (`clicks.Blast.Owners`). A refused drop never reaches it; a bomb in the sea is kept too, and clears nothing. It replays as a take with no country on each tile it cleared, by the bomber. **So a revert undoes a bomb**: a bomber's run on each tile it cleared goes back to the flag it wore, while the tile is still empty, and a bomb breaks the run of whoever it hit. **`Tally` counts takes by event**: a bomb is one take for the bomber in `TopPlayers` and holds nothing, it ends the hold of each tile it hit, and it matches no flag in `FindPlayers`. It is never published, since every tile it changed is a clear: `BombLanded` already says it.
 - **The rules are in the `ledger` root, and its package doc states them**. A caller (`ledger.Caller`, a scope or an account) **holds** a tile when the tile's latest take is its own and the tile still wears that paint. A revert gives a held tile back to what it held before the caller's **current run** on it: its own latest takes, walking back while each took the tile from the paint of the one before. An account's run follows it across scopes. Another scope's take breaks the run (A il→ps, B ps→de, A de→ps goes back to `de`), and so does a change the ledger never saw (A il→ps, a revert of A to nobody, A ""→ps goes back to nobody). `Tally` gathers players for `FindPlayers` and `TopPlayers`, `Runs` computes the revert, `ByTakes` and `Top` rank and cut. The use cases only replay the ledger into these, filter through their ports, and call them. The tests for each interleaving are in `ledger_test.go`.
 - **Kept in memory and flushed to postgres** (`inmemory_ledger_storage`, behind `ledger.Storage`; see [Durability](#durability)). Postgres keeps every event for good, without its scope once memory has dropped it; the tools here read memory alone. In memory it is an append-only log of 24-byte records in 1.5 MiB chunks, one per entry, scopes and accounts interned in one table per chunk and countries and kinds in others, so an old chunk takes its strings when it goes. An entry's payload sits beside its record in the chunk, in position order, and a take has none. `Replay` reads each entry back through `EventOf`; `Load` refuses the boot on one that does not read back (`ErrUnknownKind`), so a rollback past a new kind is refused, not skipped. A record is never changed once written, so `Replay` copies the chunk headers under the lock and reads without it: a `TopPlayers` over 4M takes takes ~1s and never blocks a click. `Forget(caller, position)` hides a reverted scope's or account's takes up to the replay it was computed from, so a take made mid-revert still counts.
 - **Memory is bounded twice; postgres is not.** `ledger.retention` (72h) drops takes from memory by age, each `ledger.sweepInterval`; `ledgerStorage.maxTakes` (4M) drops the oldest first when a busy stretch fills it, and logs "the ledger is full" once. Production is thousands of clicks per 5 minutes (`clicks_total`), and a spread click takes up to 7 tiles: 15 takes a second fill 4M in three days. Measured at 4M before the account: ~85 MiB heap. The account and the kind add 4 bytes each a take, about 30 MiB more at the cap (not measured).
 - **`FindPlayers(flag, area, limit)`** lists every player that took a tile for `flag` on `area`'s ground (empty is the whole map), latest take first, with any running ban on its scope or its account — whichever ends last. Each account on a scope is its own row, with `account_id`. The ground comes from `clicks.Borders`, built by `embedded_geodesic_map.Loader.LoadBorders` from the borders blob the frontend paints flags from — see [Map geography](#map-geography). A blob for another map refuses the boot.
-- **`TopPlayers(limit)`** is the same over every flag and the whole map, **most takes first, then most tiles held**, then latest take. Takes lead because they are what a painted-over bot cannot hide. Every player, in both answers, carries `tiles` (held) and `takes` (every take, a tile taken twice counting twice), `active_for` (last take minus first take), and `tiles_per_minute` and `takes_per_minute` over that. A player with `takes` high and `tiles` near zero is painting and being painted over.
-- **`BanPlayer(scope | account_id, duration)`** is `shadowban.Bans.Ban`, and drops the caller's clicks and bombs alike: the same record, ladder and table as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **An account is banned alone**: the operator named no scope, and a guest that sheds it with a new cookie is a second ban on its scope away. **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
+- **`TopPlayers(limit)`** is the same over every flag and the whole map, **most takes first, then most tiles held**, then latest take. Takes lead because they are what a painted-over bot cannot hide. Every player, in both answers, carries `tiles` (held) and `takes` (every take, a tile taken twice counting twice), `active_for` (last take minus first take), and `tiles_per_minute` and `takes_per_minute` over that. A player with `takes` high and `tiles` near zero is painting and being painted over. **`flag_country_id` is the flag it took the most tiles for**, held or painted over since, and of a tie the first by id (`Tally.pickFlags`); a bomb takes no tile for any flag, so a player that only bombed has none. In `FindPlayers` it counts only the takes the list counts, so it is the flag asked. No row carries a name: the admin page asks `player.v1.AdminService/GetAuthors` for those.
+- **`BanPlayer(scope | account_id, duration)`** is `bans.Book.Ban`, and refuses the caller's clicks, bombs and shields alike: the same record, ladder and table as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **An account is banned alone**: the operator named no scope, and a guest that sheds it with a new cookie is a second ban on its scope away. **It follows `antiBot.bans.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
 - **`RevertPlayer(scope | account_id, dry_run)`** gives each tile the caller holds back to what it held before its run, by the rule above. A scope reverts every account's takes on it; an account reverts its takes from every scope. `touched` is the tiles it took, `held` those it still holds. **Only a tile still wearing the scope's paint changes** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks.Pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the caller's takes, so a second run does nothing; an interrupted one forgets nothing and can be run again.
 - **Ban before reverting**: an unbanned player repaints behind the revert.
 - **`UnbanPlayer(scope | account_id)`** lifts the caller's latest ban, for a false positive: its offence is
@@ -3242,9 +3469,8 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
   answers, so a restart keeps the caller unbanned: no restart and no SQL. It lifts the key it is given, so **a guest the jury banned needs two
   calls**, its account and its scope. A caller with no offence left is `NotFound` (`ErrNotBanned`), which a typo or the wrong
   half shows loudly; with `antiBot.enabled` false it is `FailedPrecondition`, as `BanPlayer` is.
-  - **It does not touch the evidence.** The watchdogs read their own on every click, the dropped ones included,
-    so a rule that still reads `certain` bans the caller again on its first click after `reflagInterval`, as a
-    first offence. **Fix the rule first**, then unban. `InspectPlayer` says which rule it was. Forgetting the
+  - **It does not touch the evidence.** The watchdogs kept what they read before the ban, so a rule that still
+    reads `certain` bans the caller again on its first click after the unban, as a first offence. **Fix the rule first**, then unban. `InspectPlayer` says which rule it was. Forgetting the
     evidence instead would only put the ban off until the same play reads the same way again, and it would take
     a forget in each of the ten watchdogs, keyed by scope, by account or by wider prefix. `TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain` pins it.
 - **`InspectPlayer(scope | account_id)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`. **An account is read on the scope of its latest take** in the ledger, because the watchdogs judge scopes, with the bans on both; an account with no take inside the retention answers its bans alone and an empty `scope`. It changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `ledger.ParseCaller` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
@@ -3256,11 +3482,11 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
 (`.github/workflows/clips.yml`; the frontend's CLAUDE.md, "Clips", has the four jobs and how a clip is made). The
 frontend's generator needs a browser, so it stays there. **Everything else is here**: the fetch of the replay,
 which clips, when each goes out, the client of the posting service, the retries and the run's summary. The two
-meet in files: the replay this job saves for the generator, and `clips.v1.Shortlist` and `clips.v1.Clip`
-(`proto/clips/v1/clips.proto`), which the generator writes as JSON.
+meet in files: the replay and the race this job saves for the generator, and `clips.v1.Shortlist` and
+`clips.v1.Clip` (`proto/clips/v1/clips.proto`), which the generator writes as JSON.
 
 ```
-clips fetch -out <replay.json> [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
+clips fetch -out <replay.json> [-race <race.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
 clips choose -shortlist <shortlist.json> [-count 6]
 clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,youtube] [-summary <file>]
 ```
@@ -3268,6 +3494,9 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
   ([`GetReplay`](#getreplay)), over SSH, and writes the answer as it came. `CLICKPLANET_SSH` stands in for `-ssh`.
   With no `-hours` it is 72: the ledger keeps that much in memory, and a replay cannot reach further back.
+  **With `-race` it saves the season's race too** ([`GetRace`](#seasons-internalseasons)), from which the generator
+  tells the day of the season closed in the replay, "FRANCE WINS DAY 5". **A race the backend does not answer is a
+  warning, not a failure**: the run still has its replay, and tells no day. No race file is written then.
 - **`choose` prints the picks to render**, as a JSON array on the standard output (`[1,2]`, or `[]` on a quiet half
   day): the workflow makes one render job of each. The log goes to the standard error, with each story skipped as
   told. A pick is a story's place in the shortlist, from 1 (`posts.Pick`): what the generator's `--pick` takes.
@@ -3312,6 +3541,10 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   browser. The file holds the answer byte for byte, never a re-encoding: the generator reads the backend's JSON.
 - **An ssh that fails says what it complained of** (`Permission denied (publickey)`), from its standard error.
   In the workflow the host is a secret, which Actions masks in the log.
+- **The race is asked the same way, of the public listener** (`127.0.0.1:8080` in the container, `{}` for a body),
+  and checked the same: it has to read as a `seasons.v1.GetRaceResponse`. A backend from before `GetRace` answers
+  404, which `wget` turns into a failed ssh. `fetch_race_usecase` keeps it, and `log_fetch_race` logs the day closed
+  last, or warns that the race is left out: `clips.Fetch` goes on without it.
 - Its test runs a fake `ssh`, a shell script that keeps its arguments. No test runs the real one.
 
 **`internal/clips/internal/posts/` is the domain of the rest**, with no file, no HTTP and no clock of its own:
@@ -3320,9 +3553,13 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   run (`Config.PerRun`), **never a story told already, and never mostly one flag**. Four rules, from the week of
   Oct 13–17, when 18 clips told "ALGERIA STRIKES BACK" three times, "PALAU IS TAKING OVER THE WORLD" twice right
   after the old one-day window, and Palau (two players on five accounts) in about half of them:
-  - **A key told in the last 3 days is skipped** (`retelling`): a `StoryKey` (a flag and a continent, from the
-    generator) a post holds that goes out within 72 hours or later, or that a story of the same run took. The keys
-    and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story.
+  - **A key told in the last 3 days is skipped** (`retelling`): a `StoryKey` (a flag, a continent and an angle,
+    from the generator) a post holds that goes out within 72 hours or later, or that a story of the same run took.
+    The keys and not the headlines: "ALGERIA STRIKES BACK" and "ALGERIA VS FRANCE" are one story. **The angle is
+    what the story tells of its flag there** (`Angle`): what it did (`Deeds`, empty), how much of the place it holds
+    (`Holding`, "CROATIA HOLDS 80% OF EUROPE"), or a day of the season it won (`DayWon`, "FRANCE WINS DAY 5", whose
+    key names the day too, `Round`, "1.5": France winning two days is two stories). So a holding is not the story of
+    what its flag did there. A key of a day with no day, or a day on another angle, is refused.
   - **A headline told in the last week is skipped** (`reheadlining`), whatever its continent: the same words read
     as the same clip. Compared in upper case, spaces at the ends cut.
   - **A flag the last 6 posts showed goes after the flags they did not** (`lately`, half a day at 6 a run). **A
@@ -3337,9 +3574,18 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
     Palau and France defend in nearly every story of Oct 15–17, and waiting on all of them left 6 clips in those
     2.5 days, none on the night of Oct 16.
 
+  And two from Oct 18, when the noon run skipped 8 of its 13 stories as told, nearly all one flag in Europe
+  ("SWEDEN IS INVADING UKRAINE", "… LITHUANIA", "… PORTUGAL" are one key), and posted 3, and every headline told what
+  a flag did:
+  - **A day of the season won goes first** (`DayWon`), whatever the last posts showed: it is the day's news, and
+    the flag that won a day is in most of the day's clips. It is still skipped when it was told.
+  - **A run tells each angle it has once before it tells any twice**, the freshest flag first within it: so a run
+    holds a holding when the shortlist has one, beside what the flags did.
+
   It answers a `Choice`: the stories chosen, in the shortlist's order, the ones skipped (`Retold`), and the ones not
-  told whose flag 2 of the last posts showed, or that the posts showed more than a story chosen (`Passed`), which the
-  log shows. A story with no key is refused when the shortlist is read.
+  told whose flag 2 of the last posts showed, or that a story after them was chosen over, for a flag told less
+  lately or an angle the run had not told (`Passed`), which the log shows. A story with no key is refused when the
+  shortlist is read. With a day won and three holdings added to it by hand, the shortlist of Oct 18 gives 6 (a test of `Best`); what a real run gives is for its log to say.
 - **6 a run, because the finder is not what runs short.** Replayed over Oct 14–17, a 12-hour window held 5 to 11
   stories of different keys, and the one-day rule let about 10 a day out; 2 a run posted 4. Six is the most the
   `Plan` below fits between two runs: the sixth goes out 14 hours after a run starts, and the next run's first
@@ -3348,7 +3594,8 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   one-day rule alone; and once the posts count every country, 13 clips with 2 about Palau. Palau still shows in about
   half of them, as the flag the others take from.
 - **What was told is Zernio's post list, not a table of ours**: each post keeps its key and its story's countries in
-  its Zernio `metadata` (`storyFlag`, `storyContinent`, `storyCountries`, never published), and `choose` lists
+  its Zernio `metadata` (`storyFlag`, `storyContinent`, `storyCountries`, and `storyAngle` and `storyRound` when it
+  has them, never published; a post with none is of what a flag did), and `choose` lists
   the posts of the last week back (`ToldSince`), on every platform: one Zernio post is one clip, whatever accounts it goes to, and the key is on the post
   (`listPosts`, `fromDate` is a date, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
@@ -3363,7 +3610,7 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   one call per post, the same on every platform. **TikTok's caption** (`caption.go`):
   ```
   ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET
-  Play for free 👉 clickplanet.lol
+  Play for free 👉 https://clickplanet.lol
   #clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral #europe #italy #portugal #portugaltiktok🇵🇹
   ```
   A teaser and a call to act are picked at random, the call from `callsToAction`, and **the call's id is kept in
@@ -3376,7 +3623,7 @@ clips schedule -clips <folder> [-review 4h] [-spacing 2h] [-platforms tiktok,you
   ```
   ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET
 
-  Play for free 👉 clickplanet.lol
+  Play for free 👉 https://clickplanet.lol
   #clickplanet #rplace #wplace #pixelwar #map #geographygame #conquestgame #videogame #clickergame #viral #europe #italy #portugal
   ```
   The title is the teaser and the brand, 100 characters at most: the teaser alone when both do not fit, cut with
@@ -3663,12 +3910,12 @@ func (c Config) Validate() error {
 
 The binary never reads inside a block to check it, so a new bound is added in the module that owns it and nothing here changes. `errors.Join` also means a broken file reports **everything** wrong at once rather than one line per restart.
 
-- `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `adminBindAddress` set to anything but loopback
+- `cpbootstrap.ServerConfig` — `bindAddress` empty listens on port 80; `consoleBindAddress` set to anything but loopback
 - `shared/cppg.Config` — a connection setting or the schema left empty, or a schema that is not a plain lowercase identifier. Each module checks its own block, starting with `planet.Config`
 - `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click, plus whatever `bonus` and `antiBot` refuse of their own
 - `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: two switches and no key
 - `chat.Config` — an incomplete `chat.database` block. Every other chat setting has a usable default
-- `support.Config` — an incomplete `support.database` block. Every other support setting has a usable default
+- `support.Config` — an incomplete `support.database` block; with `support.attachments.enabled`, an incomplete bucket block, or a link good for more than 7 days. Every other support setting has a usable default
 
 There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
 
@@ -3677,7 +3924,11 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
 - `httpServer.streamHeartbeat` — how often a silent live stream sends a heartbeat (default 30s), after the one it opens with. **Must stay well under the proxy's idle cut**: Cloudflare answers 524 at ~125s, and a stream that never speaks is one it kills.
 - `httpServer.startupTimeout` — how long building every module may take, the loads included (default 1m). A boot that passes it fails, and the container's restart policy boots it again. See [Durability](#durability) for why it is not 5s.
-- `httpServer.adminBindAddress` — where the operator services listen (see [Operator tools](#operator-tools-adminservice)); empty serves none, and a non-loopback address refuses the boot
+- `httpServer.consoleBindAddress` — where the operator services listen for a shell on the box, with no session (see [Operator tools](#operator-tools-adminservice)); empty serves none, and a non-loopback address refuses the boot
+- `httpServer.adminBindAddress` — where the admin services listen again, behind the admin gate, for the admin page (see [Operator tools](#operator-tools-adminservice)); empty serves none, and set with no gate refuses the boot
+- `auth.admin.origin` — the admin page's exact origin, the only one the gate answers; empty builds no gate and offers no admin sign-in, and set with `auth.enabled` false refuses the boot. In production it comes from `ADMIN_ORIGIN`
+- `auth.admin.redirectUrl`, `auth.admin.google.clientId`, `auth.admin.google.clientSecret` — the admin page's own Google client and callback; with an origin, a missing one refuses the boot. The secret is `env://ADMIN_GOOGLE_CLIENT_SECRET`
+- `auth.admin.sessionTTL` — how long an admin session lasts, never extended (12h)
 - `httpServer.internalBindAddress` — where the services other modules call listen (see [Calling another module](#calling-another-module)); empty serves none, a caller that dials it then fails, and a non-loopback address refuses the boot
 - `httpServer.allowedOrigin` — the frontend's exact origin (`scheme://host[:port]`, no path). The public router answers CORS for it alone, with `Access-Control-Allow-Credentials: true`, so the `cp_sid` cookie travels on the web client's mint. **Empty, `*` or anything that is not an origin refuses the boot**: a browser drops a credentialed answer that allows every origin, so a wrong value would only show up as every mint starting a new guest. In production it comes from `FRONTEND_ORIGIN`, the value the Caddyfile allows, which sets the same headers and overwrites these.
 - `gameMap.maxIndex` — total number of tiles
@@ -3702,10 +3953,10 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `allegianceStorage.flushInterval` — how often the flags that changed are written to postgres (default 1s); also flushed on shutdown
 - `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
 - `antiBot.enabled` — off registers nothing and measures nothing
-- `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
-- `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**, but for the one an operator lifts with `UnbanPlayer`
+- `antiBot.bans.enforce` — off judges, logs and counts without refusing; the mode to deploy in
+- `antiBot.bans.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**, but for the one an operator lifts with `UnbanPlayer`
 - `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration or load refuses the boot
-- `antiBot.shadowBan.reflagInterval` — how soon a banned caller can be judged again
+- `antiBot.bans.reflagInterval` — how soon a banned caller can be judged again
 - `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone; `stamina` and `defence` together count as one
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
 - `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. See [What survives a restart](#what-survives-a-restart)
@@ -3719,7 +3970,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.scraper.enabled`, `detector.minMaps`, `certainMaps` — the whole maps read beyond one per stream opened, inside `trackWindow`, that read `suspect` then `certain`
 - `antiBot.scraper.detector.certainOffMap` — the reads off the map, inside `trackWindow`, that read `certain` however little was read; one stray read is forgiven
 - `antiBot.rotator.enabled`, `detector.slot`, `window`, `minSeconds`, `minByChance`, `maxShare` — the length of a slot, how far back slots count, the seconds each account must click in for a pair to share a slot, the shared seconds chance must have given before a pair is read, and the share of them a rotating pair stays under
-- `antiBot.rotator.detector.minSlots`, `certainSlots` — the shared slots that read `suspect` then `certain`; zero never reads, and production sets no `certainSlots`
+- `antiBot.rotator.detector.minSlots`, `certainSlots` — the shared slots that read `suspect` then `certain`; zero never reads, production sets no `certainSlots`, and the jury counts neither
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `auth.enabled` — off registers nothing, so `auth.v1` and `session.v1` 404 and clicks are judged on address alone
 - `auth.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in
@@ -3758,7 +4009,16 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `seasons.database.*` — the standings and the rounds, same shape as `database`, schema `seasons`; required. `seasons.database.password` belongs in the environment
 - `support.database.*` — what players send the operator, same shape as `database`, schema `support`; required. `support.database.password` belongs in the environment
 - `support.retention`, `support.pruneInterval` — how long a note keeps its sender (default 90 days; the text is kept after) and how long a report is kept, and how often the prune runs (1h)
-- `support.rateLimiter.*` — the per-IP throttle on the whole support service, same shape as `rateLimiter` (default one a minute, three in hand)
+- `support.rateLimiter.*` — the per-IP throttle on the notes and the reports, same shape as `rateLimiter` (default one a minute, three in hand)
+- `support.noteLimiter.*` — suggestions and bug reports a day, per account and per address together, same shape (default a burst of 10, refilled over a day: unset, `perSecond` is the burst over a day)
+- `support.uploadLimiter.*` — files a day, per account and per address together, same shape (default 100 a day)
+- `support.attachments.enabled` — off, a note carries no file and the bucket block is not read
+- `support.attachments.maxPerNote`, `support.attachments.maxBytes` — the most files a note carries (10) and the most bytes of one (52428800, 50 MiB). The page reads both from `GetAttachmentRules`
+- `support.attachments.maxStoredBytes` — the most bytes the bucket holds, the files notes carry and the files that may still come (9 GiB)
+- `support.attachments.keepUnsent` — how long a file waits for the note that names it before it is deleted (24h); not past `uploadTTL` refuses the boot
+- `support.attachments.uploadTTL`, `support.attachments.linkTTL` — how long an upload link is good for (10m), and a link the operator opens a file with (1h). More than 7 days refuses the boot: no bucket takes it. The server reads a file back over a link of its own, good for a minute
+- `support.attachments.bucket.endpoint`, `region`, `name`, `accessKeyId` — the S3 endpoint (a scheme and a host), the region the links are signed for (`auto` on R2), the bucket, and the key's id, which is in every link and is not a secret. Any of them empty with attachments on refuses the boot
+- `support.attachments.bucket.secretAccessKey` — `env://SUPPORT_BUCKET_SECRET` in `deploy/vps/backend.yaml`; empty with attachments on refuses the boot
 
 ### Protobuf
 
@@ -3770,9 +4030,9 @@ The proto package is the **only** version number: Connect derives each route fro
 
 ### Testing
 
-Tests use `testify`. **A postgres store's own tests need Docker**, and nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
+Tests use `testify`. **A postgres store's own tests need Docker**, and so do `s3_attachment_bucket`'s, which start an S3 server (see [Support](#support-internalsupport)); nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
-**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.RunOn` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire. `RunOn` serves on listeners the test already holds, bound to `127.0.0.1:0`: a port picked free and closed again can be taken by another process before the server binds it. Under `RunOn`, `cpbootstrap` binds nothing, and an address with no held listener fails the boot. `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused; `standings_test.go` boots the game stack with seasons (one season ending in 30 days), clicks as two players with a username and a guest, and reads `GetStandings` and `GetMySeason`; `race_test.go` takes a snapshot every 50ms on that stack and reads the race off the season stream; `support_test.go` sends a suggestion and a bug report as a guest on that stack, reads them on the admin listener, and deletes the account to see the notes stay with no account; it also reports a player and a guest by the account id their chat message carries, sees a report follow a player who renamed, and sees a second report the same day refused.
+**A path through a booted module is tested in `e2e/`**, never in `cmd/api`, which only holds the config and the module list. A test there boots the modules it needs with `cpbootstrap.RunOn` on a test postgres (`TestServer.ConfigFor(schema)`) and calls them over the wire. `RunOn` serves on listeners the test already holds, bound to `127.0.0.1:0`: a port picked free and closed again can be taken by another process before the server binds it. Under `RunOn`, `cpbootstrap` binds nothing, and an address with no held listener fails the boot. `accounts_test.go` mints a guest account, brings it back with its cookie, and checks the deprecated `session.v1` path still mints with none; `sign_in_test.go` links a provider, signs in to a known identity, signs out and deletes, over fake providers; `player_test.go` boots auth (with fake providers), planet, player and chat, clicks with a guest's token and reads `GetStats`, links an account to set a username (and sees a guest refused and a taken name refused), and deletes the account to see both go; `chat_test.go` posts on the same stack as a player with a username and a guest, sees the guest keep one code, and a sender with no token refused; `standings_test.go` boots the game stack with seasons (one season ending in 30 days), clicks as two players with a username and a guest, and reads `GetStandings` and `GetMySeason`; `race_test.go` takes a snapshot every 50ms on that stack and reads the race off the season stream; `support_test.go` sends a suggestion and a bug report as a guest on that stack, reads them on the admin listener, uploads files to a fake bucket and then sends a note naming them, opens them from the operator's links, sees a note naming a file never uploaded refused and not kept, sees an address refused its eleventh note of the day whichever account sends it, sees the bucket refuse a file past its shelf and the page told the room left, and deletes the account to see the notes stay with their files and no account; it also reports a player and a guest by the account id their chat message carries, sees a report follow a player who renamed, and sees a second report the same day refused.
 
 On macOS, testcontainers asks the Docker credential helper before it pulls an image, and that can hang with no prompt in a non-interactive shell. `docker pull postgres:16-alpine` once from a terminal avoids it.
 

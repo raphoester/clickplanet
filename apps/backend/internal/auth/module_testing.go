@@ -24,10 +24,15 @@ type FakeProviders struct {
 	Google  *FakeProvider
 	Discord *FakeProvider
 	Mailer  *FakeMailer
+
+	AdminGoogle *FakeProvider
 }
 
 func NewModuleWithFakeProviders(config Config) (cpbootstrap.Module, FakeProviders) {
-	fakes := FakeProviders{Google: signin.NewFakeProvider(signin.Google), Discord: signin.NewFakeProvider(signin.Discord), Mailer: &FakeMailer{}}
+	fakes := FakeProviders{
+		Google: signin.NewFakeProvider(signin.Google), Discord: signin.NewFakeProvider(signin.Discord), Mailer: &FakeMailer{},
+		AdminGoogle: signin.NewFakeProvider(signin.Google),
+	}
 	providers := signin.Providers{signin.Google: fakes.Google, signin.Discord: fakes.Discord}
 
 	return cpbootstrap.Module{
@@ -36,7 +41,11 @@ func NewModuleWithFakeProviders(config Config) (cpbootstrap.Module, FakeProvider
 		DiSequence: func(ctx context.Context, props cpbootstrap.Props) error {
 			config := config.withDefaults()
 			config.Email.Enabled = true
-			return build(ctx, config, props, providers, mailing{mailer: fakes.Mailer, codes: &signin.SequentialCodes{}})
+			return build(ctx, config, props, signIns{
+				game:  providers,
+				admin: signin.Providers{signin.Google: fakes.AdminGoogle},
+				mail:  mailing{mailer: fakes.Mailer, codes: &signin.SequentialCodes{}},
+			})
 		},
 	}, fakes
 }
