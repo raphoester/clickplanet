@@ -998,11 +998,16 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
   message until its next load.
 - **`chat.v1.AdminService/GetMessage(message_id)`** is the message as it was sent, removed or not, with
   `removed_at`, for the operator who reads a report (`message_query`). `NotFound` past the retention.
-- **`chat.v1.AdminService/ListMessages(before_message_id | after_message_id, limit)`** is the chat as it was sent,
+- **`chat.v1.AdminService/ListMessages(before_message_id | after_message_id, limit, account_id)`** is the chat as it was sent,
   removed or not, a page at a time (`messages_query`). **A message's id is a cursor**: the page just before it, or
   just after it, by `seq` as the history orders them, never with it. Neither is the newest page; both is
   `InvalidArgument` (`ErrTwoCursors`), and a cursor past the retention is `NotFound`. The report page reads one page
   on each side of the reported message, and the next page from the oldest or the newest message it holds.
+  - **With an `account_id`, it is that account's messages alone**, cursors included: the page of its messages just
+    before or just after the cursor, which may be anybody's message. A report from a player's card names no
+    message, so the report page lists the reported account's this way, and reads the whole chat around any one of
+    them. An id that is not a UUID is `InvalidArgument` (`ErrInvalidAccount`): read as everyone, it would show other
+    people's messages as the account's. The two statements of one author ride the `(account_id)` index.
   - **A page is oldest first**, 50 messages unless asked, 200 at most. Fewer than the limit is the end: nothing more
     kept before it, or nothing more sent after it. Before the cursor it stops at the retention.
   - **Each is a `KeptMessage`**: its text as sent and its `removed_at`, as `GetMessage` answers, its country, its

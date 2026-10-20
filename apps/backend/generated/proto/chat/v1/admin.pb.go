@@ -352,7 +352,9 @@ type ListMessagesRequest struct {
 	// The page of the messages sent just after this one.
 	AfterMessageId string `protobuf:"bytes,2,opt,name=after_message_id,json=afterMessageId,proto3" json:"after_message_id,omitempty"`
 	// 50 unless asked, 200 at most.
-	Limit         uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Only this account's messages, the cursors included: a page is its messages sent just before or after the cursor. Empty is everyone's; not a UUID is InvalidArgument.
+	AccountId     string `protobuf:"bytes,4,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -406,6 +408,13 @@ func (x *ListMessagesRequest) GetLimit() uint32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListMessagesRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
 }
 
 type ListMessagesResponse struct {
@@ -661,11 +670,13 @@ const file_chat_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x05 \x01(\tR\tcountryId\x129\n" +
 	"\n" +
-	"removed_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\"\x81\x01\n" +
+	"removed_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\"\xa0\x01\n" +
 	"\x13ListMessagesRequest\x12*\n" +
 	"\x11before_message_id\x18\x01 \x01(\tR\x0fbeforeMessageId\x12(\n" +
 	"\x10after_message_id\x18\x02 \x01(\tR\x0eafterMessageId\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\rR\x05limit\"H\n" +
+	"\x05limit\x18\x03 \x01(\rR\x05limit\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x04 \x01(\tR\taccountId\"H\n" +
 	"\x14ListMessagesResponse\x120\n" +
 	"\bmessages\x18\x01 \x03(\v2\x14.chat.v1.KeptMessageR\bmessages\"\xbe\x02\n" +
 	"\vKeptMessage\x12\x1d\n" +
