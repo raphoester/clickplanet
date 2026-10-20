@@ -32,6 +32,7 @@ type (
 	Point    = detect.Point
 	Report   = detect.Report
 	Sentence = bans.Sentence
+	Pardon   = bans.Pardon
 
 	Examination = detect.Examination
 	Reading     = detect.Reading
@@ -349,7 +350,7 @@ func build(
 
 	juryConfig := config.Jury.WithDefaults()
 
-	banner := bans.NewBook(config.Bans, clock, scopeBans, accountBans)
+	banner := bans.NewBook(config.Bans, config.Evidence.WithDefaults().Retention, clock, scopeBans, accountBans)
 
 	g.banner = banner
 	g.jury = jury.New(juryConfig, banner, clock, juryHooks(observer), watchdogs...)
@@ -521,6 +522,14 @@ func (g *Guard) LastSentence(ctx context.Context, scope, account string) (Senten
 	return g.banner.LastSentence(ctx, bans.Caller{Scope: scope, Account: account}) //nolint:wrapcheck // the banner already named what failed.
 }
 
+func (g *Guard) Pardon(ctx context.Context, scope, account string) (Pardon, bool, error) {
+	if !g.Enabled() {
+		return Pardon{}, false, nil
+	}
+
+	return g.banner.Pardon(ctx, bans.Caller{Scope: scope, Account: account}) //nolint:wrapcheck // the banner already named what failed.
+}
+
 func (g *Guard) Examine(ctx context.Context, scope, account string) (Examination, error) {
 	if !g.Enabled() {
 		return Examination{Scope: scope, Account: account}, nil
@@ -529,7 +538,9 @@ func (g *Guard) Examine(ctx context.Context, scope, account string) (Examination
 	examination := g.jury.Examine(scope)
 	examination.Account = account
 
-	sentence, banned, err := g.banner.Sentence(ctx, bans.Caller{Scope: scope, Account: account})
+	caller := bans.Caller{Scope: scope, Account: account}
+
+	sentence, banned, err := g.banner.Sentence(ctx, caller)
 	if err != nil {
 		return Examination{}, err //nolint:wrapcheck // the banner already named what failed.
 	}
@@ -538,6 +549,14 @@ func (g *Guard) Examine(ctx context.Context, scope, account string) (Examination
 		examination.Flags = sentence.Flags
 		examination.Offence = sentence.Offence
 		examination.BannedUntil = sentence.Until
+	}
+
+	pardon, pardoned, err := g.banner.Pardon(ctx, caller)
+	if err != nil {
+		return Examination{}, err //nolint:wrapcheck // the banner already named what failed.
+	}
+	if pardoned {
+		examination.PardonedUntil = pardon.Until
 	}
 
 	return examination, nil

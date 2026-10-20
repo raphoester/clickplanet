@@ -11,6 +11,13 @@ type Record struct {
 	Offences      int
 	ExpiresAt     time.Time
 	LastFlaggedAt time.Time
+	Pardon        Pardon
+}
+
+type Pardon struct {
+	At     time.Time
+	Lifted Sentence
+	Until  time.Time
 }
 
 type Store interface {

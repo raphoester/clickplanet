@@ -14,10 +14,10 @@ type Caller struct {
 	SignedIn bool
 }
 
-func NewBook(config Config, clock cptime.Clock, scopes, accounts Store) *Book {
+func NewBook(config Config, pardon time.Duration, clock cptime.Clock, scopes, accounts Store) *Book {
 	return &Book{
-		scopes:   New(config, clock, scopes),
-		accounts: New(config, clock, accounts),
+		scopes:   New(config, pardon, clock, scopes),
+		accounts: New(config, pardon, clock, accounts),
 	}
 }
 
@@ -92,6 +92,32 @@ func (b *Book) sentenceOf(
 	}
 
 	return latest(scope, account), onScope || onAccount, nil
+}
+
+func (b *Book) Pardoned(ctx context.Context, caller Caller) (bool, error) {
+	for _, target := range b.targets(caller) {
+		_, pardoned, err := target.banner.Pardon(ctx, target.key)
+		if err != nil || !pardoned {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func (b *Book) Pardon(ctx context.Context, caller Caller) (Pardon, bool, error) {
+	scope, onScope, err := b.scopes.Pardon(ctx, caller.Scope)
+	if err != nil {
+		return Pardon{}, false, err
+	}
+	account, onAccount, err := b.accounts.Pardon(ctx, caller.Account)
+	if err != nil {
+		return Pardon{}, false, err
+	}
+
+	if onAccount && account.Until.After(scope.Until) {
+		return account, true, nil
+	}
+	return scope, onScope, nil
 }
 
 func (b *Book) Flagged(ctx context.Context) (int, error) {

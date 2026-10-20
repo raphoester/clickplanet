@@ -33,10 +33,11 @@ func (h UnbanPlayerHandler) UnbanPlayer(
 	switch {
 	case err == nil:
 		return connect.NewResponse(&planetv1.UnbanPlayerResponse{
-			Scope:       out.Scope,
-			AccountId:   out.Account,
-			Offence:     uint32(out.Offence), //nolint:gosec // an offence count, never negative.
-			BannedUntil: timestamppb.New(out.Until),
+			Scope:         out.Scope,
+			AccountId:     out.Account,
+			Offence:       uint32(out.Offence), //nolint:gosec // an offence count, never negative.
+			BannedUntil:   timestamppb.New(out.Until),
+			PardonedUntil: timestamppb.New(out.PardonedUntil),
 		}), nil
 	case errors.Is(err, ledger.ErrInvalidScope), errors.Is(err, ledger.ErrInvalidAccount), errors.Is(err, ledger.ErrNoCaller):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)

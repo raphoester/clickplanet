@@ -50,10 +50,7 @@ export function BanAction({planet, caller, who, onDone}: BanProps) {
 export function UnbanAction({planet, caller, who, onDone}: BanProps) {
     return (
         <div className="act">
-            <p className="hint">
-                For a ban that was a mistake. It forgets the latest offence, ended or running. A rule that still reads
-                the player <em>certain</em> bans it again on its next click: fix the rule first.
-            </p>
+            <p className="hint">For a ban that was a mistake. It forgets the latest offence, ended or running.</p>
             <ConfirmAction
                 label="Unban"
                 question={`Lift the latest ban of ${who} and forget its offence?`}
@@ -73,7 +70,8 @@ function bannedWords(banned: Banned): string {
 
 function unbannedWords(lifted: Unbanned): string {
     const until = lifted.until === undefined ? "" : `: its ban was until ${timeOf(lifted.until)}`
-    return `Lifted offence ${lifted.offence}${until}.`
+    const pardoned = lifted.pardonedUntil === undefined ? "" : ` Pardoned until ${timeOf(lifted.pardonedUntil)}.`
+    return `Lifted offence ${lifted.offence}${until}.${pardoned}`
 }
 
 type PickerProps = {label: string, choices: Choice[], value: number, onChange: (seconds: number) => void}

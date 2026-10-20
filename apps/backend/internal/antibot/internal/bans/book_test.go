@@ -15,7 +15,7 @@ func newBook(t *testing.T, clock cptime.Clock) (book, *bans.MemoryStore, *bans.M
 	t.Helper()
 
 	scopes, accounts := bans.NewMemoryStore(), bans.NewMemoryStore()
-	return book{t: t, inner: bans.NewBook(config(), clock, scopes, accounts)}, scopes, accounts
+	return book{t: t, inner: bans.NewBook(config(), pardon, clock, scopes, accounts)}, scopes, accounts
 }
 
 func TestAFlaggedGuestIsBannedOnItsAccountAndItsScope(t *testing.T) {
@@ -90,7 +90,7 @@ func TestAccountBansAreKeptApart(t *testing.T) {
 	assert.NotContains(t, scopes.Stored(), "guest")
 	assert.Contains(t, accounts.Stored(), "guest")
 
-	after := book{t: t, inner: bans.NewBook(config(), clock, scopes, accounts)}
+	after := book{t: t, inner: bans.NewBook(config(), pardon, clock, scopes, accounts)}
 	assert.True(t, after.Banned(bans.Caller{Scope: "5.6.7.8", Account: "guest"}))
 }
 
@@ -128,4 +128,53 @@ func TestTheLastSentenceOfAnAccountIsReadAfterItsBanEnded(t *testing.T) {
 	_, found = book.LastSentence(player)
 	assert.False(t, found)
 	assert.Equal(t, 0, accounts.Stored()["player"].Offences)
+}
+
+func TestAGuestIsPardonedOnceItsAccountAndItsScopeAreUnbanned(t *testing.T) {
+	book, _, _ := newBook(t, newClock())
+	guest := bans.Caller{Scope: "1.2.3.4", Account: "guest"}
+
+	book.Flag(guest)
+
+	book.Unban(bans.Caller{Account: "guest"})
+	assert.False(t, book.Pardoned(guest), "its scope is not pardoned")
+
+	book.Unban(bans.Caller{Scope: "1.2.3.4"})
+	assert.True(t, book.Pardoned(guest))
+	_, accepted := book.Flag(guest)
+	assert.False(t, accepted)
+	assert.False(t, book.Banned(guest))
+}
+
+func TestASignedInAccountIsPardonedOnItsAccountAlone(t *testing.T) {
+	book, _, _ := newBook(t, newClock())
+	player := bans.Caller{Scope: "campus", Account: "player", SignedIn: true}
+
+	book.Flag(player)
+	book.Unban(bans.Caller{Account: "player"})
+
+	assert.True(t, book.Pardoned(player))
+	assert.False(t, book.Pardoned(bans.Caller{Scope: "campus", Account: "classmate", SignedIn: true}))
+}
+
+func TestThePardonIsTheOneThatEndsLast(t *testing.T) {
+	clock := newClock()
+	book, _, _ := newBook(t, clock)
+
+	book.Ban(bans.Caller{Scope: "1.2.3.4"}, time.Hour)
+	book.Ban(bans.Caller{Account: "guest"}, time.Hour)
+	book.Unban(bans.Caller{Scope: "1.2.3.4"})
+	clock.Advance(time.Minute)
+	book.Unban(bans.Caller{Account: "guest"})
+
+	pardoned, found := book.Pardon(bans.Caller{Scope: "1.2.3.4", Account: "guest"})
+	require.True(t, found)
+	assert.Equal(t, clock.Now().Add(pardon), pardoned.Until)
+
+	pardoned, found = book.Pardon(bans.Caller{Scope: "1.2.3.4", Account: "someone-else"})
+	require.True(t, found)
+	assert.Equal(t, clock.Now().Add(pardon-time.Minute), pardoned.Until)
+
+	_, found = book.Pardon(bans.Caller{Scope: "5.6.7.8", Account: "someone-else"})
+	assert.False(t, found)
 }

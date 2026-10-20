@@ -14,10 +14,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/unban_player_usecase"
 )
 
-var until = time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
+var (
+	until         = time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
+	pardonedUntil = until.Add(72 * time.Hour)
+)
 
 type unbanner struct {
 	banned   map[string]antibot.Sentence
+	pardoned map[string]antibot.Pardon
 	scopes   []string
 	accounts []string
 	off      bool
@@ -25,7 +29,7 @@ type unbanner struct {
 }
 
 func bannedOn(keys ...string) *unbanner {
-	u := &unbanner{banned: map[string]antibot.Sentence{}}
+	u := &unbanner{banned: map[string]antibot.Sentence{}, pardoned: map[string]antibot.Pardon{}}
 	for _, key := range keys {
 		u.banned[key] = antibot.Sentence{Flags: 2, Offence: 1, Until: until}
 	}
@@ -40,7 +44,13 @@ func (u *unbanner) LastSentence(_ context.Context, scope, account string) (antib
 func (u *unbanner) Unban(_ context.Context, scope, account string) error {
 	u.scopes = append(u.scopes, scope)
 	u.accounts = append(u.accounts, account)
+	u.pardoned[scope+account] = antibot.Pardon{Lifted: u.banned[scope+account], Until: pardonedUntil}
 	return nil
+}
+
+func (u *unbanner) Pardon(_ context.Context, scope, account string) (antibot.Pardon, bool, error) {
+	pardon, ok := u.pardoned[scope+account]
+	return pardon, ok, nil
 }
 
 func (u *unbanner) Enabled() bool { return !u.off }
@@ -51,7 +61,7 @@ func TestAnAddressIsUnbannedAsItsScope(t *testing.T) {
 	out, err := unban_player_usecase.New(u).Execute(t.Context(), unban_player_usecase.In{Scope: "2001:db8:1:2::9"})
 	require.NoError(t, err)
 
-	assert.Equal(t, unban_player_usecase.Out{Scope: "2001:db8:1:2::/64", Offence: 1, Until: until}, out)
+	assert.Equal(t, unban_player_usecase.Out{Scope: "2001:db8:1:2::/64", Offence: 1, Until: until, PardonedUntil: pardonedUntil}, out)
 	assert.Equal(t, []string{"2001:db8:1:2::/64"}, u.scopes)
 	assert.Equal(t, []string{""}, u.accounts)
 }
@@ -65,6 +75,7 @@ func TestAnAccountIsUnbannedAlone(t *testing.T) {
 
 	assert.Equal(t, "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10", out.Account)
 	assert.Empty(t, out.Scope)
+	assert.Equal(t, pardonedUntil, out.PardonedUntil)
 	assert.Equal(t, []string{""}, u.scopes)
 	assert.Equal(t, []string{"0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"}, u.accounts)
 }

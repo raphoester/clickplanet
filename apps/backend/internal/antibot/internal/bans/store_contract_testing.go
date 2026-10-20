@@ -72,6 +72,47 @@ func (s *StoreContractSuite) TestAChangeSeesWhatWasKeptAndReplacesIt() {
 	s.Equal(Record{Key: s.Key(1), Flags: 2, ExpiresAt: contractAt.Add(-time.Minute)}, record)
 }
 
+func (s *StoreContractSuite) TestAPardonIsKeptAndReadBack() {
+	pardoned := Record{
+		Key: s.Key(1), Flags: 2, Offences: 0, ExpiresAt: contractAt, LastFlaggedAt: contractAt.Add(-time.Hour),
+		Pardon: Pardon{
+			At:     contractAt,
+			Lifted: Sentence{Flags: 2, Offence: 1, Until: contractAt.Add(24 * time.Hour)},
+			Until:  contractAt.Add(72 * time.Hour),
+		},
+	}
+	s.keep(pardoned)
+
+	record, found := s.record(s.Key(1))
+	s.Require().True(found)
+	s.Equal(pardoned, record)
+}
+
+func (s *StoreContractSuite) TestTheLatestPardonIsRead() {
+	first := Pardon{At: contractAt, Lifted: Sentence{Flags: 1, Offence: 2, Until: contractAt.Add(time.Hour)}, Until: contractAt.Add(time.Hour)}
+	second := Pardon{At: contractAt.Add(time.Minute), Lifted: Sentence{Flags: 1, Offence: 1, Until: contractAt}, Until: contractAt.Add(2 * time.Hour)}
+	s.keep(Record{Key: s.Key(1), Flags: 1, Offences: 1, ExpiresAt: contractAt, Pardon: first})
+	s.keep(Record{Key: s.Key(1), Flags: 1, ExpiresAt: contractAt, Pardon: second})
+
+	record, _ := s.record(s.Key(1))
+	s.Equal(second, record.Pardon)
+}
+
+func (s *StoreContractSuite) TestAChangeKeepsThePardonItSaw() {
+	pardon := Pardon{At: contractAt, Lifted: Sentence{Flags: 1, Offence: 1, Until: contractAt}, Until: contractAt.Add(time.Hour)}
+	s.keep(Record{Key: s.Key(1), Flags: 1, ExpiresAt: contractAt, Pardon: pardon})
+
+	s.Require().NoError(s.store.Change(s.T().Context(), s.Key(1), func(record Record, _ bool) (Record, bool) {
+		s.Equal(pardon, record.Pardon)
+		record.Flags++
+		return record, true
+	}))
+
+	record, _ := s.record(s.Key(1))
+	s.Equal(2, record.Flags)
+	s.Equal(pardon, record.Pardon)
+}
+
 func (s *StoreContractSuite) TestAChangeOfAKeyNeverKeptStartsFromNothing() {
 	s.Require().NoError(s.store.Change(s.T().Context(), s.Key(1), func(record Record, found bool) (Record, bool) {
 		s.False(found)
