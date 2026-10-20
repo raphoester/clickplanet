@@ -8,7 +8,7 @@ import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {Report} from "../gen/grpc/support/v1/admin_pb.ts"
 import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 import {ReportDetail} from "./ReportDetail.tsx"
-import {AROUND} from "./theirConversations.ts"
+import {AROUND} from "../chat/theirConversations.ts"
 
 afterEach(cleanup)
 

@@ -16,8 +16,8 @@ burger menu (see [The menu](#the-menu)), by group:
 - **Map**: Reassign a country, Paint random tiles, Download a replay (see [The map tools](#the-map-tools)).
 - **Ops**: Reconcile titles, the run after a deploy (see [Ops](#ops)).
 
-What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report page reads it),
-and no admin method streams it.
+What is left of the plan is a live chat view: `ListMessages` pages through the chat (the report and player pages
+read it), and no admin method streams it.
 
 It is a third app, not a page of the game: **it imports nothing from `apps/frontend`** and has no Three.js (see
 the root `CLAUDE.md`, "Independence of the apps").
@@ -144,20 +144,21 @@ note and keeps its text).
   the oldest or the newest message shown. A page shorter than asked is the end, and its button goes. The reported
   message shows while they load, marked ("Reported message", `aria-current`), and stays shown if they fail.
   `GetMessage` names no author, so its line takes the name the report gives its account.
-- **What the reported account said, in its conversations** (`TheirMessages`, "What Ana said"), for every report: a
-  report from a player's card names no message, and one line cannot be judged alone. `ListMessages` with the
-  account's id reads its messages, 20 at a time (`THEIR_PAGE`), then `moreConversations` (`theirConversations.ts`)
-  reads the whole chat around each, `AROUND` (5) messages each side, and shows them at once, newest first, three at a
-  time (`CONVERSATIONS`), "Show more conversations" for the next. **One of their messages a conversation already holds
-  gets none of its own, and a conversation that reaches the next one joins it**, so an exchange of three insults is
-  one conversation, read with two calls. Their lines are marked (`line-theirs`) and tagged `reported`, the reporter's
-  `reporter`. Each conversation grows with "Show earlier" and "Show later". Nothing kept is "Nothing they said in the
-  chat is kept."
+- **What the reported account said, in its conversations** (`chat/TheirMessages`, "What Ana said"), for every
+  report: a report from a player's card names no message, and one line cannot be judged alone. `ListMessages` with
+  the account's id reads its messages, 20 at a time (`THEIR_PAGE`), then `moreConversations`
+  (`theirConversations.ts`) reads the whole chat around each, `AROUND` (5) messages each side, and shows them at
+  once, newest first, three at a time (`CONVERSATIONS`), "Show more conversations" for the next. **One of their
+  messages a conversation already holds gets none of its own, and a conversation that reaches the next one joins
+  it**, so an exchange of three insults is one conversation, read with two calls. Their lines are marked
+  (`line-theirs`) and tagged `reported`, the reporter's `reporter`. Each conversation grows with "Show earlier" and
+  "Show later". Nothing kept is "Nothing they said in the chat is kept."
 - **Each line** has its author's name as the chat names it now, its country and its time (with the date when it
   is not the reported message's day), what it answers ("In reply to …"), and is struck through with when it was
   removed. **What the reporter and the reported account said is tagged** `reporter` and `reported`, by account
   id. An author's name opens it on the player page (`OpenPlayer`), so a third player in the conversation is a
-  click away. A page past the chat's retention is `not_found`: "That part of the chat is no longer kept."
+  click away; the player already open there stays open, with its row. A page past the chat's retention is
+  `not_found`: "That part of the chat is no longer kept."
 - **The actions, all on the reported account id**, never its name: remove the message (`RemoveMessage`, only while
   it is shown), mute (`Mute`, an hour by default), ban (`BanPlayer`, no duration by default, so the antibot's
   ladder picks the next step) and inspect (`InspectPlayer`). Then close the report (`DecideReport`): Acted or
@@ -218,6 +219,10 @@ address over IPv4, the /64 over IPv6) and checks.
   heading is its flag and its name: the name the profile answers, which is the name it holds now, over the one the
   page that opened it knew; the flag of its row, or else the country it took the most tiles for. `not_found` is an
   account the game keeps nothing about. An address has no profile, and is not asked.
+- **An account's page shows what it said, in its conversations** (`chat/TheirMessages`, as a report does): its
+  messages by its account id, the chat around each, three conversations at a time. Its lines are marked
+  (`line-theirs`), and no line is tagged: there is no report. An address has no messages, since the chat keeps them
+  by account, and is not asked.
 - **The page inspects on open** (`InspectPlayer`): the antibot's readings, its ban, its pardon and its clicks. The antibot off
   reads as such, not as a failure. A ban or an unban reads it again.
 - **The tools**: ban (`BanPlayer`, the ladder's next step by default), unban (`UnbanPlayer`, which forgets the
@@ -289,8 +294,9 @@ src/
   components/       Menu, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
                     Fact, Person, When
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
-  reports/          Reports: list, detail, the report's own actions, Conversation and TheirMessages over
-                    chatPages.ts (a page of ListMessages, the parties a report names) and theirConversations.ts
+  chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
+                    ListMessages, the parties a report names) and theirConversations.ts
+  reports/          Reports: list, detail, the report's own actions
   players/          Players: list, PlayerName, PlayerView, ProfilePanel, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay
   ops/              Reconcile titles

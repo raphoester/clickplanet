@@ -4,7 +4,9 @@ import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import {useState} from "react"
 import {afterEach, describe, expect, it} from "vitest"
+import {AROUND} from "../chat/theirConversations.ts"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
+import {KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {InspectPlayerResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {CountryTiles} from "../gen/grpc/player/v1/player_pb.ts"
 import {Opened} from "../navigation.ts"
@@ -16,6 +18,13 @@ afterEach(cleanup)
 function Page({admin, first}: {admin: FakeAdmin, first?: Opened}) {
     const [opened, setOpened] = useState(first)
     return <PlayersPage opened={opened} onOpen={setOpened} clients={admin.clients()}/>
+}
+
+function said(n: number, accountId = ACCOUNT, authorName = "BraveFox42") {
+    return new KeptMessage({
+        messageId: `${accountId}-${n}`, accountId, authorName, text: `${authorName} ${n}`,
+        sentAt: Timestamp.fromDate(new Date(AT.getTime() + n * 60_000)), countryId: "fr",
+    })
 }
 
 function confirm(label: string, yes: string) {
@@ -136,6 +145,36 @@ describe("one player", () => {
         await screen.findByRole("heading", {name: "Ban"})
         expect(screen.queryByRole("region", {name: "Profile"})).toBeNull()
         expect(admin.askedFor("getPlayer")).toHaveLength(1)
+    })
+
+    it("shows what the account said in its conversations, read by its account id, no one tagged", async () => {
+        const admin = new FakeAdmin()
+        admin.chat = [said(1, "account-cleo", "Cleo"), said(2), said(3, "account-dan", "Dan")]
+        render(<Page admin={admin} first={account}/>)
+
+        const messages = within(await screen.findByRole("region", {name: "Their messages"}))
+        expect(await messages.findByRole("heading", {name: "What BraveFox42 said"})).toBeTruthy()
+        const list = await messages.findByRole("list", {name: "Their conversations, newest first"})
+        const shown = within(list).getAllByRole("list", {name: "A conversation"}).map(conversation =>
+            within(conversation).getAllByText(/^\w+ \d+$/, {selector: ".line-text"}).map(line => line.textContent))
+        expect(shown).toEqual([["Cleo 1", "BraveFox42 2", "Dan 3"]])
+        expect(messages.getByText("BraveFox42 2").closest("li")?.className).toContain("line-theirs")
+        expect(messages.queryByText("reported")).toBeNull()
+        expect(messages.queryByText("reporter")).toBeNull()
+        expect(admin.askedFor("listMessages")).toEqual([
+            {accountId: ACCOUNT, limit: 20},
+            {beforeMessageId: `${ACCOUNT}-2`, limit: AROUND},
+            {afterMessageId: `${ACCOUNT}-2`, limit: AROUND},
+        ])
+    })
+
+    it("reads no messages for an address: the chat keeps them by account", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={address}/>)
+
+        await screen.findByRole("heading", {name: "Ban"})
+        expect(screen.queryByRole("region", {name: "Their messages"})).toBeNull()
+        expect(admin.askedFor("listMessages")).toEqual([])
     })
 
     it("says the antibot is off rather than failing", async () => {

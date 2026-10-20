@@ -9,7 +9,7 @@ import {Report, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
 import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 import {OpenPlayer} from "../navigation.ts"
 import {ReportDetail} from "./ReportDetail.tsx"
-import {AROUND} from "./theirConversations.ts"
+import {AROUND} from "../chat/theirConversations.ts"
 
 afterEach(cleanup)
 
