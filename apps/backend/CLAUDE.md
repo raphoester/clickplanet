@@ -998,11 +998,16 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
   message until its next load.
 - **`chat.v1.AdminService/GetMessage(message_id)`** is the message as it was sent, removed or not, with
   `removed_at`, for the operator who reads a report (`message_query`). `NotFound` past the retention.
-- **`chat.v1.AdminService/ListMessages(before_message_id | after_message_id, limit)`** is the chat as it was sent,
+- **`chat.v1.AdminService/ListMessages(before_message_id | after_message_id, limit, account_id)`** is the chat as it was sent,
   removed or not, a page at a time (`messages_query`). **A message's id is a cursor**: the page just before it, or
   just after it, by `seq` as the history orders them, never with it. Neither is the newest page; both is
   `InvalidArgument` (`ErrTwoCursors`), and a cursor past the retention is `NotFound`. The report page reads one page
   on each side of the reported message, and the next page from the oldest or the newest message it holds.
+  - **With an `account_id`, it is that account's messages alone**, cursors included: the page of its messages just
+    before or just after the cursor, which may be anybody's message. A report from a player's card names no
+    message, so the report page lists the reported account's this way, and reads the whole chat around any one of
+    them. An id that is not a UUID is `InvalidArgument` (`ErrInvalidAccount`): read as everyone, it would show other
+    people's messages as the account's. The two statements of one author ride the `(account_id)` index.
   - **A page is oldest first**, 50 messages unless asked, 200 at most. Fewer than the limit is the end: nothing more
     kept before it, or nothing more sent after it. Before the cursor it stops at the retention.
   - **Each is a `KeptMessage`**: its text as sent and its `removed_at`, as `GetMessage` answers, its country, its
@@ -2424,7 +2429,8 @@ strict end and miss every bot that jitters, or at the loose end and ban humans �
 which is exactly the corner the first version of this was painted into.
 
 The `Jury` crosses them: guilty on one `Certain`, or on `jury.minSuspects`
-different watchdogs at `Suspect` inside `jury.suspicionWindow`.
+different watchdogs at `Suspect` inside `jury.suspicionWindow`. `rotator` never
+counts.
 
 **Crossing is worth less than it looks, and the config says so.** Weak signals
 only multiply confidence when they are independent, and these only half are: a
@@ -2442,12 +2448,24 @@ person plays, and the keenest players read both. Together they banned two people
 
 - **Each rule says it reads zeal** (`Evidence.Zeal`), and the jury counts every zeal
   reading of a caller as one suspect. The mark is saved with the opinion.
-- **Zeal still counts beside any other watchdog**: `rotator` with `stamina`, or
+- **Zeal still counts beside any other watchdog**: `sequencer` with `stamina`, or
   `cadence` with `defence`, is still a ban. Only the two together are not.
 - **The cost**: a loop that reads `stamina` and `defence` and nothing else is free,
   as the player who reads the same is.
 - `TestTheNewcomerOfOctober12WhoPlaysHardAndDefendsIsNotBanned` replays the player,
-  and `TestThePairOfOctober13TakingTurnsAtACadenceIsBanned` a pair that is still banned.
+  and `TestWithNoAccountTheSameHandsAreBannedAsOneCaller` is `cadence` with `defence`.
+
+**Turns never count, since 2026-10-20.** From 10-11 to 10-19 every ban but one was
+`rotator` beside `defence` or beside a `cadence` at its bound. The ones checked were
+children: one on a PC, one switching between two browsers on a phone, both chatting
+all through a tile war. Rotation beats the rate limit; it is not a bot signal.
+
+- **The rotator marks its reading** (`Evidence.Turns`), and the jury counts it at no
+  level. It still reads, logs, shows in `InspectPlayer` and feeds `click_rotation_share`.
+- **Its ring still falls with a guilty caller**: when other watchdogs find one account
+  guilty, the accounts it rotates with are banned with it (`Evidence.Accomplices`).
+- `TestThePhoneOfOctober19SwitchingBrowsersInATileWarIsNotBanned` and
+  `TestThePCOfOctober19AtACadenceTheMorningAfterItsTurnsIsNotBanned` replay the two.
 
 **Crossing is also what makes it fast.** The overnight sweep from the
 screenshots trips no watchdog's `Certain` for a long time — `sequencer` wants two
@@ -3050,10 +3068,10 @@ people, not scripts, and every other watchdog read `clear`.
   of seconds per slot can miss each other for a while. Simulated, the worst such
   pair, judged at the first moment it can be, reads once in 400 times.
 - **`minSlots` (24) shared slots read `suspect`, `certainSlots` reads `certain`.**
-  Two hours of shared slots, since an hour of turns happens. **Production sets no
-  `certainSlots`**: rotation is a person who cheats the rate limit, and a rule that
-  measured one thing has banned people here before (`stamina`). So it bans only
-  beside another watchdog. `TestTakingTurnsAloneBansNobody` pins it.
+  Two hours of shared slots, since an hour of turns happens. Production sets no
+  `certainSlots`. **The jury counts neither level**: rotation is a person who cheats
+  the rate limit, and beside another watchdog it banned children (see turns never
+  count, above). `TestTakingTurnsAloneBansNobody` pins it.
 - **It reads tries, like the metronome** (`Attempted`), and judges in `Watch`. A try
   the throttle refused was made by the same hand, and accepted clicks alone would
   let one shared bucket space two people apart.
@@ -3197,7 +3215,7 @@ clicker (`convictsOf`): the account, and its scope too when it is a guest. Each 
 own `antibot ban` line, with `alongside` set to the account whose click was judged,
 since the opinions on the line are that click's. On 2026-10-09 two accounts of a trio
 were banned and the third played on; `TestTheTrioThatTakesTurnsIsBannedTogether`
-replays it. A lone suspicion passes to nobody.
+bans the whole trio for a sweep on one account. A lone suspicion passes to nobody.
 
 A scope ban only bites a bot with a stable address — against a residential proxy
 pool it evaporates for exactly the reason the scope's bucket does; the account ban
@@ -3909,7 +3927,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.scraper.enabled`, `detector.minMaps`, `certainMaps` — the whole maps read beyond one per stream opened, inside `trackWindow`, that read `suspect` then `certain`
 - `antiBot.scraper.detector.certainOffMap` — the reads off the map, inside `trackWindow`, that read `certain` however little was read; one stray read is forgiven
 - `antiBot.rotator.enabled`, `detector.slot`, `window`, `minSeconds`, `minByChance`, `maxShare` — the length of a slot, how far back slots count, the seconds each account must click in for a pair to share a slot, the shared seconds chance must have given before a pair is read, and the share of them a rotating pair stays under
-- `antiBot.rotator.detector.minSlots`, `certainSlots` — the shared slots that read `suspect` then `certain`; zero never reads, and production sets no `certainSlots`
+- `antiBot.rotator.detector.minSlots`, `certainSlots` — the shared slots that read `suspect` then `certain`; zero never reads, production sets no `certainSlots`, and the jury counts neither
 - every watchdog also takes `detector.trackWindow` and `detector.sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten
 - `auth.enabled` — off registers nothing, so `auth.v1` and `session.v1` 404 and clicks are judged on address alone
 - `auth.enforce` — off counts what enforcing would refuse without refusing it; the mode to deploy in

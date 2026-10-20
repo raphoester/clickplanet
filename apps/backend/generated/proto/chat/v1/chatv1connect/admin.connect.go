@@ -52,7 +52,7 @@ type AdminServiceClient interface {
 	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
 	// A message as it was sent, removed or not. NotFound past the retention.
 	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
-	// The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention.
+	// The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention. With an account, that account's messages alone.
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
 }
 
@@ -129,7 +129,7 @@ type AdminServiceHandler interface {
 	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
 	// A message as it was sent, removed or not. NotFound past the retention.
 	GetMessage(context.Context, *connect.Request[v1.GetMessageRequest]) (*connect.Response[v1.GetMessageResponse], error)
-	// The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention.
+	// The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention. With an account, that account's messages alone.
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
 }
 
