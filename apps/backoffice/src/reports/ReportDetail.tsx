@@ -5,7 +5,7 @@ import {Person} from "../components/Person.tsx"
 import {When} from "../components/When.tsx"
 import {Report, ReportDecision} from "../gen/grpc/support/v1/admin_pb.ts"
 import {reasonLabel} from "../support/labels.ts"
-import {Decided} from "./actions.ts"
+import {decide, Decided} from "./actions.ts"
 import {ActPanel} from "./ActPanel.tsx"
 import {DecideForm} from "./DecideForm.tsx"
 import {DecisionLine} from "./DecisionLine.tsx"
@@ -64,8 +64,7 @@ export function ReportDetail({report, onBack, clients = CLIENTS}: Props) {
             )}
 
             <DecideForm
-                support={clients.support}
-                reportId={report.id}
+                decide={(outcome, comment) => decide(clients.support, report.id, outcome, comment)}
                 decided={decision !== undefined}
                 onDecided={decided}
             />

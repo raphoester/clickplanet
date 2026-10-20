@@ -1,21 +1,20 @@
 import {useState} from "react"
-import {SupportAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {timeOf} from "../components/time.ts"
 import {ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
 import {outcomeLabel} from "../support/labels.ts"
-import {decide, Decided, MAX_COMMENT_LENGTH, refusalOf} from "./actions.ts"
+import {Decided, MAX_COMMENT_LENGTH, refusalOf} from "./actions.ts"
 
 const OUTCOMES = [ReportOutcome.ACTED, ReportOutcome.DISMISSED]
 
 type Props = {
-    support: SupportAdmin
-    reportId: string
+    // Closes the report, a player's or a place's.
+    decide: (outcome: ReportOutcome, comment: string) => Promise<Decided>
     decided: boolean
     onDecided: (decided: Decided) => void
 }
 
-export function DecideForm({support, reportId, decided, onDecided}: Props) {
+export function DecideForm({decide, decided, onDecided}: Props) {
     const [outcome, setOutcome] = useState<ReportOutcome | undefined>(undefined)
     const [comment, setComment] = useState("")
 
@@ -48,7 +47,7 @@ export function DecideForm({support, reportId, decided, onDecided}: Props) {
                 label="Close the report"
                 disabled={outcome === undefined}
                 question={`Close this report as ${outcomeLabel(outcome ?? ReportOutcome.UNSPECIFIED)}?`}
-                run={() => decide(support, reportId, outcome ?? ReportOutcome.UNSPECIFIED, comment)}
+                run={() => decide(outcome ?? ReportOutcome.UNSPECIFIED, comment)}
                 said={done => `Closed as ${outcomeLabel(done.outcome)} at ${timeOf(done.decidedAt)}.`}
                 refusal={err => refusalOf("decide", err)}
                 onDone={onDecided}

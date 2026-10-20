@@ -1,5 +1,5 @@
 import {NoteKind, ReportOutcome} from "../gen/grpc/support/v1/admin_pb.ts"
-import {PageContext, ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
+import {PageContext, PlaceReportReason, ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 
 const KINDS: Record<NoteKind, string> = {
     [NoteKind.UNSPECIFIED]: "Unknown",
@@ -28,6 +28,17 @@ export function kindLabel(kind: NoteKind): string {
 
 export function reasonLabel(reason: ReportReason): string {
     return REASONS[reason] ?? `Reason ${reason}`
+}
+
+const PLACE_REASONS: Record<PlaceReportReason, string> = {
+    [PlaceReportReason.UNSPECIFIED]: "Unknown",
+    [PlaceReportReason.HATE]: "Hate",
+    [PlaceReportReason.SEXUAL]: "Sexual",
+    [PlaceReportReason.OTHER]: "Other",
+}
+
+export function placeReasonLabel(reason: PlaceReportReason): string {
+    return PLACE_REASONS[reason] ?? `Reason ${reason}`
 }
 
 export function outcomeLabel(outcome: ReportOutcome): string {
