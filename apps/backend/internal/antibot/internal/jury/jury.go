@@ -306,6 +306,7 @@ func (j *Jury) weighLocked(c *caller, at time.Time) ([]detect.Opinion, int, bool
 		}
 
 		switch {
+		case opinion.Evidence.Turns:
 		case opinion.Verdict == detect.Certain:
 			certain = true
 			suspects++

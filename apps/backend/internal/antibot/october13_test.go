@@ -11,47 +11,45 @@ import (
 
 const polishLine = "polish-line"
 
-func (s *stack) takeTurns(r *rand.Rand, lasting time.Duration) {
+func (s *stack) takeTurns(r *rand.Rand, scope, flag string, lasting time.Duration, first, second string) {
 	for start := s.clock.Now(); s.clock.Now().Sub(start) < lasting; {
 		cycle := s.clock.Now()
 
-		require.False(s.t, s.burst(r, polishLine, "desktop", "PL", 25*time.Second, time.Second))
+		require.False(s.t, s.burst(r, scope, first, flag, 25*time.Second, time.Second))
 		s.rest(cycle.Add(time.Minute))
-		require.False(s.t, s.burst(r, polishLine, "laptop", "PL", 25*time.Second, time.Second))
+		require.False(s.t, s.burst(r, scope, second, flag, 25*time.Second, time.Second))
 		s.rest(cycle.Add(150 * time.Second))
 	}
 }
 
-func TestThePairOfOctober13TakingTurnsAtACadenceIsBanned(t *testing.T) {
+func (s *stack) keepTime(r *rand.Rand, scope, account, flag string, fastest, slowest time.Duration, clicks int) bool {
+	var dropped bool
+	for range clicks {
+		s.clock.Advance(fastest + time.Duration(r.Int64N(int64(slowest-fastest))))
+		if s.clickAs(scope, account, 100000+uint32(r.IntN(60000)), flag) {
+			dropped = true
+		}
+	}
+	return dropped
+}
+
+func TestThePairOfOctober13TakingTurnsAtACadenceIsNotBanned(t *testing.T) {
 	s := newStack(t, withTheBoundsOfOctober9, productionRetakes)
 	s.signIn("desktop", "laptop")
 
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(10, 13))
 
-	s.takeTurns(r, 2*time.Hour+30*time.Minute)
-	require.Equal(t, []string{"rotator suspect"}, s.rises, "taking turns alone bans nobody")
+	s.takeTurns(r, polishLine, "PL", 2*time.Hour+30*time.Minute, "desktop", "laptop")
+	require.Equal(t, []string{"rotator suspect"}, s.rises)
 
-	var dropped bool
-	for range 200 {
-		s.clock.Advance(time.Duration(200+r.IntN(380)) * time.Millisecond)
-		if s.clickAs(polishLine, "laptop", 100000+uint32(r.IntN(60000)), "PL") {
-			dropped = true
-			break
-		}
-	}
+	assert.False(t, s.keepTime(r, polishLine, "laptop", "PL", 200*time.Millisecond, 580*time.Millisecond, 200))
+	assert.Empty(t, s.reports, "in production a cadence beside the turns banned the pair")
+	assert.Equal(t, []string{"rotator suspect", "metronome suspect"}, s.rises)
 
-	require.True(t, dropped, "a cadence beside the turns is two watchdogs")
-	require.NotEmpty(t, s.reports)
-
-	report := s.reports[0]
-	assert.Equal(t, "laptop", report.Account)
-	assert.Regexp(t, `^suspect cadence clicks=12\d median=3\d\d\.?\d*ms spread=\S+ sustained=\S+$`, report.Opinions[2].String())
-	assert.Regexp(t, `^suspect rotation accounts=2 `, report.Opinions[9].String())
-
-	banned := map[string]string{}
-	for _, report := range s.reports {
-		banned[report.Account] = report.Alongside
-	}
-	assert.Equal(t, map[string]string{"laptop": "", "desktop": "laptop"}, banned, "the ring is banned together")
+	examination := s.examine(polishLine, "laptop")
+	assert.Regexp(t, `^cadence clicks=\d+ median=\S+ spread=3\d\d\.?\d*ms sustained=\S+$`, examination.Readings[2].Evidence)
+	assert.Regexp(t, `^rotation accounts=2 `, examination.Readings[9].Evidence)
+	assert.Equal(t, 1, examination.Suspects, "turns are never a suspect")
+	assert.False(t, examination.Guilty)
 }

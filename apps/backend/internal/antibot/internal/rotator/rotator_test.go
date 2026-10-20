@@ -181,6 +181,7 @@ func TestThreeAccountsThatTakeTurnsAreRead(t *testing.T) {
 
 		require.Equal(t, detect.Suspect, r.verdict, p.account)
 		assert.Equal(t, "rotation", r.evidence.Rule)
+		assert.True(t, r.evidence.Turns, p.account)
 		assert.ElementsMatch(t, []detect.Field{
 			{Key: "accounts", Value: 3},
 			{Key: "flag", Value: "pl"},

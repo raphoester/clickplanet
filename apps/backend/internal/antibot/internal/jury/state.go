@@ -31,6 +31,7 @@ type savedOpinion struct {
 	Rule     string
 	Fields   []savedField
 	Zeal     bool
+	Turns    bool
 	At       int64
 }
 
@@ -58,6 +59,7 @@ func (j *Jury) Save() ([]byte, error) {
 				Rule:     o.Evidence.Rule,
 				Fields:   fields,
 				Zeal:     o.Evidence.Zeal,
+				Turns:    o.Evidence.Turns,
 				At:       evidence.Nanos(o.At),
 			})
 		}
@@ -133,7 +135,7 @@ func (j *Jury) Load(data []byte) error {
 			loaded.opinions[o.Watchdog] = detect.Opinion{
 				Watchdog: o.Watchdog,
 				Verdict:  detect.Verdict(o.Verdict),
-				Evidence: detect.Evidence{Rule: o.Rule, Fields: fields, Zeal: o.Zeal},
+				Evidence: detect.Evidence{Rule: o.Rule, Fields: fields, Zeal: o.Zeal, Turns: o.Turns},
 				At:       evidence.Time(o.At),
 			}
 		}
