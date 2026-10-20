@@ -35,35 +35,17 @@ func (s *stack) rest(until time.Time) {
 	s.clock.Advance(until.Sub(s.clock.Now()))
 }
 
-type round struct {
-	one, two, phone bool
-}
-
-func (r round) all() bool { return r.one && r.two && r.phone }
-
-func (r round) any() bool { return r.one || r.two || r.phone }
-
-func (s *stack) rotate(r *rand.Rand, lasting time.Duration) (first round, after time.Duration) {
-	start := s.clock.Now()
-
-	for s.clock.Now().Sub(start) < lasting {
+func (s *stack) rotate(r *rand.Rand, lasting time.Duration) {
+	for start := s.clock.Now(); s.clock.Now().Sub(start) < lasting; {
 		cycle := s.clock.Now()
 
-		dropped := round{
-			one: s.burst(r, sharedAddress, "desktop-one", "PL", 25*time.Second, 500*time.Millisecond),
-		}
+		require.False(s.t, s.burst(r, sharedAddress, "desktop-one", "PL", 25*time.Second, 500*time.Millisecond))
 		s.rest(cycle.Add(45 * time.Second))
-		dropped.two = s.burst(r, sharedAddress, "desktop-two", "PL", 25*time.Second, 500*time.Millisecond)
+		require.False(s.t, s.burst(r, sharedAddress, "desktop-two", "PL", 25*time.Second, 500*time.Millisecond))
 		s.rest(cycle.Add(90 * time.Second))
-		dropped.phone = s.burst(r, sharedAddress, "phone", "PL", 9*time.Second, time.Second)
+		require.False(s.t, s.burst(r, sharedAddress, "phone", "PL", 9*time.Second, time.Second))
 		s.rest(cycle.Add(150 * time.Second))
-
-		if dropped.any() {
-			return dropped, s.clock.Now().Sub(start)
-		}
 	}
-
-	return round{}, lasting
 }
 
 func TestTheTrioThatTakesTurnsIsBannedTogether(t *testing.T) {
@@ -73,11 +55,20 @@ func TestTheTrioThatTakesTurnsIsBannedTogether(t *testing.T) {
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(10, 10))
 
-	dropped, after := s.rotate(r, 7*time.Hour)
+	s.rotate(r, 4*time.Hour)
+	require.Empty(t, s.reports, "taking turns alone bans nobody")
 
-	require.True(t, dropped.any(), "the two desktops ran at pace for the stamina window")
-	assert.Greater(t, after, 5*time.Hour, "taking turns alone banned nobody")
-	assert.True(t, dropped.all(), "the phone never ran at pace, and is banned with the hand that holds it")
+	s.rest(s.clock.Now().Add(20 * time.Minute))
+
+	var swept bool
+	for tile := uint32(180000); tile < 180400 && !swept; tile++ {
+		s.clock.Advance(time.Second)
+		swept = s.clickAs(sharedAddress, "desktop-one", tile, "PL")
+	}
+	require.True(t, swept, "a sweep on one account of the ring is two watchdogs")
+
+	assert.True(t, s.clickAs(sharedAddress, "desktop-two", 1, "PL"))
+	assert.True(t, s.clickAs(sharedAddress, "phone", 1, "PL"), "the phone never swept, and is banned with the hand that holds it")
 
 	banned := map[string]string{}
 	for _, report := range s.reports {
@@ -90,6 +81,7 @@ func TestTheTrioThatTakesTurnsIsBannedTogether(t *testing.T) {
 
 	verdicts := s.verdicts(sharedAddress)
 	assert.Equal(t, detect.Suspect, verdicts["rotator"])
+	assert.Equal(t, detect.Suspect, verdicts["sequencer"])
 	assert.Equal(t, detect.Suspect, verdicts["metronome"])
 
 	assert.Empty(t, s.bans.Stored(), "three signed-in accounts leave their address alone")
@@ -104,9 +96,8 @@ func TestTakingTurnsAloneBansNobody(t *testing.T) {
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(10, 11))
 
-	dropped, _ := s.rotate(r, 4*time.Hour)
+	s.rotate(r, 4*time.Hour)
 
-	assert.False(t, dropped.any())
 	assert.Empty(t, s.reports)
 	assert.Equal(t, []string{"rotator suspect"}, s.rises, "it reads, for the jury to cross")
 
