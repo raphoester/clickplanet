@@ -8,7 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 reachable only over SSH before, and **every admin method has a place on it**. One page at a time, picked in the
 burger menu (see [The menu](#the-menu)), by group:
 
-- **Feedback**: Ideas and bugs, the notes players send, read only, with their photos and videos (see
+- **Feedback**: Ideas and bugs, the notes players send, read only, each with who sent it (see
+  [Who sent a note](#who-sent-a-note)) and its photos and videos (see
   [A note's photos and videos](#a-notes-photos-and-videos)).
 - **Moderation**: Reports, which the operator acts on and closes (see [Acting on a report](#acting-on-a-report)),
   and Players, who played and every tool on one player (see [The player page](#the-player-page)).
@@ -97,11 +98,24 @@ title (`titleOf`), shown above it. `Console` in `App.tsx` shows the page picked.
 - **The drawer is modal**: it takes the focus to the page shown, keeps Tab inside it, and closes on Escape, its
   close button, a click beside it or a page picked, giving the focus back to the burger. The page behind does not
   scroll while it is open.
-- **Picking Players while on it goes back to the list.** A report's "Every tool →" goes to Players with its account
-  open (`OpenPlayer`).
+- **Picking Players while on it goes back to the list.** A report's "Every tool →" and a note's "Open player" go to
+  Players with its account open (`OpenPlayer`).
 - **The page shown is in the address bar** (`#/reports`, `usePage`): a reload or a link opens it again, and Back
   goes to the page before. An address that names no page opens Ideas and bugs. Only the page is kept, not the
   player open on it.
+
+## Who sent a note
+
+**A note is sent from an account, always**: `SuggestFeature` and `ReportBug` refuse a caller with no session, and
+`ListNotes` answers its `account_id`. It is blank only once the account is deleted (the backend anonymizes the
+note and keeps its text).
+
+- **"From" is the sender's name and account id, with Copy** (`Person`). `ListNotes` carries no name, so `NoteList`
+  asks `player.v1.AdminService/GetAuthors` for the accounts of the page (`namesOf` in `players/actions.ts`, which
+  the player list's `withAuthors` uses too). **Names that cannot be read leave the notes listed**, every sender
+  "no name", with the reason above them.
+- **"Open player" opens the sender on the player page** (`OpenPlayer`): its profile, its inspection, and from
+  there the address of its latest take. A note with no account has no button.
 
 ## A note's photos and videos
 
@@ -184,8 +198,8 @@ address over IPv4, the /64 over IPv6) and checks.
   (`withAuthors`). An account the game never named is "Unnamed": it never joined the roster or posted, and the
   game's page joins the roster as soon as it may click, so it is most likely a script. A row with no account is "No account". **Names
   that cannot be read leave the list listed**, every account "Unnamed", with the reason above it.
-- **Open a player** from a row (its account, or its address when it has none), from the field at the top, or
-  from a report. The other half of a row (the address of an account, the account of an address) opens from the
+- **Open a player** from a row (its account, or its address when it has none), from the field at the top, from a
+  report, or from a note. The other half of a row (the address of an account, the account of an address) opens from the
   header, and the inspection's address of an account's latest take opens too: **a guest the jury banned is banned
   on both**, and an unban lifts one key.
 - **An account's page reads its profile** (`player.v1.AdminService/GetPlayer`, `ProfilePanel`): signed in or a

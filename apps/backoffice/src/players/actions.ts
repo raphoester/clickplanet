@@ -24,8 +24,10 @@ export type Grant = {refill: boolean, bomb: boolean, enclosures: number, spreadC
 export type Granted = {before: ChargesHeld, after: ChargesHeld}
 export type Players = {players: Player[], total: number}
 export type Authors = Map<string, Author>
-// A page of players and who each account is. `unnamed` says why there are no names, when they could not be read.
-export type Listed = Players & {authors: Authors, unnamed: string | undefined}
+// Who each account is. `unnamed` says why there are no names, when they could not be read.
+export type Named = {authors: Authors, unnamed: string | undefined}
+// A page of players and who each account is.
+export type Listed = Players & Named
 export type Profile = AdminGetPlayerResponse
 
 export const NO_GRANT: Grant = {refill: false, bomb: false, enclosures: 0, spreadClicks: 0, shields: 0}
@@ -84,15 +86,20 @@ export async function findPlayers(
 
 // Each account of a page by its username or its guest code. A page whose names cannot be read is still listed.
 export async function withAuthors(player: PlayerAdmin, page: Players, signal?: AbortSignal): Promise<Listed> {
-    const accountIds = [...new Set(page.players.map(row => row.accountId).filter(id => id !== ""))]
-    if (accountIds.length === 0) return {...page, authors: new Map(), unnamed: undefined}
+    return {...page, ...await namesOf(player, page.players.map(row => row.accountId), signal)}
+}
+
+// Each account by its username or its guest code, asked once. Names that cannot be read fail nothing: they say why.
+export async function namesOf(player: PlayerAdmin, accounts: string[], signal?: AbortSignal): Promise<Named> {
+    const accountIds = [...new Set(accounts.filter(id => id !== ""))]
+    if (accountIds.length === 0) return {authors: new Map(), unnamed: undefined}
 
     try {
         const answer = await player.getAuthors({accountIds}, {signal})
-        return {...page, authors: new Map(answer.authors.map(author => [author.accountId, author])), unnamed: undefined}
+        return {authors: new Map(answer.authors.map(author => [author.accountId, author])), unnamed: undefined}
     } catch (err) {
         if (signal?.aborted === true) throw err
-        return {...page, authors: new Map(), unnamed: wordsOf(err)}
+        return {authors: new Map(), unnamed: wordsOf(err)}
     }
 }
 

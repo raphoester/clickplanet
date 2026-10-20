@@ -44,7 +44,14 @@ import {
 } from "./gen/grpc/player/v1/admin_pb.ts"
 import {Author, GetAuthorsRequest, GetAuthorsResponse} from "./gen/grpc/player/v1/internal_pb.ts"
 import {CountryTiles, Stats} from "./gen/grpc/player/v1/player_pb.ts"
-import {DecideReportRequest, DecideReportResponse} from "./gen/grpc/support/v1/admin_pb.ts"
+import {
+    DecideReportRequest,
+    DecideReportResponse,
+    ListNotesRequest,
+    ListNotesResponse,
+    Note,
+    NoteKind,
+} from "./gen/grpc/support/v1/admin_pb.ts"
 import {ChatAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
@@ -96,6 +103,17 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         stats: new Stats({tilesTaken: 1200n, streakCurrent: 3, streakBest: 12}),
         playsFor: [new CountryTiles({countryId: "fr", tiles: 1100n}), new CountryTiles({countryId: "gb-sct", tiles: 100n})],
     })
+    // A bug from a named account, and an idea whose sender deleted its account.
+    notes = [
+        new Note({
+            id: "note-bug", kind: NoteKind.BUG, accountId: ACCOUNT, text: "the globe goes black",
+            submittedAt: Timestamp.fromDate(AT),
+        }),
+        new Note({
+            id: "note-idea", kind: NoteKind.SUGGESTION, accountId: "", text: "more flags",
+            submittedAt: Timestamp.fromDate(new Date(AT.getTime() - 60_000)),
+        }),
+    ]
 
     clients(): Clients {
         return {chat: this, planet: this, player: this, support: this}
@@ -209,6 +227,12 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     getPlayer(request: PartialMessage<AdminGetPlayerRequest>): Promise<AdminGetPlayerResponse> {
         return this.answer("getPlayer", request, this.profile)
+    }
+
+    listNotes(request: PartialMessage<ListNotesRequest>): Promise<ListNotesResponse> {
+        const kind = request.kind ?? NoteKind.UNSPECIFIED
+        const notes = this.notes.filter(note => kind === NoteKind.UNSPECIFIED || note.kind === kind)
+        return this.answer("listNotes", request, new ListNotesResponse({notes}))
     }
 
     decideReport(request: PartialMessage<DecideReportRequest>): Promise<DecideReportResponse> {
