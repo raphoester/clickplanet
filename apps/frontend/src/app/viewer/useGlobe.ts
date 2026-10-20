@@ -52,6 +52,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const notify = useCallback((what: BonusNotice) => setNotice((was) => ({notice: what, seq: (was?.seq ?? 0) + 1})), [])
 
     const [vpnBlocked, setVPNBlocked] = useState(false)
+    const [bannedUntil, setBannedUntil] = useState<number>()
 
     const [sessionUnavailable, setSessionUnavailable] = useState(false)
 
@@ -113,6 +114,7 @@ export function useGlobe(options: UseGlobeOptions) {
             },
             onRateLimited: () => setRefusals(n => n + 1),
             onVPNBlocked: () => setVPNBlocked(true),
+            onBanned: setBannedUntil,
             onSessionUnavailable: () => setSessionUnavailable(true),
             onBonusWon: takeBonus,
             onBonusTaken: recordCatch,
@@ -197,6 +199,8 @@ export function useGlobe(options: UseGlobeOptions) {
         refusals,
         vpnBlocked,
         dismissVPNBlocked: () => setVPNBlocked(false),
+        bannedUntil,
+        dismissBanned: () => setBannedUntil(undefined),
         sessionUnavailable,
         dismissSessionUnavailable: () => setSessionUnavailable(false),
         award,

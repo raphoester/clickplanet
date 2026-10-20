@@ -1,4 +1,4 @@
-package shadowban_test
+package bans_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -17,18 +17,18 @@ func newClock() *cptime.FixedClock {
 
 const threeYears = 3 * 365 * 24 * time.Hour
 
-func newBanner(t *testing.T, config shadowban.Config, clock cptime.Clock) banner {
+func newBanner(t *testing.T, config bans.Config, clock cptime.Clock) banner {
 	t.Helper()
-	return bannerOver(t, config, clock, shadowban.NewMemoryStore())
+	return bannerOver(t, config, clock, bans.NewMemoryStore())
 }
 
-func bannerOver(t *testing.T, config shadowban.Config, clock cptime.Clock, store shadowban.Store) banner {
+func bannerOver(t *testing.T, config bans.Config, clock cptime.Clock, store bans.Store) banner {
 	t.Helper()
-	return banner{t: t, inner: shadowban.New(config, clock, store)}
+	return banner{t: t, inner: bans.New(config, clock, store)}
 }
 
-func config() shadowban.Config {
-	return shadowban.Config{
+func config() bans.Config {
+	return bans.Config{
 		Enforce:        true,
 		BanDurations:   []time.Duration{time.Hour, 24 * time.Hour, threeYears},
 		ReflagInterval: 5 * time.Minute,
@@ -150,7 +150,7 @@ func TestTheLastStepRepeats(t *testing.T) {
 	clock := newClock()
 	banner := newBanner(t, c, clock)
 
-	var sentence shadowban.Sentence
+	var sentence bans.Sentence
 	for range 5 {
 		sentence, _ = banner.Flag("bot")
 		clock.Advance(25 * time.Hour)
@@ -185,7 +185,7 @@ func TestAManualBanTakesTheLadderAndCountsAsAnOffence(t *testing.T) {
 	banner := newBanner(t, config(), clock)
 
 	sentence := banner.Ban("bot", 0)
-	assert.Equal(t, shadowban.Sentence{Offence: 1, Until: clock.Now().Add(time.Hour)}, sentence)
+	assert.Equal(t, bans.Sentence{Offence: 1, Until: clock.Now().Add(time.Hour)}, sentence)
 	assert.True(t, banner.Banned("bot"))
 
 	clock.Advance(2 * time.Hour)
@@ -215,7 +215,7 @@ func TestAManualBanWithADurationNeverShortensARunningOne(t *testing.T) {
 func TestAManualBanOnAnEmptyScopeBansNothing(t *testing.T) {
 	banner := newBanner(t, config(), newClock())
 
-	assert.Equal(t, shadowban.Sentence{}, banner.Ban("", time.Hour))
+	assert.Equal(t, bans.Sentence{}, banner.Ban("", time.Hour))
 	assert.Equal(t, 0, banner.Flagged())
 }
 
@@ -254,7 +254,7 @@ func TestAnUnbanForgetsOnlyTheOffenceItLifts(t *testing.T) {
 
 func TestAnUnbanOfAnEndedBanForgetsItsOffenceAndKeepsItsEnd(t *testing.T) {
 	clock := newClock()
-	store := shadowban.NewMemoryStore()
+	store := bans.NewMemoryStore()
 	banner := bannerOver(t, config(), clock, store)
 
 	banned, _ := banner.Flag("player")
@@ -293,7 +293,7 @@ func TestEachUnbanForgetsOneOffence(t *testing.T) {
 
 func TestAnUnbanWithNoBanChangesNothing(t *testing.T) {
 	clock := newClock()
-	store := shadowban.NewMemoryStore()
+	store := bans.NewMemoryStore()
 	banner := bannerOver(t, config(), clock, store)
 
 	banner.Flag("lifted")

@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-var _ shadowban.Store = (*Store)(nil)
+var _ bans.Store = (*Store)(nil)
 
 const (
 	scopesLock   = 0x62616e73
@@ -60,12 +60,12 @@ type queries struct {
 	save    string
 }
 
-func (s *Store) Record(ctx context.Context, key string) (shadowban.Record, bool, error) {
+func (s *Store) Record(ctx context.Context, key string) (bans.Record, bool, error) {
 	return s.recordOf(ctx, s.db, key)
 }
 
-func (s *Store) recordOf(ctx context.Context, db cppg.Querier, key string) (shadowban.Record, bool, error) {
-	record := shadowban.Record{Key: key}
+func (s *Store) recordOf(ctx context.Context, db cppg.Querier, key string) (bans.Record, bool, error) {
+	record := bans.Record{Key: key}
 
 	var flagged sql.NullTime
 	err := db.QueryRowContext(ctx, s.queries.record, key).Scan(&record.Flags, &record.Offences, &record.ExpiresAt, &flagged)
@@ -73,7 +73,7 @@ func (s *Store) recordOf(ctx context.Context, db cppg.Querier, key string) (shad
 		return record, false, nil
 	}
 	if err != nil {
-		return shadowban.Record{}, false, fmt.Errorf("failed to read the ban: %w", err)
+		return bans.Record{}, false, fmt.Errorf("failed to read the ban: %w", err)
 	}
 
 	record.ExpiresAt = record.ExpiresAt.UTC()
@@ -95,7 +95,7 @@ func (s *Store) Running(ctx context.Context, now time.Time) (int, error) {
 func (s *Store) Change(
 	ctx context.Context,
 	key string,
-	change func(record shadowban.Record, found bool) (shadowban.Record, bool),
+	change func(record bans.Record, found bool) (bans.Record, bool),
 ) (err error) {
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
