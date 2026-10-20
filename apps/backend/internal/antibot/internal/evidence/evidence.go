@@ -23,7 +23,7 @@ const (
 	defaultRetention    = 72 * time.Hour
 )
 
-func (c Config) withDefaults() Config {
+func (c Config) WithDefaults() Config {
 	if c.SaveInterval <= 0 {
 		c.SaveInterval = defaultSaveInterval
 	}
@@ -59,7 +59,7 @@ const flushTimeout = 10 * time.Second
 
 func New(config Config, clock cptime.Clock, persistence Persistence, onStateError func(error), sections ...Section) *Store {
 	return &Store{
-		config:       config.withDefaults(),
+		config:       config.WithDefaults(),
 		clock:        clock,
 		persistence:  persistence,
 		onStateError: onStateError,

@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -27,8 +27,8 @@ type stack struct {
 	config antibot.Config
 	stop   func()
 
-	bans           *shadowban.MemoryStore
-	accountBans    *shadowban.MemoryStore
+	bans           *bans.MemoryStore
+	accountBans    *bans.MemoryStore
 	evidence       *evidence.MemoryPersistence
 	forgetEvidence bool
 
@@ -48,16 +48,16 @@ func newStack(t *testing.T, options ...func(*antibot.Config)) *stack {
 		owner:       map[uint32]string{},
 		shields:     map[uint32]int{},
 		linked:      cpcolls.NewSet[string](),
-		bans:        shadowban.NewMemoryStore(),
-		accountBans: shadowban.NewMemoryStore(),
+		bans:        bans.NewMemoryStore(),
+		accountBans: bans.NewMemoryStore(),
 		evidence:    evidence.NewMemoryPersistence(),
 	}
 
 	config := antibot.Config{Enabled: true}
 
-	config.ShadowBan.Enforce = true
-	config.ShadowBan.BanDurations = []time.Duration{time.Hour}
-	config.ShadowBan.ReflagInterval = 5 * time.Minute
+	config.Bans.Enforce = true
+	config.Bans.BanDurations = []time.Duration{time.Hour}
+	config.Bans.ReflagInterval = 5 * time.Minute
 
 	config.Jury.MinSuspects = 2
 	config.Jury.SuspicionWindow = 10 * time.Minute
@@ -195,7 +195,8 @@ func (s *stack) restart(outage time.Duration) {
 }
 
 func (s *stack) inspect(click antibot.Click) bool {
-	return s.guard.Inspect(s.t.Context(), click)
+	s.guard.Inspect(s.t.Context(), click)
+	return s.banned(click.Scope, click.Account)
 }
 
 func (s *stack) ban(scope, account string, duration time.Duration) antibot.Sentence {
@@ -211,7 +212,8 @@ func (s *stack) unban(scope, account string) {
 }
 
 func (s *stack) banned(scope, account string) bool {
-	return s.guard.Banned(s.t.Context(), scope, account)
+	_, banned := s.guard.EnforcedSentence(s.t.Context(), scope, account)
+	return banned
 }
 
 func (s *stack) examine(scope, account string) antibot.Examination {
@@ -826,8 +828,9 @@ func TestWithTheBlockOffTheGuardPassesEveryClick(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.False(t, guard.Enabled())
-	assert.False(t, guard.Inspect(t.Context(), antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"}))
-	assert.False(t, guard.Banned(t.Context(), "1.2.3.4", "a-guest"))
+	guard.Inspect(t.Context(), antibot.Click{Scope: "1.2.3.4", Tile: 1, Country: "fr"})
+	_, banned := guard.EnforcedSentence(t.Context(), "1.2.3.4", "a-guest")
+	assert.False(t, banned)
 }
 
 func TestALoopRestartedEveryFewMinutesIsStillCaught(t *testing.T) {
@@ -976,7 +979,7 @@ func staminaBansAlone(config *antibot.Config) {
 	config.Metronome.Detector.Stamina.CertainBusy = 5*time.Hour + 30*time.Minute
 }
 
-func TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain(t *testing.T) {
+func TestAnUnbanPardonsTheCallerUntilTheEvidenceThatBannedItIsGone(t *testing.T) {
 	s := newStack(t, staminaBansAlone)
 
 	//nolint:gosec // seeded test PRNG
@@ -987,32 +990,39 @@ func TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain(t *testing.T) {
 		s.clock.Advance(4500*time.Millisecond + time.Duration(random.Int64N(int64(time.Second))))
 		return s.clickAs(scope, "night", 180000+uint32(random.IntN(60000)), "DZ")
 	}
-
-	start := s.clock.Now()
-	var caught bool
-	for !caught && s.clock.Now().Sub(start) < 8*time.Hour {
-		for i := 0; i < 300 && !caught; i++ {
-			caught = click()
-		}
-		if !caught {
+	playUntilCaught := func() bool {
+		start := s.clock.Now()
+		for s.clock.Now().Sub(start) < 8*time.Hour {
+			for range 300 {
+				if click() {
+					return true
+				}
+			}
 			s.clock.Advance(5 * time.Minute)
 		}
+		return false
 	}
-	require.True(t, caught)
 
-	unbannedAt := s.clock.Now()
+	require.True(t, playUntilCaught())
+	reports := len(s.reports)
+
 	s.unban(scope, "night")
+	unbannedAt := s.clock.Now()
 
-	var bannedAgainAfter time.Duration
-	for bannedAgainAfter == 0 && s.clock.Now().Sub(unbannedAt) < time.Hour {
-		if click() {
-			bannedAgainAfter = s.clock.Now().Sub(unbannedAt)
-		}
+	for s.clock.Now().Sub(unbannedAt) < time.Hour {
+		require.False(t, click(), "the evidence that banned it still reads, and it is pardoned")
 	}
+	assert.Len(t, s.reports, reports)
 
-	require.NotZero(t, bannedAgainAfter, "the watchdogs still read the evidence that banned it")
-	assert.GreaterOrEqual(t, bannedAgainAfter, 5*time.Minute, "not before the reflag interval")
-	assert.Less(t, bannedAgainAfter, 6*time.Minute)
+	examination := s.examine(scope, "night")
+	assert.True(t, examination.Guilty)
+	assert.False(t, examination.Banned)
+	assert.Equal(t, unbannedAt.Add(72*time.Hour), examination.PardonedUntil)
+
+	s.clock.Advance(72 * time.Hour)
+	assert.True(t, s.examine(scope, "night").PardonedUntil.IsZero())
+
+	require.True(t, playUntilCaught(), "the same play read again on new evidence bans again")
 	assert.Equal(t, 1, s.reports[len(s.reports)-1].Offence, "the lifted ban is no offence")
 }
 

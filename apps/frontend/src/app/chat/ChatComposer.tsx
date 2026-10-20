@@ -1,6 +1,7 @@
 import {FormEvent, KeyboardEvent, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {ChatMessage, countRunes, MAX_TEXT_LENGTH} from "../../backends/chat.ts";
 import {quoteOf} from "../../domain/chatLog.ts";
+import {describeEnd} from "../../domain/endTime.ts";
 import {CloseIcon} from "../components/icons.tsx";
 import {useEscape} from "../components/useDialog.ts";
 import {quoteStyle} from "./authorStyle.ts";
@@ -18,10 +19,6 @@ export type ChatComposerProps = {
 }
 
 const COUNTER_SHOWS_FROM = MAX_TEXT_LENGTH - 40
-
-const clock = new Intl.DateTimeFormat(undefined, {hour: "2-digit", minute: "2-digit"})
-const calendar = new Intl.DateTimeFormat(undefined, {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"})
-const CLOCK_READS_FOR_MS = 20 * 3600_000
 
 const FAILURES: Record<ChatSendFailure, string> = {
     'rate-limited': "You're sending messages too fast. Give it a few seconds.",
@@ -127,6 +124,5 @@ function Replying({to, onCancel}: {to: ChatMessage, onCancel: () => void}) {
 function noticeOf(failure: ChatSendFailure, mutedUntil: number | undefined): string {
     if (failure !== 'muted' || mutedUntil === undefined) return FAILURES[failure]
 
-    const until = mutedUntil - Date.now() < CLOCK_READS_FOR_MS ? clock.format(mutedUntil) : calendar.format(mutedUntil)
-    return `You are muted until ${until}.`
+    return `You are muted until ${describeEnd(mutedUntil, Date.now())}.`
 }

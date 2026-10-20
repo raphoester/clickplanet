@@ -450,6 +450,27 @@ button:disabled {
     background: color-mix(in srgb, var(--report) 12%, transparent);
 }
 
+.line-theirs {
+    border-left-color: var(--report);
+}
+
+.conversations {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.conversation-window {
+    display: grid;
+    gap: 6px;
+    justify-items: start;
+    min-width: 0;
+    padding: 8px 0 8px 10px;
+    border-left: 2px dashed var(--line);
+}
+
 .line-head {
     display: flex;
     flex-wrap: wrap;

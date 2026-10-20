@@ -41,7 +41,7 @@ func unban(t *testing.T, useCase *stubUseCase, req *planetv1.UnbanPlayerRequest)
 
 func TestTheRequestReachesTheUseCaseAndTheLiftedBanComesBack(t *testing.T) {
 	until := time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
-	useCase := &stubUseCase{out: unban_player_usecase.Out{Scope: "9.9.9.9", Offence: 2, Until: until}}
+	useCase := &stubUseCase{out: unban_player_usecase.Out{Scope: "9.9.9.9", Offence: 2, Until: until, PardonedUntil: until.Add(time.Hour)}}
 
 	res, err := unban(t, useCase, &planetv1.UnbanPlayerRequest{Scope: "9.9.9.9"})
 	require.NoError(t, err)
@@ -51,6 +51,7 @@ func TestTheRequestReachesTheUseCaseAndTheLiftedBanComesBack(t *testing.T) {
 	assert.Empty(t, res.GetAccountId())
 	assert.Equal(t, uint32(2), res.GetOffence())
 	assert.Equal(t, until, res.GetBannedUntil().AsTime())
+	assert.Equal(t, until.Add(time.Hour), res.GetPardonedUntil().AsTime())
 }
 
 func TestAnAccountReachesTheUseCaseAndComesBack(t *testing.T) {

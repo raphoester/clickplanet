@@ -130,14 +130,3 @@ func TestAMalformedDropDoesNotCostTheBomb(t *testing.T) {
 	assert.True(t, p.bombs.held)
 	assert.Empty(t, p.bombs.spent, "a malformed drop is refused before the bomb is touched")
 }
-
-func TestADudIsSpentAndClearsAndAnnouncesNothing(t *testing.T) {
-	useCase, p := setup(true, 0.001)
-
-	blast, err := useCase.Execute(t.Context(), drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "fr", Dud: true})
-	require.NoError(t, err)
-
-	assert.Empty(t, blast.Cleared)
-	assert.Empty(t, p.clearer.cleared, "nobody sees a banned caller's bomb")
-	assert.False(t, p.bombs.held, "the bomb is gone, as it would be for anyone")
-}

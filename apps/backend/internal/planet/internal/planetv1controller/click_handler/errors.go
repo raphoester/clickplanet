@@ -7,6 +7,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/clickbudget"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetban"
 )
 
 var callerErrors = []error{
@@ -18,6 +19,10 @@ var callerErrors = []error{
 func toConnect(err error, out click_usecase.Out) error {
 	if errors.Is(err, clicks.ErrThrottled) {
 		return throttled(err, out)
+	}
+
+	if refused, banned := planetban.Refusal(err); banned {
+		return refused
 	}
 
 	for _, callerError := range callerErrors {

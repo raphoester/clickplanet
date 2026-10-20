@@ -141,7 +141,8 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return this.answer("getMessage", request, this.message)
     }
 
-    // A page of chat as the server reads it: oldest first, just before or just after the cursor, the newest with none.
+    // A page of chat as the server reads it: oldest first, just before or just after the cursor, the newest with none,
+    // and one account's messages alone when it names one. The cursor may be anybody's message.
     listMessages(request: PartialMessage<ListMessagesRequest>): Promise<ListMessagesResponse> {
         const limit = request.limit || 50
         const cursor = request.beforeMessageId || request.afterMessageId || ""
@@ -150,10 +151,13 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             this.asked.push({method: "listMessages", request})
             return Promise.reject(new ConnectError("no message kept under this id", Code.NotFound))
         }
-        const messages = request.afterMessageId
-            ? this.chat.slice(at + 1, at + 1 + limit)
-            : this.chat.slice(Math.max(0, (cursor === "" ? this.chat.length : at) - limit), cursor === "" ? undefined : at)
-        return this.answer("listMessages", request, new ListMessagesResponse({messages}))
+        const kept = this.chat
+            .map((message, index) => ({message, index}))
+            .filter(({message}) => !request.accountId || message.accountId === request.accountId)
+        const page = request.afterMessageId
+            ? kept.filter(({index}) => index > at).slice(0, limit)
+            : kept.filter(({index}) => cursor === "" || index < at).slice(-limit)
+        return this.answer("listMessages", request, new ListMessagesResponse({messages: page.map(({message}) => message)}))
     }
 
     removeMessage(request: PartialMessage<RemoveMessageRequest>): Promise<RemoveMessageResponse> {
@@ -171,7 +175,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     unbanPlayer(request: PartialMessage<UnbanPlayerRequest>): Promise<UnbanPlayerResponse> {
         return this.answer("unbanPlayer", request,
-            new UnbanPlayerResponse({offence: 2, bannedUntil: Timestamp.fromDate(AT)}))
+            new UnbanPlayerResponse({offence: 2, bannedUntil: Timestamp.fromDate(AT), pardonedUntil: Timestamp.fromDate(AT)}))
     }
 
     revertPlayer(request: PartialMessage<RevertPlayerRequest>): Promise<RevertPlayerResponse> {

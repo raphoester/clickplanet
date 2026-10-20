@@ -2,10 +2,11 @@ import {useCallback, useState} from "react"
 import {ChatAdmin} from "../clients.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {clockOf, timeOf} from "../components/time.ts"
-import {GetMessageResponse, KeptMessage, KeptQuote} from "../gen/grpc/chat/v1/admin_pb.ts"
+import {KeptMessage, KeptQuote} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {useOpenPlayer} from "../navigation.ts"
 import {wordsOf} from "../refusal.ts"
 import {useCall} from "../useCall.ts"
+import {Page, pageOf, Parties} from "./chatPages.ts"
 
 // How many messages the first page on each side of the reported one holds, and each page asked for after.
 const FIRST_PAGE = 10
@@ -13,30 +14,19 @@ const NEXT_PAGE = 20
 
 export const CHAT_GONE = "That part of the chat is no longer kept."
 
-// An account a report names, so the conversation marks what it said.
-export type Party = {accountId: string, name: string}
-export type Parties = {reporter: Party, reported: Party}
-
-// A page is full when it holds as many as asked: there may be more past it.
-type Page = {messages: KeptMessage[], more: boolean}
-type Cursor = {beforeMessageId: string} | {afterMessageId: string}
-
-async function pageOf(chat: ChatAdmin, cursor: Cursor, limit: number, signal?: AbortSignal): Promise<Page> {
-    const answer = await chat.listMessages({...cursor, limit}, {signal})
-    return {messages: answer.messages, more: answer.messages.length === limit}
-}
-
 type Props = {
     chat: ChatAdmin
-    message: GetMessageResponse
+    anchor: KeptMessage
     removedAt: Date | undefined
     parties: Parties
+    // What the anchor is to the operator: "Reported message", "Their message".
+    mark: string
 }
 
-// The message reported among the pages of the chat just before and just after it, oldest first, the reported one
-// shown while they load.
-export function Conversation({chat, message, removedAt, parties}: Props) {
-    const messageId = message.messageId
+// A message among the pages of the chat just before and just after it, oldest first, the message itself shown while
+// they load.
+export function Conversation({chat, anchor, removedAt, parties, mark}: Props) {
+    const messageId = anchor.messageId
     const first = useCallback(
         (signal: AbortSignal) => Promise.all([
             pageOf(chat, {beforeMessageId: messageId}, FIRST_PAGE, signal),
@@ -45,7 +35,7 @@ export function Conversation({chat, message, removedAt, parties}: Props) {
         [chat, messageId],
     )
     const [call, again] = useCall(first)
-    const reported = {line: lineOf(message, parties), removedAt}
+    const reported = {line: anchor, removedAt, mark}
 
     if (call.state === "done") {
         return <Pages chat={chat} first={call.value} reported={reported} parties={parties}/>
@@ -59,21 +49,7 @@ export function Conversation({chat, message, removedAt, parties}: Props) {
     )
 }
 
-// GetMessage names no author: the report does, for the account it names.
-function lineOf(message: GetMessageResponse, parties: Parties): KeptMessage {
-    const party = [parties.reported, parties.reporter].find(each => each.accountId === message.accountId)
-    return new KeptMessage({
-        messageId: message.messageId,
-        accountId: message.accountId,
-        authorName: message.accountId === "" ? "" : party?.name ?? "",
-        text: message.text,
-        sentAt: message.sentAt,
-        countryId: message.countryId,
-        removedAt: message.removedAt,
-    })
-}
-
-type Reported = {line: KeptMessage, removedAt: Date | undefined}
+type Reported = {line: KeptMessage, removedAt: Date | undefined, mark: string}
 
 type PagesProps = {
     chat: ChatAdmin
@@ -114,7 +90,7 @@ function Pages({chat, first, reported, parties}: PagesProps) {
 type MoreStep = {step: "idle"} | {step: "running"} | {step: "refused", words: string}
 
 // The next page, on a click: a read, so it asks nothing first.
-function More({label, load, onLoaded}: {label: string, load: () => Promise<Page>, onLoaded: (page: Page) => void}) {
+export function More({label, load, onLoaded}: {label: string, load: () => Promise<Page>, onLoaded: (page: Page) => void}) {
     const [step, setStep] = useState<MoreStep>({step: "idle"})
 
     const run = () => {
@@ -150,7 +126,7 @@ function Lines({before, reported, after, parties}: LinesProps) {
     return (
         <ol className="lines" aria-label="The conversation">
             {before.map(line => <Line key={line.messageId} line={line} parties={parties} day={day}/>)}
-            <Line line={reported.line} parties={parties} day={undefined} removedAt={reported.removedAt} reported/>
+            <Line line={reported.line} parties={parties} day={undefined} removedAt={reported.removedAt} mark={reported.mark}/>
             {after.map(line => <Line key={line.messageId} line={line} parties={parties} day={day}/>)}
         </ol>
     )
@@ -158,21 +134,32 @@ function Lines({before, reported, after, parties}: LinesProps) {
 
 type LineProps = {
     line: KeptMessage
-    parties: Parties
-    // The day of the message reported: a line sent on another one shows its date too, as the reported one does.
+    // Who the report names, to tag what each said; none when every line is one party's.
+    parties: Parties | undefined
+    // The anchor's day: a line sent on another one shows its date too, as the anchor does.
     day: Date | undefined
-    reported?: boolean
+    // The anchor's mark: the line the conversation is around.
+    mark?: string
     removedAt?: Date
 }
 
-function Line({line, parties, day, reported = false, removedAt}: LineProps) {
+function Line(props: LineProps) {
+    const anchor = props.mark !== undefined
+    return (
+        <li className={anchor ? "line line-reported" : "line"} aria-current={anchor ? "true" : undefined}>
+            <LineBody {...props}/>
+        </li>
+    )
+}
+
+export function LineBody({line, parties, day, mark, removedAt}: LineProps) {
     const removed = removedAt ?? line.removedAt?.toDate()
     const party = partyOf(line.accountId, parties)
 
     return (
-        <li className={reported ? "line line-reported" : "line"} aria-current={reported ? "true" : undefined}>
+        <>
             <div className="line-head">
-                {reported && <span className="badge badge-report">Reported message</span>}
+                {mark !== undefined && <span className="badge badge-report">{mark}</span>}
                 <Author name={line.authorName} accountId={line.accountId}/>
                 {party !== undefined && <span className={`tag tag-${party}`}>{party}</span>}
                 <span className="muted">
@@ -182,13 +169,13 @@ function Line({line, parties, day, reported = false, removedAt}: LineProps) {
             </div>
             {line.replyTo !== undefined && <Quote quote={line.replyTo}/>}
             <p className={removed === undefined ? "line-text" : "line-text line-removed"}>{line.text}</p>
-            {removed !== undefined && !reported && <p className="hint">Removed at {timeOf(removed)}.</p>}
-        </li>
+            {removed !== undefined && mark === undefined && <p className="hint">Removed at {timeOf(removed)}.</p>}
+        </>
     )
 }
 
-function partyOf(accountId: string, parties: Parties): "reporter" | "reported" | undefined {
-    if (accountId === "") return undefined
+function partyOf(accountId: string, parties: Parties | undefined): "reporter" | "reported" | undefined {
+    if (accountId === "" || parties === undefined) return undefined
     if (accountId === parties.reported.accountId) return "reported"
     if (accountId === parties.reporter.accountId) return "reporter"
     return undefined

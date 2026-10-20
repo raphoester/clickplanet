@@ -830,6 +830,7 @@ type InspectPlayerResponse struct {
 	BannedUntil      *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
 	Offence          uint32                 `protobuf:"varint,5,opt,name=offence,proto3" json:"offence,omitempty"`
 	Flags            uint32                 `protobuf:"varint,6,opt,name=flags,proto3" json:"flags,omitempty"`
+	PardonedUntil    *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=pardoned_until,json=pardonedUntil,proto3" json:"pardoned_until,omitempty"`
 	Readings         []*WatchdogReading     `protobuf:"bytes,7,rep,name=readings,proto3" json:"readings,omitempty"`
 	Suspects         uint32                 `protobuf:"varint,8,opt,name=suspects,proto3" json:"suspects,omitempty"`
 	MinSuspects      uint32                 `protobuf:"varint,9,opt,name=min_suspects,json=minSuspects,proto3" json:"min_suspects,omitempty"`
@@ -921,6 +922,13 @@ func (x *InspectPlayerResponse) GetFlags() uint32 {
 		return x.Flags
 	}
 	return 0
+}
+
+func (x *InspectPlayerResponse) GetPardonedUntil() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PardonedUntil
+	}
+	return nil
 }
 
 func (x *InspectPlayerResponse) GetReadings() []*WatchdogReading {
@@ -1604,6 +1612,7 @@ type UnbanPlayerResponse struct {
 	AccountId     string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Offence       uint32                 `protobuf:"varint,3,opt,name=offence,proto3" json:"offence,omitempty"`
 	BannedUntil   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=banned_until,json=bannedUntil,proto3" json:"banned_until,omitempty"`
+	PardonedUntil *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=pardoned_until,json=pardonedUntil,proto3" json:"pardoned_until,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1662,6 +1671,13 @@ func (x *UnbanPlayerResponse) GetOffence() uint32 {
 func (x *UnbanPlayerResponse) GetBannedUntil() *timestamppb.Timestamp {
 	if x != nil {
 		return x.BannedUntil
+	}
+	return nil
+}
+
+func (x *UnbanPlayerResponse) GetPardonedUntil() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PardonedUntil
 	}
 	return nil
 }
@@ -2004,7 +2020,7 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x14InspectPlayerRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x02 \x01(\tR\taccountId\"\xca\x05\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\"\x8d\x06\n" +
 	"\x15InspectPlayerResponse\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
@@ -2013,7 +2029,8 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x06banned\x18\x03 \x01(\bH\x01R\x06banned\x88\x01\x01\x12=\n" +
 	"\fbanned_until\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vbannedUntil\x12\x18\n" +
 	"\aoffence\x18\x05 \x01(\rR\aoffence\x12\x14\n" +
-	"\x05flags\x18\x06 \x01(\rR\x05flags\x126\n" +
+	"\x05flags\x18\x06 \x01(\rR\x05flags\x12A\n" +
+	"\x0epardoned_until\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\rpardonedUntil\x126\n" +
 	"\breadings\x18\a \x03(\v2\x1a.planet.v1.WatchdogReadingR\breadings\x12\x1a\n" +
 	"\bsuspects\x18\b \x01(\rR\bsuspects\x12!\n" +
 	"\fmin_suspects\x18\t \x01(\rR\vminSuspects\x12\x1b\n" +
@@ -2082,13 +2099,14 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\x12UnbanPlayerRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x02 \x01(\tR\taccountId\"\xa3\x01\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\"\xe6\x01\n" +
 	"\x13UnbanPlayerResponse\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\tR\taccountId\x12\x18\n" +
 	"\aoffence\x18\x03 \x01(\rR\aoffence\x12=\n" +
-	"\fbanned_until\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vbannedUntil\"c\n" +
+	"\fbanned_until\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vbannedUntil\x12A\n" +
+	"\x0epardoned_until\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\rpardonedUntil\"c\n" +
 	"\x13RevertPlayerRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
@@ -2193,49 +2211,51 @@ var file_planet_v1_admin_proto_depIdxs = []int32{
 	30, // 11: planet.v1.GrantChargesResponse.before:type_name -> planet.v1.ChargesHeld
 	30, // 12: planet.v1.GrantChargesResponse.after:type_name -> planet.v1.ChargesHeld
 	27, // 13: planet.v1.InspectPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	13, // 14: planet.v1.InspectPlayerResponse.readings:type_name -> planet.v1.WatchdogReading
-	31, // 15: planet.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
-	31, // 16: planet.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
-	27, // 17: planet.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
-	27, // 18: planet.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
-	18, // 19: planet.v1.FindPlayersResponse.players:type_name -> planet.v1.Player
-	18, // 20: planet.v1.TopPlayersResponse.players:type_name -> planet.v1.Player
-	27, // 21: planet.v1.Player.first_at:type_name -> google.protobuf.Timestamp
-	27, // 22: planet.v1.Player.last_at:type_name -> google.protobuf.Timestamp
-	27, // 23: planet.v1.Player.banned_until:type_name -> google.protobuf.Timestamp
-	31, // 24: planet.v1.Player.active_for:type_name -> google.protobuf.Duration
-	31, // 25: planet.v1.BanPlayerRequest.duration:type_name -> google.protobuf.Duration
-	27, // 26: planet.v1.BanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	27, // 27: planet.v1.UnbanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
-	25, // 28: planet.v1.AdminService.ReassignCountry:input_type -> planet.v1.ReassignCountryRequest
-	14, // 29: planet.v1.AdminService.FindPlayers:input_type -> planet.v1.FindPlayersRequest
-	16, // 30: planet.v1.AdminService.TopPlayers:input_type -> planet.v1.TopPlayersRequest
-	19, // 31: planet.v1.AdminService.BanPlayer:input_type -> planet.v1.BanPlayerRequest
-	21, // 32: planet.v1.AdminService.UnbanPlayer:input_type -> planet.v1.UnbanPlayerRequest
-	23, // 33: planet.v1.AdminService.RevertPlayer:input_type -> planet.v1.RevertPlayerRequest
-	9,  // 34: planet.v1.AdminService.PaintRandomTiles:input_type -> planet.v1.PaintRandomTilesRequest
-	11, // 35: planet.v1.AdminService.InspectPlayer:input_type -> planet.v1.InspectPlayerRequest
-	7,  // 36: planet.v1.AdminService.GrantCharges:input_type -> planet.v1.GrantChargesRequest
-	4,  // 37: planet.v1.AdminService.GetReplay:input_type -> planet.v1.GetReplayRequest
-	0,  // 38: planet.v1.AdminService.RestoreArea:input_type -> planet.v1.RestoreAreaRequest
-	2,  // 39: planet.v1.AdminService.ClearArea:input_type -> planet.v1.ClearAreaRequest
-	26, // 40: planet.v1.AdminService.ReassignCountry:output_type -> planet.v1.ReassignCountryResponse
-	15, // 41: planet.v1.AdminService.FindPlayers:output_type -> planet.v1.FindPlayersResponse
-	17, // 42: planet.v1.AdminService.TopPlayers:output_type -> planet.v1.TopPlayersResponse
-	20, // 43: planet.v1.AdminService.BanPlayer:output_type -> planet.v1.BanPlayerResponse
-	22, // 44: planet.v1.AdminService.UnbanPlayer:output_type -> planet.v1.UnbanPlayerResponse
-	24, // 45: planet.v1.AdminService.RevertPlayer:output_type -> planet.v1.RevertPlayerResponse
-	10, // 46: planet.v1.AdminService.PaintRandomTiles:output_type -> planet.v1.PaintRandomTilesResponse
-	12, // 47: planet.v1.AdminService.InspectPlayer:output_type -> planet.v1.InspectPlayerResponse
-	8,  // 48: planet.v1.AdminService.GrantCharges:output_type -> planet.v1.GrantChargesResponse
-	5,  // 49: planet.v1.AdminService.GetReplay:output_type -> planet.v1.GetReplayResponse
-	1,  // 50: planet.v1.AdminService.RestoreArea:output_type -> planet.v1.RestoreAreaResponse
-	3,  // 51: planet.v1.AdminService.ClearArea:output_type -> planet.v1.ClearAreaResponse
-	40, // [40:52] is the sub-list for method output_type
-	28, // [28:40] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	27, // 14: planet.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
+	13, // 15: planet.v1.InspectPlayerResponse.readings:type_name -> planet.v1.WatchdogReading
+	31, // 16: planet.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
+	31, // 17: planet.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
+	27, // 18: planet.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
+	27, // 19: planet.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
+	18, // 20: planet.v1.FindPlayersResponse.players:type_name -> planet.v1.Player
+	18, // 21: planet.v1.TopPlayersResponse.players:type_name -> planet.v1.Player
+	27, // 22: planet.v1.Player.first_at:type_name -> google.protobuf.Timestamp
+	27, // 23: planet.v1.Player.last_at:type_name -> google.protobuf.Timestamp
+	27, // 24: planet.v1.Player.banned_until:type_name -> google.protobuf.Timestamp
+	31, // 25: planet.v1.Player.active_for:type_name -> google.protobuf.Duration
+	31, // 26: planet.v1.BanPlayerRequest.duration:type_name -> google.protobuf.Duration
+	27, // 27: planet.v1.BanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	27, // 28: planet.v1.UnbanPlayerResponse.banned_until:type_name -> google.protobuf.Timestamp
+	27, // 29: planet.v1.UnbanPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
+	25, // 30: planet.v1.AdminService.ReassignCountry:input_type -> planet.v1.ReassignCountryRequest
+	14, // 31: planet.v1.AdminService.FindPlayers:input_type -> planet.v1.FindPlayersRequest
+	16, // 32: planet.v1.AdminService.TopPlayers:input_type -> planet.v1.TopPlayersRequest
+	19, // 33: planet.v1.AdminService.BanPlayer:input_type -> planet.v1.BanPlayerRequest
+	21, // 34: planet.v1.AdminService.UnbanPlayer:input_type -> planet.v1.UnbanPlayerRequest
+	23, // 35: planet.v1.AdminService.RevertPlayer:input_type -> planet.v1.RevertPlayerRequest
+	9,  // 36: planet.v1.AdminService.PaintRandomTiles:input_type -> planet.v1.PaintRandomTilesRequest
+	11, // 37: planet.v1.AdminService.InspectPlayer:input_type -> planet.v1.InspectPlayerRequest
+	7,  // 38: planet.v1.AdminService.GrantCharges:input_type -> planet.v1.GrantChargesRequest
+	4,  // 39: planet.v1.AdminService.GetReplay:input_type -> planet.v1.GetReplayRequest
+	0,  // 40: planet.v1.AdminService.RestoreArea:input_type -> planet.v1.RestoreAreaRequest
+	2,  // 41: planet.v1.AdminService.ClearArea:input_type -> planet.v1.ClearAreaRequest
+	26, // 42: planet.v1.AdminService.ReassignCountry:output_type -> planet.v1.ReassignCountryResponse
+	15, // 43: planet.v1.AdminService.FindPlayers:output_type -> planet.v1.FindPlayersResponse
+	17, // 44: planet.v1.AdminService.TopPlayers:output_type -> planet.v1.TopPlayersResponse
+	20, // 45: planet.v1.AdminService.BanPlayer:output_type -> planet.v1.BanPlayerResponse
+	22, // 46: planet.v1.AdminService.UnbanPlayer:output_type -> planet.v1.UnbanPlayerResponse
+	24, // 47: planet.v1.AdminService.RevertPlayer:output_type -> planet.v1.RevertPlayerResponse
+	10, // 48: planet.v1.AdminService.PaintRandomTiles:output_type -> planet.v1.PaintRandomTilesResponse
+	12, // 49: planet.v1.AdminService.InspectPlayer:output_type -> planet.v1.InspectPlayerResponse
+	8,  // 50: planet.v1.AdminService.GrantCharges:output_type -> planet.v1.GrantChargesResponse
+	5,  // 51: planet.v1.AdminService.GetReplay:output_type -> planet.v1.GetReplayResponse
+	1,  // 52: planet.v1.AdminService.RestoreArea:output_type -> planet.v1.RestoreAreaResponse
+	3,  // 53: planet.v1.AdminService.ClearArea:output_type -> planet.v1.ClearAreaResponse
+	42, // [42:54] is the sub-list for method output_type
+	30, // [30:42] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_admin_proto_init() }

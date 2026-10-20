@@ -15,6 +15,7 @@ import {
 } from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    BanRefusal,
     BombDropped,
     BonusKind,
     BonusOffered,
@@ -34,7 +35,7 @@ import {
     TilesSpread,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {BankFullError, BonusLostError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
+import {BankFullError, BannedError, BonusLostError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
@@ -372,6 +373,21 @@ describe("PlanetBackend.clickTile", () => {
         await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(VPNBlockedError)
         await expect(backend.clickTile(1, "fr")).rejects.not.toBeInstanceOf(RateLimitedError)
         expect(click).toHaveBeenCalledTimes(2)
+        backend.close()
+    })
+
+    it("reports a ban as a BannedError with its end, never as the VPN", async () => {
+        const until = 1_700_003_600_000
+        const refused = new ConnectError("the caller is banned", Code.PermissionDenied, undefined,
+            [new BanRefusal({bannedUntilUnixMs: BigInt(until)})])
+        const click = vi.fn().mockRejectedValue(refused)
+        const backend = backendWith(click)
+
+        const error = await backend.clickTile(1, "fr").catch((e: unknown) => e)
+
+        expect(error).toBeInstanceOf(BannedError)
+        expect(error).toMatchObject({until, cause: refused})
+        expect(click).toHaveBeenCalledTimes(1)
         backend.close()
     })
 
@@ -997,6 +1013,15 @@ describe("PlanetBackend bombs", () => {
         backend.close()
     })
 
+    it("reports a bomb refused for a ban as a BannedError", async () => {
+        const dropBomb = vi.fn().mockRejectedValue(new ConnectError("the caller is banned", Code.PermissionDenied, undefined,
+            [new BanRefusal({bannedUntilUnixMs: BigInt(1_700_003_600_000)})]))
+        const backend = new PlanetBackend(clientWith({dropBomb}), 1_000)
+
+        await expect(backend.dropBomb({x: 1, y: 0, z: 0}, "fr")).rejects.toBeInstanceOf(BannedError)
+        backend.close()
+    })
+
     it("hands over the tile updates that came before a blast, before the blast", async () => {
         const events = [
             tileUpdateEvent({tileId: 7, countryId: "jp"}),
@@ -1235,6 +1260,15 @@ describe("asBonusError", () => {
     it("keeps a session failure as one, since that is the player's clicks stopping too", () => {
         expect(asBonusError(new ConnectError("no", Code.Unauthenticated)))
             .toBeInstanceOf(SessionUnavailableError)
+    })
+
+    it("reads a ban on a bomb or a shield, and leaves any other denial alone", () => {
+        const banned = new ConnectError("the caller is banned", Code.PermissionDenied, undefined,
+            [new BanRefusal({bannedUntilUnixMs: BigInt(1_700_003_600_000)})])
+        expect(asBonusError(banned)).toMatchObject({until: 1_700_003_600_000})
+
+        const denied = new ConnectError("no", Code.PermissionDenied)
+        expect(asBonusError(denied)).toBe(denied)
     })
 
     it("leaves anything else alone", () => {

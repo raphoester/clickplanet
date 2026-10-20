@@ -144,6 +144,15 @@ note and keeps its text).
   the oldest or the newest message shown. A page shorter than asked is the end, and its button goes. The reported
   message shows while they load, marked ("Reported message", `aria-current`), and stays shown if they fail.
   `GetMessage` names no author, so its line takes the name the report gives its account.
+- **What the reported account said, in its conversations** (`TheirMessages`, "What Ana said"), for every report: a
+  report from a player's card names no message, and one line cannot be judged alone. `ListMessages` with the
+  account's id reads its messages, 20 at a time (`THEIR_PAGE`), then `moreConversations` (`theirConversations.ts`)
+  reads the whole chat around each, `AROUND` (5) messages each side, and shows them at once, newest first, three at a
+  time (`CONVERSATIONS`), "Show more conversations" for the next. **One of their messages a conversation already holds
+  gets none of its own, and a conversation that reaches the next one joins it**, so an exchange of three insults is
+  one conversation, read with two calls. Their lines are marked (`line-theirs`) and tagged `reported`, the reporter's
+  `reporter`. Each conversation grows with "Show earlier" and "Show later". Nothing kept is "Nothing they said in the
+  chat is kept."
 - **Each line** has its author's name as the chat names it now, its country and its time (with the date when it
   is not the reported message's day), what it answers ("In reply to …"), and is struck through with when it was
   removed. **What the reporter and the reported account said is tagged** `reporter` and `reported`, by account
@@ -209,10 +218,10 @@ address over IPv4, the /64 over IPv6) and checks.
   heading is its flag and its name: the name the profile answers, which is the name it holds now, over the one the
   page that opened it knew; the flag of its row, or else the country it took the most tiles for. `not_found` is an
   account the game keeps nothing about. An address has no profile, and is not asked.
-- **The page inspects on open** (`InspectPlayer`): the antibot's readings, its ban and its clicks. The antibot off
+- **The page inspects on open** (`InspectPlayer`): the antibot's readings, its ban, its pardon and its clicks. The antibot off
   reads as such, not as a failure. A ban or an unban reads it again.
 - **The tools**: ban (`BanPlayer`, the ladder's next step by default), unban (`UnbanPlayer`, which forgets the
-  latest offence; `not_found` is no ban left), revert (`RevertPlayer`, dry run first), and for an account alone
+  latest offence and pardons the key, and says until when; `not_found` is no ban left), revert (`RevertPlayer`, dry run first), and for an account alone
   mute (`Mute`) and charges (`GrantCharges`: a refill, a bomb, enclosures, spread clicks, shields; the answer
   says what the account held before and after, since the caps hold).
 
@@ -280,7 +289,8 @@ src/
   components/       Menu, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
                     Fact, Person, When
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
-  reports/          Reports: list, detail, the report's own actions
+  reports/          Reports: list, detail, the report's own actions, Conversation and TheirMessages over
+                    chatPages.ts (a page of ListMessages, the parties a report names) and theirConversations.ts
   players/          Players: list, PlayerName, PlayerView, ProfilePanel, the tools on one player, actions.ts
   map/              Reassign a country, Paint random tiles, Download a replay
   ops/              Reconcile titles

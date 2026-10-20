@@ -1,4 +1,4 @@
-package shadowban_test
+package bans_test
 
 import (
 	"testing"
@@ -6,22 +6,22 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 )
 
 type banner struct {
 	t     *testing.T
-	inner *shadowban.Banner
+	inner *bans.Banner
 }
 
-func (b banner) Flag(scope string) (shadowban.Sentence, bool) {
+func (b banner) Flag(scope string) (bans.Sentence, bool) {
 	b.t.Helper()
 	sentence, accepted, err := b.inner.Flag(b.t.Context(), scope)
 	require.NoError(b.t, err)
 	return sentence, accepted
 }
 
-func (b banner) Ban(scope string, duration time.Duration) shadowban.Sentence {
+func (b banner) Ban(scope string, duration time.Duration) bans.Sentence {
 	b.t.Helper()
 	sentence, err := b.inner.Ban(b.t.Context(), scope, duration)
 	require.NoError(b.t, err)
@@ -33,23 +33,30 @@ func (b banner) Unban(scope string) {
 	require.NoError(b.t, b.inner.Unban(b.t.Context(), scope))
 }
 
-func (b banner) Sentence(scope string) (shadowban.Sentence, bool) {
+func (b banner) Sentence(scope string) (bans.Sentence, bool) {
 	b.t.Helper()
 	sentence, running, err := b.inner.Sentence(b.t.Context(), scope)
 	require.NoError(b.t, err)
 	return sentence, running
 }
 
-func (b banner) LastSentence(scope string) (shadowban.Sentence, bool) {
+func (b banner) LastSentence(scope string) (bans.Sentence, bool) {
 	b.t.Helper()
 	sentence, found, err := b.inner.LastSentence(b.t.Context(), scope)
 	require.NoError(b.t, err)
 	return sentence, found
 }
 
+func (b banner) Pardon(scope string) (bans.Pardon, bool) {
+	b.t.Helper()
+	pardon, found, err := b.inner.Pardon(b.t.Context(), scope)
+	require.NoError(b.t, err)
+	return pardon, found
+}
+
 func (b banner) Banned(scope string) bool {
 	b.t.Helper()
-	banned, err := b.inner.Banned(b.t.Context(), scope)
+	_, banned, err := b.inner.EnforcedSentence(b.t.Context(), scope)
 	require.NoError(b.t, err)
 	return banned
 }
@@ -63,52 +70,66 @@ func (b banner) Flagged() int {
 
 func (b banner) Enforcing() bool { return b.inner.Enforcing() }
 
-type bans struct {
+type book struct {
 	t     *testing.T
-	inner *shadowban.Bans
+	inner *bans.Book
 }
 
-func (b bans) Flag(caller shadowban.Caller) (shadowban.Sentence, bool) {
+func (b book) Flag(caller bans.Caller) (bans.Sentence, bool) {
 	b.t.Helper()
 	sentence, accepted, err := b.inner.Flag(b.t.Context(), caller)
 	require.NoError(b.t, err)
 	return sentence, accepted
 }
 
-func (b bans) Ban(caller shadowban.Caller, duration time.Duration) shadowban.Sentence {
+func (b book) Ban(caller bans.Caller, duration time.Duration) bans.Sentence {
 	b.t.Helper()
 	sentence, err := b.inner.Ban(b.t.Context(), caller, duration)
 	require.NoError(b.t, err)
 	return sentence
 }
 
-func (b bans) Unban(caller shadowban.Caller) {
+func (b book) Unban(caller bans.Caller) {
 	b.t.Helper()
 	require.NoError(b.t, b.inner.Unban(b.t.Context(), caller))
 }
 
-func (b bans) Sentence(caller shadowban.Caller) (shadowban.Sentence, bool) {
+func (b book) Sentence(caller bans.Caller) (bans.Sentence, bool) {
 	b.t.Helper()
 	sentence, running, err := b.inner.Sentence(b.t.Context(), caller)
 	require.NoError(b.t, err)
 	return sentence, running
 }
 
-func (b bans) LastSentence(caller shadowban.Caller) (shadowban.Sentence, bool) {
+func (b book) LastSentence(caller bans.Caller) (bans.Sentence, bool) {
 	b.t.Helper()
 	sentence, found, err := b.inner.LastSentence(b.t.Context(), caller)
 	require.NoError(b.t, err)
 	return sentence, found
 }
 
-func (b bans) Banned(caller shadowban.Caller) bool {
+func (b book) Pardoned(caller bans.Caller) bool {
 	b.t.Helper()
-	banned, err := b.inner.Banned(b.t.Context(), caller)
+	pardoned, err := b.inner.Pardoned(b.t.Context(), caller)
+	require.NoError(b.t, err)
+	return pardoned
+}
+
+func (b book) Pardon(caller bans.Caller) (bans.Pardon, bool) {
+	b.t.Helper()
+	pardon, found, err := b.inner.Pardon(b.t.Context(), caller)
+	require.NoError(b.t, err)
+	return pardon, found
+}
+
+func (b book) Banned(caller bans.Caller) bool {
+	b.t.Helper()
+	_, banned, err := b.inner.EnforcedSentence(b.t.Context(), caller)
 	require.NoError(b.t, err)
 	return banned
 }
 
-func (b bans) Flagged() int {
+func (b book) Flagged() int {
 	b.t.Helper()
 	flagged, err := b.inner.Flagged(b.t.Context())
 	require.NoError(b.t, err)

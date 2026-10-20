@@ -67,7 +67,7 @@ describe("unban", () => {
     it("lifts the latest ban and says which", async () => {
         const admin = new FakeAdmin()
 
-        expect(await unban(admin, scope)).toEqual({offence: 2, until: AT})
+        expect(await unban(admin, scope)).toEqual({offence: 2, until: AT, pardonedUntil: AT})
         expect(admin.askedFor("unbanPlayer")).toEqual([{scope: "203.0.113.7"}])
     })
 
