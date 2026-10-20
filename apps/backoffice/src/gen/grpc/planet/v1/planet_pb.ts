@@ -83,6 +83,123 @@ proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
 ]);
 
 /**
+ * @generated from message planet.v1.GetAllegianceRequest
+ */
+export class GetAllegianceRequest extends Message<GetAllegianceRequest> {
+  constructor(data?: PartialMessage<GetAllegianceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetAllegianceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAllegianceRequest {
+    return new GetAllegianceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAllegianceRequest {
+    return new GetAllegianceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAllegianceRequest {
+    return new GetAllegianceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAllegianceRequest | PlainMessage<GetAllegianceRequest> | undefined, b: GetAllegianceRequest | PlainMessage<GetAllegianceRequest> | undefined): boolean {
+    return proto3.util.equals(GetAllegianceRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetAllegianceResponse
+ */
+export class GetAllegianceResponse extends Message<GetAllegianceResponse> {
+  /**
+   * Unset for an account that never acted for a flag.
+   *
+   * @generated from field: planet.v1.Allegiance allegiance = 1;
+   */
+  allegiance?: Allegiance;
+
+  constructor(data?: PartialMessage<GetAllegianceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetAllegianceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "allegiance", kind: "message", T: Allegiance },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetAllegianceResponse {
+    return new GetAllegianceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetAllegianceResponse {
+    return new GetAllegianceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetAllegianceResponse {
+    return new GetAllegianceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetAllegianceResponse | PlainMessage<GetAllegianceResponse> | undefined, b: GetAllegianceResponse | PlainMessage<GetAllegianceResponse> | undefined): boolean {
+    return proto3.util.equals(GetAllegianceResponse, a, b);
+  }
+}
+
+/**
+ * Also the detail of a click or a shield refused for another flag.
+ *
+ * @generated from message planet.v1.Allegiance
+ */
+export class Allegiance extends Message<Allegiance> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * When another flag may be played: 0 for a flag never changed.
+   *
+   * @generated from field: int64 changeable_at_unix_ms = 2;
+   */
+  changeableAtUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<Allegiance>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.Allegiance";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "changeable_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Allegiance {
+    return new Allegiance().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Allegiance {
+    return new Allegiance().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Allegiance {
+    return new Allegiance().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Allegiance | PlainMessage<Allegiance> | undefined, b: Allegiance | PlainMessage<Allegiance> | undefined): boolean {
+    return proto3.util.equals(Allegiance, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.ClickBudget
  */
 export class ClickBudget extends Message<ClickBudget> {
