@@ -260,6 +260,45 @@ export class ClickResponse extends Message<ClickResponse> {
 }
 
 /**
+ * The detail of a PermissionDenied that Click, DropBomb and PlaceShield answer a banned caller.
+ *
+ * @generated from message planet.v1.BanRefusal
+ */
+export class BanRefusal extends Message<BanRefusal> {
+  /**
+   * @generated from field: int64 banned_until_unix_ms = 1;
+   */
+  bannedUntilUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<BanRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BanRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "banned_until_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BanRefusal {
+    return new BanRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BanRefusal {
+    return new BanRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BanRefusal {
+    return new BanRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BanRefusal | PlainMessage<BanRefusal> | undefined, b: BanRefusal | PlainMessage<BanRefusal> | undefined): boolean {
+    return proto3.util.equals(BanRefusal, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.GetBudgetRequest
  */
 export class GetBudgetRequest extends Message<GetBudgetRequest> {

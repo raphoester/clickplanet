@@ -64,6 +64,7 @@ func encode(out antibot.Examination) *planetv1.InspectPlayerResponse {
 		BannedUntil:      timestampOrNil(out.BannedUntil),
 		Offence:          uint32(out.Offence), //nolint:gosec // an offence count, never negative.
 		Flags:            uint32(out.Flags),   //nolint:gosec // a flag count, never negative.
+		PardonedUntil:    timestampOrNil(out.PardonedUntil),
 		Readings:         readings,
 		Suspects:         uint32(out.Suspects),    //nolint:gosec // bounded by the watchdogs.
 		MinSuspects:      uint32(out.MinSuspects), //nolint:gosec // defaulted to at least one.

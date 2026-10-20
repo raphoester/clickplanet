@@ -1,4 +1,4 @@
-package shadowban_test
+package bans_test
 
 import (
 	"errors"
@@ -8,12 +8,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 )
 
 func TestTheBansAreTheStoresAndNotTheBanners(t *testing.T) {
 	clock := newClock()
-	store := shadowban.NewMemoryStore()
+	store := bans.NewMemoryStore()
 
 	before := bannerOver(t, config(), clock, store)
 	before.Flag("repeat")
@@ -39,7 +39,7 @@ func TestTheBansAreTheStoresAndNotTheBanners(t *testing.T) {
 
 func TestTheReflagIntervalIsKeptInTheStore(t *testing.T) {
 	clock := newClock()
-	store := shadowban.NewMemoryStore()
+	store := bans.NewMemoryStore()
 
 	bannerOver(t, config(), clock, store).Flag("bot")
 
@@ -54,7 +54,7 @@ func TestTheReflagIntervalIsKeptInTheStore(t *testing.T) {
 
 func TestABanInTheStoreIsRunning(t *testing.T) {
 	clock := newClock()
-	store := shadowban.NewMemoryStore(shadowban.Record{Key: "kept", Flags: 1, Offences: 1, ExpiresAt: clock.Now().Add(time.Hour)})
+	store := bans.NewMemoryStore(bans.Record{Key: "kept", Flags: 1, Offences: 1, ExpiresAt: clock.Now().Add(time.Hour)})
 
 	banner := bannerOver(t, config(), clock, store)
 
@@ -64,10 +64,10 @@ func TestABanInTheStoreIsRunning(t *testing.T) {
 }
 
 func TestAFailingStoreIsAnError(t *testing.T) {
-	store := shadowban.NewMemoryStore()
+	store := bans.NewMemoryStore()
 	cause := errors.New("postgres is down")
 	store.FailWith(cause)
-	banner := shadowban.New(config(), newClock(), store)
+	banner := bans.New(config(), pardon, newClock(), store)
 	ctx := t.Context()
 
 	_, _, err := banner.Flag(ctx, "bot")
@@ -77,19 +77,19 @@ func TestAFailingStoreIsAnError(t *testing.T) {
 	require.ErrorIs(t, banner.Unban(ctx, "bot"), cause)
 	_, _, err = banner.Sentence(ctx, "bot")
 	require.ErrorIs(t, err, cause)
-	_, err = banner.Banned(ctx, "bot")
+	_, _, err = banner.EnforcedSentence(ctx, "bot")
 	require.ErrorIs(t, err, cause)
 	_, err = banner.Flagged(ctx)
 	require.ErrorIs(t, err, cause)
 }
 
 func TestWithEnforceOffBannedReadsNothing(t *testing.T) {
-	store := shadowban.NewMemoryStore()
+	store := bans.NewMemoryStore()
 	store.FailWith(errors.New("postgres is down"))
 	c := config()
 	c.Enforce = false
 
-	banned, err := shadowban.New(c, newClock(), store).Banned(t.Context(), "bot")
+	_, banned, err := bans.New(c, pardon, newClock(), store).EnforcedSentence(t.Context(), "bot")
 
 	require.NoError(t, err)
 	assert.False(t, banned)
@@ -97,7 +97,7 @@ func TestWithEnforceOffBannedReadsNothing(t *testing.T) {
 
 func TestAnUnbanIsKeptInTheStore(t *testing.T) {
 	clock := newClock()
-	store := shadowban.NewMemoryStore()
+	store := bans.NewMemoryStore()
 	flaggedAt := clock.Now()
 
 	before := bannerOver(t, config(), clock, store)
@@ -105,13 +105,21 @@ func TestAnUnbanIsKeptInTheStore(t *testing.T) {
 	clock.Advance(10 * time.Minute)
 	before.Unban("player")
 
-	assert.Equal(t, shadowban.Record{
+	assert.Equal(t, bans.Record{
 		Key: "player", Flags: 1, ExpiresAt: clock.Now(), LastFlaggedAt: flaggedAt,
+		Pardon: bans.Pardon{
+			At:     clock.Now(),
+			Lifted: bans.Sentence{Flags: 1, Offence: 1, Until: flaggedAt.Add(time.Hour)},
+			Until:  clock.Now().Add(pardon),
+		},
 	}, store.Stored()["player"])
 
 	after := bannerOver(t, config(), clock, store)
 	assert.False(t, after.Banned("player"))
+	_, accepted := after.Flag("player")
+	assert.False(t, accepted, "the pardon is in the store, not in the banner")
 
+	clock.Advance(pardon)
 	sentence, accepted := after.Flag("player")
 	require.True(t, accepted)
 	assert.Equal(t, 1, sentence.Offence)

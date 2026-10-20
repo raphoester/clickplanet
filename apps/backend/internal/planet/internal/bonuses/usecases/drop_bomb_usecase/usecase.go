@@ -31,8 +31,6 @@ type CountryChecker interface {
 type In struct {
 	Target    clicks.Vec3
 	CountryID string
-
-	Dud bool
 }
 
 func New(bombs Bombs, geography Map, clearer Clearer, countries CountryChecker, rules bonuses.BombRules) *UseCase {
@@ -65,10 +63,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) (clicks.Blast, error) {
 
 	if !u.bombs.SpendBomb(bonuses.HolderOf(clicks.PayerOf(ctx))) {
 		return clicks.Blast{}, ErrNoBomb
-	}
-
-	if in.Dud {
-		return clicks.Blast{}, nil
 	}
 
 	blast, err := u.clearer.Clear(ctx, u.rules.Blast(in.CountryID, in.Target, tile, arc, u.geography))

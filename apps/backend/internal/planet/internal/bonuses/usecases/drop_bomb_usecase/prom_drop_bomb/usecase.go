@@ -2,6 +2,7 @@ package prom_drop_bomb
 
 import (
 	"context"
+	"errors"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -18,7 +19,7 @@ func New(implementation UseCase, registerer prometheus.Registerer) *Decorator {
 
 	drops := factory.NewCounterVec(prometheus.CounterOpts{
 		Name: "bonus_bombs_dropped_total",
-		Help: "Bomb drops, by outcome: land, sea, refused or shadowbanned",
+		Help: "Bomb drops, by outcome: land, sea, banned or refused",
 	}, []string{"outcome"})
 
 	cleared := factory.NewCounter(prometheus.CounterOpts{
@@ -39,10 +40,10 @@ func (d *Decorator) Execute(ctx context.Context, in drop_bomb_usecase.In) (click
 	blast, err := d.implementation.Execute(ctx, in)
 
 	switch {
+	case errors.Is(err, clicks.ErrBanned):
+		d.drops.WithLabelValues("banned").Inc()
 	case err != nil:
 		d.drops.WithLabelValues("refused").Inc()
-	case in.Dud:
-		d.drops.WithLabelValues("shadowbanned").Inc()
 	case blast.Tile == 0:
 		d.drops.WithLabelValues("sea").Inc()
 	default:

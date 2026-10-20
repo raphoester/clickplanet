@@ -110,7 +110,7 @@ root package**:
 | `player` | `Config`, `NewModule` |
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
-| `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Examination`, `Reading` |
+| `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Pardon`, `Examination`, `Reading` |
 | `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Pick`, `Platform`, `PlatformsOf`, `Report`, `PlatformOutcome` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
@@ -315,7 +315,7 @@ The events today:
 | event | published by | when | heard by |
 |---|---|---|---|
 | `planet.v1.TileTaken{account_id, tile_id, country, taken_at}` | `planet`, `ledger/publishing_ledger_storage` | each take the ledger records with an account: a click, a spread or an enclose, one event per tile | `player`, for the stats; `seasons`, for the standings |
-| `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop and a dud publish nothing | `chat`, which announces it |
+| `planet.v1.BombLanded{country, tile_id, ground, cleared, landed_at}` | `planet`, `drop_bomb_usecase/publishing_drop_bomb` | each bomb that went off, on land or in the sea; a refused drop publishes nothing | `chat`, which announces it |
 | `planet.v1.Fortified{country, landmass_id, tiles, ground, fortified_at}` | `planet`, `relay_fortifications_usecase` | each landmass a player's take fortified (see [Fortify](#fortify)) | `chat`, which announces the ones of 50 tiles or more |
 | `auth.v1.AccountDeleted{account_id}` | `auth`, `delete_account_usecase` and `prune_guests_usecase` | after the account row is deleted; a pruned guest is a deleted account | `player`, which forgets the profile, the stats, the titles, the title worn and the visit; `seasons`, which forgets the account's standings; `planet`, which takes the account off every take postgres keeps; `chat`, which forgets the seen mark; `support`, which takes the account off the notes it sent and the places it reported, and deletes the reports that name it |
 | `auth.v1.SignedIn{previous_account_id, account_id}` | `auth`, `signin.Admitter`, for `complete_sign_in_usecase` and `complete_email_sign_in_usecase` | after a sign-in or a link is saved; `previous_account_id` is empty for a browser that had no live session | `player`, which moves the browser's visit to the account, and gives the account a username when it has none |
@@ -413,8 +413,8 @@ because it serves every concept over one Connect service. It only maps.
 | `clicks/usecases/paint_random_tiles_usecase` | paints random tiles with a flag, starting on one country's ground or anywhere | `Borders`, `Neighbours`, `Map`, `CountryChecker` |
 | `ledger/usecases/find_players_usecase` | who is painting a flag, and where | `Ledger`, `Owners`, `Borders`, `Bans` |
 | `ledger/usecases/top_players_usecase` | who takes the most tiles, every flag | `Ledger`, `Owners`, `Bans` |
-| `ledger/usecases/ban_player_usecase` | the operator's shadow ban | `Banner` |
-| `ledger/usecases/unban_player_usecase` | lifts a running ban and forgets its offence | `Unbanner` |
+| `ledger/usecases/ban_player_usecase` | the operator's ban | `Banner` |
+| `ledger/usecases/unban_player_usecase` | lifts a running ban, forgets its offence and pardons the caller | `Unbanner` |
 | `ledger/usecases/inspect_player_usecase` | what the antibot holds on one caller | `Examiner` |
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
 | `ledger/usecases/anonymize_takes_usecase` | flushes the ledger, then takes a deleted account off every take postgres keeps | `Ledger`, `Takes` |
@@ -727,9 +727,10 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
       [cpsessionverifier: the key from auth.v1.InternalService, asked once per boot
        then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
-  → antibot_attempt_click (times every try for the metronome; drops nothing)
+  → ban_click       (a banned caller is PermissionDenied, with a BanRefusal: when the ban ends)
+  → antibot_attempt_click (times every try for the metronome; refuses nothing)
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
-  → antibot_click   (judges; a flagged caller is answered OK and dropped)
+  → antibot_click   (judges, and flags a caller it finds guilty; refuses nothing)
   → prom_click      (counts)
   → clicks/usecases/click_usecase (validates tile ID + country)
   → ledger.Recording.Click() [records a take or a strike]
@@ -814,16 +815,15 @@ to the jury.
   `FailedPrecondition` and spend nothing; no shield held is `NotFound`; an unknown
   country or tile is `InvalidArgument`. A placement the tile refuses after the
   charge was spent (it changed hands in between) gives the shield back. It is
-  session-gated like `DropBomb` and not throttled. `antibot_place_shield` makes a
-  banned caller's a `Dud`: the shield is spent, nothing is placed, and it is
-  answered OK. The answer is the charges left.
+  session-gated like `DropBomb` and not throttled. `antibot_place_shield` refuses a
+  banned caller before anything is spent, as `ban_click` does a click (see
+  [A ban is told](#a-ban-is-told)). The answer is the charges left.
 - **Kept with the tile**: `planet.tiles.shields`, written by the flush that writes
   the owner.
-- **`click_usecase.Out.Outcome`** says what the rule did, for the decorators inside
-  the shadow ban: `enclose_click` closes a shape only with `Taken`, and `prom_click`
+- **`click_usecase.Out.Outcome`** says what the rule did, for the decorators around
+  it: `enclose_click` closes a shape only with `Taken`, and `prom_click`
   counts `clicks_shielded_total{country_id}` by the flag clicked. **It never reaches
-  the wire**: a dropped click answers the zero `Out`, which reads `Unchanged`. The
-  client predicts it from the shields it holds.
+  the wire**. The client predicts it from the shields it holds.
 
 What a spread, an enclose, a bomb and the antibot do with a shielded tile is in their
 own sections: [spread](#what-a-spread-does-to-a-click), [enclose](#what-an-enclose-does-to-a-click),
@@ -1001,11 +1001,16 @@ listener, for a report it acts on. The notice-and-action answer to a message, be
   message until its next load.
 - **`chat.v1.AdminService/GetMessage(message_id)`** is the message as it was sent, removed or not, with
   `removed_at`, for the operator who reads a report (`message_query`). `NotFound` past the retention.
-- **`chat.v1.AdminService/ListMessages(before_message_id | after_message_id, limit)`** is the chat as it was sent,
+- **`chat.v1.AdminService/ListMessages(before_message_id | after_message_id, limit, account_id)`** is the chat as it was sent,
   removed or not, a page at a time (`messages_query`). **A message's id is a cursor**: the page just before it, or
   just after it, by `seq` as the history orders them, never with it. Neither is the newest page; both is
   `InvalidArgument` (`ErrTwoCursors`), and a cursor past the retention is `NotFound`. The report page reads one page
   on each side of the reported message, and the next page from the oldest or the newest message it holds.
+  - **With an `account_id`, it is that account's messages alone**, cursors included: the page of its messages just
+    before or just after the cursor, which may be anybody's message. A report from a player's card names no
+    message, so the report page lists the reported account's this way, and reads the whole chat around any one of
+    them. An id that is not a UUID is `InvalidArgument` (`ErrInvalidAccount`): read as everyone, it would show other
+    people's messages as the account's. The two statements of one author ride the `(account_id)` index.
   - **A page is oldest first**, 50 messages unless asked, 200 at most. Fewer than the limit is the end: nothing more
     kept before it, or nothing more sent after it. Before the cursor it stops at the retention.
   - **Each is a `KeptMessage`**: its text as sent and its `removed_at`, as `GetMessage` answers, its country, its
@@ -1796,7 +1801,7 @@ internal/seasons/internal/
 **A player's season score is the tiles it took this season for its main flag**, the flag it took the most tiles for, so a player cannot add up several flags. **A country's board is every player who took tiles for that country, ranked by those tiles**, so a player is on the board of each flag it took for, and a change of flag shows at the first take rather than when the main flag moves.
 
 - **`standings.Tally` is the rule**: an account's tiles per flag in one season, and its main flag. `WithTake` adds one tile and makes the flag the main one when it has strictly more tiles than the main one; a tie keeps the flag that got there first. **The season of a take is the one whose interval holds `taken_at`** (`Take.Season`, over `Calendar.Current`); a take after the last season counts nothing. `tally_test.go` and `take_test.go` pin both.
-- **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event. A strike on a shield, a shadow-banned click (it never reaches the ledger) and a revert publish nothing, so they change no score. Takes before this module had a database are not replayed: counting started the day it shipped.
+- **Takes come from `planet.v1.TileTaken`** (`seasons-standings`), one tile per event. A strike on a shield, a click the ban refuses (it never reaches the ledger) and a revert publish nothing, so they change no score. Takes before this module had a database are not replayed: counting started the day it shipped.
 - **One transaction per take**, under `pg_advisory_xact_lock` on the account: read the account's rows for the season, apply `WithTake`, upsert the flag's row and move `main`. The rule stays in Go; the column only keeps what it said.
 - **Kept in `seasons.contributions`** (`season`, `account_id`, `country`, `tiles`, `main`; primary key `(season, account_id, country)`), with its own block, `seasons.database`, its own pool and migrations. `main` marks one row per account and season (a partial unique index). A partial index on it serves the whole map's board, and `contributions_country_board` (`season, country, tiles DESC, account_id`, every row) serves a country's.
 - **`auth.v1.AccountDeleted`** (`seasons-standings-accounts`) deletes the account's rows in every season.
@@ -2157,10 +2162,10 @@ its own.
   shield placed. After that the client follows
   its own calls: a drop spends the bomb, an accepted click sent with spread on a
   spread click, its own `tiles_enclosed` an enclosure. A charge spent in another
-  tab shows until the next read. **`Click` answers nothing about them on purpose**:
-  a shadow-banned click never reaches the spread, so a count on the answer would
-  tell a banned caller its clicks are dropped. `planetv1controller/chargesheld`
-  encodes the message both procedures answer.
+  tab shows until the next read. **`Click` answers nothing about them.** It was so
+  a shadow-banned caller could not tell its clicks were dropped; a ban is told now
+  (see [A ban is told](#a-ban-is-told)), so the answer could carry them.
+  `planetv1controller/chargesheld` encodes the message both procedures answer.
 - **How big a charge is, is a rule, not state.** `GetBonusRules` answers the
   blast radius, the enclose's `maxTiles`, the spread pool's size and the
   enclosure stack's size (`bonuses.Rules`, built in `module.go`), how many
@@ -2185,10 +2190,10 @@ it: a refused click spreads nothing and costs nothing, and a click with spread o
 never touches the pool.
 
 `click/spread_click` is the decorator that reads it, and **it sits right against
-the rule**, inside the count, the shadow ban and the throttle:
+the rule**, inside the count, the ban and the throttle:
 
 - a click is **one click** to the throttle and to `prom_click`, however many tiles it took
-- a click the shadow ban drops never reaches the rule, so it spreads nothing
+- a click the ban refuses never reaches the rule, so it spreads nothing
 - a click the rule refuses (unknown country, tile out of range) spreads nothing
 - the neighbours are not reported to the antibot jury — only the clicked tile is
   a click the caller made
@@ -2268,11 +2273,10 @@ by `publishing_drop_bomb`, inside the count, and the chat announces it — see
 **And the ledger keeps it**: the drop clears through `ledger.Recording`, so every
 bomb that went off is one event in `planet.ledger_events`, with the flag each tile
 it cleared wore and the shields each tile it struck kept — see [Manual bans](#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer).
-**The shadow ban applies**: `antibot_drop_bomb` marks a banned caller's drop as a
-`Dud`, which spends the bomb, clears nothing and publishes nothing, and is answered
-OK — a bomb left in hand would tell the caller it was refused. It sits outside the
-count so the counter can label it.
-`prom_drop_bomb` counts `bonus_bombs_dropped_total{outcome=land|sea|refused|shadowbanned}`
+**The ban applies**: `antibot_drop_bomb` refuses a banned caller's drop before the
+bomb is spent, with the same `BanRefusal` as a click (see [A ban is told](#a-ban-is-told)),
+so the bomb stays in hand. It sits inside the count so the counter can label it.
+`prom_drop_bomb` counts `bonus_bombs_dropped_total{outcome=land|sea|banned|refused}`
 and `bonus_bomb_tiles_cleared_total`.
 
 #### What an enclose does to a click
@@ -2317,7 +2321,7 @@ tiles and announces them. `Execute` asks whether the charge is held, lets the
 rule write, and hands the pockets to the annexer.
 
 It sits beside `spread_click`, against the rule and inside everything else, so
-it is one click to the throttle and to `prom_click`, a shadow-banned click never
+it is one click to the throttle and to `prom_click`, a click the ban refuses never
 reaches it, and the tiles it takes are not reported to the antibot jury. The
 annexer hands the inside to `ledger.Recording.Enclose`, which claims each tile as
 an ordinary `Set` and keeps the enclosure as one event. The search holds no lock across the map, so a
@@ -2364,13 +2368,13 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
-**The whole of its API is eleven names**, and `internal/antibot/antibot.go` is all
+**The whole of its API is twelve names**, and `internal/antibot/antibot.go` is all
 of it: `Config`, `Observer`, `Guard`, `New` and `Description` to wire it, plus
-`Click`, `Point`, `Report`, `Sentence`, `Examination` and `Reading` — the types a caller writes down, because it builds two
+`Click`, `Point`, `Report`, `Sentence`, `Pardon`, `Examination` and `Reading` — the types a caller writes down, because it builds two
 and is handed the others. A caller hands over the block and the two hooks it wants
-findings reported through, and gets back a `Guard` — one that drops and bans nothing when the block is off, so
-the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Fetched`, `Listened`, `Flagged`, `Banned`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
-`Unban`, `Sentence`, `Enforcing` and `Examine` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
+findings reported through, and gets back a `Guard` — one that refuses and bans nothing when the block is off, so
+the DI sequence wires it the same way either way — that answers `Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Fetched`, `Listened`, `Flagged`, `EnforcedSentence`, `LoadState`, `Run` and `Enabled`, plus `Ban`,
+`Unban`, `Sentence`, `Pardon`, `Enforcing` and `Examine` for the operator tools (see [Operator tools](#operator-tools-adminservice)). It is
 **one** `Run` whatever the file turned on: how many sweepers there are is this
 package's business, which is why `planet` registers one runner rather than one per sweeper.
 
@@ -2393,21 +2397,45 @@ reflection, so a caller sets `config.Retaker.Detector.MaxSpread` without ever
 naming a type.
 
 Everything else is under `antibot/internal/`, so the click edge
-could not assemble a jury out of watchdogs even if it wanted to. The shadow-ban step of
+could not assemble a jury out of watchdogs even if it wanted to. The antibot step of
 the DI sequence in `internal/planet/module.go` is the whole of the clicks side, and what is left in it is genuinely the edge's:
 the metric names, the message and attribute names of the ban line, and where
 in the chain it sits.
 
 **Detection and consequence are separate, and the consequence is the boring
-half.** `antibot/internal/shadowban` takes a scope or an account and a clock and runs a ban. It knows
+half.** `antibot/internal/bans` takes a scope or an account and a clock and runs a ban. It knows
 nothing about tiles, reactions or what earned it, which is why the same sentence
 serves three different findings and would serve a fourth.
 
-**A flagged caller's clicks are answered `OK` and dropped.** That is the whole
-point — a refusal names the check that tripped, and the author fixes it in an
-afternoon; a silent no-op names nothing. It is not permanent (the caller reads
-the map back over the same stream and will notice), but it moves the cost of
-the next round onto them.
+#### A ban is told
+
+**A banned caller's click, bomb and shield are refused, with when the ban ends.** Until 2026-10-20
+they were answered `OK` and dropped, so a script author learned nothing. But most of the callers the
+rules banned in October 2026 were people (`stamina` on Oct 7, `cadence` on Oct 9, `roam` on Oct 10,
+`rotator` on Oct 18), and for them a click that did nothing read as a bug, with no way to ask.
+
+- **`PermissionDenied` with a `planet.v1.BanRefusal` detail**: `banned_until_unix_ms`, the end of the
+  ban that ends last of the scope's and the account's (`Guard.EnforcedSentence`). The VPN block answers
+  the same code with no detail, which is how the client tells the two apart; an older client shows its
+  VPN dialog. `clicks.BanRefusal` is the domain's error, and `planetban.Refusal` maps it in
+  `click_handler`, `drop_bomb_handler` and `place_shield_handler`.
+- **No reason goes out.** The client links the terms' "Play fair" section (`/terms#play-fair`). The
+  rule that fired is in the `antibot ban` log line and in `InspectPlayer`, never on the wire.
+- **`ban_click` sits outside the whole click chain**, as the VPN block does: a refused click spends no
+  token, or the client would show a 429 instead of the ban, and it reaches no watchdog.
+  `antibot_drop_bomb` and `antibot_place_shield` refuse before the bomb or the shield is spent, so it
+  stays in hand.
+- **The click that earns the ban goes through**: `antibot_click` judges and refuses nothing, and the
+  next click meets `ban_click`.
+- **So a ban no longer feeds itself**: the watchdogs never see the clicks of a caller while it is
+  banned, and the end the player was told does not move however much it clicks. Only an accomplice's
+  click can extend it (see the `rotator`). The ban lapses on its own, and the evidence windows have
+  forgotten the caller by then.
+- **`banned_clicks`** counts the clicks refused. Until 2026-10-20 it was `shadowbanned_clicks`, and the
+  ban metrics beside it `shadowban_flagged` (`banned_callers`) and `shadowban_flags` (`ban_flags`): the
+  metrics poller's history files before that day carry the old names. The config block was
+  `antiBot.shadowBan` and the package `antibot/internal/shadowban`.
+- `TestABannedCallerIsToldUntilWhenAndSpendsNoToken` pins it over HTTP.
 
 #### Ten watchdogs, one jury
 
@@ -2485,18 +2513,18 @@ third: loosening `metronome` to catch it sooner is how the obsessed player gets
 banned. `hopper` is one, for shuffled ids that land all over the globe:
 `TestALoopAimingAllOverTheGlobeIsCaughtBeforeTheClockIsSure`.
 
-**Every watchdog sees every click, including the ones a ban is already
-dropping.** A watchdog cut off the moment another one banned the caller would be
-judging a caller that appears to have stopped, and the ban would lapse on silence
-the caller never produced. It also means a ban sustains itself: while it runs,
-the caller takes no tiles so `retaker` starves, but ids and timing still flow, so
-`sequencer` and `metronome` keep re-flagging through `reflagInterval`.
+**Every watchdog sees every click until the caller is banned, and none while it is.** Until
+2026-10-20 they saw the clicks a ban was dropping too, so a ban sustained itself: `sequencer` and
+`metronome` kept re-flagging it through `reflagInterval`. A ban the player is told must not move
+under it, so `ban_click` refuses those clicks before the jury (see [A ban is told](#a-ban-is-told)).
+The scenario tests' stack still hands every click to the jury: what they pin is when a ban first
+falls.
 
 #### What survives a restart
 
 **Bans and evidence both, in postgres, in the `antibot` schema.** Bans are
 `antibot.bans`, one row per scope ever banned, and `antibot.account_bans`, one row per
-account, read and written by `antibot/internal/shadowban` with no copy in memory. What
+account, read and written by `antibot/internal/bans` with no copy in memory. What
 each watchdog is tracking and the jury's record of each caller — its tally and
 the last opinion of every watchdog — are `antibot.evidence`, one row per section, written by
 `antibot/internal/evidence`. This exists because of 2026-09-14: production
@@ -2513,7 +2541,7 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   `Guard.LoadState(ctx)` connects, migrates and loads the evidence, and **an error
   refuses the boot**. The guard's `Run` closes the pool after the last flush of the
   evidence, the way `cppg.CloseAfter` does for the tile map.
-- **Bans are postgres, and nothing else.** `shadowban.Store` is the port: `Record`
+- **Bans are postgres, and nothing else.** `bans.Store` is the port: `Record`
   reads one key, `Running` counts the bans running, and `Change` runs a function on
   one key's record under `pg_advisory_xact_lock` and writes what it answers, in one
   transaction. The ladder, the reflag interval and the unban stay in Go, on the
@@ -2524,19 +2552,24 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   next: the reflag interval is added in Go, so a new `reflagInterval` applies to every
   row, and a restart is no way around it. The ban's end is `expires_at` (migration
   `20261008120000` added the first and renamed `banned_until` to the second).
-  `postgres_ban_store` is the adapter and `MemoryStore` (behind the `testing` tag) the fake; `shadowban.StoreContractSuite` runs on both,
+  `postgres_ban_store` is the adapter and `MemoryStore` (behind the `testing` tag) the fake; `bans.StoreContractSuite` runs on both,
   and pins the lock: changes to one key never overlap.
-- **Every click reads them**, in `Guard.Inspect`, and a bomb or a shield in
-  `Guard.Banned`: one primary-key lookup on the scope and one on the account, and
-  none at all with `enforce` off. A read gets `banTimeout` (1s). **A ban that cannot
+- **Every click, bomb and shield reads them**, in `Guard.EnforcedSentence` (`ban_click`,
+  `antibot_drop_bomb`, `antibot_place_shield`): one primary-key lookup on the scope and one on the
+  account, and none at all with `enforce` off. A read gets `banTimeout` (1s). **A ban that cannot
   be read is no ban**: the click goes through, and the error reaches
   `Observer.OnStateError`, which logs it. Postgres down lets a banned bot click,
-  rather than every player's clicks being dropped without a word. The operator
+  rather than every player's clicks being refused. The operator
   tools answer the error instead.
 - **A row is never deleted.** Scopes and accounts are two `Banner`s over two
   tables, each with its own ladder. An offence is forgotten only when an operator
   lifts its ban (`UnbanPlayer`): the row is written with one offence fewer, and
   with the ban ended when it was still running.
+- **Each unban is a pardon, and every pardon is kept**: a row of `antibot.pardons` or
+  `antibot.account_pardons`, with when, the ban it lifted (`flags`, `offence`,
+  `banned_until`) and when it ends (`expires_at`). The `Record` carries the latest one,
+  read in the same query and written in the same transaction as the ban, under the same
+  lock. See [Manual bans](#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer).
 - **Evidence is the tile map's pattern.** `evidence.Persistence` is the port,
   `postgres_evidence_store` the adapter, `MemoryPersistence` (behind the `testing`
   tag) the fake. It lives in memory and is flushed every `saveInterval` (1m), with a
@@ -2765,9 +2798,7 @@ tiles, and every watchdog read `clear`.
   tokens spent, and tokens are the account's; seven accounts taking turns behind one
   address are seven players here. The reading still lands on the scope's jury record,
   like every watchdog's.
-- **It counts in `Watch`, not `Attempted`**: a try the throttle refused spent nothing,
-  and a click a ban is dropping still passed the throttle, so a running ban keeps
-  reading.
+- **It counts in `Watch`, not `Attempted`**: a try the throttle refused spent nothing.
 - **Measured before it was set**, over three days of ledger per account: the bot's two
   accounts read 6h of 6h, the heaviest player 4h50m, and 5 of 555 accounts 3h or more.
 - **It only reads `Suspect`, since 2026-10-08.** Production shipped `certainBusy`
@@ -3114,7 +3145,7 @@ honest player flagged:
   `Set` publishes nothing, so it neither reacts nor becomes something to react to
 - a click the handler refused (invalid country, tile out of range) — it changed
   no tile
-- a click that was itself dropped by the ban — same reason
+- a click the ban refused — it never reaches the jury at all
 
 The interceptor reads the tile's owner **before** the handler runs and puts it on
 `antibot.Click` as `Held`/`NoOp`, because afterwards the map no longer remembers
@@ -3136,21 +3167,19 @@ the walk.
 
 **It is a decorator over the click use case** (`antibot_click`), not an interceptor.
 None of what it does is about HTTP: it reads who held the tile before the write,
-reports the take afterwards, and answers a flagged caller OK with nothing
-written — and the middle one only works adjacent to the write, because
-afterwards the map no longer remembers who held the tile.
+judges, and reports the take afterwards — and that only works adjacent to the write,
+because afterwards the map no longer remembers who held the tile.
 
-**It sits innermost, inside the throttle** — the opposite of the blocklist and the
-session check. A shadow-banned caller has to keep hitting the same 429s everyone
-else does; a caller that is never throttled again has been told. `TestAntiBotRunsAfterTheThrottle`
-pins it.
+**It sits innermost, inside the throttle**, so the watchdogs judge only the clicks
+the throttle let through: a try it refused spent nothing.
 
-**Only the watching is outside it.** `antibot_attempt_click` wraps the throttle and
-reports each try through `Attempted`, which judges and drops nothing. Moving the
-whole guard out instead would let a banned caller skip its 429s.
+**Only the watching and the refusing are outside it.** `antibot_attempt_click` wraps
+the throttle and reports each try through `Attempted`, which judges and refuses
+nothing. `ban_click` wraps that, and refuses a banned caller before anything else
+(see [A ban is told](#a-ban-is-told)).
 
-**`antiBot.shadowBan.enforce` is the rollout switch,** the same shape as
-`auth.enforce`: false judges, logs and counts without dropping anything. The
+**`antiBot.bans.enforce` is the rollout switch,** the same shape as
+`auth.enforce`: false judges, logs and counts without refusing anything. The
 two surfaces are built for a box with no dashboard — `click_reaction_seconds` is
 a histogram whose raw bucket counts show the bot band by eye, and each flag
 writes one `antibot ban` log line carrying the scope, every watchdog's verdict
@@ -3166,11 +3195,11 @@ log and never an input to a rule on its own: the client declares it, so it is ch
 editing one string, and real players paint the same flags a bot does. `cohort` only uses the flag
 to group scopes that already started together — see above.
 
-**A flag repeats, and that is most of its value.** `reflagInterval` is how soon a
-caller already serving a ban can be judged again; at or above a watchdog's
-`trackWindow`, each flag rests on evidence the previous one never saw, so
-`flags=6` on a line is six independent judgements agreeing rather than one
-verdict repeated.
+**A flag on a running ban is rare now.** `reflagInterval` is how soon a caller
+already serving a ban can be judged again, but a banned caller's clicks never reach
+the jury (see [A ban is told](#a-ban-is-told)): only an accomplice's click, or a scope
+banned while its account is not, flags it again. A second ban after one has lapsed
+is a new offence, and climbs the ladder.
 
 **A day with no ban still says how close it came.** A ban is the only thing
 `OnFlag` reports, so on 2026-09-14 a bot attack produced zero lines and zero
@@ -3200,19 +3229,19 @@ words it on the way out.
 **The watchdogs judge a scope; a ban falls on the scope and the account.** The
 evidence stays keyed on `cpipscope.Of`, so a v6 caller cannot serve a ban on one
 address and click from the next in its own /64. A click carries the account its
-token names (`Click.Account`), and `shadowban.Bans` passes a ban on:
+token names (`Click.Account`), and `bans.Book` passes a ban on:
 
-- **the account**, when the token names one, so it is dropped from any scope;
+- **the account**, when the token names one, so it is refused from any scope;
 - **the scope too, when there is no account or the account is a guest's**
   (`Click.SignedIn` false: the token is not linked). A guest can
   shed its account with a new cookie, and must not shed the ban with it. A
   signed-in account's ban leaves its scope alone, so a campus is not banned for one
   player on it.
 
-**A click, and a bomb, are dropped when the scope or the account is banned**
-(`Guard.Banned(scope, account)`). `TestAGuestBannedByTheJuryCannotShedItWithAFreshCookie`
+**A click, a bomb and a shield are refused when the scope or the account is banned**
+(`Guard.EnforcedSentence(scope, account)`). `TestAGuestBannedByTheJuryCannotShedItWithAFreshCookie`
 and `TestABannedGuestWithAFreshCookieIsStillDropped` pin it. The `antibot ban` line
-carries `account`, and `shadowban_flagged` counts running bans on scopes and on
+carries `account`, and `banned_callers` counts running bans on scopes and on
 accounts, so a guest banned on both counts twice.
 
 **A ban on one account of a ring falls on all of it.** The `rotator` names the
@@ -3434,16 +3463,16 @@ often many accounts, so the revert of one player is not the tool.
 
 For the patterns no watchdog catches but a person sees on the map. A player is an **account on a scope** (`cpipscope`: the address over IPv4, the /64 over IPv6), or a scope alone for takes made with no account. `BanPlayer`, `UnbanPlayer`, `RevertPlayer` and `InspectPlayer` take a `scope` (any address) **or** an `account_id`, never both (`ledger.ParseCaller`; both, neither or a malformed id is `InvalidArgument`).
 
-- **`ledger` remembers every act of a player on the map**: who, when, the flag, the tile, and what it did to each tile, oldest first. `ledger.Recording` is the tile writer the click chain, `drop_bomb_usecase` and `place_shield_usecase` write through, with one method per act (`Click`, `Spread`, `Enclose`, `Clear`, `Shield`), so each act is one event, a click that changed nothing is none, and a click or a bomb the shadow ban drops never reaches it. Recording appends through `publishing_ledger_storage`, which publishes `planet.v1.TileTaken` for each take with an account, after it is recorded. A take by somebody else is one more take, not a replacement: a bot painted over as fast as it paints is still in the ledger. Reassigns, paints and reverts write nothing; they show as a change the ledger never saw.
+- **`ledger` remembers every act of a player on the map**: who, when, the flag, the tile, and what it did to each tile, oldest first. `ledger.Recording` is the tile writer the click chain, `drop_bomb_usecase` and `place_shield_usecase` write through, with one method per act (`Click`, `Spread`, `Enclose`, `Clear`, `Shield`), so each act is one event, a click that changed nothing is none, and a click or a bomb the ban refuses never reaches it. Recording appends through `publishing_ledger_storage`, which publishes `planet.v1.TileTaken` for each take with an account, after it is recorded. A take by somebody else is one more take, not a replacement: a bot painted over as fast as it paints is still in the ledger. Reassigns, paints and reverts write nothing; they show as a change the ledger never saw.
 - **The ledger is a log of `ledger.Event`s, and nothing outside a kind's own file asks which kind it holds.** An event does two things: `Replay(see)` hands over each tile it changed, as a `Taking`, and `Entry()` writes it down. `ledger.EventOf(entry)` reads one back through `kinds`, the catalog, which is the only list of kinds. So the storage, the store, `Runs`, `Tally` and the publisher see events and changes, never a kind, and **a new kind is a type and one line in `kinds`**. A take replays as itself.
 - **The kinds**: a click that took a tile is a `Taking`, and one a shield stopped a `Striking`, which replays nothing. A spread or an enclosure is one event beside the click's (`Spreading`, `Enclosing`): the `clicks.Impact` of each tile it took or struck, sorted by tile, replayed as a take of each tile it took. A shield placed is a `Shielding`, and replays nothing. **`Tally` counts acts**: a click with a spread that took a neighbour is two takes in `TopPlayers`, and a strike or a shield is none. `TileTaken` is still one per tile taken, so the stats and the seasons count tiles as before.
-- **A bomb is one event** (`ledger.Bombing`): who dropped it, when, and the blast as the map cleared it. `drop_bomb_usecase` clears through `Recording.Clear`, and the map's `Clear` reports the flag each tile wore under its own lock (`clicks.Blast.Owners`). A dud never reaches it; a bomb in the sea is kept too, and clears nothing. It replays as a take with no country on each tile it cleared, by the bomber. **So a revert undoes a bomb**: a bomber's run on each tile it cleared goes back to the flag it wore, while the tile is still empty, and a bomb breaks the run of whoever it hit. **`Tally` counts takes by event**: a bomb is one take for the bomber in `TopPlayers` and holds nothing, it ends the hold of each tile it hit, and it matches no flag in `FindPlayers`. It is never published, since every tile it changed is a clear: `BombLanded` already says it.
+- **A bomb is one event** (`ledger.Bombing`): who dropped it, when, and the blast as the map cleared it. `drop_bomb_usecase` clears through `Recording.Clear`, and the map's `Clear` reports the flag each tile wore under its own lock (`clicks.Blast.Owners`). A refused drop never reaches it; a bomb in the sea is kept too, and clears nothing. It replays as a take with no country on each tile it cleared, by the bomber. **So a revert undoes a bomb**: a bomber's run on each tile it cleared goes back to the flag it wore, while the tile is still empty, and a bomb breaks the run of whoever it hit. **`Tally` counts takes by event**: a bomb is one take for the bomber in `TopPlayers` and holds nothing, it ends the hold of each tile it hit, and it matches no flag in `FindPlayers`. It is never published, since every tile it changed is a clear: `BombLanded` already says it.
 - **The rules are in the `ledger` root, and its package doc states them**. A caller (`ledger.Caller`, a scope or an account) **holds** a tile when the tile's latest take is its own and the tile still wears that paint. A revert gives a held tile back to what it held before the caller's **current run** on it: its own latest takes, walking back while each took the tile from the paint of the one before. An account's run follows it across scopes. Another scope's take breaks the run (A il→ps, B ps→de, A de→ps goes back to `de`), and so does a change the ledger never saw (A il→ps, a revert of A to nobody, A ""→ps goes back to nobody). `Tally` gathers players for `FindPlayers` and `TopPlayers`, `Runs` computes the revert, `ByTakes` and `Top` rank and cut. The use cases only replay the ledger into these, filter through their ports, and call them. The tests for each interleaving are in `ledger_test.go`.
 - **Kept in memory and flushed to postgres** (`inmemory_ledger_storage`, behind `ledger.Storage`; see [Durability](#durability)). Postgres keeps every event for good, without its scope once memory has dropped it; the tools here read memory alone. In memory it is an append-only log of 24-byte records in 1.5 MiB chunks, one per entry, scopes and accounts interned in one table per chunk and countries and kinds in others, so an old chunk takes its strings when it goes. An entry's payload sits beside its record in the chunk, in position order, and a take has none. `Replay` reads each entry back through `EventOf`; `Load` refuses the boot on one that does not read back (`ErrUnknownKind`), so a rollback past a new kind is refused, not skipped. A record is never changed once written, so `Replay` copies the chunk headers under the lock and reads without it: a `TopPlayers` over 4M takes takes ~1s and never blocks a click. `Forget(caller, position)` hides a reverted scope's or account's takes up to the replay it was computed from, so a take made mid-revert still counts.
 - **Memory is bounded twice; postgres is not.** `ledger.retention` (72h) drops takes from memory by age, each `ledger.sweepInterval`; `ledgerStorage.maxTakes` (4M) drops the oldest first when a busy stretch fills it, and logs "the ledger is full" once. Production is thousands of clicks per 5 minutes (`clicks_total`), and a spread click takes up to 7 tiles: 15 takes a second fill 4M in three days. Measured at 4M before the account: ~85 MiB heap. The account and the kind add 4 bytes each a take, about 30 MiB more at the cap (not measured).
 - **`FindPlayers(flag, area, limit)`** lists every player that took a tile for `flag` on `area`'s ground (empty is the whole map), latest take first, with any running ban on its scope or its account — whichever ends last. Each account on a scope is its own row, with `account_id`. The ground comes from `clicks.Borders`, built by `embedded_geodesic_map.Loader.LoadBorders` from the borders blob the frontend paints flags from — see [Map geography](#map-geography). A blob for another map refuses the boot.
 - **`TopPlayers(limit)`** is the same over every flag and the whole map, **most takes first, then most tiles held**, then latest take. Takes lead because they are what a painted-over bot cannot hide. Every player, in both answers, carries `tiles` (held) and `takes` (every take, a tile taken twice counting twice), `active_for` (last take minus first take), and `tiles_per_minute` and `takes_per_minute` over that. A player with `takes` high and `tiles` near zero is painting and being painted over. **`flag_country_id` is the flag it took the most tiles for**, held or painted over since, and of a tie the first by id (`Tally.pickFlags`); a bomb takes no tile for any flag, so a player that only bombed has none. In `FindPlayers` it counts only the takes the list counts, so it is the flag asked. No row carries a name: the admin page asks `player.v1.AdminService/GetAuthors` for those.
-- **`BanPlayer(scope | account_id, duration)`** is `shadowban.Bans.Ban`, and drops the caller's clicks and bombs alike: the same record, ladder and table as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **An account is banned alone**: the operator named no scope, and a guest that sheds it with a new cookie is a second ban on its scope away. **It follows `antiBot.shadowBan.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
+- **`BanPlayer(scope | account_id, duration)`** is `bans.Book.Ban`, and refuses the caller's clicks, bombs and shields alike: the same record, ladder and table as a watchdog's ban, and it counts as an offence. It skips `reflagInterval`, and an empty duration takes the ladder's step. Any address is accepted and banned as its scope (`cpipscope.Parse`). **An account is banned alone**: the operator named no scope, and a guest that sheds it with a new cookie is a second ban on its scope away. **It follows `antiBot.bans.enforce`**, and says so in `enforced`. With `antiBot.enabled` false it answers `FailedPrecondition`.
 - **`RevertPlayer(scope | account_id, dry_run)`** gives each tile the caller holds back to what it held before its run, by the rule above. A scope reverts every account's takes on it; an account reverts its takes from every scope. `touched` is the tiles it took, `held` those it still holds. **Only a tile still wearing the scope's paint changes** — `inmemory_tile_storage.Restore` is a compare-and-set under the lock, so a tile retaken mid-revert stays retaken. Paced like the reassign (`clicks.Pacing`), each tile an ordinary `TileUpdate`. A tile that was nobody's goes back to nobody, as an update with an empty country. It then forgets the caller's takes, so a second run does nothing; an interrupted one forgets nothing and can be run again.
 - **Ban before reverting**: an unbanned player repaints behind the revert.
 - **`UnbanPlayer(scope | account_id)`** lifts the caller's latest ban, for a false positive: its offence is
@@ -3456,12 +3485,19 @@ For the patterns no watchdog catches but a person sees on the map. A player is a
   answers, so a restart keeps the caller unbanned: no restart and no SQL. It lifts the key it is given, so **a guest the jury banned needs two
   calls**, its account and its scope. A caller with no offence left is `NotFound` (`ErrNotBanned`), which a typo or the wrong
   half shows loudly; with `antiBot.enabled` false it is `FailedPrecondition`, as `BanPlayer` is.
-  - **It does not touch the evidence.** The watchdogs read their own on every click, the dropped ones included,
-    so a rule that still reads `certain` bans the caller again on its first click after `reflagInterval`, as a
-    first offence. **Fix the rule first**, then unban. `InspectPlayer` says which rule it was. Forgetting the
-    evidence instead would only put the ban off until the same play reads the same way again, and it would take
-    a forget in each of the ten watchdogs, keyed by scope, by account or by wider prefix. `TestAnUnbanLeavesTheEvidenceSoTheJuryBansAgain` pins it.
-- **`InspectPlayer(scope | account_id)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`. **An account is read on the scope of its latest take** in the ledger, because the watchdogs judge scopes, with the bans on both; an account with no take inside the retention answers its bans alone and an empty `scope`. It changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `ledger.ParseCaller` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
+  - **It pardons the key it lifts, for `antiBot.evidence.retention` (72h)** (`bans.Pardon`, in the same row
+    change). Until then, the jury flags nothing on that key, however guilty it reads. The watchdogs kept what they
+    read before the ban, and until 2026-10-20 a rule that still read `certain` banned the caller again five
+    minutes after the unban (`reflagInterval`). No evidence outlives retention, so when the pardon ends every
+    reading rests on play after the unban.
+  - **It does not touch the evidence.** Forgetting it would take a forget in each of the ten watchdogs, keyed by
+    scope, by account or by wider prefix. The cost: a rule that still reads the same play the same way bans again
+    once the pardon ends, as a first offence. **Fix the rule** if it is the rule. `InspectPlayer` says which one.
+  - **A pardoned caller convicts nobody** (`Book.Pardoned`, every key the jury would flag): not even the accounts
+    it rotates with. An accomplice that is pardoned is skipped and the rest of the ring still falls.
+  - **An operator's `BanPlayer` still bans a pardoned key**: the pardon only holds off the jury.
+  - The answer carries `pardonedUntil`. `TestAnUnbanPardonsTheCallerUntilTheEvidenceThatBannedItIsGone` pins it.
+- **`InspectPlayer(scope | account_id)`** answers how close the antibot is to a caller, which the `antibot ban` log line cannot: it is only written when a ban fires, so on 2026-09-14 a day of bots and no bans left nothing to read. It is `Guard.Examine`. **An account is read on the scope of its latest take** in the ledger, because the watchdogs judge scopes, with the bans on both; an account with no take inside the retention answers its bans alone and an empty `scope`. It changes nothing — no caller record is created, no watchdog is asked again, no ban is passed. It answers any running ban (`banned`, `bannedUntil`, `offence`, `flags`) and pardon (`pardonedUntil`); per watchdog its `level` and `evidence`, aged the way the jury ages them (past `suspicionWindow` a verdict reads `clear` but keeps its evidence); `suspects` against `minSuspects` and `guilty`, what the jury would decide on a click now (the ban itself would still wait for `reflagInterval`); and the click summary the ban line carries. `tracked` false is a scope the jury has not seen inside its `trackWindow`. Parsed with `ledger.ParseCaller` and refused with `FailedPrecondition` when `antiBot.enabled` is false, as `BanPlayer` is. **A watchdog that reads `clear` has no evidence**: watchdogs only word the rule that tripped, so it says how close a caller is only once some rule has.
 - `audit_ban`, `audit_unban` and `audit_revert` log every call at Warn, as `audit_reassign` does. `FindPlayers`, `TopPlayers` and `InspectPlayer` are reads and log nothing.
 
 ### The clips job (`internal/clips/`, `cmd/clips`)
@@ -3940,13 +3976,13 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `chargeStorage.flushInterval` — how often the charges that changed are written to postgres (default 1s); also flushed on shutdown
 - `bonus.maxChargesPerHour` — the most charges one caller may be granted per hour (12); past it the slot is lost
 - `antiBot.enabled` — off registers nothing and measures nothing
-- `antiBot.shadowBan.enforce` — off judges, logs and counts without dropping; the mode to deploy in
-- `antiBot.shadowBan.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**, but for the one an operator lifts with `UnbanPlayer`
+- `antiBot.bans.enforce` — off judges, logs and counts without refusing; the mode to deploy in
+- `antiBot.bans.banDurations` — the ban for each offence (the last step repeats). An offence is a ban that starts while none is running; a flag on a running ban only extends it. **Offences are never forgotten**, but for the one an operator lifts with `UnbanPlayer`
 - `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration or load refuses the boot
-- `antiBot.shadowBan.reflagInterval` — how soon a banned caller can be judged again
+- `antiBot.bans.reflagInterval` — how soon a banned caller can be judged again
 - `antiBot.jury.minSuspects` — how many watchdogs at `suspect` make a ban; one at `certain` bans alone; `stamina` and `defence` together count as one
 - `antiBot.jury.suspicionWindow`, `trackWindow`, `sweepInterval` — how long a verdict stands while another watchdog catches up, and how long a silent caller is remembered
-- `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. See [What survives a restart](#what-survives-a-restart)
+- `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. Also how long `UnbanPlayer` holds the jury off. See [What survives a restart](#what-survives-a-restart)
 - `antiBot.retaker.enabled`, `detector.reactionWindow`, `minReactions`, `maxSpread`, `maxMedian` — what counts as a reaction, how many are needed, and the band that reads `suspect` then `certain`
 - `antiBot.sequencer.enabled`, `detector.minSteps`, `minShare`, `certainSteps`, `certainShare` — how long a run of constant-stride clicks must be, and how much of it must sit at that stride
 - `antiBot.metronome.enabled`, `detector.maxGap`, `maxSpread`, `minClicks`, `certainFor`, `certainClicks` — what ends a run, how tight its gaps must be, and how long it must hold; `detector.shape.maxGap`, `clicks`, `maxSkew`, `certainClicks`, `certainSkew` — the longest gap sampled, and the skew of the last gaps that reads each level (unset, it only measures); `detector.stamina.slice`, `clicks`, `window`, `minBusy`, `certainBusy` — what makes a slice busy, and the busy time inside the window that reads each level (unset, it only measures)

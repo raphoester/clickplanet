@@ -9,10 +9,16 @@ import (
 
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller/list_messages_handler/messages_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 )
 
+// Read as everyone, it would answer a page of other people's messages to an operator reading one account's.
+var ErrInvalidAccount = errors.New("the account id is not a UUID")
+
 type Query interface {
-	Messages(ctx context.Context, cursor messages_query.Cursor, limit uint32) (*chatv1.ListMessagesResponse, error)
+	Messages(
+		ctx context.Context, cursor messages_query.Cursor, author messages.AccountID, limit uint32,
+	) (*chatv1.ListMessagesResponse, error)
 }
 
 func New(query Query) ListMessagesHandler {
@@ -27,8 +33,13 @@ func (h ListMessagesHandler) ListMessages(
 	ctx context.Context,
 	req *connect.Request[chatv1.ListMessagesRequest],
 ) (*connect.Response[chatv1.ListMessagesResponse], error) {
+	author := messages.AccountIDOf(req.Msg.GetAccountId())
+	if req.Msg.GetAccountId() != "" && author == messages.NoAccount {
+		return nil, connect.NewError(connect.CodeInvalidArgument, ErrInvalidAccount)
+	}
+
 	cursor := messages_query.Cursor{Before: req.Msg.GetBeforeMessageId(), After: req.Msg.GetAfterMessageId()}
-	page, err := h.query.Messages(ctx, cursor, req.Msg.GetLimit())
+	page, err := h.query.Messages(ctx, cursor, author, req.Msg.GetLimit())
 	if errors.Is(err, messages_query.ErrTwoCursors) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, messages_query.ErrTwoCursors)
 	}

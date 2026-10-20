@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -50,8 +50,8 @@ func (c Config) WithDefaults() Config {
 }
 
 type Banner interface {
-	Flag(ctx context.Context, caller shadowban.Caller) (shadowban.Sentence, bool, error)
-	Banned(ctx context.Context, caller shadowban.Caller) (bool, error)
+	Flag(ctx context.Context, caller bans.Caller) (bans.Sentence, bool, error)
+	Pardoned(ctx context.Context, caller bans.Caller) (bool, error)
 	Flagged(ctx context.Context) (int, error)
 }
 
@@ -110,15 +110,13 @@ type caller struct {
 	reached map[string]*[detect.Certain + 1]time.Time
 }
 
-// A ban that cannot be read is no ban: the click goes through, and the error says why.
-func (j *Jury) Inspect(ctx context.Context, click detect.Click) (bool, error) {
+func (j *Jury) Inspect(ctx context.Context, click detect.Click) error {
 	if click.Scope == "" {
-		return false, nil
+		return nil
 	}
 
 	j.record(click)
 
-	// No short-circuit on a ban: a starved watchdog lets the ban lapse on fake silence.
 	for _, watchdog := range j.watchdogs {
 		verdict, evidence := watchdog.Watch(click)
 		for _, level := range j.opine(click, watchdog.Name(), verdict, evidence) {
@@ -128,16 +126,19 @@ func (j *Jury) Inspect(ctx context.Context, click detect.Click) (bool, error) {
 		}
 	}
 
-	var flagErr error
 	if report, guilty := j.deliberate(click); guilty {
-		flagErr = j.flag(ctx, click, report)
+		return j.flag(ctx, click, report)
 	}
 
-	banned, err := j.banner.Banned(ctx, callerOf(click))
-	return banned, errors.Join(flagErr, err)
+	return nil
 }
 
 func (j *Jury) flag(ctx context.Context, click detect.Click, report detect.Report) error {
+	pardoned, err := j.banner.Pardoned(ctx, callerOf(click))
+	if err != nil || pardoned {
+		return err //nolint:wrapcheck // the banner already named what failed.
+	}
+
 	var errs []error
 
 	for _, convict := range convictsOf(click, report) {
@@ -161,12 +162,12 @@ func (j *Jury) flag(ctx context.Context, click detect.Click, report detect.Repor
 	return errors.Join(errs...)
 }
 
-func callerOf(click detect.Click) shadowban.Caller {
-	return shadowban.Caller{Scope: click.Scope, Account: click.Account, SignedIn: click.SignedIn}
+func callerOf(click detect.Click) bans.Caller {
+	return bans.Caller{Scope: click.Scope, Account: click.Account, SignedIn: click.SignedIn}
 }
 
-func convictsOf(click detect.Click, report detect.Report) []shadowban.Caller {
-	convicts := []shadowban.Caller{callerOf(click)}
+func convictsOf(click detect.Click, report detect.Report) []bans.Caller {
+	convicts := []bans.Caller{callerOf(click)}
 	named := cpcolls.NewSet(click.Account)
 
 	for _, opinion := range report.Opinions {
@@ -178,7 +179,7 @@ func convictsOf(click detect.Click, report detect.Report) []shadowban.Caller {
 				continue
 			}
 			named.Add(accomplice.Account)
-			convicts = append(convicts, shadowban.Caller{Scope: click.Scope, Account: accomplice.Account, SignedIn: accomplice.SignedIn})
+			convicts = append(convicts, bans.Caller{Scope: click.Scope, Account: accomplice.Account, SignedIn: accomplice.SignedIn})
 		}
 	}
 

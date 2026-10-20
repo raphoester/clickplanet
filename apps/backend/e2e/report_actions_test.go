@@ -122,6 +122,34 @@ func TestAnOperatorReadsWhatWasSaidAroundAReportedMessageAPageEachSide(t *testin
 	assert.Equal(t, answer.GetId(), newest[1].GetMessageId())
 }
 
+func TestAnOperatorReadsTheMessagesOfAPlayerReportedFromItsCard(t *testing.T) {
+	game := startGame(t)
+	offender, reporter := game.newPlayer(t), game.newPlayer(t)
+	first, err := offender.post()
+	require.NoError(t, err)
+	between, err := reporter.post()
+	require.NoError(t, err)
+	second, err := offender.post()
+	require.NoError(t, err)
+	require.NoError(t, reporter.reportPlayer(offender.account(), supportv1.ReportReason_REPORT_REASON_CHAT_ABUSE, "", ""))
+
+	report := game.openReports(t)[0]
+	require.Empty(t, report.GetMessageId(), "a report from the card names no message")
+
+	theirs := game.messages(t, &chatv1.ListMessagesRequest{AccountId: report.GetReportedAccountId()})
+	require.Len(t, theirs, 2)
+	assert.Equal(t, first.GetId(), theirs[0].GetMessageId())
+	assert.Equal(t, second.GetId(), theirs[1].GetMessageId())
+
+	around := game.messages(t, &chatv1.ListMessagesRequest{AfterMessageId: first.GetId(), Limit: 1})
+	require.Len(t, around, 1)
+	assert.Equal(t, between.GetId(), around[0].GetMessageId(), "the context is everyone's")
+
+	_, err = game.chatDesk().ListMessages(t.Context(),
+		connect.NewRequest(&chatv1.ListMessagesRequest{AccountId: "not-an-account"}))
+	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
 func TestNothingToRemoveReadOrDecideIsNotFound(t *testing.T) {
 	game := startGame(t)
 

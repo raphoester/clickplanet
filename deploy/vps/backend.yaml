@@ -64,7 +64,7 @@ antiBot:
     pool:
       maxOpenConns: 2
 
-  shadowBan:
+  bans:
     enforce: true
     banDurations: [24h, 168h, 26280h]
     reflagInterval: 5m

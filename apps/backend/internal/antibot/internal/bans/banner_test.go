@@ -1,4 +1,4 @@
-package shadowban_test
+package bans_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/shadowban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -15,20 +15,23 @@ func newClock() *cptime.FixedClock {
 	return cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 }
 
-const threeYears = 3 * 365 * 24 * time.Hour
+const (
+	threeYears = 3 * 365 * 24 * time.Hour
+	pardon     = 72 * time.Hour
+)
 
-func newBanner(t *testing.T, config shadowban.Config, clock cptime.Clock) banner {
+func newBanner(t *testing.T, config bans.Config, clock cptime.Clock) banner {
 	t.Helper()
-	return bannerOver(t, config, clock, shadowban.NewMemoryStore())
+	return bannerOver(t, config, clock, bans.NewMemoryStore())
 }
 
-func bannerOver(t *testing.T, config shadowban.Config, clock cptime.Clock, store shadowban.Store) banner {
+func bannerOver(t *testing.T, config bans.Config, clock cptime.Clock, store bans.Store) banner {
 	t.Helper()
-	return banner{t: t, inner: shadowban.New(config, clock, store)}
+	return banner{t: t, inner: bans.New(config, pardon, clock, store)}
 }
 
-func config() shadowban.Config {
-	return shadowban.Config{
+func config() bans.Config {
+	return bans.Config{
 		Enforce:        true,
 		BanDurations:   []time.Duration{time.Hour, 24 * time.Hour, threeYears},
 		ReflagInterval: 5 * time.Minute,
@@ -150,7 +153,7 @@ func TestTheLastStepRepeats(t *testing.T) {
 	clock := newClock()
 	banner := newBanner(t, c, clock)
 
-	var sentence shadowban.Sentence
+	var sentence bans.Sentence
 	for range 5 {
 		sentence, _ = banner.Flag("bot")
 		clock.Advance(25 * time.Hour)
@@ -185,7 +188,7 @@ func TestAManualBanTakesTheLadderAndCountsAsAnOffence(t *testing.T) {
 	banner := newBanner(t, config(), clock)
 
 	sentence := banner.Ban("bot", 0)
-	assert.Equal(t, shadowban.Sentence{Offence: 1, Until: clock.Now().Add(time.Hour)}, sentence)
+	assert.Equal(t, bans.Sentence{Offence: 1, Until: clock.Now().Add(time.Hour)}, sentence)
 	assert.True(t, banner.Banned("bot"))
 
 	clock.Advance(2 * time.Hour)
@@ -215,7 +218,7 @@ func TestAManualBanWithADurationNeverShortensARunningOne(t *testing.T) {
 func TestAManualBanOnAnEmptyScopeBansNothing(t *testing.T) {
 	banner := newBanner(t, config(), newClock())
 
-	assert.Equal(t, shadowban.Sentence{}, banner.Ban("", time.Hour))
+	assert.Equal(t, bans.Sentence{}, banner.Ban("", time.Hour))
 	assert.Equal(t, 0, banner.Flagged())
 }
 
@@ -232,10 +235,82 @@ func TestAnUnbanEndsTheBanNowAndForgetsItsOffence(t *testing.T) {
 	assert.False(t, running)
 	assert.Equal(t, 0, banner.Flagged())
 
+	clock.Advance(pardon)
 	sentence, accepted := banner.Flag("player")
 	require.True(t, accepted)
 	assert.Equal(t, 1, sentence.Offence, "the next ban starts the ladder where the lifted one did")
 	assert.Equal(t, clock.Now().Add(time.Hour), sentence.Until)
+}
+
+func TestAnUnbanPardonsTheKeySoNoFlagBansItUntilThePardonEnds(t *testing.T) {
+	clock := newClock()
+	banner := newBanner(t, config(), clock)
+
+	banned, _ := banner.Flag("player")
+	clock.Advance(10 * time.Minute)
+	banner.Unban("player")
+	unbannedAt := clock.Now()
+
+	pardoned, found := banner.Pardon("player")
+	require.True(t, found)
+	assert.Equal(t, bans.Pardon{At: unbannedAt, Lifted: banned, Until: unbannedAt.Add(pardon)}, pardoned)
+
+	clock.Advance(pardon - time.Second)
+	_, accepted := banner.Flag("player")
+	assert.False(t, accepted)
+	assert.False(t, banner.Banned("player"))
+
+	clock.Advance(time.Second)
+	_, found = banner.Pardon("player")
+	assert.False(t, found, "a pardon that ended is no pardon")
+	_, accepted = banner.Flag("player")
+	assert.True(t, accepted)
+	assert.True(t, banner.Banned("player"))
+}
+
+func TestAnOperatorStillBansAPardonedKey(t *testing.T) {
+	clock := newClock()
+	banner := newBanner(t, config(), clock)
+
+	banner.Flag("player")
+	banner.Unban("player")
+
+	sentence := banner.Ban("player", time.Hour)
+	assert.Equal(t, 1, sentence.Offence)
+	assert.True(t, banner.Banned("player"))
+}
+
+func TestAPardonIsOnlyTheKeyItNames(t *testing.T) {
+	clock := newClock()
+	banner := newBanner(t, config(), clock)
+
+	banner.Flag("player")
+	banner.Unban("player")
+
+	_, found := banner.Pardon("")
+	assert.False(t, found)
+	_, found = banner.Pardon("nobody")
+	assert.False(t, found)
+	_, accepted := banner.Flag("neighbour")
+	assert.True(t, accepted)
+}
+
+func TestEachUnbanIsANewPardon(t *testing.T) {
+	clock := newClock()
+	banner := newBanner(t, config(), clock)
+
+	banner.Ban("player", 0)
+	clock.Advance(2 * time.Hour)
+	banner.Ban("player", 0)
+	banner.Unban("player")
+	clock.Advance(time.Hour)
+	banner.Unban("player")
+
+	pardoned, found := banner.Pardon("player")
+	require.True(t, found)
+	assert.Equal(t, clock.Now(), pardoned.At)
+	assert.Equal(t, clock.Now().Add(pardon), pardoned.Until)
+	assert.Equal(t, 1, pardoned.Lifted.Offence, "the second unban lifts the first offence")
 }
 
 func TestAnUnbanForgetsOnlyTheOffenceItLifts(t *testing.T) {
@@ -254,7 +329,7 @@ func TestAnUnbanForgetsOnlyTheOffenceItLifts(t *testing.T) {
 
 func TestAnUnbanOfAnEndedBanForgetsItsOffenceAndKeepsItsEnd(t *testing.T) {
 	clock := newClock()
-	store := shadowban.NewMemoryStore()
+	store := bans.NewMemoryStore()
 	banner := bannerOver(t, config(), clock, store)
 
 	banned, _ := banner.Flag("player")
@@ -264,6 +339,7 @@ func TestAnUnbanOfAnEndedBanForgetsItsOffenceAndKeepsItsEnd(t *testing.T) {
 	assert.Equal(t, 0, store.Stored()["player"].Offences)
 	assert.Equal(t, banned.Until, store.Stored()["player"].ExpiresAt, "a ban that ended is not moved")
 
+	clock.Advance(pardon)
 	sentence, accepted := banner.Flag("player")
 	require.True(t, accepted)
 	assert.Equal(t, 1, sentence.Offence, "the next ban starts the ladder where the lifted one did")
@@ -293,7 +369,7 @@ func TestEachUnbanForgetsOneOffence(t *testing.T) {
 
 func TestAnUnbanWithNoBanChangesNothing(t *testing.T) {
 	clock := newClock()
-	store := shadowban.NewMemoryStore()
+	store := bans.NewMemoryStore()
 	banner := bannerOver(t, config(), clock, store)
 
 	banner.Flag("lifted")
