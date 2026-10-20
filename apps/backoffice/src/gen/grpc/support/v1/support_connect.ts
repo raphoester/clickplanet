@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateUploadRequest, CreateUploadResponse, GetAttachmentRulesRequest, GetAttachmentRulesResponse, ReportBugRequest, ReportBugResponse, ReportPlayerRequest, ReportPlayerResponse, SuggestFeatureRequest, SuggestFeatureResponse } from "./support_pb.js";
+import { CreateUploadRequest, CreateUploadResponse, GetAttachmentRulesRequest, GetAttachmentRulesResponse, ReportBugRequest, ReportBugResponse, ReportPlaceRequest, ReportPlaceResponse, ReportPlayerRequest, ReportPlayerResponse, SuggestFeatureRequest, SuggestFeatureResponse } from "./support_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -37,6 +37,17 @@ export const SupportService = {
       name: "ReportPlayer",
       I: ReportPlayerRequest,
       O: ReportPlayerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * A drawing on the map, by a tile of it: the operator reads it and may put the area back as it was.
+     *
+     * @generated from rpc support.v1.SupportService.ReportPlace
+     */
+    reportPlace: {
+      name: "ReportPlace",
+      I: ReportPlaceRequest,
+      O: ReportPlaceResponse,
       kind: MethodKind.Unary,
     },
     /**

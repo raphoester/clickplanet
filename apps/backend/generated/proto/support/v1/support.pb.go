@@ -76,6 +76,59 @@ func (ReportReason) EnumDescriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{0}
 }
 
+type PlaceReportReason int32
+
+const (
+	PlaceReportReason_PLACE_REPORT_REASON_UNSPECIFIED PlaceReportReason = 0
+	// A hateful symbol or hateful words.
+	PlaceReportReason_PLACE_REPORT_REASON_HATE   PlaceReportReason = 1
+	PlaceReportReason_PLACE_REPORT_REASON_SEXUAL PlaceReportReason = 2
+	PlaceReportReason_PLACE_REPORT_REASON_OTHER  PlaceReportReason = 3
+)
+
+// Enum value maps for PlaceReportReason.
+var (
+	PlaceReportReason_name = map[int32]string{
+		0: "PLACE_REPORT_REASON_UNSPECIFIED",
+		1: "PLACE_REPORT_REASON_HATE",
+		2: "PLACE_REPORT_REASON_SEXUAL",
+		3: "PLACE_REPORT_REASON_OTHER",
+	}
+	PlaceReportReason_value = map[string]int32{
+		"PLACE_REPORT_REASON_UNSPECIFIED": 0,
+		"PLACE_REPORT_REASON_HATE":        1,
+		"PLACE_REPORT_REASON_SEXUAL":      2,
+		"PLACE_REPORT_REASON_OTHER":       3,
+	}
+)
+
+func (x PlaceReportReason) Enum() *PlaceReportReason {
+	p := new(PlaceReportReason)
+	*p = x
+	return p
+}
+
+func (x PlaceReportReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PlaceReportReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_support_v1_support_proto_enumTypes[1].Descriptor()
+}
+
+func (PlaceReportReason) Type() protoreflect.EnumType {
+	return &file_support_v1_support_proto_enumTypes[1]
+}
+
+func (x PlaceReportReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PlaceReportReason.Descriptor instead.
+func (PlaceReportReason) EnumDescriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{1}
+}
+
 type SuggestFeatureRequest struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Text    string                 `protobuf:"bytes,1,opt,name=text,proto3" json:"text,omitempty"`
@@ -720,6 +773,104 @@ func (*ReportPlayerResponse) Descriptor() ([]byte, []int) {
 	return file_support_v1_support_proto_rawDescGZIP(), []int{10}
 }
 
+type ReportPlaceRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A tile of the drawing, the one the reporter picked.
+	TileId uint32            `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
+	Reason PlaceReportReason `protobuf:"varint,2,opt,name=reason,proto3,enum=support.v1.PlaceReportReason" json:"reason,omitempty"`
+	// Optional.
+	Text          string `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportPlaceRequest) Reset() {
+	*x = ReportPlaceRequest{}
+	mi := &file_support_v1_support_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportPlaceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportPlaceRequest) ProtoMessage() {}
+
+func (x *ReportPlaceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportPlaceRequest.ProtoReflect.Descriptor instead.
+func (*ReportPlaceRequest) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ReportPlaceRequest) GetTileId() uint32 {
+	if x != nil {
+		return x.TileId
+	}
+	return 0
+}
+
+func (x *ReportPlaceRequest) GetReason() PlaceReportReason {
+	if x != nil {
+		return x.Reason
+	}
+	return PlaceReportReason_PLACE_REPORT_REASON_UNSPECIFIED
+}
+
+func (x *ReportPlaceRequest) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+type ReportPlaceResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportPlaceResponse) Reset() {
+	*x = ReportPlaceResponse{}
+	mi := &file_support_v1_support_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportPlaceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportPlaceResponse) ProtoMessage() {}
+
+func (x *ReportPlaceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_support_v1_support_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportPlaceResponse.ProtoReflect.Descriptor instead.
+func (*ReportPlaceResponse) Descriptor() ([]byte, []int) {
+	return file_support_v1_support_proto_rawDescGZIP(), []int{12}
+}
+
 var File_support_v1_support_proto protoreflect.FileDescriptor
 
 const file_support_v1_support_proto_rawDesc = "" +
@@ -772,17 +923,28 @@ const file_support_v1_support_proto_rawDesc = "" +
 	"message_id\x18\x04 \x01(\tR\tmessageId\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x05 \x01(\tR\taccountIdJ\x04\b\x01\x10\x02R\x04name\"\x16\n" +
-	"\x14ReportPlayerResponse*\x9c\x01\n" +
+	"\x14ReportPlayerResponse\"x\n" +
+	"\x12ReportPlaceRequest\x12\x17\n" +
+	"\atile_id\x18\x01 \x01(\rR\x06tileId\x125\n" +
+	"\x06reason\x18\x02 \x01(\x0e2\x1d.support.v1.PlaceReportReasonR\x06reason\x12\x12\n" +
+	"\x04text\x18\x03 \x01(\tR\x04text\"\x15\n" +
+	"\x13ReportPlaceResponse*\x9c\x01\n" +
 	"\fReportReason\x12\x1d\n" +
 	"\x19REPORT_REASON_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16REPORT_REASON_CHEATING\x10\x01\x12\x1c\n" +
 	"\x18REPORT_REASON_CHAT_ABUSE\x10\x02\x12\x1a\n" +
 	"\x16REPORT_REASON_BAD_NAME\x10\x03\x12\x17\n" +
-	"\x13REPORT_REASON_OTHER\x10\x042\xc3\x03\n" +
+	"\x13REPORT_REASON_OTHER\x10\x04*\x95\x01\n" +
+	"\x11PlaceReportReason\x12#\n" +
+	"\x1fPLACE_REPORT_REASON_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18PLACE_REPORT_REASON_HATE\x10\x01\x12\x1e\n" +
+	"\x1aPLACE_REPORT_REASON_SEXUAL\x10\x02\x12\x1d\n" +
+	"\x19PLACE_REPORT_REASON_OTHER\x10\x032\x93\x04\n" +
 	"\x0eSupportService\x12W\n" +
 	"\x0eSuggestFeature\x12!.support.v1.SuggestFeatureRequest\x1a\".support.v1.SuggestFeatureResponse\x12H\n" +
 	"\tReportBug\x12\x1c.support.v1.ReportBugRequest\x1a\x1d.support.v1.ReportBugResponse\x12Q\n" +
-	"\fReportPlayer\x12\x1f.support.v1.ReportPlayerRequest\x1a .support.v1.ReportPlayerResponse\x12h\n" +
+	"\fReportPlayer\x12\x1f.support.v1.ReportPlayerRequest\x1a .support.v1.ReportPlayerResponse\x12N\n" +
+	"\vReportPlace\x12\x1e.support.v1.ReportPlaceRequest\x1a\x1f.support.v1.ReportPlaceResponse\x12h\n" +
 	"\x12GetAttachmentRules\x12%.support.v1.GetAttachmentRulesRequest\x1a&.support.v1.GetAttachmentRulesResponse\"\x03\x90\x02\x01\x12Q\n" +
 	"\fCreateUpload\x12\x1f.support.v1.CreateUploadRequest\x1a .support.v1.CreateUploadResponseB\xbb\x01\n" +
 	"\x0ecom.support.v1B\fSupportProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1;supportv1\xa2\x02\x03SXX\xaa\x02\n" +
@@ -801,41 +963,47 @@ func file_support_v1_support_proto_rawDescGZIP() []byte {
 	return file_support_v1_support_proto_rawDescData
 }
 
-var file_support_v1_support_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_support_v1_support_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_support_v1_support_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_support_v1_support_proto_goTypes = []any{
 	(ReportReason)(0),                  // 0: support.v1.ReportReason
-	(*SuggestFeatureRequest)(nil),      // 1: support.v1.SuggestFeatureRequest
-	(*SuggestFeatureResponse)(nil),     // 2: support.v1.SuggestFeatureResponse
-	(*ReportBugRequest)(nil),           // 3: support.v1.ReportBugRequest
-	(*ReportBugResponse)(nil),          // 4: support.v1.ReportBugResponse
-	(*CreateUploadRequest)(nil),        // 5: support.v1.CreateUploadRequest
-	(*CreateUploadResponse)(nil),       // 6: support.v1.CreateUploadResponse
-	(*GetAttachmentRulesRequest)(nil),  // 7: support.v1.GetAttachmentRulesRequest
-	(*GetAttachmentRulesResponse)(nil), // 8: support.v1.GetAttachmentRulesResponse
-	(*PageContext)(nil),                // 9: support.v1.PageContext
-	(*ReportPlayerRequest)(nil),        // 10: support.v1.ReportPlayerRequest
-	(*ReportPlayerResponse)(nil),       // 11: support.v1.ReportPlayerResponse
+	(PlaceReportReason)(0),             // 1: support.v1.PlaceReportReason
+	(*SuggestFeatureRequest)(nil),      // 2: support.v1.SuggestFeatureRequest
+	(*SuggestFeatureResponse)(nil),     // 3: support.v1.SuggestFeatureResponse
+	(*ReportBugRequest)(nil),           // 4: support.v1.ReportBugRequest
+	(*ReportBugResponse)(nil),          // 5: support.v1.ReportBugResponse
+	(*CreateUploadRequest)(nil),        // 6: support.v1.CreateUploadRequest
+	(*CreateUploadResponse)(nil),       // 7: support.v1.CreateUploadResponse
+	(*GetAttachmentRulesRequest)(nil),  // 8: support.v1.GetAttachmentRulesRequest
+	(*GetAttachmentRulesResponse)(nil), // 9: support.v1.GetAttachmentRulesResponse
+	(*PageContext)(nil),                // 10: support.v1.PageContext
+	(*ReportPlayerRequest)(nil),        // 11: support.v1.ReportPlayerRequest
+	(*ReportPlayerResponse)(nil),       // 12: support.v1.ReportPlayerResponse
+	(*ReportPlaceRequest)(nil),         // 13: support.v1.ReportPlaceRequest
+	(*ReportPlaceResponse)(nil),        // 14: support.v1.ReportPlaceResponse
 }
 var file_support_v1_support_proto_depIdxs = []int32{
-	9,  // 0: support.v1.SuggestFeatureRequest.context:type_name -> support.v1.PageContext
-	9,  // 1: support.v1.ReportBugRequest.context:type_name -> support.v1.PageContext
+	10, // 0: support.v1.SuggestFeatureRequest.context:type_name -> support.v1.PageContext
+	10, // 1: support.v1.ReportBugRequest.context:type_name -> support.v1.PageContext
 	0,  // 2: support.v1.ReportPlayerRequest.reason:type_name -> support.v1.ReportReason
-	1,  // 3: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
-	3,  // 4: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
-	10, // 5: support.v1.SupportService.ReportPlayer:input_type -> support.v1.ReportPlayerRequest
-	7,  // 6: support.v1.SupportService.GetAttachmentRules:input_type -> support.v1.GetAttachmentRulesRequest
-	5,  // 7: support.v1.SupportService.CreateUpload:input_type -> support.v1.CreateUploadRequest
-	2,  // 8: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
-	4,  // 9: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
-	11, // 10: support.v1.SupportService.ReportPlayer:output_type -> support.v1.ReportPlayerResponse
-	8,  // 11: support.v1.SupportService.GetAttachmentRules:output_type -> support.v1.GetAttachmentRulesResponse
-	6,  // 12: support.v1.SupportService.CreateUpload:output_type -> support.v1.CreateUploadResponse
-	8,  // [8:13] is the sub-list for method output_type
-	3,  // [3:8] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	1,  // 3: support.v1.ReportPlaceRequest.reason:type_name -> support.v1.PlaceReportReason
+	2,  // 4: support.v1.SupportService.SuggestFeature:input_type -> support.v1.SuggestFeatureRequest
+	4,  // 5: support.v1.SupportService.ReportBug:input_type -> support.v1.ReportBugRequest
+	11, // 6: support.v1.SupportService.ReportPlayer:input_type -> support.v1.ReportPlayerRequest
+	13, // 7: support.v1.SupportService.ReportPlace:input_type -> support.v1.ReportPlaceRequest
+	8,  // 8: support.v1.SupportService.GetAttachmentRules:input_type -> support.v1.GetAttachmentRulesRequest
+	6,  // 9: support.v1.SupportService.CreateUpload:input_type -> support.v1.CreateUploadRequest
+	3,  // 10: support.v1.SupportService.SuggestFeature:output_type -> support.v1.SuggestFeatureResponse
+	5,  // 11: support.v1.SupportService.ReportBug:output_type -> support.v1.ReportBugResponse
+	12, // 12: support.v1.SupportService.ReportPlayer:output_type -> support.v1.ReportPlayerResponse
+	14, // 13: support.v1.SupportService.ReportPlace:output_type -> support.v1.ReportPlaceResponse
+	9,  // 14: support.v1.SupportService.GetAttachmentRules:output_type -> support.v1.GetAttachmentRulesResponse
+	7,  // 15: support.v1.SupportService.CreateUpload:output_type -> support.v1.CreateUploadResponse
+	10, // [10:16] is the sub-list for method output_type
+	4,  // [4:10] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_support_v1_support_proto_init() }
@@ -848,8 +1016,8 @@ func file_support_v1_support_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_support_v1_support_proto_rawDesc), len(file_support_v1_support_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   11,
+			NumEnums:      2,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

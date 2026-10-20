@@ -32,6 +32,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/report_bug_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/usecases/suggest_feature_usecase"
 	note_ids "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/uuid_id_provider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/places"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/places/postgres_place_report_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/places/usecases/anonymize_place_reports_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/places/usecases/prune_place_reports_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/places/usecases/report_place_usecase"
+	place_ids "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/places/uuid_id_provider"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/postgres_report_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/usecases/forget_reports_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/usecases/prune_reports_usecase"
@@ -41,14 +48,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/create_upload_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/decide_place_report_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/decide_report_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/get_attachment_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_notes_handler/notes_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_place_reports_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_place_reports_handler/place_reports_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler/reports_query"
 	report_authors "github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/list_reports_handler/reports_query/rpc_player_authors"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_bug_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_place_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/report_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/supportv1controller/suggest_feature_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/uploads"
@@ -92,6 +103,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	noteStore := postgres_note_store.New(db)
 	reportStore := postgres_report_store.New(db)
+	placeStore := postgres_place_report_store.New(db)
 	uploadStore := postgres_upload_store.New(db)
 
 	bucket, err := s3_attachment_bucket.New(config.Attachments.bucket(), config.Attachments.lifetimes(), clock,
@@ -107,6 +119,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		props.Logger.With(slog.String("pruned", "notes")))
 	reportPrune := log_prune.New(prune_reports_usecase.New(config.Retention, clock, reportStore),
 		props.Logger.With(slog.String("pruned", "reports")))
+	placePrune := log_prune.New(prune_place_reports_usecase.New(config.Retention, clock, placeStore),
+		props.Logger.With(slog.String("pruned", "place reports")))
 	unsentDiscard := log_prune.New(discard_unsent_usecase.New(config.Attachments.KeepUnsent, clock, uploadStore, bucket),
 		props.Logger.With(slog.String("pruned", "unsent files")))
 
@@ -124,9 +138,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
 	}
 
+	placeDeletions, err := cpbootstrap.Subscribe(props.Events, "support-places-accounts", accountDeletedBuffer,
+		log_subscriber.New(account_deleted_subscriber.New(anonymize_place_reports_usecase.New(placeStore)), props.Logger))
+	if err != nil {
+		_ = db.Close()
+		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+	}
+
 	// Not a closer: closers run before the runners stop, and the runners use the pool.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger,
-		prune_usecase.NewRunner(config.PruneInterval, notePrune, reportPrune, unsentDiscard), noteDeletions, reportDeletions))
+		prune_usecase.NewRunner(config.PruneInterval, notePrune, reportPrune, placePrune, unsentDiscard),
+		noteDeletions, reportDeletions, placeDeletions))
 
 	limiter := cpratelimit.New("support-limiter", config.RateLimiter, clock)
 	props.Runners.Add(limiter)
@@ -142,6 +164,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			report_bug_usecase.New(note_ids.Provider{}, clock, rules, noteStore, bucket)),
 		ReportPlayerHandler: report_player_handler.New(report_player_usecase.New(
 			report_ids.Provider{}, clock, reportStore)),
+		ReportPlaceHandler:        report_place_handler.New(report_place_usecase.New(place_ids.Provider{}, clock, placeStore)),
 		GetAttachmentRulesHandler: get_attachment_rules_handler.New(rules, shelf),
 		CreateUploadHandler:       create_upload_handler.New(create_upload_usecase.New(note_ids.Provider{}, rules, shelf, bucket)),
 	}
@@ -157,11 +180,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount support.v1.SupportService: %w", err)
 	}
 
+	authors := report_authors.New(player)
 	adminService := supportv1controller.AdminService{
 		ListNotesHandler:   list_notes_handler.New(notes_query.NewPostgresQuery(db, bucket)),
-		ListReportsHandler: list_reports_handler.New(reports_query.NewPostgresQuery(db, report_authors.New(player))),
-		DecideReportHandler: decide_report_handler.New(audit_decide_report.New(
-			decide_report_usecase.New(postgres_decision_store.New(db), clock), props.Logger)),
+		ListReportsHandler: list_reports_handler.New(reports_query.NewPostgresQuery(db, authors)),
+		DecideReportHandler: decide_report_handler.New(audit_decide_report.New[reports.ReportID](
+			decide_report_usecase.New(postgres_decision_store.ForReports(db), clock), "player", props.Logger)),
+		ListPlaceReportsHandler: list_place_reports_handler.New(place_reports_query.NewPostgresQuery(db, authors)),
+		DecidePlaceReportHandler: decide_place_report_handler.New(audit_decide_report.New[places.ReportID](
+			decide_report_usecase.New(postgres_decision_store.ForPlaces(db), clock), "place", props.Logger)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return supportv1connect.NewAdminServiceHandler(adminService, options...)

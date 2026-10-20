@@ -3,7 +3,7 @@ import {DisplaySettings} from "../../domain/displaySettings.ts";
 import {FeedbackBackend, PageContext} from "../../backends/support.ts";
 import About from "../About.tsx";
 import BuyMeACoffee from "../components/BuyMeACoffee.tsx";
-import {InfoIcon, MailIcon} from "../components/icons.tsx";
+import {InfoIcon, MailIcon, ReportIcon} from "../components/icons.tsx";
 import Modal from "../components/Modal.tsx";
 import Switch from "../components/Switch.tsx";
 import SoundSettingsPanel, {SoundSettingsPanelProps} from "../sound/SoundSettingsPanel.tsx";
@@ -17,11 +17,13 @@ export type SettingsPlaceProps = {
     sound?: SoundSettingsPanelProps,
     support?: FeedbackBackend,
     pageContext?: () => PageContext,
+    // Closes what is open and lets the player tap the drawing on the globe.
+    onReportPlace?: () => void,
 }
 
 const pageAlone = () => pageContextOf(window, NO_GRAPHICS, false)
 
-export default function SettingsPlace({display, sound, support, pageContext = pageAlone}: SettingsPlaceProps) {
+export default function SettingsPlace({display, sound, support, pageContext = pageAlone, onReportPlace}: SettingsPlaceProps) {
     const [open, setOpen] = useState<"feedback" | "about">()
     const close = () => setOpen(undefined)
 
@@ -46,6 +48,12 @@ export default function SettingsPlace({display, sound, support, pageContext = pa
                                 onClick={() => setOpen("feedback")}>
                 <MailIcon size={22}/>
                 <span>Feedback</span>
+            </button>}
+            {onReportPlace && <button type="button"
+                                      className="panel-box menu-tile"
+                                      onClick={onReportPlace}>
+                <ReportIcon size={22}/>
+                <span>Report a drawing</span>
             </button>}
             <button type="button"
                     className="panel-box menu-tile"

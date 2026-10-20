@@ -1412,6 +1412,25 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
 docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"reportId":"<report_id>","outcome":"REPORT_OUTCOME_ACTED","comment":"removed the message"}' http://127.0.0.1:8081/support.v1.AdminService/DecideReport
 ```
 
+- A player reports a drawing on the map by a tile of it. Read the open ones:
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"openOnly":true}' http://127.0.0.1:8081/support.v1.AdminService/ListPlaceReports
+```
+
+- `https://clickplanet.lol/?tile=<tile_id>` opens the game on the tile. To see
+  who painted around it since a time, and what putting it back would change, do
+  a dry run (`rings` is the size of the area, 1 to 50, as a bomb's 8):
+
+```bash
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"tileId":<tile_id>,"rings":8,"before":"2026-10-20T10:00:00Z","dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/RestoreArea
+```
+
+- Then the same without `dryRun` puts each tile back as it was then. The ledger
+  keeps 72 hours: an older `before` is refused. For an older drawing, give the
+  area to nobody (`ClearArea`, the same `tileId` and `rings`, a dry run first).
+  Ban the painters the dry run names with `BanPlayer`.
+- Close it with `DecidePlaceReport`, as `DecideReport`.
 - Every removal and every decision is logged:
   `journalctl CONTAINER_NAME=cp-backend | grep -E "admin chat message removal|admin report decision"`.
 

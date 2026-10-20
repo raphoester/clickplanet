@@ -18,11 +18,11 @@ import (
 var now = time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
 
 type recordedDecisions struct {
-	saved []decisions.Snapshot
+	saved []decisions.Snapshot[reports.ReportID]
 	err   error
 }
 
-func (r *recordedDecisions) Save(_ context.Context, decision decisions.Decision) error {
+func (r *recordedDecisions) Save(_ context.Context, decision decisions.Decision[reports.ReportID]) error {
 	if r.err != nil {
 		return r.err
 	}
@@ -30,22 +30,22 @@ func (r *recordedDecisions) Save(_ context.Context, decision decisions.Decision)
 	return nil
 }
 
-func decide(t *testing.T, saver *recordedDecisions, in decide_report_usecase.In) (time.Time, error) {
+func decide(t *testing.T, saver *recordedDecisions, in decide_report_usecase.In[reports.ReportID]) (time.Time, error) {
 	t.Helper()
 
-	return decide_report_usecase.New(saver, cptime.NewFixedClock(now)).Execute(t.Context(), in) //nolint:wrapcheck // the tests read the sentinel.
+	return decide_report_usecase.New[reports.ReportID](saver, cptime.NewFixedClock(now)).Execute(t.Context(), in) //nolint:wrapcheck // the tests read the sentinel.
 }
 
 func TestADecisionIsKeptAtTheTimeItWasMade(t *testing.T) {
 	saver := &recordedDecisions{}
 
-	decidedAt, err := decide(t, saver, decide_report_usecase.In{
+	decidedAt, err := decide(t, saver, decide_report_usecase.In[reports.ReportID]{
 		Report: reports.ReportID{15: 1}, Outcome: decisions.OutcomeActed, Comment: "muted",
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, now, decidedAt)
-	assert.Equal(t, []decisions.Snapshot{
+	assert.Equal(t, []decisions.Snapshot[reports.ReportID]{
 		{Report: reports.ReportID{15: 1}, Outcome: decisions.OutcomeActed, Comment: "muted", At: now},
 	}, saver.saved)
 }
@@ -53,7 +53,7 @@ func TestADecisionIsKeptAtTheTimeItWasMade(t *testing.T) {
 func TestADecisionThatBreaksARuleIsNotKept(t *testing.T) {
 	saver := &recordedDecisions{}
 
-	_, err := decide(t, saver, decide_report_usecase.In{Report: reports.ReportID{15: 1}, Outcome: "banned"})
+	_, err := decide(t, saver, decide_report_usecase.In[reports.ReportID]{Report: reports.ReportID{15: 1}, Outcome: "banned"})
 
 	require.ErrorIs(t, err, decisions.ErrUnknownOutcome)
 	assert.Empty(t, saver.saved)
@@ -62,7 +62,7 @@ func TestADecisionThatBreaksARuleIsNotKept(t *testing.T) {
 func TestADecisionThatCannotBeKeptFails(t *testing.T) {
 	cause := errors.New("postgres is down")
 
-	_, err := decide(t, &recordedDecisions{err: cause}, decide_report_usecase.In{
+	_, err := decide(t, &recordedDecisions{err: cause}, decide_report_usecase.In[reports.ReportID]{
 		Report: reports.ReportID{15: 1}, Outcome: decisions.OutcomeDismissed,
 	})
 

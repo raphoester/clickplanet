@@ -59,10 +59,23 @@ export interface PlayerReporter {
     reportPlayer(report: PlayerReport): Promise<void>
 }
 
+export type PlaceReportReason = "hate" | "sexual" | "other"
+
+// A drawing on the map, by the tile the player picked in it.
+export type PlaceReport = {
+    tileId: number
+    reason: PlaceReportReason
+    text: string
+}
+
+export interface PlaceReporter {
+    reportPlace(report: PlaceReport): Promise<void>
+}
+
 // What the feedback form asks for: a note of either kind, and its files.
 export type FeedbackBackend = FeatureSuggester & BugReporter & AttachmentRulesReader & AttachmentUploader
 
-export type SupportBackend = FeedbackBackend & PlayerReporter
+export type SupportBackend = FeedbackBackend & PlayerReporter & PlaceReporter
 
 export class SupportRateLimitedError extends Error {
     constructor(options?: {cause?: unknown}) {

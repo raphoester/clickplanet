@@ -39,6 +39,7 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		cpconnect.Attested(supportv1connect.SupportServiceSuggestFeatureProcedure),
 		cpconnect.Attested(supportv1connect.SupportServiceReportBugProcedure),
 		cpconnect.Attested(supportv1connect.SupportServiceReportPlayerProcedure),
+		cpconnect.Attested(supportv1connect.SupportServiceReportPlaceProcedure),
 		cpconnect.Attested(supportv1connect.SupportServiceCreateUploadProcedure),
 	)
 }
@@ -48,6 +49,7 @@ func NewRateLimitInterceptor(limiter cpconnect.Limiter) connect.Interceptor {
 		supportv1connect.SupportServiceSuggestFeatureProcedure,
 		supportv1connect.SupportServiceReportBugProcedure,
 		supportv1connect.SupportServiceReportPlayerProcedure,
+		supportv1connect.SupportServiceReportPlaceProcedure,
 	)
 }
 

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, ClearAreaRequest, ClearAreaResponse, FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RestoreAreaRequest, RestoreAreaResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -102,6 +102,28 @@ export const AdminService = {
       name: "GetReplay",
       I: GetReplayRequest,
       O: GetReplayResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Who painted the area around a tile since a time, and what putting the area back as it was then changes. Restores it unless dry_run.
+     *
+     * @generated from rpc planet.v1.AdminService.RestoreArea
+     */
+    restoreArea: {
+      name: "RestoreArea",
+      I: RestoreAreaRequest,
+      O: RestoreAreaResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gives every tile of the area around a tile to nobody, for a drawing older than the ledger keeps. Clears it unless dry_run.
+     *
+     * @generated from rpc planet.v1.AdminService.ClearArea
+     */
+    clearArea: {
+      name: "ClearArea",
+      I: ClearAreaRequest,
+      O: ClearAreaResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -205,7 +205,7 @@ func (s *testSuite) TestAFailedReadIsAnError() {
 func (s *testSuite) decided(n byte, outcome decisions.Outcome, comment string, at time.Time) {
 	decision, err := decisions.NewDecision(reports.ReportID{15: n}, outcome, comment, at)
 	s.Require().NoError(err)
-	s.Require().NoError(postgres_decision_store.New(s.db).Save(s.T().Context(), decision))
+	s.Require().NoError(postgres_decision_store.ForReports(s.db).Save(s.T().Context(), decision))
 }
 
 func (s *testSuite) TestADecidedReportCarriesItsDecision() {
