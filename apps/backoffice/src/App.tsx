@@ -8,6 +8,7 @@ import {ReassignPanel} from "./map/ReassignPanel.tsx"
 import {ReplayPanel} from "./map/ReplayPanel.tsx"
 import {OpenPlayer, Opened, PageId, titleOf} from "./navigation.ts"
 import {TitlesPanel} from "./ops/TitlesPanel.tsx"
+import {idOf} from "./players/caller.ts"
 import {PlayersPage} from "./players/PlayersPage.tsx"
 import {ReportsView} from "./reports/ReportsView.tsx"
 import {DrawingsView} from "./drawings/DrawingsView.tsx"
@@ -48,9 +49,9 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
     const [page, setPage] = usePage()
     const [player, setPlayer] = useState<Opened | undefined>(undefined)
 
-    // A report opens its player on the Players page, where every tool on it is.
+    // A report opens its player on the Players page, where every tool on it is. The player already open keeps its row.
     const openPlayer = useCallback((opened: Opened) => {
-        setPlayer(opened)
+        setPlayer(shown => shown !== undefined && idOf(shown.caller) === idOf(opened.caller) ? shown : opened)
         setPage("players")
     }, [setPage])
 

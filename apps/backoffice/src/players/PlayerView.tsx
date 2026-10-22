@@ -1,5 +1,6 @@
 import {Code, ConnectError} from "@connectrpc/connect"
 import {useCallback} from "react"
+import {TheirMessages} from "../chat/TheirMessages.tsx"
 import {Clients} from "../clients.ts"
 import {Copyable} from "../components/AccountId.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
@@ -87,6 +88,10 @@ export function PlayerView({clients, opened, onBack, onOpen}: Props) {
             </article>
 
             {isAccount(caller) && <ProfilePanel profile={profile} onReload={readProfileAgain}/>}
+
+            {isAccount(caller) && (
+                <TheirMessages chat={clients.chat} accountId={caller.accountId} name={name} parties={undefined}/>
+            )}
 
             <section className="panel" aria-label="Antibot">
                 <div className="panel-head">
