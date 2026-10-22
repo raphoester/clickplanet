@@ -8,7 +8,11 @@ import "player/v1/player.proto";
 import "player/v1/title.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
+// Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
+// without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
 service AdminService {
+  // Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
+  // adds a title or changes a rule. A second run changes nothing.
   rpc ReconcileTitles(ReconcileTitlesRequest) returns (ReconcileTitlesResponse);
 
   // InternalService/GetAuthors, for the admin page naming a page of players.

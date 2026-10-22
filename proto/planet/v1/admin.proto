@@ -7,26 +7,64 @@ import "google/protobuf/timestamp.proto";
 import "planet/v1/planet.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
+// Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
+// without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
 service AdminService {
+  // Gives every tile one country holds to another, while the game runs: paced in batches, each tile an ordinary
+  // update every screen repaints. The ledger does not see it, so no revert undoes it. A tile the first country
+  // retakes during the move stays its own; from_after says whether to run it again.
   rpc ReassignCountry(ReassignCountryRequest) returns (ReassignCountryResponse);
 
-  rpc FindPlayers(FindPlayersRequest) returns (FindPlayersResponse);
+  // Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
+  // per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
+  // IPv6. The scope and the account_id are what BanPlayer, UnbanPlayer, RevertPlayer and InspectPlayer take.
+  rpc FindPlayers(FindPlayersRequest) returns (FindPlayersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
-  rpc TopPlayers(TopPlayersRequest) returns (TopPlayersResponse);
+  // Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
+  // most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
+  rpc TopPlayers(TopPlayersRequest) returns (TopPlayersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
+  // A shadow ban: the caller's clicks and bombs are answered OK and dropped, so it learns nothing. Takes a scope or
+  // an account_id, never both; an account is banned alone, a scope bans everybody behind it. It counts as an offence,
+  // and an unset duration takes the next step of the ladder. enforced false means the antibot only logs and drops
+  // nothing. Ban before RevertPlayer, or the player repaints behind the revert.
   rpc BanPlayer(BanPlayerRequest) returns (BanPlayerResponse);
 
+  // Lifts a caller's latest ban, for a false positive, and forgets that offence. The antibot's evidence stays: a
+  // watchdog that still reads certain bans the caller again on its next click, so the rule that misfired is to be
+  // fixed first. A guest the jury banned is banned on its account and its scope: two calls. NotFound when no offence
+  // is left.
   rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse);
 
+  // Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
+  // caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
+  // from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
   rpc RevertPlayer(RevertPlayerRequest) returns (RevertPlayerResponse);
 
+  // Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
+  // between stays theirs. The ledger does not see it.
   rpc PaintRandomTiles(PaintRandomTilesRequest) returns (PaintRandomTilesResponse);
 
-  rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse);
+  // What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
+  // and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
+  // is read on the scope of its latest take. Changes nothing.
+  rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
+  // Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
+  // one each, the rest stack. before and after say what fit. The player sees them at its next page load.
   rpc GrantCharges(GrantChargesRequest) returns (GrantChargesResponse);
 
-  rpc GetReplay(GetReplayRequest) returns (GetReplayResponse);
+  // The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
+  // connector does not offer it.
+  rpc GetReplay(GetReplayRequest) returns (GetReplayResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetReplayRequest {
@@ -66,10 +104,14 @@ message GrantChargesResponse {
 }
 
 message PaintRandomTilesRequest {
+  // The flag painted: a country id, "fr".
   string flag_country_id = 1;
+  // The country whose ground a patch starts on; empty is anywhere on the map. A patch grows across the border.
   string area_country_id = 2;
   uint32 count = 3;
+  // 0 to 1: how likely each next tile touches one already picked. 0 scatters them, 1 grows one patch.
   double proximity = 4;
+  // Picks the tiles, and paints nothing.
   bool dry_run = 5;
 }
 
@@ -81,7 +123,9 @@ message PaintRandomTilesResponse {
 }
 
 message InspectPlayerRequest {
+  // An address, read as its scope. Never with account_id.
   string scope = 1;
+  // Never with scope.
   string account_id = 2;
 }
 
@@ -119,8 +163,11 @@ message WatchdogReading {
 }
 
 message FindPlayersRequest {
+  // A country id: ISO 3166-1 alpha-2 in lower case, "fr".
   string flag_country_id = 1;
+  // Empty is the whole map.
   string area_country_id = 2;
+  // Unset is every player.
   uint32 limit = 3;
 }
 
@@ -130,6 +177,7 @@ message FindPlayersResponse {
 }
 
 message TopPlayersRequest {
+  // Unset is every player.
   uint32 limit = 1;
 }
 
@@ -155,8 +203,11 @@ message Player {
 }
 
 message BanPlayerRequest {
+  // An address, banned as its scope. Never with account_id.
   string scope = 1;
+  // Never with scope.
   string account_id = 3;
+  // Unset is the ladder's step for this offence.
   google.protobuf.Duration duration = 2;
 }
 
@@ -169,7 +220,9 @@ message BanPlayerResponse {
 }
 
 message UnbanPlayerRequest {
+  // An address, read as its scope. Never with account_id.
   string scope = 1;
+  // Never with scope.
   string account_id = 2;
 }
 
@@ -183,8 +236,11 @@ message UnbanPlayerResponse {
 }
 
 message RevertPlayerRequest {
+  // An address, read as its scope. Never with account_id.
   string scope = 1;
+  // Never with scope.
   string account_id = 3;
+  // Counts what would go back, and changes nothing.
   bool dry_run = 2;
 }
 
@@ -197,8 +253,10 @@ message RevertPlayerResponse {
 }
 
 message ReassignCountryRequest {
+  // A country id: ISO 3166-1 alpha-2 in lower case, "fr".
   string from_country_id = 1;
   string to_country_id = 2;
+  // Counts what would move, and moves nothing.
   bool dry_run = 3;
 }
 

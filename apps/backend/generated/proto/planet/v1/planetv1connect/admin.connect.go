@@ -64,15 +64,43 @@ const (
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
 type AdminServiceClient interface {
+	// Gives every tile one country holds to another, while the game runs: paced in batches, each tile an ordinary
+	// update every screen repaints. The ledger does not see it, so no revert undoes it. A tile the first country
+	// retakes during the move stays its own; from_after says whether to run it again.
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
+	// Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
+	// per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
+	// IPv6. The scope and the account_id are what BanPlayer, UnbanPlayer, RevertPlayer and InspectPlayer take.
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
+	// Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
+	// most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
+	// A shadow ban: the caller's clicks and bombs are answered OK and dropped, so it learns nothing. Takes a scope or
+	// an account_id, never both; an account is banned alone, a scope bans everybody behind it. It counts as an offence,
+	// and an unset duration takes the next step of the ladder. enforced false means the antibot only logs and drops
+	// nothing. Ban before RevertPlayer, or the player repaints behind the revert.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
+	// Lifts a caller's latest ban, for a false positive, and forgets that offence. The antibot's evidence stays: a
+	// watchdog that still reads certain bans the caller again on its next click, so the rule that misfired is to be
+	// fixed first. A guest the jury banned is banned on its account and its scope: two calls. NotFound when no offence
+	// is left.
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
+	// Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
+	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
+	// from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
+	// Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
+	// between stays theirs. The ledger does not see it.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
+	// What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
+	// and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
+	// is read on the scope of its latest take. Changes nothing.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
+	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
+	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
+	// The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
+	// connector does not offer it.
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
 }
 
@@ -97,12 +125,14 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceFindPlayersProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("FindPlayers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		topPlayers: connect.NewClient[v1.TopPlayersRequest, v1.TopPlayersResponse](
 			httpClient,
 			baseURL+AdminServiceTopPlayersProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("TopPlayers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		banPlayer: connect.NewClient[v1.BanPlayerRequest, v1.BanPlayerResponse](
@@ -133,6 +163,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceInspectPlayerProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		grantCharges: connect.NewClient[v1.GrantChargesRequest, v1.GrantChargesResponse](
@@ -145,6 +176,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceGetReplayProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -216,15 +248,43 @@ func (c *adminServiceClient) GetReplay(ctx context.Context, req *connect.Request
 
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
+	// Gives every tile one country holds to another, while the game runs: paced in batches, each tile an ordinary
+	// update every screen repaints. The ledger does not see it, so no revert undoes it. A tile the first country
+	// retakes during the move stays its own; from_after says whether to run it again.
 	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
+	// Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
+	// per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
+	// IPv6. The scope and the account_id are what BanPlayer, UnbanPlayer, RevertPlayer and InspectPlayer take.
 	FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error)
+	// Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
+	// most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
 	TopPlayers(context.Context, *connect.Request[v1.TopPlayersRequest]) (*connect.Response[v1.TopPlayersResponse], error)
+	// A shadow ban: the caller's clicks and bombs are answered OK and dropped, so it learns nothing. Takes a scope or
+	// an account_id, never both; an account is banned alone, a scope bans everybody behind it. It counts as an offence,
+	// and an unset duration takes the next step of the ladder. enforced false means the antibot only logs and drops
+	// nothing. Ban before RevertPlayer, or the player repaints behind the revert.
 	BanPlayer(context.Context, *connect.Request[v1.BanPlayerRequest]) (*connect.Response[v1.BanPlayerResponse], error)
+	// Lifts a caller's latest ban, for a false positive, and forgets that offence. The antibot's evidence stays: a
+	// watchdog that still reads certain bans the caller again on its next click, so the rule that misfired is to be
+	// fixed first. A guest the jury banned is banned on its account and its scope: two calls. NotFound when no offence
+	// is left.
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
+	// Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
+	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
+	// from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
+	// Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
+	// between stays theirs. The ledger does not see it.
 	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
+	// What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
+	// and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
+	// is read on the scope of its latest take. Changes nothing.
 	InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error)
+	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
+	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
+	// The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
+	// connector does not offer it.
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
 }
 
@@ -245,12 +305,14 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceFindPlayersProcedure,
 		svc.FindPlayers,
 		connect.WithSchema(adminServiceMethods.ByName("FindPlayers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceTopPlayersHandler := connect.NewUnaryHandler(
 		AdminServiceTopPlayersProcedure,
 		svc.TopPlayers,
 		connect.WithSchema(adminServiceMethods.ByName("TopPlayers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceBanPlayerHandler := connect.NewUnaryHandler(
@@ -281,6 +343,7 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceInspectPlayerProcedure,
 		svc.InspectPlayer,
 		connect.WithSchema(adminServiceMethods.ByName("InspectPlayer")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceGrantChargesHandler := connect.NewUnaryHandler(
@@ -293,6 +356,7 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceGetReplayProcedure,
 		svc.GetReplay,
 		connect.WithSchema(adminServiceMethods.ByName("GetReplay")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

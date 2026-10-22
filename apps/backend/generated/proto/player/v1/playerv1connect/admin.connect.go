@@ -44,6 +44,8 @@ const (
 
 // AdminServiceClient is a client for the player.v1.AdminService service.
 type AdminServiceClient interface {
+	// Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
+	// adds a title or changes a rule. A second run changes nothing.
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
 	// InternalService/GetAuthors, for the admin page naming a page of players.
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)
@@ -107,6 +109,8 @@ func (c *adminServiceClient) GetPlayer(ctx context.Context, req *connect.Request
 
 // AdminServiceHandler is an implementation of the player.v1.AdminService service.
 type AdminServiceHandler interface {
+	// Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
+	// adds a title or changes a rule. A second run changes nothing.
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
 	// InternalService/GetAuthors, for the admin page naming a page of players.
 	GetAuthors(context.Context, *connect.Request[v1.GetAuthorsRequest]) (*connect.Response[v1.GetAuthorsResponse], error)

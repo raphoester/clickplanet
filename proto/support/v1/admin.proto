@@ -6,10 +6,21 @@ import "google/protobuf/timestamp.proto";
 import "support/v1/support.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
+// Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
+// without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
 service AdminService {
-  rpc ListNotes(ListNotesRequest) returns (ListNotesResponse);
+  // The feature suggestions and bug reports players sent, newest first, each with what the page said of itself and a
+  // link to each photo or video it carries.
+  rpc ListNotes(ListNotesRequest) returns (ListNotesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
-  rpc ListReports(ListReportsRequest) returns (ListReportsResponse);
+  // Players' reports of other players, newest first, both accounts named as the game shows them now, with any
+  // decision. reported_account_id is what InspectPlayer, BanPlayer and Mute take; message_id is what GetMessage and
+  // RemoveMessage take.
+  rpc ListReports(ListReportsRequest) returns (ListReportsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 
   // Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
   rpc DecideReport(DecideReportRequest) returns (DecideReportResponse);

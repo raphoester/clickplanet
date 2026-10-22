@@ -16,6 +16,8 @@ export class MuteRequest extends Message<MuteRequest> {
   accountId = "";
 
   /**
+   * Unset is one hour; otherwise whole seconds.
+   *
    * @generated from field: google.protobuf.Duration duration = 2;
    */
   duration?: Duration;

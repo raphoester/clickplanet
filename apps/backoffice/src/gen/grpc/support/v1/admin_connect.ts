@@ -4,10 +4,12 @@
 // @ts-nocheck
 
 import { DecideReportRequest, DecideReportResponse, ListNotesRequest, ListNotesResponse, ListReportsRequest, ListReportsResponse } from "./admin_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
+ * Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
+ * without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
  *
  * @generated from service support.v1.AdminService
  */
@@ -15,6 +17,9 @@ export const AdminService = {
   typeName: "support.v1.AdminService",
   methods: {
     /**
+     * The feature suggestions and bug reports players sent, newest first, each with what the page said of itself and a
+     * link to each photo or video it carries.
+     *
      * @generated from rpc support.v1.AdminService.ListNotes
      */
     listNotes: {
@@ -22,8 +27,13 @@ export const AdminService = {
       I: ListNotesRequest,
       O: ListNotesResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
+     * Players' reports of other players, newest first, both accounts named as the game shows them now, with any
+     * decision. reported_account_id is what InspectPlayer, BanPlayer and Mute take; message_id is what GetMessage and
+     * RemoveMessage take.
+     *
      * @generated from rpc support.v1.AdminService.ListReports
      */
     listReports: {
@@ -31,6 +41,7 @@ export const AdminService = {
       I: ListReportsRequest,
       O: ListReportsResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Closes a report with what the operator did about it. A report decided again keeps the last decision. NotFound for a report no longer kept.
