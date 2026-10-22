@@ -32,6 +32,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/complete_admin_sign_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/sign_out_admin_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/usecases/start_admin_sign_in_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens/postgres_admin_token_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens/usecases/prune_tokens_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/turnstile"
@@ -53,6 +55,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_operator_handler/operator_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_sign_in_options_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_token_operator_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_token_operator_handler/token_operator_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/resume_session_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_everywhere_handler"
@@ -262,10 +266,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 
 	operators := operator_query.NewPostgresQuery(db, clock)
 	internalService := authv1controller.InternalService{
-		GetVerifyingKeyHandler: get_verifying_key_handler.New(signer),
-		GetAccountHandler:      get_account_handler.New(account_query.NewPostgresQuery(db)),
-		GetAccountsHandler:     get_accounts_handler.New(accounts_query.NewPostgresQuery(db)),
-		GetOperatorHandler:     get_operator_handler.New(operators),
+		GetVerifyingKeyHandler:  get_verifying_key_handler.New(signer),
+		GetAccountHandler:       get_account_handler.New(account_query.NewPostgresQuery(db)),
+		GetAccountsHandler:      get_accounts_handler.New(accounts_query.NewPostgresQuery(db)),
+		GetOperatorHandler:      get_operator_handler.New(operators),
+		GetTokenOperatorHandler: get_token_operator_handler.New(token_operator_query.NewPostgresQuery(db, clock)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewInternalServiceHandler(internalService, options...)
@@ -274,6 +279,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	}
 
 	adminSessions := postgres_admin_session_store.New(db)
+	adminTokens := postgres_admin_token_store.New(db)
+	props.Runners.Add(prune_tokens_usecase.NewRunner(prune_tokens_usecase.New(adminTokens, clock), props.Logger))
 	adminService := authv1controller.AdminService{
 		AdminStartSignInHandler: admin_start_sign_in_handler.New(
 			start_admin_sign_in_usecase.New(signIns.admin, random_secret_generator.Generator{}, sealer, clock),

@@ -45,6 +45,9 @@ const (
 	// InternalServiceGetOperatorProcedure is the fully-qualified name of the InternalService's
 	// GetOperator RPC.
 	InternalServiceGetOperatorProcedure = "/auth.v1.InternalService/GetOperator"
+	// InternalServiceGetTokenOperatorProcedure is the fully-qualified name of the InternalService's
+	// GetTokenOperator RPC.
+	InternalServiceGetTokenOperatorProcedure = "/auth.v1.InternalService/GetTokenOperator"
 )
 
 // InternalServiceClient is a client for the auth.v1.InternalService service.
@@ -54,6 +57,9 @@ type InternalServiceClient interface {
 	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
 	// Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
 	GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error)
+	// Whose an access token is, for the admin gate and the connector. Unauthenticated for a token nobody holds or past
+	// its lifetime, PermissionDenied for an account that does not operate.
+	GetTokenOperator(context.Context, *connect.Request[v1.GetTokenOperatorRequest]) (*connect.Response[v1.GetTokenOperatorResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the auth.v1.InternalService service. By default,
@@ -92,15 +98,22 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(internalServiceMethods.ByName("GetOperator")),
 			connect.WithClientOptions(opts...),
 		),
+		getTokenOperator: connect.NewClient[v1.GetTokenOperatorRequest, v1.GetTokenOperatorResponse](
+			httpClient,
+			baseURL+InternalServiceGetTokenOperatorProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetTokenOperator")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
-	getVerifyingKey *connect.Client[v1.GetVerifyingKeyRequest, v1.GetVerifyingKeyResponse]
-	getAccount      *connect.Client[v1.GetAccountRequest, v1.GetAccountResponse]
-	getAccounts     *connect.Client[v1.GetAccountsRequest, v1.GetAccountsResponse]
-	getOperator     *connect.Client[v1.GetOperatorRequest, v1.GetOperatorResponse]
+	getVerifyingKey  *connect.Client[v1.GetVerifyingKeyRequest, v1.GetVerifyingKeyResponse]
+	getAccount       *connect.Client[v1.GetAccountRequest, v1.GetAccountResponse]
+	getAccounts      *connect.Client[v1.GetAccountsRequest, v1.GetAccountsResponse]
+	getOperator      *connect.Client[v1.GetOperatorRequest, v1.GetOperatorResponse]
+	getTokenOperator *connect.Client[v1.GetTokenOperatorRequest, v1.GetTokenOperatorResponse]
 }
 
 // GetVerifyingKey calls auth.v1.InternalService.GetVerifyingKey.
@@ -123,6 +136,11 @@ func (c *internalServiceClient) GetOperator(ctx context.Context, req *connect.Re
 	return c.getOperator.CallUnary(ctx, req)
 }
 
+// GetTokenOperator calls auth.v1.InternalService.GetTokenOperator.
+func (c *internalServiceClient) GetTokenOperator(ctx context.Context, req *connect.Request[v1.GetTokenOperatorRequest]) (*connect.Response[v1.GetTokenOperatorResponse], error) {
+	return c.getTokenOperator.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the auth.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
@@ -130,6 +148,9 @@ type InternalServiceHandler interface {
 	GetAccounts(context.Context, *connect.Request[v1.GetAccountsRequest]) (*connect.Response[v1.GetAccountsResponse], error)
 	// Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
 	GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error)
+	// Whose an access token is, for the admin gate and the connector. Unauthenticated for a token nobody holds or past
+	// its lifetime, PermissionDenied for an account that does not operate.
+	GetTokenOperator(context.Context, *connect.Request[v1.GetTokenOperatorRequest]) (*connect.Response[v1.GetTokenOperatorResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -164,6 +185,12 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithSchema(internalServiceMethods.ByName("GetOperator")),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetTokenOperatorHandler := connect.NewUnaryHandler(
+		InternalServiceGetTokenOperatorProcedure,
+		svc.GetTokenOperator,
+		connect.WithSchema(internalServiceMethods.ByName("GetTokenOperator")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetVerifyingKeyProcedure:
@@ -174,6 +201,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetAccountsHandler.ServeHTTP(w, r)
 		case InternalServiceGetOperatorProcedure:
 			internalServiceGetOperatorHandler.ServeHTTP(w, r)
+		case InternalServiceGetTokenOperatorProcedure:
+			internalServiceGetTokenOperatorHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -197,4 +226,8 @@ func (UnimplementedInternalServiceHandler) GetAccounts(context.Context, *connect
 
 func (UnimplementedInternalServiceHandler) GetOperator(context.Context, *connect.Request[v1.GetOperatorRequest]) (*connect.Response[v1.GetOperatorResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetOperator is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetTokenOperator(context.Context, *connect.Request[v1.GetTokenOperatorRequest]) (*connect.Response[v1.GetTokenOperatorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetTokenOperator is not implemented"))
 }

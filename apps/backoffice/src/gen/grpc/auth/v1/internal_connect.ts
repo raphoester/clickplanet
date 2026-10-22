@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetOperatorRequest, GetOperatorResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
+import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetOperatorRequest, GetOperatorResponse, GetTokenOperatorRequest, GetTokenOperatorResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -49,6 +49,18 @@ export const InternalService = {
       name: "GetOperator",
       I: GetOperatorRequest,
       O: GetOperatorResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Whose an access token is, for the admin gate and the connector. Unauthenticated for a token nobody holds or past
+     * its lifetime, PermissionDenied for an account that does not operate.
+     *
+     * @generated from rpc auth.v1.InternalService.GetTokenOperator
+     */
+    getTokenOperator: {
+      name: "GetTokenOperator",
+      I: GetTokenOperatorRequest,
+      O: GetTokenOperatorResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -15,6 +15,7 @@ const askTimeout = 2 * time.Second
 
 type Auth interface {
 	GetOperator(ctx context.Context, req *connect.Request[authv1.GetOperatorRequest]) (*connect.Response[authv1.GetOperatorResponse], error)
+	GetTokenOperator(ctx context.Context, req *connect.Request[authv1.GetTokenOperatorRequest]) (*connect.Response[authv1.GetTokenOperatorResponse], error)
 }
 
 func New(auth Auth) *Operators {
@@ -41,4 +42,22 @@ func (o *Operators) Operator(ctx context.Context, cookie string) (admission.Oper
 	}
 
 	return "", fmt.Errorf("failed to ask auth who operates: %w", err)
+}
+
+func (o *Operators) Connection(ctx context.Context, token string) (admission.Caller, error) {
+	ctx, cancel := context.WithTimeout(ctx, askTimeout)
+	defer cancel()
+
+	res, err := o.auth.GetTokenOperator(ctx, connect.NewRequest(&authv1.GetTokenOperatorRequest{Token: token}))
+	if err == nil {
+		return admission.ConnectionOf(admission.Operator(res.Msg.GetAccountId()), res.Msg.GetClient()), nil
+	}
+	if connect.CodeOf(err) == connect.CodeUnauthenticated {
+		return admission.Caller{}, fmt.Errorf("%w: %w", admission.ErrNoToken, err)
+	}
+	if connect.CodeOf(err) == connect.CodePermissionDenied {
+		return admission.Caller{}, fmt.Errorf("%w: %w", admission.ErrNotAnOperator, err)
+	}
+
+	return admission.Caller{}, fmt.Errorf("failed to ask auth whose token it is: %w", err)
 }
