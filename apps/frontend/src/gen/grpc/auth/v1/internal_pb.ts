@@ -351,3 +351,87 @@ export class GetOperatorResponse extends Message<GetOperatorResponse> {
   }
 }
 
+/**
+ * @generated from message auth.v1.GetTokenOperatorRequest
+ */
+export class GetTokenOperatorRequest extends Message<GetTokenOperatorRequest> {
+  /**
+   * As the caller sent it, after "Bearer ".
+   *
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  constructor(data?: PartialMessage<GetTokenOperatorRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.GetTokenOperatorRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTokenOperatorRequest {
+    return new GetTokenOperatorRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTokenOperatorRequest {
+    return new GetTokenOperatorRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTokenOperatorRequest {
+    return new GetTokenOperatorRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTokenOperatorRequest | PlainMessage<GetTokenOperatorRequest> | undefined, b: GetTokenOperatorRequest | PlainMessage<GetTokenOperatorRequest> | undefined): boolean {
+    return proto3.util.equals(GetTokenOperatorRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.GetTokenOperatorResponse
+ */
+export class GetTokenOperatorResponse extends Message<GetTokenOperatorResponse> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * The app the token was issued to, as it named itself.
+   *
+   * @generated from field: string client = 2;
+   */
+  client = "";
+
+  constructor(data?: PartialMessage<GetTokenOperatorResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.GetTokenOperatorResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "client", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTokenOperatorResponse {
+    return new GetTokenOperatorResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTokenOperatorResponse {
+    return new GetTokenOperatorResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTokenOperatorResponse {
+    return new GetTokenOperatorResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTokenOperatorResponse | PlainMessage<GetTokenOperatorResponse> | undefined, b: GetTokenOperatorResponse | PlainMessage<GetTokenOperatorResponse> | undefined): boolean {
+    return proto3.util.equals(GetTokenOperatorResponse, a, b);
+  }
+}
+

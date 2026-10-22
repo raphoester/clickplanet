@@ -13,6 +13,17 @@ service AdminService {
 
   // The account the cookie names, when it operates: the admin page's own. Unauthenticated with no cookie.
   rpc WhoAmI(WhoAmIRequest) returns (WhoAmIResponse);
+
+  // The admin page's half of connecting an app such as Claude over OAuth: what asks to operate as the caller, read
+  // from the request the authorization endpoint sent the browser to the page with. FailedPrecondition for a request
+  // past its time, InvalidArgument for one this server did not seal.
+  rpc DescribeConnection(DescribeConnectionRequest) returns (DescribeConnectionResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The operator lets the app in: where to send the browser back, with an authorization code the app trades for its
+  // tokens. Only the page's session makes this call, and the code is for the account of that session.
+  rpc ApproveConnection(ApproveConnectionRequest) returns (ApproveConnectionResponse);
 }
 
 message AdminStartSignInRequest {}
@@ -38,4 +49,25 @@ message WhoAmIRequest {}
 
 message WhoAmIResponse {
   string account_id = 1;
+}
+
+message DescribeConnectionRequest {
+  string request = 1;
+}
+
+message DescribeConnectionResponse {
+  // As the app named itself when it registered: shown to the operator, and trusted for nothing.
+  string client_name = 1;
+  // The host the browser goes back to, which the operator can check.
+  string redirect_host = 2;
+  // Where to send the browser to refuse: the app's own callback, with access_denied.
+  string deny_url = 3;
+}
+
+message ApproveConnectionRequest {
+  string request = 1;
+}
+
+message ApproveConnectionResponse {
+  string redirect_url = 1;
 }

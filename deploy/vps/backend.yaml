@@ -303,6 +303,10 @@ auth:
     clientId: "1549822806420885616"
     clientSecret: env://DISCORD_CLIENT_SECRET
   # The origin comes from ADMIN_ORIGIN, through docker-compose.yaml.
+  # Claude, as a custom connector: it signs in here once, and the operator lets it in on the admin page's /connect.
+  # The issuer comes from API_DOMAIN, through docker-compose.yaml; Claude's callbacks are the default redirects.
+  connector:
+    enabled: true
   admin:
     redirectUrl: https://backoffice.clickplanet.lol/auth/callback
     google:
@@ -394,3 +398,8 @@ support:
       name: clickplanet-support
       accessKeyId: 9ec4cd4fdf48006b2944c522219f1eea
       secretAccessKey: env://SUPPORT_BUCKET_SECRET
+
+# The connector's MCP endpoint, on the admin listener: every admin method is a tool. The url comes from API_DOMAIN,
+# through docker-compose.yaml.
+mcp:
+  enabled: true

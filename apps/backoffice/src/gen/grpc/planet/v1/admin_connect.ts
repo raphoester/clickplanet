@@ -4,10 +4,12 @@
 // @ts-nocheck
 
 import { BanPlayerRequest, BanPlayerResponse, FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GrantChargesRequest, GrantChargesResponse, InspectPlayerRequest, InspectPlayerResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, RevertPlayerRequest, RevertPlayerResponse, TopPlayersRequest, TopPlayersResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
+ * Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
+ * without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
  *
  * @generated from service planet.v1.AdminService
  */
@@ -15,6 +17,10 @@ export const AdminService = {
   typeName: "planet.v1.AdminService",
   methods: {
     /**
+     * Gives every tile one country holds to another, while the game runs: paced in batches, each tile an ordinary
+     * update every screen repaints. The ledger does not see it, so no revert undoes it. A tile the first country
+     * retakes during the move stays its own; from_after says whether to run it again.
+     *
      * @generated from rpc planet.v1.AdminService.ReassignCountry
      */
     reassignCountry: {
@@ -24,6 +30,10 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
+     * per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
+     * IPv6. The scope and the account_id are what BanPlayer, UnbanPlayer, RevertPlayer and InspectPlayer take.
+     *
      * @generated from rpc planet.v1.AdminService.FindPlayers
      */
     findPlayers: {
@@ -31,8 +41,12 @@ export const AdminService = {
       I: FindPlayersRequest,
       O: FindPlayersResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
+     * Who takes the most tiles, every flag and the whole map, within the ledger's last 72 hours: most takes first, then
+     * most tiles held. Many takes and few tiles held is a player painting and being painted over, a bot's usual shape.
+     *
      * @generated from rpc planet.v1.AdminService.TopPlayers
      */
     topPlayers: {
@@ -40,8 +54,14 @@ export const AdminService = {
       I: TopPlayersRequest,
       O: TopPlayersResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
+     * A shadow ban: the caller's clicks and bombs are answered OK and dropped, so it learns nothing. Takes a scope or
+     * an account_id, never both; an account is banned alone, a scope bans everybody behind it. It counts as an offence,
+     * and an unset duration takes the next step of the ladder. enforced false means the antibot only logs and drops
+     * nothing. Ban before RevertPlayer, or the player repaints behind the revert.
+     *
      * @generated from rpc planet.v1.AdminService.BanPlayer
      */
     banPlayer: {
@@ -51,6 +71,11 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Lifts a caller's latest ban, for a false positive, and forgets that offence. The antibot's evidence stays: a
+     * watchdog that still reads certain bans the caller again on its next click, so the rule that misfired is to be
+     * fixed first. A guest the jury banned is banned on its account and its scope: two calls. NotFound when no offence
+     * is left.
+     *
      * @generated from rpc planet.v1.AdminService.UnbanPlayer
      */
     unbanPlayer: {
@@ -60,6 +85,10 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Gives each tile the caller still holds back to what it held before the caller's run on it, then forgets the
+     * caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
+     * from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
+     *
      * @generated from rpc planet.v1.AdminService.RevertPlayer
      */
     revertPlayer: {
@@ -69,6 +98,9 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
+     * between stays theirs. The ledger does not see it.
+     *
      * @generated from rpc planet.v1.AdminService.PaintRandomTiles
      */
     paintRandomTiles: {
@@ -78,6 +110,10 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
+     * and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
+     * is read on the scope of its latest take. Changes nothing.
+     *
      * @generated from rpc planet.v1.AdminService.InspectPlayer
      */
     inspectPlayer: {
@@ -85,8 +121,12 @@ export const AdminService = {
       I: InspectPlayerRequest,
       O: InspectPlayerResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
+     * Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
+     * one each, the rest stack. before and after say what fit. The player sees them at its next page load.
+     *
      * @generated from rpc planet.v1.AdminService.GrantCharges
      */
     grantCharges: {
@@ -96,6 +136,9 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
+     * The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
+     * connector does not offer it.
+     *
      * @generated from rpc planet.v1.AdminService.GetReplay
      */
     getReplay: {
@@ -103,6 +146,7 @@ export const AdminService = {
       I: GetReplayRequest,
       O: GetReplayResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

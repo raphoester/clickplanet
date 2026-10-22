@@ -2,9 +2,14 @@
 
 TEST_TAG := testing
 
+# Every admin.proto, with its comments: the connector's tools are its methods, and a method's comment is its
+# tool's description (internal/mcp).
+ADMIN_PROTOS := $(wildcard ../../proto/*/*/admin.proto)
+
 proto:
 	@cd ../../proto && buf lint
 	@cd proto && buf generate
+	@buf build ../../proto $(addprefix --path ,$(ADMIN_PROTOS)) --as-file-descriptor-set -o generated/descriptors/admin.binpb
 
 MAP_DIR := ../../map
 MAP_ASSET_DIR := generated/map

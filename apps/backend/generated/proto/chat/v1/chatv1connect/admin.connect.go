@@ -47,6 +47,9 @@ const (
 
 // AdminServiceClient is a client for the chat.v1.AdminService service.
 type AdminServiceClient interface {
+	// Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
+	// the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. There is no
+	// unmute.
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
 	// Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
 	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
@@ -83,12 +86,14 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceGetMessageProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("GetMessage")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		listMessages: connect.NewClient[v1.ListMessagesRequest, v1.ListMessagesResponse](
 			httpClient,
 			baseURL+AdminServiceListMessagesProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("ListMessages")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -124,6 +129,9 @@ func (c *adminServiceClient) ListMessages(ctx context.Context, req *connect.Requ
 
 // AdminServiceHandler is an implementation of the chat.v1.AdminService service.
 type AdminServiceHandler interface {
+	// Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
+	// the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. There is no
+	// unmute.
 	Mute(context.Context, *connect.Request[v1.MuteRequest]) (*connect.Response[v1.MuteResponse], error)
 	// Its text and reactions go for everyone, at once, and nobody reacts to it or answers it; it keeps its place, and the row is kept as evidence. NotFound past the retention.
 	RemoveMessage(context.Context, *connect.Request[v1.RemoveMessageRequest]) (*connect.Response[v1.RemoveMessageResponse], error)
@@ -156,12 +164,14 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceGetMessageProcedure,
 		svc.GetMessage,
 		connect.WithSchema(adminServiceMethods.ByName("GetMessage")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceListMessagesHandler := connect.NewUnaryHandler(
 		AdminServiceListMessagesProcedure,
 		svc.ListMessages,
 		connect.WithSchema(adminServiceMethods.ByName("ListMessages")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/chat.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

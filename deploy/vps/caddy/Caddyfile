@@ -16,6 +16,7 @@
 			wrap json
 			request>headers>X-Session-Token replace REDACTED
 			request>headers>Cookie replace REDACTED
+			request>headers>Authorization replace REDACTED
 			resp_headers>Set-Cookie replace REDACTED
 		}
 	}
@@ -31,7 +32,12 @@
 
 	# The admin page calls with the game's cookie: the backend refuses any other origin, Caddy only says which.
 	@admin path_regexp ^/[a-z]+\.v1\.AdminService/
-	@game not path_regexp ^/[a-z]+\.v1\.AdminService/
+	# The connector: Claude reaches it from Anthropic's servers, with no page and no cookie, so it gets no CORS.
+	@connector path /mcp /oauth/* /.well-known/oauth-authorization-server /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/*
+	@game {
+		not path_regexp ^/[a-z]+\.v1\.AdminService/
+		not path /mcp /oauth/* /.well-known/*
+	}
 
 	header @game {
 		Access-Control-Allow-Origin "{$FRONTEND_ORIGIN}"
@@ -103,6 +109,11 @@
 		reverse_proxy backend:8083
 	}
 
+	# The admin listener again: the OAuth endpoints and the MCP endpoint are its handlers, beside the gated services.
+	handle @connector {
+		reverse_proxy backend:8083
+	}
+
 	handle {
 		respond "not found" 404
 	}
@@ -117,6 +128,7 @@
 			wrap json
 			request>headers>X-Session-Token replace REDACTED
 			request>headers>Cookie replace REDACTED
+			request>headers>Authorization replace REDACTED
 			resp_headers>Set-Cookie replace REDACTED
 		}
 	}
@@ -127,6 +139,7 @@
 			wrap console
 			request>headers>X-Session-Token replace REDACTED
 			request>headers>Cookie replace REDACTED
+			request>headers>Authorization replace REDACTED
 			resp_headers>Set-Cookie replace REDACTED
 		}
 	}

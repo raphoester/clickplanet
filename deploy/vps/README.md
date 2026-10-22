@@ -1026,6 +1026,50 @@ backoffice.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* �
   reassign and a paint run their dry run first. The commands below stay for
   scripts on the box.
 
+### Connect Claude (the connector)
+
+Claude can call every operator tool, from the Claude app on a phone too, as a
+claude.ai **custom connector**. There is no key to keep and no token to paste:
+
+1. Make your account an operator and sign in on the admin page once (below).
+2. On claude.ai (the web or the desktop app): Settings → Connectors → **Add custom
+   connector**. URL: `https://api.clickplanet.lol/mcp`. Leave the OAuth fields
+   empty: Claude registers itself.
+3. Claude opens a page that sends you to `backoffice.clickplanet.lol/connect`.
+   Sign in with Google if asked, check it says **Claude** and **claude.ai**, and
+   click **Allow**.
+4. In the connector's settings, set the tools that change something to **Needs
+   approval**. The read tools (top players, inspect, notes, reports, …) are
+   marked read-only.
+
+The connector then works wherever you use Claude, the iPhone app and Claude Code
+on the web included. Its access token renews itself every hour, and its refresh
+token lasts 90 days from its last use.
+
+```
+Claude (Anthropic's servers) → api.clickplanet.lol/mcp → Caddy → backend:8083 → the MCP endpoint → the admin gate → the admin service
+```
+
+- **Each tool is an admin method**, and its comment in `admin.proto` is what
+  Claude reads. A method added to an `admin.proto` is a tool after the next deploy.
+- **Every call goes through the admin gate** with the connector's token, so it is
+  logged like the page's, with `client=Claude`:
+  `journalctl CONTAINER_NAME=cp-backend | grep "admin call"`. Each approval is
+  logged too: `grep "admin connection approved"`.
+- **Only Claude's callbacks can receive a code** (`auth.connector.redirectUris`),
+  so a page that registers itself is never let in, whoever clicks Allow.
+- **To disconnect**, remove the connector in claude.ai. To cut every connection
+  at once, take the account's operator flag away; or delete its tokens:
+
+  ```bash
+  docker compose exec postgres psql -U clickplanet -c \
+    "DELETE FROM auth.admin_tokens WHERE account_id = '<account_id>'"
+  ```
+- **Cloudflare is in front of `api.clickplanet.lol`.** If adding the connector
+  fails with no page to sign in, look in Security → Events for a challenge or a
+  bot block on `/mcp`, `/oauth/*` or `/.well-known/*`, and skip those paths: Claude
+  calls them from Anthropic's servers, with no browser to solve a challenge.
+
 ### The admin Google client
 
 The admin page signs in with a Google OAuth client of its own, "ClickPlanet admin",

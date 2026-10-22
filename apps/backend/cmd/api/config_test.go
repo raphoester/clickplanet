@@ -43,6 +43,9 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 	assert.InDelta(t, 1.0, quiz.LeaderBias, 1e-9)
 	assert.Equal(t, 12, quiz.MaxChargesPerHour)
 
+	assert.False(t, config.Auth.Connector.Enabled, "the example connects nothing")
+	assert.False(t, config.MCP.Enabled, "the example connects nothing")
+
 	assert.Equal(t, 72*time.Hour, config.Planet.Ledger.Retention)
 	assert.Equal(t, 5*time.Minute, config.Planet.Ledger.SweepInterval)
 	assert.Equal(t, time.Second, config.Planet.LedgerStorage.FlushInterval)
@@ -383,6 +386,9 @@ func productionConfig(t *testing.T) Config {
 	t.Setenv("SESSION_SECRET", seed)
 	t.Setenv("SUPPORT_BUCKET_SECRET", "the-bucket-secret")
 	t.Setenv("httpServer.allowedOrigin", "https://clickplanet.lol")
+	t.Setenv("auth.admin.origin", "https://backoffice.clickplanet.lol")
+	t.Setenv("auth.connector.issuer", "https://api.clickplanet.lol")
+	t.Setenv("mcp.url", "https://api.clickplanet.lol/mcp")
 
 	var config Config
 	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(production)))
@@ -413,4 +419,31 @@ func TestTheProductionConfigTakesFilesInItsBucketAndNeedsItsSecret(t *testing.T)
 	config.Support.Attachments.Bucket.SecretAccessKey = ""
 	require.ErrorContains(t, config.Support.Validate(), "secretAccessKey",
 		"a deploy before SUPPORT_BUCKET_SECRET is set refuses the boot")
+}
+
+func TestTheProductionConfigConnectsClaudeOnTheAPIsDomain(t *testing.T) {
+	const production = "../../../../deploy/vps/backend.yaml"
+	file, err := os.ReadFile(production)
+	require.NoError(t, err)
+	seed, _ := cpsession.TestKeyPair()
+	for _, anchor := range regexp.MustCompile(`env://([A-Za-z_][A-Za-z0-9_]*)`).FindAllStringSubmatch(string(file), -1) {
+		t.Setenv(anchor[1], "a-secret")
+	}
+	t.Setenv("SESSION_SECRET", seed)
+	// What docker-compose.yaml sets from env.public.
+	t.Setenv("httpServer.allowedOrigin", "https://clickplanet.lol")
+	t.Setenv("auth.admin.origin", "https://backoffice.clickplanet.lol")
+	t.Setenv("auth.connector.issuer", "https://api.clickplanet.lol")
+	t.Setenv("mcp.url", "https://api.clickplanet.lol/mcp")
+
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(production)))
+
+	assert.True(t, config.Auth.Connector.Enabled)
+	assert.True(t, config.MCP.Enabled)
+	assert.Equal(t, "https://api.clickplanet.lol", config.Auth.Connector.Issuer)
+	assert.Equal(t, "https://api.clickplanet.lol/mcp", config.MCP.URL)
+	require.NoError(t, config.Auth.Validate())
+	require.NoError(t, config.MCP.Validate())
+	assert.NotEmpty(t, config.HTTPServer.AdminBindAddress, "the connector is served on the admin listener")
 }

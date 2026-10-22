@@ -4,10 +4,12 @@
 // @ts-nocheck
 
 import { GetMessageRequest, GetMessageResponse, ListMessagesRequest, ListMessagesResponse, MuteRequest, MuteResponse, RemoveMessageRequest, RemoveMessageResponse } from "./admin_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
+ * Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
+ * without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
  *
  * @generated from service chat.v1.AdminService
  */
@@ -15,6 +17,10 @@ export const AdminService = {
   typeName: "chat.v1.AdminService",
   methods: {
     /**
+     * Takes a player's chat away and leaves it the map: its account, and its network (the /64 of its latest message, or
+     * the address over IPv4), are refused posts and reactions until the mute ends. The chat announces it. There is no
+     * unmute.
+     *
      * @generated from rpc chat.v1.AdminService.Mute
      */
     mute: {
@@ -44,6 +50,7 @@ export const AdminService = {
       I: GetMessageRequest,
       O: GetMessageResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * The messages kept, as they were sent, removed or not, a page at a time. A message's id is a cursor: the page just before it, or just after it. NotFound for a cursor past the retention. With an account, that account's messages alone.
@@ -55,6 +62,7 @@ export const AdminService = {
       I: ListMessagesRequest,
       O: ListMessagesResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

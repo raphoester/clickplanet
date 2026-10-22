@@ -12,6 +12,10 @@ service InternalService {
 
   // Unauthenticated with no live session in the cookie, PermissionDenied for an account that does not operate.
   rpc GetOperator(GetOperatorRequest) returns (GetOperatorResponse);
+
+  // Whose an access token is, for the admin gate and the connector. Unauthenticated for a token nobody holds or past
+  // its lifetime, PermissionDenied for an account that does not operate.
+  rpc GetTokenOperator(GetTokenOperatorRequest) returns (GetTokenOperatorResponse);
 }
 
 message GetVerifyingKeyRequest {}
@@ -49,4 +53,15 @@ message GetOperatorRequest {
 
 message GetOperatorResponse {
   string account_id = 1;
+}
+
+message GetTokenOperatorRequest {
+  // As the caller sent it, after "Bearer ".
+  string token = 1;
+}
+
+message GetTokenOperatorResponse {
+  string account_id = 1;
+  // The app the token was issued to, as it named itself.
+  string client = 2;
 }

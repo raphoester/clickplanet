@@ -9,6 +9,8 @@ import { GetAuthorsRequest, GetAuthorsResponse } from "./internal_pb.js";
 
 /**
  * No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
+ * Each method is a tool of the connector (internal/mcp). One marked NO_SIDE_EFFECTS only reads, and Claude may make it
+ * without asking; every other one changes something, and Claude asks first. A method's comment is its tool's description.
  *
  * @generated from service player.v1.AdminService
  */
@@ -16,6 +18,9 @@ export const AdminService = {
   typeName: "player.v1.AdminService",
   methods: {
     /**
+     * Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
+     * adds a title or changes a rule. A second run changes nothing.
+     *
      * @generated from rpc player.v1.AdminService.ReconcileTitles
      */
     reconcileTitles: {

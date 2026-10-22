@@ -90,6 +90,10 @@ while `shared` is for things that would read the same in any other program.
 It shares no process, no config and no data with the six, and imports only `shared`. See [The clips
 job](#the-clips-job-internalclips-cmdclips).
 
+**`internal/mcp/` is not a context either: it is the operator's connector**, every admin method as a tool Claude
+calls over the Model Context Protocol. It owns no data and no proto package, and reaches the modules only as the
+admin page does: through the admin listener, behind the gate. See [Claude as a connector](#claude-as-a-connector).
+
 #### A module publishes its root package and hides the rest
 
 Every module's interior lives behind **its own `internal/`** — `internal/planet/internal/clicks`,
@@ -106,11 +110,12 @@ root package**:
 |---|---|
 | `planet` | `Config`, `NewModule` |
 | `chat` | `Config`, `StorageConfig`, `NewModule` |
-| `auth` | `Config`, `NewModule`, `AdminGateConfig`, `NewAdminGate`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
+| `auth` | `Config`, `NewModule`, `AdminGateConfig`, `NewAdminGate`, `ConnectorConfig`; behind the `testing` tag, `NewModuleWithFakeProviders` and the fake's types |
 | `player` | `Config`, `NewModule` |
 | `seasons` | `Config`, `NewModule` |
 | `support` | `Config`, `NewModule` |
 | `antibot` | `Config`, `Observer`, `Guard`, `New`, `Description`, `Click`, `Report`, `Sentence`, `Pardon`, `Examination`, `Reading` |
+| `mcp` | `Config`, `NewModule` |
 | `clips` | `Config`, `ReplayConfig`, `Fetch`, `Choose`, `Schedule`, `Pick`, `Platform`, `PlatformsOf`, `Report`, `PlatformOutcome` |
 
 That holds for `cmd/api` too: the composition root lists modules and cannot
@@ -215,6 +220,8 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 
 - `props.RPC.Mount(build, interceptors...)` — the module hands over what *builds* the handler, plus the interceptors it wants. `cpbootstrap` builds it, so it can put its own interceptor outside every module's — see [The error net](#the-error-net)
 - `props.AdminRPC.Mount(build, interceptors...)` — the same, for an operator service: served on the loopback console listener, and on the admin listener behind `Options.AdminGate` — see [Operator tools](#operator-tools-adminservice)
+- `props.AdminHTTP.Handle(pattern, handler)` — a plain `http.Handler` on the admin listener alone, beside the admin services and **outside the gate's middlewares**: what is served there says who may call itself. The connector's OAuth and MCP endpoints are the only ones. A pattern two modules claim, or one that conflicts with an admin service, refuses the boot; with no admin listener it is not served, and logged
+- `props.Admin.Dial()` — the client and base URL of the admin listener, on loopback when it listens on every address: the connector calls the admin services there, as the app the operator let in
 - `props.InternalRPC.Mount(build, interceptors...)` — the same again, for what other modules call: served only on the loopback internal listener
 - `props.Internal.Dial()` — the HTTP client and base URL a generated `New<Service>Client` takes, to call another module — see [Calling another module](#calling-another-module)
 - `props.Events` — the in-process event bus: `props.Events.Publish(message)`, and `cpbootstrap.Subscribe(props.Events, name, buffer, handler)` for the runner that delivers one type — see [Telling other modules what happened](#telling-other-modules-what-happened)
@@ -241,6 +248,7 @@ return []bootstrap.Module{
 	player.NewModule(config.Player),
 	seasons.NewModule(config.Seasons),
 	support.NewModule(config.Support),
+	mcp.NewModule(config.MCP),
 }
 ```
 
@@ -276,6 +284,8 @@ return []bootstrap.Module{
 | `support` | `player.v1.InternalService/GetAuthors` | the name of each account a page of reports names, on each `ListReports` | `list_reports_handler/reports_query/rpc_player_authors` |
 | `auth`'s admin gate, which `main` builds | `auth.v1.InternalService/GetOperator` | who calls the admin listener, and whether that account operates, on each admin call | `admingate/admission/rpc_operators` |
 | `player` | `planet.v1.InternalService/GetTakesByCountry` | the flags an account took tiles for and the flags that held them, from the ledger, on each `GetFronts`, on each `GetPlayer` the cache does not answer, and on each operator's `AdminService/GetPlayer` | `playerv1controller/rpc_planet_fronts` |
+| `auth`'s admin gate | `auth.v1.InternalService/GetTokenOperator` | who an app's access token calls as, and whether that account still operates, on each admin call that carries one | `admingate/admission/rpc_operators` |
+| `mcp` | `auth.v1.InternalService/GetTokenOperator` | the same, on each MCP request, so a lapsed token is a 401 that sends Claude to refresh | `tools/rpc_token_holders` |
 
 A module cannot import another's interior, so the key client all five need is `shared/cpsessionverifier` rather than a copy in each.
 
@@ -1308,15 +1318,26 @@ internal/auth/internal/
     get_account_handler/account_query/     PostgresQuery: GetAccountResponse, for another module
     get_accounts_handler/accounts_query/   PostgresQuery: GetAccountsResponse, a page at once
     get_operator_handler/operator_query/   PostgresQuery: GetOperatorResponse, the cp_admin cookie's live session if it operates
+    get_token_operator_handler/token_operator_query/   PostgresQuery: GetTokenOperatorResponse, a live access token's operator and app
+    describe_connection_handler/  approve_connection_handler/   the consent page's half of the connector
   adminsignin/                             the admin page's sign-in: Candidate, Session (Snapshot), Issuer, the cookies, the Store port
     postgres_admin_session_store/          the Store over identities, accounts and admin_sessions
     usecases/start_admin_sign_in_usecase/  complete_admin_sign_in_usecase/  sign_out_admin_usecase/
   admingate/                               what the admin listener sits behind; NewAdminGate builds it, main injects it
     admission/                             Page (the admin page's origin), Visit, Operator, the refusals
-      rpc_operators/                       who operates, from InternalService/GetOperator
+      rpc_operators/                       who operates, from InternalService/GetOperator, and GetTokenOperator for an app
       usecases/admit_usecase/              the origin, then who calls — and log_admit/, which logs each refusal
     guard/                                 the interceptor: a refusal's code, the operator on the context
       log_calls/                           one line per admitted call
+  connections/                             the OAuth 2.1 authorization server Claude connects through: Client, Request, Code, Redirects,
+                                           the Sealer port. Nothing is stored: each is sealed into the string the app carries
+    aes_connection_sealer/  inmemory_spent_codes/
+    usecases/register_client_usecase/  authorize_usecase/  describe_connection_usecase/
+    usecases/approve_connection_usecase/   (and audit_approve_connection/)  exchange_code_usecase/  refresh_tokens_usecase/
+  admintokens/                             what an app holds: Secret, Pair, Issuer, the Store port; only the hashes are kept
+    postgres_admin_token_store/  random_token_secret_generator/
+    usecases/prune_tokens_usecase/         deletes the lapsed tokens, at boot and hourly; a Runner
+  oauthcontroller/                         the connector's plain HTTP edge: metadata_handler/  register_handler/  authorize_handler/  token_handler/
   sessionv1controller/                     deprecated SessionService
     operator_query/                        PostgresQuery: the cookie's live session, its account and whether it operates
     log_refusals/                          logs each caller it refused
@@ -1405,6 +1426,11 @@ chat crown: `player.profiles.admin` is a display flag, and holding one never gra
   answers its account id. The flag is read on every call, so unsetting it ends a session already open. No admin
   session is `unauthenticated` (`ErrNoSession`); anybody else is `permission_denied` (`ErrNotAnOperator`).
 - **The session is read on every call**: no cache. Admin calls are a handful a minute.
+- **An app the operator connected calls as that operator** (Claude, see [Claude as a connector](#claude-as-a-connector)):
+  `DescribeConnection` and `ApproveConnection` are the consent page's half of the OAuth flow, and
+  `InternalService/GetTokenOperator(token)` is who an app's access token calls as (`token_operator_query`: a live
+  access token whose account is flagged, and the app's name). The flag is read on every call here too, so unsetting it
+  ends every connection of the account at once.
 
 #### Signing out, deleting, pruning
 
@@ -3355,7 +3381,74 @@ origin with auth off refuses the boot.
   says who asked it.
 
 Caddy sends `/<package>.v1.AdminService/*` on the API's domain to it, so `cp_admin`, which is host-only on that
-domain, travels from the admin page, a page of the same site.
+domain, travels from the admin page, a page of the same site. It sends the connector's paths there too (`/mcp`,
+`/oauth/*`, `/.well-known/oauth-*`), with no CORS: they are handlers of the admin listener (`props.AdminHTTP`), not
+admin services.
+
+- **A call with `Authorization: Bearer` is judged by the token alone**, from any origin and with no cookie read:
+  a browser never sends a bearer token on its own, so the origin, which keeps other pages from riding the cookie,
+  has nothing to keep out. `admit_usecase` asks `GetTokenOperator`; no live token is `unauthenticated`, an account
+  no longer flagged `permission_denied`. **A token never makes the page's own calls**: the sign-in, `WhoAmI`,
+  `DescribeConnection` and `ApproveConnection` are `permission_denied` before auth is asked, so an app cannot let
+  another app in. `log_calls` names the app (`client=Claude`), and nothing for the page's session.
+
+#### Claude as a connector
+
+**Claude reaches the admin services as a claude.ai custom connector**: the operator adds
+`https://api.clickplanet.lol/mcp` once (claude.ai, Settings, Connectors), signs in on the admin page and clicks
+Allow. From then on the connector works wherever the operator uses Claude, the iPhone app and Claude Code on the
+web included, with no key, no token to paste and no script. The tokens renew themselves.
+
+- **The tools are the admin services, read from their protos.** `make proto` writes `generated/descriptors/admin.binpb`,
+  a descriptor set of every `admin.proto` **with its comments**, which the module embeds. `tools.CatalogOf` makes a
+  tool of each method: `<context>_<method in snake case>` (`planet_ban_player`), its leading comment as the
+  description, its request as the input schema (protojson's JSON names, an enum by name, a timestamp in RFC 3339, a
+  duration as `"3600s"`, each field's comment as its description), and `readOnlyHint` when the method is
+  `NO_SIDE_EFFECTS`, `destructiveHint` otherwise. **A new admin method is a new tool after `make proto`, with no
+  code here.** `auth.v1` is left out (an app never signs in to the page or lets an app in) and `GetReplay` is hidden
+  (megabytes for a day). `tools_test.go` fails on an admin method with no comment, and on a set that does not match
+  the generated code.
+- **A call goes through the gate like the page's.** `tools/call` posts the arguments as they are, as protojson, to
+  the admin listener (`props.Admin.Dial()`, `connect_admin_caller`) with the app's token: the gate admits it as the
+  operator and writes the `admin call` line, the audit decorators log what it did, and the error net strips an
+  internal cause. A refusal (a Connect code and its sentence) is the tool's result with `isError`, so Claude reads it
+  and tries again; only a tool nobody offers is a JSON-RPC error. A call has 5 minutes: a reassign or a reconciliation
+  walks the whole map or every account.
+- **MCP over Streamable HTTP, answered with plain JSON** (`mcpcontroller`): `initialize` (2025-06-18, 2025-03-26 or
+  2024-11-05, the newest for any other), `ping`, `tools/list`, `tools/call`; a notification is a 202; a batch is
+  answered for its requests. No session id and no stream from the server: `GET` is a 405. The handshake carries
+  `tools.Instructions`, what Claude is told before any tool: dry runs first, account ids over scopes, the formats.
+- **Every MCP request needs a live token**: none is a 401 with `WWW-Authenticate: Bearer resource_metadata="…"`, the
+  start of the flow, and a lapsed one a 401 with `error="invalid_token"`, which sends Claude to refresh. An account no
+  longer flagged is a 403. The module asks `GetTokenOperator` itself, and the gate asks again on each call.
+- **The OAuth 2.1 authorization server is auth's** (`connections`, `oauthcontroller`), on the same listener:
+  - Discovery: `/.well-known/oauth-protected-resource/mcp` (RFC 9728, the `mcp` module) names the API's origin as
+    the server, and `/.well-known/oauth-authorization-server` (RFC 8414) its endpoints.
+  - `POST /oauth/register` (RFC 7591): any app may register, **only for a redirect in `auth.connector.redirectUris`**,
+    Claude's callbacks unless set. So a code can only ever be sent to Claude, whoever clicks Allow. Every client is
+    public: PKCE (S256, required) proves a code is its own, and a secret sent anyway is ignored.
+  - `GET /oauth/authorize` checks the client and its redirect, then sends the browser to the admin page's `/connect`
+    with the request. A client or a redirect this server did not register is a 400 page, never a redirect.
+  - The page shows who asks and where it will be sent back to (`DescribeConnection`), and Allow calls
+    `ApproveConnection`, which answers the app's callback with a code, the state and `iss` (RFC 9207). Deny sends it
+    back with `access_denied`. `audit_approve_connection` logs every approval at Warn.
+  - `POST /oauth/token` trades the code, once, within a minute, for the client and the redirect it was issued to,
+    with the verifier. It answers a pair: an access token for an hour (`cpat_…`) and a refresh token for 90 days
+    (`cprt_…`). **A refresh token is good once**: each trade spends it and answers a new pair, so a connection used
+    once a season never lapses. One sent by another client is spent and buys nothing.
+- **Nothing of the flow is stored but the tokens.** A client id, a request and a code are each sealed with
+  AES-256-GCM under a key of their own derived from `auth.secret` (`aes_connection_sealer`), so a sealed client
+  never opens as a code. A spent code is remembered in memory until it lapses (`inmemory_spent_codes`). The tokens
+  are `auth.admin_tokens` (migration `20261018140000_admin_tokens`): the SHA-256 of each, its kind (the type
+  `admin_token_kind`), the account (cascade), the app's client id hash and name, and when it ends. A refresh token
+  is spent by the `DELETE … RETURNING` that reads it. `prune_tokens_usecase` deletes the lapsed rows hourly.
+- **Ending a connection** is taking the account's operator flag away (every connection at once), or deleting its
+  rows of `auth.admin_tokens`. There is no list of connections on the page yet.
+- **Known risk: Cloudflare is in front.** Claude calls from Anthropic's servers; a bot rule or a challenge on
+  `api.clickplanet.lol` would answer it a page instead of JSON. Skip them for the connector's paths.
+- `e2e/connector_test.go` walks it as Claude does, from the URL alone: the 401, both metadata, a registration, the
+  operator's yes, the code traded once, `initialize`, `tools/list` and a call that grants the operator a bomb, a
+  refresh, and the flag taken away.
 
 The admin page is `apps/backoffice` (its `CLAUDE.md`). `planet.v1.AdminService` is the main one, in `proto/planet/v1/admin.proto`; `player.v1.AdminService` (`proto/player/v1/admin.proto`) has `ReconcileTitles`, and the reads that name players, `GetAuthors` and `GetPlayer` — see [Player](#player-internalplayer); `chat.v1.AdminService` (`proto/chat/v1/admin.proto`) has `Mute`, `RemoveMessage`, `GetMessage` and `ListMessages` — see [Mutes](#mutes) and [Removals](#removals); `support.v1.AdminService` (`proto/support/v1/admin.proto`) has `ListNotes`, `ListReports` and `DecideReport` — see [Support](#support-internalsupport); `auth.v1.AdminService` (`proto/auth/v1/admin.proto`) has the admin page's own sign-in and `WhoAmI` — see [Operators](#operators). `planetv1controller.AdminService` is its bag of handlers, the way `ClickService` is. `ReassignCountry` runs `clicks/usecases/reassign_country_usecase`, wrapped in `audit_reassign`: every tile `from_country_id` holds goes to `to_country_id`, while the game runs.
 
@@ -3900,6 +3993,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.admin.origin` — the admin page's exact origin, the only one the gate answers; empty builds no gate and offers no admin sign-in, and set with `auth.enabled` false refuses the boot. In production it comes from `ADMIN_ORIGIN`
 - `auth.admin.redirectUrl`, `auth.admin.google.clientId`, `auth.admin.google.clientSecret` — the admin page's own Google client and callback; with an origin, a missing one refuses the boot. The secret is `env://ADMIN_GOOGLE_CLIENT_SECRET`
 - `auth.admin.sessionTTL` — how long an admin session lasts, never extended (12h)
+- `auth.connector.enabled`, `auth.connector.issuer` — the authorization server Claude connects through, and the API's public origin it is reached on (`https://api.clickplanet.lol`, from `API_DOMAIN` in production). It needs `auth.admin.origin`, where the operator lets the app in; an issuer that is not an origin refuses the boot
+- `auth.connector.redirectUris` — where an app may be sent back to with a code; Claude's two callbacks unless set
+- `mcp.enabled`, `mcp.url` — the connector's MCP endpoint, on the admin listener (`https://api.clickplanet.lol/mcp`). Its origin is the authorization server's, so it must be `auth.connector.issuer`; it needs the admin and internal listeners, or the boot is refused
 - `httpServer.internalBindAddress` — where the services other modules call listen (see [Calling another module](#calling-another-module)); empty serves none, a caller that dials it then fails, and a non-loopback address refuses the boot
 - `httpServer.allowedOrigin` — the frontend's exact origin (`scheme://host[:port]`, no path). The public router answers CORS for it alone, with `Access-Control-Allow-Credentials: true`, so the `cp_sid` cookie travels on the web client's mint. **Empty, `*` or anything that is not an origin refuses the boot**: a browser drops a credentialed answer that allows every origin, so a wrong value would only show up as every mint starting a new guest. In production it comes from `FRONTEND_ORIGIN`, the value the Caddyfile allows, which sets the same headers and overwrites these.
 - `gameMap.maxIndex` — total number of tiles
@@ -3994,7 +4090,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 
 API contracts live in the monorepo-shared [`/proto`](../../proto) (also used by the frontend), one package per bounded context: [`planet/v1/planet.proto`](../../proto/planet/v1/planet.proto), [`chat/v1/chat.proto`](../../proto/chat/v1/chat.proto), [`auth/v1/auth.proto`](../../proto/auth/v1/auth.proto), [`player/v1/player.proto`](../../proto/player/v1/player.proto) and [`support/v1/support.proto`](../../proto/support/v1/support.proto); [`clips/v1/clips.proto`](../../proto/clips/v1/clips.proto) has no service, only the two messages the clip generator writes for [the clips job](#the-clips-job-internalclips-cmdclips). A module's in-process events sit beside them in `events.proto` (`planet/v1`, `auth/v1`, `chat/v1`, `seasons/v1`), and what other modules call in `internal.proto`. Generated code goes to `generated/proto/`. Use `make proto` to regenerate after editing `.proto` files (requires the `buf` CLI, plus `protoc-gen-go` and `protoc-gen-connect-go` on `PATH`).
 
-`generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
+`generated/` is for everything the root owns and this app carries a committed copy of, because the Docker build context is this directory: `generated/proto` from [`/proto`](../../proto) via `make proto`, `generated/descriptors` (the admin services with their comments, for the [connector](#claude-as-a-connector)) by the same target, and `generated/map` from [`/map`](../../map) via `make map` — see [Map geography](#map-geography). Nothing in there is edited by hand; run the target.
 
 The proto package is the **only** version number: Connect derives each route from it, and the controller and connect package names follow — `planet.v1` gives `planetv1controller` and `planetv1connect`, `chat.v1` gives `chatv1controller` and `chatv1connect`. There is no gRPC here — Connect serves the service definitions over ordinary HTTP/1.1 POSTs (and h2c, for clients that want it).
 

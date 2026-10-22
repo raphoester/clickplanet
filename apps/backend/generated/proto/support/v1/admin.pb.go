@@ -850,10 +850,10 @@ const file_support_v1_admin_proto_rawDesc = "" +
 	"\rReportOutcome\x12\x1e\n" +
 	"\x1aREPORT_OUTCOME_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14REPORT_OUTCOME_ACTED\x10\x01\x12\x1c\n" +
-	"\x18REPORT_OUTCOME_DISMISSED\x10\x022\xfb\x01\n" +
-	"\fAdminService\x12H\n" +
-	"\tListNotes\x12\x1c.support.v1.ListNotesRequest\x1a\x1d.support.v1.ListNotesResponse\x12N\n" +
-	"\vListReports\x12\x1e.support.v1.ListReportsRequest\x1a\x1f.support.v1.ListReportsResponse\x12Q\n" +
+	"\x18REPORT_OUTCOME_DISMISSED\x10\x022\x85\x02\n" +
+	"\fAdminService\x12M\n" +
+	"\tListNotes\x12\x1c.support.v1.ListNotesRequest\x1a\x1d.support.v1.ListNotesResponse\"\x03\x90\x02\x01\x12S\n" +
+	"\vListReports\x12\x1e.support.v1.ListReportsRequest\x1a\x1f.support.v1.ListReportsResponse\"\x03\x90\x02\x01\x12Q\n" +
 	"\fDecideReport\x12\x1f.support.v1.DecideReportRequest\x1a .support.v1.DecideReportResponseB\xb9\x01\n" +
 	"\x0ecom.support.v1B\n" +
 	"AdminProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1;supportv1\xa2\x02\x03SXX\xaa\x02\n" +
