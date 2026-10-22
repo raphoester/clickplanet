@@ -284,3 +284,169 @@ export class WhoAmIResponse extends Message<WhoAmIResponse> {
   }
 }
 
+/**
+ * @generated from message auth.v1.DescribeConnectionRequest
+ */
+export class DescribeConnectionRequest extends Message<DescribeConnectionRequest> {
+  /**
+   * @generated from field: string request = 1;
+   */
+  request = "";
+
+  constructor(data?: PartialMessage<DescribeConnectionRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.DescribeConnectionRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "request", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DescribeConnectionRequest {
+    return new DescribeConnectionRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DescribeConnectionRequest {
+    return new DescribeConnectionRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DescribeConnectionRequest {
+    return new DescribeConnectionRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DescribeConnectionRequest | PlainMessage<DescribeConnectionRequest> | undefined, b: DescribeConnectionRequest | PlainMessage<DescribeConnectionRequest> | undefined): boolean {
+    return proto3.util.equals(DescribeConnectionRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.DescribeConnectionResponse
+ */
+export class DescribeConnectionResponse extends Message<DescribeConnectionResponse> {
+  /**
+   * As the app named itself when it registered: shown to the operator, and trusted for nothing.
+   *
+   * @generated from field: string client_name = 1;
+   */
+  clientName = "";
+
+  /**
+   * The host the browser goes back to, which the operator can check.
+   *
+   * @generated from field: string redirect_host = 2;
+   */
+  redirectHost = "";
+
+  /**
+   * Where to send the browser to refuse: the app's own callback, with access_denied.
+   *
+   * @generated from field: string deny_url = 3;
+   */
+  denyUrl = "";
+
+  constructor(data?: PartialMessage<DescribeConnectionResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.DescribeConnectionResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "client_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "redirect_host", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "deny_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DescribeConnectionResponse {
+    return new DescribeConnectionResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DescribeConnectionResponse {
+    return new DescribeConnectionResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DescribeConnectionResponse {
+    return new DescribeConnectionResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DescribeConnectionResponse | PlainMessage<DescribeConnectionResponse> | undefined, b: DescribeConnectionResponse | PlainMessage<DescribeConnectionResponse> | undefined): boolean {
+    return proto3.util.equals(DescribeConnectionResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.ApproveConnectionRequest
+ */
+export class ApproveConnectionRequest extends Message<ApproveConnectionRequest> {
+  /**
+   * @generated from field: string request = 1;
+   */
+  request = "";
+
+  constructor(data?: PartialMessage<ApproveConnectionRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.ApproveConnectionRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "request", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ApproveConnectionRequest {
+    return new ApproveConnectionRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ApproveConnectionRequest {
+    return new ApproveConnectionRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ApproveConnectionRequest {
+    return new ApproveConnectionRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ApproveConnectionRequest | PlainMessage<ApproveConnectionRequest> | undefined, b: ApproveConnectionRequest | PlainMessage<ApproveConnectionRequest> | undefined): boolean {
+    return proto3.util.equals(ApproveConnectionRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.ApproveConnectionResponse
+ */
+export class ApproveConnectionResponse extends Message<ApproveConnectionResponse> {
+  /**
+   * @generated from field: string redirect_url = 1;
+   */
+  redirectUrl = "";
+
+  constructor(data?: PartialMessage<ApproveConnectionResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.ApproveConnectionResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "redirect_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ApproveConnectionResponse {
+    return new ApproveConnectionResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ApproveConnectionResponse {
+    return new ApproveConnectionResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ApproveConnectionResponse {
+    return new ApproveConnectionResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ApproveConnectionResponse | PlainMessage<ApproveConnectionResponse> | undefined, b: ApproveConnectionResponse | PlainMessage<ApproveConnectionResponse> | undefined): boolean {
+    return proto3.util.equals(ApproveConnectionResponse, a, b);
+  }
+}
+

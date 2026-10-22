@@ -3,8 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AdminCompleteSignInRequest, AdminCompleteSignInResponse, AdminSignOutRequest, AdminSignOutResponse, AdminStartSignInRequest, AdminStartSignInResponse, WhoAmIRequest, WhoAmIResponse } from "./admin_pb.js";
-import { MethodKind } from "@bufbuild/protobuf";
+import { AdminCompleteSignInRequest, AdminCompleteSignInResponse, AdminSignOutRequest, AdminSignOutResponse, AdminStartSignInRequest, AdminStartSignInResponse, ApproveConnectionRequest, ApproveConnectionResponse, DescribeConnectionRequest, DescribeConnectionResponse, WhoAmIRequest, WhoAmIResponse } from "./admin_pb.js";
+import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
  * The admin page's own sign-in: Google only, an account flagged operator only, a session of its own (cp_admin).
@@ -52,6 +52,32 @@ export const AdminService = {
       name: "WhoAmI",
       I: WhoAmIRequest,
       O: WhoAmIResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The admin page's half of connecting an app such as Claude over OAuth: what asks to operate as the caller, read
+     * from the request the authorization endpoint sent the browser to the page with. FailedPrecondition for a request
+     * past its time, InvalidArgument for one this server did not seal.
+     *
+     * @generated from rpc auth.v1.AdminService.DescribeConnection
+     */
+    describeConnection: {
+      name: "DescribeConnection",
+      I: DescribeConnectionRequest,
+      O: DescribeConnectionResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The operator lets the app in: where to send the browser back, with an authorization code the app trades for its
+     * tokens. Only the page's session makes this call, and the code is for the account of that session.
+     *
+     * @generated from rpc auth.v1.AdminService.ApproveConnection
+     */
+    approveConnection: {
+      name: "ApproveConnection",
+      I: ApproveConnectionRequest,
+      O: ApproveConnectionResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -5,10 +5,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_sign_out_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/admin_start_sign_in_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/approve_connection_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_email_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/complete_sign_in_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/create_session_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/delete_account_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/describe_connection_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_account_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_accounts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_me_handler"
@@ -55,6 +57,8 @@ type AdminService struct {
 	admin_complete_sign_in_handler.AdminCompleteSignInHandler
 	admin_sign_out_handler.AdminSignOutHandler
 	who_am_i_handler.WhoAmIHandler
+	describe_connection_handler.DescribeConnectionHandler
+	approve_connection_handler.ApproveConnectionHandler
 }
 
 var _ authv1connect.AdminServiceHandler = AdminService{}

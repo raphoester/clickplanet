@@ -70,9 +70,12 @@ var signInProcedures = []string{
 	authv1connect.AdminServiceSignOutProcedure,
 }
 
-// Beside its sign-in, what only the admin page's session calls: WhoAmI names the cookie's operator.
+// Beside its sign-in, what only the admin page's session calls: an app cannot let another app in, and WhoAmI names
+// the cookie's operator.
 var sessionOnlyProcedures = []string{
 	authv1connect.AdminServiceWhoAmIProcedure,
+	authv1connect.AdminServiceDescribeConnectionProcedure,
+	authv1connect.AdminServiceApproveConnectionProcedure,
 }
 
 // No origin is no admin page, and so no gate: an admin listener then refuses the boot.

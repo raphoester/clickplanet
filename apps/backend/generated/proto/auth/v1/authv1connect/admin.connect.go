@@ -43,6 +43,12 @@ const (
 	AdminServiceSignOutProcedure = "/auth.v1.AdminService/SignOut"
 	// AdminServiceWhoAmIProcedure is the fully-qualified name of the AdminService's WhoAmI RPC.
 	AdminServiceWhoAmIProcedure = "/auth.v1.AdminService/WhoAmI"
+	// AdminServiceDescribeConnectionProcedure is the fully-qualified name of the AdminService's
+	// DescribeConnection RPC.
+	AdminServiceDescribeConnectionProcedure = "/auth.v1.AdminService/DescribeConnection"
+	// AdminServiceApproveConnectionProcedure is the fully-qualified name of the AdminService's
+	// ApproveConnection RPC.
+	AdminServiceApproveConnectionProcedure = "/auth.v1.AdminService/ApproveConnection"
 )
 
 // AdminServiceClient is a client for the auth.v1.AdminService service.
@@ -53,6 +59,13 @@ type AdminServiceClient interface {
 	SignOut(context.Context, *connect.Request[v1.AdminSignOutRequest]) (*connect.Response[v1.AdminSignOutResponse], error)
 	// The account the cookie names, when it operates: the admin page's own. Unauthenticated with no cookie.
 	WhoAmI(context.Context, *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error)
+	// The admin page's half of connecting an app such as Claude over OAuth: what asks to operate as the caller, read
+	// from the request the authorization endpoint sent the browser to the page with. FailedPrecondition for a request
+	// past its time, InvalidArgument for one this server did not seal.
+	DescribeConnection(context.Context, *connect.Request[v1.DescribeConnectionRequest]) (*connect.Response[v1.DescribeConnectionResponse], error)
+	// The operator lets the app in: where to send the browser back, with an authorization code the app trades for its
+	// tokens. Only the page's session makes this call, and the code is for the account of that session.
+	ApproveConnection(context.Context, *connect.Request[v1.ApproveConnectionRequest]) (*connect.Response[v1.ApproveConnectionResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the auth.v1.AdminService service. By default, it
@@ -90,15 +103,30 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("WhoAmI")),
 			connect.WithClientOptions(opts...),
 		),
+		describeConnection: connect.NewClient[v1.DescribeConnectionRequest, v1.DescribeConnectionResponse](
+			httpClient,
+			baseURL+AdminServiceDescribeConnectionProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("DescribeConnection")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		approveConnection: connect.NewClient[v1.ApproveConnectionRequest, v1.ApproveConnectionResponse](
+			httpClient,
+			baseURL+AdminServiceApproveConnectionProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ApproveConnection")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	startSignIn    *connect.Client[v1.AdminStartSignInRequest, v1.AdminStartSignInResponse]
-	completeSignIn *connect.Client[v1.AdminCompleteSignInRequest, v1.AdminCompleteSignInResponse]
-	signOut        *connect.Client[v1.AdminSignOutRequest, v1.AdminSignOutResponse]
-	whoAmI         *connect.Client[v1.WhoAmIRequest, v1.WhoAmIResponse]
+	startSignIn        *connect.Client[v1.AdminStartSignInRequest, v1.AdminStartSignInResponse]
+	completeSignIn     *connect.Client[v1.AdminCompleteSignInRequest, v1.AdminCompleteSignInResponse]
+	signOut            *connect.Client[v1.AdminSignOutRequest, v1.AdminSignOutResponse]
+	whoAmI             *connect.Client[v1.WhoAmIRequest, v1.WhoAmIResponse]
+	describeConnection *connect.Client[v1.DescribeConnectionRequest, v1.DescribeConnectionResponse]
+	approveConnection  *connect.Client[v1.ApproveConnectionRequest, v1.ApproveConnectionResponse]
 }
 
 // StartSignIn calls auth.v1.AdminService.StartSignIn.
@@ -121,6 +149,16 @@ func (c *adminServiceClient) WhoAmI(ctx context.Context, req *connect.Request[v1
 	return c.whoAmI.CallUnary(ctx, req)
 }
 
+// DescribeConnection calls auth.v1.AdminService.DescribeConnection.
+func (c *adminServiceClient) DescribeConnection(ctx context.Context, req *connect.Request[v1.DescribeConnectionRequest]) (*connect.Response[v1.DescribeConnectionResponse], error) {
+	return c.describeConnection.CallUnary(ctx, req)
+}
+
+// ApproveConnection calls auth.v1.AdminService.ApproveConnection.
+func (c *adminServiceClient) ApproveConnection(ctx context.Context, req *connect.Request[v1.ApproveConnectionRequest]) (*connect.Response[v1.ApproveConnectionResponse], error) {
+	return c.approveConnection.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the auth.v1.AdminService service.
 type AdminServiceHandler interface {
 	StartSignIn(context.Context, *connect.Request[v1.AdminStartSignInRequest]) (*connect.Response[v1.AdminStartSignInResponse], error)
@@ -129,6 +167,13 @@ type AdminServiceHandler interface {
 	SignOut(context.Context, *connect.Request[v1.AdminSignOutRequest]) (*connect.Response[v1.AdminSignOutResponse], error)
 	// The account the cookie names, when it operates: the admin page's own. Unauthenticated with no cookie.
 	WhoAmI(context.Context, *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error)
+	// The admin page's half of connecting an app such as Claude over OAuth: what asks to operate as the caller, read
+	// from the request the authorization endpoint sent the browser to the page with. FailedPrecondition for a request
+	// past its time, InvalidArgument for one this server did not seal.
+	DescribeConnection(context.Context, *connect.Request[v1.DescribeConnectionRequest]) (*connect.Response[v1.DescribeConnectionResponse], error)
+	// The operator lets the app in: where to send the browser back, with an authorization code the app trades for its
+	// tokens. Only the page's session makes this call, and the code is for the account of that session.
+	ApproveConnection(context.Context, *connect.Request[v1.ApproveConnectionRequest]) (*connect.Response[v1.ApproveConnectionResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -162,6 +207,19 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("WhoAmI")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceDescribeConnectionHandler := connect.NewUnaryHandler(
+		AdminServiceDescribeConnectionProcedure,
+		svc.DescribeConnection,
+		connect.WithSchema(adminServiceMethods.ByName("DescribeConnection")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminServiceApproveConnectionHandler := connect.NewUnaryHandler(
+		AdminServiceApproveConnectionProcedure,
+		svc.ApproveConnection,
+		connect.WithSchema(adminServiceMethods.ByName("ApproveConnection")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceStartSignInProcedure:
@@ -172,6 +230,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceSignOutHandler.ServeHTTP(w, r)
 		case AdminServiceWhoAmIProcedure:
 			adminServiceWhoAmIHandler.ServeHTTP(w, r)
+		case AdminServiceDescribeConnectionProcedure:
+			adminServiceDescribeConnectionHandler.ServeHTTP(w, r)
+		case AdminServiceApproveConnectionProcedure:
+			adminServiceApproveConnectionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -195,4 +257,12 @@ func (UnimplementedAdminServiceHandler) SignOut(context.Context, *connect.Reques
 
 func (UnimplementedAdminServiceHandler) WhoAmI(context.Context, *connect.Request[v1.WhoAmIRequest]) (*connect.Response[v1.WhoAmIResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AdminService.WhoAmI is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) DescribeConnection(context.Context, *connect.Request[v1.DescribeConnectionRequest]) (*connect.Response[v1.DescribeConnectionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AdminService.DescribeConnection is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ApproveConnection(context.Context, *connect.Request[v1.ApproveConnectionRequest]) (*connect.Response[v1.ApproveConnectionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AdminService.ApproveConnection is not implemented"))
 }
