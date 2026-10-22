@@ -39,15 +39,22 @@ type Props struct {
 	Closers CloserRegistrar
 
 	AdminRPC RPCRegistrar
+	// Served on the admin listener alone, beside the admin services and outside the gate's middlewares.
+	AdminHTTP AdminHTTPRegistrar
+	Admin     Dialer
 
 	InternalRPC RPCRegistrar
-	Internal    InternalDialer
+	Internal    Dialer
 
 	Events EventBus
 }
 
-type InternalDialer interface {
+type Dialer interface {
 	Dial() (connect.HTTPClient, string, error)
+}
+
+type AdminHTTPRegistrar interface {
+	Handle(pattern string, handler http.Handler) error
 }
 
 type RPCRegistrar interface {
@@ -200,11 +207,12 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	routes := newRPCRoutes(errorNet, drainNet)
 	adminRoutes := newRPCRoutes(errorNet, drainNet)
 	internalRoutes := newRPCRoutes(errorNet, drainNet)
+	adminHTTP := &adminHandlers{}
 	runners := newRunnerRegistry()
 	closers := newCloserRegistry()
 	events := newEventBus(metrics)
 
-	registrars := registrars{routes: routes, admin: adminRoutes, internal: internalRoutes, events: events}
+	registrars := registrars{routes: routes, admin: adminRoutes, adminHTTP: adminHTTP, internal: internalRoutes, events: events}
 	if err := buildModules(ctx, options, metrics, registrars, runners, closers); err != nil {
 		return err
 	}
@@ -219,7 +227,7 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	))
 	mountMetrics(router, metrics, options.Logger)
 
-	sides, err := listenSides(options, listen, adminRoutes, internalRoutes)
+	sides, err := listenSides(options, listen, adminRoutes, adminHTTP, internalRoutes)
 	if err != nil {
 		return err
 	}
@@ -233,13 +241,13 @@ func run(ctx context.Context, options Options, listen listenFunc) error {
 	return serve(ctx, options, public, router, sides, drain, runners, closers)
 }
 
-func listenSides(options Options, listen listenFunc, adminRoutes, internalRoutes *rpcRoutes) ([]*sideServer, error) {
+func listenSides(options Options, listen listenFunc, adminRoutes *rpcRoutes, adminHTTP *adminHandlers, internalRoutes *rpcRoutes) ([]*sideServer, error) {
 	opens := []func() (*sideServer, error){
 		func() (*sideServer, error) {
 			return listenLoopback(options, listen, "console", "consoleBindAddress", options.Server.ConsoleBindAddress, adminRoutes)
 		},
 		func() (*sideServer, error) {
-			return listenAdmin(options, listen, adminRoutes)
+			return listenAdmin(options, listen, adminRoutes, adminHTTP)
 		},
 		func() (*sideServer, error) {
 			return listenLoopback(options, listen, "internal", "internalBindAddress", options.Server.InternalBindAddress, internalRoutes)
@@ -268,10 +276,11 @@ func closeSides(sides []*sideServer) {
 }
 
 type registrars struct {
-	routes   *rpcRoutes
-	admin    *rpcRoutes
-	internal *rpcRoutes
-	events   *eventBus
+	routes    *rpcRoutes
+	admin     *rpcRoutes
+	adminHTTP *adminHandlers
+	internal  *rpcRoutes
+	events    *eventBus
 }
 
 func buildModules(
@@ -299,6 +308,8 @@ func buildModules(
 			Server:      options.Server,
 			RPC:         registrars.routes.forModule(module.Name),
 			AdminRPC:    registrars.admin.forModule(module.Name),
+			AdminHTTP:   registrars.adminHTTP.forModule(module.Name),
+			Admin:       adminDialer{address: options.Server.AdminBindAddress},
 			InternalRPC: registrars.internal.forModule(module.Name),
 			Internal:    internalDialer{address: options.Server.InternalBindAddress},
 			Events:      registrars.events,
