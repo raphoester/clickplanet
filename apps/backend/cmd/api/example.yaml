@@ -313,6 +313,11 @@ auth:
     origin: ""
     redirectUrl: http://localhost:5174/auth/callback
     sessionTTL: 12h
+  # Claude as a custom connector, with an admin page: the issuer is where the admin listener is reached
+  # (http://localhost:8083). redirectUris defaults to Claude's callbacks.
+  connector:
+    enabled: false
+    issuer: ""
   enforce: false
   secret: ""
   ttl: 1h
@@ -425,3 +430,9 @@ support:
       name: clickplanet-support
       accessKeyId: ""
       secretAccessKey: ""
+
+# The connector's MCP endpoint, on the admin listener: every admin method is a tool. The url's origin is the
+# authorization server's, so auth.connector.issuer must be that origin (http://localhost:8083/mcp).
+mcp:
+  enabled: false
+  url: ""
