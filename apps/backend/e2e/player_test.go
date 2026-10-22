@@ -22,6 +22,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
+	"github.com/raphoester/clickplanet.lol-backend/internal/mcp"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
 	"github.com/raphoester/clickplanet.lol-backend/internal/seasons"
@@ -69,6 +70,8 @@ func startGameWith(t *testing.T, adjust func(*support.Config)) gameStack {
 	}
 	authConfig.RateLimiter.PerSecond = 100
 	authConfig.RateLimiter.Burst = 100
+	authConfig.Admin.Origin = adminOrigin
+	authConfig.Connector = auth.ConnectorConfig{Enabled: true, Issuer: "http://" + server.AdminBindAddress}
 
 	planetConfig := planet.Config{Database: postgres.ConfigFor("planet")}
 	planetConfig.GameMap.MaxIndex = mapTiles
@@ -111,6 +114,7 @@ func startGameWith(t *testing.T, adjust func(*support.Config)) gameStack {
 			Modules: []cpbootstrap.Module{
 				authModule, planet.NewModule(planetConfig), player.NewModule(playerConfig), chat.NewModule(chatConfig),
 				seasons.NewModule(seasonsConfig), support.NewModule(supportConfig),
+				mcp.NewModule(mcp.Config{Enabled: true, URL: "http://" + server.AdminBindAddress + "/mcp"}),
 			},
 			AdminGate: gate,
 		}, public, internal, console, admin)
