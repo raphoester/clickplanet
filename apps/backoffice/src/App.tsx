@@ -2,6 +2,8 @@ import {ReactNode, useCallback, useState} from "react"
 import {authAdmin} from "./api.ts"
 import {CLIENTS} from "./clients.ts"
 import {FailureNotice} from "./components/FailureNotice.tsx"
+import {ConnectPage} from "./connect/ConnectPage.tsx"
+import {clearPending, pendingRequest} from "./connect/pending.ts"
 import {Menu} from "./components/Menu.tsx"
 import {PaintPanel} from "./map/PaintPanel.tsx"
 import {ReassignPanel} from "./map/ReassignPanel.tsx"
@@ -32,6 +34,16 @@ const whoAmI = (signal: AbortSignal) => authAdmin.whoAmI({}, {signal}).then(answ
 
 function Operator() {
     const [operator, again] = useCall(whoAmI)
+    const [request, setRequest] = useState(pendingRequest)
+    const dismiss = useCallback(() => {
+        clearPending()
+        setRequest(undefined)
+    }, [])
+    // Back to the app, whatever the operator said: nothing of the request is left for this tab.
+    const leave = useCallback((url: string) => {
+        clearPending()
+        window.location.assign(url)
+    }, [])
 
     switch (operator.state) {
         case "loading":
@@ -39,6 +51,13 @@ function Operator() {
         case "failed":
             return <Page header={null}><FailureNotice failure={operator} onRetry={again}/></Page>
         case "done":
+            if (request !== undefined) {
+                return (
+                    <Page header={<code className="mono muted" title="Your account">{operator.value}</code>}>
+                        <ConnectPage request={request} auth={authAdmin} leave={leave} onDismiss={dismiss}/>
+                    </Page>
+                )
+            }
             return <Console operator={operator.value} onSignedOut={again}/>
     }
 }

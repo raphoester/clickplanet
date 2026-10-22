@@ -853,3 +853,17 @@ textarea {
 form.panel > .button {
     justify-self: start;
 }
+
+.connect {
+    max-width: 36em;
+}
+
+.connect p {
+    margin: 0;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
