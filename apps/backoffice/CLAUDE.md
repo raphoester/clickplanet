@@ -115,9 +115,10 @@ the page picked.
 page counts, charts and draws on its own side, so a new view of the game needs no new endpoint. It reads, each
 failing alone:
 
-- `planet.v1.AdminService/GetLedger` for the span: every change the live stream showed, and who made it, in columns
-  (the backend's `CLAUDE.md`, "GetLedger"). It is asked for whole slots back from now (`windowOf`): the last one
-  starts on the step before now, and is still filling. `LONG_CALL_MS`: three days is a few MB.
+- `planet.v1.AdminService/GetLedger` for the span: every change the live stream showed, as the `TileUpdate` it sent,
+  with when and who (the backend's `CLAUDE.md`, "GetLedger"). It is asked for whole slots back from now
+  (`windowOf`): the last one starts on the step before now, and is still filling. `LONG_CALL_MS`: three days is a
+  few MB compressed.
 - `GetTerritories` and `GetAudience` for the map now: the tiles each country holds, and the map streams open.
 - `player.v1.AdminService/GetRoster` for who plays now.
 - `ListReports` (open only) and `ListNotes` (the last 24 hours) for what waits for the operator. Up to 500 of each

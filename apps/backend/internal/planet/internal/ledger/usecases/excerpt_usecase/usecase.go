@@ -9,7 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// The ledger keeps 72 hours in memory, and the wire times a change in milliseconds of a uint32 after since.
+// The ledger keeps 72 hours in memory.
 const longest = 72 * time.Hour
 
 var ErrInvalidWindow = errors.New("an excerpt needs a since before its until, at most 72 hours apart")

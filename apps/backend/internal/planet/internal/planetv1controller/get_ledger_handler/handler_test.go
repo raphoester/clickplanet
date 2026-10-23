@@ -51,7 +51,7 @@ func TestAnInvalidWindowIsTheCallersMistake(t *testing.T) {
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
-func TestEveryChangeGoesOutInColumnsWithItsStringsOnceEach(t *testing.T) {
+func TestEveryChangeGoesOutAsTheStreamSentItWithWhenAndWho(t *testing.T) {
 	useCase := &stubUseCase{out: excerpt_usecase.Out{
 		Since: at,
 		Until: at.Add(time.Hour),
@@ -76,18 +76,24 @@ func TestEveryChangeGoesOutInColumnsWithItsStringsOnceEach(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, proto.Equal(&planetv1.GetLedgerResponse{
-		Since:     timestamppb.New(at),
-		Until:     timestamppb.New(at.Add(time.Hour)),
-		Countries: []string{"", "fr", "de"},
-		Accounts:  []string{"", "acc"},
-		Scopes:    []string{"", "203.0.113.7"},
-		At:        []uint32{1500, 60_000, 120_000},
-		Tile:      []uint32{7, 8, 7},
-		Owner:     []uint32{1, 2, 1},
-		Previous:  []uint32{0, 1, 1},
-		Shields:   []uint32{0, 0, 2},
-		Clicked:   []byte{1, 0, 1},
-		Account:   []uint32{0, 1, 1},
-		Scope:     []uint32{1, 0, 0},
+		Since: timestamppb.New(at),
+		Until: timestamppb.New(at.Add(time.Hour)),
+		Changes: []*planetv1.LedgerChange{
+			{
+				At:     timestamppb.New(at.Add(1500 * time.Millisecond)),
+				Update: &planetv1.TileUpdate{TileId: 7, CountryId: "fr", Clicked: true},
+				Scope:  "203.0.113.7",
+			},
+			{
+				At:        timestamppb.New(at.Add(time.Minute)),
+				Update:    &planetv1.TileUpdate{TileId: 8, CountryId: "de", PreviousCountryId: "fr"},
+				AccountId: "acc",
+			},
+			{
+				At:        timestamppb.New(at.Add(2 * time.Minute)),
+				Update:    &planetv1.TileUpdate{TileId: 7, CountryId: "fr", PreviousCountryId: "fr", Clicked: true, Shields: 2},
+				AccountId: "acc",
+			},
+		},
 	}, res.Msg), res.Msg.String())
 }

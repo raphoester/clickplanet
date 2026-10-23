@@ -5,7 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { ChargesHeld, GetMapResponse, PlanetEvent } from "./planet_pb.js";
+import { ChargesHeld, GetMapResponse, PlanetEvent, TileUpdate } from "./planet_pb.js";
 
 /**
  * @generated from message planet.v1.GetLedgerRequest
@@ -53,10 +53,6 @@ export class GetLedgerRequest extends Message<GetLedgerRequest> {
 }
 
 /**
- * One change per index of every column, oldest first: a click that took a tile or struck its shield, a tile a spread,
- * an enclosure or a bomb took or emptied, or a shield placed or raised. A shield a bomb struck is left out: it changed
- * no hands.
- *
  * @generated from message planet.v1.GetLedgerResponse
  */
 export class GetLedgerResponse extends Message<GetLedgerResponse> {
@@ -71,71 +67,12 @@ export class GetLedgerResponse extends Message<GetLedgerResponse> {
   until?: Timestamp;
 
   /**
-   * The strings the columns index. Index 0 of each is "": no flag, no account, no address.
+   * Oldest first: a click that took a tile or struck its shield, a tile a spread, an enclosure or a bomb took or
+   * emptied, a shield placed or raised. A shield a bomb struck is left out: it changed no hands.
    *
-   * @generated from field: repeated string countries = 3;
+   * @generated from field: repeated planet.v1.LedgerChange changes = 3;
    */
-  countries: string[] = [];
-
-  /**
-   * @generated from field: repeated string accounts = 4;
-   */
-  accounts: string[] = [];
-
-  /**
-   * @generated from field: repeated string scopes = 5;
-   */
-  scopes: string[] = [];
-
-  /**
-   * Milliseconds after since.
-   *
-   * @generated from field: repeated uint32 at = 6;
-   */
-  at: number[] = [];
-
-  /**
-   * @generated from field: repeated uint32 tile = 7;
-   */
-  tile: number[] = [];
-
-  /**
-   * The tile's flag after the change and before it, as indexes of countries.
-   *
-   * @generated from field: repeated uint32 owner = 8;
-   */
-  owner: number[] = [];
-
-  /**
-   * @generated from field: repeated uint32 previous = 9;
-   */
-  previous: number[] = [];
-
-  /**
-   * The tile's shields after the change.
-   *
-   * @generated from field: repeated uint32 shields = 10;
-   */
-  shields: number[] = [];
-
-  /**
-   * One byte a change: 1 for the tile a click named.
-   *
-   * @generated from field: bytes clicked = 11;
-   */
-  clicked = new Uint8Array(0);
-
-  /**
-   * Who made it: its account, or for a change with no account its address, as indexes of accounts and scopes.
-   *
-   * @generated from field: repeated uint32 account = 12;
-   */
-  account: number[] = [];
-
-  /**
-   * @generated from field: repeated uint32 scope = 13;
-   */
-  scope: number[] = [];
+  changes: LedgerChange[] = [];
 
   constructor(data?: PartialMessage<GetLedgerResponse>) {
     super();
@@ -147,17 +84,7 @@ export class GetLedgerResponse extends Message<GetLedgerResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "since", kind: "message", T: Timestamp },
     { no: 2, name: "until", kind: "message", T: Timestamp },
-    { no: 3, name: "countries", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 4, name: "accounts", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 5, name: "scopes", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 6, name: "at", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
-    { no: 7, name: "tile", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
-    { no: 8, name: "owner", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
-    { no: 9, name: "previous", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
-    { no: 10, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
-    { no: 11, name: "clicked", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
-    { no: 12, name: "account", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
-    { no: 13, name: "scope", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 3, name: "changes", kind: "message", T: LedgerChange, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLedgerResponse {
@@ -174,6 +101,65 @@ export class GetLedgerResponse extends Message<GetLedgerResponse> {
 
   static equals(a: GetLedgerResponse | PlainMessage<GetLedgerResponse> | undefined, b: GetLedgerResponse | PlainMessage<GetLedgerResponse> | undefined): boolean {
     return proto3.util.equals(GetLedgerResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.LedgerChange
+ */
+export class LedgerChange extends Message<LedgerChange> {
+  /**
+   * @generated from field: google.protobuf.Timestamp at = 1;
+   */
+  at?: Timestamp;
+
+  /**
+   * As the live stream sent it.
+   *
+   * @generated from field: planet.v1.TileUpdate update = 2;
+   */
+  update?: TileUpdate;
+
+  /**
+   * Who made it: its account, or for a change with no account its address.
+   *
+   * @generated from field: string account_id = 3;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string scope = 4;
+   */
+  scope = "";
+
+  constructor(data?: PartialMessage<LedgerChange>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.LedgerChange";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "at", kind: "message", T: Timestamp },
+    { no: 2, name: "update", kind: "message", T: TileUpdate },
+    { no: 3, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LedgerChange {
+    return new LedgerChange().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LedgerChange {
+    return new LedgerChange().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LedgerChange {
+    return new LedgerChange().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: LedgerChange | PlainMessage<LedgerChange> | undefined, b: LedgerChange | PlainMessage<LedgerChange> | undefined): boolean {
+    return proto3.util.equals(LedgerChange, a, b);
   }
 }
 

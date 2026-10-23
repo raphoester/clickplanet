@@ -3472,10 +3472,10 @@ stream sent it. The frontend's clip generator plays it back (see its CLAUDE.md, 
   - **Who** is the account, or for a change with no account its address, as every operator tool names a player.
     It names addresses, so it is an operator's read only: never the replay, which goes into the clips' public
     artifacts and names nobody.
-  - **In columns**, each string once: the countries, accounts and addresses are tables, and each change is an index
-    of every column (its time in milliseconds after `since`, its tile, its flag after and before, its shields, a
-    byte for `clicked`, and who). About 35 bytes a change in JSON before Caddy compresses it: a day of production,
-    about 50,000 changes, is under 2 MB.
+  - **Each change is a `LedgerChange`**: when, the `TileUpdate` as the live stream sent it, and who. Plain messages
+    rather than columns of indexes, on purpose: the contract reads as what it is. Measured with production's volume
+    (about 50,000 changes a day): 8 MB of JSON a day but 0.9 MB once Caddy compresses it, the same as columns or
+    binary protobuf would send, decoded in about 100 ms in the browser (300 ms for 72 hours).
   - **A window of 72 hours at most**, the ledger's memory, and `since` before `until` (unset: now); anything else is
     `InvalidArgument` (`excerpt_usecase.ErrInvalidWindow`). It reads memory, changes nothing and logs nothing.
 - **`GetTerritories`** is the internal service's, handler and all: the tiles each country holds now, and the map's

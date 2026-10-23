@@ -22,6 +22,7 @@ import {
     GetLedgerRequest,
     GetLedgerResponse,
     GetReplayRequest,
+    LedgerChange,
     GetReplayResponse,
     GrantChargesRequest,
     GrantChargesResponse,
@@ -40,7 +41,7 @@ import {
     UnbanPlayerResponse,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
-import {ChargesHeld} from "./gen/grpc/planet/v1/planet_pb.ts"
+import {ChargesHeld, TileUpdate} from "./gen/grpc/planet/v1/planet_pb.ts"
 import {
     AdminGetPlayerRequest,
     AdminGetPlayerResponse,
@@ -68,6 +69,14 @@ import {ChatAdmin, Clients, PlanetAdmin, PlayerAdmin, SupportAdmin} from "./clie
 export const AT = new Date("2026-10-18T12:00:00Z")
 
 export const ACCOUNT = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
+
+// A change of the fake ledger, its minutes after the ledger's since.
+function change(minutes: number, accountId: string, scope: string, update: PartialMessage<TileUpdate>): LedgerChange {
+    return new LedgerChange({
+        at: Timestamp.fromDate(new Date(AT.getTime() - 3600_000 + minutes * 60_000)),
+        update: new TileUpdate(update), accountId, scope,
+    })
+}
 
 // What each fake was asked, and a refusal to answer with instead, by method.
 export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin {
@@ -131,17 +140,13 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     ledger = new GetLedgerResponse({
         since: Timestamp.fromDate(new Date(AT.getTime() - 3600_000)),
         until: Timestamp.fromDate(AT),
-        countries: ["", "fr", "dz"],
-        accounts: ["", ACCOUNT],
-        scopes: ["", "203.0.113.7"],
-        at: [60_000, 120_000, 180_000, 240_000, 300_000],
-        tile: [1, 2, 2, 3, 4],
-        owner: [1, 1, 2, 2, 1],
-        previous: [0, 2, 1, 2, 2],
-        shields: [0, 0, 0, 2, 0],
-        clicked: new Uint8Array([1, 1, 0, 1, 1]),
-        account: [1, 1, 0, 1, 1],
-        scope: [0, 0, 1, 0, 0],
+        changes: [
+            change(1, ACCOUNT, "", {tileId: 1, countryId: "fr", clicked: true}),
+            change(2, ACCOUNT, "", {tileId: 2, countryId: "fr", previousCountryId: "dz", clicked: true}),
+            change(3, "", "203.0.113.7", {tileId: 2, countryId: "dz", previousCountryId: "fr"}),
+            change(4, ACCOUNT, "", {tileId: 3, countryId: "dz", previousCountryId: "dz", clicked: true, shields: 2}),
+            change(5, ACCOUNT, "", {tileId: 4, countryId: "fr", previousCountryId: "dz", clicked: true}),
+        ],
     })
     territories = new GetTerritoriesResponse({
         tiles: 262119,

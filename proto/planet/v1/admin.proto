@@ -45,30 +45,21 @@ message GetLedgerRequest {
   google.protobuf.Timestamp until = 2;
 }
 
-// One change per index of every column, oldest first: a click that took a tile or struck its shield, a tile a spread,
-// an enclosure or a bomb took or emptied, or a shield placed or raised. A shield a bomb struck is left out: it changed
-// no hands.
 message GetLedgerResponse {
   google.protobuf.Timestamp since = 1;
   google.protobuf.Timestamp until = 2;
-  // The strings the columns index. Index 0 of each is "": no flag, no account, no address.
-  repeated string countries = 3;
-  repeated string accounts = 4;
-  repeated string scopes = 5;
+  // Oldest first: a click that took a tile or struck its shield, a tile a spread, an enclosure or a bomb took or
+  // emptied, a shield placed or raised. A shield a bomb struck is left out: it changed no hands.
+  repeated LedgerChange changes = 3;
+}
 
-  // Milliseconds after since.
-  repeated uint32 at = 6;
-  repeated uint32 tile = 7;
-  // The tile's flag after the change and before it, as indexes of countries.
-  repeated uint32 owner = 8;
-  repeated uint32 previous = 9;
-  // The tile's shields after the change.
-  repeated uint32 shields = 10;
-  // One byte a change: 1 for the tile a click named.
-  bytes clicked = 11;
-  // Who made it: its account, or for a change with no account its address, as indexes of accounts and scopes.
-  repeated uint32 account = 12;
-  repeated uint32 scope = 13;
+message LedgerChange {
+  google.protobuf.Timestamp at = 1;
+  // As the live stream sent it.
+  TileUpdate update = 2;
+  // Who made it: its account, or for a change with no account its address.
+  string account_id = 3;
+  string scope = 4;
 }
 
 message GetAudienceRequest {}
